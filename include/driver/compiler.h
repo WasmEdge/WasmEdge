@@ -49,6 +49,7 @@ struct DriverCompilerOptions {
             PO::Description("Disable Bulk memory operations proposal"sv)),
         PropRefTypes(PO::Description("Disable Reference types proposal"sv)),
         PropSIMD(PO::Description("Disable SIMD proposal"sv)),
+        PropRelaxedSIMD(PO::Description("Enable Relaxed SIMD proposal"sv)),
         PropMultiMem(PO::Description("Enable Multiple memories proposal"sv)),
         PropTailCall(PO::Description("Enable Tail-call proposal"sv)),
         PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
@@ -76,6 +77,7 @@ struct DriverCompilerOptions {
   PO::Option<PO::Toggle> PropBulkMemOps;
   PO::Option<PO::Toggle> PropRefTypes;
   PO::Option<PO::Toggle> PropSIMD;
+  PO::Option<PO::Toggle> PropRelaxedSIMD;
   PO::Option<PO::Toggle> PropMultiMem;
   PO::Option<PO::Toggle> PropTailCall;
   PO::Option<PO::Toggle> PropExtendConst;

@@ -1825,6 +1825,112 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::F64x2__nearest:
       return runVectorNearestOp<double>(StackMgr.getTop());
 
+    // Relaxed SIMD
+    case OpCode::I8x16__relaxed_swizzle: {
+      const ValVariant Val2 = StackMgr.pop();
+      ValVariant &Val1 = StackMgr.getTop();
+      const uint8x16_t &Index = Val2.get<uint8x16_t>();
+      uint8x16_t &Vector = Val1.get<uint8x16_t>();
+      uint8x16_t Result{};
+      for (size_t I = 0; I < 16; ++I) {
+        const uint8_t SwizzleIndex = Index[I];
+        if (SwizzleIndex < 16) {
+          Result[I] = Vector[SwizzleIndex];
+        } else {
+          Result[I] = 0;
+        }
+      }
+      Vector = Result;
+      return {};
+    }
+    case OpCode::I32x4__relaxed_trunc_f32x4_s:
+      return runVectorTruncSatOp<float, int32_t>(StackMgr.getTop());
+    case OpCode::I32x4__relaxed_trunc_f32x4_u:
+      return runVectorTruncSatOp<float, uint32_t>(StackMgr.getTop());
+    case OpCode::I32x4__relaxed_trunc_f64x2_s_zero:
+      return runVectorTruncSatOp<double, int32_t>(StackMgr.getTop());
+    case OpCode::I32x4__relaxed_trunc_f64x2_u_zero:
+      return runVectorTruncSatOp<double, uint32_t>(StackMgr.getTop());
+    case OpCode::F32x4__relaxed_madd: {
+      const ValVariant Val3 = StackMgr.pop();
+      const ValVariant Val2 = StackMgr.pop();
+      runVectorMulOp<float>(StackMgr.getTop(), Val2);
+      return runVectorAddOp<float>(StackMgr.getTop(), Val3);
+    }
+    case OpCode::F32x4__relaxed_nmadd: {
+      const ValVariant Val3 = StackMgr.pop();
+      const ValVariant Val2 = StackMgr.pop();
+      runVectorNegOp<float>(StackMgr.getTop());
+      runVectorMulOp<float>(StackMgr.getTop(), Val2);
+      return runVectorAddOp<float>(StackMgr.getTop(), Val3);
+    }
+    case OpCode::F64x2__relaxed_madd: {
+      const ValVariant Val3 = StackMgr.pop();
+      const ValVariant Val2 = StackMgr.pop();
+      runVectorMulOp<double>(StackMgr.getTop(), Val2);
+      return runVectorAddOp<double>(StackMgr.getTop(), Val3);
+    }
+    case OpCode::F64x2__relaxed_nmadd: {
+      const ValVariant Val3 = StackMgr.pop();
+      const ValVariant Val2 = StackMgr.pop();
+      runVectorMulOp<double>(StackMgr.getTop(), Val2);
+      runVectorNegOp<double>(StackMgr.getTop());
+      return runVectorAddOp<double>(StackMgr.getTop(), Val3);
+    }
+    case OpCode::I8x16__relaxed_laneselect: {
+      const ValVariant Mask = StackMgr.pop();
+      const ValVariant Val2 = StackMgr.pop();
+      return runVectorRelaxedLaneselectOp<uint8_t>(StackMgr.getTop(), Val2,
+                                                   Mask);
+    }
+    case OpCode::I16x8__relaxed_laneselect: {
+      const ValVariant Mask = StackMgr.pop();
+      const ValVariant Val2 = StackMgr.pop();
+      return runVectorRelaxedLaneselectOp<uint16_t>(StackMgr.getTop(), Val2,
+                                                    Mask);
+    }
+    case OpCode::I32x4__relaxed_laneselect: {
+      const ValVariant Mask = StackMgr.pop();
+      const ValVariant Val2 = StackMgr.pop();
+      return runVectorRelaxedLaneselectOp<uint32_t>(StackMgr.getTop(), Val2,
+                                                    Mask);
+    }
+    case OpCode::I64x2__relaxed_laneselect: {
+      const ValVariant Mask = StackMgr.pop();
+      const ValVariant Val2 = StackMgr.pop();
+      return runVectorRelaxedLaneselectOp<uint64_t>(StackMgr.getTop(), Val2,
+                                                    Mask);
+    }
+    case OpCode::F32x4__relaxed_min: {
+      const ValVariant Val2 = StackMgr.pop();
+      return runVectorFMinOp<float>(StackMgr.getTop(), Val2);
+    }
+    case OpCode::F32x4__relaxed_max: {
+      const ValVariant Val2 = StackMgr.pop();
+      return runVectorFMaxOp<float>(StackMgr.getTop(), Val2);
+    }
+    case OpCode::F64x2__relaxed_min: {
+      const ValVariant Val2 = StackMgr.pop();
+      return runVectorFMinOp<double>(StackMgr.getTop(), Val2);
+    }
+    case OpCode::F64x2__relaxed_max: {
+      const ValVariant Val2 = StackMgr.pop();
+      return runVectorFMaxOp<double>(StackMgr.getTop(), Val2);
+    }
+    case OpCode::I16x8__relaxed_q15mulr_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorQ15MulSatOp(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I16x8__relaxed_dot_i8x16_i7x16_s: {
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorRelaxedIntegerDotProductOp(StackMgr.getTop(), Rhs);
+    }
+    case OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s: {
+      ValVariant C = StackMgr.pop();
+      ValVariant Rhs = StackMgr.pop();
+      return runVectorRelaxedIntegerDotProductOpAdd(StackMgr.getTop(), Rhs, C);
+    }
+
     // Threads instructions
     case OpCode::Atomic__fence:
       return runMemoryFenceOp();

@@ -78,10 +78,17 @@ message GetOutputResult {
   bytes data = 1; // defined as a tensor in wit
 }
 
+message FiniSingleRequest{
+  uint32 resource_handle = 1;
+}
+
 service GraphExecutionContextResource {
   rpc SetInput(SetInputRequest) returns (google.protobuf.Empty) {};
   rpc Compute(ComputeRequest) returns (google.protobuf.Empty) {};
+  rpc ComputeSingle(ComputeRequest) returns (google.protobuf.Empty) {};
   rpc GetOutput(GetOutputRequest) returns (GetOutputResult) {};
+  rpc GetOutputSingle(GetOutputRequest) returns (GetOutputResult) {};
+  rpc FiniSingle(FiniSingleRequest) returns (google.protobuf.Empty) {};
 }
 
 // ref:

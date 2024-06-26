@@ -1765,6 +1765,214 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
 
   delete NNMod;
 }
+
+TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
+  // wasi_nn_rpcserver has to be started outside this test,
+  // and the URI has to be set to $WASI_NN_RPC_TEST_URI.
+  // nn-preload has to be specified for "default".
+  /*
+    DIR=/tmp/build
+    export WASI_NN_RPC_TEST_URI=unix://${DIR}/wasi_nn_rpc.sock
+    export WASMEDGE_PLUGIN_PATH=${DIR}/plugins/wasi_nn
+    ${DIR}/tools/wasmedge/wasi_nn_rpcserver \
+      --nn-rpc-uri=$WASI_NN_RPC_TEST_URI \
+      --nn-preload=default:GGML:AUTO:${DIR}/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf
+  */
+  const auto NNRPCURI = ::getenv("WASI_NN_RPC_TEST_URI");
+  if (NNRPCURI == nullptr) {
+    GTEST_SKIP() << "WASI_NN_RPC_TEST_URI is unset";
+  }
+
+  // Create the wasmedge_process module instance.
+  auto *NNMod =
+      dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule(NNRPCURI));
+  EXPECT_FALSE(NNMod == nullptr);
+
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(60000)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::string Prompt = "Once upon a time, ";
+  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
+
+  std::vector<uint32_t> TensorDim{1};
+  uint32_t BuilderPtr = UINT32_C(0);
+  uint32_t LoadEntryPtr = UINT32_C(0);
+  uint32_t SetInputEntryPtr = UINT32_C(0);
+  uint32_t OutBoundPtr = UINT32_C(61000) * UINT32_C(65536);
+  uint32_t StorePtr = UINT32_C(65536);
+
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // Get the function "load_by_name".
+  auto FuncInst = NNMod->findFuncExports("load_by_name");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoadByName =
+      dynamic_cast<WasmEdge::Host::WasiNNLoadByName &>(FuncInst->getHostFunc());
+  // Get the function "load_by_name_with_config".
+  FuncInst = NNMod->findFuncExports("load_by_name_with_config");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoadByNameWithConfig =
+      dynamic_cast<WasmEdge::Host::WasiNNLoadByNameWithConfig &>(
+          FuncInst->getHostFunc());
+  // Get the function "init_execution_context".
+  FuncInst = NNMod->findFuncExports("init_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
+      FuncInst->getHostFunc());
+  // Get the function "set_input".
+  FuncInst = NNMod->findFuncExports("set_input");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSetInput =
+      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  // Get the function "get_output".
+  FuncInst = NNMod->findFuncExports("get_output_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutputSingle =
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutputSingle &>(
+          FuncInst->getHostFunc());
+  // Get the function "compute".
+  FuncInst = NNMod->findFuncExports("compute_single");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncComputeSingle =
+      dynamic_cast<WasmEdge::Host::WasiNNComputeSingle &>(
+          FuncInst->getHostFunc());
+
+  // Test: load_by_name -- load successfully.
+  {
+    std::string Name = "default";
+    std::vector<char> NameVec(Name.begin(), Name.end());
+    writeBinaries<char>(MemInst, NameVec, LoadEntryPtr);
+    EXPECT_TRUE(HostFuncLoadByName.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, static_cast<uint32_t>(NameVec.size()), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // Test: load_by_name_with_config -- load successfully.
+  {
+    std::string Name = "default";
+    std::string Config = "{}";
+    std::vector<char> NameVec(Name.begin(), Name.end());
+    std::vector<char> ConfigVec(Config.begin(), Config.end());
+    uint32_t ConfigPtr = LoadEntryPtr + NameVec.size();
+    writeBinaries<char>(MemInst, NameVec, LoadEntryPtr);
+    writeBinaries<char>(MemInst, ConfigVec, ConfigPtr);
+    EXPECT_TRUE(HostFuncLoadByNameWithConfig.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            LoadEntryPtr, static_cast<uint32_t>(NameVec.size()), ConfigPtr,
+            static_cast<uint32_t>(ConfigVec.size()), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // Test: init_execution_context -- init context successfully.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // GGML WASI-NN set_input tests.
+  SetInputEntryPtr = BuilderPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
+
+  // Test: set_input -- set input successfully.
+  BuilderPtr = SetInputEntryPtr;
+  writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
+                  BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
+                  static_cast<uint32_t>(TensorData.size()), BuilderPtr);
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  StorePtr += (TensorDim.size() * 4 + TensorData.size());
+
+  // GGML WASI-NN compute_single tests.
+  // Test: compute_single -- context id exceeds.
+  {
+    EXPECT_TRUE(HostFuncComputeSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: compute_single -- call compute_single once follow by a
+  // get_output_single.
+  {
+    // compute_single
+    EXPECT_TRUE(HostFuncComputeSingle.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    // get_output_single
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // GGML WASI-NN get_output_single tests.
+  // Test: get_output_single -- output bytes ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- output buffer ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutputSingle.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+}
 #endif // WASMEDGE_BUILD_WASI_NN_RPC
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 

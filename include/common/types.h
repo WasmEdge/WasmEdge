@@ -457,17 +457,28 @@ using ValVariant =
             RefVariant>;
 
 // Here are some high-level composited type, provided by component model
-struct ValComp {};
+struct ValComp {
+  virtual ~ValComp() {}
+};
 template <typename T> struct List : public ValComp {
-  List() : Content() {}
   List(std::initializer_list<T> As) : Content(As) {}
   List(std::vector<T> &&As) : Content(As) {}
+
+  Span<const T> collection() const noexcept { return Content; }
 
 private:
   std::vector<T> Content;
 };
 
-using ValInterface = std::variant<std::string, ValComp, ValVariant>;
+using ValInterface = std::variant<
+    // constant types in component types
+    bool, std::string,
+    // composition type like List, Record, Variant
+    //
+    // we need to copy them at many place, so we just use shared_ptr
+    std::shared_ptr<ValComp>,
+    // wasm values
+    ValVariant>;
 
 // <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -599,14 +610,19 @@ template <> inline ValType ValTypeFromType<double>() noexcept {
 template <typename T> struct Wit {
   static inline ValType type() noexcept { return ValTypeFromType<T>(); }
 };
+template <> struct Wit<bool> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::Bool);
+  }
+};
 template <> struct Wit<std::string> {
   static inline ValType type() noexcept {
     return InterfaceType(TypeCode::String);
   }
 };
-template <typename T> struct Wit<std::vector<T>> {
+template <typename T> struct Wit<List<T>> {
   static inline ValType type() noexcept {
-    return InterfaceType(TypeCode::List, Wit<T>::type());
+    return InterfaceType(TypeCode::List, {Wit<T>::type()});
   }
 };
 

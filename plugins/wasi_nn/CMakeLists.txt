@@ -133,11 +133,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${llama_SOURCE_DIR}/common
       ${llama_SOURCE_DIR}/examples/llava
     )
-    # Setup include and link from llama.cpp
-    target_include_directories(wasmedgePluginWasiNN PRIVATE
-      ${llama_SOURCE_DIR}
-      ${llama_SOURCE_DIR}examples/llava
-    )
     target_link_libraries(wasmedgePluginWasiNN PRIVATE
       common
       simdjson::simdjson

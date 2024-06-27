@@ -9,10 +9,6 @@
 namespace WasmEdge {
 namespace Host {
 
-using Pollable = uint32_t;
-
-bool isPollable(Pollable);
-
 class Drop : public WasiPoll<Drop> {
 public:
   Drop(WasiPollEnvironment &HostEnv) : WasiPoll(HostEnv) {}

@@ -8,20 +8,15 @@
 namespace WasmEdge {
 namespace Host {
 
-bool isPollable(Pollable) {
-  // TODO: use a global HashMap to note this
-  return false;
-}
-
-Expect<void> Drop::body(Pollable) {
-  // TODO: ensure this affect the global HashMap
+Expect<void> Drop::body(Pollable P) {
+  Env.dropPollable(P);
   return {};
 }
 
 Expect<List<bool>> PollOneoff::body(List<Pollable> In) {
   std::vector<bool> Res;
   for (auto P : In.collection()) {
-    Res.push_back(isPollable(P));
+    Res.push_back(Env.isPollable(P));
   }
   return List<bool>(std::move(Res));
 }

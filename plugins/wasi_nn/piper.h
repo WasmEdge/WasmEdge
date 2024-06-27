@@ -19,6 +19,7 @@ struct WasiNNEnvironment;
 }
 
 namespace WasmEdge::Host::WASINN::Piper {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 enum class RunConfigOutputType { OUTPUT_WAV, OUTPUT_RAW };
 struct RunConfig {
   // Path to .onnx voice file
@@ -76,6 +77,12 @@ struct Context {
   std::optional<std::string> Line;
   std::optional<std::vector<uint8_t>> Output;
 };
+#else
+struct Graph {};
+struct Context {
+  Context(size_t, Graph &) noexcept {}
+};
+#endif
 
 struct Environ {};
 

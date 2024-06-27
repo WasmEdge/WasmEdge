@@ -170,26 +170,19 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   elseif(BACKEND STREQUAL "piper")
     wasmedge_setup_simdjson()
 
-    # setup piper
     message(STATUS "Downloading piper source")
-    find_program(GIT_CMD git REQUIRED)
     include(FetchContent)
+    find_program(GIT_CMD git REQUIRED)
     FetchContent_Declare(
       piper
-      GIT_REPOSITORY  https://github.com/rhasspy/piper.git
-      GIT_TAG         38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
-      GIT_SHALLOW     FALSE
+      GIT_REPOSITORY https://github.com/rhasspy/piper.git
+      GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
+      UPDATE_DISCONNECTED TRUE
+      PATCH_COMMAND ${GIT_CMD} apply ${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch
     )
-    if(NOT piper_POPULATED)
-        FetchContent_Populate(piper)
-        find_program(GIT_CMD git REQUIRED)
-        execute_process(
-            COMMAND ${GIT_CMD} apply ${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch
-            WORKING_DIRECTORY ${piper_SOURCE_DIR}
-        )
-        add_subdirectory(${piper_SOURCE_DIR} ${piper_BINARY_DIR})
-    endif()
+    FetchContent_MakeAvailable(piper)
     set_property(TARGET piper PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_target_properties(test_piper PROPERTIES EXCLUDE_FROM_ALL TRUE)
     target_include_directories(wasmedgePluginWasiNN PRIVATE
       ${piper_SOURCE_DIR}/src/cpp
     )

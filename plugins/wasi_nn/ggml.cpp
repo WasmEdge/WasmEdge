@@ -24,7 +24,7 @@ namespace {
 
 void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
                       void *UserData) {
-  Graph GraphRef = *static_cast<Graph *>(UserData);
+  Graph &GraphRef = *reinterpret_cast<Graph *>(UserData);
   if (!GraphRef.EnableLog) {
     return;
   }

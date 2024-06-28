@@ -25,11 +25,11 @@ Expect<void> Executor::runVectorEqOp(ValVariant &Val1,
   const VT &V2 = Val2.get<VT>();
 
   int64_t IAllOnes = INT64_C(-1);
-  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+  const T AllOnes = reinterpret_cast<T &>(IAllOnes);
 
   // unrolling V1 = (V1 == V2);
   VT VOut;
-  for(size_t I = 0; I < V1.size(); I++) {
+  for (size_t I = 0; I < V1.size(); I++) {
     if (V1[I] == V2[I]) {
       // all ones
       VOut[I] = AllOnes;
@@ -51,11 +51,11 @@ Expect<void> Executor::runVectorNeOp(ValVariant &Val1,
   const VT &V2 = Val2.get<VT>();
 
   int64_t IAllOnes = INT64_C(-1);
-  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+  const T AllOnes = reinterpret_cast<T &>(IAllOnes);
 
   // unrolling V1 = (V1 != V2);
   VT VOut;
-  for(size_t I = 0; I < V1.size(); I++) {
+  for (size_t I = 0; I < V1.size(); I++) {
     if (V1[I] != V2[I]) {
       // all ones
       VOut[I] = AllOnes;
@@ -77,11 +77,11 @@ Expect<void> Executor::runVectorLtOp(ValVariant &Val1,
   const VT &V2 = Val2.get<VT>();
 
   int64_t IAllOnes = INT64_C(-1);
-  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+  const T AllOnes = reinterpret_cast<T &>(IAllOnes);
 
   // unrolling V1 = (V1 < V2);
   VT VOut;
-  for(size_t I = 0; I < V1.size(); I++) {
+  for (size_t I = 0; I < V1.size(); I++) {
     if (V1[I] < V2[I]) {
       // all ones
       VOut[I] = AllOnes;
@@ -103,11 +103,11 @@ Expect<void> Executor::runVectorGtOp(ValVariant &Val1,
   const VT &V2 = Val2.get<VT>();
 
   int64_t IAllOnes = INT64_C(-1);
-  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+  const T AllOnes = reinterpret_cast<T &>(IAllOnes);
 
   // unrolling V1 = (V1 > V2);
   VT VOut;
-  for(size_t I = 0; I < V1.size(); I++) {
+  for (size_t I = 0; I < V1.size(); I++) {
     if (V1[I] > V2[I]) {
       // all ones
       VOut[I] = AllOnes;
@@ -129,11 +129,11 @@ Expect<void> Executor::runVectorLeOp(ValVariant &Val1,
   const VT &V2 = Val2.get<VT>();
 
   int64_t IAllOnes = INT64_C(-1);
-  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+  const T AllOnes = reinterpret_cast<T &>(IAllOnes);
 
   // unrolling V1 = (V1 <= V2);
   VT VOut;
-  for(size_t I = 0; I < V1.size(); I++) {
+  for (size_t I = 0; I < V1.size(); I++) {
     if (V1[I] <= V2[I]) {
       // all ones
       VOut[I] = AllOnes;
@@ -155,11 +155,11 @@ Expect<void> Executor::runVectorGeOp(ValVariant &Val1,
   const VT &V2 = Val2.get<VT>();
 
   int64_t IAllOnes = INT64_C(-1);
-  const T AllOnes = reinterpret_cast<T&>(IAllOnes);
+  const T AllOnes = reinterpret_cast<T &>(IAllOnes);
 
   // unrolling V1 = (V1 >= V2);
   VT VOut;
-  for(size_t I = 0; I < V1.size(); I++) {
+  for (size_t I = 0; I < V1.size(); I++) {
     if (V1[I] >= V2[I]) {
       // all ones
       VOut[I] = AllOnes;
@@ -184,7 +184,7 @@ Expect<void> Executor::runVectorNarrowOp(ValVariant &Val1,
   VTOut Result;
   VTIn V1 = Val1.get<VTIn>();
   constexpr size_t HSize = V1.size();
-  for(size_t I = 0; I < HSize; ++I) {
+  for (size_t I = 0; I < HSize; ++I) {
     if (V1[I] > std::numeric_limits<TOut>::max()) {
       Result[I] = std::numeric_limits<TOut>::max();
     } else if (V1[I] < std::numeric_limits<TOut>::min()) {
@@ -194,7 +194,7 @@ Expect<void> Executor::runVectorNarrowOp(ValVariant &Val1,
     }
   }
   const VTIn &V2 = Val2.get<VTIn>();
-  for(size_t I = 0; I < HSize; ++I) {
+  for (size_t I = 0; I < HSize; ++I) {
     if (V2[I] > std::numeric_limits<TOut>::max()) {
       Result[HSize + I] = std::numeric_limits<TOut>::max();
     } else if (V2[I] < std::numeric_limits<TOut>::min()) {
@@ -214,7 +214,7 @@ Expect<void> Executor::runVectorShlOp(ValVariant &Val1,
   const uint32_t Mask = static_cast<uint32_t>(sizeof(T) * 8 - 1);
   const uint32_t Count = Val2.get<uint32_t>() & Mask;
   VT &V1 = Val1.get<VT>();
-  for(size_t I = 0; I < V1.size(); ++I) {
+  for (size_t I = 0; I < V1.size(); ++I) {
     V1[I] <<= Count;
   }
 
@@ -228,7 +228,7 @@ Expect<void> Executor::runVectorShrOp(ValVariant &Val1,
   const uint32_t Mask = static_cast<uint32_t>(sizeof(T) * 8 - 1);
   const uint32_t Count = Val2.get<uint32_t>() & Mask;
   VT &V1 = Val1.get<VT>();
-  for(size_t I = 0; I < V1.size(); ++I) {
+  for (size_t I = 0; I < V1.size(); ++I) {
     V1[I] >>= Count;
   }
 
@@ -265,7 +265,7 @@ Expect<void> Executor::runVectorAddSatOp(ValVariant &Val1,
         continue;
       }
     } else {
-      if (std::numeric_limits<T>::min() - V1[I] > V2[I] ) {
+      if (std::numeric_limits<T>::min() - V1[I] > V2[I]) {
         V1[I] = std::numeric_limits<T>::min();
         continue;
       }
@@ -459,7 +459,8 @@ Expect<void> Executor::runVectorExtMulHighOp(ValVariant &Val1,
   const VTIn &V2 = Val2.get<VTIn>();
   constexpr size_t HSize = Result.size();
   for (size_t I = 0; I < HSize; ++I) {
-    Result[I] = static_cast<TOut>(V1[HSize + I]) * static_cast<TOut>(V2[HSize + I]);
+    Result[I] =
+        static_cast<TOut>(V1[HSize + I]) * static_cast<TOut>(V2[HSize + I]);
   }
   Val1.emplace<VTOut>(Result);
   return {};
@@ -471,14 +472,78 @@ Executor::runVectorQ15MulSatOp(ValVariant &Val1, const ValVariant &Val2) const {
   const auto &V1 = Val1.get<int16x8_t>();
   const auto &V2 = Val2.get<int16x8_t>();
   int16x8_t VOut;
-  for(size_t I = 0; I < 8; I++) {
-    int32_t ER = (static_cast<int32_t>(V1[I]) * static_cast<int32_t>(V2[I]) + INT32_C(0x4000)) >> INT32_C(15);
+  for (size_t I = 0; I < 8; I++) {
+    int32_t ER = (static_cast<int32_t>(V1[I]) * static_cast<int32_t>(V2[I]) +
+                  INT32_C(0x4000)) >>
+                 INT32_C(15);
     if (ER > 0x7fff) {
       ER = 0x7fff;
     }
     VOut[I] = static_cast<int16_t>(ER);
   }
   Val1.emplace<int16x8_t>(VOut);
+  return {};
+}
+
+template <typename T>
+Expect<void>
+Executor::runVectorRelaxedLaneselectOp(ValVariant &Val1, const ValVariant &Val2,
+                                       const ValVariant &Mask) const {
+  using VT = SIMDArray<T, 16>;
+
+  VT &V1 = Val1.get<VT>();
+  const VT &V2 = Val2.get<VT>();
+  const VT &C = Mask.get<VT>();
+
+  for (size_t I = 0; I < V1.size(); ++I) {
+    V1[I] = (V1[I] & C[I]) | (V2[I] & ~C[I]);
+  }
+
+  return {};
+}
+
+inline Expect<void>
+Executor::runVectorRelaxedIntegerDotProductOp(ValVariant &Val1,
+                                              const ValVariant &Val2) const {
+  using int8x16_t = SIMDArray<int8_t, 16>;
+  using int16x8_t = SIMDArray<int16_t, 16>;
+
+  const int8x16_t &V1 = Val1.get<int8x16_t>();
+  const int8x16_t &V2 = Val2.get<int8x16_t>();
+
+  int16x8_t Result;
+  for (size_t I = 0; I < Result.size(); ++I) {
+    Result[I] =
+        static_cast<int16_t>(V1[I * 2]) * static_cast<int16_t>(V2[I * 2]) +
+        static_cast<int16_t>(V1[I * 2 + 1]) *
+            static_cast<int16_t>(V2[I * 2 + 1]);
+  }
+
+  Val1.emplace<int16x8_t>(Result);
+  return {};
+}
+
+inline Expect<void> Executor::runVectorRelaxedIntegerDotProductOpAdd(
+    ValVariant &Val1, const ValVariant &Val2, const ValVariant &C) const {
+  using int8x16_t = SIMDArray<int8_t, 16>;
+  using int16x8_t = SIMDArray<int16_t, 16>;
+  using int32x4_t = SIMDArray<int32_t, 16>;
+
+  const int8x16_t &V1 = Val1.get<int8x16_t>();
+  const int8x16_t &V2 = Val2.get<int8x16_t>();
+  const int32x4_t &VC = C.get<int32x4_t>();
+
+  int32x4_t Result{0, 0, 0, 0};
+
+  for (size_t I = 0; I < V1.size(); ++I) {
+    Result[I / 4] += static_cast<int16_t>(V1[I]) * static_cast<int16_t>(V2[I]);
+  }
+
+  for (size_t I = 0; I < VC.size(); ++I) {
+    Result[I] = Result[I] + VC[I];
+  }
+
+  Val1.emplace<int32x4_t>(Result);
   return {};
 }
 

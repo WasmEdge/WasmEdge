@@ -374,5 +374,66 @@ Executor::runVectorQ15MulSatOp(ValVariant &Val1, const ValVariant &Val2) const {
   return {};
 }
 
+template <typename T>
+Expect<void>
+Executor::runVectorRelaxedLaneselectOp(ValVariant &Val1, const ValVariant &Val2,
+                                       const ValVariant &Mask) const {
+  using VT [[gnu::vector_size(16)]] = T;
+
+  VT &V1 = Val1.get<VT>();
+  const VT &V2 = Val2.get<VT>();
+  const VT &C = Mask.get<VT>();
+
+  V1 = (V1 & C) | (V2 & ~C);
+  return {};
+}
+
+inline Expect<void>
+Executor::runVectorRelaxedIntegerDotProductOp(ValVariant &Val1,
+                                              const ValVariant &Val2) const {
+  using int16x8_t [[gnu::vector_size(16)]] = int16_t;
+
+  const int16x8_t &V1 = Val1.get<int16x8_t>();
+  const int16x8_t &V2 = Val2.get<int16x8_t>();
+  const int Size = 8;
+
+  const auto V1L = V1 >> Size;
+  const auto V1R = (V1 << Size) >> Size;
+  const auto V2L = V2 >> Size;
+  const auto V2R = (V2 << Size) >> Size;
+
+  Val1.emplace<int16x8_t>(V1L * V2L + V1R * V2R);
+  return {};
+}
+
+inline Expect<void> Executor::runVectorRelaxedIntegerDotProductOpAdd(
+    ValVariant &Val1, const ValVariant &Val2, const ValVariant &C) const {
+  using int16x8_t [[gnu::vector_size(16)]] = int16_t;
+  using int32x4_t [[gnu::vector_size(16)]] = int32_t;
+
+  const int16x8_t &V1 = Val1.get<int16x8_t>();
+  const int16x8_t &V2 = Val2.get<int16x8_t>();
+  const int Size = 8;
+  const int32x4_t &VC = C.get<int32x4_t>();
+
+  const auto V1L = V1 >> Size;
+  const auto V1R = (V1 << Size) >> Size;
+  const auto V2L = V2 >> Size;
+  const auto V2R = (V2 << Size) >> Size;
+
+  union VecConverter {
+    int16x8_t S16;
+    int32x4_t S32;
+  } IM;
+
+  IM.S16 = V1L * V2L + V1R * V2R;
+  const int IMSize = 16;
+  auto IML = IM.S32 >> IMSize;
+  auto IMR = (IM.S32 << IMSize) >> IMSize;
+
+  Val1.emplace<int32x4_t>(IML + IMR + VC);
+  return {};
+}
+
 } // namespace Executor
 } // namespace WasmEdge

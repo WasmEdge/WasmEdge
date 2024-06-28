@@ -32,7 +32,7 @@ RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
 ENV PKG_CONFIG_PATH /root/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
 ENV LD_LIBRARY_PATH /root/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
-ENV OPENVINO_VERSION "2023.0.2"
-ENV OPENVINO_YEAR "2023"
+ENV OPENVINO_VERSION "2024.2.0"
+ENV OPENVINO_YEAR "2024"
 
 RUN yum clean all

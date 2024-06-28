@@ -66,6 +66,10 @@ if(WASMEDGE_PLUGIN_WASI_OCR)
   add_subdirectory(wasi_ocr)
 endif()
 
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
+    add_subdirectory(wasmedge_stablediffusion)
+endif()
+
 if(WASMEDGE_PLUGIN_OPENCVMINI)
   # Only Linux and MacOS support wasmedge_opencvmini now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")

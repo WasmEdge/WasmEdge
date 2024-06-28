@@ -69,7 +69,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Bake and Push
-        uses: docker/bake-action@v4
+        uses: docker/bake-action@v5
         with:
           files: utils/docker/docker-bake.ci-image-base
           push: ${{ github.event_name != 'pull_request' }}
@@ -96,7 +96,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: "Rebuild wasmedge/wasmedge:ubuntu-base"
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./utils/docker
           file: utils/docker/Dockerfile.base
@@ -113,7 +113,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang"
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
@@ -131,7 +131,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc"
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
@@ -149,7 +149,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang-plugins-deps"
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-build-clang
           context: ./utils
@@ -167,7 +167,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc-plugins-deps"
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-build-gcc
           context: ./utils
@@ -185,7 +185,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:latest"
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: BASE=wasmedge/wasmedge:ubuntu-base
           context: ./utils/docker
@@ -256,7 +256,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: "Rebuild wasmedge/wasmedge:${{ matrix.docker_tag }}"
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: BASE=quay.io/pypa/${{ matrix.docker_tag }}
           context: ./utils/docker
@@ -274,7 +274,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: "Rebuild wasmedge/wasmedge:${{ matrix.docker_tag }}-plugins-deps"
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: BASE=wasmedge/wasmedge:${{ matrix.docker_tag }}
           context: ./utils

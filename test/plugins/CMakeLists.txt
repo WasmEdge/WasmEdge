@@ -53,6 +53,10 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
   endif()
 endif()
 
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
+  add_subdirectory(wasmedge_stablediffusion)
+endif()
+
 if(WASMEDGE_PLUGIN_WASI_LOGGING)
   add_subdirectory(wasi_logging)
 endif()

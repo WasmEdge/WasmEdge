@@ -539,7 +539,28 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
 Expect<std::vector<std::pair<ValInterface, ValType>>>
 VM::unsafeExecute(std::string_view Func, Span<const ValInterface> Params,
                   Span<const ValType> ParamTypes) {
-  if (ActiveCompInst) {
+  if (ActiveModInst) {
+    std::vector<const ValVariant> LowerParams;
+    for (auto const &P : Params) {
+      if (std::holds_alternative<ValVariant>(P)) {
+        LowerParams.push_back(std::move(std::get<ValVariant>(P)));
+      } else {
+        spdlog::error("module didn't accept the type you provided.");
+        spdlog::error(ErrInfo::InfoExecuting("", Func));
+        return Unexpect(ErrCode::Value::FuncSigMismatch);
+      }
+    }
+    Expect<std::vector<std::pair<ValVariant, ValType>>> Res =
+        unsafeExecute(ActiveModInst.get(), Func, LowerParams, ParamTypes);
+    if (!Res) {
+      return Unexpect(Res);
+    }
+    std::vector<std::pair<ValInterface, ValType>> R;
+    for (auto &&[V, T] : *Res) {
+      R.push_back(std::pair(std::move(V), std::move(T)));
+    }
+    return R;
+  } else if (ActiveCompInst) {
     return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);

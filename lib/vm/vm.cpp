@@ -556,8 +556,8 @@ VM::unsafeExecute(std::string_view Func, Span<const ValInterface> Params,
       return Unexpect(Res);
     }
     std::vector<std::pair<ValInterface, ValType>> R;
-    for (auto [V, T] : *Res) {
-      R.push_back(std::pair(V, T));
+    for (auto &&[V, T] : *Res) {
+      R.push_back(std::pair(std::move(V), std::move(T)));
     }
     return R;
   } else if (ActiveCompInst) {

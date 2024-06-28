@@ -12,6 +12,6 @@ INSTRUCTIONS AT OUR [SECURITY POLICY](../SECURITY.md).
 
 Security Contacts:
 
-* @hydai, hydai@secondstate.io
-* @ibmibmibm, beststeve@secondstate.io
-* @dm4, dm4@secondstate.io
+* [@hydai](https://github.com/hydai)
+* [@ibmibmibm](https://github.com/ibmibmibm)
+* [@dm4](https://github.com/dm4)

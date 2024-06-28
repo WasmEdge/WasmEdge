@@ -541,7 +541,7 @@ VM::unsafeExecute(std::string_view Func, Span<const ValInterface> Params,
                   Span<const ValType> ParamTypes) {
   if (ActiveModInst) {
     std::vector<const ValVariant> LowerParams;
-    for (auto &&P : Params) {
+    for (auto const &P : Params) {
       if (std::holds_alternative<ValVariant>(P)) {
         LowerParams.push_back(std::move(std::get<ValVariant>(P)));
       } else {

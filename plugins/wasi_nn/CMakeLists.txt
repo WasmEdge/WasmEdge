@@ -169,27 +169,10 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "piper")
     wasmedge_setup_simdjson()
-
-    message(STATUS "Downloading piper source")
-    include(FetchContent)
-    find_program(GIT_CMD git REQUIRED)
-    FetchContent_Declare(
-      piper
-      GIT_REPOSITORY https://github.com/rhasspy/piper.git
-      GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
-      UPDATE_DISCONNECTED TRUE
-      PATCH_COMMAND ${GIT_CMD} apply ${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch
-    )
-    FetchContent_MakeAvailable(piper)
-    set_property(TARGET piper PROPERTY POSITION_INDEPENDENT_CODE ON)
-    set_target_properties(test_piper PROPERTIES EXCLUDE_FROM_ALL TRUE)
-    target_include_directories(wasmedgePluginWasiNN PRIVATE
-      ${piper_SOURCE_DIR}/src/cpp
-    )
-    target_link_libraries(wasmedgePluginWasiNN PRIVATE
-      piper
-      simdjson::simdjson
-    )
+    include(WASINNDeps)
+    wasmedge_setup_piper()
+    target_include_directories(wasmedgePluginWasiNN PRIVATE ${piper_SOURCE_DIR}/src/cpp)
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   endif()
 endforeach()
 

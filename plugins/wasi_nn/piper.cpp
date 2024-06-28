@@ -318,8 +318,18 @@ Expect<WASINN::ErrNo> getOptionalInputOption(simdjson::dom::element &Doc,
 }
 
 Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
-                               uint32_t ContextId, uint32_t,
+                               uint32_t ContextId, uint32_t Index,
                                const TensorData &Tensor) noexcept {
+  if (Index != 0) {
+    spdlog::error("[WASI-NN] Piper backend: Input index must be 0.");
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  if (!(Tensor.Dimension.size() == 1 && Tensor.Dimension[0] == 1)) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: Input tensor dimension must be [1].");
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
@@ -380,9 +390,14 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
 }
 
 Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
-                                uint32_t ContextId, uint32_t,
+                                uint32_t ContextId, uint32_t Index,
                                 Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
+  if (Index != 0) {
+    spdlog::error("[WASI-NN] Piper backend: Output index must be 0.");
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
 
   if (!CxtRef.Output) {

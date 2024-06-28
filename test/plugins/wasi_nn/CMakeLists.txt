@@ -77,6 +77,28 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures/ne_phi_q_nf4_bestla_cfp32_g32.bin
       MD5=5e055b41f8cc1a42f26ff8742719ef1e
     )
+  elseif(BACKEND STREQUAL "piper")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
+    download(
+      https://github.com/rhasspy/piper/raw/master/etc/test_voice.onnx
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx
+      SHA256=937682595755bbb3ee9f131b8a4b2b1ba2fac9b26431fcd7aa48cff0f7382838
+    )
+    download(
+      https://github.com/rhasspy/piper/raw/master/etc/test_voice.onnx.json
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx.json
+      SHA256=f3e0b906861cc2fb8a50e12ceca263afe226ff9688f60e9d4ef943d4f047a513
+    )
+    download(
+      https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/piper_linux_x86_64.tar.gz
+      SHA256=a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992
+    )
+    file(ARCHIVE_EXTRACT
+      INPUT ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/piper_linux_x86_64.tar.gz
+      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures
+      PATTERNS piper/espeak-ng-data
+    )
   else()
     # Add the other backend test files fetching here.
   endif()

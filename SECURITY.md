@@ -26,7 +26,7 @@ Email:
 
 Web:
 
-1. Please visit [GitHub Seuciry Advisory of WasmEdge](https://github.com/WasmEdge/WasmEdge/security/advisories/new)
+1. Please visit [GitHub Security Advisory of WasmEdge](https://github.com/WasmEdge/WasmEdge/security/advisories/new)
    * You will receive a confirmation email upon submission
 
 WasmEdge follows a **`90 days` disclosure timeline**. Refer to our [embargo policy](./docs/embargo-policy.md) for more information.
@@ -43,9 +43,12 @@ For known public security vulnerabilities, we will disclose the disclosure as so
 
 ## Supported Versions
 
+WasmEdge primarily releases updates for the latest `minor` version. Within the same `minor` version, the API remains stable without breaking changes. In the event of a security issue or critical bug, fixes are applied to the two most recent `minor` versions. Refer to the
+[backward support](./docs/RELEASE_POLICY.md#backward-support) section of our release policy for more information.
+
 Information regarding supported versions of WasmEdge are in the below table:
 
 | Version | Supported |
 | ------- | --------- |
-| 0.15.0  | :white_check_mark: |
-| 0.14.1  | :white_check_mark: |
+| 0.17.1  | :white_check_mark: |
+| 0.16.4  | :white_check_mark: |

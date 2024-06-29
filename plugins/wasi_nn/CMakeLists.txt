@@ -135,21 +135,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
       )
     endif()
-    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-      add_custom_command(
-        TARGET wasmedgePluginWasiNN
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/../llama-build/src/libllama.dylib libllama.dylib
-        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/../llama-build/ggml/src/libggml.dylib libggml.dylib
-      )
-    else()
-      add_custom_command(
-        TARGET wasmedgePluginWasiNN
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/../llama-build/src/libllama.so libllama.so
-        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/../llama-build/ggml/src/libggml.so libggml.so
-      )
-    endif()
   elseif(BACKEND STREQUAL "neuralspeed")
     wasmedge_setup_simdjson()
 

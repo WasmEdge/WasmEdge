@@ -22,35 +22,24 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     # Disable warnings and debug messages
     set(LLAMA_ALL_WARNINGS OFF)
     set(LLAMA_METAL_NDEBUG ON)
-    set(LLAMA_ACCELERATE OFF)
+    set(GGML_ACCELERATE OFF)
+    set(GGML_BLAS OFF)
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE)
-      message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_NATIVE(AVX/AVX2/FMA)")
-      set(LLAMA_NATIVE ON)
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_NATIVE(AVX/AVX2/FMA)")
+      set(GGML_NATIVE ON)
     else()
-      set(LLAMA_NATIVE OFF)
+      set(GGML_NATIVE OFF)
     endif()
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
-      message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_CUDA")
-      set(LLAMA_CUDA ON)
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_CUDA")
+      set(GGML_CUDA ON)
       # We need to set GGML_USE_CUDA for clip from llava.
       add_compile_definitions(GGML_USE_CUDA)
-      # If CUDA is ON, then OpenBLAS should be OFF.
-      set(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS OFF)
     else()
-      message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_CUDA")
-      set(LLAMA_CUDA OFF)
-    endif()
-
-    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS)
-      message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_BLAS")
-      # Default use OpenBLAS
-      set(LLAMA_BLAS ON)
-      set(LLAMA_BLAS_VENDOR "OpenBLAS")
-    else()
-      message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_BLAS")
-      set(LLAMA_BLAS OFF)
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_CUDA")
+      set(GGML_CUDA OFF)
     endif()
 
     if(NOT APPLE)
@@ -58,12 +47,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     endif()
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
-      message(STATUS "WASI-NN GGML LLAMA backend: Enable LLAMA_METAL")
-      set(LLAMA_METAL ON)
-      set(LLAMA_METAL_EMBED_LIBRARY ON)
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_METAL")
+      set(GGML_METAL ON)
+      set(GGML_METAL_EMBED_LIBRARY ON)
     else()
-      message(STATUS "WASI-NN GGML LLAMA backend: Disable LLAMA_METAL")
-      set(LLAMA_METAL OFF)
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_METAL")
+      set(GGML_METAL OFF)
     endif()
 
     # setup llama.cpp
@@ -141,8 +130,23 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       add_custom_command(
         TARGET wasmedgePluginWasiNN
         POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml-metal.metal ggml-metal.metal
-        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml-common.h ggml-common.h
+        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
+        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
+      )
+    endif()
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+      add_custom_command(
+        TARGET wasmedgePluginWasiNN
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/../llama-build/src/libllama.dylib libllama.dylib
+        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/../llama-build/ggml/src/libggml.dylib libggml.dylib
+      )
+    else()
+      add_custom_command(
+        TARGET wasmedgePluginWasiNN
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/../llama-build/src/libllama.so libllama.so
+        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/../llama-build/ggml/src/libggml.so libggml.so
       )
     endif()
   elseif(BACKEND STREQUAL "neuralspeed")

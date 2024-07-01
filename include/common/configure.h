@@ -25,6 +25,7 @@
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <sys/wait.h>
 #include <unordered_set>
 
 namespace WasmEdge {
@@ -115,8 +116,9 @@ public:
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
         EnableJIT(RHS.EnableJIT.load(std::memory_order_relaxed)),
+        EnableCoredump(RHS.EnableCoredump.load(std::memory_order_relaxed)),
         ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)),
-        AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
+        AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)){}
 
   void setMaxMemoryPage(const uint32_t Page) noexcept {
     MaxMemPage.store(Page, std::memory_order_relaxed);
@@ -132,6 +134,14 @@ public:
 
   bool isEnableJIT() const noexcept {
     return EnableJIT.load(std::memory_order_relaxed);
+  }
+
+  void setEnableCoredump(bool IsEnableCoredump) noexcept {
+    EnableCoredump.store(IsEnableCoredump, std::memory_order_relaxed);
+  }
+
+  bool isEnableCoredump() const noexcept {
+    return EnableCoredump.load(std::memory_order_relaxed);
   }
 
   void setForceInterpreter(bool IsForceInterpreter) noexcept {
@@ -153,6 +163,7 @@ public:
 private:
   std::atomic<uint32_t> MaxMemPage = 65536;
   std::atomic<bool> EnableJIT = false;
+  std::atomic<bool> EnableCoredump = false;
   std::atomic<bool> ForceInterpreter = false;
   std::atomic<bool> AllowAFUNIX = false;
 };

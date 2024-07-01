@@ -28,7 +28,7 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 ## Current Roadmap
 
-Last Updated: Q2 / 2024
+Last Updated: Q3 / 2024
 
 | Theme              | Description | Timeline | Assignee |
 | ---                | ----------- | -------- | -------- |
@@ -44,6 +44,12 @@ Last Updated: Q2 / 2024
 | Feature            | DWARF symbol | Q2 / 2025 | |
 | Proposal           | [Instantiation of Component model proposal](https://github.com/WasmEdge/WasmEdge/pull/3218) | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
 | Languages Bindings | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) | Q2 / 2025 | |
+| Proposal           | Whisper backend for WASI-NN | Q3 / 2024 | [@q82419](https://github.com/q82419) |
+| Proposal           | WASI-NN GGML plugin with latest llama.cpp integration | Q3 / 2024 | [@dm4](https://github.com/dm4) |
+| Language Bindings  | Update Java binding with 0.14 | Q3 / 2024 | |
+| Language Bindings  | Move Go binding back into WasmEdge org | Q4 / 2024 | [@q82419](https://github.com/q82419) |
+| Feature            | Deprecate manylinux2014 and make sure everything goes well on manylinux_2_28 | Q3 / 2024 | [@0yi0](https://github.com/0yi0) |
+| Proposal           | WASI-NN rust (burn) plugin and also added more models support | Q3 / 2024 | [@CaptainVincent](https://github.com/CaptainVincent) |
 
 ## Previous Roadmap
 

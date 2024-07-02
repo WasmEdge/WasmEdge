@@ -226,6 +226,7 @@ public:
         std::string_view V =
             Memory->getStringView(Idx.get<uint32_t>(), Len.get<uint32_t>());
         std::string S{V.begin(), V.end()};
+        // FIXME: This crashed on Linux
         HigherArgs.push_back(std::move(S));
         break;
       }

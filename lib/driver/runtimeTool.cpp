@@ -129,7 +129,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }
   if (Opt.ConfEnableCoredump.value()) {
-    std::cout<<"coredump enabled\n";
+    spdlog::info("coredump enabled in options\n");
     Conf.getRuntimeConfigure().setEnableCoredump(true);
   }
   if (Opt.ConfForceInterpreter.value()) {

@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 
 #pragma once
-#include <iostream>
 
 namespace WasmEdge{
 namespace Coredump{
@@ -21,7 +20,7 @@ namespace Coredump{
 class Coredump {
 public:
   Coredump() {
-    std::cout<<("Coredump class Constructor called\n");
+    spdlog::info("Coredump class Constructor called\n");
   }
   ~Coredump() = default;
 };

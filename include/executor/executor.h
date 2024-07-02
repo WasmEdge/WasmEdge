@@ -125,7 +125,8 @@ private:
 
 /// Executor flow control class.
 class Executor {
-public: /// add another argument to this for coredump to initialise it.
+public:
+  /// TODO add another argument to this for coredump builder to initialise it.
   Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
       : Conf(Conf) {
     if (Conf.getStatisticsConfigure().isInstructionCounting() ||
@@ -139,7 +140,7 @@ public: /// add another argument to this for coredump to initialise it.
       Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
     }
     if (Conf.getRuntimeConfigure().isEnableCoredump()) {
-      std::cout<<"Coredump has been enabled in executor";
+      spdlog::info("Coredump has been enabled in executor");
     }
   }
   ~Executor() noexcept {

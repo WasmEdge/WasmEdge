@@ -26603,6 +26603,11 @@ const archList = [{
     docker_tag: 'manylinux2014_aarch64-plugins-deps',
     asset_tag: 'manylinux2014_aarch64',
 }, {
+    arch: x86_64,
+    runner: 'ubuntu-latest',
+    docker_tag: 'manylinux_2_28_x86_64-plugins-deps',
+    asset_tag: 'manylinux_2_28_x86_64',
+}, {
     arch: aarch64,
     runner: 'linux-arm64-v2',
     docker_tag: 'manylinux_2_28_aarch64-plugins-deps',

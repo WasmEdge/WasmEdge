@@ -8,8 +8,6 @@ ENV PKG_CONFIG_PATH /opt/rh/devtoolset-11/root/usr/lib64/pkgconfig${PKG_CONFIG_P
 
 RUN cd && (yum check-update || true) && \
   yum install -y cmake wget unzip zlib-devel zlib-static
-RUN yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
-  yum install -y gh
 
 WORKDIR /root
 

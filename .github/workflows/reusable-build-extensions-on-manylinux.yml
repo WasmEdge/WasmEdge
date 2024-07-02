@@ -151,6 +151,10 @@ jobs:
         with:
           name: ${{ steps.prep.outputs.artifact }}
           path: ${{ steps.prep.outputs.filename }}
+      - name: Install gh
+        if: ${{ inputs.release }}
+        run: |
+          yum install -y gh
       - name: Upload WasmEdge ${{ matrix.plugin }} plugin tar.gz package
         if: ${{ inputs.release }}
         env:

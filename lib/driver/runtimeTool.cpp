@@ -21,6 +21,195 @@
 namespace WasmEdge {
 namespace Driver {
 
+int ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
+                 std::optional<std::chrono::system_clock::time_point> Timeout,
+                 struct DriverToolOptions &Opt,
+                 const AST::FunctionType &FuncType) noexcept {
+  std::vector<ValVariant> FuncArgs;
+  std::vector<ValType> FuncArgTypes;
+
+  for (size_t I = 0;
+       I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
+       ++I) {
+    switch (FuncType.getParamTypes()[I].getCode()) {
+    case TypeCode::I32: {
+      const uint32_t Value =
+          static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::I32);
+      break;
+    }
+    case TypeCode::I64: {
+      const uint64_t Value =
+          static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::I64);
+      break;
+    }
+    case TypeCode::F32: {
+      const float Value = std::stof(Opt.Args.value()[I + 1]);
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::F32);
+      break;
+    }
+    case TypeCode::F64: {
+      const double Value = std::stod(Opt.Args.value()[I + 1]);
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::F64);
+      break;
+    }
+    /// TODO: FuncRef and ExternRef
+    default:
+      break;
+    }
+  }
+  if (FuncType.getParamTypes().size() + 1 < Opt.Args.value().size()) {
+    for (size_t I = FuncType.getParamTypes().size() + 1;
+         I < Opt.Args.value().size(); ++I) {
+      const uint64_t Value =
+          static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::I64);
+    }
+  }
+
+  auto AsyncResult = VM.asyncExecute(FuncName, FuncArgs, FuncArgTypes);
+  if (Timeout.has_value()) {
+    if (!AsyncResult.waitUntil(*Timeout)) {
+      AsyncResult.cancel();
+    }
+  }
+  if (auto Result = AsyncResult.get()) {
+    /// Print results.
+    for (size_t I = 0; I < Result->size(); ++I) {
+      switch ((*Result)[I].second.getCode()) {
+      case TypeCode::I32:
+        std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
+        break;
+      case TypeCode::I64:
+        std::cout << (*Result)[I].first.get<uint64_t>() << '\n';
+        break;
+      case TypeCode::F32:
+        std::cout << (*Result)[I].first.get<float>() << '\n';
+        break;
+      case TypeCode::F64:
+        std::cout << (*Result)[I].first.get<double>() << '\n';
+        break;
+      case TypeCode::V128:
+        std::cout << (*Result)[I].first.get<uint128_t>() << '\n';
+        break;
+      /// TODO: FuncRef and ExternRef
+      default:
+        break;
+      }
+    }
+    return EXIT_SUCCESS;
+  } else {
+    // It indicates that the execution of wasm has been aborted
+    return 128 + SIGABRT;
+  }
+}
+
+int ToolOnComponent(
+    WasmEdge::VM::VM &VM, const std::string &FuncName,
+    std::optional<std::chrono::system_clock::time_point> Timeout,
+    struct DriverToolOptions &Opt, const AST::FunctionType &FuncType) noexcept {
+  std::vector<ValInterface> FuncArgs;
+  std::vector<ValType> FuncArgTypes;
+
+  for (size_t I = 0;
+       I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
+       ++I) {
+    switch (FuncType.getParamTypes()[I].getCode()) {
+    case TypeCode::I32: {
+      const uint32_t Value =
+          static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::I32);
+      break;
+    }
+    case TypeCode::I64: {
+      const uint64_t Value =
+          static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::I64);
+      break;
+    }
+    case TypeCode::F32: {
+      const float Value = std::stof(Opt.Args.value()[I + 1]);
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::F32);
+      break;
+    }
+    case TypeCode::F64: {
+      const double Value = std::stod(Opt.Args.value()[I + 1]);
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::F64);
+      break;
+    }
+    case TypeCode::String: {
+      std::string &Value = Opt.Args.value()[I + 1];
+      FuncArgs.emplace_back(std::move(Value));
+      FuncArgTypes.emplace_back(TypeCode::String);
+      break;
+    }
+    /// TODO: FuncRef and ExternRef
+    default:
+      break;
+    }
+  }
+  if (FuncType.getParamTypes().size() + 1 < Opt.Args.value().size()) {
+    for (size_t I = FuncType.getParamTypes().size() + 1;
+         I < Opt.Args.value().size(); ++I) {
+      const uint64_t Value =
+          static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::I64);
+    }
+  }
+
+  auto AsyncResult = VM.asyncExecute(FuncName, FuncArgs, FuncArgTypes);
+  if (Timeout.has_value()) {
+    if (!AsyncResult.waitUntil(*Timeout)) {
+      AsyncResult.cancel();
+    }
+  }
+  if (auto Result = AsyncResult.get()) {
+    /// Print results.
+    for (size_t I = 0; I < Result->size(); ++I) {
+      switch ((*Result)[I].second.getCode()) {
+      case TypeCode::I32:
+        std::cout << std::get<ValVariant>((*Result)[I].first).get<uint32_t>()
+                  << '\n';
+        break;
+      case TypeCode::I64:
+        std::cout << std::get<ValVariant>((*Result)[I].first).get<uint64_t>()
+                  << '\n';
+        break;
+      case TypeCode::F32:
+        std::cout << std::get<ValVariant>((*Result)[I].first).get<float>()
+                  << '\n';
+        break;
+      case TypeCode::F64:
+        std::cout << std::get<ValVariant>((*Result)[I].first).get<double>()
+                  << '\n';
+        break;
+      case TypeCode::V128:
+        std::cout << std::get<ValVariant>((*Result)[I].first).get<uint128_t>()
+                  << '\n';
+        break;
+      /// TODO: FuncRef and ExternRef
+      default:
+        break;
+      }
+    }
+    return EXIT_SUCCESS;
+  } else {
+    // It indicates that the execution of wasm has been aborted
+    return 128 + SIGABRT;
+  }
+}
+
 int Tool(struct DriverToolOptions &Opt) noexcept {
   using namespace std::literals;
 
@@ -238,98 +427,13 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       }
     }
 
-    std::vector<ValInterface> FuncArgs;
-    std::vector<ValType> FuncArgTypes;
-    for (size_t I = 0;
-         I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
-         ++I) {
-      switch (FuncType.getParamTypes()[I].getCode()) {
-      case TypeCode::I32: {
-        const uint32_t Value =
-            static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TypeCode::I32);
-        break;
-      }
-      case TypeCode::I64: {
-        const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TypeCode::I64);
-        break;
-      }
-      case TypeCode::F32: {
-        const float Value = std::stof(Opt.Args.value()[I + 1]);
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TypeCode::F32);
-        break;
-      }
-      case TypeCode::F64: {
-        const double Value = std::stod(Opt.Args.value()[I + 1]);
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TypeCode::F64);
-        break;
-      }
-      case TypeCode::String: {
-        std::string &Value = Opt.Args.value()[I + 1];
-        FuncArgs.emplace_back(std::move(Value));
-        FuncArgTypes.emplace_back(TypeCode::String);
-        break;
-      }
-      /// TODO: FuncRef and ExternRef
-      default:
-        break;
-      }
-    }
-    if (FuncType.getParamTypes().size() + 1 < Opt.Args.value().size()) {
-      for (size_t I = FuncType.getParamTypes().size() + 1;
-           I < Opt.Args.value().size(); ++I) {
-        const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TypeCode::I64);
-      }
-    }
-
-    auto AsyncResult = VM.asyncExecute(FuncName, FuncArgs, FuncArgTypes);
-    if (Timeout.has_value()) {
-      if (!AsyncResult.waitUntil(*Timeout)) {
-        AsyncResult.cancel();
-      }
-    }
-    if (auto Result = AsyncResult.get()) {
-      /// Print results.
-      for (size_t I = 0; I < Result->size(); ++I) {
-        switch ((*Result)[I].second.getCode()) {
-        case TypeCode::I32:
-          fmt::print("{}\n"sv,
-                     std::get<ValVariant>((*Result)[I].first).get<uint32_t>());
-          break;
-        case TypeCode::I64:
-          fmt::print("{}\n"sv,
-                     std::get<ValVariant>((*Result)[I].first).get<uint64_t>());
-          break;
-        case TypeCode::F32:
-          fmt::print("{}\n"sv,
-                     std::get<ValVariant>((*Result)[I].first).get<float>());
-          break;
-        case TypeCode::F64:
-          fmt::print("{}\n"sv,
-                     std::get<ValVariant>((*Result)[I].first).get<double>());
-          break;
-        case TypeCode::V128:
-          fmt::print("{}\n"sv,
-                     std::get<ValVariant>(
-                         uint128((*Result)[I].first).get<uint128_t>()));
-          break;
-        /// TODO: FuncRef and ExternRef
-        default:
-          break;
-        }
-      }
-      return EXIT_SUCCESS;
+    if (VM.holdsModule()) {
+      return ToolOnModule(VM, FuncName, Timeout, Opt, FuncType);
+    } else if (VM.holdsComponent()) {
+      return ToolOnComponent(VM, FuncName, Timeout, Opt, FuncType);
     } else {
-      // It indicates that the execution of wasm has been aborted
+      // which means VM has neither instantiated module nor instantiated
+      // component
       return 128 + SIGABRT;
     }
   }

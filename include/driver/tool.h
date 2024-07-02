@@ -79,6 +79,8 @@ struct DriverToolOptions {
             "Enable generating code for all statistics options include instruction counting, gas measuring, and execution time"sv)),
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
+        ConfEnableCoredump(
+            PO::Description("Enable Coredump Generation for WASM modules"sv)),
         ConfForceInterpreter(
             PO::Description("Forcibly run WASM in interpreter mode."sv)),
         TimeLim(
@@ -124,6 +126,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
   PO::Option<PO::Toggle> ConfEnableJIT;
+  PO::Option<PO::Toggle> ConfEnableCoredump;
   PO::Option<PO::Toggle> ConfForceInterpreter;
   PO::Option<uint64_t> TimeLim;
   PO::List<int> GasLim;
@@ -142,6 +145,7 @@ struct DriverToolOptions {
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
         .add_option("enable-jit"sv, ConfEnableJIT)
+        .add_option("coredump-on-trap"sv, ConfEnableCoredump)
         .add_option("force-interpreter"sv, ConfForceInterpreter)
         .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
         .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)

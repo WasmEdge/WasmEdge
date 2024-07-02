@@ -15,6 +15,7 @@
 
 #include "common/async.h"
 #include "common/configure.h"
+#include "common/coredump.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/types.h"
@@ -209,6 +210,9 @@ public:
   /// Getter of statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
+  /// Getter of coredump.
+  Coredump::Coredump &getCoredump() noexcept { return Coredump; }
+
 private:
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);
@@ -286,6 +290,7 @@ private:
   /// @{
   const Configure Conf;
   Statistics::Statistics Stat;
+  Coredump::Coredump Coredump;
   VMStage Stage;
   mutable std::shared_mutex Mutex;
   /// @}

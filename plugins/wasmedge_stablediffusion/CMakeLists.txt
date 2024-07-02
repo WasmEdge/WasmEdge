@@ -1,4 +1,7 @@
- # setup stable diffusion
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2022 Second State INC
+
+# setup stable diffusion
 message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
   stable-diffusion
@@ -10,7 +13,7 @@ FetchContent_MakeAvailable(stable-diffusion)
 set_property(TARGET stable-diffusion PROPERTY POSITION_INDEPENDENT_CODE ON)
 get_target_property(SD_DEPS stable-diffusion LINK_LIBRARIES)
 foreach(dep ${SD_DEPS})
-if(TARGET ${dep})
+  if(TARGET ${dep})
     set_target_properties(${dep} PROPERTIES
       POSITION_INDEPENDENT_CODE ON
     )
@@ -32,16 +35,15 @@ target_compile_options(wasmedgePluginStableDiffusion
 )
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)
-target_link_libraries(wasmedgePluginStableDiffusion
-  PRIVATE
-  wasmedgeCAPI
-)
-
+  target_link_libraries(wasmedgePluginStableDiffusion
+    PRIVATE
+    wasmedgeCAPI
+  )
 else()
-target_link_libraries(wasmedgePluginStableDiffusion
-  PRIVATE
-  wasmedge_shared
-)
+  target_link_libraries(wasmedgePluginStableDiffusion
+    PRIVATE
+    wasmedge_shared
+  )
 endif()
 
 target_include_directories(wasmedgePluginStableDiffusion
@@ -49,8 +51,9 @@ target_include_directories(wasmedgePluginStableDiffusion
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
 if (MSVC)
-target_compile_options(
+  target_compile_options(
     wasmedgePluginStableDiffusion
     PRIVATE
     /wd4459
@@ -68,4 +71,5 @@ else()
 		-Wno-missing-field-initializers
 	)
 endif()
+
 install(TARGETS wasmedgePluginStableDiffusion DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

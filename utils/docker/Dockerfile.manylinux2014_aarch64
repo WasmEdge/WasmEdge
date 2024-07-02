@@ -13,6 +13,7 @@ ENV INFOPATH /opt/rh/devtoolset-10/root/usr/share/info${INFOPATH:+:${INFOPATH}}
 ENV PKG_CONFIG_PATH /opt/rh/devtoolset-10/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
 
 RUN cd && (yum check-update || true) && yum install -y xz openssl-devel rpm-build centos-release-scl && \
+    yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
     yum install -y devtoolset-10 && \
     export CPU=$(/opt/python/cp311-cp311/bin/python3 -c \
         'import multiprocessing; print(multiprocessing.cpu_count())') && \

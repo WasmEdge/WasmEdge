@@ -104,6 +104,20 @@ public:
                    Span<const ValVariant> Params = {},
                    Span<const ValType> ParamTypes = {});
 
+  /// Let runtimeTool can check which arguments should be prepared.
+  bool holdsModule() {
+    if (ActiveModInst) {
+      return true;
+    }
+    return false;
+  }
+  bool holdsComponent() {
+    if (ActiveCompInst) {
+      return true;
+    }
+    return false;
+  }
+
   /// Load given wasm file, wasm bytecode, or wasm module.
   Expect<void> loadWasm(const std::filesystem::path &Path) {
     std::unique_lock Lock(Mutex);

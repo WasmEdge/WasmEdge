@@ -18,6 +18,22 @@ enum TensorType {
   I64 = 6;
 }
 
+enum BackendError {
+  Success = 0;              // No error occurred.
+  InvalidArgument = 1;      // Caller module passed an invalid argument.
+  InvalidEncoding = 2;      // Invalid encoding.
+  MissingMemory = 3;        // Caller module is missing a memory export.
+  Busy = 4;                 // Device or resource busy.
+  RuntimeError = 5;         // Runtime Error.
+  UnsupportedOperation = 6; // Unsupported Operation.
+  TooLarge = 7;             // Too Large.
+  NotFound = 8;             // Not Found.
+  EndOfSequence = 100;      // End of Sequence Found.
+  ContextFull = 101;        // Context Full.
+  PromptTooLong = 102;      // Prompt Too Long.
+  ModelNotFound = 103;      // Model Not Found.
+}
+
 message Tensor {
   repeated uint32 dimensions = 1 [packed=true];
   TensorType ty = 2;
@@ -69,6 +85,10 @@ message ComputeRequest{
   uint32 resource_handle = 1;
 }
 
+message ComputeSingleResult {
+  BackendError error = 1;
+}
+
 message GetOutputRequest {
   uint32 resource_handle = 1;
   uint32 index = 2; // defined as a string in wit
@@ -78,10 +98,17 @@ message GetOutputResult {
   bytes data = 1; // defined as a tensor in wit
 }
 
+message FiniSingleRequest{
+  uint32 resource_handle = 1;
+}
+
 service GraphExecutionContextResource {
   rpc SetInput(SetInputRequest) returns (google.protobuf.Empty) {};
   rpc Compute(ComputeRequest) returns (google.protobuf.Empty) {};
+  rpc ComputeSingle(ComputeRequest) returns (ComputeSingleResult) {};
   rpc GetOutput(GetOutputRequest) returns (GetOutputResult) {};
+  rpc GetOutputSingle(GetOutputRequest) returns (GetOutputResult) {};
+  rpc FiniSingle(FiniSingleRequest) returns (google.protobuf.Empty) {};
 }
 
 // ref:

@@ -1,11 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #pragma once
 
-#include "runtime/callingframe.h"
 #include "sd_base.h"
+
+#include "runtime/callingframe.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace StableDiffusion {
+
 class SDCreateContext : public StableDiffusion::Func<SDCreateContext> {
 public:
   SDCreateContext(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
@@ -20,6 +25,7 @@ public:
        uint32_t Schedule, uint32_t ClipOnCpu, uint32_t ControlNetCpu,
        uint32_t VaeOnCpu, uint32_t SessiontIdPtr);
 };
+
 class SDImageToImage : public StableDiffusion::Func<SDImageToImage> {
 public:
   SDImageToImage(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
@@ -38,6 +44,7 @@ public:
        uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
        uint32_t BytesWrittenPtr);
 };
+
 class SDTextToImage : public StableDiffusion::Func<SDTextToImage> {
 public:
   SDTextToImage(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
@@ -55,6 +62,7 @@ public:
        uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
        uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr);
 };
+
 class SDConvert : public StableDiffusion::Func<SDConvert> {
 public:
   SDConvert(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
@@ -64,6 +72,7 @@ public:
                         uint32_t OutputPathPtr, uint32_t OutputPathLen,
                         uint32_t WType);
 };
+
 } // namespace StableDiffusion
 } // namespace Host
 } // namespace WasmEdge

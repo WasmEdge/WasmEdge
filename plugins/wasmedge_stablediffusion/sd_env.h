@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #pragma once
 
 #include "stable-diffusion.h"
@@ -8,7 +11,9 @@
 namespace WasmEdge {
 namespace Host {
 namespace StableDiffusion {
-void SBLog(enum sd_log_level_t level, const char *log, void *);
+
+void SBLog(enum sd_log_level_t Level, const char *Log, void *);
+
 enum class ErrNo : uint32_t {
   Success = 0,         // No error occurred.
   InvalidArgument = 1, // Caller module passed an invalid argument.

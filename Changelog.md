@@ -1,3 +1,35 @@
+### 0.14.1-beta.1 (2024-07-02)
+
+Features:
+
+* Supported LLVM 17.0.6.
+* [WASI-NN] ggml backend:
+  * Bump llama.cpp to b3259.
+  * Static link `libggml` and `libllama`.
+  * Refine the CMake to support multiple backends of WASI-NN with ggml backend.
+* [WASI-NN] Added support for neural speed backend.
+* [Plugin] Supported `wasmedge_stablediffusion` plug-in.
+* [Proposal] Initial support for instantiation phase of component model.
+* [Proposal] Supported WASM Relaxed-SIMD proposal.
+  * Added the `WasmEdge_Proposal_RelaxSIMD` for the configuration in WasmEdge C API.
+  * Users can use the `--enable-relaxed-simd` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+
+Tests:
+
+* Added WASI test suites on Windows.
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+
+Thank all the contributors who made this release possible!
+
+Elmira, Fusaaaann, Lîm Tsú-thuàn, Michael Morris, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Yi-Ying He, alabulei1, dm4, grorge, hydai
+
+If you want to build from source, please use WasmEdge-0.14.1-beta.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.14.0 (2024-05-22)
 
 Breaking changes:

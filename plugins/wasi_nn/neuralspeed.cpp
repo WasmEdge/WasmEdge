@@ -1,22 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #include "neuralspeed.h"
+#include "wasinnenv.h"
+
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 #include "simdjson.h"
-#include <time.h>
-#endif
-#include "wasinnenv.h"
-#include <chrono>
+
 #if !defined(_WIN32) && !defined(_WIN64) && !defined(__WIN32__) &&             \
     !defined(__TOS_WIN__) && !defined(__WINDOWS__)
 #include <dlfcn.h>
 #endif
+#include <chrono>
+#include <time.h>
+#endif
+
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
+
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
     defined(__TOS_WIN__) || defined(__WINDOWS__)
 HINSTANCE SharedLib = LoadLibrary(PYTHON_LIB_PATH);
 #else
 void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
 #endif
+
 void printImformation(Graph &GraphRef, Context &CxtRef) {
   spdlog::info("[WASI-NN] Neural speed backend: Number of input tokens: {}"sv,
                CxtRef.Inputs.size());
@@ -27,6 +35,7 @@ void printImformation(Graph &GraphRef, Context &CxtRef) {
   spdlog::info("[WASI-NN] Neural speed backend: Compute time: {} ms "sv,
                GraphRef.ComputeTime);
 }
+
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders, WASINN::Device,
                            uint32_t &GraphId) noexcept {
@@ -195,6 +204,7 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   return WASINN::ErrNo::Success;
 }
+
 Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                                 uint32_t, Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
@@ -209,6 +219,7 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   BytesWritten = StringTmp.length();
   return WASINN::ErrNo::Success;
 }
+
 Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
   if (!Py_IsInitialized()) {
@@ -291,6 +302,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   }
   return WASINN::ErrNo::Success;
 }
+
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
                              uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
@@ -306,10 +318,13 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
   }
   return WASINN::ErrNo::Success;
 }
+
 #else
 namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
-  spdlog::error("[WASI-NN] Neural speed backend is not supported.");
+  spdlog::error(
+      "[WASI-NN] Neural speed backend is not built. use "
+      "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"NeuralSpeed\" to build it."sv);
   return WASINN::ErrNo::InvalidArgument;
 }
 } // namespace

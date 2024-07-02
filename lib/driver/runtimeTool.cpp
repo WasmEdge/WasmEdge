@@ -22,10 +22,11 @@
 namespace WasmEdge {
 namespace Driver {
 
-int ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
-                 std::optional<std::chrono::system_clock::time_point> Timeout,
-                 struct DriverToolOptions &Opt,
-                 const AST::FunctionType &FuncType) noexcept {
+static int
+ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
+             std::optional<std::chrono::system_clock::time_point> Timeout,
+             struct DriverToolOptions &Opt,
+             const AST::FunctionType &FuncType) noexcept {
   std::vector<ValVariant> FuncArgs;
   std::vector<ValType> FuncArgTypes;
 
@@ -111,10 +112,11 @@ int ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
   }
 }
 
-int ToolOnComponent(
-    WasmEdge::VM::VM &VM, const std::string &FuncName,
-    std::optional<std::chrono::system_clock::time_point> Timeout,
-    struct DriverToolOptions &Opt, const AST::FunctionType &FuncType) noexcept {
+static int
+ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
+                std::optional<std::chrono::system_clock::time_point> Timeout,
+                struct DriverToolOptions &Opt,
+                const AST::FunctionType &FuncType) noexcept {
   std::vector<ValInterface> FuncArgs;
   std::vector<ValType> FuncArgTypes;
 
@@ -150,6 +152,9 @@ int ToolOnComponent(
     }
     case TypeCode::String: {
       std::string &Value = Opt.Args.value()[I + 1];
+      // FIXME: This crash on Alpine
+      //
+      // _Alloc_traits::construct
       FuncArgs.emplace_back(std::move(Value));
       FuncArgTypes.emplace_back(TypeCode::String);
       break;

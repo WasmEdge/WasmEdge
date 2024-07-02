@@ -13,6 +13,7 @@
 #include "neuralspeed.h"
 #include "onnx.h"
 #include "openvino.h"
+#include "piper.h"
 #include "tf.h"
 #include "tfl.h"
 #include "torch.h"

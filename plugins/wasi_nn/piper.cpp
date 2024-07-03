@@ -33,7 +33,7 @@ Expect<WASINN::ErrNo> getOptionalOption(simdjson::dom::element &Doc,
     auto Err = Doc[Key].get<U>().get(Value);
     if (Err) {
       spdlog::error(
-          "[WASI-NN] Piper backend: Unable to retrieve the {} option.", Key);
+          "[WASI-NN] Piper backend: Unable to retrieve the {} option."sv, Key);
       return WASINN::ErrNo::InvalidArgument;
     }
     Result = Value;
@@ -61,7 +61,7 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
   simdjson::dom::element Doc;
   auto ParseError = Parser.parse(String).get(Doc);
   if (ParseError) {
-    spdlog::error("[WASI-NN] Piper backend: Parse run config error");
+    spdlog::error("[WASI-NN] Piper backend: Parse run config error"sv);
     return WASINN::ErrNo::InvalidEncoding;
   }
 
@@ -76,13 +76,13 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
     auto Path = std::string{ModelPath.value()};
     auto ModelFile = std::ifstream(Path, std::ios::binary);
     if (!ModelFile.good()) {
-      spdlog::error("[WASI-NN] Piper backend: Model file doesn't exist");
+      spdlog::error("[WASI-NN] Piper backend: Model file doesn't exist"sv);
       return WASINN::ErrNo::InvalidArgument;
     }
     RunConfig.ModelPath = ModelPath.value();
   } else {
-    spdlog::error("[WASI-NN] Piper backend: The model option is required but "
-                  "not provided");
+    spdlog::error(
+        "[WASI-NN] Piper backend: The model option is required but not provided"sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -101,7 +101,7 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
   // Verify model config exists
   auto ModelConfigFile = std::ifstream(RunConfig.ModelConfigPath.c_str());
   if (!ModelConfigFile.good()) {
-    spdlog::error("[WASI-NN] Piper backend: Model config doesn't exist");
+    spdlog::error("[WASI-NN] Piper backend: Model config doesn't exist"sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -117,9 +117,9 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
       } else if (Value.value() == "raw") {
         RunConfig.OutputType = RunConfigOutputType::OUTPUT_RAW;
       } else {
-        spdlog::error("[WASI-NN] Piper backend: The output_type option has an "
-                      "unknown value {}.",
-                      Value.value());
+        spdlog::error(
+            "[WASI-NN] Piper backend: The output_type option has an unknown value {}."sv,
+            Value.value());
         return WASINN::ErrNo::InvalidArgument;
       }
     }
@@ -155,9 +155,9 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
         auto PhonemeStr = std::string{key};
         if (!piper::isSingleCodepoint(PhonemeStr)) {
 
-          spdlog::error("[WASI-NN] Piper backend: Phoneme '{}' is not a single "
-                        "codepoint (phoneme_silence).",
-                        PhonemeStr);
+          spdlog::error(
+              "[WASI-NN] Piper backend: Phoneme '{}' is not a single codepoint (phoneme_silence)."sv,
+              PhonemeStr);
           return WASINN::ErrNo::InvalidArgument;
         }
 
@@ -194,7 +194,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   // The graph builder length must be 1.
   if (Builders.size() != 1) {
     spdlog::error(
-        "[WASI-NN] Piper backend: Wrong GraphBuilder Length {:d}, expect 1",
+        "[WASI-NN] Piper backend: Wrong GraphBuilder Length {:d}, expect 1"sv,
         Builders.size());
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -206,7 +206,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (auto Res = parseRunConfig(*GraphRef.Config, String);
       Res != WASINN::ErrNo::Success) {
     Env.NNGraph.pop_back();
-    spdlog::error("[WASI-NN] Piper backend: Failed to parse run config.");
+    spdlog::error("[WASI-NN] Piper backend: Failed to parse run config."sv);
     return Res;
   }
 
@@ -220,8 +220,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (GraphRef.Voice->phonemizeConfig.phonemeType ==
       piper::PhonemeType::eSpeakPhonemes) {
     if (!GraphRef.Config->ESpeakDataPath) {
-      spdlog::error("[WASI-NN] Piper backend: espeak-ng data directory is "
-                    "required for eSpeakPhonemes");
+      spdlog::error(
+          "[WASI-NN] Piper backend: espeak-ng data directory is required for eSpeakPhonemes"sv);
       Env.NNGraph.pop_back();
       return WASINN::ErrNo::InvalidArgument;
     }
@@ -236,8 +236,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   // Enable libtashkeel for Arabic
   if (GraphRef.Voice->phonemizeConfig.eSpeak.voice == "ar") {
     if (!GraphRef.Config->TashkeelModelPath) {
-      spdlog::error("[WASI-NN] Piper backend: libtashkeel ort model is "
-                    "required for Arabic");
+      spdlog::error(
+          "[WASI-NN] Piper backend: libtashkeel ort model is required for Arabic"sv);
       Env.NNGraph.pop_back();
       return WASINN::ErrNo::InvalidArgument;
     }
@@ -282,7 +282,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
             Phoneme, SilenceSeconds);
       }
     }
-
   } // if phonemeSilenceSeconds
 
   // Store the loaded graph.
@@ -308,7 +307,7 @@ Expect<WASINN::ErrNo> getOptionalInputOption(simdjson::dom::element &Doc,
     auto Err = Doc[Key].get<T>().get(Value);
     if (Err) {
       spdlog::error(
-          "[WASI-NN] Piper backend: Unable to retrieve {} from json input.",
+          "[WASI-NN] Piper backend: Unable to retrieve {} from json input."sv,
           Key);
       return WASINN::ErrNo::InvalidArgument;
     }
@@ -321,12 +320,12 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
                                uint32_t ContextId, uint32_t Index,
                                const TensorData &Tensor) noexcept {
   if (Index != 0) {
-    spdlog::error("[WASI-NN] Piper backend: Input index must be 0.");
+    spdlog::error("[WASI-NN] Piper backend: Input index must be 0."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
   if (!(Tensor.Dimension.size() == 1 && Tensor.Dimension[0] == 1)) {
     spdlog::error(
-        "[WASI-NN] Piper backend: Input tensor dimension must be [1].");
+        "[WASI-NN] Piper backend: Input tensor dimension must be [1]."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -340,7 +339,7 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
     simdjson::dom::element Doc;
     auto ParseError = Parser.parse(Line).get(Doc);
     if (ParseError) {
-      spdlog::error("[WASI-NN] Piper backend: Parse json input error");
+      spdlog::error("[WASI-NN] Piper backend: Parse json input error"sv);
       return WASINN::ErrNo::InvalidEncoding;
     }
 
@@ -349,14 +348,14 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
       auto Text = std::string_view{};
       auto Err = Doc["text"].get<std::string_view>().get(Text);
       if (Err) {
-        spdlog::error("[WASI-NN] Piper backend: Unable to retrieve text from "
-                      "json input.");
+        spdlog::error(
+            "[WASI-NN] Piper backend: Unable to retrieve text from json input."sv);
         return WASINN::ErrNo::InvalidArgument;
       }
       Line = Text;
     } else {
       spdlog::error(
-          "[WASI-NN] Piper backend: text from is required for json input.");
+          "[WASI-NN] Piper backend: text from is required for json input."sv);
       return WASINN::ErrNo::InvalidArgument;
     }
 
@@ -380,7 +379,7 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
           GraphRef.Voice->synthesisConfig.speakerId =
               GraphRef.Voice->modelConfig.speakerIdMap.value()[Name];
         } else {
-          spdlog::warn("[WASI-NN] Piper backend: No speaker named: {}", Name);
+          spdlog::warn("[WASI-NN] Piper backend: No speaker named: {}"sv, Name);
         }
       }
     }
@@ -394,28 +393,28 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
   if (Index != 0) {
-    spdlog::error("[WASI-NN] Piper backend: Output index must be 0.");
+    spdlog::error("[WASI-NN] Piper backend: Output index must be 0."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
 
   if (!CxtRef.Output) {
-    spdlog::error("[WASI-NN] Piper backend: No output available.");
+    spdlog::error("[WASI-NN] Piper backend: No output available."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
   if (CxtRef.Output->size() >= std::numeric_limits<uint32_t>::max()) {
-    spdlog::error("[WASI-NN] Piper backend: Output size {} is greater than "
-                  "std::numeric_limits<uint32_t>::max() {}.",
-                  CxtRef.Output->size(), std::numeric_limits<uint32_t>::max());
+    spdlog::error(
+        "[WASI-NN] Piper backend: Output size {} is greater than std::numeric_limits<uint32_t>::max() {}."sv,
+        CxtRef.Output->size(), std::numeric_limits<uint32_t>::max());
     return WASINN::ErrNo::InvalidArgument;
   }
 
   if (CxtRef.Output->size() > OutBuffer.size_bytes()) {
-    spdlog::error("[WASI-NN] Piper backend: Output size {} is greater than "
-                  "buffer size {}.",
-                  CxtRef.Output->size(), OutBuffer.size_bytes());
+    spdlog::error(
+        "[WASI-NN] Piper backend: Output size {} is greater than buffer size {}."sv,
+        CxtRef.Output->size(), OutBuffer.size_bytes());
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -430,7 +429,7 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
   if (!CxtRef.Line) {
-    spdlog::error("[WASI-NN] Piper backend: Input is not set.");
+    spdlog::error("[WASI-NN] Piper backend: Input is not set."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -458,7 +457,7 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
 #else
 namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
-  spdlog::error("[WASI-NN] Piper backend is not supported.");
+  spdlog::error("[WASI-NN] Piper backend is not supported."sv);
   return WASINN::ErrNo::InvalidArgument;
 }
 } // namespace

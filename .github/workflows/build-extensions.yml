@@ -179,6 +179,7 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_nn-neuralspeed-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-neuralspeed.tar.gz
+
   build_windows_wasi_nn:
     permissions:
       contents: write
@@ -191,6 +192,7 @@ jobs:
       tar_names: wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: wasmedgePluginWasiNN.dll
+    needs: [ get_version ]
     steps:
       - uses: actions/checkout@v4
         with:

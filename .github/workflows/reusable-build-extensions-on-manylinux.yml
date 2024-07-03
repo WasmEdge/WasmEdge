@@ -151,6 +151,12 @@ jobs:
         with:
           name: ${{ steps.prep.outputs.artifact }}
           path: ${{ steps.prep.outputs.filename }}
+      - name: Install gh
+        if: ${{ inputs.release }}
+        run: |
+          type -p yum-config-manager >/dev/null || yum install -y yum-utils
+          yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+          yum install -y gh
       - name: Upload WasmEdge ${{ matrix.plugin }} plugin tar.gz package
         if: ${{ inputs.release }}
         env:

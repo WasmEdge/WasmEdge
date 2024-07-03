@@ -8,9 +8,6 @@ ENV PKG_CONFIG_PATH /opt/rh/gcc-toolset-13/root/usr/lib64/pkgconfig${PKG_CONFIG_
 
 RUN cd && (yum check-update || true) && \
   yum install -y wget unzip zlib-devel zlib-static elfutils
-RUN yum install -y yum-utils && \
-  yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
-  yum install -y gh
 
 WORKDIR /root
 

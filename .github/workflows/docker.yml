@@ -55,13 +55,13 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: read
-    outputs:
-      ci-image-base: ${{ steps.filter.outputs.ci-image-base }}
-      manylinux: ${{ steps.filter.outputs.manylinux }}
-      ubuntu: ${{ steps.filter.outputs.ubuntu }}
+    outputs: # Set outputs to true if not pull_request
+      ci-image-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ci-image-base || 'true' }}
+      manylinux: ${{ github.event_name == 'pull_request' && steps.filter.outputs.manylinux || 'true' }}
+      ubuntu: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ubuntu || 'true' }}
     steps:
-      - uses: actions/checkout@v4
-      - id: filter
+      - if: ${{ github.event_name == 'pull_request' }}
+        id: filter
         uses: dorny/paths-filter@v3
         with:
           filters: |

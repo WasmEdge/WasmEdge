@@ -60,6 +60,7 @@ jobs:
       manylinux: ${{ steps.filter.outputs.manylinux }}
       ubuntu: ${{ steps.filter.outputs.ubuntu }}
     steps:
+      - uses: actions/checkout@v4
       - id: filter
         uses: dorny/paths-filter@v3
         with:

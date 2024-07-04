@@ -151,11 +151,10 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       break;
     }
     case TypeCode::String: {
-      std::string &Value = Opt.Args.value()[I + 1];
-      // FIXME: This crash on Alpine
-      //
-      // _Alloc_traits::construct
-      FuncArgs.emplace_back(std::move(Value));
+      // FIXME: Alpine still unhappy with this
+      ValInterface V{};
+      V.emplace<std::string>(Opt.Args.value()[I + 1]);
+      FuncArgs.emplace_back(V);
       FuncArgTypes.emplace_back(TypeCode::String);
       break;
     }

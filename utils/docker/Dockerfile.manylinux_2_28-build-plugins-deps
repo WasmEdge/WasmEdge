@@ -1,11 +1,6 @@
 ARG BASE=wasmedge/wasmedge:manylinux_2_28_x86_64
 FROM ${BASE}
 
-ENV PATH /opt/rh/gcc-toolset-13/root/usr/bin${PATH:+:${PATH}}
-ENV MANPATH /opt/rh/gcc-toolset-13/root/usr/share/man${MANPATH:+:${MANPATH}}
-ENV INFOPATH /opt/rh/gcc-toolset-13/root/usr/share/info${INFOPATH:+:${INFOPATH}}
-ENV PKG_CONFIG_PATH /opt/rh/gcc-toolset-13/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
-
 RUN cd && (yum check-update || true) && \
   yum install -y wget unzip zlib-devel zlib-static elfutils
 

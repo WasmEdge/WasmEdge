@@ -2,7 +2,7 @@ ARG BASE=wasmedge/wasmedge:manylinux_2_28_x86_64
 FROM ${BASE}
 
 RUN cd && (yum check-update || true) && \
-  yum install -y wget unzip zlib-devel zlib-static elfutils
+  yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel
 
 WORKDIR /root
 

@@ -1,11 +1,15 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
+
 #pragma once
 
 #include "plugin/plugin.h"
 #include "types.h"
-#include <mutex>
+
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 #include <Python.h>
 #endif
+
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
@@ -62,4 +66,5 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
                              uint32_t GraphId) noexcept;
+
 } // namespace WasmEdge::Host::WASINN::NeuralSpeed

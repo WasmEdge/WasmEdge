@@ -50,9 +50,35 @@ jobs:
           echo "docker_image=$DOCKER_IMAGE" >> $GITHUB_OUTPUT
           echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
 
+  paths-filter:
+    name: Run paths-filter
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs: # Set outputs to true if not pull_request
+      ci-image-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ci-image-base || 'true' }}
+      manylinux: ${{ github.event_name == 'pull_request' && steps.filter.outputs.manylinux || 'true' }}
+      ubuntu: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ubuntu || 'true' }}
+    steps:
+      - if: ${{ github.event_name == 'pull_request' }}
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ci-image-base:
+              - 'utils/docker/**.ci-image-base'
+            manylinux:
+              - 'utils/docker/Dockerfile.manylinux**'
+            ubuntu:
+              - 'utils/docker/Dockerfile.base'
+              - 'utils/docker/Dockerfile.build-**'
+
   bake-base-images:
     name: Bake `ci-image-base`
-    needs: [prep]
+    needs:
+      - prep
+      - paths-filter
+    if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -74,9 +100,12 @@ jobs:
           files: utils/docker/docker-bake.ci-image-base
           push: ${{ github.event_name != 'pull_request' }}
 
-  build-docker-images:
-    name: build-docker-images
-    needs: [prep, bake-base-images]
+  build-ubuntu-images:
+    name: Build for Ubuntu
+    needs:
+      - prep
+      - paths-filter
+    if: ${{ needs.paths-filter.outputs.ubuntu == 'true' }}
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:ci-image-base
@@ -202,19 +231,15 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-  build-manylinux-docker-images:
-    needs: [prep, bake-base-images]
+  build-manylinux-images:
+    needs:
+      - prep
+      - paths-filter
+    if: ${{ needs.paths-filter.outputs.manylinux == 'true' }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: manylinux2014 x86_64
-            docker_tag: manylinux2014_x86_64
-            dockerfile: utils/docker/Dockerfile.manylinux2014_x86_64
-            dockerfile_plugin: utils/docker/Dockerfile.manylinux2014-build-plugins-deps
-            target_platforms: linux/amd64
-            host_runner: ubuntu-latest
-            host_container: wasmedge/wasmedge:ci-image-base
           - name: manylinux_2_28 x86_64
             docker_tag: manylinux_2_28_x86_64
             dockerfile: utils/docker/Dockerfile.manylinux_2_28_x86_64
@@ -222,13 +247,6 @@ jobs:
             target_platforms: linux/amd64
             host_runner: ubuntu-latest
             host_container: wasmedge/wasmedge:ci-image-base
-          - name: manylinux2014 aarch64
-            docker_tag: manylinux2014_aarch64
-            dockerfile: utils/docker/Dockerfile.manylinux2014_aarch64
-            dockerfile_plugin: utils/docker/Dockerfile.manylinux2014-build-plugins-deps
-            target_platforms: linux/arm64
-            host_runner: linux-arm64-v2
-            host_container: wasmedge/wasmedge:ci-image-base_aarch64
           - name: manylinux_2_28 aarch64
             docker_tag: manylinux_2_28_aarch64
             dockerfile: utils/docker/Dockerfile.manylinux_2_28_aarch64
@@ -236,7 +254,7 @@ jobs:
             target_platforms: linux/arm64
             host_runner: linux-arm64-v2
             host_container: wasmedge/wasmedge:ci-image-base_aarch64
-    name: build ${{ matrix.name }}
+    name: Build for ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}
     container:
       image: ${{ matrix.host_container }}

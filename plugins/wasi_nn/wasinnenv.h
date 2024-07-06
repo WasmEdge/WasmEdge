@@ -11,6 +11,7 @@
 
 #include "ggml.h"
 #include "neuralspeed.h"
+#include "chattts.h"
 #include "onnx.h"
 #include "openvino.h"
 #include "piper.h"

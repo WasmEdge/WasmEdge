@@ -15,6 +15,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   neuralspeed.cpp
   piper.cpp
   whispercpp.cpp
+  chattts.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -152,7 +153,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
       )
     endif()
-  elseif(BACKEND STREQUAL "neuralspeed")
+  elseif(BACKEND STREQUAL "neuralspeed" OR BACKEND STREQUAL "chattts")
     wasmedge_setup_simdjson()
 
     find_package(Python3 COMPONENTS Interpreter Development)

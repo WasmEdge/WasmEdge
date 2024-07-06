@@ -17,18 +17,18 @@ struct Graph {
   Graph() noexcept { Py_Initialize(); }
   ~Graph() noexcept {
     if (Py_IsInitialized()) {
-      Py_XDECREF(Model);
+      Py_XDECREF(Chat);
       Py_XDECREF(ChatTTSModule);
     }
   }
-  PyObject *Model;
+  PyObject *Chat;
   PyObject *ChatTTSModule;
 };
 struct Context {
   Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}
   size_t GraphId;
-  std::vector<long long int> Inputs;
-  std::vector<long long int> Outputs;
+  std::string Inputs;
+  std::vector<uint8_t> Outputs;
 };
 #else
 struct Graph {};

@@ -4,6 +4,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
+# https://github.com/actions/checkout/issues/1809
+# Checkout action now is using nodejs20, but somes runners are still running CentOS7, which is too old.
+env:
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
 on:
   push:
     branches:

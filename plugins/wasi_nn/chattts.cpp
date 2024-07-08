@@ -24,30 +24,30 @@ HINSTANCE SharedLib = LoadLibrary(PYTHON_LIB_PATH);
 void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
 #endif
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
-                           Span<const Span<uint8_t>> Builders, WASINN::Device,
+                           Span<const Span<uint8_t>>, WASINN::Device,
                            uint32_t &GraphId) noexcept {
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::NeuralSpeed);
+  Env.NNGraph.emplace_back(Backend::ChatTTS);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
   // Initialize the plugin parameters.
-  GraphRef.EnableDebugLog = false;
+  GraphRef.EnableDebugLog = true;
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] ChatTTS backend: Load."sv);
   }
 
-  if (Builders.size() > 1) {
-    std::string Metadata = std::string(
-        reinterpret_cast<char *>(Builders[1].data()), Builders[1].size());
-    simdjson::dom::parser Parser;
-    simdjson::dom::element Doc;
-    auto ParseError = Parser.parse(Metadata).get(Doc);
-    if (ParseError) {
-      spdlog::error("[WASI-NN] ChatTTS backend: Parse metadata error"sv);
-      Env.NNGraph.pop_back();
-      return ErrNo::InvalidEncoding;
-    }
-    // TODO handle metadata
-  }
+  // if (Builders.size() > 1) {
+  //   std::string Metadata = std::string(
+  //       reinterpret_cast<char *>(Builders[1].data()), Builders[1].size());
+  //   simdjson::dom::parser Parser;
+  //   simdjson::dom::element Doc;
+  //   auto ParseError = Parser.parse(Metadata).get(Doc);
+  //   if (ParseError) {
+  //     spdlog::error("[WASI-NN] ChatTTS backend: Parse metadata error"sv);
+  //     Env.NNGraph.pop_back();
+  //     return ErrNo::InvalidEncoding;
+  //   }
+  //   // TODO handle metadata
+  // }
 
   // Create Model class
   if (!Py_IsInitialized()) {
@@ -62,7 +62,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   }
   PyObject *ChatFunction =
       PyObject_GetAttrString(GraphRef.ChatTTSModule, "Chat");
-  if (ChatFunction && PyCallable_Check(ChatFunction)) {
+  if (ChatFunction == nullptr || !PyCallable_Check(ChatFunction)) {
     spdlog::error(
         "[WASI-NN] ChatTTS backend: Can not find Chat class in ChatTTS."sv);
     Py_XDECREF(GraphRef.ChatTTSModule);
@@ -78,18 +78,15 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::RuntimeError;
   }
   PyObject *LoadMethod = PyObject_GetAttrString(GraphRef.Chat, "load");
-  if (LoadMethod && PyCallable_Check(LoadMethod)) {
-    PyObject *Args = PyTuple_Pack(1, Py_False);
-    PyObject *Value = PyObject_CallObject(LoadMethod, Args);
-    Py_XDECREF(Value);
-    Py_DECREF(Args);
-    Py_DECREF(LoadMethod);
-  } else {
+  if (LoadMethod == nullptr || !PyCallable_Check(LoadMethod)) {
     spdlog::error("[WASI-NN] ChatTTS backend: Can not load chat."sv);
     PyErr_Print();
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::RuntimeError;
   }
+  PyObject *Value = PyObject_CallObject(LoadMethod, nullptr);
+  Py_XDECREF(Value);
+  Py_DECREF(LoadMethod);
   // Store the loaded graph.
   GraphId = Env.NNGraph.size() - 1;
 
@@ -163,17 +160,16 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   PyObject *InputStr = PyUnicode_FromString(CxtRef.Inputs.c_str());
   PyObject *InferMethod = PyObject_GetAttrString(GraphRef.Chat, "infer");
   PyObject *Result = nullptr;
-  if (InferMethod && PyCallable_Check(InferMethod)) {
-    PyObject *Args = PyTuple_Pack(1, InputStr);
-    Result = PyObject_CallObject(InferMethod, Args);
-    Py_XDECREF(Args);
-  } else {
+  if (InferMethod == nullptr || !PyCallable_Check(InferMethod)) {
     spdlog::error(
         "[WASI-NN] ChatTTS backend: Can not find infer method in Chat."sv);
     PyErr_Print();
     Py_XDECREF(InferMethod);
     return WASINN::ErrNo::RuntimeError;
   }
+  PyObject *Args = PyTuple_Pack(1, InputStr);
+  Result = PyObject_CallObject(InferMethod, Args);
+  Py_XDECREF(Args);
   if (Result != nullptr) {
     PyObject *Wav0 = PyList_GetItem(Result, 0);
     PyObject *BytesObj = PyObject_CallMethod(Wav0, "tobytes", nullptr);
@@ -203,8 +199,8 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     spdlog::info("[WASI-NN] Neural speed backend: start unload."sv);
   }
   if (Py_IsInitialized()) {
-	Py_XDECREF(GraphRef.Chat);
-	Py_XDECREF(GraphRef.ChatTTSModule);
+    Py_XDECREF(GraphRef.Chat);
+    Py_XDECREF(GraphRef.ChatTTSModule);
     Py_Finalize();
   }
   return WASINN::ErrNo::Success;
@@ -213,9 +209,8 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
 #else
 namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
-  spdlog::error(
-      "[WASI-NN] Neural speed backend is not built. use "
-      "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"NeuralSpeed\" to build it."sv);
+  spdlog::error("[WASI-NN] ChatTTS backend is not built. use "
+                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"ChatTTS\" to build it."sv);
   return WASINN::ErrNo::InvalidArgument;
 }
 } // namespace

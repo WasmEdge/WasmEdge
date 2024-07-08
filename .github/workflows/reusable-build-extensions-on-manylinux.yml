@@ -55,6 +55,8 @@ jobs:
       # Required for mounting debugfs
       # Tests of wasm_bpf also require privileges
       options: --privileged
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - uses: actions/checkout@v3
         with:
@@ -101,6 +103,7 @@ jobs:
       # Tests of wasm_bpf also require privileges
       options: --privileged
     env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       bin_name: ${{ matrix.bin }}
       target: ${{ inputs.release && matrix.bin || matrix.testBin }}
       test_dir: build/test/plugins/${{ matrix.dir }}

@@ -25,75 +25,81 @@ using WasmEdge::Host::WASINN::ErrNo;
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML) ||                           \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED) ||                   \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER) ||                          \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER)
-namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *
-createModule(std::string_view NNRPCURI = "") {
-  using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(
-      std::filesystem::u8path("../../../plugins/wasi_nn/" WASMEDGE_LIB_PREFIX
-                              "wasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
-    WasmEdge::PO::ArgumentParser Parser;
-    Plugin->registerOptions(Parser);
-    if (NNRPCURI != "") {
-      Parser.set_raw_value<std::string>("nn-rpc-uri"sv, std::string(NNRPCURI));
+<<<<<<< HEAD
+defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER)
+=======
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
+>>>>>>> 6769e4a7 ([WASI-NN] ChatTTS: add basic test)
+    namespace {
+  WasmEdge::Runtime::Instance::ModuleInstance *createModule(
+      std::string_view NNRPCURI = "") {
+    using namespace std::literals::string_view_literals;
+    WasmEdge::Plugin::Plugin::load(
+        std::filesystem::u8path("../../../plugins/wasi_nn/" WASMEDGE_LIB_PREFIX
+                                "wasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
+    if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
+      WasmEdge::PO::ArgumentParser Parser;
+      Plugin->registerOptions(Parser);
+      if (NNRPCURI != "") {
+        Parser.set_raw_value<std::string>("nn-rpc-uri"sv,
+                                          std::string(NNRPCURI));
+      }
+      if (const auto *Module = Plugin->findModule("wasi_nn"sv)) {
+        return Module->create().release();
+      }
     }
-    if (const auto *Module = Plugin->findModule("wasi_nn"sv)) {
-      return Module->create().release();
+    return nullptr;
+  }
+#if !defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
+  inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
+    std::ifstream Fin(Path, std::ios::in | std::ios::binary | std::ios::ate);
+    if (!Fin) {
+      return {};
     }
+    std::vector<uint8_t> Buf(static_cast<std::size_t>(Fin.tellg()));
+    Fin.seekg(0, std::ios::beg);
+    if (!Fin.read(reinterpret_cast<char *>(Buf.data()),
+                  static_cast<std::streamsize>(Buf.size()))) {
+      return {};
+    }
+    Fin.close();
+    return Buf;
   }
-  return nullptr;
-}
+#endif
 
-inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
-  std::ifstream Fin(Path, std::ios::in | std::ios::binary | std::ios::ate);
-  if (!Fin) {
-    return {};
+  template <typename T>
+  void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance & MemInst,
+                     WasmEdge::Span<const T> Binaries, uint32_t Ptr) noexcept {
+    std::copy(Binaries.begin(), Binaries.end(), MemInst.getPointer<T *>(Ptr));
   }
-  std::vector<uint8_t> Buf(static_cast<std::size_t>(Fin.tellg()));
-  Fin.seekg(0, std::ios::beg);
-  if (!Fin.read(reinterpret_cast<char *>(Buf.data()),
-                static_cast<std::streamsize>(Buf.size()))) {
-    return {};
+
+  void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance & MemInst,
+                   uint32_t Value, uint32_t & Ptr) {
+    uint32_t *BufPtr = MemInst.getPointer<uint32_t *>(Ptr);
+    *BufPtr = Value;
+    Ptr += 4;
   }
-  Fin.close();
-  return Buf;
-}
 
-template <typename T>
-void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                   WasmEdge::Span<const T> Binaries, uint32_t Ptr) noexcept {
-  std::copy(Binaries.begin(), Binaries.end(), MemInst.getPointer<T *>(Ptr));
-}
-
-void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                 uint32_t Value, uint32_t &Ptr) {
-  uint32_t *BufPtr = MemInst.getPointer<uint32_t *>(Ptr);
-  *BufPtr = Value;
-  Ptr += 4;
-}
-
-void writeFatPointer(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                     uint32_t PtrVal, uint32_t PtrSize, uint32_t &Ptr) {
-  writeUInt32(MemInst, PtrVal, Ptr);
-  writeUInt32(MemInst, PtrSize, Ptr);
-}
+  void writeFatPointer(WasmEdge::Runtime::Instance::MemoryInstance & MemInst,
+                       uint32_t PtrVal, uint32_t PtrSize, uint32_t & Ptr) {
+    writeUInt32(MemInst, PtrVal, Ptr);
+    writeUInt32(MemInst, PtrSize, Ptr);
+  }
 
 #if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO) ||                       \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH) ||                          \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
-template <typename T>
-std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
-  std::vector<size_t> Indices(Array.size());
-  std::iota(Indices.begin(), Indices.end(), 0);
-  std::sort(Indices.begin(), Indices.end(),
-            [&Array](size_t Left, size_t Right) -> bool {
-              // Sort indices according to corresponding array element.
-              return Array[Left] > Array[Right];
-            });
-  return Indices;
-}
+  template <typename T>
+  std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
+    std::vector<size_t> Indices(Array.size());
+    std::iota(Indices.begin(), Indices.end(), 0);
+    std::sort(Indices.begin(), Indices.end(),
+              [&Array](size_t Left, size_t Right) -> bool {
+                // Sort indices according to corresponding array element.
+                return Array[Left] > Array[Right];
+              });
+    return Indices;
+  }
 #endif
 } // namespace
 #endif
@@ -2447,7 +2453,6 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-
   // Test: set_input -- set input successfully.
   {
     EXPECT_TRUE(
@@ -2469,7 +2474,6 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-
   // Test: compute -- compute successfully.
   {
     EXPECT_TRUE(HostFuncCompute.run(
@@ -2500,7 +2504,6 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-
   // Test: get_output -- get output successfully.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
@@ -2515,3 +2518,223 @@ TEST(WasiNNTest, PiperBackend) {
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
+TEST(WasiNNTest, ChatTTSBackend) {
+  // Create the wasmedge_process module instance.
+  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
+  ASSERT_TRUE(NNMod != nullptr);
+
+  // Create the calling frame with memory instance.
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(60000)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  // Load the files.
+  std::string Prompt = "This is test prompt.";
+  std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
+
+  std::vector<uint32_t> TensorDim{1};
+  uint32_t BuilderPtr = UINT32_C(0);
+  uint32_t LoadEntryPtr = UINT32_C(0);
+  uint32_t SetInputEntryPtr = UINT32_C(0);
+  uint32_t OutBoundPtr = UINT32_C(61000) * UINT32_C(65536);
+  uint32_t StorePtr = UINT32_C(65536);
+
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // Get the function "load".
+  auto *FuncInst = NNMod->findFuncExports("load");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoad =
+      dynamic_cast<WasmEdge::Host::WasiNNLoad &>(FuncInst->getHostFunc());
+  // Get the function "init_execution_context".
+  FuncInst = NNMod->findFuncExports("init_execution_context");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
+      FuncInst->getHostFunc());
+  // Get the function "set_input".
+  FuncInst = NNMod->findFuncExports("set_input");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncSetInput =
+      dynamic_cast<WasmEdge::Host::WasiNNSetInput &>(FuncInst->getHostFunc());
+  // Get the function "get_output".
+  FuncInst = NNMod->findFuncExports("get_output");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncGetOutput =
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+  // Get the function "compute".
+  FuncInst = NNMod->findFuncExports("compute");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncCompute =
+      dynamic_cast<WasmEdge::Host::WasiNNCompute &>(FuncInst->getHostFunc());
+  // Get the function "unload".
+  FuncInst = NNMod->findFuncExports("unload");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncUnload =
+      dynamic_cast<WasmEdge::Host::WasiNNUnload &>(FuncInst->getHostFunc());
+
+  // ChatTTS WASI-NN load tests.
+  // Test: load -- graph id ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncLoad.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     LoadEntryPtr, UINT32_C(1),
+                                     static_cast<uint32_t>(Backend::ChatTTS),
+                                     UINT32_C(0), OutBoundPtr},
+                                 Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- graph builder ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncLoad.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     OutBoundPtr, UINT32_C(1),
+                                     static_cast<uint32_t>(Backend::ChatTTS),
+                                     UINT32_C(0), BuilderPtr},
+                                 Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: load -- load successfully.
+  BuilderPtr = LoadEntryPtr;
+  {
+    EXPECT_TRUE(HostFuncLoad.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     LoadEntryPtr, UINT32_C(1),
+                                     static_cast<uint32_t>(Backend::ChatTTS),
+                                     UINT32_C(0), BuilderPtr},
+                                 Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+  // ChatTTS WASI-NN init_execution_context tests.
+  // Test: init_execution_context -- graph id invalid.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(2), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: init_execution_context -- init second context.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 0);
+    BuilderPtr += 4;
+  }
+
+  // ChatTTS WASI-NN set_input tests.
+  SetInputEntryPtr = BuilderPtr;
+  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
+                  BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(MemInst, TensorData, StorePtr + TensorDim.size() * 4);
+
+  // Test: set_input -- context id exceeds.
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(3), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: set_input -- set input successfully.
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(0), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  StorePtr += (TensorDim.size() * 4 + TensorData.size());
+
+  // ChatTTS WASI-NN compute tests.
+  // Test: compute -- context id exceeds.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(3)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: compute -- compute successfully.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // ChatTTS WASI-NN get_output tests.
+  // Test: get_output -- output bytes ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, OutBoundPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: get_output -- output buffer ptr out of bounds.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), OutBoundPtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+  // Test: get_output -- get output successfully.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    // Should output more than 50 bytes.
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesWritten, 50);
+  }
+
+  // ChatTTS WASI-NN unload tests.
+  // Test: unload -- unload successfully.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+}
+#endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS

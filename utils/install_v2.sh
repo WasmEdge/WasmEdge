@@ -162,7 +162,7 @@ check_os_arch() {
 					;;
 			esac
 			if [ "${LEGACY}" == 1 ]; then
-				RELEASE_PKG="manylinux2014_${ARCH}.tar.gz"
+				RELEASE_PKG="manylinux_2_28_${ARCH}.tar.gz"
 			else
 				RELEASE_PKG="ubuntu20.04_${ARCH}.tar.gz"
 			fi

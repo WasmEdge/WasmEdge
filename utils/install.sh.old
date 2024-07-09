@@ -155,7 +155,7 @@ VERSION_TF_DEPS=$(get_latest_release second-state/WasmEdge-tensorflow-deps)
 VERSION_TF_TOOLS=$(get_latest_release second-state/WasmEdge-tensorflow-tools)
 
 check_os_arch() {
-    RELEASE_PKG="manylinux2014_x86_64.tar.gz"
+    RELEASE_PKG="manylinux_2_28_x86_64.tar.gz"
     IM_DEPS_RELEASE_PKG="manylinux1_x86_64.tar.gz"
     [ -z "$ARCH" ] && ARCH=$(uname -m)
     [ -z "$OS" ] && OS=$(uname)
@@ -168,8 +168,8 @@ check_os_arch() {
     'Linux')
         case $ARCH in
         'x86_64') ;;
-        'arm64' | 'armv8*' | "aarch64") RELEASE_PKG="manylinux2014_aarch64.tar.gz" ;;
-        "amd64") RELEASE_PKG="manylinux2014_amd64.tar.gz" ;;
+        'arm64' | 'armv8*' | "aarch64") RELEASE_PKG="manylinux_2_28_aarch64.tar.gz" ;;
+        "amd64") RELEASE_PKG="manylinux_2_28_amd64.tar.gz" ;;
         *)
             echo "${RED}Detected $OS-$ARCH${NC} - currently unsupported${NC}"
             exit 1

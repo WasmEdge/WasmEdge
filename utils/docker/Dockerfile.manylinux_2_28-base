@@ -1,18 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
-FROM quay.io/pypa/manylinux_2_28_x86_64
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
 
 MAINTAINER hydai hydai@secondstate.io
 
 ADD SHA256SUM.manylinux_2_28 /root/
 
 # See /opt/rh/gcc-toolset-13/enable
-ENV PATH /opt/rh/gcc-toolset-13/root/usr/bin${PATH:+:${PATH}}
-ENV MANPATH /opt/rh/gcc-toolset-13/root/usr/share/man${MANPATH:+:${MANPATH}}
-ENV INFOPATH /opt/rh/gcc-toolset-13/root/usr/share/info${INFOPATH:+:${INFOPATH}}
-ENV LD_LIBRARY_PATH /opt/rh/gcc-toolset-13/root/usr/lib64:/opt/rh/gcc-toolset-13/root/usr/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-ENV PKG_CONFIG_PATH /opt/rh/gcc-toolset-13/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV PATH=/opt/rh/gcc-toolset-13/root/usr/bin${PATH:+:${PATH}}
+ENV MANPATH=/opt/rh/gcc-toolset-13/root/usr/share/man${MANPATH:+:${MANPATH}}
+ENV INFOPATH=/opt/rh/gcc-toolset-13/root/usr/share/info${INFOPATH:+:${INFOPATH}}
+ENV LD_LIBRARY_PATH=/opt/rh/gcc-toolset-13/root/usr/lib64:/opt/rh/gcc-toolset-13/root/usr/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+ENV PKG_CONFIG_PATH=/opt/rh/gcc-toolset-13/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+
+ARG LLVM_TARGETS LLVM_TRIPLE
 
 RUN cd && (yum check-update || true) && yum install -y openssl-devel rpm-build cmake yum-utils && \
     yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
@@ -50,8 +53,8 @@ RUN cd && (yum check-update || true) && yum install -y openssl-devel rpm-build c
     cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/opt/rh/gcc-toolset-13/root/usr \
         -DPython3_ROOT_DIR=/opt/python/cp311-cp311 -DLLVM_LIBDIR_SUFFIX=64 \
-        -DLLVM_TARGETS_TO_BUILD="X86;BPF" -DLLVM_ENABLE_PROJECTS="lld;clang" \
-        -DLLVM_DEFAULT_TARGET_TRIPLE="x86_64-pc-linux-gnu" \
+        -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGETS}" -DLLVM_ENABLE_PROJECTS="lld;clang" \
+        -DLLVM_DEFAULT_TARGET_TRIPLE="${LLVM_TRIPLE}" \
         -DBUILD_SHARED_LIBS=OFF llvm && \
     cmake --build build --target install && \
     rm -rf build && rm -rf *

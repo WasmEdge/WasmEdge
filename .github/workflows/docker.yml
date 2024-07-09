@@ -243,16 +243,12 @@ jobs:
         include:
           - name: manylinux_2_28 x86_64
             docker_tag: manylinux_2_28_x86_64
-            dockerfile: utils/docker/Dockerfile.manylinux_2_28_x86_64
-            dockerfile_plugin: utils/docker/Dockerfile.manylinux_2_28-build-plugins-deps
-            target_platforms: linux/amd64
+            targets: x86_64,x86_64-plugins
             host_runner: ubuntu-latest
             host_container: wasmedge/wasmedge:ci-image-base
           - name: manylinux_2_28 aarch64
             docker_tag: manylinux_2_28_aarch64
-            dockerfile: utils/docker/Dockerfile.manylinux_2_28_aarch64
-            dockerfile_plugin: utils/docker/Dockerfile.manylinux_2_28-build-plugins-deps
-            target_platforms: linux/arm64
+            targets: aarch64,aarch64-plugins
             host_runner: linux-arm64-v2
             host_container: wasmedge/wasmedge:ci-image-base_aarch64
     name: Build for ${{ matrix.name }}
@@ -274,38 +270,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: "Rebuild wasmedge/wasmedge:${{ matrix.docker_tag }}"
-        uses: docker/build-push-action@v6
+      - name: Bake and Push
+        uses: docker/bake-action@v5
         with:
-          build-args: BASE=quay.io/pypa/${{ matrix.docker_tag }}
-          context: ./utils/docker
-          file: ${{ matrix.dockerfile }}
-          platforms: ${{ matrix.target_platforms }}
+          files: utils/docker/docker-bake.manylinux.hcl
+          targets: ${{ matrix.targets }}
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ needs.prep.outputs.docker_image }}:${{ matrix.docker_tag }}
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: "Rebuild wasmedge/wasmedge:${{ matrix.docker_tag }}-plugins-deps"
-        uses: docker/build-push-action@v6
-        with:
-          build-args: BASE=wasmedge/wasmedge:${{ matrix.docker_tag }}
-          context: ./utils
-          file: ${{ matrix.dockerfile_plugin }}
-          platforms: ${{ matrix.target_platforms }}
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ needs.prep.outputs.docker_image }}:${{ matrix.docker_tag }}-plugins-deps
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}

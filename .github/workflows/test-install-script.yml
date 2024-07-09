@@ -31,10 +31,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: CentOS 7
+          - name: AlmaLinux 8
             host_runner: ubuntu-latest
             package_manager: yum
-            docker_image: centos:7.9.2009
+            docker_image: almalinux:8
             python_package: python3 python2
             python2_ex: python2
             python3_ex: python3

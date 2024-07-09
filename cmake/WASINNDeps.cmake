@@ -241,4 +241,6 @@ function(wasmedge_setup_piper)
   FetchContent_MakeAvailable(piper)
   set_property(TARGET piper PROPERTY POSITION_INDEPENDENT_CODE ON)
   set_target_properties(test_piper PROPERTIES EXCLUDE_FROM_ALL TRUE)
+  # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
+  target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
 endfunction()

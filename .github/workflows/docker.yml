@@ -66,7 +66,8 @@ jobs:
         with:
           filters: |
             ci-image-base:
-              - 'utils/docker/**.ci-image-base'
+              - 'utils/docker/docker-bake.ci-image-base.hcl'
+              - 'utils/docker/Dockerfile.ci-image-base'
             manylinux:
               - 'utils/docker/Dockerfile.manylinux**'
             ubuntu:
@@ -97,7 +98,7 @@ jobs:
       - name: Bake and Push
         uses: docker/bake-action@v5
         with:
-          files: utils/docker/docker-bake.ci-image-base
+          files: utils/docker/docker-bake.ci-image-base.hcl
           push: ${{ github.event_name != 'pull_request' }}
 
   build-ubuntu-images:

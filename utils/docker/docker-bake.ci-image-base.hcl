@@ -6,8 +6,8 @@ group "default" {
 }
 
 target "base" {
-  dockerfile = "./utils/docker/Dockerfile.ci-image-base"
-  context    = "."
+  dockerfile = "Dockerfile.ci-image-base"
+  context    = "./utils/docker"
 }
 
 target "x86_64" {

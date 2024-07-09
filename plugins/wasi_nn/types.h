@@ -39,7 +39,7 @@ enum class Backend : uint8_t {
   NeuralSpeed = 7,
   Whisper = 9,
   Piper = 11,
-  ChatTTS = 8,
+  ChatTTS = 12,
 };
 
 #define FOR_EACH_BACKEND(F)                                                    \

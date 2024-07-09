@@ -128,18 +128,24 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 }
 
 Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                                uint32_t, Span<uint8_t> OutBuffer,
+                                uint32_t Index, Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] ChatTTS backend: getOutput"sv);
   }
-  std::string StringTmp(reinterpret_cast<const char *>(CxtRef.Outputs.data()),
-                        CxtRef.Outputs.size() * sizeof(long long int));
-  std::copy_n(StringTmp.data(), StringTmp.length(), OutBuffer.data());
-  BytesWritten = StringTmp.length();
-  return WASINN::ErrNo::Success;
+  if (Index == 0) {
+    std::copy_n(CxtRef.Outputs.data(), CxtRef.Outputs.size(), OutBuffer.data());
+    BytesWritten = CxtRef.Outputs.size();
+    return WASINN::ErrNo::Success;
+  } else if (Index == 1) {
+    uint32_t Size = CxtRef.Outputs.size();
+    std::memcpy(OutBuffer.data(), &Size, sizeof(uint32_t));
+    BytesWritten = sizeof(uint32_t);
+    return WASINN::ErrNo::Success;
+  }
+  return WASINN::ErrNo::InvalidArgument;
 }
 Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {

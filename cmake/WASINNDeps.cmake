@@ -236,7 +236,7 @@ function(wasmedge_setup_piper)
     GIT_REPOSITORY https://github.com/rhasspy/piper.git
     GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
     UPDATE_DISCONNECTED TRUE
-    PATCH_COMMAND ${GIT_CMD} apply ${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch
+    PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
   )
   FetchContent_MakeAvailable(piper)
   set_property(TARGET piper PROPERTY POSITION_INDEPENDENT_CODE ON)

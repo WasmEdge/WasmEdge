@@ -99,14 +99,23 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
     auto Backend = BackendMap.find(Encode);
     auto Device = DeviceMap.find(Target);
     if (Backend != BackendMap.end() && Device != DeviceMap.end()) {
-      for (const std::string &P : Paths) {
-        if (Backend->second == Backend::GGML) {
-          // We write model path to model data to avoid file IO in llama.cpp.
-          std::string ModelPath = "preload:" + P;
-          std::vector<uint8_t> ModelPathData(ModelPath.begin(),
-                                             ModelPath.end());
-          Models.push_back(std::move(ModelPathData));
-        } else {
+      if (Backend->second == Backend::GGML) {
+        // In GGML, we only support loading one model from nn-preload config.
+        // To handle paths on Windows that contains `:` in the path, we combine
+        // the Paths into a single string separated by `:`.
+        std::string P;
+        for (const std::string &PathSegment : Paths) {
+          P += PathSegment;
+          if (PathSegment != Paths.back()) {
+            P += ":";
+          }
+        }
+        // We write model path to model data to avoid file IO in llama.cpp.
+        std::string ModelPath = "preload:" + P;
+        std::vector<uint8_t> ModelPathData(ModelPath.begin(), ModelPath.end());
+        Models.push_back(std::move(ModelPathData));
+      } else {
+        for (const std::string &P : Paths) {
           std::vector<uint8_t> Model;
           if (load(std::filesystem::u8path(P), Model)) {
             Models.push_back(std::move(Model));

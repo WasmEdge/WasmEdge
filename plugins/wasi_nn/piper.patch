@@ -1,8 +1,15 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index f96ec44..ac85367 100644
+index f96ec44..a759c35 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -17,7 +17,7 @@ elseif(NOT APPLE)
+@@ -13,11 +13,13 @@ if(MSVC)
+   add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+ elseif(NOT APPLE)
+   # Linux flags
+-  string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra -Wl,-rpath,'$ORIGIN'")
++  string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra")
++  list(APPEND CMAKE_BUILD_RPATH "$ORIGIN")
++  list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN")
    string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
  endif()
  
@@ -11,7 +18,34 @@ index f96ec44..ac85367 100644
  add_executable(test_piper src/cpp/test.cpp src/cpp/piper.cpp)
  
  # NOTE: external project prefix are shortened because of path length restrictions on Windows
-@@ -104,14 +104,6 @@ target_include_directories(piper PUBLIC
+@@ -60,10 +62,14 @@ endif()
+ 
+ if(NOT DEFINED PIPER_PHONEMIZE_DIR)
+   set(PIPER_PHONEMIZE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pi")
++  find_program(GIT_CMD git REQUIRED)
+   ExternalProject_Add(
+     piper_phonemize_external
+     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/p"
+-    URL "https://github.com/rhasspy/piper-phonemize/archive/refs/heads/master.zip"
++    GIT_REPOSITORY "https://github.com/rhasspy/piper-phonemize.git"
++    GIT_TAG "bfc2e7549957829b0227c66a305d11cc88167bda" # master
++    UPDATE_DISCONNECTED TRUE
++    PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_CURRENT_SOURCE_DIR}/piper-phonemize.patch"
+     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PIPER_PHONEMIZE_DIR}
+   )
+   add_dependencies(piper piper_phonemize_external)
+@@ -74,7 +80,9 @@ endif()
+ 
+ if((NOT MSVC) AND (NOT APPLE))
+   # Linux flags
+-  string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra -Wl,-rpath,'$ORIGIN'")
++  string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra")
++  list(APPEND CMAKE_BUILD_RPATH "$ORIGIN")
++  list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN")
+   string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
+   target_link_libraries(piper -static-libgcc -static-libstdc++)
+ 
+@@ -104,14 +112,6 @@ target_include_directories(piper PUBLIC
  
  target_compile_definitions(piper PUBLIC _PIPER_VERSION=${piper_version})
  
@@ -34,3 +68,24 @@ index 26aaba0..867e524 100644
 -1.2.0
 +1.2.0
 \ No newline at end of file
+diff --git a/piper-phonemize.patch b/piper-phonemize.patch
+new file mode 100644
+index 0000000..f8ca06f
+--- /dev/null
++++ b/piper-phonemize.patch
+@@ -0,0 +1,15 @@
++diff --git a/CMakeLists.txt b/CMakeLists.txt
++index ec7b501..34cf7b1 100644
++--- a/CMakeLists.txt
+++++ b/CMakeLists.txt
++@@ -17,7 +17,9 @@ if(MSVC)
++ 
++ elseif(NOT APPLE)
++     # Linux flags
++-    string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra -Wl,-rpath,'$ORIGIN'")
+++    string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra")
+++    list(APPEND CMAKE_BUILD_RPATH "$ORIGIN")
+++    list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN")
++     string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
++ endif()
++ 

@@ -2028,6 +2028,7 @@ TEST(WasiNNTest, PiperBackend) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   // Load the files.
+  (void)readEntireFile;
   std::string Text = "This is a test.";
   std::vector<uint8_t> TensorData(Text.begin(), Text.end());
 

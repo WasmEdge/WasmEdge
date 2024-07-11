@@ -7,6 +7,7 @@
 #include "types.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <piper.hpp>
@@ -23,10 +24,10 @@ namespace WasmEdge::Host::WASINN::Piper {
 enum class RunConfigOutputType { OUTPUT_WAV, OUTPUT_RAW };
 struct RunConfig {
   // Path to .onnx voice file
-  std::string ModelPath;
+  std::filesystem::path ModelPath;
 
   // Path to JSON voice config file
-  std::string ModelConfigPath;
+  std::filesystem::path ModelConfigPath;
 
   // Type of output to produce.
   // Default is a WAV file.
@@ -48,11 +49,11 @@ struct RunConfig {
   std::optional<float> SentenceSilenceSeconds;
 
   // Path to espeak-ng data directory
-  std::optional<std::string> ESpeakDataPath;
+  std::optional<std::filesystem::path> ESpeakDataPath;
 
   // Path to libtashkeel ort model
   // https://github.com/mush42/libtashkeel/
-  std::optional<std::string> TashkeelModelPath;
+  std::optional<std::filesystem::path> TashkeelModelPath;
 
   // input is JSON instead of text with format:
   // {

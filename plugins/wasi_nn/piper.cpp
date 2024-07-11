@@ -8,6 +8,7 @@
 #include "simdjson.h"
 #include "types.h"
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <ios>
@@ -52,11 +53,6 @@ WASINN::ErrNo getOptionalOption(simdjson::dom::object &Object,
   return Err;
 }
 
-bool fileExists(const std::string &Filename) {
-  auto Stream = std::ifstream{Filename, std::ios::binary};
-  return Stream.good();
-}
-
 Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
                                      const std::string &String) noexcept {
   simdjson::dom::parser Parser;
@@ -81,12 +77,12 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
   }
   // Verify model file exists
   if (ModelPath) {
-    auto Path = std::string{ModelPath.value()};
-    if (!fileExists(Path)) {
+    auto Path = std::filesystem::u8path(ModelPath.value());
+    if (!std::filesystem::exists(Path)) {
       spdlog::error("[WASI-NN] Piper backend: Model file doesn't exist"sv);
       return WASINN::ErrNo::InvalidArgument;
     }
-    RunConfig.ModelPath = ModelPath.value();
+    RunConfig.ModelPath = Path;
   } else {
     spdlog::error(
         "[WASI-NN] Piper backend: The model option is required but not provided"sv);
@@ -99,12 +95,14 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
     return Err;
   }
   if (ModelConfigPath) {
-    RunConfig.ModelConfigPath = ModelConfigPath.value();
+    RunConfig.ModelConfigPath =
+        std::filesystem::u8path(ModelConfigPath.value());
   } else {
-    RunConfig.ModelConfigPath = RunConfig.ModelPath + ".json";
+    RunConfig.ModelConfigPath = RunConfig.ModelPath;
+    RunConfig.ModelConfigPath += ".json";
   }
   // Verify model config exists
-  if (!fileExists(RunConfig.ModelConfigPath)) {
+  if (!std::filesystem::exists(RunConfig.ModelConfigPath)) {
     spdlog::error("[WASI-NN] Piper backend: Model config doesn't exist"sv);
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -182,15 +180,25 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
       }
     }
   }
-  if (auto Err = getOptionalOption<std::string, std::string_view>(
-          Object, "espeak_data", RunConfig.ESpeakDataPath);
-      Err != WASINN::ErrNo::Success) {
-    return Err;
+  {
+    auto Path = std::optional<std::string_view>{};
+    if (auto Err = getOptionalOption(Object, "espeak_data", Path);
+        Err != WASINN::ErrNo::Success) {
+      return Err;
+    }
+    if (Path) {
+      RunConfig.ESpeakDataPath = std::filesystem::u8path(Path.value());
+    }
   }
-  if (auto Err = getOptionalOption<std::string, std::string_view>(
-          Object, "tashkeel_model", RunConfig.TashkeelModelPath);
-      Err != WASINN::ErrNo::Success) {
-    return Err;
+  {
+    auto Path = std::optional<std::string_view>{};
+    if (auto Err = getOptionalOption(Object, "tashkeel_model", Path);
+        Err != WASINN::ErrNo::Success) {
+      return Err;
+    }
+    if (Path) {
+      RunConfig.TashkeelModelPath = std::filesystem::u8path(Path.value());
+    }
   }
   if (auto Err =
           std::get<0>(getOption(Object, "json_input", RunConfig.JsonInput));
@@ -224,8 +232,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
 
   GraphRef.PiperConfig = std::make_unique<piper::PiperConfig>();
   GraphRef.Voice = std::make_unique<piper::Voice>();
-  piper::loadVoice(*GraphRef.PiperConfig, GraphRef.Config->ModelPath,
-                   GraphRef.Config->ModelConfigPath, *GraphRef.Voice,
+  piper::loadVoice(*GraphRef.PiperConfig, GraphRef.Config->ModelPath.string(),
+                   GraphRef.Config->ModelConfigPath.string(), *GraphRef.Voice,
                    GraphRef.Config->SpeakerId);
   GraphRef.SpeakerId = GraphRef.Config->SpeakerId;
 
@@ -237,7 +245,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       Env.NNGraph.pop_back();
       return WASINN::ErrNo::InvalidArgument;
     }
-    if (!fileExists(GraphRef.Config->ESpeakDataPath.value())) {
+    if (!std::filesystem::exists(GraphRef.Config->ESpeakDataPath.value())) {
       spdlog::error(
           "[WASI-NN] Piper backend: espeak-ng data directory doesn't exist"sv);
       Env.NNGraph.pop_back();
@@ -245,7 +253,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     }
     // User provided path
     GraphRef.PiperConfig->eSpeakDataPath =
-        GraphRef.Config->ESpeakDataPath.value();
+        GraphRef.Config->ESpeakDataPath->string();
   } else {
     // Not using eSpeak
     GraphRef.PiperConfig->useESpeak = false;
@@ -259,7 +267,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       Env.NNGraph.pop_back();
       return WASINN::ErrNo::InvalidArgument;
     }
-    if (!fileExists(GraphRef.Config->TashkeelModelPath.value())) {
+    if (!std::filesystem::exists(GraphRef.Config->TashkeelModelPath.value())) {
       spdlog::error(
           "[WASI-NN] Piper backend: libtashkeel ort model doesn't exist"sv);
       Env.NNGraph.pop_back();
@@ -268,7 +276,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.PiperConfig->useTashkeel = true;
     // User provided path
     GraphRef.PiperConfig->tashkeelModelPath =
-        GraphRef.Config->TashkeelModelPath;
+        GraphRef.Config->TashkeelModelPath->string();
   }
 
   piper::initialize(*GraphRef.PiperConfig);

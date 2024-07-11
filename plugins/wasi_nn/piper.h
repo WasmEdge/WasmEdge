@@ -54,7 +54,7 @@ struct RunConfig {
   // https://github.com/mush42/libtashkeel/
   std::optional<std::string> TashkeelModelPath;
 
-  // stdin input is lines of JSON instead of text with format:
+  // input is JSON instead of text with format:
   // {
   //   "text": str,               (required)
   //   "speaker_id": int,         (optional)

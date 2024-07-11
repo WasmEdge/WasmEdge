@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "wasinnenv.h"
+#include "types.h"
 #include "wasinnmodule.h"
 
 #include <sstream>
@@ -29,7 +30,8 @@ std::map<std::string_view, Backend> BackendMap = {
     {"tensorflowlite"sv, Backend::TensorflowLite},
     {"autodetect"sv, Backend::Autodetect},
     {"ggml"sv, Backend::GGML},
-    {"neuralspeed"sv, Backend::NeuralSpeed}};
+    {"neuralspeed"sv, Backend::NeuralSpeed},
+    {"piper"sv, Backend::Piper}};
 
 std::map<std::string_view, Device> DeviceMap = {{"cpu"sv, Device::CPU},
                                                 {"gpu"sv, Device::GPU},

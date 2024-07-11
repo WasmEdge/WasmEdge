@@ -13,6 +13,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   tfl.cpp
   ggml.cpp
   neuralspeed.cpp
+  piper.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -151,6 +152,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     else()
       message(FATAL_ERROR "Can not find python3.") 
     endif()
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
+  elseif(BACKEND STREQUAL "piper")
+    wasmedge_setup_simdjson()
+    include(WASINNDeps)
+    wasmedge_setup_piper()
+    target_include_directories(wasmedgePluginWasiNN PRIVATE ${piper_SOURCE_DIR}/src/cpp)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   endif()
 endforeach()

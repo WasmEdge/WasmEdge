@@ -20,33 +20,33 @@ foreach(dep ${SD_DEPS})
   endif()
 endforeach()
 
-wasmedge_add_library(wasmedgePluginStableDiffusion
+wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusion
   SHARED
   sd_env.cpp
   sd_func.cpp
   sd_module.cpp
 )
 
-target_link_libraries(wasmedgePluginStableDiffusion PRIVATE stable-diffusion ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion PRIVATE stable-diffusion ${CMAKE_THREAD_LIBS_INIT})
 
-target_compile_options(wasmedgePluginStableDiffusion
+target_compile_options(wasmedgePluginWasmEdgeStableDiffusion
   PUBLIC
   -DWASMEDGE_PLUGIN
 )
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasmedgePluginStableDiffusion
+  target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion
     PRIVATE
     wasmedgeCAPI
   )
 else()
-  target_link_libraries(wasmedgePluginStableDiffusion
+  target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion
     PRIVATE
     wasmedge_shared
   )
 endif()
 
-target_include_directories(wasmedgePluginStableDiffusion
+target_include_directories(wasmedgePluginWasmEdgeStableDiffusion
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -54,7 +54,7 @@ target_include_directories(wasmedgePluginStableDiffusion
 
 if (MSVC)
   target_compile_options(
-    wasmedgePluginStableDiffusion
+    wasmedgePluginWasmEdgeStableDiffusion
     PRIVATE
     /wd4459
     /wd4100
@@ -63,7 +63,7 @@ if (MSVC)
   )
 else()
   target_compile_options(
-    wasmedgePluginStableDiffusion
+    wasmedgePluginWasmEdgeStableDiffusion
     PRIVATE
 		-Wno-unused-function
 		-Wno-unused-variable
@@ -72,4 +72,4 @@ else()
 	)
 endif()
 
-install(TARGETS wasmedgePluginStableDiffusion DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(TARGETS wasmedgePluginWasmEdgeStableDiffusion DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)

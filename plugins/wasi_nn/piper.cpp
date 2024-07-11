@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "piper.h"
+#include "simdjson/dom/object.h"
+#include "simdjson/error.h"
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
@@ -323,20 +325,20 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
 }
 
 template <typename T>
-Expect<WASINN::ErrNo> getOptionalInputOption(simdjson::dom::element &Doc,
-                                             std::string_view Key,
-                                             std::optional<T> &Result) {
-  if (Doc.at_key(Key).error() == simdjson::SUCCESS) {
-    auto Value = T{};
-    auto Err = Doc[Key].get<T>().get(Value);
-    if (Err) {
-      spdlog::error(
-          "[WASI-NN] Piper backend: Unable to retrieve {} from json input."sv,
-          Key);
-      return WASINN::ErrNo::InvalidArgument;
+WASINN::ErrNo getOptionalInputOption(simdjson::dom::object &Object,
+                                     std::string_view Key,
+                                     std::optional<T> &Result) {
+  auto Value = T{};
+  if (auto Error = Object[Key].get(Value)) {
+    if (Error == simdjson::error_code::NO_SUCH_FIELD) {
+      return WASINN::ErrNo::Success;
     }
-    Result = Value;
+    spdlog::error(
+        "[WASI-NN] Piper backend: Unable to retrieve \"{}\" from json input: {}"sv,
+        Key, simdjson::error_message(Error));
+    return WASINN::ErrNo::InvalidArgument;
   }
+  Result = Value;
   return WASINN::ErrNo::Success;
 }
 
@@ -361,37 +363,40 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
   if (GraphRef.Config->JsonInput) {
     simdjson::dom::parser Parser;
     simdjson::dom::element Doc;
-    auto ParseError = Parser.parse(Line).get(Doc);
-    if (ParseError) {
-      spdlog::error("[WASI-NN] Piper backend: Parse json input error"sv);
+    if (auto Error = Parser.parse(Line).get(Doc)) {
+      spdlog::error("[WASI-NN] Piper backend: Parse json input error: {}"sv,
+                    simdjson::error_message(Error));
       return WASINN::ErrNo::InvalidEncoding;
     }
-
-    // Text is required
-    if (Doc.at_key("text").error() == simdjson::SUCCESS) {
-      auto Text = std::string_view{};
-      auto Err = Doc["text"].get<std::string_view>().get(Text);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] Piper backend: Unable to retrieve text from json input."sv);
-        return WASINN::ErrNo::InvalidArgument;
-      }
-      Line = Text;
-    } else {
+    simdjson::dom::object Object;
+    if (auto Error = Doc.get(Object)) {
       spdlog::error(
-          "[WASI-NN] Piper backend: text from is required for json input."sv);
+          "[WASI-NN] Piper backend: The json input is not an object: {}"sv,
+          simdjson::error_message(Error));
       return WASINN::ErrNo::InvalidArgument;
     }
 
+    // Text is required
+    auto Text = std::string_view{};
+    if (auto Error = Object["text"].get(Text)) {
+      spdlog::error(
+          "[WASI-NN] Piper backend: Unable to retrieve required \"text\" from json input: {}"sv,
+          simdjson::error_message(Error));
+      return WASINN::ErrNo::InvalidArgument;
+    }
+    Line = Text;
+
     // Override speaker id
-    if (auto Err = getOptionalInputOption(
-            Doc, "speaker_id", GraphRef.Voice->synthesisConfig.speakerId);
+    auto SpeakerId = std::optional<piper::SpeakerId>{};
+    if (auto Err = getOptionalInputOption(Object, "speaker_id", SpeakerId);
         Err != WASINN::ErrNo::Success) {
       return Err;
     }
-    if (!GraphRef.Voice->synthesisConfig.speakerId) {
+    if (SpeakerId) {
+      GraphRef.Voice->synthesisConfig.speakerId = SpeakerId;
+    } else {
       auto SpeakerName = std::optional<std::string_view>{};
-      if (auto Err = getOptionalInputOption(Doc, "speaker", SpeakerName);
+      if (auto Err = getOptionalInputOption(Object, "speaker", SpeakerName);
           Err != WASINN::ErrNo::Success) {
         return Err;
       }

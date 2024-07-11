@@ -474,7 +474,8 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
     auto AudioBuffer = std::vector<int16_t>{};
     piper::textToAudio(*GraphRef.PiperConfig, *GraphRef.Voice,
                        CxtRef.Line.value(), AudioBuffer, Result, nullptr);
-    CxtRef.Output = std::vector<uint8_t>(sizeof(int16_t) * AudioBuffer.size());
+    CxtRef.Output = std::vector<uint8_t>(
+        sizeof(decltype(AudioBuffer)::value_type) * AudioBuffer.size());
     std::memcpy(CxtRef.Output->data(), AudioBuffer.data(),
                 CxtRef.Output->size());
   }

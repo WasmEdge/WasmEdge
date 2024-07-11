@@ -52,6 +52,11 @@ WASINN::ErrNo getOptionalOption(simdjson::dom::object &Object,
   return Err;
 }
 
+bool fileExists(const std::string &Filename) {
+  auto Stream = std::ifstream{Filename, std::ios::binary};
+  return Stream.good();
+}
+
 Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
                                      const std::string &String) noexcept {
   simdjson::dom::parser Parser;
@@ -77,8 +82,7 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
   // Verify model file exists
   if (ModelPath) {
     auto Path = std::string{ModelPath.value()};
-    auto ModelFile = std::ifstream(Path, std::ios::binary);
-    if (!ModelFile.good()) {
+    if (!fileExists(Path)) {
       spdlog::error("[WASI-NN] Piper backend: Model file doesn't exist"sv);
       return WASINN::ErrNo::InvalidArgument;
     }
@@ -100,8 +104,7 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
     RunConfig.ModelConfigPath = RunConfig.ModelPath + ".json";
   }
   // Verify model config exists
-  auto ModelConfigFile = std::ifstream(RunConfig.ModelConfigPath);
-  if (!ModelConfigFile.good()) {
+  if (!fileExists(RunConfig.ModelConfigPath)) {
     spdlog::error("[WASI-NN] Piper backend: Model config doesn't exist"sv);
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -234,6 +237,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       Env.NNGraph.pop_back();
       return WASINN::ErrNo::InvalidArgument;
     }
+    if (!fileExists(GraphRef.Config->ESpeakDataPath.value())) {
+      spdlog::error(
+          "[WASI-NN] Piper backend: espeak-ng data directory doesn't exist"sv);
+      Env.NNGraph.pop_back();
+      return WASINN::ErrNo::InvalidArgument;
+    }
     // User provided path
     GraphRef.PiperConfig->eSpeakDataPath =
         GraphRef.Config->ESpeakDataPath.value();
@@ -247,6 +256,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (!GraphRef.Config->TashkeelModelPath) {
       spdlog::error(
           "[WASI-NN] Piper backend: libtashkeel ort model is required for Arabic"sv);
+      Env.NNGraph.pop_back();
+      return WASINN::ErrNo::InvalidArgument;
+    }
+    if (!fileExists(GraphRef.Config->TashkeelModelPath.value())) {
+      spdlog::error(
+          "[WASI-NN] Piper backend: libtashkeel ort model doesn't exist"sv);
       Env.NNGraph.pop_back();
       return WASINN::ErrNo::InvalidArgument;
     }

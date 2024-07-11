@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 #include "piper.h"
-#include "simdjson/dom/object.h"
-#include "simdjson/error.h"
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER

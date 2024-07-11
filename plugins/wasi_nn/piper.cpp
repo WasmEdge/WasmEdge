@@ -18,59 +18,62 @@
 #include <piper.hpp>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <vector>
 #endif
 
 namespace WasmEdge::Host::WASINN::Piper {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 
-template <typename T, typename U = T>
-Expect<WASINN::ErrNo> getOptionalOption(simdjson::dom::element &Doc,
-                                        std::string_view Key,
-                                        std::optional<T> &Result) {
-  if (Doc.at_key(Key).error() == simdjson::SUCCESS) {
-    auto Value = U{};
-    auto Err = Doc[Key].get<U>().get(Value);
-    if (Err) {
-      spdlog::error(
-          "[WASI-NN] Piper backend: Unable to retrieve the {} option."sv, Key);
-      return WASINN::ErrNo::InvalidArgument;
+template <typename T>
+std::tuple<WASINN::ErrNo, bool> getOption(simdjson::dom::object &Object,
+                                          std::string_view Key, T &Result) {
+  if (auto Error = Object[Key].get(Result)) {
+    if (Error == simdjson::error_code::NO_SUCH_FIELD) {
+      return {WASINN::ErrNo::Success, false};
     }
-    Result = Value;
+    spdlog::error(
+        "[WASI-NN] Piper backend: Unable to retrieve the \"{}\" option: {}"sv,
+        Key, simdjson::error_message(Error));
+    return {WASINN::ErrNo::InvalidArgument, false};
   }
-  return WASINN::ErrNo::Success;
+  return {WASINN::ErrNo::Success, true};
 }
 
-template <typename T>
-Expect<WASINN::ErrNo> getOption(simdjson::dom::element &Doc,
-                                std::string_view Key, T &Result) {
-  if (Doc.at_key(Key).error() == simdjson::SUCCESS) {
-    auto Err = Doc[Key].get<T>().get(Result);
-    if (Err) {
-      spdlog::error(
-          "[WASI-NN] Piper backend: Unable to retrieve the {} option."sv, Key);
-      return WASINN::ErrNo::InvalidArgument;
-    }
+template <typename T, typename U = T>
+WASINN::ErrNo getOptionalOption(simdjson::dom::object &Object,
+                                std::string_view Key,
+                                std::optional<T> &Result) {
+  auto Value = U{};
+  auto [Err, HasValue] = getOption(Object, Key, Value);
+  if (HasValue) {
+    Result = Value;
   }
-  return WASINN::ErrNo::Success;
+  return Err;
 }
 
 Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
                                      const std::string &String) noexcept {
   simdjson::dom::parser Parser;
   simdjson::dom::element Doc;
-  auto ParseError = Parser.parse(String).get(Doc);
-  if (ParseError) {
-    spdlog::error("[WASI-NN] Piper backend: Parse run config error"sv);
+  if (auto Error = Parser.parse(String).get(Doc)) {
+    spdlog::error("[WASI-NN] Piper backend: Parse run config error: {}"sv,
+                  simdjson::error_message(Error));
     return WASINN::ErrNo::InvalidEncoding;
+  }
+  simdjson::dom::object Object;
+  if (auto Error = Doc.get(Object)) {
+    spdlog::error(
+        "[WASI-NN] Piper backend: The run config is not an object: {}"sv,
+        simdjson::error_message(Error));
+    return WASINN::ErrNo::InvalidArgument;
   }
 
   auto ModelPath = std::optional<std::string_view>{};
-  if (auto Err = getOptionalOption(Doc, "model", ModelPath);
+  if (auto Err = getOptionalOption(Object, "model", ModelPath);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-
   // Verify model file exists
   if (ModelPath) {
     auto Path = std::string{ModelPath.value()};
@@ -87,19 +90,17 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
   }
 
   auto ModelConfigPath = std::optional<std::string_view>{};
-  if (auto Err = getOptionalOption(Doc, "config", ModelConfigPath);
+  if (auto Err = getOptionalOption(Object, "config", ModelConfigPath);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-
-  if (!ModelConfigPath) {
-    RunConfig.ModelConfigPath = RunConfig.ModelPath + ".json";
-  } else {
+  if (ModelConfigPath) {
     RunConfig.ModelConfigPath = ModelConfigPath.value();
+  } else {
+    RunConfig.ModelConfigPath = RunConfig.ModelPath + ".json";
   }
-
   // Verify model config exists
-  auto ModelConfigFile = std::ifstream(RunConfig.ModelConfigPath.c_str());
+  auto ModelConfigFile = std::ifstream(RunConfig.ModelConfigPath);
   if (!ModelConfigFile.good()) {
     spdlog::error("[WASI-NN] Piper backend: Model config doesn't exist"sv);
     return WASINN::ErrNo::InvalidArgument;
@@ -107,7 +108,7 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
 
   {
     auto Value = std::optional<std::string_view>{};
-    if (auto Err = getOptionalOption(Doc, "output_type", Value);
+    if (auto Err = getOptionalOption(Object, "output_type", Value);
         Err != WASINN::ErrNo::Success) {
       return Err;
     }
@@ -124,64 +125,72 @@ Expect<WASINN::ErrNo> parseRunConfig(RunConfig &RunConfig,
       }
     }
   }
-  if (auto Err = getOptionalOption(Doc, "speaker", RunConfig.SpeakerId);
+  if (auto Err = getOptionalOption(Object, "speaker", RunConfig.SpeakerId);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-  if (auto Err = getOptionalOption<float, double>(Doc, "noise_scale",
+  if (auto Err = getOptionalOption<float, double>(Object, "noise_scale",
                                                   RunConfig.NoiseScale);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-  if (auto Err = getOptionalOption<float, double>(Doc, "length_scale",
+  if (auto Err = getOptionalOption<float, double>(Object, "length_scale",
                                                   RunConfig.LengthScale);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
   if (auto Err =
-          getOptionalOption<float, double>(Doc, "noise_w", RunConfig.NoiseW);
+          getOptionalOption<float, double>(Object, "noise_w", RunConfig.NoiseW);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
   if (auto Err = getOptionalOption<float, double>(
-          Doc, "sentence_silence", RunConfig.SentenceSilenceSeconds);
+          Object, "sentence_silence", RunConfig.SentenceSilenceSeconds);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
   {
-    if (Doc.at_key("phoneme_silence").error() == simdjson::SUCCESS) {
-      auto PhonemeSilence = Doc["phoneme_silence"].get_object();
-      for (auto [key, value] : PhonemeSilence) {
-        auto PhonemeStr = std::string{key};
+    auto PhonemeSilence = std::optional<simdjson::dom::object>{};
+    if (auto Err = getOptionalOption(Object, "phoneme_silence", PhonemeSilence);
+        Err != WASINN::ErrNo::Success) {
+      return Err;
+    }
+    if (PhonemeSilence) {
+      for (auto [Key, Value] : PhonemeSilence.value()) {
+        auto PhonemeStr = std::string{Key};
         if (!piper::isSingleCodepoint(PhonemeStr)) {
-
           spdlog::error(
               "[WASI-NN] Piper backend: Phoneme '{}' is not a single codepoint (phoneme_silence)."sv,
               PhonemeStr);
           return WASINN::ErrNo::InvalidArgument;
         }
-
+        auto Seconds = Value.get_double();
+        if (auto Error = Seconds.error()) {
+          spdlog::error(
+              "[WASI-NN] Piper backend: Failed to get silence seconds for phoneme '{}' as a double: {}"sv,
+              PhonemeStr, simdjson::error_message(Error));
+          return WASINN::ErrNo::InvalidArgument;
+        }
         if (!RunConfig.PhonemeSilenceSeconds) {
           RunConfig.PhonemeSilenceSeconds.emplace();
         }
-
         auto Phoneme = piper::getCodepoint(PhonemeStr);
-        RunConfig.PhonemeSilenceSeconds.value()[Phoneme] =
-            value.get_double().value();
+        RunConfig.PhonemeSilenceSeconds.value()[Phoneme] = Seconds.value();
       }
     }
   }
   if (auto Err = getOptionalOption<std::string, std::string_view>(
-          Doc, "espeak_data", RunConfig.ESpeakDataPath);
+          Object, "espeak_data", RunConfig.ESpeakDataPath);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
   if (auto Err = getOptionalOption<std::string, std::string_view>(
-          Doc, "tashkeel_model", RunConfig.TashkeelModelPath);
+          Object, "tashkeel_model", RunConfig.TashkeelModelPath);
       Err != WASINN::ErrNo::Success) {
     return Err;
   }
-  if (auto Err = getOption(Doc, "json_input", RunConfig.JsonInput);
+  if (auto Err =
+          std::get<0>(getOption(Object, "json_input", RunConfig.JsonInput));
       Err != WASINN::ErrNo::Success) {
     return Err;
   }

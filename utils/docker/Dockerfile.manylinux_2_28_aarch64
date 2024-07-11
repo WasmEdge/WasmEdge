@@ -8,11 +8,11 @@ MAINTAINER hydai hydai@secondstate.io
 ADD SHA256SUM.manylinux_2_28 /root/
 
 # See /opt/rh/gcc-toolset-13/enable
-ENV PATH /opt/rh/gcc-toolset-13/root/usr/bin${PATH:+:${PATH}}
-ENV MANPATH /opt/rh/gcc-toolset-13/root/usr/share/man${MANPATH:+:${MANPATH}}
-ENV INFOPATH /opt/rh/gcc-toolset-13/root/usr/share/info${INFOPATH:+:${INFOPATH}}
-ENV LD_LIBRARY_PATH /opt/rh/gcc-toolset-13/root/usr/lib64:/opt/rh/gcc-toolset-13/root/usr/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-ENV PKG_CONFIG_PATH /opt/rh/gcc-toolset-13/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV PATH=/opt/rh/gcc-toolset-13/root/usr/bin${PATH:+:${PATH}}
+ENV MANPATH=/opt/rh/gcc-toolset-13/root/usr/share/man${MANPATH:+:${MANPATH}}
+ENV INFOPATH=/opt/rh/gcc-toolset-13/root/usr/share/info${INFOPATH:+:${INFOPATH}}
+ENV LD_LIBRARY_PATH=/opt/rh/gcc-toolset-13/root/usr/lib64:/opt/rh/gcc-toolset-13/root/usr/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+ENV PKG_CONFIG_PATH=/opt/rh/gcc-toolset-13/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
 
 RUN cd && (yum check-update || true) && yum install -y openssl-devel rpm-build cmake yum-utils && \
     yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \

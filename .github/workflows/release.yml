@@ -474,6 +474,8 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:manylinux2014_x86_64
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - name: Checkout code
         uses: actions/checkout@v3

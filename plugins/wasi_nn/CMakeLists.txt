@@ -25,6 +25,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     set(LLAMA_METAL_NDEBUG ON)
     set(GGML_ACCELERATE OFF)
     set(GGML_BLAS OFF)
+    set(GGML_OPENMP OFF)
     set(BUILD_SHARED_LIBS OFF)
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE)
@@ -63,7 +64,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3259
+      GIT_TAG        b3358
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)

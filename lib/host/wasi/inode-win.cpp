@@ -77,17 +77,15 @@ WasiExpect<std::tuple<DWORD_, DWORD_, DWORD_>> inline constexpr getOpenFlags(
     VFS::Flags VFSFlags) noexcept {
   // Always use FILE_FLAG_BACKUP_SEMANTICS to prevent failure on opening a
   // directory.
-  DWORD_ AttributeFlags = FILE_FLAG_BACKUP_SEMANTICS_;
+  DWORD_ AttributeFlags =
+      FILE_FLAG_BACKUP_SEMANTICS_ | FILE_FLAG_OPEN_REPARSE_POINT_;
 
   // Source: https://devblogs.microsoft.com/oldnewthing/20210729-00/?p=105494
-  if (FdFlags & (__WASI_FDFLAGS_SYNC | __WASI_FDFLAGS_RSYNC)) {
-    // Linux does not implement O_RSYNC and glibc defines O_RSYNC as O_SYNC
-    AttributeFlags |= FILE_FLAG_WRITE_THROUGH_ | FILE_FLAG_NO_BUFFERING_;
-    FdFlags &= ~(__WASI_FDFLAGS_SYNC | __WASI_FDFLAGS_RSYNC);
-  }
-  if (FdFlags & __WASI_FDFLAGS_DSYNC) {
+  if (FdFlags &
+      (__WASI_FDFLAGS_SYNC | __WASI_FDFLAGS_RSYNC | __WASI_FDFLAGS_DSYNC)) {
     AttributeFlags |= FILE_FLAG_WRITE_THROUGH_;
-    FdFlags &= ~__WASI_FDFLAGS_DSYNC;
+    FdFlags &=
+        ~(__WASI_FDFLAGS_SYNC | __WASI_FDFLAGS_RSYNC | __WASI_FDFLAGS_DSYNC);
   }
   if (FdFlags & __WASI_FDFLAGS_NONBLOCK) {
     // Ignore NONBLOCK flag
@@ -105,19 +103,14 @@ WasiExpect<std::tuple<DWORD_, DWORD_, DWORD_>> inline constexpr getOpenFlags(
     AccessFlags |= FILE_APPEND_DATA_;
     FdFlags &= ~__WASI_FDFLAGS_APPEND;
   }
-  if (VFSFlags & VFS::Read) {
+  if ((VFSFlags & VFS::Read) || (VFSFlags == 0)) {
     AccessFlags |= FILE_GENERIC_READ_;
-    VFSFlags &= ~VFS::Read;
   }
   if (VFSFlags & VFS::Write) {
     AccessFlags |= FILE_GENERIC_WRITE_;
-    VFSFlags &= ~VFS::Write;
   }
 
   if (FdFlags) {
-    return WasiUnexpect(__WASI_ERRNO_INVAL);
-  }
-  if (VFSFlags) {
     return WasiUnexpect(__WASI_ERRNO_INVAL);
   }
   if (OpenFlags &
@@ -143,7 +136,11 @@ WasiExpect<std::tuple<DWORD_, DWORD_, DWORD_>> inline constexpr getOpenFlags(
     break;
   case __WASI_OFLAGS_TRUNC:
   case __WASI_OFLAGS_EXCL | __WASI_OFLAGS_TRUNC:
-    CreationDisposition = TRUNCATE_EXISTING_;
+    if (VFSFlags & VFS::Write) {
+      CreationDisposition = TRUNCATE_EXISTING_;
+    } else {
+      CreationDisposition = OPEN_EXISTING_;
+    }
     break;
   default:
     assumingUnreachable();
@@ -167,11 +164,11 @@ inline DWORD_ fastGetFileType(HandleHolder::HandleType Type,
 }
 
 inline __wasi_filetype_t getDiskFileType(DWORD_ Attribute) noexcept {
-  if (Attribute & FILE_ATTRIBUTE_DIRECTORY_) {
-    return __WASI_FILETYPE_DIRECTORY;
-  }
   if (Attribute & FILE_ATTRIBUTE_REPARSE_POINT_) {
     return __WASI_FILETYPE_SYMBOLIC_LINK;
+  }
+  if (Attribute & FILE_ATTRIBUTE_DIRECTORY_) {
+    return __WASI_FILETYPE_DIRECTORY;
   }
   return __WASI_FILETYPE_REGULAR_FILE;
 }
@@ -457,9 +454,10 @@ HandleHolder::filestatGet(__wasi_filestat_t &FileStat) const noexcept {
       } else {
         Filename = Res->filename().native();
         Holder = HandleHolder(Res->parent_path(), FILE_GENERIC_READ_,
-                              FILE_SHARE_READ_, OPEN_EXISTING_,
+                              FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
                               FILE_ATTRIBUTE_DIRECTORY_ |
-                                  FILE_FLAG_BACKUP_SEMANTICS_);
+                                  FILE_FLAG_BACKUP_SEMANTICS_ |
+                                  FILE_FLAG_OPEN_REPARSE_POINT_);
         Finder.emplace(Holder.Handle);
       }
       break;
@@ -650,8 +648,10 @@ WasiExpect<void> FindHolder::doRewind(bool First) noexcept {
 WasiExpect<void> FindHolder::doLoadDirent() noexcept {
   const std::filesystem::path Filename(FindData.cFileName);
 
-  HandleHolder File(getPath() / Filename, FILE_GENERIC_READ_, FILE_SHARE_READ_,
-                    OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_);
+  HandleHolder File(getPath() / Filename, FILE_GENERIC_READ_,
+                    FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
+                    FILE_FLAG_BACKUP_SEMANTICS_ |
+                        FILE_FLAG_OPEN_REPARSE_POINT_);
 
   if (unlikely(!File.ok())) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
@@ -702,8 +702,7 @@ WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
     std::tie(AttributeFlags, AccessFlags, CreationDisposition) = *Res;
   }
 
-  const DWORD_ ShareFlags =
-      FILE_SHARE_READ_ | FILE_SHARE_WRITE_ | FILE_SHARE_DELETE_;
+  const DWORD_ ShareFlags = FILE_SHARE_VALID_FLAGS_;
   const auto FullPath = std::filesystem::u8path(Path);
 
   INode Result(FullPath, AccessFlags, ShareFlags, CreationDisposition,
@@ -979,12 +978,15 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
     DWORD_ NumberOfBytesRead = 0;
     if (unlikely(
             !GetOverlappedResult(Handle, &Query, &NumberOfBytesRead, true))) {
-      Result = WasiUnexpect(detail::fromLastError(GetLastError()));
-      CancelIo(Handle);
-      for (size_t J = I + 1; J < Queries.size(); ++J) {
-        GetOverlappedResult(Handle, &Queries[J], nullptr, true);
+      if (const auto Error = GetLastError();
+          unlikely(Error != ERROR_HANDLE_EOF_)) {
+        Result = WasiUnexpect(detail::fromLastError(Error));
+        CancelIo(Handle);
+        for (size_t J = I + 1; J < Queries.size(); ++J) {
+          GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesRead, true);
+        }
+        break;
       }
-      break;
     }
     NRead += NumberOfBytesRead;
   }
@@ -995,7 +997,6 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
 WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
                                  __wasi_filesize_t Offset,
                                  __wasi_size_t &NWritten) const noexcept {
-  const bool Append = SavedFdFlags & __WASI_FDFLAGS_APPEND;
   WasiExpect<void> Result;
   std::vector<OVERLAPPED_> Queries(IOVs.size());
   ULARGE_INTEGER_ LocalOffset = _ULARGE_INTEGER(Offset);
@@ -1003,13 +1004,8 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
   for (size_t I = 0; I < IOVs.size(); ++I) {
     auto &IOV = IOVs[I];
     auto &Query = Queries[I];
-    if (!Append) {
-      Query.Offset = LocalOffset.LowPart;
-      Query.OffsetHigh = LocalOffset.HighPart;
-    } else {
-      Query.Offset = 0xFFFFFFFF;
-      Query.OffsetHigh = 0xFFFFFFFF;
-    }
+    Query.Offset = LocalOffset.LowPart;
+    Query.OffsetHigh = LocalOffset.HighPart;
     Query.hEvent = nullptr;
     if (!WriteFileEx(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
                      &Query, &EmptyOverlappedCompletionRoutine)) {
@@ -1020,9 +1016,7 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
         break;
       }
     }
-    if (!Append) {
-      LocalOffset.QuadPart += IOV.size();
-    }
+    LocalOffset.QuadPart += IOV.size();
   }
 
   NWritten = 0;
@@ -1031,12 +1025,15 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
     DWORD_ NumberOfBytesWrite = 0;
     if (unlikely(
             !GetOverlappedResult(Handle, &Query, &NumberOfBytesWrite, true))) {
-      Result = WasiUnexpect(detail::fromLastError(GetLastError()));
-      CancelIo(Handle);
-      for (size_t J = I + 1; J < Queries.size(); ++J) {
-        GetOverlappedResult(Handle, &Queries[J], nullptr, true);
+      if (const auto Error = GetLastError();
+          unlikely(Error != ERROR_HANDLE_EOF_)) {
+        Result = WasiUnexpect(detail::fromLastError(Error));
+        CancelIo(Handle);
+        for (size_t J = I + 1; J < Queries.size(); ++J) {
+          GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesWrite, true);
+        }
+        break;
       }
-      break;
     }
     NWritten += NumberOfBytesWrite;
   }
@@ -1078,12 +1075,15 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
     DWORD_ NumberOfBytesRead = 0;
     if (unlikely(
             !GetOverlappedResult(Handle, &Query, &NumberOfBytesRead, true))) {
-      Result = WasiUnexpect(detail::fromLastError(GetLastError()));
-      CancelIo(Handle);
-      for (size_t J = I + 1; J < Queries.size(); ++J) {
-        GetOverlappedResult(Handle, &Queries[J], nullptr, true);
+      if (const auto Error = GetLastError();
+          unlikely(Error != ERROR_HANDLE_EOF_)) {
+        Result = WasiUnexpect(detail::fromLastError(Error));
+        CancelIo(Handle);
+        for (size_t J = I + 1; J < Queries.size(); ++J) {
+          GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesRead, true);
+        }
+        break;
       }
-      break;
     }
     NRead += NumberOfBytesRead;
   }
@@ -1213,12 +1213,15 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
     DWORD_ NumberOfBytesWrite = 0;
     if (unlikely(
             !GetOverlappedResult(Handle, &Query, &NumberOfBytesWrite, true))) {
-      Result = WasiUnexpect(detail::fromLastError(GetLastError()));
-      CancelIo(Handle);
-      for (size_t J = I + 1; J < Queries.size(); ++J) {
-        GetOverlappedResult(Handle, &Queries[J], nullptr, true);
+      if (const auto Error = GetLastError();
+          unlikely(Error != ERROR_HANDLE_EOF_)) {
+        Result = WasiUnexpect(detail::fromLastError(Error));
+        CancelIo(Handle);
+        for (size_t J = I + 1; J < Queries.size(); ++J) {
+          GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesWrite, true);
+        }
+        break;
       }
-      break;
     }
     NWritten += NumberOfBytesWrite;
   }
@@ -1259,8 +1262,9 @@ INode::pathFilestatGet(std::string Path,
     FullPath = std::move(*Res);
   }
 
-  HandleHolder File(FullPath, FILE_GENERIC_READ_, FILE_SHARE_READ_,
-                    OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_);
+  HandleHolder File(
+      FullPath, FILE_GENERIC_READ_, FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
+      FILE_FLAG_BACKUP_SEMANTICS_ | FILE_FLAG_OPEN_REPARSE_POINT_);
 
   if (unlikely(!File.ok())) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
@@ -1280,8 +1284,10 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
     FullPath = std::move(*Res);
   }
 
-  HandleHolder File(FullPath, FILE_GENERIC_READ_, FILE_SHARE_READ_,
-                    OPEN_EXISTING_, FILE_FLAG_BACKUP_SEMANTICS_);
+  HandleHolder File(FullPath, FILE_GENERIC_READ_ | FILE_GENERIC_WRITE_,
+                    FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
+                    FILE_FLAG_BACKUP_SEMANTICS_ |
+                        FILE_FLAG_OPEN_REPARSE_POINT_);
 
   if (unlikely(!File.ok())) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
@@ -1363,8 +1369,7 @@ WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
     std::tie(AttributeFlags, AccessFlags, CreationDisposition) = *Res;
   }
 
-  const DWORD_ ShareFlags =
-      FILE_SHARE_READ_ | FILE_SHARE_WRITE_ | FILE_SHARE_DELETE_;
+  const DWORD_ ShareFlags = FILE_SHARE_VALID_FLAGS_;
 
   std::filesystem::path FullPath;
   if (auto Res = getRelativePath(Handle, Path); unlikely(!Res)) {
@@ -1378,6 +1383,13 @@ WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
 
   if (unlikely(!Result.ok())) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
+  }
+  if (unlikely(Result.isSymlink())) {
+    return WasiUnexpect(__WASI_ERRNO_LOOP);
+  }
+  const bool NeedDir = OpenFlags & __WASI_OFLAGS_DIRECTORY;
+  if (NeedDir && unlikely(!Result.isDirectory())) {
+    return WasiUnexpect(__WASI_ERRNO_NOTDIR);
   }
 
   Result.SavedFdFlags = FdFlags;
@@ -1395,20 +1407,53 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
   }
 
   // Fill the Buffer with the contents of the link
-  HandleHolder Link(FullPath, FILE_GENERIC_READ_, FILE_SHARE_READ_,
-                    OPEN_EXISTING_, 0);
+  HandleHolder Link(FullPath, 0, FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
+                    FILE_FLAG_BACKUP_SEMANTICS_ |
+                        FILE_FLAG_OPEN_REPARSE_POINT_);
 
   if (unlikely(!Link.ok())) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 
-  if (auto Res = getHandlePath(Link.Handle); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    const auto U8Data = Res->u8string();
-    NRead = static_cast<uint32_t>(std::min(Buffer.size(), U8Data.size()));
-    std::copy_n(U8Data.begin(), NRead, Buffer.begin());
+  constexpr const size_t MaximumReparseDataBufferSize = 16384;
+  std::array<std::byte, MaximumReparseDataBufferSize> DataBuffer;
+  DWORD_ BytesReturned;
+  if (!DeviceIoControl(
+          Link.Handle, FSCTL_GET_REPARSE_POINT_, nullptr, 0, DataBuffer.data(),
+          static_cast<DWORD_>(DataBuffer.size()), &BytesReturned, nullptr)) {
+    return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
+  auto &Reparse =
+      *reinterpret_cast<const REPARSE_DATA_BUFFER_ *>(DataBuffer.data());
+  std::wstring_view Data;
+  switch (Reparse.ReparseTag) {
+  case IO_REPARSE_TAG_SYMLINK_:
+    Data = {&Reparse.SymbolicLinkReparseBuffer.PathBuffer
+                 [Reparse.SymbolicLinkReparseBuffer.SubstituteNameOffset /
+                  sizeof(WCHAR_)],
+            Reparse.SymbolicLinkReparseBuffer.SubstituteNameLength /
+                sizeof(WCHAR_)};
+    using namespace std::literals;
+    if (!(Reparse.SymbolicLinkReparseBuffer.Flags & SYMLINK_FLAG_RELATIVE_) &&
+        Data.size() >= 4 && Data.substr(0, 4) == L"\\??\\"sv) {
+      Data = Data.substr(3);
+    }
+    break;
+  case IO_REPARSE_TAG_MOUNT_POINT_:
+    Data = {
+        &Reparse.MountPointReparseBuffer
+             .PathBuffer[Reparse.MountPointReparseBuffer.SubstituteNameOffset /
+                         sizeof(WCHAR_)],
+        Reparse.MountPointReparseBuffer.SubstituteNameLength / sizeof(WCHAR_)};
+    break;
+  default:
+    return WasiUnexpect(__WASI_ERRNO_NOSYS);
+  }
+
+  const auto U8Data = std::filesystem::path{Data}.u8string();
+  NRead = static_cast<uint32_t>(std::min(Buffer.size(), U8Data.size()));
+  std::copy_n(U8Data.begin(), NRead, Buffer.begin());
+
   return {};
 }
 
@@ -1442,9 +1487,45 @@ WasiExpect<void> INode::pathRename(const INode &Old, std::string OldPath,
     NewFullPath = std::move(*Res);
   }
 
+  const auto OldAttr = GetFileAttributesW(OldFullPath.c_str());
+  const auto NewAttr = GetFileAttributesW(NewFullPath.c_str());
+  if (OldAttr != INVALID_FILE_ATTRIBUTES_ &&
+      NewAttr != INVALID_FILE_ATTRIBUTES_) {
+    // If source is a directory and destination is a file, fail with NOTDIR
+    if ((OldAttr & FILE_ATTRIBUTE_DIRECTORY_) &&
+        !(NewAttr & FILE_ATTRIBUTE_DIRECTORY_)) {
+      return WasiUnexpect(__WASI_ERRNO_NOTDIR);
+    }
+    // If source is a file and destination is a directory, fail with ISDIR
+    if (!(OldAttr & FILE_ATTRIBUTE_DIRECTORY_) &&
+        (NewAttr & FILE_ATTRIBUTE_DIRECTORY_)) {
+      return WasiUnexpect(__WASI_ERRNO_ISDIR);
+    }
+  }
+
   // Rename the file from the paths
-  if (unlikely(!MoveFileExW(OldFullPath.c_str(), NewFullPath.c_str(),
-                            MOVEFILE_REPLACE_EXISTING_))) {
+  if (unlikely(
+          !MoveFileExW(OldFullPath.c_str(), NewFullPath.c_str(),
+                       MOVEFILE_COPY_ALLOWED_ | MOVEFILE_REPLACE_EXISTING_))) {
+#if NTDDI_VERSION >= NTDDI_VISTA
+    if (const auto Error = GetLastError(); Error != ERROR_ACCESS_DENIED_) {
+      return WasiUnexpect(detail::fromLastError(Error));
+    }
+    // If NewFullPath is an empty directory, remove it and rename.
+    HandleHolder Transaction{
+        CreateTransaction(nullptr, nullptr, 0, 0, 0, 0, nullptr), false};
+    if (Transaction.ok()) {
+      if (RemoveDirectoryTransactedW(NewFullPath.c_str(), Transaction.Handle)) {
+        if (MoveFileTransactedW(OldFullPath.c_str(), NewFullPath.c_str(),
+                                nullptr, nullptr, MOVEFILE_REPLACE_EXISTING_,
+                                Transaction.Handle)) {
+          if (CommitTransaction(Transaction.Handle)) {
+            return {};
+          }
+        }
+      }
+    }
+#endif
     return WasiUnexpect(detail::fromLastError(GetLastError()));
   }
 
@@ -1463,6 +1544,16 @@ WasiExpect<void> INode::pathSymlink(std::string OldPath,
   } else {
     NewFullPath = std::move(*Res);
   }
+  if (GetFileAttributesW(NewFullPath.c_str()) == INVALID_FILE_ATTRIBUTES_) {
+    assuming(!NewPath.empty());
+    if (NewPath.back() == '/') {
+      // Dangling link destination shouldn't end with a slash
+      return WasiUnexpect(__WASI_ERRNO_NOENT);
+    }
+  } else {
+    return WasiUnexpect(__WASI_ERRNO_EXIST);
+  }
+
   const std::filesystem::path OldU8Path = std::filesystem::u8path(OldPath);
 
   DWORD_ TargetType = SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE_;
@@ -2263,10 +2354,40 @@ void Poller::close(const INode &) noexcept {}
 
 void Poller::read(const INode &Node, TriggerType Trigger,
                   __wasi_userdata_t UserData) noexcept {
+  if (Node.Type == HandleHolder::HandleType::StdHandle) {
+    if (ReadFds.fd_count > 0 || WriteFds.fd_count > 0) {
+      // Cannot wait on socket and console at the same time
+      error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
+      return;
+    }
+
+    assuming(Events.size() < WasiEvents.size());
+    auto &Event = Events.emplace_back();
+    Event.Valid = false;
+    Event.userdata = UserData;
+    Event.type = __WASI_EVENTTYPE_FD_READ;
+
+    try {
+      auto [Iter, Added] = ConsoleReadEvent.try_emplace(Node.Handle);
+      Iter->second = &Event;
+    } catch (std::bad_alloc &) {
+      Event.Valid = true;
+      Event.error = __WASI_ERRNO_NOMEM;
+      return;
+    }
+
+    return;
+  }
+
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||
       Trigger != TriggerType::Level) {
     // Windows does not support polling other then socket, and only with level
     // triggering.
+    error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
+    return;
+  }
+  if (!ConsoleReadEvent.empty() || !ConsoleWriteEvent.empty()) {
+    // Cannot wait on socket and console at the same time
     error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
     return;
   }
@@ -2307,10 +2428,39 @@ void Poller::read(const INode &Node, TriggerType Trigger,
 
 void Poller::write(const INode &Node, TriggerType Trigger,
                    __wasi_userdata_t UserData) noexcept {
+  if (Node.Type == HandleHolder::HandleType::StdHandle) {
+    if (ReadFds.fd_count > 0 || WriteFds.fd_count > 0) {
+      // Cannot wait on socket and console at the same time
+      error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
+      return;
+    }
+
+    assuming(Events.size() < WasiEvents.size());
+    auto &Event = Events.emplace_back();
+    Event.Valid = false;
+    Event.userdata = UserData;
+    Event.type = __WASI_EVENTTYPE_FD_WRITE;
+
+    try {
+      auto [Iter, Added] = ConsoleWriteEvent.try_emplace(Node.Handle);
+      Iter->second = &Event;
+    } catch (std::bad_alloc &) {
+      Event.Valid = true;
+      Event.error = __WASI_ERRNO_NOMEM;
+      return;
+    }
+
+    return;
+  }
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||
       Trigger != TriggerType::Level) {
     // Windows does not support polling other then socket, and only with level
     // triggering.
+    error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
+    return;
+  }
+  if (!ConsoleReadEvent.empty() || !ConsoleWriteEvent.empty()) {
+    // Cannot wait on socket and console at the same time
     error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
     return;
   }
@@ -2344,6 +2494,66 @@ void Poller::write(const INode &Node, TriggerType Trigger,
 }
 
 void Poller::wait() noexcept {
+  if (!ConsoleWriteEvent.empty()) {
+    assuming(ReadFds.fd_count == 0 && WriteFds.fd_count == 0);
+    // Console can always write
+    for (const auto &[NodeHandle, Event] : ConsoleWriteEvent) {
+      Event->Valid = true;
+      Event->error = __WASI_ERRNO_SUCCESS;
+    }
+    ConsoleWriteEvent.clear();
+    ConsoleReadEvent.clear();
+    TimeoutEvent = nullptr;
+    return;
+  }
+  if (!ConsoleReadEvent.empty()) {
+    assuming(ReadFds.fd_count == 0 && WriteFds.fd_count == 0);
+    DWORD_ Timeout = INFINITE_;
+    if (TimeoutEvent != nullptr) {
+      const std::chrono::microseconds MicroSecs =
+          std::chrono::seconds(MinimumTimeout.tv_sec) +
+          std::chrono::microseconds(MinimumTimeout.tv_sec);
+      Timeout = static_cast<DWORD_>(MicroSecs.count());
+    }
+    std::vector<HANDLE_> Handles;
+    DWORD_ Count = std::min(static_cast<DWORD_>(ConsoleReadEvent.size()),
+                            MAXIMUM_WAIT_OBJECTS_);
+    Handles.reserve(Count);
+    for (const auto &[NodeHandle, Event] : ConsoleReadEvent) {
+      if (likely(Handles.size() < Count)) {
+        Handles.push_back(NodeHandle);
+      }
+    }
+    const auto Result =
+        WaitForMultipleObjects(Count, Handles.data(), false, Timeout);
+    assuming(static_cast<DWORD_>(0) <= Result);
+    if (likely(Result < Count)) {
+      ConsoleReadEvent[Handles[Result]]->Valid = true;
+      ConsoleReadEvent[Handles[Result]]->error = __WASI_ERRNO_SUCCESS;
+    } else {
+      switch (Result) {
+      case WAIT_TIMEOUT_:
+        if (likely(TimeoutEvent)) {
+          TimeoutEvent->Valid = true;
+          TimeoutEvent->error = __WASI_ERRNO_SUCCESS;
+        }
+        break;
+      case WAIT_FAILED_:
+      default: {
+        const auto Error = detail::fromLastError(GetLastError());
+        for (const auto &[NodeHandle, Event] : ConsoleWriteEvent) {
+          Event->Valid = true;
+          Event->error = Error;
+        }
+        break;
+      }
+      }
+    }
+    assuming(ConsoleWriteEvent.empty());
+    ConsoleReadEvent.clear();
+    TimeoutEvent = nullptr;
+    return;
+  }
   if (const int Count =
           select(0, &ReadFds, &WriteFds, nullptr,
                  TimeoutEvent != nullptr ? &MinimumTimeout : nullptr);

@@ -317,7 +317,7 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
                                   uint32_t GraphId,
                                   uint32_t &ContextId) noexcept {
   // Create context.
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]).get<Context>();
+  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
   ContextId = Env.NNContext.size() - 1;
   return WASINN::ErrNo::Success;
 }

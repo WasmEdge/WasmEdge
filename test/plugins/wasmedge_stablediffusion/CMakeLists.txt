@@ -3,13 +3,13 @@ wasmedge_add_executable(wasmedgeStableDiffusionTests
 )
 
 add_dependencies(wasmedgeStableDiffusionTests
-	wasmedgePluginStableDiffusion
+	wasmedgePluginWasmEdgeStableDiffusion
 )
 
 target_include_directories(wasmedgeStableDiffusionTests
 	PUBLIC
 	$<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
-    $<TARGET_PROPERTY:wasmedgePluginStableDiffusion,INCLUDE_DIRECTORIES>
+    $<TARGET_PROPERTY:wasmedgePluginWasmEdgeStableDiffusion,INCLUDE_DIRECTORIES>
 )
 
 target_link_libraries(wasmedgeStableDiffusionTests

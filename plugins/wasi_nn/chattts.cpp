@@ -35,20 +35,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     spdlog::info("[WASI-NN] ChatTTS backend: Load."sv);
   }
 
-  // if (Builders.size() > 1) {
-  //   std::string Metadata = std::string(
-  //       reinterpret_cast<char *>(Builders[1].data()), Builders[1].size());
-  //   simdjson::dom::parser Parser;
-  //   simdjson::dom::element Doc;
-  //   auto ParseError = Parser.parse(Metadata).get(Doc);
-  //   if (ParseError) {
-  //     spdlog::error("[WASI-NN] ChatTTS backend: Parse metadata error"sv);
-  //     Env.NNGraph.pop_back();
-  //     return ErrNo::InvalidEncoding;
-  //   }
-  //   // TODO handle metadata
-  // }
-
   // Create Model class
   if (!Py_IsInitialized()) {
     Py_Initialize();
@@ -106,7 +92,8 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
 }
 
 Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                               uint32_t, const TensorData &Tensor) noexcept {
+                               uint32_t Index,
+                               const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (!Py_IsInitialized()) {
@@ -117,14 +104,117 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] ChatTTS backend: setInput"sv);
   }
-
-  // Set the input.
-  std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
-                     Tensor.Tensor.size());
-  CxtRef.Inputs.clear();
-  CxtRef.Inputs = Prompt;
-
-  return WASINN::ErrNo::Success;
+  if (Index == 0) {
+    // Set the input.
+    std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
+                       Tensor.Tensor.size());
+    CxtRef.Inputs.clear();
+    CxtRef.Inputs = Prompt;
+    return WASINN::ErrNo::Success;
+  } else if (Index == 1) {
+    // Set metadata.
+    std::string Metadata = std::string(
+        reinterpret_cast<char *>(Tensor.Tensor.data()), Tensor.Tensor.size());
+    simdjson::dom::parser Parser;
+    simdjson::dom::element Doc;
+    auto ParseError = Parser.parse(Metadata).get(Doc);
+    if (ParseError) {
+      spdlog::error("[WASI-NN] ChatTTS backend: Parse metadata error"sv);
+      Env.NNGraph.pop_back();
+      return ErrNo::InvalidEncoding;
+    }
+    // Handle Refine Text Params
+    PyObject *PromptObj = nullptr;
+    if (Doc.at_key("prompt").error() == simdjson::SUCCESS) {
+      std::string_view PromptView;
+      auto Err = Doc["prompt"].get<std::string_view>().get(PromptView);
+      if (Err) {
+        spdlog::error(
+            "[WASI-NN] ChatTTS backend: Unable to retrieve the prompt option."sv);
+        return ErrNo::InvalidArgument;
+      }
+      PromptObj = PyUnicode_FromString(std::string(PromptView).c_str());
+    }
+    if (PromptObj != nullptr) {
+      PyObject *Args = PyTuple_New(0);
+      PyObject *Kwargs = PyDict_New();
+      PyDict_SetItemString(Kwargs, "prompt", PromptObj);
+      PyObject *RefineTextParamsFun =
+          PyObject_GetAttrString(GraphRef.Chat, "RefineTextParams");
+      GraphRef.ParamsRefineText =
+          PyObject_Call(RefineTextParamsFun, Args, Kwargs);
+      Py_XDECREF(PromptObj);
+      Py_DECREF(Args);
+      Py_DECREF(Kwargs);
+      Py_XDECREF(RefineTextParamsFun);
+    }
+    // Handle Infer Code Params
+    PyObject *InferKwargs = PyDict_New();
+    if (Doc.at_key("temperature").error() == simdjson::SUCCESS) {
+      double temperature;
+      auto Err = Doc["temperature"].get<double>().get(temperature);
+      if (Err) {
+        spdlog::error(
+            "[WASI-NN] ChatTTS backend: Unable to retrieve the temperature option."sv);
+        return ErrNo::InvalidArgument;
+      }
+      PyDict_SetItemString(InferKwargs, "temperature",
+                           PyFloat_FromDouble(temperature));
+    }
+    if (Doc.at_key("top_K").error() == simdjson::SUCCESS) {
+      double TopK;
+      auto Err = Doc["top_K"].get<double>().get(TopK);
+      if (Err) {
+        spdlog::error(
+            "[WASI-NN] ChatTTS backend: Unable to retrieve the topK option."sv);
+        return ErrNo::InvalidArgument;
+      }
+      PyDict_SetItemString(InferKwargs, "top_K", PyFloat_FromDouble(TopK));
+    }
+    if (Doc.at_key("top_P").error() == simdjson::SUCCESS) {
+      double TopP;
+      auto Err = Doc["top_P"].get<double>().get(TopP);
+      if (Err) {
+        spdlog::error(
+            "[WASI-NN] ChatTTS backend: Unable to retrieve the temperature option."sv);
+        return ErrNo::InvalidArgument;
+      }
+      PyDict_SetItemString(InferKwargs, "top_P", PyFloat_FromDouble(TopP));
+    }
+    if (Doc.at_key("spk_emb").error() == simdjson::SUCCESS) {
+      std::string_view SpkEmb;
+      auto Err = Doc["spk_emb"].get<std::string_view>().get(SpkEmb);
+      if (Err) {
+        spdlog::error(
+            "[WASI-NN] ChatTTS backend: Unable to retrieve the spk_emb option."sv);
+        return ErrNo::InvalidArgument;
+      }
+      if (SpkEmb == "random") {
+        PyObject *SampleRandomSpeaker =
+            PyObject_GetAttrString(GraphRef.Chat, "sample_random_speaker");
+        PyObject *Spk = PyObject_CallNoArgs(SampleRandomSpeaker);
+        PyDict_SetItemString(InferKwargs, "spk_emb", Spk);
+        Py_XDECREF(SampleRandomSpeaker);
+        Py_XDECREF(Spk);
+      } else {
+        PyObject *Spk = PyUnicode_FromString(std::string(SpkEmb).c_str());
+        PyDict_SetItemString(InferKwargs, "spk_emb", Spk);
+        Py_XDECREF(Spk);
+      }
+    }
+    if (PyDict_Size(InferKwargs) != 0) {
+      PyObject *Args = PyTuple_New(0);
+      PyObject *InferCodeParams =
+          PyObject_GetAttrString(GraphRef.Chat, "InferCodeParams");
+      GraphRef.ParamsInferCode =
+          PyObject_Call(InferCodeParams, Args, InferKwargs);
+      Py_XDECREF(Args);
+      Py_XDECREF(InferCodeParams);
+    }
+    Py_XDECREF(InferKwargs);
+    return WASINN::ErrNo::Success;
+  }
+  return WASINN::ErrNo::InvalidArgument;
 }
 
 Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
@@ -173,9 +263,27 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     Py_XDECREF(InferMethod);
     return WASINN::ErrNo::RuntimeError;
   }
-  PyObject *Args = PyTuple_Pack(1, InputStr);
-  Result = PyObject_CallObject(InferMethod, Args);
-  Py_XDECREF(Args);
+  if (GraphRef.ParamsRefineText == nullptr &&
+      GraphRef.ParamsInferCode == nullptr) {
+    PyObject *Args = PyTuple_Pack(1, InputStr);
+    Result = PyObject_CallObject(InferMethod, Args);
+    Py_XDECREF(Args);
+  } else {
+    PyObject *Args = PyTuple_New(0);
+    PyObject *Kwargs = PyDict_New();
+    PyDict_SetItemString(Kwargs, "text", InputStr);
+    if (GraphRef.ParamsRefineText != nullptr) {
+      PyDict_SetItemString(Kwargs, "params_refine_text",
+                           GraphRef.ParamsRefineText);
+    }
+    if (GraphRef.ParamsInferCode != nullptr) {
+      PyDict_SetItemString(Kwargs, "params_infer_code",
+                           GraphRef.ParamsInferCode);
+    }
+    Result = PyObject_Call(InferMethod, Args, Kwargs);
+    Py_DECREF(Args);
+    Py_DECREF(Kwargs);
+  }
   if (Result != nullptr) {
     PyObject *Wav0 = PyList_GetItem(Result, 0);
     PyObject *BytesObj = PyObject_CallMethod(Wav0, "tobytes", nullptr);
@@ -205,6 +313,8 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     spdlog::info("[WASI-NN] Neural speed backend: start unload."sv);
   }
   if (Py_IsInitialized()) {
+    Py_XDECREF(GraphRef.ParamsRefineText);
+    Py_XDECREF(GraphRef.ParamsInferCode);
     Py_XDECREF(GraphRef.Chat);
     Py_XDECREF(GraphRef.ChatTTSModule);
     Py_Finalize();

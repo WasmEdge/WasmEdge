@@ -23,6 +23,8 @@ struct Graph {
   }
   PyObject *Chat;
   PyObject *ChatTTSModule;
+  PyObject *ParamsRefineText = nullptr;
+  PyObject *ParamsInferCode = nullptr;
 };
 struct Context {
   Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}

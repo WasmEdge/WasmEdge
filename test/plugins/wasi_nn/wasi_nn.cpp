@@ -2649,7 +2649,7 @@ TEST(WasiNNTest, ChatTTSBackend) {
   // ChatTTS WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(1), BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
                   BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);

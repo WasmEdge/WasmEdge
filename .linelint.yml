@@ -1,0 +1,12 @@
+autofix: true
+
+ignore:
+  - .git/
+
+rules:
+  end-of-file:
+    enable: true
+    disable-autofix: false
+    ignore:
+      - README.md
+    single-new-line: true

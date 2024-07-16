@@ -121,6 +121,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-unused-macros
         -Wno-unused-function
         -Wno-unused-variable
+        -Wno-sign-conversion
+        -Wno-shorten-64-to-32
+        -Wno-implicit-int-conversion
+        -Wno-old-style-cast
+        -Wno-extra-semi-stmt
+        -Wno-format-nonliteral
+        -Wno-documentation
+        -Wno-unused-template
       )
     endif()
     target_link_libraries(llava PRIVATE ggml llama)

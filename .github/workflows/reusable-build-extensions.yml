@@ -11,32 +11,36 @@ on:
         default: false
 
 jobs:
-  prepare:
-    name: Prepare matrix values
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.prep.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - id: prep
-        uses: ./.github/actions/expand-variables
-
+  # ------------------------------------------------------------------#
+  # The list of build targets is in the file:
+  #     .github/workflows/matrix-extensions.json
+  #
+  # Add to `.list` the `asset_tag` and the list of targets;
+  # add new targets to `.detail` for its build options, bin name, etc.
+  # ------------------------------------------------------------------#
   build_extensions_on_manylinux:
-    needs: [prepare]
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
-    name: ${{ matrix.arch }}
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'manylinux2014_x86_64-plugins-deps'
+            asset_tag: 'manylinux2014_x86_64'
+          - runner: 'linux-arm64-v2'
+            docker_tag: 'manylinux2014_aarch64-plugins-deps'
+            asset_tag: 'manylinux2014_aarch64'
+          - runner: 'ubuntu-latest'
+            docker_tag: 'manylinux_2_28_x86_64-plugins-deps'
+            asset_tag: 'manylinux_2_28_x86_64'
+          - runner: 'linux-arm64-v2'
+            docker_tag: 'manylinux_2_28_aarch64-plugins-deps'
+            asset_tag: 'manylinux_2_28_aarch64'
+    name: ${{ matrix.asset_tag }}
     uses: ./.github/workflows/reusable-build-extensions-on-manylinux.yml
     with:
-      arch: ${{ matrix.arch }}
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}
       asset_tag: ${{ matrix.asset_tag }}
-      plugins: ${{ toJSON(matrix.plugins) }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}
     secrets: inherit

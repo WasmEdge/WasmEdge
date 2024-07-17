@@ -1,0 +1,142 @@
+{
+    "list": {
+        "manylinux2014_x86_64": [
+            "wasi_nn-tensorflowlite",
+            "wasi_nn-wasi_nn-ggml",
+            "wasi_nn-wasi_nn-pytorch",
+            "wasm_bpf",
+            "wasi_crypto",
+            "wasi_logging",
+            "wasmedge_process",
+            "wasmedge_tensorflow",
+            "wasmedge_tensorflowlite",
+            "wasmedge_image",
+            "wasmedge_opencvmini",
+            "wasmedge_ffmpeg"
+        ],
+        "manylinux2014_aarch64": [
+            "wasi_nn-tensorflowlite",
+            "wasi_nn-wasi_nn-ggml",
+            "wasi_crypto",
+            "wasi_logging",
+            "wasmedge_process",
+            "wasmedge_tensorflow",
+            "wasmedge_tensorflowlite",
+            "wasmedge_image",
+            "wasmedge_opencvmini",
+            "wasmedge_ffmpeg"
+        ],
+        "manylinux_2_28_x86_64": [
+            "wasi_nn-tensorflowlite",
+            "wasi_nn-wasi_nn-ggml",
+            "wasi_nn-wasi_nn-pytorch",
+            "wasm_bpf",
+            "wasi_crypto",
+            "wasi_logging",
+            "wasmedge_process",
+            "wasmedge_tensorflow",
+            "wasmedge_tensorflowlite",
+            "wasmedge_image",
+            "wasmedge_opencvmini",
+            "wasmedge_ffmpeg"
+        ],
+        "manylinux_2_28_aarch64": [
+            "wasi_nn-tensorflowlite",
+            "wasi_nn-wasi_nn-ggml",
+            "wasi_crypto",
+            "wasi_logging",
+            "wasmedge_process",
+            "wasmedge_tensorflow",
+            "wasmedge_tensorflowlite",
+            "wasmedge_image",
+            "wasmedge_opencvmini",
+            "wasmedge_ffmpeg"
+        ]
+    },
+    "detail": {
+        "wasi_nn-tensorflowlite": {
+            "plugin": "wasi_nn-tensorflowlite",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite"
+        },
+        "wasi_nn-wasi_nn-ggml": {
+            "plugin": "wasi_nn-wasi_nn-ggml",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF"
+        },
+        "wasi_nn-wasi_nn-pytorch": {
+            "plugin": "wasi_nn-wasi_nn-pytorch",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch"
+        },
+        "wasm_bpf": {
+            "plugin": "wasm_bpf",
+            "bin": "libwasmedgePluginWasmBpf.so",
+            "dir": "wasm_bpf",
+            "testBin": "wasmBpfTests",
+            "options": "-DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF"
+        },
+        "wasi_crypto": {
+            "plugin": "wasi_crypto",
+            "bin": "libwasmedgePluginWasiCrypto.so",
+            "dir": "wasi_crypto",
+            "testBin": "wasiCryptoTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
+        },
+        "wasi_logging": {
+            "plugin": "wasi_logging",
+            "bin": "libwasmedgePluginWasiLogging.so",
+            "dir": "wasi_logging",
+            "testBin": "wasiLoggingTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_LOGGING=ON"
+        },
+        "wasmedge_process": {
+            "plugin": "wasmedge_process",
+            "bin": "libwasmedgePluginWasmEdgeProcess.so",
+            "dir": "wasmedge_process",
+            "testBin": "wasmedgeProcessTests",
+            "options": "-DWASMEDGE_PLUGIN_PROCESS=ON"
+        },
+        "wasmedge_tensorflow": {
+            "plugin": "wasmedge_tensorflow",
+            "bin": "libwasmedgePluginWasmEdgeTensorflow.so",
+            "dir": "wasmedge_tensorflow",
+            "testBin": "wasmedgeTensorflowTests",
+            "options": "-DWASMEDGE_PLUGIN_TENSORFLOW=ON"
+        },
+        "wasmedge_tensorflowlite": {
+            "plugin": "wasmedge_tensorflowlite",
+            "bin": "libwasmedgePluginWasmEdgeTensorflowLite.so",
+            "dir": "wasmedge_tensorflowlite",
+            "testBin": "wasmedgeTensorflowLiteTests",
+            "options": "-DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON"
+        },
+        "wasmedge_image": {
+            "plugin": "wasmedge_image",
+            "bin": "libwasmedgePluginWasmEdgeImage.so",
+            "dir": "wasmedge_image",
+            "testBin": "wasmedgeImageTests",
+            "options": "-DWASMEDGE_PLUGIN_IMAGE=ON"
+        },
+        "wasmedge_opencvmini": {
+            "plugin": "wasmedge_opencvmini",
+            "bin": "libwasmedgePluginWasmEdgeOpenCVMini.so",
+            "dir": "wasmedge_opencvmini",
+            "testBin": "wasmedgeOpencvminiTests",
+            "options": "-DWASMEDGE_PLUGIN_OPENCVMINI=ON"
+        },
+        "wasmedge_ffmpeg": {
+            "plugin": "wasmedge_ffmpeg",
+            "bin": "libwasmedgePluginWasmEdgeFFmpeg.so",
+            "dir": "wasmedge_ffmpeg",
+            "testBin": "wasmedgeFFmpegTests",
+            "options": "-DWASMEDGE_PLUGIN_FFMPEG=ON"
+        }
+    }
+}

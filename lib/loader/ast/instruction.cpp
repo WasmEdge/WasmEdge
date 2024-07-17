@@ -275,7 +275,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     if (Offset < SizeBound.value()) {
       return logLoadError(ErrCode::Value::JunkSection, Offset,
                           ASTNodeAttr::Instruction);
-    } else if (Offset > SizeBound.value()) {
+    } else if (Offset > SizeBound.value() && !Conf.hasProposal(Proposal::MultiMemories)) {
       return logLoadError(ErrCode::Value::SectionSizeMismatch, Offset,
                           ASTNodeAttr::Instruction);
     }

@@ -1,0 +1,11 @@
+name: Test Workflow
+
+on:
+  # This workflow will not trigger on any event (for testing purposes)
+  # You can uncomment and customize this section for actual triggers
+
+# jobs:  # This section defines jobs to be run. Remove comments for actual jobs
+#   - name: Test Job
+#     steps:  # This defines steps within the job. Remove comments for actual steps
+#       - name: Echo message
+#         run: echo "This is a test job!"

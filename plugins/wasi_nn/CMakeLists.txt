@@ -16,6 +16,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   piper.cpp
   whispercpp.cpp
   chattts.cpp
+  mlx.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -189,6 +190,26 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     target_link_libraries(wasmedgePluginWasiNN PRIVATE
       whisper
       simdjson::simdjson
+    )
+  elseif(BACKEND STREQUAL "mlx")
+    include(FetchContent)
+    find_package(LAPACK REQUIRED)
+    message(STATUS "LAPACK_LIBRARIES: ${LAPACK_LIBRARIES} ${LAPACK_INCLUDE_DIRS}")
+    if (!${APPLE})
+    set(MLX_BUILD_METAL OFF)
+    endif()
+    FetchContent_Declare(
+      mlx
+      GIT_REPOSITORY https://github.com/ml-explore/mlx.git
+      GIT_TAG        v0.16.0
+      GIT_SHALLOW    FALSE
+    )
+    FetchContent_MakeAvailable(mlx)
+    #  install liblapack-dev libopenblas-dev
+    set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(mlx PRIVATE OpenBLAS)
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+      mlx
     )
   endif()
 endforeach()

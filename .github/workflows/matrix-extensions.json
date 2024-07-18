@@ -83,7 +83,7 @@
             "bin": "libwasmedgePluginWasiNN.so",
             "dir": "wasi_nn",
             "testBin": "wasiNNTests",
-            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS=OFF"
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML"
         },
         "wasi_nn-pytorch": {
             "plugin": "wasi_nn-pytorch",

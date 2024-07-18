@@ -17,7 +17,7 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
       "../../../plugins/wasmedge_stablediffusion/" WASMEDGE_LIB_PREFIX
-      "wasmedgePluginStableDiffusion" WASMEDGE_LIB_EXTENSION));
+      "wasmedgePluginWasmEdgeStableDiffusion" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_stablediffusion"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_stablediffusion"sv)) {
@@ -218,7 +218,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
     EXPECT_GE(BytesWritten, 50);
-    std::ifstream Fin(OutputPath.data(), std::ios::in | std::ios::binary);
+    std::ifstream Fin(OutputPathString, std::ios::in | std::ios::binary);
     EXPECT_FALSE(Fin.fail());
     Fin.close();
   }
@@ -307,7 +307,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
     EXPECT_GE(BytesWritten, 50);
-    std::ifstream Fin(OutputPath2.data(), std::ios::in | std::ios::binary);
+    std::ifstream Fin(OutputPathString2, std::ios::in | std::ios::binary);
     EXPECT_FALSE(Fin.fail());
     Fin.close();
   }

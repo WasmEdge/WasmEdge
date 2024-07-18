@@ -14,6 +14,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   ggml.cpp
   neuralspeed.cpp
   piper.cpp
+  whispercpp.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -65,7 +66,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3358
+      GIT_TAG        b3405
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -159,6 +160,21 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     wasmedge_setup_piper()
     target_include_directories(wasmedgePluginWasiNN PRIVATE ${piper_SOURCE_DIR}/src/cpp)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
+  elseif(BACKEND STREQUAL "whisper")
+    set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Whisper turn off accelerate")
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
+    include(FetchContent)
+    FetchContent_Declare(
+      whisper
+      GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
+      GIT_TAG        v1.6.2
+      GIT_SHALLOW    FALSE
+    )
+    FetchContent_MakeAvailable(whisper)
+    set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+      whisper
+    )
   endif()
 endforeach()
 

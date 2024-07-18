@@ -6,11 +6,13 @@
             "wasi_nn-ggml",
             "wasi_nn-pytorch",
             "wasi_nn-tensorflowlite",
+            "wasi_nn-whisper",
             "wasm_bpf",
             "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
             "wasmedge_process",
+            "wasmedge_stablediffusion",
             "wasmedge_tensorflow",
             "wasmedge_tensorflowlite"
         ],
@@ -19,10 +21,12 @@
             "wasi_logging",
             "wasi_nn-ggml",
             "wasi_nn-tensorflowlite",
+            "wasi_nn-whisper",
             "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
             "wasmedge_process",
+            "wasmedge_stablediffusion",
             "wasmedge_tensorflow",
             "wasmedge_tensorflowlite"
         ],
@@ -32,25 +36,31 @@
             "wasi_nn-ggml",
             "wasi_nn-pytorch",
             "wasi_nn-tensorflowlite",
+            "wasi_nn-whisper",
             "wasm_bpf",
             "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
             "wasmedge_process",
+            "wasmedge_stablediffusion",
             "wasmedge_tensorflow",
-            "wasmedge_tensorflowlite"
+            "wasmedge_tensorflowlite",
+            "wasmedge_zlib"
         ],
         "manylinux_2_28_aarch64": [
             "wasi_crypto",
             "wasi_logging",
             "wasi_nn-ggml",
             "wasi_nn-tensorflowlite",
+            "wasi_nn-whisper",
             "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
             "wasmedge_process",
+            "wasmedge_stablediffusion",
             "wasmedge_tensorflow",
-            "wasmedge_tensorflowlite"
+            "wasmedge_tensorflowlite",
+            "wasmedge_zlib"
         ]
     },
     "detail": {
@@ -89,6 +99,13 @@
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite"
         },
+        "wasi_nn-whisper": {
+            "plugin": "wasi_nn-whisper",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper"
+        },
         "wasm_bpf": {
             "plugin": "wasm_bpf",
             "bin": "libwasmedgePluginWasmBpf.so",
@@ -124,6 +141,13 @@
             "testBin": "wasmedgeProcessTests",
             "options": "-DWASMEDGE_PLUGIN_PROCESS=ON"
         },
+        "wasmedge_stablediffusion": {
+            "plugin": "wasmedge_stablediffusion",
+            "bin": "libwasmedgePluginWasmEdgeStableDiffusion.so",
+            "dir": "wasmedge_stablediffusion",
+            "testBin": "wasmedgeStableDiffusionTests",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON"
+        },
         "wasmedge_tensorflow": {
             "plugin": "wasmedge_tensorflow",
             "bin": "libwasmedgePluginWasmEdgeTensorflow.so",
@@ -137,6 +161,13 @@
             "dir": "wasmedge_tensorflowlite",
             "testBin": "wasmedgeTensorflowLiteTests",
             "options": "-DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON"
+        },
+        "wasmedge_zlib": {
+            "plugin": "wasmedge_zlib",
+            "bin": "libwasmedgePluginWasmEdgeZlib.so",
+            "dir": "wasmedge_zlib",
+            "testBin": "wasmedgeZlibTests",
+            "options": "-DWASMEDGE_PLUGIN_ZLIB=ON"
         }
     }
 }

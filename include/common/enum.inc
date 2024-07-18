@@ -881,6 +881,9 @@ E(SharedMemoryNoMax, 0x011A, "shared memory must have maximum")
 E(IntrinsicsTableNotFound, 0x011B, "intrinsics table not found")
 // Malformed table (Ref-types proposal)
 E(MalformedTable, 0x011C, "malformed table")
+// The store alignment must be less than 128 and multi-memory 
+// must be enabled if the alignment is more than 32.
+E(InvalidStoreAlignment, 0x011D, "invalid store alignment")
 // @}
 
 // Validation phase

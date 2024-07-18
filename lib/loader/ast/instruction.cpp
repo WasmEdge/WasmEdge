@@ -275,7 +275,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     if (Offset < SizeBound.value()) {
       return logLoadError(ErrCode::Value::JunkSection, Offset,
                           ASTNodeAttr::Instruction);
-    } else if (Offset > SizeBound.value() && !Conf.hasProposal(Proposal::MultiMemories)) {
+    } else if (Offset > SizeBound.value()) {
       return logLoadError(ErrCode::Value::SectionSizeMismatch, Offset,
                           ASTNodeAttr::Instruction);
     }
@@ -313,8 +313,13 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    if (Conf.hasProposal(Proposal::MultiMemories) &&
-        Instr.getMemoryAlign() >= 64) {
+    if (Instr.getMemoryAlign() >= 128 ||
+        (Instr.getMemoryAlign() >= 32 &&
+         !Conf.hasProposal(Proposal::MultiMemories))) {
+      return logLoadError(ErrCode::Value::InvalidStoreAlignment,
+                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+    }
+    if (Instr.getMemoryAlign() >= 64) {
       Instr.getMemoryAlign() -= 64;
       if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
         return Unexpect(Res);

@@ -1,18 +1,24 @@
-### 0.14.1-beta.1 (2024-07-02)
+### 0.14.1-beta.2 (2024-07-18)
 
 Features:
 
 * Supported LLVM 17.0.6.
 * [WASI-NN] ggml backend:
-  * Bump llama.cpp to b3259.
+  * Bump llama.cpp to b3405.
   * Static link `libggml` and `libllama`.
   * Refine the CMake to support multiple backends of WASI-NN with ggml backend.
 * [WASI-NN] Added support for neural speed backend.
+* [WASI-NN] Added support for whisper.cpp backend.
 * [Plugin] Supported `wasmedge_stablediffusion` plug-in.
 * [Proposal] Initial support for instantiation phase of component model.
 * [Proposal] Supported WASM Relaxed-SIMD proposal.
   * Added the `WasmEdge_Proposal_RelaxSIMD` for the configuration in WasmEdge C API.
   * Users can use the `--enable-relaxed-simd` to enable the proposal in `wasmedge` and `wasmedgec` tools.
+
+Fixed issues:
+
+* Fixed the `fmt` related header inclusion for error logging.
+* Fixed WASI test error in Windows.
 
 Tests:
 
@@ -26,9 +32,9 @@ Known issues:
 
 Thank all the contributors who made this release possible!
 
-Elmira, Fusaaaann, Lîm Tsú-thuàn, Michael Morris, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Yi-Ying He, alabulei1, dm4, grorge, hydai
+Elmira, Fusaaaann, Jun Zhang, Kefu Chai, Lîm Tsú-thuàn, Michael Morris, PeterD1524, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Yi Huang, Yi-Ying He, alabulei1, dm4, grorge, hydai
 
-If you want to build from source, please use WasmEdge-0.14.1-beta.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.14.1-beta.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.14.0 (2024-05-22)
 

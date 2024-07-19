@@ -15,7 +15,8 @@ TEST(MemLimitTest, Limit__Pages) {
 
   MemInst Inst1(WasmEdge::AST::MemoryType(257),
                 Conf.getRuntimeConfigure().getMaxMemoryPage());
-  ASSERT_TRUE(Inst1.getDataPtr() == nullptr);
+  ASSERT_FALSE(Inst1.getDataPtr() == nullptr);
+  EXPECT_EQ(Inst1.getPageSize(), 256U);
 
   MemInst Inst2(WasmEdge::AST::MemoryType(257));
   ASSERT_FALSE(Inst2.getDataPtr() == nullptr);

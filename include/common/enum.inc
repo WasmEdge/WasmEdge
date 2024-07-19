@@ -885,82 +885,84 @@ E(MalformedTable, 0x011C, "malformed table")
 
 // Validation phase
 // @{
+// Alignment != natural
+E(InvalidAlignment, 0x0200, "atomic alignment must be equal to natural")
 // Alignment > natural
-E(InvalidAlignment, 0x0200, "alignment must not be larger than natural")
+E(AlignmentTooLarge, 0x0201, "alignment must not be larger than natural")
 // Got unexpected type when checking
-E(TypeCheckFailed, 0x0201, "type mismatch")
+E(TypeCheckFailed, 0x0202, "type mismatch")
 // Branch to unknown label index
-E(InvalidLabelIdx, 0x0202, "unknown label")
+E(InvalidLabelIdx, 0x0203, "unknown label")
 // Access unknown local index
-E(InvalidLocalIdx, 0x0203, "unknown local")
+E(InvalidLocalIdx, 0x0204, "unknown local")
 // Access unknown field index
-E(InvalidFieldIdx, 0x0204, "unknown field")
+E(InvalidFieldIdx, 0x0205, "unknown field")
 // Type index not defined
-E(InvalidFuncTypeIdx, 0x0205, "unknown type")
+E(InvalidFuncTypeIdx, 0x0206, "unknown type")
 // Function index not defined
-E(InvalidFuncIdx, 0x0206, "unknown function")
+E(InvalidFuncIdx, 0x0207, "unknown function")
 // Table index not defined
-E(InvalidTableIdx, 0x0207, "unknown table")
+E(InvalidTableIdx, 0x0208, "unknown table")
 // Memory index not defined
-E(InvalidMemoryIdx, 0x0208, "unknown memory")
+E(InvalidMemoryIdx, 0x0209, "unknown memory")
 // Global index not defined
-E(InvalidGlobalIdx, 0x0209, "unknown global")
+E(InvalidGlobalIdx, 0x020A, "unknown global")
 // Tag index not defined
-E(InvalidTagIdx, 0x020A, "unknown tag")
+E(InvalidTagIdx, 0x020B, "unknown tag")
 // Element segment index not defined
-E(InvalidElemIdx, 0x020B, "unknown elem segment")
+E(InvalidElemIdx, 0x020C, "unknown elem segment")
 // Data segment index not defined
-E(InvalidDataIdx, 0x020C, "unknown data segment")
+E(InvalidDataIdx, 0x020D, "unknown data segment")
 // Undeclared reference
-E(InvalidRefIdx, 0x020D, "undeclared function reference")
+E(InvalidRefIdx, 0x020E, "undeclared function reference")
 // Should be constant expression
-E(ConstExprRequired, 0x020E, "constant expression required")
+E(ConstExprRequired, 0x020F, "constant expression required")
 // Export name conflicted
-E(DupExportName, 0x020F, "duplicate export name")
+E(DupExportName, 0x0210, "duplicate export name")
 // Tried to store to const global value
-E(ImmutableGlobal, 0x0210, "global is immutable")
+E(ImmutableGlobal, 0x0211, "global is immutable")
 // Tried to store to const field of structure
-E(ImmutableField, 0x0211, "field is immutable")
+E(ImmutableField, 0x0212, "field is immutable")
 // Tried to store to const array
-E(ImmutableArray, 0x0212, "array is immutable")
+E(ImmutableArray, 0x0213, "array is immutable")
 // Invalid result arity in select t* instruction
-E(InvalidResultArity, 0x0213, "invalid result arity")
+E(InvalidResultArity, 0x0214, "invalid result arity")
 // #Tables > 1 (without Ref-types proposal)
-E(MultiTables, 0x0214, "multiple tables")
+E(MultiTables, 0x0215, "multiple tables")
 // #Memories > 1
-E(MultiMemories, 0x0215, "multiple memories")
+E(MultiMemories, 0x0216, "multiple memories")
 // Invalid Limit grammar
-E(InvalidLimit, 0x0216, "size minimum must not be greater than maximum")
+E(InvalidLimit, 0x0217, "size minimum must not be greater than maximum")
 // Memory pages > 65536
-E(InvalidMemPages, 0x0217, "memory size must be at most 65536 pages (4GiB)")
+E(InvalidMemPages, 0x0218, "memory size must be at most 65536 pages (4GiB)")
 // Invalid start function signature
-E(InvalidStartFunc, 0x0218, "start function")
+E(InvalidStartFunc, 0x0219, "start function")
 // Invalid lane index
-E(InvalidLaneIdx, 0x0219, "invalid lane index")
+E(InvalidLaneIdx, 0x021A, "invalid lane index")
 // Invalid uninitialized local
-E(InvalidUninitLocal, 0x021A, "uninitialized local")
+E(InvalidUninitLocal, 0x021B, "uninitialized local")
 // Defaultable field type required
-E(InvalidNotDefaultableField, 0x021B, "field type is not defaultable")
+E(InvalidNotDefaultableField, 0x021C, "field type is not defaultable")
 // Defaultable array type required
-E(InvalidNotDefaultableArray, 0x021C, "array type is not defaultable")
+E(InvalidNotDefaultableArray, 0x021D, "array type is not defaultable")
 // Unpacked field type required, but got packed one
-E(InvalidPackedField, 0x021D, "field is packed")
+E(InvalidPackedField, 0x021E, "field is packed")
 // Unpacked array type required, but got packed one
-E(InvalidPackedArray, 0x021E, "array is packed")
+E(InvalidPackedArray, 0x021F, "array is packed")
 // Packed field type required, but got unpacked one
-E(InvalidUnpackedField, 0x021F, "field is unpacked")
+E(InvalidUnpackedField, 0x0220, "field is unpacked")
 // Packed array type required, but got unpacked one
-E(InvalidUnpackedArray, 0x0220, "array is unpacked")
+E(InvalidUnpackedArray, 0x0221, "array is unpacked")
 // Invalid Br ref type
-E(InvalidBrRefType, 0x0221, "invalid br ref type")
+E(InvalidBrRefType, 0x0222, "invalid br ref type")
 // 2 array types not matched
-E(ArrayTypesMismatch, 0x0222, "array types do not match")
+E(ArrayTypesMismatch, 0x0223, "array types do not match")
 // Should be numeric type in array type
-E(ArrayTypesNumtypeRequired, 0x0223, "array type is not numeric or vector")
+E(ArrayTypesNumtypeRequired, 0x0224, "array type is not numeric or vector")
 // Sub type matching or validation failed
-E(InvalidSubType, 0x0224, "sub type")
+E(InvalidSubType, 0x0225, "sub type")
 // Invalid Tag type
-E(InvalidTagResultType, 0x0225, "non-empty tag result type")
+E(InvalidTagResultType, 0x0226, "non-empty tag result type")
 // @}
 
 // Instantiation phase

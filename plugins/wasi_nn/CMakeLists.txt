@@ -192,25 +192,43 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       simdjson::simdjson
     )
   elseif(BACKEND STREQUAL "mlx")
-    include(FetchContent)
-    find_package(LAPACK REQUIRED)
-    message(STATUS "LAPACK_LIBRARIES: ${LAPACK_LIBRARIES} ${LAPACK_INCLUDE_DIRS}")
-    if (!${APPLE})
-    set(MLX_BUILD_METAL OFF)
+    find_package(MLX CONFIG)
+    if(MLX_FOUND)
+      message(STATUS "Found MLX: ${MLX_INCLUDE_DIRS}")
+    else()
+      message(STATUS "MLX not found, downloading from source")
+      include(FetchContent)
+      set(MLX_BUILD_TESTS OFF)
+      if (NOT APPLE)
+        set(MLX_BUILD_METAL OFF)
+        set(MLX_BUILD_CPU OFF)
+      endif()
+      
+      FetchContent_Declare(
+        mlx
+        GIT_REPOSITORY https://github.com/ml-explore/mlx.git
+        GIT_TAG        v0.16.0
+        GIT_SHALLOW    FALSE
+      )
+      FetchContent_MakeAvailable(mlx)
+      set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)
+      set_target_properties(mlx PROPERTIES
+        INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:fmt::fmt-header-only>"
+      )
+      target_compile_options(mlx
+          PRIVATE
+          -Wno-unused-parameter
+          -Wno-deprecated-copy
+          -Wno-format
+        )
+      target_compile_options(wasmedgePluginWasiNN
+        PRIVATE
+        -Wno-unused-parameter
+      )
+      target_link_libraries(wasmedgePluginWasiNN PRIVATE
+        mlx
+      )
     endif()
-    FetchContent_Declare(
-      mlx
-      GIT_REPOSITORY https://github.com/ml-explore/mlx.git
-      GIT_TAG        v0.16.0
-      GIT_SHALLOW    FALSE
-    )
-    FetchContent_MakeAvailable(mlx)
-    #  install liblapack-dev libopenblas-dev
-    set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)
-    target_link_libraries(mlx PRIVATE OpenBLAS)
-    target_link_libraries(wasmedgePluginWasiNN PRIVATE
-      mlx
-    )
   endif()
 endforeach()
 

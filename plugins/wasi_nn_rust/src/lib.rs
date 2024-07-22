@@ -28,7 +28,7 @@ mod wasi_nn {
     use std::process;
     use std::sync::Mutex;
 
-    use wasi_nn::TensorType;
+    use wasmedge_wasi_nn::TensorType;
     use wasmedge_plugin_sdk::{
         error::CoreError,
         memory::Memory,

@@ -233,6 +233,8 @@ endfunction()
 function(wasmedge_setup_piper)
   message(STATUS "Downloading piper source")
   include(FetchContent)
+  set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE INTERNAL "")
   find_program(GIT_CMD git REQUIRED)
   FetchContent_Declare(
     piper
@@ -242,7 +244,6 @@ function(wasmedge_setup_piper)
     PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
   )
   FetchContent_MakeAvailable(piper)
-  set_property(TARGET piper PROPERTY POSITION_INDEPENDENT_CODE ON)
   set_target_properties(test_piper PROPERTIES EXCLUDE_FROM_ALL TRUE)
   # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
   target_compile_options(piper PRIVATE -Wno-error=unused-parameter)

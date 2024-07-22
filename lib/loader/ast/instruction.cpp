@@ -318,8 +318,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
          !Conf.hasProposal(Proposal::MultiMemories))) {
       return logLoadError(ErrCode::Value::InvalidStoreAlignment,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-    }
-    if (Instr.getMemoryAlign() >= 64) {
+    } else if (Instr.getMemoryAlign() >= 64) {
       Instr.getMemoryAlign() -= 64;
       if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
         return Unexpect(Res);

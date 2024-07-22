@@ -243,8 +243,11 @@ function(wasmedge_setup_piper)
     UPDATE_DISCONNECTED TRUE
     PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
   )
-  FetchContent_MakeAvailable(piper)
-  set_target_properties(test_piper PROPERTIES EXCLUDE_FROM_ALL TRUE)
+  FetchContent_GetProperties(piper)
+  if(NOT piper_POPULATED)
+    FetchContent_Populate(piper)
+    add_subdirectory("${piper_SOURCE_DIR}" "${piper_BINARY_DIR}" EXCLUDE_FROM_ALL)
+  endif()
   # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
   target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
 endfunction()

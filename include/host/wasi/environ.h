@@ -56,7 +56,7 @@ class Environ : public PollerContext {
 public:
   ~Environ() noexcept;
 
-  void init(Span<const std::string> Dirs, std::string ProgramName,
+  void init(Span<const std::string> Dirs, const std::string &ProgramName,
             Span<const std::string> Args, Span<const std::string> Envs);
 
   void fini() noexcept;

@@ -29,14 +29,26 @@ public:
                const Instance::ModuleInstance *M) noexcept
       : Exec(E), Module(M) {}
 
+  /// Get the current executor.
   Executor::Executor *getExecutor() const noexcept { return Exec; }
+
+  /// Get the current module on this frame.
   const Instance::ModuleInstance *getModule() const noexcept { return Module; }
-  Instance::MemoryInstance *getMemoryByIndex(uint32_t Index) const noexcept {
-    if (Module == nullptr) {
-      return nullptr;
+
+  /// Helper function of getting the WASI module.
+  const Instance::ModuleInstance *getWASIModule() const noexcept {
+    if (Module) {
+      return Module->getWASIModule();
     }
-    if (auto Res = Module->getMemory(Index); Res) {
-      return *Res;
+    return nullptr;
+  }
+
+  /// Helper function of getting the memory instance by index from the module.
+  Instance::MemoryInstance *getMemoryByIndex(uint32_t Index) const noexcept {
+    if (Module) {
+      if (auto Res = Module->getMemory(Index); Res) {
+        return *Res;
+      }
     }
     return nullptr;
   }

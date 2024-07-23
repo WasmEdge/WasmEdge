@@ -69,6 +69,7 @@ else()
 		-Wno-unused-variable
 		-Wno-unused-parameter
 		-Wno-missing-field-initializers
+    -Wno-deprecated-declarations
 	)
 endif()
 

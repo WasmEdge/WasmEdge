@@ -138,8 +138,8 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
   }
   Fin.close();
   // Convert model.
-  bool Ret = convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
-                     static_cast<sd_type_t>(WType));
+  bool Ret = ::convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
+                       static_cast<sd_type_t>(WType));
   if (!Ret) {
     spdlog::error("[WasmEdge-StableDiffusion] Failed to convert model.");
     return static_cast<uint32_t>(ErrNo::InvalidArgument);

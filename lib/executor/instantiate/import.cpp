@@ -206,6 +206,11 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
       // Set the matched function address to module instance.
       ModInst.importFunction(ImpInst);
+
+      // If the imported function is a WASI function, mark in the module.
+      if (!ModInst.getWASIModule() && ModName == "wasi_snapshot_preview1"sv) {
+        ModInst.setWASIModule(ImpModInst);
+      }
       break;
     }
     case ExternalType::Table: {

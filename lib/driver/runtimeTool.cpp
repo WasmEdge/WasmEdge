@@ -418,12 +418,11 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
 
   bool EnterCommandMode = !Opt.Reactor.value() && HasValidCommandModStartFunc();
 
-  WasiMod->getEnv().init(
-      Opt.Dir.value(),
-      InputPath.filename()
-          .replace_extension(std::filesystem::u8path("wasm"sv))
-          .u8string(),
-      Opt.Args.value(), Opt.Env.value());
+  WasiMod->init(Opt.Dir.value(),
+                InputPath.filename()
+                    .replace_extension(std::filesystem::u8path("wasm"sv))
+                    .u8string(),
+                Opt.Args.value(), Opt.Env.value());
 
   if (EnterCommandMode) {
     // command mode
@@ -435,7 +434,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     }
     if (auto Result = AsyncResult.get();
         Result || Result.error() == ErrCode::Value::Terminated) {
-      return static_cast<int>(WasiMod->getEnv().getExitCode());
+      return static_cast<int>(WasiMod->getExitCode());
     } else {
       // It indicates that the execution of wasm has been aborted
       return 128 + SIGABRT;

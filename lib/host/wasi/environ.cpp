@@ -70,7 +70,7 @@ static inline constexpr const auto kReadOnly = "readonly"sv;
 
 } // namespace
 
-void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
+void Environ::init(Span<const std::string> Dirs, const std::string &ProgramName,
                    Span<const std::string> Args, Span<const std::string> Envs) {
   {
     // Open dir for WASI environment.
@@ -122,7 +122,7 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
   }
 
   Arguments.resize(Args.size() + 1);
-  Arguments.front() = std::move(ProgramName);
+  Arguments.front() = ProgramName;
   std::copy(Args.begin(), Args.end(), Arguments.begin() + 1);
   Arguments.shrink_to_fit();
 

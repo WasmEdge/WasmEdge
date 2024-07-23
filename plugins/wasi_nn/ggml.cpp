@@ -12,6 +12,8 @@
 #include <common.h>
 #include <cstdlib>
 #include <filesystem>
+#include <json-schema-to-grammar.h>
+#include <json.hpp>
 #include <llama.h>
 #include <llava.h>
 #include <sstream>
@@ -309,6 +311,17 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
     GraphRef.Grammar = Grammar;
+  }
+  if (Doc.at_key("json-schema").error() == simdjson::SUCCESS) {
+    std::string_view JsonSchema;
+    auto Err = Doc["json-schema"].get<std::string_view>().get(JsonSchema);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the json-schema option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Grammar =
+        json_schema_to_grammar(nlohmann::ordered_json::parse(JsonSchema));
   }
 
   // Check if the model is updated.

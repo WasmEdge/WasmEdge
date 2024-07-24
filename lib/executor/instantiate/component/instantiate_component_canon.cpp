@@ -225,7 +225,6 @@ public:
         auto Len = Args[PI++];
         std::string_view V =
             Memory->getStringView(Idx.get<uint32_t>(), Len.get<uint32_t>());
-        // FIXME: This crashed on Ubuntu/Debian clang
         ValInterface VI{};
         VI.emplace<std::string>(std::string(V.begin(), V.end()));
         HigherArgs.push_back(VI);

@@ -116,7 +116,7 @@ jobs:
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
           bash utils/wasi-nn/install-neuralspeed.sh
-          bash utils/wasi-nn/install-onnxruntime-ubuntu.sh
+          bash utils/wasi-nn/install-onnxruntime.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |

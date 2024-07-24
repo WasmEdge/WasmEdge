@@ -1,0 +1,70 @@
+name: "LFX Mentorship Project Idea"
+description: This template is for submitting a project idea for the LFX Mentorship program.
+title: "LFX mentorship (): <title>"
+labels: ["LFX Mentorship", "LFX Mentorship Idea"]
+projects: ["WasmEdge/8"]
+body:
+  - type: textarea
+    id: project-title
+    attributes:
+      label: "Project Title"
+      description: Please shortly describe the project title you want to propose for the LFX Mentorship program.
+      placeholder: Describe in one line
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: "Description"
+      description: Please shortly describe the project content you want to propose for the LFX Mentorship program.
+      placeholder: Describe in a few lines about the project content.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-outcome
+    attributes:
+      label: "Expected Outcome"
+      description: Please shortly describe the expected outcome of the project you want to propose for the LFX Mentorship program.
+      placeholder: Describe in several bullet points about the expected outcome. E.g. A new feature, a new tool, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: recommend-skills
+    attributes:
+      label: "Recommend skills"
+      description: Please shortly describe the recommend skills for the project you want to propose for the LFX Mentorship program.
+      placeholder: Describe in several bullet points about the recommend skills. E.g. C++, Rust, WebAssembly, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: pre-tests
+    attributes:
+      label: "Pre-tests"
+      description: Please shortly describe the pre-tests for the project you want to propose for the LFX Mentorship program.
+      placeholder: This is optional, if you have any pre-tests for the project, please describe in several bullet points. Otherwise, you can leave it "N/A".
+    validations:
+      required: true
+  - type: textarea
+    id: mentors
+    attributes:
+      label: "Mentor(s)"
+      description: Please write down the mentor(s) in this format, e.g. "MentorName (@MentorGitHubID, MentorEmail)"
+      placeholder: According to the CNCF policy, at least two mentors(one for major, another for backup) are required for each project.
+    validations:
+      required: true
+  - type: textarea
+    id: apply-link
+    attributes:
+      label: "Apply Link"
+      description: Leave TBD if you don't have the apply link yet.
+      placeholder: TBD
+    validations:
+      required: true
+  - type: textarea
+    id: appendix
+    attributes:
+      label: "Appendix"
+      description: Please provide any additional information you want to share.
+      placeholder: This is optional, if you have any additional information, please describe in several bullet points.
+    validations:
+      required: false

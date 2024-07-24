@@ -22,8 +22,34 @@ JNIEXPORT void JNICALL Java_org_wasmedge_TableTypeContext_nativeInit(
   jlong min = (*env)->CallLongMethod(env, jLimit, minMid);
 
   WasmEdge_Limit tableLimit = {.HasMax = hasMax, .Min = min, .Max = max};
+  //jint refType to WasmEdge_ValType
+  uint8_t type = refType;
+  WasmEdge_ValType finalType;
+  switch(type){
+    case 0x7F:
+        finalType = WasmEdge_ValTypeGenI32();
+        break;
+    case 0x7E:
+        finalType = WasmEdge_ValTypeGenI64();
+        break;
+    case 0x7D:
+        finalType = WasmEdge_ValTypeGenF32();
+        break;
+    case 0x7C:
+        finalType = WasmEdge_ValTypeGenF64();
+        break;
+    case 0x7B:
+        finalType = WasmEdge_ValTypeGenV128();
+        break;
+    case 0x70:
+        finalType = WasmEdge_ValTypeGenFuncRef();
+        break;
+    case 0x6F:
+        finalType = WasmEdge_ValTypeGenExternRef();
+        break;
+    }
   WasmEdge_TableTypeContext *tableTypeContext =
-      WasmEdge_TableTypeCreate((enum WasmEdge_RefType)refType, tableLimit);
+      WasmEdge_TableTypeCreate(finalType, tableLimit);
   setPointer(env, thisObject, (long)tableTypeContext);
 }
 
@@ -44,10 +70,35 @@ Java_org_wasmedge_TableTypeContext_getLimit(JNIEnv *env, jobject thisObject) {
 
 JNIEXPORT jint JNICALL Java_org_wasmedge_TableTypeContext_nativeGetRefType(
     JNIEnv *env, jobject thisObject) {
-  WasmEdge_TableTypeContext *tableTypeContext =
-      getTableTypeContext(env, thisObject);
+WasmEdge_TableTypeContext *tableTypeContext = getTableTypeContext(env, thisObject);
+  WasmEdge_ValType valType = WasmEdge_TableTypeGetRefType(tableTypeContext);
 
-  return WasmEdge_TableTypeGetRefType(tableTypeContext);
+  // Convert WasmEdge_ValType to jint
+  jint result;
+  if (WasmEdge_ValTypeIsI32(valType)) {
+      result = 0x7F;
+  } else if (WasmEdge_ValTypeIsI64(valType)) {
+      result = 0x7E;
+  } else if (WasmEdge_ValTypeIsF32(valType)) {
+      result = 0x7D;
+  } else if (WasmEdge_ValTypeIsF64(valType)) {
+      result = 0x7C;
+  } else if (WasmEdge_ValTypeIsV128(valType)) {
+      result = 0x7B;
+  } else if (WasmEdge_ValTypeIsFuncRef(valType)) {
+      result = 0x70;
+  } else if (WasmEdge_ValTypeIsExternRef(valType)) {
+      result = 0x6F;
+  } else {
+      // Handle unexpected type case
+      jclass exceptionClass = (*env)->FindClass(env, "org/wasmedge/WasmEdgeException");
+      if (exceptionClass != NULL) {
+          (*env)->ThrowNew(env, exceptionClass, "Unknown WasmEdge_ValType encountered.");
+      }
+      return -1;
+  }
+
+  return result;  
 }
 
 JNIEXPORT void JNICALL

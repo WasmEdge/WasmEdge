@@ -19,8 +19,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_FunctionTypeContext_nativeInit(
       paramTypes == NULL ? 0 : (*env)->GetArrayLength(env, paramTypes);
   int returnLen =
       returnTypes == NULL ? 0 : (*env)->GetArrayLength(env, returnTypes);
-  enum WasmEdge_ValType *paramList = parseValueTypes(env, paramTypes);
-  enum WasmEdge_ValType *returnList = parseValueTypes(env, returnTypes);
+  WasmEdge_ValType *paramList = parseValueTypes(env, paramTypes);
+  WasmEdge_ValType *returnList = parseValueTypes(env, returnTypes);
 
   WasmEdge_FunctionTypeContext *functionTypeContext =
       WasmEdge_FunctionTypeCreate(paramList, paramLen, returnList, returnLen);
@@ -34,8 +34,8 @@ Java_org_wasmedge_FunctionTypeContext_nativeGetParameters(JNIEnv *env,
       getFunctionTypeContext(env, thisObject);
   uint32_t paramLen =
       WasmEdge_FunctionTypeGetParametersLength(functionTypeContext);
-  enum WasmEdge_ValType *params =
-      malloc(sizeof(enum WasmEdge_ValType) * paramLen);
+  WasmEdge_ValType *params =
+      malloc(sizeof(WasmEdge_ValType) * paramLen);
   WasmEdge_FunctionTypeGetParameters(functionTypeContext, params, paramLen);
 
   jintArray types = (*env)->NewIntArray(env, paramLen);
@@ -52,8 +52,8 @@ Java_org_wasmedge_FunctionTypeContext_nativeGetReturns(JNIEnv *env,
       getFunctionTypeContext(env, thisObject);
   uint32_t returnLen =
       WasmEdge_FunctionTypeGetReturnsLength(functionTypeContext);
-  enum WasmEdge_ValType *returns =
-      malloc(sizeof(enum WasmEdge_ValType) * returnLen);
+  WasmEdge_ValType *returns =
+      malloc(sizeof(WasmEdge_ValType) * returnLen);
   WasmEdge_FunctionTypeGetReturns(functionTypeContext, returns, returnLen);
 
   jintArray types = (*env)->NewIntArray(env, returnLen);
@@ -69,31 +69,43 @@ Java_org_wasmedge_FunctionTypeContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_FunctionTypeDelete(functionTypeContext);
 }
 
-jobject ConvertToJavaValueType(JNIEnv *env, enum WasmEdge_ValType *valType) {
+jobject ConvertToJavaValueType(JNIEnv *env, WasmEdge_ValType *valType) {
+    if (valType == NULL) {
+        return NULL;
+    }
 
-  jclass valueTypeCalss = findJavaClass(env, ORG_WASMEDGE_ENUMS_VALUETYPE);
-  if (valueTypeCalss == NULL) {
-    return NULL;
-  }
+    // Find the Java class for value type
+    jclass valueTypeClass = findJavaClass(env, ORG_WASMEDGE_ENUMS_VALUETYPE);
+    if (valueTypeClass == NULL) {
+        return NULL;
+    }
 
-  jmethodID jmethodId = (*env)->GetStaticMethodID(
-      env, valueTypeCalss, PARSE_TYPE, INT_VALUETYPE);
+    // Get the static method ID for the method that converts C type to Java enum
+    jmethodID jmethodId = (*env)->GetStaticMethodID(
+        env, valueTypeClass, PARSE_TYPE, INT_VALUETYPE);
 
-  if (jmethodId == NULL) {
-    return NULL;
-  }
+    if (jmethodId == NULL) {
+        return NULL;
+    }
 
-  jobject valueType = (*env)->CallStaticObjectMethod(env, valueTypeCalss,
-                                                     jmethodId, (jint)*valType);
+    // Extract type code from WasmEdge_ValType
+    // TODO
+    uint32_t typeCode;
+    typeCode= valType->Data[2];
+    if(valType->Data[1])
+      typeCode = valType->Data[3];
+    // Call the static method in Java to get the Java representation of the value type
+    jobject valueType = (*env)->CallStaticObjectMethod(env, valueTypeClass, jmethodId, (jint)typeCode);
 
-  if (checkAndHandleException(env, "Error when creating value type")) {
-    return NULL;
-  }
+    // Check for exceptions
+    if (checkAndHandleException(env, "Error when creating value type")) {
+        return NULL;
+    }
 
-  return valueType;
+    return valueType;
 }
 
-jobject ConvertToValueTypeList(JNIEnv *env, enum WasmEdge_ValType *list,
+jobject ConvertToValueTypeList(JNIEnv *env, WasmEdge_ValType *list,
                                int32_t len) {
   jclass listClass = findJavaClass(env, JAVA_UTIL_ARRAYLIST);
 
@@ -127,7 +139,7 @@ jobject ConvertToValueTypeList(JNIEnv *env, enum WasmEdge_ValType *list,
     return NULL;
   }
 
-  enum WasmEdge_ValType *ptr = list;
+  WasmEdge_ValType *ptr = list;
   for (int i = 0; i < len; ++i) {
     jobject valueType = ConvertToJavaValueType(env, ptr);
 
@@ -177,8 +189,8 @@ jobject ConvertToJavaFunctionType(
     JNIEnv *env, const WasmEdge_FunctionTypeContext *functionTypeContext,
     const WasmEdge_String name) {
   int retLen = WasmEdge_FunctionTypeGetReturnsLength(functionTypeContext);
-  enum WasmEdge_ValType *list =
-      (enum WasmEdge_ValType *)malloc(sizeof(enum WasmEdge_ValType) * retLen);
+  WasmEdge_ValType *list =
+      (WasmEdge_ValType *)malloc(sizeof(WasmEdge_ValType) * retLen);
 
   int actualLen =
       WasmEdge_FunctionTypeGetReturns(functionTypeContext, list, retLen);
@@ -192,8 +204,8 @@ jobject ConvertToJavaFunctionType(
   free(list);
 
   int paramLen = WasmEdge_FunctionTypeGetParametersLength(functionTypeContext);
-  enum WasmEdge_ValType *paramList =
-      (enum WasmEdge_ValType *)malloc(sizeof(enum WasmEdge_ValType) * paramLen);
+  WasmEdge_ValType *paramList =
+      (WasmEdge_ValType *)malloc(sizeof(WasmEdge_ValType) * paramLen);
 
   int actualParamLen = WasmEdge_FunctionTypeGetParameters(functionTypeContext,
                                                           paramList, paramLen);

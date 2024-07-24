@@ -45,32 +45,25 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_TableInstanceContext_getData(
   jmethodID typeGetter = (*env)->GetMethodID(env, typeClass, GET_VALUE, VOID_INT);
 
   jint valType = (*env)->CallIntMethod(env, jValType, typeGetter);
-
   WasmEdge_Value val;
 
-  switch (valType) {
-  case WasmEdge_ValType_I32:
-    val = WasmEdge_ValueGenI32(0);
-    break;
-  case WasmEdge_ValType_I64:
-    val = WasmEdge_ValueGenF64(0);
-    break;
-  case WasmEdge_ValType_F32:
-    val = WasmEdge_ValueGenF32(0.0);
-    break;
-  case WasmEdge_ValType_F64:
-    val = WasmEdge_ValueGenF64(0.0);
-    break;
-  case WasmEdge_ValType_FuncRef:
-    val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_FuncRef);
-    break;
-  case WasmEdge_ValType_ExternRef:
-    val = WasmEdge_ValueGenNullRef(WasmEdge_RefType_ExternRef);
-    break;
-  }
+  // Initialize the WasmEdge_Value based on the type
+    if (valType == 0x7F) {
+        val = WasmEdge_ValueGenI32(0);
+    } else if (valType == 0x7E) {
+        val = WasmEdge_ValueGenI64(0);
+    } else if (valType == 0x7D) {
+        val = WasmEdge_ValueGenF32(0.0f);
+    } else if (valType == 0x7C) {
+        val = WasmEdge_ValueGenF64(0.0);    
+    } else if (valType == 0x70) {
+        val = WasmEdge_ValueGenFuncRef(NULL);
+    } else if (valType == 0x6F) {
+        val = WasmEdge_ValueGenExternRef(NULL);
+    }
 
-  WasmEdge_TableInstanceGetData(tableInstanceContext, &val, jOffSet);
-  return WasmEdgeValueToJavaValue(env, val);
+    WasmEdge_TableInstanceGetData(tableInstanceContext, &val, jOffSet);
+  return WasmEdgeValueToJavaValue(env, val);  
 }
 
 JNIEXPORT jint JNICALL Java_org_wasmedge_TableInstanceContext_getSize(

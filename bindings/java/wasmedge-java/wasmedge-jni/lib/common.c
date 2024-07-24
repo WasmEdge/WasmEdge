@@ -173,18 +173,56 @@ char *getStringVal(JNIEnv *env, jobject val) {
   return buf;
 }
 
-enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes) {
-  if (jValueTypes == NULL) {
-    return NULL;
-  }
+WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes) {
+    if (jValueTypes == NULL) {
+        return NULL;
+    }
 
-  jint len = (*env)->GetArrayLength(env, jValueTypes);
-  enum WasmEdge_ValType *valTypes = malloc(len * sizeof(enum WasmEdge_ValType));
-  jint *elements = (*env)->GetIntArrayElements(env, jValueTypes, false);
-  for (int i = 0; i < len; ++i) {
-    valTypes[i] = elements[i];
-  }
-  return valTypes;
+    jint len = (*env)->GetArrayLength(env, jValueTypes);
+    WasmEdge_ValType *valTypes = (WasmEdge_ValType *)malloc(len * sizeof(WasmEdge_ValType));
+    if (valTypes == NULL) {
+        // Memory allocation failed
+        return NULL;
+    }
+
+    jint *elements = (*env)->GetIntArrayElements(env, jValueTypes, NULL);
+    if (elements == NULL) {
+        // Failed to retrieve array elements
+        free(valTypes);
+        return NULL;
+    }
+
+    for (int i = 0; i < len; ++i) {
+        uint32_t typeCode = (uint32_t)elements[i];
+        switch (typeCode) {
+            case 0x7F:
+                valTypes[i] = WasmEdge_ValTypeGenI32();
+                break;
+            case 0x7E:
+                valTypes[i] = WasmEdge_ValTypeGenI64();
+                break;
+            case 0x7D:
+                valTypes[i] = WasmEdge_ValTypeGenF32();
+                break;
+            case 0x7C:
+                valTypes[i] = WasmEdge_ValTypeGenF64();
+                break;
+            case 0x7B:
+                valTypes[i] = WasmEdge_ValTypeGenV128();
+                break;
+            case 0x70:
+                valTypes[i] = WasmEdge_ValTypeGenFuncRef();
+                break;
+            case 0x6F:
+                valTypes[i] = WasmEdge_ValTypeGenExternRef();
+                break;
+            default:
+                break;
+        }
+    }
+
+    (*env)->ReleaseIntArrayElements(env, jValueTypes, elements, 0);
+    return valTypes;
 }
 
 bool checkAndHandleException(JNIEnv *env, const char *msg) {
@@ -211,33 +249,27 @@ bool checkAndHandleException(JNIEnv *env, const char *msg) {
 }
 
 void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
-  char* str_val;
-  switch (value.Type) {
-  case WasmEdge_ValType_I32:
-    setJavaIntValue(env, value, j_val);
-    break;
-  case WasmEdge_ValType_I64:
-  case WasmEdge_ValType_FuncRef:
-    setJavaLongValue(env, value, j_val);
-    break;
-  case WasmEdge_ValType_V128:
-    str_val = u128toa(value.Value);
-    setJavaStringValue(env, str_val, j_val);
-    break;
-  case WasmEdge_ValType_F32:
-    setJavaFloatValue(env, value, j_val);
-    break;
-  case WasmEdge_ValType_F64:
-    setJavaDoubleValue(env, value, j_val);
-    break;
-  case WasmEdge_ValType_ExternRef:
-    str_val = WasmEdge_ValueGetExternRef(value);
-    setJavaStringValue(env, str_val, j_val);
-    break;
-  default:
-    break;
-  }
+    char* str_val;
+
+    // Check the type of the WasmEdge_Value
+    if (WasmEdge_ValTypeIsI32(value.Type)) {
+        setJavaIntValue(env, value, j_val);
+    } else if (WasmEdge_ValTypeIsI64(value.Type) || WasmEdge_ValTypeIsFuncRef(value.Type)) {
+        setJavaLongValue(env, value, j_val);
+    } else if (WasmEdge_ValTypeIsV128(value.Type)) {
+        str_val = u128toa(value.Value); // Ensure proper data access
+        setJavaStringValue(env, str_val, j_val);
+    } else if (WasmEdge_ValTypeIsF32(value.Type)) {
+        setJavaFloatValue(env, value, j_val);
+    } else if (WasmEdge_ValTypeIsF64(value.Type)) {
+        setJavaDoubleValue(env, value, j_val);
+    } else if (WasmEdge_ValTypeIsExternRef(value.Type)) {
+        str_val = WasmEdge_ValueGetExternRef(value); // Ensure this function exists
+        setJavaStringValue(env, str_val, j_val);
+    }
 }
+
+
 
 jstring WasmEdgeStringToJString(JNIEnv *env, WasmEdge_String wStr) {
   char buf[MAX_BUF_LEN];

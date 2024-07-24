@@ -12,8 +12,35 @@ GETTER(GlobalTypeContext)
 JNIEXPORT void JNICALL Java_org_wasmedge_GlobalTypeContext_nativeInit(
     JNIEnv *env, jobject thisObject, jint valueType, jint mutability) {
 
+  // valueType conversion
+  uint8_t type = valueType;
+  WasmEdge_ValType finalType;
+  switch(type){
+    case 0x7F:
+        finalType = WasmEdge_ValTypeGenI32();
+        break;
+    case 0x7E:
+        finalType = WasmEdge_ValTypeGenI64();
+        break;
+    case 0x7D:
+        finalType = WasmEdge_ValTypeGenF32();
+        break;
+    case 0x7C:
+        finalType = WasmEdge_ValTypeGenF64();
+        break;
+    case 0x7B:
+        finalType = WasmEdge_ValTypeGenV128();
+        break;
+    case 0x70:
+        finalType = WasmEdge_ValTypeGenFuncRef();
+        break;
+    case 0x6F:
+        finalType = WasmEdge_ValTypeGenExternRef();
+        break;
+    }
+
   WasmEdge_GlobalTypeContext *globalTypeContext = WasmEdge_GlobalTypeCreate(
-      (enum WasmEdge_ValType)valueType, (enum WasmEdge_Mutability)mutability);
+      finalType, mutability);
   setPointer(env, thisObject, (jlong)globalTypeContext);
 }
 
@@ -35,8 +62,37 @@ Java_org_wasmedge_GlobalTypeContext_close(JNIEnv *env, jobject thisObject) {
 
 JNIEXPORT jint JNICALL Java_org_wasmedge_GlobalTypeContext_nativeGetValueType(
     JNIEnv *env, jobject thisObject) {
-  return WasmEdge_GlobalTypeGetValType(getGlobalTypeContext(env, thisObject));
+  WasmEdge_GlobalTypeContext *globalTypeContext = getGlobalTypeContext(env, thisObject);
+  WasmEdge_ValType valType = WasmEdge_GlobalTypeGetValType(globalTypeContext);
+
+  // Convert WasmEdge_ValType to jint
+  jint result;
+  if(WasmEdge_ValTypeIsI32(valType)) {
+      result = 0x7F;
+  }else if (WasmEdge_ValTypeIsI64(valType)) {
+      result = 0x7E;
+  }else if (WasmEdge_ValTypeIsF32(valType)) {
+      result = 0x7D;
+  }else if (WasmEdge_ValTypeIsF64(valType)) {
+      result = 0x7C;
+  }else if (WasmEdge_ValTypeIsV128(valType)) {
+      result = 0x7B;
+  }else if (WasmEdge_ValTypeIsFuncRef(valType)) {
+      result = 0x70;
+  }else if (WasmEdge_ValTypeIsExternRef(valType)) {
+      result = 0x6F;
+  }else {
+      // Handle unexpected type case
+      jclass exceptionClass = (*env)->FindClass(env, "org/wasmedge/WasmEdgeException");
+      if (exceptionClass != NULL) {
+          (*env)->ThrowNew(env, exceptionClass, "Unknown WasmEdge_ValType encountered.");
+      }
+      return -1;
+  }
+
+  return result;
 }
+    
 JNIEXPORT jint JNICALL Java_org_wasmedge_GlobalTypeContext_nativeGetMutability(
     JNIEnv *env, jobject thisObject) {
   return WasmEdge_GlobalTypeGetMutability(

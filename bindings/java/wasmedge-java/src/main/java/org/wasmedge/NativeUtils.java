@@ -8,6 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.ProviderNotFoundException;
 import java.nio.file.StandardCopyOption;
 
+/**
+ * Utility class for loading native libraries from JAR files.
+ */
 public class NativeUtils {
 
     public static final String NATIVE_FOLDER_PATH_PREFIX = "wasmedge_jni_tmp";
@@ -18,14 +21,11 @@ public class NativeUtils {
     }
 
     /**
-     * Loads library from current JAR archive
-     * 
+     * Loads library from current JAR archive.
+     * <p>
      * The file from JAR is copied into system temporary directory and then loaded.
-     * The temporary file is deleted after
-     * exiting.
-     * Method uses String as filename because the pathname is "abstract", not
-     * system-dependent.
-     * 
+     * </p>
+     *
      * @param libName The name of the lib, e.g. wasmedge_jni
      */
     public static void loadLibraryFromJar(String libName) {
@@ -75,8 +75,9 @@ public class NativeUtils {
         String tempDir = System.getProperty("java.io.tmpdir");
         File generatedDir = new File(tempDir, prefix + System.nanoTime());
 
-        if (!generatedDir.mkdir())
+        if (!generatedDir.mkdir()) {
             throw new RuntimeException("Failed to create temp directory " + generatedDir.getName());
+        }
 
         return generatedDir;
     }

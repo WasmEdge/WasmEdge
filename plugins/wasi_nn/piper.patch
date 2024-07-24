@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index f96ec44..d8c8c76 100644
+index f96ec44..ef67ff5 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
@@ -27,7 +27,7 @@ index f96ec44..d8c8c76 100644
  add_executable(test_piper src/cpp/test.cpp src/cpp/piper.cpp)
  
  # NOTE: external project prefix are shortened because of path length restrictions on Windows
-@@ -58,59 +62,50 @@ endif()
+@@ -58,59 +62,54 @@ endif()
  
  # ---- piper-phonemize ---
  
@@ -87,10 +87,14 @@ index f96ec44..d8c8c76 100644
  )
  
 -target_include_directories(piper PUBLIC
++set(PIPER_INTERFACE_INCLUDE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
++file(COPY src/cpp/piper.hpp src/cpp/json.hpp DESTINATION "${PIPER_INTERFACE_INCLUDE_DIRECTORY}")
++
 +target_include_directories(piper PRIVATE
    ${FMT_DIR}/include
    ${SPDLOG_DIR}/include
 -  ${PIPER_PHONEMIZE_DIR}/include
++  INTERFACE "${PIPER_INTERFACE_INCLUDE_DIRECTORY}"
  )
  
 -target_compile_definitions(piper PUBLIC _PIPER_VERSION=${piper_version})
@@ -106,7 +110,7 @@ index f96ec44..d8c8c76 100644
  
  target_compile_features(test_piper PUBLIC cxx_std_17)
  
-@@ -118,14 +113,12 @@ target_include_directories(
+@@ -118,14 +117,12 @@ target_include_directories(
    test_piper PUBLIC
    ${FMT_DIR}/include
    ${SPDLOG_DIR}/include
@@ -121,7 +125,7 @@ index f96ec44..d8c8c76 100644
  )
  
  target_link_libraries(test_piper PUBLIC
-@@ -141,32 +134,3 @@ target_link_libraries(test_piper PUBLIC
+@@ -141,32 +138,3 @@ target_link_libraries(test_piper PUBLIC
  install(
    TARGETS piper
    DESTINATION ${CMAKE_INSTALL_PREFIX})
@@ -164,12 +168,12 @@ index 26aaba0..867e524 100644
 \ No newline at end of file
 diff --git a/piper-phonemize.patch b/piper-phonemize.patch
 new file mode 100644
-index 0000000..b7893da
+index 0000000..0d91cde
 --- /dev/null
 +++ b/piper-phonemize.patch
-@@ -0,0 +1,194 @@
+@@ -0,0 +1,213 @@
 +diff --git a/CMakeLists.txt b/CMakeLists.txt
-+index ec7b501..1d914e9 100644
++index ec7b501..335ef46 100644
 +--- a/CMakeLists.txt
 ++++ b/CMakeLists.txt
 +@@ -10,6 +10,8 @@ project(
@@ -216,7 +220,7 @@ index 0000000..b7893da
 ++    find_package(onnxruntime "${ONNXRUNTIME_VERSION}")
 ++    if(onnxruntime_FOUND)
 ++        list(APPEND ONNXRUNTIME_LINK_LIBRARIES "onnxruntime::onnxruntime")
-++    endif()
++     endif()
 ++endif()
 ++
 ++if(NOT onnxruntime_FOUND AND NOT DEFINED ONNXRUNTIME_DIR)
@@ -228,7 +232,7 @@ index 0000000..b7893da
 ++            list(APPEND ONNXRUNTIME_LINK_LIBRARIES "${ONNXRUNTIME_LIBRARY}")
 ++            set(onnxruntime_FOUND TRUE)
 ++        endif()
-+     endif()
+++    endif()
 ++endif()
 + 
 ++# Look for onnxruntime files in <root>/lib
@@ -309,7 +313,26 @@ index 0000000..b7893da
 + )
 + 
 + target_compile_features(piper_phonemize PUBLIC cxx_std_17)
-+@@ -207,7 +249,7 @@ install(
++@@ -173,12 +215,13 @@ target_link_libraries(piper_phonemize_exe PUBLIC
++ # ---- Declare test ----
++ 
++ include(CTest)
++-enable_testing()
++ add_executable(test_piper_phonemize src/test.cpp src/phoneme_ids.cpp)
++-add_test(
++-    NAME test_piper_phonemize
++-    COMMAND test_piper_phonemize "${ESPEAK_NG_DIR}/share/espeak-ng-data" "${CMAKE_SOURCE_DIR}/etc/libtashkeel_model.ort"
++-)
+++if(BUILD_TESTING)
+++    add_test(
+++        NAME test_piper_phonemize
+++        COMMAND test_piper_phonemize "${ESPEAK_NG_DIR}/share/espeak-ng-data" "${CMAKE_SOURCE_DIR}/etc/libtashkeel_model.ort"
+++    )
+++endif()
++ 
++ target_compile_features(test_piper_phonemize PUBLIC cxx_std_17)
++ 
++@@ -207,7 +250,7 @@ install(
 +     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 + 
 + install(
@@ -318,7 +341,7 @@ index 0000000..b7893da
 +     DESTINATION include/piper-phonemize
 +     FILES_MATCHING
 +     PATTERN "*.h"
-+@@ -218,7 +260,7 @@ install(
++@@ -218,7 +261,7 @@ install(
 +     ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR})
 + 
 + install(
@@ -327,7 +350,7 @@ index 0000000..b7893da
 +     TYPE DATA)
 + 
 + # Dependencies
-+@@ -226,10 +268,12 @@ install(
++@@ -226,10 +269,12 @@ install(
 +     DIRECTORY ${ESPEAK_NG_DIR}/
 +     DESTINATION ${CMAKE_INSTALL_PREFIX})
 + 

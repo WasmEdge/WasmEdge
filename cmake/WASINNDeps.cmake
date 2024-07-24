@@ -233,8 +233,9 @@ endfunction()
 function(wasmedge_setup_piper)
   message(STATUS "Downloading piper source")
   include(FetchContent)
-  set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
-  set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE INTERNAL "")
+  set(BUILD_SHARED_LIBS OFF)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+  set(BUILD_TESTING OFF)
   find_program(GIT_CMD git REQUIRED)
   FetchContent_Declare(
     piper

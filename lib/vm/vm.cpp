@@ -532,7 +532,7 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
     return *Res;
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
-  spdlog::error(ErrInfo::InfoExecuting("", Func));
+  spdlog::error(ErrInfo::InfoExecuting("When invoking", Func));
   return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
@@ -543,7 +543,7 @@ VM::unsafeExecute(std::string_view Func, Span<const ValInterface> Params,
     return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
-  spdlog::error(ErrInfo::InfoExecuting("", Func));
+  spdlog::error(ErrInfo::InfoExecuting("When invoking", Func));
   return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 

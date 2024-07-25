@@ -174,7 +174,10 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     target_include_directories(wasmedgePluginWasiNN PRIVATE ${piper_SOURCE_DIR}/src/cpp)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "whisper")
-    set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Whisper turn off accelerate")
+    if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
+      # `cblas_sgemm()` introduced in macOS 13.3.
+      set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion turn off accelerate")
+    endif()
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
     include(FetchContent)
     FetchContent_Declare(

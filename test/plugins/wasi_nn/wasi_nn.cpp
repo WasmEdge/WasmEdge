@@ -1837,8 +1837,6 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   FuncInst = NNMod->findFuncExports("unload");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncUnload =
-      dynamic_cast<WasmEdge::Host::WasiNNUnload &>(FuncInst->getHostFunc());
 
   // Neural Speed WASI-NN load tests.
   // Test: load -- meaningless binaries.

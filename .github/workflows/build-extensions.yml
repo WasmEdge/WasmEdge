@@ -112,9 +112,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip libopenblas-dev pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
-          bash utils/wasi-nn/install-openvino.sh
-          bash utils/wasi-nn/install-pytorch.sh
+          apt install -y unzip pkg-config
           bash utils/wasi-nn/install-neuralspeed.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash

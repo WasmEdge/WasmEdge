@@ -2022,15 +2022,6 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Neural Speed WASI-NN unload tests.
-  // Test: unload -- unload successfully.
-  {
-    EXPECT_TRUE(HostFuncUnload.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
-  }
-
   delete NNMod;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED

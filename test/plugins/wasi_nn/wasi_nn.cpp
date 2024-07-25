@@ -1987,6 +1987,19 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   }
 
   // Neural Speed WASI-NN get_output tests.
+  // Test: get_output -- get output successfully.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    // Should output more than 50 bytes.
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesWritten, 50);
+  }
+
   // Test: get_output -- output bytes ptr out of bounds.
   {
     EXPECT_TRUE(HostFuncGetOutput.run(
@@ -2007,18 +2020,6 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
-  }
-  // Test: get_output -- get output successfully.
-  {
-    EXPECT_TRUE(HostFuncGetOutput.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{
-            UINT32_C(0), UINT32_C(0), StorePtr, 65532, BuilderPtr},
-        Errno));
-    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
-    // Should output more than 50 bytes.
-    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
-    EXPECT_GE(BytesWritten, 50);
   }
 
   // Neural Speed WASI-NN unload tests.

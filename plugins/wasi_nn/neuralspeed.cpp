@@ -321,7 +321,6 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     safeXDECREF(GraphRef.Model);
     safeXDECREF(GraphRef.ModelClass);
     safeXDECREF(GraphRef.NeuralSpeedModule);
-    Py_Finalize();
   }
   return WASINN::ErrNo::Success;
 }

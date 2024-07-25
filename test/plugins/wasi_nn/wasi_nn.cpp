@@ -1837,6 +1837,8 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
   FuncInst = NNMod->findFuncExports("unload");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncUnload =
+      dynamic_cast<WasmEdge::Host::WasiNNUnload &>(FuncInst->getHostFunc());
 
   // Neural Speed WASI-NN load tests.
   // Test: load -- meaningless binaries.
@@ -2018,6 +2020,15 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Neural Speed WASI-NN unload tests.
+  // Test: unload -- unload successfully.
+  {
+    EXPECT_TRUE(HostFuncUnload.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
   delete NNMod;

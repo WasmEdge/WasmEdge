@@ -673,4 +673,3 @@ using __wasi_signature_secretkey_t = __wasi_secretkey_t;
 
 static_assert(sizeof(__wasi_signature_secretkey_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_signature_secretkey_t) == 4, "witx calculated align");
-

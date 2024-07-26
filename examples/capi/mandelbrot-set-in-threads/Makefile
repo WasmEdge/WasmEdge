@@ -18,4 +18,3 @@ main: main.cc
 
 clean:
 	rm -f main mandelbrot.wasm mandelbrot.so mandelbrot.o mandelbrot.wat output-*.bin
-

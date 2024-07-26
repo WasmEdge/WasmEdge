@@ -40,4 +40,3 @@ CMAKE_OPTIONS += \
         -DWASMEDGE_USE_LLVM=OFF \
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
-

@@ -4,4 +4,3 @@
 if(WASMEDGE_USE_LLVM)
   add_subdirectory(blake3)
 endif()
-

@@ -31,10 +31,15 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     set(BUILD_SHARED_LIBS OFF)
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE)
-      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_NATIVE(AVX/AVX2/FMA)")
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_NATIVE(AVX/AVX2/FMA/F16C)")
       set(GGML_NATIVE ON)
     else()
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_NATIVE(AVX/AVX2/FMA/F16C)")
       set(GGML_NATIVE OFF)
+      set(GGML_AVX OFF)
+      set(GGML_AVX2 OFF)
+      set(GGML_FMA OFF)
+      set(GGML_F16C OFF)
     endif()
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
@@ -66,7 +71,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3445
+      GIT_TAG        b3463
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)

@@ -18,6 +18,12 @@ on:
       release:
         type: boolean
         default: false
+      legacy: # TODO: upgrade actions version for non-legacy
+        type: boolean
+        default: false
+      upload_test:
+        type: boolean
+        default: false
 
 env:
   build_tests: ${{ inputs.release && 'Off' || 'On' }}
@@ -150,6 +156,22 @@ jobs:
         with:
           name: ${{ steps.prep.outputs.artifact }}
           path: ${{ steps.prep.outputs.filename }}
+      - name: Create test files
+        if: ${{ inputs.upload_test }}
+        run: |
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_PACKAGE="TGZ"
+          cmake --build build --target package
+
+          cp -f ${test_dir}/${target} ${{ matrix.plugin }}Tests
+          cp -f build/WasmEdge-${{ inputs.version }}-Linux.tar.gz .
+      - name: Upload test files
+        if: ${{ inputs.upload_test }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.prep.outputs.artifact }}
+          path: |
+            ${{ matrix.plugin }}Tests
+            WasmEdge-${{ inputs.version }}-Linux.tar.gz
       - name: Install gh
         if: ${{ inputs.release }}
         run: |

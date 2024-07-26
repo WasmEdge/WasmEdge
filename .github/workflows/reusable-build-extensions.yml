@@ -18,7 +18,48 @@ jobs:
   # Add to `.list` the `asset_tag` and the list of targets;
   # add new targets to `.detail` for its build options, bin name, etc.
   # ------------------------------------------------------------------#
-  build_extensions_on_manylinux:
+  build_manylinux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'manylinux_2_28_x86_64-plugins-deps'
+            asset_tag: 'manylinux_2_28_x86_64'
+          - runner: 'linux-arm64-v2'
+            docker_tag: 'manylinux_2_28_aarch64-plugins-deps'
+            asset_tag: 'manylinux_2_28_aarch64'
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/build-extensions-on-manylinux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
+      upload_test: true
+    secrets: inherit
+
+  test_extensions_from_manylinux:
+    if: ${{ !inputs.release }}
+    needs: build_manylinux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-build-gcc'
+            asset_tag: 'manylinux_2_28_x86_64'
+    name: ${{ matrix.docker_tag }}
+    uses: ./.github/workflows/test-extensions-from-manylinux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      version: ${{ inputs.version }}
+    secrets: inherit
+
+  build_manylinux_legacy:
     strategy:
       fail-fast: false
       matrix:
@@ -29,18 +70,13 @@ jobs:
           - runner: 'linux-arm64-v2'
             docker_tag: 'manylinux2014_aarch64-plugins-deps'
             asset_tag: 'manylinux2014_aarch64'
-          - runner: 'ubuntu-latest'
-            docker_tag: 'manylinux_2_28_x86_64-plugins-deps'
-            asset_tag: 'manylinux_2_28_x86_64'
-          - runner: 'linux-arm64-v2'
-            docker_tag: 'manylinux_2_28_aarch64-plugins-deps'
-            asset_tag: 'manylinux_2_28_aarch64'
     name: ${{ matrix.asset_tag }}
-    uses: ./.github/workflows/reusable-build-extensions-on-manylinux.yml
+    uses: ./.github/workflows/build-extensions-on-manylinux.yml
     with:
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}
       asset_tag: ${{ matrix.asset_tag }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}
+      legacy: true
     secrets: inherit

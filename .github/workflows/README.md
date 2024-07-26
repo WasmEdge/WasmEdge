@@ -58,7 +58,8 @@ flowchart LR
     subgraph "build-extensions.yml"
         b_("build-extensions.yml")-->|reusable-call-linter.yml|l0(("lint pass"))
         l0-->b_ext("reusable-build-extensions.yml")
-        b_ext-->b_ext_m("reusable-build-extensions-on-manylinux.yml")
+        b_ext-->b_ext_m("build-extensions-on-manylinux.yml")
+        b_ext-->b_ext_t("test-extensions-from-manylinux.yml")
     end
     b("build.yml")-->|reusable-call-linter.yml|l1(("lint pass"))
     l1-->oss("<ul>

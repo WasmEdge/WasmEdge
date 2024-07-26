@@ -18,7 +18,7 @@ namespace WasmEdge::Host::WASINN::NeuralSpeed {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 struct Graph {
   bool EnableDebugLog = true;
-  std::string model_type = "llama";
+  std::string ModelType = "llama";
   inline static int GraphNumber = 0;
   Graph() noexcept { Py_Initialize(); }
   ~Graph() noexcept {
@@ -28,11 +28,11 @@ struct Graph {
       Py_XDECREF(NeuralSpeedModule);
     }
   }
-  PyObject *Model;
-  PyObject *NeuralSpeedModule;
-  PyObject *ModelClass;
-  int64_t LoadTime;
-  int64_t ComputeTime;
+  PyObject *Model = nullptr;
+  PyObject *NeuralSpeedModule = nullptr;
+  PyObject *ModelClass = nullptr;
+  int64_t LoadTime = 0;
+  int64_t ComputeTime = 0;
 };
 struct Context {
   Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}

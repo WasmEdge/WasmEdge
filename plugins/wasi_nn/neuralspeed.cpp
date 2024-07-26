@@ -69,7 +69,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
         Env.NNGraph.pop_back();
         return ErrNo::InvalidArgument;
       }
-      GraphRef.model_type = ModelType;
+      GraphRef.ModelType = ModelType;
     }
   }
 
@@ -114,8 +114,10 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (!Py_IsInitialized()) {
     Py_Initialize();
   }
-  GraphRef.NeuralSpeedModule =
-      PyImport_Import(PyUnicode_FromString("neural_speed"));
+  if (GraphRef.NeuralSpeedModule == nullptr) {
+    GraphRef.NeuralSpeedModule =
+        PyImport_Import(PyUnicode_FromString("neural_speed"));
+  }
   if (GraphRef.NeuralSpeedModule == nullptr) {
     PyErr_Print();
     spdlog::error(
@@ -137,18 +139,16 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (GraphRef.Model == nullptr) {
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
     Py_XDECREF(GraphRef.ModelClass);
-    Py_XDECREF(GraphRef.NeuralSpeedModule);
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::InvalidArgument;
   }
   PyObject *LoadResult =
       PyObject_CallMethod(GraphRef.Model, "init_from_bin", "(ss)",
-                          GraphRef.model_type.c_str(), ModelFilePath.c_str());
+                          GraphRef.ModelType.c_str(), ModelFilePath.c_str());
   if (LoadResult == nullptr) {
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
     Py_XDECREF(GraphRef.Model);
     Py_XDECREF(GraphRef.ModelClass);
-    Py_XDECREF(GraphRef.NeuralSpeedModule);
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -314,6 +314,7 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     Py_XDECREF(GraphRef.Model);
     Py_XDECREF(GraphRef.ModelClass);
     Py_XDECREF(GraphRef.NeuralSpeedModule);
+    GraphRef.NeuralSpeedModule = nullptr;
     Py_Finalize();
   }
   return WASINN::ErrNo::Success;

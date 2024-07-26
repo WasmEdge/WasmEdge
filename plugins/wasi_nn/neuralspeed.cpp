@@ -125,20 +125,20 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::RuntimeError;
   }
-  GraphRef.ModelClass =
-      PyObject_GetAttrString(GraphRef.NeuralSpeedModule, "Model");
+  if (GraphRef.ModelClass == nullptr) {
+    GraphRef.ModelClass =
+        PyObject_GetAttrString(GraphRef.NeuralSpeedModule, "Model");
+  }
   if (GraphRef.ModelClass == nullptr ||
       !PyCallable_Check(GraphRef.ModelClass)) {
     spdlog::error(
         "[WASI-NN] neural speed backend: Can not find Model class in neural speed."sv);
-    Py_XDECREF(GraphRef.Model);
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::RuntimeError;
   }
   GraphRef.Model = PyObject_CallObject(GraphRef.ModelClass, NULL);
   if (GraphRef.Model == nullptr) {
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
-    Py_XDECREF(GraphRef.ModelClass);
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -148,7 +148,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (LoadResult == nullptr) {
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
     Py_XDECREF(GraphRef.Model);
-    Py_XDECREF(GraphRef.ModelClass);
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -285,11 +284,9 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
           if (PyLong_Check(Num)) {
             InnerVec.push_back(PyLong_AsLong(Num));
           }
-          Py_DECREF(Num);
         }
         CxtRef.Outputs = InnerVec;
       }
-      Py_DECREF(InnerList);
     }
   }
   Py_DECREF(Result);
@@ -314,6 +311,10 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     Py_XDECREF(GraphRef.Model);
     Py_XDECREF(GraphRef.ModelClass);
     Py_XDECREF(GraphRef.NeuralSpeedModule);
+    spdlog::info("[WASI-NN] Neural speed backend: Finish unload. {} {}"sv,
+                 GraphRef.ModelClass == nullptr,
+                 GraphRef.NeuralSpeedModule == nullptr);
+    GraphRef.ModelClass = nullptr;
     GraphRef.NeuralSpeedModule = nullptr;
     Py_Finalize();
   }

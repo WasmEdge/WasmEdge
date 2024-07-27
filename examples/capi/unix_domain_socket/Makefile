@@ -10,4 +10,3 @@ test:
 
 clean:
 	rm server.wasm client.wasm
-

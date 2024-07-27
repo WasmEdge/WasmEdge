@@ -115,8 +115,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     Py_Initialize();
   }
   if (GraphRef.NeuralSpeedModule == nullptr) {
-    GraphRef.NeuralSpeedModule =
-        PyImport_Import(PyUnicode_FromString("neural_speed"));
+    GraphRef.NeuralSpeedModule = PyImport_ImportModule("neural_speed");
   }
   if (GraphRef.NeuralSpeedModule == nullptr) {
     PyErr_Print();
@@ -264,8 +263,10 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
         "[WASI-NN] neural speed backend: Input transfer tensor failed."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-  PyObject *Result = PyObject_CallMethodObjArgs(
-      GraphRef.Model, PyUnicode_FromString("generate"), LongTensor, NULL);
+  PyObject *GenerateString = PyUnicode_FromString("generate");
+  PyObject *Result = PyObject_CallMethodObjArgs(GraphRef.Model, GenerateString,
+                                                LongTensor, NULL);
+  Py_DECREF(GenerateString);
   if (Result == nullptr) {
     PyErr_Print();
     spdlog::error(
@@ -311,9 +312,6 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     Py_XDECREF(GraphRef.Model);
     Py_XDECREF(GraphRef.ModelClass);
     Py_XDECREF(GraphRef.NeuralSpeedModule);
-    spdlog::info("[WASI-NN] Neural speed backend: Finish unload. {} {}"sv,
-                 GraphRef.ModelClass == nullptr,
-                 GraphRef.NeuralSpeedModule == nullptr);
     GraphRef.ModelClass = nullptr;
     GraphRef.NeuralSpeedModule = nullptr;
     Py_Finalize();

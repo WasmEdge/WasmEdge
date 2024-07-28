@@ -123,6 +123,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-unused-macros
         -Wno-unused-function
         -Wno-unused-variable
+        -Wno-sign-conversion
+        -Wno-shorten-64-to-32
+        -Wno-implicit-int-conversion
+        -Wno-old-style-cast
+        -Wno-extra-semi-stmt
+        -Wno-format-nonliteral
+        -Wno-documentation
+        -Wno-unused-template
       )
     endif()
     target_link_libraries(llava PRIVATE ggml llama)
@@ -163,7 +171,10 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     wasmedge_setup_simdjson()
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "whisper")
-    set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Whisper turn off accelerate")
+    if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
+      # `cblas_sgemm()` introduced in macOS 13.3.
+      set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion turn off accelerate")
+    endif()
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
     include(FetchContent)
     FetchContent_Declare(

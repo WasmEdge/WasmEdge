@@ -17,4 +17,3 @@
 +  __wasi_preopentype_t tag;
    __wasi_prestat_u_t u;
  };
-

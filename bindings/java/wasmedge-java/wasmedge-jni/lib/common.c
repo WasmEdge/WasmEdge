@@ -349,4 +349,3 @@ jobject WasmEdgeStringArrayToJavaList(JNIEnv *env, WasmEdge_String *wStrList,
   }
   return strList;
 }
-

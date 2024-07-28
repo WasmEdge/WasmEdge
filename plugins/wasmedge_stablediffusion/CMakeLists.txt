@@ -11,6 +11,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(stable-diffusion)
 set_property(TARGET stable-diffusion PROPERTY POSITION_INDEPENDENT_CODE ON)
+if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
+  # `cblas_sgemm()` introduced in macOS 13.3.
+  set(GGML_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion turn off accelerate")
+endif()
 get_target_property(SD_DEPS stable-diffusion LINK_LIBRARIES)
 foreach(dep ${SD_DEPS})
   if(TARGET ${dep})
@@ -69,6 +73,7 @@ else()
 		-Wno-unused-variable
 		-Wno-unused-parameter
 		-Wno-missing-field-initializers
+    -Wno-deprecated-declarations
 	)
 endif()
 

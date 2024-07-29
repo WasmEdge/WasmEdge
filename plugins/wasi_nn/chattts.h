@@ -21,8 +21,8 @@ struct Graph {
       Py_XDECREF(ChatTTSModule);
     }
   }
-  PyObject *Chat;
-  PyObject *ChatTTSModule;
+  PyObject *Chat = nullptr;
+  PyObject *ChatTTSModule = nullptr;
   PyObject *ParamsRefineText = nullptr;
   PyObject *ParamsInferCode = nullptr;
 };

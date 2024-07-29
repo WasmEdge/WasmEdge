@@ -39,40 +39,41 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (!Py_IsInitialized()) {
     Py_Initialize();
   }
-  GraphRef.ChatTTSModule = PyImport_Import(PyUnicode_FromString("ChatTTS"));
   if (GraphRef.ChatTTSModule == nullptr) {
-    PyErr_Print();
-    spdlog::error("[WASI-NN] ChatTTS backend: Can not find ChatTTS library."sv);
-    Env.NNGraph.pop_back();
-    return WASINN::ErrNo::RuntimeError;
+    GraphRef.ChatTTSModule = PyImport_ImportModule("ChatTTS");
+    if (GraphRef.ChatTTSModule == nullptr) {
+      spdlog::error(
+          "[WASI-NN] ChatTTS backend: Can not find ChatTTS library."sv);
+      Env.NNGraph.pop_back();
+      return WASINN::ErrNo::RuntimeError;
+    }
   }
-  PyObject *ChatFunction =
-      PyObject_GetAttrString(GraphRef.ChatTTSModule, "Chat");
-  if (ChatFunction == nullptr || !PyCallable_Check(ChatFunction)) {
-    spdlog::error(
-        "[WASI-NN] ChatTTS backend: Can not find Chat class in ChatTTS."sv);
-    Py_XDECREF(GraphRef.ChatTTSModule);
-    Env.NNGraph.pop_back();
-    return WASINN::ErrNo::RuntimeError;
-  }
-  GraphRef.Chat = PyObject_CallObject(ChatFunction, nullptr);
-  Py_XDECREF(ChatFunction);
   if (GraphRef.Chat == nullptr) {
-    spdlog::error("[WASI-NN] ChatTTS backend: Can not create chat."sv);
-    Py_XDECREF(GraphRef.ChatTTSModule);
-    Env.NNGraph.pop_back();
-    return WASINN::ErrNo::RuntimeError;
+    PyObject *ChatFunction =
+        PyObject_GetAttrString(GraphRef.ChatTTSModule, "Chat");
+    if (ChatFunction == nullptr || !PyCallable_Check(ChatFunction)) {
+      spdlog::error(
+          "[WASI-NN] ChatTTS backend: Can not find Chat class in ChatTTS."sv);
+      Env.NNGraph.pop_back();
+      return WASINN::ErrNo::RuntimeError;
+    }
+    GraphRef.Chat = PyObject_CallObject(ChatFunction, nullptr);
+    Py_XDECREF(ChatFunction);
+    if (GraphRef.Chat == nullptr) {
+      spdlog::error("[WASI-NN] ChatTTS backend: Can not create chat."sv);
+      Env.NNGraph.pop_back();
+      return WASINN::ErrNo::RuntimeError;
+    }
+    PyObject *LoadMethod = PyObject_GetAttrString(GraphRef.Chat, "load");
+    if (LoadMethod == nullptr || !PyCallable_Check(LoadMethod)) {
+      spdlog::error("[WASI-NN] ChatTTS backend: Can not load chat."sv);
+      Env.NNGraph.pop_back();
+      return WASINN::ErrNo::RuntimeError;
+    }
+    PyObject *Value = PyObject_CallObject(LoadMethod, nullptr);
+    Py_XDECREF(Value);
+    Py_XDECREF(LoadMethod);
   }
-  PyObject *LoadMethod = PyObject_GetAttrString(GraphRef.Chat, "load");
-  if (LoadMethod == nullptr || !PyCallable_Check(LoadMethod)) {
-    spdlog::error("[WASI-NN] ChatTTS backend: Can not load chat."sv);
-    PyErr_Print();
-    Env.NNGraph.pop_back();
-    return WASINN::ErrNo::RuntimeError;
-  }
-  PyObject *Value = PyObject_CallObject(LoadMethod, nullptr);
-  Py_XDECREF(Value);
-  Py_DECREF(LoadMethod);
   // Store the loaded graph.
   GraphId = Env.NNGraph.size() - 1;
 
@@ -144,22 +145,23 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       GraphRef.ParamsRefineText =
           PyObject_Call(RefineTextParamsFun, Args, Kwargs);
       Py_XDECREF(PromptObj);
-      Py_DECREF(Args);
-      Py_DECREF(Kwargs);
+      Py_XDECREF(Args);
+      Py_XDECREF(Kwargs);
       Py_XDECREF(RefineTextParamsFun);
     }
     // Handle Infer Code Params
     PyObject *InferKwargs = PyDict_New();
     if (Doc.at_key("temperature").error() == simdjson::SUCCESS) {
-      double temperature;
-      auto Err = Doc["temperature"].get<double>().get(temperature);
+      double Temperature;
+      auto Err = Doc["temperature"].get<double>().get(Temperature);
       if (Err) {
         spdlog::error(
             "[WASI-NN] ChatTTS backend: Unable to retrieve the temperature option."sv);
         return ErrNo::InvalidArgument;
       }
-      PyDict_SetItemString(InferKwargs, "temperature",
-                           PyFloat_FromDouble(temperature));
+      PyObject *TemperatureObject = PyFloat_FromDouble(Temperature);
+      PyDict_SetItemString(InferKwargs, "temperature", TemperatureObject);
+      Py_XDECREF(TemperatureObject);
     }
     if (Doc.at_key("top_K").error() == simdjson::SUCCESS) {
       double TopK;
@@ -169,7 +171,9 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
             "[WASI-NN] ChatTTS backend: Unable to retrieve the topK option."sv);
         return ErrNo::InvalidArgument;
       }
-      PyDict_SetItemString(InferKwargs, "top_K", PyFloat_FromDouble(TopK));
+      PyObject *TopKObject = PyFloat_FromDouble(TopK);
+      PyDict_SetItemString(InferKwargs, "top_K", TopKObject);
+      Py_XDECREF(TopKObject);
     }
     if (Doc.at_key("top_P").error() == simdjson::SUCCESS) {
       double TopP;
@@ -179,7 +183,9 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
             "[WASI-NN] ChatTTS backend: Unable to retrieve the temperature option."sv);
         return ErrNo::InvalidArgument;
       }
-      PyDict_SetItemString(InferKwargs, "top_P", PyFloat_FromDouble(TopP));
+      PyObject *TopPObject = PyFloat_FromDouble(TopP);
+      PyDict_SetItemString(InferKwargs, "top_P", TopPObject);
+      Py_XDECREF(TopPObject);
     }
     if (Doc.at_key("spk_emb").error() == simdjson::SUCCESS) {
       std::string_view SpkEmb;
@@ -229,11 +235,6 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     std::copy_n(CxtRef.Outputs.data(), CxtRef.Outputs.size(), OutBuffer.data());
     BytesWritten = CxtRef.Outputs.size();
     return WASINN::ErrNo::Success;
-  } else if (Index == 1) {
-    uint32_t Size = CxtRef.Outputs.size();
-    std::memcpy(OutBuffer.data(), &Size, sizeof(uint32_t));
-    BytesWritten = sizeof(uint32_t);
-    return WASINN::ErrNo::Success;
   }
   return WASINN::ErrNo::InvalidArgument;
 }
@@ -281,8 +282,8 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                            GraphRef.ParamsInferCode);
     }
     Result = PyObject_Call(InferMethod, Args, Kwargs);
-    Py_DECREF(Args);
-    Py_DECREF(Kwargs);
+    Py_XDECREF(Args);
+    Py_XDECREF(Kwargs);
   }
   if (Result != nullptr) {
     PyObject *Wav0 = PyList_GetItem(Result, 0);
@@ -290,13 +291,12 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     char *Bytes = PyBytes_AsString(BytesObj);
     Py_ssize_t size = PyBytes_Size(BytesObj);
     CxtRef.Outputs = std::vector<uint8_t>(Bytes, Bytes + size);
-    Py_DECREF(BytesObj);
-    Py_DECREF(Wav0);
+    Py_XDECREF(BytesObj);
   } else {
     spdlog::error(
         "[WASI-NN] ChatTTS backend: Can not get output from infer method."sv);
-    PyErr_Print();
-    Py_XDECREF(Result);
+    Py_XDECREF(InputStr);
+    Py_XDECREF(InferMethod);
     return WASINN::ErrNo::RuntimeError;
   }
   Py_XDECREF(Result);
@@ -317,6 +317,8 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     Py_XDECREF(GraphRef.ParamsInferCode);
     Py_XDECREF(GraphRef.Chat);
     Py_XDECREF(GraphRef.ChatTTSModule);
+    GraphRef.Chat = nullptr;
+    GraphRef.ChatTTSModule = nullptr;
     Py_Finalize();
   }
   return WASINN::ErrNo::Success;

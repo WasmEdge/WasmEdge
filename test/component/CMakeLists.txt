@@ -15,8 +15,8 @@ add_test(componentTests componentTests)
 
 target_link_libraries(componentTests
   PRIVATE
+  wasmedgeVM
   ${GTEST_BOTH_LIBRARIES}
-  wasmedge_shared
 )
 
 target_include_directories(componentTests

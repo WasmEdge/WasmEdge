@@ -19,8 +19,8 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
+      - "utils/ffmpeg/**"
       - "utils/wasi-nn/**"
-      - "utils/wasi-crypto/**"
   pull_request:
     branches:
       - master
@@ -36,8 +36,8 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
+      - "utils/ffmpeg/**"
       - "utils/wasi-nn/**"
-      - "utils/wasi-crypto/**"
 
 permissions:
   contents: read

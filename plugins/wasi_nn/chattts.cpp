@@ -30,7 +30,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   Env.NNGraph.emplace_back(Backend::ChatTTS);
   auto &GraphRef = Env.NNGraph.back().get<Graph>();
   // Initialize the plugin parameters.
-  GraphRef.EnableDebugLog = true;
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] ChatTTS backend: Load."sv);
   }
@@ -84,7 +83,7 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                                   uint32_t &ContextId) noexcept {
   if (!Py_IsInitialized()) {
     spdlog::error(
-        "[WASI-NN] ChatTTS backend: Model has been realse, please reload it."sv);
+        "[WASI-NN] ChatTTS backend: Model has been released, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
   Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
@@ -99,7 +98,7 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (!Py_IsInitialized()) {
     spdlog::error(
-        "[WASI-NN] ChatTTS backend: Model has been realse, please reload it."sv);
+        "[WASI-NN] ChatTTS backend: Model has been released, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
   if (GraphRef.EnableDebugLog) {
@@ -242,7 +241,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
   if (!Py_IsInitialized()) {
     spdlog::error(
-        "[WASI-NN] ChatTTS backend: Model has been realse, please reload it."sv);
+        "[WASI-NN] ChatTTS backend: Model has been released, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();

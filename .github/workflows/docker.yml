@@ -12,10 +12,18 @@ on:
       - master
     paths:
       - 'utils/docker/**'
+      - 'utils/ffmpeg/**'
+      - 'utils/opencvmini/**'
+      - 'utils/wasi-crypto/**'
+      - 'utils/wasi-nn/**'
       - '.github/workflows/docker.yml'
   pull_request:
     paths:
       - 'utils/docker/**'
+      - 'utils/ffmpeg/**'
+      - 'utils/opencvmini/**'
+      - 'utils/wasi-crypto/**'
+      - 'utils/wasi-nn/**'
       - '.github/workflows/docker.yml'
   schedule:
     - cron: "0 0 */7 * *"

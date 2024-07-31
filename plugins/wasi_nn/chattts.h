@@ -13,7 +13,7 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::ChatTTS {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 struct Graph {
-  bool EnableDebugLog = true;
+  bool EnableDebugLog = false;
   Graph() noexcept { Py_Initialize(); }
   ~Graph() noexcept {
     if (Py_IsInitialized()) {

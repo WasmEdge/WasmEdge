@@ -134,10 +134,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             8}, // SD_TYPE_Q8_0    = 8
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
-    std::ifstream Fin(QuantModelPath.data(),
-                      std::ios::in | std::ios::binary | std::ios::ate);
-    EXPECT_FALSE(Fin.fail());
-    Fin.close();
+    EXPECT_TRUE(std::filesystem::exists(QuantModelPathString));
   }
   // Test: create_context -- create context for text to image.
   {
@@ -182,45 +179,43 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     OutputPtr = BytesWrittenPtr + 4;
     writeBinaries<char>(MemInst, PromptData, PromptPtr);
     writeBinaries<char>(MemInst, OutputPath, OutputPathPtr);
-    EXPECT_TRUE(
-        HostFuncTextToImage.run(CallFrame,
-                                std::initializer_list<WasmEdge::ValVariant>{
-                                    PromptPtr,         // PromptPtr
-                                    PromptData.size(), // PromptLen
-                                    SessionId,         // SessionId
-                                    0,                 // ControlImagePtr
-                                    0,                 // ControlImageLen
-                                    0,                 // NegativePromptPtr
-                                    0,                 // NegativePromptLen
-                                    64,                // Width
-                                    64,                // Height
-                                    -1,                // ClipSkip
-                                    7.0f,              // CfgScale
-                                    0,                 // SampleMethod
-                                    20,                // SampleSteps
-                                    42,                // Seed
-                                    1,                 // BatchCount
-                                    0.90f,             // ControlStrength
-                                    20.0f,             // StyleRatio
-                                    0,                 // NormalizeInput
-                                    0,                 // InputIdImagesDirPtr
-                                    0,                 // InputIdImagesDirLen
-                                    0,                 // CannyPreprocess
-                                    0,                 // UpscaleModelPathPtr
-                                    0,                 // UpscaleModelPathLen
-                                    1,                 // UpscaleRepeats
-                                    OutputPathPtr,     // OutputPathPtr
-                                    OutputPath.size(), // OutputPathLen
-                                    OutputPtr,         // OutBufferPtr
-                                    65532,             // OutBufferMaxSize
-                                    BytesWrittenPtr},  // BytesWrittenPtr
-                                Errno));
+    EXPECT_TRUE(HostFuncTextToImage.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            PromptPtr,                                // PromptPtr
+            static_cast<uint32_t>(PromptData.size()), // PromptLen
+            SessionId,                                // SessionId
+            0,                                        // ControlImagePtr
+            0,                                        // ControlImageLen
+            0,                                        // NegativePromptPtr
+            0,                                        // NegativePromptLen
+            64,                                       // Width
+            64,                                       // Height
+            -1,                                       // ClipSkip
+            7.0f,                                     // CfgScale
+            0,                                        // SampleMethod
+            20,                                       // SampleSteps
+            42,                                       // Seed
+            1,                                        // BatchCount
+            0.90f,                                    // ControlStrength
+            20.0f,                                    // StyleRatio
+            0,                                        // NormalizeInput
+            0,                                        // InputIdImagesDirPtr
+            0,                                        // InputIdImagesDirLen
+            0,                                        // CannyPreprocess
+            0,                                        // UpscaleModelPathPtr
+            0,                                        // UpscaleModelPathLen
+            1,                                        // UpscaleRepeats
+            OutputPathPtr,                            // OutputPathPtr
+            static_cast<uint32_t>(OutputPath.size()), // OutputPathLen
+            OutputPtr,                                // OutBufferPtr
+            65532,                                    // OutBufferMaxSize
+            BytesWrittenPtr},                         // BytesWrittenPtr
+        Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
     EXPECT_GE(BytesWritten, 50);
-    std::ifstream Fin(OutputPathString, std::ios::in | std::ios::binary);
-    EXPECT_FALSE(Fin.fail());
-    Fin.close();
+    EXPECT_TRUE(std::filesystem::exists(OutputPathString));
   }
   writeBinaries<char>(MemInst, ModelPath, ModelPathPtr);
   writeBinaries<char>(MemInst, QuantModelPath, QuantModelPathPtr);
@@ -268,48 +263,46 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     writeBinaries<char>(MemInst, PromptData2, PromptPtr);
     writeBinaries<char>(MemInst, InputPath, InputPathPtr);
     writeBinaries<char>(MemInst, OutputPath2, OutputPathPtr);
-    EXPECT_TRUE(
-        HostFuncImageToImage.run(CallFrame,
-                                 std::initializer_list<WasmEdge::ValVariant>{
-                                     InputPathPtr,       // ImagePtr
-                                     InputPath.size(),   // ImageLen
-                                     SessionId,          // SessionId
-                                     64,                 // Width
-                                     64,                 // Height
-                                     0,                  // ControlImagePtr
-                                     0,                  // ControlImageLen
-                                     PromptPtr,          // PromptPtr
-                                     PromptData2.size(), // PromptLen
-                                     0,                  // NegativePromptPtr
-                                     0,                  // NegativePromptLen
-                                     -1,                 // ClipSkip
-                                     7.0f,               // CfgScale
-                                     0,                  // SampleMethod
-                                     20,                 // SampleSteps
-                                     0.75f,              // Strength
-                                     42,                 // Seed
-                                     1,                  // BatchCount
-                                     0.9f,               // ControlStrength
-                                     20.0f,              // StyleRatio
-                                     0,                  // NormalizeInput
-                                     0,                  // InputIdImagesDirPtr
-                                     0,                  // InputIdImagesDirLen
-                                     0,                  // CannyPreprocess
-                                     0,                  // UpscaleModelPathPtr
-                                     0,                  // UpscaleModelPathLen
-                                     1,                  // UpscaleRepeats
-                                     OutputPathPtr,      // OutputPathPtr
-                                     OutputPath2.size(), // OutputPathLen
-                                     OutputPtr,          // OutBufferPtr
-                                     65532,              // OutBufferMaxSize
-                                     BytesWrittenPtr},   // BytesWrittenPtr
-                                 Errno));
+    EXPECT_TRUE(HostFuncImageToImage.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            InputPathPtr,                              // ImagePtr
+            static_cast<uint32_t>(InputPath.size()),   // ImageLen
+            SessionId,                                 // SessionId
+            64,                                        // Width
+            64,                                        // Height
+            0,                                         // ControlImagePtr
+            0,                                         // ControlImageLen
+            PromptPtr,                                 // PromptPtr
+            static_cast<uint32_t>(PromptData2.size()), // PromptLen
+            0,                                         // NegativePromptPtr
+            0,                                         // NegativePromptLen
+            -1,                                        // ClipSkip
+            7.0f,                                      // CfgScale
+            0,                                         // SampleMethod
+            20,                                        // SampleSteps
+            0.75f,                                     // Strength
+            42,                                        // Seed
+            1,                                         // BatchCount
+            0.9f,                                      // ControlStrength
+            20.0f,                                     // StyleRatio
+            0,                                         // NormalizeInput
+            0,                                         // InputIdImagesDirPtr
+            0,                                         // InputIdImagesDirLen
+            0,                                         // CannyPreprocess
+            0,                                         // UpscaleModelPathPtr
+            0,                                         // UpscaleModelPathLen
+            1,                                         // UpscaleRepeats
+            OutputPathPtr,                             // OutputPathPtr
+            static_cast<uint32_t>(OutputPath2.size()), // OutputPathLen
+            OutputPtr,                                 // OutBufferPtr
+            65532,                                     // OutBufferMaxSize
+            BytesWrittenPtr},                          // BytesWrittenPtr
+        Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
     EXPECT_GE(BytesWritten, 50);
-    std::ifstream Fin(OutputPathString2, std::ios::in | std::ios::binary);
-    EXPECT_FALSE(Fin.fail());
-    Fin.close();
+    EXPECT_TRUE(std::filesystem::exists(OutputPathString2));
   }
   delete SBMod;
 }

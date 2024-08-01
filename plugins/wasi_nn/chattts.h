@@ -1,44 +1,36 @@
-// SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
-
 #pragma once
 
 #include "plugin/plugin.h"
 #include "types.h"
-
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
+#include <mutex>
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 #include <Python.h>
 #endif
-
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
 
-namespace WasmEdge::Host::WASINN::NeuralSpeed {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
+namespace WasmEdge::Host::WASINN::ChatTTS {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 struct Graph {
-  bool EnableDebugLog = true;
-  std::string ModelType = "llama";
-  inline static int GraphNumber = 0;
+  bool EnableDebugLog = false;
   Graph() noexcept { Py_Initialize(); }
   ~Graph() noexcept {
     if (Py_IsInitialized()) {
-      Py_XDECREF(Model);
-      Py_XDECREF(ModelClass);
-      Py_XDECREF(NeuralSpeedModule);
+      Py_XDECREF(Chat);
+      Py_XDECREF(ChatTTSModule);
     }
   }
-  PyObject *Model = nullptr;
-  PyObject *NeuralSpeedModule = nullptr;
-  PyObject *ModelClass = nullptr;
-  int64_t LoadTime = 0;
-  int64_t ComputeTime = 0;
+  PyObject *Chat = nullptr;
+  PyObject *ChatTTSModule = nullptr;
+  PyObject *ParamsRefineText = nullptr;
+  PyObject *ParamsInferCode = nullptr;
 };
 struct Context {
   Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}
   size_t GraphId;
-  std::vector<long long int> Inputs;
-  std::vector<long long int> Outputs;
+  std::string Inputs;
+  std::vector<uint8_t> Outputs;
 };
 #else
 struct Graph {};
@@ -66,5 +58,4 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
                              uint32_t GraphId) noexcept;
-
-} // namespace WasmEdge::Host::WASINN::NeuralSpeed
+} // namespace WasmEdge::Host::WASINN::ChatTTS

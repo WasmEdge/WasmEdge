@@ -118,4 +118,3 @@ jobject WasmEdgeValueToJavaValue(JNIEnv *env, WasmEdge_Value value) {
   setJavaValueObject(env, value, jVal);
   return jVal;
 }
-

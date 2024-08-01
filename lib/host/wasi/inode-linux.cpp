@@ -549,11 +549,15 @@ WasiExpect<void> INode::fdSeek(__wasi_filedelta_t Offset,
 }
 
 WasiExpect<void> INode::fdSync() const noexcept {
-  if (auto Res = ::fsync(Fd); unlikely(Res != 0)) {
-    return WasiUnexpect(fromErrNo(errno));
-  }
+    struct stat fdStat;
+    if (fstat(Fd, &fdStat) == 0 && S_ISDIR(fdStat.st_mode)) {
+        return {};
+    }
+    if (auto Res = ::fsync(Fd); unlikely(Res != 0)) {
+        return WasiUnexpect(fromErrNo(errno)); 
+    }
 
-  return {};
+    return {}; // Success
 }
 
 WasiExpect<void> INode::fdTell(__wasi_filesize_t &Size) const noexcept {

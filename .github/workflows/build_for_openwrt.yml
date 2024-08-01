@@ -143,4 +143,3 @@ jobs:
         docker build -t openwrt .
         docker run --name openwrt -d --privileged openwrt:latest /sbin/init
         docker exec openwrt wasmedge -v
-

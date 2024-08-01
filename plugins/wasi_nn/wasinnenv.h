@@ -9,6 +9,7 @@
 #include <functional>
 #include <vector>
 
+#include "chattts.h"
 #include "ggml.h"
 #include "neuralspeed.h"
 #include "onnx.h"

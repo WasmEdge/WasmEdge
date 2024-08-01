@@ -15,6 +15,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   neuralspeed.cpp
   piper.cpp
   whispercpp.cpp
+  chattts.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -31,10 +32,15 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     set(BUILD_SHARED_LIBS OFF)
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE)
-      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_NATIVE(AVX/AVX2/FMA)")
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_NATIVE(AVX/AVX2/FMA/F16C)")
       set(GGML_NATIVE ON)
     else()
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_NATIVE(AVX/AVX2/FMA/F16C)")
       set(GGML_NATIVE OFF)
+      set(GGML_AVX OFF)
+      set(GGML_AVX2 OFF)
+      set(GGML_FMA OFF)
+      set(GGML_F16C OFF)
     endif()
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
@@ -66,7 +72,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3405
+      GIT_TAG        b3463
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -118,6 +124,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-unused-macros
         -Wno-unused-function
         -Wno-unused-variable
+        -Wno-sign-conversion
+        -Wno-shorten-64-to-32
+        -Wno-implicit-int-conversion
+        -Wno-old-style-cast
+        -Wno-extra-semi-stmt
+        -Wno-format-nonliteral
+        -Wno-documentation
+        -Wno-unused-template
       )
     endif()
     target_link_libraries(llava PRIVATE ggml llama)
@@ -139,7 +153,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
       )
     endif()
-  elseif(BACKEND STREQUAL "neuralspeed")
+  elseif(BACKEND STREQUAL "neuralspeed" OR BACKEND STREQUAL "chattts")
     wasmedge_setup_simdjson()
 
     find_package(Python3 COMPONENTS Interpreter Development)
@@ -156,12 +170,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "piper")
     wasmedge_setup_simdjson()
-    include(WASINNDeps)
-    wasmedge_setup_piper()
-    target_include_directories(wasmedgePluginWasiNN PRIVATE ${piper_SOURCE_DIR}/src/cpp)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "whisper")
-    set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Whisper turn off accelerate")
+    if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
+      # `cblas_sgemm()` introduced in macOS 13.3.
+      set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion turn off accelerate")
+    endif()
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
     include(FetchContent)
     FetchContent_Declare(

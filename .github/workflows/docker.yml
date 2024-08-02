@@ -135,7 +135,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-base"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-base"
         uses: docker/build-push-action@v6
         with:
           context: ./utils/docker
@@ -152,10 +152,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-base
           context: ./utils/docker
           file: ./utils/docker/Dockerfile.build-clang
           platforms: linux/amd64
@@ -170,10 +170,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-gcc
           platforms: linux/amd64
@@ -188,10 +188,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang-plugins-deps"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang-plugins-deps"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-build-clang
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang
           context: ./utils
           file: ./utils/docker/Dockerfile.build-plugins-deps
           platforms: linux/amd64
@@ -206,10 +206,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc-plugins-deps"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc-plugins-deps"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-build-gcc
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc
           context: ./utils
           file: ./utils/docker/Dockerfile.build-plugins-deps
           platforms: linux/amd64
@@ -224,10 +224,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:latest"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:latest"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-clang
           platforms: linux/amd64

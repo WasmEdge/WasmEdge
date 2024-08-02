@@ -114,7 +114,9 @@ jobs:
     needs:
       - prep
       - paths-filter
-    if: ${{ needs.paths-filter.outputs.ubuntu == 'true' }}
+      - bake-base-images
+    # Allow dependent job to be skipped
+    if: ${{ !failure() && needs.paths-filter.outputs.ubuntu == 'true' }}
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:ci-image-base
@@ -244,7 +246,9 @@ jobs:
     needs:
       - prep
       - paths-filter
-    if: ${{ needs.paths-filter.outputs.manylinux == 'true' }}
+      - bake-base-images
+    # Allow dependent job to be skipped
+    if: ${{ !failure() && needs.paths-filter.outputs.manylinux == 'true' }}
     strategy:
       fail-fast: false
       matrix:

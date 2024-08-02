@@ -74,13 +74,21 @@ jobs:
         with:
           filters: |
             ci-image-base:
+              - '.github/workflows/docker.yml'
               - 'utils/docker/docker-bake.ci-image-base.hcl'
               - 'utils/docker/Dockerfile.ci-image-base'
             manylinux:
+              - '.github/workflows/docker.yml'
               - 'utils/docker/Dockerfile.manylinux**'
+              - 'utils/ffmpeg/**'
+              - 'utils/opencvmini/**'
+              - 'utils/wasi-crypto/**'
+              - 'utils/wasi-nn/**'
             ubuntu:
+              - '.github/workflows/docker.yml'
               - 'utils/docker/Dockerfile.base'
               - 'utils/docker/Dockerfile.build-**'
+              - 'utils/opencvmini/**'
 
   bake-base-images:
     name: Bake `ci-image-base`

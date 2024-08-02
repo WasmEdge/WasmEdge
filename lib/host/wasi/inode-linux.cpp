@@ -554,7 +554,7 @@ WasiExpect<void> INode::fdSync() const noexcept {
     return {};
   }
   if (auto Res = ::fsync(Fd); unlikely(Res != 0)) {
-    return WasiUnexpect(fromErrNo(errno)); 
+    return WasiUnexpect(fromErrNo(errno));
   }
 
   return {};

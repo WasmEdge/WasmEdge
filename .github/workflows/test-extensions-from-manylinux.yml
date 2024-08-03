@@ -1,0 +1,67 @@
+name: Test extensions from manylinux
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        required: true
+      docker_tag:
+        type: string
+        required: true
+      asset_tag:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+
+jobs:
+  prepare:
+    name: Prepare testing ${{ inputs.asset_tag }}
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.readfile.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: readfile
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const fs = require("fs")
+            var json_s = fs.readFileSync(".github/workflows/matrix-extensions.json")
+            var json_o = JSON.parse(json_s)
+            return JSON.stringify(json_o.list.${{ inputs.asset_tag }})
+
+  test:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        plugin: ${{ fromJSON(needs.prepare.outputs.plugins) }}
+    name: ${{ matrix.plugin }} (${{ inputs.asset_tag }})
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: wasmedge/wasmedge:${{ inputs.docker_tag }}
+      # Required for mounting debugfs (for testing wasm_bpf)
+      options: --privileged
+    steps:
+      - if: ${{ matrix.plugin == 'wasm_bpf' }}
+        name: Prepare wasm_bpf environment
+        shell: bash
+        run: |
+          mount -t debugfs none /sys/kernel/debug
+      - uses: actions/download-artifact@v4
+        with:
+          name: WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz
+      - name: Test ${{ matrix.plugin }}
+        run: |
+          ls -lh
+          tar zxf WasmEdge-${{ inputs.version }}-Linux.tar.gz
+          mkdir -p ${test_dir} && mv ${target} ${test_dir} && cd ${test_dir}
+          ./${{ matrix.plugin }}Tests
+        env:
+          test_dir: test/plugins/${{ matrix.plugin }}

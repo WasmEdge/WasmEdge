@@ -54,6 +54,7 @@
             "wasi_nn-ggml",
             "wasi_nn-tensorflowlite",
             "wasi_nn-whisper",
+            "wasi_nn-piper",
             "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",

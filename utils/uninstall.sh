@@ -247,12 +247,42 @@ main() {
     _shell_="${SHELL#${SHELL%/*}/}"
     _shell_rc=".""$_shell_""rc"
 
-    [[ -f "${__HOME__}/${_shell_rc}" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/${_shell_rc}" | cut -d : -f 1)" &&
-        [ "$line_num" != "" ] && sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/${_shell_rc}"
-    [[ -f "${__HOME__}/.profile" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.profile" | cut -d : -f 1)" &&
-        [[ "$line_num" != "" ]] && sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.profile"
-    [[ -f "${__HOME__}/.bash_profile" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.bash_profile" | cut -d : -f 1)" &&
-        [[ "$line_num" != "" ]] && sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.bash_profile"
+    if [ -f "${__HOME__}/${_shell_rc}" ]; then
+        line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/${_shell_rc}" | cut -d : -f 1)"
+        if [ "$line_num" != "" ]; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i.wasmedge_backup ''"${line_num}"'d' "${__HOME__}/${_shell_rc}"
+            else
+                sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/${_shell_rc}"
+            fi
+        fi
+    fi
+
+    if [ -f "${__HOME__}/.profile" ]; then
+        line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.profile" | cut -d : -f 1)"
+        if [ "$line_num" != "" ]; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i.wasmedge_backup ''"${line_num}"'d' "${__HOME__}/.profile"
+            else
+                sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.profile"
+            fi
+        fi
+    fi
+
+    if [ -L "${__HOME__}/.bash_profile" ]; then
+        echo "${__HOME__}/.bash_profile is a symbolic link. Please update it manually."
+    elif [ -f "${__HOME__}/.bash_profile" ]; then
+        line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.bash_profile" | cut -d : -f 1)"
+        if [ "$line_num" != "" ]; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i.wasmedge_backup ''"${line_num}"'d' "${__HOME__}/.bash_profile"
+            else
+                sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.bash_profile"
+            fi
+        fi
+    else
+        echo "${__HOME__}/.bash_profile is not a regular file. Please update it manually."
+    fi
 
     exit 0
 }

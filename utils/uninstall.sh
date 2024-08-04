@@ -269,19 +269,15 @@ main() {
         fi
     fi
 
-    if [ -L "${__HOME__}/.bash_profile" ]; then
-        echo "${__HOME__}/.bash_profile is a symbolic link. Please update it manually."
-    elif [ -f "${__HOME__}/.bash_profile" ]; then
-        line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.bash_profile" | cut -d : -f 1)"
-        if [ "$line_num" != "" ]; then
+   if [[ -L "${__HOME__}/.bash_profile" || -f "${__HOME__}/.bash_profile" ]]; then
+       line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.bash_profile" | cut -d : -f 1)"
+        if [[ "$line_num" != "" ]]; then
             if [[ "$OSTYPE" == "darwin"* ]]; then
-                sed -i.wasmedge_backup ''"${line_num}"'d' "${__HOME__}/.bash_profile"
+                sed -i '' -e "${line_num}"'d' "${__HOME__}/.bash_profile"
             else
-                sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.bash_profile"
+                sed -i -e "${line_num}"'d' "${__HOME__}/.bash_profile"
             fi
         fi
-    else
-        echo "${__HOME__}/.bash_profile is not a regular file. Please update it manually."
     fi
 
     exit 0

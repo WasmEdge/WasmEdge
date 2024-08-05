@@ -198,6 +198,7 @@ VERBOSE=0
 LEGACY=0
 ENABLE_NOAVX=0
 GGML_BUILD_NUMBER=""
+DISABLE_WASI_LOGGING="0"
 BY_PASS_CUDA_VERSION="0"
 BY_PASS_CUDART="0"
 
@@ -493,6 +494,9 @@ main() {
 			b | ggmlbn)
 				GGML_BUILD_NUMBER="${OPTARG}"
 				;;
+			nowasilogging)
+				DISABLE_WASI_LOGGING="1"
+				;;
 			c | ggmlcuda)
 				BY_PASS_CUDA_VERSION="${OPTARG}"
 				BY_PASS_CUDART="1"
@@ -582,7 +586,9 @@ main() {
 
 		get_wasmedge_release
 		get_wasmedge_ggml_plugin
+	if [[ "${DISABLE_WASI_LOGGING}" == "0" ]]; then
 		get_wasmedge_wasi_logging_plugin
+	fi
 
 		install "$IPKG" "include" "lib" "bin" "plugin"
 		wasmedge_checks "$VERSION"

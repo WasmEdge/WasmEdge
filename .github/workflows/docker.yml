@@ -12,10 +12,18 @@ on:
       - master
     paths:
       - 'utils/docker/**'
+      - 'utils/ffmpeg/**'
+      - 'utils/opencvmini/**'
+      - 'utils/wasi-crypto/**'
+      - 'utils/wasi-nn/**'
       - '.github/workflows/docker.yml'
   pull_request:
     paths:
       - 'utils/docker/**'
+      - 'utils/ffmpeg/**'
+      - 'utils/opencvmini/**'
+      - 'utils/wasi-crypto/**'
+      - 'utils/wasi-nn/**'
       - '.github/workflows/docker.yml'
   schedule:
     - cron: "0 0 */7 * *"
@@ -66,13 +74,21 @@ jobs:
         with:
           filters: |
             ci-image-base:
+              - '.github/workflows/docker.yml'
               - 'utils/docker/docker-bake.ci-image-base.hcl'
               - 'utils/docker/Dockerfile.ci-image-base'
             manylinux:
+              - '.github/workflows/docker.yml'
               - 'utils/docker/Dockerfile.manylinux**'
+              - 'utils/ffmpeg/**'
+              - 'utils/opencvmini/**'
+              - 'utils/wasi-crypto/**'
+              - 'utils/wasi-nn/**'
             ubuntu:
+              - '.github/workflows/docker.yml'
               - 'utils/docker/Dockerfile.base'
               - 'utils/docker/Dockerfile.build-**'
+              - 'utils/opencvmini/**'
 
   bake-base-images:
     name: Bake `ci-image-base`
@@ -106,7 +122,9 @@ jobs:
     needs:
       - prep
       - paths-filter
-    if: ${{ needs.paths-filter.outputs.ubuntu == 'true' }}
+      - bake-base-images
+    # Allow dependent job to be skipped
+    if: ${{ !failure() && needs.paths-filter.outputs.ubuntu == 'true' }}
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:ci-image-base
@@ -125,7 +143,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-base"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-base"
         uses: docker/build-push-action@v6
         with:
           context: ./utils/docker
@@ -142,10 +160,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-base
           context: ./utils/docker
           file: ./utils/docker/Dockerfile.build-clang
           platforms: linux/amd64
@@ -160,10 +178,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-gcc
           platforms: linux/amd64
@@ -178,10 +196,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang-plugins-deps"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang-plugins-deps"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-build-clang
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang
           context: ./utils
           file: ./utils/docker/Dockerfile.build-plugins-deps
           platforms: linux/amd64
@@ -196,10 +214,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc-plugins-deps"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc-plugins-deps"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-build-gcc
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc
           context: ./utils
           file: ./utils/docker/Dockerfile.build-plugins-deps
           platforms: linux/amd64
@@ -214,10 +232,10 @@ jobs:
             org.opencontainers.image.created=${{ needs.prep.outputs.created }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      - name: "Rebuild wasmedge/wasmedge:latest"
+      - name: "Rebuild ${{ needs.prep.outputs.docker_image }}:latest"
         uses: docker/build-push-action@v6
         with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
+          build-args: BASE=${{ needs.prep.outputs.docker_image }}:ubuntu-base
           context: ./utils/docker
           file: utils/docker/Dockerfile.build-clang
           platforms: linux/amd64
@@ -236,7 +254,9 @@ jobs:
     needs:
       - prep
       - paths-filter
-    if: ${{ needs.paths-filter.outputs.manylinux == 'true' }}
+      - bake-base-images
+    # Allow dependent job to be skipped
+    if: ${{ !failure() && needs.paths-filter.outputs.manylinux == 'true' }}
     strategy:
       fail-fast: false
       matrix:

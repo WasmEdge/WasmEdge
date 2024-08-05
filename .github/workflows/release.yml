@@ -379,9 +379,9 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg
-      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeZlib.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON
+      tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg wasmedge_stablediffusion
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeZlib.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib libwasmedgePluginWasmEdgeStableDiffusion.dylib
     needs: create_release
     steps:
       - name: Checkout code
@@ -479,6 +479,12 @@ jobs:
         run: |
           mv plugin_wasmedge_ffmpeg.tar.gz WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
+      - name: Upload wasmedge_stablediffusion plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasmedge_stablediffusion.tar.gz WasmEdge-plugin-wasmedge_stablediffusion-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_stablediffusion-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
 
   build_manylinux2014_runtime_only:
     name: Build runtime only on manylinux2014 platform

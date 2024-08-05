@@ -38,4 +38,7 @@ ENV LD_LIBRARY_PATH=/root/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY
 ENV OPENVINO_VERSION="2024.2.0"
 ENV OPENVINO_YEAR="2024"
 
+COPY wasi-nn/install-onnxruntime.sh .
+RUN [ "/bin/bash", "install-onnxruntime.sh" ]
+
 RUN yum clean all

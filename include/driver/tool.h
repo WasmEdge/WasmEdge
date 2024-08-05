@@ -166,9 +166,7 @@ struct DriverToolOptions {
         .add_option("memory-page-limit"sv, MemLim)
         .add_option("forbidden-plugin"sv, ForbiddenPlugins);
 
-    for (const auto &Path : Plugin::Plugin::getDefaultPluginPaths()) {
-      Plugin::Plugin::load(Path);
-    }
+    Plugin::Plugin::loadFromDefaultPaths();
     Plugin::Plugin::addPluginOptions(Parser);
   }
 };

@@ -3270,9 +3270,7 @@ WASMEDGE_CAPI_EXPORT extern "C" int WasmEdge_Driver_FuzzPO(const uint8_t *Data,
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) {
-  for (const auto &Path : WasmEdge::Plugin::Plugin::getDefaultPluginPaths()) {
-    WasmEdge::Plugin::Plugin::load(Path);
-  }
+  WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadFromPath(const char *Path) {

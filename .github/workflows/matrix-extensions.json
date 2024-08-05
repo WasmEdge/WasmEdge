@@ -2,7 +2,6 @@
     "list": {
         "manylinux2014_x86_64": [
             "wasi_crypto",
-            "wasi_logging",
             "wasi_nn-ggml",
             "wasi_nn-pytorch",
             "wasi_nn-tensorflowlite",
@@ -18,7 +17,6 @@
         ],
         "manylinux2014_aarch64": [
             "wasi_crypto",
-            "wasi_logging",
             "wasi_nn-ggml",
             "wasi_nn-tensorflowlite",
             "wasi_nn-whisper",
@@ -32,7 +30,6 @@
         ],
         "manylinux_2_28_x86_64": [
             "wasi_crypto",
-            "wasi_logging",
             "wasi_nn-ggml",
             "wasi_nn-pytorch",
             "wasi_nn-tensorflowlite",
@@ -50,7 +47,6 @@
         ],
         "manylinux_2_28_aarch64": [
             "wasi_crypto",
-            "wasi_logging",
             "wasi_nn-ggml",
             "wasi_nn-tensorflowlite",
             "wasi_nn-whisper",
@@ -72,13 +68,6 @@
             "dir": "wasi_crypto",
             "testBin": "wasiCryptoTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON"
-        },
-        "wasi_logging": {
-            "plugin": "wasi_logging",
-            "bin": "libwasmedgePluginWasiLogging.so",
-            "dir": "wasi_logging",
-            "testBin": "wasiLoggingTests",
-            "options": "-DWASMEDGE_PLUGIN_WASI_LOGGING=ON"
         },
         "wasi_nn-ggml": {
             "plugin": "wasi_nn-ggml",

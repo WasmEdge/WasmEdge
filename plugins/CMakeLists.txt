@@ -84,10 +84,6 @@ if(WASMEDGE_PLUGIN_OPENCVMINI)
   endif()
 endif()
 
-if(WASMEDGE_PLUGIN_WASI_LOGGING)
-  add_subdirectory(wasi_logging)
-endif()
-
 if(WASMEDGE_PLUGIN_ZLIB)
   add_subdirectory(wasmedge_zlib)
 endif()
@@ -96,6 +92,6 @@ if(WASMEDGE_PLUGIN_FFMPEG)
   add_subdirectory(wasmedge_ffmpeg)
 endif()
 
-if (WASMEDGE_PLUGIN_LLM)
+if(WASMEDGE_PLUGIN_LLM)
   add_subdirectory(wasi_llm)
 endif()

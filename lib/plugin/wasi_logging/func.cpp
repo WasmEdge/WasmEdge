@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "func.h"
+// BUILTIN-PLUGIN: Temporary move the wasi-logging plugin sources here until
+// the new plugin architecture ready in 0.15.0.
+
+#include "plugin/wasi_logging/func.h"
 
 #include <string_view>
 
@@ -38,15 +41,14 @@ Expect<void> Log::body(const Runtime::CallingFrame &Frame, uint32_t Level,
   } else if (CxtSV == "stderr"sv) {
     Logger = Env.StderrLogger;
   } else {
-    if (CxtSV != Env.LogFileName) {
+    if (CxtSV != Env.getLogFileName()) {
       try {
-        spdlog::drop("wasi_logging_file");
+        spdlog::drop(Env.getLogRegName());
         Env.FileLogger =
-            spdlog::basic_logger_mt("wasi_logging_file", std::string(CxtSV));
-        Env.FileLogger->set_pattern(Env.DefFormat);
-        Env.LogFileName = CxtSV;
-        // TODO: Use the config in WasmEdge to set the logging level.
+            spdlog::basic_logger_mt(Env.getLogRegName(), std::string(CxtSV));
         Env.FileLogger->set_level(spdlog::level::trace);
+        Env.FileLogger->set_pattern(Env.DefFormat);
+        Env.setLogFileName(CxtSV);
       } catch (const spdlog::spdlog_ex &Ex) {
         spdlog::error("[WasiLogging] Cannot log into file: {}"sv, Ex.what());
         return Unexpect(ErrCode::Value::HostFuncError);

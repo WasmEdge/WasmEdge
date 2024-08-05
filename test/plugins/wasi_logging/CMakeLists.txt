@@ -19,6 +19,7 @@ target_link_libraries(wasiLoggingTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
 )
+
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasiLoggingTests

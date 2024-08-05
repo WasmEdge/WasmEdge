@@ -358,8 +358,8 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   uint32_t FileLen = 8;
   fillMemContent(MemInst, FormatStart, FormatLen + FileLen);
 
-  fillMemContent(MemInst, FormatStart, std::string("mp4"));
-  fillMemContent(MemInst, FileStart, std::string("test.mp4"));
+  fillMemContent(MemInst, FormatStart, "mp4"sv);
+  fillMemContent(MemInst, FileStart, "test.mp4"sv);
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2");

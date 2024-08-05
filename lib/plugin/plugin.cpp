@@ -5,6 +5,10 @@
 #include "common/errcode.h"
 #include "common/version.h"
 #include "wasmedge/wasmedge.h"
+
+// BUILTIN-PLUGIN: Headers for built-in plug-ins.
+#include "plugin/wasi_logging/module.h"
+
 #include <type_traits>
 #include <variant>
 
@@ -430,7 +434,11 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
   return true;
 }
 
-void Plugin::registerBuiltInPlugins() noexcept { std::unique_lock Lock(Mutex); }
+void Plugin::registerBuiltInPlugins() noexcept {
+  std::unique_lock Lock(Mutex);
+  // BUILTIN-PLUGIN: Register wasi-logging here. May be refactored in 0.15.0.
+  registerPlugin(&Host::WasiLoggingModule::PluginDescriptor);
+}
 
 Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {
   for (const auto &ModuleDesc : Span<const PluginModule::ModuleDescriptor>(

@@ -9,7 +9,7 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVSampleFmt) {
-
+  using namespace std::literals::string_view_literals;
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   uint32_t BufferPtr = UINT32_C(160);
@@ -83,7 +83,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   uint32_t SampleFmtSize = 2;
   fillMemContent(MemInst, SampleFmtSize, SampleFmtSize);
 
-  fillMemContent(MemInst, SampleFmtStart, std::string("u8"));
+  fillMemContent(MemInst, SampleFmtStart, "u8"sv);
   {
     HostFuncAVGetSampleFmt.run(CallFrame,
                                std::initializer_list<WasmEdge::ValVariant>{

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2022 Second State INC
 
+add_subdirectory(wasi_logging)
+
 wasmedge_add_library(wasmedgePlugin
   plugin.cpp
 )
@@ -13,6 +15,7 @@ target_include_directories(wasmedgePlugin
 
 target_link_libraries(wasmedgePlugin
   PUBLIC
+  wasmedgePluginWasiLogging
   wasmedgeCommon
   wasmedgeLoaderFileMgr
   wasmedgePO

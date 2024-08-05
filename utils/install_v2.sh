@@ -411,11 +411,7 @@ get_wasmedge_ggml_plugin() {
 			CUDA_EXT="-cuda"
 		elif [ "${cuda}" == "11" ]; then
 			info "CUDA version 11 is detected from nvcc: Use the GPU version."
-			if [ "${ARCH}" == "aarch64" ]; then
-				CUDA_EXT="-cuda"
-			else
-				CUDA_EXT="-cuda-11"
-			fi
+			CUDA_EXT="-cuda-11"
 		else
 			CUDA_EXT=""
 		fi

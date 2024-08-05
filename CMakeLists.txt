@@ -83,7 +83,8 @@ option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-
 option(WASMEDGE_PLUGIN_WASI_HTTP "Enable WasmEdge wasi-http plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_POLL "Enable WasmEdge wasi-poll plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge wasi-crypto plugin." OFF)
-option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." OFF)
+#     Note: WASMEDGE_PLUGIN_WASI_LOGGING is not used until the new plug-in mechanism ready in 0.15.0.
+option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." ON)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_OCR "Enable WasmEdge wasm-ocr plugin." OFF)
 #   WasmEdge plug-ins.
@@ -92,7 +93,6 @@ option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
 option(WASMEDGE_PLUGIN_IMAGE "Enable WasmEdge image plugin." OFF)
 option(WASMEDGE_PLUGIN_TENSORFLOW "Enable WasmEdge TensorFlow plugin." OFF)
 option(WASMEDGE_PLUGIN_TENSORFLOWLITE "Enable WasmEdge TensorFlow-Lite plugin." OFF)
-option(WASMEDGE_PLUGIN_RUSTLS "Enable WasmEdge Rustls plugin." OFF)
 option(WASMEDGE_PLUGIN_ZLIB "Enable WasmEdge zlib plugin." OFF)
 option(WASMEDGE_PLUGIN_FFMPEG "Enable WasmEdge ffmpeg plugin." OFF)
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION "Enable WasmEdge stable-diffusion plugin." OFF)

@@ -57,8 +57,5 @@ if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
   add_subdirectory(wasmedge_stablediffusion)
 endif()
 
-if(WASMEDGE_PLUGIN_WASI_LOGGING)
-  add_subdirectory(wasi_logging)
-endif()
-
+add_subdirectory(wasi_logging)
 add_subdirectory(unittest)

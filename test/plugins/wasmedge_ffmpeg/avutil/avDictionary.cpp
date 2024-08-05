@@ -9,6 +9,7 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVDictionary) {
+  using namespace std::literals::string_view_literals;
 
   uint32_t KeyStart = UINT32_C(1);
   uint32_t KeyLen = 3;
@@ -31,8 +32,8 @@ TEST_F(FFmpegTest, AVDictionary) {
 
   // Fill 0 in WasmMemory.
   fillMemContent(MemInst, KeyStart, KeyLen + ValueLen);
-  fillMemContent(MemInst, KeyStart, std::string("KEY"));
-  fillMemContent(MemInst, ValueStart, std::string("VALUE"));
+  fillMemContent(MemInst, KeyStart, "KEY"sv);
+  fillMemContent(MemInst, ValueStart, "VALUE"sv);
 
   // Storing the above Key and Value in dict and using these in below tests
   // (dict_get) to fetch Key,values.

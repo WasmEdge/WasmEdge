@@ -168,12 +168,12 @@ index 26aaba0..867e524 100644
 \ No newline at end of file
 diff --git a/piper-phonemize.patch b/piper-phonemize.patch
 new file mode 100644
-index 0000000..0d91cde
+index 0000000..c4676cb
 --- /dev/null
 +++ b/piper-phonemize.patch
-@@ -0,0 +1,213 @@
+@@ -0,0 +1,214 @@
 +diff --git a/CMakeLists.txt b/CMakeLists.txt
-+index ec7b501..335ef46 100644
++index ec7b501..39275a6 100644
 +--- a/CMakeLists.txt
 ++++ b/CMakeLists.txt
 +@@ -10,6 +10,8 @@ project(
@@ -274,15 +274,16 @@ index 0000000..0d91cde
 +         CMAKE_ARGS -DUSE_MBROLA:BOOL=OFF
 +         CMAKE_ARGS -DUSE_LIBSONIC:BOOL=OFF
 +         CMAKE_ARGS -DUSE_LIBPCAUDIO:BOOL=OFF
-+@@ -116,6 +153,7 @@ if(NOT DEFINED ESPEAK_NG_DIR)
++@@ -116,6 +153,8 @@ if(NOT DEFINED ESPEAK_NG_DIR)
 +         CMAKE_ARGS -DEXTRA_cmn:BOOL=ON
 +         CMAKE_ARGS -DEXTRA_ru:BOOL=ON
 +         CMAKE_ARGS -DCMAKE_C_FLAGS="-D_FILE_OFFSET_BITS=64"
+++        CMAKE_ARGS "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE}"
 ++        USES_TERMINAL_DOWNLOAD TRUE
 +     )
 +     add_dependencies(piper_phonemize espeak_ng_external)
 + endif()
-+@@ -123,23 +161,27 @@ endif()
++@@ -123,23 +162,27 @@ endif()
 + 
 + # ---- Declare library ----
 + 
@@ -313,7 +314,7 @@ index 0000000..0d91cde
 + )
 + 
 + target_compile_features(piper_phonemize PUBLIC cxx_std_17)
-+@@ -173,12 +215,13 @@ target_link_libraries(piper_phonemize_exe PUBLIC
++@@ -173,12 +216,13 @@ target_link_libraries(piper_phonemize_exe PUBLIC
 + # ---- Declare test ----
 + 
 + include(CTest)
@@ -332,7 +333,7 @@ index 0000000..0d91cde
 + 
 + target_compile_features(test_piper_phonemize PUBLIC cxx_std_17)
 + 
-+@@ -207,7 +250,7 @@ install(
++@@ -207,7 +251,7 @@ install(
 +     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 + 
 + install(
@@ -341,7 +342,7 @@ index 0000000..0d91cde
 +     DESTINATION include/piper-phonemize
 +     FILES_MATCHING
 +     PATTERN "*.h"
-+@@ -218,7 +261,7 @@ install(
++@@ -218,7 +262,7 @@ install(
 +     ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR})
 + 
 + install(
@@ -350,7 +351,7 @@ index 0000000..0d91cde
 +     TYPE DATA)
 + 
 + # Dependencies
-+@@ -226,10 +269,12 @@ install(
++@@ -226,10 +270,12 @@ install(
 +     DIRECTORY ${ESPEAK_NG_DIR}/
 +     DESTINATION ${CMAKE_INSTALL_PREFIX})
 + 

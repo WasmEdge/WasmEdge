@@ -37,6 +37,7 @@
             "wasi_nn-pytorch",
             "wasi_nn-tensorflowlite",
             "wasi_nn-whisper",
+            "wasi_nn-piper",
             "wasm_bpf",
             "wasmedge_ffmpeg",
             "wasmedge_image",
@@ -53,6 +54,7 @@
             "wasi_nn-ggml",
             "wasi_nn-tensorflowlite",
             "wasi_nn-whisper",
+            "wasi_nn-piper",
             "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
@@ -105,6 +107,13 @@
             "dir": "wasi_nn",
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper"
+        },
+        "wasi_nn-piper": {
+            "plugin": "wasi_nn-piper",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper"
         },
         "wasm_bpf": {
             "plugin": "wasm_bpf",

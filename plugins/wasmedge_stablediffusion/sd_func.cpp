@@ -275,7 +275,7 @@ Expect<uint32_t> SDTextToImage::body(
   // TODO upscale image
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
+      reinterpret_cast<const unsigned char *>(Results->data), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
   if (OutputPathLen != 0) {
     stbi_write_png(OutputPath.data(), Results->width, Results->height,
@@ -381,7 +381,7 @@ Expect<uint32_t> SDImageToImage::body(
   // TODO: upscale image
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
+      reinterpret_cast<const unsigned char *>(Results->data), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
   if (OutputPathLen != 0) {
     stbi_write_png(OutputPath.data(), Results->width, Results->height,

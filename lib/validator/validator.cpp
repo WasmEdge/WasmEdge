@@ -28,12 +28,6 @@ struct SectionVisitor {
     V->validate(Mod);
   }
   void operator()(const CoreInstanceSection &) {}
-  void operator()(const CoreTypeSection &) {
-    // TODO: Validation of core:moduledecl rejects core:moduletype definitions
-    // and outer aliases of core:moduletype definitions inside type declarators.
-    // Thus, as an invariant, when validating a core:moduletype, the core type
-    // index space will not contain any core module types.
-  }
   void operator()(const ComponentSection &Sec) {
     auto &C = Sec.getContent();
     V->validate(C);
@@ -69,37 +63,56 @@ struct SectionVisitor {
     // module or component and additionally requires that the outer-aliased
     // type is not a resource type (which is generative).
   }
-  void operator()(const TypeSection &) {
+  void operator()(const CoreTypeSection &) {
+    // TODO: Validation of core:moduledecl rejects core:moduletype definitions
+    // and outer aliases of core:moduletype definitions inside type declarators.
+    // Thus, as an invariant, when validating a core:moduletype, the core type
+    // index space will not contain any core module types.
+
     // TODO: As described in the explainer, each module type is validated with
     // an initially-empty type index space.
+  }
+  void operator()(const TypeSection &Sec) {
+    struct DefTypeVisitor {
+      // TODO: Validation of valtype requires the typeidx to refer to a
+      // defvaltype.
 
-    // TODO: Validation of valtype requires the typeidx to refer to a
-    // defvaltype.
+      // TODO: Validation of own and borrow requires the typeidx to refer to a
+      // resource type.
+      void operator()(const DefValType &) {}
+      void operator()(const FuncType &) {
+        // TODO: Validation of functype rejects any transitive use of borrow in
+        // a result type. Similarly, validation of components and component
+        // types rejects any transitive use of borrow in an exported value type.
+      }
+      void operator()(const ComponentType &) {
+        // TODO: Validation rejects resourcetype type definitions inside
+        // componenttype and instancettype. Thus, handle types inside a
+        // componenttype can only refer to resource types that are imported or
+        // exported.
 
-    // TODO: Validation of own and borrow requires the typeidx to refer to a
-    // resource type.
+        // TODO: As described in the explainer, each component and instance type
+        // is validated with an initially-empty type index space. Outer aliases
+        // can be used to pull in type definitions from containing components.
+      }
+      void operator()(const InstanceType &) {}
 
-    // TODO: Validation of functype rejects any transitive use of borrow in a
-    // result type. Similarly, validation of components and component types
-    // rejects any transitive use of borrow in an exported value type.
+      void check(const InstanceDecl &) {
+        // TODO: Validation of instancedecl (currently) only allows the type and
+        // instance sorts in alias declarators.
+      }
 
+      void check(const ExternDesc &) {
+        // TODO: Validation of externdesc requires the various typeidx type
+        // constructors to match the preceding sort.
+      }
+    };
+
+    for (const DefType &T : Sec.getContent()) {
+      std::visit(DefTypeVisitor{}, T);
+    }
     // TODO: Validation of resourcetype requires the destructor (if present) to
     // have type [i32] -> [].
-
-    // TODO: Validation of instancedecl (currently) only allows the type and
-    // instance sorts in alias declarators.
-
-    // TODO: As described in the explainer, each component and instance type is
-    // validated with an initially-empty type index space. Outer aliases can
-    // be used to pull in type definitions from containing components.
-
-    // TODO: Validation rejects resourcetype type definitions inside
-    // componenttype and instancettype. Thus, handle types inside a
-    // componenttype can only refer to resource types that are imported or
-    // exported.
-
-    // TODO: Validation of externdesc requires the various typeidx type
-    // constructors to match the preceding sort.
   }
   void operator()(const CanonSection &) {
     // TODO: Validation prevents duplicate or conflicting canonopt.

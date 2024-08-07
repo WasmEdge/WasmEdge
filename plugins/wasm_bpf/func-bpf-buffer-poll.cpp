@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "func-bpf-buffer-poll.h"
 #include "wasmedge/wasmedge.h"
@@ -12,6 +12,7 @@ namespace Host {
 inline const auto *toCallFrameCxt(const Runtime::CallingFrame *Cxt) noexcept {
   return reinterpret_cast<const WasmEdge_CallingFrameContext *>(Cxt);
 }
+
 Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
                                     handle_t program, int32_t fd,
                                     int32_t sample_func, uint32_t ctx,

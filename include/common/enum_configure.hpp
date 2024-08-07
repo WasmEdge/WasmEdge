@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/common/enum_configure.hpp - Configure C++ enumerations ---===//
 //
@@ -41,8 +41,7 @@ static inline constexpr auto ProposalStr = []() constexpr {
 #undef UseProposal
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 /// Host Module Registration C++ enumeration class.
 enum class HostRegistration : uint8_t {

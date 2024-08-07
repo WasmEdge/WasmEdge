@@ -41,7 +41,6 @@ For known public security vulnerabilities, we will disclose the disclosure as so
 * Fork the temporary private repository on Github, and collaborate to fix the vulnerability.
 * After the fix code is merged into all supported versions, the vulnerability will be publicly posted in the GitHub Advisory Database.
 
-
 ## Supported Versions
 
 Information regarding supported versions of WasmEdge are in the below table:

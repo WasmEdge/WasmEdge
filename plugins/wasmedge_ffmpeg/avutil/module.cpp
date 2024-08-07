@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "module.h"
 #include "avDictionary.h"
 #include "avFrame.h"
@@ -16,7 +19,6 @@ namespace AVUtil {
 WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
     std::shared_ptr<WasmEdgeFFmpegEnv> Env)
     : ModuleInstance("wasmedge_ffmpeg_avutil") {
-
   // error.h
   addHostFunc("wasmedge_ffmpeg_avutil_av_strerror",
               std::make_unique<AVUtilAVStrError>(Env));

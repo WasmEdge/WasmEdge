@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
 
 extern "C" {
@@ -3515,244 +3518,352 @@ public:
   // Check This function. (Looks good, test it)
   static uint64_t fromChannelLayoutID(uint64_t ChannelLayout) {
     uint64_t Channel = 0UL;
-    if (ChannelLayout & FRONT_LEFT)
+    if (ChannelLayout & FRONT_LEFT) {
       Channel |= AV_CH_FRONT_LEFT;
-    if (ChannelLayout & FRONT_RIGHT)
+    }
+    if (ChannelLayout & FRONT_RIGHT) {
       Channel |= AV_CH_FRONT_RIGHT;
-    if (ChannelLayout & FRONT_CENTER)
+    }
+    if (ChannelLayout & FRONT_CENTER) {
       Channel |= AV_CH_FRONT_CENTER;
-    if (ChannelLayout & LOW_FREQUENCY)
+    }
+    if (ChannelLayout & LOW_FREQUENCY) {
       Channel |= AV_CH_LOW_FREQUENCY;
-    if (ChannelLayout & BACK_LEFT)
+    }
+    if (ChannelLayout & BACK_LEFT) {
       Channel |= AV_CH_BACK_LEFT;
-    if (ChannelLayout & BACK_RIGHT)
+    }
+    if (ChannelLayout & BACK_RIGHT) {
       Channel |= AV_CH_BACK_RIGHT;
-    if (ChannelLayout & FRONT_LEFT_OF_CENTER)
+    }
+    if (ChannelLayout & FRONT_LEFT_OF_CENTER) {
       Channel |= AV_CH_FRONT_LEFT_OF_CENTER;
-    if (ChannelLayout & FRONT_RIGHT_OF_CENTER)
+    }
+    if (ChannelLayout & FRONT_RIGHT_OF_CENTER) {
       Channel |= AV_CH_FRONT_RIGHT_OF_CENTER;
-    if (ChannelLayout & BACK_CENTER)
+    }
+    if (ChannelLayout & BACK_CENTER) {
       Channel |= AV_CH_BACK_CENTER;
-    if (ChannelLayout & SIDE_LEFT)
+    }
+    if (ChannelLayout & SIDE_LEFT) {
       Channel |= AV_CH_SIDE_LEFT;
-    if (ChannelLayout & SIDE_RIGHT)
+    }
+    if (ChannelLayout & SIDE_RIGHT) {
       Channel |= AV_CH_SIDE_RIGHT;
-    if (ChannelLayout & TOP_CENTER)
+    }
+    if (ChannelLayout & TOP_CENTER) {
       Channel |= AV_CH_TOP_CENTER;
-    if (ChannelLayout & TOP_FRONT_LEFT)
+    }
+    if (ChannelLayout & TOP_FRONT_LEFT) {
       Channel |= AV_CH_TOP_FRONT_LEFT;
-    if (ChannelLayout & TOP_FRONT_CENTER)
+    }
+    if (ChannelLayout & TOP_FRONT_CENTER) {
       Channel |= AV_CH_TOP_FRONT_CENTER;
-    if (ChannelLayout & TOP_FRONT_RIGHT)
+    }
+    if (ChannelLayout & TOP_FRONT_RIGHT) {
       Channel |= AV_CH_TOP_FRONT_RIGHT;
-    if (ChannelLayout & TOP_BACK_LEFT)
+    }
+    if (ChannelLayout & TOP_BACK_LEFT) {
       Channel |= AV_CH_TOP_BACK_LEFT;
-    if (ChannelLayout & TOP_BACK_CENTER)
+    }
+    if (ChannelLayout & TOP_BACK_CENTER) {
       Channel |= AV_CH_TOP_BACK_CENTER;
-    if (ChannelLayout & TOP_BACK_RIGHT)
+    }
+    if (ChannelLayout & TOP_BACK_RIGHT) {
       Channel |= AV_CH_TOP_BACK_RIGHT;
-    if (ChannelLayout & STEREO_LEFT)
+    }
+    if (ChannelLayout & STEREO_LEFT) {
       Channel |= AV_CH_STEREO_LEFT;
-    if (ChannelLayout & STEREO_RIGHT)
+    }
+    if (ChannelLayout & STEREO_RIGHT) {
       Channel |= AV_CH_STEREO_RIGHT;
-    if (ChannelLayout & WIDE_LEFT)
+    }
+    if (ChannelLayout & WIDE_LEFT) {
       Channel |= AV_CH_WIDE_LEFT;
-    if (ChannelLayout & WIDE_RIGHT)
+    }
+    if (ChannelLayout & WIDE_RIGHT) {
       Channel |= AV_CH_WIDE_RIGHT;
-    if (ChannelLayout & SURROUND_DIRECT_LEFT)
+    }
+    if (ChannelLayout & SURROUND_DIRECT_LEFT) {
       Channel |= AV_CH_SURROUND_DIRECT_LEFT;
-    if (ChannelLayout & SURROUND_DIRECT_RIGHT)
+    }
+    if (ChannelLayout & SURROUND_DIRECT_RIGHT) {
       Channel |= AV_CH_SURROUND_DIRECT_RIGHT;
-    if (ChannelLayout & LOW_FREQUENCY_2)
+    }
+    if (ChannelLayout & LOW_FREQUENCY_2) {
       Channel |= AV_CH_LOW_FREQUENCY_2;
-    if (ChannelLayout & NATIVE)
+    }
+    if (ChannelLayout & NATIVE) {
       Channel |= AV_CH_LAYOUT_NATIVE;
-    if (ChannelLayout & MONO)
+    }
+    if (ChannelLayout & MONO) {
       Channel |= AV_CH_LAYOUT_MONO;
-    if (ChannelLayout & STEREO)
+    }
+    if (ChannelLayout & STEREO) {
       Channel |= AV_CH_LAYOUT_STEREO;
-    if (ChannelLayout & _2POINT1)
+    }
+    if (ChannelLayout & _2POINT1) {
       Channel |= AV_CH_LAYOUT_2POINT1;
-    if (ChannelLayout & _2_1)
+    }
+    if (ChannelLayout & _2_1) {
       Channel |= AV_CH_LAYOUT_2_1;
-    if (ChannelLayout & SURROUND)
+    }
+    if (ChannelLayout & SURROUND) {
       Channel |= AV_CH_LAYOUT_SURROUND;
-    if (ChannelLayout & _3POINT1)
+    }
+    if (ChannelLayout & _3POINT1) {
       Channel |= AV_CH_LAYOUT_3POINT1;
-    if (ChannelLayout & _4POINT0)
+    }
+    if (ChannelLayout & _4POINT0) {
       Channel |= AV_CH_LAYOUT_4POINT0;
-    if (ChannelLayout & _4POINT1)
+    }
+    if (ChannelLayout & _4POINT1) {
       Channel |= AV_CH_LAYOUT_4POINT1;
-    if (ChannelLayout & _2_2)
+    }
+    if (ChannelLayout & _2_2) {
       Channel |= AV_CH_LAYOUT_2_2;
-    if (ChannelLayout & QUAD)
+    }
+    if (ChannelLayout & QUAD) {
       Channel |= AV_CH_LAYOUT_QUAD;
-    if (ChannelLayout & _5POINT0)
+    }
+    if (ChannelLayout & _5POINT0) {
       Channel |= AV_CH_LAYOUT_5POINT0;
-    if (ChannelLayout & _5POINT1)
+    }
+    if (ChannelLayout & _5POINT1) {
       Channel |= AV_CH_LAYOUT_5POINT1;
-    if (ChannelLayout & _5POINT0_BACK)
+    }
+    if (ChannelLayout & _5POINT0_BACK) {
       Channel |= AV_CH_LAYOUT_5POINT0_BACK;
-    if (ChannelLayout & _5POINT1_BACK)
+    }
+    if (ChannelLayout & _5POINT1_BACK) {
       Channel |= AV_CH_LAYOUT_5POINT1_BACK;
-    if (ChannelLayout & _6POINT0)
+    }
+    if (ChannelLayout & _6POINT0) {
       Channel |= AV_CH_LAYOUT_6POINT0;
-    if (ChannelLayout & _6POINT0_FRONT)
+    }
+    if (ChannelLayout & _6POINT0_FRONT) {
       Channel |= AV_CH_LAYOUT_6POINT0_FRONT;
-    if (ChannelLayout & HEXAGONAL)
+    }
+    if (ChannelLayout & HEXAGONAL) {
       Channel |= AV_CH_LAYOUT_HEXAGONAL;
-    if (ChannelLayout & _6POINT1)
+    }
+    if (ChannelLayout & _6POINT1) {
       Channel |= AV_CH_LAYOUT_6POINT1;
-    if (ChannelLayout & _6POINT1_BACK)
+    }
+    if (ChannelLayout & _6POINT1_BACK) {
       Channel |= AV_CH_LAYOUT_6POINT1_BACK;
-    if (ChannelLayout & _6POINT1_FRONT)
+    }
+    if (ChannelLayout & _6POINT1_FRONT) {
       Channel |= AV_CH_LAYOUT_6POINT1_FRONT;
-    if (ChannelLayout & _7POINT0)
+    }
+    if (ChannelLayout & _7POINT0) {
       Channel |= AV_CH_LAYOUT_7POINT0;
-    if (ChannelLayout & _7POINT0_FRONT)
+    }
+    if (ChannelLayout & _7POINT0_FRONT) {
       Channel |= AV_CH_LAYOUT_7POINT0_FRONT;
-    if (ChannelLayout & _7POINT1)
+    }
+    if (ChannelLayout & _7POINT1) {
       Channel |= AV_CH_LAYOUT_7POINT1;
-    if (ChannelLayout & _7POINT1_WIDE)
+    }
+    if (ChannelLayout & _7POINT1_WIDE) {
       Channel |= AV_CH_LAYOUT_7POINT1_WIDE;
-    if (ChannelLayout & _7POINT1_WIDE_BACK)
+    }
+    if (ChannelLayout & _7POINT1_WIDE_BACK) {
       Channel |= AV_CH_LAYOUT_7POINT1_WIDE_BACK;
-    if (ChannelLayout & OCTAGONAL)
+    }
+    if (ChannelLayout & OCTAGONAL) {
       Channel |= AV_CH_LAYOUT_OCTAGONAL;
-    if (ChannelLayout & HEXADECAGONAL)
+    }
+    if (ChannelLayout & HEXADECAGONAL) {
       Channel |= AV_CH_LAYOUT_HEXADECAGONAL;
-    if (ChannelLayout & STEREO_DOWNMIX)
+    }
+    if (ChannelLayout & STEREO_DOWNMIX) {
       Channel |= AV_CH_LAYOUT_STEREO_DOWNMIX;
+    }
     return Channel;
   }
 
   // Perfect Logic :)
   static uint64_t intoChannelLayoutID(uint64_t ChannelLayout) {
     uint64_t Channel = 0;
-    if ((ChannelLayout & AV_CH_FRONT_LEFT) == AV_CH_FRONT_LEFT)
+    if ((ChannelLayout & AV_CH_FRONT_LEFT) == AV_CH_FRONT_LEFT) {
       Channel |= FRONT_LEFT;
-    if ((ChannelLayout & AV_CH_FRONT_RIGHT) == AV_CH_FRONT_RIGHT)
+    }
+    if ((ChannelLayout & AV_CH_FRONT_RIGHT) == AV_CH_FRONT_RIGHT) {
       Channel |= FRONT_RIGHT;
-    if ((ChannelLayout & AV_CH_FRONT_CENTER) == AV_CH_FRONT_CENTER)
+    }
+    if ((ChannelLayout & AV_CH_FRONT_CENTER) == AV_CH_FRONT_CENTER) {
       Channel |= FRONT_CENTER;
-    if ((ChannelLayout & AV_CH_LOW_FREQUENCY) == AV_CH_LOW_FREQUENCY)
+    }
+    if ((ChannelLayout & AV_CH_LOW_FREQUENCY) == AV_CH_LOW_FREQUENCY) {
       Channel |= LOW_FREQUENCY;
-    if ((ChannelLayout & AV_CH_BACK_LEFT) == AV_CH_BACK_LEFT)
+    }
+    if ((ChannelLayout & AV_CH_BACK_LEFT) == AV_CH_BACK_LEFT) {
       Channel |= BACK_LEFT;
-    if ((ChannelLayout & AV_CH_BACK_RIGHT) == AV_CH_BACK_RIGHT)
+    }
+    if ((ChannelLayout & AV_CH_BACK_RIGHT) == AV_CH_BACK_RIGHT) {
       Channel |= BACK_RIGHT;
+    }
     if ((ChannelLayout & AV_CH_FRONT_LEFT_OF_CENTER) ==
-        AV_CH_FRONT_LEFT_OF_CENTER)
+        AV_CH_FRONT_LEFT_OF_CENTER) {
       Channel |= FRONT_LEFT_OF_CENTER;
+    }
     if ((ChannelLayout & AV_CH_FRONT_RIGHT_OF_CENTER) ==
-        AV_CH_FRONT_RIGHT_OF_CENTER)
+        AV_CH_FRONT_RIGHT_OF_CENTER) {
       Channel |= FRONT_RIGHT_OF_CENTER;
-    if ((ChannelLayout & AV_CH_BACK_CENTER) == AV_CH_BACK_CENTER)
+    }
+    if ((ChannelLayout & AV_CH_BACK_CENTER) == AV_CH_BACK_CENTER) {
       Channel |= BACK_CENTER;
-    if ((ChannelLayout & AV_CH_SIDE_LEFT) == AV_CH_SIDE_LEFT)
+    }
+    if ((ChannelLayout & AV_CH_SIDE_LEFT) == AV_CH_SIDE_LEFT) {
       Channel |= SIDE_LEFT;
-    if ((ChannelLayout & AV_CH_SIDE_RIGHT) == AV_CH_SIDE_RIGHT)
+    }
+    if ((ChannelLayout & AV_CH_SIDE_RIGHT) == AV_CH_SIDE_RIGHT) {
       Channel |= SIDE_RIGHT;
-    if ((ChannelLayout & AV_CH_TOP_CENTER) == AV_CH_TOP_CENTER)
+    }
+    if ((ChannelLayout & AV_CH_TOP_CENTER) == AV_CH_TOP_CENTER) {
       Channel |= TOP_CENTER;
-    if ((ChannelLayout & AV_CH_TOP_FRONT_LEFT) == AV_CH_TOP_FRONT_LEFT)
+    }
+    if ((ChannelLayout & AV_CH_TOP_FRONT_LEFT) == AV_CH_TOP_FRONT_LEFT) {
       Channel |= TOP_FRONT_LEFT;
-    if ((ChannelLayout & AV_CH_TOP_FRONT_CENTER) == AV_CH_TOP_FRONT_CENTER)
+    }
+    if ((ChannelLayout & AV_CH_TOP_FRONT_CENTER) == AV_CH_TOP_FRONT_CENTER) {
       Channel |= TOP_FRONT_CENTER;
-    if ((ChannelLayout & AV_CH_TOP_FRONT_RIGHT) == AV_CH_TOP_FRONT_RIGHT)
+    }
+    if ((ChannelLayout & AV_CH_TOP_FRONT_RIGHT) == AV_CH_TOP_FRONT_RIGHT) {
       Channel |= TOP_FRONT_RIGHT;
-    if ((ChannelLayout & AV_CH_TOP_BACK_LEFT) == AV_CH_TOP_BACK_LEFT)
+    }
+    if ((ChannelLayout & AV_CH_TOP_BACK_LEFT) == AV_CH_TOP_BACK_LEFT) {
       Channel |= TOP_BACK_LEFT;
-    if ((ChannelLayout & AV_CH_TOP_BACK_CENTER) == AV_CH_TOP_BACK_CENTER)
+    }
+    if ((ChannelLayout & AV_CH_TOP_BACK_CENTER) == AV_CH_TOP_BACK_CENTER) {
       Channel |= TOP_BACK_CENTER;
-    if ((ChannelLayout & AV_CH_TOP_BACK_RIGHT) == AV_CH_TOP_BACK_RIGHT)
+    }
+    if ((ChannelLayout & AV_CH_TOP_BACK_RIGHT) == AV_CH_TOP_BACK_RIGHT) {
       Channel |= TOP_BACK_RIGHT;
-    if ((ChannelLayout & AV_CH_STEREO_LEFT) == AV_CH_STEREO_LEFT)
+    }
+    if ((ChannelLayout & AV_CH_STEREO_LEFT) == AV_CH_STEREO_LEFT) {
       Channel |= STEREO_LEFT;
-    if ((ChannelLayout & AV_CH_STEREO_RIGHT) == AV_CH_STEREO_RIGHT)
+    }
+    if ((ChannelLayout & AV_CH_STEREO_RIGHT) == AV_CH_STEREO_RIGHT) {
       Channel |= STEREO_RIGHT;
-    if ((ChannelLayout & AV_CH_WIDE_LEFT) == AV_CH_WIDE_LEFT)
+    }
+    if ((ChannelLayout & AV_CH_WIDE_LEFT) == AV_CH_WIDE_LEFT) {
       Channel |= WIDE_LEFT;
-    if ((ChannelLayout & AV_CH_WIDE_RIGHT) == AV_CH_WIDE_RIGHT)
+    }
+    if ((ChannelLayout & AV_CH_WIDE_RIGHT) == AV_CH_WIDE_RIGHT) {
       Channel |= WIDE_RIGHT;
+    }
     if ((ChannelLayout & AV_CH_SURROUND_DIRECT_LEFT) ==
-        AV_CH_SURROUND_DIRECT_LEFT)
+        AV_CH_SURROUND_DIRECT_LEFT) {
       Channel |= SURROUND_DIRECT_LEFT;
+    }
     if ((ChannelLayout & AV_CH_SURROUND_DIRECT_RIGHT) ==
-        AV_CH_SURROUND_DIRECT_RIGHT)
+        AV_CH_SURROUND_DIRECT_RIGHT) {
       Channel |= SURROUND_DIRECT_RIGHT;
-    if ((ChannelLayout & AV_CH_LOW_FREQUENCY_2) == AV_CH_LOW_FREQUENCY_2)
+    }
+    if ((ChannelLayout & AV_CH_LOW_FREQUENCY_2) == AV_CH_LOW_FREQUENCY_2) {
       Channel |= LOW_FREQUENCY_2;
+    }
 
     // Channel Mask C;
-    if ((ChannelLayout & AV_CH_LAYOUT_NATIVE) == AV_CH_LAYOUT_NATIVE)
+    if ((ChannelLayout & AV_CH_LAYOUT_NATIVE) == AV_CH_LAYOUT_NATIVE) {
       Channel |= NATIVE;
-    if ((ChannelLayout & AV_CH_LAYOUT_MONO) == AV_CH_LAYOUT_MONO)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_MONO) == AV_CH_LAYOUT_MONO) {
       Channel |= MONO;
-    if ((ChannelLayout & AV_CH_LAYOUT_STEREO) == AV_CH_LAYOUT_STEREO)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_STEREO) == AV_CH_LAYOUT_STEREO) {
       Channel |= STEREO;
-    if ((ChannelLayout & AV_CH_LAYOUT_2POINT1) == AV_CH_LAYOUT_2POINT1)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_2POINT1) == AV_CH_LAYOUT_2POINT1) {
       Channel |= _2POINT1;
-    if ((ChannelLayout & AV_CH_LAYOUT_2_1) == AV_CH_LAYOUT_2_1)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_2_1) == AV_CH_LAYOUT_2_1) {
       Channel |= _2_1;
-    if ((ChannelLayout & AV_CH_LAYOUT_SURROUND) == AV_CH_LAYOUT_SURROUND)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_SURROUND) == AV_CH_LAYOUT_SURROUND) {
       Channel |= SURROUND;
-    if ((ChannelLayout & AV_CH_LAYOUT_3POINT1) == AV_CH_LAYOUT_3POINT1)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_3POINT1) == AV_CH_LAYOUT_3POINT1) {
       Channel |= _3POINT1;
-    if ((ChannelLayout & AV_CH_LAYOUT_4POINT0) == AV_CH_LAYOUT_4POINT0)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_4POINT0) == AV_CH_LAYOUT_4POINT0) {
       Channel |= _4POINT0;
-    if ((ChannelLayout & AV_CH_LAYOUT_4POINT1) == AV_CH_LAYOUT_4POINT1)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_4POINT1) == AV_CH_LAYOUT_4POINT1) {
       Channel |= _4POINT1;
-    if ((ChannelLayout & AV_CH_LAYOUT_2_2) == AV_CH_LAYOUT_2_2)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_2_2) == AV_CH_LAYOUT_2_2) {
       Channel |= _2_2;
-    if ((ChannelLayout & AV_CH_LAYOUT_QUAD) == AV_CH_LAYOUT_QUAD)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_QUAD) == AV_CH_LAYOUT_QUAD) {
       Channel |= QUAD;
-    if ((ChannelLayout & AV_CH_LAYOUT_5POINT0) == AV_CH_LAYOUT_5POINT0)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_5POINT0) == AV_CH_LAYOUT_5POINT0) {
       Channel |= _5POINT0;
-    if ((ChannelLayout & AV_CH_LAYOUT_5POINT1) == AV_CH_LAYOUT_5POINT1)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_5POINT1) == AV_CH_LAYOUT_5POINT1) {
       Channel |= _5POINT1;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_5POINT0_BACK) ==
-        AV_CH_LAYOUT_5POINT0_BACK)
+        AV_CH_LAYOUT_5POINT0_BACK) {
       Channel |= _5POINT0_BACK;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_5POINT1_BACK) ==
-        AV_CH_LAYOUT_5POINT1_BACK)
+        AV_CH_LAYOUT_5POINT1_BACK) {
       Channel |= _5POINT1_BACK;
-    if ((ChannelLayout & AV_CH_LAYOUT_6POINT0) == AV_CH_LAYOUT_6POINT0)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_6POINT0) == AV_CH_LAYOUT_6POINT0) {
       Channel |= _6POINT0;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_6POINT0_FRONT) ==
-        AV_CH_LAYOUT_6POINT0_FRONT)
+        AV_CH_LAYOUT_6POINT0_FRONT) {
       Channel |= _6POINT0_FRONT;
-    if ((ChannelLayout & AV_CH_LAYOUT_HEXAGONAL) == AV_CH_LAYOUT_HEXAGONAL)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_HEXAGONAL) == AV_CH_LAYOUT_HEXAGONAL) {
       Channel |= HEXAGONAL;
-    if ((ChannelLayout & AV_CH_LAYOUT_6POINT1) == AV_CH_LAYOUT_6POINT1)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_6POINT1) == AV_CH_LAYOUT_6POINT1) {
       Channel |= _6POINT1;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_6POINT1_BACK) ==
-        AV_CH_LAYOUT_6POINT1_BACK)
+        AV_CH_LAYOUT_6POINT1_BACK) {
       Channel |= _6POINT1_BACK;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_6POINT1_FRONT) ==
-        AV_CH_LAYOUT_6POINT1_FRONT)
+        AV_CH_LAYOUT_6POINT1_FRONT) {
       Channel |= _6POINT1_FRONT;
-    if ((ChannelLayout & AV_CH_LAYOUT_7POINT0) == AV_CH_LAYOUT_7POINT0)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_7POINT0) == AV_CH_LAYOUT_7POINT0) {
       Channel |= _7POINT0;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_7POINT0_FRONT) ==
-        AV_CH_LAYOUT_7POINT0_FRONT)
+        AV_CH_LAYOUT_7POINT0_FRONT) {
       Channel |= _7POINT0_FRONT;
-    if ((ChannelLayout & AV_CH_LAYOUT_7POINT1) == AV_CH_LAYOUT_7POINT1)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_7POINT1) == AV_CH_LAYOUT_7POINT1) {
       Channel |= _7POINT1;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_7POINT1_WIDE) ==
-        AV_CH_LAYOUT_7POINT1_WIDE)
+        AV_CH_LAYOUT_7POINT1_WIDE) {
       Channel |= _7POINT1_WIDE;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_7POINT1_WIDE_BACK) ==
-        AV_CH_LAYOUT_7POINT1_WIDE_BACK)
+        AV_CH_LAYOUT_7POINT1_WIDE_BACK) {
       Channel |= _7POINT1_WIDE_BACK;
-    if ((ChannelLayout & AV_CH_LAYOUT_OCTAGONAL) == AV_CH_LAYOUT_OCTAGONAL)
+    }
+    if ((ChannelLayout & AV_CH_LAYOUT_OCTAGONAL) == AV_CH_LAYOUT_OCTAGONAL) {
       Channel |= OCTAGONAL;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_HEXADECAGONAL) ==
-        AV_CH_LAYOUT_HEXADECAGONAL)
+        AV_CH_LAYOUT_HEXADECAGONAL) {
       Channel |= HEXADECAGONAL;
+    }
     if ((ChannelLayout & AV_CH_LAYOUT_STEREO_DOWNMIX) ==
-        AV_CH_LAYOUT_STEREO_DOWNMIX)
+        AV_CH_LAYOUT_STEREO_DOWNMIX) {
       Channel |= STEREO_DOWNMIX;
+    }
     return Channel;
   }
 };

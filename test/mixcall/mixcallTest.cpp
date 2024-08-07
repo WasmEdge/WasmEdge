@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/configure.h"
 #include "common/errinfo.h"
@@ -129,7 +129,8 @@ bool compileModule(const WasmEdge::Configure &Conf, std::string_view InPath,
       .and_then([&]() noexcept { return Compiler.compile(*Module); })
       .and_then([&](auto Result) noexcept {
         return CodeGen.codegen(Data, std::move(Result), OutPath);
-      }).has_value();
+      })
+      .has_value();
 }
 
 TEST(MixCallTest, Call__InterpCallAOT) {

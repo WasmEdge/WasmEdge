@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "FunctionTypeInstance.h"
 #include "FunctionTypeContext.h"
@@ -24,17 +24,16 @@ WasmEdge_Result HostFuncWrap(void *This, void *Data,
   jstring jFuncKey = (*env)->NewStringUTF(env, funcKey);
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_WASMEDGEVM);
-  jmethodID funcGetter = (*env)->GetStaticMethodID(
-      env, clazz, GET_HOST_FUNC, STRING_HOSTFUNCTION);
+  jmethodID funcGetter =
+      (*env)->GetStaticMethodID(env, clazz, GET_HOST_FUNC, STRING_HOSTFUNCTION);
 
   jobject jFunc =
       (*env)->CallStaticObjectMethod(env, clazz, funcGetter, jFuncKey);
 
   jclass jFuncClass = (*env)->GetObjectClass(env, jFunc);
 
-  jmethodID funcMethod =
-      (*env)->GetMethodID(env, jFuncClass, APPLY,
-                          MEMORYINSTANCECONTEXTLIST_RESULT);
+  jmethodID funcMethod = (*env)->GetMethodID(env, jFuncClass, APPLY,
+                                             MEMORYINSTANCECONTEXTLIST_RESULT);
 
   // TODO replace with CallingFrameContext
   jobject jMem =
@@ -97,7 +96,8 @@ jobject createJFunctionInstanceContext(
   }
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_FUNCTIONINSTANCECONTEXT);
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)funcInstance);
 }
 

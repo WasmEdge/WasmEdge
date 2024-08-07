@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_GlobalInstanceContext.h"
 #include "TableTypeContext.h"
@@ -42,7 +42,8 @@ JNIEXPORT jobject JNICALL Java_org_wasmedge_TableInstanceContext_getData(
       getTableInstanceContext(env, thisObject);
 
   jclass typeClass = (*env)->GetObjectClass(env, jValType);
-  jmethodID typeGetter = (*env)->GetMethodID(env, typeClass, GET_VALUE, VOID_INT);
+  jmethodID typeGetter =
+      (*env)->GetMethodID(env, typeClass, GET_VALUE, VOID_INT);
 
   jint valType = (*env)->CallIntMethod(env, jValType, typeGetter);
 
@@ -99,6 +100,7 @@ createJTableInstanceContext(JNIEnv *env,
   }
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_TABLEINSTANCECONTEXT);
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)tabInstance);
 }

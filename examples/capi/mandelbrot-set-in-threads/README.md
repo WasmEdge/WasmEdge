@@ -26,7 +26,7 @@ Please follows the [installation step](https://wasmedge.org/book/en/quick_start/
 
 Colin Eberhardt wrote a [blog - Exploring different approaches to building WebAssembly modules](https://blog.scottlogic.com/2017/10/17/wasm-mandelbrot.html) that demonstrate how to compile Mandelbrot set rendering C code into WASM. Please refer to his blog for more information. We use `LLVM-12` to compile the code into WASM. Furthermore, We adopted it into a multi-worker version that parallelly renders the image. We split the image into multiple strides in the y-direction, and assign each thread a stride. As illustrated in the figure below, the image is split into 4 strides and assigned to 4 threads.
 
-![](https://i.imgur.com/hd0pUAF.jpg)
+![Mandelbrot picture](https://i.imgur.com/hd0pUAF.jpg)
 
 #### Mandelbrot in Multi-Thread
 

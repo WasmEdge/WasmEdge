@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "ffmpeg_env.h"
 #include "avcodec/module.h"
 #include "avdevice/module.h"
@@ -108,5 +111,6 @@ std::weak_ptr<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv>
         std::make_shared<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv>();
 
 std::shared_mutex WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::Mutex;
+
 } // namespace Host
 } // namespace WasmEdge

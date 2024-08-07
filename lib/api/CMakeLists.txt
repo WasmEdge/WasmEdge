@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 find_package(spdlog QUIET)
 add_definitions(-DWASMEDGE_COMPILE_LIBRARY)

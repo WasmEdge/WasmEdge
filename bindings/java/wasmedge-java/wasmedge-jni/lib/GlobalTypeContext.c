@@ -1,7 +1,7 @@
 //
 // Created by Kenvi Zhu on 2021-12-07.
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_GlobalTypeContext.h"
 #include "common.h"
@@ -22,7 +22,8 @@ createJGlobalTypeContext(JNIEnv *env,
                          const WasmEdge_GlobalTypeContext *globalTypeContext) {
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_GLOBALTYPECONTEXT);
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)globalTypeContext);
 }
 JNIEXPORT void JNICALL

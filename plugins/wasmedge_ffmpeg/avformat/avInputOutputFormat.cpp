@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avInputOutputFormat.h"
 
 extern "C" {
@@ -12,7 +15,6 @@ namespace AVFormat {
 Expect<int32_t> AVIOFormatNameLength::body(const Runtime::CallingFrame &,
                                            uint32_t AVIOFormatId,
                                            uint32_t FormatType) {
-
   const char *Name;
 
   if (FormatType == 0) {
@@ -23,15 +25,15 @@ Expect<int32_t> AVIOFormatNameLength::body(const Runtime::CallingFrame &,
     Name = AvOutputFormat->name;
   }
 
-  if (Name == nullptr)
+  if (Name == nullptr) {
     return 0;
+  }
   return strlen(Name);
 }
 
 Expect<int32_t> AVInputFormatName::body(const Runtime::CallingFrame &Frame,
                                         uint32_t AVInputFormatId,
                                         uint32_t NamePtr, uint32_t NameLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
@@ -44,7 +46,6 @@ Expect<int32_t> AVInputFormatName::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVOutputFormatName::body(const Runtime::CallingFrame &Frame,
                                          uint32_t AVOutputFormatId,
                                          uint32_t NamePtr, uint32_t NameLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
@@ -57,7 +58,6 @@ Expect<int32_t> AVOutputFormatName::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVIOFormatLongNameLength::body(const Runtime::CallingFrame &,
                                                uint32_t AVIOFormatId,
                                                uint32_t FormatType) {
-
   const char *LongName;
 
   if (FormatType == 0) {
@@ -68,8 +68,9 @@ Expect<int32_t> AVIOFormatLongNameLength::body(const Runtime::CallingFrame &,
     LongName = AvOutputFormat->long_name;
   }
 
-  if (LongName == nullptr)
+  if (LongName == nullptr) {
     return 0;
+  }
   return strlen(LongName);
 }
 
@@ -77,7 +78,6 @@ Expect<int32_t> AVInputFormatLongName::body(const Runtime::CallingFrame &Frame,
                                             uint32_t AVInputFormatId,
                                             uint32_t LongNamePtr,
                                             uint32_t LongNameLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(LongNameBuf, MemInst, char, LongNamePtr, LongNameLen, "");
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
@@ -91,7 +91,6 @@ Expect<int32_t> AVOutputFormatLongName::body(const Runtime::CallingFrame &Frame,
                                              uint32_t AVOutputFormatId,
                                              uint32_t LongNamePtr,
                                              uint32_t LongNameLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(LongNameBuf, MemInst, char, LongNamePtr, LongNameLen, "");
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
@@ -104,7 +103,6 @@ Expect<int32_t> AVOutputFormatLongName::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVIOFormatExtensionsLength::body(const Runtime::CallingFrame &,
                                                  uint32_t AVIOFormatId,
                                                  uint32_t FormatType) {
-
   const char *Extensions;
 
   if (FormatType == 0) {
@@ -115,8 +113,9 @@ Expect<int32_t> AVIOFormatExtensionsLength::body(const Runtime::CallingFrame &,
     Extensions = AvOutputFormat->extensions;
   }
 
-  if (Extensions == nullptr)
+  if (Extensions == nullptr) {
     return 0;
+  }
   return strlen(Extensions);
 }
 
@@ -124,7 +123,6 @@ Expect<int32_t>
 AVInputFormatExtensions::body(const Runtime::CallingFrame &Frame,
                               uint32_t AVInputFormatId, uint32_t ExtensionsPtr,
                               uint32_t ExtensionsLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(ExtensionsBuf, MemInst, char, ExtensionsPtr, ExtensionsLen,
                  "");
@@ -139,7 +137,6 @@ Expect<int32_t>
 AVOutputFormatExtensions::body(const Runtime::CallingFrame &Frame,
                                uint32_t AVOutputFormatId,
                                uint32_t ExtensionsPtr, uint32_t ExtensionsLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(ExtensionsBuf, MemInst, char, ExtensionsPtr, ExtensionsLen,
                  "");
@@ -163,8 +160,9 @@ Expect<int32_t> AVIOFormatMimeTypeLength::body(const Runtime::CallingFrame &,
     MimeType = AvOutputFormat->mime_type;
   }
 
-  if (MimeType == nullptr)
+  if (MimeType == nullptr) {
     return 0;
+  }
   return strlen(MimeType);
 }
 
@@ -172,7 +170,6 @@ Expect<int32_t> AVInputFormatMimeType::body(const Runtime::CallingFrame &Frame,
                                             uint32_t AVInputFormatId,
                                             uint32_t MimeTypePtr,
                                             uint32_t MimeTypeLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(MimeTypeBuf, MemInst, char, MimeTypePtr, MimeTypeLen, "");
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
@@ -186,7 +183,6 @@ Expect<int32_t> AVOutputFormatMimeType::body(const Runtime::CallingFrame &Frame,
                                              uint32_t AVOutputFormatId,
                                              uint32_t MimeTypePtr,
                                              uint32_t MimeTypeLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(MimeTypeBuf, MemInst, char, MimeTypePtr, MimeTypeLen, "");
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
@@ -198,7 +194,6 @@ Expect<int32_t> AVOutputFormatMimeType::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t> AVOutputFormatFlags::body(const Runtime::CallingFrame &,
                                           uint32_t AVOutputFormatId) {
-
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
   return AvOutputFormat->flags;
 }

@@ -1,11 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
 
 #include "plugin/plugin.h"
 #include "types.h"
+
 #include <mutex>
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 #include <Python.h>
 #endif
+
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }

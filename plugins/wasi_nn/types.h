@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #pragma once
+
 #include "common/span.h"
 #include "common/spdlog.h"
+
 #include <cstdint>
 
 namespace WasmEdge::Host::WASINN {

@@ -2,7 +2,7 @@
 // Created by Kenvi Zhu on 2022-01-12.
 //
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_GlobalInstanceContext.h"
 #include "GlobalTypeContext.h"
@@ -32,8 +32,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_GlobalInstanceContext_nativeSetValue(
   WasmEdge_GlobalInstanceSetValue(globalInstanceContext, value);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_GlobalInstanceContext_close(
-    JNIEnv *env, jobject thisObject) {
+JNIEXPORT void JNICALL
+Java_org_wasmedge_GlobalInstanceContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_GlobalInstanceContext *globalInstanceContext =
       getGlobalInstanceContext(env, thisObject);
   WasmEdge_GlobalInstanceDelete(globalInstanceContext);
@@ -48,6 +48,7 @@ jobject createJGlobalInstanceContext(
   }
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_GLOBALINSTANCECONTEXT);
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)globInstance);
 }

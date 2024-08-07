@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 set(WASMEDGE_INTERPROCEDURAL_OPTIMIZATION OFF)
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
@@ -183,8 +183,8 @@ endfunction()
 function(wasmedge_add_library target)
   add_library(${target} ${ARGN})
   wasmedge_setup_target(${target})
-  # Linux needs an explicit INSTALL_RPATH to allow libwasmedge.so to find libwasiNNRPC.so
-  # in the same directory
+  # Linux needs an explicit INSTALL_RPATH to allow libwasmedge.so to find
+  # libwasiNNRPC.so in the same directory.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     set_target_properties(${target} PROPERTIES
       INSTALL_RPATH "$ORIGIN"
@@ -337,6 +337,5 @@ function(wasmedge_setup_simdjson)
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # unreferenced local function has been removed
       )
     endif()
-
   endif()
 endfunction()

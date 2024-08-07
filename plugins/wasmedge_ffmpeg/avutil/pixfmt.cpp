@@ -1,4 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "pixfmt.h"
+
 extern "C" {
 #include "libavutil/pixdesc.h"
 }
@@ -21,7 +25,6 @@ AvPixFmtDescriptorNbComponents::body(const Runtime::CallingFrame &,
 Expect<int32_t>
 AvPixFmtDescriptorLog2ChromaW::body(const Runtime::CallingFrame &,
                                     uint32_t PixFormatId) {
-
   AVPixelFormat const PixelFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
   const AVPixFmtDescriptor *AvPixFmtDescriptor =
@@ -32,7 +35,6 @@ AvPixFmtDescriptorLog2ChromaW::body(const Runtime::CallingFrame &,
 Expect<int32_t>
 AvPixFmtDescriptorLog2ChromaH::body(const Runtime::CallingFrame &,
                                     uint32_t PixFormatId) {
-
   AVPixelFormat const PixelFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
   const AVPixFmtDescriptor *AvPixFmtDescriptor =
@@ -42,7 +44,6 @@ AvPixFmtDescriptorLog2ChromaH::body(const Runtime::CallingFrame &,
 
 Expect<int32_t> AVColorRangeNameLength::body(const Runtime::CallingFrame &,
                                              int32_t RangeId) {
-
   AVColorRange const ColorRange = static_cast<AVColorRange>(RangeId);
   const char *Name = av_color_range_name(ColorRange);
   return strlen(Name);
@@ -51,7 +52,6 @@ Expect<int32_t> AVColorRangeNameLength::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVColorRangeName::body(const Runtime::CallingFrame &Frame,
                                        int32_t RangeId, uint32_t RangeNamePtr,
                                        uint32_t RangeLength) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(RangeNameBuf, MemInst, char, RangeNamePtr, RangeLength, "");
 
@@ -63,7 +63,6 @@ Expect<int32_t> AVColorRangeName::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t> AVColorTransferNameLength::body(const Runtime::CallingFrame &,
                                                 int32_t TransferId) {
-
   AVColorTransferCharacteristic const Characteristic =
       static_cast<AVColorTransferCharacteristic>(TransferId);
   const char *Name = av_color_transfer_name(Characteristic);
@@ -74,7 +73,6 @@ Expect<int32_t> AVColorTransferName::body(const Runtime::CallingFrame &Frame,
                                           int32_t TransferId,
                                           uint32_t TransferNamePtr,
                                           uint32_t TransferLength) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(TransferNameBuf, MemInst, char, TransferNamePtr,
                  TransferLength, "");
@@ -88,7 +86,6 @@ Expect<int32_t> AVColorTransferName::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t> AVColorSpaceNameLength::body(const Runtime::CallingFrame &,
                                              int32_t ColorSpaceId) {
-
   AVColorSpace const ColorSpace = static_cast<AVColorSpace>(ColorSpaceId);
   const char *Name = av_color_space_name(ColorSpace);
   return strlen(Name);
@@ -98,7 +95,6 @@ Expect<int32_t> AVColorSpaceName::body(const Runtime::CallingFrame &Frame,
                                        int32_t ColorSpaceId,
                                        uint32_t ColorSpaceNamePtr,
                                        uint32_t ColorSpaceLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(ColorSpaceBuf, MemInst, char, ColorSpaceNamePtr, ColorSpaceLen,
                  "");
@@ -111,7 +107,6 @@ Expect<int32_t> AVColorSpaceName::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t> AVColorPrimariesNameLength::body(const Runtime::CallingFrame &,
                                                  int32_t ColorPrimariesId) {
-
   AVColorPrimaries const ColorPrimaries =
       FFmpegUtils::ColorPrimaries::intoAVColorPrimaries(ColorPrimariesId);
   const char *Name = av_color_primaries_name(ColorPrimaries);
@@ -122,7 +117,6 @@ Expect<int32_t> AVColorPrimariesName::body(const Runtime::CallingFrame &Frame,
                                            int32_t ColorPrimariesId,
                                            uint32_t ColorPrimariesNamePtr,
                                            uint32_t ColorPrimariesLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(ColorPrimariesBuf, MemInst, char, ColorPrimariesNamePtr,
                  ColorPrimariesLen, "");
@@ -136,7 +130,6 @@ Expect<int32_t> AVColorPrimariesName::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t> AVPixelFormatNameLength::body(const Runtime::CallingFrame &,
                                               uint32_t AvPixFormatId) {
-
   AVPixelFormat const PixFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(AvPixFormatId);
   const AVPixFmtDescriptor *PixFmtDescriptor = av_pix_fmt_desc_get(PixFormat);
@@ -148,7 +141,6 @@ Expect<int32_t> AVPixelFormatName::body(const Runtime::CallingFrame &Frame,
                                         uint32_t PixFormatId,
                                         uint32_t PixFormatNamePtr,
                                         uint32_t PixFormatNameLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(PixFormatBuf, MemInst, char, PixFormatNamePtr,
                  PixFormatNameLen, "");

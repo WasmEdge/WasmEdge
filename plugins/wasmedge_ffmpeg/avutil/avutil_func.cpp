@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avutil_func.h"
 
 extern "C" {
@@ -33,7 +36,6 @@ Expect<void> AVLogSetFlags::body(const Runtime::CallingFrame &,
 Expect<int64_t> AVRescaleQ::body(const Runtime::CallingFrame &, int64_t A,
                                  int32_t BNum, int32_t BDen, int32_t CNum,
                                  int32_t CDen) {
-
   AVRational const B = av_make_q(BNum, BDen);
   AVRational const C = av_make_q(CNum, CDen);
   return av_rescale_q(A, B, C);
@@ -42,7 +44,6 @@ Expect<int64_t> AVRescaleQ::body(const Runtime::CallingFrame &, int64_t A,
 Expect<int64_t> AVRescaleQRnd::body(const Runtime::CallingFrame &, int64_t A,
                                     int32_t BNum, int32_t BDen, int32_t CNum,
                                     int32_t CDen, int32_t RoundingId) {
-
   AVRational const B = av_make_q(BNum, BDen);
   AVRational const C = av_make_q(CNum, CDen);
   AVRounding const Rounding = FFmpegUtils::Rounding::intoAVRounding(RoundingId);
@@ -63,12 +64,12 @@ AVGetChannelLayoutNbChannels::body(const Runtime::CallingFrame &,
 
 Expect<int32_t> AVGetChannelLayoutNameLen::body(const Runtime::CallingFrame &,
                                                 uint64_t ChannelLayoutId) {
-
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
   const char *ChName = av_get_channel_name(ChannelLayout);
-  if (ChName == nullptr)
+  if (ChName == nullptr) {
     return 0;
+  }
   return strlen(ChName);
 }
 
@@ -76,7 +77,6 @@ Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
                                              uint64_t ChannelLayoutId,
                                              uint32_t NamePtr,
                                              uint32_t NameLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
 
@@ -90,7 +90,6 @@ Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint64_t> AVGetChannelLayoutMask::body(const Runtime::CallingFrame &,
                                               uint64_t ChannelLayoutId) {
-
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
   return ChannelLayout;
@@ -110,7 +109,6 @@ Expect<int32_t> AVUtilConfigurationLength::body(const Runtime::CallingFrame &) {
 Expect<int32_t> AVUtilConfiguration::body(const Runtime::CallingFrame &Frame,
                                           uint32_t ConfigPtr,
                                           uint32_t ConfigLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
@@ -120,14 +118,12 @@ Expect<int32_t> AVUtilConfiguration::body(const Runtime::CallingFrame &Frame,
 }
 
 Expect<int32_t> AVUtilLicenseLength::body(const Runtime::CallingFrame &) {
-
   const char *License = avutil_license();
   return strlen(License);
 }
 
 Expect<int32_t> AVUtilLicense::body(const Runtime::CallingFrame &Frame,
                                     uint32_t LicensePtr, uint32_t LicenseLen) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 

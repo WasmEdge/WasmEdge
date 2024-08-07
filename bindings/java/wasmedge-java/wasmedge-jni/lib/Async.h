@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #ifndef WASMEDGE_JNI_ASYNC_H
 #define WASMEDGE_JNI_ASYNC_H
 
+#include "../jni/org_wasmedge_Async.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
-#include "../jni/org_wasmedge_Async.h"
 
 WasmEdge_Async *getAsync(JNIEnv *env, jobject thisObject);
 

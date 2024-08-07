@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_ExecutorContext.h"
 #include "AstModuleContext.h"
@@ -29,8 +29,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ExecutorContext_nativeInit(
  * Method:    instantiate
  * Signature: (Lorg/wasmedge/StoreContext;Lorg/wasmedge/ASTModuleContext;)V
  */
-JNIEXPORT jobject JNICALL
-Java_org_wasmedge_ExecutorContext_instantiate(
+JNIEXPORT jobject JNICALL Java_org_wasmedge_ExecutorContext_instantiate(
     JNIEnv *env, jobject thisObject, jobject jStoreCxt, jobject jAstModCxt) {
   WasmEdge_ExecutorContext *exeCxt = getExecutorContext(env, thisObject);
   WasmEdge_StoreContext *storeCxt = getStoreContext(env, jStoreCxt);

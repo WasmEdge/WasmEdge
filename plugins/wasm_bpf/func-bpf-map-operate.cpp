@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "func-bpf-map-operate.h"
 #include "bpf-api.h"
@@ -16,6 +16,7 @@ namespace Host {
   if (var##_span.size() != expected_size)                                      \
     return Unexpect(ErrCode::Value::HostFuncError);                            \
   const auto var = var##_span.data();
+
 Expect<int32_t>
 BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
                     int32_t cmd, uint32_t key, uint32_t value,

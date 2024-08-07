@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 string(REGEX MATCH "^([0-9]+)[.]([0-9]+)[.]([0-9]+)*"
     WASMEDGE_VERSION_STRING

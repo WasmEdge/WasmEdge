@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/int128.h"
 
@@ -51,7 +51,8 @@ TEST(Int128Test, Int128OutputTest) {
     OS.str("");
     OS.clear();
     const WasmEdge::uint128_t P10(10000000000000);
-    Value = WasmEdge::uint128_t(1234567890123) * P10 * P10 + WasmEdge::uint128_t(1234567890123);
+    Value = WasmEdge::uint128_t(1234567890123) * P10 * P10 +
+            WasmEdge::uint128_t(1234567890123);
     OS << Value;
     EXPECT_EQ(OS.str(), "123456789012300000000000001234567890123");
   }
@@ -69,7 +70,8 @@ TEST(Int128Test, Int128OutputTest) {
     OS.str("");
     OS.clear();
     const WasmEdge::uint128_t P10(10000000000000);
-    Value = WasmEdge::uint128_t(1234567890123) * P10 * P10 + WasmEdge::uint128_t(1234567890123) * P10;
+    Value = WasmEdge::uint128_t(1234567890123) * P10 * P10 +
+            WasmEdge::uint128_t(1234567890123) * P10;
     OS << Value;
     EXPECT_EQ(OS.str(), "123456789012312345678901230000000000000");
   }

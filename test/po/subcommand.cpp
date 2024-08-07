@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "po/subcommand.h"
 #include "po/argument_parser.h"
@@ -62,7 +62,8 @@ TEST(SubCommands, Simple4) {
       .begin_subcommand(S2, "s2"sv)
       .end_subcommand();
   std::array Args = {"test", "s1", "s2"};
-  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
 }
 
 TEST(SubCommands, Nested1) {
@@ -102,7 +103,8 @@ TEST(SubCommands, Nested3) {
       .end_subcommand()
       .end_subcommand();
   std::array Args = {"test", "s2"};
-  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
 }
 
 TEST(SubCommands, NestedOption1) {
@@ -142,7 +144,8 @@ TEST(SubCommands, NestedOption2) {
       .end_subcommand()
       .end_subcommand();
   std::array Args = {"test", "s1", "--t1"};
-  EXPECT_FALSE(Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
+  EXPECT_FALSE(
+      Parser.parse(stdout, static_cast<int>(Args.size()), Args.data()));
 }
 
 TEST(SubCommands, NestedOption3) {

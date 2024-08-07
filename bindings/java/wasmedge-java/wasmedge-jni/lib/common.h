@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #ifndef WASMEDGE_JAVA_COMMON_H
 #define WASMEDGE_JAVA_COMMON_H
 
+#include "constants.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
-#include "constants.h"
 
 #define MAX_BUF_LEN 1024
-
 
 enum ErrorCode { JVM_ERROR, WVM_ERROR };
 
@@ -50,7 +49,7 @@ void setJavaFloatValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
 void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
-void setJavaStringValue(JNIEnv *env, char* val, jobject jobj);
+void setJavaStringValue(JNIEnv *env, char *val, jobject jobj);
 
 enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes);
 
@@ -77,12 +76,12 @@ jobject GetListElement(JNIEnv *env, jobject jList, jint idx);
 
 jint GetListSize(JNIEnv *env, jobject jList);
 
-#define GETTER(NAME) WasmEdge_ ## NAME *get ## NAME(JNIEnv *env,\
-                                             jobject j ## NAME) {\
-    if (j ## NAME == NULL) {\
-        return NULL;\
-    }\
-    return (WasmEdge_ ##NAME  *)getPointer(env, j ##NAME );\
-}                                                               \
+#define GETTER(NAME)                                                           \
+  WasmEdge_##NAME *get##NAME(JNIEnv *env, jobject j##NAME) {                   \
+    if (j##NAME == NULL) {                                                     \
+      return NULL;                                                             \
+    }                                                                          \
+    return (WasmEdge_##NAME *)getPointer(env, j##NAME);                        \
+  }
 
 #endif // WASMEDGE_JAVA_COMMON_H

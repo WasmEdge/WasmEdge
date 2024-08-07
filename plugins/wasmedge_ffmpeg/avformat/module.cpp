@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "module.h"
 #include "avChapter.h"
 #include "avInputOutputFormat.h"
@@ -13,7 +16,6 @@ namespace AVFormat {
 WasmEdgeFFmpegAVFormatModule::WasmEdgeFFmpegAVFormatModule(
     std::shared_ptr<WasmEdgeFFmpegEnv> Env)
     : ModuleInstance("wasmedge_ffmpeg_avformat") {
-
   // avformat_func.h
   addHostFunc("wasmedge_ffmpeg_avformat_avformat_open_input",
               std::make_unique<AVFormatOpenInput>(Env));

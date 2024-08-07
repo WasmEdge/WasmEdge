@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
 #include "host/wasi/wasibase.h"
@@ -225,7 +225,8 @@ convertFiletime(WasmEdge::winapi::FILETIME_ FileTime) noexcept {
   constexpr const FiletimeDuration NTToUnixEpoch =
       std::chrono::seconds{134774LL * 86400LL};
   WasmEdge::winapi::ULARGE_INTEGER_ Temp = {
-      /* LowPart */ FileTime.dwLowDateTime, /* HighPart */ FileTime.dwHighDateTime};
+      /* LowPart */ FileTime.dwLowDateTime,
+      /* HighPart */ FileTime.dwHighDateTime};
   auto Duration = duration_cast<nanoseconds>(FiletimeDuration{Temp.QuadPart} -
                                              NTToUnixEpoch);
   return static_cast<__wasi_timestamp_t>(Duration.count());
@@ -2541,8 +2542,8 @@ TEST(WasiTest, ClockTimeGet) {
                              Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     const uint64_t Time = convertFiletime(SysNow);
-    EXPECT_NEAR(static_cast<double>(*MemInst.getPointer<const uint64_t *>(0)), 
-                    static_cast<double>(Time), 1000000.0);
+    EXPECT_NEAR(static_cast<double>(*MemInst.getPointer<const uint64_t *>(0)),
+                static_cast<double>(Time), 1000000.0);
   }
 #endif
 

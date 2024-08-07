@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "FunctionTypeInstance.h"
 #include "GlobalInstanceContext.h"
@@ -32,7 +32,7 @@ jobject CreateJavaStoreContext(JNIEnv *env,
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_StoreContext_close(JNIEnv *env,
-                                                             jobject thisObj) {
+                                                            jobject thisObj) {
   WasmEdge_StoreDelete(getStoreContext(env, thisObj));
 }
 

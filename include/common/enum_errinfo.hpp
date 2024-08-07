@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/common/enum_errinfo.hpp - ErrInfo C++ enumerations -------===//
 //
@@ -60,8 +60,7 @@ static inline constexpr auto PtrTypeStr = []() constexpr {
 #undef UsePtrType
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 /// Error info mismatch category C++ enumeration class.
 enum class MismatchCategory : uint8_t {
@@ -82,8 +81,7 @@ static inline constexpr auto MismatchCategoryStr = []() constexpr {
 #undef UseMismatchCategory
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 /// Error info index category C++ enumeration class.
 enum class IndexCategory : uint8_t {
@@ -104,8 +102,7 @@ static inline constexpr auto IndexCategoryStr = []() constexpr {
 #undef UseIndexCategory
   };
   return DenseEnumMap(Array);
-}
-();
+}();
 
 } // namespace ErrInfo
 } // namespace WasmEdge

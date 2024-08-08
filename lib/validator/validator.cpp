@@ -23,11 +23,11 @@ struct SectionVisitor {
   SectionVisitor(Validator *V) : V(V) {}
 
   struct ExternDescVisitor {
-    void operator()(const DescTypeIndex &Desc) {}
-    void operator()(const TypeBound &Bound) {
+    void operator()(const DescTypeIndex &) {}
+    void operator()(const TypeBound &) {
       // TypeBound == std::optional<TypeIndex>
     }
-    void operator()(const ValueType &Value) {}
+    void operator()(const ValueType &) {}
   };
 
   void operator()(const AST::CustomSection &) {}
@@ -96,10 +96,17 @@ struct SectionVisitor {
     }
   }
   void operator()(const CoreTypeSection &Sec) {
+    struct ModuleDeclVisitor {
+      void operator()(const AST::ImportDesc &) {}
+      void operator()(const std::shared_ptr<CoreType> &) {}
+      void operator()(const Alias &) {}
+      void operator()(const CoreExportDecl &) {}
+    };
     struct CoreDefTypeVisitor {
-      void operator()(const AST::FunctionType &Func) {}
+      void operator()(const AST::FunctionType &) {}
       void operator()(const ModuleType &Mod) {
         for (const ModuleDecl &D : Mod.getContent()) {
+          std::visit(ModuleDeclVisitor{}, D);
           // TODO: Validation of core:moduledecl rejects core:moduletype
           // definitions and outer aliases of core:moduletype definitions inside
           // type declarators. Thus, as an invariant, when validating a
@@ -164,10 +171,9 @@ struct SectionVisitor {
     // in CanonicalABI.md.
     // https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#canonical-definitions
   }
-  void operator()(const StartSection &Sec) {
-    const Start &S = Sec.getContent();
-
+  void operator()(const StartSection &) {
     // API:
+    // const Start &S = Sec.getContent();
     // S.getFunctionIndex();
     // S.getArguments();
     // S.getResult();

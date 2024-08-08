@@ -84,14 +84,25 @@ struct SectionVisitor {
       std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget());
     }
   }
-  void operator()(const CoreTypeSection &) {
-    // TODO: Validation of core:moduledecl rejects core:moduletype definitions
-    // and outer aliases of core:moduletype definitions inside type declarators.
-    // Thus, as an invariant, when validating a core:moduletype, the core type
-    // index space will not contain any core module types.
+  void operator()(const CoreTypeSection &Sec) {
+    struct CoreDefTypeVisitor {
+      void operator()(const AST::FunctionType &Func) {}
+      void operator()(const ModuleType &Mod) {
+        for (const ModuleDecl &D : Mod.getContent()) {
+          // TODO: Validation of core:moduledecl rejects core:moduletype
+          // definitions and outer aliases of core:moduletype definitions inside
+          // type declarators. Thus, as an invariant, when validating a
+          // core:moduletype, the core type index space will not contain any
+          // core module types.
+        }
+      }
+    };
 
     // TODO: As described in the explainer, each module type is validated with
     // an initially-empty type index space.
+    for (const CoreDefType &T : Sec.getContent()) {
+      std::visit(CoreDefTypeVisitor{}, T);
+    }
   }
   void operator()(const TypeSection &Sec) {
     struct DefTypeVisitor {

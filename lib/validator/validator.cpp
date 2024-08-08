@@ -50,18 +50,31 @@ struct SectionVisitor {
     // index spaces, which are built incrementally as each definition is
     // validated.
   }
-  void operator()(const AliasSection &) {
-    // TODO: For export aliases, i is validated to refer to an instance in the
-    // instance index space that exports n with the specified sort.
+  void operator()(const AliasSection &Sec) {
+    struct AliasTargetVisitor {
+      AliasTargetVisitor(const Sort &S) : S{S} {}
 
-    // TODO: For outer aliases, ct is validated to be less or equal than the
-    // number of enclosing components and i is validated to be a valid index
-    // in the sort index space of the ith enclosing component (counting
-    // outward, starting with 0 referring to the current component).
+      void operator()(const AliasTargetExport &) {
+        // TODO: For export aliases, i is validated to refer to an instance in
+        // the instance index space that exports n with the specified sort.
+      }
+      void operator()(const AliasTargetOuter &) {
+        // TODO: For outer aliases, ct is validated to be less or equal than the
+        // number of enclosing components and i is validated to be a valid index
+        // in the sort index space of the ith enclosing component (counting
+        // outward, starting with 0 referring to the current component).
 
-    // TODO: For outer aliases, validation restricts the sort to one of type,
-    // module or component and additionally requires that the outer-aliased
-    // type is not a resource type (which is generative).
+        // TODO: For outer aliases, validation restricts the sort to one of
+        // type, module or component and additionally requires that the
+        // outer-aliased type is not a resource type (which is generative).
+      }
+
+      const Sort &S;
+    };
+
+    for (const Alias &A : Sec.getContent()) {
+      std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget());
+    }
   }
   void operator()(const CoreTypeSection &) {
     // TODO: Validation of core:moduledecl rejects core:moduletype definitions

@@ -134,7 +134,14 @@ struct SectionVisitor {
     // in CanonicalABI.md.
     // https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#canonical-definitions
   }
-  void operator()(const StartSection &) {
+  void operator()(const StartSection &Sec) {
+    const Start &S = Sec.getContent();
+
+    // API:
+    // S.getFunctionIndex();
+    // S.getArguments();
+    // S.getResult();
+
     // TODO: Validation requires f have functype with param arity and types
     // matching arg* and result arity r.
 

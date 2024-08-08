@@ -35,28 +35,39 @@ struct SectionVisitor {
     auto &Mod = Sec.getContent();
     V->validate(Mod);
   }
-  void operator()(const CoreInstanceSection &) {}
   void operator()(const ComponentSection &Sec) {
     auto &C = Sec.getContent();
     V->validate(C);
   }
-  void operator()(const InstanceSection &) {
+  void operator()(const CoreInstanceSection &) {
+    // NOTE: refers below InstanceSection, and copy the similar structure
+
     // TODO: Validation of core:instantiatearg initially only allows the
     // instance sort, but would be extended to accept other sorts as core wasm
     // is extended.
+  }
+  void operator()(const InstanceSection &Sec) {
+    struct InstanceExprVisitor {
+      void operator()(const Instantiate &) {
+        // TODO: Validation of instantiate requires each <importname> in c to
+        // match a name in a with argument (compared as strings) and for the
+        // types to match.
 
-    // TODO: Validation of instantiate requires each <importname> in c to match
-    // a name in a with argument (compared as strings) and for the types to
-    // match.
+        // TODO: The indices in sortidx are validated according to their sort's
+        // index spaces, which are built incrementally as each definition is
+        // validated.
+      }
+      void operator()(const CompInlineExports &) {
+        // TODO: When validating instantiate, after each individual type-import
+        // is supplied via with, the actual type supplied is immediately
+        // substituted for all uses of the import, so that subsequent imports
+        // and all exports are now specialized to the actual type.
+      }
+    };
 
-    // TODO: When validating instantiate, after each individual type-import is
-    // supplied via with, the actual type supplied is immediately substituted
-    // for all uses of the import, so that subsequent imports and all exports
-    // are now specialized to the actual type.
-
-    // TODO: The indices in sortidx are validated according to their sort's
-    // index spaces, which are built incrementally as each definition is
-    // validated.
+    for (const InstanceExpr &E : Sec.getContent()) {
+      std::visit(InstanceExprVisitor{}, E);
+    }
   }
   void operator()(const AliasSection &Sec) {
     struct AliasTargetVisitor {
@@ -177,32 +188,31 @@ struct SectionVisitor {
     // validation requires all values' flags are set.
   }
   void operator()(const ImportSection &Sec) {
-    for (const Import &I : Sec.getContent()) {
-      I.getName();
-      std::visit(ExternDescVisitor{}, I.getDesc());
-    }
     // NOTE: This section share the validation rules with export section, one
     // must share the implementation as much as possible.
+    for (const Import &I : Sec.getContent()) {
+      // TODO: Validation requires that annotated plainnames only occur on func
+      // imports or exports and that the first label of a [constructor],
+      // [method] or [static] matches the plainname of a preceding resource
+      // import or export, respectively, in the same scope (component, component
+      // type or instance type).
 
+      // TODO: Validation of [constructor] names requires that the func returns
+      // a (result (own $R)), where $R is the resource labeled r.
+
+      // TODO: Validation of [method] names requires the first parameter of the
+      // function to be (param "self" (borrow $R)), where $R is the resource
+      // labeled r.
+
+      // TODO: Validation of [method] and [static] names ensures that all field
+      // names are disjoint.
+      I.getName();
+
+      std::visit(ExternDescVisitor{}, I.getDesc());
+    }
     // TODO: Validation requires that all resource types transitively used in
     // the type of an export are introduced by a preceding importdecl or
     // exportdecl.
-
-    // TODO: Validation requires that annotated plainnames only occur on func
-    // imports or exports and that the first label of a [constructor],
-    // [method] or [static] matches the plainname of a preceding resource
-    // import or export, respectively, in the same scope (component, component
-    // type or instance type).
-
-    // TODO: Validation of [constructor] names requires that the func returns
-    // a (result (own $R)), where $R is the resource labeled r.
-
-    // TODO: Validation of [method] names requires the first parameter of the
-    // function to be (param "self" (borrow $R)), where $R is the resource
-    // labeled r.
-
-    // TODO: Validation of [method] and [static] names ensures that all field
-    // names are disjoint.
   }
   void operator()(const ExportSection &Sec) {
 

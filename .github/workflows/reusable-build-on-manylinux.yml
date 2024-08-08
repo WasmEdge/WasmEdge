@@ -44,8 +44,8 @@ jobs:
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
-      - name: Install gh on manylinux
-        if: ${{ inputs.release }}
+      - name: Install gh except for manylinux2014
+        if: ${{ inputs.release && !startsWith(matrix.docker_tag, 'manylinux2014') }}
         run: |
           type -p yum-config-manager >/dev/null || yum install -y yum-utils
           yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo

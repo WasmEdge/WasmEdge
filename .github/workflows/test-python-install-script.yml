@@ -53,6 +53,7 @@ jobs:
             python2_ex: python2
             python3_ex: python3
             extra_setup_command: echo "No extra command"
+            fix_mirror: "centos7"
           - name: Ubuntu 20.04
             host_runner: ubuntu-latest
             package_manager: apt
@@ -61,6 +62,7 @@ jobs:
             python2_ex: python2
             python3_ex: python3
             extra_setup_command: apt update && apt install -y lsb-release
+            fix_mirror: ""
           - name: Ubuntu 18.04
             host_runner: ubuntu-latest
             package_manager: apt
@@ -69,6 +71,7 @@ jobs:
             python2_ex: python2.7
             python3_ex: python3
             extra_setup_command: echo "No extra command"
+            fix_mirror: ""
           - name: Ubuntu 16.04
             host_runner: ubuntu-latest
             package_manager: apt
@@ -77,6 +80,7 @@ jobs:
             python2_ex: python2.7
             python3_ex: python3.7
             extra_setup_command: apt update -y && apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev wget && wget https://www.python.org/ftp/python/3.7.4/Python-3.7.4.tgz && tar xzf Python-3.7.4.tgz && cd Python-3.7.4 && ./configure && make -j && make install && cd ..
+            fix_mirror: ""
           - name: manylinux2014 aarch64
             host_runner: linux-arm64-v2
             package_manager: yum
@@ -85,6 +89,7 @@ jobs:
             python2_ex: python2
             python3_ex: python3
             extra_setup_command: echo "No extra command"
+            fix_mirror: "centos7aarch64"
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}
     container:
@@ -98,6 +103,22 @@ jobs:
     - uses: actions/checkout@v3
       with:
         fetch-depth: 0
+
+    - if: ${{ matrix.fix_mirror == 'centos7' }}
+      name: Fix mirrors on manylinux2014
+      # Reference: https://github.com/pypa/manylinux/pull/1628
+      run: |
+        sed -i 's/enabled=1/enabled=0/g' /etc/yum/pluginconf.d/fastestmirror.conf
+        sed -i 's/^mirrorlist/#mirrorlist/g' /etc/yum.repos.d/*.repo
+        sed -i 's;^.*baseurl=http://mirror;baseurl=https://vault;g' /etc/yum.repos.d/*.repo
+    - if: ${{ matrix.fix_mirror == 'centos7aarch64' }}
+      name: Fix mirrors on manylinux2014 for aarch64
+      # Reference: https://github.com/pypa/manylinux/pull/1628
+      run: |
+        sed -i 's/enabled=1/enabled=0/g' /etc/yum/pluginconf.d/fastestmirror.conf
+        sed -i 's/^mirrorlist/#mirrorlist/g' /etc/yum.repos.d/*.repo
+        sed -i 's;^.*baseurl=http://mirror;baseurl=https://vault;g' /etc/yum.repos.d/*.repo
+        sed -i 's;/centos/7/;/altarch/7/;g' /etc/yum.repos.d/*.repo
 
     - name: Install git and curl
       run: |

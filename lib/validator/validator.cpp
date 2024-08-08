@@ -22,6 +22,14 @@ using namespace AST::Component;
 struct SectionVisitor {
   SectionVisitor(Validator *V) : V(V) {}
 
+  struct ExternDescVisitor {
+    void operator()(const DescTypeIndex &Desc) {}
+    void operator()(const TypeBound &Bound) {
+      // TypeBound == std::optional<TypeIndex>
+    }
+    void operator()(const ValueType &Value) {}
+  };
+
   void operator()(const AST::CustomSection &) {}
   void operator()(const AST::CoreModuleSection &Sec) {
     auto &Mod = Sec.getContent();
@@ -157,18 +165,17 @@ struct SectionVisitor {
     // flag is set. After validating the last definition of a component,
     // validation requires all values' flags are set.
   }
-  void operator()(const ImportSection &) {
+  void operator()(const ImportSection &Sec) {
+    for (const Import &I : Sec.getContent()) {
+      I.getName();
+      std::visit(ExternDescVisitor{}, I.getDesc());
+    }
     // NOTE: This section share the validation rules with export section, one
     // must share the implementation as much as possible.
 
     // TODO: Validation requires that all resource types transitively used in
     // the type of an export are introduced by a preceding importdecl or
     // exportdecl.
-
-    // TODO: Validation requires any exported sortidx to have a valid
-    // externdesc (which disallows core sorts other than core module). When
-    // the optional externdesc immediate is present, validation requires it to
-    // be a supertype of the inferred externdesc of the sortidx.
 
     // TODO: Validation requires that annotated plainnames only occur on func
     // imports or exports and that the first label of a [constructor],
@@ -186,7 +193,21 @@ struct SectionVisitor {
     // TODO: Validation of [method] and [static] names ensures that all field
     // names are disjoint.
   }
-  void operator()(const ExportSection &) {}
+  void operator()(const ExportSection &Sec) {
+
+    for (const Export &E : Sec.getContent()) {
+      if (E.getDesc().has_value()) {
+        // TODO: Validation requires any exported sortidx to have a valid
+        // externdesc (which disallows core sorts other than core module). When
+        // the optional externdesc immediate is present, validation requires it
+        // to be a supertype of the inferred externdesc of the sortidx.
+        auto SI = E.getSortIndex();
+        SI.getSort();
+        SI.getSortIdx();
+        std::visit(ExternDescVisitor{}, *E.getDesc());
+      }
+    }
+  }
 
 private:
   Validator *V;

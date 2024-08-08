@@ -151,7 +151,7 @@ jobs:
           name: ${{ steps.prep.outputs.artifact }}
           path: ${{ steps.prep.outputs.filename }}
       - name: Install gh except for manylinux2014
-        if: ${{ inputs.release && !startsWith(matrix.docker_tag, 'manylinux2014') }}
+        if: ${{ inputs.release && (!contains(inputs.docker_tag, 'manylinux2014')) }}
         run: |
           type -p yum-config-manager >/dev/null || yum install -y yum-utils
           yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo

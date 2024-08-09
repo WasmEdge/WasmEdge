@@ -4,6 +4,7 @@
 wasmedge_add_library(wasmedgeValidator
   formchecker.cpp
   validator.cpp
+  component_validator.cpp
 )
 
 target_link_libraries(wasmedgeValidator

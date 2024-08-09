@@ -8,7 +8,18 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<void> Drop::body(const Runtime::CallingFrame &, Pollable) { return {}; }
+Expect<void> Drop::body(Pollable P) {
+  Env.dropPollable(P);
+  return {};
+}
+
+Expect<List<bool>> PollOneoff::body(List<Pollable> In) {
+  std::vector<bool> Res;
+  for (auto P : In.collection()) {
+    Res.push_back(Env.isPollable(P));
+  }
+  return List<bool>(std::move(Res));
+}
 
 } // namespace Host
 } // namespace WasmEdge

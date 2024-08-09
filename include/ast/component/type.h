@@ -87,7 +87,7 @@ private:
   std::vector<Case> Cases;
 };
 
-class List {
+class ListTy {
 public:
   const ValueType getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
@@ -165,7 +165,7 @@ private:
   TypeIndex Idx;
 };
 
-using DefValType = std::variant<PrimValType, Record, VariantTy, List, Tuple,
+using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, Tuple,
                                 Flags, Enum, Option, Result, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
@@ -401,7 +401,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), ">"sv);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const List &Arg) {
+                [](const ListTy &Arg) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "list<{}>"sv,
                                  Arg.getValType());

@@ -3,6 +3,7 @@
 
 #include "validator/formchecker.h"
 
+#include "common/enum_ast.hpp"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
@@ -236,9 +237,18 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Memory,
                            Instr.getTargetIndex(), Mems);
     }
+    auto IsAtomic = Instr.getOpCode() >= OpCode::I32__atomic__load &&
+                    Instr.getOpCode() <= OpCode::I64__atomic__rmw32__cmpxchg_u;
     if (Instr.getMemoryAlign() > 31 ||
-        (1UL << Instr.getMemoryAlign()) > (N >> 3UL)) {
+        (!IsAtomic && (1UL << Instr.getMemoryAlign()) > (N >> 3UL))) {
       // 2 ^ align needs to <= N / 8
+      spdlog::error(ErrCode::Value::AlignmentTooLarge);
+      spdlog::error(ErrInfo::InfoMismatch(static_cast<uint8_t>(N >> 3),
+                                          Instr.getMemoryAlign()));
+      return Unexpect(ErrCode::Value::AlignmentTooLarge);
+    }
+    if (IsAtomic && (1UL << Instr.getMemoryAlign()) != (N >> 3UL)) {
+      // 2 ^ align needs to == N / 8
       spdlog::error(ErrCode::Value::InvalidAlignment);
       spdlog::error(ErrInfo::InfoMismatch(static_cast<uint8_t>(N >> 3),
                                           Instr.getMemoryAlign()));

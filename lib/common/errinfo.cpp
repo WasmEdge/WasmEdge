@@ -155,9 +155,15 @@ fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>::format(
   };
   switch (Info.Category) {
   case WasmEdge::ErrInfo::MismatchCategory::Alignment:
-    fmt::format_to(Iter, "Expected: need to <= {} , Got: {}"sv,
-                   static_cast<uint32_t>(Info.ExpAlignment),
-                   1UL << Info.GotAlignment);
+    if (Info.GotAlignment < Info.ExpAlignment) {
+      fmt::format_to(Iter, "Expected: need to == {} , Got: {}"sv,
+                     static_cast<uint32_t>(Info.ExpAlignment),
+                     1UL << Info.GotAlignment);
+    } else {
+      fmt::format_to(Iter, "Expected: need to <= {} , Got: {}"sv,
+                     static_cast<uint32_t>(Info.ExpAlignment),
+                     1UL << Info.GotAlignment);
+    }
     break;
   case WasmEdge::ErrInfo::MismatchCategory::ValueType:
     fmt::format_to(Iter, "Expected: {} , Got: {}"sv, Info.ExpValType,

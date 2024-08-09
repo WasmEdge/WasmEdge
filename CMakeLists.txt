@@ -17,6 +17,8 @@ set(WASMEDGE_WASI_NN_VERSION "0.1.0" CACHE STRING "WasmEdge WASI-NN library vers
 set(WASMEDGE_WASI_NN_SOVERSION "0" CACHE STRING "WasmEdge WASI-NN library soversion")
 
 find_program(GIT_CMD git)
+# Assuming the git command is not found and .git folder is not available.
+set(GIT_VERSION_NOT_FOUND 1)
 if(GIT_CMD AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
   execute_process(COMMAND
     ${GIT_CMD} describe --match "[0-9].[0-9]*" --tag

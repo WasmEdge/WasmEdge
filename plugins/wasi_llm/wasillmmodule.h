@@ -4,11 +4,14 @@
 #pragma once
 
 #include "runtime/instance/module.h"
+#include "wasillmenv.h"
 
 namespace WasmEdge {
 namespace Host {
 
 class WasiLLMModule : public Runtime::Instance::ModuleInstance {
+  WASILLM::WASILLMEnv Env;
+
 public:
   WasiLLMModule();
 };

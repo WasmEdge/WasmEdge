@@ -7,6 +7,19 @@ wasmedge_add_library(wasmedgePluginWasiLLM
   SHARED
   wasillmfunc.cpp
   wasillmmodule.cpp
+  wasillmenv.cpp
+)
+
+message(STATUS "Start fetching llm.c source")
+include(FetchContent)
+FetchContent_Declare(
+  llmc
+  GIT_REPOSITORY https://github.com/WasmEdge/llm.c
+)
+FetchContent_MakeAvailable(llmc)
+
+target_link_libraries(wasmedgePluginWasiLLM PRIVATE
+  train_gpt2_cpu
 )
 
 target_compile_options(wasmedgePluginWasiLLM

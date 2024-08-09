@@ -6,6 +6,7 @@
 #include "runtime/callingframe.h"
 #include "types.h"
 #include "wasillmbase.h"
+#include "wasillmenv.h"
 
 #include <cstdint>
 
@@ -14,91 +15,77 @@ namespace Host {
 
 class WasiLLMModelCreate : public WasiLLM<WasiLLMModelCreate> {
 public:
+  explicit WasiLLMModelCreate(WASILLM::WASILLMEnv &Env) : WasiLLM(Env) {}
+
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t CheckPointPath, uint32_t CheckPointPathLen) {
-    return bodyImpl(Frame, CheckPointPath, CheckPointPathLen).map(castErrNo);
+                        uint32_t CheckPointPath, uint32_t CheckPointPathLen,
+                        uint32_t ModelIdPtr) {
+    return bodyImpl(Frame, CheckPointPath, CheckPointPathLen, ModelIdPtr)
+        .map(castErrNo);
   }
 
 private:
   Expect<WASILLM::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
                                   uint32_t CheckPointPath,
-                                  uint32_t CheckPointPathLen);
-};
-
-class WasiLLMModelFree : public WasiLLM<WasiLLMModelFree> {
-public:
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t ModelPtr) {
-    return bodyImpl(Frame, ModelPtr).map(castErrNo);
-  }
-
-private:
-  Expect<WASILLM::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
-                                  uint32_t ModelPtr);
+                                  uint32_t CheckPointPathLen,
+                                  uint32_t ModelIdPtr);
 };
 
 class WasiLLMDataLoaderCreate : public WasiLLM<WasiLLMDataLoaderCreate> {
 public:
+  explicit WasiLLMDataLoaderCreate(WASILLM::WASILLMEnv &Env) : WasiLLM(Env) {}
+
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t DataPath,
-                        uint32_t DataPathLen) {
-    return bodyImpl(Frame, DataPath, DataPathLen).map(castErrNo);
+                        uint32_t DataPathLen, uint32_t B, uint32_t T,
+                        uint32_t ProcessRank, uint32_t NumProcesses,
+                        int32_t ShouldShuffle, uint32_t DataLoaderIdPtr) {
+    return bodyImpl(Frame, DataPath, DataPathLen, B, T, ProcessRank,
+                    NumProcesses, ShouldShuffle, DataLoaderIdPtr)
+        .map(castErrNo);
   }
 
 private:
   Expect<WASILLM::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
-                                  uint32_t DataPath, uint32_t DataPathLen);
-};
-
-class WasiLLMDataLoaderFree : public WasiLLM<WasiLLMDataLoaderFree> {
-public:
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t DataLoaderPtr) {
-    return bodyImpl(Frame, DataLoaderPtr).map(castErrNo);
-  }
-
-private:
-  Expect<WASILLM::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
-                                  uint32_t DataLoaderPtr);
+                                  uint32_t DataPath, uint32_t DataPathLen,
+                                  uint32_t B, uint32_t T, uint32_t ProcessRank,
+                                  uint32_t NumProcesses, int32_t ShouldShuffle,
+                                  uint32_t DataLoaderIdPtr);
 };
 
 class WasiLLMTokenizerCreate : public WasiLLM<WasiLLMTokenizerCreate> {
 public:
+  explicit WasiLLMTokenizerCreate(WASILLM::WASILLMEnv &Env) : WasiLLM(Env) {}
+
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilePath,
-                        uint32_t FilePathLen) {
-    return bodyImpl(Frame, FilePath, FilePathLen).map(castErrNo);
+                        uint32_t FilePathLen, uint32_t TokenizerIdPtr) {
+    return bodyImpl(Frame, FilePath, FilePathLen, TokenizerIdPtr)
+        .map(castErrNo);
   }
 
 private:
   Expect<WASILLM::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
-                                  uint32_t FilePath, uint32_t FilePathLen);
-};
-
-class WasiLLMTokenizerFree : public WasiLLM<WasiLLMTokenizerFree> {
-public:
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
-                        uint32_t TokenizerPtr) {
-    return bodyImpl(Frame, TokenizerPtr).map(castErrNo);
-  }
-
-private:
-  Expect<WASILLM::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
-                                  uint32_t TokenizerPtr);
+                                  uint32_t FilePath, uint32_t FilePathLen,
+                                  uint32_t TokenizerIdPtr);
 };
 
 class WasiLLMModelTrain : public WasiLLM<WasiLLMModelTrain> {
 public:
-  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t ModelPtr,
-                        uint32_t TrainDataLoaderPtr, uint32_t ValDataLoaderPtr,
-                        uint32_t TokenizerPtr, uint32_t Lr, uint32_t Epoch) {
-    return bodyImpl(Frame, ModelPtr, TrainDataLoaderPtr, ValDataLoaderPtr,
-                    TokenizerPtr, Lr, Epoch)
+  explicit WasiLLMModelTrain(WASILLM::WASILLMEnv &Env) : WasiLLM(Env) {}
+
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t ModelIdPtr,
+                        uint32_t TrainDataLoaderIdPtr,
+                        uint32_t ValDataLoaderIdPtr, uint32_t TokenizerIdPtr,
+                        float Lr, float Epoch) {
+    return bodyImpl(Frame, ModelIdPtr, TrainDataLoaderIdPtr, ValDataLoaderIdPtr,
+                    TokenizerIdPtr, Lr, Epoch)
         .map(castErrNo);
   }
 
 private:
   Expect<WASILLM::ErrNo>
-  bodyImpl(const Runtime::CallingFrame &Frame, uint32_t ModelPtr,
-           uint32_t TrainDataLoaderPtr, uint32_t ValDataLoaderPtr,
-           uint32_t TokenizerPtr, uint32_t Lr, uint32_t Epoch);
+  bodyImpl(const Runtime::CallingFrame &Frame, uint32_t ModelIdPtr,
+           uint32_t TrainDataLoaderIdPtr, uint32_t ValDataLoaderIdPtr,
+           uint32_t TokenizerIdPtr, float Lr, float Epoch);
 };
 
 } // namespace Host

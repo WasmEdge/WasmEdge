@@ -20,6 +20,7 @@ namespace {
 auto logOutOfRange(ErrCode Code, ErrInfo::IndexCategory Cate, uint32_t Idx,
                    uint32_t Bound) {
   spdlog::error(Code);
+  spdlog::error("YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO");
   spdlog::error(ErrInfo::InfoForbidIndex(Cate, Idx, Bound));
   return Unexpect(Code);
 }
@@ -231,7 +232,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                              &Instr](uint32_t N, Span<const ValType> Take,
                                      Span<const ValType> Put,
                                      bool CheckLane = false) -> Expect<void> {
-    if (Instr.getTargetIndex() >= Mems) {
+    if (Instr.getTargetIndex() + Instr.getMemoryOffset() + N/8>= Mems) {
       return logOutOfRange(ErrCode::Value::InvalidMemoryIdx,
                            ErrInfo::IndexCategory::Memory,
                            Instr.getTargetIndex(), Mems);

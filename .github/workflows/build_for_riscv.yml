@@ -37,48 +37,60 @@ permissions:
   contents: read
 
 jobs:
-  # TODO: Refactor `lint` with `on.workflow_run`
-  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
   lint:
     uses: ./.github/workflows/reusable-call-linter.yml
 
   build_riscv64:
-    name: RISC-V64
+    name: Build RISC-V64
     runs-on: ubuntu-latest
     needs: lint
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - name: Ensure git safe directory
+    - name: Install RISC-V Cross-Compiler and Dependencies
       run: |
-        git config --global --add safe.directory $(pwd)
-    - uses: uraimo/run-on-arch-action@v2
-      name: Build WasmEdge
+        sudo apt-get update
+        sudo apt-get install -y gcc-riscv64-linux-gnu g++-riscv64-linux-gnu
+    - name: Build WasmEdge
+      run: |
+        mkdir -p build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/riscv64.cmake -DCMAKE_BUILD_TYPE=Release ..
+        make -j $(nproc)
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
       with:
-        base_image: riscv64/ubuntu
-        githubToken: ${{ github.token }}
-        dockerRunArgs: |
-          --volume "${PWD}:/workplace"
-        shell: /bin/sh
-        install: |
-          apt-get update -q -y
-          apt-get install -q -y git cmake g++ dpkg
-          apt-get install -q -y software-properties-common
-          apt-get install -q -y llvm-12-dev liblld-12-dev
-          apt-get install -q -y wabt # For generating wasm
-        run: |
-          mkdir -p build && cd build
-          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j $(nproc) && make install
-          wasmedge -v
-          wasmedgec -v
-          wasmedge compile -h
-          wasmedge run -h
-          cd ../examples/wasm
-          wat2wasm fibonacci.wat -o fibonacci.wasm
-          wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
-          wasmedge --reactor fibonacci_aot_c.wasm fib 30
-          wasmedge run --reactor fibonacci_aot_c.wasm fib 30
-          wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
-          wasmedge --reactor fibonacci_aot_compile.wasm fib 30
-          wasmedge run --reactor fibonacci_aot_compile.wasm fib 30
+        name: wasmedge-riscv64
+        path: build/
+
+  test_riscv64:
+    name: Test RISC-V64
+    runs-on: ubuntu-latest
+    needs: build_riscv64
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Download Build Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: wasmedge-riscv64
+        path: build/
+    - name: Set Up QEMU
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y qemu qemu-user-static
+    - name: Run Tests in QEMU
+      run: |
+        qemu-riscv64-static ./build/bin/wasmedge -v
+        qemu-riscv64-static ./build/bin/wasmedgec -v
+        qemu-riscv64-static ./build/bin/wasmedge compile -h
+        qemu-riscv64-static ./build/bin/wasmedge run -h
+        cd examples/wasm
+        qemu-riscv64-static wat2wasm fibonacci.wat -o fibonacci.wasm
+        qemu-riscv64-static ./build/bin/wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
+        qemu-riscv64-static ./build/bin/wasmedge --reactor fibonacci_aot_c.wasm fib 30
+        qemu-riscv64-static ./build/bin/wasmedge run --reactor fibonacci_aot_c.wasm fib 30
+        qemu-riscv64-static ./build/bin/wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
+        qemu-riscv64-static ./build/bin/wasmedge --reactor fibonacci_aot_compile.wasm fib 30
+        qemu-riscv64-static ./build/bin/wasmedge run --reactor fibonacci_aot_compile.wasm fib 30

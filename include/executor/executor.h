@@ -17,6 +17,7 @@
 #include "ast/module.h"
 #include "common/async.h"
 #include "common/configure.h"
+#include "common/coredump.h"
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
@@ -125,6 +126,7 @@ private:
 /// Executor flow control class.
 class Executor {
 public:
+  /// TODO add another argument to this for coredump builder to initialise it.
   Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
       : Conf(Conf) {
     if (Conf.getStatisticsConfigure().isInstructionCounting() ||
@@ -136,6 +138,9 @@ public:
     }
     if (Stat) {
       Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
+    }
+    if (Conf.getRuntimeConfigure().isEnableCoredump()) {
+      spdlog::info("Coredump has been enabled in executor");
     }
   }
   ~Executor() noexcept {
@@ -930,6 +935,8 @@ private:
   const Configure Conf;
   /// Executor statistics
   Statistics::Statistics *Stat;
+  /// Coredump Builder
+  Coredump::Coredump *Coredump;
   /// Stop Execution
   std::atomic_uint32_t StopToken = 0;
   /// Executor Host Function Handler

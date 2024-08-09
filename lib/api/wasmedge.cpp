@@ -1049,6 +1049,11 @@ WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) {
 }
 
 // <<<<<<<< WasmEdge configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// TODO Add C_API support for coredump
+// WASMEDGE_CAPI_EXPORT WasmEdge_CoredumpContext *
+//    WasmEdge_CoredumpCreate(void) {
+//  return toCoredumpCxt(new WasmEdge::Coredump::Coredump);
+//}
 
 // >>>>>>>> WasmEdge statistics functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 

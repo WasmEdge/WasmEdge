@@ -3,36 +3,18 @@
 
 #include "validator/validator.h"
 
+#include "ast/section.h"
 #include "common/errinfo.h"
 
 #include <cstdint>
 #include <numeric>
 #include <string>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
 namespace Validator {
-
-Expect<void> Validator::validate(const AST::Component::Component &Comp) {
-  using namespace AST::Component;
-
-  spdlog::warn("component validation is not done yet.");
-
-  for (auto &Sec : Comp.getSections()) {
-    if (std::holds_alternative<AST::CoreModuleSection>(Sec)) {
-      auto &Mod = std::get<AST::CoreModuleSection>(Sec).getContent();
-      validate(Mod);
-    } else if (std::holds_alternative<ComponentSection>(Sec)) {
-      auto &C = std::get<ComponentSection>(Sec).getContent();
-      validate(C);
-    } else {
-      // TODO: validate others section
-    }
-  }
-
-  return {};
-}
 
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {

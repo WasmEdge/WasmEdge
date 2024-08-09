@@ -85,8 +85,8 @@ function(wasmedge_setup_tflite_lib)
     )
   elseif(APPLE)
     set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
-      "${wasmedge_tensorflow_lib_tflite_SOURCE_DIR}/libtensorflowlite_c.dylib"
-      "${wasmedge_tensorflow_lib_tflite_SOURCE_DIR}/libtensorflowlite_flex.dylib"
+      "${wasmedge_tensorflow_lib_tflite_SOURCE_DIR}/libtensorflowlite_c.framework"
+      "${wasmedge_tensorflow_lib_tflite_SOURCE_DIR}/libtensorflowlite_flex.framework"
       PARENT_SCOPE
     )
   elseif(UNIX)
@@ -113,10 +113,10 @@ function(wasmedge_setup_tf_lib)
     FetchContent_Populate(wasmedge_tensorflow_lib_tf)
     if(APPLE)
       execute_process(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.12.0.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.dylib
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.dylib
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.2.12.0.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.2.dylib
-        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.2.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.dylib
+        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.12.0.framework ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.framework
+        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.framework ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.framework
+        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.2.12.0.framework ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.2.framework
+        COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.2.framework ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.framework
       )
     else()
       execute_process(
@@ -132,8 +132,8 @@ function(wasmedge_setup_tf_lib)
   if(ANDROID)
   elseif(APPLE)
     set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
-      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.12.0.dylib"
-      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.2.12.0.dylib"
+      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.12.0.framework"
+      "${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.2.12.0.framework"
       PARENT_SCOPE
     )
   elseif(UNIX)

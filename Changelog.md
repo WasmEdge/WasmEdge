@@ -1,6 +1,7 @@
 ### 0.13.5 (2023-11-03)
 
 Features:
+
 * [Component] share loading entry for component and module (#2945)
   * Initial support for the component model proposal.
   * This PR allows WasmEdge to recognize the component and module format.
@@ -34,6 +35,7 @@ Features:
 * [AOT] Support LLVM 17
 
 Fixed issues:
+
 * [Installer]: Double quote the strings to prevent splitting in env file (#2994)
 * [AOT]:
   * Validate AOT section header fields
@@ -44,6 +46,7 @@ Fixed issues:
 * [CI] install llvm@16 to fix macOS build (#2878)
 
 Misc:
+
 * [Example] Update wit-bindgen version from 0.7.0 to 0.11.0 (#2770)
 
 Thank all the contributors who made this release possible!
@@ -214,7 +217,7 @@ Features:
 * Added helper functions for Windows CLI.
   * Added the `WasmEdge_Driver_ArgvCreate()` and `WasmEdge_Driver_ArgvDelete()` APIs to convert UTF-16 arguments to UTF-8.
   * Added the `WasmEdge_Driver_SetConsoleOutputCPtoUTF8()` API to set the output code page to UTF-8.
-* Added the unifed tool API.
+* Added the unified tool API.
   * Added the `WasmEdge_Driver_UniTool()` API to trigger the WasmEdge CLI tool with command line arguments.
 
 Fixed issues:

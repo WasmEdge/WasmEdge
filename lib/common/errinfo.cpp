@@ -5,6 +5,9 @@
 #include "common/errcode.h"
 #include "common/hexstr.h"
 
+#include <spdlog/fmt/fmt.h>
+#include <spdlog/fmt/ranges.h>
+
 using namespace std::literals;
 
 fmt::format_context::iterator

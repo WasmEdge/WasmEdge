@@ -555,11 +555,7 @@ VM::unsafeExecute(std::string_view CompName, std::string_view Func,
   const auto *FindCompInst = StoreRef.findComponent(CompName);
   if (FindCompInst != nullptr) {
     // Execute function and return values with the component instance.
-    auto Res = unsafeExecute(FindCompInst, Func, Params, ParamTypes);
-    if (!Res) {
-      return Unexpect(Res);
-    }
-    return *Res;
+    return unsafeExecute(FindCompInst, Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
   spdlog::error(ErrInfo::InfoExecuting(CompName, Func));
@@ -574,11 +570,7 @@ VM::unsafeExecute(std::string_view ModName, std::string_view Func,
   const auto *FindModInst = StoreRef.findModule(ModName);
   if (FindModInst != nullptr) {
     // Execute function and return values with the module instance.
-    auto Res = unsafeExecute(FindModInst, Func, Params, ParamTypes);
-    if (!Res) {
-      return Unexpect(Res);
-    }
-    return *Res;
+    return unsafeExecute(FindModInst, Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
   spdlog::error(ErrInfo::InfoExecuting(ModName, Func));

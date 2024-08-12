@@ -14,8 +14,6 @@ using Pollable = uint32_t;
 
 class WasiPollEnvironment {
 public:
-  WasiPollEnvironment() noexcept;
-
   bool isPollable(Pollable P);
   void dropPollable(Pollable P);
 

@@ -7,8 +7,6 @@
 namespace WasmEdge {
 namespace Host {
 
-WasiPollEnvironment::WasiPollEnvironment() noexcept : PollableMap() {}
-
 bool WasiPollEnvironment::isPollable(Pollable P) { return PollableMap.at(P); }
 void WasiPollEnvironment::dropPollable(Pollable P) { PollableMap.erase(P); }
 namespace {

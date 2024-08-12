@@ -68,7 +68,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3499
+      GIT_TAG        b3567
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -153,7 +153,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       target_link_libraries(wasmedgePluginWasiNN PRIVATE ${Python3_LIBRARIES})
       target_link_directories(wasmedgePluginWasiNN PRIVATE ${Python3_RUNTIME_LIBRARY_DIRS})
     else()
-      message(FATAL_ERROR "Can not find python3.") 
+      message(FATAL_ERROR "Can not find python3.")
     endif()
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   endif()

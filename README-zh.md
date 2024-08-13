@@ -23,7 +23,7 @@ WasmEdge (之前名为 SSVM) 是为边缘计算优化的轻量级、高性能、
 # 快速开始指引
 
 🚀 [安装](https://wasmedge.org/docs/zh/start/install) WasmEdge\
-🤖 [Build](https://wasmedge.org/docs/zh/category/build-wasmedge-from-source) 并[贡献](docs/book/en/src/contribute.md)给 WasmEdge\
+🤖 [Build](https://wasmedge.org/docs/zh/category/build-wasmedge-from-source) 并[贡献](https://wasmedge.org/docs/zh/contribute/)给 WasmEdge\
 ⌨️  [从 CLI 跑](https://wasmedge.org/docs/zh/category/running-with-wasmedge)一个独立的 Wasm 程序或 [JavaScript 程序](https://wasmedge.org/docs/zh/category/develop-wasm-apps-in-javascript) \
 🔌 [嵌入一个 Wasm 函数](https://www.secondstate.io/articles/getting-started-with-rust-function/)在你的[Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example)， [Go语言](https://wasmedge.org/docs/zh/category/go-sdk-for-embedding-wasmedge)或 Rust 应用里 \
 🛠 使用 [Docker 工具](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)、[数据流框架](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), 和 [区块链](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) 管理和编排 Wasm runtimes

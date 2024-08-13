@@ -23,7 +23,7 @@ WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性�
 # 快速開始指引
 
 🚀 [安装](https://wasmedge.org/docs/zh-tw/start/install) WasmEdge\
-🤖 [編譯](https://wasmedge.org/docs/zh-tw/category/build-wasmedge-from-source) 並[貢獻](docs/book/en/src/contribute.md) WasmEdge\
+🤖 [編譯](https://wasmedge.org/docs/zh-tw/category/build-wasmedge-from-source) 並[貢獻](https://wasmedge.org/docs/zh-tw/contribute/) WasmEdge\
 ⌨️ [從 CLI 執行](https://wasmedge.org/docs/zh-tw/category/running-with-wasmedge)一個獨立的 Wasm 程式或 [JavaScript 程式](https://wasmedge.org/docs/zh-tw/category/develop-wasm-apps-in-javascript) \
 🔌 在 [Node.js](https://github.com/second-state/wasm-learning/tree/master/ssvm/file-example) 、 [Go 語言](https://wasmedge.org/docs/zh-tw/category/go-sdk-for-embedding-wasmedge)、或是 [Rust 應用程式](https://www.secondstate.io/articles/getting-started-with-rust-function/)嵌入 Wasm 函式 \
 🛠 使用 [Docker 工具](https://www.secondstate.io/articles/manage-webassembly-apps-in-wasmedge-using-docker-tools/)、[即時資料流框架](https://www.secondstate.io/articles/yomo-wasmedge-real-time-data-streams/), 和 [區塊鏈](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) 管理和編排 Wasm runtimes

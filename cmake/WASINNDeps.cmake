@@ -234,6 +234,8 @@ function(wasmedge_setup_tflite_target target)
 endfunction()
 
 function(wasmedge_setup_piper)
+  include(Helper)
+  wasmedge_setup_spdlog()
   find_package(onnxruntime)
   if(NOT onnxruntime_FOUND)
     find_library(ONNXRUNTIME_LIBRARY onnxruntime)

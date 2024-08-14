@@ -326,18 +326,7 @@ jobs:
       run: |
         python3 utils/install.py -v 0.9.0 -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && echo "Pass: Version not supported. Min Version: 0.13.0 found" \
           || (echo "Failed: Version not supported. Min Version: 0.13.0 message not found" && exit 1)
-    - name: Plugins Install check MacOS-x86
-      shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        python3 utils/install.py -v 0.13.1 --plugins wasmedge_tensorflow
-        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflow.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        python3 utils/install.py -v 0.13.1 --plugins wasmedge_tensorflowlite
-        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasmEdgeTensorflowLite.dylib && echo "Pass: Plugins found" || (echo "Fail: Plugins not found" && exit 1)
-        python3 utils/install.py -v 0.13.5 --plugins wasmedge_rustls
-        ls ~/.wasmedge/plugin/ | grep libwasmedge_rustls.dylib && echo "Pass: Plugins found" || (echo "Fail: Wasmedge Rustls Plugin not found" && exit 1)
-
-    - name: Plugins Install check MacOS-arm64
+    - name: Plugins Install check MacOS
       shell: zsh {0}
       if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |
@@ -350,28 +339,12 @@ jobs:
 
     - name: Install multiple versions and Tensorflow extension/plugins for pre and post 0.13.x
       shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        python3 utils/install.py --plugins wasmedge_tensorflow -D  2>&1 -v 0.13.1
-        python3 utils/install.py --plugins wasmedge_tensorflow -D  2>&1
-
-    - name: Install multiple versions and Tensorflow extension/plugins for pre and post 0.13.x
-      shell: zsh {0}
-      if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |
         python3 utils/install.py --plugins wasmedge_tensorflow -D  2>&1 -v 0.13.1
         python3 utils/install.py --plugins wasmedge_tensorflow -D  2>&1
 
     - name: Install multiple versions and Image extension/plugins for pre and post 0.13.x
       shell: zsh {0}
-      if: ${{ matrix.name != 'MacOS-arm64' }}
-      run: |
-        python3 utils/install.py --plugins wasmedge_image -D  2>&1 -v 0.13.1
-        python3 utils/install.py --plugins wasmedge_image -D  2>&1
-
-    - name: Install multiple versions and Image extension/plugins for pre and post 0.13.x
-      shell: zsh {0}
-      if: ${{ matrix.name == 'MacOS-arm64' }}
       run: |
         python3 utils/install.py --plugins wasmedge_image -D  2>&1 -v 0.13.1
         python3 utils/install.py --plugins wasmedge_image -D  2>&1

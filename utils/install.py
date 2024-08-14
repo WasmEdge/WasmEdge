@@ -931,6 +931,17 @@ def install_plugins(args, compat):
                 logging.warning("Skip installing WasmEdge Rustls plugin")
                 continue
 
+            # Deprecated wasi-logging after 0.14.1-rc.1
+            if (
+                plugin_name.startswith(WASI_LOGGING)
+                and compat.version.compare("0.14.1-rc.1") != -1
+            ):
+                logging.warning(
+                    "WASI-Logging plugin is bundled into libwasmedge in 0.14.1-rc.1"
+                )
+                logging.warning("No need to install the WASI-Logging plugin")
+                continue
+
             # Split the WASI-NN-GGML plugin and the others
             if plugin_name.startswith(WASI_NN_GGML):
                 # Re-write the plugin name if the build number is supplied

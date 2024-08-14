@@ -68,6 +68,10 @@ jobs:
         # It will install WasmEdge and the b2963 GGML plugin
         bash utils/install_v2.sh -V --ggmlbn=b2963
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Run installer-v2 with 0.14.1 rc.1
+      run: |
+        bash utils/install_v2.sh -V --version=0.14.1-rc.1
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiLogging.so && (echo "Fail: WASI_NN-logging Plugin found" && exit 1) || (echo "Pass: WASI_NN-logging not found" && exit 0)
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
@@ -110,6 +114,10 @@ jobs:
         # It will install WasmEdge and the b2963 GGML plugin
         bash utils/install_v2.sh -V --ggmlbn=b2963
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.dylib && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+    - name: Run installer-v2 with 0.14.1 rc.1
+      run: |
+        bash utils/install_v2.sh -V --version=0.14.1-rc.1
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiLogging.dylib && (echo "Fail: WASI_NN-logging Plugin found" && exit 1) || (echo "Pass: WASI_NN-logging not found" && exit 0)
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

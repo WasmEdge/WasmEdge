@@ -1,6 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS)
+  message(STATUS "Stable diffusion plugin: Enable SD_CUBLAS")
+  set(SD_CUBLAS ON)
+else()
+  message(STATUS "Stable diffusion plugin: Disable SD_CUBLAS")
+  set(SD_CUBLAS OFF)
+endif()
+
 # setup stable diffusion
 message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
@@ -13,7 +22,7 @@ FetchContent_MakeAvailable(stable-diffusion)
 set_property(TARGET stable-diffusion PROPERTY POSITION_INDEPENDENT_CODE ON)
 if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
   # `cblas_sgemm()` introduced in macOS 13.3.
-  set(GGML_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion turn off accelerate")
+  set(GGML_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion plugin: Turn off accelerate")
 endif()
 get_target_property(SD_DEPS stable-diffusion LINK_LIBRARIES)
 foreach(dep ${SD_DEPS})

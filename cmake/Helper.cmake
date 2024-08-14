@@ -140,7 +140,7 @@ function(wasmedge_setup_target target)
   set_target_properties(${target} PROPERTIES
     CXX_STANDARD 17
     CXX_EXTENSIONS OFF
-    #    CXX_VISIBILITY_PRESET hidden
+    CXX_VISIBILITY_PRESET hidden
     ENABLE_EXPORTS ON
     POSITION_INDEPENDENT_CODE ON
     VISIBILITY_INLINES_HIDDEN ON

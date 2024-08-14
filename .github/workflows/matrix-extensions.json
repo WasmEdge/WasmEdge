@@ -7,7 +7,6 @@
             "wasi_nn-tensorflowlite",
             "wasi_nn-whisper",
             "wasm_bpf",
-            "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
             "wasmedge_process",
@@ -20,7 +19,6 @@
             "wasi_nn-ggml",
             "wasi_nn-tensorflowlite",
             "wasi_nn-whisper",
-            "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
             "wasmedge_process",
@@ -36,7 +34,6 @@
             "wasi_nn-whisper",
             "wasi_nn-piper",
             "wasm_bpf",
-            "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
             "wasmedge_process",
@@ -51,7 +48,6 @@
             "wasi_nn-tensorflowlite",
             "wasi_nn-whisper",
             "wasi_nn-piper",
-            "wasmedge_ffmpeg",
             "wasmedge_image",
             "wasmedge_opencvmini",
             "wasmedge_process",
@@ -110,13 +106,6 @@
             "dir": "wasm_bpf",
             "testBin": "wasmBpfTests",
             "options": "-DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF"
-        },
-        "wasmedge_ffmpeg": {
-            "plugin": "wasmedge_ffmpeg",
-            "bin": "libwasmedgePluginWasmEdgeFFmpeg.so",
-            "dir": "wasmedge_ffmpeg",
-            "testBin": "wasmedgeFFmpegTests",
-            "options": "-DWASMEDGE_PLUGIN_FFMPEG=ON"
         },
         "wasmedge_image": {
             "plugin": "wasmedge_image",

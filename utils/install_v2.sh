@@ -582,6 +582,11 @@ main() {
 
 		get_wasmedge_release
 		get_wasmedge_ggml_plugin
+	if [[ "${VERSION}" =~ ^"0.14.1" ]]; then
+		# WASI-Logging is bundled into the WasmEdge release package starting from 0.14.1-rc.1
+		DISABLE_WASI_LOGGING="1"
+	fi
+
 	if [[ "${DISABLE_WASI_LOGGING}" == "0" ]]; then
 		get_wasmedge_wasi_logging_plugin
 	fi

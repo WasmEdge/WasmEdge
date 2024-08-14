@@ -40,6 +40,7 @@ $ wasmedge --reactor factorial.wasm fac 12
 ```
 
 ## Hello World
+
 The `hello.wasm` example is a WebAssembly which compiled from a Rust application called `hello`, you can find it under the `hello` folder..
 
 ### Build from source

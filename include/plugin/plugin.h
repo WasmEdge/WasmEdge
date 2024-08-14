@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/plugin/plugin.h - Plugin class definition ----------------===//
 //
@@ -20,8 +20,10 @@
 #include "po/argument_parser.h"
 #include "runtime/instance/component.h"
 #include "runtime/instance/module.h"
+
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #if WASMEDGE_OS_WINDOWS
@@ -141,12 +143,29 @@ public:
                        PO::ArgumentParser &Parser) noexcept;
   };
 
+  // Const value of current plugin API version.
   static inline constexpr const uint32_t CurrentAPIVersion [[maybe_unused]] =
       kPluginCurrentAPIVersion;
+
+  // Static function to load plugins from default paths.
+  WASMEDGE_EXPORT static void loadFromDefaultPaths() noexcept;
+
+  // Static function to get default plugin paths.
   static std::vector<std::filesystem::path> getDefaultPluginPaths() noexcept;
+
+  // Static function to load all plugins from given path.
   WASMEDGE_EXPORT static bool load(const std::filesystem::path &Path) noexcept;
+
+  // Static function to register plugin with descriptor.
+  static bool registerPlugin(const PluginDescriptor *Desc) noexcept;
+
+  // Static function to add plugin options from arguments.
   static void addPluginOptions(PO::ArgumentParser &Parser) noexcept;
+
+  // Static function to find loaded plugin by name.
   WASMEDGE_EXPORT static const Plugin *find(std::string_view Name) noexcept;
+
+  // Static function to list loaded plugins.
   static Span<const Plugin> plugins() noexcept;
 
   Plugin(const Plugin &) = delete;
@@ -190,15 +209,24 @@ public:
 
   WASMEDGE_EXPORT const PluginModule *
   findModule(std::string_view Name) const noexcept;
+
   WASMEDGE_EXPORT const PluginComponent *
   findComponent(std::string_view Name) const noexcept;
 
   std::filesystem::path path() const noexcept { return Path; }
 
 private:
+  static std::mutex Mutex;
   static std::vector<Plugin> PluginRegistry;
   static std::unordered_map<std::string_view, std::size_t> PluginNameLookup;
 
+  // Static function to load plugin from file. Thread-safe.
+  static bool loadFile(const std::filesystem::path &Path) noexcept;
+
+  // Static function to register built-in plugins. Thread-safe.
+  static void registerBuiltInPlugins() noexcept;
+
+  // Plugin contents.
   std::filesystem::path Path;
   const PluginDescriptor *Desc = nullptr;
   std::shared_ptr<Loader::SharedLibrary> Lib;
@@ -206,12 +234,6 @@ private:
   std::vector<PluginComponent> ComponentRegistry;
   std::unordered_map<std::string_view, std::size_t> ModuleNameLookup;
   std::unordered_map<std::string_view, std::size_t> ComponentNameLookup;
-
-  static bool loadFile(const std::filesystem::path &Path) noexcept;
-
-public:
-  WASMEDGE_EXPORT static bool
-  registerPlugin(const PluginDescriptor *Desc) noexcept;
 };
 
 } // namespace Plugin

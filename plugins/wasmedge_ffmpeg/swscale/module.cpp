@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "module.h"
 #include "swscale_func.h"
 
@@ -9,7 +12,6 @@ namespace SWScale {
 WasmEdgeFFmpegSWScaleModule::WasmEdgeFFmpegSWScaleModule(
     std::shared_ptr<WasmEdgeFFmpegEnv> Env)
     : ModuleInstance("wasmedge_ffmpeg_swscale") {
-
   addHostFunc("wasmedge_ffmpeg_swscale_swscale_version",
               std::make_unique<SwscaleVersion>(Env));
   addHostFunc("wasmedge_ffmpeg_swscale_swscale_configuration_length",

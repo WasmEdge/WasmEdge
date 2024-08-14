@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avformatContext.h"
 
 extern "C" {
@@ -12,7 +15,6 @@ namespace AVFormat {
 Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame,
                                          uint32_t AvFormatCtxId,
                                          uint32_t AvInputFormatPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AvInputFormatId, MemInst, uint32_t, AvInputFormatPtr,
                 "Failed when accessing the return AVInputFormat Memory"sv);
@@ -27,7 +29,6 @@ Expect<int32_t> AVFormatCtxIFormat::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVFormatCtxOFormat::body(const Runtime::CallingFrame &Frame,
                                          uint32_t AvFormatCtxId,
                                          uint32_t AvOutputFormatPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AvOutputFormatId, MemInst, uint32_t, AvOutputFormatPtr,
                 "Failed when accessing the return AVOutputFormat Memory"sv);
@@ -42,35 +43,30 @@ Expect<int32_t> AVFormatCtxOFormat::body(const Runtime::CallingFrame &Frame,
 
 Expect<int32_t> AVFormatCtxProbeScore::body(const Runtime::CallingFrame &,
                                             uint32_t AvFormatCtxId) {
-
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   return AvFormatContext->probe_score;
 }
 
 Expect<uint32_t> AVFormatCtxNbStreams::body(const Runtime::CallingFrame &,
                                             uint32_t AvFormatCtxId) {
-
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   return AvFormatContext->nb_streams;
 };
 
 Expect<int64_t> AVFormatCtxBitRate::body(const Runtime::CallingFrame &,
                                          uint32_t AvFormatCtxId) {
-
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   return AvFormatContext->bit_rate;
 }
 
 Expect<int64_t> AVFormatCtxDuration::body(const Runtime::CallingFrame &,
                                           uint32_t AvFormatCtxId) {
-
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   return AvFormatContext->duration;
 }
 
 Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &,
                                              uint32_t AvFormatCtxId) {
-
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   return AvFormatContext->nb_chapters;
 }
@@ -78,7 +74,6 @@ Expect<uint32_t> AVFormatCtxNbChapters::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFormatCtxSetNbChapters::body(const Runtime::CallingFrame &,
                                                uint32_t AvFormatCtxId,
                                                uint32_t NbChapters) {
-
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   AvFormatContext->nb_chapters = NbChapters;
   return static_cast<int32_t>(ErrNo::Success);
@@ -87,7 +82,6 @@ Expect<int32_t> AVFormatCtxSetNbChapters::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFormatCtxMetadata::body(const Runtime::CallingFrame &Frame,
                                           uint32_t AvFormatCtxId,
                                           uint32_t DictPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
                 "Failed when accessing the return AVDictionary memory"sv);
@@ -105,14 +99,14 @@ Expect<int32_t> AVFormatCtxMetadata::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVFormatCtxSetMetadata::body(const Runtime::CallingFrame &,
                                              uint32_t AvFormatCtxId,
                                              uint32_t DictId) {
-
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary *);
 
-  if (AvDictionary == nullptr)
+  if (AvDictionary == nullptr) {
     AvFormatCtx->metadata = nullptr;
-  else
+  } else {
     AvFormatCtx->metadata = *AvDictionary;
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 

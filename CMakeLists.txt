@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 cmake_minimum_required(VERSION 3.15)
 cmake_policy(SET CMP0091 NEW)
@@ -17,13 +17,17 @@ set(WASMEDGE_WASI_NN_VERSION "0.1.0" CACHE STRING "WasmEdge WASI-NN library vers
 set(WASMEDGE_WASI_NN_SOVERSION "0" CACHE STRING "WasmEdge WASI-NN library soversion")
 
 find_program(GIT_CMD git)
-execute_process(COMMAND
-  ${GIT_CMD} describe --match "[0-9].[0-9]*" --tag
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-  OUTPUT_VARIABLE CPACK_PACKAGE_VERSION
-  RESULT_VARIABLE GIT_VERSION_NOT_FOUND
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+# Assuming the git command is not found and .git folder is not available.
+set(GIT_VERSION_NOT_FOUND 1)
+if(GIT_CMD AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+  execute_process(COMMAND
+    ${GIT_CMD} describe --match "[0-9].[0-9]*" --tag
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE CPACK_PACKAGE_VERSION
+    RESULT_VARIABLE GIT_VERSION_NOT_FOUND
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+endif()
 
 if(GIT_VERSION_NOT_FOUND AND NOT GIT_VERSION_NOT_FOUND EQUAL 0)
   set(CPACK_PACKAGE_VERSION "0.0.0-unreleased")
@@ -81,7 +85,8 @@ option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-
 option(WASMEDGE_PLUGIN_WASI_HTTP "Enable WasmEdge wasi-http plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_POLL "Enable WasmEdge wasi-poll plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable WasmEdge wasi-crypto plugin." OFF)
-option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." OFF)
+#     Note: WASMEDGE_PLUGIN_WASI_LOGGING is not used until the new plug-in mechanism ready in 0.15.0.
+option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable WasmEdge wasi-logging plugin." ON)
 option(WASMEDGE_PLUGIN_WASM_BPF "Enable WasmEdge wasm-bpf plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_OCR "Enable WasmEdge wasm-ocr plugin." OFF)
 #   WasmEdge plug-ins.
@@ -90,10 +95,10 @@ option(WASMEDGE_PLUGIN_PROCESS "Enable WasmEdge process plugin." OFF)
 option(WASMEDGE_PLUGIN_IMAGE "Enable WasmEdge image plugin." OFF)
 option(WASMEDGE_PLUGIN_TENSORFLOW "Enable WasmEdge TensorFlow plugin." OFF)
 option(WASMEDGE_PLUGIN_TENSORFLOWLITE "Enable WasmEdge TensorFlow-Lite plugin." OFF)
-option(WASMEDGE_PLUGIN_RUSTLS "Enable WasmEdge Rustls plugin." OFF)
 option(WASMEDGE_PLUGIN_ZLIB "Enable WasmEdge zlib plugin." OFF)
 option(WASMEDGE_PLUGIN_FFMPEG "Enable WasmEdge ffmpeg plugin." OFF)
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION "Enable WasmEdge stable-diffusion plugin." OFF)
+option(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS "Enable CUBLAS in the stable-diffusion plugin." OFF)
 
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")

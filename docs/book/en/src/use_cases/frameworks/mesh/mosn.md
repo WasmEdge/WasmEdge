@@ -1,3 +1,0 @@
-# MOSN
-
-Coming soon.

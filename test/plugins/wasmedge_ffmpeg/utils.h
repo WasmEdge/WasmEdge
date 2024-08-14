@@ -26,9 +26,9 @@ inline void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
 }
 
 inline void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
-                           uint32_t Offset, const std::string &Str) noexcept {
+                           uint32_t Offset, std::string_view Str) noexcept {
   char *Buf = MemInst->getPointer<char *>(Offset);
-  std::copy_n(Str.c_str(), Str.length(), Buf);
+  std::copy_n(Str.data(), Str.length(), Buf);
 }
 
 inline void writeSInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,

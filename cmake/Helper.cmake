@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 set(WASMEDGE_INTERPROCEDURAL_OPTIMIZATION OFF)
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
@@ -183,8 +183,8 @@ endfunction()
 function(wasmedge_add_library target)
   add_library(${target} ${ARGN})
   wasmedge_setup_target(${target})
-  # Linux needs an explicit INSTALL_RPATH to allow libwasmedge.so to find libwasiNNRPC.so
-  # in the same directory
+  # Linux needs an explicit INSTALL_RPATH to allow libwasmedge.so to find
+  # libwasiNNRPC.so in the same directory.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     set_target_properties(${target} PROPERTIES
       INSTALL_RPATH "$ORIGIN"
@@ -337,6 +337,46 @@ function(wasmedge_setup_simdjson)
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # unreferenced local function has been removed
       )
     endif()
+  endif()
+endfunction()
 
+function(wasmedge_setup_spdlog)
+  find_package(spdlog QUIET)
+  if(spdlog_FOUND)
+  else()
+    FetchContent_Declare(
+      fmt
+      GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+      GIT_TAG        11.0.2
+      GIT_SHALLOW    TRUE
+    )
+    set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
+    FetchContent_MakeAvailable(fmt)
+    wasmedge_setup_target(fmt)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      target_compile_options(fmt
+        PUBLIC
+        -Wno-missing-noreturn
+        PRIVATE
+        -Wno-sign-conversion
+      )
+    endif()
+    if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      target_compile_options(fmt
+        PUBLIC
+        -Wno-duplicate-enum
+      )
+    endif()
+
+    FetchContent_Declare(
+      spdlog
+      GIT_REPOSITORY https://github.com/gabime/spdlog.git
+      GIT_TAG        v1.13.0
+      GIT_SHALLOW    TRUE
+    )
+    set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)
+    set(SPDLOG_FMT_EXTERNAL ON  CACHE BOOL "Use external fmt library instead of bundled" FORCE)
+    FetchContent_MakeAvailable(spdlog)
+    wasmedge_setup_target(spdlog)
   endif()
 endfunction()

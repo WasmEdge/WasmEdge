@@ -411,11 +411,7 @@ get_wasmedge_ggml_plugin() {
 			CUDA_EXT="-cuda"
 		elif [ "${cuda}" == "11" ]; then
 			info "CUDA version 11 is detected from nvcc: Use the GPU version."
-			if [ "${ARCH}" == "aarch64" ]; then
-				CUDA_EXT="-cuda"
-			else
-				CUDA_EXT="-cuda-11"
-			fi
+			CUDA_EXT="-cuda-11"
 		else
 			CUDA_EXT=""
 		fi
@@ -586,6 +582,11 @@ main() {
 
 		get_wasmedge_release
 		get_wasmedge_ggml_plugin
+	if [[ "${VERSION}" =~ ^"0.14.1" ]]; then
+		# WASI-Logging is bundled into the WasmEdge release package starting from 0.14.1-rc.1
+		DISABLE_WASI_LOGGING="1"
+	fi
+
 	if [[ "${DISABLE_WASI_LOGGING}" == "0" ]]; then
 		get_wasmedge_wasi_logging_plugin
 	fi

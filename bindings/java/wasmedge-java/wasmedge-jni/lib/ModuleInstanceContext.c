@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "FunctionTypeInstance.h"
 #include "GlobalInstanceContext.h"
@@ -90,8 +90,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_addGlobal(
       impObjCxt, JStringToWasmString(env, jGlobalName), globalInstance);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_ModuleInstanceContext_close(
-    JNIEnv *env, jobject thisObject) {
+JNIEXPORT void JNICALL
+Java_org_wasmedge_ModuleInstanceContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_ModuleInstanceContext *impObjCxt =
       getModuleInstanceContext(env, thisObject);
   WasmEdge_ModuleInstanceDelete(impObjCxt);
@@ -254,7 +254,8 @@ createJModuleInstanceContext(JNIEnv *env,
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_MODULEINSTANCECONTEXT);
 
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   return (*env)->NewObject(env, clazz, constructorId, (long)impObj);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "wasinnenv.h"
 #include "types.h"
@@ -32,7 +32,8 @@ std::map<std::string_view, Backend> BackendMap = {
     {"ggml"sv, Backend::GGML},
     {"neuralspeed"sv, Backend::NeuralSpeed},
     {"whisper"sv, Backend::Whisper},
-    {"piper"sv, Backend::Piper}};
+    {"piper"sv, Backend::Piper},
+    {"chattts"sv, Backend::ChatTTS}};
 
 std::map<std::string_view, Device> DeviceMap = {{"cpu"sv, Device::CPU},
                                                 {"gpu"sv, Device::GPU},

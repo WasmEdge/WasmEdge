@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
@@ -15,6 +15,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   neuralspeed.cpp
   piper.cpp
   whispercpp.cpp
+  chattts.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -71,7 +72,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3463
+      GIT_TAG        b3567
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -152,7 +153,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
       )
     endif()
-  elseif(BACKEND STREQUAL "neuralspeed")
+  elseif(BACKEND STREQUAL "neuralspeed" OR BACKEND STREQUAL "chattts")
     wasmedge_setup_simdjson()
 
     find_package(Python3 COMPONENTS Interpreter Development)
@@ -164,14 +165,11 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       target_link_libraries(wasmedgePluginWasiNN PRIVATE ${Python3_LIBRARIES})
       target_link_directories(wasmedgePluginWasiNN PRIVATE ${Python3_RUNTIME_LIBRARY_DIRS})
     else()
-      message(FATAL_ERROR "Can not find python3.") 
+      message(FATAL_ERROR "Can not find python3.")
     endif()
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "piper")
     wasmedge_setup_simdjson()
-    include(WASINNDeps)
-    wasmedge_setup_piper()
-    target_include_directories(wasmedgePluginWasiNN PRIVATE ${piper_SOURCE_DIR}/src/cpp)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "whisper")
     if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)

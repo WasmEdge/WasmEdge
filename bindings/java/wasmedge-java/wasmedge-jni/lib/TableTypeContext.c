@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_TableTypeContext.h"
 #include "common.h"
@@ -12,7 +12,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_TableTypeContext_nativeInit(
 
   jclass cls = (*env)->GetObjectClass(env, jLimit);
 
-  jmethodID hasMaxMid = (*env)->GetMethodID(env, cls, LIMIT_IS_HAS_MAX, VOID_BOOL);
+  jmethodID hasMaxMid =
+      (*env)->GetMethodID(env, cls, LIMIT_IS_HAS_MAX, VOID_BOOL);
   jboolean hasMax = (*env)->CallBooleanMethod(env, jLimit, hasMaxMid);
 
   jmethodID maxMid = (*env)->GetMethodID(env, cls, LIMIT_GET_MAX, VOID_LONG);
@@ -36,7 +37,8 @@ Java_org_wasmedge_TableTypeContext_getLimit(JNIEnv *env, jobject thisObject) {
 
   jclass limitClass = findJavaClass(env, ORG_WASMEDGE_LIMIT);
 
-  jmethodID constructor = findJavaMethod(env, limitClass, DEFAULT_CONSTRUCTOR, BOOLLONGLONG_VOID);
+  jmethodID constructor =
+      findJavaMethod(env, limitClass, DEFAULT_CONSTRUCTOR, BOOLLONGLONG_VOID);
 
   return (*env)->NewObject(env, limitClass, constructor, (jboolean)limit.HasMax,
                            (jlong)limit.Min, (jlong)limit.Max);
@@ -63,7 +65,8 @@ createJTableTypeContext(JNIEnv *env,
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_TABLETYPECONTEXT);
 
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   jobject table =
       (*env)->NewObject(env, clazz, constructorId, (long)tableTypeContext);

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
 get_filename_component(LLVM_DIR "${LLVM_DIR}" ABSOLUTE)

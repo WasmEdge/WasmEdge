@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #pragma once
+
 #include "common/span.h"
 #include "common/spdlog.h"
+
 #include <cstdint>
 
 namespace WasmEdge::Host::WASINN {
@@ -39,6 +41,7 @@ enum class Backend : uint8_t {
   NeuralSpeed = 7,
   Whisper = 9,
   Piper = 11,
+  ChatTTS = 12,
 };
 
 #define FOR_EACH_BACKEND(F)                                                    \
@@ -50,7 +53,8 @@ enum class Backend : uint8_t {
   F(GGML)                                                                      \
   F(NeuralSpeed)                                                               \
   F(Whisper)                                                                   \
-  F(Piper)
+  F(Piper)                                                                     \
+  F(ChatTTS)
 
 struct TensorData {
   Span<uint32_t> Dimension;

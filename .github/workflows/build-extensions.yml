@@ -19,8 +19,8 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
+      - "utils/ffmpeg/**"
       - "utils/wasi-nn/**"
-      - "utils/wasi-crypto/**"
   pull_request:
     branches:
       - master
@@ -36,8 +36,8 @@ on:
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
+      - "utils/ffmpeg/**"
       - "utils/wasi-nn/**"
-      - "utils/wasi-crypto/**"
 
 permissions:
   contents: read
@@ -116,6 +116,7 @@ jobs:
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
           bash utils/wasi-nn/install-neuralspeed.sh
+          bash utils/wasi-nn/install-onnxruntime.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
         run: |
@@ -143,17 +144,35 @@ jobs:
         shell: bash
         run: |
           set -eux
-          # wasi_nn_rpcserver is built in a clean "build2" dir
-          cmake -Bbuild2 -GNinja
-          cmake --build build2
+          # wasi_nn_rpcserver is built in a clean "build_rpc" dir
+          export nnrpc_test_dir=build_rpc/test/plugins/wasi_nn
+          cmake -Bbuild_rpc -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DWASMEDGE_BUILD_TESTS=ON \
+            -DWASMEDGE_USE_LLVM=OFF \
+            -DWASMEDGE_BUILD_TOOLS=ON \
+            -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML \
+            -DWASMEDGE_BUILD_WASI_NN_RPC=ON
+          cmake --build build_rpc
           export WASI_NN_RPC_TEST_URI=unix:///tmp/wasi_nn_rpc.sock
-          WASMEDGE_PLUGIN_PATH=build/plugins/wasi_nn build2/tools/wasmedge/wasi_nn_rpcserver \
-            --nn-rpc-uri=$WASI_NN_RPC_TEST_URI \
-            --nn-preload=default:GGML:AUTO:build/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+          export WASMEDGE_PLUGIN_PATH=build_rpc/plugins/wasi_nn
+          build_rpc/tools/wasmedge/wasi_nn_rpcserver \
+            --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+          RPC_SERVER_PID=$!
           sleep 3
-          cd ${test_dir}
           # The test binary consumes $WASI_NN_RPC_TEST_URI
-          ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendWithRPC
+          (cd ${nnrpc_test_dir} && ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendWithRPC)
+          kill -9 "$RPC_SERVER_PID"
+
+          # Restart the server for the compute single test
+          build_rpc/tools/wasmedge/wasi_nn_rpcserver \
+            --nn-rpc-uri $WASI_NN_RPC_TEST_URI \
+            --nn-preload default:GGML:AUTO:build_rpc/test/plugins/wasi_nn/wasinn_ggml_fixtures/orca_mini.gguf &
+          RPC_SERVER_PID=$!
+          sleep 3
+          (cd ${nnrpc_test_dir} && ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendComputeSingleWithRPC)
+          kill -9 "$RPC_SERVER_PID"
       - name: Upload artifact - wasi_nn-pytorch
         uses: actions/upload-artifact@v3
         with:
@@ -269,10 +288,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg wasmedge_stablediffusion
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmBpfTests wasmedgeOpencvminiTests wasmedgeZlibTests wasmedgeFFmpegTests wasmedgeStableDiffusionTests
-      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasiLogging.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so libwasmedgePluginWasmEdgeFFmpeg.so libwasmedgePluginWasmEdgeStableDiffusion.so
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_LLM=ON
+      tar_names: wasi_crypto wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg wasmedge_stablediffusion wasi_llm
+      test_bins: wasiCryptoTests wasmedgeProcessTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmBpfTests wasmedgeOpencvminiTests wasmedgeZlibTests wasmedgeFFmpegTests wasmedgeStableDiffusionTests wasiLLMTests
+      output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so libwasmedgePluginWasmEdgeFFmpeg.so libwasmedgePluginWasmEdgeStableDiffusion.so libwasmedgePluginWasiLLM.so
     needs: [ get_version ]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -287,7 +306,7 @@ jobs:
         run: |
           apt update
           apt install -y libssl-dev
-          apt install -y libelf-dev zlib1g-dev pkg-config
+          apt install -y libelf-dev zlib1g-dev pkg-config libomp-dev
           apt install -y clang-15
           apt install -y cargo
           apt install -y yasm
@@ -336,11 +355,6 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_crypto.tar.gz
-      - name: Upload artifact - wasi_logging
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_logging.tar.gz
       - name: Upload artifact - wasmedge_process
         uses: actions/upload-artifact@v3
         with:
@@ -386,6 +400,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_stablediffusion-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasmedge_stablediffusion.tar.gz
+      - name: Upload artifact - wasi_llm
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_llm-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
+          path: plugin_wasi_llm.tar.gz
 
   build_manylinux:
     permissions:
@@ -419,10 +438,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON
-      tar_names: wasi_crypto wasi_logging wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_ffmpeg wasmedge_stablediffusion
-      test_bins: wasiCryptoTests wasiLoggingTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasmedgeFFmpegTests wasmedgeStableDiffusionTests
-      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasiLogging.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib libwasmedgePluginWasmEdgeStableDiffusion.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_LLM=ON
+      tar_names: wasi_crypto wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_ffmpeg wasmedge_stablediffusion wasi_llm
+      test_bins: wasiCryptoTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasmedgeFFmpegTests wasmedgeStableDiffusionTests wasiLLMTests
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib libwasmedgePluginWasmEdgeStableDiffusion.dylib libwasmedgePluginWasiLLM.dylib
     needs: [ get_version ]
     steps:
       - uses: actions/checkout@v4
@@ -481,11 +500,6 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_crypto-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasi_crypto.tar.gz
-      - name: Upload artifact - wasi_logging
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_logging-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
-          path: plugin_wasi_logging.tar.gz
       - name: Upload artifact - wasmedge_tensorflow
         uses: actions/upload-artifact@v3
         with:
@@ -516,3 +530,8 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_stablediffusion-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_stablediffusion.tar.gz
+      - name: Upload artifact - wasi_llm
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_llm-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          path: plugin_wasi_llm.tar.gz

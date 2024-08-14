@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
 #include "processfunc.h"
@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -36,11 +37,13 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 }
 
 void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
-                    uint32_t Offset, const std::string &Str) noexcept {
+                    uint32_t Offset, std::string_view Str) noexcept {
   char *Buf = MemInst.getPointer<char *>(Offset);
-  std::copy_n(Str.c_str(), Str.length(), Buf);
+  std::copy_n(Str.data(), Str.length(), Buf);
 }
 } // namespace
+
+using namespace std::literals::string_view_literals;
 
 TEST(WasmEdgeProcessTest, SetProgName) {
   // Create the wasmedge_process module instance.
@@ -61,7 +64,7 @@ TEST(WasmEdgeProcessTest, SetProgName) {
   // Clear the memory[0, 64].
   fillMemContent(MemInst, 0, 64);
   // Set the memory[0, 4] as string "echo".
-  fillMemContent(MemInst, 0, std::string("echo"));
+  fillMemContent(MemInst, 0, "echo"sv);
 
   // Get the function "wasmedge_process_set_prog_name".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_set_prog_name");
@@ -106,11 +109,11 @@ TEST(WasmEdgeProcessTest, AddArg) {
   // Clear the memory[0, 64].
   fillMemContent(MemInst, 0, 64);
   // Set the memory[0, 4] as string "echo".
-  fillMemContent(MemInst, 0, std::string("arg1"));
+  fillMemContent(MemInst, 0, "arg1"sv);
   // Set the memory[4, 8] as string "arg2".
-  fillMemContent(MemInst, 4, std::string("arg2"));
+  fillMemContent(MemInst, 4, "arg2"sv);
   // Set the memory[30, 41] as string "--final-arg".
-  fillMemContent(MemInst, 30, std::string("--final-arg"));
+  fillMemContent(MemInst, 30, "--final-arg"sv);
 
   // Get the function "wasmedge_process_add_arg".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_add_arg");
@@ -171,13 +174,13 @@ TEST(WasmEdgeProcessTest, AddEnv) {
   // Clear the memory[0, 256].
   fillMemContent(MemInst, 0, 256);
   // Set the memory[0, 4] as string "ENV1".
-  fillMemContent(MemInst, 0, std::string("ENV1"));
+  fillMemContent(MemInst, 0, "ENV1"sv);
   // Set the memory[4, 10] as string "VALUE1".
-  fillMemContent(MemInst, 4, std::string("VALUE1"));
+  fillMemContent(MemInst, 4, "VALUE1"sv);
   // Set the memory[30, 45] as string "LD_LIBRARY_PATH".
-  fillMemContent(MemInst, 30, std::string("LD_LIBRARY_PATH"));
+  fillMemContent(MemInst, 30, "LD_LIBRARY_PATH"sv);
   // Set the memory[50, 64] as string "/usr/local/lib".
-  fillMemContent(MemInst, 50, std::string("/usr/local/lib"));
+  fillMemContent(MemInst, 50, "/usr/local/lib"sv);
 
   // Get the function "wasmedge_process_add_env".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_add_env");
@@ -233,9 +236,9 @@ TEST(WasmEdgeProcessTest, AddStdIn) {
   // Clear the memory[0, 64].
   fillMemContent(MemInst, 0, 64);
   // Set the memory[0, 4] as string "\01\02\03\04".
-  fillMemContent(MemInst, 0, std::string("\01\02\03\04"));
+  fillMemContent(MemInst, 0, "\01\02\03\04"sv);
   // Set the memory[30, 46] as string "hello, wasmedge\n".
-  fillMemContent(MemInst, 30, std::string("hello, wasmedge\n"));
+  fillMemContent(MemInst, 30, "hello, wasmedge\n"sv);
 
   // Get the function "wasmedge_process_add_stdin".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_add_stdin");
@@ -315,9 +318,9 @@ TEST(WasmEdgeProcessTest, Run) {
   // Clear the memory[0, 64].
   fillMemContent(MemInst, 0, 64);
   // Set the memory[0, 4] as string "\01\02\03\04".
-  fillMemContent(MemInst, 0, std::string("\01\02\03\04"));
+  fillMemContent(MemInst, 0, "\01\02\03\04"sv);
   // Set the memory[30, 46] as string "hello, wasmedge\n".
-  fillMemContent(MemInst, 30, std::string("hello, wasmedge\n"));
+  fillMemContent(MemInst, 30, "hello, wasmedge\n"sv);
 
   // Get the function "wasmedge_process_run".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_run");

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_AstModuleContext.h"
 #include "ExportTypeContext.h"
@@ -60,7 +60,8 @@ jobject createAstModuleContext(JNIEnv *env,
                                const WasmEdge_ASTModuleContext *mod) {
 
   jclass cls = findJavaClass(env, ORG_WASMEDGE_ASTMODULECONTEXT);
-  jmethodID constructor = findJavaMethod(env, cls, DEFAULT_CONSTRUCTOR, VOID_VOID);
+  jmethodID constructor =
+      findJavaMethod(env, cls, DEFAULT_CONSTRUCTOR, VOID_VOID);
   jobject obj = (*env)->NewObject(env, cls, constructor);
   setPointer(env, obj, (long)mod);
   return obj;

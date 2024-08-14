@@ -108,6 +108,54 @@ struct DefTypeVisitor {
     // constructors to match the preceding sort.
   }
 };
+struct CanonVisitor {
+  void operator()(const Lift &) {
+    // TODO: validation specifies
+    // = $callee must have type flatten_functype($opts, $ft, 'lift')
+    // = $f is given type $ft
+    // = a memory is present if required by lifting and is a subtype of
+    //       (memory 1)
+    // = a realloc is present if required by lifting and has type
+    //       (func (param i32 i32 i32 i32) (result i32))
+    // = if a post-return is present, it has type
+    //       (func (param flatten_functype({}, $ft, 'lift').results))
+  }
+  void operator()(const Lower &) {
+    // TODO: where $callee has type $ft, validation specifies
+    // = $f is given type flatten_functype($opts, $ft, 'lower')
+    // = a memory is present if required by lifting and is a subtype of
+    //     (memory 1)
+    // = a realloc is present if required by lifting and has type
+    //     (func (param i32 i32 i32 i32) (result i32))
+    // = there is no post-return in $opts
+  }
+  void operator()(const ResourceNew &) {
+    // TODO: validation specifies
+    // = $rt must refer to locally-defined (not imported) resource type
+    // = $f is given type (func (param $rt.rep) (result i32)), where $rt.rep is
+    // currently fixed to be i32.
+  }
+  void operator()(const ResourceDrop &) {
+    // TODO: validation specifies
+    // = $rt must refer to resource type
+    // = $f is given type (func (param i32))
+  }
+  void operator()(const ResourceRep &) {
+    // TODO: validation specifies
+    // = $rt must refer to a locally-defined (not imported) resource type
+    // = $f is given type (func (param i32) (result $rt.rep)), where $rt.rep is
+    // currently fixed to be i32.
+  }
+  // TODO: The following are not yet exists in WasmEdge, so just list entries
+  // 1. canon task.backpressure
+  // 2. canon task.start
+  // 3. canon task.return
+  // 4. canon task.wait
+  // 5. canon task.poll
+  // 6. canon task.yield
+  // 7. canon thread.spawn
+  // 8. canon thread.hw_concurrency
+};
 
 struct SectionVisitor {
   SectionVisitor(Validator &V) : V(V) {}
@@ -155,12 +203,11 @@ struct SectionVisitor {
     // TODO: Validation of resourcetype requires the destructor (if present) to
     // have type [i32] -> [].
   }
-  void operator()(const CanonSection &) {
+  void operator()(const CanonSection &Sec) {
     // TODO: Validation prevents duplicate or conflicting canonopt.
-
-    // TODO: Validation of the individual canonical definitions is described
-    // in CanonicalABI.md.
-    // https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#canonical-definitions
+    for (const Canon &C : Sec.getContent()) {
+      std::visit(CanonVisitor{}, C);
+    }
   }
   void operator()(const StartSection &) {
     // API:

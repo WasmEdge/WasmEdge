@@ -28,8 +28,8 @@ int main() {
   WasmEdge_String ExportName = WasmEdge_StringCreateByCString("extern");
   WasmEdge_ModuleInstanceContext *ImpObj =
       WasmEdge_ModuleInstanceCreate(ExportName);
-  enum WasmEdge_ValType ParamList[1] = {WasmEdge_ValType_ExternRef};
-  enum WasmEdge_ValType ReturnList[1] = {WasmEdge_ValType_ExternRef};
+  WasmEdge_ValType ParamList[1] = {WasmEdge_ValTypeGenExternRef()};
+  WasmEdge_ValType ReturnList[1] = {WasmEdge_ValTypeGenExternRef()};
   WasmEdge_FunctionTypeContext *HostFType =
       WasmEdge_FunctionTypeCreate(ParamList, 1, ReturnList, 1);
   WasmEdge_FunctionInstanceContext *HostFunc =

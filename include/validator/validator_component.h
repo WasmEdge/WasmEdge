@@ -8,15 +8,16 @@ namespace Validator {
 using namespace AST::Component;
 
 struct ExternDescVisitor {
-  void operator()(const DescTypeIndex &) {}
-  void operator()(const TypeBound &) {
+  Expect<void> operator()(const DescTypeIndex &) { return {}; }
+  Expect<void> operator()(const TypeBound &) {
     // TypeBound == std::optional<TypeIndex>
+    return {};
   }
-  void operator()(const ValueType &) {}
+  Expect<void> operator()(const ValueType &) { return {}; }
 };
 
 struct InstanceExprVisitor {
-  void operator()(const Instantiate &) {
+  Expect<void> operator()(const Instantiate &) {
     // TODO: Validation of instantiate requires each <importname> in c to
     // match a name in a with argument (compared as strings) and for the
     // types to match.
@@ -24,23 +25,26 @@ struct InstanceExprVisitor {
     // TODO: The indices in sortidx are validated according to their sort's
     // index spaces, which are built incrementally as each definition is
     // validated.
+    return {};
   }
-  void operator()(const CompInlineExports &) {
+  Expect<void> operator()(const CompInlineExports &) {
     // TODO: When validating instantiate, after each individual type-import
     // is supplied via with, the actual type supplied is immediately
     // substituted for all uses of the import, so that subsequent imports
     // and all exports are now specialized to the actual type.
+    return {};
   }
 };
 
 struct AliasTargetVisitor {
   AliasTargetVisitor(const Sort &S) : S{S} {}
 
-  void operator()(const AliasTargetExport &) {
+  Expect<void> operator()(const AliasTargetExport &) {
     // TODO: For export aliases, i is validated to refer to an instance in
     // the instance index space that exports n with the specified sort.
+    return {};
   }
-  void operator()(const AliasTargetOuter &) {
+  Expect<void> operator()(const AliasTargetOuter &) {
     // TODO: For outer aliases, ct is validated to be less or equal than the
     // number of enclosing components and i is validated to be a valid index
     // in the sort index space of the ith enclosing component (counting
@@ -49,28 +53,33 @@ struct AliasTargetVisitor {
     // TODO: For outer aliases, validation restricts the sort to one of
     // type, module or component and additionally requires that the
     // outer-aliased type is not a resource type (which is generative).
+
+    return {};
   }
 
   const Sort &S;
 };
 
 struct ModuleDeclVisitor {
-  void operator()(const AST::ImportDesc &) {}
-  void operator()(const std::shared_ptr<CoreType> &) {}
-  void operator()(const Alias &) {}
-  void operator()(const CoreExportDecl &) {}
+  // TODO: Validation of core:moduledecl rejects core:moduletype
+  // definitions and outer aliases of core:moduletype definitions inside
+  // type declarators. Thus, as an invariant, when validating a
+  // core:moduletype, the core type index space will not contain any
+  // core module types.
+  Expect<void> operator()(const AST::ImportDesc &) { return {}; }
+  Expect<void> operator()(const std::shared_ptr<CoreType> &) { return {}; }
+  Expect<void> operator()(const Alias &) { return {}; }
+  Expect<void> operator()(const CoreExportDecl &) { return {}; }
 };
 struct CoreDefTypeVisitor {
-  void operator()(const AST::FunctionType &) {}
-  void operator()(const ModuleType &Mod) {
+  Expect<void> operator()(const AST::FunctionType &) { return {}; }
+  Expect<void> operator()(const ModuleType &Mod) {
     for (const ModuleDecl &D : Mod.getContent()) {
-      std::visit(ModuleDeclVisitor{}, D);
-      // TODO: Validation of core:moduledecl rejects core:moduletype
-      // definitions and outer aliases of core:moduletype definitions inside
-      // type declarators. Thus, as an invariant, when validating a
-      // core:moduletype, the core type index space will not contain any
-      // core module types.
+      if (auto Res = std::visit(ModuleDeclVisitor{}, D); !Res) {
+        return Unexpect(Res);
+      }
     }
+    return {};
   }
 };
 
@@ -80,13 +89,14 @@ struct DefTypeVisitor {
 
   // TODO: Validation of own and borrow requires the typeidx to refer to a
   // resource type.
-  void operator()(const DefValType &) {}
-  void operator()(const FuncType &) {
+  Expect<void> operator()(const DefValType &) { return {}; }
+  Expect<void> operator()(const FuncType &) {
     // TODO: Validation of functype rejects any transitive use of borrow in
     // a result type. Similarly, validation of components and component
     // types rejects any transitive use of borrow in an exported value type.
+    return {};
   }
-  void operator()(const ComponentType &) {
+  Expect<void> operator()(const ComponentType &) {
     // TODO: Validation rejects resourcetype type definitions inside
     // componenttype and instancettype. Thus, handle types inside a
     // componenttype can only refer to resource types that are imported or
@@ -95,8 +105,10 @@ struct DefTypeVisitor {
     // TODO: As described in the explainer, each component and instance type
     // is validated with an initially-empty type index space. Outer aliases
     // can be used to pull in type definitions from containing components.
+
+    return {};
   }
-  void operator()(const InstanceType &) {}
+  Expect<void> operator()(const InstanceType &) { return {}; }
 
   void check(const InstanceDecl &) {
     // TODO: Validation of instancedecl (currently) only allows the type and
@@ -109,7 +121,7 @@ struct DefTypeVisitor {
   }
 };
 struct CanonVisitor {
-  void operator()(const Lift &) {
+  Expect<void> operator()(const Lift &) {
     // TODO: validation specifies
     // = $callee must have type flatten_functype($opts, $ft, 'lift')
     // = $f is given type $ft
@@ -119,8 +131,9 @@ struct CanonVisitor {
     //       (func (param i32 i32 i32 i32) (result i32))
     // = if a post-return is present, it has type
     //       (func (param flatten_functype({}, $ft, 'lift').results))
+    return {};
   }
-  void operator()(const Lower &) {
+  Expect<void> operator()(const Lower &) {
     // TODO: where $callee has type $ft, validation specifies
     // = $f is given type flatten_functype($opts, $ft, 'lower')
     // = a memory is present if required by lifting and is a subtype of
@@ -128,23 +141,27 @@ struct CanonVisitor {
     // = a realloc is present if required by lifting and has type
     //     (func (param i32 i32 i32 i32) (result i32))
     // = there is no post-return in $opts
+    return {};
   }
-  void operator()(const ResourceNew &) {
+  Expect<void> operator()(const ResourceNew &) {
     // TODO: validation specifies
     // = $rt must refer to locally-defined (not imported) resource type
     // = $f is given type (func (param $rt.rep) (result i32)), where $rt.rep is
     // currently fixed to be i32.
+    return {};
   }
-  void operator()(const ResourceDrop &) {
+  Expect<void> operator()(const ResourceDrop &) {
     // TODO: validation specifies
     // = $rt must refer to resource type
     // = $f is given type (func (param i32))
+    return {};
   }
-  void operator()(const ResourceRep &) {
+  Expect<void> operator()(const ResourceRep &) {
     // TODO: validation specifies
     // = $rt must refer to a locally-defined (not imported) resource type
     // = $f is given type (func (param i32) (result $rt.rep)), where $rt.rep is
     // currently fixed to be i32.
+    return {};
   }
   // TODO: The following are not yet exists in WasmEdge, so just list entries
   // 1. canon task.backpressure
@@ -160,56 +177,74 @@ struct CanonVisitor {
 struct SectionVisitor {
   SectionVisitor(Validator &V) : V(V) {}
 
-  void operator()(const AST::CustomSection &) {}
-  void operator()(const AST::CoreModuleSection &Sec) {
+  Expect<void> operator()(const AST::CustomSection &) { return {}; }
+  Expect<void> operator()(const AST::CoreModuleSection &Sec) {
     auto &Mod = Sec.getContent();
     V.validate(Mod);
+    return {};
   }
-  void operator()(const ComponentSection &Sec) {
+  Expect<void> operator()(const ComponentSection &Sec) {
     auto &C = Sec.getContent();
     V.validate(C);
+    return {};
   }
-  void operator()(const CoreInstanceSection &) {
+  Expect<void> operator()(const CoreInstanceSection &) {
     // NOTE: refers below InstanceSection, and copy the similar structure
 
     // TODO: Validation of core:instantiatearg initially only allows the
     // instance sort, but would be extended to accept other sorts as core wasm
     // is extended.
+    return {};
   }
-  void operator()(const InstanceSection &Sec) {
+  Expect<void> operator()(const InstanceSection &Sec) {
     for (const InstanceExpr &E : Sec.getContent()) {
-      std::visit(InstanceExprVisitor{}, E);
+      if (auto Res = std::visit(InstanceExprVisitor{}, E); !Res) {
+        return Unexpect(Res);
+      }
     }
+    return {};
   }
-  void operator()(const AliasSection &Sec) {
-
+  Expect<void> operator()(const AliasSection &Sec) {
     for (const Alias &A : Sec.getContent()) {
-      std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget());
+      if (auto Res = std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget());
+          !Res) {
+        return Unexpect(Res);
+      }
     }
+    return {};
   }
-  void operator()(const CoreTypeSection &Sec) {
-
+  Expect<void> operator()(const CoreTypeSection &Sec) {
     // TODO: As described in the explainer, each module type is validated with
     // an initially-empty type index space.
     for (const CoreDefType &T : Sec.getContent()) {
-      std::visit(CoreDefTypeVisitor{}, T);
+      if (auto Res = std::visit(CoreDefTypeVisitor{}, T); !Res) {
+        return Unexpect(Res);
+      }
     }
+    return {};
   }
-  void operator()(const TypeSection &Sec) {
-
+  Expect<void> operator()(const TypeSection &Sec) {
     for (const DefType &T : Sec.getContent()) {
-      std::visit(DefTypeVisitor{}, T);
+      if (auto Res = std::visit(DefTypeVisitor{}, T); !Res) {
+        return Unexpect(Res);
+      }
     }
     // TODO: Validation of resourcetype requires the destructor (if present) to
     // have type [i32] -> [].
+
+    return {};
   }
-  void operator()(const CanonSection &Sec) {
+  Expect<void> operator()(const CanonSection &Sec) {
     // TODO: Validation prevents duplicate or conflicting canonopt.
     for (const Canon &C : Sec.getContent()) {
-      std::visit(CanonVisitor{}, C);
+      if (auto Res = std::visit(CanonVisitor{}, C); !Res) {
+        return Unexpect(Res);
+      }
     }
+
+    return {};
   }
-  void operator()(const StartSection &) {
+  Expect<void> operator()(const StartSection &) {
     // API:
     // const Start &S = Sec.getContent();
     // S.getFunctionIndex();
@@ -230,8 +265,10 @@ struct SectionVisitor {
     // is clear. When a value is used (via export, instantiate or start), the
     // flag is set. After validating the last definition of a component,
     // validation requires all values' flags are set.
+
+    return {};
   }
-  void operator()(const ImportSection &Sec) {
+  Expect<void> operator()(const ImportSection &Sec) {
     // NOTE: This section share the validation rules with export section, one
     // must share the implementation as much as possible.
     for (const Import &I : Sec.getContent()) {
@@ -252,14 +289,17 @@ struct SectionVisitor {
       // names are disjoint.
       I.getName();
 
-      std::visit(ExternDescVisitor{}, I.getDesc());
+      if (auto Res = std::visit(ExternDescVisitor{}, I.getDesc()); !Res) {
+        return Unexpect(Res);
+      }
     }
     // TODO: Validation requires that all resource types transitively used in
     // the type of an export are introduced by a preceding importdecl or
     // exportdecl.
-  }
-  void operator()(const ExportSection &Sec) {
 
+    return {};
+  }
+  Expect<void> operator()(const ExportSection &Sec) {
     for (const Export &E : Sec.getContent()) {
       if (E.getDesc().has_value()) {
         // TODO: Validation requires any exported sortidx to have a valid
@@ -269,9 +309,13 @@ struct SectionVisitor {
         auto SI = E.getSortIndex();
         SI.getSort();
         SI.getSortIdx();
-        std::visit(ExternDescVisitor{}, *E.getDesc());
+        if (auto Res = std::visit(ExternDescVisitor{}, *E.getDesc()); !Res) {
+          return Unexpect(Res);
+        }
       }
     }
+
+    return {};
   }
 
 private:

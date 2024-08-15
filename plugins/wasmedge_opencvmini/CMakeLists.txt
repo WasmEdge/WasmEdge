@@ -3,38 +3,24 @@
 
 find_package(OpenCV 4 REQUIRED)
 
-wasmedge_add_library(wasmedgePluginWasmEdgeOpenCVMini
-  SHARED
+wasmedge_add_plugin(wasmedgePluginWasmEdgeOpenCVMini
+  BUNDLE ${WASMEDGE_BUNDLE_PLUGIN_OPENCVMINI}
+  SOURCES
   opencvmini_env.cpp
   opencvmini_func.cpp
   opencvmini_module.cpp
 )
 
-target_compile_options(wasmedgePluginWasmEdgeOpenCVMini
-  PUBLIC
-  -DWASMEDGE_PLUGIN
-)
-
 target_include_directories(wasmedgePluginWasmEdgeOpenCVMini
   PUBLIC
-  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${OpenCV_INClUDE_DIRS}
 )
 
-if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasmedgePluginWasmEdgeOpenCVMini
-    PRIVATE
-    wasmedgeCAPI
-    ${OpenCV_LIBS}
-  )
-else()
-  target_link_libraries(wasmedgePluginWasmEdgeOpenCVMini
-    PRIVATE
-    wasmedge_shared
-    ${OpenCV_LIBS}
-  )
-endif()
+target_link_libraries(wasmedgePluginWasmEdgeOpenCVMini
+  PRIVATE
+  ${OpenCV_LIBS}
+)
 
 install(
   TARGETS wasmedgePluginWasmEdgeOpenCVMini

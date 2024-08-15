@@ -1,24 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-wasmedge_add_library(wasmedgePluginWasmEdgeImage
-  SHARED
-  image_env.cpp
-  image_func.cpp
-  image_module.cpp
-)
-
-target_compile_options(wasmedgePluginWasmEdgeImage
-  PUBLIC
-  -DWASMEDGE_PLUGIN
-)
-
-target_include_directories(wasmedgePluginWasmEdgeImage
-  PUBLIC
-  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
-  ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
 # Find the libjpeg and libpng.
 add_library(wasmedgePluginWasmEdgeImageJPEG STATIC IMPORTED GLOBAL)
 add_library(wasmedgePluginWasmEdgeImagePNG STATIC IMPORTED GLOBAL)
@@ -41,7 +23,6 @@ if(APPLE)
   )
 elseif(UNIX)
   # Fetch and build libjpeg and libpng.
-  include(FetchContent)
   FetchContent_Declare(
     wasmedge_image_libpng
     URL "https://downloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz"
@@ -105,7 +86,6 @@ find_package(ZLIB REQUIRED)
 find_package(Boost 1.74.0)
 if(${Boost_FOUND})
 else()
-  include(FetchContent)
   FetchContent_Declare(
     Boost
     URL http://sources.buildroot.net/boost/boost_1_82_0.tar.bz2
@@ -121,6 +101,19 @@ else()
   target_include_directories(Boost_boost SYSTEM INTERFACE ${boost_SOURCE_DIR})
 endif()
 
+wasmedge_add_plugin(wasmedgePluginWasmEdgeImage
+  BUNDLE ${WASMEDGE_BUNDLE_PLUGIN_IMAGE}
+  SOURCES
+  image_env.cpp
+  image_func.cpp
+  image_module.cpp
+)
+
+target_include_directories(wasmedgePluginWasmEdgeImage
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 target_link_libraries(wasmedgePluginWasmEdgeImage
   PUBLIC
   Boost::boost
@@ -128,17 +121,6 @@ target_link_libraries(wasmedgePluginWasmEdgeImage
   wasmedgePluginWasmEdgeImagePNG
   z
 )
-if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasmedgePluginWasmEdgeImage
-    PRIVATE
-    wasmedgeCAPI
-  )
-else()
-  target_link_libraries(wasmedgePluginWasmEdgeImage
-    PRIVATE
-    wasmedge_shared
-  )
-endif()
 
 install(
   TARGETS wasmedgePluginWasmEdgeImage

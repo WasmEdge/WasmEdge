@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-include(FetchContent)
-
 if(NOT WASMEDGE_DEPS_VERSION)
   set(WASMEDGE_DEPS_VERSION "TF-2.12.0-CC")
 endif()
@@ -250,7 +248,6 @@ function(wasmedge_setup_piper)
     message(FATAL_ERROR "Cannot find onnxruntime")
   endif()
   message(STATUS "Downloading piper source")
-  include(FetchContent)
   set(BUILD_SHARED_LIBS OFF)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
   set(BUILD_TESTING OFF)

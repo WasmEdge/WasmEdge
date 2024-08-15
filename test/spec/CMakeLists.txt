@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-include(FetchContent)
-
 wasmedge_setup_simdjson()
 
 message(STATUS "Downloading the WASM spec test suite")

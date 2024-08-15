@@ -1,58 +1,33 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-if(WASMEDGE_PLUGIN_WASI_HTTP)
-  add_subdirectory(wasi_http)
-endif()
-
-if(WASMEDGE_PLUGIN_WASI_POLL)
-  add_subdirectory(wasi_poll)
-endif()
-
-if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
-  add_subdirectory(wasi_nn)
-endif()
-
+# WASI plug-in: WASI-Crypto proposal.
 if(WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)
 endif()
 
-if(WASMEDGE_PLUGIN_IMAGE)
-  # Only Linux and MacOS support wasmedge_image now.
-  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
-    add_subdirectory(wasmedge_image)
-  else()
-    message(WARNING "Only Linux and Darwin platforms support WasmEdge_Image plug-in now.")
-  endif()
+# WASI plug-in: WASI-Http proposal.
+if(WASMEDGE_PLUGIN_WASI_HTTP)
+  add_subdirectory(wasi_http)
 endif()
 
-if(WASMEDGE_PLUGIN_TENSORFLOW)
-  # Only Linux and MacOS support wasmedge_tensorflow now.
-  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
-    add_subdirectory(wasmedge_tensorflow)
-  else()
-    message(WARNING "Only Linux and Darwin platforms support WasmEdge_Tensorflow plug-in now.")
-  endif()
+# WASI plug-in: WASI-Logging proposal.
+# TODO: Move the files back here.
+
+# WASI plug-in: WASI-NN proposal with backends.
+if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
+  add_subdirectory(wasi_nn)
+endif()
+if(WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL)
+  add_subdirectory(wasi_nn_burnrs)
 endif()
 
-if(WASMEDGE_PLUGIN_TENSORFLOWLITE)
-  # Only Linux and MacOS support wasmedge_tensorflowlite now.
-  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
-    add_subdirectory(wasmedge_tensorflowlite)
-  else()
-    message(WARNING "Only Linux and Darwin platforms support WasmEdge_TensorflowLite plug-in now.")
-  endif()
+# WASI plug-in: WASI-Poll proposal.
+if(WASMEDGE_PLUGIN_WASI_POLL)
+  add_subdirectory(wasi_poll)
 endif()
 
-if(WASMEDGE_PLUGIN_PROCESS)
-  # Only Linux systems support wasmedge_process now.
-  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-    add_subdirectory(wasmedge_process)
-  else()
-    message(WARNING "Only Linux platforms support WasmEdge_Process plug-in now.")
-  endif()
-endif()
-
+# WasmEdge plug-in: wasm-bpf.
 if(WASMEDGE_PLUGIN_WASM_BPF)
   # Only Linux systems support wasm_bpf now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -62,19 +37,32 @@ if(WASMEDGE_PLUGIN_WASM_BPF)
   endif()
 endif()
 
-if(WASMEDGE_PLUGIN_WASI_OCR)
-  add_subdirectory(wasi_ocr)
+# WasmEdge plug-in: ffmpeg.
+if(WASMEDGE_PLUGIN_FFMPEG)
+  add_subdirectory(wasmedge_ffmpeg)
 endif()
 
-if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
-  # Only Linux and MacOS support wasmedge_stablediffusion now.
+# WasmEdge plug-in: Image.
+if(WASMEDGE_PLUGIN_IMAGE)
+  # Only Linux and MacOS support wasmedge_image now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
-    add_subdirectory(wasmedge_stablediffusion)
+    add_subdirectory(wasmedge_image)
   else()
-    message(WARNING "Only Linux and Darwin platforms support WasmEdge_StableDiffusion plug-in now.")
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_Image plug-in now.")
   endif()
 endif()
 
+# WasmEdge plug-in: LLM.
+if(WASMEDGE_PLUGIN_LLM)
+  add_subdirectory(wasi_llm)
+endif()
+
+# WasmEdge plug-in: OCR.
+if(WASMEDGE_PLUGIN_OCR)
+  add_subdirectory(wasi_ocr)
+endif()
+
+# WasmEdge plug-in: OpenCV-mini.
 if(WASMEDGE_PLUGIN_OPENCVMINI)
   # Only Linux and MacOS support wasmedge_opencvmini now.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
@@ -84,18 +72,47 @@ if(WASMEDGE_PLUGIN_OPENCVMINI)
   endif()
 endif()
 
-if(WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL)
-  add_subdirectory(wasi_nn_burnrs)
+# WasmEdge plug-in: Process.
+if(WASMEDGE_PLUGIN_PROCESS)
+  # Only Linux systems support wasmedge_process now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    add_subdirectory(wasmedge_process)
+  else()
+    message(WARNING "Only Linux platforms support WasmEdge_Process plug-in now.")
+  endif()
 endif()
 
+# WasmEdge plug-in: Stable-diffusion.
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
+  # Only Linux and MacOS support wasmedge_stablediffusion now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_stablediffusion)
+  else()
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_StableDiffusion plug-in now.")
+  endif()
+endif()
+
+# WasmEdge plug-in: TensorFlow.
+if(WASMEDGE_PLUGIN_TENSORFLOW)
+  # Only Linux and MacOS support wasmedge_tensorflow now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_tensorflow)
+  else()
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_Tensorflow plug-in now.")
+  endif()
+endif()
+
+# WasmEdge plug-in: TensorFlow-Lite.
+if(WASMEDGE_PLUGIN_TENSORFLOWLITE)
+  # Only Linux and MacOS support wasmedge_tensorflowlite now.
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
+    add_subdirectory(wasmedge_tensorflowlite)
+  else()
+    message(WARNING "Only Linux and Darwin platforms support WasmEdge_TensorflowLite plug-in now.")
+  endif()
+endif()
+
+# WasmEdge plug-in: zlib.
 if(WASMEDGE_PLUGIN_ZLIB)
   add_subdirectory(wasmedge_zlib)
-endif()
-
-if(WASMEDGE_PLUGIN_FFMPEG)
-  add_subdirectory(wasmedge_ffmpeg)
-endif()
-
-if(WASMEDGE_PLUGIN_LLM)
-  add_subdirectory(wasi_llm)
 endif()

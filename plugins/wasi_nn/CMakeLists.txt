@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-wasmedge_add_library(wasmedgePluginWasiNN
-  SHARED
+wasmedge_add_plugin(wasmedgePluginWasiNN
+  BUNDLE ${WASMEDGE_BUNDLE_PLUGIN_WASI_NN}
+  SOURCES
   wasinnenv.cpp
   wasinnfunc.cpp
   wasinnmodule.cpp
@@ -64,7 +65,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 
     # setup llama.cpp
     message(STATUS "Downloading llama.cpp source")
-    include(FetchContent)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
@@ -173,7 +173,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion turn off accelerate")
     endif()
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
-    include(FetchContent)
     FetchContent_Declare(
       whisper
       GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
@@ -188,14 +187,8 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   endif()
 endforeach()
 
-target_compile_options(wasmedgePluginWasiNN
-  PUBLIC
-  -DWASMEDGE_PLUGIN
-)
-
 target_include_directories(wasmedgePluginWasiNN
   PUBLIC
-  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -207,18 +200,6 @@ if(WASMEDGE_BUILD_WASI_NN_RPC)
   target_link_libraries(wasmedgePluginWasiNN
     PRIVATE
     wasiNNRPC
-  )
-endif()
-
-if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasmedgePluginWasiNN
-    PRIVATE
-    wasmedgeCAPI
-  )
-else()
-  target_link_libraries(wasmedgePluginWasiNN
-    PRIVATE
-    wasmedge_shared
   )
 endif()
 

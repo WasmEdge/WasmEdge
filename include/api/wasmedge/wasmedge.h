@@ -57,6 +57,10 @@ typedef struct WasmEdge_Value {
   // functions to generate this struct, and the `WasmEdge_ValueGet` functions to
   // retrieve the value from this struct.
   WasmEdge_ValType Type;
+#if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
+    defined(__TOS_WIN__) || defined(__WINDOWS__)
+  uint64_t _padding;
+#endif
 } WasmEdge_Value;
 
 /// WasmEdge string struct.

@@ -49,6 +49,11 @@ Expect<void> FileMgr::setCode(Span<const Byte> CodeData) {
 // Set code data. See "include/loader/filemgr.h".
 Expect<void> FileMgr::setCode(std::vector<Byte> CodeData) {
   reset();
+  // Tell GCC 14 that DataHolder has no data.
+  // Fix the false positive warning,
+  // which is reported by GCC 14 with `maybe-uninitialized`
+  assuming(!DataHolder);
+
   DataHolder.emplace(std::move(CodeData));
   Data = DataHolder->data();
   Size = DataHolder->size();

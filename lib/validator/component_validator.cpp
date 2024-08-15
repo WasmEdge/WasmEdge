@@ -13,7 +13,9 @@ Expect<void> Validator::validate(const AST::Component::Component &Comp) {
   spdlog::warn("component validation is not done yet.");
 
   for (auto &Sec : Comp.getSections()) {
-    std::visit(SectionVisitor{*this}, Sec);
+    if (auto Res = std::visit(SectionVisitor{*this}, Sec); !Res) {
+      return Unexpect(Res);
+    }
   }
 
   return {};

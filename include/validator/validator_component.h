@@ -84,19 +84,29 @@ struct CoreDefTypeVisitor {
 };
 
 struct DefTypeVisitor {
-  // TODO: Validation of valtype requires the typeidx to refer to a
-  // defvaltype.
+  Expect<void> operator()(const DefValType &) {
+    // TODO: Validation of valtype requires the typeidx to refer to a
+    // defvaltype.
 
-  // TODO: Validation of own and borrow requires the typeidx to refer to a
-  // resource type.
-  Expect<void> operator()(const DefValType &) { return {}; }
+    // TODO: Validation of own and borrow requires the typeidx to refer to a
+    // resource type.
+    return {};
+  }
   Expect<void> operator()(const FuncType &) {
     // TODO: Validation of functype rejects any transitive use of borrow in
     // a result type. Similarly, validation of components and component
     // types rejects any transitive use of borrow in an exported value type.
     return {};
   }
-  Expect<void> operator()(const ComponentType &) {
+  Expect<void> operator()(const ComponentType &CT) {
+    for (auto &Decl : CT.getContent()) {
+      if (std::holds_alternative<ImportDecl>(Decl)) {
+        auto &I = std::get<ImportDecl>(Decl);
+        check(I.getExternDesc());
+      } else if (std::holds_alternative<InstanceDecl>(Decl)) {
+        check(std::get<InstanceDecl>(Decl));
+      }
+    }
     // TODO: Validation rejects resourcetype type definitions inside
     // componenttype and instancettype. Thus, handle types inside a
     // componenttype can only refer to resource types that are imported or

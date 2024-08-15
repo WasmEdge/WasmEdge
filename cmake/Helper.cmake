@@ -302,9 +302,9 @@ function(wasmedge_setup_simdjson)
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
-      GIT_TAG  tags/v3.9.1
+      GIT_TAG  tags/v3.10.0
       GIT_SHALLOW TRUE)
-
+    set(SIMDJSON_DEVELOPER_MODE OFF)
     FetchContent_MakeAvailable(simdjson)
     set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
     message(STATUS "Downloading SIMDJSON source -- done")

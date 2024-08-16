@@ -3,33 +3,29 @@
 
 #pragma once
 
-#include "avutil_base.h"
-#include "runtime/callingframe.h"
+#include "ffmpeg_base.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil {
 
-class AVUtilAVStrError : public WasmEdgeFFmpegAVUtil<AVUtilAVStrError> {
+class AVUtilAVStrError : public HostFunction<AVUtilAVStrError> {
 public:
-  AVUtilAVStrError(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ErrNum,
                        uint32_t ErrBuf, uint32_t BufLen);
 };
 
-class AVUtilAVError : public WasmEdgeFFmpegAVUtil<AVUtilAVError> {
+class AVUtilAVError : public HostFunction<AVUtilAVError> {
 public:
-  AVUtilAVError(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ErrNum);
 };
 
-class AVUtilAVUNError : public WasmEdgeFFmpegAVUtil<AVUtilAVUNError> {
+class AVUtilAVUNError : public HostFunction<AVUtilAVUNError> {
 public:
-  AVUtilAVUNError(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ErrNum);
 };
 

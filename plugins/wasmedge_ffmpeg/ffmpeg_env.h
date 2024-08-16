@@ -6,7 +6,8 @@
 #include "bindings.h"
 #include "plugin/plugin.h"
 
-#include "vector"
+#include <memory>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {

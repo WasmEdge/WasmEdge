@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avformat/avformatContext.h"
 #include "avformat/module.h"
+
 #include "utils.h"
 
 #include <gtest/gtest.h>
@@ -10,7 +14,6 @@ namespace WasmEdgeFFmpeg {
 
 // Testing all AVFormat_funcs.
 TEST_F(FFmpegTest, AVFormatContextStruct) {
-
   uint32_t FormatCtxPtr = UINT32_C(4);
   uint32_t InputFormatPtr = UINT32_C(8);
   uint32_t OutputFormatPtr = UINT32_C(12);

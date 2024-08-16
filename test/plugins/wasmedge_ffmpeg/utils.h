@@ -1,18 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
+
 #include "avcodec/module.h"
 #include "avfilter/module.h"
 #include "avformat/module.h"
 #include "avutil/module.h"
+#include "swresample/module.h"
+#include "swscale/module.h"
+
 #include "common/types.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
-#include "swresample/module.h"
-#include "swscale/module.h"
+
 #include "gtest/gtest.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
+
 inline void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t Value, uint32_t &Ptr) {
   uint32_t *BufPtr = MemInst->getPointer<uint32_t *>(Ptr);
@@ -159,6 +166,7 @@ protected:
   WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::WasmEdgeFFmpegAVFilterModule
       *AVFilterMod = nullptr;
 };
+
 } // namespace WasmEdgeFFmpeg
 } // namespace Host
 } // namespace WasmEdge

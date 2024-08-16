@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avfilter//avfilter_func.h"
 #include "avfilter/avFilter.h"
 #include "avfilter/buffer_source_sink.h"
 #include "avfilter/module.h"
+
 #include "utils.h"
 
 #include <gtest/gtest.h>
@@ -11,7 +15,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVFilterFunc) {
-
   ASSERT_TRUE(AVFilterMod != nullptr);
 
   // Structs Ptr

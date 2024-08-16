@@ -3,98 +3,85 @@
 
 #pragma once
 
-#include "avformat_base.h"
-#include "runtime/callingframe.h"
+#include "ffmpeg_base.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
-class AVChapterId : public WasmEdgeFFmpegAVFormat<AVChapterId> {
+class AVChapterId : public HostFunction<AVChapterId> {
 public:
-  AVChapterId(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int64_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t ChapterIdx);
 };
 
-class AVChapterSetId : public WasmEdgeFFmpegAVFormat<AVChapterSetId> {
+class AVChapterSetId : public HostFunction<AVChapterSetId> {
 public:
-  AVChapterSetId(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t ChapterIdx,
                        int64_t ChapterId);
 };
 
-class AVChapterTimebase : public WasmEdgeFFmpegAVFormat<AVChapterTimebase> {
+class AVChapterTimebase : public HostFunction<AVChapterTimebase> {
 public:
-  AVChapterTimebase(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t NumPtr,
                        uint32_t DenPtr, uint32_t AvFormatCtxId,
                        uint32_t ChapterIdx);
 };
 
-class AVChapterSetTimebase
-    : public WasmEdgeFFmpegAVFormat<AVChapterSetTimebase> {
+class AVChapterSetTimebase : public HostFunction<AVChapterSetTimebase> {
 public:
-  AVChapterSetTimebase(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t Num,
                        int32_t Den, uint32_t AvFormatCtxId,
                        uint32_t ChapterIdx);
 };
 
-class AVChapterStart : public WasmEdgeFFmpegAVFormat<AVChapterStart> {
+class AVChapterStart : public HostFunction<AVChapterStart> {
 public:
-  AVChapterStart(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int64_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t ChapterIdx);
 };
 
-class AVChapterSetStart : public WasmEdgeFFmpegAVFormat<AVChapterSetStart> {
+class AVChapterSetStart : public HostFunction<AVChapterSetStart> {
 public:
-  AVChapterSetStart(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t ChapterIdx,
                        int64_t StartValue);
 };
 
-class AVChapterEnd : public WasmEdgeFFmpegAVFormat<AVChapterEnd> {
+class AVChapterEnd : public HostFunction<AVChapterEnd> {
 public:
-  AVChapterEnd(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int64_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t ChapterIdx);
 };
 
-class AVChapterSetEnd : public WasmEdgeFFmpegAVFormat<AVChapterSetEnd> {
+class AVChapterSetEnd : public HostFunction<AVChapterSetEnd> {
 public:
-  AVChapterSetEnd(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t ChapterIdx,
                        int64_t EndValue);
 };
 
-class AVChapterMetadata : public WasmEdgeFFmpegAVFormat<AVChapterMetadata> {
+class AVChapterMetadata : public HostFunction<AVChapterMetadata> {
 public:
-  AVChapterMetadata(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t ChapterIdx,
                        uint32_t DictPtr);
 };
 
-class AVChapterSetMetadata
-    : public WasmEdgeFFmpegAVFormat<AVChapterSetMetadata> {
+class AVChapterSetMetadata : public HostFunction<AVChapterSetMetadata> {
 public:
-  AVChapterSetMetadata(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFormat(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AvFormatCtxId, uint32_t ChapterIdx,
                        uint32_t DictId);

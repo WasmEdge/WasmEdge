@@ -34,4 +34,8 @@ endif()
 include(WASINNDeps)
 wasmedge_setup_tf_target(wasmedgePluginWasmEdgeTensorflow)
 
-install(TARGETS wasmedgePluginWasmEdgeTensorflow DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(
+  TARGETS wasmedgePluginWasmEdgeTensorflow
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
+)

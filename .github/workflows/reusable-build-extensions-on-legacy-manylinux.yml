@@ -1,4 +1,4 @@
-name: Build extensions on manylinux
+name: Build extensions on legacy manylinux
 
 on:
   workflow_call:
@@ -23,9 +23,13 @@ on:
         type: boolean
         default: false
 
+env:
+  # https://github.blog/changelog/2024-03-07-github-actions-all-actions-will-run-on-node20-instead-of-node16-by-default/
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
 jobs:
   build:
-    if: ${{ startsWith(inputs.asset_tag, 'manylinux_2_28') }}
+    if: ${{ startsWith(inputs.asset_tag, 'manylinux2014') }}
     strategy:
       fail-fast: false
       matrix:
@@ -46,7 +50,7 @@ jobs:
       - id: var
         run: |
           echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -85,15 +89,10 @@ jobs:
           cd -
       - if: ${{ !inputs.release }}
         name: Upload artifact ${{ matrix.plugin }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifact }}
-      - if: ${{ inputs.release }}
-        name: Install gh
-        run: |
-          yum check-update || true
-          yum install -y gh
       - if: ${{ inputs.release }}
         name: Upload ${{ steps.var.outputs.artifact }}
         run: |

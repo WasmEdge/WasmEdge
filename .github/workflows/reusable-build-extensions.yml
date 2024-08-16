@@ -14,11 +14,70 @@ jobs:
   # ------------------------------------------------------------------#
   # The list of build targets is in the file:
   #     .github/workflows/matrix-extensions.json
-  #
-  # Add to `.list` the `asset_tag` and the list of targets;
-  # add new targets to `.detail` for its build options, bin name, etc.
   # ------------------------------------------------------------------#
-  build_extensions_on_manylinux:
+  prepare:
+    name: Prepare ${{ inputs.asset_tag }}
+    runs-on: ubuntu-latest
+    outputs:
+      manylinux_2_28_x86_64: ${{ steps.readfile.outputs.manylinux_2_28_x86_64 }}
+      manylinux_2_28_aarch64: ${{ steps.readfile.outputs.manylinux_2_28_aarch64 }}
+      manylinux2014_x86_64: ${{ steps.readfile.outputs.manylinux2014_x86_64 }}
+      manylinux2014_aarch64: ${{ steps.readfile.outputs.manylinux2014_aarch64 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: readfile
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const fs = require("fs")
+            const s = fs.readFileSync(".github/workflows/matrix-extensions.json")
+            let plugins = JSON.parse(s).plugins
+            let asset_tags = [
+              "manylinux_2_28_x86_64",
+              "manylinux_2_28_aarch64",
+              "manylinux2014_x86_64",
+              "manylinux2014_aarch64",
+            ]
+            for (const tag of asset_tags) {
+              core.setOutput(tag, plugins.filter(
+                (plugin) => plugin.platforms.includes(tag)
+              ).map((plugin) => {
+                let copy = { ...plugin }
+                delete copy.platforms
+                return copy
+              }))
+            }
+
+  build_on_manylinux:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'manylinux_2_28_x86_64-plugins-deps'
+            asset_tag: 'manylinux_2_28_x86_64'
+            plugins: ${{ needs.prepare.outputs.manylinux_2_28_x86_64 }}
+          - runner: 'linux-arm64-v2'
+            docker_tag: 'manylinux_2_28_aarch64-plugins-deps'
+            asset_tag: 'manylinux_2_28_aarch64'
+            plugins: ${{ needs.prepare.outputs.manylinux_2_28_aarch64 }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-manylinux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
+    secrets: inherit
+
+  build_on_legacy_manylinux:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -26,21 +85,18 @@ jobs:
           - runner: 'ubuntu-latest'
             docker_tag: 'manylinux2014_x86_64-plugins-deps'
             asset_tag: 'manylinux2014_x86_64'
+            plugins: ${{ needs.prepare.outputs.manylinux2014_x86_64 }}
           - runner: 'linux-arm64-v2'
             docker_tag: 'manylinux2014_aarch64-plugins-deps'
             asset_tag: 'manylinux2014_aarch64'
-          - runner: 'ubuntu-latest'
-            docker_tag: 'manylinux_2_28_x86_64-plugins-deps'
-            asset_tag: 'manylinux_2_28_x86_64'
-          - runner: 'linux-arm64-v2'
-            docker_tag: 'manylinux_2_28_aarch64-plugins-deps'
-            asset_tag: 'manylinux_2_28_aarch64'
+            plugins: ${{ needs.prepare.outputs.manylinux2014_aarch64 }}
     name: ${{ matrix.asset_tag }}
-    uses: ./.github/workflows/reusable-build-extensions-on-manylinux.yml
+    uses: ./.github/workflows/reusable-build-extensions-on-legacy-manylinux.yml
     with:
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}
       asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}
     secrets: inherit

@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avutil/module.h"
 #include "avutil/pixfmt.h"
+
 #include "utils.h"
 
 #include <gtest/gtest.h>
@@ -9,7 +13,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVPixFmt) {
-
   uint32_t NamePtr = UINT32_C(4);
 
   auto *FuncInst = AVUtilMod->findFuncExports(

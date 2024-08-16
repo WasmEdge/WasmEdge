@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ffmpeg_env.h"
+
 #include "runtime/instance/module.h"
 
 namespace WasmEdge {

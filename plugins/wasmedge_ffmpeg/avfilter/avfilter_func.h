@@ -3,203 +3,172 @@
 
 #pragma once
 
-#include "avfilter_base.h"
-#include "runtime/callingframe.h"
+#include "ffmpeg_base.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFilter {
 
-class AVFilterGraphAlloc : public WasmEdgeFFmpegAVFilter<AVFilterGraphAlloc> {
+class AVFilterGraphAlloc : public HostFunction<AVFilterGraphAlloc> {
 public:
-  AVFilterGraphAlloc(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterGraphPtr);
 };
 
-class AVFilterGraphConfig : public WasmEdgeFFmpegAVFilter<AVFilterGraphConfig> {
+class AVFilterGraphConfig : public HostFunction<AVFilterGraphConfig> {
 public:
-  AVFilterGraphConfig(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterGraphId);
 };
 
-class AVFilterGraphFree : public WasmEdgeFFmpegAVFilter<AVFilterGraphFree> {
+class AVFilterGraphFree : public HostFunction<AVFilterGraphFree> {
 public:
-  AVFilterGraphFree(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterGraphId);
 };
 
-class AVFilterGraphGetFilter
-    : public WasmEdgeFFmpegAVFilter<AVFilterGraphGetFilter> {
+class AVFilterGraphGetFilter : public HostFunction<AVFilterGraphGetFilter> {
 public:
-  AVFilterGraphGetFilter(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterCtxPtr, uint32_t FilterGraphId,
                        uint32_t NamePtr, uint32_t NameSize);
 };
 
-class AVFilterGraphParsePtr
-    : public WasmEdgeFFmpegAVFilter<AVFilterGraphParsePtr> {
+class AVFilterGraphParsePtr : public HostFunction<AVFilterGraphParsePtr> {
 public:
-  AVFilterGraphParsePtr(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterGraphId, uint32_t FiltersString,
                        uint32_t FiltersSize, uint32_t InputsId,
                        uint32_t OutputsId);
 };
 
-class AVFilterInOutFree : public WasmEdgeFFmpegAVFilter<AVFilterInOutFree> {
+class AVFilterInOutFree : public HostFunction<AVFilterInOutFree> {
 public:
-  AVFilterInOutFree(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InOutId);
 };
 
-class AVFilterVersion : public WasmEdgeFFmpegAVFilter<AVFilterVersion> {
+class AVFilterVersion : public HostFunction<AVFilterVersion> {
 public:
-  AVFilterVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVFilterGetByName : public WasmEdgeFFmpegAVFilter<AVFilterGetByName> {
+class AVFilterGetByName : public HostFunction<AVFilterGetByName> {
 public:
-  AVFilterGetByName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilterPtr,
                        uint32_t StrPtr, uint32_t StrLen);
 };
 
 class AVFilterConfigurationLength
-    : public WasmEdgeFFmpegAVFilter<AVFilterConfigurationLength> {
+    : public HostFunction<AVFilterConfigurationLength> {
 public:
-  AVFilterConfigurationLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVFilterConfiguration
-    : public WasmEdgeFFmpegAVFilter<AVFilterConfiguration> {
+class AVFilterConfiguration : public HostFunction<AVFilterConfiguration> {
 public:
-  AVFilterConfiguration(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ConfigPtr,
                        uint32_t ConfigLen);
 };
 
-class AVFilterLicenseLength
-    : public WasmEdgeFFmpegAVFilter<AVFilterLicenseLength> {
+class AVFilterLicenseLength : public HostFunction<AVFilterLicenseLength> {
 public:
-  AVFilterLicenseLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVFilterLicense : public WasmEdgeFFmpegAVFilter<AVFilterLicense> {
+class AVFilterLicense : public HostFunction<AVFilterLicense> {
 public:
-  AVFilterLicense(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t LicensePtr,
                        uint32_t LicenseLen);
 };
 
 class AVFilterGraphCreateFilter
-    : public WasmEdgeFFmpegAVFilter<AVFilterGraphCreateFilter> {
+    : public HostFunction<AVFilterGraphCreateFilter> {
 public:
-  AVFilterGraphCreateFilter(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterCtxPtr, uint32_t FilterId,
                        uint32_t NamePtr, uint32_t NameLen, uint32_t ArgsPtr,
                        uint32_t ArgsLen, uint32_t FilterGraphId);
 };
 
-class AVFilterInOutAlloc : public WasmEdgeFFmpegAVFilter<AVFilterInOutAlloc> {
+class AVFilterInOutAlloc : public HostFunction<AVFilterInOutAlloc> {
 public:
-  AVFilterInOutAlloc(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t InOutPtr);
 };
 
-class AVFilterPadGetNameLength
-    : public WasmEdgeFFmpegAVFilter<AVFilterPadGetNameLength> {
+class AVFilterPadGetNameLength : public HostFunction<AVFilterPadGetNameLength> {
 public:
-  AVFilterPadGetNameLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilterPadId,
                        int32_t Idx);
 };
 
-class AVFilterPadGetName : public WasmEdgeFFmpegAVFilter<AVFilterPadGetName> {
+class AVFilterPadGetName : public HostFunction<AVFilterPadGetName> {
 public:
-  AVFilterPadGetName(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilterPadId,
                        int32_t Idx, uint32_t NamePtr, uint32_t NameLen);
 };
 
-class AVFilterPadGetType : public WasmEdgeFFmpegAVFilter<AVFilterPadGetType> {
+class AVFilterPadGetType : public HostFunction<AVFilterPadGetType> {
 public:
-  AVFilterPadGetType(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilterPadId,
                        int32_t Idx);
 };
 
-class AVFilterGraphDumpLength
-    : public WasmEdgeFFmpegAVFilter<AVFilterGraphDumpLength> {
+class AVFilterGraphDumpLength : public HostFunction<AVFilterGraphDumpLength> {
 public:
-  AVFilterGraphDumpLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterGraphId);
 };
 
-class AVFilterGraphDump : public WasmEdgeFFmpegAVFilter<AVFilterGraphDump> {
+class AVFilterGraphDump : public HostFunction<AVFilterGraphDump> {
 public:
-  AVFilterGraphDump(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterGraphId, uint32_t GraphStrPtr,
                        uint32_t GraphStrLen);
 };
 
-class AVFilterFreeGraphStr
-    : public WasmEdgeFFmpegAVFilter<AVFilterFreeGraphStr> {
+class AVFilterFreeGraphStr : public HostFunction<AVFilterFreeGraphStr> {
 public:
-  AVFilterFreeGraphStr(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterGraphId);
 };
 
-class AVFilterDrop : public WasmEdgeFFmpegAVFilter<AVFilterDrop> {
+class AVFilterDrop : public HostFunction<AVFilterDrop> {
 public:
-  AVFilterDrop(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilterId);
 };
 
-class AVFilterPadDrop : public WasmEdgeFFmpegAVFilter<AVFilterPadDrop> {
+class AVFilterPadDrop : public HostFunction<AVFilterPadDrop> {
 public:
-  AVFilterPadDrop(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterPadId);
 };
 
-class AVFilterContextDrop : public WasmEdgeFFmpegAVFilter<AVFilterContextDrop> {
+class AVFilterContextDrop : public HostFunction<AVFilterContextDrop> {
 public:
-  AVFilterContextDrop(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVFilter(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t FilterCtxId);
 };

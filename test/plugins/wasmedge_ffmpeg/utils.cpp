@@ -1,4 +1,8 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "utils.h"
+
 #include "avcodec/avCodecContext.h"
 #include "avcodec/avPacket.h"
 #include "avcodec/avcodec_func.h"
@@ -12,7 +16,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 void FFmpegTest::initEmptyFrame(uint32_t FramePtr) {
-
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_alloc");
   auto &HostFuncAVFrameAlloc =
@@ -150,18 +153,16 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
       FuncInst->getHostFunc());
 
   while (true) {
-
     HostFuncAVCodecReceiveFrame.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId, FrameId},
         Result);
 
     // Error returned by FFmpeg are negative.
-    int32_t Error = Result[0].get<int32_t>() * -1;
+    int32_t Error = Result[0].get<int32_t>() * (-1);
 
     if (Error == EAGAIN) {
       while (true) {
-
         allocPacket(PacketPtr);
 
         uint32_t PackedId = readUInt32(MemInst, PacketPtr);
@@ -203,7 +204,6 @@ void FFmpegTest::initFFmpegStructs(uint32_t AVCodecPtr, uint32_t AVFormatCtxPtr,
 
 void FFmpegTest::initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t FilePtr,
                                std::string FileName) {
-
   int32_t Length = FileName.length();
   fillMemContent(MemInst, FilePtr, Length);
   fillMemContent(MemInst, FilePtr, FileName);
@@ -222,7 +222,6 @@ void FFmpegTest::initFormatCtx(uint32_t AVFormatCtxPtr, uint32_t FilePtr,
 
 void FFmpegTest::initDict(uint32_t DictPtr, uint32_t KeyPtr, std::string Key,
                           uint32_t ValuePtr, std::string Value) {
-
   uint32_t KeyLen = Key.length();
   uint32_t ValueLen = Value.length();
   fillMemContent(MemInst, KeyPtr, KeyLen + ValueLen);
@@ -242,7 +241,6 @@ void FFmpegTest::initDict(uint32_t DictPtr, uint32_t KeyPtr, std::string Key,
 }
 
 void FFmpegTest::allocPacket(uint32_t PacketPtr) {
-
   auto *FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_av_packet_alloc");
   auto &HostFuncAVPacketAlloc =

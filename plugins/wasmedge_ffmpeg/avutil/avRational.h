@@ -3,103 +3,91 @@
 
 #pragma once
 
-#include "avutil_base.h"
-#include "runtime/callingframe.h"
+#include "ffmpeg_base.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil {
 
-class AVAddQ : public WasmEdgeFFmpegAVUtil<AVAddQ> {
+class AVAddQ : public HostFunction<AVAddQ> {
 public:
-  AVAddQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                        int32_t ADen, int32_t BNum, int32_t BDen,
                        uint32_t CNumPtr, uint32_t CDenPtr);
 };
 
-class AVSubQ : public WasmEdgeFFmpegAVUtil<AVSubQ> {
+class AVSubQ : public HostFunction<AVSubQ> {
 public:
-  AVSubQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                        int32_t ADen, int32_t BNum, int32_t BDen,
                        uint32_t CNumPtr, uint32_t CDenPtr);
 };
 
-class AVMulQ : public WasmEdgeFFmpegAVUtil<AVMulQ> {
+class AVMulQ : public HostFunction<AVMulQ> {
 public:
-  AVMulQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                        int32_t ADen, int32_t BNum, int32_t BDen,
                        uint32_t CNumPtr, uint32_t CDenPtr);
 };
 
-class AVDivQ : public WasmEdgeFFmpegAVUtil<AVDivQ> {
+class AVDivQ : public HostFunction<AVDivQ> {
 public:
-  AVDivQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                        int32_t ADen, int32_t BNum, int32_t BDen,
                        uint32_t CNumPtr, uint32_t CDenPtr);
 };
 
-class AVCmpQ : public WasmEdgeFFmpegAVUtil<AVCmpQ> {
+class AVCmpQ : public HostFunction<AVCmpQ> {
 public:
-  AVCmpQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                        int32_t ADen, int32_t BNum, int32_t BDen);
 };
 
-class AVNearerQ : public WasmEdgeFFmpegAVUtil<AVNearerQ> {
+class AVNearerQ : public HostFunction<AVNearerQ> {
 public:
-  AVNearerQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                        int32_t ADen, int32_t BNum, int32_t BDen, int32_t CNum,
                        int32_t CDen);
 };
 
-class AVQ2d : public WasmEdgeFFmpegAVUtil<AVQ2d> {
+class AVQ2d : public HostFunction<AVQ2d> {
 public:
-  AVQ2d(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<double_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                         int32_t ADen);
 };
 
-class AVD2Q : public WasmEdgeFFmpegAVUtil<AVD2Q> {
+class AVD2Q : public HostFunction<AVD2Q> {
 public:
-  AVD2Q(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, double_t D,
                        int32_t Max, uint32_t ANumPtr, uint32_t ADenPtr);
 };
 
-class AVQ2IntFloat : public WasmEdgeFFmpegAVUtil<AVQ2IntFloat> {
+class AVQ2IntFloat : public HostFunction<AVQ2IntFloat> {
 public:
-  AVQ2IntFloat(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                         int32_t ADen);
 };
 
-class AVInvQ : public WasmEdgeFFmpegAVUtil<AVInvQ> {
+class AVInvQ : public HostFunction<AVInvQ> {
 public:
-  AVInvQ(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, int32_t ANum,
                        int32_t ADen, uint32_t BNumPtr, uint32_t BDenPtr);
 };
 
-class AVReduce : public WasmEdgeFFmpegAVUtil<AVReduce> {
+class AVReduce : public HostFunction<AVReduce> {
 public:
-  AVReduce(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ANumPtr,
                        uint32_t ADenPtr, int64_t BNum, int64_t BDen,
                        int64_t Max);

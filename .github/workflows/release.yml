@@ -353,6 +353,83 @@ jobs:
           mv plugin_wasmedge_stablediffusion.tar.gz WasmEdge-plugin-wasmedge_stablediffusion-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_stablediffusion-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
 
+  build_and_upload_plugin_ubuntu_cuda:
+    strategy:
+      matrix:
+        include:
+          - cuda_version: '11.3'
+          - cuda_version: '12.0'
+    name: Build and upload plugins on Ubuntu 20.04 with CUDA  ${{ matrix.cuda_version }}
+    runs-on: ubuntu-latest
+    container: wasmedge/wasmedge:ubuntu-20.04-build-gcc
+    needs: create_release
+    env:
+      CUDA_VER: ${{ matrix.cuda_version }}
+      CUDAARCHS: "60;61;70"
+      build_options: -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS=ON
+      tar_names: wasmedge_stablediffusion
+      output_bins: libwasmedgePluginWasmEdgeStableDiffusion.so
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Install dependencies
+        shell: bash
+        run: |
+          CUDA_KEYRING=cuda-keyring_1.1-1_all.deb
+          NVCC_VER=${CUDA_VER//./-}
+          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/${CUDA_KEYRING}
+          dpkg -i ${CUDA_KEYRING}
+          rm -f ${CUDA_KEYRING}
+          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
+          apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
+          apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6AF7F09730B3F0A4
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get remove -y --purge --auto-remove cmake
+          apt-get upgrade -y
+          apt-get install -y cmake cuda-nvcc-${NVCC_VER} libcublas-dev-${NVCC_VER} lsb-release pkg-config software-properties-common unzip
+      - name: Build plugins with CUDA
+        shell: bash
+        run: |
+          export CXXFLAGS="-Wno-error"
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=OFF -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DCMAKE_CUDA_ARCHITECTURES="${CUDAARCHS}" -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DWASMEDGE_USE_LLVM=OFF ${build_options}
+          plugin_array=(${tar_names})
+          for (( i=0; i<${#testbin_array[@]}; i++ ));
+          do
+            echo "Building ${testbin_array[$i]} :"
+            cmake --build build --target ${testbin_array[$i]}
+          done
+      - name: Prepare the plugins tar.gz package
+        shell: bash
+        run: |
+          plugin_array=(${tar_names})
+          outbin_array=(${output_bins})
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Copying ${plugin_array[$i]} :"
+            cp ${output_prefix}/${plugin_array[$i]}/${outbin_array[$i]} ${outbin_array[$i]}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${outbin_array[$i]}
+          done
+      - name: Install gh
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+      - name: Upload wasmedge_stablediffusion CUDA ${{ matrix.cuda_version }} plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasmedge_stablediffusion.tar.gz WasmEdge-plugin-wasmedge_stablediffusion-cuda-${{ matrix.cuda_version }}-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_stablediffusion-cuda-${{ matrix.cuda_version }}-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+
   build_and_upload_plugins_manylinux:
     name: Build and upload plugins on manylinux
     needs: create_release

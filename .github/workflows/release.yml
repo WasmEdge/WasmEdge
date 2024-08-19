@@ -366,6 +366,7 @@ jobs:
     env:
       CUDA_VER: ${{ matrix.cuda_version }}
       CUDAARCHS: "60;61;70"
+      output_prefix: build/plugins
       build_options: -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS=ON
       tar_names: wasmedge_stablediffusion
       output_bins: libwasmedgePluginWasmEdgeStableDiffusion.so

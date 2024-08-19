@@ -31,7 +31,10 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   }
   std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
   if (*Magic != WasmMagic) {
-    spdlog::error("Might an invalid wasm file");
+    auto M = *Magic;
+    spdlog::error("Might an invalid wasm file, magic expected, but got 0x{:X} "
+                  "0x{:X} 0x{:X} 0x{:X}",
+                  M[0], M[1], M[2], M[3]);
     return logLoadError(ErrCode::Value::MalformedMagic, FMgr.getLastOffset(),
                         ASTNodeAttr::Component);
   }
@@ -148,6 +151,9 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp) {
     }
     case 0x04:
       Comp.getSections().emplace_back();
+      // TODO: check a component load and this size is matched.
+      // auto Size =
+      FMgr.readU32();
       if (auto Res = loadSection(
               Comp.getSections().back().emplace<ComponentSection>());
           !Res) {

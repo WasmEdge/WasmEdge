@@ -493,6 +493,8 @@ jobs:
     env:
       CUDA_VER: ${{ matrix.cuda_version }}
       CUDAARCHS: "60;61;70"
+      output_prefix: build/plugins
+      test_prefix: build/test/plugins
       build_options: -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS=ON
       tar_names: wasmedge_stablediffusion
       test_bins: wasmedgeStableDiffusionTests
@@ -529,7 +531,7 @@ jobs:
             echo "Building ${testbin_array[$i]} :"
             cmake --build build --target ${testbin_array[$i]}
             echo "Testing ${plugin_array[$i]} :"
-            cd build/test/plugins/${plugin_array[$i]}
+            cd ${test_prefix}/${plugin_array[$i]}
             ./${testbin_array[$i]}
             cd -
           done
@@ -541,7 +543,7 @@ jobs:
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
             echo "Copying ${plugin_array[$i]} :"
-            cp build/plugins/${plugin_array[$i]}/${outbin_array[$i]} ${outbin_array[$i]}
+            cp ${output_prefix}/${plugin_array[$i]}/${outbin_array[$i]} ${outbin_array[$i]}
             tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${outbin_array[$i]}
           done
       - name: Upload artifact - wasmedge_stablediffusion

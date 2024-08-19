@@ -27,7 +27,7 @@ dependencies {
 sourceSets {
     main {
         resources {
-            srcDirs "src/main/resources", "build/natives/lib"
+            srcDirs "src/main/resources", "wasmedge-jni/build/lib"
         }
     }
 }
@@ -42,9 +42,9 @@ task compileJNI {
     doLast {
         exec {
             if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-                commandLine 'cmd', '-c', 'mkdir -p build/native && cd build/ && cmake -Bnative -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" ../wasmedge-jni && dir /s . && cmake --build native'
+                commandLine 'cmd', '-c', 'mkdir -p wasmedge-jni/build && cd wasmedge-jni/build && cmake -Bnative -GNinja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_PACKAGE="ZIP" .. && dir /s . && cmake --build .'
             } else if (Os.isFamily(Os.FAMILY_MAC) || Os.isFamily(Os.FAMILY_UNIX)) {
-                commandLine 'sh', '-c', 'mkdir -p build/native && cd build/native && cmake ../../wasmedge-jni && make'
+                commandLine 'sh', '-c', 'mkdir -p wasmedge-jni/build && cd wasmedge-jni/build && cmake .. && make'
             }
         }
     }
@@ -59,7 +59,7 @@ clean.doFirst {
 processResources {
     dependsOn compileJNI
 
-    from "build/native/"
+    from "wasmedge-jni/build"
 
     include "*.dll", "*.so", "*.dylib"
 
@@ -67,7 +67,7 @@ processResources {
 
 
 tasks.withType(Test) {
-    systemProperty "java.library.path", "build/native/"
+    systemProperty "java.library.path", "wasmedge-jni/build"
     testLogging.showStandardStreams = false
 }
 

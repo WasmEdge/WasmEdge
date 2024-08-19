@@ -15,8 +15,8 @@ else()
     set(_WasmEdge_ROOT "${WasmEdge_ROOT}")
 endif()
 
-message(STATUS "wasmedge root: ${WasmEdge_ROOT}")
-find_path(WasmEdge_INCLUDE_DIRS NAMES wasmedge/wasmedge.h HINTS ${_WasmEdge_ROOT}/include ${WasmEdge_ROOT}/include/api /usr/local/include /usr/include)
+message(STATUS "wasmedge root: ${_WasmEdge_ROOT}")
+find_path(WasmEdge_INCLUDE_DIRS NAMES wasmedge/wasmedge.h HINTS ${_WasmEdge_ROOT}/include ${_WasmEdge_ROOT}/include/api /usr/local/include /usr/include)
 message(STATUS "wasmedge include dirs: ${WasmEdge_INCLUDE_DIRS}")
 
 if(WasmEdge_INCLUDE_DIRS)

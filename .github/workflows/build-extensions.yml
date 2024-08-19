@@ -209,6 +209,77 @@ jobs:
           name: WasmEdge-plugin-wasi_nn-whisper-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-whisper.tar.gz
 
+  build_macos_wasi_nn:
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - system: MacOS 12 (x86_64)
+            host_runner: macos-12
+            darwin_version: darwin_21
+            build_type: Release
+            arch: x86_64
+          - system: MacOS 14 (arm64)
+            host_runner: macos-14
+            darwin_version: darwin_23
+            build_type: Release
+            arch: arm64
+    name: WASI-NN (${{ matrix.system }}, clang++, ${{ matrix.build_type }})
+    runs-on: ${{ matrix.host_runner }}
+    env:
+      output_dir: build/plugins/wasi_nn
+      test_dir: build/test/plugins/wasi_nn
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper
+      tar_names: wasi_nn-tensorflowlite wasi_nn-whisper
+      test_bin: wasiNNTests
+      output_bin: libwasmedgePluginWasiNN.dylib
+    needs: [ get_version ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and install dependencies
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          brew install llvm@16 ninja cmake
+      - name: Build and test WASI-NN using clang++ with ${{ matrix.build_type }} mode
+        shell: bash
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
+          export CC=clang
+          export CXX=clang++
+          plugin_array=(${tar_names})
+          option_array=(${build_options})
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} backend:"
+            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake --build build --target ${test_bin}
+
+            echo "Testing ${plugin_array[$i]} backend:"
+            cd ${test_dir}
+            ./${test_bin}
+            cd -
+
+            echo "Copying ${plugin_array[$i]} backend:"
+            cp -f ${output_dir}/${output_bin} ${output_bin}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
+          done
+      - name: Upload artifact - wasi_nn-tensorflowlite
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          path: plugin_wasi_nn-tensorflowlite.tar.gz
+      - name: Upload artifact - wasi_nn-whisper
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasi_nn-whisper-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          path: plugin_wasi_nn-whisper.tar.gz
+
+
   build_windows_wasi_nn:
     permissions:
       contents: write
@@ -235,17 +306,17 @@ jobs:
           args: install cmake ninja vswhere
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@v2
         with:
-          sdk-version: 19041
+          sdk-version: 22621
       - name: Build WasmEdge
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.19041.0"
-          $llvm = "LLVM-16.0.6-win64-MultiThreadedDLL.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-16.0.6/LLVM-16.0.6-win64-MultiThreadedDLL.zip -o $llvm
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.22621.0"
+          $llvm = "LLVM-17.0.6-win64-MultiThreadedDLL.zip"
+          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-17.0.6/LLVM-17.0.6-win64-MultiThreadedDLL.zip -o $llvm
           Expand-Archive -Path $llvm
-          $llvm_dir = "$pwd\\LLVM-16.0.6-win64-MultiThreadedDLL\\LLVM-16.0.6-win64\\lib\\cmake\\llvm"
-          $cmake_sys_version = "10.0.19041.0"
+          $llvm_dir = "$pwd\\LLVM-17.0.6-win64-MultiThreadedDLL\\LLVM-17.0.6-win64\\lib\\cmake\\llvm"
+          $cmake_sys_version = "10.0.22621.0"
           cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
 
           Write-Output "Building $Env:tar_names backend:"
@@ -494,19 +565,17 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: Plugins_MacOS_12
-            system: MacOS 12
+          - system: MacOS 12 (x86_64)
             host_runner: macos-12
             darwin_version: darwin_21
             build_type: Release
             arch: x86_64
-          - name: Plugins_MacOS_arm64
-            system: MacOS 14 (arm64)
+          - system: MacOS 14 (arm64)
             host_runner: macos-14
-            darwin_version: darwin_22
+            darwin_version: darwin_23
             build_type: Release
             arch: arm64
-    name: Plugins (${{ matrix.system }}, clang++,  ${{ matrix.build_type }})
+    name: Plugins (${{ matrix.system }}, clang++, ${{ matrix.build_type }})
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins

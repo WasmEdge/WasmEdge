@@ -3,6 +3,7 @@
 This document has not yet covered all workflows.
 
 ## Workflow for `build.yml`
+
 ```mermaid
 flowchart LR
     %% _ is the starting point of everything
@@ -15,6 +16,7 @@ flowchart LR
 ```
 
 ### macOS
+
 ```json
 [
   {
@@ -23,14 +25,15 @@ flowchart LR
     "darwin_version": 21
   },
   {
-    "name": "MacOS 13 (arm64)",
+    "name": "MacOS 14 (arm64)",
     "runner": "macos-14",
-    "darwin_version": 22
+    "darwin_version": 23
   }
 ]
 ```
 
 ### manylinux
+
 ```json
 [
   {
@@ -53,6 +56,7 @@ flowchart LR
 ```
 
 ## Calling Structure for Reusable Workflows
+
 ```mermaid
 flowchart LR
     subgraph "build-extensions.yml"

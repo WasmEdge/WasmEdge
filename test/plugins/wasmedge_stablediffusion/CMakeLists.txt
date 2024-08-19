@@ -1,3 +1,11 @@
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS)
+  message(STATUS "Stable diffusion plugin: Enable SD_CUBLAS")
+  set(SD_CUBLAS ON)
+else()
+  message(STATUS "Stable diffusion plugin: Disable SD_CUBLAS")
+  set(SD_CUBLAS OFF)
+endif()
+
 wasmedge_add_executable(wasmedgeStableDiffusionTests
   wasmedge_stablediffusion.cpp
 )

@@ -87,7 +87,7 @@ jobs:
     with:
       version: ${{ needs.get_version.outputs.version }}
       matrix: "[{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21,'arch':'x86_64'},
-                {'name':'MacOS 13 (arm64)','runner':'macos-14','darwin_version':22,'arch':'arm64'}]"
+                {'name':'MacOS 14 (arm64)','runner':'macos-14','darwin_version':23,'arch':'arm64'}]"
 
   build_on_manylinux2014:
     permissions:

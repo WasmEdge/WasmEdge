@@ -54,7 +54,7 @@ jobs:
       version: ${{ needs.create_release.outputs.version }}
       matrix:
         "[{'name':'MacOS 12 (x86_64)','runner':'macos-12','darwin_version':21,'arch':'x86_64'},
-        {'name':'MacOS 13 (arm64)','runner':'macos-14','darwin_version':22,'arch':'arm64'}]"
+        {'name':'MacOS 14 (arm64)','runner':'macos-14','darwin_version':23,'arch':'arm64'}]"
       release: true
     secrets: inherit
 
@@ -439,19 +439,79 @@ jobs:
       release: true
     secrets: inherit
 
+  build_and_upload_wasinn_macos:
+    strategy:
+      matrix:
+        include:
+          - system: MacOS 12 (x86_64)
+            host_runner: macos-12
+            arch: x86_64
+          - system: MacOS 14 (arm64)
+            host_runner: macos-14
+            arch: arm64
+    name: Build and upload WASI-NN on ${{ matrix.system }}
+    runs-on: ${{ matrix.host_runner }}
+    env:
+      output_dir: build/plugins/wasi_nn
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper
+      tar_names: wasi_nn-tensorflowlite wasi_nn-whisper
+      output_bin: libwasmedgePluginWasiNN.dylib
+    needs: create_release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - name: Install dependencies
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          brew install llvm@16 ninja cmake gh
+      - name: Build WASI-NN plugin
+        shell: bash
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          plugin_array=(${tar_names})
+          option_array=(${build_options})
+          outtarget=${output_bin%.*}
+          outtarget=${outtarget#lib}
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} backend:"
+            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake --build build --target ${outtarget}
+
+            echo "Copying ${plugin_array[$i]} backend:"
+            cp -f ${output_dir}/${output_bin} ${output_bin}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
+          done
+      - name: Upload wasi_nn-tensorflowlite plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          mv plugin_wasi_nn-tensorflowlite.tar.gz WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
+      - name: Upload wasi_nn-whisper plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          mv plugin_wasi_nn-whisper.tar.gz WasmEdge-plugin-wasi_nn-whisper-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-whisper-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
+
   build_and_upload_plugin_macos:
     strategy:
       matrix:
         include:
-          - name: Plugins_MacOS_12
-            system: MacOS 12
+          - system: MacOS 12 (x86_64)
             host_runner: macos-12
-            darwin_version: darwin_21
             arch: x86_64
-          - name: Plugins_MacOS_arm64
-            system: MacOS 14 (arm64)
+          - system: MacOS 14 (arm64)
             host_runner: macos-14
-            darwin_version: darwin_22
             arch: arm64
     name: Build and upload plugins on ${{ matrix.system }}
     runs-on: ${{ matrix.host_runner }}
@@ -472,7 +532,7 @@ jobs:
       - name: Install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake openssl wabt opencv rust gh ffmpeg@6
+          brew install llvm@16 ninja cmake openssl opencv rust gh ffmpeg@6
       - name: Build plugins
         shell: bash
         run: |

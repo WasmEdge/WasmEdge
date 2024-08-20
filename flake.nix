@@ -33,9 +33,6 @@
             "-DWASMEDGE_BUILD_TESTS=OFF"
             "-DWASMEDGE_USE_LLVM=ON"
           ];
-          installPhase = ''
-            cmake --install . --prefix $out
-          '';
         };
       in with pkgs; rec {
         packages = { wasmedge = wasmedge; };

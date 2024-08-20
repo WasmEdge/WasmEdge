@@ -4,10 +4,10 @@
 
 if(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS)
   message(STATUS "Stable diffusion plugin: Enable SD_CUBLAS")
-  set(SD_CUBLAS ON)
+  set(SD_CUBLAS ON CACHE BOOL "Stable diffusion plugin: Enable SD_CUBLAS")
 else()
   message(STATUS "Stable diffusion plugin: Disable SD_CUBLAS")
-  set(SD_CUBLAS OFF)
+  set(SD_CUBLAS OFF CACHE BOOL "Stable diffusion plugin: Disable SD_CUBLAS")
 endif()
 
 # setup stable diffusion

@@ -38,9 +38,12 @@ jobs:
           script: |
             const fs = require("fs")
             const s = fs.readFileSync(".github/workflows/matrix-extensions.json")
-            let plugins = JSON.parse(s).plugins.filter(
-              (plugin) => !(process.env[plugin.plugin] != 'true')
-            )
+            let plugins = JSON.parse(s).plugins
+            if (!${{ fromJSON(steps.filter.outputs.all) }}) {
+              plugins = plugins.filter(
+                (plugin) => !(process.env[plugin.plugin] != 'true')
+              )
+            }
             let asset_tags = [
               "manylinux_2_28_x86_64",
               "manylinux_2_28_aarch64",

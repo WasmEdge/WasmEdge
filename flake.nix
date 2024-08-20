@@ -33,7 +33,7 @@
 
         wasmedge = pkgs.stdenv.mkDerivation {
           name = "wasmedge";
-          version = "0.12.1";
+          version = "0.14.0";
           src = ./.;
 
           buildInputs = with pkgs; [

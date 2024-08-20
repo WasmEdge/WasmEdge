@@ -398,12 +398,15 @@ jobs:
         shell: bash
         run: |
           export CXXFLAGS="-Wno-error"
+          outbin_array=(${output_bins})
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=OFF -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DCMAKE_CUDA_ARCHITECTURES="${CUDAARCHS}" -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DWASMEDGE_USE_LLVM=OFF ${build_options}
-          plugin_array=(${tar_names})
-          for (( i=0; i<${#testbin_array[@]}; i++ ));
+          for (( i=0; i<${#outbin_array[@]}; i++ ));
           do
-            echo "Building ${testbin_array[$i]} :"
-            cmake --build build --target ${testbin_array[$i]}
+            echo "Building ${outbin_array[$i]} :"
+            outtarget=${outbin_array[$i]}
+            outtarget=${outtarget%.*}
+            outtarget=${outtarget#lib}
+            cmake --build build --target ${outtarget}
           done
       - name: Prepare the plugins tar.gz package
         shell: bash

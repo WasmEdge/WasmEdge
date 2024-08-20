@@ -519,7 +519,7 @@ jobs:
           apt-get remove -y --purge --auto-remove cmake
           apt-get upgrade -y
           apt-get install -y cmake cuda-nvcc-${NVCC_VER} libcublas-dev-${NVCC_VER} lsb-release pkg-config software-properties-common unzip
-      - name: Build and test plugins with CUDA
+      - name: Build plugins with CUDA (skip testing as there is no GPU on the CI runner)
         shell: bash
         run: |
           export CXXFLAGS="-Wno-error"
@@ -530,10 +530,7 @@ jobs:
           do
             echo "Building ${testbin_array[$i]} :"
             cmake --build build --target ${testbin_array[$i]}
-            echo "Testing ${plugin_array[$i]} :"
-            cd ${test_prefix}/${plugin_array[$i]}
-            ./${testbin_array[$i]}
-            cd -
+            echo "Testing ${plugin_array[$i]} (skipped)"
           done
       - name: Prepare the plugins tar.gz package
         shell: bash

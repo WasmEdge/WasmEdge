@@ -9,6 +9,7 @@ on:
     branches:
       - master
     paths:
+      - ".github/extensions.paths-filter.yml"
       - ".github/workflows/build-extensions.yml"
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"
@@ -26,6 +27,7 @@ on:
       - master
       - "proposal/**"
     paths:
+      - ".github/extensions.paths-filter.yml"
       - ".github/workflows/build-extensions.yml"
       - ".github/workflows/matrix-extensions.json"
       - ".github/workflows/reusable-build-extensions**"

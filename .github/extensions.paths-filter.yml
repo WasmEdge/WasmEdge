@@ -1,3 +1,5 @@
+all:
+  - '.github/**'
 wasi_crypto:
   - 'plugins/wasi_crypto/**'
 wasi_nn-ggml:

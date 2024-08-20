@@ -27,19 +27,13 @@
           ] ++ pkgs.lib.optionals (system == "x86_64-darwin" || system == "aarch64-darwin") [
             pkgs.darwin.apple_sdk.frameworks.Foundation
           ];
-          configurePhase = ''
-            cmake -Bbuild \
-              -DCMAKE_BUILD_TYPE=Debug \
-              -DWASMEDGE_BUILD_PLUGINS=OFF \
-              -DWASMEDGE_BUILD_TESTS=OFF \
-              -DWASMEDGE_USE_LLVM=ON \
-              .
-          '';
-          buildPhase = ''
-            cmake --build build -j
-          '';
+          cmakeFlags = [
+            "-DCMAKE_BUILD_TYPE=Debug"
+            "-DWASMEDGE_BUILD_PLUGINS=OFF"
+            "-DWASMEDGE_BUILD_TESTS=OFF"
+            "-DWASMEDGE_USE_LLVM=ON"
+          ];
           installPhase = ''
-            cd build
             cmake --install . --prefix $out
           '';
         };

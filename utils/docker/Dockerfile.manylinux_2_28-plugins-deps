@@ -1,5 +1,5 @@
-ARG BASE_IMAGE
-FROM ${BASE_IMAGE} as base
+ARG BASE_IMAGE="wasmedge/wasmedge:manylinux_2_28_x86_64"
+FROM ${BASE_IMAGE} AS base
 
 WORKDIR /root
 
@@ -20,7 +20,7 @@ RUN cd && (yum check-update || true) && \
   yum install -y wget unzip zlib-devel zlib-static
 
 ### deps for all ###
-FROM deps-${TARGETARCH} as final
+FROM deps-${TARGETARCH} AS final
 
 COPY opencvmini/install-opencvmini.sh .
 ENV OPENCV_VERSION="4.8.0"

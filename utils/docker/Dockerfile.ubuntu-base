@@ -1,0 +1,43 @@
+ARG TOOLCHAIN=clang
+FROM ubuntu:22.04 AS base
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y \
+        cmake \
+        curl \
+        dpkg-dev \
+        git \
+        llvm-15-dev \
+        liblld-15-dev \
+        ninja-build \
+        software-properties-common \
+        wget \
+        zlib1g-dev
+
+### deps for clang ###
+FROM base AS deps-clang
+
+RUN apt-get update && \
+    apt-get install -y \
+        clang-15
+
+ENV CC=/usr/bin/clang-15
+ENV CXX=/usr/bin/clang++-15
+
+### deps for gcc ###
+FROM base AS deps-gcc
+
+RUN apt-get update && \
+    apt-get install -y \
+        gcc \
+        g++
+
+ENV CC=gcc
+ENV CXX=g++
+
+### deps for all ###
+FROM deps-${TOOLCHAIN} AS final
+
+RUN rm -rf /var/lib/apt/lists/*

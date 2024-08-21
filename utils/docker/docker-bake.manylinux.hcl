@@ -13,7 +13,6 @@ target "x86_64" {
   platforms = ["linux/amd64"]
   tags      = ["wasmedge/wasmedge:manylinux_2_28_x86_64"]
   args      = {
-    BASE_IMAGE   = "quay.io/pypa/manylinux_2_28_x86_64",
     LLVM_TARGETS = "X86;BPF",
     LLVM_TRIPLE  = "x86_64-pc-linux-gnu"
   }
@@ -25,9 +24,6 @@ target "x86_64-plugins" {
   tags      = ["wasmedge/wasmedge:manylinux_2_28_x86_64-plugins-deps"]
   contexts  = {
     "wasmedge/wasmedge:manylinux_2_28_x86_64"= "target:x86_64"
-  }
-  args      = {
-    BASE_IMAGE = "wasmedge/wasmedge:manylinux_2_28_x86_64"
   }
 }
 

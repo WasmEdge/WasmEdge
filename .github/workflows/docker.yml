@@ -11,20 +11,20 @@ on:
     branches:
       - master
     paths:
+      - '.github/workflows/docker.yml'
       - 'utils/docker/**'
       - 'utils/ffmpeg/**'
       - 'utils/opencvmini/**'
       - 'utils/wasi-crypto/**'
       - 'utils/wasi-nn/**'
-      - '.github/workflows/docker.yml'
   pull_request:
     paths:
+      - '.github/workflows/docker.yml'
       - 'utils/docker/**'
       - 'utils/ffmpeg/**'
       - 'utils/opencvmini/**'
       - 'utils/wasi-crypto/**'
       - 'utils/wasi-nn/**'
-      - '.github/workflows/docker.yml'
   schedule:
     - cron: "0 0 */7 * *"
 
@@ -82,6 +82,7 @@ jobs:
               - 'utils/docker/Dockerfile.ci-image-base'
             manylinux:
               - '.github/workflows/docker.yml'
+              - 'utils/docker/docker-bake.manylinux.hcl'
               - 'utils/docker/Dockerfile.manylinux**'
               - 'utils/ffmpeg/**'
               - 'utils/opencvmini/**'

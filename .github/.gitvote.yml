@@ -1,0 +1,108 @@
+# GitVote configuration file
+#
+automation:
+  enabled: false
+  rules:
+    - patterns: []
+      profile: default
+
+profiles:
+  default:
+    # Voting duration (required)
+    #
+    # How long the vote will be open
+    #
+    # Units supported (can be combined as in 1hour 30mins):
+    #
+    #   minutes | minute | mins | min | m
+    #   hours   | hour   | hrs  | hrs | h
+    #   days    | day    | d
+    #   weeks   | week   | w
+    #
+    duration: 5d
+
+    # Pass threshold (required)
+    #
+    # Percentage of votes in favor required to pass the vote
+    #
+    # The percentage is calculated based on the number of votes in favor and the
+    # number of allowed voters (see allowed_voters field below for more details).
+    pass_threshold: 75
+
+    # Allowed voters (optional)
+    #
+    # List of GitHub teams and users who have binding votes
+    #
+    # If no teams or users are provided, all repository collaborators will be
+    # allowed to vote. For organization-owned repositories, the list of
+    # collaborators includes outside collaborators, organization members that
+    # are direct collaborators, organization members with access through team
+    # memberships, organization members with access through default organization
+    # permissions, and organization owners.
+    #
+    # By default, teams' members with the maintainer role are allowed to vote
+    # as well. By using the `exclude_team_maintainers` option, it's possible to
+    # modify this behavior so that only teams' members with the member role are
+    # considered allowed voters. Please note that this option only applies to
+    # the teams explicitly listed in `allowed_voters/teams`.
+    #
+    # Teams names must be provided without the organization prefix.
+    #
+    # allowed_voters:
+    #   teams:
+    #     - team1
+    #   users:
+    #     - cynthia-sg
+    #     - tegioz
+    #   exclude_team_maintainers: false
+    #
+    # We grant the voters to the existing WasmEdge maintainers.
+    allowed_voters:
+      teams: []
+      users:
+        - hydai
+        - ibmibmibm
+        - q82419
+        - juntao
+
+    # Periodic status check
+    # 
+    # GitVote allows checking the status of a vote in progress manually by
+    # calling the /check-vote command. The periodic status check option makes
+    # it possible to automate the execution of status checks periodically. The
+    # vote status will be published to the corresponding issue or pull request,
+    # the same way as if the /check-vote command would have been called
+    # manually.
+    #
+    # When this option is enabled, while the vote is open, a status check will
+    # be run automatically using the frequency configured. Please note that the
+    # hard limit of one status check per day still applies, so if the command
+    # has been called manually the automatic periodic run may be delayed.
+    # Automatic status checks won't be run if the vote will be closed within
+    # the next hour.
+    #
+    # Units supported:
+    #
+    #   - day / days
+    #   - week / weeks
+    #
+    # As an example, using a value of "5 days" would mean that 5 days after the
+    # vote was created, and every 5 days after that, an automatic status check
+    # will be run.
+    #
+    # periodic_status_check: "5 days"
+    #
+    periodic_status_check: "5 days"
+
+    # Close on passing
+    # 
+    # By default, votes remain open for the configured duration. Sometimes,
+    # specially on votes that stay open for a long time, it may be preferable
+    # to close a vote automatically once the passing threshold has been met.
+    # The close on passing feature makes this possible. Open votes where this
+    # feature has been enabled will be checked once daily and, if GitVote
+    # detects that the vote has passed, it will automatically close it.
+    # 
+    # close_on_passing: true
+    #
+    close_on_passing: false

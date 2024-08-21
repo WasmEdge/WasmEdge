@@ -1,0 +1,13 @@
+ARG BASE_IMAGE=wasmedge/wasmedge:latest
+FROM ${BASE_IMAGE} AS base
+
+RUN apt-get update && \
+    apt-get install -y \
+        unzip \
+        wget
+
+COPY opencvmini/install-opencvmini.sh .
+ENV OPENCV_VERSION="4.8.0"
+RUN [ "/bin/bash", "install-opencvmini.sh" ]
+
+RUN rm -rf /var/lib/apt/lists/*

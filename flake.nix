@@ -8,7 +8,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        llvmPackages = pkgs.llvmPackages_16;
+        llvmPackages = pkgs.llvmPackages_17;
 
         wasmedge = pkgs.stdenv.mkDerivation {
           name = "wasmedge";

@@ -28,17 +28,29 @@ eprintf() {
 	command printf '%s\n' "$1" 1>&2
 }
 
+get_cuda_version() {
+	local cuda=""
+	cuda=$($1 --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
+	echo ${cuda}
+}
+
 detect_cuda_nvcc() {
 	local cuda=""
 	if [[ "${BY_PASS_CUDA_VERSION}" != "0" ]]; then
 		cuda="${BY_PASS_CUDA_VERSION}"
 	else
-		cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
-		if [[ "${cuda}" =~ "12" ]]; then
-			cuda="12"
-		elif [[ "${cuda}" =~ "11" ]]; then
-			cuda="11"
-		fi
+		nvcc_paths=("nvcc" "/usr/local/cuda/bin/nvcc" "/opt/cuda/bin/nvcc")
+		for nvcc_path in "${nvcc_paths[@]}"
+		do
+			cuda=$(get_cuda_version ${nvcc_path})
+			if [[ "${cuda}" =~ "12" ]]; then
+				cuda="12"
+				break
+			elif [[ "${cuda}" =~ "11" ]]; then
+				cuda="11"
+				break
+			fi
+		done
 	fi
 
 	echo ${cuda}

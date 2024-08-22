@@ -59,7 +59,7 @@ endif()
 
 add_subdirectory(wasi_logging)
 
-if(WASMEDGE_PLUGIN_LLM)
+if(WASMEDGE_PLUGIN_LLMC)
   add_subdirectory(wasi_llm)
 endif()
 

@@ -41,7 +41,7 @@ endif()
 
 # WasmEdge plug-in: LLM.
 if(WASMEDGE_PLUGIN_LLM)
-  add_subdirectory(wasi_llm)
+  add_subdirectory(wasmedge_llm)
 endif()
 
 # WasmEdge plug-in: OpenCV-mini.

@@ -11,24 +11,24 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(llmc)
 
-wasmedge_add_plugin(wasmedgePluginWasiLLM
+wasmedge_add_plugin(wasmedgePluginWasmEdgeLLM
   BUNDLE ${WASMEDGE_BUNDLE_PLUGIN_LLM}
   SOURCES
-  wasillmfunc.cpp
-  wasillmmodule.cpp
-  wasillmenv.cpp
+  llm_func.cpp
+  llm_module.cpp
+  llm_env.cpp
 )
 
-target_include_directories(wasmedgePluginWasiLLM
+target_include_directories(wasmedgePluginWasmEdgeLLM
   PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_link_libraries(wasmedgePluginWasiLLM PRIVATE
+target_link_libraries(wasmedgePluginWasmEdgeLLM PRIVATE
   train_gpt2_cpu
 )
 
 install(
-  TARGETS wasmedgePluginWasiLLM
+  TARGETS wasmedgePluginWasmEdgeLLM
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
 )

@@ -1,46 +1,45 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "wasillmenv.h"
+#include "llm_env.h"
+#include "llm_module.h"
 #include "llmc_fwd.h"
-#include "wasillmmodule.h"
 
 namespace WasmEdge {
 namespace Host {
+namespace WasmEdgeLLM {
 
-namespace WASILLM {
-
-uint32_t WASILLMEnv::addModel(GPT2 *M) noexcept {
+uint32_t LLMEnv::addModel(GPT2 *M) noexcept {
   Models.push_back(M);
   return Models.size() - 1;
 }
 
-GPT2 *WASILLMEnv::getModel(uint32_t Id) noexcept {
+GPT2 *LLMEnv::getModel(uint32_t Id) noexcept {
   assert(Id < Models.size() && "Out of bounds");
   return Models[Id];
 }
 
-uint32_t WASILLMEnv::addTokenizer(Tokenizer *T) noexcept {
+uint32_t LLMEnv::addTokenizer(Tokenizer *T) noexcept {
   Tokenizers.push_back(T);
   return Tokenizers.size() - 1;
 }
 
-Tokenizer *WASILLMEnv::getTokenizer(uint32_t Id) noexcept {
+Tokenizer *LLMEnv::getTokenizer(uint32_t Id) noexcept {
   assert(Id < Tokenizers.size() && "Out of bounds");
   return Tokenizers[Id];
 }
 
-uint32_t WASILLMEnv::addDataLoader(DataLoader *D) noexcept {
+uint32_t LLMEnv::addDataLoader(DataLoader *D) noexcept {
   DataLoaders.push_back(D);
   return DataLoaders.size() - 1;
 }
 
-DataLoader *WASILLMEnv::getDataLoader(uint32_t Id) noexcept {
+DataLoader *LLMEnv::getDataLoader(uint32_t Id) noexcept {
   assert(Id < DataLoaders.size() && "Out of bounds");
   return DataLoaders[Id];
 }
 
-WASILLMEnv::~WASILLMEnv() {
+LLMEnv::~LLMEnv() {
   for (GPT2 *M : Models) {
     gpt2_free(M);
   }
@@ -53,22 +52,21 @@ WASILLMEnv::~WASILLMEnv() {
 }
 
 namespace {
-
 Runtime::Instance::ModuleInstance *
 create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasiLLMModule;
+  return new WasmEdgeLLMModule;
 }
 
 static Plugin::PluginModule::ModuleDescriptor MD[] = {
     {
-        /* Name */ "wasi_llm",
+        /* Name */ "wasmedge_llm",
         /* Description */ "",
         /* Create */ create,
     },
 };
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    /* Name */ "wasi_llm",
+    /* Name */ "wasmedge_llm",
     /* Description */ "",
     /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
     /* Version */ {0, 1, 0, 0},
@@ -82,7 +80,6 @@ Plugin::Plugin::PluginDescriptor Descriptor{
 
 EXPORT_GET_DESCRIPTOR(Descriptor)
 
-} // namespace WASILLM
-
+} // namespace WasmEdgeLLM
 } // namespace Host
 } // namespace WasmEdge

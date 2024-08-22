@@ -10,6 +10,15 @@ else()
   set(SD_CUBLAS OFF CACHE BOOL "Stable diffusion plugin: Disable SD_CUBLAS")
 endif()
 
+if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL)
+  message(STATUS "Stable diffusion plugin: Enable SD_METAL")
+  set(SD_METAL ON CACHE BOOL "Stable diffusion plugin: Enable SD_METAL")
+  set(GGML_METAL_EMBED_LIBRARY ON)
+else()
+  message(STATUS "Stable diffusion plugin: Disable SD_METAL")
+  set(SD_METAL OFF CACHE BOOL "Stable diffusion plugin: Disable SD_METAL")
+endif()
+
 # setup stable diffusion
 message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
@@ -84,6 +93,15 @@ else()
 		-Wno-missing-field-initializers
     -Wno-deprecated-declarations
 	)
+endif()
+
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL)
+  add_custom_command(
+    TARGET wasmedgePluginWasmEdgeStableDiffusion
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
+    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/ggml-common.h ggml-common.h
+  )
 endif()
 
 install(

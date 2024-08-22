@@ -3,17 +3,19 @@
 
 #pragma once
 
+#include "llmc_env.h"
+
 #include "runtime/instance/module.h"
-#include "wasillmenv.h"
 
 namespace WasmEdge {
 namespace Host {
 
-class WasiLLMModule : public Runtime::Instance::ModuleInstance {
-  WASILLM::WASILLMEnv Env;
-
+class WasmEdgeLLMCModule : public Runtime::Instance::ModuleInstance {
 public:
-  WasiLLMModule();
+  WasmEdgeLLMCModule();
+
+private:
+  WasmEdgeLLMC::LLMCEnv Env;
 };
 
 } // namespace Host

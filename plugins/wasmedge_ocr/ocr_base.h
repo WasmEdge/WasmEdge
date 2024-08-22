@@ -3,21 +3,23 @@
 
 #pragma once
 
+#include "ocr_env.h"
+
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
-#include "wasiocrenv.h"
 
 namespace WasmEdge {
 namespace Host {
+namespace WasmEdgeOCR {
 
-template <typename T> class WasiOCR : public Runtime::HostFunction<T> {
+template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  WasiOCR(WASIOCR::WasiOCREnvironment &HostEnv)
-      : Runtime::HostFunction<T>(0), Env(HostEnv) {}
+  HostFunction(OCREnv &HostEnv) : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
-  WASIOCR::WasiOCREnvironment &Env;
+  OCREnv &Env;
 };
 
+} // namespace WasmEdgeOCR
 } // namespace Host
 } // namespace WasmEdge

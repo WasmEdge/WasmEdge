@@ -189,6 +189,17 @@ function(wasmedge_add_library target)
     set_target_properties(${target} PROPERTIES
       INSTALL_RPATH "$ORIGIN"
     )
+  elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    # Set properties to build as a framework on macOS and iOS
+    set_target_properties(${target} PROPERTIES
+      FRAMEWORK TRUE
+      FRAMEWORK_VERSION C
+      MACOSX_FRAMEWORK_IDENTIFIER "com.wasmedge.${target}"
+      MACOSX_FRAMEWORK_INFO_PLIST "Info.plist"
+      VERSION "1.0.0"
+      SOVERSION "1.0.0"
+      # PUBLIC_HEADER 
+  )
   endif()
 endfunction()
 

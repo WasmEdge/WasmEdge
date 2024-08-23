@@ -143,4 +143,5 @@ endif()
 install(
   TARGETS wasmedgePluginWasmEdgeImage
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
 )

@@ -192,10 +192,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       simdjson::simdjson
     )
   elseif(BACKEND STREQUAL "mlx")
+    wasmedge_setup_simdjson()
     find_package(MLX CONFIG)
     if(MLX_FOUND)
       message(STATUS "Found MLX: ${MLX_INCLUDE_DIRS}")
     else()
+  # TODO: TEST
       message(STATUS "MLX not found, downloading from source")
       include(FetchContent)
       set(MLX_BUILD_TESTS OFF)
@@ -216,19 +218,34 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:fmt::fmt-header-only>"
       )
       target_compile_options(mlx
-          PRIVATE
-          -Wno-unused-parameter
-          -Wno-deprecated-copy
-          -Wno-format
-        )
-      target_compile_options(wasmedgePluginWasiNN
         PRIVATE
         -Wno-unused-parameter
-      )
-      target_link_libraries(wasmedgePluginWasiNN PRIVATE
-        mlx
+        -Wno-deprecated-copy
+        -Wno-format
       )
     endif()
+    add_subdirectory(MLX)
+    target_include_directories(wasmedgePluginWasiNN PRIVATE MLX/model MLX/prompt MLX/mlx)
+
+    message(STATUS "Downloading tokenizers")
+    FetchContent_Declare(
+      tokenizers
+      GIT_REPOSITORY git@github.com:mlc-ai/tokenizers-cpp.git
+      GIT_TAG 5de6f65
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(tokenizers)
+    target_include_directories(wasmedgePluginWasiNN PRIVATE ${tokenizers_SOURCE_DIR}/include)
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE tokenizers_cpp)
+    target_compile_options(wasmedgePluginWasiNN
+      PRIVATE
+      -Wno-unused-parameter
+    )
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+      mlx_cpp
+      mlx
+      simdjson::simdjson
+    )
   endif()
 endforeach()
 

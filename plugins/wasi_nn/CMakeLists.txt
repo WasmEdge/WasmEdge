@@ -228,5 +228,4 @@ wasmedge_setup_wasinn_target(wasmedgePluginWasiNN)
 install(
   TARGETS wasmedgePluginWasiNN
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
-  COMPONENT WasmEdge
 )

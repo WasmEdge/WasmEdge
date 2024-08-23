@@ -36,7 +36,6 @@ set_target_properties(wasiNNRPC PROPERTIES
 )
 install(TARGETS wasiNNRPC
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  ARCHIVE COMPONENT WasmEdge
 )
 
 target_include_directories(wasiNNRPC PUBLIC ${CMAKE_CURRENT_BINARY_DIR})

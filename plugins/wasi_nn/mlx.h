@@ -2,7 +2,14 @@
 
 #include "plugin/plugin.h"
 #include "types.h"
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
+#include "MLX/model/transformer.h"
+#include "llama.h"
+#include "transformer.h"
 #include <mlx/mlx.h>
+#include <tokenizers_cpp.h>
+#endif
 
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
@@ -11,13 +18,20 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 struct Graph {
-  mlx::core::StreamOrDevice MLXDevice = mlx::core::metal::is_available()
-                                            ? mlx::core::Device::gpu
-                                            : mlx::core::Device::cpu;
+  std::string ModelType = "tiny_llama_1.1B_chat_v1.0";
+  std::unique_ptr<tokenizers::Tokenizer> Tok;
+  Transformer *Model;
+  inline static int GraphNumber = 0;
+  double Temp = 0.0;
+  bool EnableDebugLog = true;
+  int MaxToken = 1024;
+  BasePrompt Prmopt;
 };
 struct Context {
   Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}
   size_t GraphId;
+  std::string Inputs;
+  std::string Outputs;
 };
 #else
 struct Graph {};

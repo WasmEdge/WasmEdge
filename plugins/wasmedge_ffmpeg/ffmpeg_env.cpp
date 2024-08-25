@@ -1,4 +1,6 @@
-#include "ffmpeg_env.h"
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avcodec/module.h"
 #include "avdevice/module.h"
 #include "avfilter/module.h"
@@ -6,6 +8,8 @@
 #include "avutil/module.h"
 #include "swresample/module.h"
 #include "swscale/module.h"
+
+#include "ffmpeg_env.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -42,14 +46,14 @@ createAVUtil(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
 }
 
 Runtime::Instance::ModuleInstance *
-createSWScale(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasmEdgeFFmpeg::SWScale::WasmEdgeFFmpegSWScaleModule(
+createSWResample(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+  return new WasmEdgeFFmpeg::SWResample::WasmEdgeFFmpegSWResampleModule(
       WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
 }
 
 Runtime::Instance::ModuleInstance *
-createSWResample(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasmEdgeFFmpeg::SWResample::WasmEdgeFFmpegSWResampleModule(
+createSWScale(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+  return new WasmEdgeFFmpeg::SWScale::WasmEdgeFFmpegSWScaleModule(
       WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::getInstance());
 }
 
@@ -108,5 +112,6 @@ std::weak_ptr<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv>
         std::make_shared<WasmEdgeFFmpeg::WasmEdgeFFmpegEnv>();
 
 std::shared_mutex WasmEdgeFFmpeg::WasmEdgeFFmpegEnv::Mutex;
+
 } // namespace Host
 } // namespace WasmEdge

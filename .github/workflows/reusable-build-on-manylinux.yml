@@ -26,6 +26,8 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.runner }}
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - uses: actions/checkout@v3
         with:
@@ -33,7 +35,7 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Build ${{ matrix.docker_tag }} package
+      - name: Build ${{ matrix.asset_tag }} package
         run: |
           bash utils/docker/build-manylinux.sh
           ./build/tools/wasmedge/wasmedge -v
@@ -41,10 +43,11 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
-          name: WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
-      - name: Install gh on manylinux
-        if: ${{ inputs.release }}
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.tar.gz
+      - name: Install gh except for manylinux2014
+        if: ${{ inputs.release && (!contains(matrix.docker_tag, 'manylinux2014')) }}
         run: |
+          echo "Detected docker tag: ${{ matrix.docker_tag }}"
           type -p yum-config-manager >/dev/null || yum install -y yum-utils
           yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
           yum install -y gh
@@ -53,19 +56,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build/WasmEdge-${{ inputs.version }}-Linux.rpm WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm
-          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.rpm --clobber
+          mv build/WasmEdge-${{ inputs.version }}-Linux.rpm WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.rpm
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.rpm --clobber
       - name: Upload tar.gz package
         if: ${{ inputs.release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz
-          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.gz --clobber
+          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.tar.gz --clobber
       - name: Upload tar.xz package
         if: ${{ inputs.release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.xz WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz
-          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.docker_tag }}.tar.xz --clobber
+          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.xz WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.tar.xz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.tar.xz --clobber

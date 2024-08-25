@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_StatisticsContext.h"
 #include "common.h"
@@ -14,7 +14,8 @@ CreateJavaStatisticsContext(JNIEnv *env,
                             WasmEdge_StatisticsContext *statisticsContext) {
   jclass statClass = findJavaClass(env, ORG_WASMEDGE_STATISTICSCONTEXT);
 
-  jmethodID constructor = (*env)->GetMethodID(env, statClass, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructor =
+      (*env)->GetMethodID(env, statClass, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   jobject jStatContext =
       (*env)->NewObject(env, statClass, constructor, (long)statisticsContext);

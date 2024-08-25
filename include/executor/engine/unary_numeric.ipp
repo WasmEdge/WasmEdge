@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/roundeven.h"
 #include "executor/executor.h"
@@ -62,15 +62,17 @@ template <typename T> TypeU<T> Executor::runPopcntOp(ValVariant &Val) const {
 
 template <typename T> TypeF<T> Executor::runAbsOp(ValVariant &Val) const {
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
-  // In MSVC, std::fabs cannot be used. If input is NAN, std::fabs will set the highest bit of fraction.
+  // In MSVC, std::fabs cannot be used. If input is NAN, std::fabs will set the
+  // highest bit of fraction.
   T &Fp = Val.get<T>();
   static_assert(std::is_floating_point_v<T>);
   if constexpr (sizeof(T) == 4) {
-    uint32_t Tmp = reinterpret_cast<uint32_t&>(Fp) & UINT32_C(0x7fffffff);
-    Val.get<T>() = reinterpret_cast<T&>(Tmp);
+    uint32_t Tmp = reinterpret_cast<uint32_t &>(Fp) & UINT32_C(0x7fffffff);
+    Val.get<T>() = reinterpret_cast<T &>(Tmp);
   } else {
-    uint64_t Tmp = reinterpret_cast<uint64_t&>(Fp) & UINT64_C(0x7fffffffffffffff);
-    Val.get<T>() = reinterpret_cast<T&>(Tmp);
+    uint64_t Tmp =
+        reinterpret_cast<uint64_t &>(Fp) & UINT64_C(0x7fffffffffffffff);
+    Val.get<T>() = reinterpret_cast<T &>(Tmp);
   }
 #else
   Val.get<T>() = std::fabs(Val.get<T>());

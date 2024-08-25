@@ -1,0 +1,472 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index f96ec44..1e84722 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
+ 
+ project(piper C CXX)
+ 
++option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
++
+ file(READ "${CMAKE_CURRENT_LIST_DIR}/VERSION" piper_version)
+ 
+ set(CMAKE_CXX_STANDARD 17)
+@@ -13,11 +15,13 @@ if(MSVC)
+   add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+ elseif(NOT APPLE)
+   # Linux flags
+-  string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra -Wl,-rpath,'$ORIGIN'")
++  string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra")
++  list(APPEND CMAKE_BUILD_RPATH "$ORIGIN")
++  list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN")
+   string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
+ endif()
+ 
+-add_executable(piper src/cpp/main.cpp src/cpp/piper.cpp)
++add_library(piper src/cpp/piper.cpp)
+ add_executable(test_piper src/cpp/test.cpp src/cpp/piper.cpp)
+ 
+ # NOTE: external project prefix are shortened because of path length restrictions on Windows
+@@ -25,7 +29,21 @@ add_executable(test_piper src/cpp/test.cpp src/cpp/piper.cpp)
+ 
+ # ---- fmt ---
+ 
+-if(NOT DEFINED FMT_DIR)
++set(fmt_FOUND FALSE)
++
++if(NOT fmt_FOUND AND TARGET "fmt::fmt")
++  list(APPEND FMT_LINK_LIBRARIES "fmt::fmt")
++  set(fmt_FOUND TRUE)
++endif()
++
++if(NOT fmt_FOUND AND NOT DEFINED FMT_DIR)
++  find_package(fmt)
++  if(fmt_FOUND)
++    list(APPEND FMT_LINK_LIBRARIES "fmt::fmt")
++  endif()
++endif()
++
++if(NOT fmt_FOUND AND NOT DEFINED FMT_DIR)
+   set(FMT_VERSION "10.0.0")
+   set(FMT_DIR "${CMAKE_CURRENT_BINARY_DIR}/fi")
+ 
+@@ -41,11 +59,33 @@ if(NOT DEFINED FMT_DIR)
+   add_dependencies(test_piper fmt_external)
+ endif()
+ 
++if(NOT fmt_FOUND AND DEFINED FMT_DIR)
++  list(APPEND FMT_LINK_LIBRARIES "fmt")
++  list(APPEND FMT_LINK_DIRECTORIES "${FMT_DIR}/lib")
++  list(APPEND FMT_INCLUDE_DIRECTORIES "${FMT_DIR}/include")
++  set(fmt_FOUND TRUE)
++endif()
++
+ # ---- spdlog ---
+ 
+-if(NOT DEFINED SPDLOG_DIR)
++set(spdlog_FOUND FALSE)
++
++if(NOT spdlog_FOUND AND TARGET "spdlog::spdlog")
++  list(APPEND SPDLOG_LINK_LIBRARIES "spdlog::spdlog")
++  set(spdlog_FOUND TRUE)
++endif()
++
++if(NOT spdlog_FOUND AND NOT DEFINED SPDLOG_DIR)
++  find_package(spdlog)
++  if(spdlog_FOUND)
++    list(APPEND SPDLOG_LINK_LIBRARIES "spdlog::spdlog")
++  endif()
++endif()
++
++if(NOT spdlog_FOUND AND NOT DEFINED SPDLOG_DIR)
+   set(SPDLOG_DIR "${CMAKE_CURRENT_BINARY_DIR}/si")
+   set(SPDLOG_VERSION "1.12.0")
++  include(ExternalProject)
+   ExternalProject_Add(
+     spdlog_external
+     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/s"
+@@ -56,81 +96,81 @@ if(NOT DEFINED SPDLOG_DIR)
+   add_dependencies(test_piper spdlog_external)
+ endif()
+ 
++if(NOT spdlog_FOUND AND DEFINED SPDLOG_DIR)
++  list(APPEND SPDLOG_LINK_LIBRARIES "spdlog")
++  list(APPEND SPDLOG_LINK_DIRECTORIES "${SPDLOG_DIR}/lib")
++  list(APPEND SPDLOG_INCLUDE_DIRECTORIES "${SPDLOG_DIR}/include")
++  set(spdlog_FOUND TRUE)
++endif()
++
+ # ---- piper-phonemize ---
+ 
+-if(NOT DEFINED PIPER_PHONEMIZE_DIR)
+-  set(PIPER_PHONEMIZE_DIR "${CMAKE_CURRENT_BINARY_DIR}/pi")
+-  ExternalProject_Add(
+-    piper_phonemize_external
+-    PREFIX "${CMAKE_CURRENT_BINARY_DIR}/p"
+-    URL "https://github.com/rhasspy/piper-phonemize/archive/refs/heads/master.zip"
+-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${PIPER_PHONEMIZE_DIR}
+-  )
+-  add_dependencies(piper piper_phonemize_external)
+-  add_dependencies(test_piper piper_phonemize_external)
+-endif()
++include(FetchContent)
++find_program(GIT_CMD git REQUIRED)
++FetchContent_Declare(
++  piper_phonemize
++  GIT_REPOSITORY "https://github.com/rhasspy/piper-phonemize.git"
++  GIT_TAG "bfc2e7549957829b0227c66a305d11cc88167bda" # master
++  UPDATE_DISCONNECTED TRUE
++  PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_CURRENT_SOURCE_DIR}/piper-phonemize.patch"
++)
++FetchContent_MakeAvailable(piper_phonemize)
+ 
+ # ---- Declare executable ----
+ 
+ if((NOT MSVC) AND (NOT APPLE))
+   # Linux flags
+-  string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra -Wl,-rpath,'$ORIGIN'")
++  string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra")
++  list(APPEND CMAKE_BUILD_RPATH "$ORIGIN")
++  list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN")
+   string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
+-  target_link_libraries(piper -static-libgcc -static-libstdc++)
++  target_link_libraries(piper PRIVATE -static-libgcc -static-libstdc++)
+ 
+   set(PIPER_EXTRA_LIBRARIES "pthread")
+ endif()
+ 
+-target_link_libraries(piper
+-  fmt
+-  spdlog
++target_link_libraries(piper PRIVATE
++  "${FMT_LINK_LIBRARIES}"
++  "${SPDLOG_LINK_LIBRARIES}"
+   espeak-ng
+-  piper_phonemize
+   onnxruntime
+   ${PIPER_EXTRA_LIBRARIES}
++  PUBLIC piper_phonemize
+ )
+ 
+-target_link_directories(piper PUBLIC
+-  ${FMT_DIR}/lib
+-  ${SPDLOG_DIR}/lib
+-  ${PIPER_PHONEMIZE_DIR}/lib
+-)
+-
+-target_include_directories(piper PUBLIC
+-  ${FMT_DIR}/include
+-  ${SPDLOG_DIR}/include
+-  ${PIPER_PHONEMIZE_DIR}/include
++target_link_directories(piper PRIVATE
++  "${FMT_LINK_DIRECTORIES}"
++  "${SPDLOG_LINK_DIRECTORIES}"
+ )
+ 
+-target_compile_definitions(piper PUBLIC _PIPER_VERSION=${piper_version})
++set(PIPER_INTERFACE_INCLUDE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
++file(COPY src/cpp/piper.hpp src/cpp/json.hpp DESTINATION "${PIPER_INTERFACE_INCLUDE_DIRECTORY}")
+ 
+-# ---- Declare test ----
+-include(CTest)
+-enable_testing()
+-add_test(
+-  NAME test_piper
+-  COMMAND test_piper "${CMAKE_SOURCE_DIR}/etc/test_voice.onnx" "${PIPER_PHONEMIZE_DIR}/share/espeak-ng-data" "${CMAKE_CURRENT_BINARY_DIR}/test.wav"
++target_include_directories(piper PRIVATE
++  "${FMT_INCLUDE_DIRECTORIES}"
++  "${SPDLOG_INCLUDE_DIRECTORIES}"
++  INTERFACE "${PIPER_INTERFACE_INCLUDE_DIRECTORY}"
+ )
+ 
++target_compile_definitions(piper PRIVATE _PIPER_VERSION=${piper_version})
++
+ target_compile_features(test_piper PUBLIC cxx_std_17)
+ 
+ target_include_directories(
+   test_piper PUBLIC
+-  ${FMT_DIR}/include
+-  ${SPDLOG_DIR}/include
+-  ${PIPER_PHONEMIZE_DIR}/include
++  "${FMT_INCLUDE_DIRECTORIES}"
++  "${SPDLOG_INCLUDE_DIRECTORIES}"
+ )
+ 
+ target_link_directories(
+   test_piper PUBLIC
+-  ${FMT_DIR}/lib
+-  ${SPDLOG_DIR}/lib
+-  ${PIPER_PHONEMIZE_DIR}/lib
++  "${FMT_LINK_DIRECTORIES}"
++  "${SPDLOG_LINK_DIRECTORIES}"
+ )
+ 
+ target_link_libraries(test_piper PUBLIC
+-  fmt
+-  spdlog
++  "${FMT_LINK_LIBRARIES}"
++  "${SPDLOG_LINK_LIBRARIES}"
+   espeak-ng
+   piper_phonemize
+   onnxruntime
+@@ -141,32 +181,3 @@ target_link_libraries(test_piper PUBLIC
+ install(
+   TARGETS piper
+   DESTINATION ${CMAKE_INSTALL_PREFIX})
+-
+-# Dependencies
+-install(
+-  DIRECTORY ${PIPER_PHONEMIZE_DIR}/bin/
+-  DESTINATION ${CMAKE_INSTALL_PREFIX}
+-  USE_SOURCE_PERMISSIONS  # keep +x
+-  FILES_MATCHING
+-  PATTERN "piper_phonemize"
+-  PATTERN "espeak-ng"
+-  PATTERN "*.dll"
+-)
+-
+-install(
+-  DIRECTORY ${PIPER_PHONEMIZE_DIR}/lib/
+-  DESTINATION ${CMAKE_INSTALL_PREFIX}
+-  FILES_MATCHING
+-  PATTERN "*.dll"
+-  PATTERN "*.so*"
+-)
+-
+-install(
+-  DIRECTORY ${PIPER_PHONEMIZE_DIR}/share/espeak-ng-data
+-  DESTINATION ${CMAKE_INSTALL_PREFIX}
+-)
+-
+-install(
+-  FILES ${PIPER_PHONEMIZE_DIR}/share/libtashkeel_model.ort
+-  DESTINATION ${CMAKE_INSTALL_PREFIX}
+-)
+diff --git a/VERSION b/VERSION
+index 26aaba0..867e524 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-1.2.0
++1.2.0
+\ No newline at end of file
+diff --git a/piper-phonemize.patch b/piper-phonemize.patch
+new file mode 100644
+index 0000000..c4676cb
+--- /dev/null
++++ b/piper-phonemize.patch
+@@ -0,0 +1,214 @@
++diff --git a/CMakeLists.txt b/CMakeLists.txt
++index ec7b501..39275a6 100644
++--- a/CMakeLists.txt
+++++ b/CMakeLists.txt
++@@ -10,6 +10,8 @@ project(
++     LANGUAGES CXX
++ )
++ 
+++option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+++
++ if(MSVC)
++     # Force compiler to use UTF-8 for IPA constants
++     add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
++@@ -17,12 +19,14 @@ if(MSVC)
++ 
++ elseif(NOT APPLE)
++     # Linux flags
++-    string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra -Wl,-rpath,'$ORIGIN'")
+++    string(APPEND CMAKE_CXX_FLAGS " -Wall -Wextra")
+++    list(APPEND CMAKE_BUILD_RPATH "$ORIGIN")
+++    list(APPEND CMAKE_INSTALL_RPATH "$ORIGIN")
++     string(APPEND CMAKE_C_FLAGS " -Wall -Wextra")
++ endif()
++ 
++ add_library(
++-    piper_phonemize SHARED
+++    piper_phonemize
++     src/phonemize.cpp
++     src/phoneme_ids.cpp
++     src/tashkeel.cpp
++@@ -36,12 +40,33 @@ set_target_properties(piper_phonemize PROPERTIES
++ 
++ # ---- onnxruntime ---
++ 
++-# Look for onnxruntime files in <root>/lib
++-if(NOT DEFINED ONNXRUNTIME_DIR)
++-    if(NOT DEFINED ONNXRUNTIME_VERSION)
++-        set(ONNXRUNTIME_VERSION "1.14.1")
+++set(onnxruntime_FOUND FALSE)
+++
+++if(NOT DEFINED ONNXRUNTIME_VERSION)
+++    set(ONNXRUNTIME_VERSION "1.14.1")
+++endif()
+++
+++if(NOT onnxruntime_FOUND AND NOT DEFINED ONNXRUNTIME_DIR)
+++    find_package(onnxruntime "${ONNXRUNTIME_VERSION}")
+++    if(onnxruntime_FOUND)
+++        list(APPEND ONNXRUNTIME_LINK_LIBRARIES "onnxruntime::onnxruntime")
++     endif()
+++endif()
+++
+++if(NOT onnxruntime_FOUND AND NOT DEFINED ONNXRUNTIME_DIR)
+++    find_library(ONNXRUNTIME_LIBRARY onnxruntime)
+++    if(NOT "${ONNXRUNTIME_LIBRARY}" STREQUAL "ONNXRUNTIME_LIBRARY-NOTFOUND")
+++        find_path(ONNXRUNTIME_PATH "onnxruntime_cxx_api.h" PATH_SUFFIXES "onnxruntime")
+++        if(NOT "${ONNXRUNTIME_PATH}" STREQUAL "ONNXRUNTIME_PATH-NOTFOUND")
+++            list(APPEND ONNXRUNTIME_INCLUDE_DIRECTORIES "${ONNXRUNTIME_PATH}")
+++            list(APPEND ONNXRUNTIME_LINK_LIBRARIES "${ONNXRUNTIME_LIBRARY}")
+++            set(onnxruntime_FOUND TRUE)
+++        endif()
+++    endif()
+++endif()
++ 
+++# Look for onnxruntime files in <root>/lib
+++if(NOT onnxruntime_FOUND AND NOT DEFINED ONNXRUNTIME_DIR)
++     if(WIN32)
++         # Windows x86-64
++         set(ONNXRUNTIME_PREFIX "onnxruntime-win-x64-${ONNXRUNTIME_VERSION}")
++@@ -95,19 +120,31 @@ if(NOT DEFINED ONNXRUNTIME_DIR)
++     endif()
++ endif()
++ 
+++if(NOT onnxruntime_FOUND AND DEFINED ONNXRUNTIME_DIR)
+++    list(APPEND ONNXRUNTIME_INCLUDE_DIRECTORIES "${ONNXRUNTIME_DIR}/include")
+++    list(APPEND ONNXRUNTIME_LINK_DIRECTORIES "${ONNXRUNTIME_DIR}/lib")
+++    list(APPEND ONNXRUNTIME_LINK_LIBRARIES "onnxruntime")
+++    set(onnxruntime_FOUND TRUE)
+++endif()
+++
++ # ---- espeak-ng ---
++ 
++ if(NOT DEFINED ESPEAK_NG_DIR)
++     set(ESPEAK_NG_DIR "${CMAKE_CURRENT_BINARY_DIR}/ei")
++ 
+++    find_program(GIT_PROGRAM "git" REQUIRED)
++     include(ExternalProject)
++     ExternalProject_Add(
++         espeak_ng_external
++         PREFIX "${CMAKE_CURRENT_BINARY_DIR}/e"
++-        URL "https://github.com/rhasspy/espeak-ng/archive/0f65aa301e0d6bae5e172cc74197d32a6182200f.zip"
+++        GIT_REPOSITORY "https://github.com/rhasspy/espeak-ng"
+++        GIT_TAG "0f65aa301e0d6bae5e172cc74197d32a6182200f"
+++        GIT_PROGRESS TRUE
+++        UPDATE_DISCONNECTED TRUE
+++        PATCH_COMMAND "${GIT_PROGRAM}" "apply" "${CMAKE_CURRENT_SOURCE_DIR}/espeak-ng.patch"
++         CMAKE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${ESPEAK_NG_DIR}
++         CMAKE_ARGS -DUSE_ASYNC:BOOL=OFF
++-        CMAKE_ARGS -DBUILD_SHARED_LIBS:BOOL=ON
+++        CMAKE_ARGS "-DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}"
++         CMAKE_ARGS -DUSE_MBROLA:BOOL=OFF
++         CMAKE_ARGS -DUSE_LIBSONIC:BOOL=OFF
++         CMAKE_ARGS -DUSE_LIBPCAUDIO:BOOL=OFF
++@@ -116,6 +153,8 @@ if(NOT DEFINED ESPEAK_NG_DIR)
++         CMAKE_ARGS -DEXTRA_cmn:BOOL=ON
++         CMAKE_ARGS -DEXTRA_ru:BOOL=ON
++         CMAKE_ARGS -DCMAKE_C_FLAGS="-D_FILE_OFFSET_BITS=64"
+++        CMAKE_ARGS "-DCMAKE_POSITION_INDEPENDENT_CODE:BOOL=${CMAKE_POSITION_INDEPENDENT_CODE}"
+++        USES_TERMINAL_DOWNLOAD TRUE
++     )
++     add_dependencies(piper_phonemize espeak_ng_external)
++ endif()
++@@ -123,23 +162,27 @@ endif()
++ 
++ # ---- Declare library ----
++ 
+++set(PIPER_PHONEMIZE_INTERFACE_INCLUDE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include")
+++file(COPY "src/" DESTINATION "${PIPER_PHONEMIZE_INTERFACE_INCLUDE_DIRECTORY}/piper-phonemize" FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp")
+++
++ target_include_directories(
++     piper_phonemize PUBLIC
++     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>"
++     ${ESPEAK_NG_DIR}/include
++-    ${ONNXRUNTIME_DIR}/include
+++    ${ONNXRUNTIME_INCLUDE_DIRECTORIES}
+++    INTERFACE "${PIPER_PHONEMIZE_INTERFACE_INCLUDE_DIRECTORY}"
++ )
++ 
++ target_link_directories(
++     piper_phonemize PUBLIC
++     ${ESPEAK_NG_DIR}/lib
++-    ${ONNXRUNTIME_DIR}/lib
+++    ${ONNXRUNTIME_LINK_DIRECTORIES}
++ )
++ 
++ target_link_libraries(
++     piper_phonemize
++     espeak-ng
++-    onnxruntime
+++    ${ONNXRUNTIME_LINK_LIBRARIES}
++ )
++ 
++ target_compile_features(piper_phonemize PUBLIC cxx_std_17)
++@@ -173,12 +216,13 @@ target_link_libraries(piper_phonemize_exe PUBLIC
++ # ---- Declare test ----
++ 
++ include(CTest)
++-enable_testing()
++ add_executable(test_piper_phonemize src/test.cpp src/phoneme_ids.cpp)
++-add_test(
++-    NAME test_piper_phonemize
++-    COMMAND test_piper_phonemize "${ESPEAK_NG_DIR}/share/espeak-ng-data" "${CMAKE_SOURCE_DIR}/etc/libtashkeel_model.ort"
++-)
+++if(BUILD_TESTING)
+++    add_test(
+++        NAME test_piper_phonemize
+++        COMMAND test_piper_phonemize "${ESPEAK_NG_DIR}/share/espeak-ng-data" "${CMAKE_SOURCE_DIR}/etc/libtashkeel_model.ort"
+++    )
+++endif()
++ 
++ target_compile_features(test_piper_phonemize PUBLIC cxx_std_17)
++ 
++@@ -207,7 +251,7 @@ install(
++     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
++ 
++ install(
++-    DIRECTORY ${CMAKE_SOURCE_DIR}/src/
+++    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/src/"
++     DESTINATION include/piper-phonemize
++     FILES_MATCHING
++     PATTERN "*.h"
++@@ -218,7 +262,7 @@ install(
++     ARCHIVE DESTINATION ${CMAKE_INSTALL_BINDIR})
++ 
++ install(
++-    FILES ${CMAKE_SOURCE_DIR}/etc/libtashkeel_model.ort
+++    FILES "${CMAKE_CURRENT_SOURCE_DIR}/etc/libtashkeel_model.ort"
++     TYPE DATA)
++ 
++ # Dependencies
++@@ -226,10 +270,12 @@ install(
++     DIRECTORY ${ESPEAK_NG_DIR}/
++     DESTINATION ${CMAKE_INSTALL_PREFIX})
++ 
++-install(
++-    DIRECTORY ${ONNXRUNTIME_DIR}/include/
++-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+++if(DEFINED ONNXRUNTIME_DIR)
+++    install(
+++        DIRECTORY ${ONNXRUNTIME_DIR}/include/
+++        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
++ 
++-install(
++-    DIRECTORY ${ONNXRUNTIME_DIR}/lib/
++-    DESTINATION ${CMAKE_INSTALL_LIBDIR})
+++    install(
+++        DIRECTORY ${ONNXRUNTIME_DIR}/lib/
+++        DESTINATION ${CMAKE_INSTALL_LIBDIR})
+++endif()
++diff --git a/espeak-ng.patch b/espeak-ng.patch
++new file mode 100644
++index 0000000..a51d146
++--- /dev/null
+++++ b/espeak-ng.patch
++@@ -0,0 +1,10 @@
+++diff --git a/src/ucd-tools/CMakeLists.txt b/src/ucd-tools/CMakeLists.txt
+++index 2050c114..4bd7d17e 100644
+++--- a/src/ucd-tools/CMakeLists.txt
++++++ b/src/ucd-tools/CMakeLists.txt
+++@@ -1,4 +1,4 @@
+++-add_library(ucd STATIC
++++add_library(ucd OBJECT
+++   src/case.c
+++   src/categories.c
+++   src/ctype.c

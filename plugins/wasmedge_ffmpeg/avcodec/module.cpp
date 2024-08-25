@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "module.h"
 #include "avCodec.h"
 #include "avCodecContext.h"
@@ -13,7 +16,6 @@ namespace AVcodec {
 WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
     std::shared_ptr<WasmEdgeFFmpegEnv> Env)
     : ModuleInstance("wasmedge_ffmpeg_avcodec") {
-
   // avcodec_func.h
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodec_alloc_context3",
               std::make_unique<AVCodecAllocContext3>(Env));

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 wasmedge_add_library(wasmedgePluginWasmEdgeTensorflowLite
   SHARED
@@ -34,4 +34,7 @@ endif()
 include(WASINNDeps)
 wasmedge_setup_tflite_target(wasmedgePluginWasmEdgeTensorflowLite)
 
-install(TARGETS wasmedgePluginWasmEdgeTensorflowLite DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(
+  TARGETS wasmedgePluginWasmEdgeTensorflowLite
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+)

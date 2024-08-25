@@ -1,122 +1,102 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
 
-#include "avDevice_base.h"
-#include "runtime/callingframe.h"
+#include "ffmpeg_base.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVDevice {
 
-class AVDeviceRegisterAll : public WasmEdgeFFmpegAVDevice<AVDeviceRegisterAll> {
+class AVDeviceRegisterAll : public HostFunction<AVDeviceRegisterAll> {
 public:
-  AVDeviceRegisterAll(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<void> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVDeviceVersion : public WasmEdgeFFmpegAVDevice<AVDeviceVersion> {
+class AVDeviceVersion : public HostFunction<AVDeviceVersion> {
 public:
-  AVDeviceVersion(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVDeviceListDevices : public WasmEdgeFFmpegAVDevice<AVDeviceListDevices> {
+class AVDeviceListDevices : public HostFunction<AVDeviceListDevices> {
 public:
-  AVDeviceListDevices(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AVFormatCtxId, uint32_t AVDeviceInfoListPtr);
 };
 
-class AVInputAudioDeviceNext
-    : public WasmEdgeFFmpegAVDevice<AVInputAudioDeviceNext> {
+class AVInputAudioDeviceNext : public HostFunction<AVInputAudioDeviceNext> {
 public:
-  AVInputAudioDeviceNext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &);
 };
 
-class AVInputVideoDeviceNext
-    : public WasmEdgeFFmpegAVDevice<AVInputVideoDeviceNext> {
+class AVInputVideoDeviceNext : public HostFunction<AVInputVideoDeviceNext> {
 public:
-  AVInputVideoDeviceNext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &);
 };
 
-class AVOutputAudioDeviceNext
-    : public WasmEdgeFFmpegAVDevice<AVOutputAudioDeviceNext> {
+class AVOutputAudioDeviceNext : public HostFunction<AVOutputAudioDeviceNext> {
 public:
-  AVOutputAudioDeviceNext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &);
 };
 
-class AVOutputVideoDeviceNext
-    : public WasmEdgeFFmpegAVDevice<AVOutputVideoDeviceNext> {
+class AVOutputVideoDeviceNext : public HostFunction<AVOutputVideoDeviceNext> {
 public:
-  AVOutputVideoDeviceNext(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &);
 };
 
-class AVDeviceFreeListDevices
-    : public WasmEdgeFFmpegAVDevice<AVDeviceFreeListDevices> {
+class AVDeviceFreeListDevices : public HostFunction<AVDeviceFreeListDevices> {
 public:
-  AVDeviceFreeListDevices(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AVDeviceInfoListId);
 };
 
-class AVDeviceNbDevices : public WasmEdgeFFmpegAVDevice<AVDeviceNbDevices> {
+class AVDeviceNbDevices : public HostFunction<AVDeviceNbDevices> {
 public:
-  AVDeviceNbDevices(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AVDeviceInfoListId);
 };
 
-class AVDeviceDefaultDevice
-    : public WasmEdgeFFmpegAVDevice<AVDeviceDefaultDevice> {
+class AVDeviceDefaultDevice : public HostFunction<AVDeviceDefaultDevice> {
 public:
-  AVDeviceDefaultDevice(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame,
                        uint32_t AVDeviceInfoListId);
 };
 
 class AVDeviceConfigurationLength
-    : public WasmEdgeFFmpegAVDevice<AVDeviceConfigurationLength> {
+    : public HostFunction<AVDeviceConfigurationLength> {
 public:
-  AVDeviceConfigurationLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVDeviceConfiguration
-    : public WasmEdgeFFmpegAVDevice<AVDeviceConfiguration> {
+class AVDeviceConfiguration : public HostFunction<AVDeviceConfiguration> {
 public:
-  AVDeviceConfiguration(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t ConfigPtr,
                        uint32_t ConfigLen);
 };
 
-class AVDeviceLicenseLength
-    : public WasmEdgeFFmpegAVDevice<AVDeviceLicenseLength> {
+class AVDeviceLicenseLength : public HostFunction<AVDeviceLicenseLength> {
 public:
-  AVDeviceLicenseLength(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVDeviceLicense : public WasmEdgeFFmpegAVDevice<AVDeviceLicense> {
+class AVDeviceLicense : public HostFunction<AVDeviceLicense> {
 public:
-  AVDeviceLicense(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVDevice(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t LicensePtr,
                        uint32_t LicenseLen);
 };

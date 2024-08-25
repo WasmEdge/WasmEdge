@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 if(APPLE)
   set(WASMEDGE_WASI_SRCS clock-macos.cpp environ-macos.cpp inode-macos.cpp macos.mm)
@@ -38,6 +38,7 @@ endif()
 if(WIN32)
   target_link_libraries(wasmedgeHostModuleWasi
   PRIVATE
+  ktmw32
   ntdll
   wsock32
   ws2_32

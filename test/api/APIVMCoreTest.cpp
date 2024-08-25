@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/test/api/APIVMCoreTest.cpp - WasmEdge C API core tests ---===//
 //
@@ -208,8 +208,8 @@ TEST(AsyncRunWsmFile, InterruptTest) {
 
 TEST(AsyncExecute, InterruptTest) {
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(nullptr, nullptr);
-  ASSERT_TRUE(WasmEdge_ResultOK(
-      WasmEdge_VMLoadWasmFromBuffer(VM, AsyncWasm.data(), static_cast<uint32_t>(AsyncWasm.size()))));
+  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
+      VM, AsyncWasm.data(), static_cast<uint32_t>(AsyncWasm.size()))));
   ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VM)));
   ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VM)));
   {

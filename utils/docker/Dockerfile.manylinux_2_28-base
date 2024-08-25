@@ -1,0 +1,59 @@
+# SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
+ARG BASE_IMAGE="quay.io/pypa/manylinux_2_28_x86_64"
+FROM ${BASE_IMAGE}
+
+ADD SHA256SUM.manylinux_2_28 /root/
+
+# See /opt/rh/gcc-toolset-13/enable
+ENV PATH=/opt/rh/gcc-toolset-13/root/usr/bin${PATH:+:${PATH}}
+ENV MANPATH=/opt/rh/gcc-toolset-13/root/usr/share/man${MANPATH:+:${MANPATH}}
+ENV INFOPATH=/opt/rh/gcc-toolset-13/root/usr/share/info${INFOPATH:+:${INFOPATH}}
+ENV LD_LIBRARY_PATH=/opt/rh/gcc-toolset-13/root/usr/lib64:/opt/rh/gcc-toolset-13/root/usr/lib:${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+ENV PKG_CONFIG_PATH=/opt/rh/gcc-toolset-13/root/usr/lib64/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+
+ARG LLVM_TARGETS LLVM_TRIPLE
+
+RUN cd && (yum check-update || true) && yum install -y openssl-devel rpm-build cmake yum-utils && \
+    yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo && \
+    yum install -y gcc-toolset-13 && \
+    export CPU=$(/opt/python/cp311-cp311/bin/python3 -c \
+        'import multiprocessing; print(multiprocessing.cpu_count())') && \
+    export CFGFLAGS="--prefix=/opt/rh/gcc-toolset-13/root/usr --disable-shared --libdir=/opt/rh/gcc-toolset-13/root/usr/lib64" && \
+    curl -s -L -O --remote-name-all \
+        https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.1.tar.gz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/llvm-17.0.6.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/lld-17.0.6.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/libunwind-17.0.6.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/cmake-17.0.6.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/third-party-17.0.6.src.tar.xz \
+        https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/clang-17.0.6.src.tar.xz && \
+    sha256sum -c SHA256SUM.manylinux_2_28 && \
+    gzip -dc v1.11.1.tar.gz | tar -xf - && \
+    xz -dc llvm-17.0.6.src.tar.xz | tar -xf - && \
+    xz -dc lld-17.0.6.src.tar.xz | tar -xf - && \
+    xz -dc libunwind-17.0.6.src.tar.xz | tar -xf - && \
+    xz -dc cmake-17.0.6.src.tar.xz | tar -xf - && \
+    xz -dc third-party-17.0.6.src.tar.xz | tar -xf - && \
+    xz -dc clang-17.0.6.src.tar.xz | tar -xf - && \
+    export ZSTDFLAGS=(PREFIX=/opt/rh/gcc-toolset-13/root/usr LIBDIR=/opt/rh/gcc-toolset-13/root/usr/lib64 SED_ERE_OPT=--regexp-extended MOREFLAGS="-std=c17 -O3 -fPIC -fPIE -fvisibility=hidden") && \
+    mkdir build && cd build && /opt/python/cp311-cp311/bin/python \
+        ../ninja-1.11.1/configure.py --bootstrap \
+        --with-python=/opt/python/cp311-cp311/bin/python && \
+    cp -v ninja /opt/rh/gcc-toolset-13/root/usr/bin/ninja && cd - && rm -rf build && \
+    mv -v llvm-17.0.6.src llvm && \
+    mv -v lld-17.0.6.src lld && \
+    mv -v libunwind-17.0.6.src libunwind && \
+    mv -v cmake-17.0.6.src cmake && \
+    mv -v third-party-17.0.6.src third-party && \
+    mv -v clang-17.0.6.src clang && \
+    cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/rh/gcc-toolset-13/root/usr \
+        -DPython3_ROOT_DIR=/opt/python/cp311-cp311 -DLLVM_LIBDIR_SUFFIX=64 \
+        -DLLVM_TARGETS_TO_BUILD="${LLVM_TARGETS}" -DLLVM_ENABLE_PROJECTS="lld;clang" \
+        -DLLVM_DEFAULT_TARGET_TRIPLE="${LLVM_TRIPLE}" \
+        -DBUILD_SHARED_LIBS=OFF llvm && \
+    cmake --build build --target install && \
+    rm -rf build && rm -rf *
+
+RUN yum clean all

@@ -149,4 +149,3 @@ jobs:
       with:
         name: iwyu_macOS.log
         path: iwyu_macOS.log
-

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "host/wasi/vinode.h"
 #include "common/errcode.h"
@@ -472,13 +472,14 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
           return WasiUnexpect(__WASI_ERRNO_LOOP);
         }
 
-        std::vector<char> NewBuffer(Filestat.size);
+        std::vector<char> NewBuffer(16384);
         __wasi_size_t NRead;
         if (auto Res =
                 Fd->Node.pathReadlink(std::string(Part), NewBuffer, NRead);
             unlikely(!Res)) {
           return WasiUnexpect(Res);
         } else {
+          NewBuffer.resize(NRead);
           // Don't drop Buffer now because Path may referencing it.
           if (!Remain.empty()) {
             if (NewBuffer.back() != '/') {

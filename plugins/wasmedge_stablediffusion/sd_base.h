@@ -1,8 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
+
+#include "sd_env.h"
 
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
-#include "sd_env.h"
 
 namespace WasmEdge {
 namespace Host {

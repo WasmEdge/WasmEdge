@@ -1,10 +1,10 @@
-# WasmEdge WASMEDGE-Zlib example.
+# WasmEdge WASMEDGE-Zlib example
 
 This is an example to demonstrate how to use the `wasmedge-zlib` plugin of WasmEdge with C++.
 
 ## Prerequisites
 
-### Install Emscripten SDK (C++ Compiler Toolkit for wasm targets).
+### Install Emscripten SDK (C++ Compiler Toolkit for wasm targets)
 
 ```bash
 cd ~/
@@ -16,13 +16,13 @@ cd emsdk
 source ./emsdk_env.sh # Only this shell will be able to use emscripten.
 ```
 
-### Install WasmEdge and WASMEDGE-zlib plugin.
+### Install WasmEdge and WASMEDGE-zlib plugin
 
 Note that if you install WasmEdge using the install script, you need to download `wasmedge-zlib` plugin from the [release page](https://github.com/WasmEdge/WasmEdge/releases/) and put it into `$HOME/.wasmedge/plugin/`.
 
 Or you can build Wasmedge from scratch with `wasmedge-zlib` plugin enabled.
 
-```sh
+```bash
 git clone https://github.com/WasmEdge/WasmEdge.git --depth 1
 cd WasmEdge
 export WASMEDGE_PATH=$PWD
@@ -38,7 +38,7 @@ cmake --build . -j
 
 ## Build and Run the example as a WASM Module
 
-```sh
+```bash
 cd ../examples/plugin/wasmedge-zlib/
 mkdir build
 em++ main.cpp -O2 -o build/main.wasm -sSTANDALONE_WASM -sWARN_ON_UNDEFINED_SYMBOLS=0
@@ -48,13 +48,13 @@ Then we get `build/main.wasm`.
 
 We can run this example with `Wasmedge` with the following command
 
-```sh
+```bash
 ../../../build/tools/wasmedge/wasmedge build/main.wasm
 ```
 
 ## Build and Run the example as a Native executable
 
-```sh
+```bash
 apt install zlib1g-dev # For Ubuntu / Debian distros | Try zlib-devel for fedora
 cd ../examples/plugin/wasmedge-zlib/
 mkdir build
@@ -66,7 +66,7 @@ g++ main.cpp -o build/main -lz
 
 The WASM example should run successfully and print out the following messages.
 
-```
+```bash
 Compressing Buffer of size : 1048576B
 Decompressing Buffer of size : 785071B
 Success

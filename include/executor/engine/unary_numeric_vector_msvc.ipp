@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/roundeven.h"
 #include "executor/executor.h"
@@ -21,8 +21,8 @@ Expect<void> Executor::runSplatOp(ValVariant &Val) const {
   const TOut Part = static_cast<TOut>(Val.get<TIn>());
   using VTOut = SIMDArray<TOut, 16>;
   if constexpr (sizeof(TOut) == 1) {
-    Val.emplace<VTOut>(VTOut{Part, Part, Part, Part, Part, Part, Part, Part, Part,
-                       Part, Part, Part, Part, Part, Part, Part});
+    Val.emplace<VTOut>(VTOut{Part, Part, Part, Part, Part, Part, Part, Part,
+                             Part, Part, Part, Part, Part, Part, Part, Part});
   } else if constexpr (sizeof(TOut) == 2) {
     Val.emplace<VTOut>(VTOut{Part, Part, Part, Part, Part, Part, Part, Part});
   } else if constexpr (sizeof(TOut) == 4) {
@@ -74,7 +74,7 @@ Expect<void> Executor::runVectorExtAddPairwiseOp(ValVariant &Val) const {
   VTOut Result;
   const VTIn &V = Val.get<VTIn>();
   for (size_t I = 0; I < Result.size(); ++I) {
-    Result[I] = static_cast<TOut>(V[I*2]) + static_cast<TOut>(V[I*2+1]);
+    Result[I] = static_cast<TOut>(V[I * 2]) + static_cast<TOut>(V[I * 2 + 1]);
   }
   Val.emplace<VTOut>(Result);
 
@@ -88,11 +88,13 @@ Expect<void> Executor::runVectorAbsOp(ValVariant &Val) const {
   for (size_t I = 0; I < Result.size(); ++I) {
     if constexpr (std::is_floating_point_v<T>) {
       if constexpr (sizeof(T) == 4) {
-        uint32_t Tmp = reinterpret_cast<uint32_t&>(Result[I]) & UINT32_C(0x7fffffff);
-        Result[I] = reinterpret_cast<T&>(Tmp);
+        uint32_t Tmp =
+            reinterpret_cast<uint32_t &>(Result[I]) & UINT32_C(0x7fffffff);
+        Result[I] = reinterpret_cast<T &>(Tmp);
       } else {
-        uint64_t Tmp = reinterpret_cast<uint64_t&>(Result[I]) & UINT64_C(0x7fffffffffffffff);
-        Result[I] = reinterpret_cast<T&>(Tmp);
+        uint64_t Tmp = reinterpret_cast<uint64_t &>(Result[I]) &
+                       UINT64_C(0x7fffffffffffffff);
+        Result[I] = reinterpret_cast<T &>(Tmp);
       }
     } else {
       Result[I] = Result[I] > 0 ? Result[I] : -Result[I];
@@ -113,12 +115,13 @@ Expect<void> Executor::runVectorNegOp(ValVariant &Val) const {
 
 inline Expect<void> Executor::runVectorPopcntOp(ValVariant &Val) const {
   auto &Result = Val.get<uint8x16_t>();
-  for(size_t I = 0; I < 16; ++I) {
+  for (size_t I = 0; I < 16; ++I) {
     Result[I] -= ((Result[I] >> UINT8_C(1)) & UINT8_C(0x55));
-    Result[I] = (Result[I] & UINT8_C(0x33)) + ((Result[I] >> UINT8_C(2)) & UINT8_C(0x33));
+    Result[I] = (Result[I] & UINT8_C(0x33)) +
+                ((Result[I] >> UINT8_C(2)) & UINT8_C(0x33));
     Result[I] += Result[I] >> UINT8_C(4);
     Result[I] &= UINT8_C(0x0f);
-  }  
+  }
   return {};
 }
 
@@ -169,7 +172,8 @@ Expect<void> Executor::runVectorConvertOp(ValVariant &Val) const {
   auto &V = Val.get<VTIn>();
   // int32/uint32 to float
   if constexpr (sizeof(TIn) == sizeof(TOut)) {
-    Val.emplace<VTOut>(VTOut{static_cast<TOut>(V[0]), static_cast<TOut>(V[1]), static_cast<TOut>(V[2]), static_cast<TOut>(V[3])});
+    Val.emplace<VTOut>(VTOut{static_cast<TOut>(V[0]), static_cast<TOut>(V[1]),
+                             static_cast<TOut>(V[2]), static_cast<TOut>(V[3])});
   } else { // int32/uint32 to double
     Val.emplace<VTOut>(VTOut{static_cast<TOut>(V[0]), static_cast<TOut>(V[1])});
   }
@@ -205,10 +209,13 @@ Expect<void> Executor::runVectorAllTrueOp(ValVariant &Val) const {
   VT &V = Val.get<VT>();
   uint32_t Result;
   if constexpr (sizeof(T) == 1) {
-    Result = V[0] != 0 && V[1] != 0 && V[2] != 0 && V[3] != 0 && V[4] != 0 && V[5] != 0 && V[6] != 0 && V[7] != 0 &&
-             V[8] != 0 && V[9] != 0 && V[10] != 0 && V[11] != 0 && V[12] != 0 && V[13] != 0 && V[14] != 0 && V[15] != 0;
+    Result = V[0] != 0 && V[1] != 0 && V[2] != 0 && V[3] != 0 && V[4] != 0 &&
+             V[5] != 0 && V[6] != 0 && V[7] != 0 && V[8] != 0 && V[9] != 0 &&
+             V[10] != 0 && V[11] != 0 && V[12] != 0 && V[13] != 0 &&
+             V[14] != 0 && V[15] != 0;
   } else if constexpr (sizeof(T) == 2) {
-    Result = V[0] != 0 && V[1] != 0 && V[2] != 0 && V[3] != 0 && V[4] != 0 && V[5] != 0 && V[6] != 0 && V[7] != 0;
+    Result = V[0] != 0 && V[1] != 0 && V[2] != 0 && V[3] != 0 && V[4] != 0 &&
+             V[5] != 0 && V[6] != 0 && V[7] != 0;
   } else if constexpr (sizeof(T) == 4) {
     Result = V[0] != 0 && V[1] != 0 && V[2] != 0 && V[3] != 0;
   } else if constexpr (sizeof(T) == 8) {
@@ -231,32 +238,32 @@ Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
                               0x40,   0x80,   0x100,  0x200, 0x400, 0x800,
                               0x1000, 0x2000, 0x4000, 0x8000};
     uint16_t Result = 0;
-    for(size_t I = 0; I < 16; ++I) {
-        Result |= Vector[I] < 0 ? Mask[I] : 0;
+    for (size_t I = 0; I < 16; ++I) {
+      Result |= Vector[I] < 0 ? Mask[I] : 0;
     }
     Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 2) {
     const uint16x8_t Mask = {0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80};
     using uint8x8_t = SIMDArray<uint8_t, 8>;
     uint8_t Result = 0;
-    for(size_t I = 0; I < 8; ++I) {
-        Result |= Vector[I] < 0 ? Mask[I] : 0;
+    for (size_t I = 0; I < 8; ++I) {
+      Result |= Vector[I] < 0 ? Mask[I] : 0;
     }
     Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 4) {
     const uint32x4_t Mask = {0x1, 0x2, 0x4, 0x8};
     using uint8x4_t = SIMDArray<uint8_t, 4>;
     uint8_t Result = 0;
-    for(size_t I = 0; I < 4; ++I) {
-        Result |= Vector[I] < 0 ? Mask[I] : 0;
+    for (size_t I = 0; I < 4; ++I) {
+      Result |= Vector[I] < 0 ? Mask[I] : 0;
     }
     Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 8) {
     const uint64x2_t Mask = {0x1, 0x2};
     using uint8x2_t = SIMDArray<uint8_t, 2>;
     uint8_t Result = 0;
-    for(size_t I = 0; I < 2; ++I) {
-        Result |= Vector[I] < 0 ? Mask[I] : 0;
+    for (size_t I = 0; I < 2; ++I) {
+      Result |= Vector[I] < 0 ? Mask[I] : 0;
     }
     Val.emplace<uint32_t>(Result);
   }

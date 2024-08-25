@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
@@ -14,32 +14,29 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
 
 wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
   SHARED
-  ffmpeg_env.cpp
-
-  avcodec/module.cpp
-  avcodec/avcodec_func.cpp
+  
   avcodec/avCodecContext.cpp
   avcodec/avCodec.cpp
   avcodec/avCodecParameters.cpp
   avcodec/avPacket.cpp
+  avcodec/avcodec_func.cpp
+  avcodec/module.cpp
 
-  avdevice/module.cpp
   avdevice/avDevice_func.cpp
+  avdevice/module.cpp
 
-  avfilter/module.cpp
-  avfilter/avfilter_func.cpp
   avfilter/buffer_source_sink.cpp
   avfilter/avFilter.cpp
+  avfilter/avfilter_func.cpp
+  avfilter/module.cpp
 
-  avformat/module.cpp
-  avformat/avformat_func.cpp
   avformat/avformatContext.cpp
   avformat/avInputOutputFormat.cpp
   avformat/avStream.cpp
   avformat/avChapter.cpp
+  avformat/avformat_func.cpp
+  avformat/module.cpp
 
-  avutil/module.cpp
-  avutil/avutil_func.cpp
   avutil/error.cpp
   avutil/avRational.cpp
   avutil/avFrame.cpp
@@ -47,13 +44,16 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
   avutil/samplefmt.cpp
   avutil/avDictionary.cpp
   avutil/avTime.cpp
+  avutil/avutil_func.cpp
+  avutil/module.cpp
 
-  swresample/module.cpp
   swresample/swresample_func.cpp
+  swresample/module.cpp
 
-  swscale/module.cpp
   swscale/swscale_func.cpp
-
+  swscale/module.cpp
+  
+  ffmpeg_env.cpp
 )
 
 target_compile_options(wasmedgePluginWasmEdgeFFmpeg
@@ -85,4 +85,7 @@ else()
   )
 endif()
 
-install(TARGETS wasmedgePluginWasmEdgeFFmpeg DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(
+  TARGETS wasmedgePluginWasmEdgeFFmpeg
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+)

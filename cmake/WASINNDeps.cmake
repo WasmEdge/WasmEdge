@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 include(FetchContent)
 
@@ -180,6 +180,17 @@ function(wasmedge_setup_wasinn_target target)
     elseif(BACKEND STREQUAL "neuralspeed")
       message(STATUS "WASI-NN: Build neural speed backend for WASI-NN")
       add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED)
+    elseif(BACKEND STREQUAL "piper")
+      message(STATUS "WASI-NN: Build piper backend for WASI-NN")
+      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER)
+      wasmedge_setup_piper()
+      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS piper)
+    elseif(BACKEND STREQUAL "whisper")
+      message(STATUS "WASI-NN: Build whisper.cpp backend for WASI-NN")
+      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER)
+    elseif(BACKEND STREQUAL "chattts")
+      message(STATUS "WASI-NN: Build chatTTS backend for WASI-NN")
+      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
     else()
       # Add the other backends here.
       message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")
@@ -220,4 +231,42 @@ function(wasmedge_setup_tflite_target target)
     PUBLIC
     ${WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB}
   )
+endfunction()
+
+function(wasmedge_setup_piper)
+  include(Helper)
+  wasmedge_setup_spdlog()
+  find_package(onnxruntime)
+  if(NOT onnxruntime_FOUND)
+    find_library(ONNXRUNTIME_LIBRARY onnxruntime)
+    if(NOT "${ONNXRUNTIME_LIBRARY}" STREQUAL "ONNXRUNTIME_LIBRARY-NOTFOUND")
+      find_path(ONNXRUNTIME_PATH "onnxruntime_cxx_api.h" PATH_SUFFIXES "onnxruntime")
+      if(NOT "${ONNXRUNTIME_PATH}" STREQUAL "ONNXRUNTIME_PATH-NOTFOUND")
+        set(onnxruntime_FOUND TRUE)
+      endif()
+    endif()
+  endif()
+  if(NOT onnxruntime_FOUND)
+    message(FATAL_ERROR "Cannot find onnxruntime")
+  endif()
+  message(STATUS "Downloading piper source")
+  include(FetchContent)
+  set(BUILD_SHARED_LIBS OFF)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+  set(BUILD_TESTING OFF)
+  find_program(GIT_CMD git REQUIRED)
+  FetchContent_Declare(
+    piper
+    GIT_REPOSITORY https://github.com/rhasspy/piper.git
+    GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
+    UPDATE_DISCONNECTED TRUE
+    PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
+  )
+  FetchContent_GetProperties(piper)
+  if(NOT piper_POPULATED)
+    FetchContent_Populate(piper)
+    add_subdirectory("${piper_SOURCE_DIR}" "${piper_BINARY_DIR}" EXCLUDE_FROM_ALL)
+  endif()
+  # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
+  target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
 endfunction()

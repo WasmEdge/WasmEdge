@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "host/wasi/wasifunc.h"
 #include "common/filesystem.h"
@@ -1295,6 +1295,13 @@ Expect<uint32_t> WasiPathOpen::body(
   auto *const Fd = MemInst->getPointer<__wasi_fd_t *>(FdPtr);
   if (unlikely(Fd == nullptr)) {
     return __WASI_ERRNO_FAULT;
+  }
+
+  // Open directory and read/write rights should fail with isdir
+  if ((WasiOFlags & __WASI_OFLAGS_DIRECTORY) &&
+      (WasiFsRightsBase & __WASI_RIGHTS_FD_READ) &&
+      (WasiFsRightsBase & __WASI_RIGHTS_FD_WRITE)) {
+    return __WASI_ERRNO_ISDIR;
   }
 
   const __wasi_fd_t WasiDirFd = DirFd;

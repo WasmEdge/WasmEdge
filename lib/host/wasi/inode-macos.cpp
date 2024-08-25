@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
 #if WASMEDGE_OS_MACOS
@@ -73,7 +73,7 @@ constexpr int openFlags(__wasi_oflags_t OpenFlags, __wasi_fdflags_t FdFlags,
   if (OpenFlags & __WASI_OFLAGS_EXCL) {
     Flags |= O_EXCL;
   }
-  if (OpenFlags & __WASI_OFLAGS_TRUNC) {
+  if ((OpenFlags & __WASI_OFLAGS_TRUNC) && (VFSFlags & VFS::Write)) {
     Flags |= O_TRUNC;
   }
 

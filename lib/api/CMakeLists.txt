@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 find_package(spdlog QUIET)
 add_definitions(-DWASMEDGE_COMPILE_LIBRARY)
@@ -97,7 +97,6 @@ target_include_directories(wasmedgeCAPI
 )
 
 if(WASMEDGE_BUILD_SHARED_LIB)
-
   wasmedge_add_library(wasmedge_shared SHARED
     ../../include/api/wasmedge/wasmedge.h
   )
@@ -138,7 +137,6 @@ if(WASMEDGE_BUILD_SHARED_LIB)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
   )
-
 endif()
 
 if(WASMEDGE_BUILD_STATIC_LIB)
@@ -198,5 +196,4 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   install(FILES ${WASMEDGE_CAPI_HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
   )
-
 endif()

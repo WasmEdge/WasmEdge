@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "system/mmap.h"
 
@@ -72,12 +72,13 @@ struct Implement {
     Create2ExParams.hTemplateFile = nullptr;
 
     File = winapi::CreateFile2(Path.c_str(), winapi::GENERIC_READ_,
-                               winapi::FILE_SHARE_READ_, winapi::OPEN_EXISTING_,
-                               &Create2ExParams);
+                               winapi::FILE_SHARE_VALID_FLAGS_,
+                               winapi::OPEN_EXISTING_, &Create2ExParams);
 #else
-    File = winapi::CreateFileW(
-        Path.c_str(), winapi::GENERIC_READ_, winapi::FILE_SHARE_READ_, nullptr,
-        winapi::OPEN_EXISTING_, winapi::FILE_FLAG_SEQUENTIAL_SCAN_, nullptr);
+    File = winapi::CreateFileW(Path.c_str(), winapi::GENERIC_READ_,
+                               winapi::FILE_SHARE_VALID_FLAGS_, nullptr,
+                               winapi::OPEN_EXISTING_,
+                               winapi::FILE_FLAG_SEQUENTIAL_SCAN_, nullptr);
 #endif
     if (File == winapi::INVALID_HANDLE_VALUE_) {
       File = nullptr;

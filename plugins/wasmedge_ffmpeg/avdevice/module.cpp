@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "module.h"
 #include "avDevice_func.h"
 
@@ -9,7 +12,6 @@ namespace AVDevice {
 WasmEdgeFFmpegAVDeviceModule::WasmEdgeFFmpegAVDeviceModule(
     std::shared_ptr<WasmEdgeFFmpegEnv> Env)
     : ModuleInstance("wasmedge_ffmpeg_avdevice") {
-
   addHostFunc("wasmedge_ffmpeg_avdevice_avdevice_register_all",
               std::make_unique<AVDeviceRegisterAll>(Env));
   addHostFunc("wasmedge_ffmpeg_avdevice_avdevice_version",

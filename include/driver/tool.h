@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/driver/tool.h - Tool entrypoint --------------------------===//
 //
@@ -56,18 +56,18 @@ struct DriverToolOptions {
             PO::Description("Disable Bulk memory operations proposal"sv)),
         PropRefTypes(PO::Description("Disable Reference types proposal"sv)),
         PropSIMD(PO::Description("Disable SIMD proposal"sv)),
-        PropRelaxedSIMD(PO::Description("Enable Relaxed SIMD proposal"sv)),
-        PropMultiMem(PO::Description("Enable Multiple memories proposal"sv)),
         PropTailCall(PO::Description("Enable Tail-call proposal"sv)),
         PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
-        PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropFunctionReference(
             PO::Description("Enable Function Reference proposal"sv)),
         PropGC(PO::Description("Enable GC proposal, this is experimental"sv)),
-        PropComponent(PO::Description(
-            "Enable Component Model proposal, this is experimental"sv)),
+        PropMultiMem(PO::Description("Enable Multiple memories proposal"sv)),
+        PropThreads(PO::Description("Enable Threads proposal"sv)),
+        PropRelaxedSIMD(PO::Description("Enable Relaxed SIMD proposal"sv)),
         PropExceptionHandling(
             PO::Description("Enable Exception handling proposal"sv)),
+        PropComponent(PO::Description(
+            "Enable Component Model proposal, this is experimental"sv)),
         PropAll(PO::Description("Enable all features"sv)),
         ConfEnableInstructionCounting(PO::Description(
             "Enable generating code for counting Wasm instructions executed."sv)),
@@ -111,15 +111,15 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropBulkMemOps;
   PO::Option<PO::Toggle> PropRefTypes;
   PO::Option<PO::Toggle> PropSIMD;
-  PO::Option<PO::Toggle> PropRelaxedSIMD;
-  PO::Option<PO::Toggle> PropMultiMem;
   PO::Option<PO::Toggle> PropTailCall;
   PO::Option<PO::Toggle> PropExtendConst;
-  PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropFunctionReference;
   PO::Option<PO::Toggle> PropGC;
-  PO::Option<PO::Toggle> PropComponent;
+  PO::Option<PO::Toggle> PropMultiMem;
+  PO::Option<PO::Toggle> PropThreads;
+  PO::Option<PO::Toggle> PropRelaxedSIMD;
   PO::Option<PO::Toggle> PropExceptionHandling;
+  PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
@@ -155,23 +155,22 @@ struct DriverToolOptions {
         .add_option("disable-reference-types"sv, PropRefTypes)
         .add_option("disable-simd"sv, PropSIMD)
         .add_option("allow-af-unix"sv, PropAFUNIX)
-        .add_option("enable-multi-memory"sv, PropMultiMem)
         .add_option("enable-tail-call"sv, PropTailCall)
         .add_option("enable-extended-const"sv, PropExtendConst)
-        .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-function-reference"sv, PropFunctionReference)
         .add_option("enable-gc"sv, PropGC)
-        .add_option("enable-component"sv, PropComponent)
+        .add_option("enable-multi-memory"sv, PropMultiMem)
+        .add_option("enable-threads"sv, PropThreads)
+        .add_option("enable-relaxed-simd"sv, PropRelaxedSIMD)
         .add_option("enable-exception-handling"sv, PropExceptionHandling)
+        .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)
         .add_option("memory-page-limit"sv, MemLim)
         .add_option("forbidden-plugin"sv, ForbiddenPlugins);
 
-    for (const auto &Path : Plugin::Plugin::getDefaultPluginPaths()) {
-      Plugin::Plugin::load(Path);
-    }
+    Plugin::Plugin::loadFromDefaultPaths();
     Plugin::Plugin::addPluginOptions(Parser);
   }
 };

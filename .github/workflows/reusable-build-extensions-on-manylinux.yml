@@ -3,9 +3,6 @@ name: Build extensions on manylinux
 on:
   workflow_call:
     inputs:
-      arch:
-        type: string
-        required: true
       runner:
         type: string
         required: true
@@ -13,9 +10,6 @@ on:
         type: string
         required: true
       asset_tag:
-        type: string
-        required: true
-      plugins:
         type: string
         required: true
       version:
@@ -30,44 +24,50 @@ env:
   build_type: Release
 
 jobs:
-  prepare:
+  var:
     name: Prepare variables
-    runs-on: ${{ inputs.runner }}
+    runs-on: ubuntu-latest
     outputs:
-      cache_key_ws: ${{ steps.prep.outputs.cache_key_ws }}
-      cache_path_ws: ${{ steps.prep.outputs.cache_path_ws }}
-      cache_key_h: ${{ steps.prep.outputs.cache_key_h }}
-      cache_path_h: ${{ steps.prep.outputs.cache_path_h }}
+      cache_key_ws: ${{ steps.var.outputs.cache_key_ws }}
+      cache_path_ws: ${{ steps.var.outputs.cache_path_ws }}
     steps:
-      - id: prep
+      - id: var
         run: |
-          echo "cache_key_ws=${{ github.workflow }}-${{ github.head_ref || github.ref }}-${{ inputs.docker_tag }}-1-${{ github.run_id }}" >> $GITHUB_OUTPUT
-          echo "cache_path_ws=${{ github.workspace }}" >> $GITHUB_OUTPUT
-          echo "cache_key_h=${{ github.workflow }}-${{ github.head_ref || github.ref }}-${{ inputs.docker_tag }}-2-${{ github.run_id }}" >> $GITHUB_OUTPUT
-          echo "cache_path_h=$HOME" >> $GITHUB_OUTPUT
+          echo "cache_key_ws=${{ github.run_id }}-${{ github.sha }}-${{ inputs.asset_tag}}-w" >> $GITHUB_OUTPUT
+          echo "cache_path_ws=." >> $GITHUB_OUTPUT
 
-  prepare_cache:
-    needs: [prepare]
-    name: Prepare files (${{ inputs.docker_tag }})
+  prepare:
+    needs: [var]
+    name: Prepare ${{ inputs.asset_tag }}
     runs-on: ${{ inputs.runner }}
     container:
       image: wasmedge/wasmedge:${{ inputs.docker_tag }}
       # Required for mounting debugfs
       # Tests of wasm_bpf also require privileges
       options: --privileged
+    outputs:
+      plugins: ${{ steps.readfile.outputs.result }}
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - id: readfile
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            const fs = require("fs")
+            var json_s = fs.readFileSync(".github/workflows/matrix-extensions.json")
+            var json_o = JSON.parse(json_s)
+            return JSON.stringify(json_o.list.${{ inputs.asset_tag }}.map((plugin) => {
+              return json_o.detail[plugin]
+            }))
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Install dependencies
-        shell: bash
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
-          source "$HOME/.cargo/env"
-      - name: Build ${{ matrix.plugin }}
+      - name: Build any plugin
         shell: bash
         run: |
           if [[ ${build_tests} != "On" ]]; then
@@ -76,24 +76,20 @@ jobs:
           fi
 
           mkdir -p build
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_LOGGING=ON -DOPENSSL_ROOT_DIR=${OpenSSL_DIR}
+          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=${OpenSSL_DIR}
           cmake --build build --target wasmedgePluginWasiLogging
       - uses: actions/cache/save@v3
         with:
-          key: ${{ needs.prepare.outputs.cache_key_ws }}
-          path: ${{ needs.prepare.outputs.cache_path_ws }}
-      - uses: actions/cache/save@v3
-        with:
-          key: ${{ needs.prepare.outputs.cache_key_h }}
-          path: ${{ needs.prepare.outputs.cache_path_h }}
+          key: ${{ needs.var.outputs.cache_key_ws }}
+          path: ${{ needs.var.outputs.cache_path_ws }}
 
   build_on_manylinux:
-    needs: [prepare, prepare_cache]
+    needs: [var, prepare]
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.plugins) }}
-    name: ${{ matrix.plugin }} (${{ inputs.docker_tag }})
+        include: ${{ fromJSON(needs.prepare.outputs.plugins) }}
+    name: ${{ matrix.plugin }}
     runs-on: ${{ inputs.runner }}
     container:
       image: wasmedge/wasmedge:${{ inputs.docker_tag }}
@@ -101,6 +97,7 @@ jobs:
       # Tests of wasm_bpf also require privileges
       options: --privileged
     env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       bin_name: ${{ matrix.bin }}
       target: ${{ inputs.release && matrix.bin || matrix.testBin }}
       test_dir: build/test/plugins/${{ matrix.dir }}
@@ -110,18 +107,20 @@ jobs:
         run: |
           echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
           echo "filename=plugin_${{ matrix.plugin }}.tar.gz" >> $GITHUB_OUTPUT
-      - uses: actions/cache/restore@v3
+      - id: cache
+        uses: actions/cache/restore@v3
         with:
-          key: ${{ needs.prepare.outputs.cache_key_ws }}
-          path: ${{ needs.prepare.outputs.cache_path_ws }}
-      - uses: actions/cache/restore@v3
+          key: ${{ needs.var.outputs.cache_key_ws }}
+          path: ${{ needs.var.outputs.cache_path_ws }}
+      - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+        uses: actions/checkout@v3
         with:
-          key: ${{ needs.prepare.outputs.cache_key_h }}
-          path: ${{ needs.prepare.outputs.cache_path_h }}
+          fetch-depth: 0
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Install dependencies
+      - if: ${{ matrix.plugin == 'wasm_bpf' }}
+        name: Install dependencies
         shell: bash
         run: |
           # Running tests of wasm_bpf requires proper ebpf running environment
@@ -151,6 +150,12 @@ jobs:
         with:
           name: ${{ steps.prep.outputs.artifact }}
           path: ${{ steps.prep.outputs.filename }}
+      - name: Install gh except for manylinux2014
+        if: ${{ inputs.release && (!contains(inputs.docker_tag, 'manylinux2014')) }}
+        run: |
+          type -p yum-config-manager >/dev/null || yum install -y yum-utils
+          yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+          yum install -y gh
       - name: Upload WasmEdge ${{ matrix.plugin }} plugin tar.gz package
         if: ${{ inputs.release }}
         env:

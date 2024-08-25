@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "sd_func.h"
 #include "common/spdlog.h"
 #include "sd_env.h"
@@ -10,6 +13,7 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_STATIC
 #include "stb_image_write.h"
+
 namespace WasmEdge {
 namespace Host {
 namespace StableDiffusion {
@@ -48,24 +52,26 @@ namespace StableDiffusion {
     spdlog::error("[WasmEdge-StableDiffusion] "sv Message);                    \
     return static_cast<uint32_t>(ErrNo::MissingMemory);                        \
   }
-bool parameterCheck(SDEnviornment &Env, uint32_t width, uint32_t height,
+
+bool parameterCheck(SDEnviornment &Env, uint32_t Width, uint32_t Height,
                     uint32_t SessionId) {
   if (SessionId >= Env.getContextSize()) {
     spdlog::error("[WasmEdge-StableDiffusion] Session ID is invalid.");
     return false;
   }
-  if (width % 64 != 0) {
+  if (Width % 64 != 0) {
     spdlog::error("[WasmEdge-StableDiffusion] Width must be a multiple of 64 "
-                  "and greater than 0");
+                  "and greater than 0.");
     return false;
   }
-  if (height % 64 != 0) {
+  if (Height % 64 != 0) {
     spdlog::error("[WasmEdge-StableDiffusion] Height must be a multiple of 64 "
-                  "and greater than 0");
+                  "and greater than 0.");
     return false;
   }
   return true;
 }
+
 sd_image_t *readControlImage(Span<uint8_t> ControlImage,
                              uint8_t *ControlImageBuf, int Width, int Height,
                              bool CannyPreprocess) {
@@ -77,7 +83,6 @@ sd_image_t *readControlImage(Span<uint8_t> ControlImage,
     ControlImageBuf = stbi_load(ControlImagePath.substr(5).data(), &Width,
                                 &Height, &Channel, 3);
   } else {
-
     ControlImageBuf = stbi_load_from_memory(
         ControlImage.data(), ControlImage.size(), &Width, &Height, &Channel, 3);
   }
@@ -133,8 +138,8 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
   }
   Fin.close();
   // Convert model.
-  bool Ret = convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
-                     static_cast<sd_type_t>(WType));
+  bool Ret = ::convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
+                       static_cast<sd_type_t>(WType));
   if (!Ret) {
     spdlog::error("[WasmEdge-StableDiffusion] Failed to convert model.");
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
@@ -210,6 +215,7 @@ Expect<uint32_t> SDCreateContext::body(
 
   return static_cast<uint32_t>(ErrNo::Success);
 }
+
 Expect<uint32_t> SDTextToImage::body(
     const Runtime::CallingFrame &Frame, uint32_t PromptPtr, uint32_t PromptLen,
     uint32_t SessionId, uint32_t ControlImagePtr, uint32_t ControlImageLen,
@@ -269,7 +275,7 @@ Expect<uint32_t> SDTextToImage::body(
   // TODO upscale image
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
+      reinterpret_cast<const unsigned char *>(Results->data), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
   if (OutputPathLen != 0) {
     stbi_write_png(OutputPath.data(), Results->width, Results->height,
@@ -289,6 +295,7 @@ Expect<uint32_t> SDTextToImage::body(
   free(ControlImageBuffer);
   return static_cast<uint32_t>(ErrNo::Success);
 }
+
 Expect<uint32_t> SDImageToImage::body(
     const Runtime::CallingFrame &Frame, uint32_t ImagePtr, uint32_t ImageLen,
     uint32_t SessionId, uint32_t Width, uint32_t Height,
@@ -349,7 +356,6 @@ Expect<uint32_t> SDImageToImage::body(
       return static_cast<uint32_t>(ErrNo::InvalidArgument);
     }
   } else {
-
     InputImageBuffer =
         stbi_load_from_memory(ImageSpan.data(), ImageSpan.size(), &ImageWidth,
                               &ImageHeight, &Channel, 3);
@@ -372,10 +378,10 @@ Expect<uint32_t> SDImageToImage::body(
                     sample_method_t(SampleMethod), SampleSteps, Strength, Seed,
                     BatchCount, ControlImage, ControlStrength, StyleRatio,
                     NormalizeInput, InputIdImagesDir.data());
-  // TODO upscale image
+  // TODO: upscale image
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
+      reinterpret_cast<const unsigned char *>(Results->data), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
   if (OutputPathLen != 0) {
     stbi_write_png(OutputPath.data(), Results->width, Results->height,
@@ -397,6 +403,7 @@ Expect<uint32_t> SDImageToImage::body(
   free(ControlImageBuffer);
   return static_cast<uint32_t>(ErrNo::Success);
 }
+
 } // namespace StableDiffusion
 } // namespace Host
 } // namespace WasmEdge

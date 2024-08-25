@@ -1,22 +1,30 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "neuralspeed.h"
+#include "wasinnenv.h"
+
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 #include "simdjson.h"
-#include <time.h>
-#endif
-#include "wasinnenv.h"
-#include <chrono>
+
 #if !defined(_WIN32) && !defined(_WIN64) && !defined(__WIN32__) &&             \
     !defined(__TOS_WIN__) && !defined(__WINDOWS__)
 #include <dlfcn.h>
 #endif
+#include <chrono>
+#include <time.h>
+#endif
+
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
+
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) ||                \
     defined(__TOS_WIN__) || defined(__WINDOWS__)
 HINSTANCE SharedLib = LoadLibrary(PYTHON_LIB_PATH);
 #else
 void *SharedLib = dlopen(PYTHON_LIB_PATH, RTLD_GLOBAL | RTLD_NOW);
 #endif
+
 void printImformation(Graph &GraphRef, Context &CxtRef) {
   spdlog::info("[WASI-NN] Neural speed backend: Number of input tokens: {}"sv,
                CxtRef.Inputs.size());
@@ -27,6 +35,7 @@ void printImformation(Graph &GraphRef, Context &CxtRef) {
   spdlog::info("[WASI-NN] Neural speed backend: Compute time: {} ms "sv,
                GraphRef.ComputeTime);
 }
+
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders, WASINN::Device,
                            uint32_t &GraphId) noexcept {
@@ -60,7 +69,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
         Env.NNGraph.pop_back();
         return ErrNo::InvalidArgument;
       }
-      GraphRef.model_type = ModelType;
+      GraphRef.ModelType = ModelType;
     }
   }
 
@@ -105,8 +114,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (!Py_IsInitialized()) {
     Py_Initialize();
   }
-  GraphRef.NeuralSpeedModule =
-      PyImport_Import(PyUnicode_FromString("neural_speed"));
+  if (GraphRef.NeuralSpeedModule == nullptr) {
+    GraphRef.NeuralSpeedModule = PyImport_ImportModule("neural_speed");
+  }
   if (GraphRef.NeuralSpeedModule == nullptr) {
     PyErr_Print();
     spdlog::error(
@@ -114,32 +124,29 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::RuntimeError;
   }
-  GraphRef.ModelClass =
-      PyObject_GetAttrString(GraphRef.NeuralSpeedModule, "Model");
+  if (GraphRef.ModelClass == nullptr) {
+    GraphRef.ModelClass =
+        PyObject_GetAttrString(GraphRef.NeuralSpeedModule, "Model");
+  }
   if (GraphRef.ModelClass == nullptr ||
       !PyCallable_Check(GraphRef.ModelClass)) {
     spdlog::error(
         "[WASI-NN] neural speed backend: Can not find Model class in neural speed."sv);
-    Py_XDECREF(GraphRef.Model);
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::RuntimeError;
   }
   GraphRef.Model = PyObject_CallObject(GraphRef.ModelClass, NULL);
   if (GraphRef.Model == nullptr) {
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
-    Py_XDECREF(GraphRef.ModelClass);
-    Py_XDECREF(GraphRef.NeuralSpeedModule);
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::InvalidArgument;
   }
   PyObject *LoadResult =
       PyObject_CallMethod(GraphRef.Model, "init_from_bin", "(ss)",
-                          GraphRef.model_type.c_str(), ModelFilePath.c_str());
+                          GraphRef.ModelType.c_str(), ModelFilePath.c_str());
   if (LoadResult == nullptr) {
     spdlog::error("[WASI-NN] neural speed backend: Load model error."sv);
     Py_XDECREF(GraphRef.Model);
-    Py_XDECREF(GraphRef.ModelClass);
-    Py_XDECREF(GraphRef.NeuralSpeedModule);
     Env.NNGraph.pop_back();
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -195,6 +202,7 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   return WASINN::ErrNo::Success;
 }
+
 Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                                 uint32_t, Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
@@ -209,6 +217,7 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   BytesWritten = StringTmp.length();
   return WASINN::ErrNo::Success;
 }
+
 Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
   if (!Py_IsInitialized()) {
@@ -254,8 +263,10 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
         "[WASI-NN] neural speed backend: Input transfer tensor failed."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-  PyObject *Result = PyObject_CallMethodObjArgs(
-      GraphRef.Model, PyUnicode_FromString("generate"), LongTensor, NULL);
+  PyObject *GenerateString = PyUnicode_FromString("generate");
+  PyObject *Result = PyObject_CallMethodObjArgs(GraphRef.Model, GenerateString,
+                                                LongTensor, NULL);
+  Py_DECREF(GenerateString);
   if (Result == nullptr) {
     PyErr_Print();
     spdlog::error(
@@ -274,11 +285,9 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
           if (PyLong_Check(Num)) {
             InnerVec.push_back(PyLong_AsLong(Num));
           }
-          Py_DECREF(Num);
         }
         CxtRef.Outputs = InnerVec;
       }
-      Py_DECREF(InnerList);
     }
   }
   Py_DECREF(Result);
@@ -291,6 +300,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   }
   return WASINN::ErrNo::Success;
 }
+
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
                              uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
@@ -302,14 +312,19 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     Py_XDECREF(GraphRef.Model);
     Py_XDECREF(GraphRef.ModelClass);
     Py_XDECREF(GraphRef.NeuralSpeedModule);
+    GraphRef.ModelClass = nullptr;
+    GraphRef.NeuralSpeedModule = nullptr;
     Py_Finalize();
   }
   return WASINN::ErrNo::Success;
 }
+
 #else
 namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
-  spdlog::error("[WASI-NN] Neural speed backend is not supported.");
+  spdlog::error(
+      "[WASI-NN] Neural speed backend is not built. use "
+      "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"NeuralSpeed\" to build it."sv);
   return WASINN::ErrNo::InvalidArgument;
 }
 } // namespace

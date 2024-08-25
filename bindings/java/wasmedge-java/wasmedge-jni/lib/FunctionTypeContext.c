@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_FunctionTypeContext.h"
 #include "common.h"
@@ -76,8 +76,8 @@ jobject ConvertToJavaValueType(JNIEnv *env, enum WasmEdge_ValType *valType) {
     return NULL;
   }
 
-  jmethodID jmethodId = (*env)->GetStaticMethodID(
-      env, valueTypeCalss, PARSE_TYPE, INT_VALUETYPE);
+  jmethodID jmethodId =
+      (*env)->GetStaticMethodID(env, valueTypeCalss, PARSE_TYPE, INT_VALUETYPE);
 
   if (jmethodId == NULL) {
     return NULL;
@@ -101,7 +101,8 @@ jobject ConvertToValueTypeList(JNIEnv *env, enum WasmEdge_ValType *list,
     return NULL;
   }
 
-  jmethodID listConstructor = findJavaMethod(env, listClass, DEFAULT_CONSTRUCTOR, INT_VOID);
+  jmethodID listConstructor =
+      findJavaMethod(env, listClass, DEFAULT_CONSTRUCTOR, INT_VOID);
 
   if (listConstructor == NULL) {
     return NULL;
@@ -212,19 +213,18 @@ jobject ConvertToJavaFunctionType(
     return NULL;
   }
 
-  jmethodID constructor = findJavaMethod(env, functionTypeClass, DEFAULT_CONSTRUCTOR,
-                                         LISTLIST_VOID);
+  jmethodID constructor = findJavaMethod(env, functionTypeClass,
+                                         DEFAULT_CONSTRUCTOR, LISTLIST_VOID);
 
   jobject jFunc = (*env)->NewObject(env, functionTypeClass, constructor,
                                     jParamList, jReturnList);
 
-  if (checkAndHandleException(env,
-                              ERROR_CREATE_FUNCTION_TYPE_FAILED)) {
+  if (checkAndHandleException(env, ERROR_CREATE_FUNCTION_TYPE_FAILED)) {
     return NULL;
   }
 
-  jmethodID nameSetter = (*env)->GetMethodID(env, functionTypeClass, SET_NAME,
-                                             STRING_VOID);
+  jmethodID nameSetter =
+      (*env)->GetMethodID(env, functionTypeClass, SET_NAME, STRING_VOID);
 
   uint32_t len = 256;
   char BUF[len];
@@ -233,8 +233,7 @@ jobject ConvertToJavaFunctionType(
 
   (*env)->CallVoidMethod(env, jFunc, nameSetter, jstr);
 
-  if (checkAndHandleException(
-          env, ERR_SET_FUNCTION_TYPE_FAILED)) {
+  if (checkAndHandleException(env, ERR_SET_FUNCTION_TYPE_FAILED)) {
     return NULL;
   }
 
@@ -245,7 +244,8 @@ jobject createJFunctionTypeContext(
     JNIEnv *env, const WasmEdge_FunctionTypeContext *functionTypeContext) {
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_FUNCTIONTYPECONTEXT);
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId,
                            (long)functionTypeContext);
 }

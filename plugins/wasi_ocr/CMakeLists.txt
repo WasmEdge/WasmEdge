@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 add_library(wasmedgePluginWasiOCR
   SHARED
@@ -31,7 +31,10 @@ else()
   )
 endif()
 
-install(TARGETS wasmedgePluginWasiOCR DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(
+  TARGETS wasmedgePluginWasiOCR
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+)
 
 message(STATUS "WASI-OCR: Build Tesseract backend for WASI-OCR")
 find_package(PkgConfig REQUIRED)

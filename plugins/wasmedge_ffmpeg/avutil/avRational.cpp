@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avRational.h"
 
 extern "C" {
@@ -12,7 +15,6 @@ namespace AVUtil {
 Expect<int32_t> AVAddQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
                              int32_t ADen, int32_t BNum, int32_t BDen,
                              uint32_t CNumPtr, uint32_t CDenPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CNum, MemInst, int32_t, CNumPtr,
                 "Failed to access Numerator Ptr for AVRational"sv);
@@ -32,7 +34,6 @@ Expect<int32_t> AVAddQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 Expect<int32_t> AVSubQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
                              int32_t ADen, int32_t BNum, int32_t BDen,
                              uint32_t CNumPtr, uint32_t CDenPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CNum, MemInst, int32_t, CNumPtr,
                 "Failed to access Numerator Ptr for AVRational"sv);
@@ -51,7 +52,6 @@ Expect<int32_t> AVSubQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 Expect<int32_t> AVMulQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
                              int32_t ADen, int32_t BNum, int32_t BDen,
                              uint32_t CNumPtr, uint32_t CDenPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CNum, MemInst, int32_t, CNumPtr,
                 "Failed to access Numerator Ptr for AVRational"sv);
@@ -70,7 +70,6 @@ Expect<int32_t> AVMulQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 Expect<int32_t> AVDivQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
                              int32_t ADen, int32_t BNum, int32_t BDen,
                              uint32_t CNumPtr, uint32_t CDenPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(CNum, MemInst, int32_t, CNumPtr,
                 "Failed to access Numerator Ptr for AVRational"sv);
@@ -88,7 +87,6 @@ Expect<int32_t> AVDivQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 
 Expect<int32_t> AVCmpQ::body(const Runtime::CallingFrame &, int32_t ANum,
                              int32_t ADen, int32_t BNum, int32_t BDen) {
-
   AVRational const A = av_make_q(ANum, ADen);
   AVRational const B = av_make_q(BNum, BDen);
   return av_cmp_q(A, B);
@@ -97,7 +95,6 @@ Expect<int32_t> AVCmpQ::body(const Runtime::CallingFrame &, int32_t ANum,
 Expect<int32_t> AVNearerQ::body(const Runtime::CallingFrame &, int32_t ANum,
                                 int32_t ADen, int32_t BNum, int32_t BDen,
                                 int32_t CNum, int32_t CDen) {
-
   AVRational const A = av_make_q(ANum, ADen);
   AVRational const B = av_make_q(BNum, BDen);
   AVRational const C = av_make_q(CNum, CDen);
@@ -107,14 +104,12 @@ Expect<int32_t> AVNearerQ::body(const Runtime::CallingFrame &, int32_t ANum,
 
 Expect<double_t> AVQ2d::body(const Runtime::CallingFrame &, int32_t ANum,
                              int32_t ADen) {
-
   AVRational const A = av_make_q(ANum, ADen);
   return av_q2d(A);
 }
 
 Expect<int32_t> AVD2Q::body(const Runtime::CallingFrame &Frame, double_t D,
                             int32_t Max, uint32_t ANumPtr, uint32_t ADenPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(ANum, MemInst, int32_t, ANumPtr,
                 "Failed to access Numerator Ptr for AVRational"sv);
@@ -129,14 +124,12 @@ Expect<int32_t> AVD2Q::body(const Runtime::CallingFrame &Frame, double_t D,
 
 Expect<uint32_t> AVQ2IntFloat::body(const Runtime::CallingFrame &, int32_t ANum,
                                     int32_t ADen) {
-
   AVRational const A = av_make_q(ANum, ADen);
   return av_q2intfloat(A);
 }
 
 Expect<int32_t> AVInvQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
                              int32_t ADen, uint32_t BNumPtr, uint32_t BDenPtr) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(BNum, MemInst, int32_t, BNumPtr,
                 "Failed to access Numerator Ptr for AVRational"sv);
@@ -154,7 +147,6 @@ Expect<int32_t> AVInvQ::body(const Runtime::CallingFrame &Frame, int32_t ANum,
 Expect<int32_t> AVReduce::body(const Runtime::CallingFrame &Frame,
                                uint32_t ANumPtr, uint32_t ADenPtr, int64_t BNum,
                                int64_t BDen, int64_t Max) {
-
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(ANum, MemInst, int32_t, ANumPtr,
                 "Failed to access Numerator Ptr for AVRational"sv);

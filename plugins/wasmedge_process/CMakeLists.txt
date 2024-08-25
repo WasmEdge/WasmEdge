@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 wasmedge_add_library(wasmedgePluginWasmEdgeProcess
   SHARED
@@ -31,4 +31,7 @@ else()
   )
 endif()
 
-install(TARGETS wasmedgePluginWasmEdgeProcess DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(
+  TARGETS wasmedgePluginWasmEdgeProcess
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+)

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2023 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 find_package(OpenCV 4 REQUIRED)
 
@@ -36,4 +36,7 @@ else()
   )
 endif()
 
-install(TARGETS wasmedgePluginWasmEdgeOpenCVMini DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(
+  TARGETS wasmedgePluginWasmEdgeOpenCVMini
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+)

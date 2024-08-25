@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #ifndef WASMEDGE_JAVA_CONSTANTS_H
 #define WASMEDGE_JAVA_CONSTANTS_H
@@ -13,7 +13,8 @@
 #define ORG_WASMEDGE_GLOBALINSTANCECONTEXT "org/wasmedge/GlobalInstanceContext"
 #define ORG_WASMEDGE_MODULEINSTANCECONTEXT "org/wasmedge/ModuleInstanceContext"
 #define ORG_WASMEDGE_WASMEDGEVM "org/wasmedge/WasmEdgeVm"
-#define ORG_WASMEDGE_FUNCTIONINSTANCECONTEXT "org/wasmedge/FunctionInstanceContext"
+#define ORG_WASMEDGE_FUNCTIONINSTANCECONTEXT                                   \
+  "org/wasmedge/FunctionInstanceContext"
 #define ORG_WASMEDGE_TABLEINSTANCECONTEXT "org/wasmedge/TableInstanceContext"
 #define ORG_WASMEDGE_ASYNC "org/wasmedge/Async"
 #define ORG_WASMEDGE_ASTMODULECONTEXT "org/wasmedge/AstModuleContext"
@@ -83,7 +84,9 @@
 #define BOOLLONGLONG_VOID "(ZJJ)V"
 #define ASTMODULECONTEXT_VOID "(JLorg/wasmedge/AstModuleContext;)V"
 #define STRING_HOSTFUNCTION "(Ljava/lang/String;)Lorg/wasmedge/HostFunction;"
-#define MEMORYINSTANCECONTEXTLIST_RESULT "(Lorg/wasmedge/MemoryInstanceContext;Ljava/util/List;Ljava/util/List;)Lorg/wasmedge/Result;"
+#define MEMORYINSTANCECONTEXTLIST_RESULT                                       \
+  "(Lorg/wasmedge/MemoryInstanceContext;Ljava/util/List;Ljava/util/"           \
+  "List;)Lorg/wasmedge/Result;"
 #define OBJECT_BOOL "(Ljava/lang/Object;)Z"
 #define LISTLIST_VOID "(Ljava/util/List;Ljava/util/List;)V"
 #define INT_OBJECT "(I)Ljava/lang/Object;"
@@ -103,11 +106,14 @@
 #define ERR_GET_INT_VALUE "Error get int value"
 #define ERR_CREATE_JAVA_LIST "Error when creating java list"
 #define ERR_GET_NAME_FALIED "get name error"
-#define ERR_RUN_FROM_FILE_TEMPLATE "Error running wasm from file %s, error message: %s."
+#define ERR_RUN_FROM_FILE_TEMPLATE                                             \
+  "Error running wasm from file %s, error message: %s."
 #define ERR_CREATE_VALUE_TYPE_LIST_FAILED "Error when creating value type list"
 #define ERR_ADD_VALUE_TYPE "Error when adding value type"
-#define ERROR_CREATE_FUNCTION_TYPE_FAILED "Error when creating function type context"
-#define ERR_SET_FUNCTION_TYPE_FAILED "Error when setting function type context name"
+#define ERROR_CREATE_FUNCTION_TYPE_FAILED                                      \
+  "Error when creating function type context"
+#define ERR_SET_FUNCTION_TYPE_FAILED                                           \
+  "Error when setting function type context name"
 #define ERR_CREATE_STATICS_CONTEXT_FAILED "error creating stat context"
 
 #endif

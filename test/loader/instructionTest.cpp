@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/test/loader/instructionTest.cpp - Instruction unit tests -===//
 //
@@ -700,7 +700,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
       0x0DU,                             // Code segment size = 13
       0x00U,                             // Local vec(0)
       0x28U,                             // OpCode I32__load.
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Align.
+      0x8FU, 0x80U, 0x80U, 0x80U, 0x00U, // Align.
       0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Offset.
       0x0BU                              // Expression End.
   };

@@ -28,17 +28,29 @@ eprintf() {
 	command printf '%s\n' "$1" 1>&2
 }
 
+get_cuda_version() {
+	local cuda=""
+	cuda=$($1 --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
+	echo ${cuda}
+}
+
 detect_cuda_nvcc() {
 	local cuda=""
 	if [[ "${BY_PASS_CUDA_VERSION}" != "0" ]]; then
 		cuda="${BY_PASS_CUDA_VERSION}"
 	else
-		cuda=$(/usr/local/cuda/bin/nvcc --version 2>/dev/null | grep "Cuda compilation tools" | cut -f5 -d ' ' | cut -f1 -d ',')
-		if [[ "${cuda}" =~ "12" ]]; then
-			cuda="12"
-		elif [[ "${cuda}" =~ "11" ]]; then
-			cuda="11"
-		fi
+		nvcc_paths=("nvcc" "/usr/local/cuda/bin/nvcc" "/opt/cuda/bin/nvcc")
+		for nvcc_path in "${nvcc_paths[@]}"
+		do
+			cuda=$(get_cuda_version ${nvcc_path})
+			if [[ "${cuda}" =~ "12" ]]; then
+				cuda="12"
+				break
+			elif [[ "${cuda}" =~ "11" ]]; then
+				cuda="11"
+				break
+			fi
+		done
 	fi
 
 	echo ${cuda}
@@ -198,6 +210,7 @@ VERBOSE=0
 LEGACY=0
 ENABLE_NOAVX=0
 GGML_BUILD_NUMBER=""
+DISABLE_WASI_LOGGING="0"
 BY_PASS_CUDA_VERSION="0"
 BY_PASS_CUDART="0"
 
@@ -410,11 +423,7 @@ get_wasmedge_ggml_plugin() {
 			CUDA_EXT="-cuda"
 		elif [ "${cuda}" == "11" ]; then
 			info "CUDA version 11 is detected from nvcc: Use the GPU version."
-			if [ "${ARCH}" == "aarch64" ]; then
-				CUDA_EXT="-cuda"
-			else
-				CUDA_EXT="-cuda-11"
-			fi
+			CUDA_EXT="-cuda-11"
 		else
 			CUDA_EXT=""
 		fi
@@ -493,6 +502,9 @@ main() {
 			b | ggmlbn)
 				GGML_BUILD_NUMBER="${OPTARG}"
 				;;
+			nowasilogging)
+				DISABLE_WASI_LOGGING="1"
+				;;
 			c | ggmlcuda)
 				BY_PASS_CUDA_VERSION="${OPTARG}"
 				BY_PASS_CUDART="1"
@@ -565,6 +577,8 @@ main() {
 	elif [[ "$_shell_" =~ "bash" ]]; then
 		local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
 		if [ "$_grep" = "" ]; then
+			# If the .bash_profile is not existing, create a new one
+			[ ! -f "$__HOME__/.bash_profile" ] && touch "$__HOME__/.bash_profile"
 			[ -f "$__HOME__/.bash_profile" ] && echo "$_source" >>"$__HOME__/.bash_profile"
 		fi
 	fi
@@ -580,7 +594,14 @@ main() {
 
 		get_wasmedge_release
 		get_wasmedge_ggml_plugin
+	if [[ "${VERSION}" =~ ^"0.14.1" ]]; then
+		# WASI-Logging is bundled into the WasmEdge release package starting from 0.14.1-rc.1
+		DISABLE_WASI_LOGGING="1"
+	fi
+
+	if [[ "${DISABLE_WASI_LOGGING}" == "0" ]]; then
 		get_wasmedge_wasi_logging_plugin
+	fi
 
 		install "$IPKG" "include" "lib" "bin" "plugin"
 		wasmedge_checks "$VERSION"

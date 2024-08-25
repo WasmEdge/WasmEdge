@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avutil/avutil_func.h"
 #include "avutil/avTime.h"
 #include "avutil/module.h"
+
 #include "utils.h"
 
 #include <gtest/gtest.h>
@@ -10,7 +14,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVUtilFunc) {
-
   ASSERT_TRUE(AVUtilMod != nullptr);
 
   uint32_t NamePtr = UINT32_C(4);

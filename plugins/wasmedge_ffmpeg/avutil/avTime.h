@@ -1,38 +1,37 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
-#include "avutil_base.h"
-#include "runtime/callingframe.h"
+
+#include "ffmpeg_base.h"
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVUtil {
 
-class AVGetTime : public WasmEdgeFFmpegAVUtil<AVGetTime> {
+class AVGetTime : public HostFunction<AVGetTime> {
 public:
-  AVGetTime(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int64_t> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVGetTimeRelative : public WasmEdgeFFmpegAVUtil<AVGetTimeRelative> {
+class AVGetTimeRelative : public HostFunction<AVGetTimeRelative> {
 public:
-  AVGetTimeRelative(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int64_t> body(const Runtime::CallingFrame &Frame);
 };
 
 class AVGetTimeRelativeIsMonotonic
-    : public WasmEdgeFFmpegAVUtil<AVGetTimeRelativeIsMonotonic> {
+    : public HostFunction<AVGetTimeRelativeIsMonotonic> {
 public:
-  AVGetTimeRelativeIsMonotonic(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int64_t> body(const Runtime::CallingFrame &Frame);
 };
 
-class AVUSleep : public WasmEdgeFFmpegAVUtil<AVUSleep> {
+class AVUSleep : public HostFunction<AVUSleep> {
 public:
-  AVUSleep(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
-      : WasmEdgeFFmpegAVUtil(HostEnv) {}
+  using HostFunction::HostFunction;
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t USec);
 };
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "loader/loader.h"
 
@@ -313,11 +313,18 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    if (Conf.hasProposal(Proposal::MultiMemories) &&
-        Instr.getMemoryAlign() >= 64) {
-      Instr.getMemoryAlign() -= 64;
-      if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-        return Unexpect(Res);
+    if (Instr.getMemoryAlign() >= 128) {
+      return logLoadError(ErrCode::Value::InvalidStoreAlignment,
+                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+    } else if (Instr.getMemoryAlign() >= 64) {
+      if (Conf.hasProposal(Proposal::MultiMemories)) {
+        Instr.getMemoryAlign() -= 64;
+        if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
+          return Unexpect(Res);
+        }
+      } else {
+        return logLoadError(ErrCode::Value::InvalidStoreAlignment,
+                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
       }
     }
     if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 /**
  * THIS FILE IS AUTO-GENERATED from the following files:
@@ -673,4 +673,3 @@ using __wasi_signature_secretkey_t = __wasi_secretkey_t;
 
 static_assert(sizeof(__wasi_signature_secretkey_t) == 4, "witx calculated size");
 static_assert(alignof(__wasi_signature_secretkey_t) == 4, "witx calculated align");
-

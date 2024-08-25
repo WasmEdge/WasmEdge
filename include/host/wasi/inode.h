@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #pragma once
 
@@ -972,6 +972,8 @@ private:
   uint64_t NextTimerId = 0;
 #endif
 #if WASMEDGE_OS_WINDOWS
+  std::unordered_map<winapi::HANDLE_, OptionalEvent *> ConsoleReadEvent;
+  std::unordered_map<winapi::HANDLE_, OptionalEvent *> ConsoleWriteEvent;
   OptionalEvent *TimeoutEvent = nullptr;
   winapi::TIMEVAL_ MinimumTimeout;
 #endif

@@ -8,7 +8,8 @@
             "options": "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -72,7 +73,8 @@
             "testBin": "wasmBpfTests",
             "options": "-DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF",
             "platforms": [
-                "manylinux_2_28_x86_64"
+                "manylinux_2_28_x86_64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -83,7 +85,8 @@
             "options": "-DWASMEDGE_PLUGIN_FFMPEG=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -94,7 +97,8 @@
             "options": "-DWASMEDGE_PLUGIN_IMAGE=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -105,7 +109,8 @@
             "options": "-DWASMEDGE_PLUGIN_LLMC=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -116,7 +121,8 @@
             "options": "-DWASMEDGE_PLUGIN_OPENCVMINI=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -127,7 +133,8 @@
             "options": "-DWASMEDGE_PLUGIN_PROCESS=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -138,7 +145,8 @@
             "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -149,7 +157,8 @@
             "options": "-DWASMEDGE_PLUGIN_TENSORFLOW=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -160,7 +169,8 @@
             "options": "-DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         },
         {
@@ -171,7 +181,8 @@
             "options": "-DWASMEDGE_PLUGIN_ZLIB=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64"
             ]
         }
     ]

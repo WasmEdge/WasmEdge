@@ -21,6 +21,7 @@ jobs:
     outputs:
       manylinux_2_28_x86_64: ${{ steps.readfile.outputs.manylinux_2_28_x86_64 }}
       manylinux_2_28_aarch64: ${{ steps.readfile.outputs.manylinux_2_28_aarch64 }}
+      ubuntu2004_x86_64: ${{ steps.readfile.outputs.ubuntu2004_x86_64 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,6 +46,7 @@ jobs:
             let asset_tags = [
               "manylinux_2_28_x86_64",
               "manylinux_2_28_aarch64",
+              "ubuntu2004_x86_64",
             ]
             for (const tag of asset_tags) {
               core.setOutput(tag, plugins.filter(
@@ -73,6 +75,27 @@ jobs:
           wasmedge_tensorflowlite: ${{ steps.filter.outputs.wasmedge_tensorflowlite }}
           wasmedge_zlib: ${{ steps.filter.outputs.wasmedge_zlib }}
 
+  build_on_ubuntu:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-20.04-build-clang-plugins-deps'
+            asset_tag: 'ubuntu20.04_x86_64'
+            plugins: ${{ needs.prepare.outputs.ubuntu2004_x86_64 }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
+    secrets: inherit
+
   build_on_manylinux:
     needs: prepare
     strategy:
@@ -88,7 +111,7 @@ jobs:
             asset_tag: 'manylinux_2_28_aarch64'
             plugins: ${{ needs.prepare.outputs.manylinux_2_28_aarch64 }}
     name: ${{ matrix.asset_tag }}
-    uses: ./.github/workflows/reusable-build-extensions-on-manylinux.yml
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
     with:
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}

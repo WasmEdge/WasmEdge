@@ -18,10 +18,17 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 struct Graph {
+  ~Graph() noexcept {
+    if (Model != nullptr) {
+      delete Model;
+    }
+    if (Tok != nullptr) {
+      delete Tok;
+    }
+  }
   std::string ModelType = "tiny_llama_1.1B_chat_v1.0";
-  std::unique_ptr<tokenizers::Tokenizer> Tok;
+  tokenizers::Tokenizer *Tok = nullptr;
   Transformer *Model;
-  inline static int GraphNumber = 0;
   double Temp = 0.0;
   bool EnableDebugLog = true;
   int MaxToken = 1024;

@@ -46,6 +46,13 @@ std::shared_ptr<VINode> VINode::stdErr(__wasi_rights_t FRB,
   return Node;
 }
 
+std::shared_ptr<VINode> VINode::fromHostFd(__wasi_rights_t FRB,
+                                           __wasi_rights_t FRI, int HostFd) {
+  // Construct INode directly from the host FD
+  INode Node(HostFd);
+  return std::make_shared<VINode>(std::move(Node), FRB, FRI);
+}
+
 std::string VINode::canonicalGuest(std::string_view Path) {
   std::vector<std::string_view> Parts;
 

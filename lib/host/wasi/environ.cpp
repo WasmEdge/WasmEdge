@@ -72,7 +72,7 @@ static inline constexpr const auto kReadOnly = "readonly"sv;
 
 void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
                    Span<const std::string> Args, Span<const std::string> Envs,
-                   int StdinFd, int StdoutFd, int StderrFd) {
+                   Span<const int> Stdio) {
   {
     // Open dir for WASI environment.
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
@@ -112,20 +112,18 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
 
     std::sort(PreopenedDirs.begin(), PreopenedDirs.end());
 
-    FdMap.emplace(StdinFd,
-                  VINode::stdIn(kStdInDefaultRights, kNoInheritingRights));
-    FdMap.emplace(StdoutFd,
-                  VINode::stdOut(kStdOutDefaultRights, kNoInheritingRights));
-    FdMap.emplace(StderrFd,
-                  VINode::stdErr(kStdErrDefaultRights, kNoInheritingRights));
+    FdMap.emplace(0,
+                  VINode::fromHostFd(kStdInDefaultRights, kNoInheritingRights,
+                                     Stdio[0]));
+    FdMap.emplace(1,
+                  VINode::fromHostFd(kStdOutDefaultRights, kNoInheritingRights,
+                                     Stdio[1]));
+    FdMap.emplace(2,
+                  VINode::fromHostFd(kStdErrDefaultRights, kNoInheritingRights,
+                                     Stdio[2]));
 
     int NewFd = 0;
     for (auto &PreopenedDir : PreopenedDirs) {
-      if (NewFd == StdinFd || NewFd == StdoutFd || NewFd == StderrFd) {
-        while (NewFd == StdinFd || NewFd == StdoutFd || NewFd == StderrFd) {
-          ++NewFd;
-        }
-      }
       FdMap.emplace(NewFd++, std::move(PreopenedDir));
     }
   }

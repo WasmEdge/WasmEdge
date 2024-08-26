@@ -151,6 +151,9 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
   wasmedge_add_static_lib_component_command(wasmedgePlugin)
+  # BUILTIN-PLUGIN: Temporary add the wasi-logging plugin here until the new
+  # plugin architecture ready in 0.15.0.
+  wasmedge_add_static_lib_component_command(wasmedgePluginWasiLogging)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
   wasmedge_add_static_lib_component_command(wasmedgeDriver)
 

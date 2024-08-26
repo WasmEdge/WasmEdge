@@ -239,9 +239,10 @@ jobs:
       build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON
       tar_names: wasi_crypto wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg wasmedge_stablediffusion
       output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so libwasmedgePluginWasmEdgeFFmpeg.so libwasmedgePluginWasmEdgeStableDiffusion.so
+      OPENCV_VERSION: "4.8.0"
     needs: create_release
     container:
-      image: wasmedge/wasmedge:ubuntu-build-clang-plugins-deps
+      image: wasmedge/wasmedge:ubuntu-20.04-build-clang
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -258,6 +259,7 @@ jobs:
           apt install -y cargo
           apt install -y yasm
           bash utils/ffmpeg/install-ffmpeg-v6.0.sh
+          bash utils/opencvmini/install-opencvmini.sh
       - name: Build plugins
         shell: bash
         run: |

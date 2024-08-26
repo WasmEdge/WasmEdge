@@ -102,7 +102,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   // Load tokenizer.
   if (!TokenizerPath.empty()) {
     GraphRef.Tok =
-        tokenizers::Tokenizer::FromBlobJSON(loadBytesFromFile(TokenizerPath));
+        tokenizers::Tokenizer::FromBlobJSON(loadBytesFromFile(TokenizerPath))
+            .release();
   }
 
   // Handle the model path.

@@ -4,7 +4,6 @@
 #include "zlibfunc.h"
 
 #include <cstring>
-#include <iostream>
 
 namespace WasmEdge {
 namespace Host {

@@ -239,7 +239,7 @@ public:
     (defined(__riscv) && __riscv_xlen == 64)
     return ValVariant(Data.Num);
 #else
-    uint128_t N(Data.Num.High, Data.Num.Low);
+    uint128_t N{Data.Num.High, Data.Num.Low};
     return ValVariant(N);
 #endif
   }
@@ -248,7 +248,9 @@ public:
     (defined(__riscv) && __riscv_xlen == 64)
     Data.Num = N.get<uint128_t>();
 #else
-    std::memcpy(&Data.Num, &N.get<uint128_t>(), sizeof(uint128_t));
+    uint128_t V = N.get<uint128_t>();
+    Data.Num.Low = V.low();
+    Data.Num.High = V.high();
 #endif
   }
 

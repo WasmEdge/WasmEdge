@@ -12,6 +12,7 @@
 #include <common.h>
 #include <cstdlib>
 #include <filesystem>
+#include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>
 #include <json.hpp>
 #include <llama.h>
@@ -355,13 +356,12 @@ Expect<ErrNo> setupContextParam(Graph &GraphRef,
 
 Expect<ErrNo> buildOutputMetadata(Context &CxtRef,
                                   std::string &Metadata) noexcept {
-  std::ostringstream OS;
-  OS << R"({"input_tokens": )" << CxtRef.LlamaNInputs
-     << R"(, "output_tokens": )" << CxtRef.LlamaOutputTokens.size()
-     << R"(, "llama_build_number": )" << LLAMA_BUILD_NUMBER
-     << R"(, "llama_commit": ")" << LLAMA_COMMIT << R"("})";
-  Metadata = OS.str();
-
+  Metadata = fmt::format(R"({{"input_tokens": {}, )"
+                         R"("output_tokens": {}, )"
+                         R"("llama_build_number": {}, )"
+                         R"("llama_commit": "{}"}})"sv,
+                         CxtRef.LlamaNInputs, CxtRef.LlamaOutputTokens.size(),
+                         LLAMA_BUILD_NUMBER, LLAMA_COMMIT);
   return ErrNo::Success;
 }
 
@@ -378,14 +378,10 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
   // | (n_embedding-1)*(',')               |
   // | ']'                                 |
   // | '}'                                 |
-  std::ostringstream OS;
-  OS.precision(10);
-  OS << R"({"n_embedding": )" << NEmbd << R"(, "embedding": [)";
-  for (int32_t Idx = 0; Idx < NEmbd - 1; Idx++) {
-    OS << Embeddings[Idx] << ",";
-  }
-  OS << Embeddings[NEmbd - 1] << "]}";
-  Embedding = OS.str();
+  Embedding =
+      fmt::format(R"({{"n_embedding": {:.10}, )"
+                  R"("embedding": [{:.10}]}})"sv,
+                  NEmbd, fmt::join(Embeddings, Embeddings + NEmbd, ","sv));
 }
 
 ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
@@ -1188,7 +1184,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     CxtRef.LlamaOutputs += llama_token_to_piece(LlamaContext, Id);
     // When setting StreamStdout, we print the output to stdout.
     if (GraphRef.StreamStdout) {
-      std::cout << llama_token_to_piece(LlamaContext, Id) << std::flush;
+      fmt::print("{}"sv, llama_token_to_piece(LlamaContext, Id));
+      std::fflush(stdout);
     }
     // Break if reverse prompt is found.
     if (!GraphRef.ReversePrompt.empty() &&

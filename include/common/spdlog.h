@@ -14,6 +14,7 @@
 #pragma once
 
 #include "common/filesystem.h"
+#include "common/int128.h"
 #define SPDLOG_NO_EXCEPTIONS 1
 #include "spdlog/spdlog.h"
 

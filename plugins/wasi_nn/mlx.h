@@ -5,7 +5,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 #include "MLX/model/transformer.h"
-#include "llama.h"
+#include "prompt.h"
 #include "transformer.h"
 #include <mlx/mlx.h>
 #include <tokenizers_cpp.h>

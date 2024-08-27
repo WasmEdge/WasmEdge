@@ -1,6 +1,6 @@
 wasmedge_add_library(
   mlx_cpp
-  prompt/llama.cpp
+  prompt/prompt.cpp
   model/transformer.cpp
   model/converter.cpp
   model/utils.cpp

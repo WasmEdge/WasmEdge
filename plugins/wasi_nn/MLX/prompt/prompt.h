@@ -16,9 +16,11 @@ public:
 
 class TinyLLaMAPrompt : public BasePrompt {
 public:
-  std::string SystemStart = "<|system|>";
-  std::string User = "<|user|>";
-  std::string Assistant = "<|assistant|>";
-  std::string TextEnd = "</s>";
-  std::string prepare(std::string Prompt);
+  TinyLLaMAPrompt() {
+    SystemStart = "<|system|>";
+    Assistant = "<|assistant|>";
+    User = "<|user|>";
+    TextEnd = "</s>";
+  }
+  std::string prepare(std::string Prompt) override;
 };

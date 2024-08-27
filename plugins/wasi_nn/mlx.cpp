@@ -1,4 +1,5 @@
 #include "mlx.h"
+#include "spdlog/spdlog.h"
 #include "wasinnenv.h"
 #include <codecvt>
 #include <cstddef>
@@ -85,13 +86,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       }
       GraphRef.EnableDebugLog = EnableDebugLog;
     }
-    if (Doc.at_key("tokenizer_path").error() == simdjson::SUCCESS) {
+    if (Doc.at_key("tokenizer").error() == simdjson::SUCCESS) {
       std::string_view TokenizerPathView;
       auto Err =
-          Doc["tokenizer_path"].get<std::string_view>().get(TokenizerPathView);
+          Doc["tokenizer"].get<std::string_view>().get(TokenizerPathView);
       if (Err) {
         spdlog::error(
-            "[WASI-NN] MLX backend: Unable to retrieve the tokenizer_path option."sv);
+            "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
         Env.NNGraph.pop_back();
         return ErrNo::InvalidArgument;
       }
@@ -110,7 +111,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   auto Weight = Builders[0];
   const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
                              Weight.size());
-  spdlog::info("[WASI-NN] Neural speed: BinModel: {}"sv, BinModel.size());
+  spdlog::info("[WASI-NN] MLX BinModel: {}"sv, BinModel.size());
+  if (BinModel.size() == 0) {
+    Env.NNGraph.pop_back();
+    return ErrNo::InvalidArgument;
+  }
   std::string ModelFilePath;
   if (BinModel.substr(0, 8) == "preload:"sv) {
     ModelFilePath = BinModel.substr(8);
@@ -121,14 +126,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
           "write model into a tmpfile."sv);
     }
     // Write model to file.
-    ModelFilePath = "MLX.bin"sv;
+    // TODO: handle different model format.
+    ModelFilePath = "MLX.safetensors"sv;
     std::ofstream TempFile(ModelFilePath, std::ios::out | std::ios::binary);
     if (!TempFile) {
       spdlog::error(
-          "[WASI-NN] MLX backend: Failed to create the temporary file. "
-          "Currently, our workaround involves creating a temporary model "
-          "file named \"MLX.bin\" and passing this filename as a "
-          "parameter to the ggml llama library."sv);
+          "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);
       Env.NNGraph.pop_back();
       return ErrNo::InvalidArgument;
     }
@@ -155,7 +158,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       return ErrNo::InvalidArgument;
     }
   }
-
   // Load weight.
   if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
     GraphRef.Model->update(llamaToMlxllm(ModelFilePath));

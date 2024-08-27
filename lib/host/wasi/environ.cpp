@@ -72,7 +72,7 @@ static inline constexpr const auto kReadOnly = "readonly"sv;
 
 void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
                    Span<const std::string> Args, Span<const std::string> Envs,
-                   Span<const int> Stdio) {
+                   std::array<std::optional<int>, 3> Stdio) {
   {
     // Open dir for WASI environment.
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
@@ -112,17 +112,33 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
 
     std::sort(PreopenedDirs.begin(), PreopenedDirs.end());
 
-    FdMap.emplace(0,
-                  VINode::fromHostFd(kStdInDefaultRights, kNoInheritingRights,
-                                     Stdio[0]));
-    FdMap.emplace(1,
-                  VINode::fromHostFd(kStdOutDefaultRights, kNoInheritingRights,
-                                     Stdio[1]));
-    FdMap.emplace(2,
-                  VINode::fromHostFd(kStdErrDefaultRights, kNoInheritingRights,
-                                     Stdio[2]));
+    if (!Stdio[0].has_value()) {
+      FdMap.emplace(0, VINode::stdIn(kStdInDefaultRights, kNoInheritingRights));
+    } else {
+      FdMap.emplace(0,
+                    VINode::fromHostFd(kStdInDefaultRights, kNoInheritingRights,
+                                       Stdio[0].value()));
+    }
 
-    int NewFd = 0;
+    if (!Stdio[1].has_value()) {
+      FdMap.emplace(1,
+                    VINode::stdOut(kStdOutDefaultRights, kNoInheritingRights));
+    } else {
+      FdMap.emplace(1,
+                    VINode::fromHostFd(kStdOutDefaultRights,
+                                       kNoInheritingRights, Stdio[1].value()));
+    }
+
+    if (!Stdio[2].has_value()) {
+      FdMap.emplace(2,
+                    VINode::stdErr(kStdErrDefaultRights, kNoInheritingRights));
+    } else {
+      FdMap.emplace(2,
+                    VINode::fromHostFd(kStdErrDefaultRights,
+                                       kNoInheritingRights, Stdio[2].value()));
+    }
+
+    int NewFd = 3;
     for (auto &PreopenedDir : PreopenedDirs) {
       FdMap.emplace(NewFd++, std::move(PreopenedDir));
     }

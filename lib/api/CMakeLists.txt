@@ -137,9 +137,6 @@ if(WASMEDGE_BUILD_SHARED_LIB)
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     FRAMEWORK DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
-    ARCHIVE COMPONENT WasmEdge
-    LIBRARY COMPONENT WasmEdge
-    RUNTIME COMPONENT WasmEdge
   )
 endif()
 
@@ -155,6 +152,9 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeExecutor)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
   wasmedge_add_static_lib_component_command(wasmedgePlugin)
+  # BUILTIN-PLUGIN: Temporary add the wasi-logging plugin here until the new
+  # plugin architecture ready in 0.15.0.
+  wasmedge_add_static_lib_component_command(wasmedgePluginWasiLogging)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
   wasmedge_add_static_lib_component_command(wasmedgeDriver)
 
@@ -196,13 +196,8 @@ if(WASMEDGE_BUILD_STATIC_LIB)
 
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libwasmedge.a
     DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    COMPONENT WasmEdge
   )
-endif()
-
-if(WASMEDGE_BUILD_STATIC_LIB OR WASMEDGE_BUILD_SHARED_LIB)
   install(FILES ${WASMEDGE_CAPI_HEADERS}
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/wasmedge
-    COMPONENT WasmEdge
   )
 endif()

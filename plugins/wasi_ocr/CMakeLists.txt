@@ -34,7 +34,6 @@ endif()
 install(
   TARGETS wasmedgePluginWasiOCR
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
-  COMPONENT WasmEdge
 )
 
 message(STATUS "WASI-OCR: Build Tesseract backend for WASI-OCR")

@@ -194,11 +194,8 @@ function(wasmedge_add_library target)
     set_target_properties(${target} PROPERTIES
       FRAMEWORK TRUE
       FRAMEWORK_VERSION C
-      MACOSX_FRAMEWORK_IDENTIFIER "com.wasmedge.${target}"
+      MACOSX_FRAMEWORK_IDENTIFIER "org.wasmedge.${target}"
       MACOSX_FRAMEWORK_INFO_PLIST "Info.plist"
-      VERSION "1.0.0"
-      SOVERSION "1.0.0"
-      # PUBLIC_HEADER 
   )
   endif()
 endfunction()

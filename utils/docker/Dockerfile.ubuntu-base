@@ -1,5 +1,6 @@
+ARG UBUNTU_VER=22
 ARG TOOLCHAIN=clang
-FROM ubuntu:22.04 AS base
+FROM ubuntu:${UBUNTU_VER}.04 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
@@ -9,28 +10,57 @@ RUN apt-get update && \
         curl \
         dpkg-dev \
         git \
-        llvm-15-dev \
-        liblld-15-dev \
         ninja-build \
         software-properties-common \
         wget \
         zlib1g-dev
 
-### deps for clang ###
-FROM base AS deps-clang
+### deps for ubuntu 20.04 ###
+FROM base AS deps-20
 
-RUN apt-get update && \
-    apt-get install -y \
+RUN apt-get install -y \
+        llvm-12-dev \
+        liblld-12-dev
+
+### deps for ubuntu 22.04 ###
+FROM base AS deps-22
+
+RUN apt-get install -y \
+        llvm-15-dev \
+        liblld-15-dev
+
+### deps for clang / ubuntu 20.04 ###
+FROM deps-20 AS deps-20-clang
+
+RUN apt-get install -y \
+        clang-12
+
+ENV CC=/usr/bin/clang-12
+ENV CXX=/usr/bin/clang++-12
+
+### deps for clang / ubuntu 22.04 ###
+FROM deps-22 AS deps-22-clang
+
+RUN apt-get install -y \
         clang-15
 
 ENV CC=/usr/bin/clang-15
 ENV CXX=/usr/bin/clang++-15
 
-### deps for gcc ###
-FROM base AS deps-gcc
+### deps for gcc / ubuntu 20.04 ###
+FROM deps-20 AS deps-20-gcc
 
-RUN apt-get update && \
-    apt-get install -y \
+RUN apt-get install -y \
+        gcc \
+        g++
+
+ENV CC=gcc
+ENV CXX=g++
+
+### deps for gcc / ubuntu 22.04 ###
+FROM deps-22 AS deps-22-gcc
+
+RUN apt-get install -y \
         gcc \
         g++
 
@@ -38,6 +68,6 @@ ENV CC=gcc
 ENV CXX=g++
 
 ### deps for all ###
-FROM deps-${TOOLCHAIN} AS final
+FROM deps-${UBUNTU_VER}-${TOOLCHAIN} AS final
 
 RUN rm -rf /var/lib/apt/lists/*

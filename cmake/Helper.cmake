@@ -195,7 +195,6 @@ function(wasmedge_add_library target)
       FRAMEWORK TRUE
       FRAMEWORK_VERSION C
       MACOSX_FRAMEWORK_IDENTIFIER "org.wasmedge.${target}"
-      MACOSX_FRAMEWORK_INFO_PLIST "Info.plist"
   )
   endif()
 endfunction()

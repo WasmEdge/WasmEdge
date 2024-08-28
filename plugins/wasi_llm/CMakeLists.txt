@@ -48,5 +48,4 @@ endif()
 install(
   TARGETS wasmedgePluginWasiLLM
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
-  COMPONENT WasmEdge
 )

@@ -37,5 +37,4 @@ wasmedge_setup_tflite_target(wasmedgePluginWasmEdgeTensorflowLite)
 install(
   TARGETS wasmedgePluginWasmEdgeTensorflowLite
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
-  COMPONENT WasmEdge
 )

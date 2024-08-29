@@ -156,7 +156,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip libopenblas-dev pkg-config
+          apt install -y unzip libopenblas-dev pkg-config python3-dev
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
           bash utils/wasi-nn/install-onnxruntime.sh

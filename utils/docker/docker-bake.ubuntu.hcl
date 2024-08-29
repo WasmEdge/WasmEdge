@@ -65,3 +65,17 @@ target "latest" {
   }
   tags     = ["wasmedge/wasmedge:latest"]
 }
+
+target "clang-ubuntu2004-aarch64" {
+  matrix     = {
+    toolchain = ["clang"]
+    ubuntu    = ["20.04"]
+  }
+  inherits = ["${name(toolchain, ubuntu)}"]
+  contexts = {
+    "wasmedge/wasmedge:${tag(toolchain, ubuntu)}" = "target:${name(toolchain, ubuntu)}"
+  }
+
+  tags = ["wasmedge/wasmedge:${tag(toolchain, ubuntu)}-aarch64"]
+  platforms = ["linux/arm64"]
+}

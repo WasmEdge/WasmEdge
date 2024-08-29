@@ -109,6 +109,8 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     // Control instructions.
     case OpCode::Unreachable:
       spdlog::error(ErrCode::Value::Unreachable);
+      spdlog::info("Coredump Generation taking place");
+      Coredump->generateCoredump(StackMgr);
       spdlog::error(
           ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(ErrCode::Value::Unreachable);

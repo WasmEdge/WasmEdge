@@ -70,7 +70,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(60000)));
+                    WasmEdge::AST::MemoryType(2097024)));
   auto *MemInstPtr = Mod.findMemoryExports("memory");
   ASSERT_TRUE(MemInstPtr != nullptr);
   auto &MemInst = *MemInstPtr;
@@ -154,28 +154,34 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
         std::initializer_list<WasmEdge::ValVariant>{
             QuantModelPathPtr,                            // ModelPathPtr
             static_cast<uint32_t>(QuantModelPath.size()), // ModelPathLen
-            0,                                            // VaePathPtr
-            0,                                            // VaePathLen
-            0,                                            // TaesdPathPtr
-            0,                                            // TaesdPathLen
-            0,                                            // ControlNetPathPtr
-            0,                                            // ControlNetPathLen
-            0,                                            // LoraModelDirPtr
-            0,                                            // LoraModelDirLen
-            0,                                            // EmbedDirPtr
-            0,                                            // EmbedDirLen
-            0,                                            // IdEmbedDirPtr
-            0,                                            // IdEmbedDirLen
-            1,                                            // VaeDecodeOnly
-            0,                                            // VaeTiling
-            -1,                                           // NThreads
-            31,                                           // Wtype
-            1,                                            // RngType
-            0,                                            // Schedule
-            0,                                            // ClipOnCpu
-            0,                                            // ControlNetCpu
-            0,                                            // VaeOnCpu
-            SessionPtr},                                  // SessiontIdPtr
+            0,                                            // ClipLPathPtr
+            0,                                            // ClipLPathLen
+            0,                                            // T5xxlPathPtr
+            0,                                            // T5xxlPathLen
+            0,           // DiffusionModelPathPtr
+            0,           // DiffusionModelPathLen
+            0,           // VaePathPtr
+            0,           // VaePathLen
+            0,           // TaesdPathPtr
+            0,           // TaesdPathLen
+            0,           // ControlNetPathPtr
+            0,           // ControlNetPathLen
+            0,           // LoraModelDirPtr
+            0,           // LoraModelDirLen
+            0,           // EmbedDirPtr
+            0,           // EmbedDirLen
+            0,           // IdEmbedDirPtr
+            0,           // IdEmbedDirLen
+            1,           // VaeDecodeOnly
+            0,           // VaeTiling
+            -1,          // NThreads
+            34,          // Wtype
+            1,           // RngType
+            0,           // Schedule
+            0,           // ClipOnCpu
+            0,           // ControlNetCpu
+            0,           // VaeOnCpu
+            SessionPtr}, // SessiontIdPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     SessionId = *MemInst.getPointer<uint32_t *>(SessionPtr);
@@ -200,8 +206,9 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             0,                                        // ControlImageLen
             0,                                        // NegativePromptPtr
             0,                                        // NegativePromptLen
-            64,                                       // Width
-            64,                                       // Height
+            3.5f,                                     // Guidance
+            256,                                      // Width
+            256,                                      // Height
             -1,                                       // ClipSkip
             7.0f,                                     // CfgScale
             0,                                        // SampleMethod
@@ -220,7 +227,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             OutputPathPtr,                            // OutputPathPtr
             static_cast<uint32_t>(OutputPath.size()), // OutputPathLen
             OutputPtr,                                // OutBufferPtr
-            65532,                                    // OutBufferMaxSize
+            1048512,                                  // OutBufferMaxSize
             BytesWrittenPtr},                         // BytesWrittenPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
@@ -237,28 +244,34 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
         std::initializer_list<WasmEdge::ValVariant>{
             QuantModelPathPtr,                            // ModelPathPtr
             static_cast<uint32_t>(QuantModelPath.size()), // ModelPathLen
-            0,                                            // VaePathPtr
-            0,                                            // VaePathLen
-            0,                                            // TaesdPathPtr
-            0,                                            // TaesdPathLen
-            0,                                            // ControlNetPathPtr
-            0,                                            // ControlNetPathLen
-            0,                                            // LoraModelDirPtr
-            0,                                            // LoraModelDirLen
-            0,                                            // EmbedDirPtr
-            0,                                            // EmbedDirLen
-            0,                                            // IdEmbedDirPtr
-            0,                                            // IdEmbedDirLen
-            0,                                            // VaeDecodeOnly
-            0,                                            // VaeTiling
-            -1,                                           // NThreads
-            31,                                           // Wtype
-            1,                                            // RngType
-            0,                                            // Schedule
-            0,                                            // ClipOnCpu
-            0,                                            // ControlNetCpu
-            0,                                            // VaeOnCpu
-            SessionPtr},                                  // SessiontIdPtr
+            0,                                            // ClipLPathPtr
+            0,                                            // ClipLPathLen
+            0,                                            // T5xxlPathPtr
+            0,                                            // T5xxlPathLen
+            0,           // DiffusionModelPathPtr
+            0,           // DiffusionModelPathLen
+            0,           // VaePathPtr
+            0,           // VaePathLen
+            0,           // TaesdPathPtr
+            0,           // TaesdPathLen
+            0,           // ControlNetPathPtr
+            0,           // ControlNetPathLen
+            0,           // LoraModelDirPtr
+            0,           // LoraModelDirLen
+            0,           // EmbedDirPtr
+            0,           // EmbedDirLen
+            0,           // IdEmbedDirPtr
+            0,           // IdEmbedDirLen
+            0,           // VaeDecodeOnly
+            0,           // VaeTiling
+            -1,          // NThreads
+            34,          // Wtype
+            1,           // RngType
+            0,           // Schedule
+            0,           // ClipOnCpu
+            0,           // ControlNetCpu
+            0,           // VaeOnCpu
+            SessionPtr}, // SessiontIdPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     SessionId = *MemInst.getPointer<uint32_t *>(SessionPtr);
@@ -280,8 +293,9 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             InputPathPtr,                              // ImagePtr
             static_cast<uint32_t>(InputPath.size()),   // ImageLen
             SessionId,                                 // SessionId
-            64,                                        // Width
-            64,                                        // Height
+            3.5f,                                      // Guidance
+            256,                                       // Width
+            256,                                       // Height
             0,                                         // ControlImagePtr
             0,                                         // ControlImageLen
             PromptPtr,                                 // PromptPtr
@@ -307,7 +321,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             OutputPathPtr,                             // OutputPathPtr
             static_cast<uint32_t>(OutputPath2.size()), // OutputPathLen
             OutputPtr,                                 // OutBufferPtr
-            65532,                                     // OutBufferMaxSize
+            1048512,                                   // OutBufferMaxSize
             BytesWrittenPtr},                          // BytesWrittenPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));

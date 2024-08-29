@@ -24,7 +24,7 @@ message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
   stable-diffusion
   GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
-  GIT_TAG        master-9c51d87
+  GIT_TAG        master-e71ddce
   GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(stable-diffusion)
@@ -73,10 +73,12 @@ target_include_directories(wasmedgePluginWasmEdgeStableDiffusion
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
-
+target_include_directories( wasmedgePluginWasmEdgeStableDiffusion SYSTEM PRIVATE
+  "${CMAKE_BINARY_DIR}/_deps/stable-diffusion-src/thirdparty"
+)
 if (MSVC)
   target_compile_options(
-    wasmedgePluginWasmEdgeStableDiffusion
+    stable-diffusion
     PRIVATE
     /wd4459
     /wd4100
@@ -85,13 +87,16 @@ if (MSVC)
   )
 else()
   target_compile_options(
-    wasmedgePluginWasmEdgeStableDiffusion
+    stable-diffusion
     PRIVATE
 		-Wno-unused-function
 		-Wno-unused-variable
 		-Wno-unused-parameter
 		-Wno-missing-field-initializers
     -Wno-deprecated-declarations
+    -Wno-braced-scalar-init
+    -Wno-unused-value
+    -Wno-uninitialized
 	)
 endif()
 

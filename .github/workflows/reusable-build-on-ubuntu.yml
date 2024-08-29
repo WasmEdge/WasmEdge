@@ -11,6 +11,9 @@ on:
         required: true
       release:
         type: boolean
+      arch:
+        type: string
+        default: 'x86_64'
 
 permissions:
   contents: read
@@ -24,7 +27,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(inputs.matrix) }}
     name: ${{ matrix.name }} (${{ matrix.compiler }}, ${{ matrix.build_type }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     env:
       BUILD_TESTS: OFF
     container: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -98,8 +101,8 @@ jobs:
           && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
           && apt update \
           && apt install gh -y
-          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-ubuntu20.04_x86_64.tar.gz
-          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-ubuntu20.04_${{ inputs.arch }}.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-ubuntu20.04_${{ inputs.arch }}.tar.gz --clobber
       - name: Create and upload coverage report to Codecov
         if: ${{ matrix.coverage }}
         uses: codecov/codecov-action@v4

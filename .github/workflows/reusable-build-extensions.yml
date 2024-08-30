@@ -39,7 +39,7 @@ jobs:
             const fs = require("fs")
             const s = fs.readFileSync(".github/workflows/matrix-extensions.json")
             let plugins = JSON.parse(s).plugins
-            if (!${{ fromJSON(steps.filter.outputs.all) }}) {
+            if (!${{ inputs.release || fromJSON(steps.filter.outputs.all) }}) {
               plugins = plugins.filter(
                 (plugin) => !(process.env[plugin.plugin] != 'true')
               )

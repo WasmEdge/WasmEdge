@@ -32,7 +32,8 @@ target "base" {
 
   tags       = ["wasmedge/wasmedge:${tag(toolchain, ubuntu)}"]
   args       = {
-    TOOLCHAIN = toolchain
+    TOOLCHAIN  = toolchain
+    UBUNTU_VER = replace(ubuntu, ".04", "")
   }
 }
 

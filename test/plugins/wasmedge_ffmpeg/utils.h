@@ -14,11 +14,22 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+#include <memory>
 
 namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
+
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
 
 inline void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance *MemInst,
                         uint32_t Value, uint32_t &Ptr) {
@@ -72,61 +83,44 @@ public:
             WasmEdge::Plugin::Plugin::find("wasmedge_ffmpeg"sv)) {
       if (const auto *Module =
               Plugin->findModule("wasmedge_ffmpeg_avformat"sv)) {
-        AVFormatMod = dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::
-                                       WasmEdgeFFmpegAVFormatModule *>(
-            Module->create().release());
+        AVFormatMod =
+            dynamicPointerCast<WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::
+                                   WasmEdgeFFmpegAVFormatModule>(
+                Module->create());
       }
       if (const auto *Module = Plugin->findModule("wasmedge_ffmpeg_avutil"sv)) {
-        AVUtilMod = dynamic_cast<
-            WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule
-                *>(Module->create().release());
+        AVUtilMod = dynamicPointerCast<
+            WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule>(
+            Module->create());
       }
       if (const auto *Module =
               Plugin->findModule("wasmedge_ffmpeg_swscale"sv)) {
-        SWScaleMod = dynamic_cast<
-            WasmEdge::Host::WasmEdgeFFmpeg::SWScale::WasmEdgeFFmpegSWScaleModule
-                *>(Module->create().release());
+        SWScaleMod =
+            dynamicPointerCast<WasmEdge::Host::WasmEdgeFFmpeg::SWScale::
+                                   WasmEdgeFFmpegSWScaleModule>(
+                Module->create());
       }
       if (const auto *Module =
               Plugin->findModule("wasmedge_ffmpeg_avcodec"sv)) {
-        AVCodecMod = dynamic_cast<
-            WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::WasmEdgeFFmpegAVCodecModule
-                *>(Module->create().release());
+        AVCodecMod =
+            dynamicPointerCast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::
+                                   WasmEdgeFFmpegAVCodecModule>(
+                Module->create());
       }
       if (const auto *Module =
               Plugin->findModule("wasmedge_ffmpeg_swresample"sv)) {
         SWResampleMod =
-            dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::
-                             WasmEdgeFFmpegSWResampleModule *>(
-                Module->create().release());
+            dynamicPointerCast<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::
+                                   WasmEdgeFFmpegSWResampleModule>(
+                Module->create());
       }
       if (const auto *Module =
               Plugin->findModule("wasmedge_ffmpeg_avfilter"sv)) {
-        AVFilterMod = dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::
-                                       WasmEdgeFFmpegAVFilterModule *>(
-            Module->create().release());
+        AVFilterMod =
+            dynamicPointerCast<WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::
+                                   WasmEdgeFFmpegAVFilterModule>(
+                Module->create());
       }
-    }
-  }
-
-  ~FFmpegTest() override {
-    if (AVUtilMod) {
-      delete AVUtilMod;
-    }
-    if (AVCodecMod) {
-      delete AVCodecMod;
-    }
-    if (SWScaleMod) {
-      delete SWScaleMod;
-    }
-    if (SWResampleMod) {
-      delete SWResampleMod;
-    }
-    if (AVFormatMod) {
-      delete AVFormatMod;
-    }
-    if (AVFilterMod) {
-      delete AVFilterMod;
     }
   }
 
@@ -153,18 +147,24 @@ protected:
   WasmEdge::Runtime::CallingFrame CallFrame;
 
   // Wasm Modules.
-  WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::WasmEdgeFFmpegAVFormatModule
-      *AVFormatMod = nullptr;
-  WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule
-      *AVUtilMod = nullptr;
-  WasmEdge::Host::WasmEdgeFFmpeg::SWResample::WasmEdgeFFmpegSWResampleModule
-      *SWResampleMod = nullptr;
-  WasmEdge::Host::WasmEdgeFFmpeg::SWScale::WasmEdgeFFmpegSWScaleModule
-      *SWScaleMod = nullptr;
-  WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::WasmEdgeFFmpegAVCodecModule
-      *AVCodecMod = nullptr;
-  WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::WasmEdgeFFmpegAVFilterModule
-      *AVFilterMod = nullptr;
+  std::unique_ptr<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::WasmEdgeFFmpegAVFormatModule>
+      AVFormatMod;
+  std::unique_ptr<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::WasmEdgeFFmpegAVUtilModule>
+      AVUtilMod;
+  std::unique_ptr<WasmEdge::Host::WasmEdgeFFmpeg::SWResample::
+                      WasmEdgeFFmpegSWResampleModule>
+      SWResampleMod;
+  std::unique_ptr<
+      WasmEdge::Host::WasmEdgeFFmpeg::SWScale::WasmEdgeFFmpegSWScaleModule>
+      SWScaleMod;
+  std::unique_ptr<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::WasmEdgeFFmpegAVCodecModule>
+      AVCodecMod;
+  std::unique_ptr<
+      WasmEdge::Host::WasmEdgeFFmpeg::AVFilter::WasmEdgeFFmpegAVFilterModule>
+      AVFilterMod;
 };
 
 } // namespace WasmEdgeFFmpeg

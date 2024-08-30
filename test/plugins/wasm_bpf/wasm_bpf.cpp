@@ -28,17 +28,29 @@
 #include <thread>
 #include <vector>
 namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
+
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
+
+std::unique_ptr<WasmEdge::Host::WasmBpfModule> createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(
       std::filesystem::u8path("../../../plugins/wasm_bpf/" WASMEDGE_LIB_PREFIX
                               "wasmedgePluginWasmBpf" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasm_bpf"sv)) {
     if (const auto *Module = Plugin->findModule("wasm_bpf"sv)) {
-      return Module->create().release();
+      return dynamicPointerCast<WasmEdge::Host::WasmBpfModule>(
+          Module->create());
     }
   }
-  return nullptr;
+  return {};
 }
 
 std::filesystem::path getAssertsPath() {
@@ -59,8 +71,8 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &memInst,
 } // namespace
 
 TEST(WasmBpfTest, Module) {
-  auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
-  EXPECT_NE(module, nullptr);
+  auto module = createModule();
+  ASSERT_TRUE(module);
   // Test whether functions are exported
   EXPECT_EQ(module->getFuncExportNum(), 6U);
   EXPECT_NE(module->findFuncExports("wasm_load_bpf_object"), nullptr);
@@ -69,8 +81,6 @@ TEST(WasmBpfTest, Module) {
   EXPECT_NE(module->findFuncExports("wasm_bpf_buffer_poll"), nullptr);
   EXPECT_NE(module->findFuncExports("wasm_bpf_map_fd_by_name"), nullptr);
   EXPECT_NE(module->findFuncExports("wasm_bpf_map_operate"), nullptr);
-
-  delete module;
 }
 
 static const size_t TASK_COMM_LEN = 16;
@@ -125,8 +135,8 @@ public:
 TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   using namespace std::literals::string_view_literals;
   // Test loading and attaching a bpf program, and polling buffer
-  auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
-  EXPECT_NE(module, nullptr);
+  auto module = createModule();
+  ASSERT_TRUE(module);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance moduleInst("");
@@ -339,8 +349,8 @@ struct hist {
 
 TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
   // Test loading and attaching a bpf program, and polling buffer
-  auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
-  EXPECT_NE(module, nullptr);
+  auto module = createModule();
+  ASSERT_TRUE(module);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance moduleInst("");

@@ -164,6 +164,21 @@ jobs:
             *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
             *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}
 
+      - name: Bake and Push (aarch64)
+        uses: docker/bake-action@v5
+        with:
+          files: utils/docker/docker-bake.ubuntu.hcl
+          targets: "clang-ubuntu2004-aarch64"
+          push: ${{ github.event_name != 'pull_request' }}
+          set: |
+            *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
+            *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
+            *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            *.labels.org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            *.labels.org.opencontainers.image.revision=${{ github.sha }}
+            *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}
+
   build-manylinux-images:
     needs:
       - prep

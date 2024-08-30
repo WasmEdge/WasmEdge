@@ -97,6 +97,7 @@ else()
     -Wno-braced-scalar-init
     -Wno-unused-value
     -Wno-uninitialized
+    -Wno-format
 	)
 endif()
 
@@ -105,7 +106,7 @@ if(WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL)
     TARGET wasmedgePluginWasmEdgeStableDiffusion
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
-    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/ggml-common.h ggml-common.h
+    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
   )
 endif()
 

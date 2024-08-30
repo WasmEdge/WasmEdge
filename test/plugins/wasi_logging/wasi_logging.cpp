@@ -8,22 +8,32 @@
 #include "runtime/instance/module.h"
 
 #include <gtest/gtest.h>
-
-#include <iostream>
+#include <memory>
 #include <sstream>
 
 namespace {
 
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
+
+std::unique_ptr<WasmEdge::Host::WasiLoggingModule> createModule() {
   using namespace std::literals::string_view_literals;
   // The built-in plugins are loaded when loading from default paths.
   WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_logging"sv)) {
     if (const auto *Module = Plugin->findModule("wasi:logging/logging"sv)) {
-      return Module->create().release();
+      return dynamicPointerCast<WasmEdge::Host::WasiLoggingModule>(
+          Module->create());
     }
   }
-  return nullptr;
+  return {};
 }
 
 void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
@@ -43,12 +53,10 @@ TEST(WasiLoggingTests, func_log) {
   using namespace std::literals::string_view_literals;
   // Create the wasi-logging module instance.
   // Here create 2 wasi-logging modules for testing in multiple modules.
-  auto WasiLoggingMod1 =
-      dynamic_cast<WasmEdge::Host::WasiLoggingModule *>(createModule());
-  EXPECT_NE(WasiLoggingMod1, nullptr);
-  auto WasiLoggingMod2 =
-      dynamic_cast<WasmEdge::Host::WasiLoggingModule *>(createModule());
-  EXPECT_NE(WasiLoggingMod2, nullptr);
+  auto WasiLoggingMod1 = createModule();
+  ASSERT_TRUE(WasiLoggingMod1);
+  auto WasiLoggingMod2 = createModule();
+  ASSERT_TRUE(WasiLoggingMod2);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -173,9 +181,6 @@ TEST(WasiLoggingTests, func_log) {
       std::initializer_list<WasmEdge::ValVariant>{
           UINT32_C(6), UINT32_C(0), UINT32_C(6), UINT32_C(128), UINT32_C(19)},
       {}));
-
-  delete WasiLoggingMod1;
-  delete WasiLoggingMod2;
 }
 
 GTEST_API_ int main(int argc, char **argv) {

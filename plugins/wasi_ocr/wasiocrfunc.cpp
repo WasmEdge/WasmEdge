@@ -4,7 +4,7 @@
 #include "wasiocrfunc.h"
 #include "common/spdlog.h"
 
-#include <iostream>
+#include <algorithm>
 #include <string>
 
 namespace WasmEdge {
@@ -54,12 +54,12 @@ Expect<uint32_t> WasiOCRGetOutput::body(const Runtime::CallingFrame &Frame,
   }
 
   tesseract::PageIteratorLevel level = tesseract::RIL_WORD;
-  const char *outText = Env.TesseractApi->GetTSVText(level);
-  std::strcpy(Buf.data(), outText);
+  std::unique_ptr<const char[]> outText = Env.TesseractApi->GetTSVText(level);
+  std::copy_n(outText, std::min<size_t>(std::strlen(outText.get()), Buf.size()),
+              Buf.begin());
 
   // remaining free and deltee memory stuff
   Env.TesseractApi->End();
-  delete[] outText; // USE WHEN USING TESS API
 
   return static_cast<uint32_t>(WASIOCR::ErrNo::Success);
   // return outText;

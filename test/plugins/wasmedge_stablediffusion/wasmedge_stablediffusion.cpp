@@ -13,7 +13,18 @@
 using WasmEdge::Host::StableDiffusion::ErrNo;
 
 namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
+
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
+
+std::unique_ptr<WasmEdge::Host::SDModule> createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
       "../../../plugins/wasmedge_stablediffusion/" WASMEDGE_LIB_PREFIX
@@ -21,10 +32,10 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_stablediffusion"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_stablediffusion"sv)) {
-      return Module->create().release();
+      return dynamicPointerCast<WasmEdge::Host::SDModule>(Module->create());
     }
   }
-  return nullptr;
+  return {};
 }
 } // namespace
 
@@ -51,8 +62,8 @@ void writeFatPointer(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   // Create the stable diffusion module instance.
-  auto *SBMod = dynamic_cast<WasmEdge::Host::SDModule *>(createModule());
-  EXPECT_FALSE(SBMod == nullptr);
+  auto SBMod = createModule();
+  ASSERT_TRUE(SBMod);
   EXPECT_EQ(SBMod->getFuncExportNum(), 4U);
 
   // Create the calling frame with memory instance.
@@ -304,7 +315,6 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_GE(BytesWritten, 50);
     EXPECT_TRUE(std::filesystem::exists(OutputPathString2));
   }
-  delete SBMod;
 }
 
 GTEST_API_ int main(int argc, char **argv) {

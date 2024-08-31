@@ -13,7 +13,6 @@
 #include "runtime/callingframe.h"
 #include "state.h"
 #include <algorithm>
-#include <iostream>
 
 namespace WasmEdge {
 namespace Host {

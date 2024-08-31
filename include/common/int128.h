@@ -13,24 +13,18 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#if defined(_MSC_VER) && !defined(__clang__)
-#pragma intrinsic(_BitScanReverse64)
-#endif
-
-#include <ostream>
-
 // If there is a built-in type __int128, then use it directly
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64)
-
 namespace WasmEdge {
 using int128_t = __int128;
 using uint128_t = unsigned __int128;
-std::ostream &operator<<(std::ostream &OS, uint128_t Value);
 } // namespace WasmEdge
-
 #else
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma intrinsic(_BitScanReverse64)
+#endif
 // We have to detect for those environments who don't support __int128 type
 // natively.
 #include "endian.h"
@@ -376,7 +370,6 @@ inline constexpr int128_t &int128_t::operator=(uint128_t V) noexcept {
   return *this = int128_t(V);
 }
 
-std::ostream &operator<<(std::ostream &OS, uint128_t Value);
 } // namespace WasmEdge
 
 namespace std {
@@ -465,5 +458,46 @@ public:
   static constexpr WasmEdge::int128_t denorm_min() { return 0; }
 };
 } // namespace std
+
+#endif
+
+#include <type_traits>
+namespace std {
+template <> struct is_class<WasmEdge::uint128_t> : std::true_type {};
+} // namespace std
+
+#include <fmt/format.h>
+
+#if !FMT_USE_INT128
+
+FMT_BEGIN_NAMESPACE
+template <typename Char> struct formatter<WasmEdge::uint128_t, Char> {
+private:
+  detail::dynamic_format_specs<> Specs;
+
+public:
+  template <typename ParseContext> constexpr auto parse(ParseContext &Ctx) {
+    return parse_format_specs(Ctx.begin(), Ctx.end(), Specs, Ctx,
+                              detail::type::uint_type);
+  }
+
+  template <typename FormatContext>
+  auto format(WasmEdge::uint128_t V, FormatContext &Ctx) const {
+    auto S = Specs;
+    detail::handle_dynamic_spec<detail::width_checker>(S.width, S.width_ref,
+                                                       Ctx);
+    detail::handle_dynamic_spec<detail::precision_checker>(
+        S.precision, S.precision_ref, Ctx);
+    constexpr const unsigned Prefixes[4] = {0, 0, 0x1000000u | '+',
+                                            0x1000000u | ' '};
+    const detail::uint128_t U{static_cast<uint64_t>(V >> 64),
+                              static_cast<uint64_t>(V)};
+    return detail::write_int<Char>(
+        Ctx.out(),
+        detail::write_int_arg<detail::uint128_t>{U, Prefixes[S.sign]}, S,
+        Ctx.locale());
+  }
+};
+FMT_END_NAMESPACE
 
 #endif

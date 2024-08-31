@@ -16,30 +16,41 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <cinttypes>
 #include <ctime>
 #include <filesystem>
+#include <fmt/chrono.h>
+#include <fmt/format.h>
 #include <fstream>
 #include <gtest/gtest.h>
-#include <iomanip>
-#include <iostream>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <thread>
 #include <vector>
 namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
+
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
+
+std::unique_ptr<WasmEdge::Host::WasmBpfModule> createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(
       std::filesystem::u8path("../../../plugins/wasm_bpf/" WASMEDGE_LIB_PREFIX
                               "wasmedgePluginWasmBpf" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasm_bpf"sv)) {
     if (const auto *Module = Plugin->findModule("wasm_bpf"sv)) {
-      return Module->create().release();
+      return dynamicPointerCast<WasmEdge::Host::WasmBpfModule>(
+          Module->create());
     }
   }
-  return nullptr;
+  return {};
 }
 
 std::filesystem::path getAssertsPath() {
@@ -60,8 +71,8 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &memInst,
 } // namespace
 
 TEST(WasmBpfTest, Module) {
-  auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
-  EXPECT_NE(module, nullptr);
+  auto module = createModule();
+  ASSERT_TRUE(module);
   // Test whether functions are exported
   EXPECT_EQ(module->getFuncExportNum(), 6U);
   EXPECT_NE(module->findFuncExports("wasm_load_bpf_object"), nullptr);
@@ -70,8 +81,6 @@ TEST(WasmBpfTest, Module) {
   EXPECT_NE(module->findFuncExports("wasm_bpf_buffer_poll"), nullptr);
   EXPECT_NE(module->findFuncExports("wasm_bpf_map_fd_by_name"), nullptr);
   EXPECT_NE(module->findFuncExports("wasm_bpf_map_operate"), nullptr);
-
-  delete module;
 }
 
 static const size_t TASK_COMM_LEN = 16;
@@ -106,24 +115,18 @@ public:
     if (unlikely(!dataPtr)) {
       return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
     }
-    auto nowTime = chrono::system_clock::to_time_t(chrono::system_clock::now());
-    tm nowTimeRepr;
-    localtime_r(&nowTime, &nowTimeRepr);
+    auto nowTime = chrono::system_clock::now();
     if (dataPtr->exit_event == 1) {
-      cout.setf(ios::left);
-      cout << std::put_time(&nowTimeRepr, "%H:%M:%S") << " EXIT " << setw(16)
-           << setfill(' ') << dataPtr->comm << " " << setw(7) << setfill(' ')
-           << dataPtr->pid << " " << setw(7) << setfill(' ') << dataPtr->ppid
-           << " [" << dataPtr->exit_code << "]";
+      fmt::print("{:%H:%M:%S} EXIT {:<16} {:<7} {:<7} [{}]"sv, nowTime,
+                 dataPtr->comm, dataPtr->pid, dataPtr->ppid,
+                 dataPtr->exit_code);
       if (dataPtr->duration_ns != 0) {
-        cout << " (" << dataPtr->duration_ns / 1000000 << ")" << endl;
+        fmt::print(" ({})"sv, dataPtr->duration_ns / 1000000);
       }
+      fmt::print("\n"sv);
     } else {
-      cout.setf(ios::left);
-      cout << std::put_time(&nowTimeRepr, "%H:%M:%S") << " EXEC " << setw(16)
-           << setfill(' ') << dataPtr->comm << " " << setw(7) << setfill(' ')
-           << dataPtr->pid << " " << setw(7) << setfill(' ') << dataPtr->ppid
-           << " " << dataPtr->filename << endl;
+      fmt::print("{:%H:%M:%S} EXEC {:<16} {:<7} {:<7} {}\n"sv, nowTime,
+                 dataPtr->comm, dataPtr->pid, dataPtr->ppid, dataPtr->filename);
     }
     return 0;
   }
@@ -132,8 +135,8 @@ public:
 TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   using namespace std::literals::string_view_literals;
   // Test loading and attaching a bpf program, and polling buffer
-  auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
-  EXPECT_NE(module, nullptr);
+  auto module = createModule();
+  ASSERT_TRUE(module);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance moduleInst("");
@@ -346,8 +349,8 @@ struct hist {
 
 TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
   // Test loading and attaching a bpf program, and polling buffer
-  auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
-  EXPECT_NE(module, nullptr);
+  auto module = createModule();
+  ASSERT_TRUE(module);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance moduleInst("");
@@ -543,9 +546,7 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
       for (size_t i = 0; i < maxIdx; i++) {
         auto low = UINT64_C(1) << (i);
         auto high = (UINT64_C(1) << (i + 1)) - 1;
-        cout.setf(ios::left);
-        cout << setw(6) << low << "..." << setw(6) << high << " " << setw(6)
-             << histRef.slots[i] << endl;
+        fmt::print("{:<6}...{:<6} {:<6}\n"sv, low, high, histRef.slots[i]);
       }
       writeU32(lookUpKeyOffset, readU32(nextKeyOffset));
     }
@@ -554,7 +555,7 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
       EXPECT_GE(mapDeleteElem(histsFd, nextKeyOffset), 0);
       writeU32(lookUpKeyOffset, readU32(nextKeyOffset));
     }
-    cout << endl;
+    fmt::print("\n"sv);
   }
 
   // Get function `wasm_close_bpf_object`

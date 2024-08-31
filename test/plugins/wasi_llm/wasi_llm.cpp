@@ -12,23 +12,36 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <initializer_list>
+#include <memory>
 #include <string>
 #include <vector>
 
 using WasmEdge::Host::WASILLM::ErrNo;
 
 namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
+
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
+
+std::unique_ptr<WasmEdge::Host::WasiLLMModule> createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(
       std::filesystem::u8path("../../../plugins/wasi_llm/" WASMEDGE_LIB_PREFIX
                               "wasmedgePluginWasiLLM" WASMEDGE_LIB_EXTENSION));
   if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_llm"sv)) {
     if (const auto *Module = Plugin->findModule("wasi_llm"sv)) {
-      return Module->create().release();
+      return dynamicPointerCast<WasmEdge::Host::WasiLLMModule>(
+          Module->create());
     }
   }
-  return nullptr;
+  return {};
 }
 } // namespace
 
@@ -47,8 +60,8 @@ void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 TEST(WasiLLMTest, TrainGPT2) {
   // Create wasi_llm module instance.
-  auto *LLMMod = dynamic_cast<WasmEdge::Host::WasiLLMModule *>(createModule());
-  EXPECT_NE(LLMMod, nullptr);
+  auto LLMMod = createModule();
+  ASSERT_TRUE(LLMMod);
   EXPECT_EQ(LLMMod->getFuncExportNum(), 4U);
 
   // Create the calling frame with memory instance.
@@ -189,8 +202,6 @@ TEST(WasiLLMTest, TrainGPT2) {
             /*Epoch*/ 20},
         Errno));
   }
-
-  delete LLMMod;
 }
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -100,6 +100,10 @@ public:
     return Vec;
   }
 
+  Span<Frame> getAllFrames() {
+    return Span<Frame>(FrameStack.data(), FrameStack.size());
+  }
+
   /// Push a new frame entry to stack.
   void pushFrame(const Instance::ModuleInstance *Module,
                  AST::InstrView::iterator From, uint32_t LocalNum = 0,

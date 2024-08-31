@@ -18,9 +18,9 @@ class WasmEdgePluginTestEnv {
 public:
   WasmEdgePluginTestEnv() noexcept = default;
 
-  static PO::List<std::string> CmdArgs;
-  static PO::Option<std::string> CmdName;
-  static PO::Option<PO::Toggle> CmdOpt;
+  WASMEDGE_EXPORT static PO::List<std::string> CmdArgs;
+  WASMEDGE_EXPORT static PO::Option<std::string> CmdName;
+  WASMEDGE_EXPORT static PO::Option<PO::Toggle> CmdOpt;
 };
 
 template <typename T>

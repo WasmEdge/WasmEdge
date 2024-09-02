@@ -69,6 +69,7 @@ jobs:
           wasm_bpf: ${{ steps.filter.outputs.wasm_bpf }}
           wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
           wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}
+          wasmedge_llmc: ${{ steps.filter.outputs.wasmedge_llmc }}
           wasmedge_opencvmini: ${{ steps.filter.outputs.wasmedge_opencvmini }}
           wasmedge_process: ${{ steps.filter.outputs.wasmedge_process }}
           wasmedge_stablediffusion: ${{ steps.filter.outputs.wasmedge_stablediffusion }}

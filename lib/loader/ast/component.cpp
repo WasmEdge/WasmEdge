@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/errcode.h"
 #include "loader/loader.h"
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
@@ -149,18 +150,26 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp) {
       }
       break;
     }
-    case 0x04:
+    case 0x04: {
       Comp.getSections().emplace_back();
-      // TODO: check a component load and this size is matched.
-      // auto Size =
-      FMgr.readU32();
+      auto RSize = FMgr.readU32();
+      if (!RSize) {
+        return Unexpect(RSize);
+      }
+      auto OldOffset = FMgr.getLastOffset();
       if (auto Res = loadSection(
               Comp.getSections().back().emplace<ComponentSection>());
           !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(Res);
       }
+      auto NewOffset = FMgr.getLastOffset();
+      if (NewOffset - OldOffset != *RSize) {
+        return logLoadError(ErrCode::Value::ReadError, NewOffset,
+                            ASTNodeAttr::Component);
+      }
       break;
+    }
     case 0x05: {
       Comp.getSections().emplace_back();
       if (auto Res =

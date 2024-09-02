@@ -85,19 +85,19 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     for (size_t I = 0; I < Result->size(); ++I) {
       switch ((*Result)[I].second.getCode()) {
       case TypeCode::I32:
-        std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
+        fmt::print("{}\n"sv, (*Result)[I].first.get<uint32_t>());
         break;
       case TypeCode::I64:
-        std::cout << (*Result)[I].first.get<uint64_t>() << '\n';
+        fmt::print("{}\n"sv, (*Result)[I].first.get<uint64_t>());
         break;
       case TypeCode::F32:
-        std::cout << (*Result)[I].first.get<float>() << '\n';
+        fmt::print("{}\n"sv, (*Result)[I].first.get<float>());
         break;
       case TypeCode::F64:
-        std::cout << (*Result)[I].first.get<double>() << '\n';
+        fmt::print("{}\n"sv, (*Result)[I].first.get<double>());
         break;
       case TypeCode::V128:
-        std::cout << (*Result)[I].first.get<uint128_t>() << '\n';
+        fmt::print("{}\n"sv, (*Result)[I].first.get<uint128_t>());
         break;
       /// TODO: FuncRef and ExternRef
       default:
@@ -183,24 +183,24 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     for (size_t I = 0; I < Result->size(); ++I) {
       switch ((*Result)[I].second.getCode()) {
       case TypeCode::I32:
-        std::cout << std::get<ValVariant>((*Result)[I].first).get<uint32_t>()
-                  << '\n';
+        fmt::print("{}\n"sv,
+                   std::get<ValVariant>((*Result)[I].first).get<uint32_t>());
         break;
       case TypeCode::I64:
-        std::cout << std::get<ValVariant>((*Result)[I].first).get<uint64_t>()
-                  << '\n';
+        fmt::print("{}\n"sv,
+                   std::get<ValVariant>((*Result)[I].first).get<uint64_t>());
         break;
       case TypeCode::F32:
-        std::cout << std::get<ValVariant>((*Result)[I].first).get<float>()
-                  << '\n';
+        fmt::print("{}\n"sv,
+                   std::get<ValVariant>((*Result)[I].first).get<float>());
         break;
       case TypeCode::F64:
-        std::cout << std::get<ValVariant>((*Result)[I].first).get<double>()
-                  << '\n';
+        fmt::print("{}\n"sv,
+                   std::get<ValVariant>((*Result)[I].first).get<double>());
         break;
       case TypeCode::V128:
-        std::cout << std::get<ValVariant>((*Result)[I].first).get<uint128_t>()
-                  << '\n';
+        fmt::print("{}\n"sv,
+                   std::get<ValVariant>((*Result)[I].first).get<uint128_t>());
         break;
       /// TODO: FuncRef and ExternRef
       default:

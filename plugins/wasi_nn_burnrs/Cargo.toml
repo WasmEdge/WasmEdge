@@ -1,5 +1,5 @@
 [package]
-name = "wasi_nn_rust"
+name = "wasi_nn_burnrs"
 version = "0.0.1"
 edition = "2021"
 

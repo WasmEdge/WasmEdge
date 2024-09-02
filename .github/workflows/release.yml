@@ -135,8 +135,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_dir: build/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=NeuralSpeed -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper -DWASMEDGE_PLUGIN_WASI_NN_RUST_MODEL=squeezenet -DWASMEDGE_PLUGIN_WASI_NN_RUST_MODEL=whisper
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-neuralspeed wasi_nn-whisper wasi_nn-piper wasi_nn_rust-squeezenet wasi_nn_rust-whisper
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=NeuralSpeed -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper -DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=squeezenet -DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=whisper
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-neuralspeed wasi_nn-whisper wasi_nn-piper wasi_nn_burnrs-squeezenet wasi_nn_burnrs-whisper
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2024.2.0"
       OPENVINO_YEAR: "2024"
@@ -231,18 +231,18 @@ jobs:
         run: |
           mv plugin_wasi_nn-piper.tar.gz WasmEdge-plugin-wasi_nn-piper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-piper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
-      - name: Upload wasi_nn_rust-squeezenet plugin tar.gz package
+      - name: Upload wasi_nn_burnrs-squeezenet plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv plugin_wasi_nn_rust-squeezenet.tar.gz WasmEdge-plugin-wasi_nn_rust-squeezenet-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
-          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn_rust-squeezenet-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
-      - name: Upload wasi_nn_rust-whisper plugin tar.gz package
+          mv plugin_wasi_nn_burnrs-squeezenet.tar.gz WasmEdge-plugin-wasi_nn_burnrs-squeezenet-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn_burnrs-squeezenet-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+      - name: Upload wasi_nn_burnrs-whisper plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mv plugin_wasi_nn_rust-whisper.tar.gz WasmEdge-plugin-wasi_nn_rust-whisper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
-          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn_rust-whisper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+          mv plugin_wasi_nn_burnrs-whisper.tar.gz WasmEdge-plugin-wasi_nn_burnrs-whisper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn_burnrs-whisper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
 
   build_and_upload_plugin_ubuntu:
     name: Build and upload plugins on Ubuntu 20.04

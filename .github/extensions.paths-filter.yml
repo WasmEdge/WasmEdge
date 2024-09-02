@@ -29,6 +29,9 @@ wasmedge_ffmpeg:
 wasmedge_image:
   - 'plugins/wasmedge_image/**'
   - 'test/plugins/wasmedge_image/**'
+wasmedge_llmc:
+  - 'plugins/wasmedge_llmc/**'
+  - 'test/plugins/wasmedge_llmc/**'
 wasmedge_opencvmini:
   - 'plugins/wasmedge_opencvmini/**'
   - 'test/plugins/wasmedge_opencvmini/**'

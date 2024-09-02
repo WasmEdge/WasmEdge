@@ -84,8 +84,8 @@ if(WASMEDGE_PLUGIN_OPENCVMINI)
   endif()
 endif()
 
-if(WASMEDGE_PLUGIN_WASI_NN_RUST_MODEL)
-  add_subdirectory(wasi_nn_rust)
+if(WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL)
+  add_subdirectory(wasi_nn_burnrs)
 endif()
 
 if(WASMEDGE_PLUGIN_ZLIB)

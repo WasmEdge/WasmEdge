@@ -61,7 +61,7 @@ option(WASMEDGE_BUILD_TOOLS "Generate wasmedge and wasmedgec tools. Depend on an
 option(WASMEDGE_BUILD_FUZZING "Generate fuzzing test tools. Couldn't build with wasmedge tools and unit tests." OFF)
 option(WASMEDGE_BUILD_PLUGINS "Generate plugins." ON)
 option(WASMEDGE_BUILD_EXAMPLE "Generate examples." OFF)
-option(WASMEDGE_BUILD_WASI_NN_RPC "Generate Wasi-NN RPC." OFF)
+option(WASMEDGE_BUILD_WASI_NN_RPC "Generate WASI-NN RPC." OFF)
 option(WASMEDGE_USE_LLVM "Enable WasmEdge LLVM-based compilation runtime." ON)
 if(WASMEDGE_BUILD_AOT_RUNTIME)
   message(WARNING "WASMEDGE_BUILD_AOT_RUNTIME option was renamed to WASMEDGE_USE_LLVM.")
@@ -76,11 +76,12 @@ option(WASMEDGE_DISABLE_LIBTINFO "Disable linking against libtinfo when linking 
 
 # Options about plug-ins.
 #   WASI-NN backends.
-set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge Wasi-NN plugin with backends.")
+set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge WASI-NN plugin with backends.")
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE "Enable LLAMA_NATIVE(AVX/AVX2/FMA) in the WASI-NN GGML backend." ON)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS "Enable LLAMA_BLAS in the WASI-NN GGML backend." OFF)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS "Enable LLAMA_CUBLAS in the WASI-NN GGML backend." OFF)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-NN GGML backend. Available on MacOS arm64 only." ON)
+set(WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL "" CACHE STRING "Enable WasmEdge WASI-NN Burn.rs backend with model.")
 #   WASI plug-ins.
 option(WASMEDGE_PLUGIN_WASI_HTTP "Enable WasmEdge wasi-http plugin." OFF)
 option(WASMEDGE_PLUGIN_WASI_POLL "Enable WasmEdge wasi-poll plugin." OFF)
@@ -96,7 +97,6 @@ option(WASMEDGE_PLUGIN_IMAGE "Enable WasmEdge image plugin." OFF)
 option(WASMEDGE_PLUGIN_TENSORFLOW "Enable WasmEdge TensorFlow plugin." OFF)
 option(WASMEDGE_PLUGIN_TENSORFLOWLITE "Enable WasmEdge TensorFlow-Lite plugin." OFF)
 option(WASMEDGE_PLUGIN_ZLIB "Enable WasmEdge zlib plugin." OFF)
-set(WASMEDGE_PLUGIN_WASI_NN_RUST_MODEL "" CACHE STRING "Enable WasmEdge Wasi-NN Rust plugin with model.")
 option(WASMEDGE_PLUGIN_FFMPEG "Enable WasmEdge ffmpeg plugin." OFF)
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION "Enable WasmEdge stable-diffusion plugin." OFF)
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS "Enable CUBLAS in the stable-diffusion plugin." OFF)

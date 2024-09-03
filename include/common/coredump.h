@@ -19,7 +19,6 @@
 #include "common/types.h"
 #include "loader/serialize.h"
 #include "runtime/stackmgr.h"
-#include <cstdint>
 #include <iostream>
 #include <spdlog/spdlog.h>
 #include <string_view>
@@ -39,16 +38,29 @@ public:
     // process info collection
     auto Core = collectProcessInformation(CurrentInstance);
     auto CoreModules = collectCoreModules(StackMgr);
+    // auto CoreInstances = collectCoreInstances(StackMgr);
 
     // TODO
     //  final file generation
     AST::Module Mod{};
-    // TODO Find out why this gets cast to a span and not the writable vector.
+    std::vector<Byte> &Magic = Mod.getMagic();
+    Magic.insert(Magic.begin(), {0x00, 0x61, 0x73, 0x6d});
+
+    std::vector<Byte> &Version = Mod.getVersion();
+    Version.insert(Version.begin(), {0x01, 0x00, 0x00, 0x00});
+
     Mod.getCustomSections().emplace_back(Core);
     Mod.getCustomSections().emplace_back(CoreModules);
+    // Mod.getCustomSections().emplace_back(CoreInstances);
     auto Res = Ser.serializeModule(Mod);
-    std::string Str(Res->begin(), Res->end());
-    std::cout << "Look at this:" << Str;
+    std::ofstream File("coredump.wasm", std::ios::out | std::ios::binary);
+    if (File.is_open()) {
+      File.write(reinterpret_cast<const char *>(Res->data()), Res->size());
+      File.close();
+    } else {
+      // Handle error opening file
+      throw std::ios_base::failure("Failed");
+    }
   }
 
   AST::CustomSection collectProcessInformation(
@@ -81,28 +93,63 @@ public:
     CoreModules.setName("coremodules");
 
     auto Frames = StackMgr.getAllFrames();
-    std::set<std::string_view> Names;
+    std::unordered_set<const Runtime::Instance::ModuleInstance *> Names;
 
-    // get Names of all Modules present in the StackManager
+    // get Names of all Modules associated to the Frames in the StackManager
     for (const auto &Item : Frames) {
       if (Item.Module == nullptr)
         continue; // guard
-      Names.insert(Item.Module->getModuleName());
+      Names.insert(Item.Module);
     }
 
-    // TODO cast data from set Names to uint8_t data
-    // Is there a better way to do this?
-
-    // auto &Content = CoreModules.getContent();
-    // Content.insert(Content.begin(), Data.begin(), Data.end());
-
-    // std::vector<uint8_t> OutVec;
-    // const auto &Sec = CoreModules;
-
-    // Ser.serializeSection(Sec, OutVec);
+    // TODO Is there a better way to do this?
+    auto &Content = CoreModules.getContent();
+    for (const auto &ModulePtr : Names) {
+      const Byte *Bytes = reinterpret_cast<const Byte *>(&ModulePtr);
+      Content.insert(Content.end(), Bytes, Bytes + sizeof(ModulePtr));
+    }
 
     return CoreModules;
   }
+
+  // // TODO coreinstances section
+  // AST::CustomSection collectCoreInstances(Runtime::StackManager &StackMgr) {
+  //   spdlog::info("Constructing CoreInstances");
+  //
+  //   AST::CustomSection CoreInstances;
+  //   CoreInstances.setName("coreinstances");
+  //   auto Frames = StackMgr.getAllFrames();
+  //
+  //   struct CoreInstance {
+  //     uint8_t Moduleidx;
+  //     std::vector<uint8_t> Memories;
+  //     std::vector<uint8_t> Globals;
+  //   };
+  //
+  //   Frames.size();
+  //   // for(const auto &Items : Frames) {
+  //   //   CoreInstance X;
+  //   //
+  //   // }
+  //
+  //   return CoreInstances;
+  // }
+
+  // AST::CustomSection collectCoreStack(Runtime::StackManager &StackMgr) {
+  //   spdlog::info("Constructing CoreStack");
+  //
+  //   AST::CustomSection CoreStack;
+  //   CoreStack.setName("corestack");
+  //
+  //   auto Frames = StackMgr.getAllFrames();
+  //   std::vector<Runtime::Instance::ModuleInstance> Modules;
+  //
+  //   for (auto Item : Frames) {
+  //     Modules.emplace_back(Item.Module);
+  //   }
+  //
+  //   return CoreStack;
+  // }
 };
 
 } // namespace Coredump

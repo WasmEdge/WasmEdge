@@ -30,6 +30,7 @@
 
 #include <atomic>
 #include <functional>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -522,6 +523,12 @@ protected:
     // Link to store when registration.
     std::unique_lock Lock(Mutex);
     LinkedStore.insert_or_assign(Store, Callback);
+  }
+
+  std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>
+  getStore(ModuleInstance *Mod) {
+    std::unique_lock Lock(Mutex);
+    return Mod->LinkedStore;
   }
 
   void unlinkStore(StoreManager *Store) {

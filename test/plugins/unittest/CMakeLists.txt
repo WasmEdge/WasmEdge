@@ -69,7 +69,6 @@ target_include_directories(wasmedgePluginUnittestsCPP
 
 target_link_libraries(wasmedgePluginUnittestsCPP
   PRIVATE
-  wasmedgePluginTestModuleCPP
   ${GTEST_BOTH_LIBRARIES}
 )
 

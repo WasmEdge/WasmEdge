@@ -11,15 +11,15 @@ namespace Host {
 
 using namespace std::literals::string_view_literals;
 
-WASMEDGE_EXPORT PO::List<std::string>
+PO::List<std::string>
     WasmEdgePluginTestEnv::CmdArgs(PO::Description("Test for args."sv),
                                    PO::MetaVar("ARG"sv));
 
-WASMEDGE_EXPORT PO::Option<std::string>
+PO::Option<std::string>
     WasmEdgePluginTestEnv::CmdName(PO::Description("Test for input name."sv),
                                    PO::DefaultValue(std::string("")));
 
-WASMEDGE_EXPORT PO::Option<PO::Toggle>
+PO::Option<PO::Toggle>
     WasmEdgePluginTestEnv::CmdOpt(PO::Description("Test for option."sv));
 
 namespace {

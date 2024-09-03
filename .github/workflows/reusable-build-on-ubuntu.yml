@@ -56,7 +56,7 @@ jobs:
         run: |
           git config --global --add safe.directory $(pwd)
       - name: Build (${{ matrix.compiler }}, ${{ matrix.build_type }})
-        if: ${{ ! matrix.coverage }}
+        if: ${{ !matrix.coverage }}
         shell: bash
         env:
           CMAKE_BUILD_TYPE: ${{ matrix.build_type }}
@@ -69,7 +69,7 @@ jobs:
           cmake --build build
           cmake --build build --target package
       - name: Test
-        if: ${{ !matrix.coverage && env.BUILD_TESTS }}
+        if: ${{ !matrix.coverage && matrix.tests }}
         run: |
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build

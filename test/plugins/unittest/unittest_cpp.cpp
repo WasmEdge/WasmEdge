@@ -2,10 +2,9 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "plugin/plugin.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
-
-#include "testplugin.h"
 
 #include <algorithm>
 #include <array>
@@ -16,16 +15,6 @@
 #include <vector>
 
 namespace {
-
-template <typename T, typename U>
-inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
-  static_assert(std::has_virtual_destructor_v<T>);
-  T *P = dynamic_cast<T *>(R.get());
-  if (P) {
-    R.release();
-  }
-  return std::unique_ptr<T>(P);
-}
 
 std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleC() {
   using namespace std::literals::string_view_literals;
@@ -42,7 +31,7 @@ std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleC() {
   return {};
 }
 
-std::unique_ptr<WasmEdge::Host::WasmEdgePluginTestModule> createModuleCPP() {
+std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleCPP() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
       "./" WASMEDGE_LIB_PREFIX
@@ -57,8 +46,7 @@ std::unique_ptr<WasmEdge::Host::WasmEdgePluginTestModule> createModuleCPP() {
     Parser.set_raw_value("opt"sv);
     if (const auto *Module =
             Plugin->findModule("wasmedge_plugintest_cpp_module"sv)) {
-      return dynamicPointerCast<WasmEdge::Host::WasmEdgePluginTestModule>(
-          Module->create());
+      return Module->create();
     }
   }
   return {};
@@ -78,9 +66,7 @@ TEST(wasmedgePluginTests, CPP_Run) {
   auto *FuncInst1 = TestModCPP->findFuncExports("arg_len");
   EXPECT_NE(FuncInst1, nullptr);
   EXPECT_TRUE(FuncInst1->isHostFunction());
-  auto &HostFuncInst1 =
-      dynamic_cast<WasmEdge::Host::WasmEdgePluginTestFuncArgLen &>(
-          FuncInst1->getHostFunc());
+  auto &HostFuncInst1 = FuncInst1->getHostFunc();
 
   // Test: Run function successfully.
   EXPECT_TRUE(HostFuncInst1.run(CallFrame, {}, RetVal));
@@ -90,9 +76,7 @@ TEST(wasmedgePluginTests, CPP_Run) {
   auto *FuncInst2 = TestModCPP->findFuncExports("name_size");
   EXPECT_NE(FuncInst2, nullptr);
   EXPECT_TRUE(FuncInst2->isHostFunction());
-  auto &HostFuncInst2 =
-      dynamic_cast<WasmEdge::Host::WasmEdgePluginTestFuncNameSize &>(
-          FuncInst2->getHostFunc());
+  auto &HostFuncInst2 = FuncInst2->getHostFunc();
 
   // Test: Run function successfully.
   EXPECT_TRUE(HostFuncInst2.run(CallFrame, {}, RetVal));
@@ -102,9 +86,7 @@ TEST(wasmedgePluginTests, CPP_Run) {
   auto *FuncInst3 = TestModCPP->findFuncExports("opt");
   EXPECT_NE(FuncInst3, nullptr);
   EXPECT_TRUE(FuncInst3->isHostFunction());
-  auto &HostFuncInst3 =
-      dynamic_cast<WasmEdge::Host::WasmEdgePluginTestFuncOpt &>(
-          FuncInst3->getHostFunc());
+  auto &HostFuncInst3 = FuncInst3->getHostFunc();
 
   // Test: Run function successfully.
   EXPECT_TRUE(HostFuncInst3.run(CallFrame, {}, RetVal));

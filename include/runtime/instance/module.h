@@ -94,6 +94,13 @@ public:
     return ModName;
   }
 
+  void getStore() const {
+    std::unique_lock Lock(Mutex);
+    std::cout << LinkedStore.size();
+    for (auto &Item : LinkedStore) {
+      std::cout << "Store: " << &Item.first << "\n";
+    }
+  }
   void *getHostData() const noexcept { return HostData; }
 
   /// Add exist instances and move ownership with exporting name.
@@ -523,12 +530,6 @@ protected:
     // Link to store when registration.
     std::unique_lock Lock(Mutex);
     LinkedStore.insert_or_assign(Store, Callback);
-  }
-
-  std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>
-  getStore(ModuleInstance *Mod) {
-    std::unique_lock Lock(Mutex);
-    return Mod->LinkedStore;
   }
 
   void unlinkStore(StoreManager *Store) {

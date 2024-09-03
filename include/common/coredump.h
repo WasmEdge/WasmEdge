@@ -33,14 +33,16 @@ public:
   void generateCoredump(Runtime::StackManager &StackMgr) {
     const Configure Conf;
     Loader::Serializer Ser(Conf);
-    auto *CurrentInstance = StackMgr.getModule();
+    const auto *CurrentInstance = StackMgr.getModule();
+
+    // CurrentInstance->getLinkedStore();
+    CurrentInstance->getStore();
 
     // process info collection
     auto Core = collectProcessInformation(CurrentInstance);
     auto CoreModules = collectCoreModules(StackMgr);
     // auto CoreInstances = collectCoreInstances(StackMgr);
 
-    // TODO
     //  final file generation
     AST::Module Mod{};
     std::vector<Byte> &Magic = Mod.getMagic();
@@ -77,7 +79,11 @@ public:
                                Name.size());
 
     auto &Content = Core.getContent();
-    Content.insert(Content.end(), Data.begin(), Data.end());
+    if (Data.size() != 0) { // case where the module has an empty name field
+      Content.insert(Content.end(), Data.begin(), Data.end());
+    } else {
+      Content.insert(Content.begin(), {0x00, 0x00});
+    }
 
     return Core;
   }
@@ -93,16 +99,16 @@ public:
     CoreModules.setName("coremodules");
 
     auto Frames = StackMgr.getAllFrames();
-    std::unordered_set<const Runtime::Instance::ModuleInstance *> Names;
+    std::set<const Runtime::Instance::ModuleInstance *> Names;
 
-    // get Names of all Modules associated to the Frames in the StackManager
+    // get address of all Modules associated to the Frames in the StackManager
     for (const auto &Item : Frames) {
-      if (Item.Module == nullptr)
+      if (Item.Module == nullptr) {
         continue; // guard
+      }
       Names.insert(Item.Module);
     }
 
-    // TODO Is there a better way to do this?
     auto &Content = CoreModules.getContent();
     for (const auto &ModulePtr : Names) {
       const Byte *Bytes = reinterpret_cast<const Byte *>(&ModulePtr);
@@ -112,6 +118,17 @@ public:
     return CoreModules;
   }
 
+  AST::CustomSection collectMemorySection(Runtime::StackManager &StackMgr) {
+    spdlog::info("Collecting Memories");
+
+    AST::CustomSection Memsec;
+    Memsec.setName("memory");
+
+    auto CurrentInstance = StackMgr.getModule();
+    CurrentInstance->getModuleName();
+
+    return Memsec;
+  }
   // // TODO coreinstances section
   // AST::CustomSection collectCoreInstances(Runtime::StackManager &StackMgr) {
   //   spdlog::info("Constructing CoreInstances");

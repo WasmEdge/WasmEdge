@@ -68,7 +68,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3613
+      GIT_TAG        b3651
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)

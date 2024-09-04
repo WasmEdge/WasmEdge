@@ -10,14 +10,26 @@
 #include <array>
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
 namespace {
+
 WasmEdge::Runtime::CallingFrame DummyCallFrame(nullptr, nullptr);
 
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
+
+std::unique_ptr<WasmEdge::Host::WasmEdgeProcessModule> createModule() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
       "../../../plugins/wasmedge_process/" WASMEDGE_LIB_PREFIX
@@ -25,10 +37,11 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_process"sv)) {
     if (const auto *Module = Plugin->findModule("wasmedge_process"sv)) {
-      return Module->create().release();
+      return dynamicPointerCast<WasmEdge::Host::WasmEdgeProcessModule>(
+          Module->create());
     }
   }
-  return nullptr;
+  return {};
 }
 
 void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
@@ -47,9 +60,8 @@ using namespace std::literals::string_view_literals;
 
 TEST(WasmEdgeProcessTest, SetProgName) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -86,15 +98,12 @@ TEST(WasmEdgeProcessTest, SetProgName) {
       DummyCallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, AddArg) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -151,15 +160,12 @@ TEST(WasmEdgeProcessTest, AddArg) {
       DummyCallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, AddEnv) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -213,15 +219,12 @@ TEST(WasmEdgeProcessTest, AddEnv) {
                        std::initializer_list<WasmEdge::ValVariant>{
                            UINT32_C(0), UINT32_C(4), UINT32_C(4), UINT32_C(6)},
                        {}));
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, AddStdIn) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -272,15 +275,12 @@ TEST(WasmEdgeProcessTest, AddStdIn) {
       DummyCallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       {}));
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, SetTimeOut) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Get the function "wasmedge_process_set_timeout".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_set_timeout");
@@ -295,15 +295,12 @@ TEST(WasmEdgeProcessTest, SetTimeOut) {
       DummyCallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(100)}, {}));
   EXPECT_EQ(ProcMod->getEnv().TimeOut, 100U);
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, Run) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -377,15 +374,12 @@ TEST(WasmEdgeProcessTest, Run) {
   std::string OutStr = "123456 test\n";
   EXPECT_TRUE(std::equal(ProcMod->getEnv().StdOut.begin(),
                          ProcMod->getEnv().StdOut.end(), OutStr.begin()));
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, GetExitCode) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Get the function "wasmedge_process_get_exit_code".
   auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_get_exit_code");
@@ -399,15 +393,12 @@ TEST(WasmEdgeProcessTest, GetExitCode) {
   std::array<WasmEdge::ValVariant, 1> RetVal;
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), 0);
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, GetStdOut) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -469,15 +460,12 @@ TEST(WasmEdgeProcessTest, GetStdOut) {
   EXPECT_TRUE(std::equal(ProcMod->getEnv().StdOut.begin(),
                          ProcMod->getEnv().StdOut.end(),
                          MemInst.getPointer<uint8_t *>(0)));
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, GetStdErr) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  ASSERT_TRUE(ProcMod != nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -538,15 +526,13 @@ TEST(WasmEdgeProcessTest, GetStdErr) {
   EXPECT_TRUE(std::equal(ProcMod->getEnv().StdOut.begin(),
                          ProcMod->getEnv().StdOut.end(),
                          MemInst.getPointer<uint8_t *>(0)));
-
-  delete ProcMod;
 }
 
 TEST(WasmEdgeProcessTest, Module) {
   // Create the wasmedge_process module instance.
-  auto *ProcMod =
-      dynamic_cast<WasmEdge::Host::WasmEdgeProcessModule *>(createModule());
-  EXPECT_FALSE(ProcMod == nullptr);
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
+
   EXPECT_EQ(ProcMod->getEnv().ExitCode, 0U);
   EXPECT_EQ(ProcMod->getFuncExportNum(), 11U);
   EXPECT_NE(ProcMod->findFuncExports("wasmedge_process_set_prog_name"),
@@ -564,7 +550,6 @@ TEST(WasmEdgeProcessTest, Module) {
   EXPECT_NE(ProcMod->findFuncExports("wasmedge_process_get_stderr_len"),
             nullptr);
   EXPECT_NE(ProcMod->findFuncExports("wasmedge_process_get_stderr"), nullptr);
-  delete ProcMod;
 }
 
 GTEST_API_ int main(int argc, char **argv) {

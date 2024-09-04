@@ -349,6 +349,8 @@ function(wasmedge_setup_spdlog)
       GIT_REPOSITORY https://github.com/fmtlib/fmt.git
       GIT_TAG        11.0.2
       GIT_SHALLOW    TRUE
+      PATCH_COMMAND "${GIT_CMD}" checkout 11.0.2 .
+      COMMAND       "${GIT_CMD}" "apply" "--whitespace=fix" "${CMAKE_SOURCE_DIR}/cmake/0001-support-arithmetic-operations-in-uint128_fallback.patch"
     )
     set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
     FetchContent_MakeAvailable(fmt)

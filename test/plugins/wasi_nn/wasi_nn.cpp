@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <fstream>
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -28,7 +29,18 @@ using WasmEdge::Host::WASINN::ErrNo;
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER) ||                        \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
 namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *
+
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
+
+std::unique_ptr<WasmEdge::Host::WasiNNModule>
 createModule(std::string_view NNRPCURI = "") {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(
@@ -41,10 +53,10 @@ createModule(std::string_view NNRPCURI = "") {
       Parser.set_raw_value<std::string>("nn-rpc-uri"sv, std::string(NNRPCURI));
     }
     if (const auto *Module = Plugin->findModule("wasi_nn"sv)) {
-      return Module->create().release();
+      return dynamicPointerCast<WasmEdge::Host::WasiNNModule>(Module->create());
     }
   }
-  return nullptr;
+  return {};
 }
 
 #if !defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
@@ -104,8 +116,8 @@ std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 TEST(WasiNNTest, OpenVINOBackend) {
   // Create the wasi_nn module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  ASSERT_TRUE(NNMod != nullptr);
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -521,16 +533,14 @@ TEST(WasiNNTest, OpenVINOBackend) {
       EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
     }
   }
-
-  delete NNMod;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 TEST(WasiNNTest, PyTorchBackend) {
   // Create the wasi_nn module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  EXPECT_FALSE(NNMod == nullptr);
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -895,16 +905,14 @@ TEST(WasiNNTest, PyTorchBackend) {
       EXPECT_EQ(SortedIndex[I], CorrectClasses[I]);
     }
   }
-
-  delete NNMod;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 TEST(WasiNNTest, TFLiteBackend) {
   // Create the wasi_nn module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  EXPECT_FALSE(NNMod == nullptr);
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -1262,16 +1270,14 @@ TEST(WasiNNTest, TFLiteBackend) {
                 OutputClassification[CorrectClasses[I]]);
     }
   }
-
-  delete NNMod;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 TEST(WasiNNTest, GGMLBackend) {
   // Create the wasi_nn module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  EXPECT_FALSE(NNMod == nullptr);
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -1551,9 +1557,8 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
   }
 
   // Create the wasi_nn module instance.
-  auto *NNMod =
-      dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule(NNRPCURI));
-  EXPECT_FALSE(NNMod == nullptr);
+  auto NNMod = createModule(NNRPCURI);
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -1765,8 +1770,6 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 50);
   }
-
-  delete NNMod;
 }
 
 TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
@@ -1787,9 +1790,8 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
   }
 
   // Create the wasmedge_process module instance.
-  auto *NNMod =
-      dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule(NNRPCURI));
-  EXPECT_FALSE(NNMod == nullptr);
+  auto NNMod = createModule(NNRPCURI);
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -1982,8 +1984,8 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 TEST(WasiNNTest, NeuralSpeedBackend) {
   // Create the wasi_nn module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  ASSERT_TRUE(NNMod != nullptr);
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -2240,16 +2242,14 @@ TEST(WasiNNTest, NeuralSpeedBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
-
-  delete NNMod;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 TEST(WasiNNTest, WhisperBackend) {
   // Create the wasi_nn module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  ASSERT_TRUE(NNMod != nullptr);
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -2473,16 +2473,14 @@ TEST(WasiNNTest, WhisperBackend) {
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 50);
   }
-
-  delete NNMod;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 TEST(WasiNNTest, PiperBackend) {
   // Create the wasmedge_process module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  ASSERT_TRUE(NNMod != nullptr);
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -2727,8 +2725,8 @@ TEST(WasiNNTest, PiperBackend) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
 TEST(WasiNNTest, ChatTTSBackend) {
   // Create the wasmedge_process module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
-  ASSERT_TRUE(NNMod != nullptr);
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");

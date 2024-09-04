@@ -25,12 +25,13 @@
 
 ## WasmEdge Reviewers
 
-| Reviewers       | GitHub ID     | Organization                                  | Email                         |
-| --------------- | ---------     | -----------                                   | -----------                   |
-| 叶坚白          | @gusye1234    | University of Science and Technology of China | <jianbaiye@outlook.com>       |
-| Tricster        | @MediosZ      | Southeast University                          | <mediosrity@gmail.com>        |
-| Wenshuo Yang    | @sonder-joker | Bytedance                                     | <highmagic@outlook.com>       |
-| Amun            | @hangedfish   | Giant Network Group Co., Ltd.                 | <bravohangedman@outlook.com>  |
-| yb              | @yanghaku     | Nanjing University                            | <bo.yang@smail.nju.edu.cn>    |
-| WenYuan Huang   | @michael1017  | Purdue University                             | <huan2086@purdue.edu>         |
-| 王纪开          | @am009        | Huazhong University of Science and Technology | <warrenwjk@qq.com>            |
+| Reviewers       | GitHub ID     | Organization                                  | Email                        |
+| --------------- | ---------     | -----------                                   | -----------                  |
+| 叶坚白          | @gusye1234    | University of Science and Technology of China | <jianbaiye@outlook.com>      |
+| Tricster        | @MediosZ      | Southeast University                          | <mediosrity@gmail.com>       |
+| Wenshuo Yang    | @sonder-joker | Bytedance                                     | <highmagic@outlook.com>      |
+| Amun            | @hangedfish   | Giant Network Group Co., Ltd.                 | <bravohangedman@outlook.com> |
+| yb              | @yanghaku     | Nanjing University                            | <bo.yang@smail.nju.edu.cn>   |
+| WenYuan Huang   | @michael1017  | Purdue University                             | <huan2086@purdue.edu>        |
+| 王纪开          | @am009        | Huazhong University of Science and Technology | <warrenwjk@qq.com>           |
+| Shao-Yu Yu      | @PeterD1524   | National Taiwan University                    | <qaz246135@gmail.com>        |

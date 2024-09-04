@@ -4,6 +4,7 @@
 #pragma once
 
 #include "plugin/plugin.h"
+
 #include <cstdint>
 #include <functional>
 #include <vector>
@@ -16,9 +17,15 @@ struct DataLoader;
 
 namespace WasmEdge {
 namespace Host {
-namespace WASILLM {
+namespace WasmEdgeLLM {
 
-class WASILLMEnv {
+enum class ErrNo : uint32_t {
+  Success = 0,
+  InvalidArgument = 1,
+  MissingMemory = 2,
+};
+
+class LLMEnv {
   std::vector<GPT2 *> Models;
   std::vector<Tokenizer *> Tokenizers;
   std::vector<DataLoader *> DataLoaders;
@@ -42,8 +49,9 @@ public:
 
   size_t getDataLoaderSize() const noexcept { return DataLoaders.size(); }
 
-  ~WASILLMEnv();
+  ~LLMEnv();
 };
-} // namespace WASILLM
+
+} // namespace WasmEdgeLLM
 } // namespace Host
 } // namespace WasmEdge

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+# CMake build configs.
 set(WASMEDGE_INTERPROCEDURAL_OPTIMIZATION OFF)
 if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
   if(NOT WASMEDGE_FORCE_DISABLE_LTO)
@@ -16,6 +17,7 @@ if(CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo
   endif()
 endif()
 
+# WasmEdge C flags.
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   list(APPEND WASMEDGE_CFLAGS
     /utf-8
@@ -136,6 +138,7 @@ if(WIN32)
   endif()
 endif()
 
+# Helper for setup WasmEdge target.
 function(wasmedge_setup_target target)
   set_target_properties(${target} PROPERTIES
     CXX_STANDARD 17
@@ -180,6 +183,7 @@ function(wasmedge_setup_target target)
   endif()
 endfunction()
 
+# Helper for adding WasmEdge library target.
 function(wasmedge_add_library target)
   add_library(${target} ${ARGN})
   wasmedge_setup_target(${target})
@@ -192,6 +196,7 @@ function(wasmedge_add_library target)
   endif()
 endfunction()
 
+# Helper for adding WasmEdge executable target.
 function(wasmedge_add_executable target)
   add_executable(${target} ${ARGN})
   wasmedge_setup_target(${target})
@@ -203,6 +208,41 @@ function(wasmedge_add_executable target)
   elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
     set_target_properties(${target} PROPERTIES
       INSTALL_RPATH "@executable_path/${rel}"
+    )
+  endif()
+endfunction()
+
+# Helper for adding WasmEdge plugin target.
+function(wasmedge_add_plugin target)
+  cmake_parse_arguments(PARSE_ARGV 1 WASMEDGE_PLUGIN_CMAKE_${target} "" "BUNDLE" "SOURCES")
+  if(${WASMEDGE_PLUGIN_CMAKE_${target}_BUNDLE})
+    add_library(${target} ${WASMEDGE_PLUGIN_CMAKE_${target}_SOURCES})
+  else()
+    add_library(${target} SHARED ${WASMEDGE_PLUGIN_CMAKE_${target}_SOURCES})
+  endif()
+  wasmedge_setup_target(${target})
+  target_compile_options(${target}
+    PUBLIC
+    -DWASMEDGE_PLUGIN
+  )
+  target_include_directories(${target}
+    PUBLIC
+    $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+  )
+  if(WASMEDGE_BUILD_SHARED_LIB)
+    target_link_libraries(${target}
+      PRIVATE
+      wasmedge_shared
+    )
+  else()
+    target_link_libraries(${target}
+      PRIVATE
+      wasmedgeCAPI
+    )
+  endif()
+  if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+    set_target_properties(${target} PROPERTIES
+      INSTALL_RPATH "$ORIGIN"
     )
   endif()
 endfunction()
@@ -291,6 +331,7 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   endif()
 endif()
 
+# Helper for setup simdjson dependency.
 function(wasmedge_setup_simdjson)
   # setup simdjson
   find_package(simdjson QUIET)
@@ -298,7 +339,6 @@ function(wasmedge_setup_simdjson)
     message(STATUS "SIMDJSON found")
   else()
     message(STATUS "Downloading SIMDJSON source")
-    include(FetchContent)
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
@@ -340,6 +380,7 @@ function(wasmedge_setup_simdjson)
   endif()
 endfunction()
 
+# Helper for setup spdlog dependency.
 function(wasmedge_setup_spdlog)
   find_package(spdlog QUIET)
   if(spdlog_FOUND)

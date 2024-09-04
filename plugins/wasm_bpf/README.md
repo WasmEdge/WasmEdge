@@ -3,6 +3,7 @@
 This plugin added six host functions that give you Wasm application access to eBPF.
 
 Six functions are listed here. And all of them are in the module `wasm_bpf`, if you loaded this plugin.
+
 ```c
 /// lookup a bpf map fd by name.
 i32 wasm_bpf_map_fd_by_name(u64 obj, u32 name);
@@ -30,7 +31,7 @@ i32 wasm_bpf_map_operate(u64 fd, i32 cmd, u32 key, u32 value,
 
 ### Install dependencies
 
-See the https://wasmedge.org/book/en/contribute/build_from_src/linux.html for how to build `WasmEdge` from source.
+See the <https://wasmedge.org/book/en/contribute/build_from_src/linux.html> for how to build `WasmEdge` from source.
 
 #### libbpf
 
@@ -44,7 +45,7 @@ Run the following commands at the root of the `WasmEdge` project:
 
 - Note: It's important to set `WASMEDGE_PLUGIN_WASM_BPF` to `TRUE` in the command line. This toggle controls the build of `wasm_bpf` plugin.
 
-```
+```bash
 cmake -DWASMEDGE_PLUGIN_WASM_BPF:BOOL=TRUE -B ./build -G "Unix Makefiles"
 cmake --build ./build
 ```

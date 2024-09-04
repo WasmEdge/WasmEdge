@@ -88,7 +88,6 @@ endif()
 # Try FetchContent
 if(NOT ${LIBBPF_FOUND})
   message(STATUS "Try to get libbpf through FetchContent")
-  include(FetchContent)
   FetchContent_Declare(
     libbpf
     GIT_REPOSITORY https://github.com/libbpf/libbpf
@@ -131,8 +130,9 @@ message(STATUS "LIBBPF_SOURCE=${LIBBPF_SOURCE}")
 message(STATUS "LIBBPF_DEP_LIBRARIES=${LIBBPF_DEP_LIBRARIES}")
 message(STATUS "LIBBPF_DEP_LIBRARIES_STATIC=${LIBBPF_DEP_LIBRARIES_STATIC}")
 
-wasmedge_add_library(wasmedgePluginWasmBpf
-  SHARED
+wasmedge_add_plugin(wasmedgePluginWasmBpf
+  BUNDLE ${WASMEDGE_BUNDLE_PLUGIN_WASM_BPF}
+  SOURCES
   wasm-bpf-module.cpp
   func-load-bpf-object.cpp
   func-close-bpf-object.cpp
@@ -157,7 +157,6 @@ endif()
 
 target_include_directories(wasmedgePluginWasmBpf PUBLIC ${LIBBPF_INCLUDE_DIRS})
 
-
 set_target_properties(wasmedgePluginWasmBpf PROPERTIES
   CXX_STANDARD 17
   # Allow tests accessing plugin class functions
@@ -171,25 +170,17 @@ target_link_libraries(wasmedgePluginWasmBpf
 
 target_compile_options(wasmedgePluginWasmBpf
   PUBLIC
-  -DWASMEDGE_PLUGIN
   -fPIC
 )
 
 target_include_directories(wasmedgePluginWasmBpf
   PUBLIC
-  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${LIBBPF_INCLUDE_DIRS}
 )
 
-if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasmedgePluginWasmBpf
-    PRIVATE
-    wasmedgeCAPI
-  )
-else()
-  target_link_libraries(wasmedgePluginWasmBpf
-    PRIVATE
-    wasmedge_shared
-  )
-endif()
+install(
+  TARGETS wasmedgePluginWasmBpf
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
+)

@@ -1,4 +1,5 @@
-include(FetchContent)
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 # Download wasm-bpf, copy & compile two bpf programs from that
 FetchContent_Declare(

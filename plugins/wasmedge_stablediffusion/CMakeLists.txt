@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-
 if(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS)
   message(STATUS "Stable diffusion plugin: Enable SD_CUBLAS")
   set(SD_CUBLAS ON CACHE BOOL "Stable diffusion plugin: Enable SD_CUBLAS")
@@ -42,36 +41,23 @@ foreach(dep ${SD_DEPS})
   endif()
 endforeach()
 
-wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusion
-  SHARED
+wasmedge_add_plugin(wasmedgePluginWasmEdgeStableDiffusion
+  BUNDLE ${WASMEDGE_BUNDLE_PLUGIN_STABLEDIFFUSION}
+  SOURCES
   sd_env.cpp
   sd_func.cpp
   sd_module.cpp
 )
 
-target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion PRIVATE stable-diffusion ${CMAKE_THREAD_LIBS_INIT})
-
-target_compile_options(wasmedgePluginWasmEdgeStableDiffusion
-  PUBLIC
-  -DWASMEDGE_PLUGIN
-)
-
-if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion
-    PRIVATE
-    wasmedgeCAPI
-  )
-else()
-  target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion
-    PRIVATE
-    wasmedge_shared
-  )
-endif()
-
 target_include_directories(wasmedgePluginWasmEdgeStableDiffusion
   PUBLIC
-  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion
+  PRIVATE
+  stable-diffusion
+  ${CMAKE_THREAD_LIBS_INIT}
 )
 
 if (MSVC)

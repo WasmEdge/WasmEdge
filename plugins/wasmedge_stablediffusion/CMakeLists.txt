@@ -49,7 +49,11 @@ wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusion
   sd_module.cpp
 )
 
-target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion PRIVATE stable-diffusion ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion
+  PRIVATE
+  stable-diffusion
+  ${CMAKE_THREAD_LIBS_INIT}
+)
 
 target_compile_options(wasmedgePluginWasmEdgeStableDiffusion
   PUBLIC
@@ -73,9 +77,13 @@ target_include_directories(wasmedgePluginWasmEdgeStableDiffusion
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_include_directories( wasmedgePluginWasmEdgeStableDiffusion SYSTEM PRIVATE
-  "${CMAKE_BINARY_DIR}/_deps/stable-diffusion-src/thirdparty"
+
+target_include_directories(wasmedgePluginWasmEdgeStableDiffusion
+  SYSTEM
+  PRIVATE
+  "${stable-diffusion_SOURCE_DIR}/thirdparty"
 )
+
 if (MSVC)
   target_compile_options(
     stable-diffusion

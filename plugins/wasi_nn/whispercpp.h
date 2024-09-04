@@ -22,10 +22,13 @@ namespace WasmEdge::Host::WASINN::Whisper {
 struct Graph {
   whisper_context *WhisperCtx = nullptr;
   std::string ModelFilePath;
-  std::string ModelLanguage;
   // Whisper parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
+  bool Translate = false;
+  bool DetectLanguage = false;
+  std::string SpokenLanguage;
+  std::string InitialPrompt;
   // Context parameters:
   bool UseGPU = true;
   int64_t MainGPU = 0; // Use GPU 0 by default

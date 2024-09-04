@@ -6,6 +6,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 #define DR_WAV_IMPLEMENTATION
+#include "simdjson.h"
 #include <examples/dr_wav.h>
 
 #include <algorithm>
@@ -137,6 +138,87 @@ void WhisperOutputSegmentCallback(struct whisper_context *WhisperCtx,
   }
 }
 
+Expect<ErrNo> parseMetadata(Graph &GraphRef,
+                            const std::string &Metadata) noexcept {
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc;
+  auto ParseError = Parser.parse(Metadata).get(Doc);
+  if (ParseError) {
+    spdlog::error("[WASI-NN] Whisper backend: Parse metadata error."sv);
+    return ErrNo::InvalidEncoding;
+  }
+
+  // Get metadata from the json.
+  // Currently supported metadata:
+  // Plugin parameters (used by this plugin):
+  //   enable-log: bool
+  //   enable-debug-log: bool
+  //   translate: bool
+  //   language: string
+  //   detect-language: bool
+  //   prompt: string
+
+  // The plugin parameters.
+  if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
+    auto Err = Doc["enable-log"].get<bool>().get(GraphRef.EnableLog);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the enable-log "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("enable-debug-log").error() == simdjson::SUCCESS) {
+    auto Err = Doc["enable-debug-log"].get<bool>().get(GraphRef.EnableDebugLog);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the enable-debug-log "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("translate").error() == simdjson::SUCCESS) {
+    auto Err = Doc["translate"].get<bool>().get(GraphRef.Translate);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the translate "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("language").error() == simdjson::SUCCESS) {
+    std::string_view Language;
+    auto Err = Doc["language"].get<std::string_view>().get(Language);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the language "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.SpokenLanguage = Language;
+  }
+  if (Doc.at_key("detect-language").error() == simdjson::SUCCESS) {
+    auto Err = Doc["detect-language"].get<bool>().get(GraphRef.DetectLanguage);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the detect-language "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("prompt").error() == simdjson::SUCCESS) {
+    std::string_view Prompt;
+    auto Err = Doc["prompt"].get<std::string_view>().get(Prompt);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the prompt option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.InitialPrompt = Prompt;
+  }
+  return ErrNo::Success;
+}
+
 } // namespace
 
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
@@ -147,17 +229,26 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Initialize the parameters.
   auto CParam = whisper_context_default_params();
-  GraphRef.EnableLog = false;
-  GraphRef.EnableDebugLog = false;
+  GraphRef.ModelFilePath = ""sv;
+  GraphRef.SpokenLanguage = "en"sv;
   GraphRef.UseGPU = CParam.use_gpu;
   GraphRef.MainGPU = CParam.gpu_device;
-  GraphRef.ModelFilePath = ""sv;
-  GraphRef.ModelLanguage = "en"sv;
 
   // Set whisper log callback.
   whisper_log_set(WhisperLogCallback, &GraphRef);
 
-  // TODO: Use the metadata to pass data.
+  // If the graph builder length > 1, the data of builder[1] is the metadata.
+  if (Builders.size() > 1) {
+    const std::string Metadata(reinterpret_cast<char *>(Builders[1].data()),
+                               Builders[1].size());
+    // Ignore context or model updates when initializing the graph.
+    auto Res = parseMetadata(GraphRef, Metadata);
+    if (Res != ErrNo::Success) {
+      spdlog::error("[WASI-NN] Whisper backend: Failed to parse metadata."sv);
+      Env.NNGraph.pop_back();
+      return Res;
+    }
+  }
 
   // Handle the model path.
   if (GraphRef.EnableDebugLog) {
@@ -196,6 +287,31 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
         "given parameters...Done"sv);
   }
 
+  // Check the language.
+  if (GraphRef.SpokenLanguage != "auto"sv &&
+      whisper_lang_id(GraphRef.SpokenLanguage.c_str()) == -1) {
+    spdlog::error("[WASI-NN] Whisper backend: Error: unknown language {}."sv,
+                  GraphRef.SpokenLanguage);
+    Env.NNGraph.pop_back();
+    return ErrNo::InvalidArgument;
+  }
+
+  // Check the translate option.
+  if (!whisper_is_multilingual(GraphRef.WhisperCtx)) {
+    if (GraphRef.SpokenLanguage != "en"sv || GraphRef.Translate) {
+      GraphRef.SpokenLanguage = "en"sv;
+      GraphRef.Translate = false;
+      if (GraphRef.EnableLog) {
+        spdlog::info(
+            "[WASI-NN] Whisper backend: Model is not multilingual. Ignoring "
+            "language and translation options"sv);
+      }
+    }
+  }
+  if (GraphRef.DetectLanguage) {
+    GraphRef.SpokenLanguage = "auto"sv;
+  }
+
   // Store the loaded graph.
   GraphId = Env.NNGraph.size() - 1;
 
@@ -214,7 +330,10 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   auto &WParam = CxtRef.WhisperParams;
   WParam.print_progress = false;
   WParam.thold_pt = GraphRef.WordThreshold;
-  WParam.language = GraphRef.ModelLanguage.c_str();
+  WParam.translate = GraphRef.Translate;
+  WParam.language = GraphRef.SpokenLanguage.c_str();
+  WParam.detect_language = GraphRef.DetectLanguage;
+  WParam.initial_prompt = GraphRef.InitialPrompt.c_str();
   WParam.temperature_inc = GraphRef.TemperatureInc;
   WParam.temperature = GraphRef.Temperature;
   WParam.entropy_thold = GraphRef.EntropyThreshold;

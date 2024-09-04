@@ -168,6 +168,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     wasmedge_setup_simdjson()
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "whisper")
+    wasmedge_setup_simdjson()
     if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
       # `cblas_sgemm()` introduced in macOS 13.3.
       set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion turn off accelerate")
@@ -184,6 +185,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE
       whisper
+      simdjson::simdjson
     )
   endif()
 endforeach()

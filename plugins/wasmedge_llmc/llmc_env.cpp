@@ -1,46 +1,43 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "wasillmenv.h"
+#include "llmc_env.h"
 #include "llmc_fwd.h"
-#include "wasillmmodule.h"
+#include "llmc_module.h"
 
-namespace WasmEdge {
-namespace Host {
+namespace WasmEdge::Host::LLMC {
 
-namespace WASILLM {
-
-uint32_t WASILLMEnv::addModel(GPT2 *M) noexcept {
+uint32_t LLMCEnv::addModel(GPT2 *M) noexcept {
   Models.push_back(M);
   return Models.size() - 1;
 }
 
-GPT2 *WASILLMEnv::getModel(uint32_t Id) noexcept {
+GPT2 *LLMCEnv::getModel(uint32_t Id) noexcept {
   assert(Id < Models.size() && "Out of bounds");
   return Models[Id];
 }
 
-uint32_t WASILLMEnv::addTokenizer(Tokenizer *T) noexcept {
+uint32_t LLMCEnv::addTokenizer(Tokenizer *T) noexcept {
   Tokenizers.push_back(T);
   return Tokenizers.size() - 1;
 }
 
-Tokenizer *WASILLMEnv::getTokenizer(uint32_t Id) noexcept {
+Tokenizer *LLMCEnv::getTokenizer(uint32_t Id) noexcept {
   assert(Id < Tokenizers.size() && "Out of bounds");
   return Tokenizers[Id];
 }
 
-uint32_t WASILLMEnv::addDataLoader(DataLoader *D) noexcept {
+uint32_t LLMCEnv::addDataLoader(DataLoader *D) noexcept {
   DataLoaders.push_back(D);
   return DataLoaders.size() - 1;
 }
 
-DataLoader *WASILLMEnv::getDataLoader(uint32_t Id) noexcept {
+DataLoader *LLMCEnv::getDataLoader(uint32_t Id) noexcept {
   assert(Id < DataLoaders.size() && "Out of bounds");
   return DataLoaders[Id];
 }
 
-WASILLMEnv::~WASILLMEnv() {
+LLMCEnv::~LLMCEnv() {
   for (GPT2 *M : Models) {
     gpt2_free(M);
   }
@@ -56,19 +53,19 @@ namespace {
 
 Runtime::Instance::ModuleInstance *
 create(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasiLLMModule;
+  return new LLMCModule;
 }
 
 static Plugin::PluginModule::ModuleDescriptor MD[] = {
     {
-        /* Name */ "wasi_llm",
+        /* Name */ "wasmedge_llmc",
         /* Description */ "",
         /* Create */ create,
     },
 };
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    /* Name */ "wasi_llm",
+    /* Name */ "wasmedge_llmc",
     /* Description */ "",
     /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
     /* Version */ {0, 1, 0, 0},
@@ -82,7 +79,4 @@ Plugin::Plugin::PluginDescriptor Descriptor{
 
 EXPORT_GET_DESCRIPTOR(Descriptor)
 
-} // namespace WASILLM
-
-} // namespace Host
-} // namespace WasmEdge
+} // namespace WasmEdge::Host::LLMC

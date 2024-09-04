@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-namespace WasmEdge::Host::WASILLM {
+namespace WasmEdge::Host::LLMC {
 
 enum class ErrNo : uint32_t {
   Success = 0,
@@ -13,4 +13,4 @@ enum class ErrNo : uint32_t {
   MissingMemory = 2,
 };
 
-} // namespace WasmEdge::Host::WASILLM
+} // namespace WasmEdge::Host::LLMC

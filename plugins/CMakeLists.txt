@@ -97,5 +97,5 @@ if(WASMEDGE_PLUGIN_FFMPEG)
 endif()
 
 if(WASMEDGE_PLUGIN_LLM)
-  add_subdirectory(wasi_llm)
+  add_subdirectory(wasmedge_llmc)
 endif()

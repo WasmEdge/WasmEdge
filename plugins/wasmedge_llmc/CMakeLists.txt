@@ -3,11 +3,11 @@
 
 # TODO: Fetch llm.c source.
 
-wasmedge_add_library(wasmedgePluginWasiLLM
+wasmedge_add_library(wasmedgePluginLLMC
   SHARED
-  wasillmfunc.cpp
-  wasillmmodule.cpp
-  wasillmenv.cpp
+  llmc_func.cpp
+  llmc_module.cpp
+  llmc_env.cpp
 )
 
 message(STATUS "Start fetching llm.c source")
@@ -18,34 +18,34 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(llmc)
 
-target_link_libraries(wasmedgePluginWasiLLM PRIVATE
+target_link_libraries(wasmedgePluginLLMC PRIVATE
   train_gpt2_cpu
 )
 
-target_compile_options(wasmedgePluginWasiLLM
+target_compile_options(wasmedgePluginLLMC
   PUBLIC
   -DWASMEDGE_PLUGIN
 )
 
-target_include_directories(wasmedgePluginWasiLLM
+target_include_directories(wasmedgePluginLLMC
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasmedgePluginWasiLLM
+  target_link_libraries(wasmedgePluginLLMC
     PRIVATE
     wasmedgeCAPI
   )
 else()
-  target_link_libraries(wasmedgePluginWasiLLM
+  target_link_libraries(wasmedgePluginLLMC
     PRIVATE
     wasmedge_shared
   )
 endif()
 
 install(
-  TARGETS wasmedgePluginWasiLLM
+  TARGETS wasmedgePluginLLMC
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
 )

@@ -16,9 +16,9 @@ struct DataLoader;
 
 namespace WasmEdge {
 namespace Host {
-namespace WASILLM {
+namespace LLMC {
 
-class WASILLMEnv {
+class LLMCEnv {
   std::vector<GPT2 *> Models;
   std::vector<Tokenizer *> Tokenizers;
   std::vector<DataLoader *> DataLoaders;
@@ -42,8 +42,8 @@ public:
 
   size_t getDataLoaderSize() const noexcept { return DataLoaders.size(); }
 
-  ~WASILLMEnv();
+  ~LLMCEnv();
 };
-} // namespace WASILLM
+} // namespace LLMC
 } // namespace Host
 } // namespace WasmEdge

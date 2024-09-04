@@ -1,11 +1,11 @@
 #include "common/defines.h"
 #include "common/types.h"
+#include "llmc_func.h"
+#include "llmc_module.h"
 #include "plugin/plugin.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "types.h"
-#include "wasillmfunc.h"
-#include "wasillmmodule.h"
 
 #include <algorithm>
 #include <array>
@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-using WasmEdge::Host::WASILLM::ErrNo;
+using WasmEdge::Host::LLMC::ErrNo;
 
 namespace {
 
@@ -30,15 +30,14 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
   return std::unique_ptr<T>(P);
 }
 
-std::unique_ptr<WasmEdge::Host::WasiLLMModule> createModule() {
+std::unique_ptr<WasmEdge::Host::LLMCModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(
-      std::filesystem::u8path("../../../plugins/wasi_llm/" WASMEDGE_LIB_PREFIX
-                              "wasmedgePluginWasiLLM" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_llm"sv)) {
-    if (const auto *Module = Plugin->findModule("wasi_llm"sv)) {
-      return dynamicPointerCast<WasmEdge::Host::WasiLLMModule>(
-          Module->create());
+  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
+      "../../../plugins/wasmedge_llmc/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginLLMC" WASMEDGE_LIB_EXTENSION));
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_llmc"sv)) {
+    if (const auto *Module = Plugin->findModule("wasmedge_llmc"sv)) {
+      return dynamicPointerCast<WasmEdge::Host::LLMCModule>(Module->create());
     }
   }
   return {};
@@ -77,50 +76,49 @@ TEST(WasiLLMTest, TrainGPT2) {
   auto *ModelCreate = LLMMod->findFuncExports("model_create");
   EXPECT_NE(ModelCreate, nullptr);
   EXPECT_TRUE(ModelCreate->isHostFunction());
-  auto &HostFuncModelCreate =
-      dynamic_cast<WasmEdge::Host::WasiLLMModelCreate &>(
-          ModelCreate->getHostFunc());
+  auto &HostFuncModelCreate = dynamic_cast<WasmEdge::Host::LLMCModelCreate &>(
+      ModelCreate->getHostFunc());
 
   auto *DataLoaderCreate = LLMMod->findFuncExports("dataloader_create");
   EXPECT_NE(DataLoaderCreate, nullptr);
   EXPECT_TRUE(DataLoaderCreate->isHostFunction());
   auto &HostFuncDataLoadereCreate =
-      dynamic_cast<WasmEdge::Host::WasiLLMDataLoaderCreate &>(
+      dynamic_cast<WasmEdge::Host::LLMCDataLoaderCreate &>(
           DataLoaderCreate->getHostFunc());
 
   auto *TokenizerCreate = LLMMod->findFuncExports("tokenizer_create");
   EXPECT_NE(TokenizerCreate, nullptr);
   EXPECT_TRUE(TokenizerCreate->isHostFunction());
   auto &HostFuncTokenizerCreate =
-      dynamic_cast<WasmEdge::Host::WasiLLMTokenizerCreate &>(
+      dynamic_cast<WasmEdge::Host::LLMCTokenizerCreate &>(
           TokenizerCreate->getHostFunc());
 
   auto *ModelTrain = LLMMod->findFuncExports("model_train");
   EXPECT_NE(ModelTrain, nullptr);
   EXPECT_TRUE(ModelTrain->isHostFunction());
-  auto &HostFuncModelTrain = dynamic_cast<WasmEdge::Host::WasiLLMModelTrain &>(
-      ModelTrain->getHostFunc());
+  auto &HostFuncModelTrain =
+      dynamic_cast<WasmEdge::Host::LLMCModelTrain &>(ModelTrain->getHostFunc());
 
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
-  std::string CheckPointString = "./wasi_llm/gpt2_124M.bin";
+  std::string CheckPointString = "./wasmedge_llmc/gpt2_124M.bin";
   std::vector<char> CheckPointPath(CheckPointString.begin(),
                                    CheckPointString.end());
   uint32_t CheckPointPathPtr = UINT32_C(0);
   writeBinaries<char>(MemInst, CheckPointPath, CheckPointPathPtr);
 
-  std::string TrainDataString = "./wasi_llm/tiny_shakespeare_train.bin";
+  std::string TrainDataString = "./wasmedge_llmc/tiny_shakespeare_train.bin";
   std::vector<char> TrainDataPath(TrainDataString.begin(),
                                   TrainDataString.end());
   uint32_t TrainDataPathPtr = CheckPointPathPtr + CheckPointPath.size();
   writeBinaries<char>(MemInst, TrainDataPath, TrainDataPathPtr);
 
-  std::string ValDataString = "./wasi_llm/tiny_shakespeare_val.bin";
+  std::string ValDataString = "./wasmedge_llmc/tiny_shakespeare_val.bin";
   std::vector<char> ValDataPath(ValDataString.begin(), ValDataString.end());
   uint32_t ValDataPathPtr = TrainDataPathPtr + TrainDataPath.size();
   writeBinaries<char>(MemInst, ValDataPath, ValDataPathPtr);
 
-  std::string TokenizerBin = "./wasi_llm/gpt2_tokenizer.bin";
+  std::string TokenizerBin = "./wasmedge_llmc/gpt2_tokenizer.bin";
   std::vector<char> TokenizerBinPath(TokenizerBin.begin(), TokenizerBin.end());
   uint32_t TokenizerBinPtr = ValDataPathPtr + ValDataPath.size();
   writeBinaries<char>(MemInst, TokenizerBinPath, TokenizerBinPtr);

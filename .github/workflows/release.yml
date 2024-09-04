@@ -63,7 +63,7 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'name':'ubuntu-20.04','runner':'ubuntu-latest''compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang'},
+      matrix: "[{'name':'ubuntu-20.04','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang'},
                 {'name':'ubuntu-20.04','runner':'linux-arm64-v2','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang-aarch64','arch':'aarch64'}]"
       release: true
     secrets: inherit

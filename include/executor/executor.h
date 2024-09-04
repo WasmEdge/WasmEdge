@@ -127,7 +127,8 @@ private:
 class Executor {
 public:
   /// TODO add another argument to this for coredump builder to initialise it.
-  Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
+  Executor(const Configure &Conf, Statistics::Statistics *S = nullptr,
+           Coredump::Coredump *C = nullptr) noexcept
       : Conf(Conf) {
     if (Conf.getStatisticsConfigure().isInstructionCounting() ||
         Conf.getStatisticsConfigure().isCostMeasuring() ||
@@ -141,6 +142,7 @@ public:
     }
     if (Conf.getRuntimeConfigure().isEnableCoredump()) {
       spdlog::info("Coredump has been enabled in executor");
+      Coredump = C;
     }
   }
   ~Executor() noexcept {

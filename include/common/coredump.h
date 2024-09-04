@@ -15,13 +15,16 @@
 #pragma once
 
 #include "ast/section.h"
+#include "ast/segment.h"
 #include "common/configure.h"
 #include "common/types.h"
 #include "loader/serialize.h"
 #include "runtime/stackmgr.h"
+#include "runtime/storemgr.h"
 #include <iostream>
 #include <spdlog/spdlog.h>
 #include <string_view>
+#include <vector>
 namespace WasmEdge {
 namespace Coredump {
 
@@ -35,12 +38,13 @@ public:
     Loader::Serializer Ser(Conf);
     const auto *CurrentInstance = StackMgr.getModule();
 
-    // CurrentInstance->getLinkedStore();
-    CurrentInstance->getStore();
+    // CurrentInstance->unsafeGetStore();
 
     // process info collection
     auto Core = collectProcessInformation(CurrentInstance);
     auto CoreModules = collectCoreModules(StackMgr);
+    auto DataSection = collectDataSection(StackMgr);
+    auto MemSec = collectMemory(StackMgr);
     // auto CoreInstances = collectCoreInstances(StackMgr);
 
     //  final file generation
@@ -54,6 +58,8 @@ public:
     Mod.getCustomSections().emplace_back(Core);
     Mod.getCustomSections().emplace_back(CoreModules);
     // Mod.getCustomSections().emplace_back(CoreInstances);
+    Mod.getDataSection() = std::move(DataSection);
+    Mod.getMemorySection() = std::move(MemSec);
     auto Res = Ser.serializeModule(Mod);
     std::ofstream File("coredump.wasm", std::ios::out | std::ios::binary);
     if (File.is_open()) {
@@ -118,39 +124,49 @@ public:
     return CoreModules;
   }
 
-  AST::CustomSection collectMemorySection(Runtime::StackManager &StackMgr) {
+  AST::MemorySection collectMemory(Runtime::StackManager &StackMgr) {
+    spdlog::info("Collecting memory section");
+
+    AST::MemorySection MemSec;
+
+    const auto *CurrentInstance = StackMgr.getModule();
+    auto &MemInstances = CurrentInstance->getOwnedMemoryInstances();
+    auto &Content = MemSec.getContent();
+    for (auto &Iter : MemInstances) {
+      Content.push_back(Iter->getMemoryType());
+    }
+
+    return MemSec;
+  }
+
+  // Data section
+  AST::DataSection collectDataSection(Runtime::StackManager &StackMgr) {
     spdlog::info("Collecting Memories");
 
-    AST::CustomSection Memsec;
-    Memsec.setName("memory");
+    AST::DataSection Datasec;
 
-    auto CurrentInstance = StackMgr.getModule();
-    CurrentInstance->getModuleName();
-
-    return Memsec;
+    StackMgr.size();
+    // const auto *CurrentInstance = StackMgr.getModule();
+    // auto &DataInstances = CurrentInstance->getOwnedDataInstances();
+    // // DataInstances := vector<std::unique_ptr<DataInstance>>
+    // // DataInstance := Offset and vector<Byte>
+    //
+    // std::vector<Byte> D;
+    // for (auto &Iter : DataInstances) {
+    //   D.insert(D.begin(), Iter->getData().begin(), Iter->getData().end());
+    // }
+    // // D := vector<Bytes>
+    // AST::DataSegment Ds;
+    //
+    // auto &DataSegs = Datasec.getContent();
+    // // Content := vector<DataSegment>
+    // // DataSegment := MemoryIdx(always 0) and vector<Byte> and a mode
+    // auto &Content = Ds.getData();
+    // Content.insert(Content.end(), D.begin(), D.end());
+    //
+    // DataSegs.insert(DataSegs.begin(), Ds);
+    return Datasec;
   }
-  // // TODO coreinstances section
-  // AST::CustomSection collectCoreInstances(Runtime::StackManager &StackMgr) {
-  //   spdlog::info("Constructing CoreInstances");
-  //
-  //   AST::CustomSection CoreInstances;
-  //   CoreInstances.setName("coreinstances");
-  //   auto Frames = StackMgr.getAllFrames();
-  //
-  //   struct CoreInstance {
-  //     uint8_t Moduleidx;
-  //     std::vector<uint8_t> Memories;
-  //     std::vector<uint8_t> Globals;
-  //   };
-  //
-  //   Frames.size();
-  //   // for(const auto &Items : Frames) {
-  //   //   CoreInstance X;
-  //   //
-  //   // }
-  //
-  //   return CoreInstances;
-  // }
 
   // AST::CustomSection collectCoreStack(Runtime::StackManager &StackMgr) {
   //   spdlog::info("Constructing CoreStack");
@@ -166,6 +182,34 @@ public:
   //   }
   //
   //   return CoreStack;
+  // }
+
+  // // TODO coreinstances section
+  // TODO This may not be compatible with current wasmgdb
+  // coreinstances ::= customsec(vec(coreinstance))
+  // coreinstance ::= 0x0 moduleidx:u32 memories:vec(u32) globals:vec(u32)
+  // AST::CustomSection collectCoreInstances(Runtime::StackManager &StackMgr)
+  // {
+  //   spdlog::info("Constructing CoreInstances");
+  //
+  //   AST::CustomSection CoreInstances;
+  //   CoreInstances.setName("coreinstances");
+  //   auto Frames = StackMgr.getAllFrames();
+  //
+  //   // struct CoreInstance {
+  //   //   const Runtime::Instance::ModuleInstance Moduleidx;
+  //   //   std::vector<uint8_t> Memories;
+  //   //   std::vector<uint8_t> Globals;
+  //   // };
+  //
+  //   for (const auto &Item : Frames) {
+  //     if (Item.Module == nullptr) {
+  //       continue; // guard
+  //     }
+  //     std::cout << Item.Module << ":" << Item.Module
+  //   }
+  //
+  //   return CoreInstances;
   // }
 };
 

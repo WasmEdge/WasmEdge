@@ -36,6 +36,7 @@
 #include <mutex>
 #include <set>
 #include <shared_mutex>
+#include <spdlog/spdlog.h>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -94,13 +95,16 @@ public:
     return ModName;
   }
 
-  void getStore() const {
-    std::unique_lock Lock(Mutex);
-    std::cout << LinkedStore.size();
-    for (auto &Item : LinkedStore) {
-      std::cout << "Store: " << &Item.first << "\n";
-    }
+  const std::vector<std::unique_ptr<DataInstance>> &
+  getOwnedDataInstances() const {
+    return OwnedDataInsts;
   }
+
+  const std::vector<std::unique_ptr<MemoryInstance>> &
+  getOwnedMemoryInstances() const {
+    return OwnedMemInsts;
+  }
+
   void *getHostData() const noexcept { return HostData; }
 
   /// Add exist instances and move ownership with exporting name.

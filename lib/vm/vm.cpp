@@ -61,7 +61,7 @@ createPluginModule(std::string_view PName, std::string_view MName) {
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat),
+      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat, &Coredump),
       Store(std::make_unique<Runtime::StoreManager>()), StoreRef(*Store.get()) {
   unsafeInitVM();
 }
@@ -69,7 +69,8 @@ VM::VM(const Configure &Conf)
 VM::VM(const Configure &Conf, Runtime::StoreManager &S)
     : Conf(Conf), Stage(VMStage::Inited),
       LoaderEngine(Conf, &Executor::Executor::Intrinsics),
-      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat), StoreRef(S) {
+      ValidatorEngine(Conf), ExecutorEngine(Conf, &Stat, &Coredump),
+      StoreRef(S) {
   unsafeInitVM();
 }
 

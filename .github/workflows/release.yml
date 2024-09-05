@@ -256,7 +256,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y pkg-config
+          apt install -y pkg-config libssl-dev
       - name: Build WASI-NN plugin
         shell: bash
         run: |

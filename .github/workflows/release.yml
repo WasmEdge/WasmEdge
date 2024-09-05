@@ -252,6 +252,11 @@ jobs:
         run: |
           git config --global --add safe.directory $(pwd)
       - uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        shell: bash
+        run: |
+          apt update
+          apt install -y pkg-config
       - name: Build WASI-NN plugin
         shell: bash
         run: |

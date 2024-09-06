@@ -295,6 +295,20 @@ Expect<void> Loader::loadType(DefType &Ty) {
     }
     break;
   }
+  case 0x3f: {
+    if (auto Res = loadType(Ty.emplace<ResourceType>(false)); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
+      return Unexpect(Res);
+    }
+    break;
+  }
+  case 0x3e: {
+    if (auto Res = loadType(Ty.emplace<ResourceType>(true)); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
+      return Unexpect(Res);
+    }
+    break;
+  }
   default:
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
                         ASTNodeAttr::DefType);
@@ -375,6 +389,48 @@ Expect<void> Loader::loadType(InstanceType &Ty) {
   return loadVec<TypeSection>(Ty.getContent(), [this](InstanceDecl Decl) {
     return loadInstanceDecl(Decl);
   });
+}
+
+Expect<void> Loader::loadType(ResourceType &Ty) {
+  if (auto Res = FMgr.readByte()) {
+    if (*Res != 0x7f) {
+      return logLoadError(ErrCode::Value::MalformedDefType,
+                          FMgr.getLastOffset(), ASTNodeAttr::DefType);
+    }
+  } else {
+    return Unexpect(Res);
+  }
+
+  if (Ty.IsAsync()) {
+    if (auto Res = FMgr.readU32()) {
+      Ty.getDestructor().emplace(*Res);
+    } else {
+      return Unexpect(Res);
+    }
+    if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
+          auto Res = FMgr.readU32();
+          if (!Res)
+            return Unexpect(Res);
+          Ty.getCallback().emplace(*Res);
+          return {};
+        });
+        !Res) {
+      return Unexpect(Res);
+    }
+  } else {
+    if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
+          auto Res = FMgr.readU32();
+          if (!Res)
+            return Unexpect(Res);
+          Ty.getDestructor().emplace(*Res);
+          return {};
+        });
+        !Res) {
+      return Unexpect(Res);
+    }
+  }
+
+  return {};
 }
 
 Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {

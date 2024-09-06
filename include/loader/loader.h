@@ -368,6 +368,7 @@ private:
   Expect<void> loadType(AST::Component::CoreType &Ty);
   Expect<void> loadType(AST::Component::CoreDefType &Ty);
   Expect<void> loadType(AST::Component::ModuleType &Ty);
+  Expect<void> loadType(AST::Component::ResourceType &Ty);
   Expect<void> loadCase(AST::Component::Case &C);
   Expect<void> loadLabel(std::string &Label);
   template <typename T>

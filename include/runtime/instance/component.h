@@ -227,6 +227,13 @@ public:
     return CoreTypes[Idx];
   }
 
+  void addExport(std::string_view Name, DefType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  const DefType &getType(std::string_view Name) const noexcept {
+    return ExportTypesMap.at(std::string(Name));
+  }
   void addType(const AST::FunctionType &Ty) noexcept {
     FuncType FT{};
     typeConvert(FT, Ty);
@@ -272,6 +279,9 @@ private:
 
   std::map<std::string, const ModuleInstance *, std::less<>> ExportModuleMap;
 
+  std::map<std::string, AST::Component::DefType, std::less<>> ExportTypesMap;
+  std::vector<AST::Component::DefType> Types;
+
   // core memory, this is prepared for canonical ABI
   //
   // when a function is lowering or lifting, it can have options
@@ -286,7 +296,6 @@ private:
   std::vector<GlobalInstance *> CoreGlobInstList;
 
   std::vector<AST::Component::CoreDefType> CoreTypes;
-  std::vector<AST::Component::DefType> Types;
 };
 
 } // namespace Instance

@@ -408,10 +408,11 @@ Expect<void> Loader::loadType(ResourceType &Ty) {
       return Unexpect(Res);
     }
     if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
-          auto Res = FMgr.readU32();
-          if (!Res)
-            return Unexpect(Res);
-          Ty.getCallback().emplace(*Res);
+          auto RCallback = FMgr.readU32();
+          if (!RCallback) {
+            return Unexpect(RCallback);
+          }
+          Ty.getCallback().emplace(*RCallback);
           return {};
         });
         !Res) {
@@ -419,10 +420,10 @@ Expect<void> Loader::loadType(ResourceType &Ty) {
     }
   } else {
     if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
-          auto Res = FMgr.readU32();
-          if (!Res)
-            return Unexpect(Res);
-          Ty.getDestructor().emplace(*Res);
+          auto RDestructor = FMgr.readU32();
+          if (!RDestructor)
+            return Unexpect(RDestructor);
+          Ty.getDestructor().emplace(*RDestructor);
           return {};
         });
         !Res) {

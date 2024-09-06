@@ -91,15 +91,14 @@ jobs:
     env:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=NeuralSpeed -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-neuralspeed wasi_nn-piper wasi_nn-whisper
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-piper wasi_nn-whisper
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2024.2.0"
       OPENVINO_YEAR: "2024"
       PYTORCH_VERSION: "1.8.2"
       PYTORCH_INSTALL_TO: "."
-      NEURALSPEED_VERSION: "1.0"
     needs: [ get_version ]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -117,7 +116,6 @@ jobs:
           apt install -y unzip libopenblas-dev pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
-          bash utils/wasi-nn/install-neuralspeed.sh
           bash utils/wasi-nn/install-onnxruntime.sh
       - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
         shell: bash
@@ -195,11 +193,6 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_nn-ggml-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
           path: plugin_wasi_nn-ggml.tar.gz
-      - name: Upload artifact - wasi_nn-neuralspeed
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-neuralspeed-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-neuralspeed.tar.gz
       - name: Upload artifact - wasi_nn-piper
         uses: actions/upload-artifact@v3
         with:

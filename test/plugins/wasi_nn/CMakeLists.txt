@@ -71,12 +71,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       )
     endif()
   elseif(BACKEND STREQUAL "neuralspeed")
-    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures")
-    download(
-      https://huggingface.co/grorge123/phi-2-GPTQ/resolve/main/ne_phi_q_nf4_bestla_cfp32_g32.bin
-      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_neural_speed_fixtures/ne_phi_q_nf4_bestla_cfp32_g32.bin
-      MD5=5e055b41f8cc1a42f26ff8742719ef1e
-    )
+    message(NOTICE "Neural Speed backend is removed due to the upstream end-of-life.")
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     download(

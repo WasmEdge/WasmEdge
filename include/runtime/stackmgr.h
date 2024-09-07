@@ -74,6 +74,17 @@ public:
     return Span<Value>(ValueStack.end() - N, N);
   }
 
+  Span<Value> getRangeSpan(uint32_t Start, uint32_t End) {
+    if (Start >= End) {
+      // Handle invalid range
+      spdlog::info(Start);
+      spdlog::info(End);
+      spdlog::info(ValueStack.size());
+      throw std::out_of_range("Invalid range for getRangeSpan");
+    }
+    return Span<Value>(ValueStack.begin() + Start, End);
+  }
+
   /// Push a new value entry to stack.
   template <typename T> void push(T &&Val) {
     ValueStack.push_back(std::forward<T>(Val));

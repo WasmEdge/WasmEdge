@@ -105,6 +105,16 @@ public:
     return OwnedMemInsts;
   }
 
+  const std::vector<std::unique_ptr<GlobalInstance>> &
+  getOwnedGlobalInstances() const {
+    return OwnedGlobInsts;
+  }
+
+  const std::vector<std::unique_ptr<FunctionInstance>> &
+  getOwnedFunctionInstances() const {
+    return OwnedFuncInsts;
+  }
+
   void *getHostData() const noexcept { return HostData; }
 
   /// Add exist instances and move ownership with exporting name.

@@ -16,11 +16,12 @@
 
 #include "ast/section.h"
 #include "ast/segment.h"
+#include "ast/type.h"
 #include "common/configure.h"
 #include "common/types.h"
 #include "loader/serialize.h"
 #include "runtime/stackmgr.h"
-#include "runtime/storemgr.h"
+#include <cstdint>
 #include <iostream>
 #include <spdlog/spdlog.h>
 #include <string_view>
@@ -38,14 +39,13 @@ public:
     Loader::Serializer Ser(Conf);
     const auto *CurrentInstance = StackMgr.getModule();
 
-    // CurrentInstance->unsafeGetStore();
-
-    // process info collection
     auto Core = collectProcessInformation(CurrentInstance);
-    auto CoreModules = collectCoreModules(StackMgr);
-    auto DataSection = collectDataSection(StackMgr);
+    // auto DataSection = collectDataSection(StackMgr);
     auto MemSec = collectMemory(StackMgr);
+    // auto Globals = collectGlobals(StackMgr);
+    auto CoreStack = collectCoreStack(StackMgr);
     // auto CoreInstances = collectCoreInstances(StackMgr);
+    // auto CoreModules = collectCoreModules(StackMgr);
 
     //  final file generation
     AST::Module Mod{};
@@ -56,10 +56,12 @@ public:
     Version.insert(Version.begin(), {0x01, 0x00, 0x00, 0x00});
 
     Mod.getCustomSections().emplace_back(Core);
-    Mod.getCustomSections().emplace_back(CoreModules);
+    // Mod.getCustomSections().emplace_back(CoreModules);
     // Mod.getCustomSections().emplace_back(CoreInstances);
-    Mod.getDataSection() = std::move(DataSection);
+    Mod.getCustomSections().emplace_back(CoreStack);
+    // Mod.getDataSection() = std::move(DataSection);
     Mod.getMemorySection() = std::move(MemSec);
+    // Mod.getGlobalSection() = std::move(Globals);
     auto Res = Ser.serializeModule(Mod);
     std::ofstream File("coredump.wasm", std::ios::out | std::ios::binary);
     if (File.is_open()) {
@@ -94,36 +96,6 @@ public:
     return Core;
   }
 
-  // This custom section establishes an index space of modules
-  // that can be referenced in the coreinstances custom section
-  // coremodules := customsec(vec(coremodule))
-  // coremodule := 0x0 module-name:name
-  AST::CustomSection collectCoreModules(Runtime::StackManager &StackMgr) {
-    spdlog::info("Constructing Coremodules");
-
-    AST::CustomSection CoreModules;
-    CoreModules.setName("coremodules");
-
-    auto Frames = StackMgr.getAllFrames();
-    std::set<const Runtime::Instance::ModuleInstance *> Names;
-
-    // get address of all Modules associated to the Frames in the StackManager
-    for (const auto &Item : Frames) {
-      if (Item.Module == nullptr) {
-        continue; // guard
-      }
-      Names.insert(Item.Module);
-    }
-
-    auto &Content = CoreModules.getContent();
-    for (const auto &ModulePtr : Names) {
-      const Byte *Bytes = reinterpret_cast<const Byte *>(&ModulePtr);
-      Content.insert(Content.end(), Bytes, Bytes + sizeof(ModulePtr));
-    }
-
-    return CoreModules;
-  }
-
   AST::MemorySection collectMemory(Runtime::StackManager &StackMgr) {
     spdlog::info("Collecting memory section");
 
@@ -133,6 +105,8 @@ public:
     auto &MemInstances = CurrentInstance->getOwnedMemoryInstances();
     auto &Content = MemSec.getContent();
     for (auto &Iter : MemInstances) {
+      AST::MemoryType MemType;
+      // MemType.getLimit().setType(LimitType TargetType);
       Content.push_back(Iter->getMemoryType());
     }
 
@@ -140,56 +114,129 @@ public:
   }
 
   // Data section
+  // TODO malformed section
   AST::DataSection collectDataSection(Runtime::StackManager &StackMgr) {
     spdlog::info("Collecting Memories");
 
     AST::DataSection Datasec;
 
-    StackMgr.size();
-    // const auto *CurrentInstance = StackMgr.getModule();
-    // auto &DataInstances = CurrentInstance->getOwnedDataInstances();
-    // // DataInstances := vector<std::unique_ptr<DataInstance>>
-    // // DataInstance := Offset and vector<Byte>
-    //
-    // std::vector<Byte> D;
-    // for (auto &Iter : DataInstances) {
-    //   D.insert(D.begin(), Iter->getData().begin(), Iter->getData().end());
-    // }
-    // // D := vector<Bytes>
-    // AST::DataSegment Ds;
-    //
-    // auto &DataSegs = Datasec.getContent();
-    // // Content := vector<DataSegment>
-    // // DataSegment := MemoryIdx(always 0) and vector<Byte> and a mode
-    // auto &Content = Ds.getData();
-    // Content.insert(Content.end(), D.begin(), D.end());
-    //
-    // DataSegs.insert(DataSegs.begin(), Ds);
+    const auto *CurrentInstance = StackMgr.getModule();
+    auto &DataInstances = CurrentInstance->getOwnedDataInstances();
+
+    AST::DataSegment Seg;
+    auto &Content = Seg.getData();
+
+    for (auto &Iter : DataInstances) {
+      Content.insert(Content.end(), Iter->getData().begin(),
+                     Iter->getData().end());
+    }
+    if (Content.size() == 0) {
+      std::cout << "empty\n";
+      std::cout << Content.max_size();
+      Content.insert(Seg.getData().end(), 0x00);
+    }
+    std::cout << Content.size();
+    Datasec.getContent().push_back(Seg);
     return Datasec;
   }
 
-  // AST::CustomSection collectCoreStack(Runtime::StackManager &StackMgr) {
-  //   spdlog::info("Constructing CoreStack");
+  // corestack   ::= customsec(thread-info vec(frame))
+  // thread-info ::= 0x0 thread-name:name
+  // frame       ::= 0x0 funcidx:u32 codeoffset:u32
+  //                     locals:vec(value) stack:vec(value)
+  AST::CustomSection collectCoreStack(Runtime::StackManager &StackMgr) {
+    spdlog::info("Constructing CoreStack");
+
+    AST::CustomSection CoreStack;
+    CoreStack.setName("corestack");
+
+    auto Frames = StackMgr.getAllFrames();
+
+    // TODO get thread info
+    auto &Content = CoreStack.getContent();
+    for (auto &Item : Frames) {
+      if (Item.Module == nullptr)
+        continue;                                 // guard
+      auto Funcidx = Item.From->getSourceIndex(); // function index
+      auto Codeoffset = Item.From->getOffset();
+      // auto Codeoffset = 0;
+      auto LocalsN = Item.Locals;
+
+      auto Locals = StackMgr.getRangeSpan(Item.VPos, LocalsN + Item.VPos);
+      auto Stack = StackMgr.getTopSpan(StackMgr.size() - LocalsN);
+
+      Content.push_back(Funcidx);
+      Content.push_back(Codeoffset);
+      //
+      // // TODO get the number type before inserting in the bytes
+      // Is that even required?
+      for (auto &Iter : Locals) {
+        Content.push_back(Iter.unwrap());
+      }
+      for (auto &Iter : Stack) {
+        Content.push_back(Iter.unwrap());
+      }
+    }
+
+    return CoreStack;
+  }
+
+  // AST::GlobalSection collectGlobals(Runtime::StackManager &StackMgr) {
+  //   spdlog::info("Collecting Globals");
+  //   AST::GlobalSection Globals;
+  //   const auto *const CurrentInstance = StackMgr.getModule();
   //
-  //   AST::CustomSection CoreStack;
-  //   CoreStack.setName("corestack");
+  //   auto &GlobalInstances = CurrentInstance->getOwnedGlobalInstances();
+  //   auto &Content = Globals.getContent();
   //
-  //   auto Frames = StackMgr.getAllFrames();
-  //   std::vector<Runtime::Instance::ModuleInstance> Modules;
-  //
-  //   for (auto Item : Frames) {
-  //     Modules.emplace_back(Item.Module);
+  //   for (auto &Iter : GlobalInstances) {
+  //     AST::GlobalSegment Seg;
+  //     auto &Type = Seg.getGlobalType();
+  //     Type = Iter->getGlobalType();
+  //     Content.push_back(Seg);
   //   }
   //
-  //   return CoreStack;
+  //   std::cout << Content.size();
+  //
+  //   return Globals;
   // }
-
-  // // TODO coreinstances section
-  // TODO This may not be compatible with current wasmgdb
+  // This custom section establishes an index space of modules
+  // that can be referenced in the coreinstances custom section
+  // NOTE This is for multi-module coredumps which are not supported by wasmgdb
+  // as of now
+  // coremodules := customsec(vec(coremodule)) coremodule := 0x0
+  // module-name:name
+  // AST::CustomSection collectCoreModules(Runtime::StackManager &StackMgr) {
+  //   spdlog::info("Constructing Coremodules");
+  //
+  //   AST::CustomSection CoreModules;
+  //   CoreModules.setName("coremodules");
+  //
+  //   auto Frames = StackMgr.getAllFrames();
+  //   std::set<const Runtime::Instance::ModuleInstance *> Names;
+  //
+  //   // get address of all Modules associated to the Frames in the
+  //   StackManager for (const auto &Item : Frames) {
+  //     if (Item.Module == nullptr) {
+  //       continue; // guard
+  //     }
+  //     Names.insert(Item.Module);
+  //   }
+  //
+  //   auto &Content = CoreModules.getContent();
+  //   for (const auto &ModulePtr : Names) {
+  //     const Byte *Bytes = reinterpret_cast<const Byte *>(&ModulePtr);
+  //     Content.insert(Content.end(), Bytes, Bytes + sizeof(ModulePtr));
+  //   }
+  //
+  //   return CoreModules;
+  // }
+  //
+  // coreinstances section
+  // This may not be compatible with current wasmgdb
   // coreinstances ::= customsec(vec(coreinstance))
   // coreinstance ::= 0x0 moduleidx:u32 memories:vec(u32) globals:vec(u32)
-  // AST::CustomSection collectCoreInstances(Runtime::StackManager &StackMgr)
-  // {
+  // AST::CustomSection collectCoreInstances(Runtime::StackManager &StackMgr) {
   //   spdlog::info("Constructing CoreInstances");
   //
   //   AST::CustomSection CoreInstances;

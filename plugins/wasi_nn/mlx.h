@@ -26,12 +26,12 @@ struct Graph {
       delete Tok;
     }
   }
-  std::string ModelType = "tiny_llama_1.1B_chat_v1.0";
+  std::string ModelType;
   tokenizers::Tokenizer *Tok = nullptr;
   Transformer *Model;
   double Temp = 0.0;
   bool EnableDebugLog = true;
-  int MaxToken = 1024;
+  uint64_t MaxToken = 1024;
   BasePrompt Prmopt;
 };
 struct Context {

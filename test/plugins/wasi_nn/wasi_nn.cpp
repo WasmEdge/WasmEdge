@@ -2711,7 +2711,7 @@ TEST(WasiNNTest, ChatTTSBackend) {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 TEST(WasiNNTest, MLXBackend) {
   // Create the wasi_nn module instance.
-  auto *NNMod = dynamic_cast<WasmEdge::Host::WasiNNModule *>(createModule());
+  auto NNMod = createModule();
   ASSERT_TRUE(NNMod != nullptr);
 
   // Create the calling frame with memory instance.
@@ -2949,7 +2949,5 @@ TEST(WasiNNTest, MLXBackend) {
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 50);
   }
-
-  delete NNMod;
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX

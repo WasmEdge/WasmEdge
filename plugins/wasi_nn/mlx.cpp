@@ -1,14 +1,17 @@
 #include "mlx.h"
+#include "prompt.h"
 #include "spdlog/spdlog.h"
 #include "wasinnenv.h"
+#include <_types/_uint8_t.h>
+#include <arm/types.h>
 #include <codecvt>
 #include <cstddef>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 #include "converter.h"
 #include "registry.h"
-#include "simdjson.h"
 #include "utils.h"
+#include <simdjson.h>
 #endif
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
@@ -53,51 +56,75 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   }
   std::string TokenizerPath;
   // Parse metadata.
-  if (Builders.size() > 1) {
-    const std::string Metadata = std::string(
-        reinterpret_cast<char *>(Builders[1].data()), Builders[1].size());
-    simdjson::dom::parser Parser;
-    simdjson::dom::element Doc;
-    auto ParseError = Parser.parse(Metadata).get(Doc);
-    if (ParseError) {
-      spdlog::error("[WASI-NN] MLX backend: Parse metadata error"sv);
+  if (Builders.size() <= 1) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Lack necessary metadata(tokenizer, model_type)."sv);
+    Env.NNGraph.pop_back();
+    return ErrNo::InvalidArgument;
+  }
+  const std::string Metadata = std::string(
+      reinterpret_cast<char *>(Builders.back().data()), Builders.back().size());
+  simdjson::dom::parser Parser;
+  simdjson::dom::element Doc;
+  auto ParseError = Parser.parse(Metadata).get(Doc);
+  if (ParseError) {
+    spdlog::error("[WASI-NN] MLX backend: Parse metadata error"sv);
+    Env.NNGraph.pop_back();
+    return ErrNo::InvalidEncoding;
+  }
+  if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
+    std::string_view ModelType;
+    auto Err = Doc["model_type"].get<std::string_view>().get(ModelType);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
       Env.NNGraph.pop_back();
-      return ErrNo::InvalidEncoding;
+      return ErrNo::InvalidArgument;
     }
-    if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
-      std::string_view ModelType;
-      auto Err = Doc["model_type"].get<std::string_view>().get(ModelType);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
-        Env.NNGraph.pop_back();
-        return ErrNo::InvalidArgument;
-      }
-      GraphRef.ModelType = ModelType;
+    GraphRef.ModelType = ModelType;
+  } else {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
+    Env.NNGraph.pop_back();
+    return ErrNo::InvalidArgument;
+  }
+  if (Doc.at_key("enable_debug_log").error() == simdjson::SUCCESS) {
+    bool EnableDebugLog;
+    auto Err = Doc["enable_debug_log"].get<bool>().get(EnableDebugLog);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Unable to retrieve the enable_debug_log option."sv);
+      Env.NNGraph.pop_back();
+      return ErrNo::InvalidArgument;
     }
-    if (Doc.at_key("enable_debug_log").error() == simdjson::SUCCESS) {
-      bool EnableDebugLog;
-      auto Err = Doc["enable_debug_log"].get<bool>().get(EnableDebugLog);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] MLX backend: Unable to retrieve the enable_debug_log option."sv);
-        Env.NNGraph.pop_back();
-        return ErrNo::InvalidArgument;
-      }
-      GraphRef.EnableDebugLog = EnableDebugLog;
+    GraphRef.EnableDebugLog = EnableDebugLog;
+  }
+  if (Doc.at_key("tokenizer").error() == simdjson::SUCCESS) {
+    std::string_view TokenizerPathView;
+    auto Err = Doc["tokenizer"].get<std::string_view>().get(TokenizerPathView);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
+      Env.NNGraph.pop_back();
+      return ErrNo::InvalidArgument;
     }
-    if (Doc.at_key("tokenizer").error() == simdjson::SUCCESS) {
-      std::string_view TokenizerPathView;
-      auto Err =
-          Doc["tokenizer"].get<std::string_view>().get(TokenizerPathView);
-      if (Err) {
-        spdlog::error(
-            "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
-        Env.NNGraph.pop_back();
-        return ErrNo::InvalidArgument;
-      }
-      TokenizerPath = TokenizerPathView;
+    TokenizerPath = TokenizerPathView;
+  } else {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
+    Env.NNGraph.pop_back();
+    return ErrNo::InvalidArgument;
+  }
+  if (Doc.at_key("max_token").error() == simdjson::SUCCESS) {
+    uint64_t MaxToken;
+    auto Err = Doc["max_token"].get<uint64_t>().get(MaxToken);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Unable to retrieve the max_token option."sv);
+      Env.NNGraph.pop_back();
+      return ErrNo::InvalidArgument;
     }
+    GraphRef.MaxToken = MaxToken;
   }
 
   // Load tokenizer.
@@ -105,70 +132,76 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.Tok =
         tokenizers::Tokenizer::FromBlobJSON(loadBytesFromFile(TokenizerPath))
             .release();
-  }
-
-  // Handle the model path.
-  auto Weight = Builders[0];
-  const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
-                             Weight.size());
-  spdlog::info("[WASI-NN] MLX BinModel: {}"sv, BinModel.size());
-  if (BinModel.size() == 0) {
+  } else {
+    spdlog::error("[WASI-NN] MLX backend: Tokenizer path not found."sv);
     Env.NNGraph.pop_back();
     return ErrNo::InvalidArgument;
   }
-  std::string ModelFilePath;
-  if (BinModel.substr(0, 8) == "preload:"sv) {
-    ModelFilePath = BinModel.substr(8);
+
+  // Create Model.
+  if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
+    GraphRef.Model = tinyLlama11BChatV10();
+    GraphRef.Prmopt = TinyLLaMAPrompt();
+  } else if (GraphRef.ModelType == "llama_3_8b") {
+    GraphRef.Model = llama38b();
+    GraphRef.Prmopt = LLaMA3Prompt();
+  } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
+    GraphRef.Model = llama27bChat();
+    GraphRef.Prmopt = LLaMA2Prompt();
   } else {
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] MLX backend: Model path not found in nn-preload, "
-          "write model into a tmpfile."sv);
-    }
-    // Write model to file.
-    // TODO: handle different model format.
-    ModelFilePath = "MLX.safetensors"sv;
-    std::ofstream TempFile(ModelFilePath, std::ios::out | std::ios::binary);
-    if (!TempFile) {
-      spdlog::error(
-          "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);
+    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    Env.NNGraph.pop_back();
+    return ErrNo::InvalidArgument;
+  }
+
+  // Handle the model path.
+  for (size_t Idx = 0; Idx < Builders.size() - 1; Idx++) {
+    auto Weight = Builders[Idx];
+    const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
+                               Weight.size());
+    spdlog::info("[WASI-NN] MLX BinModel: {}"sv, BinModel.size());
+    if (BinModel.size() == 0) {
       Env.NNGraph.pop_back();
       return ErrNo::InvalidArgument;
     }
-    TempFile.write(BinModel.data(), BinModel.size());
-    TempFile.close();
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] MLX backend: Write model into a tmpfile...Done"sv);
+    std::string ModelFilePath;
+    if (BinModel.substr(0, 8) == "preload:"sv) {
+      ModelFilePath = BinModel.substr(8);
+    } else {
+      if (GraphRef.EnableDebugLog) {
+        spdlog::info(
+            "[WASI-NN][Debug] MLX backend: Model path not found in nn-preload, "
+            "write model into a tmpfile."sv);
+      }
+      // Write model to file.
+      // TODO: handle different model format.
+      ModelFilePath = "MLX" + std::to_string(Idx) + ".safetensors";
+      std::ofstream TempFile(ModelFilePath, std::ios::out | std::ios::binary);
+      if (!TempFile) {
+        spdlog::error(
+            "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);
+        Env.NNGraph.pop_back();
+        return ErrNo::InvalidArgument;
+      }
+      TempFile.write(BinModel.data(), BinModel.size());
+      TempFile.close();
+      if (GraphRef.EnableDebugLog) {
+        spdlog::info(
+            "[WASI-NN][Debug] MLX backend: Write model into a tmpfile...Done"sv);
+      }
     }
-  }
-
-  // Create Model.
-  if (GraphRef.Model == nullptr) {
+    // Load weight.
     if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
-      GraphRef.Model = tinyLlama11BChatV10();
-      GraphRef.Prmopt = TinyLLaMAPrompt();
+      GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
     } else if (GraphRef.ModelType == "llama_3_8b") {
-      GraphRef.Model = llama38b();
+      GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
     } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
-      GraphRef.Model = llama27bChat();
+      GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
     } else {
       spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
       Env.NNGraph.pop_back();
       return ErrNo::InvalidArgument;
     }
-  }
-  // Load weight.
-  if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
-    GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
-  } else if (GraphRef.ModelType == "llama_3_8b") {
-    GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
-  } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
-    GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
-  } else {
-    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
-    Env.NNGraph.pop_back();
-    return ErrNo::InvalidArgument;
   }
 
   return WASINN::ErrNo::Success;
@@ -204,7 +237,7 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     spdlog::info("[WASI-NN] MLX backend: getOutput"sv);
   }
   std::string StringTmp(reinterpret_cast<const char *>(CxtRef.Outputs.data()),
-                        CxtRef.Outputs.size() * sizeof(long long int));
+                        CxtRef.Outputs.size());
   std::copy_n(StringTmp.data(), StringTmp.length(), OutBuffer.data());
   BytesWritten = StringTmp.length();
   return WASINN::ErrNo::Success;
@@ -220,12 +253,13 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: compute"sv);
   }
-  const std::vector<int> Ids = GraphRef.Tok->Encode(CxtRef.Inputs);
-  auto Token = mx::array(Ids.data(), {static_cast<int>(Ids.size())}, mx::int32);
+  const std::vector<int32_t> Ids = GraphRef.Tok->Encode(CxtRef.Inputs);
+  auto Token =
+      mx::array(Ids.data(), {static_cast<int32_t>(Ids.size())}, mx::int32);
   std::vector<int32_t> TokenList;
   std::string Answer;
-  int Skip = 0;
-  int TokenCount = 0;
+  int32_t Skip = 0;
+  uint64_t TokenCount = 0;
   auto [Y, KVCache] = GraphRef.Model->generate(Token, 0.1);
   while (true) {
     TokenCount++;

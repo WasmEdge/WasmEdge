@@ -104,9 +104,8 @@ public:
     const auto *CurrentInstance = StackMgr.getModule();
     auto &MemInstances = CurrentInstance->getOwnedMemoryInstances();
     auto &Content = MemSec.getContent();
+    // TODO why is this setting max and min to the same value?
     for (auto &Iter : MemInstances) {
-      AST::MemoryType MemType;
-      // MemType.getLimit().setType(LimitType TargetType);
       Content.push_back(Iter->getMemoryType());
     }
 
@@ -155,9 +154,10 @@ public:
     // TODO get thread info
     auto &Content = CoreStack.getContent();
     for (auto &Item : Frames) {
-      if (Item.Module == nullptr)
-        continue;                                 // guard
-      auto Funcidx = Item.From->getSourceIndex(); // function index
+      if (Item.Module == nullptr) // guard
+        continue;
+
+      auto Funcidx = Item.From->getTargetIndex(); // function index
       auto Codeoffset = Item.From->getOffset();
       // auto Codeoffset = 0;
       auto LocalsN = Item.Locals;

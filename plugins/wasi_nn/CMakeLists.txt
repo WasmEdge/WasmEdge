@@ -197,15 +197,13 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     if(MLX_FOUND)
       message(STATUS "Found MLX: ${MLX_INCLUDE_DIRS}")
     else()
-  # TODO: TEST
+      # Not support directly download from source 
+      find_library(ACCELERATE_LIBRARY Accelerate)
+      find_library(METAL_LIB Metal)
+      find_library(FOUNDATION_LIB Foundation)
+      find_library(QUARTZ_LIB QuartzCore)
       message(STATUS "MLX not found, downloading from source")
       include(FetchContent)
-      set(MLX_BUILD_TESTS OFF)
-      if (NOT APPLE)
-        set(MLX_BUILD_METAL OFF)
-        set(MLX_BUILD_CPU OFF)
-      endif()
-      
       FetchContent_Declare(
         mlx
         GIT_REPOSITORY https://github.com/ml-explore/mlx.git
@@ -216,6 +214,13 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)
       set_target_properties(mlx PROPERTIES
         INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:fmt::fmt-header-only>"
+      )
+      target_link_libraries(
+        mlx PUBLIC
+        ${ACCELERATE_LIBRARY}
+        ${METAL_LIB}
+        ${FOUNDATION_LIB}
+        ${QUARTZ_LIB}
       )
       target_compile_options(mlx
         PRIVATE
@@ -237,10 +242,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_MakeAvailable(tokenizers)
     target_include_directories(wasmedgePluginWasiNN PRIVATE ${tokenizers_SOURCE_DIR}/include)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE tokenizers_cpp)
-    target_compile_options(wasmedgePluginWasiNN
-      PRIVATE
-      -Wno-unused-parameter
-    )
     target_link_libraries(wasmedgePluginWasiNN PRIVATE
       mlx_cpp
       mlx

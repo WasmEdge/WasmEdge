@@ -1,14 +1,10 @@
 #include "mlx.h"
-#include "prompt.h"
 #include "spdlog/spdlog.h"
 #include "wasinnenv.h"
-#include <_types/_uint8_t.h>
-#include <arm/types.h>
-#include <codecvt>
-#include <cstddef>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 #include "converter.h"
+#include "prompt.h"
 #include "registry.h"
 #include "utils.h"
 #include <simdjson.h>

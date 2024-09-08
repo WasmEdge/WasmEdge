@@ -61,7 +61,8 @@ public:
     Mod.getCustomSections().emplace_back(CoreStack);
     // Mod.getDataSection() = std::move(DataSection);
     Mod.getMemorySection() = std::move(MemSec);
-    // Mod.getGlobalSection() = std::move(Globals);
+    // TODO globals works with DWARF data, is this section needed?
+    //  Mod.getGlobalSection() = std::move(Globals);
     auto Res = Ser.serializeModule(Mod);
     std::ofstream File("coredump.wasm", std::ios::out | std::ios::binary);
     if (File.is_open()) {
@@ -100,14 +101,25 @@ public:
     spdlog::info("Collecting memory section");
 
     AST::MemorySection MemSec;
-
     const auto *CurrentInstance = StackMgr.getModule();
     auto &MemInstances = CurrentInstance->getOwnedMemoryInstances();
-    auto &Content = MemSec.getContent();
+    // In the current version of WebAssembly, at most one memory may be defined
+    // or imported in a single module, and all constructs implicitly reference
+    // this memory.
+    std::cout << MemInstances[0]->getMemoryType().getLimit().getMin();
+    // auto &Content = MemSec.getContent();
     // TODO why is this setting max and min to the same value?
-    for (auto &Iter : MemInstances) {
-      Content.push_back(Iter->getMemoryType());
-    }
+    // for (auto &Iter : MemInstances) {
+    //   AST::MemoryType MemType;
+    //   auto Entry = Iter->getMemoryType();
+    //   if (Entry.getLimit().hasMax()) {
+    //     spdlog::warn("Has max");
+    //     auto Max = Entry.getLimit().getMax();
+    //     MemType.getLimit().setMax(Max);
+    //   }
+    //   MemType.getLimit().setMin(0);
+    //   Content.push_back(MemType);
+    // }
 
     return MemSec;
   }
@@ -157,13 +169,16 @@ public:
       if (Item.Module == nullptr) // guard
         continue;
 
-      auto Funcidx = Item.From->getTargetIndex(); // function index
+      auto Funcidx = Item.From->getSourceIndex(); // function index
+      // TODO which to use?
+      //  auto Funcidx = Item.From->getTargetIndex(); // function index
       auto Codeoffset = Item.From->getOffset();
-      // auto Codeoffset = 0;
+      // auto Codeoffset = 0; // only if codeoffset is unknown?
       auto LocalsN = Item.Locals;
 
       auto Locals = StackMgr.getRangeSpan(Item.VPos, LocalsN + Item.VPos);
-      auto Stack = StackMgr.getTopSpan(StackMgr.size() - LocalsN);
+      auto Stack = StackMgr.getTopSpan(StackMgr.size() -
+                                       LocalsN); // TODO is this correct?
 
       Content.push_back(Funcidx);
       Content.push_back(Codeoffset);

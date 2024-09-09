@@ -1,38 +1,38 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-add_library(wasmedgePluginWasiOCR
+add_library(wasmedgePluginWasmEdgeOCR
   SHARED
-  wasiocrenv.cpp
-  wasiocrfunc.cpp
-  wasiocrmodule.cpp
+  ocr_env.cpp
+  ocr_func.cpp
+  ocr_module.cpp
 )
 
-target_compile_options(wasmedgePluginWasiOCR
+target_compile_options(wasmedgePluginWasmEdgeOCR
   PUBLIC
   -DWASMEDGE_PLUGIN
 )
 
-target_include_directories(wasmedgePluginWasiOCR
+target_include_directories(wasmedgePluginWasmEdgeOCR
   PUBLIC
   $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 if(WASMEDGE_LINK_PLUGINS_STATIC)
-  target_link_libraries(wasmedgePluginWasiOCR
+  target_link_libraries(wasmedgePluginWasmEdgeOCR
     PRIVATE
     wasmedgeCAPI
   )
 else()
-  target_link_libraries(wasmedgePluginWasiOCR
+  target_link_libraries(wasmedgePluginWasmEdgeOCR
     PRIVATE
     wasmedge_shared
   )
 endif()
 
 install(
-  TARGETS wasmedgePluginWasiOCR
+  TARGETS wasmedgePluginWasmEdgeOCR
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
 )
 
@@ -41,13 +41,13 @@ find_package(PkgConfig REQUIRED)
 pkg_search_module(TESSERACT REQUIRED tesseract)
 pkg_search_module(LEPTONICA REQUIRED lept)
 
-target_include_directories(wasmedgePluginWasiOCR
+target_include_directories(wasmedgePluginWasmEdgeOCR
   PUBLIC
   ${TESSERACT_INCLUDE_DIRS}
   ${LEPTONICA_INCLUDE_DIRS}
 )
 
-target_link_libraries(wasmedgePluginWasiOCR
+target_link_libraries(wasmedgePluginWasmEdgeOCR
   PUBLIC
   ${TESSERACT_LIBRARIES}
   ${LEPTONICA_LIBRARIES}

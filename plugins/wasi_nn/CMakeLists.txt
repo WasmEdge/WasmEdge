@@ -149,7 +149,10 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
       )
     endif()
-  elseif(BACKEND STREQUAL "neuralspeed" OR BACKEND STREQUAL "chattts")
+  elseif(BACKEND STREQUAL "neuralspeed")
+    message(NOTICE "WASI-NN NeuralSpeed backend is removed due to the upstream end-of-life.")
+    message(NOTICE "Reference: https://github.com/intel/neural-speed")
+  elseif(BACKEND STREQUAL "chattts")
     wasmedge_setup_simdjson()
 
     find_package(Python3 COMPONENTS Interpreter Development)

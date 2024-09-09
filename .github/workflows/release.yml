@@ -63,8 +63,8 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'name':'ubuntu-20.04','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang'},
-                {'name':'ubuntu-20.04','runner':'linux-arm64-v2','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang-aarch64','arch':'aarch64'}]"
+      matrix: "[{'name':'ubuntu-20.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang'},
+                {'name':'ubuntu-20.04','arch':'aarch64','runner':'linux-arm64-v2','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang-aarch64'}]"
       release: true
     secrets: inherit
 
@@ -135,8 +135,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_dir: build/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=NeuralSpeed -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper -DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=squeezenet -DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=whisper
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-neuralspeed wasi_nn-whisper wasi_nn-piper wasi_nn_burnrs-squeezenet wasi_nn_burnrs-whisper
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-whisper wasi_nn-piper
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2024.2.0"
       OPENVINO_YEAR: "2024"
@@ -213,12 +213,6 @@ jobs:
         run: |
           mv plugin_wasi_nn-ggml.tar.gz WasmEdge-plugin-wasi_nn-ggml-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-ggml-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
-      - name: Upload wasi_nn-neuralspeed plugin tar.gz package
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mv plugin_wasi_nn-neuralspeed.tar.gz WasmEdge-plugin-wasi_nn-neuralspeed-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
-          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-neuralspeed-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
       - name: Upload wasi_nn-whisper plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -231,6 +225,56 @@ jobs:
         run: |
           mv plugin_wasi_nn-piper.tar.gz WasmEdge-plugin-wasi_nn-piper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-piper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+
+  build_and_upload_wasinn_burnrs_ubuntu:
+    name: Build and upload WASI-NN burn.rs backend on Ubuntu 20.04
+    runs-on: ubuntu-latest
+    env:
+      output_dir: build/plugins/wasi_nn_burnrs
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=squeezenet -DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=whisper
+      tar_names: wasi_nn_burnrs-squeezenet wasi_nn_burnrs-whisper
+      output_bin: libwasmedgePluginWasiNN.so
+    needs: create_release
+    container:
+      image: wasmedge/wasmedge:ubuntu-20.04-build-clang
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        shell: bash
+        run: |
+          apt update
+          apt install -y pkg-config libssl-dev
+      - name: Build WASI-NN plugin
+        shell: bash
+        run: |
+          plugin_array=(${tar_names})
+          option_array=(${build_options})
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} backend:"
+            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake --build build --target wasmedgePluginWasiNNBurnRS
+
+            echo "Copying ${plugin_array[$i]} backend:"
+            cp -f ${output_dir}/${output_bin} ${output_bin}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
+          done
+      - name: Install gh
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
       - name: Upload wasi_nn_burnrs-squeezenet plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

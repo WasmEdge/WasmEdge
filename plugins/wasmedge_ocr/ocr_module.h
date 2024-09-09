@@ -3,20 +3,21 @@
 
 #pragma once
 
+#include "ocr_env.h"
+
 #include "runtime/instance/module.h"
-#include "wasiocrenv.h"
 
 namespace WasmEdge {
 namespace Host {
 
-class WasiOCRModule : public Runtime::Instance::ModuleInstance {
+class WasmEdgeOCRModule : public Runtime::Instance::ModuleInstance {
 public:
-  WasiOCRModule();
+  WasmEdgeOCRModule();
 
-  WASIOCR::WasiOCREnvironment &getEnv() { return Env; }
+  WasmEdgeOCR::OCREnv &getEnv() { return Env; }
 
 private:
-  WASIOCR::WasiOCREnvironment Env;
+  WasmEdgeOCR::OCREnv Env;
 };
 
 } // namespace Host

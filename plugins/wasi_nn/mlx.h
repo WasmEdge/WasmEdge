@@ -30,7 +30,7 @@ struct Graph {
   tokenizers::Tokenizer *Tok = nullptr;
   Transformer *Model;
   double Temp = 0.0;
-  bool EnableDebugLog = true;
+  bool EnableDebugLog = false;
   uint64_t MaxToken = 1024;
   BasePrompt Prmopt;
 };

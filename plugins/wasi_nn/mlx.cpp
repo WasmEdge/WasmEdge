@@ -54,7 +54,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   // Parse metadata.
   if (Builders.size() <= 1) {
     spdlog::error(
-        "[WASI-NN] MLX backend: Lack necessary metadata(tokenizer, model_type)."sv);
+        "[WASI-NN] MLX backend: Lack model weight or required metadata (tokenizer, model_type)."sv);
     Env.NNGraph.pop_back();
     return ErrNo::InvalidArgument;
   }

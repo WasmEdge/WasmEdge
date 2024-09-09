@@ -204,6 +204,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       find_library(QUARTZ_LIB QuartzCore)
       message(STATUS "MLX not found, downloading from source")
       include(FetchContent)
+      set(MLX_BUILD_GGUF OFF)
       FetchContent_Declare(
         mlx
         GIT_REPOSITORY https://github.com/ml-explore/mlx.git
@@ -223,14 +224,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         ${QUARTZ_LIB}
       )
       target_compile_options(mlx
-        PRIVATE
+        PUBLIC
         -Wno-unused-parameter
         -Wno-deprecated-copy
         -Wno-format
       )
     endif()
     add_subdirectory(MLX)
-    target_include_directories(wasmedgePluginWasiNN PRIVATE MLX/model MLX/prompt MLX/mlx)
+    target_include_directories(wasmedgePluginWasiNN PUBLIC MLX/model MLX/prompt MLX/mlx)
 
     message(STATUS "Downloading tokenizers")
     FetchContent_Declare(
@@ -242,7 +243,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_MakeAvailable(tokenizers)
     target_include_directories(wasmedgePluginWasiNN PRIVATE ${tokenizers_SOURCE_DIR}/include)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE tokenizers_cpp)
-    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+    target_link_libraries(wasmedgePluginWasiNN PUBLIC
       mlx_cpp
       mlx
       simdjson::simdjson

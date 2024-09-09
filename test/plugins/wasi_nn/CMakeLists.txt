@@ -118,6 +118,9 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures/tokenizer.json
       MD5=c9dc953a24ad2b76b4bae4bf456f18bd
     )
+    target_compile_options(wasiNNTests PUBLIC
+      -Wno-unused-parameter
+    )
   else()
     # Add the other backend test files fetching here.
   endif()

@@ -41,7 +41,7 @@ DataLoader *LLMCEnv::getDataLoader(uint32_t Id) noexcept {
 
 LLMCEnv::~LLMCEnv() {
   for (GPT2 *M : Models) {
-    gpt2_free(M);
+    gpt2_destroy(M);
   }
   for (DataLoader *DL : DataLoaders) {
     dataloader_destroy(DL);

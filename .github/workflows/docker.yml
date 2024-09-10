@@ -96,7 +96,6 @@ jobs:
     needs:
       - prep
       - paths-filter
-    if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
 
     name: CI image base
     runs-on: ubuntu-latest
@@ -115,7 +114,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: Bake and Push
+      # DO NOT skip the whole job to prevent descending jobs to be skipped
+      - if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
+        name: Bake and Push
         uses: docker/bake-action@v5
         with:
           files: utils/docker/docker-bake.ci-image-base.hcl
@@ -126,8 +127,7 @@ jobs:
       - prep
       - paths-filter
       - bake-base-images
-    # Allow dependent job to be skipped
-    if: ${{ !failure() && needs.paths-filter.outputs.ubuntu == 'true' }}
+    if: ${{ needs.paths-filter.outputs.ubuntu == 'true' }}
 
     strategy:
       fail-fast: false
@@ -175,8 +175,7 @@ jobs:
       - prep
       - paths-filter
       - bake-base-images
-    # Allow dependent job to be skipped
-    if: ${{ !failure() && needs.paths-filter.outputs.manylinux == 'true' }}
+    if: ${{ needs.paths-filter.outputs.manylinux == 'true' }}
 
     strategy:
       fail-fast: false

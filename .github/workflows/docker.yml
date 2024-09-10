@@ -6,8 +6,6 @@ concurrency:
 
 on:
   push:
-    tags:
-      - '*.*.*'
     branches:
       - master
     paths:

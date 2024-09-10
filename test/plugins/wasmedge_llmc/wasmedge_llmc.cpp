@@ -1,34 +1,50 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
+#include "llmc_func.h"
+#include "llmc_module.h"
+
 #include "common/defines.h"
 #include "common/types.h"
 #include "plugin/plugin.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
-#include "types.h"
-#include "wasillmfunc.h"
-#include "wasillmmodule.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <initializer_list>
+#include <memory>
 #include <string>
 #include <vector>
 
-using WasmEdge::Host::WASILLM::ErrNo;
+using WasmEdge::Host::WasmEdgeLLMC::ErrNo;
 
 namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModule() {
+
+template <typename T, typename U>
+inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
+  static_assert(std::has_virtual_destructor_v<T>);
+  T *P = dynamic_cast<T *>(R.get());
+  if (P) {
+    R.release();
+  }
+  return std::unique_ptr<T>(P);
+}
+
+std::unique_ptr<WasmEdge::Host::WasmEdgeLLMCModule> createModule() {
   using namespace std::literals::string_view_literals;
-  WasmEdge::Plugin::Plugin::load(
-      std::filesystem::u8path("../../../plugins/wasi_llm/" WASMEDGE_LIB_PREFIX
-                              "wasmedgePluginWasiLLM" WASMEDGE_LIB_EXTENSION));
-  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_llm"sv)) {
-    if (const auto *Module = Plugin->findModule("wasi_llm"sv)) {
-      return Module->create().release();
+  WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
+      "../../../plugins/wasmedge_llmc/" WASMEDGE_LIB_PREFIX
+      "wasmedgePluginWasmEdgeLLMC" WASMEDGE_LIB_EXTENSION));
+  if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasmedge_llmc"sv)) {
+    if (const auto *Module = Plugin->findModule("wasmedge_llmc"sv)) {
+      return dynamicPointerCast<WasmEdge::Host::WasmEdgeLLMCModule>(
+          Module->create());
     }
   }
-  return nullptr;
+  return {};
 }
 } // namespace
 
@@ -45,11 +61,11 @@ void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
   Ptr += 4;
 }
 
-TEST(WasiLLMTest, TrainGPT2) {
-  // Create wasi_llm module instance.
-  auto *LLMMod = dynamic_cast<WasmEdge::Host::WasiLLMModule *>(createModule());
-  EXPECT_NE(LLMMod, nullptr);
-  EXPECT_EQ(LLMMod->getFuncExportNum(), 4U);
+TEST(WasmEdgeLLMTest, TrainGPT2) {
+  // Create wasmedge_llmc module instance.
+  auto LLMCMod = createModule();
+  ASSERT_TRUE(LLMCMod);
+  EXPECT_EQ(LLMCMod->getFuncExportNum(), 4U);
 
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -61,53 +77,54 @@ TEST(WasiLLMTest, TrainGPT2) {
   auto &MemInst = *MemInstPtr;
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  auto *ModelCreate = LLMMod->findFuncExports("model_create");
+  auto *ModelCreate = LLMCMod->findFuncExports("model_create");
   EXPECT_NE(ModelCreate, nullptr);
   EXPECT_TRUE(ModelCreate->isHostFunction());
   auto &HostFuncModelCreate =
-      dynamic_cast<WasmEdge::Host::WasiLLMModelCreate &>(
+      dynamic_cast<WasmEdge::Host::WasmEdgeLLMC::ModelCreate &>(
           ModelCreate->getHostFunc());
 
-  auto *DataLoaderCreate = LLMMod->findFuncExports("dataloader_create");
+  auto *DataLoaderCreate = LLMCMod->findFuncExports("dataloader_create");
   EXPECT_NE(DataLoaderCreate, nullptr);
   EXPECT_TRUE(DataLoaderCreate->isHostFunction());
   auto &HostFuncDataLoadereCreate =
-      dynamic_cast<WasmEdge::Host::WasiLLMDataLoaderCreate &>(
+      dynamic_cast<WasmEdge::Host::WasmEdgeLLMC::DataLoaderCreate &>(
           DataLoaderCreate->getHostFunc());
 
-  auto *TokenizerCreate = LLMMod->findFuncExports("tokenizer_create");
+  auto *TokenizerCreate = LLMCMod->findFuncExports("tokenizer_create");
   EXPECT_NE(TokenizerCreate, nullptr);
   EXPECT_TRUE(TokenizerCreate->isHostFunction());
   auto &HostFuncTokenizerCreate =
-      dynamic_cast<WasmEdge::Host::WasiLLMTokenizerCreate &>(
+      dynamic_cast<WasmEdge::Host::WasmEdgeLLMC::TokenizerCreate &>(
           TokenizerCreate->getHostFunc());
 
-  auto *ModelTrain = LLMMod->findFuncExports("model_train");
+  auto *ModelTrain = LLMCMod->findFuncExports("model_train");
   EXPECT_NE(ModelTrain, nullptr);
   EXPECT_TRUE(ModelTrain->isHostFunction());
-  auto &HostFuncModelTrain = dynamic_cast<WasmEdge::Host::WasiLLMModelTrain &>(
-      ModelTrain->getHostFunc());
+  auto &HostFuncModelTrain =
+      dynamic_cast<WasmEdge::Host::WasmEdgeLLMC::ModelTrain &>(
+          ModelTrain->getHostFunc());
 
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
-  std::string CheckPointString = "./wasi_llm/gpt2_124M.bin";
+  std::string CheckPointString = "./wasmedge_llmc/gpt2_124M.bin";
   std::vector<char> CheckPointPath(CheckPointString.begin(),
                                    CheckPointString.end());
   uint32_t CheckPointPathPtr = UINT32_C(0);
   writeBinaries<char>(MemInst, CheckPointPath, CheckPointPathPtr);
 
-  std::string TrainDataString = "./wasi_llm/tiny_shakespeare_train.bin";
+  std::string TrainDataString = "./wasmedge_llmc/tiny_shakespeare_train.bin";
   std::vector<char> TrainDataPath(TrainDataString.begin(),
                                   TrainDataString.end());
   uint32_t TrainDataPathPtr = CheckPointPathPtr + CheckPointPath.size();
   writeBinaries<char>(MemInst, TrainDataPath, TrainDataPathPtr);
 
-  std::string ValDataString = "./wasi_llm/tiny_shakespeare_val.bin";
+  std::string ValDataString = "./wasmedge_llmc/tiny_shakespeare_val.bin";
   std::vector<char> ValDataPath(ValDataString.begin(), ValDataString.end());
   uint32_t ValDataPathPtr = TrainDataPathPtr + TrainDataPath.size();
   writeBinaries<char>(MemInst, ValDataPath, ValDataPathPtr);
 
-  std::string TokenizerBin = "./wasi_llm/gpt2_tokenizer.bin";
+  std::string TokenizerBin = "./wasmedge_llmc/gpt2_tokenizer.bin";
   std::vector<char> TokenizerBinPath(TokenizerBin.begin(), TokenizerBin.end());
   uint32_t TokenizerBinPtr = ValDataPathPtr + ValDataPath.size();
   writeBinaries<char>(MemInst, TokenizerBinPath, TokenizerBinPtr);
@@ -189,8 +206,6 @@ TEST(WasiLLMTest, TrainGPT2) {
             /*Epoch*/ 20},
         Errno));
   }
-
-  delete LLMMod;
 }
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -1,0 +1,101 @@
+name: Build extensions on legacy manylinux
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        required: true
+      docker_tag:
+        type: string
+        required: true
+      asset_tag:
+        type: string
+        required: true
+      plugins:
+        description: 'JSON array of the plugins'
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+        default: false
+
+env:
+  # https://github.blog/changelog/2024-03-07-github-actions-all-actions-will-run-on-node20-instead-of-node16-by-default/
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+
+jobs:
+  build:
+    if: ${{ startsWith(inputs.asset_tag, 'manylinux2014') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.plugins) }}
+    name: ${{ matrix.plugin }}
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: wasmedge/wasmedge:${{ inputs.docker_tag }}
+      # Required for mounting debugfs
+      # Tests of wasm_bpf also require privileges
+      options: --privileged
+    env:
+      bin_name: ${{ matrix.bin }}
+      target: ${{ matrix.testBin }}
+      test_dir: build/test/plugins/${{ matrix.dir }}
+      output_dir: build/plugins/${{ matrix.dir }}
+    steps:
+      - id: var
+        run: |
+          echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - if: ${{ inputs.release }}
+        name: Prepare target for release
+        run: |
+          target=${bin_name%.*}
+          echo "target=${target#lib}" >> $GITHUB_ENV
+      - name: Build ${{ matrix.plugin }}
+        shell: bash
+        run: |
+          cmake -Bbuild -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
+            -DWASMEDGE_BUILD_TOOLS=OFF \
+            -DWASMEDGE_USE_LLVM=OFF \
+            -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
+            ${{ matrix.options }}
+          cmake --build build --target ${target}
+
+          cp -f ${output_dir}/${bin_name} ${bin_name}
+          tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+      - if: ${{ !inputs.release && matrix.plugin == 'wasm_bpf' }}
+        name: Prepare test env
+        shell: bash
+        run: |
+          # Running tests of wasm_bpf requires proper ebpf running environment
+          mount -t debugfs none /sys/kernel/debug
+      - if: ${{ !inputs.release }}
+        name: Test ${{ matrix.plugin }}
+        run: |
+          cd ${test_dir}
+          ./${target}
+          cd -
+      - if: ${{ !inputs.release }}
+        name: Upload artifact ${{ matrix.plugin }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ steps.var.outputs.artifact }}
+          path: ${{ steps.var.outputs.artifact }}
+      - if: ${{ inputs.release }}
+        name: Upload ${{ steps.var.outputs.artifact }}
+        run: |
+          gh release upload ${{ inputs.version }} ${{ steps.var.outputs.artifact }} --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -12,6 +12,10 @@ on:
       asset_tag:
         type: string
         required: true
+      plugins:
+        description: 'JSON array of the plugins'
+        type: string
+        required: true
       version:
         type: string
         required: true
@@ -19,76 +23,13 @@ on:
         type: boolean
         default: false
 
-env:
-  build_tests: ${{ inputs.release && 'Off' || 'On' }}
-  build_type: Release
-
 jobs:
-  var:
-    name: Prepare variables
-    runs-on: ubuntu-latest
-    outputs:
-      cache_key_ws: ${{ steps.var.outputs.cache_key_ws }}
-      cache_path_ws: ${{ steps.var.outputs.cache_path_ws }}
-    steps:
-      - id: var
-        run: |
-          echo "cache_key_ws=${{ github.run_id }}-${{ github.sha }}-${{ inputs.asset_tag}}-w" >> $GITHUB_OUTPUT
-          echo "cache_path_ws=." >> $GITHUB_OUTPUT
-
-  prepare:
-    needs: [var]
-    name: Prepare ${{ inputs.asset_tag }}
-    runs-on: ${{ inputs.runner }}
-    container:
-      image: wasmedge/wasmedge:${{ inputs.docker_tag }}
-      # Required for mounting debugfs
-      # Tests of wasm_bpf also require privileges
-      options: --privileged
-    outputs:
-      plugins: ${{ steps.readfile.outputs.result }}
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - id: readfile
-        uses: actions/github-script@v6
-        with:
-          result-encoding: string
-          script: |
-            const fs = require("fs")
-            var json_s = fs.readFileSync(".github/workflows/matrix-extensions.json")
-            var json_o = JSON.parse(json_s)
-            return JSON.stringify(json_o.list.${{ inputs.asset_tag }}.map((plugin) => {
-              return json_o.detail[plugin]
-            }))
-      - name: Ensure git safe directory
-        run: |
-          git config --global --add safe.directory $(pwd)
-      - name: Build any plugin
-        shell: bash
-        run: |
-          if [[ ${build_tests} != "On" ]]; then
-            target=${bin_name%.*}
-            target=${target#lib}
-          fi
-
-          mkdir -p build
-          cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=${build_tests} -DCMAKE_BUILD_TYPE=${build_type} -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DOPENSSL_ROOT_DIR=${OpenSSL_DIR}
-          cmake --build build --target wasmedgePluginWasiLogging
-      - uses: actions/cache/save@v3
-        with:
-          key: ${{ needs.var.outputs.cache_key_ws }}
-          path: ${{ needs.var.outputs.cache_path_ws }}
-
-  build_on_manylinux:
-    needs: [var, prepare]
+  build:
+    if: ${{ startsWith(inputs.asset_tag, 'manylinux_2_28') }}
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(needs.prepare.outputs.plugins) }}
+        include: ${{ fromJSON(inputs.plugins) }}
     name: ${{ matrix.plugin }}
     runs-on: ${{ inputs.runner }}
     container:
@@ -97,69 +38,65 @@ jobs:
       # Tests of wasm_bpf also require privileges
       options: --privileged
     env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
       bin_name: ${{ matrix.bin }}
-      target: ${{ inputs.release && matrix.bin || matrix.testBin }}
+      target: ${{ matrix.testBin }}
       test_dir: build/test/plugins/${{ matrix.dir }}
       output_dir: build/plugins/${{ matrix.dir }}
     steps:
-      - id: prep
+      - id: var
         run: |
           echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
-          echo "filename=plugin_${{ matrix.plugin }}.tar.gz" >> $GITHUB_OUTPUT
-      - id: cache
-        uses: actions/cache/restore@v3
-        with:
-          key: ${{ needs.var.outputs.cache_key_ws }}
-          path: ${{ needs.var.outputs.cache_path_ws }}
-      - if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - if: ${{ matrix.plugin == 'wasm_bpf' }}
-        name: Install dependencies
+      - if: ${{ inputs.release }}
+        name: Prepare target for release
+        run: |
+          target=${bin_name%.*}
+          echo "target=${target#lib}" >> $GITHUB_ENV
+      - name: Build ${{ matrix.plugin }}
+        shell: bash
+        run: |
+          cmake -Bbuild -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
+            -DWASMEDGE_BUILD_TOOLS=OFF \
+            -DWASMEDGE_USE_LLVM=OFF \
+            -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
+            ${{ matrix.options }}
+          cmake --build build --target ${target}
+
+          cp -f ${output_dir}/${bin_name} ${bin_name}
+          tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+      - if: ${{ !inputs.release && matrix.plugin == 'wasm_bpf' }}
+        name: Prepare test env
         shell: bash
         run: |
           # Running tests of wasm_bpf requires proper ebpf running environment
           mount -t debugfs none /sys/kernel/debug
-      - name: Build ${{ matrix.plugin }}
-        shell: bash
-        run: |
-          if [[ ${build_tests} != "On" ]]; then
-            target=${bin_name%.*}
-            target=${target#lib}
-          fi
-
-          cmake -Bbuild -GNinja ${{ matrix.options }}
-          cmake --build build --target ${target}
-
-          cp -f ${output_dir}/${bin_name} ${bin_name}
-          tar -zcvf ${{ steps.prep.outputs.filename }} ${bin_name}
-      - name: Test ${{ matrix.plugin }}
-        if: ${{ !inputs.release }}
+      - if: ${{ !inputs.release }}
+        name: Test ${{ matrix.plugin }}
         run: |
           cd ${test_dir}
           ./${target}
           cd -
-      - name: Upload artifact ${{ matrix.plugin }}
-        if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v3
+      - if: ${{ !inputs.release }}
+        name: Upload artifact ${{ matrix.plugin }}
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.prep.outputs.artifact }}
-          path: ${{ steps.prep.outputs.filename }}
-      - name: Install gh except for manylinux2014
-        if: ${{ inputs.release && (!contains(inputs.docker_tag, 'manylinux2014')) }}
+          name: ${{ steps.var.outputs.artifact }}
+          path: ${{ steps.var.outputs.artifact }}
+      - if: ${{ inputs.release }}
+        name: Install gh
         run: |
-          type -p yum-config-manager >/dev/null || yum install -y yum-utils
-          yum-config-manager --add-repo https://cli.github.com/packages/rpm/gh-cli.repo
+          yum check-update || true
           yum install -y gh
-      - name: Upload WasmEdge ${{ matrix.plugin }} plugin tar.gz package
-        if: ${{ inputs.release }}
+      - if: ${{ inputs.release }}
+        name: Upload ${{ steps.var.outputs.artifact }}
+        run: |
+          gh release upload ${{ inputs.version }} ${{ steps.var.outputs.artifact }} --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mv ${{ steps.prep.outputs.filename }} ${{ steps.prep.outputs.artifact }}
-          gh release upload ${{ inputs.version }} ${{ steps.prep.outputs.artifact }} --clobber

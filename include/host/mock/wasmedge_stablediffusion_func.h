@@ -19,7 +19,8 @@ public:
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
-                        uint32_t, uint32_t) {
+                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
+                        uint32_t, uint32_t, uint32_t) {
     printPluginMock("WasmEdge-Stable-Diffusion"sv);
     return kStableDiffusionError;
   }
@@ -28,7 +29,7 @@ public:
 class TextToImage : public Runtime::HostFunction<TextToImage> {
 public:
   Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t, uint32_t,
-                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
+                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, float,
                         uint32_t, uint32_t, int32_t, float, uint32_t, uint32_t,
                         uint32_t, uint32_t, float, float, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
@@ -40,7 +41,7 @@ public:
 class ImageToImage : public Runtime::HostFunction<ImageToImage> {
 public:
   Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t, uint32_t,
-                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
+                        uint32_t, float, uint32_t, uint32_t, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t, uint32_t, int32_t, float,
                         uint32_t, uint32_t, float, uint32_t, uint32_t, float,
                         float, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,

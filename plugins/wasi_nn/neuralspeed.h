@@ -6,46 +6,15 @@
 #include "plugin/plugin.h"
 #include "types.h"
 
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
-#include <Python.h>
-#endif
-
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
 
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_NEURAL_SPEED
-struct Graph {
-  bool EnableDebugLog = true;
-  std::string ModelType = "llama";
-  inline static int GraphNumber = 0;
-  Graph() noexcept { Py_Initialize(); }
-  ~Graph() noexcept {
-    if (Py_IsInitialized()) {
-      Py_XDECREF(Model);
-      Py_XDECREF(ModelClass);
-      Py_XDECREF(NeuralSpeedModule);
-    }
-  }
-  PyObject *Model = nullptr;
-  PyObject *NeuralSpeedModule = nullptr;
-  PyObject *ModelClass = nullptr;
-  int64_t LoadTime = 0;
-  int64_t ComputeTime = 0;
-};
-struct Context {
-  Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}
-  size_t GraphId;
-  std::vector<long long int> Inputs;
-  std::vector<long long int> Outputs;
-};
-#else
 struct Graph {};
 struct Context {
   Context(size_t, Graph &) noexcept {}
 };
-#endif
 
 struct Environ {};
 

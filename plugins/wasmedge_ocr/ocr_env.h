@@ -5,14 +5,15 @@
 
 #include "common/spdlog.h"
 #include "plugin/plugin.h"
-#include <cstdint>
 
 #include <leptonica/allheaders.h>
 #include <tesseract/baseapi.h>
 
+#include <cstdint>
+
 namespace WasmEdge {
 namespace Host {
-namespace WASIOCR {
+namespace WasmEdgeOCR {
 
 enum class ErrNo : uint32_t {
   Success = 0,         // No error occurred.
@@ -21,16 +22,17 @@ enum class ErrNo : uint32_t {
   Busy = 3             // Device or resource busy.
 };
 
-class WasiOCREnvironment {
+class OCREnv {
 public:
-  WasiOCREnvironment() noexcept {
+  OCREnv() noexcept {
     // check Tesseract API by initializing tesseract-ocr with English, without
     // specifying tessdata path
     if (TesseractApi->Init(NULL, "eng")) {
-      spdlog::error("[WASI-OCR] Error occurred when initializing tesseract.");
+      spdlog::error(
+          "[WasmEdge-OCR] Error occurred when initializing tesseract.");
     }
   }
-  ~WasiOCREnvironment() noexcept {
+  ~OCREnv() noexcept {
     if (TesseractApi) {
       TesseractApi->End();
       ;
@@ -41,6 +43,6 @@ public:
   static Plugin::PluginRegister Register;
 };
 
-} // namespace WASIOCR
+} // namespace WasmEdgeOCR
 } // namespace Host
 } // namespace WasmEdge

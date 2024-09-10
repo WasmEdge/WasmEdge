@@ -13,7 +13,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
-#include <iostream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -209,8 +208,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   } else {
     // reactor mode
     if (Opt.Args.value().empty()) {
-      std::cerr
-          << "A function name is required when reactor mode is enabled.\n";
+      fmt::print(
+          stderr,
+          "A function name is required when reactor mode is enabled.\n"sv);
       return EXIT_FAILURE;
     }
     const auto &FuncName = Opt.Args.value().front();
@@ -306,19 +306,19 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       for (size_t I = 0; I < Result->size(); ++I) {
         switch ((*Result)[I].second.getCode()) {
         case TypeCode::I32:
-          std::cout << (*Result)[I].first.get<uint32_t>() << '\n';
+          fmt::print("{}\n"sv, (*Result)[I].first.get<uint32_t>());
           break;
         case TypeCode::I64:
-          std::cout << (*Result)[I].first.get<uint64_t>() << '\n';
+          fmt::print("{}\n"sv, (*Result)[I].first.get<uint64_t>());
           break;
         case TypeCode::F32:
-          std::cout << (*Result)[I].first.get<float>() << '\n';
+          fmt::print("{}\n"sv, (*Result)[I].first.get<float>());
           break;
         case TypeCode::F64:
-          std::cout << (*Result)[I].first.get<double>() << '\n';
+          fmt::print("{}\n"sv, (*Result)[I].first.get<double>());
           break;
         case TypeCode::V128:
-          std::cout << (*Result)[I].first.get<uint128_t>() << '\n';
+          fmt::print("{}\n"sv, (*Result)[I].first.get<uint128_t>());
           break;
         /// TODO: FuncRef and ExternRef
         default:

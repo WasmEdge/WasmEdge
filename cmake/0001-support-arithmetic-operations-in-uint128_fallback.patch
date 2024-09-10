@@ -1,0 +1,201 @@
+From 707dc7d2fe66629aeea8ac1afac7e26372245193 Mon Sep 17 00:00:00 2001
+From: Shen-Ta Hsieh <ibmibmibm.tw@gmail.com>
+Date: Thu, 29 Aug 2024 17:08:27 +0800
+Subject: [PATCH] support arithmetic operations in uint128_fallback
+
+---
+ include/fmt/format.h | 154 ++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 151 insertions(+), 3 deletions(-)
+
+diff --git a/include/fmt/format.h b/include/fmt/format.h
+index 67f0ab7..629c9a4 100644
+--- a/include/fmt/format.h
++++ b/include/fmt/format.h
+@@ -317,6 +317,65 @@ inline auto is_big_endian() -> bool {
+ #endif
+ }
+ 
++FMT_CONSTEXPR20 inline auto countl_zero(uint32_t n) -> int;
++FMT_CONSTEXPR20 inline auto udiv128by64to64(uint64_t u1, uint64_t u0, uint64_t v, uint64_t &r) {
++  if (!is_constant_evaluated()) {
++#if FMT_MSC_VERSION && !FMT_CLANG_VERSION && defined(_M_X64)
++    return _udiv128(u1, u0, v, &r);
++#elif defined(__x86_64__)
++    uint64_t result = 0;
++    __asm__("divq %[v]" : "=a"(result), "=d"(r) : [v]"r"(v), "a"(u0), "d"(u1));
++    return result;
++#endif
++  }
++  const uint32_t v0 = static_cast<uint32_t>(v);
++  const uint32_t v1 = static_cast<uint32_t>(v >> 32);
++  if (v1 == 0) {
++    auto rem = (u1 << 32) | (u0 >> 32);
++    auto result = rem / v0;
++    rem = ((rem % v0) << 32) | static_cast<uint32_t>(u0);
++    result = (result << 32) | (rem / v0);
++    r = rem % v0;
++    return result;
++  }
++  uint64_t un64 = 0, un10 = 0;
++  const auto s = countl_zero(v1);
++  if (s > 0) {
++    v <<= s;
++    un64 = (u1 << s) | (u0 >> (64 - s));
++    un10 = u0 << s;
++  } else {
++    un64 = u1;
++    un10 = u0;
++  }
++  uint64_t vn1 = static_cast<uint32_t>(v >> 32);
++  uint64_t vn0 = static_cast<uint32_t>(v);
++  uint64_t un1 = static_cast<uint32_t>(un10 >> 32);
++  uint64_t un0 = static_cast<uint32_t>(un10);
++  uint64_t q1 = un64 / vn1;
++  uint64_t rhat = un64 - q1 * vn1;
++  while ((q1 >> 32) >= 1 || q1 * vn0 > (rhat << 32) + un1) {
++    --q1;
++    rhat += vn1;
++    if ((rhat >> 32) >= 1) {
++      break;
++    }
++  }
++
++  uint64_t un21 = (un64 << 32) + un1 - q1 * v;
++  uint64_t q0 = un21 / vn1;
++  rhat = un21 - q0 * vn1;
++  while ((q0 >> 32) >= 1 || q0 * vn0 > (rhat << 32) + un0) {
++    --q0;
++    rhat += vn1;
++    if ((rhat >> 32) >= 1) {
++      break;
++    }
++  }
++  r = ((un21 << 32) + un0 - q0 * v) >> s;
++  return (q1 << 32) + q0;
++}
++
+ class uint128_fallback {
+  private:
+   uint64_t lo_, hi_;
+@@ -345,6 +404,18 @@ class uint128_fallback {
+                                   const uint128_fallback& rhs) -> bool {
+     return lhs.hi_ != rhs.hi_ ? lhs.hi_ > rhs.hi_ : lhs.lo_ > rhs.lo_;
+   }
++  friend constexpr auto operator<(const uint128_fallback& lhs,
++                                  int rhs) -> bool {
++    return rhs >= 0 && lhs.hi_ == 0 && lhs.lo_ < static_cast<unsigned int>(rhs);
++  }
++  friend constexpr auto operator<(const uint128_fallback& lhs,
++                                  const uint128_fallback& rhs) -> bool {
++    return lhs.hi_ < rhs.hi_ || (lhs.hi_ == rhs.hi_ && lhs.lo_ < rhs.lo_);
++  }
++  friend constexpr auto operator>=(const uint128_fallback& lhs,
++                                   int rhs) -> bool {
++    return !(lhs < rhs);
++  }
+   friend constexpr auto operator|(const uint128_fallback& lhs,
+                                   const uint128_fallback& rhs)
+       -> uint128_fallback {
+@@ -426,6 +497,41 @@ class uint128_fallback {
+ #endif
+     return *this;
+   }
++  constexpr auto operator%=(unsigned int n) -> uint128_fallback& {
++    if (hi_ == 0 && lo_ < n) {
++      return *this;
++    }
++    uint64_t rem = 0;
++    udiv128by64to64(hi_ % n, lo_, n, rem);
++    hi_ = 0;
++    lo_ = rem;
++    return *this;
++  }
++  friend constexpr auto operator%(const uint128_fallback& lhs,
++                                  unsigned int rhs) -> uint128_fallback {
++    auto result = uint128_fallback(lhs);
++    result %= rhs;
++    return result;
++  }
++  constexpr auto operator/=(unsigned int rhs) -> uint128_fallback& {
++    if (hi_ == 0 && lo_ < rhs) {
++      lo_ = 0;
++      return *this;
++    }
++    if (hi_ < rhs) {
++      uint64_t rem = 0;
++      uint64_t q_lo = udiv128by64to64(hi_, lo_, rhs, rem);
++      lo_ = q_lo;
++      hi_ = 0;
++      return *this;
++    }
++    uint64_t q_hi = hi_ / rhs;
++    uint64_t rem = 0;
++    uint64_t q_lo = udiv128by64to64(hi_ % rhs, lo_, rhs, rem);
++    lo_ = q_lo;
++    hi_ = q_hi;
++    return *this;
++  }
+ };
+ 
+ using uint128_t = conditional_t<FMT_USE_INT128, uint128_opt, uint128_fallback>;
+@@ -1144,12 +1250,54 @@ template <typename T> FMT_CONSTEXPR auto count_digits_fallback(T n) -> int {
+     count += 4;
+   }
+ }
+-#if FMT_USE_INT128
+-FMT_CONSTEXPR inline auto count_digits(uint128_opt n) -> int {
+-  return count_digits_fallback(n);
++
++#ifdef FMT_BUILTIN_CLZLL
++inline auto do_count_digits(uint64_t n) -> int;
++inline auto do_count_digits(uint128_t n) -> int {
++  if (static_cast<uint64_t>(n >> 64) == 0) {
++    return do_count_digits(static_cast<uint64_t>(n));
++  }
++  // Maps bsr(n) to ceil(log10(pow(2, bsr(n) + 1) - 1)).
++  static constexpr uint8_t bsr2log10[] = {
++      20, 20, 21, 21, 21, 22, 22, 22, 22, 23, 23, 23, 24, 24, 24, 25,
++      25, 25, 25, 26, 26, 26, 27, 27, 27, 28, 28, 28, 28, 29, 29, 29,
++      30, 30, 30, 31, 31, 31, 32, 32, 32, 32, 33, 33, 33, 34, 34, 34,
++      35, 35, 35, 35, 36, 36, 36, 37, 37, 37, 38, 38, 38, 38, 39, 39};
++  auto c = FMT_BUILTIN_CLZLL(static_cast<uint64_t>(n >> 64));
++  auto t = bsr2log10[c ^ 63];
++  static constexpr const uint128_t powers_of_10[] = {
++    0,
++    (uint128_t(5ULL) << 64) | uint128_t(7766279631452241920ULL),
++    (uint128_t(54ULL) << 64) | uint128_t(3875820019684212736ULL),
++    (uint128_t(542ULL) << 64) | uint128_t(1864712049423024128ULL),
++    (uint128_t(5421ULL) << 64) | uint128_t(200376420520689664ULL),
++    (uint128_t(54210ULL) << 64) | uint128_t(2003764205206896640ULL),
++    (uint128_t(542101ULL) << 64) | uint128_t(1590897978359414784ULL),
++    (uint128_t(5421010ULL) << 64) | uint128_t(15908979783594147840ULL),
++    (uint128_t(54210108ULL) << 64) | uint128_t(11515845246265065472ULL),
++    (uint128_t(542101086ULL) << 64) | uint128_t(4477988020393345024ULL),
++    (uint128_t(5421010862ULL) << 64) | uint128_t(7886392056514347008ULL),
++    (uint128_t(54210108624ULL) << 64) | uint128_t(5076944270305263616ULL),
++    (uint128_t(542101086242ULL) << 64) | uint128_t(13875954555633532928ULL),
++    (uint128_t(5421010862427ULL) << 64) | uint128_t(9632337040368467968ULL),
++    (uint128_t(54210108624275ULL) << 64) | uint128_t(4089650035136921600ULL),
++    (uint128_t(542101086242752ULL) << 64) | uint128_t(4003012203950112768ULL),
++    (uint128_t(5421010862427522ULL) << 64) | uint128_t(3136633892082024448ULL),
++    (uint128_t(54210108624275221ULL) << 64) | uint128_t(12919594847110692864ULL),
++    (uint128_t(542101086242752217ULL) << 64) | uint128_t(68739955140067328ULL),
++    (uint128_t(5421010862427522170ULL) << 64) | uint128_t(687399551400673280ULL),
++  };
++  return t - (n < powers_of_10[t - 20]);
+ }
+ #endif
+ 
++FMT_CONSTEXPR20 inline auto count_digits(uint128_t n) -> int {
++#ifdef FMT_BUILTIN_CLZLL
++  if (!is_constant_evaluated()) return do_count_digits(n);
++#endif
++  return count_digits_fallback(n);
++}
++
+ #ifdef FMT_BUILTIN_CLZLL
+ // It is a separate function rather than a part of count_digits to workaround
+ // the lack of static constexpr in constexpr functions.
+-- 
+2.46.0.windows.1
+

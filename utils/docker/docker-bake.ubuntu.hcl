@@ -1,56 +1,81 @@
 group "default" {
   targets = [
-    "clang",
-    "clang-plugins",
-    "gcc",
-    "gcc-plugins"
+    "base",
+    "latest",
+    "plugins"
   ]
+}
+
+function "name" {
+  params = [toolchain, ubuntu]
+  result = "${toolchain}-ubuntu${replace(ubuntu, ".", "")}"
+}
+
+function "tag" {
+  params = [toolchain, ubuntu]
+  result = equal(ubuntu, "22.04") ? "ubuntu-build-${toolchain}" : "ubuntu-${ubuntu}-build-${toolchain}"
+}
+
+variable "matrix" {
+  default = {
+    toolchain = ["clang", "gcc"]
+    ubuntu    = ["20.04", "22.04"]
+  }
 }
 
 target "base" {
+  matrix     = matrix
+  name       = name(toolchain, ubuntu)
+
   dockerfile = "Dockerfile.ubuntu-base"
   context    = "./utils/docker"
+
+  tags       = ["wasmedge/wasmedge:${tag(toolchain, ubuntu)}"]
+  args       = {
+    TOOLCHAIN  = toolchain
+    UBUNTU_VER = replace(ubuntu, ".04", "")
+  }
 }
 
-target "plugins-base" {
+target "plugins" {
+  matrix     = matrix
+  name       = "${name(toolchain, ubuntu)}-plugins"
+
   dockerfile = "./docker/Dockerfile.ubuntu-plugins-deps"
   context    = "./utils"
+
+  contexts   = {
+    "wasmedge/wasmedge:${tag(toolchain, ubuntu)}" = "target:${name(toolchain, ubuntu)}"
+  }
+
+  tags       = ["wasmedge/wasmedge:${tag(toolchain, ubuntu)}-plugins-deps"]
+  args       = {
+    BASE_IMAGE = "wasmedge/wasmedge:${tag(toolchain, ubuntu)}"
+  }
 }
 
-target "clang" {
-  inherits = ["base"]
-  tags     = [
-    "wasmedge/wasmedge:latest",
-    "wasmedge/wasmedge:ubuntu-build-clang"
-  ]
-}
-
-target "clang-plugins" {
-  inherits = ["plugins-base"]
-  tags     = ["wasmedge/wasmedge:ubuntu-build-clang-plugins-deps"]
+target "latest" {
+  matrix     = {
+    toolchain = ["clang"]
+    ubuntu    = ["22.04"]
+  }
+  inherits = ["${name(toolchain, ubuntu)}"]
   contexts = {
-    "wasmedge/wasmedge:ubuntu-build-clang" = "target:base"
+    "wasmedge/wasmedge:${tag(toolchain, ubuntu)}" = "target:${name(toolchain, ubuntu)}"
   }
-  args     = {
-    BASE_IMAGE = "wasmedge/wasmedge:ubuntu-build-clang"
-  }
+  tags     = ["wasmedge/wasmedge:latest"]
 }
 
-target "gcc" {
-  inherits = ["base"]
-  tags     = ["wasmedge/wasmedge:ubuntu-build-gcc"]
-  args     = {
-    TOOLCHAIN = "gcc"
+target "clang-ubuntu2004-aarch64" {
+  matrix     = {
+    toolchain = ["clang"]
+    ubuntu    = ["20.04"]
   }
-}
-
-target "gcc-plugins" {
-  inherits = ["plugins-base"]
-  tags     = ["wasmedge/wasmedge:ubuntu-build-gcc-plugins-deps"]
+  inherits = ["${name(toolchain, ubuntu)}"]
   contexts = {
-    "wasmedge/wasmedge:ubuntu-build-gcc" = "target:base"
+    "wasmedge/wasmedge:${tag(toolchain, ubuntu)}" = "target:${name(toolchain, ubuntu)}"
   }
-  args     = {
-    BASE_IMAGE = "wasmedge/wasmedge:ubuntu-build-gcc"
-  }
+
+  tags = ["wasmedge/wasmedge:${tag(toolchain, ubuntu)}-aarch64"]
+  platforms = ["linux/arm64"]
 }

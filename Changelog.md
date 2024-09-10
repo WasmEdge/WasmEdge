@@ -1,4 +1,4 @@
-### 0.14.1-rc.2 (2024-08-19)
+### 0.14.1-rc.4 (2024-09-02)
 
 Features:
 
@@ -6,8 +6,9 @@ Features:
 * Bumpped `spdlog` to `v1.13.0`.
 * Bumpped `fmt` to `11.0.2`.
 * Bumpped `simdjson` to `v3.10.0`.
+* Bumpped `googletest` to `1.15.2`.
 * [WASI-NN] ggml backend:
-  * Bump llama.cpp to b3567.
+  * Bump llama.cpp to b3651.
   * Static link `libggml` and `libllama`.
   * Refined the CMake to support multiple backends of WASI-NN with ggml backend.
   * Supported compute single in RPC mode.
@@ -15,8 +16,11 @@ Features:
 * [WASI-NN] Added support for whisper.cpp backend.
 * [WASI-NN] Added support for piper backend.
 * [WASI-NN] Added support for ChatTTS backend.
+* [WASI-NN] Added support for Burn.rs backend.
+  * Supported `squeezenet` and `whisper` models.
 * [Plugin] Supported `wasmedge_stablediffusion` plug-in.
   * Enabled CUBLAS.
+  * Enabled metal support on MacOS.
 * [Plugin] Moved `wasi_logging` into built-in plug-in.
   * Instead of installing `wasi_logging` plug-in shared library, developers can find and get this plug-in after calling `WasmEdge_PluginLoadWithDefaultPaths()` API.
   * In the WasmEdge CLI tools, the built-in plug-ins will automatically be loaded.
@@ -33,10 +37,10 @@ Fixed issues:
 * Fixed WASI test error in Windows.
 * Fixed version checking in source tarball.
 * Fixed version detection issue when building from source.
-* Cleaned the unrelated headers in release artifacts.
 * Fixed the visibility of internal symbols.
 * [Loader] Fixed alignment checking in loading immediates for memory instructions.
 * [Runtime] Fixed allocation issue when configured the limited memory page size.
+* Used `fmt::format` instead of string stream in error logging.
 
 Tests:
 
@@ -50,9 +54,9 @@ Known issues:
 
 Thank all the contributors who made this release possible!
 
-Biswapriyo Nath, Elmira, Faidon Liambotis, Fusaaaann, Han-Wen Tsao, Jun Zhang, Kefu Chai, Lîm Tsú-thuàn, Michael Morris, PeterD1524, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Yi Huang, Yi-Ying He, alabulei1, dm4, grorge, hydai, junxiangMu
+Biswapriyo Nath, Elmira, Faidon Liambotis, Fusaaaann, Han-Wen Tsao, Jun Zhang, Kefu Chai, Lîm Tsú-thuàn, Michael Morris, PeterD1524, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Yi Huang, Yi-Ying He, alabulei1, dm4, grorge, hydai, junxiangMu, vincent
 
-If you want to build from source, please use WasmEdge-0.14.1-rc.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.14.1-rc.4-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.14.0 (2024-05-22)
 

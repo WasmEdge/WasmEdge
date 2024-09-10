@@ -24,7 +24,7 @@ message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
   stable-diffusion
   GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
-  GIT_TAG        master-9c51d87
+  GIT_TAG        master-e71ddce
   GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(stable-diffusion)
@@ -49,7 +49,11 @@ wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusion
   sd_module.cpp
 )
 
-target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion PRIVATE stable-diffusion ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(wasmedgePluginWasmEdgeStableDiffusion
+  PRIVATE
+  stable-diffusion
+  ${CMAKE_THREAD_LIBS_INIT}
+)
 
 target_compile_options(wasmedgePluginWasmEdgeStableDiffusion
   PUBLIC
@@ -74,9 +78,15 @@ target_include_directories(wasmedgePluginWasmEdgeStableDiffusion
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+target_include_directories(wasmedgePluginWasmEdgeStableDiffusion
+  SYSTEM
+  PRIVATE
+  "${stable-diffusion_SOURCE_DIR}/thirdparty"
+)
+
 if (MSVC)
   target_compile_options(
-    wasmedgePluginWasmEdgeStableDiffusion
+    stable-diffusion
     PRIVATE
     /wd4459
     /wd4100
@@ -85,13 +95,17 @@ if (MSVC)
   )
 else()
   target_compile_options(
-    wasmedgePluginWasmEdgeStableDiffusion
+    stable-diffusion
     PRIVATE
 		-Wno-unused-function
 		-Wno-unused-variable
 		-Wno-unused-parameter
 		-Wno-missing-field-initializers
     -Wno-deprecated-declarations
+    -Wno-braced-scalar-init
+    -Wno-unused-value
+    -Wno-uninitialized
+    -Wno-format
 	)
 endif()
 
@@ -100,7 +114,7 @@ if(WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL)
     TARGET wasmedgePluginWasmEdgeStableDiffusion
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
-    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/ggml-common.h ggml-common.h
+    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
   )
 endif()
 

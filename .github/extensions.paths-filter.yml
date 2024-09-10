@@ -1,0 +1,52 @@
+all:
+  - '.github/**'
+  - 'plugins/CMakeLists.txt'
+  - 'test/plugins/CMakeLists.txt'
+wasi_crypto:
+  - 'plugins/wasi_crypto/**'
+  - 'test/plugins/wasi_crypto/**'
+wasi_nn-ggml:
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
+wasi_nn-pytorch:
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
+wasi_nn-tensorflowlite:
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
+wasi_nn-whisper:
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
+wasi_nn-piper:
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
+wasm_bpf:
+  - 'plugins/wasm_bpf/**'
+  - 'test/plugins/wasm_bpf/**'
+wasmedge_ffmpeg:
+  - 'plugins/wasmedge_ffmpeg/**'
+  - 'test/plugins/wasmedge_ffmpeg/**'
+wasmedge_image:
+  - 'plugins/wasmedge_image/**'
+  - 'test/plugins/wasmedge_image/**'
+wasmedge_llmc:
+  - 'plugins/wasmedge_llmc/**'
+  - 'test/plugins/wasmedge_llmc/**'
+wasmedge_opencvmini:
+  - 'plugins/wasmedge_opencvmini/**'
+  - 'test/plugins/wasmedge_opencvmini/**'
+wasmedge_process:
+  - 'plugins/wasmedge_process/**'
+  - 'test/plugins/wasmedge_process/**'
+wasmedge_stablediffusion:
+  - 'plugins/wasmedge_stablediffusion/**'
+  - 'test/plugins/wasmedge_stablediffusion/**'
+wasmedge_tensorflow:
+  - 'plugins/wasmedge_tensorflow/**'
+  - 'test/plugins/wasmedge_tensorflow/**'
+wasmedge_tensorflowlite:
+  - 'plugins/wasmedge_tensorflowlite/**'
+  - 'test/plugins/wasmedge_tensorflowlite/**'
+wasmedge_zlib:
+  - 'plugins/wasmedge_zlib/**'
+  - 'test/plugins/wasmedge_zlib/**'

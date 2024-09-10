@@ -63,7 +63,8 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
-      matrix: "[{'name':'ubuntu-20.04','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang'}]"
+      matrix: "[{'name':'ubuntu-20.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang'},
+                {'name':'ubuntu-20.04','arch':'aarch64','runner':'linux-arm64-v2','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang-aarch64'}]"
       release: true
     secrets: inherit
 
@@ -134,8 +135,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       output_dir: build/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=NeuralSpeed -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-neuralspeed wasi_nn-whisper wasi_nn-piper
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper
+      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-whisper wasi_nn-piper
       output_bin: libwasmedgePluginWasiNN.so
       OPENVINO_VERSION: "2024.2.0"
       OPENVINO_YEAR: "2024"
@@ -156,7 +157,7 @@ jobs:
         shell: bash
         run: |
           apt update
-          apt install -y unzip libopenblas-dev pkg-config
+          apt install -y unzip libopenblas-dev pkg-config python3-dev
           bash utils/wasi-nn/install-openvino.sh
           bash utils/wasi-nn/install-pytorch.sh
           bash utils/wasi-nn/install-onnxruntime.sh
@@ -212,12 +213,6 @@ jobs:
         run: |
           mv plugin_wasi_nn-ggml.tar.gz WasmEdge-plugin-wasi_nn-ggml-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-ggml-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
-      - name: Upload wasi_nn-neuralspeed plugin tar.gz package
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mv plugin_wasi_nn-neuralspeed.tar.gz WasmEdge-plugin-wasi_nn-neuralspeed-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
-          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-neuralspeed-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
       - name: Upload wasi_nn-whisper plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -231,6 +226,68 @@ jobs:
           mv plugin_wasi_nn-piper.tar.gz WasmEdge-plugin-wasi_nn-piper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn-piper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
 
+  build_and_upload_wasinn_burnrs_ubuntu:
+    name: Build and upload WASI-NN burn.rs backend on Ubuntu 20.04
+    runs-on: ubuntu-latest
+    env:
+      output_dir: build/plugins/wasi_nn_burnrs
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=squeezenet -DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=whisper
+      tar_names: wasi_nn_burnrs-squeezenet wasi_nn_burnrs-whisper
+      output_bin: libwasmedgePluginWasiNN.so
+    needs: create_release
+    container:
+      image: wasmedge/wasmedge:ubuntu-20.04-build-clang
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install dependencies
+        shell: bash
+        run: |
+          apt update
+          apt install -y pkg-config libssl-dev
+      - name: Build WASI-NN plugin
+        shell: bash
+        run: |
+          plugin_array=(${tar_names})
+          option_array=(${build_options})
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          for (( i=0; i<${#plugin_array[@]}; i++ ));
+          do
+            echo "Building ${plugin_array[$i]} backend:"
+            cmake -Bbuild -GNinja ${option_array[$i]}
+            cmake --build build --target wasmedgePluginWasiNNBurnRS
+
+            echo "Copying ${plugin_array[$i]} backend:"
+            cp -f ${output_dir}/${output_bin} ${output_bin}
+            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
+          done
+      - name: Install gh
+        run: |
+          type -p curl >/dev/null || (apt update && apt install curl -y)
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+          && apt update \
+          && apt install gh -y
+      - name: Upload wasi_nn_burnrs-squeezenet plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasi_nn_burnrs-squeezenet.tar.gz WasmEdge-plugin-wasi_nn_burnrs-squeezenet-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn_burnrs-squeezenet-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+      - name: Upload wasi_nn_burnrs-whisper plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mv plugin_wasi_nn_burnrs-whisper.tar.gz WasmEdge-plugin-wasi_nn_burnrs-whisper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasi_nn_burnrs-whisper-${{ needs.create_release.outputs.version }}-ubuntu20.04_x86_64.tar.gz --clobber
+
   build_and_upload_plugin_ubuntu:
     name: Build and upload plugins on Ubuntu 20.04
     runs-on: ubuntu-latest
@@ -239,9 +296,10 @@ jobs:
       build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_PROCESS=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON
       tar_names: wasi_crypto wasmedge_process wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasm_bpf wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg wasmedge_stablediffusion
       output_bins: libwasmedgePluginWasiCrypto.so libwasmedgePluginWasmEdgeProcess.so libwasmedgePluginWasmEdgeTensorflow.so libwasmedgePluginWasmEdgeTensorflowLite.so libwasmedgePluginWasmEdgeImage.so libwasmedgePluginWasmBpf.so libwasmedgePluginWasmEdgeOpenCVMini.so libwasmedgePluginWasmEdgeZlib.so libwasmedgePluginWasmEdgeFFmpeg.so libwasmedgePluginWasmEdgeStableDiffusion.so
+      OPENCV_VERSION: "4.8.0"
     needs: create_release
     container:
-      image: wasmedge/wasmedge:ubuntu-build-clang-plugins-deps
+      image: wasmedge/wasmedge:ubuntu-20.04-build-clang
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -258,6 +316,7 @@ jobs:
           apt install -y cargo
           apt install -y yasm
           bash utils/ffmpeg/install-ffmpeg-v6.0.sh
+          bash utils/opencvmini/install-opencvmini.sh
       - name: Build plugins
         shell: bash
         run: |
@@ -714,72 +773,6 @@ jobs:
         run: |
           mv build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.xz WasmEdge-runtime-only-${{ needs.create_release.outputs.version }}-manylinux2014_x86_64.tar.xz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-runtime-only-${{ needs.create_release.outputs.version }}-manylinux2014_x86_64.tar.xz --clobber
-
-  build_docker_slim_images:
-    strategy:
-      matrix:
-        include:
-          - name: wasmedge/slim:${{ needs.create_release.outputs.version }}
-            artifact_name: WasmEdge-${{ needs.create_release.outputs.version }}-manylinux2014_x86_64.tar.gz
-            include_bin: "--include-bin /usr/local/bin/wasmedge --include-bin /usr/local/bin/wasmedgec"
-          - name: wasmedge/slim-runtime:${{ needs.create_release.outputs.version }}
-            artifact_name: build_manylinux2014_runtime_only
-            include_bin: "--include-bin /usr/local/bin/wasmedge"
-    name: Build DockerSlim Images
-    needs:
-      [ create_release, build_on_manylinux2014, build_manylinux2014_runtime_only ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Prepare tarball
-        uses: actions/download-artifact@v3
-        with:
-          name: ${{ matrix.artifact_name }}
-          path: utils/docker
-      - name: Grant the safe directory for git
-        run: |
-          git config --global --add safe.directory $(pwd)
-      - name: Install requirements
-        run: |
-          curl -sL https://raw.githubusercontent.com/slimtoolkit/slim/master/scripts/install-slim.sh | sudo -E bash -
-      - name: Prepare docker env
-        id: docker_env
-        run: |
-          echo "docker_image=${{ matrix.name }}" >> $GITHUB_OUTPUT
-          echo "created=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> $GITHUB_OUTPUT
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
-      - name: Run slim
-        run: |
-          slim build \
-            --dockerfile Dockerfile.release \
-            --dockerfile-context utils/docker \
-            --tag ${{ steps.docker_env.outputs.docker_image }} \
-            --http-probe-off \
-            --include-bin /usr/lib/x86_64-linux-gnu/libnss_compat.so.2 \
-            --include-bin /usr/lib/x86_64-linux-gnu/libnss_dns.so.2 \
-            --include-bin /usr/lib/x86_64-linux-gnu/libnss_files.so.2 \
-            --include-bin /usr/lib/x86_64-linux-gnu/libresolv.so.2 \
-            --include-path /etc/services \
-            ${{ matrix.include_bin }} \
-            --cbo-build-arg VERSION="${{ needs.create_release.outputs.version }}" \
-            --cbo-label org.opencontainers.image.title="${{ github.event.repository.name }}" \
-            --cbo-label org.opencontainers.image.description="${{ github.event.repository.description }}" \
-            --cbo-label org.opencontainers.image.url="${{ github.event.repository.html_url }}" \
-            --cbo-label org.opencontainers.image.source="${{ github.event.repository.clone_url }}" \
-            --cbo-label org.opencontainers.image.version="${{ needs.create_release.outputs.version }}" \
-            --cbo-label org.opencontainers.image.created="${{ steps.docker_env.outputs.created }}" \
-            --cbo-label org.opencontainers.image.revision="${{ github.sha }}" \
-            --cbo-label org.opencontainers.image.licenses="${{ github.event.repository.license.spdx_id }}"
-      - name: Push to DockerHub
-        run: |
-          docker push ${{ steps.docker_env.outputs.docker_image }}
 
   generate_sbom:
     name: Generate SBOM

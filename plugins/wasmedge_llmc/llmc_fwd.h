@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "wasillmenv.h"
+#include "llmc_env.h"
 
 extern "C" {
 

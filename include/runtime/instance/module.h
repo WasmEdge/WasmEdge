@@ -95,24 +95,20 @@ public:
     return ModName;
   }
 
-  const std::vector<std::unique_ptr<DataInstance>> &
-  getOwnedDataInstances() const {
-    return OwnedDataInsts;
+  const std::vector<DataInstance *> &getOwnedDataInstances() const {
+    return DataInsts;
   }
 
-  const std::vector<std::unique_ptr<MemoryInstance>> &
-  getOwnedMemoryInstances() const {
-    return OwnedMemInsts;
+  std::vector<MemoryInstance *> getOwnedMemoryInstances() const {
+    return MemInsts;
   }
 
-  const std::vector<std::unique_ptr<GlobalInstance>> &
-  getOwnedGlobalInstances() const {
-    return OwnedGlobInsts;
+  const std::vector<GlobalInstance *> &getOwnedGlobalInstances() const {
+    return GlobInsts;
   }
 
-  const std::vector<std::unique_ptr<FunctionInstance>> &
-  getOwnedFunctionInstances() const {
-    return OwnedFuncInsts;
+  const std::vector<FunctionInstance *> &getOwnedFunctionInstances() const {
+    return FuncInsts;
   }
 
   void *getHostData() const noexcept { return HostData; }

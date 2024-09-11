@@ -20,12 +20,15 @@
 #include "common/configure.h"
 #include "common/types.h"
 #include "loader/serialize.h"
+#include "runtime/instance/memory.h"
 #include "runtime/stackmgr.h"
-#include <cstdint>
 #include <iostream>
+#include <memory>
+#include <ostream>
 #include <spdlog/spdlog.h>
 #include <string_view>
 #include <vector>
+
 namespace WasmEdge {
 namespace Coredump {
 
@@ -38,6 +41,9 @@ public:
     const Configure Conf;
     Loader::Serializer Ser(Conf);
     const auto *CurrentInstance = StackMgr.getModule();
+    if (CurrentInstance == nullptr) {
+      return;
+    }
 
     auto Core = collectProcessInformation(CurrentInstance);
     // auto DataSection = collectDataSection(StackMgr);
@@ -63,7 +69,8 @@ public:
     Mod.getMemorySection() = std::move(MemSec);
     // TODO globals works with DWARF data, is this section needed?
     //  Mod.getGlobalSection() = std::move(Globals);
-    auto Res = Ser.serializeModule(Mod);
+    const AST::Module Mod1 = Mod;
+    auto Res = Ser.serializeModule(Mod1);
     std::ofstream File("coredump.wasm", std::ios::out | std::ios::binary);
     if (File.is_open()) {
       File.write(reinterpret_cast<const char *>(Res->data()), Res->size());
@@ -102,11 +109,12 @@ public:
 
     AST::MemorySection MemSec;
     const auto *CurrentInstance = StackMgr.getModule();
-    auto &MemInstances = CurrentInstance->getOwnedMemoryInstances();
+    auto MemInstances = CurrentInstance->getOwnedMemoryInstances();
+    std::cout << MemInstances[0]->getPageSize();
     // In the current version of WebAssembly, at most one memory may be defined
     // or imported in a single module, and all constructs implicitly reference
     // this memory.
-    std::cout << MemInstances[0]->getMemoryType().getLimit().getMin();
+    // std::cout << MemInstances[0]->getMemoryType().getLimit().getMin();
     // auto &Content = MemSec.getContent();
     // TODO why is this setting max and min to the same value?
     // for (auto &Iter : MemInstances) {

@@ -210,9 +210,6 @@ public:
   /// Getter of statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
-  /// Getter of coredump.
-  Coredump::Coredump &getCoredump() noexcept { return Coredump; }
-
 private:
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);
@@ -290,7 +287,6 @@ private:
   /// @{
   const Configure Conf;
   Statistics::Statistics Stat;
-  Coredump::Coredump Coredump;
   VMStage Stage;
   mutable std::shared_mutex Mutex;
   /// @}

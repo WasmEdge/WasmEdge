@@ -15,7 +15,6 @@
 
 #include "common/async.h"
 #include "common/configure.h"
-#include "common/coredump.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
 #include "common/types.h"

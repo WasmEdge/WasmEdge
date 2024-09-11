@@ -99,7 +99,7 @@ public:
     return DataInsts;
   }
 
-  std::vector<MemoryInstance *> getOwnedMemoryInstances() const {
+  const std::vector<MemoryInstance *> getOwnedMemoryInstances() const {
     return MemInsts;
   }
 

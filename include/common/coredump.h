@@ -69,8 +69,8 @@ public:
     Mod.getMemorySection() = std::move(MemSec);
     // TODO globals works with DWARF data, is this section needed?
     //  Mod.getGlobalSection() = std::move(Globals);
-    const AST::Module Mod1 = Mod;
-    auto Res = Ser.serializeModule(Mod1);
+    const AST::Module Final = Mod;
+    auto Res = Ser.serializeModule(Final);
     std::ofstream File("coredump.wasm", std::ios::out | std::ios::binary);
     if (File.is_open()) {
       File.write(reinterpret_cast<const char *>(Res->data()), Res->size());

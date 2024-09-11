@@ -9,7 +9,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -74,7 +75,8 @@
             "options": "-DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -86,7 +88,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -98,7 +101,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -110,7 +114,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -122,7 +127,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -134,7 +140,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -146,7 +153,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -158,7 +166,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -170,7 +179,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -182,7 +192,8 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
-                "ubuntu2004_x86_64"
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         }
     ]

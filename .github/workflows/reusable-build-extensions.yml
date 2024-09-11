@@ -22,6 +22,7 @@ jobs:
       manylinux_2_28_x86_64: ${{ steps.readfile.outputs.manylinux_2_28_x86_64 }}
       manylinux_2_28_aarch64: ${{ steps.readfile.outputs.manylinux_2_28_aarch64 }}
       ubuntu2004_x86_64: ${{ steps.readfile.outputs.ubuntu2004_x86_64 }}
+      ubuntu2204_x86_64: ${{ steps.readfile.outputs.ubuntu2204_x86_64 }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,6 +48,7 @@ jobs:
               "manylinux_2_28_x86_64",
               "manylinux_2_28_aarch64",
               "ubuntu2004_x86_64",
+              "ubuntu2204_x86_64",
             ]
             for (const tag of asset_tags) {
               core.setOutput(tag, plugins.filter(
@@ -94,6 +96,32 @@ jobs:
       plugins: ${{ matrix.plugins }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}
+    secrets: inherit
+
+  build_on_ubuntu_no_release:
+    if: ${{ !inputs.release }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-build-clang-plugins-deps'
+            asset_tag: 'ubuntu22.04-clang'
+            plugins: ${{ needs.prepare.outputs.ubuntu2204_x86_64 }}
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-build-gcc-plugins-deps'
+            asset_tag: 'ubuntu22.04-gcc'
+            plugins: ${{ needs.prepare.outputs.ubuntu2204_x86_64 }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: false
     secrets: inherit
 
   build_on_manylinux:

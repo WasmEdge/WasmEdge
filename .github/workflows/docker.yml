@@ -6,8 +6,6 @@ concurrency:
 
 on:
   push:
-    tags:
-      - '*.*.*'
     branches:
       - master
     paths:
@@ -98,7 +96,6 @@ jobs:
     needs:
       - prep
       - paths-filter
-    if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
 
     name: CI image base
     runs-on: ubuntu-latest
@@ -117,7 +114,9 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: Bake and Push
+      # DO NOT skip the whole job to prevent descending jobs to be skipped
+      - if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
+        name: Bake and Push
         uses: docker/bake-action@v5
         with:
           files: utils/docker/docker-bake.ci-image-base.hcl
@@ -128,8 +127,14 @@ jobs:
       - prep
       - paths-filter
       - bake-base-images
-    # Allow dependent job to be skipped
-    if: ${{ !failure() && needs.paths-filter.outputs.ubuntu == 'true' }}
+    if: ${{ needs.paths-filter.outputs.ubuntu == 'true' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        targets:
+          - default
+          - clang-ubuntu2004-aarch64
 
     name: Ubuntu
     runs-on: ubuntu-latest
@@ -154,21 +159,7 @@ jobs:
         uses: docker/bake-action@v5
         with:
           files: utils/docker/docker-bake.ubuntu.hcl
-          push: ${{ github.event_name != 'pull_request' }}
-          set: |
-            *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
-            *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
-            *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            *.labels.org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            *.labels.org.opencontainers.image.revision=${{ github.sha }}
-            *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-
-      - name: Bake and Push (aarch64)
-        uses: docker/bake-action@v5
-        with:
-          files: utils/docker/docker-bake.ubuntu.hcl
-          targets: "clang-ubuntu2004-aarch64"
+          targets: ${{ matrix.targets }}
           push: ${{ github.event_name != 'pull_request' }}
           set: |
             *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
@@ -184,8 +175,7 @@ jobs:
       - prep
       - paths-filter
       - bake-base-images
-    # Allow dependent job to be skipped
-    if: ${{ !failure() && needs.paths-filter.outputs.manylinux == 'true' }}
+    if: ${{ needs.paths-filter.outputs.manylinux == 'true' }}
 
     strategy:
       fail-fast: false

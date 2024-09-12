@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ast/instruction.h"
+#include "common/errcode.h"
 #include "runtime/instance/module.h"
 
 #include <optional>
@@ -75,13 +76,7 @@ public:
   }
 
   Span<Value> getRangeSpan(uint32_t Start, uint32_t End) {
-    if (Start >= End) {
-      // Handle invalid range
-      spdlog::info(Start);
-      spdlog::info(End);
-      spdlog::info(ValueStack.size());
-      throw std::out_of_range("Invalid range for getRangeSpan");
-    }
+    assuming(Start >= End && End <= ValueStack.size());
     return Span<Value>(ValueStack.begin() + Start, End);
   }
 

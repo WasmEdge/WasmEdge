@@ -17,7 +17,6 @@
 #include "ast/module.h"
 #include "common/async.h"
 #include "common/configure.h"
-#include "common/coredump.h"
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
@@ -202,6 +201,12 @@ public:
     StopToken.store(1, std::memory_order_relaxed);
     atomicNotifyAll();
   }
+
+  void generateCoredump(Runtime::StackManager &StackMgr);
+  AST::CustomSection collectProcessInformation();
+  AST::MemorySection collectMemory(Runtime::StackManager &StackMgr);
+  AST::DataSection collectDataSection(Runtime::StackManager &StackMgr);
+  AST::CustomSection collectCoreStack(Runtime::StackManager &StackMgr);
 
 private:
   /// Run Wasm bytecode expression for initialization.
@@ -935,8 +940,6 @@ private:
   const Configure Conf;
   /// Executor statistics
   Statistics::Statistics *Stat;
-  /// Coredump Builder
-  Coredump::Coredump *Coredump;
   /// Stop Execution
   std::atomic_uint32_t StopToken = 0;
   /// Executor Host Function Handler

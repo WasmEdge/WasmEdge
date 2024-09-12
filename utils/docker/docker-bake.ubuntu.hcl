@@ -1,81 +1,125 @@
 group "default" {
   targets = [
-    "base",
-    "latest",
-    "plugins"
+    "clang",
+    "gcc"
   ]
 }
 
-function "name" {
-  params = [toolchain, ubuntu]
-  result = "${toolchain}-ubuntu${replace(ubuntu, ".", "")}"
+function "no-dot" {
+  params = [ubuntu]
+  result = replace(ubuntu, ".", "")
 }
 
-function "tag" {
-  params = [toolchain, ubuntu]
-  result = equal(ubuntu, "22.04") ? "ubuntu-build-${toolchain}" : "ubuntu-${ubuntu}-build-${toolchain}"
+function "major" {
+  params = [ubuntu]
+  result = regex("^[[:digit:]]+", ubuntu)
 }
 
-variable "matrix" {
-  default = {
-    toolchain = ["clang", "gcc"]
-    ubuntu    = ["20.04", "22.04"]
-  }
+function "tags-latest" {
+  params = [target, ubuntu, toolchain]
+  result = target == "base" && ubuntu == "22.04" && toolchain == "clang" ? "latest" : ""
+}
+
+function "tags-backports" {
+  params = [target, ubuntu, toolchain]
+  result = join("-", compact([
+    "ubuntu",
+    ubuntu != "22.04" ? ubuntu : "",
+    "build",
+    toolchain,
+    target == "plugins" ? "plugins-deps" : "",
+  ]))
+}
+
+function "tags-simplified" {
+  params = [target, ubuntu, toolchain]
+  result = target == "base" && toolchain == "clang" ? "ubuntu-${ubuntu}" : ""
+}
+
+function "tags" {
+  params = [target, ubuntu, toolchain]
+  result = [for tag in compact([
+    tags-latest(target, ubuntu, toolchain),
+    tags-backports(target, ubuntu, toolchain),
+    tags-simplified(target, ubuntu, toolchain),
+  ]) : "wasmedge/wasmedge:${tag}"]
 }
 
 target "base" {
-  matrix     = matrix
-  name       = name(toolchain, ubuntu)
-
   dockerfile = "Dockerfile.ubuntu-base"
   context    = "./utils/docker"
 
-  tags       = ["wasmedge/wasmedge:${tag(toolchain, ubuntu)}"]
+  matrix     = {
+    ubuntu = ["20.04", "22.04"]
+  }
+
+  name       = "base-${no-dot(ubuntu)}"
+  tags       = ["local/tmp:base-${ubuntu}"]
   args       = {
-    TOOLCHAIN  = toolchain
-    UBUNTU_VER = replace(ubuntu, ".04", "")
+    UBUNTU_VER = major(ubuntu)
   }
 }
 
 target "plugins" {
-  matrix     = matrix
-  name       = "${name(toolchain, ubuntu)}-plugins"
-
   dockerfile = "./docker/Dockerfile.ubuntu-plugins-deps"
   context    = "./utils"
 
+  matrix     = {
+    ubuntu = ["20.04", "22.04"]
+  }
+
+  inherits   = ["base-${no-dot(ubuntu)}"]
+  name       = "plugins-${no-dot(ubuntu)}"
   contexts   = {
-    "wasmedge/wasmedge:${tag(toolchain, ubuntu)}" = "target:${name(toolchain, ubuntu)}"
+    "local/tmp:base-${ubuntu}" = "target:base-${no-dot(ubuntu)}"
   }
-
-  tags       = ["wasmedge/wasmedge:${tag(toolchain, ubuntu)}-plugins-deps"]
+  tags       = ["local/tmp:plugins-${ubuntu}"]
   args       = {
-    BASE_IMAGE = "wasmedge/wasmedge:${tag(toolchain, ubuntu)}"
+    BASE_IMAGE = "local/tmp:base-${ubuntu}"
+    UBUNTU_VER = major(ubuntu)
   }
 }
 
-target "latest" {
+target "clang" {
   matrix     = {
-    toolchain = ["clang"]
-    ubuntu    = ["22.04"]
+    parent = ["base", "plugins"]
+    ubuntu = ["20.04", "22.04"]
   }
-  inherits = ["${name(toolchain, ubuntu)}"]
-  contexts = {
-    "wasmedge/wasmedge:${tag(toolchain, ubuntu)}" = "target:${name(toolchain, ubuntu)}"
+
+  inherits   = ["${parent}-${no-dot(ubuntu)}"]
+  name       = "${parent}-${no-dot(ubuntu)}-clang"
+  contexts   = {
+    "local/tmp:${parent}-${ubuntu}" = "target:${parent}-${no-dot(ubuntu)}"
   }
-  tags     = ["wasmedge/wasmedge:latest"]
+  tags       = tags(parent, ubuntu, "clang")
 }
 
-target "clang-ubuntu2004-aarch64" {
+target "gcc" {
+  dockerfile = "Dockerfile.ubuntu-gcc"
+  context    = "./utils/docker"
+
   matrix     = {
-    toolchain = ["clang"]
-    ubuntu    = ["20.04"]
-  }
-  inherits = ["${name(toolchain, ubuntu)}"]
-  contexts = {
-    "wasmedge/wasmedge:${tag(toolchain, ubuntu)}" = "target:${name(toolchain, ubuntu)}"
+    parent = ["base", "plugins"]
+    ubuntu = ["20.04", "22.04"]
   }
 
-  tags = ["wasmedge/wasmedge:${tag(toolchain, ubuntu)}-aarch64"]
+  inherits   = ["${parent}-${no-dot(ubuntu)}"]
+  name       = "${parent}-${no-dot(ubuntu)}-gcc"
+  contexts   = {
+    "local/tmp:${parent}-${ubuntu}" = "target:${parent}-${no-dot(ubuntu)}"
+  }
+  tags       = tags(parent, ubuntu, "gcc")
+  args       = {
+    BASE_IMAGE = "local/tmp:${parent}-${ubuntu}"
+  }
+}
+
+# TODO: Refactor with multi-arch image
+target "base-2004-clang-aarch64" {
+  inherits   = ["base-2004"]
+  contexts   = {
+    "local/tmp:base-2004" = "target:base-2004"
+  }
+  tags       = [for tag in tags("base", "20.04", "clang") : "${tag}-aarch64"]
   platforms = ["linux/arm64"]
 }

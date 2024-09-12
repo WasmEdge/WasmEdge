@@ -9,6 +9,8 @@ RUN apt-get update && \
         cmake \
         curl \
         dpkg-dev \
+        g++ \
+        gcc \
         git \
         ninja-build \
         software-properties-common \
@@ -20,14 +22,24 @@ FROM base AS deps-20
 
 RUN apt-get install -y \
         llvm-12-dev \
-        liblld-12-dev
+        liblld-12-dev \
+        clang-12
+
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-12 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-12 100 && \
+    update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-12 100
 
 ### deps for ubuntu 22.04 ###
 FROM base AS deps-22
 
 RUN apt-get install -y \
         llvm-15-dev \
-        liblld-15-dev
+        liblld-15-dev \
+        clang-15
+
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 100 && \
+    update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-15 100
 
 ### deps for clang / ubuntu 20.04 ###
 FROM deps-20 AS deps-20-clang
@@ -50,19 +62,11 @@ ENV CXX=/usr/bin/clang++-15
 ### deps for gcc / ubuntu 20.04 ###
 FROM deps-20 AS deps-20-gcc
 
-RUN apt-get install -y \
-        gcc \
-        g++
-
 ENV CC=gcc
 ENV CXX=g++
 
 ### deps for gcc / ubuntu 22.04 ###
 FROM deps-22 AS deps-22-gcc
-
-RUN apt-get install -y \
-        gcc \
-        g++
 
 ENV CC=gcc
 ENV CXX=g++

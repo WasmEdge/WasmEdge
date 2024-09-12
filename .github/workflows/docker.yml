@@ -90,6 +90,7 @@ jobs:
               - '.github/workflows/docker.yml'
               - 'utils/docker/docker-bake.ubuntu.hcl'
               - 'utils/docker/Dockerfile.ubuntu-**'
+              - 'utils/ffmpeg/**'
               - 'utils/opencvmini/**'
 
   bake-base-images:

@@ -346,7 +346,6 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
       continue;
 
     auto Funcidx = Frames[i].From->getTargetIndex(); // function index
-    std::cout << Funcidx << "Funcidx" << "\n";
     // TODO which to use?
     //  auto Funcidx = Item.From->getTargetIndex(); // function index
     auto Codeoffset = 0;

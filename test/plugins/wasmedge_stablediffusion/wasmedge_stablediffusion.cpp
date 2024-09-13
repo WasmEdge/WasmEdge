@@ -70,7 +70,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
-                    WasmEdge::AST::MemoryType(2097024)));
+                    WasmEdge::AST::MemoryType(65536)));
   auto *MemInstPtr = Mod.findMemoryExports("memory");
   ASSERT_TRUE(MemInstPtr != nullptr);
   auto &MemInst = *MemInstPtr;

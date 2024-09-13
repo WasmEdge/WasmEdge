@@ -662,6 +662,7 @@ jobs:
           name: WasmEdge-plugin-wasmedge_ffmpeg-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_ffmpeg.tar.gz
       - name: Upload artifact - wasmedge_stablediffusion
+        if: ${{ matrix.arch != 'arm64' }}
         uses: actions/upload-artifact@v3
         with:
           name: WasmEdge-plugin-wasmedge_stablediffusion-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
@@ -737,5 +738,5 @@ jobs:
       - name: Upload artifact - wasmedge_stablediffusion
         uses: actions/upload-artifact@v3
         with:
-          name: WasmEdge-plugin-wasmedge_stablediffusion-metal-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          name: WasmEdge-plugin-wasmedge_stablediffusion-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_stablediffusion.tar.gz

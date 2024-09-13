@@ -6,6 +6,10 @@
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 #include "loader/serialize.h"
+#include <algorithm>
+#include <cstdint>
+#include <iterator>
+#include <spdlog/spdlog.h>
 
 namespace WasmEdge {
 namespace Executor {
@@ -217,8 +221,8 @@ void Executor::generateCoredump(Runtime::StackManager &StackMgr) {
 
   auto Core = collectProcessInformation();
   // auto DataSection = collectDataSection(StackMgr);
-  auto MemSec = Executor::collectMemory(StackMgr);
-  // auto Globals = collectGlobals(StackMgr);
+  auto MemSec = collectMemory(StackMgr);
+  auto Globals = collectGlobals(StackMgr);
   auto CoreStack = collectCoreStack(StackMgr);
   // auto CoreInstances = collectCoreInstances(StackMgr);
   // auto CoreModules = collectCoreModules(StackMgr);
@@ -237,8 +241,7 @@ void Executor::generateCoredump(Runtime::StackManager &StackMgr) {
   Mod.getCustomSections().emplace_back(CoreStack);
   // Mod.getDataSection() = std::move(DataSection);
   Mod.getMemorySection() = std::move(MemSec);
-  // TODO globals works with DWARF data, is this section needed?
-  //  Mod.getGlobalSection() = std::move(Globals);
+  Mod.getGlobalSection() = std::move(Globals);
   auto Res = Ser.serializeModule(Mod);
   std::ofstream File("coredump.wasm", std::ios::out | std::ios::binary);
   if (File.is_open()) {
@@ -278,17 +281,13 @@ AST::MemorySection Executor::collectMemory(Runtime::StackManager &StackMgr) {
   AST::MemorySection MemSec;
   const auto *CurrentInstance = StackMgr.getModule();
   auto MemInstances = CurrentInstance->getMemoryInstances();
-  std::cout << MemInstances.size() << "\n";
-  std::cout << MemInstances[0]->getMemoryType().getLimit().hasMax() << "\n";
-  std::cout << MemInstances[0]->getMemoryType().getLimit().getMax() << "\n";
-  std::cout << MemInstances[0]->getMemoryType().getLimit().getMin() << "\n";
-  MemInstances[0]->getMemoryType().getLimit();
+
+  // TODO add check here to see if it is multimemory
+  auto &Content = MemSec.getContent();
+  Content.push_back(MemInstances[0]->getMemoryType());
   // In the current version of WebAssembly, at most one memory may be defined
   // or imported in a single module, and all constructs implicitly reference
   // this memory.
-  //
-  // If hasMax, set Max to that.
-  // Else set whatever Min exists
 
   return MemSec;
 }
@@ -331,66 +330,76 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
   CoreStack.setName("corestack");
 
   auto Frames = StackMgr.getAllFrames();
+  // TODO reverse correctly using rbegin/rend
   std::reverse(Frames.begin(), Frames.end());
-  auto Size = Frames.size();
+  auto FramesSize = Frames.size();
 
-  // TODO get thread info
   auto &Content = CoreStack.getContent();
+
+  // The following denotes the length of  the thread-name.
   Content.push_back(0x00);
   Content.push_back(0x04);
 
-  std::string str = "main";
-  Content.insert(Content.end(), str.begin(), str.end());
-  for (size_t i = 0; i < Size; i++) {
-    if (Frames[i].Module == nullptr) // guard
+  std::string ThreadName = "main";
+  Content.insert(Content.end(), ThreadName.begin(), ThreadName.end());
+  for (size_t I = 0; I < FramesSize; I++) {
+    if (Frames[I].Module == nullptr) // guard
       continue;
 
-    auto Funcidx = Frames[i].From->getTargetIndex(); // function index
-    // TODO which to use?
-    //  auto Funcidx = Item.From->getTargetIndex(); // function index
+    auto Funcidx = Frames[I].From->getTargetIndex(); // function index
     auto Codeoffset = 0;
-    // auto Codeoffset = 0; // only if codeoffset is unknown?
-    auto LocalsN = Frames[i].Locals;
-    std::cout << Frames[i].From->getOffset() << "\n";
 
-    auto Locals = StackMgr.getRangeSpan(Frames[i].VPos, Frames[i].VPos);
-    auto Stack =
-        StackMgr.getTopSpan(StackMgr.size() - LocalsN); // TODO is this correct?
+    auto Lstart = Frames[I].VPos - Frames[I].Locals;
+    auto Lend = Frames[I].VPos;
+
+    auto Vstart = Frames[I].VPos;
+    // if it is the first frame i.e the top frame, we set it to valuestack size
+    auto Vend =
+        (I > 0) ? Frames[I - 1].VPos - Frames[I - 1].Locals : StackMgr.size();
+
+    auto Lsize = Lend - Lstart;
+    auto Vsize = Vend - Vstart;
+
+    auto Locals = StackMgr.getRangeSpan(Lstart, Lsize);
+    auto Stacks = StackMgr.getRangeSpan(Vstart, Vsize);
 
     Content.push_back(Funcidx);
     Content.push_back(Codeoffset);
-    //
-    // // TODO get the number type before inserting in the bytes
-    // Is that even required?
+
+    // TODO map values correctly to their binary encoding
+    Content.push_back(0x7F);
     for (auto &Iter : Locals) {
-      Content.push_back(Iter.unwrap());
+      Content.push_back(static_cast<Byte>(Iter.unwrap()));
     }
-    for (auto &Iter : Stack) {
-      Content.push_back(Iter.unwrap());
+    Content.push_back(0x7F);
+    for (auto &Iter : Stacks) {
+      Content.push_back(static_cast<Byte>(Iter.unwrap()));
     }
   }
 
   return CoreStack;
 }
 
-// AST::GlobalSection collectGlobals(Runtime::StackManager &StackMgr) {
-//   spdlog::info("Collecting Globals");
-//   AST::GlobalSection Globals;
-//   const auto *const CurrentInstance = StackMgr.getModule();
-//
-//   auto &GlobalInstances = CurrentInstance->getOwnedGlobalInstances();
-//   auto &Content = Globals.getContent();
-//
-//   for (auto &Iter : GlobalInstances) {
-//     AST::GlobalSegment Seg;
-//     auto &Type = Seg.getGlobalType();
-//     Type = Iter->getGlobalType();
-//     Content.push_back(Seg);
-//   }
-//
-//   std::cout << Content.size();
-//
-//   return Globals;
-// }
+AST::GlobalSection Executor::collectGlobals(Runtime::StackManager &StackMgr) {
+  spdlog::info("Collecting Globals");
+  AST::GlobalSection Globals;
+  const auto *const CurrentInstance = StackMgr.getModule();
+
+  auto &GlobalInstances = CurrentInstance->getOwnedGlobalInstances();
+  auto &Content = Globals.getContent();
+
+  for (auto &Iter : GlobalInstances) {
+    AST::GlobalSegment Seg;
+    Iter->getValue();
+    Seg.getGlobalType() = Iter->getGlobalType();
+    // TODO get the init expression here, for now this is dummy expression
+    Seg.getExpr().getInstrs() = {
+        WasmEdge::AST::Instruction(WasmEdge::OpCode::End)};
+
+    Content.push_back(Seg);
+  }
+
+  return Globals;
+}
 } // namespace Executor
 } // namespace WasmEdge

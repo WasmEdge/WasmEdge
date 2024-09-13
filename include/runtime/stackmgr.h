@@ -75,9 +75,9 @@ public:
     return Span<Value>(ValueStack.end() - N, N);
   }
 
-  Span<Value> getRangeSpan(uint32_t Start, uint32_t End) {
-    assuming(Start >= End && End <= ValueStack.size());
-    return Span<Value>(ValueStack.begin() + Start, End);
+  Span<Value> getRangeSpan(uint32_t Start, uint32_t Len) {
+    assuming(Start < ValueStack.size() && Start + Len <= ValueStack.size());
+    return Span<Value>(ValueStack.begin() + Start, Len);
   }
 
   /// Push a new value entry to stack.

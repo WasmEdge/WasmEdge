@@ -125,7 +125,6 @@ private:
 /// Executor flow control class.
 class Executor {
 public:
-  /// TODO add another argument to this for coredump builder to initialise it.
   Executor(const Configure &Conf, Statistics::Statistics *S = nullptr) noexcept
       : Conf(Conf) {
     if (Conf.getStatisticsConfigure().isInstructionCounting() ||
@@ -137,9 +136,6 @@ public:
     }
     if (Stat) {
       Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
-    }
-    if (Conf.getRuntimeConfigure().isEnableCoredump()) {
-      spdlog::info("Coredump has been enabled in executor");
     }
   }
   ~Executor() noexcept {
@@ -207,6 +203,7 @@ public:
   AST::MemorySection collectMemory(Runtime::StackManager &StackMgr);
   AST::DataSection collectDataSection(Runtime::StackManager &StackMgr);
   AST::CustomSection collectCoreStack(Runtime::StackManager &StackMgr);
+  AST::GlobalSection collectGlobals(Runtime::StackManager &StackMgr);
 
 private:
   /// Run Wasm bytecode expression for initialization.

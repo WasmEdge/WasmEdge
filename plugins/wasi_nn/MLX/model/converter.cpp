@@ -5,6 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
+namespace WasmEdge::Host::WASINN::MLX {
 std::unordered_map<std::string, mx::array>
 weightsToMlx(std::string WeightPath) {
   const std::filesystem::path Path(WeightPath);
@@ -82,3 +83,4 @@ llamaToMlxllm(std::string WeightPath) {
   }
   return ModelWeights;
 }
+} // namespace WasmEdge::Host::WASINN::MLX

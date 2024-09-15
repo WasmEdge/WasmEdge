@@ -5,6 +5,7 @@
 #include <mlx/array.h>
 #include <mlx/ops.h>
 
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 
 class QuantizedEmbedding : public Embedding {
@@ -54,3 +55,4 @@ public:
 };
 
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

@@ -11,6 +11,7 @@
 #include <tuple>
 #include <vector>
 
+namespace WasmEdge::Host::WASINN::MLX {
 mx::array RMSNorm::forward(mx::array Input) {
   return mx::fast::rms_norm(Input, 1.0 + Parameters.at("weight"), Eps);
 }
@@ -56,14 +57,14 @@ mx::array MLP::forward(mx::array Input) {
   if (Gemma) {
     return dynamic_cast<nn::Linear *>(Submodules["down_proj"])
         ->forward(
-            gelu(dynamic_cast<nn::Linear *>(Submodules["gate_proj"])
-                     ->forward(Input)) *
+            mlx::core::gelu(dynamic_cast<nn::Linear *>(Submodules["gate_proj"])
+                                ->forward(Input)) *
             dynamic_cast<nn::Linear *>(Submodules["up_proj"])->forward(Input));
   }
   return dynamic_cast<nn::Linear *>(Submodules["down_proj"])
       ->forward(
-          silu(dynamic_cast<nn::Linear *>(Submodules["gate_proj"])
-                   ->forward(Input)) *
+          mlx::core::silu(dynamic_cast<nn::Linear *>(Submodules["gate_proj"])
+                              ->forward(Input)) *
           dynamic_cast<nn::Linear *>(Submodules["up_proj"])->forward(Input));
 }
 std::tuple<mx::array, std::tuple<mx::array, mx::array>>
@@ -98,14 +99,16 @@ Transformer::embed(
     mx::array Input,
     std::optional<std::vector<std::tuple<mx::array, mx::array>>> KVCachePar,
     bool Norm) {
-  mx::array H = dynamic_cast<mx::nn::Embedding *>(Submodules["token_embed"])
-                    ->forward(Input);
+  mx::array H =
+      dynamic_cast<mlx::core::nn::Embedding *>(Submodules["token_embed"])
+          ->forward(Input);
   if (Gemma) {
     H = H * (pow(Dim, 0.5));
   }
   std::optional<mx::array> Mask;
   if (H.shape()[1] > 1) {
-    Mask = mx::nn::MultiHeadAttention::createAdditiveCausalMask(H.shape()[1]);
+    Mask = mlx::core::nn::MultiHeadAttention::createAdditiveCausalMask(
+        H.shape()[1]);
     Mask = astype(*Mask, H.dtype());
   }
   std::vector<std::tuple<mx::array, mx::array>> KVCache;
@@ -138,7 +141,7 @@ Transformer::forward(
   auto [X, KVCache] = embed(Input, KVCachePar, true);
   mx::array Out = {};
   if (EmbedAsHead) {
-    Out = dynamic_cast<mx::nn::Embedding *>(Submodules["token_embed"])
+    Out = dynamic_cast<mlx::core::nn::Embedding *>(Submodules["token_embed"])
               ->asLinear(X);
   } else {
     Out = dynamic_cast<nn::Linear *>(Submodules["head"])->forward(X);
@@ -184,3 +187,4 @@ Transformer::nextGenerate(
   }
   return {NextY, KVCache};
 }
+} // namespace WasmEdge::Host::WASINN::MLX

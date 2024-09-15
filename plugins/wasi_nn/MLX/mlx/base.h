@@ -7,8 +7,9 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-namespace mx = mlx::core;
 
+namespace mx = mlx::core;
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 class Module {
 public:
@@ -20,7 +21,7 @@ public:
   std::string Name;
   std::unordered_map<std::string, mx::array> Parameters{};
   std::unordered_map<std::string, Module *> Submodules{};
-  mx::array &registerParameter(std::string Name, array &&W);
+  mx::array &registerParameter(std::string Name, mx::array &&W);
   std::unordered_map<std::string, mx::array>
   getWeigts(const std::string &Prefix = "model");
   virtual nn::Module *toQuantized(int GroupSize = 64, int Bits = 4);
@@ -52,10 +53,11 @@ public:
     }
   }
 };
-} // namespace mlx::core::nn
-
 template <typename T> void printVec(std::vector<T> Ve) {
   for (auto I : Ve) {
     spdlog::debug("{} ", I);
   }
 }
+} // namespace mlx::core::nn
+
+} // namespace WasmEdge::Host::WASINN::MLX

@@ -6,6 +6,8 @@
 #include <mlx/ops.h>
 #include <mlx/random.h>
 
+namespace WasmEdge::Host::WASINN::MLX {
+
 namespace mlx::core::nn {
 
 class Linear : public Module {
@@ -29,3 +31,4 @@ public:
   nn::Module *toQuantized(int GroupSize = 64, int Bits = 4) override;
 };
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

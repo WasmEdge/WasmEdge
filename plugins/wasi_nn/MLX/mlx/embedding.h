@@ -3,6 +3,8 @@
 #include <cmath>
 #include <mlx/array.h>
 #include <mlx/random.h>
+
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 class Embedding : public Module {
 public:
@@ -18,3 +20,4 @@ public:
 };
 
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

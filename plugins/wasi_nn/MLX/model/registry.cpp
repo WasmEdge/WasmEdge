@@ -1,5 +1,6 @@
 #include "registry.h"
 
+namespace WasmEdge::Host::WASINN::MLX {
 Transformer *llama38b(int VocabSize, float NormEps, float RopeTheta,
                       bool RopeTraditional) {
   return new Transformer(4096, std::vector<int>{14336}, VocabSize, 32,
@@ -20,3 +21,4 @@ Transformer *tinyLlama11BChatV10(int VocabSize, float NormEps, float RopeTheta,
                          std::vector<int>{32}, std::vector<int>{4}, NormEps, {},
                          RopeTraditional, RopeTheta);
 }
+} // namespace WasmEdge::Host::WASINN::MLX

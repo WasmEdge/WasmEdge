@@ -3,6 +3,8 @@
 #include <mlx/array.h>
 #include <mlx/ops.h>
 #include <utility>
+
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 mx::array QuantizedEmbedding::forward(mx::array Input) {
   auto S = Input.shape();
@@ -60,3 +62,4 @@ QuantizedLinear *QuantizedLinear::fromLinear(Linear *LinearModule,
   return QuantizedModel;
 }
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

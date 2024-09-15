@@ -130,7 +130,8 @@ public:
       : Dim(Dim), HiddenDim(HiddenDim), Gemma(Gemma),
         EmbedAsHead(EmbedAsHeadPar) {
     if (VocabSize <= 0) {
-      throw std::invalid_argument("VocabSize must be greater than 0.");
+      spdlog::error("VocabSize must be greater than 0.");
+      assumingUnreachable();
     }
     EmbedAsHead = Gemma ? true : EmbedAsHead;
     if (!NKVHeads) {

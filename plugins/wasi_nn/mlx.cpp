@@ -1,5 +1,4 @@
 #include "mlx.h"
-#include "spdlog/spdlog.h"
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX

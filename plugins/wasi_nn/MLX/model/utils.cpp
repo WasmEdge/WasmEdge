@@ -30,3 +30,20 @@ bool startsWith(std::string const &Value, std::string const &Starting) {
     return false;
   return std::equal(Starting.begin(), Starting.end(), Value.begin());
 }
+void saveWeights(const std::unordered_map<std::string, mx::array> &Weights,
+                 const std::string Path) {
+  if (endsWith(Path, ".safetensors")) {
+    mx::save_safetensors(Path, Weights, {{"format", "mlx"}});
+  } else {
+    spdlog::error("Unsupported file format");
+    assumingUnreachable();
+  }
+}
+void saveWeights(const mx::array &Weights, const std::string &Path) {
+  if (endsWith(Path, ".npz")) {
+    mx::save(Path, Weights);
+  } else {
+    spdlog::error("Unsupported file format");
+    assumingUnreachable();
+  }
+}

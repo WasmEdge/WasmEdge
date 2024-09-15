@@ -1,4 +1,6 @@
 #include "embedding.h"
+#include "base.h"
+#include "quantized.h"
 #include <mlx/array.h>
 #include <mlx/ops.h>
 
@@ -8,5 +10,10 @@ mx::array Embedding::forward(mx::array Input) {
 }
 mx::array Embedding::asLinear(mx::array Input) {
   return matmul(Input, transpose(Parameters.at("weight")));
+}
+nn::Module *Embedding::toQuantized(int GroupSize, int Bits) {
+  auto *QuantModel = QuantizedEmbedding::fromEmbedding(this, GroupSize, Bits);
+  QuantModel->Name = Name;
+  return QuantModel;
 }
 } // namespace mlx::core::nn

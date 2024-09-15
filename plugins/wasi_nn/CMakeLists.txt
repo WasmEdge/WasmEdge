@@ -17,6 +17,19 @@ wasmedge_add_library(wasmedgePluginWasiNN
   whispercpp.cpp
   chattts.cpp
   mlx.cpp
+  MLX/prompt/prompt.cpp
+  MLX/model/transformer.cpp
+  MLX/model/converter.cpp
+  MLX/model/utils.cpp
+  MLX/model/registry.cpp
+  MLX/mlx/base.cpp
+  MLX/mlx/linear.cpp
+  MLX/mlx/positional_encoding.cpp
+  MLX/mlx/activations.cpp
+  MLX/mlx/embedding.cpp
+  MLX/mlx/normalization.cpp
+  MLX/mlx/transformer.cpp
+  MLX/mlx/quantized.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -230,7 +243,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-format
       )
     endif()
-    add_subdirectory(MLX)
     target_include_directories(wasmedgePluginWasiNN PUBLIC MLX/model MLX/prompt MLX/mlx)
 
     message(STATUS "Downloading tokenizers")
@@ -243,8 +255,27 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_MakeAvailable(tokenizers)
     target_include_directories(wasmedgePluginWasiNN PRIVATE ${tokenizers_SOURCE_DIR}/include)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE tokenizers_cpp)
+    
+    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC ./mlx)
+    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC ${MLX_INCLUDE_DIRS})
+    target_link_libraries(wasmedgePluginWasiNN PUBLIC ${MLX_LIBRARIES})
+
+    message(STATUS "Downloading gguflib")
+    FetchContent_Declare(
+      gguflib
+      GIT_REPOSITORY https://github.com/antirez/gguf-tools/
+      GIT_TAG af7d88d808a7608a33723fba067036202910acb3
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(gguflib)
+    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>)
+    add_library(gguflib STATIC ${gguflib_SOURCE_DIR}/fp16.c
+                              ${gguflib_SOURCE_DIR}/gguflib.c)
+    set_target_properties(gguflib PROPERTIES LINKER_LANGUAGE CXX)
+    target_link_libraries(wasmedgePluginWasiNN PUBLIC gguflib)
+
+
     target_link_libraries(wasmedgePluginWasiNN PUBLIC
-      mlx_cpp
       mlx
       simdjson::simdjson
     )

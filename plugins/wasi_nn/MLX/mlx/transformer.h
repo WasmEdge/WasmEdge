@@ -16,7 +16,8 @@ public:
                      std::optional<int> ValueOutputDims = {}, bool Bias = false)
       : NumHeads(NumHeads) {
     if (Dims % NumHeads != 0) {
-      throw std::invalid_argument("Dims must be divisible by NumHeads");
+      spdlog::error("Dims must be divisible by NumHeads");
+      assumingUnreachable();
     }
     if (!QueryInputDims) {
       QueryInputDims = Dims;

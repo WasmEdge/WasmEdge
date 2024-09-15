@@ -19,17 +19,17 @@ weightsToMlx(std::string WeightPath) {
     return Loaded;
   }
   if (endsWith(WeightPath, ".safetensors")) {
-    std::cout << "Loading model from .safetensors file...\n";
+    spdlog::info("Loading model from .safetensors file...\n");
     const mx::SafetensorsLoad Loaded = mx::load_safetensors(WeightPath);
     return Loaded.first;
   }
   if (endsWith(WeightPath, ".gguf")) {
-    std::cout << "Loading model from .gguf file...\n";
+    spdlog::info("Loading model from .gguf file...\n");
     const mx::GGUFLoad Loaded = mx::load_gguf(WeightPath);
     return Loaded.first;
   }
-  std::cout << "Can not regonize model file\n";
-  throw std::invalid_argument("Invalid model path.");
+  spdlog::error("Can not regonize model file\n");
+  assumingUnreachable();
 }
 
 std::unordered_map<std::string, mx::array>
@@ -60,16 +60,24 @@ llamaToMlxllm(std::string WeightPath) {
         const std::unordered_map<std::string, std::string> KeyMap = {
             {"input_layernorm", "attention_norm"},
             {"post_attention_layernorm", "mlp_norm"}};
-        ModelWeights.insert({SplitKey[0] + "." + SplitKey[1] + "." +
-                                 KeyMap.at(SplitKey[2]) + "." + SplitKey[3],
-                             v});
+        if (KeyMap.find(SplitKey[2]) == KeyMap.end()) {
+          ModelWeights.insert({NewKey, v});
+        } else {
+          ModelWeights.insert({SplitKey[0] + "." + SplitKey[1] + "." +
+                                   KeyMap.at(SplitKey[2]) + "." + SplitKey[3],
+                               v});
+        }
       }
     } else {
       const std::unordered_map<std::string, std::string> KeyMap = {
           {"embed_tokens", "token_embed"},
           {"lm_head", "head"},
           {"norm", "norm"}};
-      ModelWeights.insert({KeyMap.at(SplitKey[0]) + "." + SplitKey[1], v});
+      if (KeyMap.find(SplitKey[0]) == KeyMap.end()) {
+        ModelWeights.insert({NewKey, v});
+      } else {
+        ModelWeights.insert({KeyMap.at(SplitKey[0]) + "." + SplitKey[1], v});
+      }
     }
   }
   return ModelWeights;

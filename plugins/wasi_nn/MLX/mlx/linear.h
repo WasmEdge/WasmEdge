@@ -12,6 +12,7 @@ class Linear : public Module {
   bool EnableBias = true;
 
 public:
+  Linear() = default;
   Linear(int InputDims, int OutputDims, bool EnableBias = true)
       : EnableBias(EnableBias) {
     const double Scale = std::sqrt(1.0 / InputDims);
@@ -24,6 +25,7 @@ public:
                                                     }));
     }
   }
-  mx::array forward(mx::array Input);
+  virtual mx::array forward(mx::array Input);
+  nn::Module *toQuantized(int GroupSize = 64, int Bits = 4) override;
 };
 } // namespace mlx::core::nn

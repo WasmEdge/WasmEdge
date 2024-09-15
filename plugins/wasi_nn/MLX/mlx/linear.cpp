@@ -1,6 +1,8 @@
 #include "linear.h"
 #include "base.h"
 #include "quantized.h"
+
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 mx::array Linear::forward(mx::array Input) {
   if (EnableBias) {
@@ -17,3 +19,4 @@ nn::Module *Linear::toQuantized(int GroupSize, int Bits) {
 }
 
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

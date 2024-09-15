@@ -3,6 +3,7 @@
 #include "linear.h"
 #include <optional>
 
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 class MultiHeadAttention : public Module {
   int NumHeads;
@@ -45,3 +46,4 @@ public:
                                             mx::Dtype DType = mx::float32);
 };
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

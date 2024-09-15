@@ -1,6 +1,7 @@
 #include "transformer.h"
 #include <mlx/ops.h>
 
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 mx::array MultiHeadAttention::createAdditiveCausalMask(int N, mx::Dtype DType) {
   auto Indices = mx::arange(N);
@@ -10,3 +11,4 @@ mx::array MultiHeadAttention::createAdditiveCausalMask(int N, mx::Dtype DType) {
   return Mask;
 }
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

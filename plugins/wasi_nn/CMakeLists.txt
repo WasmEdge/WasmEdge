@@ -1,36 +1,55 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
-
-wasmedge_add_library(wasmedgePluginWasiNN
-  SHARED
-  wasinnenv.cpp
-  wasinnfunc.cpp
-  wasinnmodule.cpp
-  openvino.cpp
-  onnx.cpp
-  tf.cpp
-  torch.cpp
-  tfl.cpp
-  ggml.cpp
-  neuralspeed.cpp
-  piper.cpp
-  whispercpp.cpp
-  chattts.cpp
-  mlx.cpp
-  MLX/prompt/prompt.cpp
-  MLX/model/transformer.cpp
-  MLX/model/converter.cpp
-  MLX/model/utils.cpp
-  MLX/model/registry.cpp
-  MLX/mlx/base.cpp
-  MLX/mlx/linear.cpp
-  MLX/mlx/positional_encoding.cpp
-  MLX/mlx/activations.cpp
-  MLX/mlx/embedding.cpp
-  MLX/mlx/normalization.cpp
-  MLX/mlx/transformer.cpp
-  MLX/mlx/quantized.cpp
-)
+if(BACKEND STREQUAL "mlx")
+  wasmedge_add_library(wasmedgePluginWasiNN
+    SHARED
+    wasinnenv.cpp
+    wasinnfunc.cpp
+    wasinnmodule.cpp
+    openvino.cpp
+    onnx.cpp
+    tf.cpp
+    torch.cpp
+    tfl.cpp
+    ggml.cpp
+    neuralspeed.cpp
+    piper.cpp
+    whispercpp.cpp
+    chattts.cpp
+    mlx.cpp
+    MLX/prompt/prompt.cpp
+    MLX/model/transformer.cpp
+    MLX/model/converter.cpp
+    MLX/model/utils.cpp
+    MLX/model/registry.cpp
+    MLX/mlx/base.cpp
+    MLX/mlx/linear.cpp
+    MLX/mlx/positional_encoding.cpp
+    MLX/mlx/activations.cpp
+    MLX/mlx/embedding.cpp
+    MLX/mlx/normalization.cpp
+    MLX/mlx/transformer.cpp
+    MLX/mlx/quantized.cpp
+  )
+else()
+  wasmedge_add_library(wasmedgePluginWasiNN
+    SHARED
+    wasinnenv.cpp
+    wasinnfunc.cpp
+    wasinnmodule.cpp
+    openvino.cpp
+    onnx.cpp
+    tf.cpp
+    torch.cpp
+    tfl.cpp
+    ggml.cpp
+    neuralspeed.cpp
+    piper.cpp
+    whispercpp.cpp
+    chattts.cpp
+    mlx.cpp
+  )
+endif()
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)

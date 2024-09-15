@@ -4,6 +4,8 @@
 #include <mlx/array.h>
 #include <mlx/ops.h>
 
+namespace WasmEdge::Host::WASINN::MLX {
+
 namespace mlx::core::nn {
 mx::array Embedding::forward(mx::array Input) {
   return take(Parameters.at("weight"), Input, 0);
@@ -17,3 +19,4 @@ nn::Module *Embedding::toQuantized(int GroupSize, int Bits) {
   return QuantModel;
 }
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

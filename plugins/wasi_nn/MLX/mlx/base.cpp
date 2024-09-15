@@ -3,9 +3,11 @@
 #include <mlx/array.h>
 #include <unordered_map>
 
+namespace WasmEdge::Host::WASINN::MLX {
+
 namespace mlx::core::nn {
 
-mx::array &Module::registerParameter(std::string Name, array &&W) {
+mx::array &Module::registerParameter(std::string Name, mx::array &&W) {
   Parameters.insert({Name, W});
   return Parameters.at(Name);
 }
@@ -59,3 +61,4 @@ Module::getWeigts(const std::string &Prefix) {
   return Weights;
 }
 } // namespace mlx::core::nn
+} // namespace WasmEdge::Host::WASINN::MLX

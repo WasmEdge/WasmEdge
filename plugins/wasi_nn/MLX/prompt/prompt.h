@@ -4,6 +4,8 @@
 #include <iostream>
 #include <string>
 
+namespace WasmEdge::Host::WASINN::MLX {
+
 class BasePrompt {
 public:
   std::string TextEnd;
@@ -50,3 +52,4 @@ public:
   }
   std::string prepare(std::string Prompt) override;
 };
+} // namespace WasmEdge::Host::WASINN::MLX

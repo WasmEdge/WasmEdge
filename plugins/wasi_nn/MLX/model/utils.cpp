@@ -1,5 +1,7 @@
 #include "utils.h"
 #include <sstream>
+
+namespace WasmEdge::Host::WASINN::MLX {
 std::vector<std::string> splitString(const std::string &S, char Delim) {
   std::vector<std::string> Result;
   std::stringstream SS(S);
@@ -47,3 +49,4 @@ void saveWeights(const mx::array &Weights, const std::string &Path) {
     assumingUnreachable();
   }
 }
+} // namespace WasmEdge::Host::WASINN::MLX

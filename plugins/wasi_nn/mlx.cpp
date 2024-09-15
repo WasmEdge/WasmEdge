@@ -198,7 +198,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       return ErrNo::InvalidArgument;
     }
   }
-
+  GraphId = Env.NNGraph.size() - 1;
   return WASINN::ErrNo::Success;
 }
 
@@ -210,8 +210,7 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
 }
 
 Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                               uint32_t Index,
-                               const TensorData &Tensor) noexcept {
+                               uint32_t, const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
@@ -224,7 +223,7 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 }
 
 Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
-                                uint32_t Index, Span<uint8_t> OutBuffer,
+                                uint32_t, Span<uint8_t> OutBuffer,
                                 uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();

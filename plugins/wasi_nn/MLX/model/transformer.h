@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
+namespace WasmEdge::Host::WASINN::MLX {
 namespace nn = mlx::core::nn;
 
 class RMSNorm : public nn::Module {
@@ -197,3 +198,4 @@ public:
                std::optional<std::vector<std::tuple<mx::array, mx::array>>>
                    KVCachePar = {});
 };
+} // namespace WasmEdge::Host::WASINN::MLX

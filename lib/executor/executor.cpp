@@ -378,14 +378,10 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
     // TODO map values correctly to their binary encoding
     // XXX Using 0x7E for now
 
-    std::cout << "Num locals:" << Frames[I].Locals << "\n";
-    std::cout << "Num stacks:" << Vsize << "\n";
-
     Content.push_back(Frames[I].Locals);
     Content.push_back(Vsize);
     for (auto &Iter : Locals) {
-      Content.push_back(0x7F);
-      std::cout << static_cast<int32_t>(Iter.unwrap()) << ":Local\n";
+      Content.push_back(0x7E);
       auto Value = Iter.unwrap();
 
       std::vector<Byte> ValueBytes(4);
@@ -395,9 +391,8 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
       Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
     }
     for (auto &Iter : Stacks) {
-      // TODO why is this incorrect
-      Content.push_back(0x7F);
-      std::cout << static_cast<int32_t>(Iter.unwrap()) << ":Stack\n";
+      // TODO why is this parsed incorrectly by wasmgdb as 126?
+      Content.push_back(0x7E);
       auto Value = Iter.unwrap();
 
       std::vector<Byte> ValueBytes(4);
@@ -406,12 +401,6 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
       // Create the Locals byte vector
       Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
     }
-    std::cout << Frames[I].From->getOffset() << "\n";
-    std::cout << "\n";
-    // std::cout << "Funcidx:" << Funcidx << "\n";
-    // std::cout << "CodeOffset:" << Codeoffset << "\n";
-    // std::cout << "LocalN:" << Frames[I].Locals << "\n";
-    // std::cout << "StackN:" << Lsize << "\n\n";
   }
 
   return CoreStack;

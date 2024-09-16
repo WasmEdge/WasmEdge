@@ -2823,9 +2823,11 @@ TEST(WasiNNTest, MLXBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
   // Test: load -- load successfully.
-  std::string Config = "{\"model_type\":\"tiny_llama_1.1B_chat_v1.0\", "
-                       "\"tokenizer\":\"" +
-                       Tokenizer + "\"}";
+  std::string Config =
+      "{\"model_type\":\"tiny_llama_1.1B_chat_v1.0\", "
+      "\"tokenizer\":\"" +
+      Tokenizer +
+      "\", \"q_bits\": 4, \"group_size\": 128, \"is_quantized\": false}";
   std::vector<uint8_t> ConfigData(Config.begin(), Config.end());
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, WeightRead.size(), BuilderPtr);

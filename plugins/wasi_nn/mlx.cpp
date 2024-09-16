@@ -121,6 +121,25 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     }
     GraphRef.MaxToken = MaxToken;
   }
+  if (Doc.at_key("q_bits").error() == simdjson::SUCCESS &&
+      Doc.at_key("group_size").error() == simdjson::SUCCESS &&
+      Doc.at_key("is_quantized").error() == simdjson::SUCCESS) {
+    uint64_t QBits;
+    uint64_t GroupSize;
+    bool IsQuantized;
+    auto ErrQBits = Doc["q_bits"].get<uint64_t>().get(QBits);
+    auto ErrGroupSize = Doc["group_size"].get<uint64_t>().get(GroupSize);
+    auto ErrIsQuantized = Doc["is_quantized"].get<bool>().get(IsQuantized);
+    if (ErrQBits || ErrGroupSize || ErrIsQuantized) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Unable to retrieve the q_bits or group_size option."sv);
+      Env.NNGraph.pop_back();
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.IsQuantized = IsQuantized;
+    GraphRef.QBits = QBits;
+    GraphRef.GroupSize = GroupSize;
+  }
 
   // Load tokenizer.
   if (!TokenizerPath.empty()) {
@@ -147,6 +166,10 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
     Env.NNGraph.pop_back();
     return ErrNo::InvalidArgument;
+  }
+
+  if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && GraphRef.IsQuantized) {
+    GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }
 
   // Handle the model path.
@@ -198,6 +221,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       return ErrNo::InvalidArgument;
     }
   }
+
+  if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && !GraphRef.IsQuantized) {
+    GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
+  }
+
   GraphId = Env.NNGraph.size() - 1;
   return WASINN::ErrNo::Success;
 }

@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <iterator>
 #include <spdlog/spdlog.h>
+#include <sys/types.h>
 #include <variant>
 
 namespace WasmEdge {
@@ -220,8 +221,6 @@ void Executor::generateCoredump(Runtime::StackManager &StackMgr) {
   if (CurrentInstance == nullptr) {
     return;
   }
-  // std::cout << CurrentStack->size() << "from exec";
-  std::cout << StackMgr.size() << "from func";
 
   auto Core = collectProcessInformation();
   // auto DataSection = collectDataSection(StackMgr);
@@ -359,12 +358,12 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
     // TODO calculate offset properly
     auto Codeoffset = Frames[I].From->getOffset();
 
-    auto Lstart = Frames[I].VPos - Frames[I].Locals;
-    auto Lend = Frames[I].VPos;
+    uint32_t Lstart = Frames[I].VPos - Frames[I].Locals;
+    uint32_t Lend = Frames[I].VPos;
 
-    auto Vstart = Frames[I].VPos;
+    uint32_t Vstart = Frames[I].VPos;
     // if it is the first frame i.e the top frame, we set it to valuestack size
-    auto Vend =
+    uint32_t Vend =
         (I > 0) ? Frames[I - 1].VPos - Frames[I - 1].Locals : StackMgr.size();
 
     uint32_t Lsize = Lend - Lstart;
@@ -373,8 +372,8 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
     auto Locals = StackMgr.getRangeSpan(Lstart, Lsize);
     auto Stacks = StackMgr.getRangeSpan(Vstart, Vsize);
 
-    Content.push_back(Funcidx);
-    Content.push_back(Codeoffset);
+    Content.push_back(static_cast<Byte>(Funcidx));
+    Content.push_back(static_cast<Byte>(Codeoffset));
     // TODO map values correctly to their binary encoding
     // XXX Using 0x7E for now
 

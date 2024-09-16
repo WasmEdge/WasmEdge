@@ -106,6 +106,7 @@ public:
     return Vec;
   }
 
+  /// Get all Frames enumerated from youngest to oldest.
   Span<Frame> getAllFrames() {
     return Span<Frame>(FrameStack.data(), FrameStack.size());
   }

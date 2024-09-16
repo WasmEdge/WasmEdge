@@ -3,6 +3,7 @@
 
 #include "executor/executor.h"
 
+#include "common/errcode.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 #include "loader/serialize.h"
@@ -10,6 +11,7 @@
 #include <cstdint>
 #include <iterator>
 #include <spdlog/spdlog.h>
+#include <variant>
 
 namespace WasmEdge {
 namespace Executor {
@@ -212,12 +214,14 @@ Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
 }
 
 void Executor::generateCoredump(Runtime::StackManager &StackMgr) {
-  const Configure Conf;
-  Loader::Serializer Ser(Conf);
+  const Configure Config;
+  Loader::Serializer Ser(Config);
   const auto *CurrentInstance = StackMgr.getModule();
   if (CurrentInstance == nullptr) {
     return;
   }
+  // std::cout << CurrentStack->size() << "from exec";
+  std::cout << StackMgr.size() << "from func";
 
   auto Core = collectProcessInformation();
   // auto DataSection = collectDataSection(StackMgr);
@@ -336,18 +340,24 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
 
   auto &Content = CoreStack.getContent();
 
-  // The following denotes the length of  the thread-name.
+  // The following denotes the length of the thread-name.
   Content.push_back(0x00);
   Content.push_back(0x04);
 
   std::string ThreadName = "main";
   Content.insert(Content.end(), ThreadName.begin(), ThreadName.end());
+
+  // This denotes the number of frames in the section
+  Content.push_back(static_cast<Byte>(FramesSize - 1));
   for (size_t I = 0; I < FramesSize; I++) {
     if (Frames[I].Module == nullptr) // guard
       continue;
 
+    // each frame's start is denoted by this
+    Content.push_back(0x00);
     auto Funcidx = Frames[I].From->getTargetIndex(); // function index
-    auto Codeoffset = 0;
+    // TODO calculate offset properly
+    auto Codeoffset = Frames[I].From->getOffset();
 
     auto Lstart = Frames[I].VPos - Frames[I].Locals;
     auto Lend = Frames[I].VPos;
@@ -357,24 +367,51 @@ AST::CustomSection Executor::collectCoreStack(Runtime::StackManager &StackMgr) {
     auto Vend =
         (I > 0) ? Frames[I - 1].VPos - Frames[I - 1].Locals : StackMgr.size();
 
-    auto Lsize = Lend - Lstart;
-    auto Vsize = Vend - Vstart;
+    uint32_t Lsize = Lend - Lstart;
+    uint32_t Vsize = Vend - Vstart;
 
     auto Locals = StackMgr.getRangeSpan(Lstart, Lsize);
     auto Stacks = StackMgr.getRangeSpan(Vstart, Vsize);
 
     Content.push_back(Funcidx);
     Content.push_back(Codeoffset);
-
     // TODO map values correctly to their binary encoding
-    Content.push_back(0x7F);
+    // XXX Using 0x7E for now
+
+    std::cout << "Num locals:" << Frames[I].Locals << "\n";
+    std::cout << "Num stacks:" << Vsize << "\n";
+
+    Content.push_back(Frames[I].Locals);
+    Content.push_back(Vsize);
     for (auto &Iter : Locals) {
-      Content.push_back(static_cast<Byte>(Iter.unwrap()));
+      Content.push_back(0x7F);
+      std::cout << static_cast<int32_t>(Iter.unwrap()) << ":Local\n";
+      auto Value = Iter.unwrap();
+
+      std::vector<Byte> ValueBytes(4);
+      std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
+
+      // Create the final byte vector
+      Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
     }
-    Content.push_back(0x7F);
     for (auto &Iter : Stacks) {
-      Content.push_back(static_cast<Byte>(Iter.unwrap()));
+      // TODO why is this incorrect
+      Content.push_back(0x7F);
+      std::cout << static_cast<int32_t>(Iter.unwrap()) << ":Stack\n";
+      auto Value = Iter.unwrap();
+
+      std::vector<Byte> ValueBytes(4);
+      std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
+
+      // Create the Locals byte vector
+      Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
     }
+    std::cout << Frames[I].From->getOffset() << "\n";
+    std::cout << "\n";
+    // std::cout << "Funcidx:" << Funcidx << "\n";
+    // std::cout << "CodeOffset:" << Codeoffset << "\n";
+    // std::cout << "LocalN:" << Frames[I].Locals << "\n";
+    // std::cout << "StackN:" << Lsize << "\n\n";
   }
 
   return CoreStack;

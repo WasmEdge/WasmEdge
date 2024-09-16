@@ -110,7 +110,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::Unreachable:
       spdlog::error(ErrCode::Value::Unreachable);
       if (Conf.getRuntimeConfigure().isEnableCoredump()) {
-        spdlog::info("Coredump Generation taking place");
         generateCoredump(StackMgr);
       }
       spdlog::error(

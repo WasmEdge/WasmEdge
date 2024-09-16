@@ -31,7 +31,10 @@ struct Graph {
   Transformer *Model;
   double Temp = 0.0;
   bool EnableDebugLog = false;
+  bool IsQuantized = false;
   uint64_t MaxToken = 1024;
+  uint64_t QBits = 0;
+  uint64_t GroupSize = 0;
   BasePrompt Prmopt;
 };
 struct Context {

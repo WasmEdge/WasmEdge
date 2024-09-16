@@ -1,55 +1,23 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
-if(BACKEND STREQUAL "mlx")
-  wasmedge_add_library(wasmedgePluginWasiNN
-    SHARED
-    wasinnenv.cpp
-    wasinnfunc.cpp
-    wasinnmodule.cpp
-    openvino.cpp
-    onnx.cpp
-    tf.cpp
-    torch.cpp
-    tfl.cpp
-    ggml.cpp
-    neuralspeed.cpp
-    piper.cpp
-    whispercpp.cpp
-    chattts.cpp
-    mlx.cpp
-    MLX/prompt/prompt.cpp
-    MLX/model/transformer.cpp
-    MLX/model/converter.cpp
-    MLX/model/utils.cpp
-    MLX/model/registry.cpp
-    MLX/mlx/base.cpp
-    MLX/mlx/linear.cpp
-    MLX/mlx/positional_encoding.cpp
-    MLX/mlx/activations.cpp
-    MLX/mlx/embedding.cpp
-    MLX/mlx/normalization.cpp
-    MLX/mlx/transformer.cpp
-    MLX/mlx/quantized.cpp
-  )
-else()
-  wasmedge_add_library(wasmedgePluginWasiNN
-    SHARED
-    wasinnenv.cpp
-    wasinnfunc.cpp
-    wasinnmodule.cpp
-    openvino.cpp
-    onnx.cpp
-    tf.cpp
-    torch.cpp
-    tfl.cpp
-    ggml.cpp
-    neuralspeed.cpp
-    piper.cpp
-    whispercpp.cpp
-    chattts.cpp
-    mlx.cpp
-  )
-endif()
+
+wasmedge_add_library(wasmedgePluginWasiNN
+  SHARED
+  wasinnenv.cpp
+  wasinnfunc.cpp
+  wasinnmodule.cpp
+  openvino.cpp
+  onnx.cpp
+  tf.cpp
+  torch.cpp
+  tfl.cpp
+  ggml.cpp
+  neuralspeed.cpp
+  piper.cpp
+  whispercpp.cpp
+  chattts.cpp
+  mlx.cpp
+)
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)
@@ -224,6 +192,22 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       simdjson::simdjson
     )
   elseif(BACKEND STREQUAL "mlx")
+    target_sources(wasmedgePluginWasiNN 
+      PRIVATE 
+      MLX/prompt/prompt.cpp
+      MLX/model/transformer.cpp
+      MLX/model/converter.cpp
+      MLX/model/utils.cpp
+      MLX/model/registry.cpp
+      MLX/mlx/base.cpp
+      MLX/mlx/linear.cpp
+      MLX/mlx/positional_encoding.cpp
+      MLX/mlx/activations.cpp
+      MLX/mlx/embedding.cpp
+      MLX/mlx/normalization.cpp
+      MLX/mlx/transformer.cpp
+      MLX/mlx/quantized.cpp
+    )
     wasmedge_setup_simdjson()
     find_package(MLX CONFIG)
     if(MLX_FOUND)
@@ -272,6 +256,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(tokenizers)
+    set_property(TARGET tokenizer_cpp_objs PROPERTY POSITION_INDEPENDENT_CODE ON)
     target_include_directories(wasmedgePluginWasiNN PRIVATE ${tokenizers_SOURCE_DIR}/include)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE tokenizers_cpp)
     

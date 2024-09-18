@@ -50,6 +50,24 @@ RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100 && 
 ENV CC=/usr/bin/clang-15
 ENV CXX=/usr/bin/clang++-15
 
+### deps for ubuntu 24.04 ###
+FROM base AS deps-24
+
+RUN apt-get install -y cmake
+
+RUN apt-get install -y \
+        llvm-18-dev \
+        liblld-18-dev \
+        libpolly-18-dev \
+        clang-18
+
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100 && \
+    update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-18 100
+
+ENV CC=/usr/bin/clang-18
+ENV CXX=/usr/bin/clang++-18
+
 ### cleanup
 FROM deps-${UBUNTU_VER} AS clean-apt
 

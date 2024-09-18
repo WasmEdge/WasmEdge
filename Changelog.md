@@ -1,4 +1,4 @@
-### 0.14.1-rc.4 (2024-09-02)
+### 0.14.1 (2024-09-16)
 
 Features:
 
@@ -12,7 +12,6 @@ Features:
   * Static link `libggml` and `libllama`.
   * Refined the CMake to support multiple backends of WASI-NN with ggml backend.
   * Supported compute single in RPC mode.
-* [WASI-NN] Added support for neural speed backend.
 * [WASI-NN] Added support for whisper.cpp backend.
 * [WASI-NN] Added support for piper backend.
 * [WASI-NN] Added support for ChatTTS backend.
@@ -56,7 +55,7 @@ Thank all the contributors who made this release possible!
 
 Biswapriyo Nath, Elmira, Faidon Liambotis, Fusaaaann, Han-Wen Tsao, Jun Zhang, Kefu Chai, Lîm Tsú-thuàn, Michael Morris, PeterD1524, Shen-Ta Hsieh, Shreyas Atre, Sylveon, Yi Huang, Yi-Ying He, alabulei1, dm4, grorge, hydai, junxiangMu, vincent
 
-If you want to build from source, please use WasmEdge-0.14.1-rc.4-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.14.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.14.0 (2024-05-22)
 

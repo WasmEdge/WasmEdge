@@ -13,7 +13,7 @@ struct DataLoader;
 
 GPT2 *gpt2_create(const char *checkpoint_path);
 
-void gpt2_free(GPT2 *model);
+void gpt2_destroy(GPT2 *model);
 
 DataLoader *dataloader_create(const char *filename_pattern, size_t B, size_t T,
                               int process_rank, int num_processes,

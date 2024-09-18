@@ -68,17 +68,6 @@ jobs:
       release: true
     secrets: inherit
 
-  build_on_manylinux2014:
-    needs: create_release
-    uses: ./.github/workflows/reusable-build-on-manylinux.yml
-    with:
-      version: ${{ needs.create_release.outputs.version }}
-      matrix:
-        "[{'name':'manylinux2014 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux2014_x86_64-plugins-deps','asset_tag':'manylinux2014_x86_64'},
-        {'name':'manylinux2014 aarch64','runner':'linux-arm64-v2','docker_tag':'manylinux2014_aarch64-plugins-deps','asset_tag':'manylinux2014_aarch64'}]"
-      release: true
-    secrets: inherit
-
   build_on_manylinux_2_28:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
@@ -744,35 +733,6 @@ jobs:
         run: |
           mv plugin_wasmedge_stablediffusion.tar.gz WasmEdge-plugin-wasmedge_stablediffusion-metal-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_stablediffusion-metal-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
-
-  build_manylinux2014_runtime_only:
-    name: Build runtime only on manylinux2014 platform
-    needs: create_release
-    runs-on: ubuntu-latest
-    container:
-      image: wasmedge/wasmedge:manylinux2014_x86_64-plugins-deps
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      - name: Grant the safe directory for git
-        run: |
-          git config --global --add safe.directory $(pwd)
-      - name: Build runtime only manylinux2014 package
-        run: |
-          bash utils/docker/build-manylinux.sh -DWASMEDGE_USE_LLVM=OFF
-      - name: Upload ${{ matrix.name }} tar.gz package to artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: build_manylinux2014_runtime_only
-          path: build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.gz
-      - name: Upload ${{ matrix.name }} tar.gz package
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          mv build/WasmEdge-${{ needs.create_release.outputs.version }}-Linux.tar.xz WasmEdge-runtime-only-${{ needs.create_release.outputs.version }}-manylinux2014_x86_64.tar.xz
-          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-runtime-only-${{ needs.create_release.outputs.version }}-manylinux2014_x86_64.tar.xz --clobber
 
   generate_sbom:
     name: Generate SBOM

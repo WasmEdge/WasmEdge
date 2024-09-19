@@ -379,7 +379,7 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
   // | ']'                                 |
   // | '}'                                 |
   Embedding =
-      fmt::format(R"({{"n_embedding": {:.10}, )"
+      fmt::format(R"({{"n_embedding": {}, )"
                   R"("embedding": [{:.10}]}})"sv,
                   NEmbd, fmt::join(Embeddings, Embeddings + NEmbd, ","sv));
 }

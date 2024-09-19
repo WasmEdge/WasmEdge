@@ -20,9 +20,9 @@ flowchart LR
 ```json
 [
   {
-    "name": "MacOS 12 (x86_64)",
-    "runner": "macos-12",
-    "darwin_version": 21
+    "name": "MacOS 13 (x86_64)",
+    "runner": "macos-13",
+    "darwin_version": 22
   },
   {
     "name": "MacOS 14 (arm64)",

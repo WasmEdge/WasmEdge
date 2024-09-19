@@ -210,9 +210,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - system: MacOS 12 (x86_64)
-            host_runner: macos-12
-            darwin_version: darwin_21
+          - system: MacOS 13 (x86_64)
+            host_runner: macos-13
+            darwin_version: darwin_22
             build_type: Release
             arch: x86_64
           - system: MacOS 14 (arm64)
@@ -237,12 +237,12 @@ jobs:
       - name: Build and install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake
+          brew install llvm ninja cmake
       - name: Build and test WASI-NN using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          export LLVM_DIR="$(brew --prefix)/opt/llvm@16/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++
           plugin_array=(${tar_names})
@@ -421,9 +421,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - system: MacOS 12 (x86_64)
-            host_runner: macos-12
-            darwin_version: darwin_21
+          - system: MacOS 13 (x86_64)
+            host_runner: macos-13
+            darwin_version: darwin_22
             build_type: Release
             arch: x86_64
           - system: MacOS 14 (arm64)

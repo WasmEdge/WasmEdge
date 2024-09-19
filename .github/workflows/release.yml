@@ -445,9 +445,9 @@ jobs:
     runs-on: ${{ matrix.host_runner }}
     env:
       output_prefix: build/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON
-      tar_names: wasi_crypto wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_zlib wasmedge_ffmpeg wasmedge_stablediffusion
-      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeZlib.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib libwasmedgePluginWasmEdgeStableDiffusion.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_ZLIB=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON
+      tar_names: wasi_crypto wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_zlib wasmedge_ffmpeg wasmedge_stablediffusion
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeZlib.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib libwasmedgePluginWasmEdgeStableDiffusion.dylib
     needs: create_release
     steps:
       - name: Checkout code
@@ -460,7 +460,7 @@ jobs:
       - name: Install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake openssl rust gh ffmpeg@6
+          brew install llvm@16 ninja cmake openssl opencv rust gh ffmpeg@6
       - name: Build plugins
         shell: bash
         run: |
@@ -518,6 +518,13 @@ jobs:
           eval $(/opt/homebrew/bin/brew shellenv)
           mv plugin_wasmedge_image.tar.gz WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_image-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
+      - name: Upload wasmedge_opencvmini plugin tar.gz package
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          mv plugin_wasmedge_opencvmini.tar.gz WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz
+          gh release upload ${{ needs.create_release.outputs.version }} WasmEdge-plugin-wasmedge_opencvmini-${{ needs.create_release.outputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber
       - name: Upload wasmedge_zlib plugin tar.gz package
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

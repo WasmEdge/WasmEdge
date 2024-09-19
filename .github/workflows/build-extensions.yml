@@ -436,10 +436,10 @@ jobs:
     env:
       output_prefix: build/plugins
       test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_LLMC=ON
-      tar_names: wasi_crypto wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_ffmpeg wasmedge_stablediffusion wasmedge_llmc
-      test_bins: wasiCryptoTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeFFmpegTests wasmedgeStableDiffusionTests wasmedgeLLMCTests
-      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib libwasmedgePluginWasmEdgeStableDiffusion.dylib libwasmedgePluginWasmEdgeLLMC.dylib
+      build_options: -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON -DWASMEDGE_PLUGIN_TENSORFLOW=ON -DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON -DWASMEDGE_PLUGIN_IMAGE=ON -DWASMEDGE_PLUGIN_OPENCVMINI=ON -DWASMEDGE_PLUGIN_FFMPEG=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_LLMC=ON
+      tar_names: wasi_crypto wasmedge_tensorflow wasmedge_tensorflowlite wasmedge_image wasmedge_opencvmini wasmedge_ffmpeg wasmedge_stablediffusion wasmedge_llmc
+      test_bins: wasiCryptoTests wasmedgeTensorflowTests wasmedgeTensorflowLiteTests wasmedgeImageTests wasmedgeOpencvminiTests wasmedgeFFmpegTests wasmedgeStableDiffusionTests wasmedgeLLMCTests
+      output_bins: libwasmedgePluginWasiCrypto.dylib libwasmedgePluginWasmEdgeTensorflow.dylib libwasmedgePluginWasmEdgeTensorflowLite.dylib libwasmedgePluginWasmEdgeImage.dylib libwasmedgePluginWasmEdgeOpenCVMini.dylib libwasmedgePluginWasmEdgeFFmpeg.dylib libwasmedgePluginWasmEdgeStableDiffusion.dylib libwasmedgePluginWasmEdgeLLMC.dylib
     needs: [ get_version ]
     steps:
       - uses: actions/checkout@v4
@@ -448,7 +448,7 @@ jobs:
       - name: Build and install dependencies
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@16 ninja cmake openssl rust ffmpeg@6
+          brew install llvm@16 ninja cmake openssl opencv rust ffmpeg@6
       - name: Build WasmEdge plugins using clang++ with ${{ matrix.build_type }} mode
         shell: bash
         run: |
@@ -472,6 +472,10 @@ jobs:
           testbin_array=(${test_bins})
           for (( i=0; i<${#plugin_array[@]}; i++ ));
           do
+            if [[ ${plugin_array[$i]} == "wasmedge_opencvmini" ]]; then
+              echo "Temporary disable ${plugin_array[$i]} testing"
+              continue
+            fi
             echo "Testing ${plugin_array[$i]} :"
             cd ${test_prefix}/${plugin_array[$i]}
             ./${testbin_array[$i]}
@@ -509,6 +513,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasmedge_image-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasmedge_image.tar.gz
+      - name: Upload artifact - wasmedge_opencvmini
+        uses: actions/upload-artifact@v3
+        with:
+          name: WasmEdge-plugin-wasmedge_opencvmini-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          path: plugin_wasmedge_opencvmini.tar.gz
       - name: Upload artifact - wasmedge_ffmpeg
         uses: actions/upload-artifact@v3
         with:

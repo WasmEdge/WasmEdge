@@ -5,6 +5,12 @@ group "default" {
   ]
 }
 
+group "latest" {
+  targets = [
+    "base-2204-clang",
+  ]
+}
+
 function "no-dot" {
   params = [ubuntu]
   result = replace(ubuntu, ".", "")
@@ -20,11 +26,21 @@ function "tags-latest" {
   result = target == "base" && ubuntu == "22.04" && toolchain == "clang" ? "latest" : ""
 }
 
+function "tags-latest-backports" {
+  params = [target, ubuntu, toolchain]
+  result = ubuntu == "22.04" ? join("-", compact([
+    "ubuntu",
+    "build",
+    toolchain,
+    target == "plugins" ? "plugins-deps" : "",
+  ])) : ""
+}
+
 function "tags-backports" {
   params = [target, ubuntu, toolchain]
   result = join("-", compact([
     "ubuntu",
-    ubuntu != "22.04" ? ubuntu : "",
+    ubuntu,
     "build",
     toolchain,
     target == "plugins" ? "plugins-deps" : "",
@@ -40,6 +56,7 @@ function "tags" {
   params = [target, ubuntu, toolchain]
   result = [for tag in compact([
     tags-latest(target, ubuntu, toolchain),
+    tags-latest-backports(target, ubuntu, toolchain),
     tags-backports(target, ubuntu, toolchain),
     tags-simplified(target, ubuntu, toolchain),
   ]) : "wasmedge/wasmedge:${tag}"]

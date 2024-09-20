@@ -17,6 +17,7 @@
 #include "ast/module.h"
 #include "ast/type.h"
 #include "common/errcode.h"
+#include "common/types.h"
 #include "runtime/component/hostfunc.h"
 #include "runtime/instance/component/function.h"
 #include "runtime/instance/module.h"
@@ -167,6 +168,14 @@ public:
     return FuncInstList[Index];
   }
 
+  // values stored in component instance
+  ValInterface getValue(uint32_t Index) const noexcept {
+    return ValueList[Index];
+  }
+  void setValue(uint32_t Index, ValInterface V) noexcept {
+    ValueList[Index] = V;
+  }
+
   void addExport(std::string_view Name, const ModuleInstance *Inst) {
     ExportModuleMap.emplace(Name, Inst);
   }
@@ -245,6 +254,9 @@ private:
   std::vector<const ModuleInstance *> ModInstList;
   std::vector<std::unique_ptr<ComponentInstance>> OwnedCompInstList;
   std::vector<const ComponentInstance *> CompInstList;
+
+  // value
+  std::vector<ValInterface> ValueList;
 
   // core function
   //

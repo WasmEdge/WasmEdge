@@ -9,7 +9,10 @@
 namespace WasmEdge {
 namespace Host {
 
-TypesModule::TypesModule() : ComponentInstance("wasi:filesystem/types@0.2.0") {}
+TypesModule::TypesModule() : ComponentInstance("wasi:filesystem/types@0.2.0") {
+  addExport("descriptor", AST::Component::DefType{});
+}
+
 PreopensModule::PreopensModule()
     : ComponentInstance("wasi:filesystem/preopens@0.2.0") {}
 

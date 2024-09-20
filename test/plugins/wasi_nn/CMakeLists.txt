@@ -89,11 +89,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/piper_linux_x86_64.tar.gz
       SHA256=a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992
     )
-    file(ARCHIVE_EXTRACT
-      INPUT ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/piper_linux_x86_64.tar.gz
-      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures
-      PATTERNS piper/espeak-ng-data
+    execute_process(
+      COMMAND ${CMAKE_COMMAND} -E tar x ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/piper_linux_x86_64.tar.gz -- piper/espeak-ng-data
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures
+      RESULT_VARIABLE return_code
     )
+    if(NOT return_code EQUAL 0)
+      message(FATAL_ERROR "Failed to extract piper/espeak-ng-data from wasinn_piper_fixtures/piper_linux_x86_64.tar.gz")
+    endif()
   elseif(BACKEND STREQUAL "whisper")
     message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures")
     download(

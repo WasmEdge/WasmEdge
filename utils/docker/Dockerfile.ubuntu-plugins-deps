@@ -45,4 +45,11 @@ RUN [ "/bin/bash", "install-onnxruntime.sh" ]
 ### cleanup
 FROM base AS clean-apt
 
+RUN rm -f \
+    install-opencvmini.sh \
+    install-ffmpeg-v6.0.sh \
+    install-pytorch.sh \
+    install-openvino.sh \
+    install-onnxruntime.sh
+
 RUN rm -rf /var/lib/apt/lists/*

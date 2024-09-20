@@ -20,6 +20,7 @@ WasiIOStreamsModule::WasiIOStreamsModule()
     : ComponentInstance("wasi:io/streams@0.2.0") {
   addExport("input-stream", AST::Component::DefType{});
   addExport("output-stream", AST::Component::DefType{});
+  addExport("error", AST::Component::DefType{});
 }
 
 } // namespace Host

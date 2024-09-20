@@ -21,39 +21,20 @@
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
             ]
         },
         {
-            "plugin": "wasi_nn-pytorch",
+            "plugin": "wasi_nn-openvino",
             "bin": "libwasmedgePluginWasiNN.so",
             "dir": "wasi_nn",
             "testBin": "wasiNNTests",
-            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO",
             "platforms": [
-                "manylinux_2_28_x86_64"
-            ]
-        },
-        {
-            "plugin": "wasi_nn-tensorflowlite",
-            "bin": "libwasmedgePluginWasiNN.so",
-            "dir": "wasi_nn",
-            "testBin": "wasiNNTests",
-            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite",
-            "platforms": [
-                "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
-            ]
-        },
-        {
-            "plugin": "wasi_nn-whisper",
-            "bin": "libwasmedgePluginWasiNN.so",
-            "dir": "wasi_nn",
-            "testBin": "wasiNNTests",
-            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper",
-            "platforms": [
-                "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
             ]
         },
         {
@@ -64,7 +45,47 @@
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
+            ]
+        },
+        {
+            "plugin": "wasi_nn-pytorch",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch",
+            "platforms": [
+                "manylinux_2_28_x86_64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
+            ]
+        },
+        {
+            "plugin": "wasi_nn-tensorflowlite",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite",
+            "platforms": [
+                "manylinux_2_28_x86_64",
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
+            ]
+        },
+        {
+            "plugin": "wasi_nn-whisper",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper",
+            "platforms": [
+                "manylinux_2_28_x86_64",
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
             ]
         },
         {

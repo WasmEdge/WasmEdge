@@ -71,8 +71,7 @@ jobs:
           echo "Set version: $(git describe --match "[0-9].[0-9]*" --tag)"
           echo "version=$(git describe --match '[0-9].[0-9]*' --tag)" >> $GITHUB_OUTPUT
 
-  # Due to the dependencies and exclusions of WASI-NN, build them saperately.
-  build_ubuntu_wasi_nn:
+  test_wasi_nn_ggml_rpc:
     permissions:
       contents: write
     strategy:
@@ -80,25 +79,14 @@ jobs:
         include:
           - name: Plugins_g++
             compiler: g++
-            docker_tag: ubuntu-build-gcc
+            docker_tag: ubuntu-build-gcc-plugins-deps
             build_type: Release
           - name: Plugins_clang++
             compiler: clang++
-            docker_tag: ubuntu-build-clang
+            docker_tag: ubuntu-build-clang-plugins-deps
             build_type: Release
-    name: WASI-NN (Ubuntu, ${{ matrix.compiler }}, ${{ matrix.build_type }})
+    name: WASI-NN GGML RPC
     runs-on: ubuntu-latest
-    env:
-      output_dir: build/plugins/wasi_nn
-      test_dir: build/test/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper
-      tar_names: wasi_nn-pytorch wasi_nn-openvino wasi_nn-tensorflowlite wasi_nn-ggml wasi_nn-piper wasi_nn-whisper
-      test_bin: wasiNNTests
-      output_bin: libwasmedgePluginWasiNN.so
-      OPENVINO_VERSION: "2024.2.0"
-      OPENVINO_YEAR: "2024"
-      PYTORCH_VERSION: "1.8.2"
-      PYTORCH_INSTALL_TO: "."
     needs: [ get_version ]
     container:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
@@ -109,37 +97,6 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Install dependencies
-        shell: bash
-        run: |
-          apt update
-          apt install -y unzip libopenblas-dev pkg-config protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
-          bash utils/wasi-nn/install-openvino.sh
-          bash utils/wasi-nn/install-pytorch.sh
-          bash utils/wasi-nn/install-onnxruntime.sh
-      - name: Build and test WASI-NN using ${{ matrix.compiler }} with ${{ matrix.build_type }} mode
-        shell: bash
-        run: |
-          export Torch_DIR=$(pwd)/${PYTORCH_INSTALL_TO}/libtorch
-          ldconfig
-          plugin_array=(${tar_names})
-          option_array=(${build_options})
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
-          do
-            echo "Building ${plugin_array[$i]} backend:"
-            cmake -Bbuild -GNinja ${option_array[$i]}
-            cmake --build build --target ${test_bin}
-
-            echo "Testing ${plugin_array[$i]} backend:"
-            cd ${test_dir}
-            ./${test_bin}
-            cd -
-
-            echo "Copying ${plugin_array[$i]} backend:"
-            cp -f ${output_dir}/${output_bin} ${output_bin}
-            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${output_bin}
-          done
       - name: Test WASI-NN RPC mode with GGML
         shell: bash
         run: |
@@ -154,6 +111,7 @@ jobs:
             -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML \
             -DWASMEDGE_BUILD_WASI_NN_RPC=ON
           cmake --build build_rpc
+          export test_bin=wasiNNTests
           export WASI_NN_RPC_TEST_URI=unix:///tmp/wasi_nn_rpc.sock
           export WASMEDGE_PLUGIN_PATH=build_rpc/plugins/wasi_nn
           build_rpc/tools/wasmedge/wasi_nn_rpcserver \
@@ -173,36 +131,6 @@ jobs:
           sleep 3
           (cd ${nnrpc_test_dir} && ./${test_bin} --gtest_filter=WasiNNTest.GGMLBackendComputeSingleWithRPC)
           kill -9 "$RPC_SERVER_PID"
-      - name: Upload artifact - wasi_nn-pytorch
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-pytorch-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-pytorch.tar.gz
-      - name: Upload artifact - wasi_nn-openvino
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-openvino-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-openvino.tar.gz
-      - name: Upload artifact - wasi_nn-tensorflowlite
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-tensorflowlite-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-tensorflowlite.tar.gz
-      - name: Upload artifact - wasi_nn-ggml
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-ggml-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-ggml.tar.gz
-      - name: Upload artifact - wasi_nn-piper
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-piper-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-piper.tar.gz
-      - name: Upload artifact - wasi_nn-whisper
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasi_nn-whisper-${{ needs.get_version.outputs.version }}-ubuntu22.04-${{ matrix.compiler }}.tar.gz
-          path: plugin_wasi_nn-whisper.tar.gz
 
   build_macos_wasi_nn:
     permissions:

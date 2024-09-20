@@ -1480,23 +1480,24 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
 Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
+  const bool IsDebugLog = GraphRef.EnableDebugLog;
+  if (IsDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: unload"sv);
   }
   if (GraphRef.LlamaModel != nullptr) {
-    if (GraphRef.EnableDebugLog) {
+    if (IsDebugLog) {
       spdlog::info("[WASI-NN][Debug] GGML backend: unload: free llama model"sv);
     }
     llama_free_model(GraphRef.LlamaModel);
     GraphRef.LlamaModel = nullptr;
-    if (GraphRef.EnableDebugLog) {
+    if (IsDebugLog) {
       spdlog::info(
           "[WASI-NN][Debug] GGML backend: unload: free llama model...Done"sv);
     }
   }
   Env.NNGraph.erase(Env.NNGraph.begin() + GraphId);
   Env.mdRemoveById(GraphId);
-  if (GraphRef.EnableDebugLog) {
+  if (IsDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: unload...Done"sv);
   }
   return ErrNo::Success;

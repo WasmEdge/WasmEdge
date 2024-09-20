@@ -10,7 +10,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -76,7 +76,7 @@
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -89,7 +89,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -102,7 +102,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -115,7 +115,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -128,7 +128,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -141,7 +141,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -154,7 +154,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -167,7 +167,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -180,7 +180,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         },
         {
@@ -193,7 +193,7 @@
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
                 "ubuntu2004_x86_64",
-                "ubuntu2204_x86_64"
+                "ubuntu_latest"
             ]
         }
     ]

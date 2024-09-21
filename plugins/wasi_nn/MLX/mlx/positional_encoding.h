@@ -4,6 +4,7 @@
 #include <mlx/fast.h>
 
 namespace WasmEdge::Host::WASINN::MLX {
+
 namespace mlx::core::nn {
 class RoPE : public Module {
   int Dims;

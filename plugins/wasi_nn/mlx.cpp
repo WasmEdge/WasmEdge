@@ -144,8 +144,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   // Load tokenizer.
   if (!TokenizerPath.empty()) {
     GraphRef.Tok =
-        tokenizers::Tokenizer::FromBlobJSON(loadBytesFromFile(TokenizerPath))
-            .release();
+        tokenizers::Tokenizer::FromBlobJSON(loadBytesFromFile(TokenizerPath));
   } else {
     spdlog::error("[WASI-NN] MLX backend: Tokenizer path not found."sv);
     Env.NNGraph.pop_back();

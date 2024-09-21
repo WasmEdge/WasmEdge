@@ -14,6 +14,7 @@
 #include <vector>
 
 namespace WasmEdge::Host::WASINN::MLX {
+
 namespace nn = mlx::core::nn;
 
 class RMSNorm : public nn::Module {
@@ -47,14 +48,20 @@ public:
       HeadDim = Dim / NHeads;
     }
     Scale = pow(HeadDim, -0.5);
-    registerModule("q_proj", new nn::Linear(Dim, NHeads * HeadDim, false));
-    registerModule("k_proj", new nn::Linear(Dim, NKVHeads * HeadDim, false));
-    registerModule("v_proj", new nn::Linear(Dim, NKVHeads * HeadDim, false));
-    registerModule("o_proj", new nn::Linear(NHeads * HeadDim, Dim, false));
+    registerModule("q_proj", std::make_shared<nn::Linear>(
+                                 nn::Linear(Dim, NHeads * HeadDim, false)));
+    registerModule("k_proj", std::make_shared<nn::Linear>(
+                                 nn::Linear(Dim, NKVHeads * HeadDim, false)));
+    registerModule("v_proj", std::make_shared<nn::Linear>(
+                                 nn::Linear(Dim, NKVHeads * HeadDim, false)));
+    registerModule("o_proj", std::make_shared<nn::Linear>(
+                                 nn::Linear(NHeads * HeadDim, Dim, false)));
 
     if (NormQKProj) {
-      registerModule("q_norm", new nn::RMSNorm(HeadDim, AttentionNormEps));
-      registerModule("k_norm", new nn::RMSNorm(HeadDim, AttentionNormEps));
+      registerModule("q_norm", std::make_shared<nn::RMSNorm>(
+                                   nn::RMSNorm(HeadDim, AttentionNormEps)));
+      registerModule("k_norm", std::make_shared<nn::RMSNorm>(
+                                   nn::RMSNorm(HeadDim, AttentionNormEps)));
     }
     float RopeScale;
     if (RopeScaling && (*RopeScaling)["type"] == "linear") {
@@ -63,8 +70,9 @@ public:
       RopeScale = 1;
     }
 
-    registerModule(
-        "rope", new nn::RoPE(HeadDim, RopeTraditional, RopeTheta, RopeScale));
+    registerModule("rope",
+                   std::make_shared<nn::RoPE>(nn::RoPE(HeadDim, RopeTraditional,
+                                                       RopeTheta, RopeScale)));
   }
   std::tuple<mx::array, std::tuple<mx::array, mx::array>>
   forward(mx::array Input, std::optional<mx::array> Mask = {},
@@ -75,9 +83,12 @@ class MLP : public nn::Module {
 
 public:
   MLP(int Dim, int HiddenDim, bool Gemma = false) : Gemma(Gemma) {
-    registerModule("gate_proj", new nn::Linear(Dim, HiddenDim, false));
-    registerModule("down_proj", new nn::Linear(HiddenDim, Dim, false));
-    registerModule("up_proj", new nn::Linear(Dim, HiddenDim, false));
+    registerModule("gate_proj", std::make_shared<nn::Linear>(
+                                    nn::Linear(Dim, HiddenDim, false)));
+    registerModule("down_proj", std::make_shared<nn::Linear>(
+                                    nn::Linear(HiddenDim, Dim, false)));
+    registerModule("up_proj", std::make_shared<nn::Linear>(
+                                  nn::Linear(Dim, HiddenDim, false)));
   }
   mx::array forward(mx::array Input);
 };
@@ -94,16 +105,20 @@ public:
                    bool Gemma = false)
       : Gemma(Gemma) {
     registerModule("attention",
-                   new Attention(Dim, NHeads, NKVHeads, HeadDim,
-                                 RopeTraditional, RopeTheta, RopeScaling,
-                                 NormQKProj, AttentionNormEps));
-    registerModule("mlp", new MLP(Dim, HiddenDim, Gemma));
+                   std::make_shared<Attention>(Attention(
+                       Dim, NHeads, NKVHeads, HeadDim, RopeTraditional,
+                       RopeTheta, RopeScaling, NormQKProj, AttentionNormEps)));
+    registerModule("mlp", std::make_shared<MLP>(MLP(Dim, HiddenDim, Gemma)));
     if (!Gemma) {
-      registerModule("attention_norm", new nn::RMSNorm(Dim, NormEps));
-      registerModule("mlp_norm", new nn::RMSNorm(Dim, NormEps));
+      registerModule("attention_norm",
+                     std::make_shared<nn::RMSNorm>(nn::RMSNorm(Dim, NormEps)));
+      registerModule("mlp_norm",
+                     std::make_shared<nn::RMSNorm>(nn::RMSNorm(Dim, NormEps)));
     } else {
-      registerModule("attention_norm", new RMSNorm(Dim, NormEps));
-      registerModule("mlp_norm", new RMSNorm(Dim, NormEps));
+      registerModule("attention_norm",
+                     std::make_shared<RMSNorm>(RMSNorm(Dim, NormEps)));
+      registerModule("mlp_norm",
+                     std::make_shared<RMSNorm>(RMSNorm(Dim, NormEps)));
     }
   }
   std::tuple<mx::array, std::tuple<mx::array, mx::array>>
@@ -115,7 +130,7 @@ class Transformer : public nn::Module {
   std::optional<std::vector<int>> HiddenDim;
   bool Gemma;
   bool EmbedAsHead;
-  std::vector<TransformerBlock *> Layers{};
+  std::vector<std::shared_ptr<TransformerBlock>> Layers{};
 
 public:
   Transformer(
@@ -131,14 +146,16 @@ public:
       : Dim(Dim), HiddenDim(HiddenDim), Gemma(Gemma),
         EmbedAsHead(EmbedAsHeadPar) {
     if (VocabSize <= 0) {
-      spdlog::error("VocabSize must be greater than 0.");
+      spdlog::error(
+          "[WASI-NN] MLX backend: VocabSize must be greater than 0."sv);
       assumingUnreachable();
     }
     EmbedAsHead = Gemma ? true : EmbedAsHead;
     if (!NKVHeads) {
       NKVHeads = NHeads;
     }
-    registerModule("token_embed", new nn::Embedding(VocabSize, Dim));
+    registerModule("token_embed", std::make_shared<nn::Embedding>(
+                                      nn::Embedding(VocabSize, Dim)));
     if (HiddenDim->size() == 1) {
       while (static_cast<int>(HiddenDim->size()) < NLayers) {
         HiddenDim->emplace_back((*HiddenDim)[0]);
@@ -157,25 +174,27 @@ public:
     Layers.reserve(NLayers);
     for (int Idx = 0; Idx < NLayers; Idx++) {
       if (RopeScaling) {
-        Layers.push_back(new TransformerBlock(
+        Layers.push_back(std::make_shared<TransformerBlock>(TransformerBlock(
             Dim, (*NHeads)[Idx], (*NKVHeads)[Idx], (*HiddenDim)[Idx], NormEps,
             HeadDim, RopeTraditional, RopeTheta, (*RopeScaling)[Idx],
-            NormQKProj, AttentionNormEps, Gemma));
+            NormQKProj, AttentionNormEps, Gemma)));
       } else {
-        Layers.push_back(new TransformerBlock(
+        Layers.push_back(std::make_shared<TransformerBlock>(TransformerBlock(
             Dim, (*NHeads)[Idx], (*NKVHeads)[Idx], (*HiddenDim)[Idx], NormEps,
             HeadDim, RopeTraditional, RopeTheta, {}, NormQKProj,
-            AttentionNormEps, Gemma));
+            AttentionNormEps, Gemma)));
       }
     }
     registerLayer("layers", Layers);
     if (!Gemma) {
-      registerModule("norm", new nn::RMSNorm(Dim, NormEps));
+      registerModule("norm",
+                     std::make_shared<nn::RMSNorm>(nn::RMSNorm(Dim, NormEps)));
     } else {
-      registerModule("norm", new RMSNorm(Dim, NormEps));
+      registerModule("norm", std::make_shared<RMSNorm>(RMSNorm(Dim, NormEps)));
     }
     if (!EmbedAsHead) {
-      registerModule("head", new nn::Linear(Dim, VocabSize, false));
+      registerModule("head", std::make_shared<nn::Linear>(
+                                 nn::Linear(Dim, VocabSize, false)));
     }
   }
   std::tuple<mx::array,

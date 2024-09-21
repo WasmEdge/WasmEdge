@@ -16,7 +16,8 @@ public:
   }
   virtual mx::array forward(mx::array Input);
   mx::array asLinear(mx::array Input);
-  nn::Module *toQuantized(int GroupSize = 64, int Bits = 4) override;
+  std::shared_ptr<nn::Module> toQuantized(int GroupSize = 64,
+                                          int Bits = 4) override;
 };
 
 } // namespace mlx::core::nn

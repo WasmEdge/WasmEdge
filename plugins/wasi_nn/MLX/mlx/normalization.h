@@ -1,6 +1,7 @@
 #include "base.h"
 
 namespace WasmEdge::Host::WASINN::MLX {
+
 namespace mlx::core::nn {
 class RMSNorm : public nn::Module {
   float Eps;

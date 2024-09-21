@@ -6,6 +6,7 @@
 #include <mlx/ops.h>
 
 namespace WasmEdge::Host::WASINN::MLX {
+
 namespace mlx::core::nn {
 
 class QuantizedEmbedding : public Embedding {
@@ -27,8 +28,9 @@ public:
     registerParameter("biases", std::move(std::get<2>(Quantized)));
   }
   mx::array forward(mx::array Input) override;
-  static QuantizedEmbedding *fromEmbedding(Embedding *EmbeddingModule,
-                                           int GroupSize = 64, int Bits = 4);
+  static std::shared_ptr<QuantizedEmbedding>
+  fromEmbedding(std::shared_ptr<Embedding> EmbeddingModule, int GroupSize = 64,
+                int Bits = 4);
 };
 
 class QuantizedLinear : public Linear {
@@ -50,8 +52,9 @@ public:
     }
   }
   mx::array forward(mx::array Input) override;
-  static QuantizedLinear *fromLinear(Linear *LinearModule, int GroupSize = 64,
-                                     int Bits = 4);
+  static std::shared_ptr<QuantizedLinear>
+  fromLinear(std::shared_ptr<Linear> LinearModule, int GroupSize = 64,
+             int Bits = 4);
 };
 
 } // namespace mlx::core::nn

@@ -2,6 +2,7 @@
 
 #include "plugin/plugin.h"
 #include "types.h"
+#include <memory>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 #include "MLX/model/transformer.h"
@@ -18,17 +19,9 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 struct Graph {
-  ~Graph() noexcept {
-    if (Model != nullptr) {
-      delete Model;
-    }
-    if (Tok != nullptr) {
-      delete Tok;
-    }
-  }
   std::string ModelType;
-  tokenizers::Tokenizer *Tok = nullptr;
-  Transformer *Model;
+  std::unique_ptr<tokenizers::Tokenizer> Tok = nullptr;
+  std::shared_ptr<Transformer> Model;
   double Temp = 0.0;
   bool EnableDebugLog = false;
   bool IsQuantized = false;

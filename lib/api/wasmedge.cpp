@@ -498,6 +498,51 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetDebugLevel(void) {
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_LogOff(void) { WasmEdge::Log::setLogOff(); }
 
+WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetLevel(WasmEdge_LogLevel Level) {
+  switch (Level) {
+  case WasmEdge_LogLevel_Trace:
+    WasmEdge::Log::setTraceLoggingLevel();
+    break;
+  case WasmEdge_LogLevel_Debug:
+    WasmEdge::Log::setDebugLoggingLevel();
+    break;
+  case WasmEdge_LogLevel_Info:
+    WasmEdge::Log::setInfoLoggingLevel();
+    break;
+  case WasmEdge_LogLevel_Warn:
+    WasmEdge::Log::setWarnLoggingLevel();
+    break;
+  case WasmEdge_LogLevel_Error:
+    WasmEdge::Log::setErrorLoggingLevel();
+    break;
+  case WasmEdge_LogLevel_Critical:
+    WasmEdge::Log::setCriticalLoggingLevel();
+    break;
+  default:
+    assumingUnreachable();
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback) {
+  WasmEdge::Log::setLoggingCallback([Callback](
+                                        const spdlog::details::log_msg &Msg) {
+    WasmEdge_LogMessage Message;
+
+    Message.Message =
+        WasmEdge_String{/* Length */ static_cast<uint32_t>(Msg.payload.size()),
+                        /* Buf */ Msg.payload.data()};
+    Message.LoggerName = WasmEdge_String{
+        /* Length */ static_cast<uint32_t>(Msg.logger_name.size()),
+        /* Buf */ Msg.logger_name.data()};
+    Message.Level = static_cast<WasmEdge_LogLevel>(Msg.level);
+    Message.Time = std::chrono::system_clock::to_time_t(Msg.time);
+    Message.ThreadId = static_cast<uint64_t>(Msg.thread_id);
+
+    Callback(&Message);
+  });
+}
+
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge valtype functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

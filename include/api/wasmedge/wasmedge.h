@@ -34,6 +34,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 
 #include "wasmedge/enum_configure.h"
 #include "wasmedge/enum_errcode.h"
@@ -269,6 +270,30 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
 
 /// Set the logging system off.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogOff(void);
+
+typedef enum WasmEdge_LogLevel {
+  WasmEdge_LogLevel_Trace,
+  WasmEdge_LogLevel_Debug,
+  WasmEdge_LogLevel_Info,
+  WasmEdge_LogLevel_Warn,
+  WasmEdge_LogLevel_Error,
+  WasmEdge_LogLevel_Critical,
+} WasmEdge_LogLevel;
+
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetLevel(WasmEdge_LogLevel Level);
+
+typedef struct WasmEdge_LogMessage {
+  WasmEdge_String Message;
+  WasmEdge_String LoggerName;
+  WasmEdge_LogLevel Level;
+  time_t Time;
+  uint64_t ThreadId;
+} WasmEdge_LogMessage;
+
+typedef void (*WasmEdge_LogCallback_t)(const WasmEdge_LogMessage *Message);
+
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback);
 
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

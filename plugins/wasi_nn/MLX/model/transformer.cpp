@@ -5,6 +5,7 @@
 #include "transformer.h"
 #include <cstddef>
 #include <cstdio>
+#include <memory>
 #include <mlx/array.h>
 #include <mlx/ops.h>
 #include <mlx/random.h>
@@ -12,6 +13,7 @@
 #include <vector>
 
 namespace WasmEdge::Host::WASINN::MLX {
+
 mx::array RMSNorm::forward(mx::array Input) {
   return mx::fast::rms_norm(Input, 1.0 + Parameters.at("weight"), Eps);
 }
@@ -21,51 +23,58 @@ Attention::forward(mx::array Input, std::optional<mx::array> Mask,
   const auto &[B, L, D] =
       std::tie(Input.shape()[0], Input.shape()[1], Input.shape()[2]);
   mx::array Queries =
-      dynamic_cast<nn::Linear *>(Submodules["q_proj"])->forward(Input);
-  mx::array Keys =
-      dynamic_cast<nn::Linear *>(Submodules["k_proj"])->forward(Input);
-  mx::array Values =
-      dynamic_cast<nn::Linear *>(Submodules["v_proj"])->forward(Input);
+      std::dynamic_pointer_cast<nn::Linear>(Submodules["q_proj"])
+          ->forward(Input);
+  mx::array Keys = std::dynamic_pointer_cast<nn::Linear>(Submodules["k_proj"])
+                       ->forward(Input);
+  mx::array Values = std::dynamic_pointer_cast<nn::Linear>(Submodules["v_proj"])
+                         ->forward(Input);
   Queries = transpose(reshape(Queries, {B, L, NHeads, -1}), {0, 2, 1, 3});
   Keys = transpose(reshape(Keys, {B, L, NKVHeads, -1}), {0, 2, 1, 3});
   Values = transpose(reshape(Values, {B, L, NKVHeads, -1}), {0, 2, 1, 3});
 
   if (NormQKProj) {
-    Queries =
-        dynamic_cast<nn::RMSNorm *>(Submodules["q_norm"])->forward(Queries);
-    Keys = dynamic_cast<nn::RMSNorm *>(Submodules["k_norm"])->forward(Keys);
+    Queries = std::dynamic_pointer_cast<nn::RMSNorm>(Submodules["q_norm"])
+                  ->forward(Queries);
+    Keys = std::dynamic_pointer_cast<nn::RMSNorm>(Submodules["k_norm"])
+               ->forward(Keys);
   }
   if (KVCache) {
     const auto &[KeyCache, ValueCache] = *KVCache;
-    Queries = dynamic_cast<nn::RoPE *>(Submodules["rope"])
+    Queries = std::dynamic_pointer_cast<nn::RoPE>(Submodules["rope"])
                   ->forward(Queries, KeyCache.shape(2));
-    Keys = dynamic_cast<nn::RoPE *>(Submodules["rope"])
+    Keys = std::dynamic_pointer_cast<nn::RoPE>(Submodules["rope"])
                ->forward(Keys, KeyCache.shape(2));
     Keys = mx::concatenate({KeyCache, Keys}, 2);
     Values = mx::concatenate({ValueCache, Values}, 2);
   } else {
-    Queries = dynamic_cast<nn::RoPE *>(Submodules["rope"])->forward(Queries);
-    Keys = dynamic_cast<nn::RoPE *>(Submodules["rope"])->forward(Keys);
+    Queries = std::dynamic_pointer_cast<nn::RoPE>(Submodules["rope"])
+                  ->forward(Queries);
+    Keys =
+        std::dynamic_pointer_cast<nn::RoPE>(Submodules["rope"])->forward(Keys);
   }
   mx::array Output = mx::fast::scaled_dot_product_attention(
       Queries, Keys, Values, Scale, Mask);
   Output = reshape(transpose(Output, {0, 2, 1, 3}), {B, L, -1});
-  return {dynamic_cast<nn::Linear *>(Submodules["o_proj"])->forward(Output),
+  return {std::dynamic_pointer_cast<nn::Linear>(Submodules["o_proj"])
+              ->forward(Output),
           {Keys, Values}};
 }
 mx::array MLP::forward(mx::array Input) {
   if (Gemma) {
-    return dynamic_cast<nn::Linear *>(Submodules["down_proj"])
-        ->forward(
-            mlx::core::gelu(dynamic_cast<nn::Linear *>(Submodules["gate_proj"])
-                                ->forward(Input)) *
-            dynamic_cast<nn::Linear *>(Submodules["up_proj"])->forward(Input));
+    return std::dynamic_pointer_cast<nn::Linear>(Submodules["down_proj"])
+        ->forward(mlx::core::gelu(std::dynamic_pointer_cast<nn::Linear>(
+                                      Submodules["gate_proj"])
+                                      ->forward(Input)) *
+                  std::dynamic_pointer_cast<nn::Linear>(Submodules["up_proj"])
+                      ->forward(Input));
   }
-  return dynamic_cast<nn::Linear *>(Submodules["down_proj"])
-      ->forward(
-          mlx::core::silu(dynamic_cast<nn::Linear *>(Submodules["gate_proj"])
-                              ->forward(Input)) *
-          dynamic_cast<nn::Linear *>(Submodules["up_proj"])->forward(Input));
+  return std::dynamic_pointer_cast<nn::Linear>(Submodules["down_proj"])
+      ->forward(mlx::core::silu(std::dynamic_pointer_cast<nn::Linear>(
+                                    Submodules["gate_proj"])
+                                    ->forward(Input)) *
+                std::dynamic_pointer_cast<nn::Linear>(Submodules["up_proj"])
+                    ->forward(Input));
 }
 std::tuple<mx::array, std::tuple<mx::array, mx::array>>
 TransformerBlock::forward(
@@ -73,23 +82,27 @@ TransformerBlock::forward(
     std::optional<std::tuple<mx::array, mx::array>> KVCachePar) {
   mx::array NormOutput = {};
   if (!Gemma) {
-    NormOutput = dynamic_cast<nn::RMSNorm *>(Submodules["attention_norm"])
-                     ->forward(Input);
+    NormOutput =
+        std::dynamic_pointer_cast<nn::RMSNorm>(Submodules["attention_norm"])
+            ->forward(Input);
   } else {
     NormOutput =
-        dynamic_cast<RMSNorm *>(Submodules["attention_norm"])->forward(Input);
+        std::dynamic_pointer_cast<RMSNorm>(Submodules["attention_norm"])
+            ->forward(Input);
   }
-  auto [R, KVCache] = dynamic_cast<Attention *>(Submodules["attention"])
-                          ->forward(NormOutput, Mask, KVCachePar);
+  auto [R, KVCache] =
+      std::dynamic_pointer_cast<Attention>(Submodules["attention"])
+          ->forward(NormOutput, Mask, KVCachePar);
   auto H = Input + R;
   if (!Gemma) {
-    R = dynamic_cast<MLP *>(Submodules["mlp"])
-            ->forward(dynamic_cast<nn::RMSNorm *>(Submodules["mlp_norm"])
-                          ->forward(H));
-  } else {
-    R = dynamic_cast<MLP *>(Submodules["mlp"])
+    R = std::dynamic_pointer_cast<MLP>(Submodules["mlp"])
             ->forward(
-                dynamic_cast<RMSNorm *>(Submodules["mlp_norm"])->forward(H));
+                std::dynamic_pointer_cast<nn::RMSNorm>(Submodules["mlp_norm"])
+                    ->forward(H));
+  } else {
+    R = std::dynamic_pointer_cast<MLP>(Submodules["mlp"])
+            ->forward(std::dynamic_pointer_cast<RMSNorm>(Submodules["mlp_norm"])
+                          ->forward(H));
   }
   return {H + R, KVCache};
 }
@@ -100,15 +113,14 @@ Transformer::embed(
     std::optional<std::vector<std::tuple<mx::array, mx::array>>> KVCachePar,
     bool Norm) {
   mx::array H =
-      dynamic_cast<mlx::core::nn::Embedding *>(Submodules["token_embed"])
+      std::dynamic_pointer_cast<nn::Embedding>(Submodules["token_embed"])
           ->forward(Input);
   if (Gemma) {
     H = H * (pow(Dim, 0.5));
   }
   std::optional<mx::array> Mask;
   if (H.shape()[1] > 1) {
-    Mask = mlx::core::nn::MultiHeadAttention::createAdditiveCausalMask(
-        H.shape()[1]);
+    Mask = nn::MultiHeadAttention::createAdditiveCausalMask(H.shape()[1]);
     Mask = astype(*Mask, H.dtype());
   }
   std::vector<std::tuple<mx::array, mx::array>> KVCache;
@@ -126,10 +138,12 @@ Transformer::embed(
   }
   if (Norm) {
     if (!Gemma) {
-      return {dynamic_cast<nn::RMSNorm *>(Submodules["norm"])->forward(H),
+      return {std::dynamic_pointer_cast<nn::RMSNorm>(Submodules["norm"])
+                  ->forward(H),
               KVCache};
     }
-    return {dynamic_cast<RMSNorm *>(Submodules["norm"])->forward(H), KVCache};
+    return {std::dynamic_pointer_cast<RMSNorm>(Submodules["norm"])->forward(H),
+            KVCache};
   }
   return {H, KVCache};
 }
@@ -141,10 +155,10 @@ Transformer::forward(
   auto [X, KVCache] = embed(Input, KVCachePar, true);
   mx::array Out = {};
   if (EmbedAsHead) {
-    Out = dynamic_cast<mlx::core::nn::Embedding *>(Submodules["token_embed"])
+    Out = std::dynamic_pointer_cast<nn::Embedding>(Submodules["token_embed"])
               ->asLinear(X);
   } else {
-    Out = dynamic_cast<nn::Linear *>(Submodules["head"])->forward(X);
+    Out = std::dynamic_pointer_cast<nn::Linear>(Submodules["head"])->forward(X);
   }
   return {Out, KVCache};
 }

@@ -1,5 +1,6 @@
 #include "quantized.h"
 #include <iostream>
+#include <memory>
 #include <mlx/array.h>
 #include <mlx/ops.h>
 #include <utility>
@@ -26,12 +27,12 @@ mx::array QuantizedLinear::forward(mx::array Input) {
   }
   return Out;
 }
-QuantizedEmbedding *
-QuantizedEmbedding::fromEmbedding(Embedding *EmbeddingModule, int GroupSize,
-                                  int Bits) {
+std::shared_ptr<QuantizedEmbedding>
+QuantizedEmbedding::fromEmbedding(std::shared_ptr<Embedding> EmbeddingModule,
+                                  int GroupSize, int Bits) {
   auto EmbeddingShape = EmbeddingModule->Parameters.at("weight").shape();
-  auto *QuantizedModel = new QuantizedEmbedding(
-      EmbeddingShape[0], EmbeddingShape[1], GroupSize, Bits);
+  auto QuantizedModel = std::make_shared<QuantizedEmbedding>(QuantizedEmbedding(
+      EmbeddingShape[0], EmbeddingShape[1], GroupSize, Bits));
   auto Quantized =
       mx::quantize(EmbeddingModule->Parameters.at("weight"), GroupSize, Bits);
   QuantizedModel->Parameters.insert_or_assign("weight", std::get<0>(Quantized));
@@ -41,13 +42,14 @@ QuantizedEmbedding::fromEmbedding(Embedding *EmbeddingModule, int GroupSize,
       "biases", std::move(std::get<2>(Quantized)));
   return QuantizedModel;
 }
-QuantizedLinear *QuantizedLinear::fromLinear(Linear *LinearModule,
-                                             int GroupSize, int Bits) {
+std::shared_ptr<QuantizedLinear>
+QuantizedLinear::fromLinear(std::shared_ptr<Linear> LinearModule, int GroupSize,
+                            int Bits) {
   auto LinearShape = LinearModule->Parameters.at("weight").shape();
   const bool EnableBias =
       LinearModule->Parameters.find("bias") != LinearModule->Parameters.end();
-  auto *QuantizedModel = new QuantizedLinear(LinearShape[0], LinearShape[1],
-                                             EnableBias, GroupSize, Bits);
+  auto QuantizedModel = std::make_shared<QuantizedLinear>(QuantizedLinear(
+      LinearShape[0], LinearShape[1], EnableBias, GroupSize, Bits));
   auto Quantized =
       mx::quantize(LinearModule->Parameters.at("weight"), GroupSize, Bits);
   QuantizedModel->Parameters.insert_or_assign("weight", std::get<0>(Quantized));

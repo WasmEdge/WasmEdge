@@ -112,28 +112,27 @@ void upscalerModel(const char *UpscaleModelPath, uint32_t UpscaleRepeats,
                    int32_t NThreads, uint32_t Wtype, uint32_t BatchCount,
                    sd_image_t *Results) {
   // unused for RealESRGAN_x4plus_anime_6B.pth
-  int upscale_factor = 4;
-  upscaler_ctx_t* upscaler_ctx = new_upscaler_ctx(UpscaleModelPath, NThreads, static_cast<sd_type_t>(Wtype));
-  if (upscaler_ctx == nullptr){
-    spdlog::error(
-        "[WasmEdge-StableDiffusion] Create upscaler ctx failed."sv);
+  int UpscaleFactor = 4;
+  upscaler_ctx_t *UpscalerCtx = new_upscaler_ctx(UpscaleModelPath, NThreads,static_cast<sd_type_t>(Wtype));
+  if (UpscalerCtx == nullptr) {
+    spdlog::error("[WasmEdge-StableDiffusion] Create upscaler ctx failed."sv);
   } else {
     for (uint32_t i = 0; i < BatchCount; i++) {
       if (Results[i].data == nullptr) {
           continue;
       }
-      sd_image_t current_image = Results[i];
+      sd_image_t CurrentImage = Results[i];
       for (uint32_t u = 0; u < UpscaleRepeats; ++u) {
-        sd_image_t upscaled_image = upscale(upscaler_ctx, current_image, upscale_factor);
-        if (upscaled_image.data == nullptr) {
-          spdlog::error(
-            "[WasmEdge-StableDiffusion] Upscale failed."sv);
+        sd_image_t UpscaledImage = upscale(UpscalerCtx, CurrentImage, UpscaleFactor);
+        if (UpscaledImage.data == nullptr) {
+          spdlog::error("[WasmEdge-StableDiffusion] Upscale failed."sv);
           break;
         }
-        free(current_image.data);
-        current_image = upscaled_image;
+        free(CurrentImage.data);
+        CurrentImage = UpscaledImage;
       }
-      Results[i] = current_image;  // Set the final upscaled image as the result
+      // Set the final upscaled image as the result
+      Results[i] = CurrentImage;
     }
   }
   free(upscaler_ctx);
@@ -252,8 +251,8 @@ Expect<uint32_t> SDCreateContext::body(
   }
 
   spdlog::info("[WasmEdge-StableDiffusion] Create context."sv);
+  
   // Create context and import graph.
-
   sd_ctx_t *Ctx = new_sd_ctx(
       ModelPath.data(), clipLPath.data(), t5xxlPath.data(),
       diffusionModelPath.data(), VaePath.data(), TaesdPath.data(),
@@ -329,11 +328,10 @@ Expect<uint32_t> SDTextToImage::body(
               SampleSteps, Seed, BatchCount, ControlImage, ControlStrength,
               StyleRatio, NormalizeInput, InputIdImagesDir.data());
   // Upscale image
-  if (UpscaleModelPathLen != 0){
+  if (UpscaleModelPathLen != 0) {
     MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr, UpscaleModelPathLen,
                    "Failed when accessing the Upscaler Image memory."sv);
-    std::string UpscaleModelPath(UpscaleModelSpan.begin(),UpscaleModelSpan.end());
-
+    std::string UpscaleModelPath(UpscaleModelSpan.begin(), UpscaleModelSpan.end());
     upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, -1, 31, BatchCount, Results);
   }
   int Len;
@@ -341,14 +339,18 @@ Expect<uint32_t> SDTextToImage::body(
       reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
   size_t last = OutputPath.find_last_of(".");
-  std::string dummy_name = last != std::string::npos ? OutputPath.substr(0, last) : OutputPath;
+  std::string DummyName = last != std::string::npos ? OutputPath.substr(0, last) : OutputPath;
   for (uint32_t i = 0; i < BatchCount; i++) {
     if (Results[i].data != nullptr) {
-      std::string final_image_path = i > 0 ? dummy_name + "_" + std::to_string(i + 1) + ".png" : dummy_name + ".png";
-      stbi_write_png(final_image_path.c_str(), Results[i].width, Results[i].height,Results[i].channel, 
+      std::string FinalImagePath = DummyName;
+      if (i > 0) {
+        FinalImagePath += "_" + std::to_string(i + 1);
+      }
+      FinalImagePath += ".png";
+      stbi_write_png(FinalImagePath.c_str(), Results[i].width, Results[i].height,Results[i].channel, 
                       Results[i].data, 0, nullptr);
       spdlog::info("[WasmEdge-StableDiffusion] Save result image to {}."sv,
-                final_image_path.c_str());
+                FinalImagePath.c_str());
       free(Results[i].data);
       Results[i].data = nullptr;
     }
@@ -451,24 +453,23 @@ Expect<uint32_t> SDImageToImage::body(
     if (Height != static_cast<uint32_t>(ImageHeight) || Width != static_cast<uint32_t>(ImageWidth)) {
       spdlog::info("[WasmEdge-StableDiffusion] Resize input image from {} x {} to {} x {}."sv,
                ImageWidth, ImageHeight, Height, Width);
-      uint8_t resized_height = Height;
-      uint8_t resized_width  = Width;
-      uint8_t* resized_image_buffer = (uint8_t*)malloc(resized_height * resized_width * 3);
-      if (resized_image_buffer == nullptr) {
-          spdlog::error(
-          "[WasmEdge-StableDiffusion] Allocate memory for resize input image."sv);
-          free(InputImageBuffer);
-          return static_cast<uint32_t>(ErrNo::InvalidArgument);
+      uint8_t ResizedHeight = Height;
+      uint8_t ResizedWidth = Width;
+      uint8_t *ResizedImageBuffer = (uint8_t*)malloc(ResizedHeight * ResizedWidth * 3);
+      if (ResizedImageBuffer == nullptr) {
+        spdlog::error("[WasmEdge-StableDiffusion] Allocate memory for resize input image."sv);
+        free(InputImageBuffer);
+        return static_cast<uint32_t>(ErrNo::InvalidArgument);
       }
       stbir_resize(InputImageBuffer, ImageWidth, ImageHeight, 0,
-                    resized_image_buffer, resized_width, resized_height, 0, STBIR_TYPE_UINT8,
-                    3 /*RGB channel*/, STBIR_ALPHA_CHANNEL_NONE, 0,
-                    STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP,
-                    STBIR_FILTER_BOX, STBIR_FILTER_BOX,
-                    STBIR_COLORSPACE_SRGB, nullptr);
+                   ResizedImageBuffer, ResizedWidth, ResizedHeight, 0, STBIR_TYPE_UINT8,
+                   3 /*RGB channel*/, STBIR_ALPHA_CHANNEL_NONE, 0,
+                   STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP,
+                   STBIR_FILTER_BOX, STBIR_FILTER_BOX,
+                   STBIR_COLORSPACE_SRGB, nullptr);
       // Save resized result
       free(InputImageBuffer);
-      InputImageBuffer = resized_image_buffer;
+      InputImageBuffer = ResizedImageBuffer;
     }
   } else {
     InputImageBuffer =
@@ -493,10 +494,10 @@ Expect<uint32_t> SDImageToImage::body(
                     BatchCount, ControlImage, ControlStrength, StyleRatio,
                     NormalizeInput, InputIdImagesDir.data());
   // Upscale image
-  if (UpscaleModelPathLen != 0){
+  if (UpscaleModelPathLen != 0) {
     MEM_SPAN_CHECK(UpscaleModelSpan, MemInst, char, UpscaleModelPathPtr, UpscaleModelPathLen,
                    "Failed when accessing the Upscaler Image memory."sv);
-    std::string UpscaleModelPath(UpscaleModelSpan.begin(),UpscaleModelSpan.end());
+    std::string UpscaleModelPath(UpscaleModelSpan.begin(), UpscaleModelSpan.end());
     upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, -1, 31, BatchCount, Results);
   }
   // save results
@@ -505,14 +506,18 @@ Expect<uint32_t> SDImageToImage::body(
       reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
   size_t last = OutputPath.find_last_of(".");
-  std::string dummy_name = last != std::string::npos ? OutputPath.substr(0, last) : OutputPath;
+  std::string DummyName = last != std::string::npos ? OutputPath.substr(0, last) : OutputPath;
   for (uint32_t i = 0; i < BatchCount; i++) {
     if (Results[i].data != nullptr) {
-      std::string final_image_path = i > 0 ? dummy_name + "_" + std::to_string(i + 1) + ".png" : dummy_name + ".png";
-      stbi_write_png(final_image_path.c_str(), Results[i].width, Results[i].height,Results[i].channel, 
-                      Results[i].data, 0, nullptr);
+      std::string FinalImagePath = DummyName;
+      if (i > 0) {
+        FinalImagePath += "_" + std::to_string(i + 1);
+      }
+      FinalImagePath += ".png";
+      stbi_write_png(FinalImagePath.c_str(), Results[i].width, Results[i].height, Results[i].channel,
+                     Results[i].data, 0, nullptr);
       spdlog::info("[WasmEdge-StableDiffusion] Save result image to {}."sv,
-                final_image_path.c_str());
+                FinalImagePath.c_str());
       free(Results[i].data);
       Results[i].data = nullptr;
     }

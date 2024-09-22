@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-# TODO: Fetch llm.c source.
-
 wasmedge_add_library(wasmedgePluginWasmEdgeLLMC
   SHARED
   llmc_func.cpp
@@ -10,17 +8,33 @@ wasmedge_add_library(wasmedgePluginWasmEdgeLLMC
   llmc_env.cpp
 )
 
+option(WASMEDGE_PLUGIN_LLMC_CUDA "Training GPT2 with CUDA" OFF)
+
 message(STATUS "Start fetching llm.c source")
 include(FetchContent)
+
+if (WASMEDGE_PLUGIN_LLMC_CUDA)
+  set(CUDALIB ON)
+  message(STATUS "Build wasmedge_llmc with CUDA backend")
+else()
+  message(STATUS "Build wasmedge_llmc with CPU backend")
+endif()
+
 FetchContent_Declare(
   llmc
   GIT_REPOSITORY https://github.com/WasmEdge/llm.c
 )
 FetchContent_MakeAvailable(llmc)
 
-target_link_libraries(wasmedgePluginWasmEdgeLLMC PRIVATE
-  train_gpt2_cpu
-)
+if (WASMEDGE_PLUGIN_LLMC_CUDA)
+  target_link_libraries(wasmedgePluginWasmEdgeLLMC PRIVATE
+    train_gpt2_cuda
+  )
+else()
+  target_link_libraries(wasmedgePluginWasmEdgeLLMC PRIVATE
+    train_gpt2_cpu
+  )
+endif()
 
 target_compile_options(wasmedgePluginWasmEdgeLLMC
   PUBLIC

@@ -149,7 +149,7 @@ if [ "$__HOME__" = "" ]; then
 fi
 
 get_latest_release() {
-	echo "0.13.5"
+	echo "0.14.0"
 }
 
 VERSION=$(get_latest_release)

@@ -19,9 +19,8 @@ struct WasiNNEnvironment;
 
 namespace WasmEdge::Host::WASINN::Whisper {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
-struct Graph {
-  whisper_context *WhisperCtx = nullptr;
-  std::string ModelFilePath;
+
+struct Config {
   // Whisper parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
@@ -29,9 +28,6 @@ struct Graph {
   bool DetectLanguage = false;
   std::string SpokenLanguage;
   std::string InitialPrompt;
-  // Context parameters:
-  bool UseGPU = true;
-  int64_t MainGPU = 0; // Use GPU 0 by default
   // Sampling parameters:
   float WordThreshold = 0.01f;
   float EntropyThreshold = 2.40f;
@@ -41,13 +37,29 @@ struct Graph {
   float GrammarPenalty = 100.0f;
 };
 
+struct Graph {
+  whisper_context *WhisperCtx = nullptr;
+  std::string ModelFilePath;
+  // Whisper config:
+  Config WhisperConfig;
+  // Context parameters:
+  bool UseGPU = true;
+  int64_t MainGPU = 0; // Use GPU 0 by default
+};
+
 struct Context {
 public:
-  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
+  Context(size_t GId, Graph &G) noexcept
+      : GraphId(GId), WhisperConfig(G.WhisperConfig) {}
   size_t GraphId;
-  std::vector<float> InputPCM; // mono-channel F32 PCM input.
+  // mono-channel F32 PCM input.
+  std::vector<float> InputPCM;
+  // Whisper config. Inherit from the graph and accept metadata when setting
+  // input.
+  Config WhisperConfig;
   whisper_full_params WhisperParams = whisper_full_default_params(
       whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH);
+  // Recognition outputs.
   std::string Outputs;
 };
 #else

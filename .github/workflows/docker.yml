@@ -90,6 +90,7 @@ jobs:
               - '.github/workflows/docker.yml'
               - 'utils/docker/docker-bake.ubuntu.hcl'
               - 'utils/docker/Dockerfile.ubuntu-**'
+              - 'utils/ffmpeg/**'
               - 'utils/opencvmini/**'
 
   bake-base-images:
@@ -134,7 +135,7 @@ jobs:
       matrix:
         targets:
           - default
-          - clang-ubuntu2004-aarch64
+          - base-2004-clang-aarch64
 
     name: Ubuntu
     runs-on: ubuntu-latest

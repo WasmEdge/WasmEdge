@@ -43,11 +43,19 @@ function(download URL OUTPUT HASH)
 endfunction()
 
 message(STATUS "Downloading GPT2 model check point to ${CMAKE_CURRENT_BINARY_DIR}/gpt2_124M.bin")
-download(
-  https://huggingface.co/datasets/karpathy/llmc-starter-pack/resolve/main/gpt2_124M.bin
-  ${CMAKE_CURRENT_BINARY_DIR}/wasmedge_llmc/gpt2_124M.bin
-  SHA256=3da8b207584030bcdcd207cf7a99952e3421dce92da218b351071857511bf162
-)
+if (WASMEDGE_PLUGIN_LLMC_CUDA)
+  download(
+    https://huggingface.co/datasets/karpathy/llmc-starter-pack/resolve/main/gpt2_124M_bf16.bin
+    ${CMAKE_CURRENT_BINARY_DIR}/wasmedge_llmc/gpt2_124M.bin
+    SHA256=6661f45628102b4c6e86835d9057b5ba2c024dbf9b81445175e258b7878a1a6f
+  )
+else()
+  download(
+    https://huggingface.co/datasets/karpathy/llmc-starter-pack/resolve/main/gpt2_124M.bin
+    ${CMAKE_CURRENT_BINARY_DIR}/wasmedge_llmc/gpt2_124M.bin
+    SHA256=3da8b207584030bcdcd207cf7a99952e3421dce92da218b351071857511bf162
+  )
+endif()
 message(STATUS "Downloading training dataset to ${CMAKE_CURRENT_BINARY_DIR}/tiny_shakespeare_train.bin")
 download(
   https://huggingface.co/datasets/karpathy/llmc-starter-pack/resolve/main/tiny_shakespeare_train.bin

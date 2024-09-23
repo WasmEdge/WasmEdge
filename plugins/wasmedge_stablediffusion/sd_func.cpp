@@ -123,7 +123,7 @@ void upscalerModel(const char *UpscaleModelPath, uint32_t UpscaleRepeats,
         continue;
       }
       sd_image_t CurrentImage = Results[I];
-      for (uint32_t u = 0; u < UpscaleRepeats; ++u) {
+      for (uint32_t U = 0; U < UpscaleRepeats; ++U) {
         sd_image_t UpscaledImage =
             upscale(UpscalerCtx, CurrentImage, UpscaleFactor);
         if (UpscaledImage.data == nullptr) {
@@ -282,7 +282,7 @@ Expect<uint32_t> SDTextToImage::body(
     uint32_t UpscaleModelPathPtr, uint32_t UpscaleModelPathLen,
     uint32_t UpscaleRepeats, uint32_t OutputPathPtr, uint32_t OutputPathLen,
     uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
-    uint32_t BytesWrittenPtr) {
+    uint32_t BytesWrittenPtr, int32_t NThreads, uint32_t Wtype) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
   // Check the input model buffer.
@@ -334,17 +334,17 @@ Expect<uint32_t> SDTextToImage::body(
                    "Failed when accessing the Upscaler Image memory."sv)
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
-    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, -1, 31, BatchCount,
+    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, NThreads, Wtype, BatchCount,
                   Results);
   }
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
       reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
-  size_t last = OutputPath.find_last_of(".");
+  size_t Last = OutputPath.find_last_of(".");
   std::string DummyName = OutputPath;
-  if (last != std::string::npos) {
-    DummyName = OutputPath.substr(0, last);
+  if (Last != std::string::npos) {
+    DummyName = OutputPath.substr(0, Last);
   }
   for (uint32_t I = 0; I < BatchCount; I++) {
     if (Results[I].data != nullptr) {
@@ -390,7 +390,8 @@ Expect<uint32_t> SDImageToImage::body(
     uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
     uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
     uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
-    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
+    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr,
+    int32_t NThreads, uint32_t Wtype) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
 
@@ -507,7 +508,7 @@ Expect<uint32_t> SDImageToImage::body(
                    "Failed when accessing the Upscaler Image memory."sv)
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
-    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, -1, 31, BatchCount,
+    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, NThreads, Wtype, BatchCount,
                   Results);
   }
   // save results
@@ -515,10 +516,10 @@ Expect<uint32_t> SDImageToImage::body(
   unsigned char *Png = stbi_write_png_to_mem(
       reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
-  size_t last = OutputPath.find_last_of(".");
+  size_t Last = OutputPath.find_last_of(".");
   std::string DummyName = OutputPath;
-  if (last != std::string::npos) {
-    DummyName = OutputPath.substr(0, last);
+  if (Last != std::string::npos) {
+    DummyName = OutputPath.substr(0, Last);
   }
   for (uint32_t I = 0; I < BatchCount; I++) {
     if (Results[I].data != nullptr) {

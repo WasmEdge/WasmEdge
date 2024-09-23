@@ -1,4 +1,4 @@
-name: Build extensions on manylinux
+name: Build extensions on linux
 
 on:
   workflow_call:
@@ -25,7 +25,6 @@ on:
 
 jobs:
   build:
-    if: ${{ startsWith(inputs.asset_tag, 'manylinux_2_28') }}
     strategy:
       fail-fast: false
       matrix:
@@ -89,11 +88,21 @@ jobs:
         with:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifact }}
-      - if: ${{ inputs.release }}
+      - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'manylinux_2_28') }}
         name: Install gh
         run: |
           yum check-update || true
           yum install -y gh
+      - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'ubuntu') }}
+        name: Install gh
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=${KEYRING}
+          chmod go+r ${KEYRING}
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=${KEYRING}] https://cli.github.com/packages stable main" | dd of=/etc/apt/sources.list.d/github-cli.list
+          apt update -y
+          apt install -y gh
+        env:
+          KEYRING: /usr/share/keyrings/githubcli-archive-keyring.gpg
       - if: ${{ inputs.release }}
         name: Upload ${{ steps.var.outputs.artifact }}
         run: |

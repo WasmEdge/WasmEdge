@@ -289,7 +289,7 @@ usage() {
 	-l,             --legacy                        Enable legacy OS support.
 														E.g., CentOS 7.
 
-	-v,             --version                       Install the specific version.
+	-v,             --version=[0.14.1]              Install the specific version.
 
 	-V,             --verbose                       Run script in verbose mode.
 														Will print out each step

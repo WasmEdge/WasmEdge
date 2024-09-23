@@ -7,10 +7,10 @@
             "testBin": "wasiCryptoTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -20,8 +20,6 @@
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64"
             ]
@@ -33,7 +31,6 @@
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch",
             "platforms": [
-                "manylinux2014_x86_64",
                 "manylinux_2_28_x86_64"
             ]
         },
@@ -44,8 +41,6 @@
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64"
             ]
@@ -57,8 +52,6 @@
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64"
             ]
@@ -81,8 +74,9 @@
             "testBin": "wasmBpfTests",
             "options": "-DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux_2_28_x86_64"
+                "manylinux_2_28_x86_64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -92,10 +86,10 @@
             "testBin": "wasmedgeFFmpegTests",
             "options": "-DWASMEDGE_PLUGIN_FFMPEG=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -105,10 +99,10 @@
             "testBin": "wasmedgeImageTests",
             "options": "-DWASMEDGE_PLUGIN_IMAGE=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -118,10 +112,10 @@
             "testBin": "wasmedgeLLMCTests",
             "options": "-DWASMEDGE_PLUGIN_LLMC=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -131,10 +125,10 @@
             "testBin": "wasmedgeOpencvminiTests",
             "options": "-DWASMEDGE_PLUGIN_OPENCVMINI=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -144,10 +138,10 @@
             "testBin": "wasmedgeProcessTests",
             "options": "-DWASMEDGE_PLUGIN_PROCESS=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -157,10 +151,10 @@
             "testBin": "wasmedgeStableDiffusionTests",
             "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -170,10 +164,10 @@
             "testBin": "wasmedgeTensorflowTests",
             "options": "-DWASMEDGE_PLUGIN_TENSORFLOW=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -183,10 +177,10 @@
             "testBin": "wasmedgeTensorflowLiteTests",
             "options": "-DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON",
             "platforms": [
-                "manylinux2014_x86_64",
-                "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         },
         {
@@ -197,7 +191,9 @@
             "options": "-DWASMEDGE_PLUGIN_ZLIB=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu2204_x86_64"
             ]
         }
     ]

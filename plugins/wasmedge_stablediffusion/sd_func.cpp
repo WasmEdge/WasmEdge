@@ -522,11 +522,11 @@ Expect<uint32_t> SDImageToImage::body(
   }
   for (uint32_t I = 0; I < BatchCount; I++) {
     if (Results[I].data != nullptr) {
-      std::string FinalImagePath = DummyName;
-      if (I > 0) {
-        FinalImagePath += "_" + std::to_string(I + 1);
-      }
-      FinalImagePath += ".png";
+      std::string FinalImagePath;
+      if (I <= 0)
+        FinalImagePath = DummyName + ".png";
+      else
+        FinalImagePath += "_" + std::to_string(I + 1) + ".png";
       stbi_write_png(FinalImagePath.c_str(), Results[I].width,
                      Results[I].height, Results[I].channel, Results[I].data, 0,
                      nullptr);
@@ -548,7 +548,6 @@ Expect<uint32_t> SDImageToImage::body(
   free(Png);
   free(Results);
   free(ControlImageBuffer);
-
   return static_cast<uint32_t>(ErrNo::Success);
 }
 

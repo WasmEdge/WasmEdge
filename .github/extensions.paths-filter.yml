@@ -8,6 +8,9 @@ wasi_crypto:
 wasi_nn-ggml:
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
+wasi_nn-openvino:
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
 wasi_nn-pytorch:
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'

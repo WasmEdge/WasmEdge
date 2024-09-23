@@ -63,8 +63,8 @@ public:
        uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
        uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
        uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
-       uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr,
-       int32_t NThreads, uint32_t Wtype);
+       uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr, int32_t NThreads,
+       uint32_t Wtype);
 };
 
 class SDConvert : public StableDiffusion::Func<SDConvert> {

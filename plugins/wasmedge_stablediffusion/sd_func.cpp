@@ -281,8 +281,8 @@ Expect<uint32_t> SDTextToImage::body(
     uint32_t InputIdImagesDirLen, uint32_t CannyPreprocess,
     uint32_t UpscaleModelPathPtr, uint32_t UpscaleModelPathLen,
     uint32_t UpscaleRepeats, uint32_t OutputPathPtr, uint32_t OutputPathLen,
-    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
-    uint32_t BytesWrittenPtr, int32_t NThreads, uint32_t Wtype) {
+    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr,
+    int32_t NThreads, uint32_t Wtype) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
   // Check the input model buffer.
@@ -334,8 +334,8 @@ Expect<uint32_t> SDTextToImage::body(
                    "Failed when accessing the Upscaler Image memory."sv)
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
-    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, NThreads, Wtype, BatchCount,
-                  Results);
+    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, NThreads, Wtype,
+                  BatchCount, Results);
   }
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
@@ -390,8 +390,8 @@ Expect<uint32_t> SDImageToImage::body(
     uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
     uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
     uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
-    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr,
-    int32_t NThreads, uint32_t Wtype) {
+    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr, int32_t NThreads,
+    uint32_t Wtype) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
 
@@ -508,8 +508,8 @@ Expect<uint32_t> SDImageToImage::body(
                    "Failed when accessing the Upscaler Image memory."sv)
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
-    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, NThreads, Wtype, BatchCount,
-                  Results);
+    upscalerModel(UpscaleModelPath.data(), UpscaleRepeats, NThreads, Wtype,
+                  BatchCount, Results);
   }
   // save results
   int Len;

@@ -4,6 +4,7 @@
             "plugin": "wasi_crypto",
             "bin": "libwasmedgePluginWasiCrypto.so",
             "dir": "wasi_crypto",
+            "target": "wasmedgePluginWasiCrypto",
             "testBin": "wasiCryptoTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_CRYPTO=ON",
             "platforms": [
@@ -17,6 +18,7 @@
             "plugin": "wasi_nn-ggml",
             "bin": "libwasmedgePluginWasiNN.so",
             "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML",
             "platforms": [
@@ -30,6 +32,7 @@
             "plugin": "wasi_nn-openvino",
             "bin": "libwasmedgePluginWasiNN.so",
             "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=OpenVINO",
             "platforms": [
@@ -41,6 +44,7 @@
             "plugin": "wasi_nn-piper",
             "bin": "libwasmedgePluginWasiNN.so",
             "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Piper",
             "platforms": [
@@ -54,6 +58,7 @@
             "plugin": "wasi_nn-pytorch",
             "bin": "libwasmedgePluginWasiNN.so",
             "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch",
             "platforms": [
@@ -66,6 +71,7 @@
             "plugin": "wasi_nn-tensorflowlite",
             "bin": "libwasmedgePluginWasiNN.so",
             "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite",
             "platforms": [
@@ -79,8 +85,35 @@
             "plugin": "wasi_nn-whisper",
             "bin": "libwasmedgePluginWasiNN.so",
             "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper",
+            "platforms": [
+                "manylinux_2_28_x86_64",
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
+            ]
+        },
+        {
+            "plugin": "wasi_nn_burnrs-squeezenet",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn_burnrs",
+            "target": "wasmedgePluginWasiNNBurnRS",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=squeezenet",
+            "platforms": [
+                "manylinux_2_28_x86_64",
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
+            ]
+        },
+        {
+            "plugin": "wasi_nn_burnrs-whisper",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn_burnrs",
+            "target": "wasmedgePluginWasiNNBurnRS",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL=whisper",
             "platforms": [
                 "manylinux_2_28_x86_64",
                 "manylinux_2_28_aarch64",
@@ -92,6 +125,7 @@
             "plugin": "wasm_bpf",
             "bin": "libwasmedgePluginWasmBpf.so",
             "dir": "wasm_bpf",
+            "target": "wasmedgePluginWasmBpf",
             "testBin": "wasmBpfTests",
             "options": "-DWASMEDGE_PLUGIN_WASM_BPF=ON -DWASMEDGE_PLUGIN_WASM_BPF_BUILD_LIBBPF_WITH_PKG_CONF=OFF",
             "platforms": [
@@ -104,6 +138,7 @@
             "plugin": "wasmedge_ffmpeg",
             "bin": "libwasmedgePluginWasmEdgeFFmpeg.so",
             "dir": "wasmedge_ffmpeg",
+            "target": "wasmedgePluginWasmEdgeFFmpeg",
             "testBin": "wasmedgeFFmpegTests",
             "options": "-DWASMEDGE_PLUGIN_FFMPEG=ON",
             "platforms": [
@@ -117,6 +152,7 @@
             "plugin": "wasmedge_image",
             "bin": "libwasmedgePluginWasmEdgeImage.so",
             "dir": "wasmedge_image",
+            "target": "wasmedgePluginWasmEdgeImage",
             "testBin": "wasmedgeImageTests",
             "options": "-DWASMEDGE_PLUGIN_IMAGE=ON",
             "platforms": [
@@ -130,6 +166,7 @@
             "plugin": "wasmedge_llmc",
             "bin": "libwasmedgePluginWasmEdgeLLMC.so",
             "dir": "wasmedge_llmc",
+            "target": "wasmedgePluginWasmEdgeLLMC",
             "testBin": "wasmedgeLLMCTests",
             "options": "-DWASMEDGE_PLUGIN_LLMC=ON",
             "platforms": [
@@ -143,6 +180,7 @@
             "plugin": "wasmedge_opencvmini",
             "bin": "libwasmedgePluginWasmEdgeOpenCVMini.so",
             "dir": "wasmedge_opencvmini",
+            "target": "wasmedgePluginWasmEdgeOpenCVMini",
             "testBin": "wasmedgeOpencvminiTests",
             "options": "-DWASMEDGE_PLUGIN_OPENCVMINI=ON",
             "platforms": [
@@ -156,6 +194,7 @@
             "plugin": "wasmedge_process",
             "bin": "libwasmedgePluginWasmEdgeProcess.so",
             "dir": "wasmedge_process",
+            "target": "wasmedgePluginWasmEdgeProcess",
             "testBin": "wasmedgeProcessTests",
             "options": "-DWASMEDGE_PLUGIN_PROCESS=ON",
             "platforms": [
@@ -169,6 +208,7 @@
             "plugin": "wasmedge_stablediffusion",
             "bin": "libwasmedgePluginWasmEdgeStableDiffusion.so",
             "dir": "wasmedge_stablediffusion",
+            "target": "wasmedgePluginWasmEdgeStableDiffusion",
             "testBin": "wasmedgeStableDiffusionTests",
             "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON",
             "platforms": [
@@ -182,6 +222,7 @@
             "plugin": "wasmedge_tensorflow",
             "bin": "libwasmedgePluginWasmEdgeTensorflow.so",
             "dir": "wasmedge_tensorflow",
+            "target": "wasmedgePluginWasmEdgeTensorflow",
             "testBin": "wasmedgeTensorflowTests",
             "options": "-DWASMEDGE_PLUGIN_TENSORFLOW=ON",
             "platforms": [
@@ -195,6 +236,7 @@
             "plugin": "wasmedge_tensorflowlite",
             "bin": "libwasmedgePluginWasmEdgeTensorflowLite.so",
             "dir": "wasmedge_tensorflowlite",
+            "target": "wasmedgePluginWasmEdgeTensorflowLite",
             "testBin": "wasmedgeTensorflowLiteTests",
             "options": "-DWASMEDGE_PLUGIN_TENSORFLOWLITE=ON",
             "platforms": [
@@ -208,6 +250,7 @@
             "plugin": "wasmedge_zlib",
             "bin": "libwasmedgePluginWasmEdgeZlib.so",
             "dir": "wasmedge_zlib",
+            "target": "wasmedgePluginWasmEdgeZlib",
             "testBin": "wasmedgeZlibTests",
             "options": "-DWASMEDGE_PLUGIN_ZLIB=ON",
             "platforms": [

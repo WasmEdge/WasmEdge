@@ -1019,7 +1019,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     spdlog::info(
         "[WASI-NN][Debug] GGML backend: delete llama context to make it stateless"sv);
   }
-  llama_free(LlamaContext);
+  // llama_free(LlamaContext);
   if (GraphRef.EnableDebugLog) {
     spdlog::info(
         "[WASI-NN][Debug] GGML backend: delete llama context to make it stateless...Done"sv);
@@ -1225,8 +1225,10 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     spdlog::info(
         "[WASI-NN][Debug] GGML backend: delete llama context to make it stateless"sv);
   }
-  llama_sampling_free(CtxSampling);
+  spdlog::info("[dm4] llama_free() begin:");
   llama_free(LlamaContext);
+  spdlog::info("[dm4] llama_free() done");
+  llama_sampling_free(CtxSampling);
   if (CxtRef.LlavaImageEmbd != nullptr) {
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;

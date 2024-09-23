@@ -77,10 +77,10 @@ option(WASMEDGE_DISABLE_LIBTINFO "Disable linking against libtinfo when linking 
 # Options about plug-ins.
 #   WASI-NN backends.
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable WasmEdge WASI-NN plugin with backends.")
-option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE "Enable LLAMA_NATIVE(AVX/AVX2/FMA) in the WASI-NN GGML backend." ON)
-option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS "Enable LLAMA_BLAS in the WASI-NN GGML backend." OFF)
-option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS "Enable LLAMA_CUBLAS in the WASI-NN GGML backend." OFF)
-option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-NN GGML backend. Available on MacOS arm64 only." ON)
+option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE "Enable GGML_NATIVE(AVX/AVX2/FMA) in the WASI-NN GGML backend." ON)
+option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS "Enable GGML_CUBLAS in the WASI-NN GGML backend." OFF)
+option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable GGML_METAL in the WASI-NN GGML backend. Available on macOS arm64 only." ON)
+option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CANN "Enable GGML_CANN in the WASI-NN GGML backend. Available on NPU only." ON)
 set(WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL "" CACHE STRING "Enable WasmEdge WASI-NN Burn.rs backend with model.")
 #   WASI plug-ins.
 option(WASMEDGE_PLUGIN_WASI_HTTP "Enable WasmEdge wasi-http plugin." OFF)

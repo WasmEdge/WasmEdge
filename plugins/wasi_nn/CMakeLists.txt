@@ -62,6 +62,15 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       set(GGML_METAL OFF)
     endif()
 
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CANN)
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_CANN")
+      set(GGML_CANN ON)
+      target_link_directories(wasmedgePluginWasiNN PRIVATE $ENV{ASCEND_TOOLKIT_HOME}/lib64)
+    else()
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_CANN")
+      set(GGML_CANN OFF)
+    endif()
+
     # setup llama.cpp
     message(STATUS "Downloading llama.cpp source")
     include(FetchContent)

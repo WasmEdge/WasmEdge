@@ -92,6 +92,8 @@ jobs:
               - 'utils/docker/Dockerfile.ubuntu-**'
               - 'utils/ffmpeg/**'
               - 'utils/opencvmini/**'
+              - 'utils/wasi-crypto/**'
+              - 'utils/wasi-nn/**'
 
   bake-base-images:
     needs:

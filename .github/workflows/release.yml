@@ -130,6 +130,7 @@ jobs:
 
   build_and_upload_wasinn_macos:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - system: MacOS 13 (x86_64)
@@ -194,6 +195,7 @@ jobs:
 
   build_and_upload_plugin_macos:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - system: MacOS 13 (x86_64)
@@ -308,6 +310,7 @@ jobs:
 
   build_and_upload_plugin_macos_metal:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - system: MacOS 14 (arm64)

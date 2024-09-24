@@ -13,8 +13,8 @@ namespace WasmEdge::Host::WASINN::MLX {
 std::string loadBytesFromFile(const std::string &Path) {
   std::ifstream Fs(Path, std::ios::in | std::ios::binary);
   if (Fs.fail()) {
-    std::cerr << "Cannot open " << Path << std::endl;
-    exit(1);
+    spdlog::error("[WASI-NN] MLX backend: Cannot open {}."sv, Path);
+    return "";
   }
   std::string Data;
   Fs.seekg(0, std::ios::end);
@@ -143,8 +143,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
 
   // Load tokenizer.
   if (!TokenizerPath.empty()) {
-    GraphRef.Tok =
-        tokenizers::Tokenizer::FromBlobJSON(loadBytesFromFile(TokenizerPath));
+    auto Bytes = loadBytesFromFile(TokenizerPath);
+    if (Bytes.empty()) {
+      spdlog::error("[WASI-NN] MLX backend: Load tokenizer failed."sv);
+      Env.NNGraph.pop_back();
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Tok = tokenizers::Tokenizer::FromBlobJSON(Bytes);
   } else {
     spdlog::error("[WASI-NN] MLX backend: Tokenizer path not found."sv);
     Env.NNGraph.pop_back();

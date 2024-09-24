@@ -15,13 +15,11 @@ on:
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
       - "plugins/**"
-      - "test/**"
+      - "test/plugins/**"
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
-      - "utils/ffmpeg/**"
-      - "utils/wasi-nn/**"
   pull_request:
     branches:
       - master
@@ -33,13 +31,11 @@ on:
       - ".github/workflows/reusable-build-extensions**"
       - ".github/workflows/reusable-call-linter.yml"
       - "plugins/**"
-      - "test/**"
+      - "test/plugins/**"
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
       - "cmake/**"
-      - "utils/ffmpeg/**"
-      - "utils/wasi-nn/**"
 
 permissions:
   contents: read
@@ -75,17 +71,16 @@ jobs:
     permissions:
       contents: write
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - name: Plugins_g++
-            compiler: g++
+          - name: g++
             docker_tag: ubuntu-build-gcc-plugins-deps
             build_type: Release
-          - name: Plugins_clang++
-            compiler: clang++
+          - name: clang++
             docker_tag: ubuntu-build-clang-plugins-deps
             build_type: Release
-    name: WASI-NN GGML RPC
+    name: WASI-NN GGML RPC (${{ matrix.name }})
     runs-on: ubuntu-latest
     needs: [ get_version ]
     container:
@@ -136,6 +131,7 @@ jobs:
     permissions:
       contents: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - system: MacOS 13 (x86_64)
@@ -262,78 +258,6 @@ jobs:
           name: WasmEdge-plugin-wasi_nn-ggml-${{ needs.get_version.outputs.version }}-windows.zip
           path: plugin_wasi_nn-ggml.zip
 
-  # Build CUDA related plugins, only on Ubuntu 20.04 currently.
-  build_ubuntu_cuda:
-    permissions:
-      contents: write
-    strategy:
-      matrix:
-        include:
-          - cuda_version: '11.3'
-          - cuda_version: '12.0'
-    name: Plugins (CUDA ${{ matrix.cuda_version }})
-    runs-on: ubuntu-latest
-    needs: [ get_version ]
-    container: wasmedge/wasmedge:ubuntu-20.04-build-gcc
-    env:
-      CUDA_VER: ${{ matrix.cuda_version }}
-      CUDAARCHS: "60;61;70"
-      output_prefix: build/plugins
-      test_prefix: build/test/plugins
-      build_options: -DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS=ON
-      tar_names: wasmedge_stablediffusion
-      test_bins: wasmedgeStableDiffusionTests
-      output_bins: libwasmedgePluginWasmEdgeStableDiffusion.so
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Install dependencies
-        shell: bash
-        run: |
-          CUDA_KEYRING=cuda-keyring_1.1-1_all.deb
-          NVCC_VER=${CUDA_VER//./-}
-          wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/${CUDA_KEYRING}
-          dpkg -i ${CUDA_KEYRING}
-          rm -f ${CUDA_KEYRING}
-          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null
-          apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main"
-          apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6AF7F09730B3F0A4
-          export DEBIAN_FRONTEND=noninteractive
-          apt-get update
-          apt-get remove -y --purge --auto-remove cmake
-          apt-get upgrade -y
-          apt-get install -y cmake cuda-nvcc-${NVCC_VER} libcublas-dev-${NVCC_VER} lsb-release pkg-config software-properties-common unzip
-      - name: Build plugins with CUDA (skip testing as there is no GPU on the CI runner)
-        shell: bash
-        run: |
-          export CXXFLAGS="-Wno-error"
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_AOT_RUNTIME=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DCMAKE_CUDA_ARCHITECTURES="${CUDAARCHS}" -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc -DWASMEDGE_USE_LLVM=OFF ${build_options}
-          plugin_array=(${tar_names})
-          testbin_array=(${test_bins})
-          for (( i=0; i<${#testbin_array[@]}; i++ ));
-          do
-            echo "Building ${testbin_array[$i]} :"
-            cmake --build build --target ${testbin_array[$i]}
-            echo "Testing ${plugin_array[$i]} (skipped)"
-          done
-      - name: Prepare the plugins tar.gz package
-        shell: bash
-        run: |
-          plugin_array=(${tar_names})
-          outbin_array=(${output_bins})
-          for (( i=0; i<${#plugin_array[@]}; i++ ));
-          do
-            echo "Copying ${plugin_array[$i]} :"
-            cp ${output_prefix}/${plugin_array[$i]}/${outbin_array[$i]} ${outbin_array[$i]}
-            tar -zcvf plugin_${plugin_array[$i]}.tar.gz ${outbin_array[$i]}
-          done
-      - name: Upload artifact - wasmedge_stablediffusion
-        uses: actions/upload-artifact@v3
-        with:
-          name: WasmEdge-plugin-wasmedge_stablediffusion-cuda-${{ matrix.cuda_version }}-${{ needs.get_version.outputs.version }}-ubuntu20.04_x86_64.tar.gz
-          path: plugin_wasmedge_stablediffusion.tar.gz
-
   build_plugins:
     permissions:
       contents: write
@@ -347,6 +271,7 @@ jobs:
     permissions:
       contents: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - system: MacOS 13 (x86_64)
@@ -467,6 +392,7 @@ jobs:
     permissions:
       contents: write
     strategy:
+      fail-fast: false
       matrix:
         include:
           - system: MacOS 14 (arm64)

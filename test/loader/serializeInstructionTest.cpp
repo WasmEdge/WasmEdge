@@ -215,9 +215,15 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   // 3. Test branch control instructions.
   //
   //   1.  Serialize valid label index.
+  //   2.  Serialize Br_on_null instruction with Func-Ref proposal.
+  //   3.  Serialize Br_on_non_null instruction with Func-Ref proposal.
+  //   4.  Serialize invalid Br_on_non_null instruction without Func-Ref
+  //   proposal.
 
   WasmEdge::AST::Instruction Br(WasmEdge::OpCode::Br);
   WasmEdge::AST::Instruction BrIf(WasmEdge::OpCode::Br_if);
+  WasmEdge::AST::Instruction BrOnNull(WasmEdge::OpCode::Br_on_null);
+  WasmEdge::AST::Instruction BrOnNonNull(WasmEdge::OpCode::Br_on_non_null);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   Br.getJump().TargetIndex = 0xFFFFFFFFU;
@@ -242,6 +248,27 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
   Expected[5] = 0x0DU; // OpCode Br_if.
   EXPECT_EQ(Output, Expected);
+
+  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
+  BrOnNull.getJump().TargetIndex = 0xFFFFFFFFU;
+  Instructions = {BrOnNull, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[5] = 0xD5U; // OpCode Br_on_null
+  EXPECT_EQ(Output, Expected);
+
+  BrOnNonNull.getJump().TargetIndex = 0xFFFFFFFFU;
+  Instructions = {BrOnNonNull, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[5] = 0xD6U; // OpCode Br_on_non_null
+  EXPECT_EQ(Output, Expected);
+
+  // Test without Func-Ref proposal
+  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
+  Instructions = {BrOnNonNull, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
 }
 
 TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
@@ -315,9 +342,14 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
   //   2.  Serialize call_indirect instruction with valid type and table index.
   //   3.  Serialize call_indirect instruction with invalid table index without
   //       Ref-Types proposal.
+  //   4.  Serialize Call_ref instruction with valid type index.
+  //   5.  Serialize Return_call_ref instruction with valid type and table.
+  //   6.  Serialize Return_call_ref without Func-Ref proposal.
 
   WasmEdge::AST::Instruction Call(WasmEdge::OpCode::Call);
   WasmEdge::AST::Instruction CallIndirect(WasmEdge::OpCode::Call_indirect);
+  WasmEdge::AST::Instruction CallRef(WasmEdge::OpCode::Call_ref);
+  WasmEdge::AST::Instruction ReturnCallRef(WasmEdge::OpCode::Return_call_ref);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   Call.getTargetIndex() = 0xFFFFFFFFU;
@@ -356,6 +388,39 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
 
   EXPECT_FALSE(
       SerNoRefType.serializeSection(createCodeSec(Instructions), Output));
+
+  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
+  CallRef.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {CallRef, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,                             // Code section
+      0x0AU,                             // Content size = 10
+      0x01U,                             // Vector length = 1
+      0x08U,                             // Code segment size = 8
+      0x00U,                             // Local vec(0)
+      0x14U,                             // OpCode Call_ref.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Function type index.
+      0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.addProposal(WasmEdge::Proposal::TailCall);
+  ReturnCallRef.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ReturnCallRef, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[5] = 0x15U; // OpCode Return_call_ref.
+  EXPECT_EQ(Output, Expected);
+
+  // Test without Func-Ref proposal
+  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
+  Conf.removeProposal(WasmEdge::Proposal::TailCall);
+  ReturnCallRef.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ReturnCallRef, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
 }
 
 TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
@@ -371,8 +436,11 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   //
   //   1.  Serialize function reference type.
   //   2.  Serialize invalid reference type without Ref-Types proposal.
+  //   3.  Serialize Ref_as_non_null instruction with valid type index.
+  //   4.  Serialize Ref_as_non_null instruction without Func-Ref proposal.
 
   WasmEdge::AST::Instruction RefNull(WasmEdge::OpCode::Ref__null);
+  WasmEdge::AST::Instruction RefAsNonNull(WasmEdge::OpCode::Ref__as_non_null);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   RefNull.setValType(WasmEdge::TypeCode::FuncRef);
@@ -395,6 +463,27 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   Instructions = {RefNull, End};
   EXPECT_FALSE(
       SerNoRefType.serializeSection(createCodeSec(Instructions), Output));
+
+  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
+  Instructions = {RefAsNonNull, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU, // Code section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x03U, // Code segment size = 3
+      0x00U, // Local vec(0)
+      0xD4U, // OpCode Ref__as_non_null.
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // Test without Func-Ref proposal
+  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
+  Instructions = {RefAsNonNull, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
 }
 
 TEST(SerializeInstructionTest, SerializeParametricInstruction) {

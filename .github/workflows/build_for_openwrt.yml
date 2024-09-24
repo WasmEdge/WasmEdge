@@ -52,7 +52,7 @@ jobs:
         git config --global --add safe.directory $(pwd)
     - name: Restore OpenWrt
       id: restore-openwrt
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       with:
         path: ./openwrt-x86-64-generic-rootfs.tar.gz
         key: openwrt
@@ -105,7 +105,7 @@ jobs:
         cp -rf $(find ../openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
     - name: Save OpenWrt
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       with:
         path: ./openwrt-x86-64-generic-rootfs.tar.gz
         key: ${{ steps.restore-openwrt.outputs.cache-primary-key }}

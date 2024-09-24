@@ -219,6 +219,26 @@
             ]
         },
         {
+            "plugin": "wasmedge_stablediffusion-cuda-11",
+            "bin": "libwasmedgePluginWasmEdgeStableDiffusion.so",
+            "dir": "wasmedge_stablediffusion",
+            "target": "wasmedgePluginWasmEdgeStableDiffusion",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS=ON -DCMAKE_CUDA_ARCHITECTURES='60;61;70' -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            "platforms": [
+                "ubuntu2004_cuda11"
+            ]
+        },
+        {
+            "plugin": "wasmedge_stablediffusion-cuda-12",
+            "bin": "libwasmedgePluginWasmEdgeStableDiffusion.so",
+            "dir": "wasmedge_stablediffusion",
+            "target": "wasmedgePluginWasmEdgeStableDiffusion",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS=ON -DCMAKE_CUDA_ARCHITECTURES='60;61;70' -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            "platforms": [
+                "ubuntu2004_cuda12"
+            ]
+        },
+        {
             "plugin": "wasmedge_tensorflow",
             "bin": "libwasmedgePluginWasmEdgeTensorflow.so",
             "dir": "wasmedge_tensorflow",

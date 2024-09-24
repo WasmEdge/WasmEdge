@@ -50,6 +50,12 @@ wasmedge_process:
 wasmedge_stablediffusion:
   - 'plugins/wasmedge_stablediffusion/**'
   - 'test/plugins/wasmedge_stablediffusion/**'
+wasmedge_stablediffusion-cuda-11:
+  - 'plugins/wasmedge_stablediffusion/**'
+  - 'test/plugins/wasmedge_stablediffusion/**'
+wasmedge_stablediffusion-cuda-12:
+  - 'plugins/wasmedge_stablediffusion/**'
+  - 'test/plugins/wasmedge_stablediffusion/**'
 wasmedge_tensorflow:
   - 'plugins/wasmedge_tensorflow/**'
   - 'test/plugins/wasmedge_tensorflow/**'

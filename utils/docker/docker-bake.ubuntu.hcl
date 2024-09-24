@@ -1,5 +1,6 @@
 group "default" {
   targets = [
+    "cuda",
     "clang",
     "gcc"
   ]
@@ -128,6 +129,25 @@ target "gcc" {
   tags       = tags(parent, ubuntu, "gcc")
   args       = {
     BASE_IMAGE = "local/tmp:${parent}-${ubuntu}"
+  }
+}
+
+target "cuda" {
+  dockerfile = "Dockerfile.ubuntu-cuda"
+  context    = "./utils/docker"
+
+  matrix     = {
+    cuda = ["11.3", "12.0"]
+  }
+
+  name       = "base-2004-gcc-cuda${major(cuda)}"
+  contexts   = {
+    "wasmedge/wasmedge:ubuntu-20.04-build-gcc" = "target:base-2004-gcc"
+  }
+  tags       = ["wasmedge/wasmedge:ubuntu-20.04-build-gcc-cuda${major(cuda)}"]
+  args       = {
+    BASE_IMAGE = "wasmedge/wasmedge:ubuntu-20.04-build-gcc"
+    NVCC_VER   = replace(cuda, ".", "-")
   }
 }
 

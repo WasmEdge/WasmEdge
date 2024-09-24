@@ -110,7 +110,7 @@ jobs:
         path: ./openwrt-x86-64-generic-rootfs.tar.gz
         key: ${{ steps.restore-openwrt.outputs.cache-primary-key }}
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: openwrt-rootfs
         path: ./openwrt-x86-64-generic-rootfs.tar.gz

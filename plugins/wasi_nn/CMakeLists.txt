@@ -16,6 +16,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   piper.cpp
   whispercpp.cpp
   chattts.cpp
+  mlx.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -149,7 +150,10 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
       )
     endif()
-  elseif(BACKEND STREQUAL "neuralspeed" OR BACKEND STREQUAL "chattts")
+  elseif(BACKEND STREQUAL "neuralspeed")
+    message(NOTICE "WASI-NN NeuralSpeed backend is removed due to the upstream end-of-life.")
+    message(NOTICE "Reference: https://github.com/intel/neural-speed")
+  elseif(BACKEND STREQUAL "chattts")
     wasmedge_setup_simdjson()
 
     find_package(Python3 COMPONENTS Interpreter Development)
@@ -185,6 +189,98 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE
       whisper
+      simdjson::simdjson
+    )
+  elseif(BACKEND STREQUAL "mlx")
+    target_sources(wasmedgePluginWasiNN 
+      PRIVATE 
+      MLX/prompt/prompt.cpp
+      MLX/model/transformer.cpp
+      MLX/model/converter.cpp
+      MLX/model/utils.cpp
+      MLX/model/registry.cpp
+      MLX/mlx/base.cpp
+      MLX/mlx/linear.cpp
+      MLX/mlx/positional_encoding.cpp
+      MLX/mlx/activations.cpp
+      MLX/mlx/embedding.cpp
+      MLX/mlx/normalization.cpp
+      MLX/mlx/transformer.cpp
+      MLX/mlx/quantized.cpp
+    )
+    wasmedge_setup_simdjson()
+    find_package(MLX CONFIG)
+    if(MLX_FOUND)
+      message(STATUS "Found MLX: ${MLX_INCLUDE_DIRS}")
+    else()
+      # Not support directly download from source 
+      find_library(ACCELERATE_LIBRARY Accelerate)
+      find_library(METAL_LIB Metal)
+      find_library(FOUNDATION_LIB Foundation)
+      find_library(QUARTZ_LIB QuartzCore)
+      message(STATUS "MLX not found, downloading from source")
+      include(FetchContent)
+      set(MLX_BUILD_GGUF OFF)
+      FetchContent_Declare(
+        mlx
+        GIT_REPOSITORY https://github.com/ml-explore/mlx.git
+        GIT_TAG        v0.16.0
+        GIT_SHALLOW    FALSE
+      )
+      FetchContent_MakeAvailable(mlx)
+      set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)
+      set_target_properties(mlx PROPERTIES
+        INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:fmt::fmt-header-only>"
+      )
+      target_link_libraries(
+        mlx PUBLIC
+        ${ACCELERATE_LIBRARY}
+        ${METAL_LIB}
+        ${FOUNDATION_LIB}
+        ${QUARTZ_LIB}
+      )
+      target_compile_options(mlx
+        PUBLIC
+        -Wno-unused-parameter
+        -Wno-deprecated-copy
+        -Wno-format
+      )
+    endif()
+    target_include_directories(wasmedgePluginWasiNN PUBLIC MLX/model MLX/prompt MLX/mlx)
+
+    message(STATUS "Downloading tokenizers")
+    FetchContent_Declare(
+      tokenizers
+      GIT_REPOSITORY git@github.com:mlc-ai/tokenizers-cpp.git
+      GIT_TAG 5de6f65
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(tokenizers)
+    set_property(TARGET tokenizer_cpp_objs PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(wasmedgePluginWasiNN PRIVATE ${tokenizers_SOURCE_DIR}/include)
+    target_link_libraries(wasmedgePluginWasiNN PRIVATE tokenizers_cpp)
+    
+    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC ./mlx)
+    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC ${MLX_INCLUDE_DIRS})
+    target_link_libraries(wasmedgePluginWasiNN PUBLIC ${MLX_LIBRARIES})
+
+    message(STATUS "Downloading gguflib")
+    FetchContent_Declare(
+      gguflib
+      GIT_REPOSITORY https://github.com/antirez/gguf-tools/
+      GIT_TAG af7d88d808a7608a33723fba067036202910acb3
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(gguflib)
+    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>)
+    add_library(gguflib STATIC ${gguflib_SOURCE_DIR}/fp16.c
+                              ${gguflib_SOURCE_DIR}/gguflib.c)
+    set_target_properties(gguflib PROPERTIES LINKER_LANGUAGE CXX)
+    target_link_libraries(wasmedgePluginWasiNN PUBLIC gguflib)
+
+
+    target_link_libraries(wasmedgePluginWasiNN PUBLIC
+      mlx
       simdjson::simdjson
     )
   endif()

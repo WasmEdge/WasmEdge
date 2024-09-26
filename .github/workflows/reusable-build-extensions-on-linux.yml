@@ -1,4 +1,4 @@
-name: Build extensions on manylinux
+name: Build extensions on linux
 
 on:
   workflow_call:
@@ -25,7 +25,6 @@ on:
 
 jobs:
   build:
-    if: ${{ startsWith(inputs.asset_tag, 'manylinux_2_28') }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,7 +38,9 @@ jobs:
       options: --privileged
     env:
       bin_name: ${{ matrix.bin }}
-      target: ${{ matrix.testBin }}
+      # Set value to `matrix.target` if `input.release` is `true`, or
+      # if `matrix.testBin` is empty
+      target: ${{ inputs.release && matrix.target || matrix.testBin || matrix.target }}
       test_dir: build/test/plugins/${{ matrix.dir }}
       output_dir: build/plugins/${{ matrix.dir }}
     steps:
@@ -52,11 +53,8 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - if: ${{ inputs.release }}
-        name: Prepare target for release
-        run: |
-          target=${bin_name%.*}
-          echo "target=${target#lib}" >> $GITHUB_ENV
+      - if: ${{ startsWith(matrix.plugin, 'wasi_nn_burnrs') }}
+        uses: dtolnay/rust-toolchain@stable
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
@@ -80,20 +78,35 @@ jobs:
       - if: ${{ !inputs.release }}
         name: Test ${{ matrix.plugin }}
         run: |
-          cd ${test_dir}
-          ./${target}
-          cd -
+          if [[ -z "${{ matrix.testBin }}" ]]; then
+            echo "No test specified!"
+          else
+            cd ${test_dir}
+            ./${target}
+            cd -
+          fi
+        shell: bash
       - if: ${{ !inputs.release }}
         name: Upload artifact ${{ matrix.plugin }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifact }}
-      - if: ${{ inputs.release }}
+      - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'manylinux_2_28') }}
         name: Install gh
         run: |
           yum check-update || true
           yum install -y gh
+      - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'ubuntu') }}
+        name: Install gh
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=${KEYRING}
+          chmod go+r ${KEYRING}
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=${KEYRING}] https://cli.github.com/packages stable main" | dd of=/etc/apt/sources.list.d/github-cli.list
+          apt update -y
+          apt install -y gh
+        env:
+          KEYRING: /usr/share/keyrings/githubcli-archive-keyring.gpg
       - if: ${{ inputs.release }}
         name: Upload ${{ steps.var.outputs.artifact }}
         run: |

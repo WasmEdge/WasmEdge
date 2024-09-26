@@ -1,0 +1,5 @@
+ARG BASE_IMAGE=wasmedge/wasmedge:latest
+FROM ${BASE_IMAGE} AS base
+
+ENV CC=/usr/bin/gcc
+ENV CXX=/usr/bin/g++

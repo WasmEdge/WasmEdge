@@ -1,13 +1,55 @@
 ARG BASE_IMAGE=wasmedge/wasmedge:latest
 FROM ${BASE_IMAGE} AS base
 
+WORKDIR /root
+
 RUN apt-get update && \
     apt-get install -y \
+        cargo \
+        libelf-dev \
+        libomp-dev \
+        libopenblas-dev \
+        libssl-dev \
+        pkg-config \
         unzip \
-        wget
+        yasm
+
+RUN apt-get install -y \
+        libgrpc++-dev \
+        libgrpc-dev \
+        protobuf-compiler-grpc
 
 COPY opencvmini/install-opencvmini.sh .
 ENV OPENCV_VERSION="4.8.0"
 RUN [ "/bin/bash", "install-opencvmini.sh" ]
+
+COPY ffmpeg/install-ffmpeg-v6.0.sh .
+RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
+ENV PKG_CONFIG_PATH=/root/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV LD_LIBRARY_PATH=/root/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
+COPY wasi-nn/install-pytorch.sh .
+ENV PYTORCH_VERSION="1.8.2"
+ENV PYTORCH_INSTALL_TO="/root"
+ENV Torch_DIR="/root/libtorch"
+RUN [ "/bin/bash", "install-pytorch.sh"  ]
+
+COPY wasi-nn/install-openvino.sh .
+ENV OPENVINO_VERSION="2024.2.0"
+ENV OPENVINO_YEAR="2024"
+RUN [ "/bin/bash", "install-openvino.sh" ]
+
+COPY wasi-nn/install-onnxruntime.sh .
+RUN [ "/bin/bash", "install-onnxruntime.sh" ]
+
+### cleanup
+FROM base AS clean-apt
+
+RUN rm -f \
+    install-opencvmini.sh \
+    install-ffmpeg-v6.0.sh \
+    install-pytorch.sh \
+    install-openvino.sh \
+    install-onnxruntime.sh
 
 RUN rm -rf /var/lib/apt/lists/*

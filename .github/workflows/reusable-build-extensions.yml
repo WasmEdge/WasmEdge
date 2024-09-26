@@ -21,8 +21,10 @@ jobs:
     outputs:
       manylinux_2_28_x86_64: ${{ steps.readfile.outputs.manylinux_2_28_x86_64 }}
       manylinux_2_28_aarch64: ${{ steps.readfile.outputs.manylinux_2_28_aarch64 }}
-      manylinux2014_x86_64: ${{ steps.readfile.outputs.manylinux2014_x86_64 }}
-      manylinux2014_aarch64: ${{ steps.readfile.outputs.manylinux2014_aarch64 }}
+      ubuntu2004_x86_64: ${{ steps.readfile.outputs.ubuntu2004_x86_64 }}
+      ubuntu2004_cuda11: ${{ steps.readfile.outputs.ubuntu2004_cuda11 }}
+      ubuntu2004_cuda12: ${{ steps.readfile.outputs.ubuntu2004_cuda12 }}
+      ubuntu_latest: ${{ steps.readfile.outputs.ubuntu_latest }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,8 +49,10 @@ jobs:
             let asset_tags = [
               "manylinux_2_28_x86_64",
               "manylinux_2_28_aarch64",
-              "manylinux2014_x86_64",
-              "manylinux2014_aarch64",
+              "ubuntu2004_x86_64",
+              "ubuntu2004_cuda11",
+              "ubuntu2004_cuda12",
+              "ubuntu_latest",
             ]
             for (const tag of asset_tags) {
               core.setOutput(tag, plugins.filter(
@@ -69,12 +73,68 @@ jobs:
           wasm_bpf: ${{ steps.filter.outputs.wasm_bpf }}
           wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
           wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}
+          wasmedge_llmc: ${{ steps.filter.outputs.wasmedge_llmc }}
           wasmedge_opencvmini: ${{ steps.filter.outputs.wasmedge_opencvmini }}
           wasmedge_process: ${{ steps.filter.outputs.wasmedge_process }}
           wasmedge_stablediffusion: ${{ steps.filter.outputs.wasmedge_stablediffusion }}
           wasmedge_tensorflow: ${{ steps.filter.outputs.wasmedge_tensorflow }}
           wasmedge_tensorflowlite: ${{ steps.filter.outputs.wasmedge_tensorflowlite }}
           wasmedge_zlib: ${{ steps.filter.outputs.wasmedge_zlib }}
+
+  build_on_ubuntu:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-20.04-build-clang-plugins-deps'
+            asset_tag: 'ubuntu20.04_x86_64'
+            plugins: ${{ needs.prepare.outputs.ubuntu2004_x86_64 }}
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-20.04-build-gcc-cuda11'
+            asset_tag: 'ubuntu20.04_x86_64'
+            plugins: ${{ needs.prepare.outputs.ubuntu2004_cuda11 }}
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-20.04-build-gcc-cuda12'
+            asset_tag: 'ubuntu20.04_x86_64'
+            plugins: ${{ needs.prepare.outputs.ubuntu2004_cuda12 }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
+    secrets: inherit
+
+  build_on_ubuntu_latest:
+    if: ${{ !inputs.release }}
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-build-clang-plugins-deps'
+            asset_tag: 'ubuntu22.04-clang'
+            plugins: ${{ needs.prepare.outputs.ubuntu_latest }}
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-build-gcc-plugins-deps'
+            asset_tag: 'ubuntu22.04-gcc'
+            plugins: ${{ needs.prepare.outputs.ubuntu_latest }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
+    with:
+      runner: ${{ matrix.runner }}
+      docker_tag: ${{ matrix.docker_tag }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: false
+    secrets: inherit
 
   build_on_manylinux:
     needs: prepare
@@ -91,32 +151,7 @@ jobs:
             asset_tag: 'manylinux_2_28_aarch64'
             plugins: ${{ needs.prepare.outputs.manylinux_2_28_aarch64 }}
     name: ${{ matrix.asset_tag }}
-    uses: ./.github/workflows/reusable-build-extensions-on-manylinux.yml
-    with:
-      runner: ${{ matrix.runner }}
-      docker_tag: ${{ matrix.docker_tag }}
-      asset_tag: ${{ matrix.asset_tag }}
-      plugins: ${{ matrix.plugins }}
-      version: ${{ inputs.version }}
-      release: ${{ inputs.release }}
-    secrets: inherit
-
-  build_on_legacy_manylinux:
-    needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: 'ubuntu-latest'
-            docker_tag: 'manylinux2014_x86_64-plugins-deps'
-            asset_tag: 'manylinux2014_x86_64'
-            plugins: ${{ needs.prepare.outputs.manylinux2014_x86_64 }}
-          - runner: 'linux-arm64-v2'
-            docker_tag: 'manylinux2014_aarch64-plugins-deps'
-            asset_tag: 'manylinux2014_aarch64'
-            plugins: ${{ needs.prepare.outputs.manylinux2014_aarch64 }}
-    name: ${{ matrix.asset_tag }}
-    uses: ./.github/workflows/reusable-build-extensions-on-legacy-manylinux.yml
+    uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
     with:
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}

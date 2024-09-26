@@ -44,8 +44,8 @@ jobs:
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           name: WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.tar.gz
-      - name: Install gh except for manylinux2014
-        if: ${{ inputs.release && (!contains(matrix.docker_tag, 'manylinux2014')) }}
+      - name: Install gh
+        if: ${{ inputs.release }}
         run: |
           echo "Detected docker tag: ${{ matrix.docker_tag }}"
           type -p yum-config-manager >/dev/null || yum install -y yum-utils

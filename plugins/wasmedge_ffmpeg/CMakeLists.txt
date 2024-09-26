@@ -88,4 +88,5 @@ endif()
 install(
   TARGETS wasmedgePluginWasmEdgeFFmpeg
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
 )

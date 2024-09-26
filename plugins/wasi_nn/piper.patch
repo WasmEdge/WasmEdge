@@ -1,5 +1,5 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index f96ec44..1e84722 100644
+index f96ec44..6a2d6c4 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.13)
@@ -139,8 +139,8 @@ index f96ec44..1e84722 100644
 -  fmt
 -  spdlog
 +target_link_libraries(piper PRIVATE
-+  "${FMT_LINK_LIBRARIES}"
-+  "${SPDLOG_LINK_LIBRARIES}"
++  ${FMT_LINK_LIBRARIES}
++  ${SPDLOG_LINK_LIBRARIES}
    espeak-ng
 -  piper_phonemize
    onnxruntime
@@ -159,8 +159,8 @@ index f96ec44..1e84722 100644
 -  ${SPDLOG_DIR}/include
 -  ${PIPER_PHONEMIZE_DIR}/include
 +target_link_directories(piper PRIVATE
-+  "${FMT_LINK_DIRECTORIES}"
-+  "${SPDLOG_LINK_DIRECTORIES}"
++  ${FMT_LINK_DIRECTORIES}
++  ${SPDLOG_LINK_DIRECTORIES}
  )
  
 -target_compile_definitions(piper PUBLIC _PIPER_VERSION=${piper_version})
@@ -174,8 +174,8 @@ index f96ec44..1e84722 100644
 -  NAME test_piper
 -  COMMAND test_piper "${CMAKE_SOURCE_DIR}/etc/test_voice.onnx" "${PIPER_PHONEMIZE_DIR}/share/espeak-ng-data" "${CMAKE_CURRENT_BINARY_DIR}/test.wav"
 +target_include_directories(piper PRIVATE
-+  "${FMT_INCLUDE_DIRECTORIES}"
-+  "${SPDLOG_INCLUDE_DIRECTORIES}"
++  ${FMT_INCLUDE_DIRECTORIES}
++  ${SPDLOG_INCLUDE_DIRECTORIES}
 +  INTERFACE "${PIPER_INTERFACE_INCLUDE_DIRECTORY}"
  )
  
@@ -188,8 +188,8 @@ index f96ec44..1e84722 100644
 -  ${FMT_DIR}/include
 -  ${SPDLOG_DIR}/include
 -  ${PIPER_PHONEMIZE_DIR}/include
-+  "${FMT_INCLUDE_DIRECTORIES}"
-+  "${SPDLOG_INCLUDE_DIRECTORIES}"
++  ${FMT_INCLUDE_DIRECTORIES}
++  ${SPDLOG_INCLUDE_DIRECTORIES}
  )
  
  target_link_directories(
@@ -197,15 +197,15 @@ index f96ec44..1e84722 100644
 -  ${FMT_DIR}/lib
 -  ${SPDLOG_DIR}/lib
 -  ${PIPER_PHONEMIZE_DIR}/lib
-+  "${FMT_LINK_DIRECTORIES}"
-+  "${SPDLOG_LINK_DIRECTORIES}"
++  ${FMT_LINK_DIRECTORIES}
++  ${SPDLOG_LINK_DIRECTORIES}
  )
  
  target_link_libraries(test_piper PUBLIC
 -  fmt
 -  spdlog
-+  "${FMT_LINK_LIBRARIES}"
-+  "${SPDLOG_LINK_LIBRARIES}"
++  ${FMT_LINK_LIBRARIES}
++  ${SPDLOG_LINK_LIBRARIES}
    espeak-ng
    piper_phonemize
    onnxruntime

@@ -172,20 +172,24 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "whisper")
     wasmedge_setup_simdjson()
-    if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
-      # `cblas_sgemm()` introduced in macOS 13.3.
-      set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion turn off accelerate")
-    endif()
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
+    set(GGML_OPENMP OFF)
+    set(GGML_ACCELERATE OFF)
+    set(GGML_BLAS OFF)
     include(FetchContent)
     FetchContent_Declare(
       whisper
       GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
-      GIT_TAG        v1.6.2
+      GIT_TAG        69339af2d104802f3f201fd419163defba52890e
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(whisper)
     set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(wasmedgePluginWasiNN PRIVATE
+      ${whisper_SOURCE_DIR}
+      ${whisper_SOURCE_DIR}/ggml/include
+    )
     target_link_libraries(wasmedgePluginWasiNN PRIVATE
       whisper
       simdjson::simdjson

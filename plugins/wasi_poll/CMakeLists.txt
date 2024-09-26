@@ -39,4 +39,5 @@ endif()
 install(
   TARGETS wasmedgePluginWasiPoll
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
 )

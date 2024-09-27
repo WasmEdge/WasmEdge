@@ -11,10 +11,10 @@ on:
         required: true
       release:
         type: boolean
-        
+
 permissions:
   contents: read
-  
+
 jobs:
   build_on_macos:
     permissions:
@@ -94,7 +94,7 @@ jobs:
           ./build/tools/wasmedge/wasmedge --reactor fib_compile.dylib fib 20
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz

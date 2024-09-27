@@ -74,7 +74,7 @@ jobs:
         cd build
         infer run --keep-going -- make -j 4
 
-    - uses: actions/upload-artifact@v3
+    - uses: actions/upload-artifact@v4
       with:
         name: report
         path: |

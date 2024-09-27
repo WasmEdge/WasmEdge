@@ -33,7 +33,7 @@ jobs:
         with:
           files: ./utils/docker/docker-bake.alpine-static.hcl
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: static-libs
           path: ./build/*/WasmEdge-*.tar.gz

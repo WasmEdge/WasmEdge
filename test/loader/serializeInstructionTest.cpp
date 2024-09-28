@@ -755,4 +755,375 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 }
+
+TEST(SerializeInstructionTest, SerializeSwizzleInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 12. Test swizzle instruction.
+  //
+  //   1.  Serialize I8x16__relaxed_swizzle instruction.
+  //   2.  Serialize I8x16__relaxed_swizzle without RelaxSIMD proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::RelaxSIMD);
+  WasmEdge::AST::Instruction I8x16RelaxedSwizzle(
+      WasmEdge::OpCode::I8x16__relaxed_swizzle);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {I8x16RelaxedSwizzle, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU,        // SIMD/relaxed-SIMD prefix.
+      0x80U, 0x02U, // OpCode I8x16__relaxed_swizzle.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::RelaxSIMD);
+  Output = {};
+  Instructions = {I8x16RelaxedSwizzle, End};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeTruncInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 13. Test trunc instruction.
+  //
+  //   1.  Serialize I32x4__relaxed_trunc_f32x4_s instruction.
+  //   2.  Serialize I32x4__relaxed_trunc_f32x4_u instruction.
+  //   3.  Serialize I32x4__relaxed_trunc_f64x2_s_zero instruction.
+  //   4.  Serialize I32x4__relaxed_trunc_f64x2_u_zero instruction.
+  //   5.  Serialize I32x4__relaxed_trunc_f64x2_u_zero without RelaxSIMD
+  //   proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::RelaxSIMD);
+  WasmEdge::AST::Instruction I8x16RelaxedTruncF32x4S(
+      WasmEdge::OpCode::I32x4__relaxed_trunc_f32x4_s);
+  WasmEdge::AST::Instruction I8x16RelaxedTruncF32x4U(
+      WasmEdge::OpCode::I32x4__relaxed_trunc_f32x4_u);
+  WasmEdge::AST::Instruction I32x4RelaxedTruncF64x2SZero(
+      WasmEdge::OpCode::I32x4__relaxed_trunc_f64x2_s_zero);
+  WasmEdge::AST::Instruction I32x4RelaxedTruncF64x2UZero(
+      WasmEdge::OpCode::I32x4__relaxed_trunc_f64x2_u_zero);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {I8x16RelaxedTruncF32x4S, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU,        // SIMD/relaxed-SIMD prefix.
+      0x81U, 0x02U, // OpCode I32x4__relaxed_trunc_f32x4_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I8x16RelaxedTruncF32x4U, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x82U; // OpCode I32x4__relaxed_trunc_f32x4_u
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I32x4RelaxedTruncF64x2SZero, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x83U; // OpCode I32x4__relaxed_trunc_f64x2_s_zero
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I32x4RelaxedTruncF64x2UZero, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x84U; // OpCode I32x4__relaxed_trunc_f64x2_u_zero
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::RelaxSIMD);
+  Instructions = {I32x4RelaxedTruncF64x2UZero, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeMulAddInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 14. Test multiply-add instruction.
+  //
+  //   1.  Serialize F32x4__relaxed_madd instruction.
+  //   2.  Serialize F32x4__relaxed_nmadd instruction.
+  //   3.  Serialize F64x2__relaxed_madd instruction.
+  //   4.  Serialize F64x2__relaxed_nmadd instruction.
+  //   5.  Serialize F64x2__relaxed_nmadd without RelaxSIMD proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::RelaxSIMD);
+  WasmEdge::AST::Instruction F32x4RelaxedMadd(
+      WasmEdge::OpCode::F32x4__relaxed_madd);
+  WasmEdge::AST::Instruction F32x4RelaxedNMadd(
+      WasmEdge::OpCode::F32x4__relaxed_nmadd);
+  WasmEdge::AST::Instruction F64x2RelaxedMadd(
+      WasmEdge::OpCode::F64x2__relaxed_madd);
+  WasmEdge::AST::Instruction F64x2RelaxedNMadd(
+      WasmEdge::OpCode::F64x2__relaxed_nmadd);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {F32x4RelaxedMadd, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU,        // SIMD/relaxed-SIMD prefix.
+      0x85U, 0x02U, // OpCode F32x4__relaxed_madd.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {F32x4RelaxedNMadd, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x86U; // OpCode F32x4__relaxed_nmadd.
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {F64x2RelaxedMadd, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x87U; // OpCode F64x2__relaxed_madd.
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {F64x2RelaxedNMadd, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x88U; // OpCode F64x2__relaxed_nmadd.
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::RelaxSIMD);
+  Instructions = {F64x2RelaxedNMadd, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeLaneSelectInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 15. Test laneselect instruction.
+  //
+  //   1.  Serialize I8x16__relaxed_laneselect instruction.
+  //   2.  Serialize I16x8__relaxed_laneselect instruction.
+  //   3.  Serialize I32x4__relaxed_laneselect instruction.
+  //   4.  Serialize I64x2__relaxed_laneselect instruction.
+  //   5.  Serialize I64x2__relaxed_laneselect without RelaxSIMD proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::RelaxSIMD);
+  WasmEdge::AST::Instruction I8x16RelaxedLaneSelect(
+      WasmEdge::OpCode::I8x16__relaxed_laneselect);
+  WasmEdge::AST::Instruction I16x8RelaxedLaneSelect(
+      WasmEdge::OpCode::I16x8__relaxed_laneselect);
+  WasmEdge::AST::Instruction I32x4RelaxedLaneSelect(
+      WasmEdge::OpCode::I32x4__relaxed_laneselect);
+  WasmEdge::AST::Instruction I64x2RelaxedLaneSelect(
+      WasmEdge::OpCode::I64x2__relaxed_laneselect);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {I8x16RelaxedLaneSelect, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU,        // SIMD/relaxed-SIMD prefix.
+      0x89U, 0x02U, // OpCode I8x16__relaxed_laneselect.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I16x8RelaxedLaneSelect, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x8AU; // OpCode I16x8__relaxed_laneselect.
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I32x4RelaxedLaneSelect, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x8BU; // OpCode I32x4__relaxed_laneselect.
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I64x2RelaxedLaneSelect, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x8CU; // OpCode I64x2__relaxed_laneselect.
+
+  Conf.removeProposal(WasmEdge::Proposal::RelaxSIMD);
+  Instructions = {I64x2RelaxedLaneSelect, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeMinMaxInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 16. Test laneselect instruction.
+  //
+  //   1.  Serialize F32x4__relaxed_min instruction.
+  //   2.  Serialize F32x4__relaxed_max instruction.
+  //   3.  Serialize F64x2__relaxed_min instruction.
+  //   4.  Serialize F64x2__relaxed_max instruction.
+  //   5.  Serialize F64x2__relaxed_max without RelaxSIMD proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::RelaxSIMD);
+  WasmEdge::AST::Instruction F32x4RelaxedMin(
+      WasmEdge::OpCode::F32x4__relaxed_min);
+  WasmEdge::AST::Instruction F32x4RelaxedMax(
+      WasmEdge::OpCode::F32x4__relaxed_max);
+  WasmEdge::AST::Instruction F64x2RelaxedMin(
+      WasmEdge::OpCode::F64x2__relaxed_min);
+  WasmEdge::AST::Instruction F64x2RelaxedMax(
+      WasmEdge::OpCode::F64x2__relaxed_max);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {F32x4RelaxedMin, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU,        // SIMD/relaxed-SIMD prefix.
+      0x8DU, 0x02U, // OpCode F32x4__relaxed_min.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {F32x4RelaxedMax, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x8EU; // OpCode F32x4__relaxed_max.
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {F64x2RelaxedMin, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x8FU; // OpCode F64x2__relaxed_min.
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {F64x2RelaxedMax, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x90U; // OpCode F64x2__relaxed_max.
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::RelaxSIMD);
+  Instructions = {F64x2RelaxedMax, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeQ15MulRInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 17. Test rounding Q-format multiplication instruction.
+  //
+  //   1.  Serialize I16x8__relaxed_q15mulr_s instruction.
+  //   2.  Serialize I16x8__relaxed_q15mulr_s instruction without RelaxSIMD
+  //   proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::RelaxSIMD);
+  WasmEdge::AST::Instruction I16x8RelaxedQ15MulRS(
+      WasmEdge::OpCode::I16x8__relaxed_q15mulr_s);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {I16x8RelaxedQ15MulRS, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU,        // SIMD/relaxed-SIMD prefix.
+      0x91U, 0x02U, // OpCode I16x8__relaxed_q15mulr_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::RelaxSIMD);
+  Instructions = {I16x8RelaxedQ15MulRS, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeDotProductInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 18. Test dot product instruction.
+  //
+  //   1.  Serialize I16x8__relaxed_dot_i8x16_i7x16_s instruction.
+  //   2.  Serialize I32x4__relaxed_dot_i8x16_i7x16_add_s instruction.
+  //   3.  Serialize I32x4__relaxed_dot_i8x16_i7x16_add_s instruction without
+  //   RelaxSIMD proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::RelaxSIMD);
+  WasmEdge::AST::Instruction I16x8RelaxedDotI8x16i7x16S(
+      WasmEdge::OpCode::I16x8__relaxed_dot_i8x16_i7x16_s);
+  WasmEdge::AST::Instruction I16x8RelaxedDotI8x16i7x16AddS(
+      WasmEdge::OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {I16x8RelaxedDotI8x16i7x16S, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 7
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 5
+      0x00U,        // Local vec(0)
+      0xFDU,        // SIMD/relaxed-SIMD prefix.
+      0x92U, 0x02U, // OpCode I16x8__relaxed_dot_i8x16_i7x16_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I16x8RelaxedDotI8x16i7x16AddS, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x93U; // OpCode I32x4__relaxed_dot_i8x16_i7x16_add_s.
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::RelaxSIMD);
+  Instructions = {I16x8RelaxedDotI8x16i7x16AddS, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
 } // namespace

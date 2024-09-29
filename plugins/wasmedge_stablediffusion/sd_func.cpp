@@ -491,7 +491,8 @@ Expect<uint32_t> SDImageToImage::body(
         Width != static_cast<uint32_t>(ImageWidth)) {
       int ResizedHeight = Height;
       int ResizedWidth = Width;
-      uint8_t *ResizedImageBuffer = (uint8_t *)malloc(ResizedHeight * ResizedWidth * 3);
+      uint8_t *ResizedImageBuffer =
+          (uint8_t *)malloc(ResizedHeight * ResizedWidth * 3);
       if (ResizedImageBuffer == nullptr) {
         spdlog::error(
             "[WasmEdge-StableDiffusion] Failed to allocate memory for resize input image."sv);
@@ -499,8 +500,8 @@ Expect<uint32_t> SDImageToImage::body(
         return static_cast<uint32_t>(ErrNo::InvalidArgument);
       }
       stbir_resize(InputImageBuffer, ImageWidth, ImageHeight, 0,
-                   ResizedImageBuffer, ResizedWidth, ResizedHeight, 0, STBIR_TYPE_UINT8,
-                   3, STBIR_ALPHA_CHANNEL_NONE, 0,
+                   ResizedImageBuffer, ResizedWidth, ResizedHeight, 0,
+                   STBIR_TYPE_UINT8, 3, STBIR_ALPHA_CHANNEL_NONE, 0,
                    STBIR_EDGE_CLAMP, STBIR_EDGE_CLAMP, STBIR_FILTER_BOX,
                    STBIR_FILTER_BOX, STBIR_COLORSPACE_SRGB, nullptr);
       free(InputImageBuffer);

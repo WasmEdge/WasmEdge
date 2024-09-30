@@ -9,14 +9,13 @@
 namespace WasmEdge {
 namespace Host {
 
-// FIXME: provide real datetime
-// record datetime {
-//   seconds: u64,
-//   nanoseconds: u32,
-// }
+using namespace AST::Component;
+
 WallClockModule::WallClockModule()
     : ComponentInstance("wasi:clocks/wall-clock@0.2.0") {
-  addExport("datetime", AST::Component::DefType{});
+  addExport("datetime",
+            Record({LabelValType("seconds", PrimValType::U64),
+                    LabelValType("nanoseconds", PrimValType::U32)}));
 }
 
 } // namespace Host

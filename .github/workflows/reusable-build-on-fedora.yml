@@ -61,7 +61,7 @@ jobs:
           cmake --build build --target package
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: WasmEdge-${{ inputs.version }}-${{ matrix.asset_postfix }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

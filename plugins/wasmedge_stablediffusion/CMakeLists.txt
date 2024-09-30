@@ -24,7 +24,7 @@ message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
   stable-diffusion
   GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
-  GIT_TAG        master-e71ddce
+  GIT_TAG        14206fd48832ab600d9db75f15acb5062ae2c296
   GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(stable-diffusion)

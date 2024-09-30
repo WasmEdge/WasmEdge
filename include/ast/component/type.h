@@ -22,6 +22,11 @@
 #include <vector>
 
 namespace WasmEdge {
+
+namespace Runtime::Instance {
+class ComponentInstance;
+}
+
 namespace AST {
 
 namespace Component {
@@ -266,23 +271,43 @@ public:
   std::vector<InstanceDecl> &getContent() noexcept { return IdList; }
 };
 
+// Pseudo Python code
+//
+// class ResourceType(Type):
+//   impl: ComponentInstance
+//   dtor: Optional[Callable] = None
+//   dtor_sync: bool = True
+//   dtor_callback: Optional[Callable] = None
 using FuncIdx = uint32_t;
 class ResourceType {
 public:
-  ResourceType() : Async{false} {}
-  ResourceType(bool A) : Async{A} {}
+  ResourceType() : DtorSync{true} {}
+  ResourceType(const Runtime::Instance::ComponentInstance *I)
+      : Impl{I}, DtorSync{true} {}
+  ResourceType(const Runtime::Instance::ComponentInstance *I, bool Sync)
+      : Impl{I}, DtorSync{Sync} {}
 
-  std::optional<FuncIdx> getDestructor() const noexcept { return Destructor; }
-  std::optional<FuncIdx> getCallback() const noexcept { return Callback; }
+  const Runtime::Instance::ComponentInstance *getImpl() const noexcept {
+    return Impl;
+  }
 
-  bool IsAsync() noexcept { return Async; }
-  std::optional<FuncIdx> &getDestructor() noexcept { return Destructor; }
-  std::optional<FuncIdx> &getCallback() noexcept { return Callback; }
+  std::optional<FuncIdx> getDestructor() const noexcept { return Dtor; }
+  std::optional<FuncIdx> getCallback() const noexcept { return DtorCallback; }
+
+  bool IsSync() noexcept { return DtorSync; }
+  std::optional<FuncIdx> &getDestructor() noexcept { return Dtor; }
+  std::optional<FuncIdx> &getCallback() noexcept { return DtorCallback; }
 
 private:
-  bool Async;
-  std::optional<FuncIdx> Destructor;
-  std::optional<FuncIdx> Callback;
+  // real implementation
+  const Runtime::Instance::ComponentInstance *Impl;
+
+  // destructor is sync or not, true is sync, false is not sync
+  bool DtorSync;
+  // destructor
+  std::optional<FuncIdx> Dtor;
+  // destructor callback
+  std::optional<FuncIdx> DtorCallback;
 };
 
 class ImportDecl {

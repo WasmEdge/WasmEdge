@@ -931,13 +931,14 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
     // Read value.
-    uint128_t Value = 0;
-    for (uint32_t I = 0; I < 16; ++I) {
+    uint128_t Value = 0U;
+    for (uint32_t I = 0U; I < 16U; ++I) {
       if (auto Res = FMgr.readByte(); unlikely(!Res)) {
         return logLoadError(Res.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::Instruction);
       } else {
-        Value |= static_cast<uint128_t>(*Res) << (I * 8);
+        Value |= static_cast<uint128_t>(static_cast<uint32_t>(*Res))
+                 << (I * 8U);
       }
     }
     Instr.setNum(Value);

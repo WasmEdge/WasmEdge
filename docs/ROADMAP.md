@@ -28,13 +28,12 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 ## Current Roadmap
 
-Last Updated: Q3 / 2024
+Last Updated: Q4 / 2024
 
 | Theme              | Description | Timeline | Assignee |
 | ---                | ----------- | -------- | -------- |
 | Proposal           | GC proposal for AOT/JIT     | Q4 / 2024 | [@q82419](https://github.com/q82419) |
 | Proposal           | Exception-Handling proposal for AOT/JIT | Q4 / 2024 | [@q82419](https://github.com/q82419) |
-| Proposal           | [Relaxed-SIMD proposal](https://github.com/WasmEdge/WasmEdge/pull/3311) | Q4 / 2024 | [@LFsWang](https://github.com/LFsWang) |
 | Proposal           | Typed continuation proposal | Q2 / 2025 | |
 | Proposal           | Stack-switch proposal       | Q2 / 2025 | |
 | Proposal           | [WASI signature proposal](https://github.com/WasmEdge/WasmEdge/pull/517) | Q2 / 2025 | |
@@ -42,16 +41,34 @@ Last Updated: Q3 / 2024
 | Proposal           | [WASM C API proposal](https://github.com/WasmEdge/WasmEdge/pull/346) | Q4 / 2024 | [@q82419](https://github.com/q82419) |
 | Proposal           | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/pull/2964) | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
 | Feature            | DWARF symbol | Q2 / 2025 | |
-| Proposal           | [Instantiation of Component model proposal](https://github.com/WasmEdge/WasmEdge/pull/3218) | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
 | Languages Bindings | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) | Q2 / 2025 | |
 | Proposal           | Whisper backend for WASI-NN | Q3 / 2024 | [@q82419](https://github.com/q82419) |
-| Proposal           | WASI-NN GGML plugin with latest llama.cpp integration | Q3 / 2024 | [@dm4](https://github.com/dm4) |
-| Language Bindings  | Update Java binding with 0.14 | Q3 / 2024 | |
+| Proposal           | WASI-NN GGML plugin with latest llama.cpp integration | Q4 / 2024 | [@dm4](https://github.com/dm4) |
 | Language Bindings  | Move Go binding back into WasmEdge org | Q4 / 2024 | [@q82419](https://github.com/q82419) |
-| Feature            | Deprecate manylinux2014 and make sure everything goes well on manylinux_2_28 | Q3 / 2024 | [@0yi0](https://github.com/0yi0) |
-| Proposal           | WASI-NN rust (burn) plugin and also added more models support | Q3 / 2024 | [@CaptainVincent](https://github.com/CaptainVincent) |
+| Feature            | [Redirection of stdin, stdout, and stderr in C SDK](https://github.com/WasmEdge/WasmEdge/issues/2936) | Q4 / 2024 | [@hydai](https://github.com/hydai) |
+| Proposal           | Component-Model: start section | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
+| Proposal           | Component-Model: resource type | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
+| Proposal           | WASI: partial preview2 as plugins | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
+| Proposal           | [Move the Rust (burn.rs) plug-ins into an independent repo](https://github.com/WasmEdge/WasmEdge/issues/3767) | Q4 / 2024 | [@CaptainVincent](https://github.com/CaptainVincent) |
+| Proposal           | [WASI-NN GGML plugin with CANN support](https://github.com/WasmEdge/WasmEdge/issues/3768) | Q4 / 2024 | [@dm4](https://github.com/dm4) |
+| Feature            | [Upgrade CI workflows Ubuntu to 24.04](https://github.com/WasmEdge/WasmEdge/pull/3774) | Q4 / 2024 | [@0yi0](https://github.com/0yi0) |
+| Feature            | Update installer to use manylinux_2_28 from 0.15.0 | Q4 / 2024 | |
+| Feature            | Refactor structure of CI workflows to reduce duplicates and improve efficiency | Q4 / 2024 | [@0yi0](https://github.com/0yi0) |
+| Feature            | Support TensorRT in WASI-NN plugin | Q4 / 2024 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Feature            | Support LLVM19 | Q4 / 2024 | [@ibmibmibm](https://github.com/ibmibmibm) |
 
 ## Previous Roadmap
+
+### Q3/2024
+
+| Theme | Description | Timeline | Assignee | Status |
+| --- | --- | --- | --- | --- |
+| Proposal | [Relaxed-SIMD proposal](https://github.com/WasmEdge/WasmEdge/pull/3311) | Q4 / 2024 | [@LFsWang](https://github.com/LFsWang) | Completed |
+| Proposal | [Whisper backend for WASI-NN](https://github.com/WasmEdge/WasmEdge/pull/3484) | Q3 / 2024 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | [WASI-NN rust (burn) plugin and also added more models support](https://github.com/WasmEdge/WasmEdge/pull/3543) | Q3 / 2024 | [@CaptainVincent](https://github.com/CaptainVincent) | Completed |
+| Feature | Deprecate manylinux2014 and make sure everything goes well on manylinux_2_28 | Q3 / 2024 | [@0yi0](https://github.com/0yi0) | Completed |
+| Proposal | [Instantiation of Component model proposal](https://github.com/WasmEdge/WasmEdge/pull/3218) | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) | Completed |
+| Language Binding | [Update Java binding with 0.14](https://github.com/WasmEdge/WasmEdge/pull/3663) | Q3 / 2024 | [@Kuntal271](https://github.com/Kuntal271) | Staled |
 
 ### Q2/2024
 

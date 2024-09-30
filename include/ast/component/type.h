@@ -47,6 +47,9 @@ using ValueType = std::variant<TypeIndex, PrimValType>;
 
 class LabelValType {
 public:
+  LabelValType() {}
+  LabelValType(std::string L, ValueType VT) : Label{L}, ValTy{VT} {}
+
   std::string_view getLabel() const noexcept { return Label; }
   std::string &getLabel() noexcept { return Label; }
   const ValueType getValType() const noexcept { return ValTy; }
@@ -71,6 +74,9 @@ private:
 
 class Record {
 public:
+  Record() {}
+  Record(std::initializer_list<LabelValType> I) : LabelTypes{I} {}
+
   Span<const LabelValType> getLabelTypes() const noexcept { return LabelTypes; }
   std::vector<LabelValType> &getLabelTypes() noexcept { return LabelTypes; }
 

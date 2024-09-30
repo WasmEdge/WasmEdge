@@ -231,7 +231,7 @@ public:
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));
   }
-  const DefType &getType(std::string_view Name) const noexcept {
+  const AST::Component::DefType &getType(std::string_view Name) const noexcept {
     return ExportTypesMap.at(std::string(Name));
   }
   void addType(const AST::FunctionType &Ty) noexcept {

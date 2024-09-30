@@ -296,14 +296,14 @@ Expect<void> Loader::loadType(DefType &Ty) {
     break;
   }
   case 0x3f: {
-    if (auto Res = loadType(Ty.emplace<ResourceType>(false)); !Res) {
+    if (auto Res = loadType(Ty.emplace<ResourceType>(true)); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     break;
   }
   case 0x3e: {
-    if (auto Res = loadType(Ty.emplace<ResourceType>(true)); !Res) {
+    if (auto Res = loadType(Ty.emplace<ResourceType>(false)); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
@@ -401,29 +401,19 @@ Expect<void> Loader::loadType(ResourceType &Ty) {
     return Unexpect(Res);
   }
 
-  if (Ty.IsAsync()) {
-    if (auto Res = FMgr.readU32()) {
-      Ty.getDestructor().emplace(*Res);
-    } else {
-      return Unexpect(Res);
-    }
+  if (auto Res = FMgr.readU32()) {
+    Ty.getDestructor().emplace(*Res);
+  } else {
+    return Unexpect(Res);
+  }
+
+  if (!Ty.IsSync()) {
     if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
           auto RCallback = FMgr.readU32();
           if (!RCallback) {
             return Unexpect(RCallback);
           }
           Ty.getCallback().emplace(*RCallback);
-          return {};
-        });
-        !Res) {
-      return Unexpect(Res);
-    }
-  } else {
-    if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
-          auto RDestructor = FMgr.readU32();
-          if (!RDestructor)
-            return Unexpect(RDestructor);
-          Ty.getDestructor().emplace(*RDestructor);
           return {};
         });
         !Res) {

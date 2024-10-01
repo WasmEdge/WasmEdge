@@ -229,7 +229,7 @@ std::vector<std::unique_ptr<CAPIPluginRegister>> CAPIPluginRegisters;
 
 std::mutex WasmEdge::Plugin::Plugin::Mutex;
 std::vector<Plugin> WasmEdge::Plugin::Plugin::PluginRegistry;
-std::unordered_map<std::string_view, std::size_t>
+std::unordered_map<std::string_view, std::size_t, Hash::Hash>
     WasmEdge::Plugin::Plugin::PluginNameLookup;
 
 void Plugin::loadFromDefaultPaths() noexcept {

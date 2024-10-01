@@ -45,3 +45,9 @@
 #error Unsupported environment!
 
 #endif
+
+#if WASMEDGE_OS_WINDOWS
+#define WASMEDGE_EXPORT __declspec(dllexport)
+#else
+#define WASMEDGE_EXPORT [[gnu::visibility("default")]]
+#endif

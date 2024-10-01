@@ -255,7 +255,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     message(STATUS "Downloading tokenizers")
     FetchContent_Declare(
       tokenizers
-      GIT_REPOSITORY git@github.com:mlc-ai/tokenizers-cpp.git
+      GIT_REPOSITORY https://github.com/mlc-ai/tokenizers-cpp.git
       GIT_TAG 5de6f65
       GIT_SHALLOW FALSE
     )
@@ -289,7 +289,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     )
     target_include_directories(wasmedgePluginWasiNN
       SYSTEM PUBLIC
-      ./mlx
+      ${CMAKE_CURRENT_SOURCE_DIR}/mlx
       ${MLX_INCLUDE_DIRS}
       $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>
     )

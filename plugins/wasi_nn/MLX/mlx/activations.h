@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "base.h"
+
 #include <mlx/array.h>
 
 namespace WasmEdge::Host::WASINN::MLX {

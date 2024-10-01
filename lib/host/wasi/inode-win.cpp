@@ -981,7 +981,7 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
     NRead += NumberOfBytesRead;
     if (unlikely(!OverlappedResult)) {
       if (const auto Error = GetLastError();
-          unlikely(Error != ERROR_HANDLE_EOF_)) {
+          unlikely(Error != ERROR_HANDLE_EOF_ && Error != ERROR_SUCCESS_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
         CancelIo(Handle);
         for (size_t J = I + 1; J < Queries.size(); ++J) {
@@ -1030,7 +1030,7 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
     NWritten += NumberOfBytesWrite;
     if (unlikely(!OverlappedResult)) {
       if (const auto Error = GetLastError();
-          unlikely(Error != ERROR_HANDLE_EOF_)) {
+          unlikely(Error != ERROR_HANDLE_EOF_ && Error != ERROR_SUCCESS_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
         CancelIo(Handle);
         for (size_t J = I + 1; J < Queries.size(); ++J) {
@@ -1082,7 +1082,7 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
     NRead += NumberOfBytesRead;
     if (unlikely(!OverlappedResult)) {
       if (const auto Error = GetLastError();
-          unlikely(Error != ERROR_HANDLE_EOF_)) {
+          unlikely(Error != ERROR_HANDLE_EOF_ && Error != ERROR_SUCCESS_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
         CancelIo(Handle);
         for (size_t J = I + 1; J < Queries.size(); ++J) {
@@ -1222,7 +1222,7 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
     NWritten += NumberOfBytesWrite;
     if (unlikely(!OverlappedResult)) {
       if (const auto Error = GetLastError();
-          unlikely(Error != ERROR_HANDLE_EOF_)) {
+          unlikely(Error != ERROR_HANDLE_EOF_ && Error != ERROR_SUCCESS_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
         CancelIo(Handle);
         for (size_t J = I + 1; J < Queries.size(); ++J) {

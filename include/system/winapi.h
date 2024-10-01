@@ -536,6 +536,7 @@ using OBJECT_NAME_INFORMATION_ = struct _OBJECT_NAME_INFORMATION {
 
 #endif
 
+static inline constexpr const DWORD_ ERROR_SUCCESS_ = 0;
 static inline constexpr const DWORD_ ERROR_INVALID_FUNCTION_ = 1;
 static inline constexpr const DWORD_ ERROR_FILE_NOT_FOUND_ = 2;
 static inline constexpr const DWORD_ ERROR_ACCESS_DENIED_ = 5;

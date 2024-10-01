@@ -1,13 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
+
 #include "activations.h"
 #include "base.h"
 #include "embedding.h"
 #include "linear.h"
 #include "normalization.h"
 #include "positional_encoding.h"
+
 #include <mlx/array.h>
 #include <mlx/fast.h>
 #include <mlx/ops.h>
+
 #include <optional>
 #include <tuple>
 #include <unordered_map>
@@ -24,10 +30,11 @@ public:
   RMSNorm(int Dims, float Eps = 1e-5) : Eps(Eps) {
     registerParameter("weight", mx::ones({Dims}));
   }
+
   mx::array forward(mx::array Input);
 };
-class Attention : public nn::Module {
 
+class Attention : public nn::Module {
   int NHeads;
   int NKVHeads;
   bool NormQKProj;
@@ -74,10 +81,12 @@ public:
                    std::make_shared<nn::RoPE>(nn::RoPE(HeadDim, RopeTraditional,
                                                        RopeTheta, RopeScale)));
   }
+
   std::tuple<mx::array, std::tuple<mx::array, mx::array>>
   forward(mx::array Input, std::optional<mx::array> Mask = {},
           std::optional<std::tuple<mx::array, mx::array>> KVCache = {});
 };
+
 class MLP : public nn::Module {
   bool Gemma;
 
@@ -90,8 +99,10 @@ public:
     registerModule("up_proj", std::make_shared<nn::Linear>(
                                   nn::Linear(Dim, HiddenDim, false)));
   }
+
   mx::array forward(mx::array Input);
 };
+
 class TransformerBlock : public nn::Module {
   bool Gemma;
 
@@ -121,16 +132,18 @@ public:
                      std::make_shared<RMSNorm>(RMSNorm(Dim, NormEps)));
     }
   }
+
   std::tuple<mx::array, std::tuple<mx::array, mx::array>>
   forward(mx::array Input, std::optional<mx::array> Mask = {},
           std::optional<std::tuple<mx::array, mx::array>> KVCachePar = {});
 };
+
 class Transformer : public nn::Module {
   int Dim;
   std::optional<std::vector<int>> HiddenDim;
   bool Gemma;
   bool EmbedAsHead;
-  std::vector<std::shared_ptr<TransformerBlock>> Layers{};
+  std::vector<std::shared_ptr<TransformerBlock>> Layers;
 
 public:
   Transformer(
@@ -197,24 +210,29 @@ public:
                                  nn::Linear(Dim, VocabSize, false)));
     }
   }
+
   std::tuple<mx::array,
              std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
   embed(mx::array Input,
         std::optional<std::vector<std::tuple<mx::array, mx::array>>>
             KVCachePar = {},
         bool Norm = false);
+
   std::tuple<mx::array,
              std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
   forward(mx::array Input,
           std::optional<std::vector<std::tuple<mx::array, mx::array>>>
               KVCachePar = {});
+
   std::tuple<mx::array,
              std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
   generate(mx::array Input, std::optional<float> Temp = 0.0);
+
   std::tuple<mx::array,
              std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
   nextGenerate(mx::array Y, std::optional<float> Temp = 0.0,
                std::optional<std::vector<std::tuple<mx::array, mx::array>>>
                    KVCachePar = {});
 };
+
 } // namespace WasmEdge::Host::WASINN::MLX

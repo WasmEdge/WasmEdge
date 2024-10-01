@@ -1,12 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
+
 #include "base.h"
 #include "embedding.h"
 #include "linear.h"
+
 #include <mlx/array.h>
 #include <mlx/ops.h>
 
-namespace WasmEdge::Host::WASINN::MLX {
+#include <memory>
 
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 
 class QuantizedEmbedding : public Embedding {
@@ -15,6 +21,7 @@ public:
   int Bits;
   int NumEmbeddings;
   int Dims;
+
   QuantizedEmbedding(int NumEmbeddings, int Dims, int GroupSize = 64,
                      int Bits = 4)
       : GroupSize(GroupSize), Bits(Bits), NumEmbeddings(NumEmbeddings),
@@ -27,7 +34,9 @@ public:
     registerParameter("scales", std::move(std::get<1>(Quantized)));
     registerParameter("biases", std::move(std::get<2>(Quantized)));
   }
+
   mx::array forward(mx::array Input) override;
+
   static std::shared_ptr<QuantizedEmbedding>
   fromEmbedding(std::shared_ptr<Embedding> EmbeddingModule, int GroupSize = 64,
                 int Bits = 4);
@@ -37,6 +46,7 @@ class QuantizedLinear : public Linear {
 public:
   int GroupSize;
   int Bits;
+
   QuantizedLinear(int InputDims, int OutputDim, bool Bias = true,
                   int GroupSize = 64, int Bits = 4)
       : GroupSize(GroupSize), Bits(Bits) {
@@ -51,7 +61,9 @@ public:
       registerParameter("bias", mx::zeros({OutputDim}));
     }
   }
+
   mx::array forward(mx::array Input) override;
+
   static std::shared_ptr<QuantizedLinear>
   fromLinear(std::shared_ptr<Linear> LinearModule, int GroupSize = 64,
              int Bits = 4);

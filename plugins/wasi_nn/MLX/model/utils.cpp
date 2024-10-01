@@ -1,7 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "utils.h"
+
 #include <sstream>
 
 namespace WasmEdge::Host::WASINN::MLX {
+
 std::vector<std::string> splitString(const std::string &S, char Delim) {
   std::vector<std::string> Result;
   std::stringstream SS(S);
@@ -11,6 +16,7 @@ std::vector<std::string> splitString(const std::string &S, char Delim) {
   }
   return Result;
 }
+
 std::string joinString(std::vector<std::string> &S, char Delim) {
   std::string Result;
   for (size_t Idx = 0; Idx < S.size(); Idx++) {
@@ -27,11 +33,13 @@ bool endsWith(std::string const &Value, std::string const &Ending) {
     return false;
   return std::equal(Ending.rbegin(), Ending.rend(), Value.rbegin());
 }
+
 bool startsWith(std::string const &Value, std::string const &Starting) {
   if (Starting.size() > Value.size())
     return false;
   return std::equal(Starting.begin(), Starting.end(), Value.begin());
 }
+
 void saveWeights(const std::unordered_map<std::string, mx::array> &Weights,
                  const std::string Path) {
   if (endsWith(Path, ".safetensors")) {
@@ -41,6 +49,7 @@ void saveWeights(const std::unordered_map<std::string, mx::array> &Weights,
     assumingUnreachable();
   }
 }
+
 void saveWeights(const mx::array &Weights, const std::string &Path) {
   if (endsWith(Path, ".npz")) {
     mx::save(Path, Weights);
@@ -49,4 +58,5 @@ void saveWeights(const mx::array &Weights, const std::string &Path) {
     assumingUnreachable();
   }
 }
+
 } // namespace WasmEdge::Host::WASINN::MLX

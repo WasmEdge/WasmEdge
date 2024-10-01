@@ -976,19 +976,21 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
   for (size_t I = 0; I < Queries.size(); ++I) {
     auto &Query = Queries[I];
     DWORD_ NumberOfBytesRead = 0;
-    if (unlikely(
-            !GetOverlappedResult(Handle, &Query, &NumberOfBytesRead, true))) {
+    auto OverlappedResult =
+        GetOverlappedResult(Handle, &Query, &NumberOfBytesRead, true);
+    NRead += NumberOfBytesRead;
+    if (unlikely(!OverlappedResult)) {
       if (const auto Error = GetLastError();
           unlikely(Error != ERROR_HANDLE_EOF_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
         CancelIo(Handle);
         for (size_t J = I + 1; J < Queries.size(); ++J) {
           GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesRead, true);
+          NRead += NumberOfBytesRead;
         }
         break;
       }
     }
-    NRead += NumberOfBytesRead;
   }
 
   return Result;
@@ -1023,19 +1025,21 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
   for (size_t I = 0; I < Queries.size(); ++I) {
     auto &Query = Queries[I];
     DWORD_ NumberOfBytesWrite = 0;
-    if (unlikely(
-            !GetOverlappedResult(Handle, &Query, &NumberOfBytesWrite, true))) {
+    auto OverlappedResult =
+        GetOverlappedResult(Handle, &Query, &NumberOfBytesWrite, true);
+    NWritten += NumberOfBytesWrite;
+    if (unlikely(!OverlappedResult)) {
       if (const auto Error = GetLastError();
           unlikely(Error != ERROR_HANDLE_EOF_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
         CancelIo(Handle);
         for (size_t J = I + 1; J < Queries.size(); ++J) {
           GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesWrite, true);
+          NWritten += NumberOfBytesWrite;
         }
         break;
       }
     }
-    NWritten += NumberOfBytesWrite;
   }
 
   return Result;
@@ -1073,19 +1077,21 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
   for (size_t I = 0; I < Queries.size(); ++I) {
     auto &Query = Queries[I];
     DWORD_ NumberOfBytesRead = 0;
-    if (unlikely(
-            !GetOverlappedResult(Handle, &Query, &NumberOfBytesRead, true))) {
+    auto OverlappedResult =
+        GetOverlappedResult(Handle, &Query, &NumberOfBytesRead, true);
+    NRead += NumberOfBytesRead;
+    if (unlikely(!OverlappedResult)) {
       if (const auto Error = GetLastError();
           unlikely(Error != ERROR_HANDLE_EOF_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
         CancelIo(Handle);
         for (size_t J = I + 1; J < Queries.size(); ++J) {
           GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesRead, true);
+          NRead += NumberOfBytesRead;
         }
         break;
       }
     }
-    NRead += NumberOfBytesRead;
   }
 
   OldOffset.QuadPart += NRead;
@@ -1211,19 +1217,21 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
   for (size_t I = 0; I < Queries.size(); ++I) {
     auto &Query = Queries[I];
     DWORD_ NumberOfBytesWrite = 0;
-    if (unlikely(
-            !GetOverlappedResult(Handle, &Query, &NumberOfBytesWrite, true))) {
+    auto OverlappedResult =
+        GetOverlappedResult(Handle, &Query, &NumberOfBytesWrite, true);
+    NWritten += NumberOfBytesWrite;
+    if (unlikely(!OverlappedResult)) {
       if (const auto Error = GetLastError();
           unlikely(Error != ERROR_HANDLE_EOF_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
         CancelIo(Handle);
         for (size_t J = I + 1; J < Queries.size(); ++J) {
           GetOverlappedResult(Handle, &Queries[J], &NumberOfBytesWrite, true);
+          NWritten += NumberOfBytesWrite;
         }
         break;
       }
     }
-    NWritten += NumberOfBytesWrite;
   }
 
   if (!Append) {

@@ -1,13 +1,18 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
 
 #include "base.h"
 #include "mlx/mlx.h"
-#include <cmath>
+
 #include <mlx/ops.h>
 #include <mlx/random.h>
 
-namespace WasmEdge::Host::WASINN::MLX {
+#include <cmath>
+#include <memory>
 
+namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 
 class Linear : public Module {
@@ -27,9 +32,12 @@ public:
                                                     }));
     }
   }
+
   virtual mx::array forward(mx::array Input);
+
   std::shared_ptr<nn::Module> toQuantized(int GroupSize = 64,
                                           int Bits = 4) override;
 };
+
 } // namespace mlx::core::nn
 } // namespace WasmEdge::Host::WASINN::MLX

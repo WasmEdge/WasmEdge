@@ -1,11 +1,16 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
+
 #include "base.h"
 #include "linear.h"
+
 #include <optional>
 
 namespace WasmEdge::Host::WASINN::MLX {
-
 namespace mlx::core::nn {
+
 class MultiHeadAttention : public Module {
   int NumHeads;
 
@@ -46,10 +51,13 @@ public:
     registerModule("out_proj", std::make_shared<Linear>(
                                    Linear(*ValueDims, *ValueOutputDims, Bias)));
   };
+
   mx::array forward(mx::array Queries, mx::array Keys, mx::array Values,
                     mx::array Mask);
+
   static mx::array createAdditiveCausalMask(int N,
                                             mx::Dtype DType = mx::float32);
 };
+
 } // namespace mlx::core::nn
 } // namespace WasmEdge::Host::WASINN::MLX

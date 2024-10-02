@@ -1,12 +1,17 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "quantized.h"
-#include <iostream>
-#include <memory>
+
 #include <mlx/array.h>
 #include <mlx/ops.h>
+
+#include <iostream>
 #include <utility>
 
 namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
+
 mx::array QuantizedEmbedding::forward(mx::array Input) {
   auto S = Input.shape();
   auto X = mx::flatten(Input);
@@ -27,6 +32,7 @@ mx::array QuantizedLinear::forward(mx::array Input) {
   }
   return Out;
 }
+
 std::shared_ptr<QuantizedEmbedding>
 QuantizedEmbedding::fromEmbedding(std::shared_ptr<Embedding> EmbeddingModule,
                                   int GroupSize, int Bits) {
@@ -42,6 +48,7 @@ QuantizedEmbedding::fromEmbedding(std::shared_ptr<Embedding> EmbeddingModule,
       "biases", std::move(std::get<2>(Quantized)));
   return QuantizedModel;
 }
+
 std::shared_ptr<QuantizedLinear>
 QuantizedLinear::fromLinear(std::shared_ptr<Linear> LinearModule, int GroupSize,
                             int Bits) {
@@ -63,5 +70,6 @@ QuantizedLinear::fromLinear(std::shared_ptr<Linear> LinearModule, int GroupSize,
   }
   return QuantizedModel;
 }
+
 } // namespace mlx::core::nn
 } // namespace WasmEdge::Host::WASINN::MLX

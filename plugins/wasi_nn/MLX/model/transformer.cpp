@@ -1,14 +1,19 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "../mlx/transformer.h"
 #include "base.h"
 #include "embedding.h"
 #include "linear.h"
 #include "transformer.h"
-#include <cstddef>
-#include <cstdio>
-#include <memory>
+
 #include <mlx/array.h>
 #include <mlx/ops.h>
 #include <mlx/random.h>
+
+#include <cstddef>
+#include <cstdio>
+#include <memory>
 #include <tuple>
 #include <vector>
 
@@ -17,6 +22,7 @@ namespace WasmEdge::Host::WASINN::MLX {
 mx::array RMSNorm::forward(mx::array Input) {
   return mx::fast::rms_norm(Input, 1.0 + Parameters.at("weight"), Eps);
 }
+
 std::tuple<mx::array, std::tuple<mx::array, mx::array>>
 Attention::forward(mx::array Input, std::optional<mx::array> Mask,
                    std::optional<std::tuple<mx::array, mx::array>> KVCache) {
@@ -60,6 +66,7 @@ Attention::forward(mx::array Input, std::optional<mx::array> Mask,
               ->forward(Output),
           {Keys, Values}};
 }
+
 mx::array MLP::forward(mx::array Input) {
   if (Gemma) {
     return std::dynamic_pointer_cast<nn::Linear>(Submodules["down_proj"])
@@ -76,6 +83,7 @@ mx::array MLP::forward(mx::array Input) {
                 std::dynamic_pointer_cast<nn::Linear>(Submodules["up_proj"])
                     ->forward(Input));
 }
+
 std::tuple<mx::array, std::tuple<mx::array, mx::array>>
 TransformerBlock::forward(
     mx::array Input, std::optional<mx::array> Mask,
@@ -106,6 +114,7 @@ TransformerBlock::forward(
   }
   return {H + R, KVCache};
 }
+
 std::tuple<mx::array,
            std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
 Transformer::embed(
@@ -147,6 +156,7 @@ Transformer::embed(
   }
   return {H, KVCache};
 }
+
 std::tuple<mx::array,
            std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
 Transformer::forward(
@@ -162,6 +172,7 @@ Transformer::forward(
   }
   return {Out, KVCache};
 }
+
 std::tuple<mx::array,
            std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
 Transformer::generate(mx::array Input, std::optional<float> Temp) {
@@ -183,6 +194,7 @@ Transformer::generate(mx::array Input, std::optional<float> Temp) {
   }
   return {Y, KVCache};
 }
+
 std::tuple<mx::array,
            std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
 Transformer::nextGenerate(
@@ -201,4 +213,5 @@ Transformer::nextGenerate(
   }
   return {NextY, KVCache};
 }
+
 } // namespace WasmEdge::Host::WASINN::MLX

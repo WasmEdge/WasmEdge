@@ -1,10 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "linear.h"
-#include "base.h"
 #include "quantized.h"
+
 #include <memory>
 
 namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
+
 mx::array Linear::forward(mx::array Input) {
   if (EnableBias) {
     return mx::addmm(Parameters.at("bias"), Input,

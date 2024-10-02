@@ -196,6 +196,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       simdjson::simdjson
     )
   elseif(BACKEND STREQUAL "mlx")
+    wasmedge_setup_simdjson()
     target_sources(wasmedgePluginWasiNN 
       PRIVATE 
       MLX/prompt/prompt.cpp
@@ -212,7 +213,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       MLX/mlx/transformer.cpp
       MLX/mlx/quantized.cpp
     )
-    wasmedge_setup_simdjson()
+    
     find_package(MLX CONFIG)
     if(MLX_FOUND)
       message(STATUS "Found MLX: ${MLX_INCLUDE_DIRS}")
@@ -236,8 +237,8 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       set_target_properties(mlx PROPERTIES
         INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:fmt::fmt-header-only>"
       )
-      target_link_libraries(
-        mlx PUBLIC
+      target_link_libraries(mlx
+        PUBLIC
         ${ACCELERATE_LIBRARY}
         ${METAL_LIB}
         ${FOUNDATION_LIB}
@@ -250,23 +251,16 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-format
       )
     endif()
-    target_include_directories(wasmedgePluginWasiNN PUBLIC MLX/model MLX/prompt MLX/mlx)
 
     message(STATUS "Downloading tokenizers")
     FetchContent_Declare(
       tokenizers
-      GIT_REPOSITORY git@github.com:mlc-ai/tokenizers-cpp.git
+      GIT_REPOSITORY https://github.com/mlc-ai/tokenizers-cpp.git
       GIT_TAG 5de6f65
       GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(tokenizers)
     set_property(TARGET tokenizer_cpp_objs PROPERTY POSITION_INDEPENDENT_CODE ON)
-    target_include_directories(wasmedgePluginWasiNN PRIVATE ${tokenizers_SOURCE_DIR}/include)
-    target_link_libraries(wasmedgePluginWasiNN PRIVATE tokenizers_cpp)
-    
-    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC ./mlx)
-    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC ${MLX_INCLUDE_DIRS})
-    target_link_libraries(wasmedgePluginWasiNN PUBLIC ${MLX_LIBRARIES})
 
     message(STATUS "Downloading gguflib")
     FetchContent_Declare(
@@ -276,14 +270,37 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(gguflib)
-    target_include_directories(wasmedgePluginWasiNN SYSTEM PUBLIC $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>)
-    add_library(gguflib STATIC ${gguflib_SOURCE_DIR}/fp16.c
-                              ${gguflib_SOURCE_DIR}/gguflib.c)
+    add_library(gguflib
+      STATIC
+      ${gguflib_SOURCE_DIR}/fp16.c
+      ${gguflib_SOURCE_DIR}/gguflib.c
+    )
     set_target_properties(gguflib PROPERTIES LINKER_LANGUAGE CXX)
-    target_link_libraries(wasmedgePluginWasiNN PUBLIC gguflib)
 
-
-    target_link_libraries(wasmedgePluginWasiNN PUBLIC
+    target_include_directories(wasmedgePluginWasiNN
+      PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/model
+      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/prompt
+      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/mlx
+    )
+    target_include_directories(wasmedgePluginWasiNN
+      PRIVATE
+      ${tokenizers_SOURCE_DIR}/include
+    )
+    target_include_directories(wasmedgePluginWasiNN
+      SYSTEM PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/mlx
+      ${MLX_INCLUDE_DIRS}
+      $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>
+    )
+    target_link_libraries(wasmedgePluginWasiNN
+      PRIVATE
+      tokenizers_cpp
+    )
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      ${MLX_LIBRARIES}
+      gguflib
       mlx
       simdjson::simdjson
     )

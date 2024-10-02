@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "registry.h"
 #include "transformer.h"
 
@@ -25,4 +28,5 @@ std::shared_ptr<Transformer> tinyLlama11BChatV10(int VocabSize, float NormEps,
       2048, std::vector<int>{5632}, VocabSize, 22, std::vector<int>{32},
       std::vector<int>{4}, NormEps, {}, RopeTraditional, RopeTheta));
 }
+
 } // namespace WasmEdge::Host::WASINN::MLX

@@ -1,22 +1,25 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "base.h"
 #include "../model/utils.h"
-#include <memory>
+
 #include <mlx/array.h>
-#include <unordered_map>
 
 namespace WasmEdge::Host::WASINN::MLX {
-
 namespace mlx::core::nn {
 
 mx::array &Module::registerParameter(std::string Name, mx::array &&W) {
   Parameters.insert({Name, W});
   return Parameters.at(Name);
 }
+
 void Module::update(std::unordered_map<std::string, mx::array> Parameters) {
   for (auto &[K, V] : Parameters) {
     apply(K, V);
   }
 }
+
 std::shared_ptr<nn::Module> Module::toQuantized(int GroupSize, int Bits) {
   for (auto &[K, V] : Submodules) {
     const auto OldModule = V;
@@ -24,6 +27,7 @@ std::shared_ptr<nn::Module> Module::toQuantized(int GroupSize, int Bits) {
   }
   return shared_from_this();
 }
+
 void Module::apply(std::string Key, mx::array Value) {
   std::vector<std::string> SplitKey = splitString(Key, '.');
   if (SplitKey.size() == 1) {
@@ -47,6 +51,7 @@ void Module::apply(std::string Key, mx::array Value) {
     Submodules.at(LayerName)->apply(joinString(SplitKey, '.'), Value);
   }
 }
+
 std::unordered_map<std::string, mx::array>
 Module::getWeigts(const std::string &Prefix) {
   std::unordered_map<std::string, mx::array> Weights;
@@ -59,5 +64,6 @@ Module::getWeigts(const std::string &Prefix) {
   }
   return Weights;
 }
+
 } // namespace mlx::core::nn
 } // namespace WasmEdge::Host::WASINN::MLX

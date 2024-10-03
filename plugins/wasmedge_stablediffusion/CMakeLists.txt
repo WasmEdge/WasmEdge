@@ -19,6 +19,14 @@ else()
   set(SD_METAL OFF CACHE BOOL "Stable diffusion plugin: Disable SD_METAL")
 endif()
 
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION_OPENMP)
+  message(STATUS "Stable diffusion plugin: Enable SD_OPENMP")
+  set(GGML_OPENMP ON)
+else()
+  message(STATUS "Stable diffusion plugin: Disable SD_OPENMP")
+  set(GGML_OPENMP OFF)
+endif()
+
 # setup stable diffusion
 message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(

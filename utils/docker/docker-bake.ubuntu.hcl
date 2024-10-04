@@ -1,8 +1,7 @@
 group "default" {
   targets = [
     "cuda",
-    "clang",
-    "gcc"
+    "final"
   ]
 }
 
@@ -86,7 +85,6 @@ target "plugins" {
     ubuntu = ["20.04", "22.04"]
   }
 
-  inherits   = ["base-${no-dot(ubuntu)}"]
   name       = "plugins-${no-dot(ubuntu)}"
   contexts   = {
     "local/tmp:base-${ubuntu}" = "target:base-${no-dot(ubuntu)}"
@@ -98,37 +96,24 @@ target "plugins" {
   }
 }
 
-target "clang" {
+target "final" {
   matrix     = {
     parent = ["base", "plugins"]
     ubuntu = ["20.04", "22.04"]
+    toolchain = ["clang", "gcc"]
   }
 
-  inherits   = ["${parent}-${no-dot(ubuntu)}"]
-  name       = "${parent}-${no-dot(ubuntu)}-clang"
-  contexts   = {
-    "local/tmp:${parent}-${ubuntu}" = "target:${parent}-${no-dot(ubuntu)}"
-  }
-  tags       = tags(parent, ubuntu, "clang")
-}
-
-target "gcc" {
-  dockerfile = "Dockerfile.ubuntu-gcc"
+  dockerfile = "Dockerfile.ubuntu-env"
   context    = "./utils/docker"
 
-  matrix     = {
-    parent = ["base", "plugins"]
-    ubuntu = ["20.04", "22.04"]
-  }
-
-  inherits   = ["${parent}-${no-dot(ubuntu)}"]
-  name       = "${parent}-${no-dot(ubuntu)}-gcc"
+  name       = "${parent}-${no-dot(ubuntu)}-${toolchain}"
   contexts   = {
     "local/tmp:${parent}-${ubuntu}" = "target:${parent}-${no-dot(ubuntu)}"
   }
-  tags       = tags(parent, ubuntu, "gcc")
+  tags       = tags(parent, ubuntu, toolchain)
   args       = {
     BASE_IMAGE = "local/tmp:${parent}-${ubuntu}"
+    TOOLCHAIN  = toolchain
   }
 }
 

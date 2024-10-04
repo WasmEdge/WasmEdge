@@ -518,8 +518,6 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetLevel(WasmEdge_LogLevel Level) {
   case WasmEdge_LogLevel_Critical:
     WasmEdge::Log::setCriticalLoggingLevel();
     break;
-  default:
-    assumingUnreachable();
   }
 }
 

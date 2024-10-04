@@ -2,7 +2,17 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/spdlog.h"
+
+#if defined(__clang_major__) && __clang_major__ >= 10
+#pragma clang diagnostic push
+// Suppression can be removed after spdlog with fix is released
+// https://github.com/gabime/spdlog/pull/3198
+#pragma clang diagnostic ignored "-Wextra-semi"
+#endif
 #include "spdlog/sinks/callback_sink.h"
+#if defined(__clang_major__) && __clang_major__ >= 10
+#pragma clang diagnostic pop
+#endif
 
 namespace WasmEdge {
 namespace Log {

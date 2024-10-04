@@ -177,6 +177,21 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     set(GGML_OPENMP OFF)
     set(GGML_ACCELERATE OFF)
     set(GGML_BLAS OFF)
+    if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL)
+      message(STATUS "WASI-NN Whisper backend: Enable GGML_METAL")
+      set(GGML_METAL ON)
+      set(GGML_METAL_EMBED_LIBRARY ON)
+    else()
+      message(STATUS "WASI-NN Whisper backend: Disable GGML_METAL")
+      set(GGML_METAL OFF)
+    endif()
+    if(WASMEDGE_PLUGIN_WASI_NN_WHISPER_CUDA)
+      message(STATUS "WASI-NN Whisper backend: Enable GGML_CUDA")
+      set(GGML_CUDA ON)
+    else()
+      message(STATUS "WASI-NN Whisper backend: Disable GGML_CUDA")
+      set(GGML_CUDA OFF)
+    endif()
     include(FetchContent)
     FetchContent_Declare(
       whisper
@@ -195,6 +210,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       whisper
       simdjson::simdjson
     )
+    if(APPLE AND WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL)
+      add_custom_command(
+        TARGET wasmedgePluginWasiNN
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy ${whisper_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
+        COMMAND ${CMAKE_COMMAND} -E copy ${whisper_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
+      )
+    endif()
   elseif(BACKEND STREQUAL "mlx")
     wasmedge_setup_simdjson()
     target_sources(wasmedgePluginWasiNN 

@@ -93,6 +93,8 @@ option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE "Enable LLAMA_NATIVE(AVX/AVX2/F
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS "Enable LLAMA_BLAS in the WASI-NN GGML backend." OFF)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS "Enable LLAMA_CUBLAS in the WASI-NN GGML backend." OFF)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-NN GGML backend. Available on MacOS arm64 only." ON)
+option(WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL "Enable GGML_METAL in the WASI-NN WHISPER backend. Available on MacOS arm64 only." ON)
+option(WASMEDGE_PLUGIN_WASI_NN_WHISPER_CUDA "Enable GGML_CUDA in the WASI-NN WHISPER backend." OFF)
 set(WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL "" CACHE STRING "Enable WasmEdge WASI-NN Burn.rs backend with model.")
 #   WASI plug-in: WASI-Poll proposal.
 option(WASMEDGE_PLUGIN_WASI_POLL "Enable and build WasmEdge wasi-poll plugin." OFF)

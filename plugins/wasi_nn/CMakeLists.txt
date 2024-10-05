@@ -210,14 +210,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       whisper
       simdjson::simdjson
     )
-    if(APPLE AND WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL)
-      add_custom_command(
-        TARGET wasmedgePluginWasiNN
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${whisper_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
-        COMMAND ${CMAKE_COMMAND} -E copy ${whisper_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
-      )
-    endif()
   elseif(BACKEND STREQUAL "mlx")
     wasmedge_setup_simdjson()
     target_sources(wasmedgePluginWasiNN 

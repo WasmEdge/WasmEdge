@@ -36,4 +36,8 @@ else()
   )
 endif()
 
-install(TARGETS wasmedgePluginWasiPoll DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(
+  TARGETS wasmedgePluginWasiPoll
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
+)

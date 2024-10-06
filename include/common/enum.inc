@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/common/enum.inc - Enumerations ---------------------------===//
 //
@@ -648,8 +648,10 @@ OFD(F64x2__convert_low_i32x4_u, "f64x2.convert_low_i32x4_u", 0xFD, 255)
 OFD(I8x16__relaxed_swizzle, "i8x16.relaxed_swizzle", 0xFD, 256)
 OFD(I32x4__relaxed_trunc_f32x4_s, "i32x4.relaxed_trunc_f32x4_s", 0xFD, 257)
 OFD(I32x4__relaxed_trunc_f32x4_u, "i32x4.relaxed_trunc_f32x4_u", 0xFD, 258)
-OFD(I32x4__relaxed_trunc_f64x2_s_zero, "i32x4.relaxed_trunc_f64x2_s_zero", 0xFD, 259)
-OFD(I32x4__relaxed_trunc_f64x2_u_zero, "i32x4.relaxed_trunc_f64x2_u_zero", 0xFD, 260)
+OFD(I32x4__relaxed_trunc_f64x2_s_zero, "i32x4.relaxed_trunc_f64x2_s_zero", 0xFD,
+    259)
+OFD(I32x4__relaxed_trunc_f64x2_u_zero, "i32x4.relaxed_trunc_f64x2_u_zero", 0xFD,
+    260)
 OFD(F32x4__relaxed_madd, "f32x4.relaxed_madd", 0xFD, 261)
 OFD(F32x4__relaxed_nmadd, "f32x4.relaxed_nmadd", 0xFD, 262)
 OFD(F64x2__relaxed_madd, "f32x4.relaxed_madd", 0xFD, 263)
@@ -663,8 +665,10 @@ OFD(F32x4__relaxed_max, "f32x4.relaxed_max", 0xFD, 270)
 OFD(F64x2__relaxed_min, "f64x2.relaxed_min", 0xFD, 271)
 OFD(F64x2__relaxed_max, "f64x2.relaxed_max", 0xFD, 272)
 OFD(I16x8__relaxed_q15mulr_s, "i16x8.relaxed_q15mulr_s", 0xFD, 273)
-OFD(I16x8__relaxed_dot_i8x16_i7x16_s,"i16x8.relaxed_dot_i8x16_i7x16_s", 0xFD, 274) 
-OFD(I32x4__relaxed_dot_i8x16_i7x16_add_s, "i32x4.relaxed_dot_i8x16_i7x16_add_s", 0xFD, 275)
+OFD(I16x8__relaxed_dot_i8x16_i7x16_s, "i16x8.relaxed_dot_i8x16_i7x16_s", 0xFD,
+    274)
+OFD(I32x4__relaxed_dot_i8x16_i7x16_add_s, "i32x4.relaxed_dot_i8x16_i7x16_add_s",
+    0xFD, 275)
 // 0xFD 276 ~ 303: Reserved
 
 // 0xFE prefix - Atomic instructions
@@ -881,6 +885,8 @@ E(SharedMemoryNoMax, 0x011A, "shared memory must have maximum")
 E(IntrinsicsTableNotFound, 0x011B, "intrinsics table not found")
 // Malformed table (Ref-types proposal)
 E(MalformedTable, 0x011C, "malformed table")
+// Alignment must < 64 without and < 128 with multi-memory proposal.
+E(InvalidStoreAlignment, 0x011D, "invalid store alignment")
 // @}
 
 // Validation phase

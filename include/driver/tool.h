@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/driver/tool.h - Tool entrypoint --------------------------===//
 //
@@ -166,9 +166,7 @@ struct DriverToolOptions {
         .add_option("memory-page-limit"sv, MemLim)
         .add_option("forbidden-plugin"sv, ForbiddenPlugins);
 
-    for (const auto &Path : Plugin::Plugin::getDefaultPluginPaths()) {
-      Plugin::Plugin::load(Path);
-    }
+    Plugin::Plugin::loadFromDefaultPaths();
     Plugin::Plugin::addPluginOptions(Parser);
   }
 };

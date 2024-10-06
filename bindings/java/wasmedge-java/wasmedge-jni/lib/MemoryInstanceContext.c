@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_MemoryInstanceContext.h"
 #include "MemoryTypeContext.h"
@@ -81,8 +81,8 @@ JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_growPage(
   handleWasmEdgeResult(env, &result);
 }
 
-JNIEXPORT void JNICALL Java_org_wasmedge_MemoryInstanceContext_close(
-    JNIEnv *env, jobject thisObject) {
+JNIEXPORT void JNICALL
+Java_org_wasmedge_MemoryInstanceContext_close(JNIEnv *env, jobject thisObject) {
   WasmEdge_MemoryInstanceDelete(getMemoryInstanceContext(env, thisObject));
   setPointer(env, thisObject, 0);
 }
@@ -96,6 +96,7 @@ jobject createJMemoryInstanceContext(
   }
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_MEMORYINSTANCECONTEXT);
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
   return (*env)->NewObject(env, clazz, constructorId, (long)memInstance);
 }

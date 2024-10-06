@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/configure.h"
 #include "runtime/instance/memory.h"
@@ -15,7 +15,8 @@ TEST(MemLimitTest, Limit__Pages) {
 
   MemInst Inst1(WasmEdge::AST::MemoryType(257),
                 Conf.getRuntimeConfigure().getMaxMemoryPage());
-  ASSERT_TRUE(Inst1.getDataPtr() == nullptr);
+  ASSERT_FALSE(Inst1.getDataPtr() == nullptr);
+  EXPECT_EQ(Inst1.getPageSize(), 256U);
 
   MemInst Inst2(WasmEdge::AST::MemoryType(257));
   ASSERT_FALSE(Inst2.getDataPtr() == nullptr);

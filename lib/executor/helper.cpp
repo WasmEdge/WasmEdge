@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "executor/executor.h"
 
@@ -378,25 +378,25 @@ void Executor::cleanNumericVal(ValVariant &Val,
     switch (Type.getCode()) {
     case TypeCode::I32: {
       uint32_t V = Val.get<uint32_t>();
-      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0U));
       Val.emplace<uint32_t>(V);
       break;
     }
     case TypeCode::F32: {
       float V = Val.get<float>();
-      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0U));
       Val.emplace<float>(V);
       break;
     }
     case TypeCode::I64: {
       uint64_t V = Val.get<uint64_t>();
-      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0U));
       Val.emplace<uint64_t>(V);
       break;
     }
     case TypeCode::F64: {
       double V = Val.get<double>();
-      Val.emplace<uint128_t>(static_cast<uint128_t>(0));
+      Val.emplace<uint128_t>(static_cast<uint128_t>(0U));
       Val.emplace<double>(V);
       break;
     }

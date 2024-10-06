@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "plugin/plugin.h"
 #include "common/errcode.h"
 #include "common/version.h"
 #include "wasmedge/wasmedge.h"
+
+// BUILTIN-PLUGIN: Headers for built-in plug-ins.
+#include "plugin/wasi_logging/module.h"
+
 #include <type_traits>
 #include <variant>
 
@@ -223,9 +227,17 @@ std::vector<std::unique_ptr<CAPIPluginRegister>> CAPIPluginRegisters;
 
 } // namespace
 
+std::mutex WasmEdge::Plugin::Plugin::Mutex;
 std::vector<Plugin> WasmEdge::Plugin::Plugin::PluginRegistry;
-std::unordered_map<std::string_view, std::size_t>
+std::unordered_map<std::string_view, std::size_t, Hash::Hash>
     WasmEdge::Plugin::Plugin::PluginNameLookup;
+
+void Plugin::loadFromDefaultPaths() noexcept {
+  registerBuiltInPlugins();
+  for (const auto &Path : Plugin::Plugin::getDefaultPluginPaths()) {
+    Plugin::Plugin::load(Path);
+  }
+}
 
 std::vector<std::filesystem::path> Plugin::getDefaultPluginPaths() noexcept {
   using namespace std::literals::string_view_literals;
@@ -327,7 +339,6 @@ WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
   auto Status = std::filesystem::status(Path, Error);
   if (likely(!Error)) {
     if (std::filesystem::is_directory(Status)) {
-
       bool Result = false;
       for (const auto &Entry : std::filesystem::recursive_directory_iterator(
                Path, std::filesystem::directory_options::skip_permission_denied,
@@ -347,7 +358,44 @@ WASMEDGE_EXPORT bool Plugin::load(const std::filesystem::path &Path) noexcept {
   return false;
 }
 
+bool Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
+  if (Desc->APIVersion != CurrentAPIVersion) {
+    spdlog::debug(
+        "Plugin: API version {} of plugin {} is not match to current {}."sv,
+        Desc->APIVersion, Desc->Name, CurrentAPIVersion);
+    return false;
+  }
+  if (PluginNameLookup.find(Desc->Name) != PluginNameLookup.end()) {
+    spdlog::debug("Plugin: {} has already loaded."sv, Desc->Name);
+    return false;
+  }
+
+  const auto Index = PluginRegistry.size();
+  PluginRegistry.emplace_back(Desc);
+  PluginNameLookup.emplace(Desc->Name, Index);
+
+  return true;
+}
+
+void Plugin::addPluginOptions(PO::ArgumentParser &Parser) noexcept {
+  for (const auto &Plugin : PluginRegistry) {
+    if (Plugin.Desc->AddOptions) {
+      Plugin.Desc->AddOptions(Plugin.Desc, Parser);
+    }
+  }
+}
+
+WASMEDGE_EXPORT const Plugin *Plugin::find(std::string_view Name) noexcept {
+  if (auto Iter = PluginNameLookup.find(Name); Iter != PluginNameLookup.end()) {
+    return std::addressof(PluginRegistry[Iter->second]);
+  }
+  return nullptr;
+}
+
+Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistry; }
+
 bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
+  std::unique_lock Lock(Mutex);
   bool Result = false;
   auto Lib = std::make_shared<Loader::SharedLibrary>();
   if (auto Res = Lib->load(Path); unlikely(!Res)) {
@@ -386,41 +434,10 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
   return true;
 }
 
-void Plugin::addPluginOptions(PO::ArgumentParser &Parser) noexcept {
-  for (const auto &Plugin : PluginRegistry) {
-    if (Plugin.Desc->AddOptions) {
-      Plugin.Desc->AddOptions(Plugin.Desc, Parser);
-    }
-  }
-}
-
-WASMEDGE_EXPORT const Plugin *Plugin::find(std::string_view Name) noexcept {
-  if (auto Iter = PluginNameLookup.find(Name); Iter != PluginNameLookup.end()) {
-    return std::addressof(PluginRegistry[Iter->second]);
-  }
-  return nullptr;
-}
-
-Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistry; }
-
-WASMEDGE_EXPORT bool
-Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
-  if (Desc->APIVersion != CurrentAPIVersion) {
-    spdlog::debug(
-        "Plugin: API version {} of plugin {} is not match to current {}."sv,
-        Desc->APIVersion, Desc->Name, CurrentAPIVersion);
-    return false;
-  }
-  if (PluginNameLookup.find(Desc->Name) != PluginNameLookup.end()) {
-    spdlog::debug("Plugin: {} has already loaded."sv, Desc->Name);
-    return false;
-  }
-
-  const auto Index = PluginRegistry.size();
-  PluginRegistry.emplace_back(Desc);
-  PluginNameLookup.emplace(Desc->Name, Index);
-
-  return true;
+void Plugin::registerBuiltInPlugins() noexcept {
+  std::unique_lock Lock(Mutex);
+  // BUILTIN-PLUGIN: Register wasi-logging here. May be refactored in 0.15.0.
+  registerPlugin(&Host::WasiLoggingModule::PluginDescriptor);
 }
 
 Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {

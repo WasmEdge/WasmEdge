@@ -1,57 +1,56 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include <string.h>
 #include "common.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
+#include <string.h>
 
-__int128_t atoint128_t(const char *s)
-{
-    const char *p = s;
-    __int128_t val = 0;
+__int128_t atoint128_t(const char *s) {
+  const char *p = s;
+  __int128_t val = 0;
 
-    if (*p == '-' || *p == '+') {
-        p++;
-    }
-    while (*p >= '0' && *p <= '9') {
-        val = (10 * val) + (*p - '0');
-        p++;
-    }
-    if (*s == '-') val = val * -1;
-    return val;
+  if (*p == '-' || *p == '+') {
+    p++;
+  }
+  while (*p >= '0' && *p <= '9') {
+    val = (10 * val) + (*p - '0');
+    p++;
+  }
+  if (*s == '-')
+    val = val * -1;
+  return val;
 }
 
-char* u128toa(uint128_t n) {
-    static char buf[40];
-    unsigned int i, j, m = 39;
-    memset(buf, 0, 40);
-    for (i = 128; i-- > 0;) {
-        int carry = !!(n & ((uint128_t)1 << i));
-        for (j = 39; j-- > m + 1 || carry;) {
-            int d = 2 * buf[j] + carry;
-            carry = d > 9;
-            buf[j] = carry ? d - 10 : d;
-        }
-        m = j;
+char *u128toa(uint128_t n) {
+  static char buf[40];
+  unsigned int i, j, m = 39;
+  memset(buf, 0, 40);
+  for (i = 128; i-- > 0;) {
+    int carry = !!(n & ((uint128_t)1 << i));
+    for (j = 39; j-- > m + 1 || carry;) {
+      int d = 2 * buf[j] + carry;
+      carry = d > 9;
+      buf[j] = carry ? d - 10 : d;
     }
-    for (i = 0; i < 38; i++) {
-        if (buf[i]) {
-            break;
-        }
+    m = j;
+  }
+  for (i = 0; i < 38; i++) {
+    if (buf[i]) {
+      break;
     }
-    for (j = i; j < 39; j++) {
-        buf[j] += '0';
-    }
-    return buf + i;
-
+  }
+  for (j = i; j < 39; j++) {
+    buf[j] += '0';
+  }
+  return buf + i;
 }
 
 WasmEdge_Value JavaValueToWasmEdgeValue(JNIEnv *env, jobject jVal) {
   jclass valueClass = (*env)->FindClass(env, ORG_WASMEDGE_VALUE);
 
-  jmethodID getType = (*env)->GetMethodID(env, valueClass, GET_TYPE,
-                                          VOID_VALUETYPE);
+  jmethodID getType =
+      (*env)->GetMethodID(env, valueClass, GET_TYPE, VOID_VALUETYPE);
 
   jobject valType = (*env)->CallObjectMethod(env, jVal, getType);
 
@@ -111,11 +110,11 @@ jobject WasmEdgeValueToJavaValue(JNIEnv *env, WasmEdge_Value value) {
   }
   jclass valClass = (*env)->FindClass(env, valClassName);
 
-  jmethodID constructor = (*env)->GetMethodID(env, valClass, DEFAULT_CONSTRUCTOR, VOID_VOID);
+  jmethodID constructor =
+      (*env)->GetMethodID(env, valClass, DEFAULT_CONSTRUCTOR, VOID_VOID);
 
   jobject jVal = (*env)->NewObject(env, valClass, constructor);
 
   setJavaValueObject(env, value, jVal);
   return jVal;
 }
-

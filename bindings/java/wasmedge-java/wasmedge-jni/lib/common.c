@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common.h"
+#include "ValueType.h"
 #include "jni.h"
 #include "wasmedge/wasmedge.h"
-#include "ValueType.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -67,8 +67,7 @@ void getClassName(JNIEnv *env, jobject obj, char *buff) {
   jclass cls = (*env)->GetObjectClass(env, obj);
 
   // First get the class object
-  jmethodID mid =
-      (*env)->GetMethodID(env, cls, GET_CLASS, VOID_CLASS);
+  jmethodID mid = (*env)->GetMethodID(env, cls, GET_CLASS, VOID_CLASS);
   jobject clsObj = (*env)->CallObjectMethod(env, obj, mid);
   checkAndHandleException(env, ERR_GET_CLASS_NAME);
 
@@ -116,8 +115,7 @@ void setPointer(JNIEnv *env, jobject obj, long val) {
 void handleWasmEdgeResult(JNIEnv *env, WasmEdge_Result *result) {
   if (!WasmEdge_ResultOK(*result)) {
     char exceptionBuffer[1024];
-    sprintf(exceptionBuffer, ERR_TEMPLATE,
-            WasmEdge_ResultGetMessage(*result));
+    sprintf(exceptionBuffer, ERR_TEMPLATE, WasmEdge_ResultGetMessage(*result));
 
     (*env)->ThrowNew(env, (*env)->FindClass(env, JAVA_LANG_EXCEPTION),
                      exceptionBuffer);
@@ -158,8 +156,7 @@ double getDoubleVal(JNIEnv *env, jobject val) {
 char *getStringVal(JNIEnv *env, jobject val) {
   jclass clazz = (*env)->GetObjectClass(env, val);
 
-  jmethodID methodId =
-      findJavaMethod(env, clazz, GET_VALUE, VOID_STRING);
+  jmethodID methodId = findJavaMethod(env, clazz, GET_VALUE, VOID_STRING);
 
   jstring value = (jstring)(*env)->CallObjectMethod(env, val, methodId);
 
@@ -194,8 +191,7 @@ bool checkAndHandleException(JNIEnv *env, const char *msg) {
 
     jclass eclass = (*env)->GetObjectClass(env, e);
 
-    jmethodID mid =
-        (*env)->GetMethodID(env, eclass, TO_STRING, VOID_STRING);
+    jmethodID mid = (*env)->GetMethodID(env, eclass, TO_STRING, VOID_STRING);
     jstring jErrorMsg = (*env)->CallObjectMethod(env, e, mid);
     const char *cMsg = (*env)->GetStringUTFChars(env, jErrorMsg, NULL);
 
@@ -211,7 +207,7 @@ bool checkAndHandleException(JNIEnv *env, const char *msg) {
 }
 
 void setJavaValueObject(JNIEnv *env, WasmEdge_Value value, jobject j_val) {
-  char* str_val;
+  char *str_val;
   switch (value.Type) {
   case WasmEdge_ValType_I32:
     setJavaIntValue(env, value, j_val);
@@ -256,7 +252,8 @@ jobject CreateJavaArrayList(JNIEnv *env, jint len) {
     return NULL;
   }
 
-  jmethodID listConstructor = findJavaMethod(env, listClass, DEFAULT_CONSTRUCTOR, INT_VOID);
+  jmethodID listConstructor =
+      findJavaMethod(env, listClass, DEFAULT_CONSTRUCTOR, INT_VOID);
 
   if (listConstructor == NULL) {
     return NULL;
@@ -289,8 +286,7 @@ bool AddElementToJavaList(JNIEnv *env, jobject jList, jobject ele) {
 
 jobject GetListElement(JNIEnv *env, jobject jList, jint idx) {
   jclass listClass = (*env)->GetObjectClass(env, jList);
-  jmethodID getMethod =
-      findJavaMethod(env, listClass, GET, INT_OBJECT);
+  jmethodID getMethod = findJavaMethod(env, listClass, GET, INT_OBJECT);
 
   return (*env)->CallObjectMethod(env, jList, getMethod, idx);
 }
@@ -298,7 +294,8 @@ jobject GetListElement(JNIEnv *env, jobject jList, jint idx) {
 jint GetListSize(JNIEnv *env, jobject jList) {
 
   jclass listClass = (*env)->GetObjectClass(env, jList);
-  jmethodID sizeMethod = (*env)->GetMethodID(env, listClass, LIST_SIZE, VOID_INT);
+  jmethodID sizeMethod =
+      (*env)->GetMethodID(env, listClass, LIST_SIZE, VOID_INT);
   jint size = (*env)->CallIntMethod(env, jList, sizeMethod);
 
   return size;
@@ -349,4 +346,3 @@ jobject WasmEdgeStringArrayToJavaList(JNIEnv *env, WasmEdge_String *wStrList,
   }
   return strList;
 }
-

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/test/spec/spectest.cpp - Wasm test suites ----------------===//
 //
@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "spectest.h"
+#include "common/hash.h"
 #include "common/spdlog.h"
 
 #include "simdjson.h"
@@ -72,7 +73,8 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
 }
 
 SpecTest::CommandID resolveCommand(std::string_view Name) {
-  static const std::unordered_map<std::string_view, SpecTest::CommandID>
+  static const std::unordered_map<std::string_view, SpecTest::CommandID,
+                                  Hash::Hash>
       CommandMapping = {
           {"module"sv, SpecTest::CommandID::Module},
           {"action"sv, SpecTest::CommandID::Action},

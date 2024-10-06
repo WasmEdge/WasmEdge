@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/test/api/APIStepsCoreTest.cpp - WasmEdge C API core tests ===//
 //
@@ -236,8 +236,9 @@ TEST(AsyncInvoke, InterruptTest) {
   ASSERT_NE(Store, nullptr);
 
   WasmEdge_ASTModuleContext *AST = nullptr;
-  ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_LoaderParseFromBuffer(
-      Loader, &AST, AsyncWasm.data(), static_cast<uint32_t>(AsyncWasm.size()))));
+  ASSERT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_LoaderParseFromBuffer(Loader, &AST, AsyncWasm.data(),
+                                     static_cast<uint32_t>(AsyncWasm.size()))));
   ASSERT_NE(AST, nullptr);
   ASSERT_TRUE(WasmEdge_ResultOK(WasmEdge_ValidatorValidate(Validator, AST)));
   WasmEdge_ModuleInstanceContext *Module = nullptr;

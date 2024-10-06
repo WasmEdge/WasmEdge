@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "loader/loader.h"
 
@@ -313,11 +313,18 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    if (Conf.hasProposal(Proposal::MultiMemories) &&
-        Instr.getMemoryAlign() >= 64) {
-      Instr.getMemoryAlign() -= 64;
-      if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-        return Unexpect(Res);
+    if (Instr.getMemoryAlign() >= 128) {
+      return logLoadError(ErrCode::Value::InvalidStoreAlignment,
+                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+    } else if (Instr.getMemoryAlign() >= 64) {
+      if (Conf.hasProposal(Proposal::MultiMemories)) {
+        Instr.getMemoryAlign() -= 64;
+        if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
+          return Unexpect(Res);
+        }
+      } else {
+        return logLoadError(ErrCode::Value::InvalidStoreAlignment,
+                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
       }
     }
     if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
@@ -924,13 +931,14 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
     // Read value.
-    uint128_t Value = 0;
-    for (uint32_t I = 0; I < 16; ++I) {
+    uint128_t Value = 0U;
+    for (uint32_t I = 0U; I < 16U; ++I) {
       if (auto Res = FMgr.readByte(); unlikely(!Res)) {
         return logLoadError(Res.error(), FMgr.getLastOffset(),
                             ASTNodeAttr::Instruction);
       } else {
-        Value |= static_cast<uint128_t>(*Res) << (I * 8);
+        Value |= static_cast<uint128_t>(static_cast<uint32_t>(*Res))
+                 << (I * 8U);
       }
     }
     Instr.setNum(Value);

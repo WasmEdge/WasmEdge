@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "helper.h"
 #include "asymmetric_common/func.h"
@@ -22,7 +22,8 @@
   } while (0)
 
 namespace {
-template <typename T, typename M> T *getHostFunc(M *Mod, const char *Name) {
+template <typename T, typename M>
+inline T *getHostFunc(M &Mod, const char *Name) {
   if (Mod) {
     auto *FuncInst = Mod->findFuncExports(Name);
     if (FuncInst && FuncInst->isHostFunction()) {

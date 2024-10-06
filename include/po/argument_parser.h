@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/po/argument_parser.h - Argument parser -------------------===//
 //
@@ -10,6 +10,7 @@
 
 #include "common/defines.h"
 #include "common/errcode.h"
+#include "common/hash.h"
 #include "common/span.h"
 #include "po/error.h"
 #include "po/list.h"
@@ -182,8 +183,8 @@ private:
     std::vector<const char *> ProgramNames;
     std::vector<ArgumentDescriptor> ArgumentDescriptors;
     std::unordered_map<void *, std::size_t> OptionMap;
-    std::unordered_map<std::string_view, std::size_t> ArgumentMap;
-    std::unordered_map<std::string_view, std::size_t> SubCommandMap;
+    std::unordered_map<std::string_view, std::size_t, Hash::Hash> ArgumentMap;
+    std::unordered_map<std::string_view, std::size_t, Hash::Hash> SubCommandMap;
     std::vector<std::size_t> SubCommandList;
     std::vector<std::size_t> NonpositionalList;
     std::vector<std::size_t> PositionalList;

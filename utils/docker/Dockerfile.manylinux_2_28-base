@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
-
-ARG BASE_IMAGE
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
+ARG BASE_IMAGE="quay.io/pypa/manylinux_2_28_x86_64"
 FROM ${BASE_IMAGE}
-
-MAINTAINER hydai hydai@secondstate.io
 
 ADD SHA256SUM.manylinux_2_28 /root/
 

@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avformat/avInputOutputFormat.h"
 #include "avformat/avformatContext.h"
 #include "avformat/module.h"
+
 #include "utils.h"
 
 #include <gtest/gtest.h>
@@ -10,7 +14,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVInputFormat) {
-
   std::string FileName = "ffmpeg-assets/sample_video.mp4"; // 32 chars
   uint32_t FormatCtxPtr = UINT32_C(24);
   uint32_t InputFormatPtr = UINT32_C(28);

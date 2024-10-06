@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/configure.h"
 #include "common/errinfo.h"
 #include "common/filesystem.h"
+#include "experimental/span.hpp"
 #include "loader/loader.h"
 #include "runtime/instance/module.h"
 #include "validator/validator.h"
@@ -11,6 +12,7 @@
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
 
+#include <fmt/format.h>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <vector>
@@ -73,11 +75,10 @@ std::vector<uint8_t> Module2Wasm = {
     0x5,  0x74, 0x79, 0x70, 0x65, 0x30, 0x1,  0x5,  0x74, 0x79, 0x70, 0x65,
     0x31};
 
-void HexToFile(std::vector<uint8_t> &Wasm, const char *Path) {
+void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
   std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
-  for (auto &Hex : Wasm) {
-    TFile << Hex;
-  }
+  TFile.write(reinterpret_cast<const char *>(Wasm.data()),
+              static_cast<std::streamsize>(Wasm.size()));
   TFile.close();
 }
 
@@ -85,7 +86,8 @@ class HostPrintI32 : public WasmEdge::Runtime::HostFunction<HostPrintI32> {
 public:
   WasmEdge::Expect<void> body(const WasmEdge::Runtime::CallingFrame &,
                               uint32_t Val) {
-    std::cout << "-- Host Function: print I32 " << Val << std::endl;
+    using namespace std::string_view_literals;
+    fmt::print("-- Host Function: print I32 {}\n"sv, Val);
     return {};
   }
 };
@@ -94,7 +96,8 @@ class HostPrintF64 : public WasmEdge::Runtime::HostFunction<HostPrintF64> {
 public:
   WasmEdge::Expect<void> body(const WasmEdge::Runtime::CallingFrame &,
                               double Val) {
-    std::cout << "-- Host Function: print F64 " << Val << std::endl;
+    using namespace std::string_view_literals;
+    fmt::print("-- Host Function: print F64 {}\n"sv, Val);
     return {};
   }
 };
@@ -129,7 +132,8 @@ bool compileModule(const WasmEdge::Configure &Conf, std::string_view InPath,
       .and_then([&]() noexcept { return Compiler.compile(*Module); })
       .and_then([&](auto Result) noexcept {
         return CodeGen.codegen(Data, std::move(Result), OutPath);
-      }).has_value();
+      })
+      .has_value();
 }
 
 TEST(MixCallTest, Call__InterpCallAOT) {

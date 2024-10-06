@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "sd_func.h"
 #include "common/spdlog.h"
 #include "sd_env.h"
+#include "spdlog/spdlog.h"
 #include "stable-diffusion.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -138,8 +139,8 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
   }
   Fin.close();
   // Convert model.
-  bool Ret = convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
-                     static_cast<sd_type_t>(WType));
+  bool Ret = ::convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
+                       static_cast<sd_type_t>(WType));
   if (!Ret) {
     spdlog::error("[WasmEdge-StableDiffusion] Failed to convert model.");
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
@@ -150,8 +151,11 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t> SDCreateContext::body(
     const Runtime::CallingFrame &Frame, uint32_t ModelPathPtr,
-    uint32_t ModelPathLen, uint32_t VaePathPtr, uint32_t VaePathLen,
-    uint32_t TaesdPathPtr, uint32_t TaesdPathLen, uint32_t ControlNetPathPtr,
+    uint32_t ModelPathLen, uint32_t clipLPathPtr, uint32_t clipLPathLen,
+    uint32_t t5xxlPathPtr, uint32_t t5xxlPathLen,
+    uint32_t diffusionModelPathPtr, uint32_t diffusionModelPathLen,
+    uint32_t VaePathPtr, uint32_t VaePathLen, uint32_t TaesdPathPtr,
+    uint32_t TaesdPathLen, uint32_t ControlNetPathPtr,
     uint32_t ControlNetPathLen, uint32_t LoraModelDirPtr,
     uint32_t LoraModelDirLen, uint32_t EmbedDirPtr, uint32_t EmbedDirLen,
     uint32_t IdEmbedDirPtr, uint32_t IdEmbedDirLen, uint32_t VaeDecodeOnly,
@@ -164,6 +168,14 @@ Expect<uint32_t> SDCreateContext::body(
   // Check the input model buffer.
   MEM_SPAN_CHECK(ModelPathSpan, MemInst, char, ModelPathPtr, ModelPathLen,
                  "Failed when accessing the input model path memory."sv)
+  MEM_SPAN_CHECK(clipLPathSpan, MemInst, char, clipLPathPtr, clipLPathLen,
+                 "Failed when accessing the input clipL path memory."sv)
+  MEM_SPAN_CHECK(t5xxlPathSpan, MemInst, char, t5xxlPathPtr, t5xxlPathLen,
+                 "Failed when accessing the input t5xxl path memory."sv)
+  MEM_SPAN_CHECK(
+      diffusionModelPathSpan, MemInst, char, diffusionModelPathPtr,
+      diffusionModelPathLen,
+      "Failed when accessing the input diffusion model path memory."sv)
   MEM_SPAN_CHECK(VaePathSpan, MemInst, char, VaePathPtr, VaePathLen,
                  "Failed when accessing the input vae path memory."sv)
   MEM_SPAN_CHECK(ControlNetPathSpan, MemInst, char, ControlNetPathPtr,
@@ -194,6 +206,12 @@ Expect<uint32_t> SDCreateContext::body(
   std::string EmbedDir = std::string(EmbedDirSpan.begin(), EmbedDirSpan.end());
   std::string IdEmbedDir =
       std::string(IdEmbedDirSpan.begin(), IdEmbedDirSpan.end());
+  std::string clipLPath =
+      std::string(clipLPathSpan.begin(), clipLPathSpan.end());
+  std::string t5xxlPath =
+      std::string(t5xxlPathSpan.begin(), t5xxlPathSpan.end());
+  std::string diffusionModelPath =
+      std::string(diffusionModelPathSpan.begin(), diffusionModelPathSpan.end());
   if (NThreads == -1) {
     NThreads = get_num_physical_cores();
   }
@@ -202,10 +220,12 @@ Expect<uint32_t> SDCreateContext::body(
   // Create context and import graph.
 
   sd_ctx_t *Ctx = new_sd_ctx(
-      ModelPath.data(), VaePath.data(), TaesdPath.data(), ControlNetPath.data(),
-      LoraModelDir.data(), EmbedDir.data(), IdEmbedDir.data(),
-      static_cast<bool>(VaeDecodeOnly), static_cast<bool>(VaeTiling), true,
-      NThreads, static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
+      ModelPath.data(), clipLPath.data(), t5xxlPath.data(),
+      diffusionModelPath.data(), VaePath.data(), TaesdPath.data(),
+      ControlNetPath.data(), LoraModelDir.data(), EmbedDir.data(),
+      IdEmbedDir.data(), static_cast<bool>(VaeDecodeOnly),
+      static_cast<bool>(VaeTiling), true, NThreads,
+      static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
       static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
   if (Ctx == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Failed to create context.");
@@ -219,15 +239,15 @@ Expect<uint32_t> SDCreateContext::body(
 Expect<uint32_t> SDTextToImage::body(
     const Runtime::CallingFrame &Frame, uint32_t PromptPtr, uint32_t PromptLen,
     uint32_t SessionId, uint32_t ControlImagePtr, uint32_t ControlImageLen,
-    uint32_t NegativePromptPtr, uint32_t NegativePromptLen, uint32_t Width,
-    uint32_t Height, int32_t ClipSkip, float CfgScale, uint32_t SampleMethod,
-    uint32_t SampleSteps, uint32_t Seed, uint32_t BatchCount,
-    float ControlStrength, float StyleRatio, uint32_t NormalizeInput,
-    uint32_t InputIdImagesDirPtr, uint32_t InputIdImagesDirLen,
-    uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
-    uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
-    uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
-    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
+    uint32_t NegativePromptPtr, uint32_t NegativePromptLen, float Guidance,
+    uint32_t Width, uint32_t Height, int32_t ClipSkip, float CfgScale,
+    uint32_t SampleMethod, uint32_t SampleSteps, uint32_t Seed,
+    uint32_t BatchCount, float ControlStrength, float StyleRatio,
+    uint32_t NormalizeInput, uint32_t InputIdImagesDirPtr,
+    uint32_t InputIdImagesDirLen, uint32_t CannyPreprocess, uint32_t, uint32_t,
+    uint32_t, uint32_t OutputPathPtr, uint32_t OutputPathLen,
+    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+    uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
   // Check the input model buffer.
@@ -269,13 +289,13 @@ Expect<uint32_t> SDTextToImage::body(
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
   Results =
       txt2img(SDCtx, Prompt.data(), NegativePrompt.data(), ClipSkip, CfgScale,
-              Width, Height, sample_method_t(SampleMethod), SampleSteps, Seed,
-              BatchCount, ControlImage, ControlStrength, StyleRatio,
-              NormalizeInput, InputIdImagesDir.data());
+              Guidance, Width, Height, sample_method_t(SampleMethod),
+              SampleSteps, Seed, BatchCount, ControlImage, ControlStrength,
+              StyleRatio, NormalizeInput, InputIdImagesDir.data());
   // TODO upscale image
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
+      reinterpret_cast<const unsigned char *>(Results->data), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
   if (OutputPathLen != 0) {
     stbi_write_png(OutputPath.data(), Results->width, Results->height,
@@ -298,15 +318,14 @@ Expect<uint32_t> SDTextToImage::body(
 
 Expect<uint32_t> SDImageToImage::body(
     const Runtime::CallingFrame &Frame, uint32_t ImagePtr, uint32_t ImageLen,
-    uint32_t SessionId, uint32_t Width, uint32_t Height,
+    uint32_t SessionId, float Guidance, uint32_t Width, uint32_t Height,
     uint32_t ControlImagePtr, uint32_t ControlImageLen, uint32_t PromptPtr,
     uint32_t PromptLen, uint32_t NegativePromptPtr, uint32_t NegativePromptLen,
     int32_t ClipSkip, float CfgScale, uint32_t SampleMethod,
     uint32_t SampleSteps, float Strength, uint32_t Seed, uint32_t BatchCount,
     float ControlStrength, float StyleRatio, uint32_t NormalizeInput,
     uint32_t InputIdImagesDirPtr, uint32_t InputIdImagesDirLen,
-    uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
-    uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
+    uint32_t CannyPreprocess, uint32_t, uint32_t, uint32_t,
     uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
     uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
@@ -360,7 +379,6 @@ Expect<uint32_t> SDImageToImage::body(
         stbi_load_from_memory(ImageSpan.data(), ImageSpan.size(), &ImageWidth,
                               &ImageHeight, &Channel, 3);
   }
-
   // TODO: Resize image when image size not matches width and height
   sd_image_t InputImage = {Width, Height, 3, InputImageBuffer};
   sd_image_t *ControlImage = nullptr;
@@ -374,14 +392,14 @@ Expect<uint32_t> SDImageToImage::body(
   sd_image_t *Results = nullptr;
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
   Results = img2img(SDCtx, InputImage, Prompt.data(), NegativePrompt.data(),
-                    ClipSkip, CfgScale, Width, Height,
+                    ClipSkip, CfgScale, Guidance, Width, Height,
                     sample_method_t(SampleMethod), SampleSteps, Strength, Seed,
                     BatchCount, ControlImage, ControlStrength, StyleRatio,
                     NormalizeInput, InputIdImagesDir.data());
   // TODO: upscale image
   int Len;
   unsigned char *Png = stbi_write_png_to_mem(
-      reinterpret_cast<const unsigned char *>(Results), 0, Results->width,
+      reinterpret_cast<const unsigned char *>(Results->data), 0, Results->width,
       Results->height, Results->channel, &Len, nullptr);
   if (OutputPathLen != 0) {
     stbi_write_png(OutputPath.data(), Results->width, Results->height,

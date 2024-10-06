@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 wasmedge_add_executable(wasiLoggingTests
   wasi_logging.cpp
@@ -19,6 +19,7 @@ target_link_libraries(wasiLoggingTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
 )
+
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasiLoggingTests

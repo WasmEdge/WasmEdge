@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "../jni/org_wasmedge_MemoryTypeContext.h"
 #include "common.h"
@@ -30,7 +30,8 @@ createJMemoryTypeContext(JNIEnv *env,
 
   jclass clazz = (*env)->FindClass(env, ORG_WASMEDGE_MEMORYTYPECONTEXT);
 
-  jmethodID constructorId = (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
+  jmethodID constructorId =
+      (*env)->GetMethodID(env, clazz, DEFAULT_CONSTRUCTOR, LONG_VOID);
 
   return (*env)->NewObject(env, clazz, constructorId, (long)memTypeContext);
 }
@@ -44,7 +45,8 @@ Java_org_wasmedge_MemoryTypeContext_getLimit(JNIEnv *env, jobject thisObject) {
 
   jclass limitClass = findJavaClass(env, ORG_WASMEDGE_LIMIT);
 
-  jmethodID constructor = findJavaMethod(env, limitClass, DEFAULT_CONSTRUCTOR, BOOLLONGLONG_VOID);
+  jmethodID constructor =
+      findJavaMethod(env, limitClass, DEFAULT_CONSTRUCTOR, BOOLLONGLONG_VOID);
 
   return (*env)->NewObject(env, limitClass, constructor, (jboolean)limit.HasMax,
                            (jlong)limit.Min, (jlong)limit.Max);

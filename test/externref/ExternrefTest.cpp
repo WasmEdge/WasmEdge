@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/filesystem.h"
+#include "experimental/span.hpp"
 #include "wasmedge/wasmedge.h"
 
 #include <cstdint>
+#include <fmt/format.h>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <iostream>
@@ -13,7 +15,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-
 
 namespace {
 
@@ -115,11 +116,10 @@ std::vector<uint8_t> STLWasm = {
     0x0,  0xe,  0x2,  0x0,  0x0,  0x1,  0x0,  0xf,  0x2,  0x0,  0x0,  0x1,
     0x0};
 
-void HexToFile(std::vector<uint8_t> &Wasm, const char *Path) {
+void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
   std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
-  for (auto &Hex : Wasm) {
-    TFile << Hex;
-  }
+  TFile.write(reinterpret_cast<const char *>(Wasm.data()),
+              static_cast<std::streamsize>(Wasm.size()));
   TFile.close();
 }
 

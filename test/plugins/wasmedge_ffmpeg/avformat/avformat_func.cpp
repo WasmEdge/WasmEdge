@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avformat/avformat_func.h"
 #include "avformat/module.h"
+
 #include "utils.h"
 
 #include <gtest/gtest.h>
@@ -10,7 +14,6 @@ namespace WasmEdgeFFmpeg {
 
 // Testing all AVFormat_funcs.
 TEST_F(FFmpegTest, AVInputFormatFunc) {
-
   uint32_t FormatCtxPtr = UINT32_C(4);
   uint32_t DictPtr = UINT32_C(16);
   uint32_t KeyPtr = UINT32_C(100);
@@ -358,8 +361,8 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   uint32_t FileLen = 8;
   fillMemContent(MemInst, FormatStart, FormatLen + FileLen);
 
-  fillMemContent(MemInst, FormatStart, std::string("mp4"));
-  fillMemContent(MemInst, FileStart, std::string("test.mp4"));
+  fillMemContent(MemInst, FormatStart, "mp4"sv);
+  fillMemContent(MemInst, FileStart, "test.mp4"sv);
 
   auto *FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avformat_alloc_output_context2");

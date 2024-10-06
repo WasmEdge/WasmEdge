@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
 #include "common/filesystem.h"
+#include "experimental/span.hpp"
 #include "wasmedge/wasmedge.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <fmt/format.h>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <string>
@@ -221,11 +223,10 @@ char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
                     &PreopensVec[32], &PreopensVec[49]};
 char TPath[] = "apiTestData/test.wasm";
 
-void HexToFile(std::vector<uint8_t> &Wasm, const char *Path) {
+void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
   std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
-  for (auto &Hex : Wasm) {
-    TFile << Hex;
-  }
+  TFile.write(reinterpret_cast<const char *>(Wasm.data()),
+              static_cast<std::streamsize>(Wasm.size()));
   TFile.close();
 }
 
@@ -2371,7 +2372,7 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_MemoryInstanceContext *HostMemory = nullptr;
   WasmEdge_GlobalInstanceContext *HostGlobal = nullptr;
   auto HostFinalizer = [](void *Data) {
-    std::cout << "Data address: " << Data << std::endl;
+    fmt::print("Data address: {}\n"sv, Data);
   };
   WasmEdge_ValType Param[2], Result[1];
 

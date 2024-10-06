@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-# SPDX-FileCopyrightText: 2019-2023 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 OPENCV_VERSION=${OPENCV_VERSION:-4.8.0}
 
 wget -O opencv.zip https://github.com/opencv/opencv/archive/refs/tags/${OPENCV_VERSION}.zip
@@ -15,3 +15,5 @@ cmake -GNinja ..
 cmake --build .
 # Install to system
 cmake --install .
+
+rm -f opencv.zip

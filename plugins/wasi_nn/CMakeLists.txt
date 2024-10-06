@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 wasmedge_add_library(wasmedgePluginWasiNN
   SHARED
@@ -15,6 +15,8 @@ wasmedge_add_library(wasmedgePluginWasiNN
   neuralspeed.cpp
   piper.cpp
   whispercpp.cpp
+  chattts.cpp
+  mlx.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -31,10 +33,15 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     set(BUILD_SHARED_LIBS OFF)
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE)
-      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_NATIVE(AVX/AVX2/FMA)")
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_NATIVE(AVX/AVX2/FMA/F16C)")
       set(GGML_NATIVE ON)
     else()
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_NATIVE(AVX/AVX2/FMA/F16C)")
       set(GGML_NATIVE OFF)
+      set(GGML_AVX OFF)
+      set(GGML_AVX2 OFF)
+      set(GGML_FMA OFF)
+      set(GGML_F16C OFF)
     endif()
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
@@ -47,11 +54,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       set(GGML_CUDA OFF)
     endif()
 
-    if(NOT APPLE)
-      set(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL OFF)
-    endif()
-
-    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
+    if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
       message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_METAL")
       set(GGML_METAL ON)
       set(GGML_METAL_EMBED_LIBRARY ON)
@@ -66,7 +69,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3405
+      GIT_TAG        b3651
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -118,6 +121,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-unused-macros
         -Wno-unused-function
         -Wno-unused-variable
+        -Wno-sign-conversion
+        -Wno-shorten-64-to-32
+        -Wno-implicit-int-conversion
+        -Wno-old-style-cast
+        -Wno-extra-semi-stmt
+        -Wno-format-nonliteral
+        -Wno-documentation
+        -Wno-unused-template
       )
     endif()
     target_link_libraries(llava PRIVATE ggml llama)
@@ -131,7 +142,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       simdjson::simdjson
       llava
     )
-    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
+    if(APPLE AND WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
       add_custom_command(
         TARGET wasmedgePluginWasiNN
         POST_BUILD
@@ -140,6 +151,9 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       )
     endif()
   elseif(BACKEND STREQUAL "neuralspeed")
+    message(NOTICE "WASI-NN NeuralSpeed backend is removed due to the upstream end-of-life.")
+    message(NOTICE "Reference: https://github.com/intel/neural-speed")
+  elseif(BACKEND STREQUAL "chattts")
     wasmedge_setup_simdjson()
 
     find_package(Python3 COMPONENTS Interpreter Development)
@@ -151,29 +165,159 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       target_link_libraries(wasmedgePluginWasiNN PRIVATE ${Python3_LIBRARIES})
       target_link_directories(wasmedgePluginWasiNN PRIVATE ${Python3_RUNTIME_LIBRARY_DIRS})
     else()
-      message(FATAL_ERROR "Can not find python3.") 
+      message(FATAL_ERROR "Can not find python3.")
     endif()
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "piper")
     wasmedge_setup_simdjson()
-    include(WASINNDeps)
-    wasmedge_setup_piper()
-    target_include_directories(wasmedgePluginWasiNN PRIVATE ${piper_SOURCE_DIR}/src/cpp)
     target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
   elseif(BACKEND STREQUAL "whisper")
-    set(WHISPER_NO_ACCELERATE ON CACHE INTERNAL "Whisper turn off accelerate")
+    wasmedge_setup_simdjson()
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
+    set(GGML_OPENMP OFF)
+    set(GGML_ACCELERATE OFF)
+    set(GGML_BLAS OFF)
+    if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL)
+      message(STATUS "WASI-NN Whisper backend: Enable GGML_METAL")
+      set(GGML_METAL ON)
+      set(GGML_METAL_EMBED_LIBRARY ON)
+    else()
+      message(STATUS "WASI-NN Whisper backend: Disable GGML_METAL")
+      set(GGML_METAL OFF)
+    endif()
+    if(WASMEDGE_PLUGIN_WASI_NN_WHISPER_CUDA)
+      message(STATUS "WASI-NN Whisper backend: Enable GGML_CUDA")
+      set(GGML_CUDA ON)
+    else()
+      message(STATUS "WASI-NN Whisper backend: Disable GGML_CUDA")
+      set(GGML_CUDA OFF)
+    endif()
     include(FetchContent)
     FetchContent_Declare(
       whisper
       GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
-      GIT_TAG        v1.6.2
+      GIT_TAG        69339af2d104802f3f201fd419163defba52890e
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(whisper)
     set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(wasmedgePluginWasiNN PRIVATE
+      ${whisper_SOURCE_DIR}
+      ${whisper_SOURCE_DIR}/ggml/include
+    )
     target_link_libraries(wasmedgePluginWasiNN PRIVATE
       whisper
+      simdjson::simdjson
+    )
+  elseif(BACKEND STREQUAL "mlx")
+    wasmedge_setup_simdjson()
+    target_sources(wasmedgePluginWasiNN 
+      PRIVATE 
+      MLX/prompt/prompt.cpp
+      MLX/model/transformer.cpp
+      MLX/model/converter.cpp
+      MLX/model/utils.cpp
+      MLX/model/registry.cpp
+      MLX/mlx/base.cpp
+      MLX/mlx/linear.cpp
+      MLX/mlx/positional_encoding.cpp
+      MLX/mlx/activations.cpp
+      MLX/mlx/embedding.cpp
+      MLX/mlx/normalization.cpp
+      MLX/mlx/transformer.cpp
+      MLX/mlx/quantized.cpp
+    )
+    
+    find_package(MLX CONFIG)
+    if(MLX_FOUND)
+      message(STATUS "Found MLX: ${MLX_INCLUDE_DIRS}")
+    else()
+      # Not support directly download from source 
+      find_library(ACCELERATE_LIBRARY Accelerate)
+      find_library(METAL_LIB Metal)
+      find_library(FOUNDATION_LIB Foundation)
+      find_library(QUARTZ_LIB QuartzCore)
+      message(STATUS "MLX not found, downloading from source")
+      include(FetchContent)
+      set(MLX_BUILD_GGUF OFF)
+      FetchContent_Declare(
+        mlx
+        GIT_REPOSITORY https://github.com/ml-explore/mlx.git
+        GIT_TAG        v0.16.0
+        GIT_SHALLOW    FALSE
+      )
+      FetchContent_MakeAvailable(mlx)
+      set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)
+      set_target_properties(mlx PROPERTIES
+        INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:fmt::fmt-header-only>"
+      )
+      target_link_libraries(mlx
+        PUBLIC
+        ${ACCELERATE_LIBRARY}
+        ${METAL_LIB}
+        ${FOUNDATION_LIB}
+        ${QUARTZ_LIB}
+      )
+      target_compile_options(mlx
+        PUBLIC
+        -Wno-unused-parameter
+        -Wno-deprecated-copy
+        -Wno-format
+      )
+    endif()
+
+    message(STATUS "Downloading tokenizers")
+    FetchContent_Declare(
+      tokenizers
+      GIT_REPOSITORY https://github.com/mlc-ai/tokenizers-cpp.git
+      GIT_TAG 5de6f65
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(tokenizers)
+    set_property(TARGET tokenizer_cpp_objs PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+    message(STATUS "Downloading gguflib")
+    FetchContent_Declare(
+      gguflib
+      GIT_REPOSITORY https://github.com/antirez/gguf-tools/
+      GIT_TAG af7d88d808a7608a33723fba067036202910acb3
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(gguflib)
+    add_library(gguflib
+      STATIC
+      ${gguflib_SOURCE_DIR}/fp16.c
+      ${gguflib_SOURCE_DIR}/gguflib.c
+    )
+    set_target_properties(gguflib PROPERTIES LINKER_LANGUAGE CXX)
+
+    target_include_directories(wasmedgePluginWasiNN
+      PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/model
+      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/prompt
+      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/mlx
+    )
+    target_include_directories(wasmedgePluginWasiNN
+      PRIVATE
+      ${tokenizers_SOURCE_DIR}/include
+    )
+    target_include_directories(wasmedgePluginWasiNN
+      SYSTEM PUBLIC
+      ${CMAKE_CURRENT_SOURCE_DIR}/mlx
+      ${MLX_INCLUDE_DIRS}
+      $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>
+    )
+    target_link_libraries(wasmedgePluginWasiNN
+      PRIVATE
+      tokenizers_cpp
+    )
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      ${MLX_LIBRARIES}
+      gguflib
+      mlx
+      simdjson::simdjson
     )
   endif()
 endforeach()
@@ -215,4 +359,8 @@ endif()
 include(WASINNDeps)
 wasmedge_setup_wasinn_target(wasmedgePluginWasiNN)
 
-install(TARGETS wasmedgePluginWasiNN DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+install(
+  TARGETS wasmedgePluginWasiNN
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
+)

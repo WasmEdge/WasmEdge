@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #pragma once
 
@@ -9,7 +9,9 @@
 #include <functional>
 #include <vector>
 
+#include "chattts.h"
 #include "ggml.h"
+#include "mlx.h"
 #include "neuralspeed.h"
 #include "onnx.h"
 #include "openvino.h"

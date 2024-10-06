@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/common/defines.h - General defines -----------------------===//
 //
@@ -44,4 +44,10 @@
 
 #error Unsupported environment!
 
+#endif
+
+#if WASMEDGE_OS_WINDOWS
+#define WASMEDGE_EXPORT __declspec(dllexport)
+#else
+#define WASMEDGE_EXPORT [[gnu::visibility("default")]]
 #endif

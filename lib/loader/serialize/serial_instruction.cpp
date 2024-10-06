@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "loader/serialize.h"
 
@@ -109,6 +109,8 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   case OpCode::Br:
   case OpCode::Br_if:
+  case OpCode::Br_on_null:
+  case OpCode::Br_on_non_null:
     serializeU32(Instr.getJump().TargetIndex, OutVec);
     return {};
 
@@ -123,6 +125,8 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   case OpCode::Call:
   case OpCode::Return_call:
+  case OpCode::Call_ref:
+  case OpCode::Return_call_ref:
     serializeU32(Instr.getTargetIndex(), OutVec);
     return {};
 
@@ -149,6 +153,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     }
     return {};
   case OpCode::Ref__is_null:
+  case OpCode::Ref__as_non_null:
     return {};
   case OpCode::Ref__func:
     serializeU32(Instr.getTargetIndex(), OutVec);

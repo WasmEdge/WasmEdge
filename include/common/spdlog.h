@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/common/spdlog.h - Logging system -------------------------===//
 //
@@ -14,6 +14,7 @@
 #pragma once
 
 #include "common/filesystem.h"
+#include "common/int128.h"
 #define SPDLOG_NO_EXCEPTIONS 1
 #include "spdlog/spdlog.h"
 

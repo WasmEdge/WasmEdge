@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/wasmedge.h - WasmEdge C API ------------------------------===//
 //
@@ -3983,9 +3983,9 @@ WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
                                                      const char *Argv[]);
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
-/// Entrypoint for the Wasi-NN RPC server tool.
+/// Entrypoint for the WASI-NN RPC server tool.
 ///
-/// This function provides an entrypoint to the WasmEdge Wasi-NN RPC server tool
+/// This function provides an entrypoint to the WasmEdge WASI-NN RPC server tool
 /// with the command line arguments.
 ///
 /// \param Argc the argument count.

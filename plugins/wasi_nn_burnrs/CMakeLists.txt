@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  set(CARGO_CMD cargo build)
+  set(TARGET_DIR "debug")
+else()
+  set(CARGO_CMD cargo build --release)
+  set(TARGET_DIR "release")
+endif()
+
+message(STATUS "WasmEdge WASI-NN Burn.rs backend plugin model: ${WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL}")
+set(CARGO_FEATURES "--features=${WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL}")
+
+set(RS_SO ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_DIR}/libwasmedgePluginWasiNN${CMAKE_SHARED_LIBRARY_SUFFIX})
+
+set(WASMEDGE_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/../../lib/api)
+
+add_custom_target(wasmedgePluginWasiNNBurnRS ALL
+  COMMAND WASMEDGE_LIB_DIR=${WASMEDGE_LIB_DIR} LD_LIBARAY_PATH=${WASMEDGE_LIB_DIR} CARGO_TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} ${CARGO_CMD} ${CARGO_FEATURES}
+  COMMAND ${CMAKE_COMMAND} -E copy ${RS_SO} ${CMAKE_CURRENT_BINARY_DIR}
+  COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_CURRENT_BINARY_DIR}/${TARGET_DIR}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  DEPENDS wasmedge_shared
+)

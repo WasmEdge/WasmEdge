@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "AstModuleContext.h"
+#include "Async.h"
 #include "ConfigureContext.h"
 #include "FunctionTypeContext.h"
 #include "ModuleInstanceContext.h"
 #include "StatisticsContext.h"
 #include "StoreContext.h"
-#include "Async.h"
 #include "common.h"
 #include "jni.h"
 #include "string.h"
@@ -15,7 +15,6 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-
 
 void setJavaIntValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
   int int_val = WasmEdge_ValueGetI32(val);
@@ -49,7 +48,7 @@ void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj) {
   (*env)->CallFloatMethod(env, jobj, val_setter, double_val);
 }
 
-void setJavaStringValue(JNIEnv *env, char* val, jobject jobj) {
+void setJavaStringValue(JNIEnv *env, char *val, jobject jobj) {
   jclass val_clazz = (*env)->GetObjectClass(env, jobj);
 
   jmethodID val_setter =
@@ -123,8 +122,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_runWasmFromFile(
     }
   } else {
     char exceptionBuffer[1024];
-    sprintf(exceptionBuffer,
-            ERR_RUN_FROM_FILE_TEMPLATE, c_file_path,
+    sprintf(exceptionBuffer, ERR_RUN_FROM_FILE_TEMPLATE, c_file_path,
             WasmEdge_ResultGetMessage(Res));
 
     (*env)->ThrowNew(env, (*env)->FindClass(env, JAVA_LANG_EXCEPTION),
@@ -242,7 +240,7 @@ JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_execute(
 }
 
 JNIEXPORT void JNICALL Java_org_wasmedge_WasmEdgeVm_close(JNIEnv *env,
-                                                           jobject thisObj) {
+                                                          jobject thisObj) {
   WasmEdge_VMDelete(getVmContext(env, thisObj));
 }
 

@@ -1,0 +1,115 @@
+name: Build extensions on linux
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        required: true
+      docker_tag:
+        type: string
+        required: true
+      asset_tag:
+        type: string
+        required: true
+      plugins:
+        description: 'JSON array of the plugins'
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.plugins) }}
+    name: ${{ matrix.plugin }}
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: wasmedge/wasmedge:${{ inputs.docker_tag }}
+      # Required for mounting debugfs
+      # Tests of wasm_bpf also require privileges
+      options: --privileged
+    env:
+      bin_name: ${{ matrix.bin }}
+      # Set value to `matrix.target` if `input.release` is `true`, or
+      # if `matrix.testBin` is empty
+      target: ${{ inputs.release && matrix.target || matrix.testBin || matrix.target }}
+      test_dir: build/test/plugins/${{ matrix.dir }}
+      output_dir: build/plugins/${{ matrix.dir }}
+    steps:
+      - id: var
+        run: |
+          echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ensure git safe directory
+        run: |
+          git config --global --add safe.directory $(pwd)
+      - if: ${{ startsWith(matrix.plugin, 'wasi_nn_burnrs') }}
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build ${{ matrix.plugin }}
+        shell: bash
+        run: |
+          cmake -Bbuild -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
+            -DWASMEDGE_BUILD_TOOLS=OFF \
+            -DWASMEDGE_USE_LLVM=OFF \
+            -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
+            ${{ matrix.options }}
+          cmake --build build --target ${target}
+
+          cp -f ${output_dir}/${bin_name} ${bin_name}
+          tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+      - if: ${{ !inputs.release && matrix.plugin == 'wasm_bpf' }}
+        name: Prepare test env
+        shell: bash
+        run: |
+          # Running tests of wasm_bpf requires proper ebpf running environment
+          mount -t debugfs none /sys/kernel/debug
+      - if: ${{ !inputs.release }}
+        name: Test ${{ matrix.plugin }}
+        run: |
+          if [[ -z "${{ matrix.testBin }}" ]]; then
+            echo "No test specified!"
+          else
+            cd ${test_dir}
+            ./${target}
+            cd -
+          fi
+        shell: bash
+      - if: ${{ !inputs.release }}
+        name: Upload artifact ${{ matrix.plugin }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.var.outputs.artifact }}
+          path: ${{ steps.var.outputs.artifact }}
+      - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'manylinux_2_28') }}
+        name: Install gh
+        run: |
+          yum check-update || true
+          yum install -y gh
+      - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'ubuntu') }}
+        name: Install gh
+        run: |
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=${KEYRING}
+          chmod go+r ${KEYRING}
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=${KEYRING}] https://cli.github.com/packages stable main" | dd of=/etc/apt/sources.list.d/github-cli.list
+          apt update -y
+          apt install -y gh
+        env:
+          KEYRING: /usr/share/keyrings/githubcli-archive-keyring.gpg
+      - if: ${{ inputs.release }}
+        name: Upload ${{ steps.var.outputs.artifact }}
+        run: |
+          gh release upload ${{ inputs.version }} ${{ steps.var.outputs.artifact }} --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

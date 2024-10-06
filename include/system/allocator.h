@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/system/allocator.h - large memory allocator --------------===//
 //
@@ -15,12 +15,6 @@
 
 #include "common/defines.h"
 #include <cstdint>
-
-#if WASMEDGE_OS_WINDOWS
-#define WASMEDGE_EXPORT __declspec(dllexport)
-#else
-#define WASMEDGE_EXPORT [[gnu::visibility("default")]]
-#endif
 
 namespace WasmEdge {
 

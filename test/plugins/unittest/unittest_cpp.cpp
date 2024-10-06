@@ -1,21 +1,22 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "plugin/plugin.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
-
-#include "testplugin.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <gtest/gtest.h>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace {
-WasmEdge::Runtime::Instance::ModuleInstance *createModuleC() {
+
+std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleC() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
       "./" WASMEDGE_LIB_PREFIX
@@ -24,13 +25,13 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModuleC() {
           WasmEdge::Plugin::Plugin::find("wasmedge_plugintest_c"sv)) {
     if (const auto *Module =
             Plugin->findModule("wasmedge_plugintest_c_module"sv)) {
-      return Module->create().release();
+      return Module->create();
     }
   }
-  return nullptr;
+  return {};
 }
 
-WasmEdge::Runtime::Instance::ModuleInstance *createModuleCPP() {
+std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> createModuleCPP() {
   using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(std::filesystem::u8path(
       "./" WASMEDGE_LIB_PREFIX
@@ -45,18 +46,17 @@ WasmEdge::Runtime::Instance::ModuleInstance *createModuleCPP() {
     Parser.set_raw_value("opt"sv);
     if (const auto *Module =
             Plugin->findModule("wasmedge_plugintest_cpp_module"sv)) {
-      return Module->create().release();
+      return Module->create();
     }
   }
-  return nullptr;
+  return {};
 }
 } // namespace
 
 TEST(wasmedgePluginTests, CPP_Run) {
   // Create the wasmedge_plugintest_cpp_module module instance.
-  auto *TestModCPP = dynamic_cast<WasmEdge::Host::WasmEdgePluginTestModule *>(
-      createModuleCPP());
-  ASSERT_FALSE(TestModCPP == nullptr);
+  auto TestModCPP = createModuleCPP();
+  ASSERT_TRUE(TestModCPP);
 
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
@@ -66,9 +66,7 @@ TEST(wasmedgePluginTests, CPP_Run) {
   auto *FuncInst1 = TestModCPP->findFuncExports("arg_len");
   EXPECT_NE(FuncInst1, nullptr);
   EXPECT_TRUE(FuncInst1->isHostFunction());
-  auto &HostFuncInst1 =
-      dynamic_cast<WasmEdge::Host::WasmEdgePluginTestFuncArgLen &>(
-          FuncInst1->getHostFunc());
+  auto &HostFuncInst1 = FuncInst1->getHostFunc();
 
   // Test: Run function successfully.
   EXPECT_TRUE(HostFuncInst1.run(CallFrame, {}, RetVal));
@@ -78,9 +76,7 @@ TEST(wasmedgePluginTests, CPP_Run) {
   auto *FuncInst2 = TestModCPP->findFuncExports("name_size");
   EXPECT_NE(FuncInst2, nullptr);
   EXPECT_TRUE(FuncInst2->isHostFunction());
-  auto &HostFuncInst2 =
-      dynamic_cast<WasmEdge::Host::WasmEdgePluginTestFuncNameSize &>(
-          FuncInst2->getHostFunc());
+  auto &HostFuncInst2 = FuncInst2->getHostFunc();
 
   // Test: Run function successfully.
   EXPECT_TRUE(HostFuncInst2.run(CallFrame, {}, RetVal));
@@ -90,44 +86,36 @@ TEST(wasmedgePluginTests, CPP_Run) {
   auto *FuncInst3 = TestModCPP->findFuncExports("opt");
   EXPECT_NE(FuncInst3, nullptr);
   EXPECT_TRUE(FuncInst3->isHostFunction());
-  auto &HostFuncInst3 =
-      dynamic_cast<WasmEdge::Host::WasmEdgePluginTestFuncOpt &>(
-          FuncInst3->getHostFunc());
+  auto &HostFuncInst3 = FuncInst3->getHostFunc();
 
   // Test: Run function successfully.
   EXPECT_TRUE(HostFuncInst3.run(CallFrame, {}, RetVal));
   EXPECT_EQ(RetVal[0].get<int32_t>(), 1);
 
-  delete TestModCPP;
-
   // Create the wasmedge_plugintest_c_module module instance.
-  auto *TestModC = createModuleC();
-  ASSERT_FALSE(TestModC == nullptr);
+  auto TestModC = createModuleC();
+  ASSERT_TRUE(TestModC);
   // The host functions are implemented in the C API.
   // Therefore not test to invoke them here.
-  delete TestModC;
 }
 
 TEST(wasmedgePluginTests, CPP_Module) {
   // Create the wasmedge_plugintest_cpp_module module instance.
-  auto *TestModCPP = dynamic_cast<WasmEdge::Host::WasmEdgePluginTestModule *>(
-      createModuleCPP());
-  ASSERT_FALSE(TestModCPP == nullptr);
+  auto TestModCPP = createModuleCPP();
+  ASSERT_TRUE(TestModCPP);
   EXPECT_EQ(TestModCPP->getFuncExportNum(), 5U);
   EXPECT_NE(TestModCPP->findFuncExports("add"), nullptr);
   EXPECT_NE(TestModCPP->findFuncExports("sub"), nullptr);
   EXPECT_NE(TestModCPP->findFuncExports("arg_len"), nullptr);
   EXPECT_NE(TestModCPP->findFuncExports("opt"), nullptr);
   EXPECT_NE(TestModCPP->findFuncExports("name_size"), nullptr);
-  delete TestModCPP;
 
   // Create the wasmedge_plugintest_c_module module instance.
-  auto *TestModC = createModuleC();
-  ASSERT_FALSE(TestModC == nullptr);
+  auto TestModC = createModuleC();
+  ASSERT_TRUE(TestModC);
   EXPECT_EQ(TestModC->getFuncExportNum(), 2U);
   EXPECT_NE(TestModC->findFuncExports("add"), nullptr);
   EXPECT_NE(TestModC->findFuncExports("sub"), nullptr);
-  delete TestModC;
 }
 
 GTEST_API_ int main(int argc, char **argv) {

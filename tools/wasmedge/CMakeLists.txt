@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2019-2022 Second State INC
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 if(WASMEDGE_USE_LLVM)
   wasmedge_add_executable(wasmedgec
@@ -8,6 +8,7 @@ if(WASMEDGE_USE_LLVM)
 
   install(TARGETS wasmedgec EXPORT wasmedge
     DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT WasmEdge
   )
 
   if(WASMEDGE_LINK_TOOLS_STATIC)
@@ -29,6 +30,7 @@ wasmedge_add_executable(wasmedge
 
 install(TARGETS wasmedge EXPORT wasmedge
   DESTINATION ${CMAKE_INSTALL_BINDIR}
+  COMPONENT WasmEdge
 )
 
 if(WASMEDGE_LINK_TOOLS_STATIC)
@@ -55,6 +57,7 @@ if(WASMEDGE_BUILD_WASI_NN_RPC)
 
   install(TARGETS wasi_nn_rpcserver EXPORT wasi_nn_rpcserver
     DESTINATION ${CMAKE_INSTALL_BINDIR}
+    COMPONENT WasmEdge
   )
 
   if(WASMEDGE_LINK_TOOLS_STATIC)

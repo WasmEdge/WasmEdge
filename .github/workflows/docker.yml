@@ -6,17 +6,23 @@ concurrency:
 
 on:
   push:
-    tags:
-      - '*.*.*'
     branches:
       - master
     paths:
-      - 'utils/docker/**'
       - '.github/workflows/docker.yml'
+      - 'utils/docker/**'
+      - 'utils/ffmpeg/**'
+      - 'utils/opencvmini/**'
+      - 'utils/wasi-crypto/**'
+      - 'utils/wasi-nn/**'
   pull_request:
     paths:
-      - 'utils/docker/**'
       - '.github/workflows/docker.yml'
+      - 'utils/docker/**'
+      - 'utils/ffmpeg/**'
+      - 'utils/opencvmini/**'
+      - 'utils/wasi-crypto/**'
+      - 'utils/wasi-nn/**'
   schedule:
     - cron: "0 0 */7 * *"
 
@@ -53,12 +59,15 @@ jobs:
   paths-filter:
     name: Run paths-filter
     runs-on: ubuntu-latest
+
     permissions:
       pull-requests: read
+
     outputs: # Set outputs to true if not pull_request
       ci-image-base: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ci-image-base || 'true' }}
       manylinux: ${{ github.event_name == 'pull_request' && steps.filter.outputs.manylinux || 'true' }}
       ubuntu: ${{ github.event_name == 'pull_request' && steps.filter.outputs.ubuntu || 'true' }}
+
     steps:
       - if: ${{ github.event_name == 'pull_request' }}
         id: filter
@@ -66,21 +75,34 @@ jobs:
         with:
           filters: |
             ci-image-base:
+              - '.github/workflows/docker.yml'
               - 'utils/docker/docker-bake.ci-image-base.hcl'
               - 'utils/docker/Dockerfile.ci-image-base'
             manylinux:
+              - '.github/workflows/docker.yml'
+              - 'utils/docker/docker-bake.manylinux.hcl'
               - 'utils/docker/Dockerfile.manylinux**'
+              - 'utils/ffmpeg/**'
+              - 'utils/opencvmini/**'
+              - 'utils/wasi-crypto/**'
+              - 'utils/wasi-nn/**'
             ubuntu:
-              - 'utils/docker/Dockerfile.base'
-              - 'utils/docker/Dockerfile.build-**'
+              - '.github/workflows/docker.yml'
+              - 'utils/docker/docker-bake.ubuntu.hcl'
+              - 'utils/docker/Dockerfile.ubuntu-**'
+              - 'utils/ffmpeg/**'
+              - 'utils/opencvmini/**'
+              - 'utils/wasi-crypto/**'
+              - 'utils/wasi-nn/**'
 
   bake-base-images:
-    name: Bake `ci-image-base`
     needs:
       - prep
       - paths-filter
-    if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
+
+    name: CI image base
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -95,18 +117,29 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: Bake and Push
+      # DO NOT skip the whole job to prevent descending jobs to be skipped
+      - if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
+        name: Bake and Push
         uses: docker/bake-action@v5
         with:
           files: utils/docker/docker-bake.ci-image-base.hcl
           push: ${{ github.event_name != 'pull_request' }}
 
   build-ubuntu-images:
-    name: Build for Ubuntu
     needs:
       - prep
       - paths-filter
+      - bake-base-images
     if: ${{ needs.paths-filter.outputs.ubuntu == 'true' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        targets:
+          - default
+          - base-2004-clang-aarch64
+
+    name: Ubuntu
     runs-on: ubuntu-latest
     container:
       image: wasmedge/wasmedge:ci-image-base
@@ -125,118 +158,28 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-base"
-        uses: docker/build-push-action@v6
+      - name: Bake and Push
+        uses: docker/bake-action@v5
         with:
-          context: ./utils/docker
-          file: utils/docker/Dockerfile.base
-          platforms: linux/amd64
+          files: utils/docker/docker-bake.ubuntu.hcl
+          targets: ${{ matrix.targets }}
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ needs.prep.outputs.docker_image }}:ubuntu-base
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang"
-        uses: docker/build-push-action@v6
-        with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
-          context: ./utils/docker
-          file: ./utils/docker/Dockerfile.build-clang
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc"
-        uses: docker/build-push-action@v6
-        with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
-          context: ./utils/docker
-          file: utils/docker/Dockerfile.build-gcc
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-clang-plugins-deps"
-        uses: docker/build-push-action@v6
-        with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-build-clang
-          context: ./utils
-          file: ./utils/docker/Dockerfile.build-plugins-deps
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ needs.prep.outputs.docker_image }}:ubuntu-build-clang-plugins-deps
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: "Rebuild wasmedge/wasmedge:ubuntu-build-gcc-plugins-deps"
-        uses: docker/build-push-action@v6
-        with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-build-gcc
-          context: ./utils
-          file: ./utils/docker/Dockerfile.build-plugins-deps
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ needs.prep.outputs.docker_image }}:ubuntu-build-gcc-plugins-deps
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: "Rebuild wasmedge/wasmedge:latest"
-        uses: docker/build-push-action@v6
-        with:
-          build-args: BASE=wasmedge/wasmedge:ubuntu-base
-          context: ./utils/docker
-          file: utils/docker/Dockerfile.build-clang
-          platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ needs.prep.outputs.docker_image }}:latest
-          labels: |
-            org.opencontainers.image.title=${{ github.event.repository.name }}
-            org.opencontainers.image.description=${{ github.event.repository.description }}
-            org.opencontainers.image.url=${{ github.event.repository.html_url }}
-            org.opencontainers.image.source=${{ github.event.repository.clone_url }}
-            org.opencontainers.image.version=${{ needs.prep.outputs.version }}
-            org.opencontainers.image.created=${{ needs.prep.outputs.created }}
-            org.opencontainers.image.revision=${{ github.sha }}
+          set: |
+            *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
+            *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
+            *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            *.labels.org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            *.labels.org.opencontainers.image.revision=${{ github.sha }}
+            *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}
 
   build-manylinux-images:
     needs:
       - prep
       - paths-filter
+      - bake-base-images
     if: ${{ needs.paths-filter.outputs.manylinux == 'true' }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -251,7 +194,8 @@ jobs:
             targets: aarch64,aarch64-plugins
             host_runner: linux-arm64-v2
             host_container: wasmedge/wasmedge:ci-image-base_aarch64
-    name: Build for ${{ matrix.name }}
+
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.host_runner }}
     container:
       image: ${{ matrix.host_container }}
@@ -276,3 +220,11 @@ jobs:
           files: utils/docker/docker-bake.manylinux.hcl
           targets: ${{ matrix.targets }}
           push: ${{ github.event_name != 'pull_request' }}
+          set: |
+            *.labels.org.opencontainers.image.title=${{ github.event.repository.name }}
+            *.labels.org.opencontainers.image.description=${{ github.event.repository.description }}
+            *.labels.org.opencontainers.image.url=${{ github.event.repository.html_url }}
+            *.labels.org.opencontainers.image.source=${{ github.event.repository.clone_url }}
+            *.labels.org.opencontainers.image.revision=${{ github.sha }}
+            *.labels.org.opencontainers.image.version=${{ needs.prep.outputs.version }}
+            *.labels.org.opencontainers.image.created=${{ needs.prep.outputs.created }}

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "loader/serialize.h"
 
@@ -274,5 +274,91 @@ TEST(serializeTypeTest, SerializeGlobalType) {
   GlobalType.setValType(WasmEdge::TypeCode::ExternRef);
   EXPECT_FALSE(
       SerNoRefType.serializeSection(createGlobalSec(GlobalType), Output));
+}
+
+TEST(serializeTypeTest, SerializeFuncRefType) {
+  std::vector<uint8_t> Output;
+  std::vector<uint8_t> Expected;
+
+  // 5. Test serialize Function References heap types.
+  //
+  //   1. Test FuncRef heap type.
+  //   2. Test ExternRef heap type.
+  //   3. Test Ref heap type.
+  //   4. Test RefNull heap type.
+  //   5. Test TypeIndex 5 heap type.
+
+  WasmEdge::AST::GlobalType GlobalType;
+  GlobalType.setValType(WasmEdge::TypeCode::FuncRef);
+  GlobalType.setValMut(WasmEdge::ValMut::Const);
+  Output = {};
+
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected = {
+      0x06U, // Global section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x70U, // FuncRef type
+      0x00U, // Const mutation
+      0x0BU  // Expression
+  };
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::ExternRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected = {
+      0x06U, // Global section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x6FU, // ExternRef type
+      0x00U, // Const mutation
+      0x0BU  // Expression
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
+  GlobalType.setValType(WasmEdge::ValType(WasmEdge::TypeCode::Ref,
+                                          WasmEdge::TypeCode::ExternRef));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected = {
+      0x06U, // Global section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x64U, // Ref type
+      0x6FU, // ExternRef heap type
+      0x00U, // Const mutation
+      0x0BU  // Expression End
+  };
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::ValType(WasmEdge::TypeCode::RefNull,
+                                          WasmEdge::TypeCode::ExternRef));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected = {
+      0x06U, // Global section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x6FU, // ExternRef heap type
+      0x00U, // Const mutation
+      0x0BU  // Expression End
+  };
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::ValType(WasmEdge::TypeCode::Ref, 5));
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected = {
+      0x06U, // Global section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x64U, // Ref heap type
+      0x05U, // Type index 5
+      0x00U, // Second byte reserved for future extensions
+      0x0BU  // Expression End
+  };
+  EXPECT_EQ(Output, Expected);
 }
 } // namespace

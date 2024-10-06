@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "wasinnenv.h"
 #include "types.h"
@@ -32,7 +32,9 @@ std::map<std::string_view, Backend> BackendMap = {
     {"ggml"sv, Backend::GGML},
     {"neuralspeed"sv, Backend::NeuralSpeed},
     {"whisper"sv, Backend::Whisper},
-    {"piper"sv, Backend::Piper}};
+    {"mlx"sv, Backend::MLX},
+    {"piper"sv, Backend::Piper},
+    {"chattts"sv, Backend::ChatTTS}};
 
 std::map<std::string_view, Device> DeviceMap = {{"cpu"sv, Device::CPU},
                                                 {"gpu"sv, Device::GPU},
@@ -104,9 +106,10 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
     auto Device = DeviceMap.find(Target);
     if (Backend != BackendMap.end() && Device != DeviceMap.end()) {
       if (Backend->second == Backend::GGML) {
-        // In GGML, we only support loading one model from nn-preload config.
-        // To handle paths on Windows that contains `:` in the path, we combine
-        // the Paths into a single string separated by `:`.
+        // In GGML, we only support loading one model from nn-preload
+        // config. To handle paths on Windows that contains `:` in the
+        // path, we combine the Paths into a single string separated by
+        // `:`.
         std::string P;
         for (const std::string &PathSegment : Paths) {
           P += PathSegment;
@@ -114,7 +117,8 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
             P += ":";
           }
         }
-        // We write model path to model data to avoid file IO in llama.cpp.
+        // We write model path to model data to avoid file IO in
+        // llama.cpp.
         std::string ModelPath = "preload:" + P;
         std::vector<uint8_t> ModelPathData(ModelPath.begin(), ModelPath.end());
         Models.push_back(std::move(ModelPathData));

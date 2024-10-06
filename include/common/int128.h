@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/common/int128.h - 128-bit integer type -------------------===//
 //
@@ -14,23 +14,10 @@
 #pragma once
 
 #if defined(_MSC_VER) && !defined(__clang__)
+#pragma intrinsic(_BitScanReverse)
 #pragma intrinsic(_BitScanReverse64)
+#include <immintrin.h>
 #endif
-
-#include <ostream>
-
-// If there is a built-in type __int128, then use it directly
-#if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
-
-namespace WasmEdge {
-using int128_t = __int128;
-using uint128_t = unsigned __int128;
-std::ostream &operator<<(std::ostream &OS, uint128_t Value);
-} // namespace WasmEdge
-
-#else
-
 // We have to detect for those environments who don't support __int128 type
 // natively.
 #include "endian.h"
@@ -46,28 +33,113 @@ std::ostream &operator<<(std::ostream &OS, uint128_t Value);
 
 namespace WasmEdge {
 
-class int128_t;
-class uint128_t;
+inline constexpr int clz(uint32_t V) noexcept {
+#if defined(_MSC_VER) && !defined(__clang__)
+  if (V) {
+    unsigned long LeadingZero = 0;
+    _BitScanReverse(&LeadingZero, V);
+    return 31 ^ static_cast<int>(LeadingZero);
+  }
+  return 32;
+#else
+  return __builtin_clz(V);
+#endif
+}
 
-class uint128_t {
+inline constexpr int clz(uint64_t V) noexcept {
+#if defined(_MSC_VER) && !defined(__clang__)
+  if (V) {
+    unsigned long LeadingZero = 0;
+    _BitScanReverse64(&LeadingZero, V);
+    return 63 ^ static_cast<int>(LeadingZero);
+  }
+  return 64;
+#else
+  return __builtin_clzll(V);
+#endif
+}
+
+inline auto udiv128by64to64(uint64_t U1, uint64_t U0, uint64_t V,
+                            uint64_t &R) noexcept {
+  {
+#if defined(_M_X64) && defined(_MSC_VER) && !defined(__clang__)
+    return _udiv128(U1, U0, V, &R);
+#elif defined(__x86_64__)
+    uint64_t Result = 0;
+    __asm__("divq %[v]" : "=a"(Result), "=d"(R) : [v] "r"(V), "a"(U0), "d"(U1));
+    return Result;
+#endif
+  }
+  const uint32_t V0 = static_cast<uint32_t>(V);
+  const uint32_t V1 = static_cast<uint32_t>(V >> 32);
+  if (V1 == 0) {
+    auto Rem = (U1 << 32) | (U0 >> 32);
+    auto Result = Rem / V0;
+    Rem = ((Rem % V0) << 32) | static_cast<uint32_t>(U0);
+    Result = (Result << 32) | (Rem / V0);
+    R = Rem % V0;
+    return Result;
+  }
+  uint64_t Un64 = 0, Un10 = 0;
+  const auto s = clz(V1);
+  if (s > 0) {
+    V <<= s;
+    Un64 = (U1 << s) | (U0 >> (64 - s));
+    Un10 = U0 << s;
+  } else {
+    Un64 = U1;
+    Un10 = U0;
+  }
+  uint64_t Vn1 = static_cast<uint32_t>(V >> 32);
+  uint64_t Vn0 = static_cast<uint32_t>(V);
+  uint64_t Un1 = static_cast<uint32_t>(Un10 >> 32);
+  uint64_t Un0 = static_cast<uint32_t>(Un10);
+  uint64_t Q1 = Un64 / Vn1;
+  uint64_t Rhat = Un64 - Q1 * Vn1;
+  while ((Q1 >> 32) >= 1 || Q1 * Vn0 > (Rhat << 32) + Un1) {
+    --Q1;
+    Rhat += Vn1;
+    if ((Rhat >> 32) >= 1) {
+      break;
+    }
+  }
+
+  uint64_t Un21 = (Un64 << 32) + Un1 - Q1 * V;
+  uint64_t Q0 = Un21 / Vn1;
+  Rhat = Un21 - Q0 * Vn1;
+  while ((Q0 >> 32) >= 1 || Q0 * Vn0 > (Rhat << 32) + Un0) {
+    --Q0;
+    Rhat += Vn1;
+    if ((Rhat >> 32) >= 1) {
+      break;
+    }
+  }
+  R = ((Un21 << 32) + Un0 - Q0 * V) >> s;
+  return (Q1 << 32) + Q0;
+}
+
+class int128;
+class uint128;
+
+class uint128 {
 public:
-  uint128_t() noexcept = default;
-  constexpr uint128_t(const uint128_t &) noexcept = default;
-  constexpr uint128_t(uint128_t &&) noexcept = default;
-  constexpr uint128_t &operator=(const uint128_t &V) noexcept = default;
-  constexpr uint128_t &operator=(uint128_t &&V) noexcept = default;
+  uint128() noexcept = default;
+  constexpr uint128(const uint128 &) noexcept = default;
+  constexpr uint128(uint128 &&) noexcept = default;
+  constexpr uint128 &operator=(const uint128 &V) noexcept = default;
+  constexpr uint128 &operator=(uint128 &&V) noexcept = default;
 
-  constexpr uint128_t(int V) noexcept
-      : Low(V), High(V < 0 ? std::numeric_limits<uint64_t>::max() : 0) {}
-  constexpr uint128_t(long V) noexcept
-      : Low(V), High(V < 0 ? std::numeric_limits<uint64_t>::max() : 0) {}
-  constexpr uint128_t(long long V) noexcept
-      : Low(V), High(V < 0 ? std::numeric_limits<uint64_t>::max() : 0) {}
-  constexpr uint128_t(unsigned int V) noexcept : Low(V), High(0) {}
-  constexpr uint128_t(unsigned long V) noexcept : Low(V), High(0) {}
-  constexpr uint128_t(unsigned long long V) noexcept : Low(V), High(0) {}
-  constexpr uint128_t(int128_t V) noexcept;
-  constexpr uint128_t(uint64_t H, uint64_t L) noexcept : Low(L), High(H) {}
+  constexpr uint128(unsigned int V) noexcept : Low(V), High(0) {}
+  constexpr uint128(unsigned long V) noexcept : Low(V), High(0) {}
+  constexpr uint128(unsigned long long V) noexcept : Low(V), High(0) {}
+  constexpr uint128(int128 V) noexcept;
+  constexpr uint128(uint64_t H, uint64_t L) noexcept : Low(L), High(H) {}
+
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  constexpr uint128(unsigned __int128 V) noexcept
+      : Low(static_cast<uint64_t>(V)), High(static_cast<uint64_t>(V >> 64)) {}
+#endif
 
   constexpr operator bool() const noexcept {
     return static_cast<bool>(Low) || static_cast<bool>(High);
@@ -85,114 +157,127 @@ public:
     return static_cast<uint64_t>(Low);
   }
 
-  constexpr uint128_t &operator=(int V) noexcept {
-    return *this = uint128_t(V);
+  constexpr uint128 &operator=(unsigned int V) noexcept {
+    return *this = uint128(V);
   }
-  constexpr uint128_t &operator=(long V) noexcept {
-    return *this = uint128_t(V);
+  constexpr uint128 &operator=(unsigned long V) noexcept {
+    return *this = uint128(V);
   }
-  constexpr uint128_t &operator=(long long V) noexcept {
-    return *this = uint128_t(V);
+  constexpr uint128 &operator=(unsigned long long V) noexcept {
+    return *this = uint128(V);
   }
-  constexpr uint128_t &operator=(unsigned int V) noexcept {
-    return *this = uint128_t(V);
-  }
-  constexpr uint128_t &operator=(unsigned long V) noexcept {
-    return *this = uint128_t(V);
-  }
-  constexpr uint128_t &operator=(unsigned long long V) noexcept {
-    return *this = uint128_t(V);
-  }
-  constexpr uint128_t &operator+=(uint128_t Other) noexcept {
+  constexpr uint128 &operator+=(uint128 Other) noexcept {
     return *this = *this + Other;
   }
-  constexpr uint128_t &operator-=(uint128_t Other) noexcept {
+  constexpr uint128 &operator-=(uint128 Other) noexcept {
     return *this = *this - Other;
   }
-  constexpr uint128_t &operator*=(uint128_t Other) noexcept {
+  constexpr uint128 &operator*=(uint128 Other) noexcept {
     return *this = *this * Other;
   }
-  constexpr uint128_t &operator/=(uint128_t Other) noexcept {
+  constexpr uint128 &operator/=(uint128 Other) noexcept {
     return *this = *this / Other;
   }
-  constexpr uint128_t &operator%=(uint128_t Other) noexcept {
+  constexpr uint128 &operator%=(uint128 Other) noexcept {
     return *this = *this % Other;
   }
-  constexpr uint128_t &operator&=(uint128_t Other) noexcept {
+  constexpr uint128 &operator&=(uint128 Other) noexcept {
     return *this = *this & Other;
   }
-  constexpr uint128_t &operator|=(uint128_t Other) noexcept {
+  constexpr uint128 &operator|=(uint128 Other) noexcept {
     return *this = *this | Other;
   }
-  constexpr uint128_t &operator^=(uint128_t Other) noexcept {
+  constexpr uint128 &operator^=(uint128 Other) noexcept {
     return *this = *this ^ Other;
   }
-  constexpr uint128_t &operator<<=(unsigned int Other) noexcept {
+  constexpr uint128 &operator<<=(unsigned int Other) noexcept {
     return *this = *this << Other;
   }
-  constexpr uint128_t &operator>>=(unsigned int Other) noexcept {
+  constexpr uint128 &operator>>=(unsigned int Other) noexcept {
     return *this = *this >> Other;
   }
-  constexpr uint128_t &operator<<=(int Other) noexcept {
+  constexpr uint128 &operator<<=(int Other) noexcept {
     return *this = *this << Other;
   }
-  constexpr uint128_t &operator>>=(int Other) noexcept {
+  constexpr uint128 &operator>>=(int Other) noexcept {
     return *this = *this >> Other;
   }
 
-  constexpr uint128_t &operator=(int128_t V) noexcept;
+  constexpr uint128 &operator=(int128 V) noexcept;
 
-  friend constexpr bool operator==(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr bool operator==(uint128 LHS, uint128 RHS) noexcept {
     return LHS.Low == RHS.Low && LHS.High == RHS.High;
   }
-  friend constexpr bool operator<(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr bool operator<(uint128 LHS, uint128 RHS) noexcept {
     return LHS.High == RHS.High ? LHS.Low < RHS.Low : LHS.High < RHS.High;
   }
-  friend constexpr bool operator>(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr bool operator>(uint128 LHS, uint128 RHS) noexcept {
     return RHS < LHS;
   }
-  friend constexpr bool operator!=(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr bool operator!=(uint128 LHS, uint128 RHS) noexcept {
     return !(LHS == RHS);
   }
-  friend constexpr bool operator<=(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr bool operator<=(uint128 LHS, uint128 RHS) noexcept {
     return !(LHS > RHS);
   }
-  friend constexpr bool operator>=(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr bool operator>=(uint128 LHS, uint128 RHS) noexcept {
     return !(LHS < RHS);
   }
 
-  friend constexpr uint128_t operator+(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr uint128 operator+(uint128 LHS, uint128 RHS) noexcept {
     uint64_t Carry =
         (std::numeric_limits<uint64_t>::max() - LHS.Low) < RHS.Low ? 1 : 0;
-    return uint128_t(LHS.High + RHS.High + Carry, LHS.Low + RHS.Low);
+    return uint128(LHS.High + RHS.High + Carry, LHS.Low + RHS.Low);
   }
-  friend constexpr uint128_t operator-(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr uint128 operator-(uint128 LHS, uint128 RHS) noexcept {
     uint64_t Carry = LHS.Low < RHS.Low ? 1 : 0;
-    return uint128_t(LHS.High - RHS.High - Carry, LHS.Low - RHS.Low);
+    return uint128(LHS.High - RHS.High - Carry, LHS.Low - RHS.Low);
   }
-  friend constexpr uint128_t operator*(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr uint128 operator*(uint128 LHS, uint128 RHS) noexcept {
     uint64_t A32 = LHS.Low >> 32;
     uint64_t A00 = LHS.Low & UINT64_C(0xffffffff);
     uint64_t B32 = RHS.Low >> 32;
     uint64_t B00 = RHS.Low & UINT64_C(0xffffffff);
-    uint128_t Result = uint128_t(
-        LHS.High * RHS.Low + LHS.Low * RHS.High + A32 * B32, A00 * B00);
-    Result += uint128_t(A32 * B00) << 32U;
-    Result += uint128_t(A00 * B32) << 32U;
+    uint128 Result =
+        uint128(LHS.High * RHS.Low + LHS.Low * RHS.High + A32 * B32, A00 * B00);
+    Result += uint128(A32 * B00) << 32U;
+    Result += uint128(A00 * B32) << 32U;
     return Result;
   }
-  friend constexpr uint128_t operator/(uint128_t LHS, uint128_t RHS) noexcept {
+  friend uint128 operator/(uint128 LHS, uint64_t RHS) noexcept {
+    if (LHS.High == 0 && LHS.Low < RHS) {
+      LHS.Low = 0;
+      return LHS;
+    }
+    if (LHS.High < RHS) {
+      uint64_t Rem = 0;
+      uint64_t QLow = udiv128by64to64(LHS.High, LHS.Low, RHS, Rem);
+      LHS.Low = QLow;
+      LHS.High = 0;
+      return LHS;
+    }
+    uint64_t QHigh = LHS.High / RHS;
+    uint64_t Rem = 0;
+    uint64_t QLow = udiv128by64to64(LHS.High % RHS, LHS.Low, RHS, Rem);
+    LHS.Low = QLow;
+    LHS.High = QHigh;
+    return LHS;
+  }
+  friend constexpr uint128 operator/(uint128 LHS, uint128 RHS) noexcept {
     if (RHS > LHS) {
-      return 0;
+      return 0U;
     }
     if (RHS == LHS) {
-      return 1;
+      return 1U;
     }
-    uint128_t Denominator = RHS;
-    uint128_t Quotient = 0;
+    if (RHS.High == 0) {
+      return LHS / RHS.Low;
+    }
+    uint128 Denominator = RHS;
+    uint128 Quotient = 0U;
     const unsigned int Shift = RHS.clz() - LHS.clz();
     Denominator <<= Shift;
-    for (unsigned int I = 0; I <= Shift; ++I) {
+    for (unsigned int I = 0U; I <= Shift; ++I) {
       Quotient <<= 1U;
       if (LHS >= Denominator) {
         LHS -= Denominator;
@@ -202,14 +287,14 @@ public:
     }
     return Quotient;
   }
-  friend constexpr uint128_t operator%(uint128_t LHS, uint128_t RHS) noexcept {
+  friend constexpr uint128 operator%(uint128 LHS, uint128 RHS) noexcept {
     if (RHS > LHS) {
       return LHS;
     }
     if (RHS == LHS) {
-      return 0;
+      return 0U;
     }
-    uint128_t Denominator = RHS;
+    uint128 Denominator = RHS;
     const unsigned int Shift = RHS.clz() - LHS.clz();
     Denominator <<= Shift;
     for (unsigned int I = 0; I <= Shift; ++I) {
@@ -220,87 +305,74 @@ public:
     }
     return LHS;
   }
-  friend constexpr uint128_t operator&(uint128_t LHS, uint128_t RHS) noexcept {
-    return uint128_t(LHS.High & RHS.High, LHS.Low & RHS.Low);
+  friend constexpr uint128 operator&(uint128 LHS, uint128 RHS) noexcept {
+    return uint128(LHS.High & RHS.High, LHS.Low & RHS.Low);
   }
-  friend constexpr uint128_t operator|(uint128_t LHS, uint128_t RHS) noexcept {
-    return uint128_t(LHS.High | RHS.High, LHS.Low | RHS.Low);
+  friend constexpr uint128 operator|(uint128 LHS, uint128 RHS) noexcept {
+    return uint128(LHS.High | RHS.High, LHS.Low | RHS.Low);
   }
-  friend constexpr uint128_t operator^(uint128_t LHS, uint128_t RHS) noexcept {
-    return uint128_t(LHS.High ^ RHS.High, LHS.Low ^ RHS.Low);
+  friend constexpr uint128 operator^(uint128 LHS, uint128 RHS) noexcept {
+    return uint128(LHS.High ^ RHS.High, LHS.Low ^ RHS.Low);
   }
-  friend constexpr uint128_t operator~(uint128_t Value) noexcept {
-    return uint128_t(~Value.High, ~Value.Low);
+  friend constexpr uint128 operator~(uint128 Value) noexcept {
+    return uint128(~Value.High, ~Value.Low);
   }
-  friend constexpr uint128_t operator<<(uint128_t Value,
-                                        unsigned int Shift) noexcept {
+  friend constexpr uint128 operator<<(uint128 Value,
+                                      unsigned int Shift) noexcept {
     if (Shift < 64) {
       if (Shift != 0) {
-        return uint128_t((Value.High << Shift) | (Value.Low >> (64 - Shift)),
-                         Value.Low << Shift);
+        return uint128((Value.High << Shift) | (Value.Low >> (64 - Shift)),
+                       Value.Low << Shift);
       }
       return Value;
     }
-    return uint128_t(Value.Low << (Shift - 64), 0);
+    return uint128(Value.Low << (Shift - 64), 0);
   }
-  friend constexpr uint128_t operator>>(uint128_t Value,
-                                        unsigned int Shift) noexcept {
+  friend constexpr uint128 operator>>(uint128 Value,
+                                      unsigned int Shift) noexcept {
     if (Shift < 64) {
       if (Shift != 0) {
-        return uint128_t((Value.High >> Shift),
-                         Value.Low >> Shift | (Value.High << (64 - Shift)));
+        return uint128((Value.High >> Shift),
+                       Value.Low >> Shift | (Value.High << (64 - Shift)));
       }
       return Value;
     }
-    return uint128_t(0, Value.High >> (Shift - 64));
+    return uint128(0, Value.High >> (Shift - 64));
   }
-  friend constexpr uint128_t operator<<(uint128_t Value, int Shift) noexcept {
+  friend constexpr uint128 operator<<(uint128 Value, int Shift) noexcept {
     return Value << static_cast<unsigned int>(Shift);
   }
-  friend constexpr uint128_t operator>>(uint128_t Value, int Shift) noexcept {
+  friend constexpr uint128 operator>>(uint128 Value, int Shift) noexcept {
     return Value >> static_cast<unsigned int>(Shift);
   }
-  friend constexpr uint128_t operator<<(uint128_t Value,
-                                        unsigned long long Shift) noexcept {
+  friend constexpr uint128 operator<<(uint128 Value,
+                                      unsigned long long Shift) noexcept {
     return Value << static_cast<unsigned int>(Shift);
   }
-  friend constexpr uint128_t operator>>(uint128_t Value,
-                                        unsigned long long Shift) noexcept {
+  friend constexpr uint128 operator>>(uint128 Value,
+                                      unsigned long long Shift) noexcept {
     return Value >> static_cast<unsigned int>(Shift);
   }
 
-  static constexpr uint128_t numericMin() noexcept {
-    return uint128_t(std::numeric_limits<uint64_t>::min(),
-                     std::numeric_limits<uint64_t>::min());
+  static constexpr uint128 numericMin() noexcept {
+    return uint128(std::numeric_limits<uint64_t>::min(),
+                   std::numeric_limits<uint64_t>::min());
   }
-  static constexpr uint128_t numericMax() noexcept {
-    return uint128_t(std::numeric_limits<uint64_t>::max(),
-                     std::numeric_limits<uint64_t>::max());
+  static constexpr uint128 numericMax() noexcept {
+    return uint128(std::numeric_limits<uint64_t>::max(),
+                   std::numeric_limits<uint64_t>::max());
   }
 
   constexpr uint64_t low() const noexcept { return Low; }
   constexpr uint64_t high() const noexcept { return High; }
   constexpr unsigned int clz() const noexcept {
-#if defined(_MSC_VER) && !defined(__clang__)
-    unsigned long LeadingZero = 0;
     if (High) {
-      _BitScanReverse64(&LeadingZero, High);
-      return (63 - LeadingZero);
+      return static_cast<unsigned int>(WasmEdge::clz(High));
     }
     if (Low) {
-      _BitScanReverse64(&LeadingZero, Low);
-      return (63 - LeadingZero) + 64;
+      return static_cast<unsigned int>(WasmEdge::clz(Low)) + 64U;
     }
-    return 128;
-#else
-    if (High) {
-      return __builtin_clzll(High);
-    }
-    if (Low) {
-      return __builtin_clzll(Low) + 64;
-    }
-    return 128;
-#endif
+    return 128U;
   }
 
 private:
@@ -308,50 +380,54 @@ private:
   uint64_t High;
 };
 
-class int128_t {
+class int128 {
 public:
-  int128_t() noexcept = default;
-  constexpr int128_t(const int128_t &) noexcept = default;
-  constexpr int128_t(int128_t &&) noexcept = default;
-  constexpr int128_t &operator=(const int128_t &V) noexcept = default;
-  constexpr int128_t &operator=(int128_t &&V) noexcept = default;
+  int128() noexcept = default;
+  constexpr int128(const int128 &) noexcept = default;
+  constexpr int128(int128 &&) noexcept = default;
+  constexpr int128 &operator=(const int128 &V) noexcept = default;
+  constexpr int128 &operator=(int128 &&V) noexcept = default;
 
-  constexpr int128_t(int V) noexcept
+  constexpr int128(int V) noexcept
       : Low(static_cast<uint64_t>(V)), High(V < 0 ? INT64_C(-1) : INT64_C(0)) {}
-  constexpr int128_t(long V) noexcept
+  constexpr int128(long V) noexcept
       : Low(static_cast<uint64_t>(V)), High(V < 0 ? INT64_C(-1) : INT64_C(0)) {}
-  constexpr int128_t(long long V) noexcept
+  constexpr int128(long long V) noexcept
       : Low(static_cast<uint64_t>(V)), High(V < 0 ? INT64_C(-1) : INT64_C(0)) {}
-  constexpr int128_t(unsigned int V) noexcept : Low(V), High(INT64_C(0)) {}
-  constexpr int128_t(unsigned long V) noexcept : Low(V), High(INT64_C(0)) {}
-  constexpr int128_t(unsigned long long V) noexcept
-      : Low(V), High(INT64_C(0)) {}
-  constexpr int128_t(uint128_t V) noexcept;
-  constexpr int128_t(int64_t H, uint64_t L) noexcept : Low(L), High(H) {}
+  constexpr int128(unsigned int V) noexcept : Low(V), High(INT64_C(0)) {}
+  constexpr int128(unsigned long V) noexcept : Low(V), High(INT64_C(0)) {}
+  constexpr int128(unsigned long long V) noexcept : Low(V), High(INT64_C(0)) {}
+  constexpr int128(uint128 V) noexcept;
+  constexpr int128(int64_t H, uint64_t L) noexcept : Low(L), High(H) {}
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+  constexpr int128(__int128 V) noexcept
+      : Low(static_cast<uint64_t>(V)), High(V >> 64) {}
+#endif
 
-  constexpr int128_t &operator=(int V) noexcept { return *this = int128_t(V); }
-  constexpr int128_t &operator=(long V) noexcept { return *this = int128_t(V); }
-  constexpr int128_t &operator=(long long V) noexcept {
-    return *this = int128_t(V);
+  constexpr int128 &operator=(int V) noexcept { return *this = int128(V); }
+  constexpr int128 &operator=(long V) noexcept { return *this = int128(V); }
+  constexpr int128 &operator=(long long V) noexcept {
+    return *this = int128(V);
   }
-  constexpr int128_t &operator=(unsigned int V) noexcept {
-    return *this = int128_t(V);
+  constexpr int128 &operator=(unsigned int V) noexcept {
+    return *this = int128(V);
   }
-  constexpr int128_t &operator=(unsigned long V) noexcept {
-    return *this = int128_t(V);
+  constexpr int128 &operator=(unsigned long V) noexcept {
+    return *this = int128(V);
   }
-  constexpr int128_t &operator=(unsigned long long V) noexcept {
-    return *this = int128_t(V);
+  constexpr int128 &operator=(unsigned long long V) noexcept {
+    return *this = int128(V);
   }
 
-  constexpr int128_t &operator=(uint128_t V) noexcept;
+  constexpr int128 &operator=(uint128 V) noexcept;
 
-  static constexpr int128_t numericMin() noexcept {
-    return int128_t(std::numeric_limits<int64_t>::min(), 0);
+  static constexpr int128 numericMin() noexcept {
+    return int128(std::numeric_limits<int64_t>::min(), 0);
   }
-  static constexpr int128_t numericMax() noexcept {
-    return int128_t(std::numeric_limits<int64_t>::max(),
-                    std::numeric_limits<uint64_t>::max());
+  static constexpr int128 numericMax() noexcept {
+    return int128(std::numeric_limits<int64_t>::max(),
+                  std::numeric_limits<uint64_t>::max());
   }
 
   constexpr uint64_t low() const noexcept { return Low; }
@@ -362,25 +438,24 @@ private:
   int64_t High;
 };
 
-inline constexpr uint128_t::uint128_t(int128_t V) noexcept
+inline constexpr uint128::uint128(int128 V) noexcept
     : Low(V.low()), High(static_cast<uint64_t>(V.high())) {}
 
-inline constexpr uint128_t &uint128_t::operator=(int128_t V) noexcept {
-  return *this = uint128_t(V);
+inline constexpr uint128 &uint128::operator=(int128 V) noexcept {
+  return *this = uint128(V);
 }
 
-inline constexpr int128_t::int128_t(uint128_t V) noexcept
+inline constexpr int128::int128(uint128 V) noexcept
     : Low(V.low()), High(static_cast<int64_t>(V.high())) {}
 
-inline constexpr int128_t &int128_t::operator=(uint128_t V) noexcept {
-  return *this = int128_t(V);
+inline constexpr int128 &int128::operator=(uint128 V) noexcept {
+  return *this = int128(V);
 }
 
-std::ostream &operator<<(std::ostream &OS, uint128_t Value);
 } // namespace WasmEdge
 
 namespace std {
-template <> class numeric_limits<WasmEdge::uint128_t> {
+template <> class numeric_limits<WasmEdge::uint128> {
 public:
   static constexpr bool is_specialized = true;
   static constexpr bool is_signed = false;
@@ -406,23 +481,23 @@ public:
   static constexpr bool traps = numeric_limits<uint64_t>::traps;
   static constexpr bool tinyness_before = false;
 
-  static constexpr WasmEdge::uint128_t min() {
-    return WasmEdge::uint128_t::numericMin();
+  static constexpr WasmEdge::uint128 min() {
+    return WasmEdge::uint128::numericMin();
   }
-  static constexpr WasmEdge::uint128_t lowest() {
-    return WasmEdge::uint128_t::numericMin();
+  static constexpr WasmEdge::uint128 lowest() {
+    return WasmEdge::uint128::numericMin();
   }
-  static constexpr WasmEdge::uint128_t max() {
-    return WasmEdge::uint128_t::numericMax();
+  static constexpr WasmEdge::uint128 max() {
+    return WasmEdge::uint128::numericMax();
   }
-  static constexpr WasmEdge::uint128_t epsilon() { return 0; }
-  static constexpr WasmEdge::uint128_t round_error() { return 0; }
-  static constexpr WasmEdge::uint128_t infinity() { return 0; }
-  static constexpr WasmEdge::uint128_t quiet_NaN() { return 0; }
-  static constexpr WasmEdge::uint128_t signaling_NaN() { return 0; }
-  static constexpr WasmEdge::uint128_t denorm_min() { return 0; }
+  static constexpr WasmEdge::uint128 epsilon() { return 0U; }
+  static constexpr WasmEdge::uint128 round_error() { return 0U; }
+  static constexpr WasmEdge::uint128 infinity() { return 0U; }
+  static constexpr WasmEdge::uint128 quiet_NaN() { return 0U; }
+  static constexpr WasmEdge::uint128 signaling_NaN() { return 0U; }
+  static constexpr WasmEdge::uint128 denorm_min() { return 0U; }
 };
-template <> class numeric_limits<WasmEdge::int128_t> {
+template <> class numeric_limits<WasmEdge::int128> {
 public:
   static constexpr bool is_specialized = true;
   static constexpr bool is_signed = true;
@@ -448,22 +523,178 @@ public:
   static constexpr bool traps = numeric_limits<uint64_t>::traps;
   static constexpr bool tinyness_before = false;
 
-  static constexpr WasmEdge::int128_t min() {
-    return WasmEdge::int128_t::numericMin();
+  static constexpr WasmEdge::int128 min() {
+    return WasmEdge::int128::numericMin();
   }
-  static constexpr WasmEdge::int128_t lowest() {
-    return WasmEdge::int128_t::numericMin();
+  static constexpr WasmEdge::int128 lowest() {
+    return WasmEdge::int128::numericMin();
   }
-  static constexpr WasmEdge::int128_t max() {
-    return WasmEdge::int128_t::numericMax();
+  static constexpr WasmEdge::int128 max() {
+    return WasmEdge::int128::numericMax();
   }
-  static constexpr WasmEdge::int128_t epsilon() { return 0; }
-  static constexpr WasmEdge::int128_t round_error() { return 0; }
-  static constexpr WasmEdge::int128_t infinity() { return 0; }
-  static constexpr WasmEdge::int128_t quiet_NaN() { return 0; }
-  static constexpr WasmEdge::int128_t signaling_NaN() { return 0; }
-  static constexpr WasmEdge::int128_t denorm_min() { return 0; }
+  static constexpr WasmEdge::int128 epsilon() { return 0; }
+  static constexpr WasmEdge::int128 round_error() { return 0; }
+  static constexpr WasmEdge::int128 infinity() { return 0; }
+  static constexpr WasmEdge::int128 quiet_NaN() { return 0; }
+  static constexpr WasmEdge::int128 signaling_NaN() { return 0; }
+  static constexpr WasmEdge::int128 denorm_min() { return 0; }
 };
 } // namespace std
 
+#include <type_traits>
+namespace std {
+template <> struct is_class<WasmEdge::uint128> : std::true_type {};
+} // namespace std
+
+namespace WasmEdge {
+// If there is a built-in type __int128, then use it directly
+#if defined(__x86_64__) || defined(__aarch64__) ||                             \
+    (defined(__riscv) && __riscv_xlen == 64)
+using int128_t = __int128;
+using uint128_t = unsigned __int128;
+#else
+using int128_t = int128;
+using uint128_t = uint128;
 #endif
+} // namespace WasmEdge
+
+#include <fmt/format.h>
+
+FMT_BEGIN_NAMESPACE
+namespace detail {
+inline constexpr bool operator>=(detail::uint128_fallback LHS,
+                                 unsigned int RHS) {
+  return LHS.high() != 0 || LHS.low() >= static_cast<uint64_t>(RHS);
+}
+
+inline constexpr bool operator<(detail::uint128_fallback LHS,
+                                unsigned int RHS) {
+  return LHS.high() == 0 && LHS.low() < static_cast<uint64_t>(RHS);
+}
+
+inline constexpr bool operator<(detail::uint128_fallback LHS,
+                                detail::uint128_fallback RHS) {
+  return LHS.high() < RHS.high() ||
+         (LHS.high() == RHS.high() && LHS.low() < RHS.low());
+}
+
+inline constexpr detail::uint128_fallback &
+operator/=(detail::uint128_fallback &LHS, unsigned int RHSi) {
+  const uint64_t RHS = static_cast<uint64_t>(RHSi);
+  if (LHS.high() == 0 && LHS.low() < RHS) {
+    LHS = 0;
+    return LHS;
+  }
+  if (LHS.high() < RHS) {
+    uint64_t Rem = 0;
+    uint64_t QLo = WasmEdge::udiv128by64to64(LHS.high(), LHS.low(), RHS, Rem);
+    LHS = QLo;
+    return LHS;
+  }
+  uint64_t QHi = LHS.high() / RHS;
+  uint64_t Rem = 0;
+  uint64_t QLo =
+      WasmEdge::udiv128by64to64(LHS.high() % RHS, LHS.low(), RHS, Rem);
+  LHS = (detail::uint128_t{QHi} << 64u) | QLo;
+  return LHS;
+}
+
+inline constexpr detail::uint128_fallback
+operator%(detail::uint128_fallback LHS, unsigned int RHSi) {
+  const uint64_t RHS = static_cast<uint64_t>(RHSi);
+  if (LHS.high() == 0 && LHS.low() < RHS) {
+    return LHS;
+  }
+  uint64_t Rem = 0;
+  WasmEdge::udiv128by64to64(LHS.high() % RHS, LHS.low(), RHS, Rem);
+  return Rem;
+}
+
+inline int do_count_digits(detail::uint128_fallback N) {
+  const uint64_t Low = static_cast<uint64_t>(N);
+  const uint64_t High = static_cast<uint64_t>(N >> 64);
+  if (High == 0) {
+    return detail::count_digits(Low);
+  }
+  // Maps bsr(n) to ceil(log10(pow(2, bsr(n) + 1) - 1)).
+  static constexpr uint8_t Bsr2Log10[] = {
+      20, 20, 21, 21, 21, 22, 22, 22, 22, 23, 23, 23, 24, 24, 24, 25,
+      25, 25, 25, 26, 26, 26, 27, 27, 27, 28, 28, 28, 28, 29, 29, 29,
+      30, 30, 30, 31, 31, 31, 32, 32, 32, 32, 33, 33, 33, 34, 34, 34,
+      35, 35, 35, 35, 36, 36, 36, 37, 37, 37, 38, 38, 38, 38, 39, 39};
+  auto C = WasmEdge::clz(High);
+  auto T = Bsr2Log10[C ^ 63];
+  static constexpr const uint128_t PowersOf10[] = {
+      0,
+      (uint128_t(5ULL) << 64) | uint128_t(7766279631452241920ULL),
+      (uint128_t(54ULL) << 64) | uint128_t(3875820019684212736ULL),
+      (uint128_t(542ULL) << 64) | uint128_t(1864712049423024128ULL),
+      (uint128_t(5421ULL) << 64) | uint128_t(200376420520689664ULL),
+      (uint128_t(54210ULL) << 64) | uint128_t(2003764205206896640ULL),
+      (uint128_t(542101ULL) << 64) | uint128_t(1590897978359414784ULL),
+      (uint128_t(5421010ULL) << 64) | uint128_t(15908979783594147840ULL),
+      (uint128_t(54210108ULL) << 64) | uint128_t(11515845246265065472ULL),
+      (uint128_t(542101086ULL) << 64) | uint128_t(4477988020393345024ULL),
+      (uint128_t(5421010862ULL) << 64) | uint128_t(7886392056514347008ULL),
+      (uint128_t(54210108624ULL) << 64) | uint128_t(5076944270305263616ULL),
+      (uint128_t(542101086242ULL) << 64) | uint128_t(13875954555633532928ULL),
+      (uint128_t(5421010862427ULL) << 64) | uint128_t(9632337040368467968ULL),
+      (uint128_t(54210108624275ULL) << 64) | uint128_t(4089650035136921600ULL),
+      (uint128_t(542101086242752ULL) << 64) | uint128_t(4003012203950112768ULL),
+      (uint128_t(5421010862427522ULL) << 64) |
+          uint128_t(3136633892082024448ULL),
+      (uint128_t(54210108624275221ULL) << 64) |
+          uint128_t(12919594847110692864ULL),
+      (uint128_t(542101086242752217ULL) << 64) |
+          uint128_t(68739955140067328ULL),
+      (uint128_t(5421010862427522170ULL) << 64) |
+          uint128_t(687399551400673280ULL),
+  };
+  return T - (N < PowersOf10[T - 20]);
+}
+
+FMT_CONSTEXPR20 inline int count_digits(detail::uint128_fallback N) {
+  if (!is_constant_evaluated()) {
+    return do_count_digits(N);
+  }
+  return count_digits_fallback(N);
+}
+
+} // namespace detail
+
+template <typename Char> struct formatter<WasmEdge::uint128, Char> {
+private:
+  detail::dynamic_format_specs<Char> Specs;
+
+public:
+  template <typename ParseContext> constexpr auto parse(ParseContext &Ctx) {
+#if FMT_VERSION >= 100000
+    return parse_format_specs(Ctx.begin(), Ctx.end(), Specs, Ctx,
+                              detail::type::uint_type);
+#else
+    using HandlerType = detail::dynamic_specs_handler<ParseContext>;
+    detail::specs_checker<HandlerType> Handler(HandlerType(Specs, Ctx),
+                                               detail::type::uint_type);
+    return parse_format_specs(Ctx.begin(), Ctx.end(), Handler);
+#endif
+  }
+
+  template <typename FormatContext>
+  auto format(WasmEdge::uint128 V, FormatContext &Ctx) const {
+    auto S = Specs;
+    detail::handle_dynamic_spec<detail::width_checker>(S.width, S.width_ref,
+                                                       Ctx);
+    detail::handle_dynamic_spec<detail::precision_checker>(
+        S.precision, S.precision_ref, Ctx);
+    constexpr const unsigned Prefixes[4] = {0, 0, 0x1000000u | '+',
+                                            0x1000000u | ' '};
+    const detail::uint128_t U =
+        (detail::uint128_t{static_cast<uint64_t>(V >> 64)} << 64) |
+        detail::uint128_t{static_cast<uint64_t>(V)};
+    return detail::write_int<Char>(
+        Ctx.out(),
+        detail::write_int_arg<detail::uint128_t>{U, Prefixes[S.sign]}, S,
+        Ctx.locale());
+  }
+};
+FMT_END_NAMESPACE

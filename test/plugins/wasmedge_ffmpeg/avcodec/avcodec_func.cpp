@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avcodec/avcodec_func.h"
 #include "avcodec/module.h"
 
 #include "utils.h"
+
 #include <gtest/gtest.h>
 
 namespace WasmEdge {
@@ -404,7 +408,6 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 }
 
 TEST_F(FFmpegTest, SendPacketReceiveFrame) {
-
   std::string FileName = "ffmpeg-assets/dummy.mp4"; // 32 chars
   uint32_t CodecCtxPtr = UINT32_C(64);
   uint32_t FramePtr = UINT32_C(72);

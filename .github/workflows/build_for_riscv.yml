@@ -12,8 +12,8 @@ on:
       - ".github/workflows/build_for_riscv.yml"
       - "include/**"
       - "lib/**"
-      - "plugins/**"
       - "test/**"
+      - "!test/plugins/**"
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
@@ -26,8 +26,8 @@ on:
       - ".github/workflows/build_for_riscv.yml"
       - "include/**"
       - "lib/**"
-      - "plugins/**"
       - "test/**"
+      - "!test/plugins/**"
       - "thirdparty/**"
       - "tools/**"
       - "CMakeLists.txt"
@@ -56,7 +56,8 @@ jobs:
     - uses: uraimo/run-on-arch-action@v2
       name: Build WasmEdge
       with:
-        base_image: riscv64/ubuntu
+        arch: riscv64
+        distro: ubuntu22.04
         githubToken: ${{ github.token }}
         dockerRunArgs: |
           --volume "${PWD}:/workplace"
@@ -65,7 +66,7 @@ jobs:
           apt-get update -q -y
           apt-get install -q -y git cmake g++ dpkg
           apt-get install -q -y software-properties-common
-          apt-get install -q -y llvm-12-dev liblld-12-dev
+          apt-get install -q -y llvm-15-dev liblld-15-dev zlib1g-dev
           apt-get install -q -y wabt # For generating wasm
         run: |
           mkdir -p build && cd build

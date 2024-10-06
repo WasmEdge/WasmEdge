@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 //===-- wasmedge/runtime/instance/global.h - Global Instance definition ---===//
 //
@@ -23,7 +23,7 @@ class GlobalInstance {
 public:
   GlobalInstance() = delete;
   GlobalInstance(const AST::GlobalType &GType,
-                 ValVariant Val = uint128_t(0)) noexcept
+                 ValVariant Val = uint128_t(0U)) noexcept
       : GlobType(GType), Value(Val) {
     assuming(GType.getValType().isNumType() ||
              GType.getValType().isNullableRefType() ||

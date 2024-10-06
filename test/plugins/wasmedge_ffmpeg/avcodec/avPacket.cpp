@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "avcodec/avPacket.h"
 #include "avcodec/module.h"
+
 #include "utils.h"
 
 #include <gtest/gtest.h>
@@ -11,7 +15,6 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 TEST_F(FFmpegTest, AVPacketTest) {
-
   ASSERT_TRUE(AVCodecMod != nullptr);
 
   uint32_t PacketPtr = UINT32_C(4);

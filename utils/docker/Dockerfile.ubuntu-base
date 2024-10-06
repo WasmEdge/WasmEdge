@@ -1,0 +1,56 @@
+ARG UBUNTU_VER=22
+FROM ubuntu:${UBUNTU_VER}.04 AS base
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y \
+        curl \
+        dpkg-dev \
+        g++ \
+        gcc \
+        git \
+        ninja-build \
+        software-properties-common \
+        wget \
+        zlib1g-dev
+
+### deps for ubuntu 20.04 ###
+FROM base AS deps-20
+
+RUN curl -sSf https://apt.kitware.com/kitware-archive.sh | sh
+RUN apt-get install -y cmake
+
+RUN apt-get install -y \
+        llvm-12-dev \
+        liblld-12-dev \
+        clang-12
+
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-12 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-12 100 && \
+    update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-12 100
+
+ENV CC=/usr/bin/clang-12
+ENV CXX=/usr/bin/clang++-12
+
+### deps for ubuntu 22.04 ###
+FROM base AS deps-22
+
+RUN apt-get install -y cmake
+
+RUN apt-get install -y \
+        llvm-15-dev \
+        liblld-15-dev \
+        clang-15
+
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-15 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-15 100 && \
+    update-alternatives --install /usr/bin/llvm-strip llvm-strip /usr/bin/llvm-strip-15 100
+
+ENV CC=/usr/bin/clang-15
+ENV CXX=/usr/bin/clang++-15
+
+### cleanup
+FROM deps-${UBUNTU_VER} AS clean-apt
+
+RUN rm -rf /var/lib/apt/lists/*

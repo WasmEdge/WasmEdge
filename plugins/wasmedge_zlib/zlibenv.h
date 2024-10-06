@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2022 Second State INC
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #pragma once
 
@@ -42,9 +42,8 @@ struct WasmZStream {
   /* [Wasm Offset] private data object passed to zalloc and zfree */
   uint32_t Opaque;
 
-  /* best guess about the data type: binary or text
-                                           for deflate, or the decoding state
-     for inflate */
+  /* best guess about the data type: binary or text for deflate, or the decoding
+     state for inflate */
   int32_t DataType;
 
   /* Adler-32 or CRC-32 value of the uncompressed data */
@@ -55,8 +54,8 @@ struct WasmZStream {
 static_assert(sizeof(WasmZStream) == 56, "WasmZStream should be 56 bytes");
 
 /*
-     gzip header information passed to and from zlib routines.  See RFC 1952
-  for more details on the meanings of these fields.
+  gzip header information passed to and from zlib routines. See RFC 1952 for
+  more details on the meanings of these fields.
 */
 struct WasmGZHeader {
   int32_t Text;      /* true if compressed data believed to be text */
@@ -72,7 +71,7 @@ struct WasmGZHeader {
   uint32_t CommMax;  /* space at comment (only when reading header) */
   int32_t HCRC;      /* true if there was or will be a header crc */
   int32_t Done;      /* true when done reading gzip header (not used
-                    when writing a gzip file) */
+                        when writing a gzip file) */
 };
 static_assert(sizeof(WasmGZHeader) == 52, "WasmGZHeader should be 52 bytes");
 

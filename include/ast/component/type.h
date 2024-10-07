@@ -282,6 +282,7 @@ using FuncIdx = uint32_t;
 class ResourceType {
 public:
   ResourceType() : DtorSync{true} {}
+  ResourceType(bool Sync) : DtorSync{Sync} {}
   ResourceType(const Runtime::Instance::ComponentInstance *I)
       : Impl{I}, DtorSync{true} {}
   ResourceType(const Runtime::Instance::ComponentInstance *I, bool Sync)

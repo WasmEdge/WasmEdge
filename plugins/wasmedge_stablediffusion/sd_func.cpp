@@ -240,7 +240,6 @@ Expect<uint32_t> SDCreateContext::body(
     uint32_t VaeOnCpu, uint32_t SessiontIdPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
-
   // Check the input model buffer.
   MEM_SPAN_CHECK(ModelPathSpan, MemInst, char, ModelPathPtr, ModelPathLen,
                  "Failed when accessing the input model path memory."sv)
@@ -269,7 +268,6 @@ Expect<uint32_t> SDCreateContext::body(
       "Failed when accessing the input id dembed directory memory."sv)
   MEM_PTR_CHECK(SessionId, MemInst, uint32_t, SessiontIdPtr,
                 "Failed when accessing the return SessionID memory."sv)
-
   std::string ModelPath =
       std::string(ModelPathSpan.begin(), ModelPathSpan.end());
   std::string VaePath = std::string(VaePathSpan.begin(), VaePathSpan.end());
@@ -312,7 +310,6 @@ Expect<uint32_t> SDCreateContext::body(
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
   *SessionId = Env.addContext(Ctx);
-
   return static_cast<uint32_t>(ErrNo::Success);
 }
 
@@ -389,7 +386,6 @@ Expect<uint32_t> SDTextToImage::body(
                   BatchCount, Results);
   }
   // Save results
-
   unsigned char *Png = nullptr;
   *BytesWritten = saveResults(Results, OutputPath, BatchCount, &Png);
   if (OutBufferMaxSize < *BytesWritten) {
@@ -422,7 +418,6 @@ Expect<uint32_t> SDImageToImage::body(
     uint32_t Wtype) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
-
   // Check the input parameter valid.
   MEM_SPAN_CHECK(ImageSpan, MemInst, uint8_t, ImagePtr, ImageLen,
                  "Failed when accessing the input image memory."sv)

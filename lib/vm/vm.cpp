@@ -534,7 +534,7 @@ Expect<std::vector<std::pair<ValInterface, ValType>>>
 VM::unsafeExecute(std::string_view CompName, std::string_view Func,
                   Span<const ValInterface> Params,
                   Span<const ValType> ParamTypes) {
-  // Find module instance by name.
+  // Find component instance by name.
   const auto *FindCompInst = StoreRef.findComponent(CompName);
   if (unlikely(!FindCompInst)) {
     spdlog::error(ErrCode::Value::WrongInstanceAddress);

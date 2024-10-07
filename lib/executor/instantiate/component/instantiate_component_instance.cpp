@@ -45,6 +45,16 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           const auto &SortIdx = S.getSortIdx();
           switch (SortIdx.getSort()) {
           case CoreSort::Func:
+            // FIXME: the case we failed
+            //  0x1c02bc | 02 58       | core instance section
+            //  0x1c02be | 02          | 2 count
+            //  0x1c02bf | 01 04 08 66 | [core instance 1] FromExports([
+            //   Export { name: "fd_write", kind: Func, index: 0 },
+            //   Export { name: "environ_get", kind: Func, index: 1 },
+            //   Export { name: "environ_sizes_get", kind: Func, index: 2 },
+            //   Export { name: "proc_exit", kind: Func, index: 3 }
+            //  ])
+
             // The module instance takes functions and export them
             M->exportFunction(
                 S.getName(),

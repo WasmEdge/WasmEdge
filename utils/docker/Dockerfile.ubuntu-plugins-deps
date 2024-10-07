@@ -29,7 +29,7 @@ ENV PKG_CONFIG_PATH=/root/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${
 ENV LD_LIBRARY_PATH=/root/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 COPY wasi-nn/install-pytorch.sh .
-ENV PYTORCH_VERSION="1.8.2"
+ENV PYTORCH_VERSION="2.4.1"
 ENV PYTORCH_INSTALL_TO="/root"
 ENV Torch_DIR="/root/libtorch"
 RUN [ "/bin/bash", "install-pytorch.sh"  ]

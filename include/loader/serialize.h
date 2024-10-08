@@ -85,7 +85,8 @@ private:
   Expect<void> serializeRefType(const ValType &Type, ASTNodeAttr From,
                                 std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeValType(const ValType &Type, ASTNodeAttr From,
-                                std::vector<uint8_t> &OutVec) const noexcept;
+                                std::vector<uint8_t> &OutVec,
+                                bool IsStorageType = false) const noexcept;
   Expect<void> serializeLimit(const AST::Limit &Lim,
                               std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeType(const AST::SubType &SType,
@@ -97,6 +98,8 @@ private:
   Expect<void> serializeType(const AST::MemoryType &Type,
                              std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeType(const AST::GlobalType &Type,
+                             std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeType(const AST::FieldType &Type,
                              std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeExpression(const AST::Expression &Expr,
                                    std::vector<uint8_t> &OutVec) const noexcept;

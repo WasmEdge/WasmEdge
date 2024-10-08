@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "piper.h"
+#include "wasinn_piper.h"
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
 #include "simdjson.h"
-#include "types.h"
+
 #include <cstring>
 #include <filesystem>
 #include <functional>
@@ -14,7 +14,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <piper.hpp>
 #include <string>
 #include <string_view>
 #include <tuple>

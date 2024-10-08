@@ -3,14 +3,16 @@
 
 #pragma once
 
+#include "wasinntypes.h"
+
 #include "plugin/plugin.h"
-#include "types.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
+#include <piper.hpp>
+
 #include <filesystem>
 #include <memory>
 #include <optional>
-#include <piper.hpp>
 #include <string>
 #include <vector>
 #endif

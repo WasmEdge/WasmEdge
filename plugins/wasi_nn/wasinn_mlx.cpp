@@ -1,13 +1,18 @@
-#include "mlx.h"
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
+#include "wasinn_mlx.h"
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
-#include "converter.h"
-#include "prompt.h"
-#include "registry.h"
-#include "utils.h"
+#include "MLX/model/converter.h"
+#include "MLX/model/registry.h"
+#include "MLX/model/utils.h"
+#include "MLX/prompt/prompt.h"
+
 #include <simdjson.h>
 #endif
+
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 std::string loadBytesFromFile(const std::string &Path) {
@@ -24,11 +29,13 @@ std::string loadBytesFromFile(const std::string &Path) {
   Fs.read(Data.data(), Size);
   return Data;
 }
+
 enum AnserSataus {
   STOP,
   WAIT,
   GO,
 };
+
 AnserSataus answerSataus(std::string Text, std::string End) {
   if (endsWith(Text, End)) {
     return STOP;
@@ -40,6 +47,7 @@ AnserSataus answerSataus(std::string Text, std::string End) {
   }
   return GO;
 }
+
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders, WASINN::Device,
                            uint32_t &GraphId) noexcept {

@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "ggml.h"
+#include "wasinn_ggml.h"
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include "simdjson.h"
-#include <algorithm>
 #include <base64.hpp>
 #include <clip.h>
 #include <common.h>
 #include <cstdlib>
-#include <filesystem>
 #include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>
 #include <json.hpp>
 #include <llama.h>
 #include <llava.h>
+
+#include <algorithm>
+#include <filesystem>
 #include <sstream>
 #endif
 

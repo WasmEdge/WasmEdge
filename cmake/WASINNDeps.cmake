@@ -3,10 +3,35 @@
 
 include(FetchContent)
 
+# Function of setup WASI-NN target.
+function(wasmedge_setup_wasinn_target target)
+  # Add backends flags.
+  foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
+    string(TOLOWER ${BACKEND} BACKEND)
+    if(BACKEND STREQUAL "openvino")
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
+    elseif(BACKEND STREQUAL "pytorch")
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
+    elseif(BACKEND STREQUAL "tensorflowlite")
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
+    elseif(BACKEND STREQUAL "ggml")
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
+    elseif(BACKEND STREQUAL "piper")
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER)
+    elseif(BACKEND STREQUAL "whisper")
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER)
+    elseif(BACKEND STREQUAL "chattts")
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
+    elseif(BACKEND STREQUAL "mlx")
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX)
+    endif()
+  endforeach()
+endfunction()
+
+# Function of preparing TensorFlow related variables.
 if(NOT WASMEDGE_DEPS_VERSION)
   set(WASMEDGE_DEPS_VERSION "TF-2.12.0-CC")
 endif()
-
 function(wasmedge_setup_tf_variables)
   # Set the system name and hash of TF and TFLite releases.
   if(ANDROID)
@@ -45,39 +70,40 @@ function(wasmedge_setup_tf_variables)
   endif()
 endfunction()
 
+# Function of preparing TensorFlow headers.
 function(wasmedge_setup_tf_headers)
-  FetchContent_Declare(
-    wasmedge_tensorflow_header
-    GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
-    GIT_TAG ${WASMEDGE_DEPS_VERSION}
-  )
-  FetchContent_GetProperties(wasmedge_tensorflow_header)
-
-  if(NOT wasmedge_tensorflow_header_POPULATED)
-    message(STATUS "Fetching WasmEdge-tensorflow-deps repository")
-    FetchContent_Populate(wasmedge_tensorflow_header)
-    message(STATUS "Fetching WasmEdge-tensorflow-deps repository - done")
+  # Fetch Tensorflow-deps repository.
+  if(NOT wasmedge_tensorflow_header_SOURCE_DIR)
+    message(STATUS "Downloading WasmEdge-tensorflow-deps repository")
+    FetchContent_Declare(
+      wasmedge_tensorflow_header
+      GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
+      GIT_TAG ${WASMEDGE_DEPS_VERSION}
+    )
+    FetchContent_MakeAvailable(wasmedge_tensorflow_header)
+    message(STATUS "Downloading WasmEdge-tensorflow-deps repository -- done")
   endif()
+
+  # Setup Tensorflow headers source.
   set(WASMEDGE_TENSORFLOW_DEPS_HEADERS ${wasmedge_tensorflow_header_SOURCE_DIR} PARENT_SCOPE)
 endfunction()
 
+# Function of preparing TensorFlow-Lite library.
 function(wasmedge_setup_tflite_lib)
   wasmedge_setup_tf_variables()
-  # Fetch Tensorflow-lite library.
-  FetchContent_Declare(
-    wasmedge_tensorflow_lib_tflite
-    URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TFLite-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
-    URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH}"
-  )
-  FetchContent_GetProperties(wasmedge_tensorflow_lib_tflite)
-
-  if(NOT wasmedge_tensorflow_lib_tflite_POPULATED)
-    message(STATUS "Downloading dependency: libtensorflowlite")
-    FetchContent_Populate(wasmedge_tensorflow_lib_tflite)
-    message(STATUS "Downloading dependency: libtensorflowlite - done")
+  # Fetch Tensorflow-lite pre-built library.
+  if(NOT wasmedge_tensorflow_lib_tflite_SOURCE_DIR)
+    message(STATUS "Downloading libtensorflowlite dependency")
+    FetchContent_Declare(
+      wasmedge_tensorflow_lib_tflite
+      URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TFLite-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
+      URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH}"
+    )
+    FetchContent_MakeAvailable(wasmedge_tensorflow_lib_tflite)
+    message(STATUS "Downloading libtensorflowlite dependency -- done")
   endif()
 
-  # Setup Tensorflow-lite library.
+  # Setup Tensorflow-lite pre-built library.
   if(ANDROID)
     set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
       "${wasmedge_tensorflow_lib_tflite_SOURCE_DIR}/libtensorflowlite_c.so"
@@ -98,19 +124,20 @@ function(wasmedge_setup_tflite_lib)
   endif()
 endfunction()
 
+# Function of preparing TensorFlow library.
 function(wasmedge_setup_tf_lib)
   wasmedge_setup_tf_variables()
-  # Fetch Tensorflow-lite library.
-  FetchContent_Declare(
-    wasmedge_tensorflow_lib_tf
-    URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TF-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
-    URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TF_HASH}"
-  )
-  FetchContent_GetProperties(wasmedge_tensorflow_lib_tf)
+  # Fetch Tensorflow pre-built library.
+  if(NOT wasmedge_tensorflow_lib_tf_SOURCE_DIR)
+    message(STATUS "Downloading libtensorflow dependency")
+    FetchContent_Declare(
+      wasmedge_tensorflow_lib_tf
+      URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TF-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
+      URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TF_HASH}"
+    )
+    FetchContent_MakeAvailable(wasmedge_tensorflow_lib_tf)
+    message(STATUS "Downloading libtensorflow dependency -- done")
 
-  if(NOT wasmedge_tensorflow_lib_tf_POPULATED)
-    message(STATUS "Downloading dependency: libtensorflow")
-    FetchContent_Populate(wasmedge_tensorflow_lib_tf)
     if(APPLE)
       execute_process(
         COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.12.0.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.dylib
@@ -126,9 +153,9 @@ function(wasmedge_setup_tf_lib)
         COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.so.2 ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.so
       )
     endif()
-    message(STATUS "Downloading dependency: libtensorflow - done")
   endif()
 
+  # Setup Tensorflow pre-built library.
   if(ANDROID)
   elseif(APPLE)
     set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
@@ -143,70 +170,6 @@ function(wasmedge_setup_tf_lib)
       PARENT_SCOPE
     )
   endif()
-endfunction()
-
-function(wasmedge_setup_wasinn_target target)
-  # Add backends building flags.
-  foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
-    string(TOLOWER ${BACKEND} BACKEND)
-    if(BACKEND STREQUAL "openvino")
-      message(STATUS "WASI-NN: Build OpenVINO backend for WASI-NN")
-      find_package(OpenVINO REQUIRED)
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
-        openvino::runtime openvino::runtime::c
-      )
-    elseif(BACKEND STREQUAL "pytorch")
-      message(STATUS "WASI-NN: Build PyTorch backend for WASI-NN")
-      find_package(Torch REQUIRED)
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
-        ${TORCH_LIBRARIES}
-      )
-    elseif(BACKEND STREQUAL "tensorflowlite")
-      message(STATUS "WASI-NN: Build Tensorflow lite backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
-      wasmedge_setup_tf_headers()
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_INCLUDES
-        ${WASMEDGE_TENSORFLOW_DEPS_HEADERS}
-      )
-      wasmedge_setup_tflite_lib()
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
-        ${WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB}
-      )
-    elseif(BACKEND STREQUAL "ggml")
-      message(STATUS "WASI-NN: Build ggml backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
-    elseif(BACKEND STREQUAL "neuralspeed")
-      message(NOTICE "WASI-NN: Neural Speed backend is removed due to the upstream end-of-life.")
-    elseif(BACKEND STREQUAL "piper")
-      message(STATUS "WASI-NN: Build piper backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER)
-      wasmedge_setup_piper()
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS piper)
-    elseif(BACKEND STREQUAL "whisper")
-      message(STATUS "WASI-NN: Build whisper.cpp backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER)
-    elseif(BACKEND STREQUAL "chattts")
-      message(STATUS "WASI-NN: Build chatTTS backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
-    elseif(BACKEND STREQUAL "mlx")
-      message(STATUS "WASI-NN: Build MLX backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX)
-    else()
-      # Add the other backends here.
-      message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")
-    endif()
-  endforeach()
-
-  target_include_directories(${target}
-    PUBLIC
-    ${WASMEDGE_PLUGIN_WASI_NN_INCLUDES}
-  )
-  target_link_libraries(${target}
-    PUBLIC
-    ${WASMEDGE_PLUGIN_WASI_NN_DEPS}
-  )
 endfunction()
 
 function(wasmedge_setup_tf_target target)
@@ -233,42 +196,4 @@ function(wasmedge_setup_tflite_target target)
     PUBLIC
     ${WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB}
   )
-endfunction()
-
-function(wasmedge_setup_piper)
-  include(Helper)
-  wasmedge_setup_spdlog()
-  find_package(onnxruntime)
-  if(NOT onnxruntime_FOUND)
-    find_library(ONNXRUNTIME_LIBRARY onnxruntime)
-    if(NOT "${ONNXRUNTIME_LIBRARY}" STREQUAL "ONNXRUNTIME_LIBRARY-NOTFOUND")
-      find_path(ONNXRUNTIME_PATH "onnxruntime_cxx_api.h" PATH_SUFFIXES "onnxruntime")
-      if(NOT "${ONNXRUNTIME_PATH}" STREQUAL "ONNXRUNTIME_PATH-NOTFOUND")
-        set(onnxruntime_FOUND TRUE)
-      endif()
-    endif()
-  endif()
-  if(NOT onnxruntime_FOUND)
-    message(FATAL_ERROR "Cannot find onnxruntime")
-  endif()
-  message(STATUS "Downloading piper source")
-  include(FetchContent)
-  set(BUILD_SHARED_LIBS OFF)
-  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-  set(BUILD_TESTING OFF)
-  find_program(GIT_CMD git REQUIRED)
-  FetchContent_Declare(
-    piper
-    GIT_REPOSITORY https://github.com/rhasspy/piper.git
-    GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
-    UPDATE_DISCONNECTED TRUE
-    PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
-  )
-  FetchContent_GetProperties(piper)
-  if(NOT piper_POPULATED)
-    FetchContent_Populate(piper)
-    add_subdirectory("${piper_SOURCE_DIR}" "${piper_BINARY_DIR}" EXCLUDE_FROM_ALL)
-  endif()
-  # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
-  target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
 endfunction()

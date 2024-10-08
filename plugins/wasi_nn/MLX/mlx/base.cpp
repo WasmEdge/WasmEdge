@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "base.h"
-#include "../model/utils.h"
+#include "mlx/base.h"
+#include "model/utils.h"
 
 #include <mlx/array.h>
 

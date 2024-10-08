@@ -3,8 +3,9 @@
 
 #pragma once
 
+#include "wasinntypes.h"
+
 #include "plugin/plugin.h"
-#include "types.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include <common.h>

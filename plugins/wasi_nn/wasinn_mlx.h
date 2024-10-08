@@ -3,32 +3,44 @@
 
 #pragma once
 
-#include "plugin/plugin.h"
-#include "types.h"
+#include "wasinntypes.h"
 
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-#include <torch/script.h>
-#include <vector>
+#include "plugin/plugin.h"
+
+#include <memory>
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
+#include "MLX/mlx/transformer.h"
+#include "MLX/model/transformer.h"
+#include "MLX/prompt/prompt.h"
+
+#include <mlx/mlx.h>
+#include <tokenizers_cpp.h>
 #endif
 
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
 
-namespace WasmEdge::Host::WASINN::PyTorch {
-
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+namespace WasmEdge::Host::WASINN::MLX {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 struct Graph {
-  torch::jit::Module TorchModel;
-  torch::DeviceType TorchDevice = at::kCPU;
+  std::string ModelType;
+  std::unique_ptr<tokenizers::Tokenizer> Tok = nullptr;
+  std::shared_ptr<Transformer> Model;
+  double Temp = 0.0;
+  bool EnableDebugLog = false;
+  bool IsQuantized = false;
+  uint64_t MaxToken = 1024;
+  uint64_t QBits = 0;
+  uint64_t GroupSize = 0;
+  BasePrompt Prmopt;
 };
-
 struct Context {
-public:
-  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
+  Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}
   size_t GraphId;
-  std::vector<torch::jit::IValue> TorchInputs;
-  std::vector<at::Tensor> TorchOutputs;
+  std::string Inputs;
+  std::string Outputs;
 };
 #else
 struct Graph {};
@@ -54,4 +66,6 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
-} // namespace WasmEdge::Host::WASINN::PyTorch
+Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
+                             uint32_t GraphId) noexcept;
+} // namespace WasmEdge::Host::WASINN::MLX

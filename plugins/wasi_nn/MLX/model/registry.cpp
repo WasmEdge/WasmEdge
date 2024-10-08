@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "registry.h"
-#include "transformer.h"
+#include "model/registry.h"
+#include "model/transformer.h"
 
 namespace WasmEdge::Host::WASINN::MLX {
 

@@ -2,8 +2,8 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "wasinnenv.h"
-#include "types.h"
 #include "wasinnmodule.h"
+#include "wasinntypes.h"
 
 #include <sstream>
 

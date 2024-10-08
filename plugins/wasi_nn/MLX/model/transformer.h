@@ -3,12 +3,12 @@
 
 #pragma once
 
-#include "activations.h"
-#include "base.h"
-#include "embedding.h"
-#include "linear.h"
-#include "normalization.h"
-#include "positional_encoding.h"
+#include "mlx/activations.h"
+#include "mlx/base.h"
+#include "mlx/embedding.h"
+#include "mlx/linear.h"
+#include "mlx/normalization.h"
+#include "mlx/positional_encoding.h"
 
 #include <mlx/array.h>
 #include <mlx/fast.h>

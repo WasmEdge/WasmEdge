@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "base.h"
+#include "mlx/base.h"
 
-#include "mlx/mlx.h"
+#include <mlx/mlx.h>
 
 #include <string>
 #include <unordered_map>

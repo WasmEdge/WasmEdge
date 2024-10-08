@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "normalization.h"
+#include "mlx/normalization.h"
 
 namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {

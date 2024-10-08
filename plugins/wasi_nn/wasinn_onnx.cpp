@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "neuralspeed.h"
+#include "wasinn_onnx.h"
 #include "wasinnenv.h"
 
-namespace WasmEdge::Host::WASINN::NeuralSpeed {
+namespace WasmEdge::Host::WASINN::ONNX {
 namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
-  spdlog::error("[WASI-NN] Neural Speed backend is removed due to the upstream "
-                "end-of-life. "
-                "Reference: https://github.com/intel/neural-speed"sv);
+  spdlog::error("[WASI-NN] ONNX backend is not supported.");
   return WASINN::ErrNo::InvalidArgument;
 }
 } // namespace
@@ -34,7 +32,4 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
-} // namespace WasmEdge::Host::WASINN::NeuralSpeed
+} // namespace WasmEdge::Host::WASINN::ONNX

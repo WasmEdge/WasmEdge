@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "mlx/mlx.h"
-
 #include "common/errcode.h"
+
+#include <mlx/mlx.h>
 
 #include <iostream>
 #include <memory>

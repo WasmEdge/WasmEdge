@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "../mlx/transformer.h"
-#include "base.h"
-#include "embedding.h"
-#include "linear.h"
-#include "transformer.h"
+#include "mlx/transformer.h"
+#include "mlx/base.h"
+#include "mlx/embedding.h"
+#include "mlx/linear.h"
+#include "model/transformer.h"
 
 #include <mlx/array.h>
 #include <mlx/ops.h>

@@ -292,19 +292,22 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
 endif()
 
 function(wasmedge_setup_simdjson)
+  if(TARGET simdjson::simdjson)
+    return()
+  endif()
   # setup simdjson
   find_package(simdjson QUIET)
   if(simdjson_FOUND)
     message(STATUS "SIMDJSON found")
   else()
-    message(STATUS "Downloading SIMDJSON source")
     include(FetchContent)
+    message(STATUS "Downloading SIMDJSON source")
     FetchContent_Declare(
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
       GIT_TAG  tags/v3.10.0
       GIT_SHALLOW TRUE)
-    set(SIMDJSON_DEVELOPER_MODE OFF)
+    set(SIMDJSON_DEVELOPER_MODE OFF CACHE BOOL "SIMDJSON developer mode" FORCE)
     FetchContent_MakeAvailable(simdjson)
     set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
     message(STATUS "Downloading SIMDJSON source -- done")
@@ -341,9 +344,16 @@ function(wasmedge_setup_simdjson)
 endfunction()
 
 function(wasmedge_setup_spdlog)
+  if(TARGET spdlog::spdlog)
+    return()
+  endif()
+  # setup spdlog
   find_package(spdlog QUIET)
   if(spdlog_FOUND)
+    message(STATUS "spdlog found")
   else()
+    include(FetchContent)
+    message(STATUS "Downloading fmt source")
     FetchContent_Declare(
       fmt
       GIT_REPOSITORY https://github.com/fmtlib/fmt.git
@@ -354,6 +364,7 @@ function(wasmedge_setup_spdlog)
     )
     set(FMT_INSTALL OFF CACHE BOOL "Generate the install target." FORCE)
     FetchContent_MakeAvailable(fmt)
+    message(STATUS "Downloading fmt source -- done")
     wasmedge_setup_target(fmt)
     if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(fmt
@@ -370,6 +381,7 @@ function(wasmedge_setup_spdlog)
       )
     endif()
 
+    message(STATUS "Downloading spdlog source")
     FetchContent_Declare(
       spdlog
       GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -379,6 +391,7 @@ function(wasmedge_setup_spdlog)
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)
     set(SPDLOG_FMT_EXTERNAL ON  CACHE BOOL "Use external fmt library instead of bundled" FORCE)
     FetchContent_MakeAvailable(spdlog)
+    message(STATUS "Downloading spdlog source -- done")
     wasmedge_setup_target(spdlog)
   endif()
 endfunction()

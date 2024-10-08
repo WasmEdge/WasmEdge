@@ -30,11 +30,13 @@
 
 #include <atomic>
 #include <functional>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <set>
 #include <shared_mutex>
+#include <spdlog/spdlog.h>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -91,6 +93,22 @@ public:
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
     return ModName;
+  }
+
+  const std::vector<DataInstance *> &getOwnedDataInstances() const {
+    return DataInsts;
+  }
+
+  const std::vector<MemoryInstance *> &getMemoryInstances() const {
+    return MemInsts;
+  }
+
+  const std::vector<GlobalInstance *> &getOwnedGlobalInstances() const {
+    return GlobInsts;
+  }
+
+  const std::vector<FunctionInstance *> &getOwnedFunctionInstances() const {
+    return FuncInsts;
   }
 
   void *getHostData() const noexcept { return HostData; }

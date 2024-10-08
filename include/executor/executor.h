@@ -198,6 +198,13 @@ public:
     atomicNotifyAll();
   }
 
+  void generateCoredump(Runtime::StackManager &StackMgr);
+  AST::CustomSection collectProcessInformation();
+  AST::MemorySection collectMemory(Runtime::StackManager &StackMgr);
+  AST::DataSection collectDataSection(Runtime::StackManager &StackMgr);
+  AST::CustomSection collectCoreStack(Runtime::StackManager &StackMgr);
+  AST::GlobalSection collectGlobals(Runtime::StackManager &StackMgr);
+
 private:
   /// Run Wasm bytecode expression for initialization.
   Expect<void> runExpression(Runtime::StackManager &StackMgr,

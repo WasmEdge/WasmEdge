@@ -1,4 +1,5 @@
 ARG BASE_IMAGE=wasmedge/wasmedge:latest
+ARG UBUNTU_VER=20
 FROM ${BASE_IMAGE} AS base
 
 WORKDIR /root
@@ -29,12 +30,15 @@ ENV PKG_CONFIG_PATH=/root/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${
 ENV LD_LIBRARY_PATH=/root/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 COPY wasi-nn/install-pytorch.sh .
-ENV PYTORCH_VERSION="1.8.2"
+ENV PYTORCH_VERSION="2.4.1"
 ENV PYTORCH_INSTALL_TO="/root"
 ENV Torch_DIR="/root/libtorch"
 RUN [ "/bin/bash", "install-pytorch.sh"  ]
 
+ARG UBUNTU_VER
+
 COPY wasi-nn/install-openvino.sh .
+ENV OPENVINO_UBUNTU_VERSION=${UBUNTU_VER}
 ENV OPENVINO_VERSION="2024.2.0"
 ENV OPENVINO_YEAR="2024"
 RUN [ "/bin/bash", "install-openvino.sh" ]

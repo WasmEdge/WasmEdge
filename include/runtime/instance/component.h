@@ -97,6 +97,8 @@ public:
 
   void addModule(const AST::Module &M) noexcept { ModList.emplace_back(M); }
   const AST::Module &getModule(uint32_t Index) const noexcept {
+    spdlog::info("There are {} modules, code is trying to get {}",
+                 ModList.size(), Index);
     return ModList[Index];
   }
 
@@ -132,14 +134,14 @@ public:
   void addHostFunc(
       std::string_view Name,
       std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> &&Func) {
-    addType(Func->getFuncType());
+    addCoreFuncType(Func->getFuncType());
     auto FuncInst = std::make_unique<Instance::Component::FunctionInstance>(
         std::move(Func));
     unsafeAddHostFunc(Name, std::move(FuncInst));
   }
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<Component::FunctionInstance> &&Func) {
-    addType(Func->getFuncType());
+    addCoreFuncType(Func->getFuncType());
     unsafeAddHostFunc(Name, std::move(Func));
   }
 
@@ -234,7 +236,7 @@ public:
   const AST::Component::DefType &getType(std::string_view Name) const noexcept {
     return ExportTypesMap.at(std::string(Name));
   }
-  void addType(const AST::FunctionType &Ty) noexcept {
+  void addCoreFuncType(const AST::FunctionType &Ty) noexcept {
     FuncType FT{};
     typeConvert(FT, Ty);
     addType(FT);

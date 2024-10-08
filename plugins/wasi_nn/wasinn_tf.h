@@ -3,14 +3,15 @@
 
 #pragma once
 
+#include "wasinntypes.h"
+
 #include "plugin/plugin.h"
-#include "types.h"
 
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
 
-namespace WasmEdge::Host::WASINN::ONNX {
+namespace WasmEdge::Host::WASINN::Tensorflow {
 struct Graph {};
 struct Context {
   Context(size_t, Graph &) noexcept {}
@@ -33,4 +34,4 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
-} // namespace WasmEdge::Host::WASINN::ONNX
+} // namespace WasmEdge::Host::WASINN::Tensorflow

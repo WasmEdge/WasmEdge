@@ -29,13 +29,13 @@ jobs:
   build_ubuntu:
     permissions:
       contents: write
-    name: Ubuntu 22.04
+    name: Ubuntu 24.04
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04]
+        os: [ubuntu-24.04]
     container:
-      image: wasmedge/wasmedge:ubuntu-build-clang
+      image: wasmedge/wasmedge:ubuntu-24.04-build-clang
 
     steps:
       - uses: actions/checkout@v4

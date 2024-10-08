@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include "runtime/callingframe.h"
 #include "wasinnbase.h"
+
+#include "runtime/callingframe.h"
 
 #include <cstdint>
 

@@ -3,23 +3,25 @@
 
 #pragma once
 
+#include "wasinn_chattts.h"
+#include "wasinn_ggml.h"
+#include "wasinn_mlx.h"
+#include "wasinn_neuralspeed.h"
+#include "wasinn_onnx.h"
+#include "wasinn_openvino.h"
+#include "wasinn_piper.h"
+#include "wasinn_tf.h"
+#include "wasinn_tfl.h"
+#include "wasinn_torch.h"
+#include "wasinn_whisper.h"
+#include "wasinntypes.h"
+
 #include "common/spdlog.h"
 #include "plugin/plugin.h"
+
 #include <cstdint>
 #include <functional>
 #include <vector>
-
-#include "chattts.h"
-#include "ggml.h"
-#include "neuralspeed.h"
-#include "onnx.h"
-#include "openvino.h"
-#include "piper.h"
-#include "tf.h"
-#include "tfl.h"
-#include "torch.h"
-#include "types.h"
-#include "whispercpp.h"
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 #include <grpc/grpc.h>

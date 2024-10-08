@@ -6,16 +6,17 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinnenv.cpp
   wasinnfunc.cpp
   wasinnmodule.cpp
-  openvino.cpp
-  onnx.cpp
-  tf.cpp
-  torch.cpp
-  tfl.cpp
-  ggml.cpp
-  neuralspeed.cpp
-  piper.cpp
-  whispercpp.cpp
-  chattts.cpp
+  wasinn_openvino.cpp
+  wasinn_onnx.cpp
+  wasinn_tf.cpp
+  wasinn_torch.cpp
+  wasinn_tfl.cpp
+  wasinn_ggml.cpp
+  wasinn_neuralspeed.cpp
+  wasinn_piper.cpp
+  wasinn_whisper.cpp
+  wasinn_chattts.cpp
+  wasinn_mlx.cpp
 )
 
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})

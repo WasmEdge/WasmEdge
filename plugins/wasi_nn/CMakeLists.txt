@@ -19,9 +19,39 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinn_mlx.cpp
 )
 
+include(WASINNDeps)
+wasmedge_setup_wasinn_target(wasmedgePluginWasiNN)
+
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   string(TOLOWER ${BACKEND} BACKEND)
-  if(BACKEND STREQUAL "ggml")
+  if(BACKEND STREQUAL "openvino")
+    message(STATUS "WASI-NN: Build OpenVINO backend for WASI-NN")
+    find_package(OpenVINO REQUIRED)
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      openvino::runtime openvino::runtime::c
+    )
+  elseif(BACKEND STREQUAL "pytorch")
+    message(STATUS "WASI-NN: Build PyTorch backend for WASI-NN")
+    find_package(Torch REQUIRED)
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      ${TORCH_LIBRARIES}
+    )
+  elseif(BACKEND STREQUAL "tensorflowlite")
+    message(STATUS "WASI-NN: Build Tensorflow lite backend for WASI-NN")
+    wasmedge_setup_tf_headers()
+    target_include_directories(wasmedgePluginWasiNN
+      PUBLIC
+      ${WASMEDGE_TENSORFLOW_DEPS_HEADERS}
+    )
+    wasmedge_setup_tflite_lib()
+    target_link_libraries(wasmedgePluginWasiNN
+      PUBLIC
+      ${WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB}
+    )
+  elseif(BACKEND STREQUAL "ggml")
+    message(STATUS "WASI-NN: Build ggml backend for WASI-NN")
     wasmedge_setup_simdjson()
     # llama.cpp options
     # Disable warnings and debug messages
@@ -73,6 +103,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
+    message(STATUS "Downloading llama.cpp source -- done")
     set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -137,41 +168,77 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${llama_SOURCE_DIR}/common
       ${llama_SOURCE_DIR}/examples/llava
     )
-    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+    target_link_libraries(wasmedgePluginWasiNN
+      PRIVATE
       common
       simdjson::simdjson
       llava
     )
-    if(APPLE AND WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
-      add_custom_command(
-        TARGET wasmedgePluginWasiNN
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
-        COMMAND ${CMAKE_COMMAND} -E copy ${llama_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
-      )
-    endif()
   elseif(BACKEND STREQUAL "neuralspeed")
-    message(NOTICE "WASI-NN NeuralSpeed backend is removed due to the upstream end-of-life.")
-    message(NOTICE "Reference: https://github.com/intel/neural-speed")
+    message(FATAL_ERROR "WASI-NN: Neural Speed backend is removed due to the upstream end-of-life. Reference: https://github.com/intel/neural-speed")
   elseif(BACKEND STREQUAL "chattts")
+    message(STATUS "WASI-NN: Build chatTTS backend for WASI-NN")
     wasmedge_setup_simdjson()
-
     find_package(Python3 COMPONENTS Interpreter Development)
-    if(Python3_FOUND)
-      target_compile_definitions(wasmedgePluginWasiNN
-        PRIVATE PYTHON_LIB_PATH="${Python3_LIBRARIES}"
-      )
-      include_directories(${Python3_INCLUDE_DIRS})
-      target_link_libraries(wasmedgePluginWasiNN PRIVATE ${Python3_LIBRARIES})
-      target_link_directories(wasmedgePluginWasiNN PRIVATE ${Python3_RUNTIME_LIBRARY_DIRS})
-    else()
+    if(NOT Python3_FOUND)
       message(FATAL_ERROR "Can not find python3.")
     endif()
-    target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
+    target_compile_definitions(wasmedgePluginWasiNN
+      PRIVATE
+      PYTHON_LIB_PATH="${Python3_LIBRARIES}"
+    )
+    target_include_directories(wasmedgePluginWasiNN
+      PUBLIC
+      ${Python3_INCLUDE_DIRS}
+    )
+    target_link_directories(wasmedgePluginWasiNN
+      PRIVATE
+      ${Python3_RUNTIME_LIBRARY_DIRS}
+    )
+    target_link_libraries(wasmedgePluginWasiNN
+      PRIVATE
+      ${Python3_LIBRARIES}
+      simdjson::simdjson
+    )
   elseif(BACKEND STREQUAL "piper")
+    message(STATUS "WASI-NN: Build piper backend for WASI-NN")
     wasmedge_setup_simdjson()
-    target_link_libraries(wasmedgePluginWasiNN PRIVATE simdjson::simdjson)
+    find_package(onnxruntime)
+    if(NOT onnxruntime_FOUND)
+      find_library(ONNXRUNTIME_LIBRARY onnxruntime)
+      if(NOT "${ONNXRUNTIME_LIBRARY}" STREQUAL "ONNXRUNTIME_LIBRARY-NOTFOUND")
+        find_path(ONNXRUNTIME_PATH "onnxruntime_cxx_api.h" PATH_SUFFIXES "onnxruntime")
+        if(NOT "${ONNXRUNTIME_PATH}" STREQUAL "ONNXRUNTIME_PATH-NOTFOUND")
+          set(onnxruntime_FOUND TRUE)
+        endif()
+      endif()
+    endif()
+    if(NOT onnxruntime_FOUND)
+      message(FATAL_ERROR "Cannot find onnxruntime")
+    endif()
+    message(STATUS "Downloading piper source")
+    find_program(GIT_CMD git REQUIRED)
+    FetchContent_Declare(
+      piper
+      GIT_REPOSITORY https://github.com/rhasspy/piper.git
+      GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
+      UPDATE_DISCONNECTED TRUE
+      PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
+    )
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Piper not build shared")
+    set(BUILD_TESTING OFF CACHE INTERNAL "Piper not build tests")
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE INTERNAL "Piper build independent code")
+    FetchContent_MakeAvailable(piper)
+    message(STATUS "Downloading piper source -- done")
+    # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
+    target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
+    target_link_libraries(wasmedgePluginWasiNN
+      PRIVATE
+      piper
+      simdjson::simdjson
+    )
   elseif(BACKEND STREQUAL "whisper")
+    message(STATUS "WASI-NN: Build whisper.cpp backend for WASI-NN")
     wasmedge_setup_simdjson()
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
     set(GGML_OPENMP OFF)
@@ -192,7 +259,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       message(STATUS "WASI-NN Whisper backend: Disable GGML_CUDA")
       set(GGML_CUDA OFF)
     endif()
-    include(FetchContent)
     FetchContent_Declare(
       whisper
       GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
@@ -202,15 +268,17 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     FetchContent_MakeAvailable(whisper)
     set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
-    target_include_directories(wasmedgePluginWasiNN PRIVATE
+    target_include_directories(wasmedgePluginWasiNN
+      PUBLIC
       ${whisper_SOURCE_DIR}
-      ${whisper_SOURCE_DIR}/ggml/include
     )
-    target_link_libraries(wasmedgePluginWasiNN PRIVATE
+    target_link_libraries(wasmedgePluginWasiNN
+      PRIVATE 
       whisper
       simdjson::simdjson
     )
   elseif(BACKEND STREQUAL "mlx")
+    message(STATUS "WASI-NN: Build MLX backend for WASI-NN")
     wasmedge_setup_simdjson()
     target_sources(wasmedgePluginWasiNN 
       PRIVATE 
@@ -238,16 +306,18 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       find_library(METAL_LIB Metal)
       find_library(FOUNDATION_LIB Foundation)
       find_library(QUARTZ_LIB QuartzCore)
-      message(STATUS "MLX not found, downloading from source")
-      include(FetchContent)
-      set(MLX_BUILD_GGUF OFF)
+      message(STATUS "Downloading MLX source")
       FetchContent_Declare(
         mlx
         GIT_REPOSITORY https://github.com/ml-explore/mlx.git
         GIT_TAG        v0.16.0
         GIT_SHALLOW    FALSE
       )
+      set(MLX_BUILD_GGUF OFF)
+      set(MLX_BUILD_TESTS OFF)
+      set(MLX_BUILD_EXAMPLES OFF)
       FetchContent_MakeAvailable(mlx)
+      message(STATUS "Downloading MLX source -- done")
       set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)
       set_target_properties(mlx PROPERTIES
         INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:fmt::fmt-header-only>"
@@ -267,7 +337,7 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       )
     endif()
 
-    message(STATUS "Downloading tokenizers")
+    message(STATUS "Downloading tokenizers source")
     FetchContent_Declare(
       tokenizers
       GIT_REPOSITORY https://github.com/mlc-ai/tokenizers-cpp.git
@@ -275,9 +345,10 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(tokenizers)
+    message(STATUS "Downloading tokenizers source -- done")
     set_property(TARGET tokenizer_cpp_objs PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-    message(STATUS "Downloading gguflib")
+    message(STATUS "Downloading gguflib source")
     FetchContent_Declare(
       gguflib
       GIT_REPOSITORY https://github.com/antirez/gguf-tools/
@@ -285,6 +356,8 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(gguflib)
+    message(STATUS "Downloading gguflib source -- done")
+
     add_library(gguflib
       STATIC
       ${gguflib_SOURCE_DIR}/fp16.c
@@ -294,31 +367,25 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
 
     target_include_directories(wasmedgePluginWasiNN
       PUBLIC
-      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/model
-      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/prompt
-      ${CMAKE_CURRENT_SOURCE_DIR}/MLX/mlx
-    )
-    target_include_directories(wasmedgePluginWasiNN
-      PRIVATE
       ${tokenizers_SOURCE_DIR}/include
     )
     target_include_directories(wasmedgePluginWasiNN
       SYSTEM PUBLIC
-      ${CMAKE_CURRENT_SOURCE_DIR}/mlx
+      ${CMAKE_CURRENT_SOURCE_DIR}/MLX
       ${MLX_INCLUDE_DIRS}
       $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>
     )
     target_link_libraries(wasmedgePluginWasiNN
       PRIVATE
       tokenizers_cpp
-    )
-    target_link_libraries(wasmedgePluginWasiNN
-      PUBLIC
       ${MLX_LIBRARIES}
       gguflib
       mlx
       simdjson::simdjson
     )
+  else()
+    # Add the dependency of other backends here.
+    message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")
   endif()
 endforeach()
 
@@ -355,9 +422,6 @@ else()
     wasmedge_shared
   )
 endif()
-
-include(WASINNDeps)
-wasmedge_setup_wasinn_target(wasmedgePluginWasiNN)
 
 install(
   TARGETS wasmedgePluginWasiNN

@@ -206,6 +206,9 @@ Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
+// NOTE: due to internal reason, we model the return values can still be
+// multiple, but in fact a component function will only return at most one.
+// This concept mismatching should be fix in the future.
 Expect<std::vector<std::pair<ValInterface, ValType>>>
 Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
                  Span<const ValInterface> Params,

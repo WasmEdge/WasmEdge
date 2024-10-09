@@ -11,6 +11,7 @@
 
 #include "chattts.h"
 #include "ggml.h"
+#include "mlx.h"
 #include "neuralspeed.h"
 #include "onnx.h"
 #include "openvino.h"

@@ -5,6 +5,7 @@
 
 #include "aot/version.h"
 #include "common/defines.h"
+#include "common/hash.h"
 #include "data.h"
 #include "llvm.h"
 
@@ -151,13 +152,11 @@ std::filesystem::path uniquePath(const std::filesystem::path Model) noexcept {
   using size_type = std::filesystem::path::string_type::size_type;
   using value_type = std::filesystem::path::value_type;
   static const auto Hex = "0123456789abcdef"sv;
-  std::random_device Device;
-  std::default_random_engine Engine(Device());
   std::uniform_int_distribution<size_type> Distribution(0, Hex.size() - 1);
   auto String = Model.native();
   for (size_type N = String.size(), I = 0; I < N; ++I) {
     if (String[I] == static_cast<value_type>('%')) {
-      String[I] = static_cast<value_type>(Hex[Distribution(Engine)]);
+      String[I] = static_cast<value_type>(Hex[Distribution(Hash::RandEngine)]);
     }
   }
   return String;

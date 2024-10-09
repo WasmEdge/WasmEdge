@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-rm -rf FFmpeg-n6.0 ffmpeg.zip
-echo $(pwd)
+set -e
 
 curl -sL https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n6.0.zip -o ffmpeg.zip
 
@@ -11,3 +10,5 @@ cd FFmpeg-n6.0
 ./configure --prefix=$(pwd)/output --enable-gpl --enable-nonfree --enable-shared --disable-static
 make && make install
 cd ..
+
+rm -rf ffmpeg.zip

@@ -15,3 +15,5 @@ cmake -GNinja ..
 cmake --build .
 # Install to system
 cmake --install .
+
+rm -f opencv.zip

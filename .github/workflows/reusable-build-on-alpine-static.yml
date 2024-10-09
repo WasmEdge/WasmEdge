@@ -13,7 +13,7 @@ permissions:
       contents: read
       
 jobs:
-  build_on_debian_static:
+  build_on_alpine_static:
     permissions:
       contents: write
     name: Build on Alpine (static lib)
@@ -33,9 +33,9 @@ jobs:
         with:
           files: ./utils/docker/docker-bake.alpine-static.hcl
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: static-libs
+          name: static-libs-alpine
           path: ./build/*/WasmEdge-*.tar.gz
       - name: Upload package tarball
         if: ${{ inputs.release }}

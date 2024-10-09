@@ -1,7 +1,13 @@
 group "default" {
   targets = [
-    "clang",
-    "gcc"
+    "cuda",
+    "final"
+  ]
+}
+
+group "latest" {
+  targets = [
+    "base-2204-clang",
   ]
 }
 
@@ -20,11 +26,21 @@ function "tags-latest" {
   result = target == "base" && ubuntu == "22.04" && toolchain == "clang" ? "latest" : ""
 }
 
+function "tags-latest-backports" {
+  params = [target, ubuntu, toolchain]
+  result = ubuntu == "22.04" ? join("-", compact([
+    "ubuntu",
+    "build",
+    toolchain,
+    target == "plugins" ? "plugins-deps" : "",
+  ])) : ""
+}
+
 function "tags-backports" {
   params = [target, ubuntu, toolchain]
   result = join("-", compact([
     "ubuntu",
-    ubuntu != "22.04" ? ubuntu : "",
+    ubuntu,
     "build",
     toolchain,
     target == "plugins" ? "plugins-deps" : "",
@@ -40,6 +56,7 @@ function "tags" {
   params = [target, ubuntu, toolchain]
   result = [for tag in compact([
     tags-latest(target, ubuntu, toolchain),
+    tags-latest-backports(target, ubuntu, toolchain),
     tags-backports(target, ubuntu, toolchain),
     tags-simplified(target, ubuntu, toolchain),
   ]) : "wasmedge/wasmedge:${tag}"]
@@ -68,7 +85,6 @@ target "plugins" {
     ubuntu = ["20.04", "22.04"]
   }
 
-  inherits   = ["base-${no-dot(ubuntu)}"]
   name       = "plugins-${no-dot(ubuntu)}"
   contexts   = {
     "local/tmp:base-${ubuntu}" = "target:base-${no-dot(ubuntu)}"
@@ -80,37 +96,43 @@ target "plugins" {
   }
 }
 
-target "clang" {
+target "final" {
   matrix     = {
     parent = ["base", "plugins"]
     ubuntu = ["20.04", "22.04"]
+    toolchain = ["clang", "gcc"]
   }
 
-  inherits   = ["${parent}-${no-dot(ubuntu)}"]
-  name       = "${parent}-${no-dot(ubuntu)}-clang"
+  dockerfile = "Dockerfile.ubuntu-env"
+  context    = "./utils/docker"
+
+  name       = "${parent}-${no-dot(ubuntu)}-${toolchain}"
   contexts   = {
     "local/tmp:${parent}-${ubuntu}" = "target:${parent}-${no-dot(ubuntu)}"
   }
-  tags       = tags(parent, ubuntu, "clang")
+  tags       = tags(parent, ubuntu, toolchain)
+  args       = {
+    BASE_IMAGE = "local/tmp:${parent}-${ubuntu}"
+    TOOLCHAIN  = toolchain
+  }
 }
 
-target "gcc" {
-  dockerfile = "Dockerfile.ubuntu-gcc"
+target "cuda" {
+  dockerfile = "Dockerfile.ubuntu-cuda"
   context    = "./utils/docker"
 
   matrix     = {
-    parent = ["base", "plugins"]
-    ubuntu = ["20.04", "22.04"]
+    cuda = ["11.3", "12.0"]
   }
 
-  inherits   = ["${parent}-${no-dot(ubuntu)}"]
-  name       = "${parent}-${no-dot(ubuntu)}-gcc"
+  name       = "base-2004-gcc-cuda${major(cuda)}"
   contexts   = {
-    "local/tmp:${parent}-${ubuntu}" = "target:${parent}-${no-dot(ubuntu)}"
+    "wasmedge/wasmedge:ubuntu-20.04-build-gcc" = "target:base-2004-gcc"
   }
-  tags       = tags(parent, ubuntu, "gcc")
+  tags       = ["wasmedge/wasmedge:ubuntu-20.04-build-gcc-cuda${major(cuda)}"]
   args       = {
-    BASE_IMAGE = "local/tmp:${parent}-${ubuntu}"
+    BASE_IMAGE = "wasmedge/wasmedge:ubuntu-20.04-build-gcc"
+    NVCC_VER   = replace(cuda, ".", "-")
   }
 }
 

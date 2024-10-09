@@ -17,6 +17,7 @@
 #include "common/enum_ast.hpp"
 #include "common/enum_configure.hpp"
 #include "common/errcode.h"
+#include "common/hash.h"
 
 #include <atomic>
 #include <bitset>
@@ -266,7 +267,7 @@ public:
     ForbiddenPlugins.emplace(std::move(PluginName));
   }
 
-  bool isForbiddenPlugins(std::string PluginName) const noexcept {
+  bool isForbiddenPlugins(const std::string &PluginName) const noexcept {
     std::shared_lock Lock(Mutex);
     return ForbiddenPlugins.find(PluginName) != ForbiddenPlugins.end();
   }
@@ -401,7 +402,7 @@ private:
   mutable std::shared_mutex Mutex;
   std::bitset<static_cast<uint8_t>(Proposal::Max)> Proposals;
   std::bitset<static_cast<uint8_t>(HostRegistration::Max)> Hosts;
-  std::unordered_set<std::string> ForbiddenPlugins;
+  std::unordered_set<std::string, Hash::Hash> ForbiddenPlugins;
 
   CompilerConfigure CompilerConf;
   RuntimeConfigure RuntimeConf;

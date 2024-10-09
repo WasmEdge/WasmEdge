@@ -1228,12 +1228,6 @@ public:
   Value createNeg(Value V, const char *Name = "") noexcept {
     return LLVMBuildNeg(Ref, V.unwrap(), Name);
   }
-  Value createNSWNeg(Value V, const char *Name = "") noexcept {
-    return LLVMBuildNSWNeg(Ref, V.unwrap(), Name);
-  }
-  Value createNUWNeg(Value V, const char *Name = "") noexcept {
-    return LLVMBuildNUWNeg(Ref, V.unwrap(), Name);
-  }
   Value createFNeg(Value V, const char *Name = "") noexcept {
     return LLVMBuildFNeg(Ref, V.unwrap(), Name);
   }

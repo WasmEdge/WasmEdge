@@ -141,8 +141,14 @@ void WhisperOutputSegmentCallback(struct whisper_context *WhisperCtx,
 void setWhisperParams(Context &CxtRef) noexcept {
   auto &WParam = CxtRef.WhisperParams;
   auto &ConfigRef = CxtRef.WhisperConfig;
+  WParam.n_threads = ConfigRef.ThreadsNum;
+  WParam.n_max_text_ctx = ConfigRef.MaxTokenContext;
+  WParam.offset_ms = ConfigRef.TimeOffsetMS;
+  WParam.duration_ms = ConfigRef.DurationMS;
   WParam.print_progress = false;
   WParam.thold_pt = ConfigRef.WordThreshold;
+  WParam.max_len = ConfigRef.MaxSegmentLength;
+  WParam.split_on_word = ConfigRef.SplitOnWord;
   WParam.translate = ConfigRef.Translate;
   WParam.language = ConfigRef.SpokenLanguage.c_str();
   WParam.detect_language = ConfigRef.DetectLanguage;
@@ -154,6 +160,34 @@ void setWhisperParams(Context &CxtRef) noexcept {
   WParam.grammar_penalty = ConfigRef.GrammarPenalty;
   WParam.new_segment_callback = WhisperOutputSegmentCallback;
   WParam.new_segment_callback_user_data = &CxtRef;
+
+  if (ConfigRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: threads: {}",
+                 ConfigRef.ThreadsNum);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: processors: {}",
+                 ConfigRef.ProcessorsNum);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: max-context: {}",
+                 ConfigRef.MaxTokenContext);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: offset-t: {}",
+                 ConfigRef.TimeOffsetMS);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: duration: {}",
+                 ConfigRef.DurationMS);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: max-len: {}",
+                 ConfigRef.MaxSegmentLength);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: split-on-word : {}",
+                 ConfigRef.SplitOnWord);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: translate: {}",
+                 ConfigRef.Translate);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: language: \"{}\"",
+                 ConfigRef.SpokenLanguage);
+    spdlog::info(
+        "[WASI-NN][Debug] Whisper backend: Config: detect-language: {}",
+        ConfigRef.DetectLanguage);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: temperature: {}",
+                 ConfigRef.Temperature);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: prompt: \"{}\"",
+                 ConfigRef.InitialPrompt);
+  }
 }
 
 Expect<ErrNo> parseMetadata(Config &ConfigRef,
@@ -166,14 +200,30 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
     return ErrNo::InvalidEncoding;
   }
 
+  auto PrintParsedOption = [=](std::string_view Name, const auto &Val) {
+    if (ConfigRef.EnableDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] Whisper backend: Parsed metadata -- {}:{}"sv, Name,
+          Val);
+    }
+  };
+
   // Get metadata from the json.
   // Currently supported metadata:
   // Plugin parameters (used by this plugin):
   //   enable-log: bool
   //   enable-debug-log: bool
+  //   threads: uint32_t
+  //   processors: uint32_t
+  //   offset-t: uint32_t
+  //   duration: uint32_t
+  //   max-context: uint32_t
+  //   max-len: uint32_t
+  //   split-on-word: bool
   //   translate: bool
   //   language: string
   //   detect-language: bool
+  //   temperature: float
   //   prompt: string
 
   // The plugin parameters.
@@ -196,6 +246,71 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
+    auto Err = Doc["threads"].get<uint64_t>().get(ConfigRef.ThreadsNum);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the threads option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("threads"sv, ConfigRef.ThreadsNum);
+  }
+  if (Doc.at_key("processors").error() == simdjson::SUCCESS) {
+    auto Err = Doc["processors"].get<uint64_t>().get(ConfigRef.ProcessorsNum);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the processors option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("processors"sv, ConfigRef.ProcessorsNum);
+  }
+  if (Doc.at_key("offset-t").error() == simdjson::SUCCESS) {
+    auto Err = Doc["offset-t"].get<uint64_t>().get(ConfigRef.TimeOffsetMS);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the offset-t option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("offset-t"sv, ConfigRef.TimeOffsetMS);
+  }
+  if (Doc.at_key("duration").error() == simdjson::SUCCESS) {
+    auto Err = Doc["duration"].get<uint64_t>().get(ConfigRef.DurationMS);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the duration option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("duration"sv, ConfigRef.DurationMS);
+  }
+  if (Doc.at_key("max-context").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["max-context"].get<uint64_t>().get(ConfigRef.MaxTokenContext);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the max-context option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("max-context"sv, ConfigRef.MaxTokenContext);
+  }
+  if (Doc.at_key("max-len").error() == simdjson::SUCCESS) {
+    auto Err = Doc["max-len"].get<uint64_t>().get(ConfigRef.MaxSegmentLength);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the max-len option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("max-len"sv, ConfigRef.MaxSegmentLength);
+  }
+  if (Doc.at_key("split-on-word").error() == simdjson::SUCCESS) {
+    auto Err = Doc["split-on-word"].get<bool>().get(ConfigRef.SplitOnWord);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the split-on-word "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("split-on-word"sv, ConfigRef.SplitOnWord);
+  }
   if (Doc.at_key("translate").error() == simdjson::SUCCESS) {
     auto Err = Doc["translate"].get<bool>().get(ConfigRef.Translate);
     if (Err) {
@@ -204,6 +319,7 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
           "option."sv);
       return ErrNo::InvalidArgument;
     }
+    PrintParsedOption("translate"sv, ConfigRef.Translate);
   }
   if (Doc.at_key("language").error() == simdjson::SUCCESS) {
     std::string_view Language;
@@ -215,6 +331,7 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
       return ErrNo::InvalidArgument;
     }
     ConfigRef.SpokenLanguage = Language;
+    PrintParsedOption("language"sv, ConfigRef.SpokenLanguage);
   }
   if (Doc.at_key("detect-language").error() == simdjson::SUCCESS) {
     auto Err = Doc["detect-language"].get<bool>().get(ConfigRef.DetectLanguage);
@@ -224,6 +341,18 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
           "option."sv);
       return ErrNo::InvalidArgument;
     }
+    PrintParsedOption("detect-language"sv, ConfigRef.DetectLanguage);
+  }
+  if (Doc.at_key("temperature").error() == simdjson::SUCCESS) {
+    double Temperature;
+    auto Err = Doc["temperature"].get<double>().get(Temperature);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the temperature option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    ConfigRef.Temperature = static_cast<float>(Temperature);
+    PrintParsedOption("temperature"sv, ConfigRef.Temperature);
   }
   if (Doc.at_key("prompt").error() == simdjson::SUCCESS) {
     std::string_view Prompt;
@@ -234,6 +363,7 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
       return ErrNo::InvalidArgument;
     }
     ConfigRef.InitialPrompt = Prompt;
+    PrintParsedOption("prompt"sv, ConfigRef.InitialPrompt);
   }
   return ErrNo::Success;
 }
@@ -382,6 +512,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       spdlog::info(
           "[WASI-NN][Debug] Whisper backend: found Metadata, processing"sv);
     }
+    // Set the whisper config of this context as the graph default first.
+    // This will reset the config and inherit settings from the graph metadata.
+    auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+    CxtRef.WhisperConfig = GraphRef.WhisperConfig;
     const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
                                Tensor.Tensor.size());
     auto Res = parseMetadata(CxtRef.WhisperConfig, Metadata);
@@ -389,7 +523,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       spdlog::error("[WASI-NN] Whisper backend: Failed to parse metadata."sv);
       return Res;
     }
-    auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
     Res = handleTranslationConfig(GraphRef.WhisperCtx, CxtRef.WhisperConfig);
     if (Res != ErrNo::Success) {
       return Res;
@@ -467,8 +600,9 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   CxtRef.Outputs.clear();
-  if (whisper_full(GraphRef.WhisperCtx, CxtRef.WhisperParams,
-                   CxtRef.InputPCM.data(), CxtRef.InputPCM.size()) != 0) {
+  if (whisper_full_parallel(GraphRef.WhisperCtx, CxtRef.WhisperParams,
+                            CxtRef.InputPCM.data(), CxtRef.InputPCM.size(),
+                            CxtRef.WhisperConfig.ProcessorsNum) != 0) {
     spdlog::error(
         "[WASI-NN] Whisper backend: Error: failed to process audio."sv);
     return ErrNo::RuntimeError;
@@ -476,6 +610,31 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   if (CxtRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: compute...Done"sv);
+  }
+  return ErrNo::Success;
+}
+
+Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
+  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+  const bool IsDebugLog = GraphRef.WhisperConfig.EnableDebugLog;
+  if (IsDebugLog) {
+    spdlog::info("[WASI-NN][Debug] Whisper backend: unload"sv);
+  }
+  if (GraphRef.WhisperCtx != nullptr) {
+    if (IsDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] Whisper backend: unload: free whisper context"sv);
+    }
+    whisper_free(GraphRef.WhisperCtx);
+    GraphRef.WhisperCtx = nullptr;
+    if (IsDebugLog) {
+      spdlog::info(
+          "[WASI-NN][Debug] Whisper backend: unload: free whisper context...Done"sv);
+    }
+  }
+  Env.NNGraph.erase(Env.NNGraph.begin() + GraphId);
+  if (IsDebugLog) {
+    spdlog::info("[WASI-NN][Debug] Whisper backend: unload...Done"sv);
   }
   return ErrNo::Success;
 }
@@ -506,6 +665,9 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &, uint32_t, uint32_t, Span<uint8_t>,
   return reportBackendNotSupported();
 }
 Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 

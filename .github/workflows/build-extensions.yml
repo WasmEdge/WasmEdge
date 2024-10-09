@@ -149,8 +149,8 @@ jobs:
     env:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper
-      tar_names: wasi_nn-tensorflowlite wasi_nn-whisper
+      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorFlowLite -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=Whisper -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=MLX
+      tar_names: wasi_nn-tensorflowlite wasi_nn-whisper wasi_nn-mlx
       test_bin: wasiNNTests
       output_bin: libwasmedgePluginWasiNN.dylib
     needs: [ get_version ]
@@ -197,6 +197,11 @@ jobs:
         with:
           name: WasmEdge-plugin-wasi_nn-whisper-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: plugin_wasi_nn-whisper.tar.gz
+      - name: Upload artifact - wasi_nn-mlx
+        uses: actions/upload-artifact@v4
+        with:
+          name: WasmEdge-plugin-wasi_nn-mlx-${{ needs.get_version.outputs.version }}-${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
+          path: plugin_wasi_nn-mlx.tar.gz
 
 
   build_windows_wasi_nn:

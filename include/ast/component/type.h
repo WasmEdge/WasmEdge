@@ -87,7 +87,7 @@ private:
   std::vector<Case> Cases;
 };
 
-class List {
+class ListTy {
 public:
   const ValueType getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
@@ -165,7 +165,7 @@ private:
   TypeIndex Idx;
 };
 
-using DefValType = std::variant<PrimValType, Record, VariantTy, List, Tuple,
+using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, Tuple,
                                 Flags, Enum, Option, Result, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
@@ -260,6 +260,25 @@ public:
   std::vector<InstanceDecl> &getContent() noexcept { return IdList; }
 };
 
+using FuncIdx = uint32_t;
+class ResourceType {
+public:
+  ResourceType() : Async{false} {}
+  ResourceType(bool A) : Async{A} {}
+
+  std::optional<FuncIdx> getDestructor() const noexcept { return Destructor; }
+  std::optional<FuncIdx> getCallback() const noexcept { return Callback; }
+
+  bool IsAsync() noexcept { return Async; }
+  std::optional<FuncIdx> &getDestructor() noexcept { return Destructor; }
+  std::optional<FuncIdx> &getCallback() noexcept { return Callback; }
+
+private:
+  bool Async;
+  std::optional<FuncIdx> Destructor;
+  std::optional<FuncIdx> Callback;
+};
+
 class ImportDecl {
   std::string ImportName;
   ExternDesc Desc;
@@ -279,7 +298,8 @@ public:
   std::vector<ComponentDecl> &getContent() noexcept { return CdList; }
 };
 
-using DefType = std::variant<DefValType, FuncType, ComponentType, InstanceType>;
+using DefType = std::variant<DefValType, FuncType, ComponentType, InstanceType,
+                             ResourceType>;
 class Type {
 public:
   Type(DefType V) : T{V} {}
@@ -401,7 +421,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), ">"sv);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const List &Arg) {
+                [](const ListTy &Arg) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "list<{}>"sv,
                                  Arg.getValType());
@@ -563,6 +583,9 @@ struct fmt::formatter<WasmEdge::AST::Component::DefType>
                 },
                 [](const InstanceType &Arg) {
                   return fmt::format("{}"sv, Arg);
+                },
+                [](const ResourceType &) {
+                  return fmt::format("<resource type>"sv);
                 }},
             Type),
         Ctx);

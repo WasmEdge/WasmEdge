@@ -13,21 +13,18 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<void> WasiHttpPrint::body(const Runtime::CallingFrame &,
-                                 StrVariant Str) {
-  spdlog::info("[WASI-HTTP] print: {}", Str.getString());
+Expect<void> WasiHttpPrint::body(std::string S) {
+  spdlog::info("[WASI-HTTP] print: {}", S);
   return {};
 }
 
-Expect<StrVariant> WasiHttpGet::body(const Runtime::CallingFrame &,
-                                     StrVariant URI) {
-  const auto &S = URI.getString();
-  spdlog::info("[WASI-HTTP] URI: {}", S);
+Expect<std::string> WasiHttpGet::body(std::string URI) {
+  spdlog::info("[WASI-HTTP] URI: {}", URI);
   cpr::Response Res = cpr::Get(
-      cpr::Url{S}, cpr::Authentication{"user", "pass", cpr::AuthMode::BASIC});
+      cpr::Url{URI}, cpr::Authentication{"user", "pass", cpr::AuthMode::BASIC});
   spdlog::info("[WASI-HTTP] status: {}", Res.status_code);
 
-  return StrVariant(std::move(Res.text));
+  return std::move(Res.text);
 }
 
 } // namespace Host

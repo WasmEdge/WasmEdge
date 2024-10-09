@@ -11,10 +11,11 @@
 namespace WasmEdge {
 namespace Host {
 
-template <typename T> class WasiPoll : public Runtime::HostFunction<T> {
+template <typename T>
+class WasiPoll : public Runtime::Component::HostFunction<T> {
 public:
   WasiPoll(WasiPollEnvironment &HostEnv)
-      : Runtime::HostFunction<T>(0), Env(HostEnv) {}
+      : Runtime::Component::HostFunction<T>(), Env(HostEnv) {}
 
 protected:
   WasiPollEnvironment &Env;

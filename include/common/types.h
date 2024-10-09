@@ -132,9 +132,13 @@ public:
       Inner.Data.Code = TypeCode::RefNull;
       Inner.Data.HTCode = C;
       break;
+      // Component Type
     case TypeCode::String:
-      // Abstract heap type
       Inner.Data.Code = TypeCode::String;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::List:
+      Inner.Data.Code = TypeCode::List;
       Inner.Data.HTCode = C;
       break;
     case TypeCode::Ref:
@@ -311,6 +315,19 @@ private:
   } Inner;
 };
 
+/// wasm interface type
+class InterfaceType : public ValType {
+public:
+  InterfaceType(TypeCode C) : ValType(C) {}
+  InterfaceType(TypeCode C, std::initializer_list<ValType> Args)
+      : ValType(C), TyArgs(Args) {}
+
+  Span<const ValType> getArgs() const noexcept { return TyArgs; }
+
+private:
+  std::vector<ValType> TyArgs;
+};
+
 /// BlockType definition.
 class BlockType {
 public:
@@ -433,45 +450,35 @@ private:
   // Member data.
   uint64x2_t Data;
 };
-
-struct StrVariant {
-  // Constructors.
-  StrVariant(std::string &&P) noexcept { setData(std::move(P)); }
-
-  // Getter of type.
-  const ValType getType() const noexcept { return TypeCode::String; }
-
-  // Getter of pointer.
-  std::string_view getString() const noexcept {
-    const auto *Ptr = reinterpret_cast<const char *>(toArray()[0]);
-    auto Size = static_cast<size_t>(toArray()[1]);
-    return std::string_view(Ptr, Size);
-  }
-
-private:
-  // Helper function of converting data to array.
-  const std::array<uint64_t, 2> &toArray() const noexcept {
-    return reinterpret_cast<const std::array<uint64_t, 2> &>(Data);
-  }
-  std::array<uint64_t, 2> &toArray() noexcept {
-    return reinterpret_cast<std::array<uint64_t, 2> &>(Data);
-  }
-
-  // Helper function to set the content.
-  void setData(std::string &&S) noexcept {
-    toArray()[0] = reinterpret_cast<uintptr_t>(S.c_str());
-    toArray()[1] = static_cast<uint64_t>(S.size());
-  }
-
-  // Member data.
-  uint64x2_t Data;
-};
-
 using ValVariant =
     Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
-            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t, RefVariant,
-            StrVariant>;
+            int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
+            RefVariant>;
+
+// Here are some high-level composited type, provided by component model
+struct ValComp {
+  virtual ~ValComp() {}
+};
+template <typename T> struct List : public ValComp {
+  List(std::initializer_list<T> As) : Content(As) {}
+  List(std::vector<T> &&As) : Content(As) {}
+
+  Span<const T> collection() const noexcept { return Content; }
+
+private:
+  std::vector<T> Content;
+};
+
+using ValInterface = std::variant<
+    // constant types in component types
+    bool, std::string,
+    // composition type like List, Record, Variant
+    //
+    // we need to copy them at many place, so we just use shared_ptr
+    std::shared_ptr<ValComp>,
+    // wasm values
+    ValVariant>;
 
 // <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -599,10 +606,25 @@ template <> inline ValType ValTypeFromType<float>() noexcept {
 template <> inline ValType ValTypeFromType<double>() noexcept {
   return ValType(TypeCode::F64);
 }
-// wasm interface types
-template <> inline ValType ValTypeFromType<StrVariant>() noexcept {
-  return ValType(TypeCode::String);
-}
+
+template <typename T> struct Wit {
+  static inline ValType type() noexcept { return ValTypeFromType<T>(); }
+};
+template <> struct Wit<bool> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::Bool);
+  }
+};
+template <> struct Wit<std::string> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::String);
+  }
+};
+template <typename T> struct Wit<List<T>> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::List, {Wit<T>::type()});
+  }
+};
 
 // <<<<<<<< Template to get value type from type <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -623,9 +645,6 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
   case TypeCode::Ref:
   case TypeCode::RefNull:
     return RefVariant(Type);
-  // wasm interface types
-  case TypeCode::String:
-    return StrVariant("");
   default:
     assumingUnreachable();
   }
@@ -667,6 +686,27 @@ struct fmt::formatter<WasmEdge::ValType> : fmt::formatter<std::string_view> {
     if (Type.getHeapTypeCode() == WasmEdge::TypeCode::TypeIndex) {
       fmt::format_to(std::back_inserter(Buffer), "[{}]"sv, Type.getTypeIndex());
     }
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::InterfaceType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::InterfaceType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace std::literals;
+    WasmEdge::ValType VType(Type);
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "{}"sv, VType);
+    for (auto T : Type.getArgs()) {
+      fmt::format_to(std::back_inserter(Buffer), "{}"sv, T);
+    }
+
     return formatter<std::string_view>::format(
         std::string_view(Buffer.data(), Buffer.size()), Ctx);
   }

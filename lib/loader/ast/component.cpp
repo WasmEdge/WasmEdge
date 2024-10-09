@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/errcode.h"
 #include "loader/loader.h"
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
@@ -31,7 +32,10 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   }
   std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
   if (*Magic != WasmMagic) {
-    spdlog::error("Might an invalid wasm file");
+    auto M = *Magic;
+    spdlog::error("Might an invalid wasm file, magic expected, but got 0x{:X} "
+                  "0x{:X} 0x{:X} 0x{:X}",
+                  M[0], M[1], M[2], M[3]);
     return logLoadError(ErrCode::Value::MalformedMagic, FMgr.getLastOffset(),
                         ASTNodeAttr::Component);
   }
@@ -146,15 +150,26 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp) {
       }
       break;
     }
-    case 0x04:
+    case 0x04: {
       Comp.getSections().emplace_back();
+      auto RSize = FMgr.readU32();
+      if (!RSize) {
+        return Unexpect(RSize);
+      }
+      auto OldOffset = FMgr.getLastOffset();
       if (auto Res = loadSection(
               Comp.getSections().back().emplace<ComponentSection>());
           !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(Res);
       }
+      auto NewOffset = FMgr.getLastOffset();
+      if (NewOffset - OldOffset != *RSize) {
+        return logLoadError(ErrCode::Value::ReadError, NewOffset,
+                            ASTNodeAttr::Component);
+      }
       break;
+    }
     case 0x05: {
       Comp.getSections().emplace_back();
       if (auto Res =

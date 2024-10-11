@@ -212,6 +212,53 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             -1,                                       // ClipSkip
             7.0f,                                     // CfgScale
             0,                                        // SampleMethod
+            1,                                       // SampleSteps
+            42,                                       // Seed
+            1,                                        // BatchCount
+            0.90f,                                    // ControlStrength
+            20.0f,                                    // StyleRatio
+            0,                                        // NormalizeInput
+            0,                                        // InputIdImagesDirPtr
+            0,                                        // InputIdImagesDirLen
+            0,                                        // CannyPreprocess
+            0,                                        // UpscaleModelPathPtr
+            0,                                        // UpscaleModelPathLen
+            1,                                        // UpscaleRepeats
+            OutputPathPtr,                            // OutputPathPtr
+            static_cast<uint32_t>(OutputPath.size()), // OutputPathLen
+            OutputPtr,                                // OutBufferPtr
+            1048512,                                  // OutBufferMaxSize
+            BytesWrittenPtr},                         // BytesWrittenPtr
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+    EXPECT_GE(BytesWritten, 50);
+    EXPECT_TRUE(std::filesystem::exists(OutputPathString));
+  }
+  // Test: text_to_image -- reuse context to generate image from text.
+  {
+    uint32_t PromptPtr = UINT32_C(0);
+    uint32_t OutputPathPtr = PromptPtr + PromptData.size();
+    uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath.size();
+    OutputPtr = BytesWrittenPtr + 4;
+    writeBinaries<char>(MemInst, PromptData, PromptPtr);
+    writeBinaries<char>(MemInst, OutputPath, OutputPathPtr);
+    EXPECT_TRUE(HostFuncTextToImage.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            PromptPtr,                                // PromptPtr
+            static_cast<uint32_t>(PromptData.size()), // PromptLen
+            SessionId,                                // SessionId
+            0,                                        // ControlImagePtr
+            0,                                        // ControlImageLen
+            0,                                        // NegativePromptPtr
+            0,                                        // NegativePromptLen
+            3.5f,                                     // Guidance
+            256,                                      // Width
+            256,                                      // Height
+            -1,                                       // ClipSkip
+            7.0f,                                     // CfgScale
+            0,                                        // SampleMethod
             20,                                       // SampleSteps
             42,                                       // Seed
             1,                                        // BatchCount

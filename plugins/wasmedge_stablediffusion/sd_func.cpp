@@ -302,7 +302,7 @@ Expect<uint32_t> SDCreateContext::body(
       diffusionModelPath.data(), VaePath.data(), TaesdPath.data(),
       ControlNetPath.data(), LoraModelDir.data(), EmbedDir.data(),
       IdEmbedDir.data(), static_cast<bool>(VaeDecodeOnly),
-      static_cast<bool>(VaeTiling), true, NThreads,
+      static_cast<bool>(VaeTiling), false, NThreads,
       static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
       static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
   if (Ctx == nullptr) {

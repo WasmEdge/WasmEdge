@@ -17,19 +17,20 @@ Expect<ErrNo> TorchScript::setDevice(Device Device) {
     return ErrNo::Success;
   } else if (Device == Device::GPU) {
     if (!torch::cuda::is_available()) {
-      spdlog::error(
-          "[WASI-NN] CUDA Unavailable, platform Cannot support GPU target.");
+      spdlog::error("[WASI-NN] Torch: CUDA Unavailable. Please check if the "
+                    "installed Torch version or platform supports CUDA."sv);
       return ErrNo::InvalidArgument;
     }
     TorchDevice = at::kCUDA;
     return ErrNo::Success;
   }
 
-  spdlog::error("[WASI-NN] PyTorch Only support CPU and GPU target.");
+  spdlog::error("[WASI-NN] Torch: Unknown target device. We currently support "
+                "only CPU and GPU targets."sv);
   return ErrNo::InvalidArgument;
 }
 
-Expect<ErrNo> TorchScript::loadFromBiary(std::istream &In, Device Device) {
+Expect<ErrNo> TorchScript::loadFromBinary(std::istream &In, Device Device) {
   if (auto Err = setDevice(Device); Err != ErrNo::Success) {
     return Err;
   }
@@ -68,11 +69,21 @@ Expect<ErrNo> TorchScript::run(std::vector<at::Tensor> In,
     auto OutTensor = RawOutput.toTensor();
     Out.push_back(OutTensor.clone());
   } else {
-    spdlog::error("[WASI-NN] PyTorch backend only supports output a tensor, "
-                  "a list of tensor or a tuple of tensor");
+    spdlog::error(
+        "[WASI-NN] Torch: The output can only be one of the following tensor "
+        "types: a tensor, a list of tensors, or a tuple of tensors."sv);
     return ErrNo::InvalidArgument;
   }
   return ErrNo::Success;
+}
+
+AOTInductor::AOTInductor() : TorchModel(nullptr) {
+#if defined(_GLIBCXX_USE_CXX11_ABI) && _GLIBCXX_USE_CXX11_ABI == 1
+  spdlog::warn(
+      "[WASI-NN] Torch: AOTInductor build by pip default is not supported in "
+      "_GLIBCXX_USE_CXX11_ABI=1. Please rebuild the WasmEdge with "
+      "_GLIBCXX_USE_CXX11_ABI=0."sv);
+#endif
 }
 
 Expect<ErrNo> AOTInductor::setDevice(Device Device) {
@@ -84,19 +95,21 @@ Expect<ErrNo> AOTInductor::setDevice(Device Device) {
     TorchDevice = at::kCUDA;
     return ErrNo::Success;
 #else
-    spdlog::error(
-        "[WASI-NN] Please rebuild the plugin with AOTInductor CUDA support.");
+    spdlog::error("[WASI-NN] Torch: Please rebuild the plugin with AOTInductor "
+                  "CUDA support."sv);
     return ErrNo::InvalidArgument;
 #endif
   }
 
-  spdlog::error("[WASI-NN] AOTInductor Only support CPU and GPU target.");
+  spdlog::error("[WASI-NN] Torch: Unknown target device. We currently support "
+                "only CPU and GPU targets."sv);
   return ErrNo::InvalidArgument;
 }
 
-Expect<ErrNo> AOTInductor::loadFromBiary(std::istream &, Device) {
-  spdlog::error("[WASI-NN] AOTInductor can not load by binary data. Please "
-                "pass the share library name (*.so) in nn-preload");
+Expect<ErrNo> AOTInductor::loadFromBinary(std::istream &, Device) {
+  spdlog::error(
+      "[WASI-NN] Torch: AOTInductor can not load by binary data. Please "
+      "pass the share library name (*.so) in nn-preload"sv);
   return ErrNo::InvalidArgument;
 }
 
@@ -112,12 +125,12 @@ Expect<ErrNo> AOTInductor::loadFromPath(const std::string &Path,
     TorchModel =
         new torch::inductor::AOTIModelContainerRunnerCuda(Path.c_str());
 #else
-    spdlog::error(
-        "[WASI-NN] Please rebuild the plugin with AOTInductor CUDA support.");
+    spdlog::error("[WASI-NN] Torch: Please rebuild the plugin with AOTInductor "
+                  "CUDA support."sv);
     return ErrNo::InvalidArgument;
 #endif
   } else {
-    spdlog::error("[WASI-NN] Can not load the AOTInductor.");
+    spdlog::error("[WASI-NN] Torch: Can not load the AOTInductor."sv);
     return ErrNo::InvalidArgument;
   }
   return ErrNo::Success;
@@ -133,12 +146,19 @@ Expect<ErrNo> AOTInductor::run(std::vector<at::Tensor> In,
   return ErrNo::Success;
 }
 
-PyModelBackend GuessPyModelBackendType(const std::string_view &Model) {
+PyModelBackend guessPyModelBackendType(const std::string_view &Model) {
+  // TODO: Add more model type detection when we supporet more OS.
+  // ex .dll, .dylib, etc.
   if (Model.substr(0, 8) == "preload:"sv) {
     if (Model.substr(Model.size() - 3, 3) == ".so"sv) {
       // AOTInductor only accept the shared library.
       return PyModelBackend::AOTInductor;
     }
+  }
+
+  // ELF Header: 0x7f 'E' 'L' 'F'
+  if (Model.substr(0, 4) == "\x7f\x45\x4c\x46"sv) {
+    return PyModelBackend::AOTInductor;
   }
 
   // Fall back to TorchScript if the model type is not set.
@@ -150,7 +170,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
                    Device Device, uint32_t &GraphId) noexcept {
   // The graph builder length must be 1.
   if (Builders.size() != 1) {
-    spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 1",
+    spdlog::error("[WASI-NN] Torch: Wrong GraphBuilder Length {:d}, expect 1"sv,
                   Builders.size());
     return ErrNo::InvalidArgument;
   }
@@ -165,14 +185,14 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   try {
     const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
                                     Weight.size());
-    PyModelBackend ModelType = GuessPyModelBackendType(BinModel);
+    PyModelBackend ModelType = guessPyModelBackendType(BinModel);
 
     if (ModelType == PyModelBackend::TorchScript) {
       GraphRef.Model = new TorchScript();
     } else if (ModelType == PyModelBackend::AOTInductor) {
       GraphRef.Model = new AOTInductor();
     } else {
-      spdlog::error("[WASI-NN] Unknown model type.");
+      spdlog::error("[WASI-NN] Torch: Unknown model type."sv);
       return ErrNo::InvalidArgument;
     }
 
@@ -182,10 +202,10 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     } else {
       std::istringstream BinRead{std::string(BinModel)};
       // std::istringstream BinRead(BinModel); // Need C++26...
-      GraphRef.Model->loadFromBiary(BinRead, Device);
+      GraphRef.Model->loadFromBinary(BinRead, Device);
     }
   } catch (const c10::Error &e) {
-    spdlog::error("[WASI-NN] Failed when load the TorchScript model.");
+    spdlog::error("[WASI-NN] Torch: Failed when load the TorchScript model."sv);
     Env.NNGraph.pop_back();
     return ErrNo::InvalidArgument;
   }
@@ -210,7 +230,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   }
   if (Tensor.RType != TensorType::F32) {
     spdlog::error(
-        "[WASI-NN] Only F32 inputs and outputs are supported for now.");
+        "[WASI-NN] Torch: Only F32 inputs and outputs are supported for now."sv);
     return ErrNo::InvalidArgument;
   }
   auto Options =
@@ -235,8 +255,8 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   if (CxtRef.TorchOutputs.size() <= Index) {
     spdlog::error(
-        "[WASI-NN] The output index {} exceeds the outputs number {}.", Index,
-        CxtRef.TorchOutputs.size());
+        "[WASI-NN] Torch: The output index {} exceeds the outputs number {}."sv,
+        Index, CxtRef.TorchOutputs.size());
     return ErrNo::InvalidArgument;
   }
   torch::Tensor OutTensor =
@@ -258,13 +278,13 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
 Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   if (CxtRef.TorchInputs.size() == 0) {
-    spdlog::error("[WASI-NN] Input is not set!");
+    spdlog::error("[WASI-NN] Torch: Input is not set!"sv);
     return ErrNo::InvalidArgument;
   }
   for (size_t I = 0; I < CxtRef.TorchInputs.size(); I++) {
     torch::jit::IValue InTensor = CxtRef.TorchInputs[I];
     if (InTensor.isNone()) {
-      spdlog::error("[WASI-NN] Input [{}] is not set!", I);
+      spdlog::error("[WASI-NN] Torch: Input [{}] is not set!"sv, I);
       return ErrNo::InvalidArgument;
     }
   }
@@ -274,7 +294,9 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
 Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  delete GraphRef.Model;
+  if (GraphRef.Model) {
+    delete GraphRef.Model;
+  }
   return ErrNo::Success;
 }
 

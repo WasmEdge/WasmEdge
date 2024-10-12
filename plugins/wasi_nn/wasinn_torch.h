@@ -31,7 +31,7 @@ public:
   virtual Expect<ErrNo> setDevice(Device Device) = 0;
   virtual Expect<ErrNo> loadFromPath(const std::string &Path,
                                      Device Device) = 0;
-  virtual Expect<ErrNo> loadFromBiary(std::istream &In, Device Device) = 0;
+  virtual Expect<ErrNo> loadFromBinary(std::istream &In, Device Device) = 0;
   virtual Expect<ErrNo> run(std::vector<at::Tensor> In,
                             std::vector<at::Tensor> &Out) = 0;
 
@@ -46,7 +46,7 @@ class TorchScript : public PyBaseModule {
 
 public:
   Expect<ErrNo> loadFromPath(const std::string &Path, Device Device) override;
-  Expect<ErrNo> loadFromBiary(std::istream &In, Device Device) override;
+  Expect<ErrNo> loadFromBinary(std::istream &In, Device Device) override;
   Expect<ErrNo> run(std::vector<at::Tensor> In,
                     std::vector<at::Tensor> &Out) override;
 
@@ -57,8 +57,9 @@ class AOTInductor : public PyBaseModule {
   Expect<ErrNo> setDevice(Device Device) override;
 
 public:
+  AOTInductor();
   Expect<ErrNo> loadFromPath(const std::string &Path, Device Device) override;
-  Expect<ErrNo> loadFromBiary(std::istream &In, Device Device) override;
+  Expect<ErrNo> loadFromBinary(std::istream &In, Device Device) override;
   Expect<ErrNo> run(std::vector<at::Tensor> In,
                     std::vector<at::Tensor> &Out) override;
 

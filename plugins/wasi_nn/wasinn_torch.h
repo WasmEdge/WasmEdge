@@ -57,6 +57,7 @@ class AOTInductor : public PyBaseModule {
   Expect<ErrNo> setDevice(Device Device) override;
 
 public:
+  AOTInductor();
   Expect<ErrNo> loadFromPath(const std::string &Path, Device Device) override;
   Expect<ErrNo> loadFromBiary(std::istream &In, Device Device) override;
   Expect<ErrNo> run(std::vector<at::Tensor> In,

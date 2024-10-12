@@ -78,6 +78,7 @@ option(WASMEDGE_LINK_LLVM_STATIC "Statically link the LLVM library into the Wasm
 option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec tools. Will forcefully link the LLVM library statically." OFF)
 option(WASMEDGE_ENABLE_UB_SANITIZER "Enable undefined behavior sanitizer." OFF)
 option(WASMEDGE_DISABLE_LIBTINFO "Disable linking against libtinfo when linking LLVM." OFF)
+option(WASMEDGE_DISABLE_GLIBCXX_USE_CXX11_ABI "Disable GLIBC++11 ABI" OFF)
 
 # Options about plug-ins.
 #   WASI plug-in: WASI-Crypto proposal.
@@ -231,6 +232,10 @@ if(WASMEDGE_BUILD_TOOLS OR WASMEDGE_BUILD_FUZZING)
 endif()
 if(WASMEDGE_BUILD_EXAMPLE)
   add_subdirectory(examples/plugin/get-string)
+endif()
+
+if(WASMEDGE_DISABLE_GLIBCXX_USE_CXX11_ABI)
+  add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
 endif()
 
 include(CPack)

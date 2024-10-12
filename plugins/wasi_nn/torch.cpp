@@ -75,6 +75,14 @@ Expect<ErrNo> TorchScript::run(std::vector<at::Tensor> In,
   return ErrNo::Success;
 }
 
+AOTInductor::AOTInductor() {
+#if defined(_GLIBCXX_USE_CXX11_ABI) && _GLIBCXX_USE_CXX11_ABI == 1
+  spdlog::warn("[WASI-NN] AOTInductor build by pip default is not supported in "
+               "_GLIBCXX_USE_CXX11_ABI=1. Please rebuild the WasmEdge with "
+               "_GLIBCXX_USE_CXX11_ABI=0.");
+#endif
+}
+
 Expect<ErrNo> AOTInductor::setDevice(Device Device) {
   if (Device == Device::CPU) {
     TorchDevice = at::kCPU;
@@ -139,6 +147,11 @@ PyModelBackend GuessPyModelBackendType(const std::string_view &Model) {
       // AOTInductor only accept the shared library.
       return PyModelBackend::AOTInductor;
     }
+  }
+
+  // ELF Header: 0x7f 'E' 'L' 'F'
+  if (Model.substr(0, 4) == "\x7f\x45\x4c\x46"sv) {
+    return PyModelBackend::AOTInductor;
   }
 
   // Fall back to TorchScript if the model type is not set.

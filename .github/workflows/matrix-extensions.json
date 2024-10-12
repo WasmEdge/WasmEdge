@@ -62,9 +62,19 @@
             "testBin": "wasiNNTests",
             "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch",
             "platforms": [
-                "manylinux_2_28_x86_64",
                 "ubuntu2004_x86_64",
                 "ubuntu_latest"
+            ]
+        },
+        {
+            "plugin": "wasi_nn-pytorch-disbale-c++11-abi",
+            "bin": "libwasmedgePluginWasiNN.so",
+            "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=PyTorch -DWASMEDGE_DISABLE_GLIBCXX_USE_CXX11_ABI=1",
+            "platforms": [
+                "manylinux_2_28_x86_64"
             ]
         },
         {

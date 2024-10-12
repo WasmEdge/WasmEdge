@@ -27,6 +27,7 @@ std::map<std::string_view, Backend> BackendMap = {
     {"onnx"sv, Backend::ONNX},
     {"tensorflow"sv, Backend::Tensorflow},
     {"pytorch"sv, Backend::PyTorch},
+    {"pytorchaoti"sv, Backend::PyTorch},
     {"tensorflowlite"sv, Backend::TensorflowLite},
     {"autodetect"sv, Backend::Autodetect},
     {"ggml"sv, Backend::GGML},
@@ -105,7 +106,8 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
     auto Backend = BackendMap.find(Encode);
     auto Device = DeviceMap.find(Target);
     if (Backend != BackendMap.end() && Device != DeviceMap.end()) {
-      if (Backend->second == Backend::GGML) {
+      if (Backend->second == Backend::GGML ||
+          (Backend->second == Backend::PyTorch && Encode == "pytorchaoti"sv)) {
         // In GGML, we only support loading one model from nn-preload
         // config. To handle paths on Windows that contains `:` in the
         // path, we combine the Paths into a single string separated by

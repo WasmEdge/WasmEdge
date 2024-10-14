@@ -19,12 +19,20 @@ else()
   set(SD_METAL OFF CACHE BOOL "Stable diffusion plugin: Disable SD_METAL")
 endif()
 
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION_OPENMP)
+  message(STATUS "Stable diffusion plugin: Enable SD_OPENMP")
+  set(GGML_OPENMP ON)
+else()
+  message(STATUS "Stable diffusion plugin: Disable SD_OPENMP")
+  set(GGML_OPENMP OFF)
+endif()
+
 # setup stable diffusion
 message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
   stable-diffusion
   GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
-  GIT_TAG        master-e71ddce
+  GIT_TAG        14206fd48832ab600d9db75f15acb5062ae2c296
   GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(stable-diffusion)
@@ -121,4 +129,5 @@ endif()
 install(
   TARGETS wasmedgePluginWasmEdgeStableDiffusion
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
 )

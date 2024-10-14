@@ -5,7 +5,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y \
-        cmake \
         curl \
         dpkg-dev \
         g++ \
@@ -18,6 +17,9 @@ RUN apt-get update && \
 
 ### deps for ubuntu 20.04 ###
 FROM base AS deps-20
+
+RUN curl -sSf https://apt.kitware.com/kitware-archive.sh | sh
+RUN apt-get install -y cmake
 
 RUN apt-get install -y \
         llvm-12-dev \
@@ -33,6 +35,8 @@ ENV CXX=/usr/bin/clang++-12
 
 ### deps for ubuntu 22.04 ###
 FROM base AS deps-22
+
+RUN apt-get install -y cmake
 
 RUN apt-get install -y \
         llvm-15-dev \

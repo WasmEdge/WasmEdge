@@ -2671,7 +2671,8 @@ WasmEdge_GlobalInstanceGetValue(const WasmEdge_GlobalInstanceContext *Cxt) {
                              fromGlobCxt(Cxt)->getGlobalType().getValType());
   }
   return genWasmEdge_Value(
-      WasmEdge::ValVariant(static_cast<WasmEdge::uint128_t>(0)), TypeCode::I32);
+      WasmEdge::ValVariant(static_cast<WasmEdge::uint128_t>(0U)),
+      TypeCode::I32);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_GlobalInstanceSetValue(

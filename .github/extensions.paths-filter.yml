@@ -8,6 +8,12 @@ wasi_crypto:
 wasi_nn-ggml:
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
+wasi_nn-openvino:
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
+wasi_nn-piper:
+  - 'plugins/wasi_nn/**'
+  - 'test/plugins/wasi_nn/**'
 wasi_nn-pytorch:
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
@@ -17,9 +23,12 @@ wasi_nn-tensorflowlite:
 wasi_nn-whisper:
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
-wasi_nn-piper:
-  - 'plugins/wasi_nn/**'
-  - 'test/plugins/wasi_nn/**'
+wasi_nn_burnrs-squeezenet:
+  - 'plugins/wasi_nn_burnrs/**'
+  - 'test/plugins/wasi_nn_burnrs/**'
+wasi_nn_burnrs-whisper:
+  - 'plugins/wasi_nn_burnrs/**'
+  - 'test/plugins/wasi_nn_burnrs/**'
 wasm_bpf:
   - 'plugins/wasm_bpf/**'
   - 'test/plugins/wasm_bpf/**'
@@ -39,6 +48,12 @@ wasmedge_process:
   - 'plugins/wasmedge_process/**'
   - 'test/plugins/wasmedge_process/**'
 wasmedge_stablediffusion:
+  - 'plugins/wasmedge_stablediffusion/**'
+  - 'test/plugins/wasmedge_stablediffusion/**'
+wasmedge_stablediffusion-cuda-11:
+  - 'plugins/wasmedge_stablediffusion/**'
+  - 'test/plugins/wasmedge_stablediffusion/**'
+wasmedge_stablediffusion-cuda-12:
   - 'plugins/wasmedge_stablediffusion/**'
   - 'test/plugins/wasmedge_stablediffusion/**'
 wasmedge_tensorflow:

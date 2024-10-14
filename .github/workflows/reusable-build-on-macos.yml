@@ -11,10 +11,10 @@ on:
         required: true
       release:
         type: boolean
-        
+
 permissions:
   contents: read
-  
+
 jobs:
   build_on_macos:
     permissions:
@@ -39,12 +39,12 @@ jobs:
         if: ${{ !inputs.release }}
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm ninja cmake wabt grpc
+          brew install llvm@18 ninja cmake wabt grpc
       - name: Setup build environment - release
         if: ${{ inputs.release }}
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm ninja cmake wabt
+          brew install llvm@18 ninja cmake wabt
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -53,7 +53,7 @@ jobs:
       - name: Build WasmEdge
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
+          export LLVM_DIR="$(brew --prefix)/opt/llvm@18/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build output
@@ -94,7 +94,7 @@ jobs:
           ./build/tools/wasmedge/wasmedge --reactor fib_compile.dylib fib 20
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: WasmEdge-${{ inputs.version }}-darwin_${{ matrix.darwin_version }}_${{ matrix.arch }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz

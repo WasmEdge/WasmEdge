@@ -30,9 +30,9 @@ jobs:
         with:
           files: ./utils/docker/docker-bake.debian-static.hcl
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: static-libs
+          name: static-libs-debian
           path: ./build/*/WasmEdge-*.tar.gz
       - name: Upload package tarball
         if: ${{ inputs.release }}

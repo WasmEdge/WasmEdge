@@ -111,7 +111,7 @@ Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
       const auto &VType = CompType.getFieldTypes()[I].getStorageType();
       Vals[I] = VType.isRefType()
                     ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
-                    : ValVariant(static_cast<uint128_t>(0));
+                    : ValVariant(static_cast<uint128_t>(0U));
     }
   } else {
     Vals = StackMgr.pop(N);
@@ -173,7 +173,7 @@ Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
   if (InitCnt == 0) {
     auto InitVal = VType.isRefType()
                        ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
-                       : ValVariant(static_cast<uint128_t>(0));
+                       : ValVariant(static_cast<uint128_t>(0U));
     auto *Inst =
         const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
             ->newArray(DefIndex, ValCnt, InitVal);

@@ -9,10 +9,10 @@ RUN cd && (yum check-update || true) && \
   yum install -y wget unzip zlib-devel zlib-static elfutils-libelf-devel
 
 COPY wasi-nn/install-pytorch.sh .
-ENV PYTORCH_VERSION="1.8.2"
+ENV PYTORCH_VERSION="2.4.1"
 ENV PYTORCH_INSTALL_TO="/root"
 ENV Torch_DIR="/root/libtorch"
-RUN [ "/bin/bash", "install-pytorch.sh"  ]
+RUN [ "/bin/bash", "install-pytorch.sh", "--disable-cxx11-abi" ]
 
 ### deps for aarch64 ###
 FROM base AS deps-arm64

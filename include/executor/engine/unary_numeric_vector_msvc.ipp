@@ -196,7 +196,7 @@ inline Expect<void> Executor::runVectorPromoteOp(ValVariant &Val) const {
 
 inline Expect<void> Executor::runVectorAnyTrueOp(ValVariant &Val) const {
   auto &Vector = Val.get<uint128_t>();
-  const uint128_t Zero = 0;
+  const uint128_t Zero = 0U;
   const uint32_t Result = (Vector != Zero);
   Val.emplace<uint32_t>(Result);
 

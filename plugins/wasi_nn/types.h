@@ -40,6 +40,7 @@ enum class Backend : uint8_t {
   GGML = 6,
   NeuralSpeed = 7,
   Whisper = 9,
+  MLX = 10,
   Piper = 11,
   ChatTTS = 12,
 };
@@ -54,7 +55,8 @@ enum class Backend : uint8_t {
   F(NeuralSpeed)                                                               \
   F(Whisper)                                                                   \
   F(Piper)                                                                     \
-  F(ChatTTS)
+  F(ChatTTS)                                                                   \
+  F(MLX)
 
 struct TensorData {
   Span<uint32_t> Dimension;

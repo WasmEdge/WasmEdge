@@ -58,8 +58,8 @@ createModule(std::string_view NNRPCURI = "") {
   return {};
 }
 
-#if !defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
-inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
+inline std::vector<uint8_t> readEntireFile
+    [[maybe_unused]] (const std::string &Path) {
   std::ifstream Fin(Path, std::ios::in | std::ios::binary | std::ios::ate);
   if (!Fin) {
     return {};
@@ -73,7 +73,6 @@ inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
   Fin.close();
   return Buf;
 }
-#endif
 
 template <typename T>
 void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
@@ -2228,7 +2227,6 @@ TEST(WasiNNTest, PiperBackend) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   // Load the files.
-  (void)readEntireFile;
   std::string Text = "This is a test.";
   std::vector<uint8_t> TensorData(Text.begin(), Text.end());
 

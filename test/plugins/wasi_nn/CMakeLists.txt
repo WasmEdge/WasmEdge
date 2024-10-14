@@ -70,8 +70,6 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         /wd4067 # unexpected tokens following preprocessor directive - expected a newline
       )
     endif()
-  elseif(BACKEND STREQUAL "neuralspeed")
-    message(NOTICE "Neural Speed backend is removed due to the upstream end-of-life.")
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     download(
@@ -128,6 +126,7 @@ target_link_libraries(wasiNNTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
 )
+
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasiNNTests

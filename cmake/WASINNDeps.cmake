@@ -3,10 +3,110 @@
 
 include(FetchContent)
 
+# Function of setup WASI-NN target.
+function(wasmedge_setup_wasinn_target target)
+  cmake_parse_arguments(PARSE_ARGV 1 WASMEDGE_WASINNDEPS_${target} "PLUGINLIB" "" "")
+  # `PLUGINLIB` keyword is for the target which is the plugin library.
+  # For some dependencies, the fully linking are necessary because the invoking happened in the plugin header.
+  # In other cases, the includes are needed only if the target is not the plugin library, such as the tests.
+
+  foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
+    string(TOLOWER ${BACKEND} BACKEND)
+    if(BACKEND STREQUAL "openvino")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build OpenVINO backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
+      find_package(OpenVINO REQUIRED)
+      target_link_libraries(${target}
+        PRIVATE
+        openvino::runtime
+        openvino::runtime::c
+      )
+    elseif(BACKEND STREQUAL "pytorch")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build PyTorch backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
+      find_package(Torch REQUIRED)
+      target_link_libraries(${target}
+        PRIVATE
+        ${TORCH_LIBRARIES}
+      )
+      target_compile_options(${target}
+        PRIVATE
+        -Wno-error=unused-parameter
+      )
+    elseif(BACKEND STREQUAL "tensorflowlite")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build Tensorflow-lite backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
+      wasmedge_setup_tflite_target(${target})
+    elseif(BACKEND STREQUAL "ggml")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build ggml backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
+      wasmedge_setup_llama_target(${target})
+    elseif(BACKEND STREQUAL "neuralspeed")
+      message(FATAL_ERROR "WASI-NN: Neural Speed backend is removed due to the upstream end-of-life. Reference: https://github.com/intel/neural-speed")
+    elseif(BACKEND STREQUAL "piper")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build piper backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER)
+      wasmedge_setup_piper_target(${target})
+    elseif(BACKEND STREQUAL "whisper")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build whisper.cpp backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER)
+      wasmedge_setup_whisper_target(${target})
+    elseif(BACKEND STREQUAL "chattts")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build chatTTS backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
+      wasmedge_setup_simdjson()
+      find_package(Python3 COMPONENTS Interpreter Development)
+      if(NOT Python3_FOUND)
+        message(FATAL_ERROR "Can not find python3.")
+      endif()
+      target_compile_definitions(${target}
+        PRIVATE
+        PYTHON_LIB_PATH="${Python3_LIBRARIES}"
+      )
+      target_include_directories(${target}
+        PRIVATE
+        ${Python3_INCLUDE_DIRS}
+      )
+      target_link_directories(${target}
+        PRIVATE
+        ${Python3_RUNTIME_LIBRARY_DIRS}
+      )
+      target_link_libraries(${target}
+        PRIVATE
+        ${Python3_LIBRARIES}
+        simdjson::simdjson
+      )
+    elseif(BACKEND STREQUAL "mlx")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build MLX backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX)
+      wasmedge_setup_mlx_target(${target})
+    else()
+      # Add the message of other backends here.
+      message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")
+    endif()
+  endforeach()
+endfunction()
+
+# Function of preparing TensorFlow related variables.
 if(NOT WASMEDGE_DEPS_VERSION)
   set(WASMEDGE_DEPS_VERSION "TF-2.12.0-CC")
 endif()
-
 function(wasmedge_setup_tf_variables)
   # Set the system name and hash of TF and TFLite releases.
   if(ANDROID)
@@ -45,39 +145,40 @@ function(wasmedge_setup_tf_variables)
   endif()
 endfunction()
 
+# Function of preparing TensorFlow headers.
 function(wasmedge_setup_tf_headers)
-  FetchContent_Declare(
-    wasmedge_tensorflow_header
-    GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
-    GIT_TAG ${WASMEDGE_DEPS_VERSION}
-  )
-  FetchContent_GetProperties(wasmedge_tensorflow_header)
-
-  if(NOT wasmedge_tensorflow_header_POPULATED)
-    message(STATUS "Fetching WasmEdge-tensorflow-deps repository")
-    FetchContent_Populate(wasmedge_tensorflow_header)
-    message(STATUS "Fetching WasmEdge-tensorflow-deps repository - done")
+  # Fetch Tensorflow-deps repository.
+  if(NOT wasmedge_tensorflow_header_SOURCE_DIR)
+    message(STATUS "Downloading WasmEdge-tensorflow-deps repository")
+    FetchContent_Declare(
+      wasmedge_tensorflow_header
+      GIT_REPOSITORY https://github.com/second-state/WasmEdge-tensorflow-deps.git
+      GIT_TAG ${WASMEDGE_DEPS_VERSION}
+    )
+    FetchContent_MakeAvailable(wasmedge_tensorflow_header)
+    message(STATUS "Downloading WasmEdge-tensorflow-deps repository -- done")
   endif()
+
+  # Setup Tensorflow headers source.
   set(WASMEDGE_TENSORFLOW_DEPS_HEADERS ${wasmedge_tensorflow_header_SOURCE_DIR} PARENT_SCOPE)
 endfunction()
 
+# Function of preparing TensorFlow-Lite library.
 function(wasmedge_setup_tflite_lib)
   wasmedge_setup_tf_variables()
-  # Fetch Tensorflow-lite library.
-  FetchContent_Declare(
-    wasmedge_tensorflow_lib_tflite
-    URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TFLite-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
-    URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH}"
-  )
-  FetchContent_GetProperties(wasmedge_tensorflow_lib_tflite)
-
-  if(NOT wasmedge_tensorflow_lib_tflite_POPULATED)
-    message(STATUS "Downloading dependency: libtensorflowlite")
-    FetchContent_Populate(wasmedge_tensorflow_lib_tflite)
-    message(STATUS "Downloading dependency: libtensorflowlite - done")
+  # Fetch Tensorflow-lite pre-built library.
+  if(NOT wasmedge_tensorflow_lib_tflite_SOURCE_DIR)
+    message(STATUS "Downloading libtensorflowlite dependency")
+    FetchContent_Declare(
+      wasmedge_tensorflow_lib_tflite
+      URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TFLite-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
+      URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TFLITE_HASH}"
+    )
+    FetchContent_MakeAvailable(wasmedge_tensorflow_lib_tflite)
+    message(STATUS "Downloading libtensorflowlite dependency -- done")
   endif()
 
-  # Setup Tensorflow-lite library.
+  # Setup Tensorflow-lite pre-built library.
   if(ANDROID)
     set(WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB
       "${wasmedge_tensorflow_lib_tflite_SOURCE_DIR}/libtensorflowlite_c.so"
@@ -98,19 +199,20 @@ function(wasmedge_setup_tflite_lib)
   endif()
 endfunction()
 
+# Function of preparing TensorFlow library.
 function(wasmedge_setup_tf_lib)
   wasmedge_setup_tf_variables()
-  # Fetch Tensorflow-lite library.
-  FetchContent_Declare(
-    wasmedge_tensorflow_lib_tf
-    URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TF-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
-    URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TF_HASH}"
-  )
-  FetchContent_GetProperties(wasmedge_tensorflow_lib_tf)
+  # Fetch Tensorflow pre-built library.
+  if(NOT wasmedge_tensorflow_lib_tf_SOURCE_DIR)
+    message(STATUS "Downloading libtensorflow dependency")
+    FetchContent_Declare(
+      wasmedge_tensorflow_lib_tf
+      URL "https://github.com/second-state/WasmEdge-tensorflow-deps/releases/download/${WASMEDGE_DEPS_VERSION}/WasmEdge-tensorflow-deps-TF-${WASMEDGE_DEPS_VERSION}-${WASMEDGE_TENSORFLOW_SYSTEM_NAME}.tar.gz"
+      URL_HASH "SHA256=${WASMEDGE_TENSORFLOW_DEPS_TF_HASH}"
+    )
+    FetchContent_MakeAvailable(wasmedge_tensorflow_lib_tf)
+    message(STATUS "Downloading libtensorflow dependency -- done")
 
-  if(NOT wasmedge_tensorflow_lib_tf_POPULATED)
-    message(STATUS "Downloading dependency: libtensorflow")
-    FetchContent_Populate(wasmedge_tensorflow_lib_tf)
     if(APPLE)
       execute_process(
         COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_cc.2.12.0.dylib ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_cc.2.dylib
@@ -126,9 +228,9 @@ function(wasmedge_setup_tf_lib)
         COMMAND ${CMAKE_COMMAND} -E create_symlink libtensorflow_framework.so.2 ${wasmedge_tensorflow_lib_tf_SOURCE_DIR}/libtensorflow_framework.so
       )
     endif()
-    message(STATUS "Downloading dependency: libtensorflow - done")
   endif()
 
+  # Setup Tensorflow pre-built library.
   if(ANDROID)
   elseif(APPLE)
     set(WASMEDGE_TENSORFLOW_DEPS_TF_LIB
@@ -145,70 +247,7 @@ function(wasmedge_setup_tf_lib)
   endif()
 endfunction()
 
-function(wasmedge_setup_wasinn_target target)
-  # Add backends building flags.
-  foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
-    string(TOLOWER ${BACKEND} BACKEND)
-    if(BACKEND STREQUAL "openvino")
-      message(STATUS "WASI-NN: Build OpenVINO backend for WASI-NN")
-      find_package(OpenVINO REQUIRED)
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO)
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
-        openvino::runtime openvino::runtime::c
-      )
-    elseif(BACKEND STREQUAL "pytorch")
-      message(STATUS "WASI-NN: Build PyTorch backend for WASI-NN")
-      find_package(Torch REQUIRED)
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
-        ${TORCH_LIBRARIES}
-      )
-    elseif(BACKEND STREQUAL "tensorflowlite")
-      message(STATUS "WASI-NN: Build Tensorflow lite backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE)
-      wasmedge_setup_tf_headers()
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_INCLUDES
-        ${WASMEDGE_TENSORFLOW_DEPS_HEADERS}
-      )
-      wasmedge_setup_tflite_lib()
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
-        ${WASMEDGE_TENSORFLOW_DEPS_TFLITE_LIB}
-      )
-    elseif(BACKEND STREQUAL "ggml")
-      message(STATUS "WASI-NN: Build ggml backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML)
-    elseif(BACKEND STREQUAL "neuralspeed")
-      message(NOTICE "WASI-NN: Neural Speed backend is removed due to the upstream end-of-life.")
-    elseif(BACKEND STREQUAL "piper")
-      message(STATUS "WASI-NN: Build piper backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER)
-      wasmedge_setup_piper()
-      list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS piper)
-    elseif(BACKEND STREQUAL "whisper")
-      message(STATUS "WASI-NN: Build whisper.cpp backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER)
-    elseif(BACKEND STREQUAL "chattts")
-      message(STATUS "WASI-NN: Build chatTTS backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
-    elseif(BACKEND STREQUAL "mlx")
-      message(STATUS "WASI-NN: Build MLX backend for WASI-NN")
-      add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX)
-    else()
-      # Add the other backends here.
-      message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")
-    endif()
-  endforeach()
-
-  target_include_directories(${target}
-    PUBLIC
-    ${WASMEDGE_PLUGIN_WASI_NN_INCLUDES}
-  )
-  target_link_libraries(${target}
-    PUBLIC
-    ${WASMEDGE_PLUGIN_WASI_NN_DEPS}
-  )
-endfunction()
-
+# Function of preparing TensorFlow dependency.
 function(wasmedge_setup_tf_target target)
   wasmedge_setup_tf_headers()
   wasmedge_setup_tf_lib()
@@ -222,6 +261,7 @@ function(wasmedge_setup_tf_target target)
   )
 endfunction()
 
+# Function of preparing TensorFlow-Lite dependency.
 function(wasmedge_setup_tflite_target target)
   wasmedge_setup_tf_headers()
   wasmedge_setup_tflite_lib()
@@ -235,9 +275,139 @@ function(wasmedge_setup_tflite_target target)
   )
 endfunction()
 
-function(wasmedge_setup_piper)
-  include(Helper)
-  wasmedge_setup_spdlog()
+# Function of preparing llama dependency.
+function(wasmedge_setup_llama_target target)
+  if(NOT TARGET llama)
+    # llama.cpp options
+    # Disable warnings and debug messages
+    set(LLAMA_ALL_WARNINGS OFF)
+    set(LLAMA_METAL_NDEBUG ON)
+    set(GGML_ACCELERATE OFF)
+    set(GGML_BLAS OFF)
+    set(GGML_OPENMP OFF)
+    set(BUILD_SHARED_LIBS OFF)
+
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE)
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_NATIVE(AVX/AVX2/FMA/F16C)")
+      set(GGML_NATIVE ON)
+    else()
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_NATIVE(AVX/AVX2/FMA/F16C)")
+      set(GGML_NATIVE OFF)
+      set(GGML_AVX OFF)
+      set(GGML_AVX2 OFF)
+      set(GGML_FMA OFF)
+      set(GGML_F16C OFF)
+    endif()
+
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_CUDA")
+      set(GGML_CUDA ON)
+      # We need to set GGML_USE_CUDA for clip from llava.
+      add_compile_definitions(GGML_USE_CUDA)
+    else()
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_CUDA")
+      set(GGML_CUDA OFF)
+    endif()
+
+    if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_METAL")
+      set(GGML_METAL ON)
+      set(GGML_METAL_EMBED_LIBRARY ON)
+    else()
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_METAL")
+      set(GGML_METAL OFF)
+    endif()
+
+    # setup llama.cpp
+    message(STATUS "Downloading llama.cpp source")
+    include(FetchContent)
+    FetchContent_Declare(
+      llama
+      GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
+      GIT_TAG        b3651
+      GIT_SHALLOW    FALSE
+    )
+    FetchContent_MakeAvailable(llama)
+    message(STATUS "Downloading llama.cpp source -- done")
+    set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+    # Setup llava from llama.cpp
+    wasmedge_add_library(llava OBJECT
+      ${llama_SOURCE_DIR}/examples/llava/clip.cpp
+      ${llama_SOURCE_DIR}/examples/llava/llava.cpp
+    )
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      target_compile_options(llava
+        PRIVATE
+        $<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>
+        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/utf-8>
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4067> # unexpected tokens following preprocessor directive - expected a newline
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4101> # 'identifier' : unreferenced local variable
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4189> # 'identifier' : local variable is initialized but not referenced
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4244> # 'argument' : conversion from 'type1' to 'type2', possible loss of data
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4267> # 'var' : conversion from 'size_t' to 'type', possible loss of data
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4297> # 'function' : function assumed not to throw an exception but does
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4456> # declaration of 'identifier' hides previous local declaration
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # 'function' : unreferenced local function has been removed
+      )
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+      target_compile_options(llava
+        PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-exceptions>
+        -Wno-cast-align
+        -Wno-cast-qual
+        -Wno-float-conversion
+        -Wno-implicit-fallthrough
+        -Wno-unused-macros
+        -Wno-unused-function
+        -Wno-unused-variable
+      )
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      target_compile_options(llava
+        PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-Wno-exceptions>
+        -Wno-cast-align
+        -Wno-cast-qual
+        -Wno-disabled-macro-expansion
+        -Wno-float-conversion
+        -Wno-implicit-fallthrough
+        -Wno-implicit-float-conversion
+        -Wno-unused-macros
+        -Wno-unused-function
+        -Wno-unused-variable
+        -Wno-sign-conversion
+        -Wno-shorten-64-to-32
+        -Wno-implicit-int-conversion
+        -Wno-old-style-cast
+        -Wno-extra-semi-stmt
+        -Wno-format-nonliteral
+        -Wno-documentation
+        -Wno-unused-template
+      )
+    endif()
+    target_link_libraries(llava PRIVATE ggml llama)
+    target_include_directories(llava PUBLIC
+      ${llama_SOURCE_DIR}
+      ${llama_SOURCE_DIR}/common
+      ${llama_SOURCE_DIR}/examples/llava
+    )
+  endif()
+  # Only the plugin library needs to fully linking the dependency.
+  if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+    wasmedge_setup_simdjson()
+    target_link_libraries(${target}
+      PRIVATE
+      common
+      simdjson::simdjson
+      llava
+    )
+  endif()
+endfunction()
+
+# Function of preparing piper dependency.
+function(wasmedge_setup_piper_target target)
   find_package(onnxruntime)
   if(NOT onnxruntime_FOUND)
     find_library(ONNXRUNTIME_LIBRARY onnxruntime)
@@ -251,24 +421,174 @@ function(wasmedge_setup_piper)
   if(NOT onnxruntime_FOUND)
     message(FATAL_ERROR "Cannot find onnxruntime")
   endif()
-  message(STATUS "Downloading piper source")
-  include(FetchContent)
-  set(BUILD_SHARED_LIBS OFF)
-  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-  set(BUILD_TESTING OFF)
-  find_program(GIT_CMD git REQUIRED)
-  FetchContent_Declare(
-    piper
-    GIT_REPOSITORY https://github.com/rhasspy/piper.git
-    GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
-    UPDATE_DISCONNECTED TRUE
-    PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
-  )
-  FetchContent_GetProperties(piper)
-  if(NOT piper_POPULATED)
-    FetchContent_Populate(piper)
-    add_subdirectory("${piper_SOURCE_DIR}" "${piper_BINARY_DIR}" EXCLUDE_FROM_ALL)
+  if(NOT TARGET piper)
+    # setup piper
+    message(STATUS "Downloading piper source")
+    find_program(GIT_CMD git REQUIRED)
+    FetchContent_Declare(
+      piper
+      GIT_REPOSITORY https://github.com/rhasspy/piper.git
+      GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
+      UPDATE_DISCONNECTED TRUE
+      PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
+    )
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Piper not build shared")
+    set(BUILD_TESTING OFF CACHE INTERNAL "Piper not build tests")
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE INTERNAL "Piper build independent code")
+    FetchContent_MakeAvailable(piper)
+    message(STATUS "Downloading piper source -- done")
+    # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
+    target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
   endif()
-  # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
-  target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
+  wasmedge_setup_simdjson()
+  target_link_libraries(${target}
+    PRIVATE
+    piper
+    simdjson::simdjson
+  )
+endfunction()
+
+# Function of preparing whisper dependency.
+function(wasmedge_setup_whisper_target target)
+  if(NOT TARGET whisper)
+    # setup whisper
+    FetchContent_Declare(
+      whisper
+      GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
+      GIT_TAG        69339af2d104802f3f201fd419163defba52890e
+      GIT_SHALLOW    FALSE
+    )
+    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")
+    set(GGML_OPENMP OFF)
+    set(GGML_ACCELERATE OFF)
+    set(GGML_BLAS OFF)
+    if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL)
+      message(STATUS "WASI-NN Whisper backend: Enable GGML_METAL")
+      set(GGML_METAL ON)
+      set(GGML_METAL_EMBED_LIBRARY ON)
+    else()
+      message(STATUS "WASI-NN Whisper backend: Disable GGML_METAL")
+      set(GGML_METAL OFF)
+    endif()
+    if(WASMEDGE_PLUGIN_WASI_NN_WHISPER_CUDA)
+      message(STATUS "WASI-NN Whisper backend: Enable GGML_CUDA")
+      set(GGML_CUDA ON)
+    else()
+      message(STATUS "WASI-NN Whisper backend: Disable GGML_CUDA")
+      set(GGML_CUDA OFF)
+    endif()
+    FetchContent_MakeAvailable(whisper)
+    set_property(TARGET whisper PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
+    target_include_directories(whisper
+      PUBLIC
+      ${whisper_SOURCE_DIR}
+    )
+  endif()
+  wasmedge_setup_simdjson()
+  target_link_libraries(${target}
+    PRIVATE
+    whisper
+    simdjson::simdjson
+  )
+endfunction()
+
+# Function of preparing MLX library.
+function(wasmedge_setup_mlx_target target)
+  find_package(MLX CONFIG)
+  if(MLX_FOUND)
+    message(STATUS "Found MLX: ${MLX_INCLUDE_DIRS}")
+  else()
+    find_library(ACCELERATE_LIBRARY Accelerate)
+    find_library(METAL_LIB Metal)
+    find_library(FOUNDATION_LIB Foundation)
+    find_library(QUARTZ_LIB QuartzCore)
+    if(NOT TARGET mlx)
+      # setup MLX
+      message(STATUS "Downloading MLX source")
+      FetchContent_Declare(
+        mlx
+        GIT_REPOSITORY https://github.com/ml-explore/mlx.git
+        GIT_TAG        v0.16.0
+        GIT_SHALLOW    FALSE
+      )
+      set(MLX_BUILD_GGUF OFF)
+      set(MLX_BUILD_TESTS OFF)
+      set(MLX_BUILD_EXAMPLES OFF)
+      FetchContent_MakeAvailable(mlx)
+      message(STATUS "Downloading MLX source -- done")
+      set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)
+      set_target_properties(mlx PROPERTIES
+        INTERFACE_LINK_LIBRARIES "$<BUILD_INTERFACE:fmt::fmt-header-only>"
+      )
+      target_link_libraries(mlx
+        PUBLIC
+        ${ACCELERATE_LIBRARY}
+        ${METAL_LIB}
+        ${FOUNDATION_LIB}
+        ${QUARTZ_LIB}
+      )
+      target_compile_options(mlx
+        PUBLIC
+        -Wno-unused-parameter
+        -Wno-deprecated-copy
+        -Wno-format
+      )
+    endif()
+  endif()
+
+  if(NOT TARGET tokenizers_cpp)
+    # setup tokenizers
+    message(STATUS "Downloading tokenizers source")
+    FetchContent_Declare(
+      tokenizers
+      GIT_REPOSITORY https://github.com/mlc-ai/tokenizers-cpp.git
+      GIT_TAG 5de6f65
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(tokenizers)
+    message(STATUS "Downloading tokenizers source -- done")
+    set_property(TARGET tokenizer_cpp_objs PROPERTY POSITION_INDEPENDENT_CODE ON)
+  endif()
+
+  if(NOT TARGET gguflib)
+    # setup gguflib
+    message(STATUS "Downloading gguflib source")
+    FetchContent_Declare(
+      gguflib
+      GIT_REPOSITORY https://github.com/antirez/gguf-tools/
+      GIT_TAG af7d88d808a7608a33723fba067036202910acb3
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(gguflib)
+    message(STATUS "Downloading gguflib source -- done")
+    add_library(gguflib
+      STATIC
+      ${gguflib_SOURCE_DIR}/fp16.c
+      ${gguflib_SOURCE_DIR}/gguflib.c
+    )
+    set_target_properties(gguflib PROPERTIES LINKER_LANGUAGE CXX)
+  endif()
+  # Only the plugin library needs to fully linking the dependency.
+  if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+    wasmedge_setup_simdjson()
+    target_include_directories(${target}
+      PRIVATE
+      ${tokenizers_SOURCE_DIR}/include
+    )
+    target_include_directories(${target}
+      SYSTEM PRIVATE
+      ${CMAKE_SOURCE_DIR}/plugins/wasi_nn/MLX
+      ${MLX_INCLUDE_DIRS}
+      $<BUILD_INTERFACE:${gguflib_SOURCE_DIR}>
+    )
+    target_link_libraries(${target}
+      PRIVATE
+      tokenizers_cpp
+      ${MLX_LIBRARIES}
+      gguflib
+      mlx
+      simdjson::simdjson
+    )
+  endif()
 endfunction()

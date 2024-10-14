@@ -97,7 +97,7 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
         fmt::print("{}\n"sv, (*Result)[I].first.get<double>());
         break;
       case TypeCode::V128:
-        fmt::print("{}\n"sv, (*Result)[I].first.get<uint128_t>());
+        fmt::print("{}\n"sv, uint128((*Result)[I].first.get<uint128_t>()));
         break;
       /// TODO: FuncRef and ExternRef
       default:
@@ -199,8 +199,9 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
                    std::get<ValVariant>((*Result)[I].first).get<double>());
         break;
       case TypeCode::V128:
-        fmt::print("{}\n"sv,
-                   std::get<ValVariant>((*Result)[I].first).get<uint128_t>());
+        fmt::print(
+            "{}\n"sv,
+            uint128(std::get<ValVariant>((*Result)[I].first).get<uint128_t>()));
         break;
       /// TODO: FuncRef and ExternRef
       default:

@@ -160,6 +160,7 @@ function(wasmedge_setup_wasinn_target target)
       message(STATUS "WASI-NN: Build PyTorch backend for WASI-NN")
       find_package(Torch REQUIRED)
       add_definitions(-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH)
+      target_compile_options(${target} PRIVATE -Wno-error=unused-parameter)
       list(APPEND WASMEDGE_PLUGIN_WASI_NN_DEPS
         ${TORCH_LIBRARIES}
       )

@@ -3,24 +3,31 @@ all:
   - 'plugins/CMakeLists.txt'
   - 'test/plugins/CMakeLists.txt'
 wasi_crypto:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_crypto/**'
   - 'test/plugins/wasi_crypto/**'
 wasi_nn-ggml:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
 wasi_nn-openvino:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
 wasi_nn-piper:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
 wasi_nn-pytorch:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
 wasi_nn-tensorflowlite:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
 wasi_nn-whisper:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasi_nn/**'
   - 'test/plugins/wasi_nn/**'
 wasi_nn_burnrs-squeezenet:
@@ -57,9 +64,11 @@ wasmedge_stablediffusion-cuda-12:
   - 'plugins/wasmedge_stablediffusion/**'
   - 'test/plugins/wasmedge_stablediffusion/**'
 wasmedge_tensorflow:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasmedge_tensorflow/**'
   - 'test/plugins/wasmedge_tensorflow/**'
 wasmedge_tensorflowlite:
+  - 'cmake/WASINNDeps.cmake'
   - 'plugins/wasmedge_tensorflowlite/**'
   - 'test/plugins/wasmedge_tensorflowlite/**'
 wasmedge_zlib:

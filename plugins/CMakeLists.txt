@@ -21,9 +21,6 @@ endif()
 if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
   add_subdirectory(wasi_nn)
 endif()
-if(WASMEDGE_PLUGIN_WASI_NN_BURNRS_MODEL)
-  add_subdirectory(wasi_nn_burnrs)
-endif()
 
 # WASI plug-in: WASI-Poll proposal.
 if(WASMEDGE_PLUGIN_WASI_POLL)

@@ -29,7 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(inputs.plugins) }}
-    name: ${{ matrix.plugin }}
+    name: ${{ matrix.plugin }} (${{ inputs.asset_tag }})
     runs-on: ${{ inputs.runner }}
     container:
       image: wasmedge/wasmedge:${{ inputs.docker_tag }}
@@ -93,12 +93,12 @@ jobs:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifact }}
       - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'manylinux_2_28') }}
-        name: Install gh
+        name: Install gh for release (manylinux_2_28)
         run: |
           yum check-update || true
           yum install -y gh
       - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'ubuntu') }}
-        name: Install gh
+        name: Install gh for release (ubuntu)
         run: |
           curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=${KEYRING}
           chmod go+r ${KEYRING}
@@ -108,7 +108,7 @@ jobs:
         env:
           KEYRING: /usr/share/keyrings/githubcli-archive-keyring.gpg
       - if: ${{ inputs.release }}
-        name: Upload ${{ steps.var.outputs.artifact }}
+        name: Upload release ${{ steps.var.outputs.artifact }}
         run: |
           gh release upload ${{ inputs.version }} ${{ steps.var.outputs.artifact }} --clobber
         env:

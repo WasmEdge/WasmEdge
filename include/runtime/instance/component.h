@@ -97,8 +97,6 @@ public:
 
   void addModule(const AST::Module &M) noexcept { ModList.emplace_back(M); }
   const AST::Module &getModule(uint32_t Index) const noexcept {
-    spdlog::info("There are {} modules, code is trying to get {}",
-                 ModList.size(), Index);
     return ModList[Index];
   }
 

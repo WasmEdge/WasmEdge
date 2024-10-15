@@ -21,17 +21,11 @@ struct WasiNNEnvironment;
 
 namespace WasmEdge::Host::WASINN::Piper {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
-enum class RunConfigOutputType { OUTPUT_WAV, OUTPUT_RAW };
-struct RunConfig {
-  // Path to .onnx voice file
-  std::filesystem::path ModelPath;
-
-  // Path to JSON voice config file
-  std::filesystem::path ModelConfigPath;
-
+enum class SynthesisConfigOutputType { OUTPUT_WAV, OUTPUT_RAW };
+struct SynthesisConfig {
   // Type of output to produce.
   // Default is a WAV file.
-  RunConfigOutputType OutputType = RunConfigOutputType::OUTPUT_WAV;
+  std::optional<SynthesisConfigOutputType> OutputType;
 
   // Numerical id of the default speaker (multi-speaker voices)
   std::optional<piper::SpeakerId> SpeakerId;
@@ -48,6 +42,16 @@ struct RunConfig {
   // Seconds of silence to add after each sentence
   std::optional<float> SentenceSilenceSeconds;
 
+  // Seconds of extra silence to insert after a single phoneme
+  std::optional<std::map<piper::Phoneme, float>> PhonemeSilenceSeconds;
+};
+struct RunConfig {
+  // Path to .onnx voice file
+  std::filesystem::path ModelPath;
+
+  // Path to JSON voice config file
+  std::filesystem::path ModelConfigPath;
+
   // Path to espeak-ng data directory
   std::optional<std::filesystem::path> ESpeakDataPath;
 
@@ -55,27 +59,27 @@ struct RunConfig {
   // https://github.com/mush42/libtashkeel/
   std::optional<std::filesystem::path> TashkeelModelPath;
 
-  // input is JSON instead of text with format:
+  // input is JSON with format:
   // {
   //   "text": str,               (required)
   //   "speaker_id": int,         (optional)
   //   "speaker": str,            (optional)
   // }
+  // including options in SynthesisConfig
   bool JsonInput = false;
 
-  // Seconds of extra silence to insert after a single phoneme
-  std::optional<std::map<piper::Phoneme, float>> PhonemeSilenceSeconds;
+  SynthesisConfig DefaultSynthesisConfig;
 };
 struct Graph {
   std::unique_ptr<RunConfig> Config;
   std::unique_ptr<piper::PiperConfig> PiperConfig;
   std::unique_ptr<piper::Voice> Voice;
-  std::optional<piper::SpeakerId> SpeakerId;
 };
 struct Context {
   Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
   size_t GraphId;
   std::optional<std::string> Line;
+  std::unique_ptr<std::optional<SynthesisConfig>> JsonInputSynthesisConfig;
   std::optional<std::vector<uint8_t>> Output;
 };
 #else

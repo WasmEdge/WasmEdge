@@ -14,6 +14,7 @@
 #pragma once
 
 #include "ast/instruction.h"
+#include "common/errcode.h"
 #include "runtime/instance/module.h"
 
 #include <optional>
@@ -74,6 +75,11 @@ public:
     return Span<Value>(ValueStack.end() - N, N);
   }
 
+  Span<Value> getRangeSpan(uint32_t Start, uint32_t Len) {
+    assuming(Start < ValueStack.size() && Start + Len <= ValueStack.size());
+    return Span<Value>(ValueStack.begin() + Start, Len);
+  }
+
   /// Push a new value entry to stack.
   template <typename T> void push(T &&Val) {
     ValueStack.push_back(std::forward<T>(Val));
@@ -98,6 +104,11 @@ public:
     std::move(ValueStack.end() - N, ValueStack.end(), std::back_inserter(Vec));
     ValueStack.erase(ValueStack.end() - N, ValueStack.end());
     return Vec;
+  }
+
+  /// Get all Frames enumerated from youngest to oldest.
+  Span<Frame> getAllFrames() {
+    return Span<Frame>(FrameStack.data(), FrameStack.size());
   }
 
   /// Push a new frame entry to stack.

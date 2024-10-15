@@ -64,9 +64,19 @@ jobs:
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
             ${{ matrix.options }}
           cmake --build build --target ${target}
-
+      - if: ${{ !endsWith(matrix.plugin, 'metal') }}
+        name: Package ${{ matrix.plugin }}
+        run: |
           cp -f ${output_dir}/${bin_name} ${bin_name}
           tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+      - if: ${{ endsWith(matrix.plugin, 'metal') }}
+        name: Package ${{ matrix.plugin }} with metal files
+        run: |
+          export FILES="${bin_name} ggml-metal.metal ggml-common.h"
+          for file_name in $FILES; do
+            cp -f ${output_dir}/${file_name} .
+          done
+          tar -zcvf ${{ steps.var.outputs.artifact }} ${FILES}
       - if: ${{ !inputs.release }}
         name: Test ${{ matrix.plugin }}
         run: |

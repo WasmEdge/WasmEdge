@@ -252,7 +252,12 @@ public:
     if (Func->isHostFunction()) {
       unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
     } else {
-      unsafeImportDefinedType(AST::SubType(Func->getFuncType()));
+      AST::SubType SType{Func->getFuncType()};
+
+      // NOTE: addDefinedType invoke the lock again, so I just repeat it's job.
+      OwnedTypes.push_back(std::make_unique<AST::SubType>(SType));
+      Types.push_back(OwnedTypes.back().get());
+      // NOTE: addDefinedType end
     }
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     FuncInsts.push_back(Func);

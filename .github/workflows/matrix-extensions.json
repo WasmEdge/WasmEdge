@@ -229,6 +229,16 @@
             ]
         },
         {
+            "plugin": "wasmedge_stablediffusion-metal",
+            "bin": "libwasmedgePluginWasmEdgeStableDiffusion",
+            "dir": "wasmedge_stablediffusion",
+            "target": "wasmedgePluginWasmEdgeStableDiffusion",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_METAL=ON",
+            "platforms": [
+                "macos_arm64"
+            ]
+        },
+        {
             "plugin": "wasmedge_tensorflow",
             "bin": "libwasmedgePluginWasmEdgeTensorflow",
             "dir": "wasmedge_tensorflow",

@@ -53,8 +53,6 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - if: ${{ startsWith(matrix.plugin, 'wasi_nn_burnrs') }}
-        uses: dtolnay/rust-toolchain@stable
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |

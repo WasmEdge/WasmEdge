@@ -14,6 +14,17 @@ jobs:
   # ------------------------------------------------------------------#
   # The list of build targets is in the file:
   #     .github/workflows/matrix-extensions.json
+  #
+  # 'paths-filter' example:
+  #
+  #   wasmedge_stablediffusion:
+  #     - paths/to/wasmedge_stablediffusion
+  #     - other/paths/to/wasmedge_stablediffusion
+  #
+  # plugin: 'wasmedge_stablediffusion-metal'
+  #
+  #   process.env['wasmedge_stablediffusion'] => true
+  #   process.env['wasmedge_stablediffusion-metal'] => undefined
   # ------------------------------------------------------------------#
   prepare:
     name: Prepare ${{ inputs.asset_tag }}
@@ -45,7 +56,9 @@ jobs:
             let plugins = JSON.parse(s).plugins
             if (!${{ inputs.release || fromJSON(steps.filter.outputs.all) }}) {
               plugins = plugins.filter(
-                (plugin) => !(process.env[plugin.plugin] != 'true')
+                (plugin) => !(
+                  process.env[plugin.plugin] != 'true' &&
+                  process.env[plugin.plugin.split('-')[0]] != 'true')
               )
             }
             let asset_tags = [
@@ -69,11 +82,7 @@ jobs:
             }
         env:
           wasi_crypto: ${{ steps.filter.outputs.wasi_crypto }}
-          wasi_nn-ggml: ${{ steps.filter.outputs.wasi_nn-ggml }}
-          wasi_nn-pytorch: ${{ steps.filter.outputs.wasi_nn-pytorch }}
-          wasi_nn-tensorflowlite: ${{ steps.filter.outputs.wasi_nn-tensorflowlite }}
-          wasi_nn-whisper: ${{ steps.filter.outputs.wasi_nn-whisper }}
-          wasi_nn-piper: ${{ steps.filter.outputs.wasi_nn-piper }}
+          wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
           wasm_bpf: ${{ steps.filter.outputs.wasm_bpf }}
           wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
           wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}

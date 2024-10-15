@@ -14,12 +14,12 @@ namespace Executor {
 using namespace std::literals;
 using namespace AST::Component;
 
+// In this function, we will create a new module instance and insert it into
+// component module instance index space.
 Expect<void>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CoreInstanceSection &Sec) {
-  // In this function, we will create a new module instance and insert it into
-  // component module instance index space.
   for (const CoreInstanceExpr &InstExpr : Sec.getContent()) {
     auto Func = [this, &StoreMgr, &CompInst](auto &&Expr) -> Expect<void> {
       using T = std::decay_t<decltype(Expr)>;

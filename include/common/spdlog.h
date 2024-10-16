@@ -23,6 +23,8 @@ namespace Log {
 
 void setLogOff();
 
+void setTraceLoggingLevel();
+
 void setDebugLoggingLevel();
 
 void setInfoLoggingLevel();
@@ -30,6 +32,11 @@ void setInfoLoggingLevel();
 void setWarnLoggingLevel();
 
 void setErrorLoggingLevel();
+
+void setCriticalLoggingLevel();
+
+void setLoggingCallback(
+    std::function<void(const spdlog::details::log_msg &)> Callback);
 
 } // namespace Log
 } // namespace WasmEdge

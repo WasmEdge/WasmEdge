@@ -477,6 +477,17 @@ TEST(APICoreTest, Version) {
 }
 
 TEST(APICoreTest, Log) {
+  WasmEdge_LogSetCallback([](const WasmEdge_LogMessage *) {});
+  EXPECT_TRUE(true);
+  std::vector<WasmEdge_LogLevel> LogLevels = {
+      WasmEdge_LogLevel_Trace, WasmEdge_LogLevel_Debug,
+      WasmEdge_LogLevel_Info,  WasmEdge_LogLevel_Warn,
+      WasmEdge_LogLevel_Error, WasmEdge_LogLevel_Critical,
+  };
+  for (auto Level : LogLevels) {
+    WasmEdge_LogSetLevel(Level);
+    EXPECT_TRUE(true);
+  }
   WasmEdge_LogSetDebugLevel();
   EXPECT_TRUE(true);
   WasmEdge_LogSetErrorLevel();

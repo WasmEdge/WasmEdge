@@ -76,6 +76,7 @@ jobs:
       - name: Build (${{ matrix.compiler }}, Coverage)
         if: ${{ matrix.coverage }}
         run: |
+          alias gcovr="gcovr --gcov-ignore-parse-errors=negative_hits.warn_once_per_file"
           apt update
           apt install -y gcovr
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_BUILD_COVERAGE=ON .

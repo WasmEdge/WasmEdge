@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-add_library(wasmedgePluginWasmEdgeOCR
+wasmedge_add_library(wasmedgePluginWasmEdgeOCR
   SHARED
   ocr_env.cpp
   ocr_func.cpp

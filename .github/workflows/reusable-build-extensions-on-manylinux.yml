@@ -66,6 +66,7 @@ jobs:
             -DWASMEDGE_BUILD_TOOLS=OFF \
             -DWASMEDGE_USE_LLVM=OFF \
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
+            -DWASMEDGE_USE_CXX11_ABI=${{ startsWith(inputs.asset_tag, 'manylinux_2_28') && 'OFF' || 'ON' }} \
             ${{ matrix.options }}
           cmake --build build --target ${target}
 

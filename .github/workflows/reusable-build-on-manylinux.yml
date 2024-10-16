@@ -37,7 +37,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Build ${{ matrix.asset_tag }} package
         run: |
-          bash utils/docker/build-manylinux.sh
+          bash utils/docker/build-manylinux.sh -DWASMEDGE_USE_CXX11_ABI=OFF
           ./build/tools/wasmedge/wasmedge -v
       - name: Upload artifact
         uses: actions/upload-artifact@v3

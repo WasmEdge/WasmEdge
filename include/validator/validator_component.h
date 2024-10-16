@@ -119,6 +119,7 @@ struct DefTypeVisitor {
     return {};
   }
   Expect<void> operator()(const InstanceType &) { return {}; }
+  Expect<void> operator()(const ResourceType &) { return {}; }
 
   void check(const InstanceDecl &) {
     // TODO: Validation of instancedecl (currently) only allows the type and

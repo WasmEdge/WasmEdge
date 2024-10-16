@@ -92,7 +92,7 @@ if(NOT ${LIBBPF_FOUND})
   FetchContent_Declare(
     libbpf
     GIT_REPOSITORY https://github.com/libbpf/libbpf
-    GIT_TAG cf46d44f0a06aa8b9400691ea3eb86ca4f066d5c
+    GIT_TAG 950cffc0366981d4e41b08f007b37bd6af931f25
   )
   FetchContent_GetProperties(libbpf)
 

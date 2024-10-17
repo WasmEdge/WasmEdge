@@ -9,18 +9,40 @@
 namespace WasmEdge {
 namespace Host {
 
+class ToDebugString : public WasiIO<ToDebugString> {
+public:
+  ToDebugString(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
+  using IoError = uint32_t;
+  Expect<void> body(IoError) { return {}; }
+};
+
+class IoError : public AST::Component::ResourceType {
+public:
+  IoError(WasiIOEnvironment &Env)
+      : ResourceType(new Runtime::Instance::ComponentInstance("error")) {
+    // to-debug-string: func() -> string;
+    Impl->addHostFunc("to-debug-string", std::make_unique<ToDebugString>(Env));
+  }
+};
+
 // NOTE: How to have nice API here about resource type definition?
 WasiIOErrorModule::WasiIOErrorModule()
     : ComponentInstance("wasi:io/error@0.2.0") {
   // FIXME: provide real resource type (and below)
-  addExport("error", AST::Component::DefType{});
+  addExport("error", IoError(getEnv()));
 }
+
+class StreamError : public AST::Component::ResourceType {
+public:
+  StreamError()
+      : ResourceType(new Runtime::Instance::ComponentInstance("error")) {}
+};
 
 WasiIOStreamsModule::WasiIOStreamsModule()
     : ComponentInstance("wasi:io/streams@0.2.0") {
   addExport("input-stream", AST::Component::DefType{});
   addExport("output-stream", AST::Component::DefType{});
-  addExport("error", AST::Component::DefType{});
+  addExport("error", StreamError());
 }
 
 } // namespace Host

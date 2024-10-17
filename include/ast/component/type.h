@@ -283,9 +283,9 @@ class ResourceType {
 public:
   ResourceType() : DtorSync{true} {}
   ResourceType(bool Sync) : DtorSync{Sync} {}
-  ResourceType(const Runtime::Instance::ComponentInstance *I)
+  ResourceType(Runtime::Instance::ComponentInstance *I)
       : Impl{I}, DtorSync{true} {}
-  ResourceType(const Runtime::Instance::ComponentInstance *I, bool Sync)
+  ResourceType(Runtime::Instance::ComponentInstance *I, bool Sync)
       : Impl{I}, DtorSync{Sync} {}
 
   const Runtime::Instance::ComponentInstance *getImpl() const noexcept {
@@ -299,9 +299,8 @@ public:
   std::optional<FuncIdx> &getDestructor() noexcept { return Dtor; }
   std::optional<FuncIdx> &getCallback() noexcept { return DtorCallback; }
 
-private:
   // real implementation
-  const Runtime::Instance::ComponentInstance *Impl;
+  Runtime::Instance::ComponentInstance *Impl;
 
   // destructor is sync or not, true is sync, false is not sync
   bool DtorSync;
@@ -597,6 +596,35 @@ struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
 };
 
 template <>
+struct fmt::formatter<WasmEdge::AST::Component::ResourceType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ResourceType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "resource-type {{"sv);
+
+    if (Type.getDestructor().has_value()) {
+      fmt::format_to(std::back_inserter(Buffer), "  destructor-index = {}"sv,
+                     Type.getDestructor().value());
+    }
+
+    if (Type.getCallback().has_value()) {
+      fmt::format_to(std::back_inserter(Buffer), "  callback-index = {}"sv,
+                     Type.getCallback().value());
+    }
+
+    fmt::format_to(std::back_inserter(Buffer), "}}"sv);
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
 struct fmt::formatter<WasmEdge::AST::Component::DefType>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
@@ -616,8 +644,8 @@ struct fmt::formatter<WasmEdge::AST::Component::DefType>
                 [](const InstanceType &Arg) {
                   return fmt::format("{}"sv, Arg);
                 },
-                [](const ResourceType &) {
-                  return fmt::format("<resource type>"sv);
+                [](const ResourceType &Arg) {
+                  return fmt::format("{}"sv, Arg);
                 }},
             Type),
         Ctx);

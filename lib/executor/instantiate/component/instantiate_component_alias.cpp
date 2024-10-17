@@ -82,10 +82,9 @@ Executor::instantiate(Runtime::StoreManager &,
           break;
         case SortCase::Type: {
           // TODO:
-          spdlog::warn("loading type `{}` from `{}`", Exp.getName(),
-                       CInst->getComponentName());
           auto Ty = CInst->getType(Exp.getName());
-          spdlog::warn("{}", Ty);
+          spdlog::warn("from `{}` loading type `{} := {}` ",
+                       CInst->getComponentName(), Exp.getName(), Ty);
           break;
         }
         case SortCase::Component:

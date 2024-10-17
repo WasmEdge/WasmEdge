@@ -9,6 +9,8 @@
 namespace WasmEdge {
 namespace Host {
 
+// TODO: Use wasi:error/error error to figure out what a resource host function
+// should be.
 class ToDebugString : public WasiIO<ToDebugString> {
 public:
   ToDebugString(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
@@ -25,10 +27,8 @@ public:
   }
 };
 
-// NOTE: How to have nice API here about resource type definition?
 WasiIOErrorModule::WasiIOErrorModule()
     : ComponentInstance("wasi:io/error@0.2.0") {
-  // FIXME: provide real resource type (and below)
   addExport("error", IoError(getEnv()));
 }
 

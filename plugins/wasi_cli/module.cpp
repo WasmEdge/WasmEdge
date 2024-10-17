@@ -9,6 +9,7 @@
 namespace WasmEdge {
 namespace Host {
 
+// TODO: complete these module
 WasiCliEnvironmentModule::WasiCliEnvironmentModule()
     : ComponentInstance("wasi:cli/environment@0.2.0") {}
 

@@ -11,11 +11,18 @@ namespace Host {
 
 using namespace AST::Component;
 
+class Datetime : public Record {
+public:
+  Datetime()
+      : Record({LabelValType("seconds", PrimValType::U64),
+                LabelValType("nanoseconds", PrimValType::U32)}) {}
+};
+
 WallClockModule::WallClockModule()
     : ComponentInstance("wasi:clocks/wall-clock@0.2.0") {
-  addExport("datetime",
-            Record({LabelValType("seconds", PrimValType::U64),
-                    LabelValType("nanoseconds", PrimValType::U32)}));
+  // FIXME: Here is a hard thing, `ResourceType&&` can move into
+  // `ExportTypesMap`, but somehow `Datetime` here cannot.
+  addExport("datetime", Datetime());
 }
 
 } // namespace Host

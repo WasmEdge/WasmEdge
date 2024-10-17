@@ -46,13 +46,12 @@ jobs:
         shell: bash
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm ninja cmake openssl opencv rust ffmpeg@6
+          brew install ninja opencv rust ffmpeg@6
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)
           export PKG_CONFIG_PATH="$(brew --prefix)/opt/ffmpeg@6/lib/pkgconfig:$PKG_CONFIG_PATH"
-          export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
           export OpenSSL_DIR="$(brew --prefix)/opt/openssl"
           export CC=clang
           export CXX=clang++

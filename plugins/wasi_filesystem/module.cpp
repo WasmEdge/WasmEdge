@@ -9,6 +9,7 @@
 namespace WasmEdge {
 namespace Host {
 
+// TODO: complete this resource
 class Descriptor : public AST::Component::ResourceType {
 public:
   Descriptor()

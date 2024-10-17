@@ -5,6 +5,7 @@
 #include "executor/executor.h"
 
 #include "runtime/instance/module.h"
+#include "spdlog/spdlog.h"
 
 #include <sstream>
 #include <string_view>
@@ -362,13 +363,35 @@ Executor::instantiate(Runtime::StoreManager &,
         auto *FuncInst = CompInst.getFunctionInstance(C.getFuncIndex());
         CompInst.addCoreFunctionInstance(lowering(FuncInst, Mem, ReallocFunc));
       } else if constexpr (std::is_same_v<T, ResourceNew>) {
-        spdlog::warn("resource is not supported yet"sv);
-        return Unexpect(ErrCode::Value::InvalidCanonOption);
+        auto RNew = std::get<ResourceNew>(C);
+        auto TypIdx = RNew.getTypeIndex();
+        auto Typ = CompInst.getType(TypIdx);
+        if (std::holds_alternative<ResourceType>(Typ)) {
+          auto RTyp = std::get<ResourceType>(Typ);
+          spdlog::info("get {}", RTyp);
+          spdlog::warn("resource.new is not supported yet"sv);
+        } else {
+          spdlog::error("resource.new cannot instantiate a deftype that's not "
+                        "a resource.");
+          return Unexpect(ErrCode::Value::InvalidCanonOption);
+        }
       } else if constexpr (std::is_same_v<T, ResourceDrop>) {
-        spdlog::warn("resource is not supported yet"sv);
-        return Unexpect(ErrCode::Value::InvalidCanonOption);
+        auto RNew = std::get<ResourceDrop>(C);
+        auto TypIdx = RNew.getTypeIndex();
+        auto Typ = CompInst.getType(TypIdx);
+        if (std::holds_alternative<ResourceType>(Typ)) {
+          auto RTyp = std::get<ResourceType>(Typ);
+          spdlog::info("get {}", RTyp);
+          spdlog::warn("resource.drop is not supported yet"sv);
+        } else {
+          spdlog::error("type {}", Typ);
+          spdlog::error(
+              "resource.drop cannot instantiate a deftype that's not a "
+              "resource.");
+          return Unexpect(ErrCode::Value::InvalidCanonOption);
+        }
       } else if constexpr (std::is_same_v<T, ResourceRep>) {
-        spdlog::warn("resource is not supported yet"sv);
+        spdlog::warn("resource.rep is not supported yet"sv);
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
       return {};

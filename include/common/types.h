@@ -561,6 +561,7 @@ private:
 };
 
 } // namespace Component
+// TODO: add Record<Ts ...> : public ValComp
 
 using ValInterface = std::variant<
     // constant types in component types

@@ -223,15 +223,32 @@ public:
   void addCoreType(const CoreDefType &Ty) noexcept {
     CoreTypes.emplace_back(Ty);
   }
-  const CoreDefType &getCoreType(uint32_t Idx) const noexcept {
+  const CoreDefType getCoreType(uint32_t Idx) const noexcept {
     return CoreTypes[Idx];
   }
 
-  void addExport(std::string_view Name, DefType &&Type) {
+  void addExport(std::string_view Name, DefValType &&Type) {
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));
   }
-  const AST::Component::DefType &getType(std::string_view Name) const noexcept {
+  void addExport(std::string_view Name, FuncType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addExport(std::string_view Name, ResourceType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addExport(std::string_view Name, ComponentType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addExport(std::string_view Name, InstanceType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+
+  const AST::Component::DefType getType(std::string_view Name) const noexcept {
     return ExportTypesMap.at(std::string(Name));
   }
   void addCoreFuncType(const AST::FunctionType &Ty) noexcept {
@@ -239,8 +256,12 @@ public:
     typeConvert(FT, Ty);
     addType(FT);
   }
-  void addType(const DefType &Ty) noexcept { Types.emplace_back(Ty); }
-  const DefType &getType(uint32_t Idx) const noexcept { return Types[Idx]; }
+  void addType(DefType Ty) noexcept { Types.emplace_back(Ty); }
+  const DefType getType(uint32_t Idx) const noexcept {
+    spdlog::info("get type from component at index {}", Idx);
+    spdlog::info("component `{}` has {} types", CompName, Types.size());
+    return Types[Idx];
+  }
 
 private:
   void unsafeAddHostFunc(

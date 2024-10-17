@@ -227,6 +227,10 @@ public:
     return CoreTypes[Idx];
   }
 
+  void addExport(std::string_view Name, ResourceType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
   void addExport(std::string_view Name, DefType &&Type) {
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));

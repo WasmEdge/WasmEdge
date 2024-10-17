@@ -32,6 +32,19 @@ WasiIOErrorModule::WasiIOErrorModule()
   addExport("error", IoError(getEnv()));
 }
 
+class InputStream : public AST::Component::ResourceType {
+public:
+  InputStream()
+      : ResourceType(new Runtime::Instance::ComponentInstance("input-stream")) {
+  }
+};
+class OutputStream : public AST::Component::ResourceType {
+public:
+  OutputStream()
+      : ResourceType(
+            new Runtime::Instance::ComponentInstance("output-stream")) {}
+};
+
 class StreamError : public AST::Component::ResourceType {
 public:
   StreamError()
@@ -40,8 +53,8 @@ public:
 
 WasiIOStreamsModule::WasiIOStreamsModule()
     : ComponentInstance("wasi:io/streams@0.2.0") {
-  addExport("input-stream", AST::Component::DefType{});
-  addExport("output-stream", AST::Component::DefType{});
+  addExport("input-stream", InputStream());
+  addExport("output-stream", OutputStream());
   addExport("error", StreamError());
 }
 

@@ -11,6 +11,7 @@
 #include <common.h>
 #include <llama.h>
 #include <llava.h>
+#include <sampling.h>
 #endif
 
 namespace WasmEdge::Host::WASINN {
@@ -23,11 +24,13 @@ namespace WasmEdge::Host::WASINN::GGML {
 struct Graph {
   llama_model *LlamaModel = nullptr;
   std::string ModelFilePath;
+  llama_context *LlamaContext = nullptr;
   // Plugin parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
   bool StreamStdout = false;
   bool Embedding = false;
+  bool ComputeSingleStarted = false;
   uint64_t NPredict;
   std::string ReversePrompt;
   std::string MMProjModelPath;
@@ -60,8 +63,7 @@ public:
   std::string LlamaOutputs;
   std::vector<llama_token> LlamaOutputTokens;
   // Preserve for computing single token
-  llama_context *LlamaContext = nullptr;
-  struct llama_sampling_context *LlamaSampling = nullptr;
+  common_sampler *LlamaSampler = nullptr;
   int32_t LlamaNPast = 0;
   // Preserve for llava
   struct llava_image_embed *LlavaImageEmbd = nullptr;

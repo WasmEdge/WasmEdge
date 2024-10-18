@@ -282,6 +282,7 @@ function(wasmedge_setup_llama_target target)
     # Disable warnings and debug messages
     set(LLAMA_ALL_WARNINGS OFF)
     set(LLAMA_METAL_NDEBUG ON)
+    set(LLAMA_BUILD_COMMON ON)
     set(GGML_ACCELERATE OFF)
     set(GGML_BLAS OFF)
     set(GGML_OPENMP OFF)
@@ -324,7 +325,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3651
+      GIT_TAG        b3942
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)

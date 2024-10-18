@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "base.h"
+#include "mlx/base.h"
 
 #include <mlx/array.h>
 

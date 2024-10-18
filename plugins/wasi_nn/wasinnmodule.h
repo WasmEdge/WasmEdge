@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include "runtime/instance/module.h"
 #include "wasinnenv.h"
+
+#include "runtime/instance/module.h"
 
 namespace WasmEdge {
 namespace Host {

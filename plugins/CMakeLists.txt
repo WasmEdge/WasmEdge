@@ -22,9 +22,32 @@ if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)
   add_subdirectory(wasi_nn)
 endif()
 
+if(WASMEDGE_PREVIEW2)
+  set(WASMEDGE_PLUGIN_WASI_POLL ON)
+  set(WASMEDGE_PLUGIN_WASI_IO ON)
+  set(WASMEDGE_PLUGIN_WASI_CLOCKS ON)
+  set(WASMEDGE_PLUGIN_WASI_FILESYSTEM ON)
+  set(WASMEDGE_PLUGIN_WASI_CLI ON)
+endif()
 # WASI plug-in: WASI-Poll proposal.
 if(WASMEDGE_PLUGIN_WASI_POLL)
   add_subdirectory(wasi_poll)
+endif()
+# WASI plug-in: WASI-IO proposal.
+if(WASMEDGE_PLUGIN_WASI_IO)
+  add_subdirectory(wasi_io)
+endif()
+# WASI plug-in: WASI-Clocks proposal.
+if(WASMEDGE_PLUGIN_WASI_CLOCKS)
+  add_subdirectory(wasi_clocks)
+endif()
+# WASI plug-in: WASI-Filesystem proposal.
+if(WASMEDGE_PLUGIN_WASI_FILESYSTEM)
+  add_subdirectory(wasi_filesystem)
+endif()
+# WASI plug-in: WASI-Cli proposal.
+if(WASMEDGE_PLUGIN_WASI_CLI)
+  add_subdirectory(wasi_cli)
 endif()
 
 # WasmEdge plug-in: wasm-bpf.

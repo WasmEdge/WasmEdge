@@ -22,6 +22,11 @@
 #include <vector>
 
 namespace WasmEdge {
+
+namespace Runtime::Instance {
+class ComponentInstance;
+}
+
 namespace AST {
 
 namespace Component {
@@ -47,6 +52,9 @@ using ValueType = std::variant<TypeIndex, PrimValType>;
 
 class LabelValType {
 public:
+  LabelValType() {}
+  LabelValType(std::string L, ValueType VT) : Label{L}, ValTy{VT} {}
+
   std::string_view getLabel() const noexcept { return Label; }
   std::string &getLabel() noexcept { return Label; }
   const ValueType getValType() const noexcept { return ValTy; }
@@ -71,6 +79,9 @@ private:
 
 class Record {
 public:
+  Record() {}
+  Record(std::initializer_list<LabelValType> I) : LabelTypes{I} {}
+
   Span<const LabelValType> getLabelTypes() const noexcept { return LabelTypes; }
   std::vector<LabelValType> &getLabelTypes() noexcept { return LabelTypes; }
 
@@ -260,23 +271,43 @@ public:
   std::vector<InstanceDecl> &getContent() noexcept { return IdList; }
 };
 
+// Pseudo Python code
+//
+// class ResourceType(Type):
+//   impl: ComponentInstance
+//   dtor: Optional[Callable] = None
+//   dtor_sync: bool = True
+//   dtor_callback: Optional[Callable] = None
 using FuncIdx = uint32_t;
 class ResourceType {
 public:
-  ResourceType() : Async{false} {}
-  ResourceType(bool A) : Async{A} {}
+  ResourceType() : DtorSync{true} {}
+  ResourceType(bool Sync) : DtorSync{Sync} {}
+  ResourceType(Runtime::Instance::ComponentInstance *I)
+      : Impl{I}, DtorSync{true} {}
+  ResourceType(Runtime::Instance::ComponentInstance *I, bool Sync)
+      : Impl{I}, DtorSync{Sync} {}
 
-  std::optional<FuncIdx> getDestructor() const noexcept { return Destructor; }
-  std::optional<FuncIdx> getCallback() const noexcept { return Callback; }
+  const Runtime::Instance::ComponentInstance *getImpl() const noexcept {
+    return Impl;
+  }
 
-  bool IsAsync() noexcept { return Async; }
-  std::optional<FuncIdx> &getDestructor() noexcept { return Destructor; }
-  std::optional<FuncIdx> &getCallback() noexcept { return Callback; }
+  std::optional<FuncIdx> getDestructor() const noexcept { return Dtor; }
+  std::optional<FuncIdx> getCallback() const noexcept { return DtorCallback; }
 
-private:
-  bool Async;
-  std::optional<FuncIdx> Destructor;
-  std::optional<FuncIdx> Callback;
+  bool IsSync() noexcept { return DtorSync; }
+  std::optional<FuncIdx> &getDestructor() noexcept { return Dtor; }
+  std::optional<FuncIdx> &getCallback() noexcept { return DtorCallback; }
+
+  // real implementation
+  Runtime::Instance::ComponentInstance *Impl;
+
+  // destructor is sync or not, true is sync, false is not sync
+  bool DtorSync;
+  // destructor
+  std::optional<FuncIdx> Dtor;
+  // destructor callback
+  std::optional<FuncIdx> DtorCallback;
 };
 
 class ImportDecl {
@@ -565,6 +596,35 @@ struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
 };
 
 template <>
+struct fmt::formatter<WasmEdge::AST::Component::ResourceType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ResourceType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "resource-type {{"sv);
+
+    if (Type.getDestructor().has_value()) {
+      fmt::format_to(std::back_inserter(Buffer), "  destructor-index = {}"sv,
+                     Type.getDestructor().value());
+    }
+
+    if (Type.getCallback().has_value()) {
+      fmt::format_to(std::back_inserter(Buffer), "  callback-index = {}"sv,
+                     Type.getCallback().value());
+    }
+
+    fmt::format_to(std::back_inserter(Buffer), "}}"sv);
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
 struct fmt::formatter<WasmEdge::AST::Component::DefType>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
@@ -584,8 +644,8 @@ struct fmt::formatter<WasmEdge::AST::Component::DefType>
                 [](const InstanceType &Arg) {
                   return fmt::format("{}"sv, Arg);
                 },
-                [](const ResourceType &) {
-                  return fmt::format("<resource type>"sv);
+                [](const ResourceType &Arg) {
+                  return fmt::format("{}"sv, Arg);
                 }},
             Type),
         Ctx);

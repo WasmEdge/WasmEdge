@@ -89,4 +89,4 @@ Changes to this Governance and its supporting documents may be approved by a 2/3
 
 ## Credits
 
-Sections of this document have been borrowed from [Helm](https://github.com/helm/blob/main/governance/governance.md) and [Envoy](https://github.com/envoyproxy/envoy/blob/master/GOVERNANCE.md)  projects.
+WasmEdge adopts [CNCF governance template](https://contribute.cncf.io/maintainers/templates/governance-maintainer/) as the governance model.

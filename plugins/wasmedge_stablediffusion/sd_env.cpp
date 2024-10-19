@@ -43,6 +43,9 @@ uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx) noexcept {
 }
 
 sd_ctx_t *SDEnviornment::getContext(const uint32_t Id) noexcept {
+  if (Id >= Contexts.size()) {
+    return nullptr;
+  }
   return Contexts[Id];
 }
 

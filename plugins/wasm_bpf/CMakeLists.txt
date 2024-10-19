@@ -87,20 +87,15 @@ endif()
 
 # Try FetchContent
 if(NOT ${LIBBPF_FOUND})
-  message(STATUS "Try to get libbpf through FetchContent")
+  message(STATUS "Downloading libbpf source")
   include(FetchContent)
   FetchContent_Declare(
     libbpf
     GIT_REPOSITORY https://github.com/libbpf/libbpf
     GIT_TAG 950cffc0366981d4e41b08f007b37bd6af931f25
   )
-  FetchContent_GetProperties(libbpf)
-
-  if(NOT libbpf_POPULATED)
-    message(STATUS "Fetching libbpf..")
-    FetchContent_Populate(libbpf)
-    message(STATUS "Fetched libbpf")
-  endif()
+  FetchContent_MakeAvailable(libbpf)
+  message(STATUS "Downloading libbpf source - done")
 
   set(LIBBPF_DOWNLOAD_SOURCE_DIR "${libbpf_SOURCE_DIR}")
   message(DEBUG "libbpf saved at: ${LIBBPF_DOWNLOAD_SOURCE_DIR}")

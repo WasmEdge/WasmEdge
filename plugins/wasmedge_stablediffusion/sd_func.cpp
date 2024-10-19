@@ -275,7 +275,8 @@ Expect<uint32_t> SDTextToImage::body(
   if (!parameterCheck(Env, Width, Height, SessionId)) {
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
-  sd_ctx_t *SDCtx = Env.getContext(SessionId);
+  SESSION_CHECK(SDCtx, SessionId, "Session ID is invalid."sv,
+                ErrNo::InvalidArgument)
   sd_image_t *Results = nullptr;
   sd_image_t *ControlImage = nullptr;
   uint8_t *ControlImageBuffer = nullptr;
@@ -353,7 +354,8 @@ Expect<uint32_t> SDImageToImage::body(
   if (!parameterCheck(Env, Width, Height, SessionId)) {
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
-  sd_ctx_t *SDCtx = Env.getContext(SessionId);
+  SESSION_CHECK(SDCtx, SessionId, "Session ID is invalid."sv,
+                ErrNo::InvalidArgument)
   std::string Prompt(PromptSpan.begin(), PromptSpan.end());
   std::string NegativePrompt(NegativePromptSpan.begin(),
                              NegativePromptSpan.end());

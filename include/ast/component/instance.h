@@ -67,8 +67,8 @@ class Instantiate {
 public:
   Instantiate() noexcept : ComponentIndex{0}, Args{} {}
   Instantiate(uint32_t Idx,
-              std::vector<InstantiateArg<SortIndex<Sort>>> Args) noexcept
-      : ComponentIndex{Idx}, Args{Args} {}
+              std::vector<InstantiateArg<SortIndex<Sort>>> &&Args) noexcept
+      : ComponentIndex{Idx}, Args{std::move(Args)} {}
 
   uint32_t getComponentIdx() const noexcept { return ComponentIndex; }
   Span<const InstantiateArg<SortIndex<Sort>>> getArgs() const noexcept {

@@ -250,13 +250,15 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
       ${LLVM_LIBRARY_DIR}/liblldWasm.a
     )
   endif()
-  if(APPLE AND LLVM_VERSION_MAJOR GREATER_EQUAL 15)
-    # For LLVM 15 or greater on MacOS
-    find_package(zstd REQUIRED)
-    get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)
-    list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-      ${ZSTD_PATH}/libzstd.a
-    )
+  if(LLVM_VERSION_MAJOR GREATER_EQUAL 15)
+    # For LLVM 15 or greater on MacOS, or all LLVM 16+
+    if(APPLE OR LLVM_VERSION_MAJOR GREATER_EQUAL 16)
+      find_package(zstd REQUIRED)
+      get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)
+      list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
+        ${ZSTD_PATH}/libzstd.a
+      )
+    endif()
   endif()
 
   list(APPEND WASMEDGE_LLVM_LINK_SHARED_COMPONENTS

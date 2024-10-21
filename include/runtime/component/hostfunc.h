@@ -51,6 +51,13 @@ template <typename T> struct convert<List<T>> {
     return *dynamic_cast<List<T> *>(C);
   }
 };
+// TODO: complete the code below, let function can return record as parameter
+// template <typename Ts ...> struct convert<Record<Ts ...>> {
+//   static Record<Ts ...> run(const ValInterface &V) {
+//     auto *C = std::get<std::shared_ptr<ValComp>>(V).get();
+//     return *dynamic_cast<Record<Ts ...> *>(C);
+//   }
+// };
 
 template <typename ArgT> struct emplace {
   static void run(ValInterface &V, ArgT Arg) {
@@ -70,6 +77,12 @@ template <typename T> struct emplace<List<T>> {
     V.emplace<std::shared_ptr<ValComp>>(std::make_shared<List<T>>(Arg));
   }
 };
+// TODO: complete the code below, let function can return record as result
+// template <typename T> struct emplace<Record<T>> {
+//   static void run(ValInterface &V, Record<T> Arg) {
+//     V.emplace<std::shared_ptr<ValComp>>(std::make_shared<Record<T>>(Arg));
+//   }
+// };
 
 template <typename T> class HostFunction : public HostFunctionBase {
 public:

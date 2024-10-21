@@ -469,6 +469,7 @@ template <typename T> struct List : public ValComp {
 private:
   std::vector<T> Content;
 };
+// TODO: add Record<Ts ...> : public ValComp
 
 using ValInterface = std::variant<
     // constant types in component types

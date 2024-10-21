@@ -132,14 +132,14 @@ public:
   void addHostFunc(
       std::string_view Name,
       std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> &&Func) {
-    addType(Func->getFuncType());
+    addCoreFuncType(Func->getFuncType());
     auto FuncInst = std::make_unique<Instance::Component::FunctionInstance>(
         std::move(Func));
     unsafeAddHostFunc(Name, std::move(FuncInst));
   }
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<Component::FunctionInstance> &&Func) {
-    addType(Func->getFuncType());
+    addCoreFuncType(Func->getFuncType());
     unsafeAddHostFunc(Name, std::move(Func));
   }
 
@@ -223,17 +223,45 @@ public:
   void addCoreType(const CoreDefType &Ty) noexcept {
     CoreTypes.emplace_back(Ty);
   }
-  const CoreDefType &getCoreType(uint32_t Idx) const noexcept {
+  const CoreDefType getCoreType(uint32_t Idx) const noexcept {
     return CoreTypes[Idx];
   }
 
-  void addType(const AST::FunctionType &Ty) noexcept {
+  void addExport(std::string_view Name, DefValType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addExport(std::string_view Name, FuncType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addExport(std::string_view Name, ResourceType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addExport(std::string_view Name, ComponentType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addExport(std::string_view Name, InstanceType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+
+  const AST::Component::DefType getType(std::string_view Name) const noexcept {
+    return ExportTypesMap.at(std::string(Name));
+  }
+  void addCoreFuncType(const AST::FunctionType &Ty) noexcept {
     FuncType FT{};
     typeConvert(FT, Ty);
     addType(FT);
   }
-  void addType(const DefType &Ty) noexcept { Types.emplace_back(Ty); }
-  const DefType &getType(uint32_t Idx) const noexcept { return Types[Idx]; }
+  void addType(DefType Ty) noexcept { Types.emplace_back(Ty); }
+  const DefType getType(uint32_t Idx) const noexcept {
+    spdlog::info("get type from component at index {}", Idx);
+    spdlog::info("component `{}` has {} types", CompName, Types.size());
+    return Types[Idx];
+  }
 
 private:
   void unsafeAddHostFunc(
@@ -272,6 +300,9 @@ private:
 
   std::map<std::string, const ModuleInstance *, std::less<>> ExportModuleMap;
 
+  std::map<std::string, AST::Component::DefType, std::less<>> ExportTypesMap;
+  std::vector<AST::Component::DefType> Types;
+
   // core memory, this is prepared for canonical ABI
   //
   // when a function is lowering or lifting, it can have options
@@ -286,7 +317,6 @@ private:
   std::vector<GlobalInstance *> CoreGlobInstList;
 
   std::vector<AST::Component::CoreDefType> CoreTypes;
-  std::vector<AST::Component::DefType> Types;
 };
 
 } // namespace Instance

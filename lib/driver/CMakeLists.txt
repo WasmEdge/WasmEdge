@@ -24,25 +24,10 @@ if(WASMEDGE_BUILD_WASI_NN_RPC)
   )
 endif()
 
-if(WASMEDGE_USE_LLVM)
-  target_link_libraries(wasmedgeDriver
-    PRIVATE
-    wasmedgeLoader
-    wasmedgeCommon
-    wasmedgePO
-    wasmedgeVM
-    wasmedgeAOT
-    wasmedgeLLVM
-  )
-else()
-  target_link_libraries(wasmedgeDriver
-    PRIVATE
-    wasmedgeLoader
-    wasmedgeCommon
-    wasmedgePO
-    wasmedgeVM
-  )
-endif()
+target_link_libraries(wasmedgeDriver
+  PUBLIC
+  wasmedgeVM
+)
 
 if(WASMEDGE_USE_LLVM)
   target_compile_definitions(wasmedgeDriver

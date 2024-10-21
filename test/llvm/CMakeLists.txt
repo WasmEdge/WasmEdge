@@ -9,10 +9,6 @@ add_test(wasmedgeLLVMCoreTests wasmedgeLLVMCoreTests)
 
 target_link_libraries(wasmedgeLLVMCoreTests
   PRIVATE
-  std::filesystem
-  ${GTEST_BOTH_LIBRARIES}
   wasmedgeTestSpec
-  wasmedgeLoader
-  wasmedgeLLVM
   wasmedgeVM
 )

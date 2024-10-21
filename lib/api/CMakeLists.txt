@@ -86,7 +86,6 @@ if(WASMEDGE_USE_LLVM)
   target_link_libraries(wasmedgeCAPI
     PUBLIC
     wasmedgeAOT
-    wasmedgeLLVM
   )
 endif()
 
@@ -98,7 +97,7 @@ target_include_directories(wasmedgeCAPI
 
 if(WASMEDGE_BUILD_SHARED_LIB)
   wasmedge_add_library(wasmedge_shared SHARED
-    ../../include/api/wasmedge/wasmedge.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge.h
   )
 
   set_target_properties(wasmedge_shared PROPERTIES
@@ -119,12 +118,8 @@ if(WASMEDGE_BUILD_SHARED_LIB)
   endif()
 
   target_link_libraries(wasmedge_shared
-    PRIVATE
-    wasmedgeCAPI
-  )
-  target_link_libraries(wasmedge_shared
     PUBLIC
-    spdlog::spdlog
+    wasmedgeCAPI
   )
 
   target_include_directories(wasmedge_shared
@@ -143,7 +138,6 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 endif()
 
 if(WASMEDGE_BUILD_STATIC_LIB)
-
   wasmedge_add_static_lib_component_command(spdlog::spdlog)
   wasmedge_add_static_lib_component_command(wasmedgeSystem)
   wasmedge_add_static_lib_component_command(wasmedgeCommon)

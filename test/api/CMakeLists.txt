@@ -20,7 +20,7 @@ wasmedge_add_library(wasmedgeAPITestHelpers
 )
 
 target_link_libraries(wasmedgeAPITestHelpers
-  PRIVATE
+  PUBLIC
   wasmedge_shared
   wasmedgeTestSpec
 )
@@ -33,8 +33,6 @@ add_test(wasmedgeAPIUnitTests wasmedgeAPIUnitTests)
 
 target_link_libraries(wasmedgeAPIUnitTests
   PRIVATE
-  std::filesystem
-  ${GTEST_BOTH_LIBRARIES}
   wasmedgeAPITestHelpers
   wasmedge_shared
 )
@@ -52,9 +50,6 @@ add_test(wasmedgeAPIVMCoreTests wasmedgeAPIVMCoreTests)
 
 target_link_libraries(wasmedgeAPIVMCoreTests
   PRIVATE
-  std::filesystem
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedgeTestSpec
   wasmedgeAPITestHelpers
   wasmedge_shared
 )
@@ -67,9 +62,6 @@ add_test(wasmedgeAPIStepsCoreTests wasmedgeAPIStepsCoreTests)
 
 target_link_libraries(wasmedgeAPIStepsCoreTests
   PRIVATE
-  std::filesystem
-  ${GTEST_BOTH_LIBRARIES}
-  wasmedgeTestSpec
   wasmedgeAPITestHelpers
   wasmedge_shared
 )
@@ -83,9 +75,6 @@ if(WASMEDGE_USE_LLVM)
 
   target_link_libraries(wasmedgeAPIAOTCoreTests
     PRIVATE
-    std::filesystem
-    ${GTEST_BOTH_LIBRARIES}
-    wasmedgeTestSpec
     wasmedgeAPITestHelpers
     wasmedge_shared
   )

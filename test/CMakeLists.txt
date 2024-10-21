@@ -37,7 +37,7 @@ else()
   endif()
 
   FetchContent_MakeAvailable(GTest)
-  set(GTEST_BOTH_LIBRARIES "gtest;gtest_main")
+  set(GTEST_BOTH_LIBRARIES "gtest_main")
 endif()
 
 if(WASMEDGE_USE_LLVM)

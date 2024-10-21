@@ -379,8 +379,19 @@ Executor::instantiate(Runtime::StoreManager &,
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
     } else if (std::holds_alternative<ResourceDrop>(C)) {
-      spdlog::warn("resource.drop is not supported yet"sv);
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
+      auto RNew = std::get<ResourceDrop>(C);
+      auto TypIdx = RNew.getTypeIndex();
+      auto Typ = CompInst.getType(TypIdx);
+      if (std::holds_alternative<ResourceType>(Typ)) {
+        auto RTyp = std::get<ResourceType>(Typ);
+        spdlog::info("get {}", RTyp);
+        spdlog::warn("resource.drop is not supported yet"sv);
+      } else {
+        spdlog::error("type {}", Typ);
+        spdlog::error("resource.drop cannot instantiate a deftype that's not a "
+                      "resource.");
+        return Unexpect(ErrCode::Value::InvalidCanonOption);
+      }
     } else if (std::holds_alternative<ResourceRep>(C)) {
       spdlog::warn("resource.rep is not supported yet"sv);
       return Unexpect(ErrCode::Value::InvalidCanonOption);

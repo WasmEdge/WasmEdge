@@ -9,8 +9,6 @@ add_test(wasmedgeExecutorCoreTests wasmedgeExecutorCoreTests)
 
 target_link_libraries(wasmedgeExecutorCoreTests
   PRIVATE
-  std::filesystem
-  ${GTEST_BOTH_LIBRARIES}
   wasmedgeTestSpec
   wasmedgeVM
 )

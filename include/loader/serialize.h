@@ -98,6 +98,8 @@ private:
                              std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeType(const AST::GlobalType &Type,
                              std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeType(const AST::FieldType &Type,
+                             std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeExpression(const AST::Expression &Expr,
                                    std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void>

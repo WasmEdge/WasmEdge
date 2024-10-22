@@ -4,6 +4,7 @@
 #pragma once
 
 #include "env.h"
+#include "type.h"
 
 #include "runtime/instance/module.h"
 

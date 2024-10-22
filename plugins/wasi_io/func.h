@@ -5,7 +5,16 @@
 
 #include "base.h"
 #include "runtime/callingframe.h"
+#include "type.h"
 
 namespace WasmEdge {
-namespace Host {} // namespace Host
+namespace Host {
+
+class DropOutputStream : public WasiIO<DropOutputStream> {
+public:
+  DropOutputStream(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
+  Expect<void> body(uint32_t ThisOutputStream);
+};
+
+} // namespace Host
 } // namespace WasmEdge

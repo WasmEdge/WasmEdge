@@ -10,7 +10,12 @@
 namespace WasmEdge {
 namespace Host {
 
-class WasiIOEnvironment {};
+class OutputStream;
+
+class WasiIOEnvironment {
+public:
+  std::vector<OutputStream> OutputStreamList;
+};
 
 } // namespace Host
 } // namespace WasmEdge

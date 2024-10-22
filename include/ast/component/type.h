@@ -559,6 +559,34 @@ struct fmt::formatter<WasmEdge::AST::Component::ComponentType>
 };
 
 template <>
+struct fmt::formatter<WasmEdge::AST::Component::CoreType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::CoreType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    std::visit(Overloaded{
+                   [&](const FunctionType &) {
+                     fmt::format_to(std::back_inserter(Buffer),
+                                    "core:function type"sv);
+                   },
+                   [&](const Component::ModuleType &) {
+                     fmt::format_to(std::back_inserter(Buffer),
+                                    "core:module type"sv);
+                   },
+               },
+               Type.getType());
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
 struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
@@ -569,27 +597,30 @@ struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
 
     fmt::memory_buffer Buffer;
 
-    fmt::format_to(std::back_inserter(Buffer), "instance <"sv);
+    fmt::format_to(std::back_inserter(Buffer), "instance {{\n"sv);
     for (const auto &T : Type.getContent()) {
-      fmt::format_to(std::back_inserter(Buffer), "|"sv);
+      fmt::format_to(std::back_inserter(Buffer), "  "sv);
       std::visit(
           Overloaded{
-              [&](const CoreType &) {
-                fmt::format_to(std::back_inserter(Buffer), "core type"sv);
+              [&](const CoreType &T) {
+                fmt::format_to(std::back_inserter(Buffer), "{}"sv, T);
               },
               [&](const Alias &) {
                 fmt::format_to(std::back_inserter(Buffer), "alias type"sv);
               },
-              [&](const std::shared_ptr<WasmEdge::AST::Component::Type> &) {
-                fmt::format_to(std::back_inserter(Buffer), "type"sv);
+              [&](const std::shared_ptr<WasmEdge::AST::Component::Type> &T) {
+                fmt::format_to(std::back_inserter(Buffer), "{}"sv,
+                               (*T.get()).getType());
               },
               [&](const ExportDecl &) {
                 fmt::format_to(std::back_inserter(Buffer),
                                "export decl type"sv);
               }},
           T);
+      fmt::format_to(std::back_inserter(Buffer), "\n"sv);
     }
-    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+
+    fmt::format_to(std::back_inserter(Buffer), "}}"sv);
     return formatter<std::string_view>::format(
         std::string_view(Buffer.data(), Buffer.size()), Ctx);
   }

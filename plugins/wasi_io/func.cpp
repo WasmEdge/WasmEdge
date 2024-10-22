@@ -6,5 +6,12 @@
 #include "common/errcode.h"
 
 namespace WasmEdge {
-namespace Host {} // namespace Host
+namespace Host {
+
+Expect<void> DropOutputStream::body(uint32_t Idx) {
+  Env.OutputStreamList[Idx];
+  return {};
+}
+
+} // namespace Host
 } // namespace WasmEdge

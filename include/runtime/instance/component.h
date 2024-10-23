@@ -258,8 +258,8 @@ public:
   }
   void addType(DefType Ty) noexcept { Types.emplace_back(Ty); }
   const DefType getType(uint32_t Idx) const noexcept {
-    spdlog::info("get type from component at index {}", Idx);
-    spdlog::info("component `{}` has {} types", CompName, Types.size());
+    // spdlog::info("get type from component at index {}", Idx);
+    // spdlog::info("component `{}` has {} types", CompName, Types.size());
     return Types[Idx];
   }
 

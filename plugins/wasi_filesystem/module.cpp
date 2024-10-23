@@ -17,7 +17,7 @@ public:
 };
 
 TypesModule::TypesModule() : ComponentInstance("wasi:filesystem/types@0.2.0") {
-  addExport("descriptor", Descriptor());
+  addHostType("descriptor", Descriptor());
 }
 
 PreopensModule::PreopensModule()

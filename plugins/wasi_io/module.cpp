@@ -11,16 +11,16 @@ namespace Host {
 
 WasiIOErrorModule::WasiIOErrorModule()
     : ComponentInstance("wasi:io/error@0.2.0") {
-  addExport("error", IoError(getEnv()));
+  addHostType("error", IoError(getEnv()));
 }
 
 WasiIOStreamsModule::WasiIOStreamsModule()
     : ComponentInstance("wasi:io/streams@0.2.0") {
-  addExport("input-stream", InputStream());
-  addExport("output-stream", OutputStream());
+  addHostType("input-stream", InputStream());
+  addHostType("output-stream", OutputStream());
   addHostFunc("[resource-drop]output-stream",
               std::make_unique<DropOutputStream>(Env));
-  addExport("error", StreamError());
+  addHostType("error", StreamError());
 }
 
 } // namespace Host

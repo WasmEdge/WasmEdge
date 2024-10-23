@@ -227,23 +227,23 @@ public:
     return CoreTypes[Idx];
   }
 
-  void addExport(std::string_view Name, DefValType &&Type) {
+  void addHostType(std::string_view Name, DefValType &&Type) {
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));
   }
-  void addExport(std::string_view Name, FuncType &&Type) {
+  void addHostType(std::string_view Name, FuncType &&Type) {
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));
   }
-  void addExport(std::string_view Name, ResourceType &&Type) {
+  void addHostType(std::string_view Name, ResourceType &&Type) {
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));
   }
-  void addExport(std::string_view Name, ComponentType &&Type) {
+  void addHostType(std::string_view Name, ComponentType &&Type) {
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));
   }
-  void addExport(std::string_view Name, InstanceType &&Type) {
+  void addHostType(std::string_view Name, InstanceType &&Type) {
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));
   }

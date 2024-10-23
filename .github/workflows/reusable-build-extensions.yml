@@ -131,11 +131,11 @@ jobs:
       matrix:
         include:
           - runner: 'ubuntu-latest'
-            docker_tag: 'ubuntu-build-clang-plugins-deps'
+            docker_tag: 'ubuntu-22.04-build-clang-plugins-deps'
             asset_tag: 'ubuntu22.04-clang'
             plugins: ${{ needs.prepare.outputs.ubuntu_latest }}
           - runner: 'ubuntu-latest'
-            docker_tag: 'ubuntu-build-gcc-plugins-deps'
+            docker_tag: 'ubuntu-22.04-build-gcc-plugins-deps'
             asset_tag: 'ubuntu22.04-gcc'
             plugins: ${{ needs.prepare.outputs.ubuntu_latest }}
     name: ${{ matrix.asset_tag }}

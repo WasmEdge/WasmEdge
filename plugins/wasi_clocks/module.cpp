@@ -22,7 +22,7 @@ WallClockModule::WallClockModule()
     : ComponentInstance("wasi:clocks/wall-clock@0.2.0") {
   // FIXME: Here is a hard thing, `ResourceType&&` can move into
   // `ExportTypesMap`, but somehow `Datetime` here cannot.
-  addExport("datetime", Datetime());
+  addHostType("datetime", Datetime());
 }
 
 } // namespace Host

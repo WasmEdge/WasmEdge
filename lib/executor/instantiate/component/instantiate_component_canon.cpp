@@ -387,7 +387,6 @@ Executor::instantiate(Runtime::StoreManager &,
         spdlog::info("get {}", RTyp);
         spdlog::warn("resource.drop is not supported yet"sv);
       } else {
-        spdlog::error("type {}", Typ);
         spdlog::error("resource.drop cannot instantiate a deftype that's not a "
                       "resource.");
         return Unexpect(ErrCode::Value::InvalidCanonOption);

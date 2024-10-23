@@ -81,10 +81,14 @@ Executor::instantiate(Runtime::StoreManager &,
           spdlog::warn("incomplete alias sort target export: value"sv);
           break;
         case SortCase::Type: {
-          // TODO:
           auto Ty = CInst->getType(Exp.getName());
-          spdlog::warn("from `{}` loading type `{} := {}` ",
-                       CInst->getComponentName(), Exp.getName(), Ty);
+          // FIXME: The `dateime` record from `wasi:clocks/wall-clock@0.2.0`
+          // will need this message to debug it.
+          //
+          // spdlog::warn("component `{}`, from `{}` loading type `{} := {}` ",
+          //              CompInst.getComponentName(),
+          //              CInst->getComponentName(), Exp.getName(), Ty);
+          CompInst.addType(Ty);
           break;
         }
         case SortCase::Component:

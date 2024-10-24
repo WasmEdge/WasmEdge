@@ -1698,9 +1698,9 @@ WasmEdge_CompilerCompileFromBytes(WasmEdge_CompilerContext *Cxt,
 /// message.
 WASMEDGE_CAPI_EXPORT extern
     WasmEdge_Result WasmEdge_CompilerCompileFromBytesToBytes(
-    WasmEdge_CompilerContext *Cxt [[maybe_unused]],
-    const WasmEdge_Bytes Bytes [[maybe_unused]],
-    WasmEdge_Bytes OutBytes [[maybe_unused]],
+    WasmEdge_CompilerContext *Cxt,
+    const WasmEdge_Bytes Bytes,
+    WasmEdge_Bytes OutBytes,
     uint32_t* OutSize);
 
 

@@ -346,9 +346,9 @@ public:
   // lower sends a component function to a core wasm function, with proper
   // modification about canonical ABI.
   Expect<void> operator()(const Lower &L) {
-
     Runtime::Instance::MemoryInstance *Mem = nullptr;
     Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
+
     const auto &Opts = L.getOptions();
     for (auto &Opt : Opts) {
       if (std::holds_alternative<StringEncoding>(Opt)) {

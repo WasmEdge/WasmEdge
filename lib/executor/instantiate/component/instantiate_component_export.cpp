@@ -46,14 +46,28 @@ Executor::instantiate(Runtime::StoreManager &,
         CompInst.addExport(ExportName, Func);
         break;
       }
-      default: // TODO: There are four sorts haven't get handled
-               // 1. Value
-               // 2. Type
-               // 3. Component
-               // 4. Instance
+      case SortCase::Value: {
+        auto Value = CompInst.getValue(Index);
+        // TODO: CompInst.addExport(ExportName, Func);
+        break;
+      }
+      case SortCase::Type: {
+        auto Ty = CompInst.getType(Index);
+        // TODO: CompInst.addExport(ExportName, Ty);
+        break;
+      }
+      case SortCase::Component: {
+        // TODO: export component
         spdlog::warn("incomplete sort {}"sv,
                      static_cast<Byte>(std::get<SortCase>(S)));
         break;
+      }
+      case SortCase::Instance: {
+        // TODO: export instance
+        spdlog::warn("incomplete sort {}"sv,
+                     static_cast<Byte>(std::get<SortCase>(S)));
+        break;
+      }
       }
     }
   }

@@ -10,8 +10,6 @@
 namespace WasmEdge {
 namespace Host {
 
-// TODO: Use wasi:error/error error to figure out what a resource host function
-// should be.
 class ToDebugString : public WasiIO<ToDebugString> {
 public:
   ToDebugString(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}

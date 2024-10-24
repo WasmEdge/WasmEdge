@@ -59,8 +59,8 @@ createModule(std::string_view NNRPCURI = "") {
   return {};
 }
 
-#if !defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS)
-inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
+inline std::vector<uint8_t> readEntireFile
+    [[maybe_unused]] (const std::string &Path) {
   std::ifstream Fin(Path, std::ios::in | std::ios::binary | std::ios::ate);
   if (!Fin) {
     return {};
@@ -74,7 +74,6 @@ inline std::vector<uint8_t> readEntireFile(const std::string &Path) {
   Fin.close();
   return Buf;
 }
-#endif
 
 template <typename T>
 void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
@@ -2229,7 +2228,6 @@ TEST(WasiNNTest, PiperBackend) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   // Load the files.
-  (void)readEntireFile;
   std::string Text = "This is a test.";
   std::vector<uint8_t> TensorData(Text.begin(), Text.end());
 
@@ -2454,6 +2452,140 @@ TEST(WasiNNTest, PiperBackend) {
     // Should output more than 10000 bytes.
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 10000);
+  }
+
+  // Piper json_input tests.
+  // Test: load -- load successfully.
+  Config =
+      "{\"model\": "
+      "\"./wasinn_piper_fixtures/test_voice.onnx\",\"espeak_data\": "
+      "\"./wasinn_piper_fixtures/piper/espeak-ng-data\",\"json_input\":true}";
+  ConfigData = {Config.begin(), Config.end()};
+  BuilderPtr = LoadEntryPtr;
+  writeFatPointer(MemInst, StorePtr, ConfigData.size(), BuilderPtr);
+  writeBinaries<uint8_t>(MemInst, ConfigData, StorePtr);
+  {
+    EXPECT_TRUE(HostFuncLoad.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     LoadEntryPtr, UINT32_C(1),
+                                     static_cast<uint32_t>(Backend::Piper),
+                                     UINT32_C(0), BuilderPtr},
+                                 Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 1);
+    BuilderPtr += 4;
+  }
+
+  // Test: init_execution_context -- init context successfully.
+  {
+    EXPECT_TRUE(HostFuncInit.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(BuilderPtr), 1);
+    BuilderPtr += 4;
+  }
+
+  // First json input with parameters overridden
+  Text = "{\"text\": \"This is a test.\", \"noise_scale\": 0.0, "
+         "\"length_scale\": 2.0, \"noise_w\": 0.0, \"sentence_silence\": 1.0, "
+         "\"phoneme_silence\": {\"t\": 0.0}}";
+  TensorData = {Text.begin(), Text.end()};
+  SetInputEntryPtr = BuilderPtr;
+  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
+  writeUInt32(MemInst, 2, BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + TensorDim.size() *
+                                 sizeof(decltype(TensorDim)::value_type),
+                  TensorData.size(), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(
+      MemInst, TensorData,
+      StorePtr + TensorDim.size() * sizeof(decltype(TensorDim)::value_type));
+
+  // Test: set_input -- set input successfully.
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  StorePtr += TensorDim.size() * sizeof(decltype(TensorDim)::value_type) +
+              TensorData.size();
+
+  // Test: compute -- compute successfully.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- get output successfully.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    // Should output more than 50000 bytes.
+    EXPECT_GE(BytesWritten, 50000);
+  }
+
+  // Second json input to check if one-time overriding is working properly
+  Text = "{\"text\": \"This is a test.\", \"output_type\": \"raw\", "
+         "\"noise_scale\": 0.0, \"noise_w\": 0.0}";
+  TensorData = {Text.begin(), Text.end()};
+  SetInputEntryPtr = BuilderPtr;
+  writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
+  writeUInt32(MemInst, 2, BuilderPtr);
+  writeFatPointer(MemInst,
+                  StorePtr + TensorDim.size() *
+                                 sizeof(decltype(TensorDim)::value_type),
+                  TensorData.size(), BuilderPtr);
+  writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
+  writeBinaries<uint8_t>(
+      MemInst, TensorData,
+      StorePtr + TensorDim.size() * sizeof(decltype(TensorDim)::value_type));
+
+  // Test: set_input -- set input successfully.
+  {
+    EXPECT_TRUE(
+        HostFuncSetInput.run(CallFrame,
+                             std::initializer_list<WasmEdge::ValVariant>{
+                                 UINT32_C(1), UINT32_C(0), SetInputEntryPtr},
+                             Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+  StorePtr += TensorDim.size() * sizeof(decltype(TensorDim)::value_type) +
+              TensorData.size();
+
+  // Test: compute -- compute successfully.
+  {
+    EXPECT_TRUE(HostFuncCompute.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1)},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+  }
+
+  // Test: get_output -- get output successfully.
+  {
+    EXPECT_TRUE(HostFuncGetOutput.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            UINT32_C(1), UINT32_C(0), StorePtr, 65532, BuilderPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
+    EXPECT_GE(BytesWritten, 30000);
+    // Should output less than 40000 bytes.
+    EXPECT_LT(BytesWritten, 40000);
+    EXPECT_EQ(BytesWritten, 34048);
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER

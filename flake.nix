@@ -8,7 +8,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
-        llvmPackages = pkgs.llvmPackages_17;
+        llvmPackages = pkgs.llvmPackages_18;
 
         wasmedge_buildInputs = with pkgs; [
           cmake

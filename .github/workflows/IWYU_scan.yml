@@ -111,9 +111,9 @@ jobs:
       run: |
         # Unlink python@3.11 to fix brew link 2to3 conflict.
         brew unlink python@3.11
-        brew install llvm ninja cmake
-        export LLVM_DIR="$(brew --prefix)/opt/llvm/lib/cmake"
-        export Clang_DIR="$(brew --prefix)/opt/llvm/lib/cmake/clang"
+        brew install llvm@18 ninja cmake
+        export LLVM_DIR="$(brew --prefix)/opt/llvm@18/lib/cmake"
+        export Clang_DIR="$(brew --prefix)/opt/llvm@18/lib/cmake/clang"
         export IWYU_PREFIX="$(brew --prefix)/opt/iwyu"
         export CC=clang
         export CXX=clang++

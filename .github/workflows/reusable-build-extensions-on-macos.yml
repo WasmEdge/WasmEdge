@@ -1,12 +1,9 @@
-name: Build extensions on linux
+name: Build extensions on macOS
 
 on:
   workflow_call:
     inputs:
       runner:
-        type: string
-        required: true
-      docker_tag:
         type: string
         required: true
       asset_tag:
@@ -31,13 +28,8 @@ jobs:
         include: ${{ fromJSON(inputs.plugins) }}
     name: ${{ matrix.plugin }} (${{ inputs.asset_tag }})
     runs-on: ${{ inputs.runner }}
-    container:
-      image: wasmedge/wasmedge:${{ inputs.docker_tag }}
-      # Required for mounting debugfs
-      # Tests of wasm_bpf also require privileges
-      options: --privileged
     env:
-      bin_name: ${{ matrix.bin }}.so
+      bin_name: ${{ matrix.bin }}.dylib
       # Set value to `matrix.target` if `input.release` is `true`, or
       # if `matrix.testBin` is empty
       target: ${{ inputs.release && matrix.target || matrix.testBin || matrix.target }}
@@ -50,30 +42,40 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Ensure git safe directory
+      - name: Build and install dependencies
+        shell: bash
         run: |
-          git config --global --add safe.directory $(pwd)
+          eval $(/opt/homebrew/bin/brew shellenv)
+          brew install ninja opencv rust ffmpeg@6
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          export PKG_CONFIG_PATH="$(brew --prefix)/opt/ffmpeg@6/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export OpenSSL_DIR="$(brew --prefix)/opt/openssl"
+          export CC=clang
+          export CXX=clang++
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
             -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
             -DWASMEDGE_BUILD_TOOLS=OFF \
             -DWASMEDGE_USE_LLVM=OFF \
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
-            -DWASMEDGE_USE_CXX11_ABI=${{ startsWith(inputs.asset_tag, 'manylinux_2_28') && 'OFF' || 'ON' }} \
             ${{ matrix.options }}
           cmake --build build --target ${target}
-
+      - if: ${{ !endsWith(matrix.plugin, 'metal') }}
+        name: Package ${{ matrix.plugin }}
+        run: |
           cp -f ${output_dir}/${bin_name} ${bin_name}
           tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
-      - if: ${{ !inputs.release && matrix.plugin == 'wasm_bpf' }}
-        name: Prepare test env
-        shell: bash
+      - if: ${{ endsWith(matrix.plugin, 'metal') }}
+        name: Package ${{ matrix.plugin }} with metal files
         run: |
-          # Running tests of wasm_bpf requires proper ebpf running environment
-          mount -t debugfs none /sys/kernel/debug
+          export FILES="${bin_name} ggml-metal.metal ggml-common.h"
+          for file_name in $FILES; do
+            cp -f ${output_dir}/${file_name} .
+          done
+          tar -zcvf ${{ steps.var.outputs.artifact }} ${FILES}
       - if: ${{ !inputs.release }}
         name: Test ${{ matrix.plugin }}
         run: |
@@ -91,21 +93,11 @@ jobs:
         with:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifact }}
-      - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'manylinux_2_28') }}
-        name: Install gh for release (manylinux_2_28)
+      - if: ${{ inputs.release }}
+        name: Install gh for release
         run: |
-          yum check-update || true
-          yum install -y gh
-      - if: ${{ inputs.release && startsWith(inputs.asset_tag, 'ubuntu') }}
-        name: Install gh for release (ubuntu)
-        run: |
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=${KEYRING}
-          chmod go+r ${KEYRING}
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=${KEYRING}] https://cli.github.com/packages stable main" | dd of=/etc/apt/sources.list.d/github-cli.list
-          apt update -y
-          apt install -y gh
-        env:
-          KEYRING: /usr/share/keyrings/githubcli-archive-keyring.gpg
+          eval $(/opt/homebrew/bin/brew shellenv)
+          brew install gh
       - if: ${{ inputs.release }}
         name: Upload release ${{ steps.var.outputs.artifact }}
         run: |

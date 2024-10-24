@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "openvino.h"
+#include "wasinn_openvino.h"
 #include "wasinnenv.h"
+
 #include <algorithm>
 
 namespace WasmEdge::Host::WASINN::OpenVINO {

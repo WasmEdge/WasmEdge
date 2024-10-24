@@ -7,7 +7,34 @@ group "default" {
 
 group "latest" {
   targets = [
+    "base-2404-clang",
+  ]
+}
+
+group "focal" {
+  targets = [
+    "base-2004-clang",
+    "base-2004-gcc",
+    "plugins-2004-clang",
+    "plugins-2004-gcc",
+  ]
+}
+
+group "jammy" {
+  targets = [
     "base-2204-clang",
+    "base-2204-gcc",
+    "plugins-2204-clang",
+    "plugins-2204-gcc",
+  ]
+}
+
+group "noble" {
+  targets = [
+    "base-2404-clang",
+    "base-2404-gcc",
+    "plugins-2404-clang",
+    "plugins-2404-gcc",
   ]
 }
 
@@ -23,12 +50,12 @@ function "major" {
 
 function "tags-latest" {
   params = [target, ubuntu, toolchain]
-  result = target == "base" && ubuntu == "22.04" && toolchain == "clang" ? "latest" : ""
+  result = target == "base" && ubuntu == "24.04" && toolchain == "clang" ? "latest" : ""
 }
 
 function "tags-latest-backports" {
   params = [target, ubuntu, toolchain]
-  result = ubuntu == "22.04" ? join("-", compact([
+  result = ubuntu == "24.04" ? join("-", compact([
     "ubuntu",
     "build",
     toolchain,
@@ -67,7 +94,7 @@ target "base" {
   context    = "./utils/docker"
 
   matrix     = {
-    ubuntu = ["20.04", "22.04"]
+    ubuntu = ["20.04", "22.04", "24.04"]
   }
 
   name       = "base-${no-dot(ubuntu)}"
@@ -82,7 +109,7 @@ target "plugins" {
   context    = "./utils"
 
   matrix     = {
-    ubuntu = ["20.04", "22.04"]
+    ubuntu = ["20.04", "22.04", "24.04"]
   }
 
   name       = "plugins-${no-dot(ubuntu)}"
@@ -99,7 +126,7 @@ target "plugins" {
 target "final" {
   matrix     = {
     parent = ["base", "plugins"]
-    ubuntu = ["20.04", "22.04"]
+    ubuntu = ["20.04", "22.04", "24.04"]
     toolchain = ["clang", "gcc"]
   }
 

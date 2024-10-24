@@ -35,7 +35,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04]
     container:
-      image: wasmedge/wasmedge:ubuntu-build-clang
+      image: wasmedge/wasmedge:ubuntu-22.04-build-clang
 
     steps:
       - uses: actions/checkout@v4

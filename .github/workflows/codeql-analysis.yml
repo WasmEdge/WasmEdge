@@ -56,7 +56,7 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     container:
-      image: wasmedge/wasmedge:ubuntu-build-gcc
+      image: wasmedge/wasmedge:ubuntu-22.04-build-gcc
     permissions:
       actions: read
       contents: read

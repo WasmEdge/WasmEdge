@@ -3,9 +3,10 @@
 
 #pragma once
 
+#include "wasinnenv.h"
+
 #include "common/errcode.h"
 #include "runtime/hostfunc.h"
-#include "wasinnenv.h"
 
 namespace WasmEdge {
 namespace Host {

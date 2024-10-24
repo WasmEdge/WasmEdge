@@ -598,7 +598,7 @@ struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
     fmt::memory_buffer Buffer;
 
     fmt::format_to(std::back_inserter(Buffer), "instance {{\n"sv);
-    for (const auto &T : Type.getContent()) {
+    for (const auto &Ty : Type.getContent()) {
       fmt::format_to(std::back_inserter(Buffer), "  "sv);
       std::visit(
           Overloaded{
@@ -616,7 +616,7 @@ struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
                 fmt::format_to(std::back_inserter(Buffer),
                                "export decl type"sv);
               }},
-          T);
+          Ty);
       fmt::format_to(std::back_inserter(Buffer), "\n"sv);
     }
 

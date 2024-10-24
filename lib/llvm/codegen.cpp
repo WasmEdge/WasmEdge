@@ -503,13 +503,11 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
 
 namespace WasmEdge::LLVM {
 
-Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
-                              std::filesystem::path OutputPath) noexcept {
+Expect<LLVM::MemoryBuffer> 
+    CodeGen::codegen_osvec(Span<const Byte>& WasmData, Data& D) noexcept {
   auto LLContext = D.extract().LLContext();
   auto &LLModule = D.extract().LLModule;
   auto &TM = D.extract().TM;
-  std::filesystem::path LLPath(OutputPath);
-  LLPath.replace_extension("ll"sv);
 
 #if WASMEDGE_OS_WINDOWS
   {
@@ -595,36 +593,93 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
 
   spdlog::info("codegen start");
   // codegen
-  {
-    if (Conf.getCompilerConfigure().isDumpIR()) {
-      if (auto ErrorMessage = LLModule.printModuleToFile("wasm-opt.ll")) {
-        // TODO:return error
-        spdlog::error("printModuleToFile failed");
-        return Unexpect(ErrCode::Value::IllegalPath);
-      }
-    }
-
-    auto [OSVec, ErrorMessage] =
-        TM.emitToMemoryBuffer(LLModule, LLVMObjectFile);
-    if (ErrorMessage) {
+    
+  if (Conf.getCompilerConfigure().isDumpIR()) {
+    if (auto ErrorMessage = LLModule.printModuleToFile("wasm-opt.ll")) {
       // TODO:return error
-      spdlog::error("addPassesToEmitFile failed");
+      spdlog::error("printModuleToFile failed");
       return Unexpect(ErrCode::Value::IllegalPath);
-    }
-
-    if (Conf.getCompilerConfigure().getOutputFormat() ==
-        CompilerConfigure::OutputFormat::Wasm) {
-      if (auto Res = outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
-    } else {
-      if (auto Res = outputNativeLibrary(OutputPath, OSVec); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
     }
   }
 
+  auto [OSVec, ErrorMessage] =
+      TM.emitToMemoryBuffer(LLModule, LLVMObjectFile);
+  if (ErrorMessage) {
+    // TODO:return error
+    spdlog::error("addPassesToEmitFile failed");
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  return {std::move(OSVec)};
+  //return Expect<LLVM::MemoryBuffer>{OSVec, ErrCode::Value::Success};
+}
+
+Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
+                              std::filesystem::path OutputPath) noexcept {
+  auto LLContext = D.extract().LLContext();
+  std::filesystem::path LLPath(OutputPath);
+  LLPath.replace_extension("ll"sv);
+
+  auto result = codegen_osvec(WasmData, D);
+
+  if (!result) {
+    spdlog::error("addPassesToEmitFile failed");
+    // TODO:return error
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  auto const& OSVec = *result;
+      
+  if (Conf.getCompilerConfigure().getOutputFormat() ==
+      CompilerConfigure::OutputFormat::Wasm) {
+    if (auto Res = outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec);
+        unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+  } else {
+    if (auto Res = outputNativeLibrary(OutputPath, OSVec); unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+  }
+
+  return {};
+}
+
+Expect<void>
+    CodeGen::codegen_buffer(
+            Span<const Byte> WasmData, 
+            Data D,
+            Span<const Byte> OutByte,
+            uint32_t* OutSize) noexcept {
+
+  *OutSize = 0;
+
+  auto result = codegen_osvec(WasmData, D);
+
+  if (!result) {
+    // TODO:return error
+    // RH NOTE: the error values are all IllegalPath in this code when
+    // I got here, I'm not sure if I should change the enum and update them
+    // or if there's already a plan and scheme to do that...
+    spdlog::error("addPassesToEmitBuffer failed");
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  LLVM::MemoryBuffer& buf = *result;
+
+  if (buf.size() > OutByte.size()) {
+    spdlog::error("addPassesToEmitBuffer failed -- out buffer too small");
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  // there's no easy way to avoid this copy unfortunately, in particular
+  // because the external facing API is a C api. 
+  // avoiding a copy here would also involve modifying LLVM::MemoryBuffer.
+  // Also trying to glue this function back to the CAPI proved annoying for
+  // const preservation, so here is an ugly const cast.
+  memcpy(const_cast<uint8_t*>(OutByte.data()), buf.data(), buf.size());
+
+  *OutSize = buf.size();
   return {};
 }
 

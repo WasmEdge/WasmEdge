@@ -1685,6 +1685,24 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_CompilerCompileFromBytes(WasmEdge_CompilerContext *Cxt,
                                   const WasmEdge_Bytes Bytes,
                                   const char *OutPath);
+/// Compile the input WASM from a WasmEdge_Bytes, and output it to a WasmEdge_Bytes.///
+/// The compiler compiles the WASM from the WasmEdge_Bytes for the
+/// ahead-of-time mode and store the result to the output buffer.
+///
+/// \param Cxt the WasmEdge_CompilerContext.
+/// \param Bytes the WasmEdge_Bytes of WASM binary.
+/// \param OutBytes the WasmEdge_Bytes of produced native binary.
+/// \param OutSize the number of bytes written to the output buffer
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern
+    WasmEdge_Result WasmEdge_CompilerCompileFromBytesToBytes(
+    WasmEdge_CompilerContext *Cxt [[maybe_unused]],
+    const WasmEdge_Bytes Bytes [[maybe_unused]],
+    WasmEdge_Bytes OutBytes [[maybe_unused]],
+    uint32_t* OutSize);
+
 
 /// Deletion of the WasmEdge_CompilerContext.
 ///

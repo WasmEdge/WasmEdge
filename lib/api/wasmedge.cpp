@@ -265,6 +265,15 @@ inline constexpr Span<const T> genSpan(const T *Buf,
   return Span<const T>();
 }
 
+// Non-const version
+template <typename T>
+inline constexpr Span<T> genSpan(T *Buf, const uint32_t Len) noexcept {
+  if (Buf && Len > 0) {
+    return Span<T>(Buf, Len);
+  }
+  return Span<T>();
+}
+
 // Helper functions for converting WasmEdge_String to std::String.
 inline std::string_view genStrView(const WasmEdge_String S) noexcept {
   return std::string_view(S.Buf, S.Length);
@@ -1718,6 +1727,47 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
             .and_then([&]() noexcept { return Cxt->Compiler.compile(*Module); })
             .and_then([&](auto Result) noexcept {
               return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
+            });
+      },
+      EmptyThen, Cxt);
+#else
+  return genWasmEdge_Result(ErrCode::Value::AOTDisabled);
+#endif
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBufferToBuffer(
+    WasmEdge_CompilerContext *Cxt,
+    const uint8_t *InBuffer,
+    const uint64_t InBufferLen,
+    const uint8_t* OutBuffer, 
+    const uint64_t OutBufferLen,
+    uint32_t* OutSize) {
+  return WasmEdge_CompilerCompileFromBytesToBytes(
+      Cxt, WasmEdge_BytesWrap(InBuffer, static_cast<uint32_t>(InBufferLen)),
+           WasmEdge_BytesWrap(OutBuffer, static_cast<uint32_t>(OutBufferLen)),
+           OutSize);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytesToBytes(
+    WasmEdge_CompilerContext *Cxt [[maybe_unused]],
+    const WasmEdge_Bytes Bytes [[maybe_unused]],
+    const WasmEdge_Bytes OutBytes [[maybe_unused]],
+    uint32_t* OutSize) {
+#ifdef WASMEDGE_USE_LLVM
+  return wrap(
+      [&]() -> WasmEdge::Expect<void> {
+        auto Data = genSpan(Bytes.Buf, Bytes.Length);
+        auto OutData = genSpan(OutBytes.Buf, OutBytes.Length);
+        std::unique_ptr<WasmEdge::AST::Module> Module;
+        return Cxt->Load.parseModule(Data)
+            .and_then([&](auto Result) noexcept {
+              Module = std::move(Result);
+              return Cxt->Valid.validate(*Module);
+            })
+            .and_then([&]() noexcept { return Cxt->Compiler.compile(*Module); })
+            .and_then([&](auto Result) noexcept {
+              return Cxt->CodeGen.codegen_buffer(
+                      Data, std::move(Result), OutData, OutSize);
             });
       },
       EmptyThen, Cxt);

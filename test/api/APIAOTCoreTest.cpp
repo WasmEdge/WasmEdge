@@ -66,6 +66,7 @@ TEST_P(CoreCompileTest, TestSuites) {
     }
     return SOPath;
   };
+
   T.onModule = [&VM, &Compile](const std::string &ModName,
                                const std::string &Filename) -> Expect<void> {
     return Compile(Filename).and_then(

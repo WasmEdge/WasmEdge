@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PROTOBUF protobuf REQUIRED)
 pkg_check_modules(GRPC grpc REQUIRED)

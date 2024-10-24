@@ -339,9 +339,9 @@ public:
   // lower sends a component function to a core wasm function, with proper
   // modification about canonical ABI.
   Expect<void> operator()(const Lower &L) {
-
     Runtime::Instance::MemoryInstance *Mem = nullptr;
     Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
+
     const auto &Opts = L.getOptions();
     for (auto &Opt : Opts) {
       if (std::holds_alternative<StringEncoding>(Opt)) {
@@ -424,9 +424,15 @@ public:
     auto Dtor = RTyp.getDestructor();
     if (Dtor.has_value()) {
       auto FIdx = *Dtor;
-      CompInst.getFunctionInstance(FIdx);
+      auto F = CompInst.getFunctionInstance(FIdx);
+
+      // NOTE: resource destructor only use type `i32`
+      // 1. at sync mode: [i32] -> []
+      // 2. at async mode: [i32] -> [i32]
+      // so it's fine to work with lowering without `Memory` and `Realloc`
+      CompInst.addCoreFunctionInstance(
+          ThisExecutor.lowering(F, nullptr, nullptr));
     }
-    spdlog::warn("resource.drop is not complete yet"sv);
 
     return {};
   }

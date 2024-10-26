@@ -438,9 +438,22 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   //   2.  Serialize invalid reference type without Ref-Types proposal.
   //   3.  Serialize Ref_as_non_null instruction with valid type index.
   //   4.  Serialize Ref_as_non_null instruction without Func-Ref proposal.
+  //   5.  Serializs Ref__eq instruction.
+  //   6.  Serialize Ref__i31 instruction.
+  //   7.  Serialize Ref__test instruction.
+  //   8.  Serialize Ref__test_null instruction.
+  //   9.  Serialize Ref__cast instruction.
+  //   10. Serialize Ref__cast_null instruction.
+  //   11. Serialize Ref__cast_null instruction without the GC proposal.
 
   WasmEdge::AST::Instruction RefNull(WasmEdge::OpCode::Ref__null);
   WasmEdge::AST::Instruction RefAsNonNull(WasmEdge::OpCode::Ref__as_non_null);
+  WasmEdge::AST::Instruction RefEq(WasmEdge::OpCode::Ref__eq);
+  WasmEdge::AST::Instruction RefI31(WasmEdge::OpCode::Ref__i31);
+  WasmEdge::AST::Instruction RefTest(WasmEdge::OpCode::Ref__test);
+  WasmEdge::AST::Instruction RefTestNull(WasmEdge::OpCode::Ref__test_null);
+  WasmEdge::AST::Instruction RefCast(WasmEdge::OpCode::Ref__cast);
+  WasmEdge::AST::Instruction RefCastNull(WasmEdge::OpCode::Ref__cast_null);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   RefNull.setValType(WasmEdge::TypeCode::FuncRef);
@@ -483,6 +496,69 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
   Instructions = {RefAsNonNull, End};
   Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  Instructions = {RefEq, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[5] = 0xD3U; // OpCode Ref__eq.
+  EXPECT_EQ(Expected, Output);
+
+  Instructions = {RefI31, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,       // Code section
+      0x06U,       // Content size = 5
+      0x01U,       // Vector length = 1
+      0x04U,       // Code segment size = 3
+      0x00U,       // Local vec(0)
+      0xFBU, 0x1C, // OpCode Ref__i31.
+      0x0BU        // Expression End.
+  };
+  EXPECT_EQ(Expected, Output);
+
+  RefTest.setValType(WasmEdge::TypeCode::FuncRef);
+  Instructions = {RefTest, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x07U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x05U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFBU, 0x14U, // OpCode Ref__test.
+      0x70U,        // FuncRef
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  RefTestNull.setValType(WasmEdge::TypeCode::FuncRef);
+  Instructions = {RefTestNull, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x15U; // OpCode Ref__test_null.
+  EXPECT_EQ(Output, Expected);
+
+  RefCast.setValType(WasmEdge::TypeCode::FuncRef);
+  Instructions = {RefCast, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x16U; // OpCode Ref__cast.
+  EXPECT_EQ(Output, Expected);
+
+  RefCastNull.setValType(WasmEdge::TypeCode::FuncRef);
+  Instructions = {RefCastNull, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x17U; // OpCode Ref__cast_null.
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  Instructions = {RefCastNull, End};
   EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
 }
 
@@ -1123,6 +1199,362 @@ TEST(SerializeInstructionTest, SerializeDotProductInstruction) {
 
   Conf.removeProposal(WasmEdge::Proposal::RelaxSIMD);
   Instructions = {I16x8RelaxedDotI8x16i7x16AddS, End};
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeConvertInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 19. Test convert instruction.
+  //
+  //   1.  Serialize Any__convert_extern instruction.
+  //   2.  Serialize Extern__convert_any instruction.
+  //   3.  Serialize Extern__convert_any instruction without the GC proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  WasmEdge::AST::Instruction AnyConvertExtern(
+      WasmEdge::OpCode::Any__convert_extern);
+  WasmEdge::AST::Instruction ExternConvertAny(
+      WasmEdge::OpCode::Extern__convert_any);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {AnyConvertExtern, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 5
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 3
+      0x00U,        // Local vec(0)
+      0xFBU, 0x1AU, // OpCode Any__convert_extern.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {ExternConvertAny, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x1BU; // OpCode Extern__convert_any.
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeI31GetInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 20. Test I31 Get instruction.
+  //
+  //   1.  Serialize I31__get_s instruction.
+  //   2.  Serialize I31__get_u instruction.
+  //   3.  Serialize I31__get_u instruction without the GC proposal.
+
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  WasmEdge::AST::Instruction I31GetS(WasmEdge::OpCode::I31__get_s);
+  WasmEdge::AST::Instruction I31GetU(WasmEdge::OpCode::I31__get_u);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Instructions = {I31GetS, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 5
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 3
+      0x00U,        // Local vec(0)
+      0xFBU, 0x1DU, // OpCode I31__get_s.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {I31GetU, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x1EU; // OpCode I31__get_u.
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeStructInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 21. Test branch table control instruction.
+  //
+  //   1.  Serialize Struct__new instruction.
+  //   2.  Serialize Struct__new_default instruction.
+  //   3.  Serialize Struct__get instruction.
+  //   4.  Serialize Struct__get_s instruction.
+  //   5.  Serialize Struct__get_u instruction.
+  //   6.  Serialize Struct__set instruction.
+  //   7.  Serialize Struct__set instruction without the GC proposal.
+
+  WasmEdge::AST::Instruction StructNew(WasmEdge::OpCode::Struct__new);
+  WasmEdge::AST::Instruction StructNewDefault(
+      WasmEdge::OpCode::Struct__new_default);
+  WasmEdge::AST::Instruction StructGet(WasmEdge::OpCode::Struct__get);
+  WasmEdge::AST::Instruction StructGetS(WasmEdge::OpCode::Struct__get_s);
+  WasmEdge::AST::Instruction StructGetU(WasmEdge::OpCode::Struct__get_u);
+  WasmEdge::AST::Instruction StructSet(WasmEdge::OpCode::Struct__set);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  StructNew.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {StructNew, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,                             // Code section
+      0x0BU,                             // Content size = 11
+      0x01U,                             // Vector length = 1
+      0x09U,                             // Code segment size = 9
+      0x00U,                             // Local vec(0)
+      0xFBU, 0x00U,                      // OpCode Struct__new.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Type index.
+      0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  StructNewDefault.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {StructNewDefault, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x01U; // OpCode Struct__new_default.
+  EXPECT_EQ(Output, Expected);
+
+  StructGet.getSourceIndex() = 0x05U;
+  StructGet.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {StructGet, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,                             // Code section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x0AU,                             // Code segment size = 10
+      0x00U,                             // Local vec(0)
+      0xFBU, 0x02U,                      // OpCode Struct__get.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Type index.
+      0x05U,                             // Source index.
+      0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  StructGetS.getSourceIndex() = 0x05U;
+  StructGetS.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {StructGetS, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x03U; // OpCode Struct__get_s.
+  EXPECT_EQ(Output, Expected);
+
+  StructGetU.getSourceIndex() = 0x05U;
+  StructGetU.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {StructGetU, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x04U; // OpCode Struct__get_u.
+  EXPECT_EQ(Output, Expected);
+
+  StructSet.getSourceIndex() = 0x05U;
+  StructSet.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {StructSet, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x05U; // OpCode Struct__set.
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
+TEST(SerializeInstructionTest, SerializeArrayInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 21. Test branch table control instruction.
+  //
+  //   1.  Serialize Array__new instruction.
+  //   2.  Serialize Array__new_default instruction.
+  //   3.  Serialize Array__get instruction.
+  //   4.  Serialize Array__get_s instruction.
+  //   5.  Serialize Array__get_u instruction.
+  //   6.  Serialize Array__set instruction.
+  //   7.  Serialize Array__fill instruction.
+  //   8.  Serialize Array__len instruction.
+  //   9.  Serialize Array__new_fixed instruction.
+  //   10. Serialize Array__new_data instruction.
+  //   11. Serialize Array__new_elem instruction.
+  //   12. Serialize Array__copy instruction.
+  //   13. Serialize Array__init_data instruction.
+  //   14. Serialize Array__init_elem instruction.
+  //   15. Serialize Array__init_elem instruction without the GC proposal.
+
+  WasmEdge::AST::Instruction ArrayNew(WasmEdge::OpCode::Array__new);
+  WasmEdge::AST::Instruction ArrayNewDefault(
+      WasmEdge::OpCode::Array__new_default);
+  WasmEdge::AST::Instruction ArrayGet(WasmEdge::OpCode::Array__get);
+  WasmEdge::AST::Instruction ArrayGetS(WasmEdge::OpCode::Array__get_s);
+  WasmEdge::AST::Instruction ArrayGetU(WasmEdge::OpCode::Array__get_u);
+  WasmEdge::AST::Instruction ArraySet(WasmEdge::OpCode::Array__set);
+  WasmEdge::AST::Instruction ArrayFill(WasmEdge::OpCode::Array__fill);
+  WasmEdge::AST::Instruction ArrayLen(WasmEdge::OpCode::Array__len);
+  WasmEdge::AST::Instruction ArrayNewFixed(WasmEdge::OpCode::Array__new_fixed);
+  WasmEdge::AST::Instruction ArrayNewData(WasmEdge::OpCode::Array__new_data);
+  WasmEdge::AST::Instruction ArrayNewElem(WasmEdge::OpCode::Array__new_elem);
+  WasmEdge::AST::Instruction ArrayCopy(WasmEdge::OpCode::Array__copy);
+  WasmEdge::AST::Instruction ArrayInitData(WasmEdge::OpCode::Array__init_data);
+  WasmEdge::AST::Instruction ArrayInitElem(WasmEdge::OpCode::Array__init_elem);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  ArrayNew.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayNew, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,                             // Code section
+      0x0BU,                             // Content size = 11
+      0x01U,                             // Vector length = 1
+      0x09U,                             // Code segment size = 9
+      0x00U,                             // Local vec(0)
+      0xFBU, 0x06U,                      // OpCode Array__new.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Type index.
+      0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ArrayNewDefault.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayNewDefault, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x07U; // OpCode Array__new_default.
+  EXPECT_EQ(Output, Expected);
+
+  ArrayGet.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayGet, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x0BU; // OpCode Array__get.
+  EXPECT_EQ(Output, Expected);
+
+  ArrayGetS.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayGetS, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x0CU; // OpCode Array__get_s.
+  EXPECT_EQ(Output, Expected);
+
+  ArrayGetU.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayGetU, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x0DU; // OpCode Array__get_u.
+  EXPECT_EQ(Output, Expected);
+
+  ArraySet.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArraySet, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x0EU; // OpCode Array__set.
+  EXPECT_EQ(Output, Expected);
+
+  ArrayFill.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayFill, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x10U; // OpCode Array__fill.
+  EXPECT_EQ(Output, Expected);
+
+  Instructions = {ArrayLen, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x0FU; // OpCode Array__len.
+  Expected = {
+      0x0AU,        // Code section
+      0x06U,        // Content size = 6
+      0x01U,        // Vector length = 1
+      0x04U,        // Code segment size = 4
+      0x00U,        // Local vec(0)
+      0xFBU, 0x0FU, // OpCode Array__len.
+      0x0BU         // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ArrayNewFixed.getSourceIndex() = 0x05U;
+  ArrayNewFixed.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayNewFixed, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,                             // Code section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x0AU,                             // Code segment size = 10
+      0x00U,                             // Local vec(0)
+      0xFBU, 0x08U,                      // OpCode Array__new_fixed.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Type index.
+      0x05U,                             // Source index.
+      0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  ArrayNewData.getSourceIndex() = 0x05U;
+  ArrayNewData.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayNewData, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x09U; // OpCode Array__new_data.
+  EXPECT_EQ(Output, Expected);
+
+  ArrayNewElem.getSourceIndex() = 0x05U;
+  ArrayNewElem.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayNewElem, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x0AU; // OpCode Array__new_elem.
+  EXPECT_EQ(Output, Expected);
+
+  ArrayCopy.getSourceIndex() = 0x05U;
+  ArrayCopy.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayCopy, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x11U; // OpCode Array__copy.
+  EXPECT_EQ(Output, Expected);
+
+  ArrayInitData.getSourceIndex() = 0x05U;
+  ArrayInitData.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayInitData, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x12U; // OpCode Array__init_data.
+  EXPECT_EQ(Output, Expected);
+
+  ArrayInitElem.getSourceIndex() = 0x05U;
+  ArrayInitElem.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {ArrayInitElem, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected[6] = 0x13U; // OpCode Array__init_elem.
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
   Output = {};
   EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
 }

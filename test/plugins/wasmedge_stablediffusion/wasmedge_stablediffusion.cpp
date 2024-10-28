@@ -228,9 +228,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             static_cast<uint32_t>(OutputPath.size()), // OutputPathLen
             OutputPtr,                                // OutBufferPtr
             1048512,                                  // OutBufferMaxSize
-            BytesWrittenPtr,                          // BytesWrittenPtr
-            -1,                                       // NThreads
-            34},                                      // Wtype
+            BytesWrittenPtr},                         // BytesWrittenPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
@@ -324,9 +322,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             static_cast<uint32_t>(OutputPath2.size()), // OutputPathLen
             OutputPtr,                                 // OutBufferPtr
             1048512,                                   // OutBufferMaxSize
-            BytesWrittenPtr,                           // BytesWrittenPtr
-            -1,                                        // NThreads
-            31},                                       // Wtype
+            BytesWrittenPtr},                          // BytesWrittenPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);

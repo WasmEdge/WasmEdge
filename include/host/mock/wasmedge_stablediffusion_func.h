@@ -33,8 +33,7 @@ public:
                         uint32_t, uint32_t, int32_t, float, uint32_t, uint32_t,
                         uint32_t, uint32_t, float, float, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
-                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
-                        int32_t, uint32_t) {
+                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {
     printPluginMock("WasmEdge-Stable-Diffusion"sv);
     return kStableDiffusionError;
   }
@@ -47,7 +46,7 @@ public:
                         uint32_t, uint32_t, float, uint32_t, uint32_t, float,
                         float, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
-                        uint32_t, uint32_t, int32_t, uint32_t) {
+                        uint32_t, uint32_t) {
     printPluginMock("WasmEdge-Stable-Diffusion"sv);
     return kStableDiffusionError;
   }

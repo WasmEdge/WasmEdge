@@ -486,12 +486,15 @@ function(wasmedge_setup_whisper_target target)
       ${whisper_SOURCE_DIR}
     )
   endif()
-  wasmedge_setup_simdjson()
-  target_link_libraries(${target}
-    PRIVATE
-    whisper
-    simdjson::simdjson
-  )
+  # Only the plugin library needs to fully linking the dependency.
+  if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+    wasmedge_setup_simdjson()
+    target_link_libraries(${target}
+      PRIVATE
+      whisper
+      simdjson::simdjson
+    )
+  endif()
 endfunction()
 
 # Function of preparing MLX library.

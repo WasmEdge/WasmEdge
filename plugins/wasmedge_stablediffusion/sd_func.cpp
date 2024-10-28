@@ -363,7 +363,8 @@ Expect<uint32_t> SDTextToImage::body(
   if (!parameterCheck(Env, Width, Height, SessionId)) {
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
-  sd_ctx_t *SDCtx = Env.getContext(SessionId);
+  SESSION_CHECK(SDCtx, SessionId, "Session ID is invalid."sv,
+                ErrNo::InvalidArgument)
   sd_image_t *Results = nullptr;
   sd_image_t *ControlImage = nullptr;
   // Read control image
@@ -442,10 +443,8 @@ Expect<uint32_t> SDImageToImage::body(
   if (!parameterCheck(Env, Width, Height, SessionId)) {
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
-  if (Strength < 0.f || Strength > 1.f) {
-    spdlog::error("[WasmEdge-StableDiffusion] Strength must in [0.0, 1.0]");
-  }
-  sd_ctx_t *SDCtx = Env.getContext(SessionId);
+  SESSION_CHECK(SDCtx, SessionId, "Session ID is invalid."sv,
+                ErrNo::InvalidArgument)
   std::string Prompt(PromptSpan.begin(), PromptSpan.end());
   std::string NegativePrompt(NegativePromptSpan.begin(),
                              NegativePromptSpan.end());

@@ -120,8 +120,8 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
   WasmZlibVersion = WasmHP;
-  std::snprintf(MemInst.getPointer<char *>(WasmHP), std::strlen(ZLIB_VERSION),
-                ZLIB_VERSION);
+  std::snprintf(MemInst.getPointer<char *>(WasmHP),
+                std::strlen(ZLIB_VERSION) + 1, ZLIB_VERSION);
   WasmHP += std::strlen(ZLIB_VERSION);
 
   WasmData = WasmHP;

@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "base.h"
-#include "embedding.h"
-#include "linear.h"
+#include "mlx/base.h"
+#include "mlx/embedding.h"
+#include "mlx/linear.h"
 
 #include <mlx/array.h>
 #include <mlx/ops.h>

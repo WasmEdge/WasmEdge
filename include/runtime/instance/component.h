@@ -17,6 +17,9 @@
 #include "ast/module.h"
 #include "ast/type.h"
 #include "common/errcode.h"
+#include "common/types.h"
+#include "runtime/component/hostfunc.h"
+#include "runtime/instance/component/function.h"
 #include "runtime/instance/module.h"
 
 #include <atomic>
@@ -39,10 +42,25 @@ namespace Instance {
 using namespace AST::Component;
 
 namespace {
-void typeConvert(ValueType &VT, const ValType &ValTy) noexcept {
-  switch (ValTy.getCode()) {
+void typeConvert(ValueType &VT, const ValType &Ty) noexcept {
+  switch (Ty.getCode()) {
+  case TypeCode::I8:
+    VT.emplace<PrimValType>(PrimValType::S8);
+    break;
+  case TypeCode::I16:
+    VT.emplace<PrimValType>(PrimValType::S16);
+    break;
   case TypeCode::I32:
     VT.emplace<PrimValType>(PrimValType::S32);
+    break;
+  case TypeCode::I64:
+    VT.emplace<PrimValType>(PrimValType::S64);
+    break;
+  case TypeCode::F32:
+    VT.emplace<PrimValType>(PrimValType::Float32);
+    break;
+  case TypeCode::F64:
+    VT.emplace<PrimValType>(PrimValType::Float64);
     break;
 
   default:
@@ -111,18 +129,17 @@ public:
     return CompInstList[Index];
   }
 
-  void addHostFunc(std::string_view Name,
-                   std::unique_ptr<HostFunctionBase> &&Func) {
+  void addHostFunc(
+      std::string_view Name,
+      std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> &&Func) {
     addType(Func->getFuncType());
-    auto FuncInst = std::make_unique<FunctionInstance>(
-        this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func));
+    auto FuncInst = std::make_unique<Instance::Component::FunctionInstance>(
+        std::move(Func));
     unsafeAddHostFunc(Name, std::move(FuncInst));
   }
   void addHostFunc(std::string_view Name,
-                   std::unique_ptr<FunctionInstance> &&Func) {
-    assuming(Func->isHostFunction());
+                   std::unique_ptr<Component::FunctionInstance> &&Func) {
     addType(Func->getFuncType());
-    Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     unsafeAddHostFunc(Name, std::move(Func));
   }
 
@@ -138,15 +155,25 @@ public:
     return CoreFuncInstList[Index];
   }
 
-  void addFunctionInstance(std::unique_ptr<FunctionInstance> Inst) noexcept {
+  void addFunctionInstance(
+      std::unique_ptr<Component::FunctionInstance> Inst) noexcept {
     addFunctionInstance(Inst.get());
     OwnedFuncInstList.emplace_back(std::move(Inst));
   }
-  void addFunctionInstance(FunctionInstance *Inst) noexcept {
+  void addFunctionInstance(Component::FunctionInstance *Inst) noexcept {
     FuncInstList.push_back(Inst);
   }
-  FunctionInstance *getFunctionInstance(uint32_t Index) const noexcept {
+  Component::FunctionInstance *
+  getFunctionInstance(uint32_t Index) const noexcept {
     return FuncInstList[Index];
+  }
+
+  // values stored in component instance
+  ValInterface getValue(uint32_t Index) const noexcept {
+    return ValueList[Index];
+  }
+  void setValue(uint32_t Index, ValInterface V) noexcept {
+    ValueList[Index] = V;
   }
 
   void addExport(std::string_view Name, const ModuleInstance *Inst) {
@@ -156,15 +183,17 @@ public:
   findModuleExports(std::string_view Name) const noexcept {
     return ExportModuleMap.at(std::string(Name));
   }
-  void addExport(std::string_view Name, FunctionInstance *Inst) {
-    ExportFuncMap.emplace(Name, Inst);
+  void addExport(std::string_view Name, Component::FunctionInstance *Inst) {
+    ExportFuncMap.insert_or_assign(std::string(Name), Inst);
   }
-  FunctionInstance *findFuncExports(std::string_view Name) const noexcept {
+  Component::FunctionInstance *
+  findFuncExports(std::string_view Name) const noexcept {
     return ExportFuncMap.at(std::string(Name));
   }
   std::vector<std::pair<std::string, const AST::FunctionType &>>
   getFuncExports() {
     std::vector<std::pair<std::string, const AST::FunctionType &>> R;
+    R.reserve(ExportFuncMap.size());
     for (auto &&[Name, Func] : ExportFuncMap) {
       const auto &FuncType = Func->getFuncType();
       R.emplace_back(Name, FuncType);
@@ -207,8 +236,9 @@ public:
   const DefType &getType(uint32_t Idx) const noexcept { return Types[Idx]; }
 
 private:
-  void unsafeAddHostFunc(std::string_view Name,
-                         std::unique_ptr<FunctionInstance> Inst) noexcept {
+  void unsafeAddHostFunc(
+      std::string_view Name,
+      std::unique_ptr<Component::FunctionInstance> Inst) noexcept {
     addFunctionInstance(Inst.get());
     ExportFuncMap.insert_or_assign(std::string(Name), FuncInstList.back());
     OwnedFuncInstList.push_back(std::move(Inst));
@@ -225,6 +255,9 @@ private:
   std::vector<std::unique_ptr<ComponentInstance>> OwnedCompInstList;
   std::vector<const ComponentInstance *> CompInstList;
 
+  // value
+  std::vector<ValInterface> ValueList;
+
   // core function
   //
   // The owned core functions are created by lowering process
@@ -232,9 +265,10 @@ private:
   std::vector<FunctionInstance *> CoreFuncInstList;
 
   // component function
-  std::vector<std::unique_ptr<FunctionInstance>> OwnedFuncInstList;
-  std::vector<FunctionInstance *> FuncInstList;
-  std::map<std::string, FunctionInstance *, std::less<>> ExportFuncMap;
+  std::vector<std::unique_ptr<Component::FunctionInstance>> OwnedFuncInstList;
+  std::vector<Component::FunctionInstance *> FuncInstList;
+  std::map<std::string, Component::FunctionInstance *, std::less<>>
+      ExportFuncMap;
 
   std::map<std::string, const ModuleInstance *, std::less<>> ExportModuleMap;
 

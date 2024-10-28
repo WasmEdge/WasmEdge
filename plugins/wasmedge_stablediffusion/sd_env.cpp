@@ -50,7 +50,10 @@ void SDEnviornment::freeContext(const uint32_t Id) noexcept {
 }
 
 sd_ctx_t *SDEnviornment::getContext(const uint32_t Id) noexcept {
-  return Contexts[Id].Context;
+  if (Id >= Contexts.size()) {
+    return nullptr;
+  }
+  return Contexts[Id];
 }
 
 void SBLog(enum sd_log_level_t Level, const char *Log, void *) {

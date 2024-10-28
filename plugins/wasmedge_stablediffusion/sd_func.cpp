@@ -312,7 +312,7 @@ Expect<uint32_t> SDCreateContext::body(
       diffusionModelPath.data(), VaePath.data(), TaesdPath.data(),
       ControlNetPath.data(), LoraModelDir.data(), EmbedDir.data(),
       IdEmbedDir.data(), static_cast<bool>(VaeDecodeOnly),
-      static_cast<bool>(VaeTiling), true, NThreads,
+      static_cast<bool>(VaeTiling), false, NThreads,
       static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
       static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
   if (Ctx == nullptr) {
@@ -404,25 +404,6 @@ Expect<uint32_t> SDTextToImage::body(
     return static_cast<uint32_t>(ErrNo::RuntimeError);
   }
   return static_cast<uint32_t>(ErrNo::Success);
-  // Save results
-  // int Len;
-  // unsigned char *Png = stbi_write_png_to_mem(reinterpret_cast<const unsigned
-  // char *>(Results),
-  //                              0, Results->width, Results->height,
-  //                              Results->channel, &Len, nullptr);
-  // if (OutputPathLen != 0){
-  //   saveResults(Results, OutputPath, BatchCount);
-  // }
-  // *BytesWritten = Len;
-  // if (OutBufferMaxSize < *BytesWritten) {
-  //   spdlog::error("[WasmEdge-StableDiffusion] Output buffer is not
-  //   enough."sv); free(Png); free(Results); return
-  //   static_cast<uint32_t>(ErrNo::RuntimeError);
-  // }
-  // std::copy_n(Png, *BytesWritten, OutputBufferSpan.data());
-  // free(Png);
-  // free(Results);
-  // return static_cast<uint32_t>(ErrNo::Success);
 }
 
 Expect<uint32_t> SDImageToImage::body(
@@ -571,24 +552,6 @@ Expect<uint32_t> SDImageToImage::body(
     return static_cast<uint32_t>(ErrNo::RuntimeError);
   }
   return static_cast<uint32_t>(ErrNo::Success);
-  // int Len;
-  // unsigned char *Png = stbi_write_png_to_mem(reinterpret_cast<const unsigned
-  // char *>(Results),
-  //                              0, Results->width, Results->height,
-  //                              Results->channel, &Len, nullptr);
-  // if (OutputPathLen != 0){
-  //   saveResults(Results, OutputPath, BatchCount);
-  // }
-  // *BytesWritten = Len;
-  // if (OutBufferMaxSize < *BytesWritten) {
-  //   spdlog::error("[WasmEdge-StableDiffusion] Output buffer is not
-  //   enough."sv); free(Png); free(Results); return
-  //   static_cast<uint32_t>(ErrNo::RuntimeError);
-  // }
-  // std::copy_n(Png, *BytesWritten, OutputBufferSpan.data());
-  // free(Png);
-  // free(Results);
-  // return static_cast<uint32_t>(ErrNo::Success);
 }
 
 } // namespace StableDiffusion

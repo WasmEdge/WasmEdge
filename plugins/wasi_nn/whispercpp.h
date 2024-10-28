@@ -9,7 +9,9 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 #include <whisper.h>
 
+#include <algorithm>
 #include <string>
+#include <thread>
 #include <vector>
 #endif
 
@@ -22,10 +24,19 @@ namespace WasmEdge::Host::WASINN::Whisper {
 
 struct Config {
   // Whisper parameters:
+  uint64_t ThreadsNum =
+      std::min(static_cast<uint64_t>(4),
+               static_cast<uint64_t>(std::thread::hardware_concurrency()));
+  uint64_t ProcessorsNum = 1;
+  uint64_t MaxTokenContext = 16384;
+  uint64_t TimeOffsetMS = 0;
+  uint64_t DurationMS = 0;
+  uint64_t MaxSegmentLength = 0;
   bool EnableLog = false;
   bool EnableDebugLog = false;
   bool Translate = false;
   bool DetectLanguage = false;
+  bool SplitOnWord = false;
   std::string SpokenLanguage;
   std::string InitialPrompt;
   // Sampling parameters:
@@ -86,4 +97,6 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
+Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
+                             uint32_t GraphId) noexcept;
 } // namespace WasmEdge::Host::WASINN::Whisper

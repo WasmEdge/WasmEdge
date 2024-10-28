@@ -285,7 +285,7 @@ public:
       } else {
         if constexpr (sizeof(T) > 8) {
           assuming(sizeof(T) == 16);
-          Value = 0;
+          Value = 0U;
           std::memcpy(&Value, &DataPtr[Offset], Length);
         } else {
           uint64_t LoadVal = 0;

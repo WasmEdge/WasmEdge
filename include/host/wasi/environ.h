@@ -5,6 +5,7 @@
 
 #include "common/defines.h"
 #include "common/errcode.h"
+#include "common/hash.h"
 #include "common/span.h"
 #include "host/wasi/clock.h"
 #include "host/wasi/error.h"
@@ -909,12 +910,10 @@ public:
   /// @param[out] Buffer The buffer to fill with random data.
   /// @return Nothing or WASI error
   WasiExpect<void> randomGet(Span<uint8_t> Buffer) const noexcept {
-    std::random_device Device;
-    std::default_random_engine Engine(Device());
     std::uniform_int_distribution<uint32_t> Distribution;
     auto BufferSpan = cxx20::as_writable_bytes(Buffer);
     while (!BufferSpan.empty()) {
-      const uint32_t Value = Distribution(Engine);
+      const uint32_t Value = Distribution(Hash::RandEngine);
       const auto ValueSpan =
           cxx20::as_bytes(cxx20::span<const uint32_t, 1>(&Value, 1));
       const auto Size = std::min(BufferSpan.size(), ValueSpan.size());
@@ -1163,13 +1162,11 @@ public:
     using namespace std::literals;
     static constexpr const auto Charset =
         "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"sv;
-    std::random_device Device;
-    std::default_random_engine Engine(Device());
     std::uniform_int_distribution<uint32_t> Distribution(
         0, static_cast<uint32_t>(Charset.size() - 1));
     std::array<char, 8> Buffer;
-    std::array<uint32_t, 2> Values = {Distribution(Engine),
-                                      Distribution(Engine)};
+    std::array<uint32_t, 2> Values = {Distribution(Hash::RandEngine),
+                                      Distribution(Hash::RandEngine)};
     auto ValuesSpan = cxx20::as_bytes(cxx20::span(Values));
     std::copy(ValuesSpan.begin(), ValuesSpan.end(),
               cxx20::as_writable_bytes(cxx20::span(Buffer)).begin());
@@ -1197,13 +1194,11 @@ private:
   }
 
   WasiExpect<__wasi_fd_t> generateRandomFdToNode(std::shared_ptr<VINode> Node) {
-    std::random_device Device;
-    std::default_random_engine Engine(Device());
     std::uniform_int_distribution<__wasi_fd_t> Distribution(0, 0x7FFFFFFF);
     bool Success = false;
     __wasi_fd_t NewFd;
     while (!Success) {
-      NewFd = Distribution(Engine);
+      NewFd = Distribution(Hash::RandEngine);
       std::unique_lock Lock(FdMutex);
       Success = FdMap.emplace(NewFd, Node).second;
     }

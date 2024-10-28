@@ -39,4 +39,5 @@ endif()
 install(
   TARGETS wasmedgePluginWasmEdgeOpenCVMini
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
 )

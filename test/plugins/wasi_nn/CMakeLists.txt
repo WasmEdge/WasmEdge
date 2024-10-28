@@ -106,6 +106,21 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_whisper_fixtures/test.wav
       MD5=6cf3f7af1ebbd6b29c373e526b548dba
     )
+  elseif(BACKEND STREQUAL "mlx")
+    message( STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures")
+    download(
+      https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0/resolve/main/model.safetensors
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures/model.safetensors
+      MD5=59e1605b3af5f1673eb8396251d6bc46
+    )
+    download(
+      https://huggingface.co/TinyLlama/TinyLlama-1.1B-Chat-v1.0/resolve/main/tokenizer.json
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_mlx_fixtures/tokenizer.json
+      MD5=c9dc953a24ad2b76b4bae4bf456f18bd
+    )
+    target_compile_options(wasiNNTests PUBLIC
+      -Wno-unused-parameter
+    )
   else()
     # Add the other backend test files fetching here.
   endif()

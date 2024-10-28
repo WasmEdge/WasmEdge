@@ -15,6 +15,7 @@
 
 #include "common/defines.h"
 #include "common/filesystem.h"
+#include "common/hash.h"
 #include "common/version.h"
 #include "loader/shared_library.h"
 #include "po/argument_parser.h"
@@ -25,12 +26,6 @@
 #include <memory>
 #include <mutex>
 #include <vector>
-
-#if WASMEDGE_OS_WINDOWS
-#define WASMEDGE_EXPORT __declspec(dllexport)
-#else
-#define WASMEDGE_EXPORT [[gnu::visibility("default")]]
-#endif
 
 #define EXPORT_GET_DESCRIPTOR(Descriptor)                                      \
   extern "C" WASMEDGE_EXPORT decltype(&Descriptor) GetDescriptor();            \
@@ -218,7 +213,8 @@ public:
 private:
   static std::mutex Mutex;
   static std::vector<Plugin> PluginRegistry;
-  static std::unordered_map<std::string_view, std::size_t> PluginNameLookup;
+  static std::unordered_map<std::string_view, std::size_t, Hash::Hash>
+      PluginNameLookup;
 
   // Static function to load plugin from file. Thread-safe.
   static bool loadFile(const std::filesystem::path &Path) noexcept;
@@ -232,8 +228,10 @@ private:
   std::shared_ptr<Loader::SharedLibrary> Lib;
   std::vector<PluginModule> ModuleRegistry;
   std::vector<PluginComponent> ComponentRegistry;
-  std::unordered_map<std::string_view, std::size_t> ModuleNameLookup;
-  std::unordered_map<std::string_view, std::size_t> ComponentNameLookup;
+  std::unordered_map<std::string_view, std::size_t, Hash::Hash>
+      ModuleNameLookup;
+  std::unordered_map<std::string_view, std::size_t, Hash::Hash>
+      ComponentNameLookup;
 };
 
 } // namespace Plugin

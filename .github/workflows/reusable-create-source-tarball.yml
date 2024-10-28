@@ -42,7 +42,7 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: WasmEdge-${{ inputs.version }}-src.tar.gz
           path: WasmEdge-${{ inputs.version }}.tar.gz

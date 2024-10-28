@@ -25,9 +25,8 @@ jobs:
     steps:
       - name: Install dependency
         run: |
-          apt update && apt upgrade -y && apt install -y \
-          software-properties-common wget cmake ninja-build curl \
-          git dpkg-dev llvm-dev liblld-dev gcc rpm dpkg-dev g++
+          apt update && apt upgrade -y && \
+          apt install -y wget cmake ninja-build curl git dpkg-dev llvm-dev liblld-dev gcc rpm g++
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0

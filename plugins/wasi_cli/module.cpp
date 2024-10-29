@@ -22,15 +22,20 @@ WasiCliExitModule::WasiCliExitModule()
   addHostFunc("exit-with-code", std::make_unique<ExitWithCode>(Env));
 }
 
-// TODO: complete these module
 WasiCliStdinModule::WasiCliStdinModule()
-    : ComponentInstance("wasi:cli/stdin@0.2.0") {}
+    : ComponentInstance("wasi:cli/stdin@0.2.0") {
+  addHostFunc("get-stdin", std::make_unique<GetStdin>(Env));
+}
 
 WasiCliStdoutModule::WasiCliStdoutModule()
-    : ComponentInstance("wasi:cli/stdout@0.2.0") {}
+    : ComponentInstance("wasi:cli/stdout@0.2.0") {
+  addHostFunc("get-stdout", std::make_unique<GetStdout>(Env));
+}
 
 WasiCliStderrModule::WasiCliStderrModule()
-    : ComponentInstance("wasi:cli/stderr@0.2.0") {}
+    : ComponentInstance("wasi:cli/stderr@0.2.0") {
+  addHostFunc("get-stderr", std::make_unique<GetStderr>(Env));
+}
 
 } // namespace Host
 } // namespace WasmEdge

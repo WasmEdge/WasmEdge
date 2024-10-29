@@ -16,19 +16,30 @@ public:
   // TODO: fix the type, need to introduce tuple type
   Expect<void> body() { return {}; }
 };
-
 class GetArguments : public WasiCli<GetArguments> {
 public:
   GetArguments(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // get-arguments: func() -> list<string>;
   Expect<List<std::string>> body();
 };
-
 class InitialCwd : public WasiCli<InitialCwd> {
 public:
   InitialCwd(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // initial-cwd: func() -> option<string>;
   Expect<std::string> body();
+};
+
+class Exit : public WasiCli<Exit> {
+public:
+  Exit(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
+  // exit: func(status: result);
+  Expect<void> body();
+};
+class ExitWithCode : public WasiCli<ExitWithCode> {
+public:
+  ExitWithCode(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
+  // exit-with-code: func(status-code: u8);
+  Expect<void> body(uint8_t StatusCode);
 };
 
 } // namespace Host

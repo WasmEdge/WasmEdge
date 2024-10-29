@@ -13,5 +13,9 @@ Expect<void> DropOutputStream::body(uint32_t Idx) {
   return {};
 }
 
+Expect<void> DropInputStream::body(uint32_t) { return {}; }
+
+Expect<void> DropStreamError::body(uint32_t) { return {}; }
+
 } // namespace Host
 } // namespace WasmEdge

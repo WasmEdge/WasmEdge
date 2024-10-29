@@ -48,10 +48,18 @@ jobs:
       run: |
         ${{ matrix.extra_setup_command }}
     - name: Run installer-v2
+      shell: bash
       run: |
         # It will install WasmEdge and the GGML plugin
         bash utils/install_v2.sh -V
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+        . ~/.wasmedge/env
+        if [[ $(wasmedge -v | grep 'wasmedge version' | sed 's/.*wasmedge version \([0-9.]*\).*/\1/') == "0.14.1" ]]; then
+          echo "Pass: WasmEdge version is 0.14.1"
+        else
+          echo "Fail: WasmEdge version is not 0.14.1"
+          exit 1
+        fi
     - name: Re-install installer-v2
       run: |
         # It should uninstall the previous installation and install WasmEdge and the GGML plugin again
@@ -62,11 +70,6 @@ jobs:
       run: |
         # It will install WasmEdge and the noavx GGML plugin
         bash utils/install_v2.sh -V --noavx
-        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
-    - name: Run installer-v2 with ggml build number b2963
-      run: |
-        # It will install WasmEdge and the b2963 GGML plugin
-        bash utils/install_v2.sh -V --ggmlbn=b2963
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
     - name: Run installer-v2 with 0.14.1 rc.1
       run: |
@@ -99,20 +102,22 @@ jobs:
          brew install zsh
 
     - name: Run installer-v2
+      shell: bash
       run: |
         # It will install WasmEdge and the GGML plugin
         bash utils/install_v2.sh -V
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.dylib && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+        . ~/.wasmedge/env
+        if [[ $(wasmedge -v | grep 'wasmedge version' | sed 's/.*wasmedge version \([0-9.]*\).*/\1/') == "0.14.1" ]]; then
+          echo "Pass: WasmEdge version is 0.14.1"
+        else
+          echo "Fail: WasmEdge version is not 0.14.1"
+          exit 1
+        fi
     - name: Re-install installer-v2
       run: |
         # It should uninstall the previous installation and install WasmEdge and the GGML plugin again
         bash utils/install_v2.sh -V
-        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.dylib && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
-    - name: Run installer-v2 with ggml build number b2963
-      if: ${{ matrix.host_runner == 'macos-14' }}
-      run: |
-        # It will install WasmEdge and the b2963 GGML plugin
-        bash utils/install_v2.sh -V --ggmlbn=b2963
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.dylib && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
     - name: Run installer-v2 with 0.14.1 rc.1
       run: |

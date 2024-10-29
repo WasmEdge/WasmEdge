@@ -3,48 +3,46 @@
 
 #pragma once
 
-#include "plugin/plugin.h"
-#include "types.h"
+#include "wasinntypes.h"
 
-#include <mutex>
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
-#include <Python.h>
+#include "plugin/plugin.h"
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
+#include "openvino/openvino.hpp"
 #endif
 
 namespace WasmEdge::Host::WASINN {
 struct WasiNNEnvironment;
 }
 
-namespace WasmEdge::Host::WASINN::ChatTTS {
-#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
+namespace WasmEdge::Host::WASINN::OpenVINO {
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 struct Graph {
-  bool EnableDebugLog = false;
-  Graph() noexcept { Py_Initialize(); }
-  ~Graph() noexcept {
-    if (Py_IsInitialized()) {
-      Py_XDECREF(Chat);
-      Py_XDECREF(ChatTTSModule);
-    }
-  }
-  PyObject *Chat = nullptr;
-  PyObject *ChatTTSModule = nullptr;
-  PyObject *ParamsRefineText = nullptr;
-  PyObject *ParamsInferCode = nullptr;
+  ~Graph() noexcept {}
+  ov::Tensor OpenVINOIWeightTensor;
+  std::shared_ptr<ov::Model> OpenVINOModel;
+  Device TargetDevice = Device::AUTO;
 };
+
 struct Context {
-  Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}
+  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
+  ~Context() noexcept {}
   size_t GraphId;
-  std::string Inputs;
-  std::vector<uint8_t> Outputs;
+  ov::InferRequest OpenVINOInferRequest;
+};
+
+struct Environ {
+  Environ() noexcept {}
+  ~Environ() noexcept {}
+  ov::Core OpenVINOCore;
 };
 #else
 struct Graph {};
 struct Context {
   Context(size_t, Graph &) noexcept {}
 };
-#endif
-
 struct Environ {};
+#endif
 
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders,
@@ -61,6 +59,4 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept;
-} // namespace WasmEdge::Host::WASINN::ChatTTS
+} // namespace WasmEdge::Host::WASINN::OpenVINO

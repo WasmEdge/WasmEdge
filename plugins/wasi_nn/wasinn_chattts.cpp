@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "chattts.h"
+#include "wasinn_chattts.h"
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS

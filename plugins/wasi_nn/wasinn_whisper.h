@@ -3,8 +3,9 @@
 
 #pragma once
 
+#include "wasinntypes.h"
+
 #include "plugin/plugin.h"
-#include "types.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 #include <whisper.h>
@@ -68,8 +69,7 @@ public:
   // Whisper config. Inherit from the graph and accept metadata when setting
   // input.
   Config WhisperConfig;
-  whisper_full_params WhisperParams = whisper_full_default_params(
-      whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH);
+  whisper_full_params WhisperParams;
   // Recognition outputs.
   std::string Outputs;
 };

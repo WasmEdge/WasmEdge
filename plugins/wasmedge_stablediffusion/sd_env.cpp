@@ -50,6 +50,9 @@ void SDEnviornment::freeContext(const uint32_t Id) noexcept {
 }
 
 sd_ctx_t *SDEnviornment::getContext(const uint32_t Id) noexcept {
+  if (Id >= Contexts.size()) {
+    return nullptr;
+  }
   return Contexts[Id].Context;
 }
 

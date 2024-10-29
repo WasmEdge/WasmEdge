@@ -14,11 +14,24 @@ jobs:
   # ------------------------------------------------------------------#
   # The list of build targets is in the file:
   #     .github/workflows/matrix-extensions.json
+  #
+  # 'paths-filter' example:
+  #
+  #   wasmedge_stablediffusion:
+  #     - paths/to/wasmedge_stablediffusion
+  #     - other/paths/to/wasmedge_stablediffusion
+  #
+  # plugin: 'wasmedge_stablediffusion-metal'
+  #
+  #   process.env['wasmedge_stablediffusion'] => true
+  #   process.env['wasmedge_stablediffusion-metal'] => undefined
   # ------------------------------------------------------------------#
   prepare:
     name: Prepare ${{ inputs.asset_tag }}
     runs-on: ubuntu-latest
     outputs:
+      macos_x86_64: ${{ steps.readfile.outputs.macos_x86_64 }}
+      macos_arm64: ${{ steps.readfile.outputs.macos_arm64 }}
       manylinux_2_28_x86_64: ${{ steps.readfile.outputs.manylinux_2_28_x86_64 }}
       manylinux_2_28_aarch64: ${{ steps.readfile.outputs.manylinux_2_28_aarch64 }}
       ubuntu2004_x86_64: ${{ steps.readfile.outputs.ubuntu2004_x86_64 }}
@@ -43,10 +56,14 @@ jobs:
             let plugins = JSON.parse(s).plugins
             if (!${{ inputs.release || fromJSON(steps.filter.outputs.all) }}) {
               plugins = plugins.filter(
-                (plugin) => !(process.env[plugin.plugin] != 'true')
+                (plugin) => !(
+                  process.env[plugin.plugin] != 'true' &&
+                  process.env[plugin.plugin.split('-')[0]] != 'true')
               )
             }
             let asset_tags = [
+              "macos_x86_64",
+              "macos_arm64",
               "manylinux_2_28_x86_64",
               "manylinux_2_28_aarch64",
               "ubuntu2004_x86_64",
@@ -65,11 +82,7 @@ jobs:
             }
         env:
           wasi_crypto: ${{ steps.filter.outputs.wasi_crypto }}
-          wasi_nn-ggml: ${{ steps.filter.outputs.wasi_nn-ggml }}
-          wasi_nn-pytorch: ${{ steps.filter.outputs.wasi_nn-pytorch }}
-          wasi_nn-tensorflowlite: ${{ steps.filter.outputs.wasi_nn-tensorflowlite }}
-          wasi_nn-whisper: ${{ steps.filter.outputs.wasi_nn-whisper }}
-          wasi_nn-piper: ${{ steps.filter.outputs.wasi_nn-piper }}
+          wasi_nn: ${{ steps.filter.outputs.wasi_nn }}
           wasm_bpf: ${{ steps.filter.outputs.wasm_bpf }}
           wasmedge_ffmpeg: ${{ steps.filter.outputs.wasmedge_ffmpeg }}
           wasmedge_image: ${{ steps.filter.outputs.wasmedge_image }}
@@ -118,11 +131,11 @@ jobs:
       matrix:
         include:
           - runner: 'ubuntu-latest'
-            docker_tag: 'ubuntu-build-clang-plugins-deps'
+            docker_tag: 'ubuntu-22.04-build-clang-plugins-deps'
             asset_tag: 'ubuntu22.04-clang'
             plugins: ${{ needs.prepare.outputs.ubuntu_latest }}
           - runner: 'ubuntu-latest'
-            docker_tag: 'ubuntu-build-gcc-plugins-deps'
+            docker_tag: 'ubuntu-22.04-build-gcc-plugins-deps'
             asset_tag: 'ubuntu22.04-gcc'
             plugins: ${{ needs.prepare.outputs.ubuntu_latest }}
     name: ${{ matrix.asset_tag }}
@@ -134,6 +147,28 @@ jobs:
       plugins: ${{ matrix.plugins }}
       version: ${{ inputs.version }}
       release: false
+    secrets: inherit
+
+  build_on_macos:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: 'macos-13'
+            asset_tag: 'darwin_22-x86_64'
+            plugins: ${{ needs.prepare.outputs.macos_x86_64 }}
+          - runner: 'macos-14'
+            asset_tag: 'darwin_23-arm64'
+            plugins: ${{ needs.prepare.outputs.macos_arm64 }}
+    name: ${{ matrix.asset_tag }}
+    uses: ./.github/workflows/reusable-build-extensions-on-macos.yml
+    with:
+      runner: ${{ matrix.runner }}
+      asset_tag: ${{ matrix.asset_tag }}
+      plugins: ${{ matrix.plugins }}
+      version: ${{ inputs.version }}
+      release: ${{ inputs.release }}
     secrets: inherit
 
   build_on_manylinux:

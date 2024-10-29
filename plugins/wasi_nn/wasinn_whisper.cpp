@@ -148,6 +148,7 @@ void setWhisperParams(Context &CxtRef) noexcept {
   WParam.print_progress = false;
   WParam.thold_pt = ConfigRef.WordThreshold;
   WParam.max_len = ConfigRef.MaxSegmentLength;
+  WParam.token_timestamps = (WParam.max_len > 0);
   WParam.split_on_word = ConfigRef.SplitOnWord;
   WParam.translate = ConfigRef.Translate;
   WParam.language = ConfigRef.SpokenLanguage.c_str();
@@ -283,14 +284,17 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
     PrintParsedOption("duration"sv, ConfigRef.DurationMS);
   }
   if (Doc.at_key("max-context").error() == simdjson::SUCCESS) {
-    auto Err =
-        Doc["max-context"].get<uint64_t>().get(ConfigRef.MaxTokenContext);
+    int64_t MaxContext = 0;
+    auto Err = Doc["max-context"].get<int64_t>().get(MaxContext);
     if (Err) {
       spdlog::error(
           "[WASI-NN] Whisper backend: Unable to retrieve the max-context option."sv);
       return ErrNo::InvalidArgument;
     }
-    PrintParsedOption("max-context"sv, ConfigRef.MaxTokenContext);
+    if (MaxContext >= 0) {
+      ConfigRef.MaxTokenContext = static_cast<uint64_t>(MaxContext);
+      PrintParsedOption("max-context"sv, ConfigRef.MaxTokenContext);
+    }
   }
   if (Doc.at_key("max-len").error() == simdjson::SUCCESS) {
     auto Err = Doc["max-len"].get<uint64_t>().get(ConfigRef.MaxSegmentLength);
@@ -487,7 +491,10 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   }
   Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
   ContextId = Env.NNContext.size() - 1;
-  setWhisperParams(Env.NNContext[ContextId].get<Context>());
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  CxtRef.WhisperParams = whisper_full_default_params(
+      whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH);
+  setWhisperParams(CxtRef);
   if (GraphRef.WhisperConfig.EnableLog) {
     spdlog::info("[WASI-NN] Whisper backend: whisper_system_info: {}"sv,
                  whisper_print_system_info());

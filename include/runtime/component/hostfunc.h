@@ -40,6 +40,9 @@ template <typename ArgT> struct convert {
 template <> struct convert<bool> {
   static bool run(const ValInterface &V) { return std::get<bool>(V); }
 };
+template <> struct convert<uint8_t> {
+  static uint8_t run(const ValInterface &V) { return std::get<uint8_t>(V); }
+};
 template <> struct convert<std::string> {
   static std::string run(const ValInterface &V) {
     return std::get<std::string>(V);
@@ -66,6 +69,9 @@ template <typename ArgT> struct emplace {
 };
 template <> struct emplace<bool> {
   static void run(ValInterface &V, bool Arg) { V.emplace<bool>(Arg); }
+};
+template <> struct emplace<uint8_t> {
+  static void run(ValInterface &V, uint8_t Arg) { V.emplace<uint8_t>(Arg); }
 };
 template <> struct emplace<std::string> {
   static void run(ValInterface &V, std::string Arg) {

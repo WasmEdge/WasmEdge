@@ -16,5 +16,17 @@ public:
   Expect<void> body(uint32_t ThisOutputStream);
 };
 
+class DropInputStream : public WasiIO<DropInputStream> {
+public:
+  DropInputStream(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
+  Expect<void> body(uint32_t ThisInputStream);
+};
+
+class DropStreamError : public WasiIO<DropStreamError> {
+public:
+  DropStreamError(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
+  Expect<void> body(uint32_t ThisError);
+};
+
 } // namespace Host
 } // namespace WasmEdge

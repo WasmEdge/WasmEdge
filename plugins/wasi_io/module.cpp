@@ -17,10 +17,13 @@ WasiIOErrorModule::WasiIOErrorModule()
 WasiIOStreamsModule::WasiIOStreamsModule()
     : ComponentInstance("wasi:io/streams@0.2.0") {
   addHostType("input-stream", InputStream());
+  addHostFunc("[resource-drop]input-stream",
+              std::make_unique<DropInputStream>(Env));
   addHostType("output-stream", OutputStream());
   addHostFunc("[resource-drop]output-stream",
               std::make_unique<DropOutputStream>(Env));
   addHostType("error", StreamError());
+  addHostFunc("[resource-drop]error", std::make_unique<DropStreamError>(Env));
 }
 
 } // namespace Host

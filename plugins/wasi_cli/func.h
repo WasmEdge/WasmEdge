@@ -46,16 +46,18 @@ class GetStdin : public WasiCli<GetStdin> {
 public:
   GetStdin(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // TODO
-  // get-stdin: func() -> input-stream;
+  // 1. use wasi:io/streams@0.2.2.{input-stream};
+  // 2. get-stdin: func() -> input-stream;
   Expect<void> body() { return {}; }
+  // The problem here is, how to use a type that belongs to another plugin?
 };
 
-class GetStdout : public WasiCli<Stdout> {
+class GetStdout : public WasiCli<GetStdout> {
 public:
   GetStdout(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // TODO
   // get-stdout: func() -> output-stream;
-  Expect<void> body();
+  Expect<void> body() { return {}; }
 };
 
 class GetStderr : public WasiCli<GetStderr> {
@@ -63,7 +65,7 @@ public:
   GetStderr(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // TODO
   // get-stderr: func() -> output-stream;
-  Expect<void> body();
+  Expect<void> body() { return {}; }
 };
 
 } // namespace Host

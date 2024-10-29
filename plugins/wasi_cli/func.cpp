@@ -22,5 +22,14 @@ Expect<std::string> InitialCwd::body() {
   return std::move(S);
 }
 
+Expect<void> Exit::body() {
+  exit(0);
+  return {};
+}
+Expect<void> ExitWithCode::body(uint8_t StatusCode) {
+  exit(StatusCode);
+  return {};
+}
+
 } // namespace Host
 } // namespace WasmEdge

@@ -42,5 +42,29 @@ public:
   Expect<void> body(uint8_t StatusCode);
 };
 
+class GetStdin : public WasiCli<GetStdin> {
+public:
+  GetStdin(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
+  // TODO
+  // get-stdin: func() -> input-stream;
+  Expect<void> body() { return {}; }
+};
+
+class GetStdout : public WasiCli<Stdout> {
+public:
+  GetStdout(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
+  // TODO
+  // get-stdout: func() -> output-stream;
+  Expect<void> body();
+};
+
+class GetStderr : public WasiCli<GetStderr> {
+public:
+  GetStderr(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
+  // TODO
+  // get-stderr: func() -> output-stream;
+  Expect<void> body();
+};
+
 } // namespace Host
 } // namespace WasmEdge

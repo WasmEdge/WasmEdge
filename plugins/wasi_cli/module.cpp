@@ -9,10 +9,14 @@
 namespace WasmEdge {
 namespace Host {
 
-// TODO: complete these module
 WasiCliEnvironmentModule::WasiCliEnvironmentModule()
-    : ComponentInstance("wasi:cli/environment@0.2.0") {}
+    : ComponentInstance("wasi:cli/environment@0.2.0") {
+  addHostFunc("get-environment", std::make_unique<GetEnvironment>(Env));
+  addHostFunc("get-arguments", std::make_unique<GetArguments>(Env));
+  addHostFunc("initial-cwd", std::make_unique<InitialCwd>(Env));
+}
 
+// TODO: complete these module
 WasiCliExitModule::WasiCliExitModule()
     : ComponentInstance("wasi:cli/exit@0.2.0") {}
 

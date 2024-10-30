@@ -65,11 +65,13 @@ bool parameterCheck(SDEnviornment &Env, uint32_t Width, uint32_t Height,
     return false;
   }
   if (Width % 64 != 0) {
-    spdlog::error("[WasmEdge-StableDiffusion] Width must be a multiple of 64 and greater than 0."sv);
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Width must be a multiple of 64 and greater than 0."sv);
     return false;
   }
   if (Height % 64 != 0) {
-    spdlog::error("[WasmEdge-StableDiffusion] Height must be a multiple of 64 and greater than 0."sv);
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] Height must be a multiple of 64 and greater than 0."sv);
     return false;
   }
   return true;
@@ -299,7 +301,8 @@ Expect<uint32_t> SDCreateContext::body(
   }
   // Check parameters
   if (ModelPathLen == 0 && diffusionModelPathLen == 0) {
-    spdlog::error("[WasmEdge-StableDiffusion] The following arguments are required: ModelPath / DiffusionModelPath"sv);
+    spdlog::error(
+        "[WasmEdge-StableDiffusion] The following arguments are required: ModelPath / DiffusionModelPath"sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
   // Create context and import graph.

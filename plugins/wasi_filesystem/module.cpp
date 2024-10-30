@@ -18,6 +18,8 @@ public:
 
 TypesModule::TypesModule() : ComponentInstance("wasi:filesystem/types@0.2.0") {
   addHostType("descriptor", Descriptor());
+  addHostFunc("[method]descriptor.write-via-stream",
+              std::make_unique<Descriptor_WriteViaStream>(Env));
 }
 
 PreopensModule::PreopensModule()

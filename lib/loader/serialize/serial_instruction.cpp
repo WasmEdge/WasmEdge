@@ -150,8 +150,8 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Ref__cast:
   case OpCode::Ref__test_null:
   case OpCode::Ref__cast_null:
-    if (auto Res = serializeRefType(Instr.getValType(),
-                                    ASTNodeAttr::Instruction, OutVec);
+    if (auto Res = serializeHeapType(Instr.getValType(),
+                                     ASTNodeAttr::Instruction, OutVec);
         unlikely(!Res)) {
       return Unexpect(Res);
     }
@@ -195,25 +195,25 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Br_on_cast:
   case OpCode::Br_on_cast_fail: {
     // Flag
-    uint8_t Flag = 0;
+    uint8_t Flags = 0U;
     if (Instr.getBrCast().RType1.isNullableRefType()) {
-      Flag |= 0x01;
+      Flags |= 0x01U;
     }
-    if (Instr.getBrCast().RType1.isNullableRefType()) {
-      Flag |= 0x02;
+    if (Instr.getBrCast().RType2.isNullableRefType()) {
+      Flags |= 0x02U;
     }
-    OutVec.push_back(Flag);
+    OutVec.push_back(Flags);
     // LabelIdx
     serializeU32(Instr.getBrCast().Jump.TargetIndex, OutVec);
     // First RefType
-    if (auto Res = serializeRefType(Instr.getBrCast().RType1,
-                                    ASTNodeAttr::Instruction, OutVec);
+    if (auto Res = serializeHeapType(Instr.getBrCast().RType1,
+                                     ASTNodeAttr::Instruction, OutVec);
         unlikely(!Res)) {
       return Unexpect(Res);
     }
     // Second RefType.
-    if (auto Res = serializeRefType(Instr.getBrCast().RType2,
-                                    ASTNodeAttr::Instruction, OutVec);
+    if (auto Res = serializeHeapType(Instr.getBrCast().RType2,
+                                     ASTNodeAttr::Instruction, OutVec);
         unlikely(!Res)) {
       return Unexpect(Res);
     }

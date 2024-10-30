@@ -69,14 +69,6 @@ Serializer::serializeRefType(const ValType &Type, ASTNodeAttr From,
       OutVec.push_back(static_cast<uint8_t>(Code));
     }
     return serializeHeapType(Type, From, OutVec);
-  case TypeCode::NullExternRef:
-  case TypeCode::NullRef:
-  case TypeCode::AnyRef:
-  case TypeCode::EqRef:
-  case TypeCode::I31Ref:
-  case TypeCode::StructRef:
-  case TypeCode::ArrayRef:
-    return serializeHeapType(Type, From, OutVec);
   default:
     if (likely(Conf.hasProposal(Proposal::ReferenceTypes))) {
       return logSerializeError(ErrCode::Value::MalformedRefType, From);
@@ -115,14 +107,6 @@ Serializer::serializeValType(const ValType &Type, ASTNodeAttr From,
     return {};
   case TypeCode::Ref:
   case TypeCode::RefNull:
-    return serializeRefType(Type, From, OutVec);
-  case TypeCode::NullExternRef:
-  case TypeCode::NullRef:
-  case TypeCode::AnyRef:
-  case TypeCode::EqRef:
-  case TypeCode::I31Ref:
-  case TypeCode::StructRef:
-  case TypeCode::ArrayRef:
     return serializeRefType(Type, From, OutVec);
   default:
     return logSerializeError(ErrCode::Value::MalformedValType, From);

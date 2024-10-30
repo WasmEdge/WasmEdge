@@ -61,17 +61,15 @@ namespace StableDiffusion {
 bool parameterCheck(SDEnviornment &Env, uint32_t Width, uint32_t Height,
                     uint32_t SessionId) {
   if (SessionId >= Env.getContextSize()) {
-    spdlog::error("[WasmEdge-StableDiffusion] Session ID is invalid.");
+    spdlog::error("[WasmEdge-StableDiffusion] Session ID is invalid."sv);
     return false;
   }
   if (Width % 64 != 0) {
-    spdlog::error("[WasmEdge-StableDiffusion] Width must be a multiple of 64 "
-                  "and greater than 0.");
+    spdlog::error("[WasmEdge-StableDiffusion] Width must be a multiple of 64 and greater than 0."sv);
     return false;
   }
   if (Height % 64 != 0) {
-    spdlog::error("[WasmEdge-StableDiffusion] Height must be a multiple of 64 "
-                  "and greater than 0.");
+    spdlog::error("[WasmEdge-StableDiffusion] Height must be a multiple of 64 and greater than 0."sv);
     return false;
   }
   return true;
@@ -220,7 +218,7 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
   std::ifstream Fin(ModelPath.data(), std::ios::in | std::ios::binary);
   if (!Fin) {
     Fin.close();
-    spdlog::error("[WasmEdge-StableDiffusion] Model not found.");
+    spdlog::error("[WasmEdge-StableDiffusion] Model not found."sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
   Fin.close();
@@ -228,7 +226,7 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
   bool Ret = ::convert(ModelPath.data(), VaeModelPath.data(), OutputPath.data(),
                        static_cast<sd_type_t>(WType));
   if (!Ret) {
-    spdlog::error("[WasmEdge-StableDiffusion] Failed to convert model.");
+    spdlog::error("[WasmEdge-StableDiffusion] Failed to convert model."sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
 
@@ -301,12 +299,11 @@ Expect<uint32_t> SDCreateContext::body(
   }
   // Check parameters
   if (ModelPathLen == 0 && diffusionModelPathLen == 0) {
-    spdlog::error("[WasmEdge-StableDiffusion] The following arguments are "
-                  "required: ModelPath / DiffusionModelPath");
+    spdlog::error("[WasmEdge-StableDiffusion] The following arguments are required: ModelPath / DiffusionModelPath"sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
   // Create context and import graph.
-  spdlog::info("[WasmEdge-StableDiffusion] Create context."sv);
+  spdlog::debug("[WasmEdge-StableDiffusion] Create context."sv);
   sd_ctx_t *Ctx = new_sd_ctx(
       ModelPath.data(), clipLPath.data(), t5xxlPath.data(),
       diffusionModelPath.data(), VaePath.data(), TaesdPath.data(),
@@ -316,7 +313,7 @@ Expect<uint32_t> SDCreateContext::body(
       static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
       static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
   if (Ctx == nullptr) {
-    spdlog::error("[WasmEdge-StableDiffusion] Failed to create context.");
+    spdlog::error("[WasmEdge-StableDiffusion] Failed to create context."sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
   *SessionId = Env.addContext(Ctx, NThreads, static_cast<sd_type_t>(Wtype));

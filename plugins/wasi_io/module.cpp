@@ -28,6 +28,8 @@ WasiIOStreamsModule::WasiIOStreamsModule()
               std::make_unique<OutputStream_Write>(Env));
   addHostFunc("[method]output-stream.blocking-flush",
               std::make_unique<OutputStream_BlockingFlush>(Env));
+  addHostFunc("[method]output-stream.blocking-write-and-flush",
+              std::make_unique<OutputStream_BlockingWriteAndFlush>(Env));
   addHostFunc("[resource-drop]output-stream",
               std::make_unique<DropOutputStream>(Env));
 

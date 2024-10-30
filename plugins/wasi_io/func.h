@@ -31,6 +31,13 @@ public:
   OutputStream_BlockingFlush(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
   Expect<void> body() { return {}; }
 };
+class OutputStream_BlockingWriteAndFlush
+    : public WasiIO<OutputStream_BlockingWriteAndFlush> {
+public:
+  OutputStream_BlockingWriteAndFlush(WasiIOEnvironment &HostEnv)
+      : WasiIO(HostEnv) {}
+  Expect<void> body() { return {}; }
+};
 class DropOutputStream : public WasiIO<DropOutputStream> {
 public:
   DropOutputStream(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}

@@ -23,7 +23,9 @@ TypesModule::TypesModule() : ComponentInstance("wasi:filesystem/types@0.2.0") {
 }
 
 PreopensModule::PreopensModule()
-    : ComponentInstance("wasi:filesystem/preopens@0.2.0") {}
+    : ComponentInstance("wasi:filesystem/preopens@0.2.0") {
+  addHostFunc("get-directories", std::make_unique<GetDirectories>(Env));
+}
 
 } // namespace Host
 } // namespace WasmEdge

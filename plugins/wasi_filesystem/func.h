@@ -14,10 +14,20 @@ class Descriptor_WriteViaStream
 public:
   Descriptor_WriteViaStream(WasiFilesystemEnvironment &HostEnv)
       : WasiFilesystem(HostEnv) {}
+  // TODO
   // write-via-stream: func(
   //   /// The offset within the file at which to start writing.
   //   offset: filesize,
   // ) -> result<output-stream, error-code>;
+  Expect<void> body() { return {}; }
+};
+
+class GetDirectories : public WasiFilesystem<GetDirectories> {
+public:
+  GetDirectories(WasiFilesystemEnvironment &HostEnv)
+      : WasiFilesystem(HostEnv) {}
+  // TODO
+  // get-directories: func() -> list<tuple<descriptor, string>>;
   Expect<void> body() { return {}; }
 };
 

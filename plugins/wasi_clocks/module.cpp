@@ -23,6 +23,11 @@ WallClockModule::WallClockModule()
   // FIXME: Here is a hard thing, `ResourceType&&` can move into
   // `ExportTypesMap`, but somehow `Datetime` here cannot.
   addHostType("datetime", Datetime());
+
+  // TODO
+  // now: func() -> datetime;
+  // TODO
+  // resolution: func() -> datetime;
 }
 
 } // namespace Host

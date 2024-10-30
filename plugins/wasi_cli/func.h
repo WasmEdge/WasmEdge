@@ -32,6 +32,7 @@ public:
 class Exit : public WasiCli<Exit> {
 public:
   Exit(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
+  // TODO
   // exit: func(status: result);
   Expect<void> body();
 };

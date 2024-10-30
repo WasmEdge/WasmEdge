@@ -12,6 +12,7 @@ namespace Host {
 WasiIOErrorModule::WasiIOErrorModule()
     : ComponentInstance("wasi:io/error@0.2.0") {
   addHostType("error", IoError(getEnv()));
+  addHostFunc("[resource-drop]error", std::make_unique<DropError>(Env));
 }
 
 WasiIOStreamsModule::WasiIOStreamsModule()

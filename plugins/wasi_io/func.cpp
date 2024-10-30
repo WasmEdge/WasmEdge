@@ -8,6 +8,8 @@
 namespace WasmEdge {
 namespace Host {
 
+Expect<void> DropError::body(uint32_t) { return {}; }
+
 Expect<void> DropOutputStream::body(uint32_t Idx) {
   Env.OutputStreamList[Idx];
   return {};

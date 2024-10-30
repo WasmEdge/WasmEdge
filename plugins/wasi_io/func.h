@@ -10,6 +10,12 @@
 namespace WasmEdge {
 namespace Host {
 
+class DropError : public WasiIO<DropError> {
+public:
+  DropError(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
+  Expect<void> body(uint32_t ThisIOError);
+};
+
 class DropOutputStream : public WasiIO<DropOutputStream> {
 public:
   DropOutputStream(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
@@ -25,7 +31,7 @@ public:
 class DropStreamError : public WasiIO<DropStreamError> {
 public:
   DropStreamError(WasiIOEnvironment &HostEnv) : WasiIO(HostEnv) {}
-  Expect<void> body(uint32_t ThisError);
+  Expect<void> body(uint32_t ThisStreamError);
 };
 
 } // namespace Host

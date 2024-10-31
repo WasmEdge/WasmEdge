@@ -129,4 +129,5 @@ endif()
 install(
   TARGETS wasmedgePluginWasmEdgeStableDiffusion
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge
+  COMPONENT WasmEdge
 )

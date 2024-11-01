@@ -21,6 +21,44 @@ public:
   // ) -> result<output-stream, error-code>;
   Expect<void> body() { return {}; }
 };
+class Descriptor_AppendViaStream
+    : public WasiFilesystem<Descriptor_AppendViaStream> {
+public:
+  Descriptor_AppendViaStream(WasiFilesystemEnvironment &HostEnv)
+      : WasiFilesystem(HostEnv) {}
+  // TODO
+  Expect<void> body() { return {}; }
+};
+class Descriptor_GetType : public WasiFilesystem<Descriptor_GetType> {
+public:
+  Descriptor_GetType(WasiFilesystemEnvironment &HostEnv)
+      : WasiFilesystem(HostEnv) {}
+  // TODO
+  Expect<void> body() { return {}; }
+};
+class Descriptor_Stat : public WasiFilesystem<Descriptor_Stat> {
+public:
+  Descriptor_Stat(WasiFilesystemEnvironment &HostEnv)
+      : WasiFilesystem(HostEnv) {}
+  // TODO
+  Expect<void> body() { return {}; }
+};
+
+class DropDescriptor : public WasiFilesystem<DropDescriptor> {
+public:
+  DropDescriptor(WasiFilesystemEnvironment &HostEnv)
+      : WasiFilesystem(HostEnv) {}
+  // TODO
+  Expect<void> body() { return {}; }
+};
+
+class FilesystemErrorCode : public WasiFilesystem<FilesystemErrorCode> {
+public:
+  FilesystemErrorCode(WasiFilesystemEnvironment &HostEnv)
+      : WasiFilesystem(HostEnv) {}
+  // TODO
+  Expect<void> body() { return {}; }
+};
 
 class GetDirectories : public WasiFilesystem<GetDirectories> {
 public:

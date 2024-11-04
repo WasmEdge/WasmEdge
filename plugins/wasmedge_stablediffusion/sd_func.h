@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "sd_base.h"
-
 #include "runtime/callingframe.h"
+#include "sd_base.h"
+#include "stable-diffusion.h"
 
 namespace WasmEdge {
 namespace Host {

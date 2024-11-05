@@ -16,4 +16,4 @@ cmake --build .
 # Install to system
 cmake --install .
 
-rm -f opencv.zip
+cd - && rm -rf opencv opencv.zip

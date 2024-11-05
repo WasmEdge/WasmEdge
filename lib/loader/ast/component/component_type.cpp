@@ -401,13 +401,26 @@ Expect<void> Loader::loadType(ResourceType &Ty) {
     return Unexpect(Res);
   }
 
-  if (auto Res = FMgr.readU32()) {
-    Ty.getDestructor().emplace(*Res);
+  if (Ty.IsSync()) {
+    if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
+          auto RCallback = FMgr.readU32();
+          if (!RCallback) {
+            return Unexpect(RCallback);
+          }
+          Ty.getDestructor().emplace(*RCallback);
+          return {};
+        });
+        !Res) {
+      return Unexpect(Res);
+    }
   } else {
-    return Unexpect(Res);
-  }
+    if (auto Res = FMgr.readU32()) {
+      spdlog::info("resource drop index: {}", *Res);
+      Ty.getDestructor().emplace(*Res);
+    } else {
+      return Unexpect(Res);
+    }
 
-  if (!Ty.IsSync()) {
     if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
           auto RCallback = FMgr.readU32();
           if (!RCallback) {

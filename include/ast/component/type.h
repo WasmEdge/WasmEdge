@@ -637,16 +637,21 @@ struct fmt::formatter<WasmEdge::AST::Component::ResourceType>
 
     fmt::memory_buffer Buffer;
 
-    fmt::format_to(std::back_inserter(Buffer), "resource-type {{"sv);
+    fmt::format_to(std::back_inserter(Buffer), "resource-type {{\n"sv);
 
     if (Type.getDestructor().has_value()) {
-      fmt::format_to(std::back_inserter(Buffer), "  destructor-index = {}"sv,
+      fmt::format_to(std::back_inserter(Buffer), "  destructor-index = {}\n"sv,
                      Type.getDestructor().value());
+    } else {
+      fmt::format_to(std::back_inserter(Buffer),
+                     "  destructor-index = none\n"sv);
     }
 
     if (Type.getCallback().has_value()) {
-      fmt::format_to(std::back_inserter(Buffer), "  callback-index = {}"sv,
+      fmt::format_to(std::back_inserter(Buffer), "  callback-index = {}\n"sv,
                      Type.getCallback().value());
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), "  callback-index = none\n"sv);
     }
 
     fmt::format_to(std::back_inserter(Buffer), "}}"sv);

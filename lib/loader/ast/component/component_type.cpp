@@ -97,7 +97,7 @@ Expect<void> Loader::loadType(VariantTy &Ty) {
 
 Expect<void> Loader::loadType(ListTy &Ty) { return loadType(Ty.getValType()); }
 
-Expect<void> Loader::loadType(Tuple &Ty) {
+Expect<void> Loader::loadType(TupleTy &Ty) {
   EXPECTED_TRY(loadVec<TypeSection>(
       Ty.getTypes(), [this](ValueType T) { return loadType(T); }));
   if (unlikely(Ty.getTypes().size() == 0)) {
@@ -180,7 +180,7 @@ Expect<void> Loader::loadType(DefType &Ty) {
                      .map_error(ReportError));
     break;
   case 0x6f:
-    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<Tuple>())
+    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<TupleTy>())
                      .map_error(ReportError));
     break;
   case 0x6e:

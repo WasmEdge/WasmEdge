@@ -107,9 +107,9 @@ private:
   ValueType ValTy;
 };
 
-// Tuple is the product of given non-empty type list
+// A tuple is the product of given non-empty type list
 // e.g. given [A, B, C], the tuple is a product A x B x C
-class Tuple {
+class TupleTy {
 public:
   Span<const ValueType> getTypes() const noexcept { return Types; }
   std::vector<ValueType> &getTypes() noexcept { return Types; }
@@ -176,7 +176,7 @@ private:
   TypeIndex Idx;
 };
 
-using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, Tuple,
+using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, TupleTy,
                                 Flags, Enum, Option, Result, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
@@ -458,7 +458,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                                  Arg.getValType());
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Tuple &Arg) {
+                [](const TupleTy &Arg) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "tuple <"sv);
                   for (const auto &Ty : Arg.getTypes()) {

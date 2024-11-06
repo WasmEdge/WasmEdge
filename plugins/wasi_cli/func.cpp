@@ -10,6 +10,19 @@
 namespace WasmEdge {
 namespace Host {
 
+Expect<List<Tuple<std::string, std::string>>> GetEnvironment::body() {
+  List<Tuple<std::string, std::string>> L{};
+
+  // TODO: people figure out can use
+  // https://stackoverflow.com/questions/16765545/how-to-list-all-environment-variables-in-a-c-c-app
+  //
+  //    extern char **environ;
+  //
+  // to get all environment variables, but didn't say the portability
+
+  return std::move(L);
+}
+
 Expect<List<std::string>> GetArguments::body() {
   List<std::string> L{};
   // TODO: figure out how to pass this

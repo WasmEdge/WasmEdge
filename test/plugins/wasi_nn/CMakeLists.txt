@@ -68,6 +68,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(wasiNNTests PUBLIC
         /wd4067 # unexpected tokens following preprocessor directive - expected a newline
+        /wd4505 # unreferenced local function has been removed
+      )
+    else()
+      # string_split<std::string> in common.h unused
+      target_compile_options(wasiNNTests PUBLIC
+        -Wno-unused-function
       )
     endif()
   elseif(BACKEND STREQUAL "piper")

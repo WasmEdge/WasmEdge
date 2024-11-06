@@ -56,7 +56,8 @@ class GetStdout : public WasiCli<GetStdout> {
 public:
   GetStdout(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // TODO
-  // get-stdout: func() -> output-stream;
+  // 1. use wasi:io/streams@0.2.2.{output-stream};
+  // 2. get-stdout: func() -> output-stream;
   Expect<void> body() { return {}; }
 };
 
@@ -64,7 +65,8 @@ class GetStderr : public WasiCli<GetStderr> {
 public:
   GetStderr(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // TODO
-  // get-stderr: func() -> output-stream;
+  // 1. use wasi:io/streams@0.2.2.{output-stream};
+  // 2. get-stderr: func() -> output-stream;
   Expect<void> body() { return {}; }
 };
 

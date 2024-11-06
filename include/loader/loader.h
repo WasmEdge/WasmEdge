@@ -351,7 +351,7 @@ private:
   Expect<void> loadType(AST::Component::Record &RecTy);
   Expect<void> loadType(AST::Component::VariantTy &Ty);
   Expect<void> loadType(AST::Component::ListTy &Ty);
-  Expect<void> loadType(AST::Component::Tuple &Ty);
+  Expect<void> loadType(AST::Component::TupleTy &Ty);
   Expect<void> loadType(AST::Component::Flags &Ty);
   Expect<void> loadType(AST::Component::Enum &Ty);
   Expect<void> loadType(AST::Component::Option &Ty);

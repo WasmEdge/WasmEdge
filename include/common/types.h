@@ -21,6 +21,7 @@
 
 #include <array>
 #include <cstdint>
+#include <iostream>
 #include <type_traits>
 #include <variant>
 
@@ -562,6 +563,13 @@ private:
 
 } // namespace Component
 // TODO: add Record<Ts ...> : public ValComp
+template <typename... Types> struct Tuple : public ValComp {
+  Tuple(Types &&...Args)
+      : Content(std::make_tuple(std::forward<Types>(Args)...)) {}
+
+private:
+  std::tuple<Types...> Content;
+};
 
 using ValInterface = std::variant<
     // constant types in component types
@@ -744,26 +752,6 @@ template <typename T> struct Wit<List<T>> {
 template <typename... Types> struct Wit<Tuple<Types...>> {
   static inline ValType type() noexcept {
     return InterfaceType(TypeCode::Tuple, {Wit<Types>::type()...});
-  }
-};
-template <typename T> struct Wit<Option<T>> {
-  static inline ValType type() noexcept {
-    return InterfaceType(TypeCode::Option, {Wit<T>::type()});
-  }
-};
-template <> struct Wit<Enum> {
-  static inline ValType type() noexcept {
-    return InterfaceType(TypeCode::Enum, {});
-  }
-};
-template <typename V, typename E> struct Wit<Result<V, E>> {
-  static inline ValType type() noexcept {
-    return InterfaceType(TypeCode::Result, {Wit<V>::type(), Wit<E>::type()});
-  }
-};
-template <typename... Types> struct Wit<Component::Variant<Types...>> {
-  static inline ValType type() noexcept {
-    return InterfaceType(TypeCode::Variant, {Wit<Types>::type()...});
   }
 };
 

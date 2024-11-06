@@ -21,6 +21,7 @@
 
 #include <array>
 #include <cstdint>
+#include <iostream>
 #include <type_traits>
 #include <variant>
 
@@ -139,6 +140,10 @@ public:
       break;
     case TypeCode::List:
       Inner.Data.Code = TypeCode::List;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::Tuple:
+      Inner.Data.Code = TypeCode::Tuple;
       Inner.Data.HTCode = C;
       break;
     case TypeCode::Ref:
@@ -470,6 +475,13 @@ private:
   std::vector<T> Content;
 };
 // TODO: add Record<Ts ...> : public ValComp
+template <typename... Types> struct Tuple : public ValComp {
+  Tuple(Types &&...Args)
+      : Content(std::make_tuple(std::forward<Types>(Args)...)) {}
+
+private:
+  std::tuple<Types...> Content;
+};
 
 using ValInterface = std::variant<
     // constant types in component types
@@ -627,6 +639,11 @@ template <> struct Wit<std::string> {
 template <typename T> struct Wit<List<T>> {
   static inline ValType type() noexcept {
     return InterfaceType(TypeCode::List, {Wit<T>::type()});
+  }
+};
+template <typename... Types> struct Wit<Tuple<Types...>> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::Tuple, {Wit<Types>::type()...});
   }
 };
 

@@ -13,8 +13,7 @@ class GetEnvironment : public WasiCli<GetEnvironment> {
 public:
   GetEnvironment(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // func() -> list<tuple<string, string>>
-  // TODO: fix the type, need to introduce tuple type
-  Expect<void> body() { return {}; }
+  Expect<List<Tuple<std::string, std::string>>> body();
 };
 class GetArguments : public WasiCli<GetArguments> {
 public:

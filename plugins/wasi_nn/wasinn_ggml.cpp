@@ -402,13 +402,11 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
     if (NEval > static_cast<int>(GraphRef.BatchSize)) {
       NEval = static_cast<int>(GraphRef.BatchSize);
     }
-    // llama_batch_get_one(*token, n_tokens, position, sequence_id)
-    // This will return batch for single sequence of tokens starting at
-    // position.
-    const llama_seq_id SequenceId = 0;
+    // llama_batch_get_one(*token, n_tokens)
+    // - Return batch for single sequence of tokens.
+    // - The sequence ID will be fixed to 0.
     auto Status =
-        llama_decode(LlamaContext,
-                     llama_batch_get_one(&Tokens[I], NEval, NPast, SequenceId));
+        llama_decode(LlamaContext, llama_batch_get_one(&Tokens[I], NEval));
     if (Status == 1) {
       spdlog::error(
           "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);

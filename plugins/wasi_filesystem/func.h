@@ -27,6 +27,7 @@ public:
   Descriptor_AppendViaStream(WasiFilesystemEnvironment &HostEnv)
       : WasiFilesystem(HostEnv) {}
   // TODO
+  // append-via-stream: func() -> result<output-stream, error-code>;
   Expect<void> body() { return {}; }
 };
 class Descriptor_GetType : public WasiFilesystem<Descriptor_GetType> {
@@ -34,6 +35,7 @@ public:
   Descriptor_GetType(WasiFilesystemEnvironment &HostEnv)
       : WasiFilesystem(HostEnv) {}
   // TODO
+  // get-type: func() -> result<descriptor-type, error-code>;
   Expect<void> body() { return {}; }
 };
 class Descriptor_Stat : public WasiFilesystem<Descriptor_Stat> {
@@ -41,6 +43,7 @@ public:
   Descriptor_Stat(WasiFilesystemEnvironment &HostEnv)
       : WasiFilesystem(HostEnv) {}
   // TODO
+  // stat: func() -> result<descriptor-stat, error-code>;
   Expect<void> body() { return {}; }
 };
 
@@ -57,16 +60,18 @@ public:
   FilesystemErrorCode(WasiFilesystemEnvironment &HostEnv)
       : WasiFilesystem(HostEnv) {}
   // TODO
+  // filesystem-error-code: func(err: borrow<error>) -> option<error-code>;
   Expect<void> body() { return {}; }
 };
 
 class GetDirectories : public WasiFilesystem<GetDirectories> {
 public:
+  using Descriptor = uint32_t;
+
   GetDirectories(WasiFilesystemEnvironment &HostEnv)
       : WasiFilesystem(HostEnv) {}
-  // TODO
   // get-directories: func() -> list<tuple<descriptor, string>>;
-  Expect<void> body() { return {}; }
+  Expect<List<Tuple<Descriptor, std::string>>> body();
 };
 
 } // namespace Host

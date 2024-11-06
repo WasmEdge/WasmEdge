@@ -85,7 +85,7 @@ Expect<void> Loader::loadInstance(InstanceExpr &InstanceExpr) {
         return Unexpect(Res);
       }
 
-      InstanceExpr.emplace<Instantiate>(Instantiate(Idx, Args));
+      InstanceExpr.emplace<Instantiate>(Instantiate(Idx, std::move(Args)));
       break;
     }
     case 0x01: {

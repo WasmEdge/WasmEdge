@@ -325,7 +325,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b3942
+      GIT_TAG        b4034
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -365,6 +365,11 @@ function(wasmedge_setup_llama_target target)
         -Wno-unused-function
         -Wno-unused-variable
       )
+      # string_split<std::string> in common.h unused
+      target_compile_options(${target}
+        PRIVATE
+        -Wno-unused-function
+      )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       target_compile_options(llava
         PRIVATE
@@ -386,6 +391,11 @@ function(wasmedge_setup_llama_target target)
         -Wno-format-nonliteral
         -Wno-documentation
         -Wno-unused-template
+      )
+      # string_split<std::string> in common.h unused
+      target_compile_options(${target}
+        PRIVATE
+        -Wno-unused-function
       )
     endif()
     target_link_libraries(llava PRIVATE ggml llama)

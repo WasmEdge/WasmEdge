@@ -6,5 +6,14 @@
 #include "common/errcode.h"
 
 namespace WasmEdge {
-namespace Host {} // namespace Host
+namespace Host {
+
+Expect<List<Tuple<GetDirectories::Descriptor, std::string>>>
+GetDirectories::body() {
+  List<Tuple<Descriptor, std::string>> L{};
+
+  return L;
+}
+
+} // namespace Host
 } // namespace WasmEdge

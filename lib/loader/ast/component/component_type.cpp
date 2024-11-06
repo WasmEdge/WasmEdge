@@ -115,7 +115,7 @@ Expect<void> Loader::loadType(VariantTy &Ty) {
 
 Expect<void> Loader::loadType(ListTy &Ty) { return loadType(Ty.getValType()); }
 
-Expect<void> Loader::loadType(Tuple &Ty) {
+Expect<void> Loader::loadType(TupleTy &Ty) {
   if (auto Res = loadVec<TypeSection>(
           Ty.getTypes(),
           [this](ValueType T) -> Expect<void> { return loadType(T); })) {
@@ -235,7 +235,8 @@ Expect<void> Loader::loadType(DefType &Ty) {
     }
     break;
   case 0x6f:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Tuple>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<TupleTy>());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }

@@ -577,6 +577,12 @@ template <typename T> struct Option : public ValComp {
 private:
   std::optional<T> Content;
 };
+struct Enum : public ValComp {
+  Enum() {}
+
+private:
+  std::vector<std::string> Labels;
+};
 
 using ValInterface = std::variant<
     // constant types in component types
@@ -764,6 +770,11 @@ template <typename... Types> struct Wit<Tuple<Types...>> {
 template <typename T> struct Wit<Option<T>> {
   static inline ValType type() noexcept {
     return InterfaceType(TypeCode::Option, {Wit<T>::type()});
+  }
+};
+template <> struct Wit<Enum> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::Enum, {});
   }
 };
 

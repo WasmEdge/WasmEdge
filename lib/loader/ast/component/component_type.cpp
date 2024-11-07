@@ -116,7 +116,7 @@ Expect<void> Loader::loadType(Flags &Ty) {
   return {};
 }
 
-Expect<void> Loader::loadType(Enum &Ty) {
+Expect<void> Loader::loadType(EnumTy &Ty) {
   return loadVec<TypeSection>(
       Ty.getLabels(), [this](std::string Label) { return loadLabel(Label); });
 }
@@ -190,7 +190,7 @@ Expect<void> Loader::loadType(DefType &Ty) {
                      .map_error(ReportError));
     break;
   case 0x6d:
-    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<Enum>())
+    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<EnumTy>())
                      .map_error(ReportError));
     break;
   case 0x6b:

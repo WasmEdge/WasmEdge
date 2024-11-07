@@ -1183,6 +1183,7 @@ T(String, 0x80, "string") // string type
 T(List, 0x81, "list")     // list type
 T(Bool, 0x82, "bool")     // bool type
 T(Tuple, 0x83, "tuple")   // tuple type
+T(Option, 0x84, "option") // option type
 
 #undef T
 #endif // UseTypeCode

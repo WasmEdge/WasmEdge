@@ -136,7 +136,7 @@ private:
   std::vector<std::string> Labels;
 };
 
-class Option {
+class OptionTy {
 public:
   const ValueType getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
@@ -177,7 +177,7 @@ private:
 };
 
 using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, TupleTy,
-                                Flags, Enum, Option, Result, Own, Borrow>;
+                                Flags, Enum, OptionTy, Result, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
 public:
@@ -477,7 +477,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), "enum"sv);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Option &Arg) {
+                [](const OptionTy &Arg) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "option<{}>"sv,
                                  Arg.getValType());

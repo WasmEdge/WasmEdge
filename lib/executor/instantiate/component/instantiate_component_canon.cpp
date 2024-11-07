@@ -28,8 +28,10 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
     case PrimValType::Bool:
     case PrimValType::Char:
     case PrimValType::S8:
-    case PrimValType::U8:
       Types.push_back(ValType(TypeCode::I8));
+      break;
+    case PrimValType::U8:
+      Types.push_back(ValType(TypeCode::U8));
       break;
     case PrimValType::S16:
     case PrimValType::U16:

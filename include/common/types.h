@@ -146,6 +146,10 @@ public:
       Inner.Data.Code = TypeCode::Tuple;
       Inner.Data.HTCode = C;
       break;
+    case TypeCode::Option:
+      Inner.Data.Code = TypeCode::Option;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::Ref:
     case TypeCode::RefNull:
       // Reference type with heap immediates should use the constructors below.
@@ -482,6 +486,13 @@ template <typename... Types> struct Tuple : public ValComp {
 private:
   std::tuple<Types...> Content;
 };
+template <typename T> struct Option : public ValComp {
+  Option() : Content{std::nullopt} {}
+  Option(T Arg) : Content(Arg) {}
+
+private:
+  std::optional<T> Content;
+};
 
 using ValInterface = std::variant<
     // constant types in component types
@@ -644,6 +655,11 @@ template <typename T> struct Wit<List<T>> {
 template <typename... Types> struct Wit<Tuple<Types...>> {
   static inline ValType type() noexcept {
     return InterfaceType(TypeCode::Tuple, {Wit<Types>::type()...});
+  }
+};
+template <typename T> struct Wit<Option<T>> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::Option, {Wit<T>::type()});
   }
 };
 

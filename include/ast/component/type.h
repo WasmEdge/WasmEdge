@@ -127,7 +127,7 @@ private:
   std::vector<std::string> Labels;
 };
 
-class Enum {
+class EnumTy {
 public:
   Span<const std::string> getLabels() const noexcept { return Labels; }
   std::vector<std::string> &getLabels() noexcept { return Labels; }
@@ -177,7 +177,7 @@ private:
 };
 
 using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, TupleTy,
-                                Flags, Enum, OptionTy, Result, Own, Borrow>;
+                                Flags, EnumTy, OptionTy, Result, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
 public:
@@ -472,7 +472,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), "flags"sv);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Enum &) {
+                [](const EnumTy &) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "enum"sv);
                   return std::string_view(Buffer.data(), Buffer.size());

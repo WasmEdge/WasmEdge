@@ -73,6 +73,12 @@ template <typename T> struct convert<Option<T>> {
     return *dynamic_cast<Option<T> *>(C);
   }
 };
+template <> struct convert<Enum> {
+  static Enum run(const ValInterface &V) {
+    auto *C = std::get<std::shared_ptr<ValComp>>(V).get();
+    return *dynamic_cast<Enum *>(C);
+  }
+};
 
 template <typename ArgT> struct emplace {
   static void run(ValInterface &V, ArgT Arg) {
@@ -109,6 +115,11 @@ template <typename... Types> struct emplace<Tuple<Types...>> {
 template <typename T> struct emplace<Option<T>> {
   static void run(ValInterface &V, Option<T> Arg) {
     V.emplace<std::shared_ptr<ValComp>>(std::make_shared<Option<T>>(Arg));
+  }
+};
+template <> struct emplace<Enum> {
+  static void run(ValInterface &V, Enum Arg) {
+    V.emplace<std::shared_ptr<ValComp>>(std::make_shared<Enum>(Arg));
   }
 };
 

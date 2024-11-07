@@ -143,7 +143,7 @@ Expect<void> Loader::loadType(Flags &Ty) {
   }
 }
 
-Expect<void> Loader::loadType(Enum &Ty) {
+Expect<void> Loader::loadType(EnumTy &Ty) {
   if (auto Res = loadVec<TypeSection>(
           Ty.getLabels(), [this](std::string Label) -> Expect<void> {
             return loadLabel(Label);
@@ -250,7 +250,7 @@ Expect<void> Loader::loadType(DefType &Ty) {
     }
     break;
   case 0x6d:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Enum>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<EnumTy>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }

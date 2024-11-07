@@ -146,19 +146,79 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   // Reference Instructions.
   case OpCode::Ref__null:
-    if (auto Res = serializeRefType(Instr.getValType(),
-                                    ASTNodeAttr::Instruction, OutVec);
+  case OpCode::Ref__test:
+  case OpCode::Ref__cast:
+  case OpCode::Ref__test_null:
+  case OpCode::Ref__cast_null:
+    if (auto Res = serializeHeapType(Instr.getValType(),
+                                     ASTNodeAttr::Instruction, OutVec);
         unlikely(!Res)) {
       return Unexpect(Res);
     }
     return {};
+  case OpCode::Ref__eq:
   case OpCode::Ref__is_null:
   case OpCode::Ref__as_non_null:
     return {};
   case OpCode::Ref__func:
+  case OpCode::Struct__new:
+  case OpCode::Struct__new_default:
+  case OpCode::Array__new:
+  case OpCode::Array__new_default:
+  case OpCode::Array__get:
+  case OpCode::Array__get_s:
+  case OpCode::Array__get_u:
+  case OpCode::Array__set:
+  case OpCode::Array__fill:
     serializeU32(Instr.getTargetIndex(), OutVec);
     return {};
-
+  case OpCode::Struct__get:
+  case OpCode::Struct__get_s:
+  case OpCode::Struct__get_u:
+  case OpCode::Struct__set:
+  case OpCode::Array__new_fixed:
+  case OpCode::Array__new_data:
+  case OpCode::Array__new_elem:
+  case OpCode::Array__copy:
+  case OpCode::Array__init_data:
+  case OpCode::Array__init_elem:
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    serializeU32(Instr.getSourceIndex(), OutVec);
+    return {};
+  case OpCode::Array__len:
+  case OpCode::Any__convert_extern:
+  case OpCode::Extern__convert_any:
+  case OpCode::Ref__i31:
+  case OpCode::I31__get_s:
+  case OpCode::I31__get_u:
+    return {};
+  case OpCode::Br_on_cast:
+  case OpCode::Br_on_cast_fail: {
+    // Flag
+    uint8_t Flags = 0U;
+    if (Instr.getBrCast().RType1.isNullableRefType()) {
+      Flags |= 0x01U;
+    }
+    if (Instr.getBrCast().RType2.isNullableRefType()) {
+      Flags |= 0x02U;
+    }
+    OutVec.push_back(Flags);
+    // LabelIdx
+    serializeU32(Instr.getBrCast().Jump.TargetIndex, OutVec);
+    // First RefType
+    if (auto Res = serializeHeapType(Instr.getBrCast().RType1,
+                                     ASTNodeAttr::Instruction, OutVec);
+        unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    // Second RefType.
+    if (auto Res = serializeHeapType(Instr.getBrCast().RType2,
+                                     ASTNodeAttr::Instruction, OutVec);
+        unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    return {};
+  }
   // Parametric Instructions.
   case OpCode::Drop:
   case OpCode::Select:

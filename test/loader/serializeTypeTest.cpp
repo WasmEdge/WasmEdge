@@ -276,7 +276,7 @@ TEST(serializeTypeTest, SerializeGlobalType) {
       SerNoRefType.serializeSection(createGlobalSec(GlobalType), Output));
 }
 
-TEST(serializeTypeTest, SerializeFuncRefType) {
+TEST(serializeTypeTest, SerializeValType) {
   std::vector<uint8_t> Output;
   std::vector<uint8_t> Expected;
 
@@ -287,6 +287,18 @@ TEST(serializeTypeTest, SerializeFuncRefType) {
   //   3. Test Ref heap type.
   //   4. Test RefNull heap type.
   //   5. Test TypeIndex 5 heap type.
+  //   6. Test NullFuncRef type.
+  //   7. Test NullExternRef type.
+  //   8. Test NullRef type.
+  //   9. Test AnyRef type.
+  //  10. Test EqRef type.
+  //  11. Test I31Ref type.
+  //  12. Test StructRef type.
+  //  13. Test ArrayRef type.
+  //  14. Test them as RefTypes
+  //  15. Test I8 storage type.
+  //  16. Test I16 storage type.
+  //  17. Test I16 storage type without the GC proposal.
 
   WasmEdge::AST::GlobalType GlobalType;
   GlobalType.setValType(WasmEdge::TypeCode::FuncRef);
@@ -359,6 +371,191 @@ TEST(serializeTypeTest, SerializeFuncRefType) {
       0x00U, // Second byte reserved for future extensions
       0x0BU  // Expression End
   };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  GlobalType.setValType(WasmEdge::TypeCode::NullFuncRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected = {
+      0x06U, // Global section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x73U, // NullFuncRef type
+      0x00U, // Const mutation
+      0x0BU  // Expression
+  };
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::NullExternRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected[3] = 0x72U; // Opcode NullExternRef
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::NullRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected[3] = 0x71U; // Opcode NullRef
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::AnyRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected[3] = 0x6EU; // Opcode AnyRef
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::EqRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected[3] = 0x6DU; // Opcode EqRef
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::I31Ref);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected[3] = 0x6CU; // Opcode I31Ref
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::StructRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected[3] = 0x6BU; // Opcode StructRef
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::ArrayRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected[3] = 0x6AU; // Opcode ArrayRef
+  EXPECT_EQ(Output, Expected);
+
+  // Test without GC proposal
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+
+  // Tests for the previous types as RefTypes
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  WasmEdge::AST::TableType TableType;
+  TableType.setRefType(WasmEdge::TypeCode::NullFuncRef);
+  TableType.getLimit().setMin(4294967295);
+  TableType.getLimit().setType(WasmEdge::AST::Limit::LimitType::HasMin);
+
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected = {
+      0x04U,                            // Table section
+      0x08U,                            // Content size = 8
+      0x01U,                            // Vector length = 1
+      0x73U,                            // NullFuncRef type
+      0x00U,                            // Only has min
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Min = 4294967295
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::NullExternRef);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x72U; // NullExternRef type
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::NullRef);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x71U; // NullRef type
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::FuncRef);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x70U; // FuncRef type
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::ExternRef);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x6FU; // ExternRef type
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::AnyRef);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x6EU; // AnyRef type
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::EqRef);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x6DU; // EqRef type
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::I31Ref);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x6CU; // I31Ref type
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::StructRef);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x6BU; // StructRef type
+
+  Output = {};
+  TableType.setRefType(WasmEdge::TypeCode::ArrayRef);
+  EXPECT_TRUE(Ser.serializeSection(createTableSec(TableType), Output));
+  Expected[3] = 0x6AU; // ArrayRef type
+
+  // Test Without GC proposal
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createTableSec(TableType), Output));
+
+  // Test I8 and I16 types
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  GlobalType.setValType(WasmEdge::TypeCode::I8);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected = {
+      0x06U, // Global section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x78U, // I8 type
+      0x00U, // Const mutation
+      0x0BU  // Expression
+  };
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::TypeCode::I16);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected[3] = 0x77U; // Opcode I16
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  GlobalType.setValType(WasmEdge::ValType(WasmEdge::TypeCode::Ref,
+                                          WasmEdge::TypeCode::StructRef));
+  Expected = {
+      0x06U, // Global section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x64U, // Ref type
+      0x6BU, // StructRef type
+      0x00U, // Const mutation
+      0x0BU  // Expression
+  };
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  EXPECT_EQ(Output, Expected);
+
+  GlobalType.setValType(WasmEdge::ValType(WasmEdge::TypeCode::RefNull,
+                                          WasmEdge::TypeCode::StructRef));
+  Output = {};
+  Expected = {
+      0x06U, // Global section
+      0x04U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x6BU, // StructRef type
+      0x00U, // Const mutation
+      0x0BU  // Expression
+  };
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
   EXPECT_EQ(Output, Expected);
 }
 } // namespace

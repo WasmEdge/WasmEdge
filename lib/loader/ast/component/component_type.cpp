@@ -154,7 +154,9 @@ Expect<void> Loader::loadType(Enum &Ty) {
   }
 }
 
-Expect<void> Loader::loadType(Option &Ty) { return loadType(Ty.getValType()); }
+Expect<void> Loader::loadType(OptionTy &Ty) {
+  return loadType(Ty.getValType());
+}
 
 Expect<void> Loader::loadType(Result &Ty) {
   if (auto Res = loadOption<ValueType>(
@@ -254,7 +256,8 @@ Expect<void> Loader::loadType(DefType &Ty) {
     }
     break;
   case 0x6b:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Option>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<OptionTy>());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }

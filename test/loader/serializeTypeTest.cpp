@@ -19,6 +19,13 @@ createTypeSec(const WasmEdge::AST::FunctionType &FuncType) {
   return TypeSec;
 }
 
+WasmEdge::AST::TypeSection
+createTypeSec(const WasmEdge::AST::SubType &SubType) {
+  WasmEdge::AST::TypeSection TypeSec;
+  TypeSec.getContent() = {SubType};
+  return TypeSec;
+}
+
 WasmEdge::AST::TableSection
 createTableSec(const WasmEdge::AST::TableType &TableType) {
   WasmEdge::AST::TableSection TableSec;
@@ -558,4 +565,165 @@ TEST(serializeTypeTest, SerializeValType) {
   EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
   EXPECT_EQ(Output, Expected);
 }
+
+TEST(serializeTypeTest, SerializeSubType) {
+  std::vector<uint8_t> Output;
+  std::vector<uint8_t> Expected;
+
+  // 6. Test serialize SubType, CompositeType, RecuresiveType, and FieldTypes.
+  //
+  //   1. Test SubType (and CompositeType too) with final flag.
+  //   2. Test SubType (CompositeType, and FieldType too) with final flag.
+  //   3. Test SubType (CompositeType, and FieldType too) without final flag.
+  //   4. Test RecType (RecType ::= 0x4E vector(subtype)).
+  //   5. Test RecType without GC proposal.
+
+  WasmEdge::AST::SubType SubType;
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  SubType.getCompositeType() =
+      WasmEdge::AST::CompositeType(WasmEdge::AST::FunctionType());
+  SubType.getSuperTypeIndices() = {0x01U, 0x02U, 0x03U};
+  SubType.setFinal(true);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createTypeSec(SubType), Output));
+  Expected = {
+      0x01U,               // Type section
+      0x09U,               // Content size
+      0x01U,               // Vector length
+      0x4FU,               // SubFinal type
+      0x03U,               // TypeIdx Vector size
+      0x01U, 0x02U, 0x03U, // TypeIdx vector
+      0x60U,               // FuncType header
+      0x00U,               // Param length
+      0x00U                // Result length
+  };
+  EXPECT_EQ(Output, Expected);
+
+  WasmEdge::AST::FieldType FType;
+  FType.setStorageType(WasmEdge::TypeCode::I8);
+  FType.setValMut(WasmEdge::ValMut::Const);
+  WasmEdge::AST::CompositeType CompType;
+  CompType.setArrayType(std::move(FType));
+  Output = {};
+  WasmEdge::AST::SubType SubType1;
+  SubType1.getCompositeType() = CompType;
+  EXPECT_TRUE(Ser.serializeSection(createTypeSec(SubType1), Output));
+  Expected = {
+      0x01U, // Type section
+      0x04U, // Content size
+      0x01U, // Vector length
+      0x5EU, // Array type
+      0x78U, // I8 type
+      0x00U  // Const mutation
+  };
+  EXPECT_EQ(Output, Expected);
+
+  WasmEdge::AST::SubType SubType2;
+  SubType2.getCompositeType() = CompType;
+  SubType2.getSuperTypeIndices() = {0x01U, 0x02U, 0x03U};
+  SubType2.setFinal(false);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createTypeSec(SubType2), Output));
+  Expected = {
+      0x01U,               // Type section
+      0x09U,               // Content size
+      0x01U,               // Vector length
+      0x50U,               // Sub type
+      0x03U,               // TypeIdx Vector size
+      0x01U, 0x02U, 0x03U, // TypeIdx vector
+      0x5EU,               // Array type
+      0x78U,               // I8 type
+      0x00U                // Const mutation
+  };
+  EXPECT_EQ(Output, Expected);
+
+  WasmEdge::AST::TypeSection TypeSec;
+  SubType1.setRecursiveInfo(0x00U, 0x01U);
+  SubType2.setRecursiveInfo(0x00U, 0x01U);
+  TypeSec.getContent() = {SubType1, SubType2};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(TypeSec, Output));
+  Expected = {
+      0x01U,               // Type section
+      0x10U,               // Content size = 16
+      0x02U,               // Vector length
+      0x4EU,               // Rec type
+      0x01U,               // Vector length
+      0x5EU,               // Array type
+      0x78U,               // I8 type
+      0x00U,               // Const mutation
+      0x4EU,               // Rec type
+      0x01U,               // Vector length
+      0x50U,               // Sub type
+      0x03U,               // TypeIdx Vector size
+      0x01U, 0x02U, 0x03U, // TypeIdx vector
+      0x5EU,               // Array type
+      0x78U,               // I8 type
+      0x00U                // Const mutation
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(TypeSec, Output));
+}
+
+TEST(serializeTypeTest, SerializeCompositeType) {
+  std::vector<uint8_t> Output;
+  std::vector<uint8_t> Expected;
+
+  //  7. Test Composite Types
+  //
+  //    1. Test CompositeType (Array).
+  //    2. Test CompositeType (Array) without GC proposal.
+  //    3. Test CompositeType (Struct).
+  //    4. Test CompositeType (Struct) without GC proposal.
+
+  WasmEdge::AST::SubType SubType;
+  WasmEdge::AST::FieldType FType;
+  WasmEdge::AST::CompositeType CompType;
+  Conf.addProposal(WasmEdge::Proposal::GC);
+
+  FType.setStorageType(WasmEdge::TypeCode::I8);
+  FType.setValMut(WasmEdge::ValMut::Const);
+  CompType.setArrayType(std::move(FType));
+  Output = {};
+  SubType.getCompositeType() = CompType;
+  EXPECT_TRUE(Ser.serializeSection(createTypeSec(SubType), Output));
+  Expected = {
+      0x01U, // Type section
+      0x04U, // Content size
+      0x01U, // Vector length
+      0x5EU, // Array type
+      0x78U, // I8 type
+      0x00U  // Const mutation
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createTypeSec(SubType), Output));
+
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  CompType.setStructType({FType, FType, FType});
+  SubType.getCompositeType() = CompType;
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createTypeSec(SubType), Output));
+  Expected = {
+      0x01U,        // Type section
+      0x09U,        // Content size
+      0x01U,        // Vector length
+      0x5FU,        // Struct type
+      0x03U,        // Vector length
+      0x78U, 0x00U, // First Field Type (I8 Const mutation)
+      0x78U, 0x00U, // Second Field Type (I8 Const mutation)
+      0x78U, 0x00U  // Third Field Type (I8 Const mutation)
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::GC);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createTypeSec(SubType), Output));
+}
+
 } // namespace

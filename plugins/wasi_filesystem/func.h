@@ -47,14 +47,6 @@ public:
   Expect<void> body() { return {}; }
 };
 
-class DropDescriptor : public WasiFilesystem<DropDescriptor> {
-public:
-  DropDescriptor(WasiFilesystemEnvironment &HostEnv)
-      : WasiFilesystem(HostEnv) {}
-  // TODO
-  Expect<void> body() { return {}; }
-};
-
 class FilesystemErrorCode : public WasiFilesystem<FilesystemErrorCode> {
 public:
   FilesystemErrorCode(WasiFilesystemEnvironment &HostEnv)

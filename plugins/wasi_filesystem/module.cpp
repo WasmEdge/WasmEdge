@@ -26,8 +26,6 @@ TypesModule::TypesModule() : ComponentInstance("wasi:filesystem/types@0.2.0") {
               std::make_unique<Descriptor_GetType>(Env));
   addHostFunc("[method]descriptor.stat",
               std::make_unique<Descriptor_Stat>(Env));
-  addHostFunc("[resource-drop]descriptor",
-              std::make_unique<DropDescriptor>(Env));
 
   addHostFunc("filesystem-error-code",
               std::make_unique<FilesystemErrorCode>(Env));

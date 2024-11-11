@@ -125,7 +125,7 @@ Expect<void> Loader::loadType(OptionTy &Ty) {
   return loadType(Ty.getValType());
 }
 
-Expect<void> Loader::loadType(Result &Ty) {
+Expect<void> Loader::loadType(ResultTy &Ty) {
   EXPECTED_TRY(Ty.getValType(), loadOption<ValueType>([this](ValueType VTy) {
                  return loadType(VTy);
                }));
@@ -198,7 +198,7 @@ Expect<void> Loader::loadType(DefType &Ty) {
                      .map_error(ReportError));
     break;
   case 0x6a:
-    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<Result>())
+    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<ResulTy>())
                      .map_error(ReportError));
     break;
   case 0x69:

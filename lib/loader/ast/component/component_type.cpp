@@ -158,7 +158,7 @@ Expect<void> Loader::loadType(OptionTy &Ty) {
   return loadType(Ty.getValType());
 }
 
-Expect<void> Loader::loadType(Result &Ty) {
+Expect<void> Loader::loadType(ResultTy &Ty) {
   if (auto Res = loadOption<ValueType>(
           [this](ValueType VTy) -> Expect<void> { return loadType(VTy); })) {
     Ty.getValType() = *Res;
@@ -263,7 +263,8 @@ Expect<void> Loader::loadType(DefType &Ty) {
     }
     break;
   case 0x6a:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Result>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<ResultTy>());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }

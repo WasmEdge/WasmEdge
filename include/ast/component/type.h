@@ -145,7 +145,7 @@ private:
   ValueType ValTy;
 };
 
-class Result {
+class ResultTy {
 public:
   const std::optional<ValueType> getValType() const noexcept { return ValTy; }
   std::optional<ValueType> &getValType() noexcept { return ValTy; }
@@ -177,7 +177,7 @@ private:
 };
 
 using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, TupleTy,
-                                Flags, EnumTy, OptionTy, Result, Own, Borrow>;
+                                Flags, EnumTy, OptionTy, ResultTy, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
 public:
@@ -483,7 +483,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                                  Arg.getValType());
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Result &Arg) {
+                [](const ResultTy &Arg) {
                   fmt::memory_buffer Buffer;
                   if (Arg.getValType().has_value()) {
                     fmt::format_to(std::back_inserter(Buffer), "result<{}>"sv,

@@ -1185,6 +1185,7 @@ T(Bool, 0x82, "bool")     // bool type
 T(Tuple, 0x83, "tuple")   // tuple type
 T(Option, 0x84, "option") // option type
 T(Enum, 0x85, "enum")     // enum type
+T(Result, 0x86, "result") // result type
 
 #undef T
 #endif // UseTypeCode

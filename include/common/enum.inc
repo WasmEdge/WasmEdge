@@ -1077,6 +1077,8 @@ E(MalformedName, 0x050B, "malformed name")
 // Component model instantiation phase
 // @{
 E(CoreInvalidExport, 0x0600, "invalid export in core module")
+E(ResourceDropArgument, 0x0601,
+  "invalid argument been used to invoke resource.drop")
 // @}
 
 #undef E

@@ -35,7 +35,7 @@ Expect<std::string> InitialCwd::body() {
   return std::move(S);
 }
 
-Expect<void> Exit::body() {
+Expect<void> Exit::body(uint32_t) {
   exit(0);
   return {};
 }

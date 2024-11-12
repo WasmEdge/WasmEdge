@@ -170,9 +170,8 @@ Executor::lifting(Runtime::Instance::ComponentInstance &Comp,
                   const FuncType &FuncType, Instance::FunctionInstance *Func,
                   Instance::MemoryInstance *Memory,
                   Instance::FunctionInstance *Realloc) {
-  auto R = std::make_unique<Instance::Component::FunctionInstance>(
+  return std::make_unique<Instance::Component::FunctionInstance>(
       std::make_unique<LiftTrans>(this, FuncType, Func, Memory, Realloc, Comp));
-  return R;
 }
 
 class LowerTrans : public HostFunctionBase {
@@ -284,9 +283,78 @@ std::unique_ptr<Instance::FunctionInstance>
 Executor::lowering(Instance::Component::FunctionInstance *Func,
                    Instance::MemoryInstance *Memory,
                    Instance::FunctionInstance *Realloc) {
-  auto R = std::make_unique<Instance::FunctionInstance>(
+  return std::make_unique<Instance::FunctionInstance>(
       std::make_unique<LowerTrans>(this, Func, Memory, Realloc));
-  return R;
+}
+
+class ResourceDropHostFunction
+    : public WasmEdge::Runtime::Component::HostFunctionBase {
+public:
+  ResourceDropHostFunction(Executor *E, uint32_t Idx,
+                           AST::Component::ResourceType &RT,
+                           Runtime::Instance::ComponentInstance &C)
+      : Exec{E}, TypIdx{Idx}, RTyp{RT}, Comp{C} {}
+
+  // NOTE: resource destructor only use type `i32`
+  // 1. at sync mode: [i32] -> []
+  // 2. at async mode: [i32] -> [i32]
+  // so it's fine to work with lowering without `Memory` and `Realloc`
+  Expect<void> run(Span<const ValInterface> Args,
+                   Span<ValInterface> /* Rets */) {
+    if (Args.size() != 1 || !std::holds_alternative<ValVariant>(Args[0])) {
+      spdlog::info("bad argument");
+      return Unexpect(ErrCode::Value::ResourceDropArgument);
+    }
+
+    auto ResourceIdx = std::get<ValVariant>(Args[0]).get<uint32_t>();
+
+    std::shared_ptr<Runtime::Instance::ResourceHandle> Handle =
+        Comp.removeResource(TypIdx, ResourceIdx);
+    if (Handle->isOwn()) {
+      // TODO: assert borrowScope is None
+      // TODO: trap lendCount != 0
+
+      // TODO: Comp is RTyp.impl
+      if (true) {
+        if (*RTyp.getDestructor()) {
+          auto Idx = *RTyp.getDestructor();
+          auto F = Comp.getFunctionInstance(Idx);
+          auto Arg = ValInterface(ValVariant(Handle->getRep()));
+          Exec->invoke(F, {Arg}, {ValType(TypeCode::I32)});
+        }
+      } else {
+        if (*RTyp.getDestructor()) {
+          // TODO
+          // caller_opts = CanonicalOptions(sync = sync)
+          // callee_opts = CanonicalOptions(sync = rt.dtor_sync, callback =
+          // rt.dtor_callback)
+          // ft = FuncType([U32Type()],[])
+          // callee = partial(canon_lift, callee_opts, rt.impl, ft, rt.dtor)
+          // flat_results = await canon_lower(caller_opts, ft, callee, task,
+          // [h.rep])
+        } else {
+          // task.trap_if_on_the_stack(rt.impl)
+        }
+      }
+    } else {
+      // TODO: Handle.borrowScope.todo -= 1
+    }
+
+    return {};
+  }
+
+private:
+  Executor *Exec;
+  uint32_t TypIdx;
+  AST::Component::ResourceType &RTyp;
+  Runtime::Instance::ComponentInstance &Comp;
+};
+
+std::unique_ptr<Instance::Component::FunctionInstance>
+Executor::resourceDrop(uint32_t TypIdx, AST::Component::ResourceType &RTyp,
+                       Runtime::Instance::ComponentInstance &CompInst) {
+  return std::make_unique<Instance::Component::FunctionInstance>(
+      std::make_unique<ResourceDropHostFunction>(this, TypIdx, RTyp, CompInst));
 }
 
 class CanonOptionVisitor {
@@ -421,18 +489,10 @@ public:
     }
 
     auto RTyp = std::get<ResourceType>(Typ);
-    auto Dtor = RTyp.getDestructor();
-    if (Dtor.has_value()) {
-      auto FIdx = *Dtor;
-      auto F = CompInst.getFunctionInstance(FIdx);
-
-      // NOTE: resource destructor only use type `i32`
-      // 1. at sync mode: [i32] -> []
-      // 2. at async mode: [i32] -> [i32]
-      // so it's fine to work with lowering without `Memory` and `Realloc`
-      CompInst.addCoreFunctionInstance(
-          ThisExecutor.lowering(F, nullptr, nullptr));
-    }
+    auto Drop = ThisExecutor.resourceDrop(TypIdx, RTyp, CompInst);
+    Instance::Component::FunctionInstance *F = Drop.get();
+    CompInst.addCoreFunctionInstance(
+        ThisExecutor.lowering(F, nullptr, nullptr));
 
     return {};
   }

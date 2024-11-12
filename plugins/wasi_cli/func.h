@@ -33,7 +33,7 @@ public:
   Exit(WasiCliEnvironment &HostEnv) : WasiCli(HostEnv) {}
   // TODO
   // exit: func(status: result);
-  Expect<void> body();
+  Expect<void> body(uint32_t Status);
 };
 class ExitWithCode : public WasiCli<ExitWithCode> {
 public:
@@ -48,8 +48,7 @@ public:
   // TODO
   // 1. use wasi:io/streams@0.2.2.{input-stream};
   // 2. get-stdin: func() -> input-stream;
-  Expect<void> body() { return {}; }
-  // The problem here is, how to use a type that belongs to another plugin?
+  Expect<uint32_t> body() { return 0; }
 };
 
 class GetStdout : public WasiCli<GetStdout> {
@@ -58,7 +57,7 @@ public:
   // TODO
   // 1. use wasi:io/streams@0.2.2.{output-stream};
   // 2. get-stdout: func() -> output-stream;
-  Expect<void> body() { return {}; }
+  Expect<uint32_t> body() { return 1; }
 };
 
 class GetStderr : public WasiCli<GetStderr> {
@@ -67,7 +66,7 @@ public:
   // TODO
   // 1. use wasi:io/streams@0.2.2.{output-stream};
   // 2. get-stderr: func() -> output-stream;
-  Expect<void> body() { return {}; }
+  Expect<uint32_t> body() { return 2; }
 };
 
 } // namespace Host

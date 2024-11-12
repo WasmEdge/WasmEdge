@@ -293,12 +293,17 @@ public:
   ResourceDropHostFunction(Executor *E, uint32_t Idx,
                            AST::Component::ResourceType &RT,
                            Runtime::Instance::ComponentInstance &C)
-      : Exec{E}, TypIdx{Idx}, RTyp{RT}, Comp{C} {}
+      : Exec{E}, TypIdx{Idx}, RTyp{RT}, Comp{C} {
+    std::vector<ValType> ParamTypes{ValType(TypeCode::I32)};
+    // NOTE: resource destructor only use type `i32`
+    // 1. at sync mode: [i32] -> []
+    // 2. at async mode: [i32] -> [i32]
+    // for now, we ignore async case, to simplify our program here, but at
+    // future shall make a full concept supportings.
+    std::vector<ValType> ResultTypes{};
+    FuncType = AST::FunctionType(ParamTypes, ResultTypes);
+  }
 
-  // NOTE: resource destructor only use type `i32`
-  // 1. at sync mode: [i32] -> []
-  // 2. at async mode: [i32] -> [i32]
-  // so it's fine to work with lowering without `Memory` and `Realloc`
   Expect<void> run(Span<const ValInterface> Args,
                    Span<ValInterface> /* Rets */) {
     if (Args.size() != 1 || !std::holds_alternative<ValVariant>(Args[0])) {

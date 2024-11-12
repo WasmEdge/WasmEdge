@@ -21,6 +21,7 @@
 #include "runtime/component/hostfunc.h"
 #include "runtime/instance/component/function.h"
 #include "runtime/instance/module.h"
+#include "runtime/instance/resource.h"
 
 #include <atomic>
 #include <functional>
@@ -263,6 +264,14 @@ public:
     return Types[Idx];
   }
 
+  std::shared_ptr<ResourceHandle> removeResource(uint32_t ResourceTypeIndex,
+                                                 uint32_t HandleIndex) {
+    auto ResourceMap = Resources[ResourceTypeIndex];
+    auto Handle = std::move(ResourceMap[HandleIndex]);
+    ResourceMap.erase(HandleIndex);
+    return Handle;
+  }
+
 private:
   void unsafeAddHostFunc(
       std::string_view Name,
@@ -302,6 +311,9 @@ private:
 
   std::map<std::string, AST::Component::DefType, std::less<>> ExportTypesMap;
   std::vector<AST::Component::DefType> Types;
+
+  std::map<uint32_t, std::map<uint32_t, std::shared_ptr<ResourceHandle>>>
+      Resources;
 
   // core memory, this is prepared for canonical ABI
   //

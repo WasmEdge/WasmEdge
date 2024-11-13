@@ -380,7 +380,19 @@ public:
     Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
     for (auto &Opt : Opts) {
       if (std::holds_alternative<StringEncoding>(Opt)) {
-        spdlog::warn("incomplete canonical option `string-encoding`"sv);
+        switch (std::get<StringEncoding>(Opt)) {
+        case StringEncoding::UTF8:
+          spdlog::warn("ignore utf8");
+          break;
+        case StringEncoding::UTF16:
+          spdlog::warn("ignore utf16");
+          break;
+        case StringEncoding::Latin1:
+          spdlog::warn("ignore latin1");
+          break;
+        default:
+          assumingUnreachable();
+        }
       } else if (std::holds_alternative<Memory>(Opt)) {
         auto MemIdx = std::get<Memory>(Opt).getMemIndex();
         Mem = CompInst.getCoreMemoryInstance(MemIdx);
@@ -418,8 +430,19 @@ public:
     const auto &Opts = L.getOptions();
     for (auto &Opt : Opts) {
       if (std::holds_alternative<StringEncoding>(Opt)) {
-        spdlog::warn("incomplete canonical option `string-encoding`"sv);
-        return Unexpect(ErrCode::Value::InvalidCanonOption);
+        switch (std::get<StringEncoding>(Opt)) {
+        case StringEncoding::UTF8:
+          spdlog::warn("ignore utf8");
+          break;
+        case StringEncoding::UTF16:
+          spdlog::warn("ignore utf16");
+          break;
+        case StringEncoding::Latin1:
+          spdlog::warn("ignore latin1");
+          break;
+        default:
+          assumingUnreachable();
+        }
       } else if (std::holds_alternative<Memory>(Opt)) {
         auto MemIdx = std::get<Memory>(Opt).getMemIndex();
         Mem = CompInst.getCoreMemoryInstance(MemIdx);

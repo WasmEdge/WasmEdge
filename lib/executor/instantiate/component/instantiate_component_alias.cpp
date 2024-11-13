@@ -36,9 +36,16 @@ Executor::instantiate(Runtime::StoreManager &,
           CompInst.addCoreFunctionInstance(FuncInst);
           break;
         }
-        case CoreSort::Table:
-          spdlog::warn("incomplete core alias sort: table"sv);
+        case CoreSort::Table: {
+          auto *TableInst = ModInst->getTableExports(
+              [&](const std::map<std::string,
+                                 Runtime::Instance::TableInstance *,
+                                 std::less<>> &Map) {
+                return ModInst->unsafeFindExports(Map, Exp.getName());
+              });
+          CompInst.addCoreTableInstance(TableInst);
           break;
+        }
         case CoreSort::Memory: {
           auto *MemInst = ModInst->getMemoryExports(
               [&](const std::map<std::string,

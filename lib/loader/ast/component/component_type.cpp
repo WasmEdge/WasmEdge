@@ -61,7 +61,7 @@ Expect<void> Loader::loadType(LabelValType &Ty) {
   return loadType(Ty.getValType());
 }
 
-Expect<void> Loader::loadType(Record &RecTy) {
+Expect<void> Loader::loadType(RecordTy &RecTy) {
   // syntax:
   //     lt*:vec(<labelvaltype>)
   //
@@ -170,7 +170,7 @@ Expect<void> Loader::loadType(DefType &Ty) {
         static_cast<PrimValType>(Tag));
     break;
   case 0x72:
-    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<Record>())
+    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<RecordTy>())
                      .map_error(ReportError));
     break;
   case 0x71:

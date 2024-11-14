@@ -11,11 +11,11 @@ namespace Host {
 
 using namespace AST::Component;
 
-class Datetime : public Record {
+class Datetime : public RecordTy {
 public:
   Datetime()
-      : Record({LabelValType("seconds", PrimValType::U64),
-                LabelValType("nanoseconds", PrimValType::U32)}) {}
+      : RecordTy({LabelValType("seconds", PrimValType::U64),
+                  LabelValType("nanoseconds", PrimValType::U32)}) {}
 };
 
 WallClockModule::WallClockModule()

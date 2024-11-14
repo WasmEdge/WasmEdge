@@ -138,6 +138,10 @@ public:
       Inner.Data.Code = TypeCode::String;
       Inner.Data.HTCode = C;
       break;
+    case TypeCode::Record:
+      Inner.Data.Code = TypeCode::Record;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::List:
       Inner.Data.Code = TypeCode::List;
       Inner.Data.HTCode = C;
@@ -486,7 +490,12 @@ template <typename T> struct List : public ValComp {
 private:
   std::vector<T> Content;
 };
-// TODO: add Record<Ts ...> : public ValComp
+template <typename... Types> class Record : public ValComp {
+  Record(Types &&...Args) : Content(std::forward<Types>(Args)...) {}
+
+private:
+  std::tuple<Types...> Content;
+};
 template <typename... Types> struct Tuple : public ValComp {
   Tuple(Types &&...Args)
       : Content(std::make_tuple(std::forward<Types>(Args)...)) {}
@@ -669,6 +678,11 @@ template <> struct Wit<uint8_t> {
 template <> struct Wit<std::string> {
   static inline ValType type() noexcept {
     return InterfaceType(TypeCode::String);
+  }
+};
+template <typename... Types> struct Wit<Record<Types...>> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::Record, {Wit<Types>::type()...});
   }
 };
 template <typename T> struct Wit<List<T>> {

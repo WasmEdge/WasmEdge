@@ -85,6 +85,27 @@ AST::FunctionType convert(Runtime::Instance::ComponentInstance &Comp,
 
   return AST::FunctionType(ParamTypes, ResultTypes);
 }
+
+void flattenType(std::vector<WasmEdge::ValType> &Output, const ValType &Ty) {
+  switch (Ty.getCode()) {
+  case TypeCode::String:
+    Output.push_back(TypeCode::I32);
+    Output.push_back(TypeCode::I32);
+    break;
+  case TypeCode::List: {
+    // TODO:
+    // if maybe_length is not None:
+    //     return flatten_type(elem_type) * maybe_length
+    Output.push_back(TypeCode::I32);
+    Output.push_back(TypeCode::I32);
+    break;
+  }
+  default:
+    Output.push_back(Ty);
+    break;
+  }
+}
+
 } // namespace
 
 class LiftTrans : public WasmEdge::Runtime::Component::HostFunctionBase {
@@ -181,34 +202,7 @@ public:
              Instance::FunctionInstance *Realloc)
       : HostFunctionBase(0), Exec(Exec), HigherFunc(Func), Memory(Memory),
         Realloc(Realloc) {
-    auto &HigherType = HigherFunc->getFuncType();
-
-    auto &FuncType = DefType.getCompositeType().getFuncType();
-    for (auto &ParamTy : HigherType.getParamTypes()) {
-      switch (ParamTy.getCode()) {
-      case TypeCode::String:
-        FuncType.getParamTypes().push_back(TypeCode::I32);
-        FuncType.getParamTypes().push_back(TypeCode::I32);
-        break;
-      default:
-        FuncType.getParamTypes().push_back(ParamTy);
-        break;
-      }
-    }
-
-    for (auto &ReturnTy : HigherType.getReturnTypes()) {
-      switch (ReturnTy.getCode()) {
-      case TypeCode::String:
-        FuncType.getReturnTypes().push_back(TypeCode::I32);
-        FuncType.getReturnTypes().push_back(TypeCode::I32);
-        break;
-      default:
-        FuncType.getReturnTypes().push_back(ReturnTy);
-        break;
-      }
-    }
-
-    spdlog::info("lower: {}"sv, FuncType);
+    flattenFunctype();
   }
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
@@ -269,6 +263,20 @@ public:
   }
 
 private:
+  void flattenFunctype() {
+    auto &HigherType = HigherFunc->getFuncType();
+
+    auto &FuncType = DefType.getCompositeType().getFuncType();
+    for (auto &ParamTy : HigherType.getParamTypes()) {
+      flattenType(FuncType.getParamTypes(), ParamTy);
+    }
+    for (auto &ReturnTy : HigherType.getReturnTypes()) {
+      flattenType(FuncType.getReturnTypes(), ReturnTy);
+    }
+
+    spdlog::info("lower: {}"sv, FuncType);
+  }
+
   Executor *Exec;
   /* HigherFunc: a component function we are wrapping
    */

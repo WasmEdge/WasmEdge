@@ -77,10 +77,10 @@ private:
   std::optional<ValueType> ValTy;
 };
 
-class Record {
+class RecordTy {
 public:
-  Record() {}
-  Record(std::initializer_list<LabelValType> I) : LabelTypes{I} {}
+  RecordTy() {}
+  RecordTy(std::initializer_list<LabelValType> I) : LabelTypes{I} {}
 
   Span<const LabelValType> getLabelTypes() const noexcept { return LabelTypes; }
   std::vector<LabelValType> &getLabelTypes() noexcept { return LabelTypes; }
@@ -176,8 +176,9 @@ private:
   TypeIndex Idx;
 };
 
-using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, TupleTy,
-                                Flags, EnumTy, OptionTy, ResultTy, Own, Borrow>;
+using DefValType =
+    std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, Flags,
+                 EnumTy, OptionTy, ResultTy, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
 public:
@@ -426,7 +427,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Record &Arg) {
+                [](const RecordTy &Arg) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "record <"sv);
                   for (const auto &LabelTyp : Arg.getLabelTypes()) {

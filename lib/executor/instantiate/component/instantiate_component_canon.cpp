@@ -100,6 +100,13 @@ void flattenType(std::vector<WasmEdge::ValType> &Output, const ValType &Ty) {
     Output.push_back(TypeCode::I32);
     break;
   }
+  case TypeCode::Record: {
+    auto R = static_cast<const InterfaceType &>(Ty);
+    for (auto FT : R.getArgs()) {
+      flattenType(Output, FT);
+    }
+    break;
+  }
   default:
     Output.push_back(Ty);
     break;

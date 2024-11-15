@@ -132,6 +132,13 @@ template <typename V, typename E> struct emplace<Result<V, E>> {
     Val.emplace<std::shared_ptr<ValComp>>(std::make_shared<Result<V, E>>(Arg));
   }
 };
+template <typename... Types>
+struct emplace<WasmEdge::Component::Variant<Types...>> {
+  static void run(ValInterface &V, WasmEdge::Component::Variant<Types...> Arg) {
+    V.emplace<std::shared_ptr<ValComp>>(
+        std::make_shared<WasmEdge::Component::Variant<Types...>>(Arg));
+  }
+};
 
 template <typename T> class HostFunction : public HostFunctionBase {
 public:

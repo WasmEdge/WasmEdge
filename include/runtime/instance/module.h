@@ -95,6 +95,22 @@ public:
 
   void *getHostData() const noexcept { return HostData; }
 
+  Span<const DataInstance *const> getOwnedDataInstances() const noexcept {
+    return DataInsts;
+  }
+
+  Span<const MemoryInstance *const> getMemoryInstances() const noexcept {
+    return MemInsts;
+  }
+
+  Span<const GlobalInstance *const> getGlobalInstances() const noexcept {
+    return GlobInsts;
+  }
+
+  Span<const FunctionInstance *const> getFunctionInstances() const noexcept {
+    return FuncInsts;
+  }
+
   /// Add exist instances and move ownership with exporting name.
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {

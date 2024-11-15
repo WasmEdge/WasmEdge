@@ -30,6 +30,7 @@ wasmedge_add_library(wasmedgeExecutor
   engine/engine.cpp
   helper.cpp
   executor.cpp
+  coredump.cpp
 )
 
 target_link_libraries(wasmedgeExecutor

@@ -145,6 +145,7 @@ ohos_static_library("wasmedgeExecutor") {
         "$WASMEDGE_ROOT_DIR/lib/executor/engine/engine.cpp",
         "$WASMEDGE_ROOT_DIR/lib/executor/helper.cpp",
         "$WASMEDGE_ROOT_DIR/lib/executor/executor.cpp",
+        "$WASMEDGE_ROOT_DIR/lib/executor/coredump.cpp",
     ]
     deps = [
         ":wasmedgeCommon",

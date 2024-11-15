@@ -41,8 +41,8 @@ void generateCoredump(const Runtime::StackManager &StackMgr) noexcept {
       createCorestack(StackMgr.getFramesSpan(), StackMgr.getValueSpan()));
   // Module.getDataSection() =
   //     createData(CurrentInstance->getOwnedDataInstances());
-  // Module.getCustomSections().emplace_back(createCoremodules());
-  // Module.getCustomSections().emplace_back(createCoreinstances());
+  Module.getCustomSections().emplace_back(createCoremodules());
+  Module.getCustomSections().emplace_back(createCoreinstances());
   Module.getMemorySection() =
       createMemory(CurrentInstance->getMemoryInstances());
   Module.getGlobalSection() =
@@ -150,15 +150,15 @@ createCorestack(Span<const Runtime::StackManager::Frame> Frames,
 
 AST::DataSection
 createData(Span<const Runtime::Instance::DataInstance *const> DataInstances) {
-  AST::DataSection Data;
+  AST::DataSection DataSec;
   AST::DataSegment Seg;
   auto &Content = Seg.getData();
   for (auto &Data : DataInstances) {
     Content.insert(Content.end(), Data->getData().begin(),
                    Data->getData().end());
   }
-  Data.getContent().push_back(Seg);
-  return Data;
+  DataSec.getContent().push_back(Seg);
+  return DataSec;
 }
 AST::GlobalSection createGlobals(
     Span<const Runtime::Instance::GlobalInstance *const> GlobalInstances) {

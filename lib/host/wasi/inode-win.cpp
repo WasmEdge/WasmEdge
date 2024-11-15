@@ -25,9 +25,6 @@ namespace WASI {
 
 namespace {
 
-inline void WASMEDGE_WINAPI_WINAPI_CC
-EmptyOverlappedCompletionRoutine(DWORD_, DWORD_, LPOVERLAPPED_) noexcept {}
-
 #if WINAPI_PARTITION_DESKTOP
 inline constexpr uint64_t combineHighLow(uint32_t HighPart,
                                          uint32_t LowPart) noexcept {
@@ -961,8 +958,8 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
     Query.Offset = LocalOffset.LowPart;
     Query.OffsetHigh = LocalOffset.HighPart;
     Query.hEvent = nullptr;
-    if (!ReadFileEx(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
-                    &Query, &EmptyOverlappedCompletionRoutine)) {
+    if (!ReadFile(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
+                  nullptr, &Query)) {
       if (unlikely(GetLastError() != ERROR_IO_PENDING_)) {
         Result = WasiUnexpect(detail::fromLastError(GetLastError()));
         Queries.resize(I);
@@ -1007,8 +1004,8 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
     Query.Offset = LocalOffset.LowPart;
     Query.OffsetHigh = LocalOffset.HighPart;
     Query.hEvent = nullptr;
-    if (!WriteFileEx(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
-                     &Query, &EmptyOverlappedCompletionRoutine)) {
+    if (!WriteFile(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
+                   nullptr, &Query)) {
       if (const auto Error = GetLastError();
           unlikely(Error != ERROR_IO_PENDING_ && Error != ERROR_HANDLE_EOF_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));
@@ -1058,8 +1055,8 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
     Query.Offset = LocalOffset.LowPart;
     Query.OffsetHigh = static_cast<DWORD_>(LocalOffset.HighPart);
     Query.hEvent = nullptr;
-    if (!ReadFileEx(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
-                    &Query, &EmptyOverlappedCompletionRoutine)) {
+    if (!ReadFile(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
+                  nullptr, &Query)) {
       if (unlikely(GetLastError() != ERROR_IO_PENDING_)) {
         Result = WasiUnexpect(detail::fromLastError(GetLastError()));
         Queries.resize(I);
@@ -1193,8 +1190,8 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
       Query.OffsetHigh = 0xFFFFFFFF;
     }
     Query.hEvent = nullptr;
-    if (!WriteFileEx(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
-                     &Query, &EmptyOverlappedCompletionRoutine)) {
+    if (!WriteFile(Handle, IOV.data(), static_cast<uint32_t>(IOV.size()),
+                   nullptr, &Query)) {
       if (const auto Error = GetLastError();
           unlikely(Error != ERROR_IO_PENDING_ && Error != ERROR_HANDLE_EOF_)) {
         Result = WasiUnexpect(detail::fromLastError(Error));

@@ -386,10 +386,6 @@ using OVERLAPPED_ = struct _OVERLAPPED {
 };
 using LPOVERLAPPED_ = OVERLAPPED_ *;
 
-using LPOVERLAPPED_COMPLETION_ROUTINE_ = VOID_(WASMEDGE_WINAPI_WINAPI_CC *)(
-    DWORD_ dwErrorCode, DWORD_ dwNumberOfBytesTransfered,
-    LPOVERLAPPED_ lpOverlapped) noexcept;
-
 using REPARSE_DATA_BUFFER_ = struct _REPARSE_DATA_BUFFER {
   ULONG_ ReparseTag;
   USHORT_ ReparseDataLength;
@@ -798,11 +794,11 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 QueryPerformanceFrequency(WasmEdge::winapi::LARGE_INTEGER_ *lpFrequency);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
-WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC ReadFileEx(
-    WasmEdge::winapi::HANDLE_ hFile, WasmEdge::winapi::LPVOID_ lpBuffer,
-    WasmEdge::winapi::DWORD_ nNumberOfBytesToRead,
-    WasmEdge::winapi::LPOVERLAPPED_ lpOverlapped,
-    WasmEdge::winapi::LPOVERLAPPED_COMPLETION_ROUTINE_ lpCompletionRoutine);
+WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+ReadFile(WasmEdge::winapi::HANDLE_ hFile, WasmEdge::winapi::LPVOID_ lpBuffer,
+         WasmEdge::winapi::DWORD_ nNumberOfBytesToRead,
+         WasmEdge::winapi::LPDWORD_ lpNumberOfBytesRead,
+         WasmEdge::winapi::LPOVERLAPPED_ lpOverlapped);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
 WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
@@ -845,11 +841,11 @@ int WASMEDGE_WINAPI_WINAPI_CC WideCharToMultiByte(
     WasmEdge::winapi::LPBOOL_ lpUsedDefaultChar);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
-WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC WriteFileEx(
-    WasmEdge::winapi::HANDLE_ hFile, WasmEdge::winapi::LPCVOID_ lpBuffer,
-    WasmEdge::winapi::DWORD_ nNumberOfBytesToWrite,
-    WasmEdge::winapi::LPOVERLAPPED_ lpOverlapped,
-    WasmEdge::winapi::LPOVERLAPPED_COMPLETION_ROUTINE_ lpCompletionRoutine);
+WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+WriteFile(WasmEdge::winapi::HANDLE_ hFile, WasmEdge::winapi::LPCVOID_ lpBuffer,
+          WasmEdge::winapi::DWORD_ nNumberOfBytesToWrite,
+          WasmEdge::winapi::LPDWORD_ lpNumberOfBytesWritten,
+          WasmEdge::winapi::LPOVERLAPPED_ lpOverlapped);
 
 #if WINAPI_PARTITION_DESKTOP
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
@@ -1051,7 +1047,7 @@ using ::GetSystemTimeAsFileTime;
 using ::MoveFileExW;
 using ::QueryPerformanceCounter;
 using ::QueryPerformanceFrequency;
-using ::ReadFileEx;
+using ::ReadFile;
 using ::RemoveDirectoryW;
 using ::SetEndOfFile;
 using ::SetFilePointerEx;
@@ -1060,7 +1056,7 @@ using ::SwitchToThread;
 using ::UnmapViewOfFile;
 using ::WaitForMultipleObjects;
 using ::WideCharToMultiByte;
-using ::WriteFileEx;
+using ::WriteFile;
 
 #if WINAPI_PARTITION_DESKTOP
 using ::CreateFileMappingW;

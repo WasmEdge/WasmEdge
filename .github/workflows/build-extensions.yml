@@ -75,10 +75,10 @@ jobs:
       matrix:
         include:
           - name: g++
-            docker_tag: ubuntu-22.04-build-gcc-plugins-deps
+            docker_tag: ubuntu-24.04-build-gcc-plugins-deps
             build_type: Release
           - name: clang++
-            docker_tag: ubuntu-22.04-build-clang-plugins-deps
+            docker_tag: ubuntu-24.04-build-clang-plugins-deps
             build_type: Release
     name: WASI-NN GGML RPC (${{ matrix.name }})
     runs-on: ubuntu-latest

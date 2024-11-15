@@ -162,6 +162,10 @@ public:
       Inner.Data.Code = TypeCode::Result;
       Inner.Data.HTCode = C;
       break;
+    case TypeCode::Variant:
+      Inner.Data.Code = TypeCode::Variant;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::Ref:
     case TypeCode::RefNull:
       // Reference type with heap immediates should use the constructors below.
@@ -506,6 +510,7 @@ private:
 template <typename T> struct Option : public ValComp {
   Option() : Content{std::nullopt} {}
   Option(T Arg) : Content(Arg) {}
+  Option(std::optional<T> Arg) : Content(Arg) {}
 
 private:
   std::optional<T> Content;
@@ -526,6 +531,17 @@ template <typename V, typename E> struct Result : public ValComp {
 private:
   std::variant<V, E> Content;
 };
+
+namespace Component {
+
+template <typename... Types> class Variant : public ValComp {
+  Variant(std::variant<Types...> V) : Content{V} {}
+
+private:
+  std::variant<Types...> Content;
+};
+
+} // namespace Component
 
 using ValInterface = std::variant<
     // constant types in component types
@@ -708,6 +724,11 @@ template <> struct Wit<Enum> {
 template <typename V, typename E> struct Wit<Result<V, E>> {
   static inline ValType type() noexcept {
     return InterfaceType(TypeCode::Result, {Wit<V>::type(), Wit<E>::type()});
+  }
+};
+template <typename... Types> struct Wit<Component::Variant<Types...>> {
+  static inline ValType type() noexcept {
+    return InterfaceType(TypeCode::Variant, {Wit<Types>::type()...});
   }
 };
 

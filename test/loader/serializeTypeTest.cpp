@@ -306,6 +306,8 @@ TEST(serializeTypeTest, SerializeValType) {
   //  15. Test I8 storage type.
   //  16. Test I16 storage type.
   //  17. Test I16 storage type without the GC proposal.
+  //  18. Test ExnRef type.
+  //  19. Test ExnRef type without the exception handling proposal.
 
   WasmEdge::AST::GlobalType GlobalType;
   GlobalType.setValType(WasmEdge::TypeCode::FuncRef);
@@ -556,7 +558,7 @@ TEST(serializeTypeTest, SerializeValType) {
   Output = {};
   Expected = {
       0x06U, // Global section
-      0x04U, // Content size = 5
+      0x04U, // Content size = 4
       0x01U, // Vector length = 1
       0x6BU, // StructRef type
       0x00U, // Const mutation
@@ -564,6 +566,24 @@ TEST(serializeTypeTest, SerializeValType) {
   };
   EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
   EXPECT_EQ(Output, Expected);
+
+  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
+  GlobalType.setValType(WasmEdge::TypeCode::ExnRef);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
+  Expected = {
+      0x06U, // Global section
+      0x04U, // Content size = 4
+      0x01U, // Vector length = 1
+      0x69U, // ExnRef type
+      0x00U, // Const mutation
+      0x0BU  // Expression
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createGlobalSec(GlobalType), Output));
 }
 
 TEST(serializeTypeTest, SerializeSubType) {

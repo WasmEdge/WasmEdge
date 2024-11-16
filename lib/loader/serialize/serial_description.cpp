@@ -38,6 +38,12 @@ Serializer::serializeDesc(const AST::ImportDesc &Desc,
                              ASTNodeAttr::Desc_Import);
     }
     return serializeType(Desc.getExternalGlobalType(), OutVec);
+  case ExternalType::Tag:
+    if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+      return logNeedProposal(ErrCode::Value::MalformedImportKind,
+                             Proposal::ExceptionHandling, ASTNodeAttr::Module);
+    }
+    return serializeType(Desc.getExternalTagType(), OutVec);
   default:
     return logSerializeError(ErrCode::Value::Unreachable,
                              ASTNodeAttr::Desc_Import);
@@ -56,6 +62,14 @@ Serializer::serializeDesc(const AST::ExportDesc &Desc,
                 Desc.getExternalName().end());
   // Export Desc: extern_type:byte + idx:u32.
   OutVec.push_back(static_cast<uint8_t>(Desc.getExternalType()));
+  // If the type is a Tag type, check for the exception handling proposal first.
+  if (Desc.getExternalType() == ExternalType::Tag) {
+    if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
+      return logNeedProposal(ErrCode::Value::MalformedExportKind,
+                             Proposal::ExceptionHandling, ASTNodeAttr::Module);
+    }
+    return serializeType(Desc.getExternalIndex(), OutVec);
+  }
   serializeU32(Desc.getExternalIndex(), OutVec);
   return {};
 }

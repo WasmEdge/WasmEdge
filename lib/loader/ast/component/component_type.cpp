@@ -488,7 +488,7 @@ Expect<void> Loader::loadImportName(std::string &Name) {
   if (auto Res = FMgr.readByte(); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
     return Unexpect(Res);
-  } else if (*Res != 0x01) {
+  } else if (*Res != 0x00) {
     return logLoadError(ErrCode::Value::MalformedName, FMgr.getLastOffset(),
                         ASTNodeAttr::Name);
   }

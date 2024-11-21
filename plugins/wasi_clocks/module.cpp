@@ -14,8 +14,8 @@ using namespace AST::Component;
 class Datetime : public RecordTy {
 public:
   Datetime()
-      : RecordTy({LabelValType("seconds", PrimValType::U64),
-                  LabelValType("nanoseconds", PrimValType::U32)}) {}
+      : RecordTy{LabelValType("seconds", PrimValType::U64),
+                 LabelValType("nanoseconds", PrimValType::U32)} {}
 };
 
 WallClockModule::WallClockModule()

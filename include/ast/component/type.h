@@ -435,6 +435,122 @@ struct fmt::formatter<WasmEdge::AST::Component::RecordTy>
 };
 
 template <>
+struct fmt::formatter<WasmEdge::AST::Component::VariantTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::VariantTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "variant <"sv);
+    for (const auto &Case : Type.getCases()) {
+      if (Case.getValType().has_value()) {
+        fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
+                       Case.getLabel(), Case.getValType().value());
+      } else {
+        fmt::format_to(std::back_inserter(Buffer), "| {} "sv, Case.getLabel());
+      }
+    }
+    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::ListTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ListTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "list<{}>"sv, Type.getValType());
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::TupleTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::TupleTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "tuple <"sv);
+    for (const auto &Ty : Type.getTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "| {} "sv, Ty);
+    }
+    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::OptionTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::OptionTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "option<{}>"sv,
+                   Type.getValType());
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::ResultTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ResultTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    if (Type.getValType().has_value()) {
+      fmt::format_to(std::back_inserter(Buffer), "result<{}"sv,
+                     Type.getValType().value());
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), "result<"sv);
+    }
+
+    if (Type.getErrorType().has_value()) {
+      auto E = Type.getErrorType().value();
+      fmt::format_to(std::back_inserter(Buffer), ", {}>"sv, E);
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), ">"sv);
+    }
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
 struct fmt::formatter<WasmEdge::AST::Component::DefValType>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
@@ -457,33 +573,17 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                 },
                 [](const VariantTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "variant <"sv);
-                  for (const auto &Case : Arg.getCases()) {
-                    if (Case.getValType().has_value()) {
-                      fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
-                                     Case.getLabel(),
-                                     Case.getValType().value());
-                    } else {
-                      fmt::format_to(std::back_inserter(Buffer), "| {} "sv,
-                                     Case.getLabel());
-                    }
-                  }
-                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const ListTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "list<{}>"sv,
-                                 Arg.getValType());
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const TupleTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "tuple <"sv);
-                  for (const auto &Ty : Arg.getTypes()) {
-                    fmt::format_to(std::back_inserter(Buffer), "| {} "sv, Ty);
-                  }
-                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const Flags &) {
@@ -498,18 +598,12 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                 },
                 [](const OptionTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "option<{}>"sv,
-                                 Arg.getValType());
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const ResultTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  if (Arg.getValType().has_value()) {
-                    fmt::format_to(std::back_inserter(Buffer), "result<{}>"sv,
-                                   Arg.getValType().value());
-                  } else {
-                    fmt::format_to(std::back_inserter(Buffer), "result<>"sv);
-                  }
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const Own &Arg) {

@@ -228,7 +228,47 @@ public:
     return CoreTypes[Idx];
   }
 
-  void addHostType(std::string_view Name, DefValType &&Type) {
+  void addHostType(std::string_view Name, PrimValType &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, RecordTy &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, VariantTy &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, ListTy &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, TupleTy &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, Flags &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, EnumTy &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, OptionTy &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, ResultTy &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, Own &&Type) {
+    addType(Type);
+    ExportTypesMap.emplace(std::string(Name), std::move(Type));
+  }
+  void addHostType(std::string_view Name, Borrow &&Type) {
     addType(Type);
     ExportTypesMap.emplace(std::string(Name), std::move(Type));
   }

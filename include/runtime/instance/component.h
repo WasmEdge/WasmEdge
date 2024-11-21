@@ -94,12 +94,10 @@ class ComponentInstance {
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {}
 
-  std::string_view getComponentName() const noexcept { return CompName; }
+  std::string_view getComponentName() const noexcept;
 
-  void addModule(const AST::Module &M) noexcept { ModList.emplace_back(M); }
-  const AST::Module &getModule(uint32_t Index) const noexcept {
-    return ModList[Index];
-  }
+  void addModule(const AST::Module &M) noexcept;
+  const AST::Module &getModule(uint32_t Index) const noexcept;
 
   void addComponent(const AST::Component::Component &C) noexcept {
     CompList.emplace_back(C);

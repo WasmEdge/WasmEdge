@@ -13,6 +13,7 @@ target_link_libraries(wasmedgeVM
   wasmedgeLoader
   wasmedgeValidator
   wasmedgeExecutor
+  wasmedgeRuntime
   wasmedgeHostModuleWasi
 )
 

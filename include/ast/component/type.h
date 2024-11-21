@@ -412,6 +412,29 @@ struct fmt::formatter<WasmEdge::AST::Component::ValueType>
 };
 
 template <>
+struct fmt::formatter<WasmEdge::AST::Component::RecordTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::RecordTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "record <"sv);
+    for (const auto &LabelTyp : Type.getLabelTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
+                     LabelTyp.getLabel(), LabelTyp.getValType());
+    }
+    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
 struct fmt::formatter<WasmEdge::AST::Component::DefValType>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
@@ -429,12 +452,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                 },
                 [](const RecordTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "record <"sv);
-                  for (const auto &LabelTyp : Arg.getLabelTypes()) {
-                    fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
-                                   LabelTyp.getLabel(), LabelTyp.getValType());
-                  }
-                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const VariantTy &Arg) {

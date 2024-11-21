@@ -157,6 +157,8 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             static_cast<uint32_t>(QuantModelPath.size()), // ModelPathLen
             0,                                            // ClipLPathPtr
             0,                                            // ClipLPathLen
+            0,                                            // ClipGPathPtr
+            0,                                            // ClipGPathLen
             0,                                            // T5xxlPathPtr
             0,                                            // T5xxlPathLen
             0,           // DiffusionModelPathPtr
@@ -295,6 +297,8 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             static_cast<uint32_t>(QuantModelPath.size()), // ModelPathLen
             0,                                            // ClipLPathPtr
             0,                                            // ClipLPathLen
+            0,                                            // ClipGPathPtr
+            0,                                            // ClipGPathLen
             0,                                            // T5xxlPathPtr
             0,                                            // T5xxlPathLen
             0,           // DiffusionModelPathPtr

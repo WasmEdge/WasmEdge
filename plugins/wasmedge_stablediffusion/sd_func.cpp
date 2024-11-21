@@ -238,10 +238,10 @@ Expect<uint32_t> SDConvert::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> SDCreateContext::body(
     const Runtime::CallingFrame &Frame, uint32_t ModelPathPtr,
     uint32_t ModelPathLen, uint32_t clipLPathPtr, uint32_t clipLPathLen,
-    uint32_t t5xxlPathPtr, uint32_t t5xxlPathLen,
-    uint32_t diffusionModelPathPtr, uint32_t diffusionModelPathLen,
-    uint32_t VaePathPtr, uint32_t VaePathLen, uint32_t TaesdPathPtr,
-    uint32_t TaesdPathLen, uint32_t ControlNetPathPtr,
+    uint32_t clipGPathPtr, uint32_t clipGPathLen, uint32_t t5xxlPathPtr,
+    uint32_t t5xxlPathLen, uint32_t diffusionModelPathPtr,
+    uint32_t diffusionModelPathLen, uint32_t VaePathPtr, uint32_t VaePathLen,
+    uint32_t TaesdPathPtr, uint32_t TaesdPathLen, uint32_t ControlNetPathPtr,
     uint32_t ControlNetPathLen, uint32_t LoraModelDirPtr,
     uint32_t LoraModelDirLen, uint32_t EmbedDirPtr, uint32_t EmbedDirLen,
     uint32_t IdEmbedDirPtr, uint32_t IdEmbedDirLen, uint32_t VaeDecodeOnly,
@@ -255,6 +255,8 @@ Expect<uint32_t> SDCreateContext::body(
                  "Failed when accessing the input model path memory."sv)
   MEM_SPAN_CHECK(clipLPathSpan, MemInst, char, clipLPathPtr, clipLPathLen,
                  "Failed when accessing the input clipL path memory."sv)
+  MEM_SPAN_CHECK(clipGPathSpan, MemInst, char, clipGPathPtr, clipGPathLen,
+                 "Failed when accessing the input clipG path memory."sv)
   MEM_SPAN_CHECK(t5xxlPathSpan, MemInst, char, t5xxlPathPtr, t5xxlPathLen,
                  "Failed when accessing the input t5xxl path memory."sv)
   MEM_SPAN_CHECK(
@@ -292,6 +294,8 @@ Expect<uint32_t> SDCreateContext::body(
       std::string(IdEmbedDirSpan.begin(), IdEmbedDirSpan.end());
   std::string clipLPath =
       std::string(clipLPathSpan.begin(), clipLPathSpan.end());
+  std::string clipGPath =
+      std::string(clipGPathSpan.begin(), clipGPathSpan.end());
   std::string t5xxlPath =
       std::string(t5xxlPathSpan.begin(), t5xxlPathSpan.end());
   std::string diffusionModelPath =
@@ -308,7 +312,7 @@ Expect<uint32_t> SDCreateContext::body(
   // Create context and import graph.
   spdlog::debug("[WasmEdge-StableDiffusion] Create context."sv);
   sd_ctx_t *Ctx = new_sd_ctx(
-      ModelPath.data(), clipLPath.data(), t5xxlPath.data(),
+      ModelPath.data(), clipLPath.data(), clipGPath.data(), t5xxlPath.data(),
       diffusionModelPath.data(), VaePath.data(), TaesdPath.data(),
       ControlNetPath.data(), LoraModelDir.data(), EmbedDir.data(),
       IdEmbedDir.data(), static_cast<bool>(VaeDecodeOnly),

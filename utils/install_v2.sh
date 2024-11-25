@@ -411,10 +411,14 @@ get_wasmedge_ggml_plugin() {
 		info "Detected CUDA version from nvcc: ${cuda}"
 		if [ "${cuda}" == "" ]; then
 			info "CUDA version is not detected from nvcc: Use the CPU version."
-			info "Or you can use '-c 11' or '-c 12' to install the cuda-11 or cuda-12 version manually."
+			info "If you want to install cuda-11 or cuda-12 version manually, you can specify the following options:"
+			info "Use options '-c 11' (a.k.a. '--ggmlcuda=11') or '-c 12' (a.k.a. '--ggmlcuda=12')"
+			info "Please refer to the document for more information: https://wasmedge.org/docs/contribute/installer_v2/"
 		elif [ "${cudart}" == "0" ]; then
 			info "libcudart.so is not found in the default installation path of CUDA: Use the CPU version."
-			info "Or you can use '-c 11' or '-c 12' to install the cuda-11 or cuda-12 version manually."
+			info "If you want to install cuda-11 or cuda-12 version manually, you can specify the following options:"
+			info "Use options '-c 11' (a.k.a. '--ggmlcuda=11') or '-c 12' (a.k.a. '--ggmlcuda=12')"
+			info "Please refer to the document for more information: https://wasmedge.org/docs/contribute/installer_v2/"
 			cuda="" # Reset cuda detection result because of the libcudart.so is not found.
 		fi
 

@@ -2161,7 +2161,8 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       auto ErrCode = Res.error();
       if (Conf.getRuntimeConfigure().isEnableCoredump() && ErrCode >= 0x0400 &&
           ErrCode <= 0x0419) {
-        Coredump::generateCoredump(StackMgr);
+        Coredump::generateCoredump(
+            StackMgr, Conf.getRuntimeConfigure().isCoredumpWasmgdb());
       }
       return Unexpect(Res);
     }

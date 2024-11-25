@@ -324,6 +324,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.ConfEnableCoredump.value()) {
     Conf.getRuntimeConfigure().setEnableCoredump(true);
   }
+  if (Opt.ConfCoredumpWasmgdb.value()) {
+    Conf.getRuntimeConfigure().setCoredumpWasmgdb(true);
+  }
   if (Opt.ConfForceInterpreter.value()) {
     Conf.getRuntimeConfigure().setForceInterpreter(true);
   }

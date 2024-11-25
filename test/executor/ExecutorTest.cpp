@@ -230,6 +230,7 @@ TEST(VM, MultipleVM) {
 TEST(Coredump, generateCoredump) {
   WasmEdge::Configure Conf;
   Conf.getRuntimeConfigure().setEnableCoredump(true);
+  Conf.getRuntimeConfigure().setCoredumpWasmgdb(false);
   WasmEdge::VM::VM VM(Conf);
   std::array<WasmEdge::Byte, 70> Wasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

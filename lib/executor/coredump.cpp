@@ -24,8 +24,12 @@
 
 namespace WasmEdge {
 namespace Coredump {
-void generateCoredump(const Runtime::StackManager &StackMgr) noexcept {
+void generateCoredump(const Runtime::StackManager &StackMgr,
+                      bool ForWasmgdb) noexcept {
   spdlog::info("Generating coredump...");
+  if (ForWasmgdb) {
+    spdlog::info("For wasmgdb");
+  }
   // Generate coredump.
   const auto *CurrentInstance = StackMgr.getModule();
   AST::Module Module{};
@@ -37,12 +41,14 @@ void generateCoredump(const Runtime::StackManager &StackMgr) noexcept {
   Version.insert(Version.begin(), {0x01, 0x00, 0x00, 0x00});
 
   Module.getCustomSections().emplace_back(createCore());
-  Module.getCustomSections().emplace_back(
-      createCorestack(StackMgr.getFramesSpan(), StackMgr.getValueSpan()));
+  Module.getCustomSections().emplace_back(createCorestack(
+      StackMgr.getFramesSpan(), StackMgr.getValueSpan(), ForWasmgdb));
+  // TODO: reconstruct data instances
   // Module.getDataSection() =
   //     createData(CurrentInstance->getOwnedDataInstances());
-  Module.getCustomSections().emplace_back(createCoremodules());
-  Module.getCustomSections().emplace_back(createCoreinstances());
+  // TODO: pass all module instances
+  Module.getCustomSections().emplace_back(createCoremodules({CurrentInstance}));
+  Module.getCustomSections().emplace_back(createCoreinstances({}));
   Module.getMemorySection() =
       createMemory(CurrentInstance->getMemoryInstances());
   Module.getGlobalSection() =
@@ -80,7 +86,8 @@ AST::CustomSection createCore() {
 
 AST::CustomSection
 createCorestack(Span<const Runtime::StackManager::Frame> Frames,
-                Span<const Runtime::StackManager::Value> ValueStack) {
+                Span<const Runtime::StackManager::Value> ValueStack,
+                bool ForWasmgdb) {
   AST::CustomSection CoreStack;
   CoreStack.setName("corestack");
   auto &Content = CoreStack.getContent();
@@ -116,8 +123,11 @@ createCorestack(Span<const Runtime::StackManager::Frame> Frames,
     auto Locals = Span<const Runtime::StackManager::Value>(
         ValueStack.begin() + Lstart, Lsize);
     assuming(Vstart + Vsize <= ValueStack.size());
-    // auto Stacks = Span<const Runtime::StackManager::Value>(
-    //     ValueStack.begin() + Vstart, Vsize);
+    Span<const Runtime::StackManager::Value> Stacks;
+    if (!ForWasmgdb) {
+      Stacks = Span<const Runtime::StackManager::Value>(
+          ValueStack.begin() + Vstart, Vsize);
+    }
     ENCODE_LEB128(Content, Funcidx)
     ENCODE_LEB128(Content, Codeoffset)
     // locals size
@@ -133,33 +143,34 @@ createCorestack(Span<const Runtime::StackManager::Frame> Frames,
       std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
       Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
     }
-    // Stacks is not supported by wasmedbg
-    // for (auto &Iter : Stacks) {
-    // 0x7F implies i32, since it doesn't support i128 and wasmgdb not support
-    // i64
-    // Content.push_back(0x7F); auto Value = Iter.unwrap();
-    //   std::vector<Byte> ValueBytes(4);
-    //   std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
-    //   ValueBytes[0],
-    //                ValueBytes[1], ValueBytes[2], ValueBytes[3]);
-    //   Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
-    // }
+    if (!ForWasmgdb) {
+      for (auto &Iter : Stacks) {
+        // 0x7F implies i32, since it doesn't support i128 and wasmgdb not
+        // support i64
+        Content.push_back(0x7F);
+        auto Value = Iter.unwrap();
+        std::vector<Byte> ValueBytes(4);
+        std::memcpy(ValueBytes.data(), &Value, sizeof(int64_t));
+        Content.insert(Content.end(), ValueBytes.begin(), ValueBytes.end());
+      }
+    }
   }
   return CoreStack;
 }
 
-AST::DataSection
-createData(Span<const Runtime::Instance::DataInstance *const> DataInstances) {
-  AST::DataSection DataSec;
-  AST::DataSegment Seg;
-  auto &Content = Seg.getData();
-  for (auto &Data : DataInstances) {
-    Content.insert(Content.end(), Data->getData().begin(),
-                   Data->getData().end());
-  }
-  DataSec.getContent().push_back(Seg);
-  return DataSec;
-}
+// AST::DataSection
+// createData(Span<const Runtime::Instance::DataInstance *const> DataInstances)
+// {
+//   AST::DataSection DataSec;
+//   AST::DataSegment Seg;
+//   auto &Content = Seg.getData();
+//   for (auto &Data : DataInstances) {
+//     Content.insert(Content.end(), Data->getData().begin(),
+//                    Data->getData().end());
+//   }
+//   DataSec.getContent().push_back(Seg);
+//   return DataSec;
+// }
 AST::GlobalSection createGlobals(
     Span<const Runtime::Instance::GlobalInstance *const> GlobalInstances) {
   AST::GlobalSection Globals;
@@ -180,15 +191,23 @@ AST::MemorySection createMemory(
   return Memory;
 }
 
-AST::CustomSection createCoremodules() {
+AST::CustomSection createCoremodules(
+    Span<const Runtime::Instance::ModuleInstance *const> ModuleInstances) {
   AST::CustomSection CoreModules;
   CoreModules.setName("coremodules");
   auto &Content = CoreModules.getContent();
-  Content.push_back(0x00);
+  ENCODE_LEB128(Content, ModuleInstances.size())
+  for (auto &Module : ModuleInstances) {
+    auto Name = Module->getModuleName();
+    Content.push_back(0x00);
+    Content.insert(Content.end(), Name.begin(), Name.end());
+  }
   return CoreModules;
 }
 
-AST::CustomSection createCoreinstances() {
+AST::CustomSection
+createCoreinstances(Span<const Runtime::Instance::ModuleInstance *const>) {
+  // TODO: Finish coreinstances
   AST::CustomSection CoreInstances;
   CoreInstances.setName("coreinstances");
   auto &Content = CoreInstances.getContent();

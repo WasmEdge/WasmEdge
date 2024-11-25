@@ -81,6 +81,8 @@ struct DriverToolOptions {
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
         ConfEnableCoredump(PO::Description(
             "Enable coredump when WebAssembly enters a trap"sv)),
+        ConfCoredumpWasmgdb(
+            PO::Description("Enable coredump for wasm-gdb to debug"sv)),
         ConfForceInterpreter(
             PO::Description("Forcibly run WASM in interpreter mode."sv)),
         TimeLim(
@@ -127,6 +129,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
   PO::Option<PO::Toggle> ConfEnableJIT;
   PO::Option<PO::Toggle> ConfEnableCoredump;
+  PO::Option<PO::Toggle> ConfCoredumpWasmgdb;
   PO::Option<PO::Toggle> ConfForceInterpreter;
   PO::Option<uint64_t> TimeLim;
   PO::List<int> GasLim;
@@ -146,6 +149,7 @@ struct DriverToolOptions {
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
         .add_option("enable-jit"sv, ConfEnableJIT)
         .add_option("enable-coredump"sv, ConfEnableCoredump)
+        .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
         .add_option("force-interpreter"sv, ConfForceInterpreter)
         .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
         .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)

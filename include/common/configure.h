@@ -117,6 +117,7 @@ public:
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
         EnableJIT(RHS.EnableJIT.load(std::memory_order_relaxed)),
         EnableCoredump(RHS.EnableCoredump.load(std::memory_order_relaxed)),
+        CoredumpWasmgdb(RHS.CoredumpWasmgdb.load(std::memory_order_relaxed)),
         ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)),
         AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
 
@@ -144,6 +145,14 @@ public:
     return EnableCoredump.load(std::memory_order_relaxed);
   }
 
+  void setCoredumpWasmgdb(bool IsCoredumpWasmgdb) noexcept {
+    CoredumpWasmgdb.store(IsCoredumpWasmgdb, std::memory_order_relaxed);
+  }
+
+  bool isCoredumpWasmgdb() const noexcept {
+    return CoredumpWasmgdb.load(std::memory_order_relaxed);
+  }
+
   void setForceInterpreter(bool IsForceInterpreter) noexcept {
     ForceInterpreter.store(IsForceInterpreter, std::memory_order_relaxed);
   }
@@ -164,6 +173,7 @@ private:
   std::atomic<uint32_t> MaxMemPage = 65536;
   std::atomic<bool> EnableJIT = false;
   std::atomic<bool> EnableCoredump = false;
+  std::atomic<bool> CoredumpWasmgdb = false;
   std::atomic<bool> ForceInterpreter = false;
   std::atomic<bool> AllowAFUNIX = false;
 };

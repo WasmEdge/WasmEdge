@@ -147,6 +147,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     EXPECT_TRUE(std::filesystem::exists(QuantModelPathString));
   }
+
   // Test: create_context -- create context for text to image.
   {
     EXPECT_TRUE(HostFuncCreateContext.run(
@@ -156,6 +157,8 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             static_cast<uint32_t>(QuantModelPath.size()), // ModelPathLen
             0,                                            // ClipLPathPtr
             0,                                            // ClipLPathLen
+            0,                                            // ClipGPathPtr
+            0,                                            // ClipGPathLen
             0,                                            // T5xxlPathPtr
             0,                                            // T5xxlPathLen
             0,           // DiffusionModelPathPtr
@@ -212,7 +215,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             -1,                                       // ClipSkip
             7.0f,                                     // CfgScale
             0,                                        // SampleMethod
-            1,                                       // SampleSteps
+            1,                                        // SampleSteps
             42,                                       // Seed
             1,                                        // BatchCount
             0.90f,                                    // ControlStrength
@@ -235,6 +238,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     EXPECT_GE(BytesWritten, 50);
     EXPECT_TRUE(std::filesystem::exists(OutputPathString));
   }
+
   // Test: text_to_image -- reuse context to generate image from text.
   {
     uint32_t PromptPtr = UINT32_C(0);
@@ -293,6 +297,8 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             static_cast<uint32_t>(QuantModelPath.size()), // ModelPathLen
             0,                                            // ClipLPathPtr
             0,                                            // ClipLPathLen
+            0,                                            // ClipGPathPtr
+            0,                                            // ClipGPathLen
             0,                                            // T5xxlPathPtr
             0,                                            // T5xxlPathLen
             0,           // DiffusionModelPathPtr
@@ -352,6 +358,58 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             -1,                                        // ClipSkip
             7.0f,                                      // CfgScale
             0,                                         // SampleMethod
+            1,                                         // SampleSteps
+            0.75f,                                     // Strength
+            42,                                        // Seed
+            1,                                         // BatchCount
+            0.9f,                                      // ControlStrength
+            20.0f,                                     // StyleRatio
+            0,                                         // NormalizeInput
+            0,                                         // InputIdImagesDirPtr
+            0,                                         // InputIdImagesDirLen
+            0,                                         // CannyPreprocess
+            0,                                         // UpscaleModelPathPtr
+            0,                                         // UpscaleModelPathLen
+            1,                                         // UpscaleRepeats
+            OutputPathPtr,                             // OutputPathPtr
+            static_cast<uint32_t>(OutputPath2.size()), // OutputPathLen
+            OutputPtr,                                 // OutBufferPtr
+            1048512,                                   // OutBufferMaxSize
+            BytesWrittenPtr},                          // BytesWrittenPtr
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
+    auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+    EXPECT_GE(BytesWritten, 50);
+    EXPECT_TRUE(std::filesystem::exists(OutputPathString2));
+  }
+  // Test: image_to_image -- reuse context to generate image from image.
+  {
+    uint32_t PromptPtr = UINT32_C(0);
+    uint32_t InputPathPtr = PromptPtr + PromptData2.size();
+    uint32_t OutputPathPtr = InputPathPtr + InputPath.size();
+    uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath2.size();
+    OutputPtr = BytesWrittenPtr + 4;
+    writeBinaries<char>(MemInst, PromptData2, PromptPtr);
+    writeBinaries<char>(MemInst, InputPath, InputPathPtr);
+    writeBinaries<char>(MemInst, OutputPath2, OutputPathPtr);
+    EXPECT_TRUE(HostFuncImageToImage.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            InputPathPtr,                              // ImagePtr
+            static_cast<uint32_t>(InputPath.size()),   // ImageLen
+            SessionId,                                 // SessionId
+            3.5f,                                      // Guidance
+            256,                                       // Width
+            256,                                       // Height
+            0,                                         // ControlImagePtr
+            0,                                         // ControlImageLen
+            PromptPtr,                                 // PromptPtr
+            static_cast<uint32_t>(PromptData2.size()), // PromptLen
+            0,                                         // NegativePromptPtr
+            0,                                         // NegativePromptLen
+            -1,                                        // ClipSkip
+            7.0f,                                      // CfgScale
+            0,                                         // SampleMethod
             20,                                        // SampleSteps
             0.75f,                                     // Strength
             42,                                        // Seed
@@ -375,6 +433,103 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
     EXPECT_GE(BytesWritten, 50);
     EXPECT_TRUE(std::filesystem::exists(OutputPathString2));
+  }
+
+  // Test: text_to_image -- non exist SessionId.
+  {
+    uint32_t PromptPtr = UINT32_C(0);
+    uint32_t OutputPathPtr = PromptPtr + PromptData.size();
+    uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath.size();
+    OutputPtr = BytesWrittenPtr + 4;
+    writeBinaries<char>(MemInst, PromptData, PromptPtr);
+    writeBinaries<char>(MemInst, OutputPath, OutputPathPtr);
+    EXPECT_TRUE(HostFuncTextToImage.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            PromptPtr,                                // PromptPtr
+            static_cast<uint32_t>(PromptData.size()), // PromptLen
+            99,                                       // SessionId
+            0,                                        // ControlImagePtr
+            0,                                        // ControlImageLen
+            0,                                        // NegativePromptPtr
+            0,                                        // NegativePromptLen
+            3.5f,                                     // Guidance
+            256,                                      // Width
+            256,                                      // Height
+            -1,                                       // ClipSkip
+            7.0f,                                     // CfgScale
+            0,                                        // SampleMethod
+            1,                                        // SampleSteps
+            42,                                       // Seed
+            1,                                        // BatchCount
+            0.90f,                                    // ControlStrength
+            20.0f,                                    // StyleRatio
+            0,                                        // NormalizeInput
+            0,                                        // InputIdImagesDirPtr
+            0,                                        // InputIdImagesDirLen
+            0,                                        // CannyPreprocess
+            0,                                        // UpscaleModelPathPtr
+            0,                                        // UpscaleModelPathLen
+            1,                                        // UpscaleRepeats
+            OutputPathPtr,                            // OutputPathPtr
+            static_cast<uint32_t>(OutputPath.size()), // OutputPathLen
+            OutputPtr,                                // OutBufferPtr
+            1048512,                                  // OutBufferMaxSize
+            BytesWrittenPtr},                         // BytesWrittenPtr
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
+  }
+
+  // Test: image_to_image -- non exist SessionId.
+  {
+    uint32_t PromptPtr = UINT32_C(0);
+    uint32_t InputPathPtr = PromptPtr + PromptData2.size();
+    uint32_t OutputPathPtr = InputPathPtr + InputPath.size();
+    uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath2.size();
+    OutputPtr = BytesWrittenPtr + 4;
+    writeBinaries<char>(MemInst, PromptData2, PromptPtr);
+    writeBinaries<char>(MemInst, InputPath, InputPathPtr);
+    writeBinaries<char>(MemInst, OutputPath2, OutputPathPtr);
+    EXPECT_TRUE(HostFuncImageToImage.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            InputPathPtr,                              // ImagePtr
+            static_cast<uint32_t>(InputPath.size()),   // ImageLen
+            -1,                                        // SessionId
+            3.5f,                                      // Guidance
+            256,                                       // Width
+            256,                                       // Height
+            0,                                         // ControlImagePtr
+            0,                                         // ControlImageLen
+            PromptPtr,                                 // PromptPtr
+            static_cast<uint32_t>(PromptData2.size()), // PromptLen
+            0,                                         // NegativePromptPtr
+            0,                                         // NegativePromptLen
+            -1,                                        // ClipSkip
+            7.0f,                                      // CfgScale
+            0,                                         // SampleMethod
+            20,                                        // SampleSteps
+            0.75f,                                     // Strength
+            42,                                        // Seed
+            1,                                         // BatchCount
+            0.9f,                                      // ControlStrength
+            20.0f,                                     // StyleRatio
+            0,                                         // NormalizeInput
+            0,                                         // InputIdImagesDirPtr
+            0,                                         // InputIdImagesDirLen
+            0,                                         // CannyPreprocess
+            0,                                         // UpscaleModelPathPtr
+            0,                                         // UpscaleModelPathLen
+            1,                                         // UpscaleRepeats
+            OutputPathPtr,                             // OutputPathPtr
+            static_cast<uint32_t>(OutputPath2.size()), // OutputPathLen
+            OutputPtr,                                 // OutBufferPtr
+            1048512,                                   // OutBufferMaxSize
+            BytesWrittenPtr},                          // BytesWrittenPtr
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(),
+              static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 }
 

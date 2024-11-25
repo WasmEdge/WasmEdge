@@ -233,7 +233,7 @@ Email:
 
 Web:
 
-1. Please visit [GitHub Seuciry Advisory of
+1. Please visit [GitHub Security Advisory of
    WasmEdge](https://github.com/WasmEdge/WasmEdge/security/advisories/new)
    * You will receive a confirmation email upon submission
 

@@ -21,6 +21,20 @@ Serializer::serializeHeapType(const ValType &Type, ASTNodeAttr From,
   case TypeCode::FuncRef:
     OutVec.push_back(static_cast<uint8_t>(Code));
     return {};
+  case TypeCode::NullFuncRef:
+  case TypeCode::NullExternRef:
+  case TypeCode::NullRef:
+  case TypeCode::AnyRef:
+  case TypeCode::EqRef:
+  case TypeCode::I31Ref:
+  case TypeCode::StructRef:
+  case TypeCode::ArrayRef:
+    if (!Conf.hasProposal(Proposal::GC)) {
+      return logNeedProposal(ErrCode::Value::MalformedRefType, Proposal::GC,
+                             From);
+    }
+    OutVec.push_back(static_cast<uint8_t>(Code));
+    return {};
   case TypeCode::TypeIndex:
     if (unlikely(!Conf.hasProposal(Proposal::FunctionReferences))) {
       return logNeedProposal(ErrCode::Value::MalformedRefType,
@@ -74,6 +88,14 @@ Serializer::serializeValType(const ValType &Type, ASTNodeAttr From,
   case TypeCode::I64:
   case TypeCode::F32:
   case TypeCode::F64:
+    OutVec.push_back(static_cast<uint8_t>(Code));
+    return {};
+  case TypeCode::I8:
+  case TypeCode::I16:
+    if (!Conf.hasProposal(Proposal::GC)) {
+      return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
+                             From);
+    }
     OutVec.push_back(static_cast<uint8_t>(Code));
     return {};
   case TypeCode::V128:
@@ -156,13 +178,31 @@ Serializer::serializeType(const AST::SubType &SType,
     }
     break;
   case TypeCode::Array:
-  case TypeCode::Struct:
     if (!Conf.hasProposal(Proposal::GC)) {
       return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
                              ASTNodeAttr::Type_Rec);
     }
-    // TODO: GC - Serializer: implementation.
-    [[fallthrough]];
+    if (auto Res = serializeType(
+            SType.getCompositeType().getFieldTypes().front(), OutVec);
+        unlikely(!Res)) {
+      return Unexpect(Res);
+    }
+    break;
+  case TypeCode::Struct:
+    // Struct type: vec(fieldtype)
+    if (!Conf.hasProposal(Proposal::GC)) {
+      return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
+                             ASTNodeAttr::Type_Rec);
+    }
+    serializeU32(
+        static_cast<uint32_t>(SType.getCompositeType().getFieldTypes().size()),
+        OutVec);
+    for (auto FType : SType.getCompositeType().getFieldTypes()) {
+      if (auto Res = serializeType(FType, OutVec); unlikely(!Res)) {
+        return Unexpect(Res);
+      }
+    }
+    break;
   default:
     return logSerializeError(ErrCode::Value::MalformedValType,
                              ASTNodeAttr::Type_Rec);
@@ -235,6 +275,20 @@ Serializer::serializeType(const AST::GlobalType &Type,
   // Global type: valtype + valmut.
   if (auto Res =
           serializeValType(Type.getValType(), ASTNodeAttr::Type_Global, OutVec);
+      unlikely(!Res)) {
+    return Unexpect(Res);
+  }
+  OutVec.push_back(static_cast<uint8_t>(Type.getValMut()));
+  return {};
+}
+
+// Serialize field type. See "include/loader/serialize.h".
+Expect<void>
+Serializer::serializeType(const AST::FieldType &Type,
+                          std::vector<uint8_t> &OutVec) const noexcept {
+  // Field type: storage type + valmut
+  if (auto Res = serializeValType(Type.getStorageType(), ASTNodeAttr::Type_Rec,
+                                  OutVec);
       unlikely(!Res)) {
     return Unexpect(Res);
   }

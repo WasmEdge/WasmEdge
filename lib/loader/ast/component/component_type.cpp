@@ -113,7 +113,7 @@ Expect<void> Loader::loadType(VariantTy &Ty) {
   }
 }
 
-Expect<void> Loader::loadType(List &Ty) { return loadType(Ty.getValType()); }
+Expect<void> Loader::loadType(ListTy &Ty) { return loadType(Ty.getValType()); }
 
 Expect<void> Loader::loadType(Tuple &Ty) {
   if (auto Res = loadVec<TypeSection>(
@@ -229,7 +229,7 @@ Expect<void> Loader::loadType(DefType &Ty) {
     }
     break;
   case 0x70:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<List>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<ListTy>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
@@ -290,6 +290,20 @@ Expect<void> Loader::loadType(DefType &Ty) {
     break;
   case 0x42: {
     if (auto Res = loadType(Ty.emplace<InstanceType>()); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
+      return Unexpect(Res);
+    }
+    break;
+  }
+  case 0x3f: {
+    if (auto Res = loadType(Ty.emplace<ResourceType>(false)); !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
+      return Unexpect(Res);
+    }
+    break;
+  }
+  case 0x3e: {
+    if (auto Res = loadType(Ty.emplace<ResourceType>(true)); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
@@ -377,6 +391,49 @@ Expect<void> Loader::loadType(InstanceType &Ty) {
   });
 }
 
+Expect<void> Loader::loadType(ResourceType &Ty) {
+  if (auto Res = FMgr.readByte()) {
+    if (*Res != 0x7f) {
+      return logLoadError(ErrCode::Value::MalformedDefType,
+                          FMgr.getLastOffset(), ASTNodeAttr::DefType);
+    }
+  } else {
+    return Unexpect(Res);
+  }
+
+  if (Ty.IsAsync()) {
+    if (auto Res = FMgr.readU32()) {
+      Ty.getDestructor().emplace(*Res);
+    } else {
+      return Unexpect(Res);
+    }
+    if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
+          auto RCallback = FMgr.readU32();
+          if (!RCallback) {
+            return Unexpect(RCallback);
+          }
+          Ty.getCallback().emplace(*RCallback);
+          return {};
+        });
+        !Res) {
+      return Unexpect(Res);
+    }
+  } else {
+    if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
+          auto RDestructor = FMgr.readU32();
+          if (!RDestructor)
+            return Unexpect(RDestructor);
+          Ty.getDestructor().emplace(*RDestructor);
+          return {};
+        });
+        !Res) {
+      return Unexpect(Res);
+    }
+  }
+
+  return {};
+}
+
 Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
   auto RTag = FMgr.readByte();
   if (!RTag) {
@@ -431,7 +488,7 @@ Expect<void> Loader::loadImportName(std::string &Name) {
   if (auto Res = FMgr.readByte(); !Res) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Name));
     return Unexpect(Res);
-  } else if (*Res != 0x01) {
+  } else if (*Res != 0x00) {
     return logLoadError(ErrCode::Value::MalformedName, FMgr.getLastOffset(),
                         ASTNodeAttr::Name);
   }

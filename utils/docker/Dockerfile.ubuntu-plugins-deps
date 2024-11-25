@@ -2,8 +2,6 @@ ARG BASE_IMAGE=wasmedge/wasmedge:latest
 ARG UBUNTU_VER=20
 FROM ${BASE_IMAGE} AS base
 
-WORKDIR /root
-
 RUN apt-get update && \
     apt-get install -y \
         cargo \
@@ -20,19 +18,43 @@ RUN apt-get install -y \
         libgrpc-dev \
         protobuf-compiler-grpc
 
+# FFmpeg 6.1 (ubuntu 24.04)
+FROM base AS deps-24
+
+RUN apt-get install -y \
+        libavcodec-dev \
+        libavdevice-dev \
+        libavfilter-dev \
+        libavformat-dev \
+        libavutil-dev \
+        libswresample-dev \
+        libswscale-dev
+
+# FFmpeg 6.0 (ubuntu 20.04, 22.04)
+FROM base AS deps-20
+
+WORKDIR /usr/local
+
+COPY ffmpeg/install-ffmpeg-v6.0.sh .
+RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
+ENV PKG_CONFIG_PATH=/usr/local/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV LD_LIBRARY_PATH=/usr/local/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
+FROM deps-20 AS deps-22
+
+# Other dependencies
+FROM deps-${UBUNTU_VER} AS deps-all
+
+WORKDIR /root
+
 COPY opencvmini/install-opencvmini.sh .
 ENV OPENCV_VERSION="4.8.0"
 RUN [ "/bin/bash", "install-opencvmini.sh" ]
 
-COPY ffmpeg/install-ffmpeg-v6.0.sh .
-RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
-ENV PKG_CONFIG_PATH=/root/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
-ENV LD_LIBRARY_PATH=/root/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
 COPY wasi-nn/install-pytorch.sh .
 ENV PYTORCH_VERSION="2.4.1"
-ENV PYTORCH_INSTALL_TO="/root"
-ENV Torch_DIR="/root/libtorch"
+ENV PYTORCH_INSTALL_TO="/usr/local"
+ENV Torch_DIR="/usr/local/libtorch"
 RUN [ "/bin/bash", "install-pytorch.sh"  ]
 
 ARG UBUNTU_VER
@@ -47,7 +69,7 @@ COPY wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
 
 ### cleanup
-FROM base AS clean-apt
+FROM deps-all AS clean-apt
 
 RUN rm -f \
     install-opencvmini.sh \

@@ -1,0 +1,106 @@
+name: Build extensions on macOS
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        required: true
+      asset_tag:
+        type: string
+        required: true
+      plugins:
+        description: 'JSON array of the plugins'
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+        default: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.plugins) }}
+    name: ${{ matrix.plugin }} (${{ inputs.asset_tag }})
+    runs-on: ${{ inputs.runner }}
+    env:
+      bin_name: ${{ matrix.bin }}.dylib
+      # Set value to `matrix.target` if `input.release` is `true`, or
+      # if `matrix.testBin` is empty
+      target: ${{ inputs.release && matrix.target || matrix.testBin || matrix.target }}
+      test_dir: build/test/plugins/${{ matrix.dir }}
+      output_dir: build/plugins/${{ matrix.dir }}
+    steps:
+      - id: var
+        run: |
+          echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build and install dependencies
+        shell: bash
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          brew install ninja opencv rust ffmpeg@6
+      - name: Build ${{ matrix.plugin }}
+        shell: bash
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          export PKG_CONFIG_PATH="$(brew --prefix)/opt/ffmpeg@6/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export OpenSSL_DIR="$(brew --prefix)/opt/openssl"
+          export CC=clang
+          export CXX=clang++
+          cmake -Bbuild -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
+            -DWASMEDGE_BUILD_TOOLS=OFF \
+            -DWASMEDGE_USE_LLVM=OFF \
+            -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
+            ${{ matrix.options }}
+          cmake --build build --target ${target}
+      - if: ${{ !endsWith(matrix.plugin, 'metal') }}
+        name: Package ${{ matrix.plugin }}
+        run: |
+          cp -f ${output_dir}/${bin_name} ${bin_name}
+          tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+      - if: ${{ endsWith(matrix.plugin, 'metal') }}
+        name: Package ${{ matrix.plugin }} with metal files
+        run: |
+          export FILES="${bin_name} ggml-metal.metal ggml-common.h"
+          for file_name in $FILES; do
+            cp -f ${output_dir}/${file_name} .
+          done
+          tar -zcvf ${{ steps.var.outputs.artifact }} ${FILES}
+      - if: ${{ !inputs.release }}
+        name: Test ${{ matrix.plugin }}
+        run: |
+          if [[ -z "${{ matrix.testBin }}" ]]; then
+            echo "No test specified!"
+          else
+            cd ${test_dir}
+            ./${target}
+            cd -
+          fi
+        shell: bash
+      - if: ${{ !inputs.release }}
+        name: Upload artifact ${{ matrix.plugin }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.var.outputs.artifact }}
+          path: ${{ steps.var.outputs.artifact }}
+      - if: ${{ inputs.release }}
+        name: Install gh for release
+        run: |
+          eval $(/opt/homebrew/bin/brew shellenv)
+          brew install gh
+      - if: ${{ inputs.release }}
+        name: Upload release ${{ steps.var.outputs.artifact }}
+        run: |
+          gh release upload ${{ inputs.version }} ${{ steps.var.outputs.artifact }} --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

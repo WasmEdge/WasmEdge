@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "base.h"
-#include "linear.h"
+#include "mlx/base.h"
+#include "mlx/linear.h"
 
 #include <optional>
 

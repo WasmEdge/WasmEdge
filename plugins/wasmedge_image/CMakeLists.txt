@@ -42,29 +42,23 @@ if(APPLE)
 elseif(UNIX)
   # Fetch and build libjpeg and libpng.
   include(FetchContent)
+  message(STATUS "Downloading libpng source")
   FetchContent_Declare(
     wasmedge_image_libpng
     URL "https://downloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz"
     URL_HASH "SHA256=af4fb7f260f839919e5958e5ab01a275d4fe436d45442a36ee62f73e5beb75ba"
   )
-  FetchContent_GetProperties(wasmedge_image_libpng)
-  if(NOT wasmedge_image_libpng_POPULATED)
-    message(STATUS "Downloading libpng source")
-    FetchContent_Populate(wasmedge_image_libpng)
-    message(STATUS "Downloading libpng source - done")
-  endif()
+  FetchContent_MakeAvailable(wasmedge_image_libpng)
+  message(STATUS "Downloading libpng source - done")
 
+  message(STATUS "Downloading libjpeg source")
   FetchContent_Declare(
     wasmedge_image_libjpeg
     URL "http://ijg.org/files/jpegsrc.v9e.tar.gz"
     URL_HASH "SHA256=4077d6a6a75aeb01884f708919d25934c93305e49f7e3f36db9129320e6f4f3d"
   )
-  FetchContent_GetProperties(wasmedge_image_libjpeg)
-  if(NOT wasmedge_image_libjpeg_POPULATED)
-    message(STATUS "Downloading libjpeg source")
-    FetchContent_Populate(wasmedge_image_libjpeg)
-    message(STATUS "Downloading libjpeg source - done")
-  endif()
+  FetchContent_MakeAvailable(wasmedge_image_libjpeg)
+  message(STATUS "Downloading libjpeg source - done")
 
   add_custom_command(
     OUTPUT ${wasmedge_image_libjpeg_SOURCE_DIR}/.libs/libjpeg.a
@@ -102,10 +96,11 @@ endif()
 
 # Need zlib and boost.
 find_package(ZLIB REQUIRED)
-find_package(Boost 1.74.0)
+find_package(Boost 1.74.0 CONFIG)
 if(${Boost_FOUND})
 else()
   include(FetchContent)
+  message(STATUS "Downloading boost 1.82.0 source")
   FetchContent_Declare(
     Boost
     URL http://sources.buildroot.net/boost/boost_1_82_0.tar.bz2
@@ -113,7 +108,6 @@ else()
   )
   set(BOOST_ENABLE_CMAKE ON)
   set(BOOST_RUNTIME_LINK static)
-  message(STATUS "Downloading boost 1.82.0 source")
   FetchContent_MakeAvailable(Boost)
   message(STATUS "Downloading boost 1.82.0 source - done")
   add_library(Boost_boost INTERFACE)

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "linear.h"
-#include "quantized.h"
+#include "mlx/linear.h"
+#include "mlx/quantized.h"
 
 #include <memory>
 

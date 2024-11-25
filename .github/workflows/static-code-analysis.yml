@@ -41,13 +41,15 @@ on:
 
 permissions:
   contents: read
-  
+
 jobs:
   static_analysis:
     permissions:
       contents: write
     name: Run Static Code Analysis using Infer
     runs-on: ubuntu-latest
+    container:
+      image: wasmedge/wasmedge:ubuntu-24.04-build-clang
 
     steps:
     - uses: actions/checkout@v4
@@ -57,17 +59,16 @@ jobs:
 
     - name: Install Dependencies
       run: |
-        lsb_release -a
-        sudo apt-get update
-        sudo apt-get upgrade -y
-        sudo apt-get install -y software-properties-common llvm-11-dev liblld-11-dev liblld-11 clang-11 tar libssl-dev
-        curl -sSL "https://github.com/facebook/infer/releases/download/v1.1.0/infer-linux64-v1.1.0.tar.xz" | sudo tar -C /opt -xJ && sudo ln -s "/opt/infer-linux64-v1.1.0/bin/infer" /usr/local/bin/infer
+        apt-get update
+        apt-get upgrade -y
+        apt-get install -y libssl-dev
+        curl -sSL "https://github.com/facebook/infer/releases/download/v1.2.0/infer-linux-x86_64-v1.2.0.tar.xz" | tar -C /opt -xJ && ln -s "/opt/infer-linux-x86_64-v1.2.0/bin/infer" /usr/local/bin/infer
 
     - name: Generate compilation database
       run: |
         mkdir build
         cd build
-        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/usr/lib/llvm-11/lib/cmake/llvm -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON ..
+        infer compile -- cmake -DCMAKE_BUILD_TYPE=Debug -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm -DWASMEDGE_PLUGIN_WASI_CRYPTO=ON ..
 
     - name: Run Infer Static Code Analysis
       run: |

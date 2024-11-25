@@ -37,7 +37,7 @@ jobs:
       # Tests of wasm_bpf also require privileges
       options: --privileged
     env:
-      bin_name: ${{ matrix.bin }}
+      bin_name: ${{ matrix.bin }}.so
       # Set value to `matrix.target` if `input.release` is `true`, or
       # if `matrix.testBin` is empty
       target: ${{ inputs.release && matrix.target || matrix.testBin || matrix.target }}
@@ -53,8 +53,6 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - if: ${{ startsWith(matrix.plugin, 'wasi_nn_burnrs') }}
-        uses: dtolnay/rust-toolchain@stable
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
@@ -64,6 +62,7 @@ jobs:
             -DWASMEDGE_BUILD_TOOLS=OFF \
             -DWASMEDGE_USE_LLVM=OFF \
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
+            -DWASMEDGE_USE_CXX11_ABI=${{ startsWith(inputs.asset_tag, 'manylinux_2_28') && 'OFF' || 'ON' }} \
             ${{ matrix.options }}
           cmake --build build --target ${target}
 

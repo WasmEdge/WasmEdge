@@ -68,10 +68,14 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(wasiNNTests PUBLIC
         /wd4067 # unexpected tokens following preprocessor directive - expected a newline
+        /wd4505 # unreferenced local function has been removed
+      )
+    else()
+      # string_split<std::string> in common.h unused
+      target_compile_options(wasiNNTests PUBLIC
+        -Wno-unused-function
       )
     endif()
-  elseif(BACKEND STREQUAL "neuralspeed")
-    message(NOTICE "Neural Speed backend is removed due to the upstream end-of-life.")
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     download(
@@ -143,6 +147,7 @@ target_link_libraries(wasiNNTests
   PRIVATE
   ${GTEST_BOTH_LIBRARIES}
 )
+
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasiNNTests

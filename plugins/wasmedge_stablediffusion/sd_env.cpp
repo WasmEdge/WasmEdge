@@ -17,7 +17,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .Name = "wasmedge_stablediffusion",
     .Description = "Stable Diffusion plug-in for WasmEdge.",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 1, 0, 0},
+    .Version = {0, 2, 0, 0},
     .ModuleCount = 1,
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){
@@ -37,13 +37,23 @@ EXPORT_GET_DESCRIPTOR(Descriptor)
 
 namespace StableDiffusion {
 
-uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx) noexcept {
-  Contexts.push_back(Ctx);
+uint32_t SDEnviornment::addContext(sd_ctx_t *Ctx, int32_t Nthreads,
+                                   uint32_t Wtype) noexcept {
+  Contexts.push_back({Ctx, Nthreads, Wtype});
   return Contexts.size() - 1;
 }
 
+void SDEnviornment::freeContext(const uint32_t Id) noexcept {
+  sd_ctx_t *SDCtx = Contexts[Id].Context;
+  free_sd_ctx(SDCtx);
+  Contexts.erase(Contexts.begin() + Id - 1);
+}
+
 sd_ctx_t *SDEnviornment::getContext(const uint32_t Id) noexcept {
-  return Contexts[Id];
+  if (Id >= Contexts.size()) {
+    return nullptr;
+  }
+  return Contexts[Id].Context;
 }
 
 void SBLog(enum sd_log_level_t Level, const char *Log, void *) {

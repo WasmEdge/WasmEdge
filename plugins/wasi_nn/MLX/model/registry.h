@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "transformer.h"
+#include "model/transformer.h"
 
 namespace WasmEdge::Host::WASINN::MLX {
 

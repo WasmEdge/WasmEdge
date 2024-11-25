@@ -15,9 +15,26 @@ using namespace std::literals;
 using namespace AST::Component;
 
 Expect<void> Executor::instantiate(Runtime::StoreManager &,
-                                   Runtime::Instance::ComponentInstance &,
-                                   const AST::Component::StartSection &) {
-  spdlog::warn("start section is not supported yet"sv);
+                                   Runtime::Instance::ComponentInstance &Comp,
+                                   const AST::Component::StartSection &Sec) {
+  auto Start = Sec.getContent();
+
+  std::vector<ValInterface> Args{};
+  for (auto Idx : Start.getArguments()) {
+    Args.push_back(Comp.getValue(Idx));
+  }
+
+  auto Fn = Comp.getFunctionInstance(Start.getFunctionIndex());
+  auto FnType = Fn->getFuncType();
+  auto Res = invoke(Fn, Args, FnType.getParamTypes());
+  if (!Res) {
+    return Unexpect(Res);
+  }
+
+  auto Result = (*Res)[0].first;
+  auto ResultIndex = Start.getResult();
+  Comp.setValue(ResultIndex, Result);
+
   return {};
 }
 

@@ -2,6 +2,39 @@
 
 This document has not yet covered all workflows.
 
+## Build and Release
+
+### WasmEdge (core)
+
+| OS | Arch | toolchain | `docker_tag` | test | release |
+| -- | ---- | --------- | ------------ | ---- | ------- |
+| MacOS 13 (darwin 22) | x86_64 | clang || o | o |
+| MacOS 14 (darwin 23) | arm64 | clang || o | o |
+| manylinux_2_28 | x86_64 | gcc | `manylinux_2_28_x86_64` | o | o |
+| manylinux_2_28 | aarch64 | gcc | `manylinux_2_28_aarch64` | o | o |
+| Ubuntu 24.04 | x86_64 | clang | `ubuntu-24.04-build-clang` | o ||
+| Ubuntu 24.04 | x86_64 | gcc | `ubuntu-24.04-build-gcc` | o ||
+| Ubuntu 22.04 | x86_64 | gcc | `ubuntu-22.04-build-gcc` | coverage ||
+| Ubuntu 20.04 | x86_64 | clang | `ubuntu-20.04-build-clang` || o |
+| Ubuntu 20.04 | aarch64 | clang | `ubuntu-20.04-build-clang-aarch64` | o | o |
+
+### WasmEdge plugins
+
+| OS | Arch | toolchain | `docker_tag` | test | release |
+| -- | ---- | --------- | ------------ | ---- | ------- |
+| MacOS 13 (darwin 22) | x86_64 | clang || o | o |
+| MacOS 14 (darwin 23) | arm64 | clang || o | o |
+| manylinux_2_28 | x86_64 | gcc | `manylinux_2_28_x86_64-plugins-deps` | o | o |
+| manylinux_2_28 | aarch64 | gcc | `manylinux_2_28_aarch64-plugins-deps` | o | o |
+| Ubuntu 24.04 | x86_64 | clang | `ubuntu-24.04-build-clang-plugins-deps` | o ||
+| Ubuntu 24.04 | x86_64 | gcc | `ubuntu-24.04-build-gcc-plugins-deps` | o ||
+| Ubuntu 20.04 | x86_64 | clang | `ubuntu-20.04-build-clang-plugins-deps` | o | o |
+| Ubuntu 20.04 | x86_64 | gcc | `ubuntu-20.04-build-gcc-cuda11` | - | - |
+| Ubuntu 20.04 | x86_64 | gcc | `ubuntu-20.04-build-gcc-cuda12` | - | - |
+
+Plugins that is built with CUDA enabled:
+- `wasmedge_stablediffusion`
+
 ## Workflow for `build.yml`
 
 ```mermaid
@@ -15,46 +48,6 @@ flowchart LR
     build-.->ext("build plugins on all OS")
 ```
 
-### macOS
-
-```json
-[
-  {
-    "name": "MacOS 13 (x86_64)",
-    "runner": "macos-13",
-    "darwin_version": 22
-  },
-  {
-    "name": "MacOS 14 (arm64)",
-    "runner": "macos-14",
-    "darwin_version": 23
-  }
-]
-```
-
-### manylinux
-
-```json
-[
-  {
-    "runner": "ubuntu-latest",
-    "docker_tag": "manylinux2014_x86_64"
-  },
-  {
-    "runner": "linux-arm64-v2",
-    "docker_tag": "manylinux2014_aarch64"
-  },
-  {
-    "runner": "ubuntu-latest",
-    "docker_tag": "manylinux_2_28_x86_64"
-  },
-  {
-    "runner": "linux-arm64-v2",
-    "docker_tag": "manylinux_2_28_aarch64"
-  }
-]
-```
-
 ## Calling Structure for Reusable Workflows
 
 ```mermaid
@@ -62,7 +55,8 @@ flowchart LR
     subgraph "build-extensions.yml"
         b_("build-extensions.yml")-->|reusable-call-linter.yml|l0(("lint pass"))
         l0-->b_ext("reusable-build-extensions.yml")
-        b_ext-->b_ext_m("reusable-build-extensions-on-manylinux.yml")
+        b_ext-->b_ext_m("reusable-build-extensions-on-macos.yml")
+        b_ext-->b_ext_l("reusable-build-extensions-on-linux.yml")
     end
     b("build.yml")-->|reusable-call-linter.yml|l1(("lint pass"))
     l1-->oss("<ul>

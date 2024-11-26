@@ -284,6 +284,7 @@ function(wasmedge_setup_llama_target target)
     set(LLAMA_METAL_NDEBUG ON)
     set(LLAMA_BUILD_COMMON ON)
     set(GGML_ACCELERATE OFF)
+    set(GGML_AMX OFF)
     set(GGML_BLAS OFF)
     set(GGML_OPENMP OFF)
     set(BUILD_SHARED_LIBS OFF)
@@ -325,14 +326,19 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b4067
+      GIT_TAG        b4179
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
     message(STATUS "Downloading llama.cpp source -- done")
-    set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET ggml-base PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET ggml-cpu PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
+      set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
+    endif()
 
     # Setup llava from llama.cpp
     wasmedge_add_library(llava OBJECT

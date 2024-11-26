@@ -344,11 +344,12 @@ Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
   Params.cpuparams.n_threads = static_cast<uint32_t>(GraphRef.Threads);
   Params.cpuparams_batch.n_threads = static_cast<uint32_t>(GraphRef.Threads);
   Params.embedding = GraphRef.Embedding;
-  Params.sparams.temp = static_cast<float>(GraphRef.Temp);
-  Params.sparams.top_p = static_cast<float>(GraphRef.TopP);
-  Params.sparams.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
-  Params.sparams.penalty_present = static_cast<float>(GraphRef.PresencePenalty);
-  Params.sparams.grammar = GraphRef.Grammar;
+  Params.sampling.temp = static_cast<float>(GraphRef.Temp);
+  Params.sampling.top_p = static_cast<float>(GraphRef.TopP);
+  Params.sampling.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
+  Params.sampling.penalty_present =
+      static_cast<float>(GraphRef.PresencePenalty);
+  Params.sampling.grammar = GraphRef.Grammar;
   return ErrNo::Success;
 }
 
@@ -700,7 +701,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.BatchSize = ContextDefault.n_batch;
   GraphRef.Threads = ContextDefault.n_threads;
   // Initialize the sampling parameters.
-  const common_sampler_params SamplerDefault;
+  const common_params_sampling SamplerDefault;
   GraphRef.Temp = SamplerDefault.temp;
   GraphRef.TopP = SamplerDefault.top_p;
   GraphRef.RepeatPenalty = SamplerDefault.penalty_repeat;
@@ -1085,7 +1086,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   common_params Params;
   setupParams(GraphRef, Params);
   struct common_sampler *Sampler =
-      common_sampler_init(GraphRef.LlamaModel, Params.sparams);
+      common_sampler_init(GraphRef.LlamaModel, Params.sampling);
 
   // Prepare variables;
   int32_t NPast = 0;
@@ -1300,7 +1301,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     common_params Params;
     setupParams(GraphRef, Params);
     CxtRef.LlamaSampler =
-        common_sampler_init(GraphRef.LlamaModel, Params.sparams);
+        common_sampler_init(GraphRef.LlamaModel, Params.sampling);
     CxtRef.LlamaNPast = 0;
 
     // Get the context size.

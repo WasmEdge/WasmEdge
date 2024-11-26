@@ -42,6 +42,13 @@ Serializer::serializeHeapType(const ValType &Type, ASTNodeAttr From,
     }
     serializeS33(static_cast<int64_t>(Type.getTypeIndex()), OutVec);
     return {};
+  case TypeCode::ExnRef:
+    if (unlikely(!Conf.hasProposal(Proposal::ExceptionHandling))) {
+      return logNeedProposal(ErrCode::Value::MalformedRefType,
+                             Proposal::ExceptionHandling, From);
+    }
+    OutVec.push_back(static_cast<uint8_t>(Code));
+    return {};
   default:
     if (likely(Conf.hasProposal(Proposal::ReferenceTypes))) {
       return logSerializeError(ErrCode::Value::MalformedRefType, From);
@@ -108,6 +115,13 @@ Serializer::serializeValType(const ValType &Type, ASTNodeAttr From,
   case TypeCode::Ref:
   case TypeCode::RefNull:
     return serializeRefType(Type, From, OutVec);
+  case TypeCode::ExnRef:
+    if (unlikely(!Conf.hasProposal(Proposal::ExceptionHandling))) {
+      return logNeedProposal(ErrCode::Value::MalformedRefType,
+                             Proposal::ExceptionHandling, From);
+    }
+    OutVec.push_back(static_cast<uint8_t>(Code));
+    return {};
   default:
     return logSerializeError(ErrCode::Value::MalformedValType, From);
   }
@@ -293,6 +307,16 @@ Serializer::serializeType(const AST::FieldType &Type,
     return Unexpect(Res);
   }
   OutVec.push_back(static_cast<uint8_t>(Type.getValMut()));
+  return {};
+}
+
+// Serialize field type. See "include/loader/serialize.h".
+Expect<void>
+Serializer::serializeType(const AST::TagType &Type,
+                          std::vector<uint8_t> &OutVec) const noexcept {
+  // Tag type: 0x00 + typeIdx
+  OutVec.push_back(static_cast<uint8_t>(0x00U));
+  serializeU32(Type.getTypeIdx(), OutVec);
   return {};
 }
 

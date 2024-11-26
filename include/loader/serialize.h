@@ -61,6 +61,8 @@ public:
                                 std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeSection(const AST::DataCountSection &Sec,
                                 std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeSection(const AST::TagSection &Sec,
+                                std::vector<uint8_t> &OutVec) const noexcept;
   /// @}
 
 private:
@@ -99,6 +101,8 @@ private:
   Expect<void> serializeType(const AST::GlobalType &Type,
                              std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeType(const AST::FieldType &Type,
+                             std::vector<uint8_t> &OutVec) const noexcept;
+  Expect<void> serializeType(const AST::TagType &Type,
                              std::vector<uint8_t> &OutVec) const noexcept;
   Expect<void> serializeExpression(const AST::Expression &Expr,
                                    std::vector<uint8_t> &OutVec) const noexcept;

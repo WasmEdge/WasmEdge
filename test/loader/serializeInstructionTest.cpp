@@ -463,6 +463,112 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
   EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
 }
 
+TEST(SerializeInstructionTest, SerializeEHControlInstruction) {
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  std::vector<WasmEdge::AST::Instruction> Instructions;
+
+  // 6. Test exception handling instruction.
+  //
+  //   1.  Serialize Throw_ref instruction.
+  //   2.  Serialize Throw_ref instruction without the exception handling
+  //   proposal.
+  //   3.  Serialize Throw instruction.
+  //   4.  Serialize Throw instruction without the exception handling proposal.
+  //   5.  Serialize Try_table instruction.
+  //   6.  Serialize Try_table instruction without the exception handling
+  //   proposal.
+
+  WasmEdge::AST::Instruction ThrowRef(WasmEdge::OpCode::Throw_ref);
+  WasmEdge::AST::Instruction Throw(WasmEdge::OpCode::Throw);
+  WasmEdge::AST::Instruction TryTable(WasmEdge::OpCode::Try_table);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
+  Instructions = {ThrowRef, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU, // Code section
+      0x05U, // Content size = 5
+      0x01U, // Vector length = 1
+      0x03U, // Code segment size = 3
+      0x00U, // Local vec(0)
+      0x0AU, // Throw_ref instruction.
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Output = {};
+  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+
+  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
+  Throw.getTargetIndex() = 0xFFFFFFFFU;
+  Instructions = {Throw, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,                             // Code section
+      0x0AU,                             // Content size = 10
+      0x01U,                             // Vector length = 1
+      0x08U,                             // Code segment size = 8
+      0x00U,                             // Local vec(0)
+      0x08U,                             // OpCode Throw.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Throw type index.
+      0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Output = {};
+  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+
+  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
+  TryTable.setTryCatch();
+  TryTable.getTryCatch().ResType.setEmpty();
+  TryTable.getTryCatch().Catch.resize(4);
+  TryTable.getTryCatch().Catch[0].TagIndex = 0xFF3F1F0FU;
+  TryTable.getTryCatch().Catch[0].LabelIndex = 0xFFFFFFFFU;
+  TryTable.getTryCatch().Catch[1].IsRef = true;
+  TryTable.getTryCatch().Catch[1].TagIndex = 0xFF3F1F0FU;
+  TryTable.getTryCatch().Catch[1].LabelIndex = 0xFFFFFFFFU;
+  TryTable.getTryCatch().Catch[2].IsAll = true;
+  TryTable.getTryCatch().Catch[2].LabelIndex = 0xFFFFFFFFU;
+  TryTable.getTryCatch().Catch[3].IsRef = true;
+  TryTable.getTryCatch().Catch[3].IsAll = true;
+  TryTable.getTryCatch().Catch[3].LabelIndex = 0xFFFFFFFFU;
+  Instructions = {TryTable, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,                             // Code section
+      0x29U,                             // Content size = 41
+      0x01U,                             // Vector length = 1
+      0x27U,                             // Code segment size = 39
+      0x00U,                             // Local vec(0)
+      0x1FU,                             // OpCode Try_table.
+      0x40U,                             // OpCode Epsilon.
+      0x04U,                             // Vector length = 4
+      0x00U,                             // Catch flag.
+      0x8FU, 0xBEU, 0xFCU, 0xF9U, 0x0FU, // Tag index.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Label index.
+      0x01U,                             // Catch flag.
+      0x8FU, 0xBEU, 0xFCU, 0xF9U, 0x0FU, // Tag index.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Label index.
+      0x02U,                             // Catch flag.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Label index.
+      0x03U,                             // Catch flag.
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Label index.
+      0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  Output = {};
+  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
+  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+}
+
 TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   WasmEdge::Configure ConfNoRefType;
   ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
@@ -472,7 +578,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 6. Test reference instructions.
+  // 7. Test reference instructions.
   //
   //   1.  Serialize function reference type.
   //   2.  Serialize invalid reference type without Ref-Types proposal.
@@ -923,7 +1029,7 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 7. Test parametric instructions.
+  // 8. Test parametric instructions.
   //
   //   1.  Serialize valid select_t instruction with value type list.
   //   2.  Serialize invalid value type list without SIMD proposal.
@@ -961,7 +1067,7 @@ TEST(SerializeInstructionTest, SerializeVariableInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 8. Test variable instructions.
+  // 9. Test variable instructions.
   //
   //   1.  Serialize valid local or global index.
 
@@ -990,7 +1096,7 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 9. Test table instructions.
+  // 10. Test table instructions.
   //
   //   1.  Serialize table_get instruction.
   //   2.  Serialize table_init instruction.
@@ -1039,7 +1145,7 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 10. Test memory instructions.
+  // 11. Test memory instructions.
   //
   //   1.  Serialize memory_grow instruction.
   //   2.  Serialize i32_load instruction.
@@ -1105,7 +1211,7 @@ TEST(SerializeInstructionTest, SerializeConstInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 11. Test const numeric instructions.
+  // 12. Test const numeric instructions.
   //
   //   1.  Serialize I32 const numeric instruction.
   //   2.  Serialize I64 const numeric instruction.
@@ -1189,7 +1295,7 @@ TEST(SerializeInstructionTest, SerializeSwizzleInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 12. Test swizzle instruction.
+  // 13. Test swizzle instruction.
   //
   //   1.  Serialize I8x16__relaxed_swizzle instruction.
   //   2.  Serialize I8x16__relaxed_swizzle without RelaxSIMD proposal.
@@ -1225,7 +1331,7 @@ TEST(SerializeInstructionTest, SerializeTruncInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 13. Test trunc instruction.
+  // 14. Test trunc instruction.
   //
   //   1.  Serialize I32x4__relaxed_trunc_f32x4_s instruction.
   //   2.  Serialize I32x4__relaxed_trunc_f32x4_u instruction.
@@ -1289,7 +1395,7 @@ TEST(SerializeInstructionTest, SerializeMulAddInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 14. Test multiply-add instruction.
+  // 15. Test multiply-add instruction.
   //
   //   1.  Serialize F32x4__relaxed_madd instruction.
   //   2.  Serialize F32x4__relaxed_nmadd instruction.
@@ -1352,7 +1458,7 @@ TEST(SerializeInstructionTest, SerializeLaneSelectInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 15. Test laneselect instruction.
+  // 16. Test laneselect instruction.
   //
   //   1.  Serialize I8x16__relaxed_laneselect instruction.
   //   2.  Serialize I16x8__relaxed_laneselect instruction.
@@ -1414,7 +1520,7 @@ TEST(SerializeInstructionTest, SerializeMinMaxInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 16. Test laneselect instruction.
+  // 17. Test laneselect instruction.
   //
   //   1.  Serialize F32x4__relaxed_min instruction.
   //   2.  Serialize F32x4__relaxed_max instruction.
@@ -1477,7 +1583,7 @@ TEST(SerializeInstructionTest, SerializeQ15MulRInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 17. Test rounding Q-format multiplication instruction.
+  // 18. Test rounding Q-format multiplication instruction.
   //
   //   1.  Serialize I16x8__relaxed_q15mulr_s instruction.
   //   2.  Serialize I16x8__relaxed_q15mulr_s instruction without RelaxSIMD
@@ -1514,7 +1620,7 @@ TEST(SerializeInstructionTest, SerializeDotProductInstruction) {
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
 
-  // 18. Test dot product instruction.
+  // 19. Test dot product instruction.
   //
   //   1.  Serialize I16x8__relaxed_dot_i8x16_i7x16_s instruction.
   //   2.  Serialize I32x4__relaxed_dot_i8x16_i7x16_add_s instruction.

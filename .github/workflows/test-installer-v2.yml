@@ -75,6 +75,19 @@ jobs:
       run: |
         bash utils/install_v2.sh -V --version=0.14.1-rc.1
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiLogging.so && (echo "Fail: WASI_NN-logging Plugin found" && exit 1) || (echo "Pass: WASI_NN-logging not found" && exit 0)
+    - name: Run installer-v2 with 0.14.1 and ggmlbn b3651
+      shell: bash
+      run: |
+        # It will install WasmEdge and the GGML plugin
+        bash utils/install_v2.sh -V --version=0.14.1 --ggmlbn=b3651
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.so && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+        . ~/.wasmedge/env
+        if [[ $(wasmedge -v | grep 'wasmedge version' | sed 's/.*wasmedge version \([0-9.]*\).*/\1/') == "0.14.1" ]]; then
+          echo "Pass: WasmEdge version is 0.14.1"
+        else
+          echo "Fail: WasmEdge version is not 0.14.1"
+          exit 1
+        fi
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V
@@ -123,6 +136,19 @@ jobs:
       run: |
         bash utils/install_v2.sh -V --version=0.14.1-rc.1
         ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiLogging.dylib && (echo "Fail: WASI_NN-logging Plugin found" && exit 1) || (echo "Pass: WASI_NN-logging not found" && exit 0)
+    - name: Run installer-v2 with 0.14.1 and ggmlbn b3651
+      shell: bash
+      run: |
+        # It will install WasmEdge and the GGML plugin
+        bash utils/install_v2.sh -V --version=0.14.1 --ggmlbn=b3651
+        ls ~/.wasmedge/plugin/ | grep libwasmedgePluginWasiNN.dylib && echo "Pass: WASI_NN-ggml Plugin found" || (echo "Fail: WASI_NN-ggml not found" && exit 1)
+        . ~/.wasmedge/env
+        if [[ $(wasmedge -v | grep 'wasmedge version' | sed 's/.*wasmedge version \([0-9.]*\).*/\1/') == "0.14.1" ]]; then
+          echo "Pass: WasmEdge version is 0.14.1"
+        else
+          echo "Fail: WasmEdge version is not 0.14.1"
+          exit 1
+        fi
     - name: Uninstall WasmEdge
       run: |
         bash utils/uninstall.sh -q -V

@@ -76,23 +76,12 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     assumingUnreachable();
   }
 
-  // Serialize immediate.
-  switch (Instr.getOpCode()) {
-  // Control instructions.
-  case OpCode::Unreachable:
-  case OpCode::Nop:
-  case OpCode::Return:
-  case OpCode::End:
-  case OpCode::Else:
-    return {};
-
-  case OpCode::Block:
-  case OpCode::Loop:
-  case OpCode::If:
-    if (Instr.getBlockType().isEmpty()) {
+  auto serializeBlockType = [this,
+                             &OutVec](const BlockType &Type) -> Expect<void> {
+    if (Type.isEmpty()) {
       OutVec.push_back(static_cast<uint8_t>(TypeCode::Epsilon));
-    } else if (Instr.getBlockType().isValType()) {
-      if (auto Res = serializeValType(Instr.getBlockType().getValType(),
+    } else if (Type.isValType()) {
+      if (auto Res = serializeValType(Type.getValType(),
                                       ASTNodeAttr::Instruction, OutVec);
           unlikely(!Res)) {
         return Unexpect(Res);
@@ -102,9 +91,57 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
         return logNeedProposal(ErrCode::Value::MalformedValType,
                                Proposal::MultiValue, ASTNodeAttr::Instruction);
       }
-      serializeS33(static_cast<int64_t>(Instr.getBlockType().getTypeIndex()),
-                   OutVec);
+      serializeS33(static_cast<int64_t>(Type.getTypeIndex()), OutVec);
     }
+    return {};
+  };
+
+  // Serialize immediate.
+  switch (Instr.getOpCode()) {
+  // Control instructions.
+  case OpCode::Unreachable:
+  case OpCode::Nop:
+  case OpCode::Return:
+  case OpCode::Throw_ref:
+  case OpCode::End:
+  case OpCode::Else:
+    return {};
+
+  case OpCode::Block:
+  case OpCode::Loop:
+  case OpCode::If:
+    return serializeBlockType(Instr.getBlockType());
+
+  case OpCode::Try_table: {
+    // Serialize the result type.
+    if (auto Res = serializeBlockType(Instr.getTryCatch().ResType); !Res) {
+      return Unexpect(Res);
+    }
+    // Serialize the vector of catches.
+    uint32_t VecCnt = static_cast<uint32_t>(Instr.getTryCatch().Catch.size());
+    serializeU32(VecCnt, OutVec);
+    for (auto Catch : Instr.getTryCatch().Catch) {
+      // Read the catch flags.
+      uint8_t Flags = 0;
+      if (Catch.IsRef) {
+        Flags |= 0x01U;
+      }
+      if (Catch.IsAll) {
+        Flags |= 0x02U;
+      }
+      OutVec.push_back(Flags);
+      // Read the tag index.
+      if (!Catch.IsAll) {
+        serializeU32(Catch.TagIndex, OutVec);
+      }
+      // Read the label index.
+      serializeU32(Catch.LabelIndex, OutVec);
+    }
+    return {};
+  }
+
+  case OpCode::Throw:
+    serializeU32(Instr.getTargetIndex(), OutVec);
     return {};
 
   case OpCode::Br:

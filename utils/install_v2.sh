@@ -438,7 +438,13 @@ get_wasmedge_ggml_plugin() {
 		_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
 	else
 		info "Use ${GGML_BUILD_NUMBER} GGML plugin"
-		_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/${VERSION}/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
+		if [[ "${VERSION}" =~ ^"0.14.1" ]]; then
+			# Due to the cuda assets are too large to be inside the repo tree
+			# We are using the release assets instead of the repo tree from 0.14.1
+			_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/releases/download/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
+		else
+			_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/${VERSION}/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
+		fi
 	fi
 
 	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"

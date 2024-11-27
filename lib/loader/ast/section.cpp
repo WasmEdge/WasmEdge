@@ -240,6 +240,11 @@ Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
 
     auto Offset = FMgr.getOffset();
 
+    if (ExpectedSize < Offset - StartOffset) {
+      return logLoadError(ErrCode::Value::UnexpectedEnd, FMgr.getLastOffset(),
+                          ASTNodeAttr::Component);
+    }
+
     if (auto Res =
             loadComponent(*NestedComp, ExpectedSize - (Offset - StartOffset));
         !Res) {
@@ -272,9 +277,15 @@ Expect<void> Loader::loadSection(AST::CoreModuleSection &Sec) {
     CoreMod.getVersion() = Ver;
 
     auto Offset = FMgr.getOffset();
-    ExpectedSize -= (Offset - StartOffset);
 
-    if (auto Res = loadModuleInBound(CoreMod, ExpectedSize); !Res) {
+    if (ExpectedSize < Offset - StartOffset) {
+      return logLoadError(ErrCode::Value::UnexpectedEnd, FMgr.getLastOffset(),
+                          ASTNodeAttr::Module);
+    }
+
+    if (auto Res =
+            loadModuleInBound(CoreMod, ExpectedSize - (Offset - StartOffset));
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
       return Unexpect(Res);
     }

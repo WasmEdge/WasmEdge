@@ -5,6 +5,7 @@
 
 #include "aot/version.h"
 #include "common/defines.h"
+#include "spdlog/spdlog.h"
 #include <cstdint>
 #include <tuple>
 #include <utility>
@@ -217,26 +218,38 @@ Expect<void> Loader::loadSection(AST::TagSection &Sec) {
 }
 
 Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
-  auto ResPreamble = Loader::loadPreamble();
-  if (!ResPreamble) {
-    return Unexpect(ResPreamble);
-  }
-  auto WasmMagic = ResPreamble->first;
-  auto Ver = ResPreamble->second;
-  if (unlikely(Ver != ComponentVersion)) {
-    return logLoadError(ErrCode::Value::MalformedVersion, FMgr.getLastOffset(),
-                        ASTNodeAttr::Component);
-  }
-  auto NestedComp = std::make_shared<AST::Component::Component>();
-  NestedComp->getMagic() = WasmMagic;
-  NestedComp->getVersion() = {Ver[0], Ver[1]};
-  NestedComp->getLayer() = {Ver[2], Ver[3]};
-  if (auto Res = loadComponent(*NestedComp); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
-    return Unexpect(Res);
-  }
-  Sec.getContent() = NestedComp;
-  return {};
+  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    auto ExpectedSize = Sec.getContentSize();
+    auto StartOffset = FMgr.getOffset();
+
+    auto ResPreamble = Loader::loadPreamble();
+    if (!ResPreamble) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+      return Unexpect(ResPreamble);
+    }
+    auto WasmMagic = ResPreamble->first;
+    auto Ver = ResPreamble->second;
+    if (unlikely(Ver != ComponentVersion)) {
+      return logLoadError(ErrCode::Value::MalformedVersion,
+                          FMgr.getLastOffset(), ASTNodeAttr::Component);
+    }
+    auto NestedComp = std::make_shared<AST::Component::Component>();
+    NestedComp->getMagic() = WasmMagic;
+    NestedComp->getVersion() = {Ver[0], Ver[1]};
+    NestedComp->getLayer() = {Ver[2], Ver[3]};
+
+    auto Offset = FMgr.getOffset();
+
+    if (auto Res =
+            loadComponent(*NestedComp, ExpectedSize - (Offset - StartOffset));
+        !Res) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+      return Unexpect(Res);
+    }
+
+    Sec.getContent() = NestedComp;
+    return {};
+  });
 }
 
 Expect<void> Loader::loadSection(AST::CoreModuleSection &Sec) {

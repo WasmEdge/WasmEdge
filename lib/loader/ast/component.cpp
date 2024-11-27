@@ -100,10 +100,17 @@ Loader::loadUnit() {
   }
 }
 
-Expect<void> Loader::loadComponent(AST::Component::Component &Comp) {
+Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
+                                   std::optional<uint32_t> Bound) {
   using namespace AST::Component;
 
-  while (auto ResSecId = FMgr.readByte()) {
+  uint64_t StartOffset = FMgr.getOffset();
+
+  uint64_t Offset = FMgr.getOffset();
+
+  Expect<Byte> ResSecId;
+  while ((!Bound.has_value() || *Bound > Offset - StartOffset) &&
+         (ResSecId = FMgr.readByte())) {
     if (!ResSecId) {
       return logLoadError(ResSecId.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Component);
@@ -152,21 +159,11 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp) {
     }
     case 0x04: {
       Comp.getSections().emplace_back();
-      auto RSize = FMgr.readU32();
-      if (!RSize) {
-        return Unexpect(RSize);
-      }
-      auto OldOffset = FMgr.getLastOffset();
       if (auto Res = loadSection(
               Comp.getSections().back().emplace<ComponentSection>());
           !Res) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
         return Unexpect(Res);
-      }
-      auto NewOffset = FMgr.getLastOffset();
-      if (NewOffset - OldOffset != *RSize) {
-        return logLoadError(ErrCode::Value::ReadError, NewOffset,
-                            ASTNodeAttr::Component);
       }
       break;
     }
@@ -244,6 +241,8 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp) {
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Component);
     }
+
+    Offset = FMgr.getOffset();
   }
 
   return {};

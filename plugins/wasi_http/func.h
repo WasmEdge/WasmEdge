@@ -21,5 +21,33 @@ public:
   Expect<std::string> body(std::string URI);
 };
 
+namespace Types {
+
+// variant method {
+//   get,
+//   head,
+//   post,
+//   put,
+//   delete,
+//   connect,
+//   options,
+//   trace,
+//   patch,
+//   other(string)
+// }
+class Method : public Component::Variant, public AST::Component::VariantTy {};
+
+class ErrorCode : public Component::Variant,
+                  public AST::Component::VariantTy {};
+
+// http-error-code: func(err: borrow<io-error>) -> option<error-code>;
+class HttpErrorCode : public WasiHttp<HttpErrorCode> {
+public:
+  HttpErrorCode(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<Option<ErrorCode>> body(uint32_t Err);
+};
+
+} // namespace Types
+
 } // namespace Host
 } // namespace WasmEdge

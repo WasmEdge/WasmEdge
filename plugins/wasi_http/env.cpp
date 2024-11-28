@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "env.h"
+#include "interface.h"
 #include "module.h"
 
 namespace WasmEdge {
@@ -16,6 +17,11 @@ create(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
   return new WasiHttpModule();
 }
 
+Runtime::Instance::ComponentInstance *
+createTypes(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
+  return new WasiHttp_Types();
+}
+
 Plugin::Plugin::PluginDescriptor Descriptor{
     .Name = "wasi_http",
     .Description = "",
@@ -23,13 +29,18 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .Version = {0, 1, 0, 0},
     .ModuleCount = 0,
     .ModuleDescriptions = {},
-    .ComponentCount = 1,
+    .ComponentCount = 2,
     .ComponentDescriptions =
         (Plugin::PluginComponent::ComponentDescriptor[]){
             {
                 .Name = "wasi:http/test",
                 .Description = "",
                 .Create = create,
+            },
+            {
+                .Name = "wasi:http/types@0.2.0",
+                .Description = "",
+                .Create = createTypes,
             },
         },
     .AddOptions = nullptr,

@@ -958,8 +958,8 @@ def install_plugins(args, compat):
                 plugin_wasi_nn_ggml_bypass_check = True
                 if plugin_name.startswith(WASI_NN_GGML) and "-b" in plugin_name:
                     [plugin_name, plugin_build_number] = plugin_name.split("-b")
-                    url_root = "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/"
-                    url_root += "$VERSION$/b$BUILD_NUMBER$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
+                    url_root = "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/releases/download/"
+                    url_root += "b$BUILD_NUMBER$/WasmEdge-plugin-$PLUGIN_NAME$-$VERSION$-$DIST$_$ARCH$.tar.gz"
                     url_root = url_root.replace("$BUILD_NUMBER$", plugin_build_number)
 
                 # Re-write the plugin name if CUDA is available

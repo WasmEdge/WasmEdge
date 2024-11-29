@@ -67,6 +67,10 @@ private:
 
 class Case {
 public:
+  Case() : Label{}, ValTy{std::nullopt} {}
+  Case(std::string &&L) : Label{L}, ValTy{std::nullopt} {}
+  Case(std::string &&L, ValueType VT) : Label{L}, ValTy{VT} {}
+
   std::string_view getLabel() const noexcept { return Label; }
   std::string &getLabel() noexcept { return Label; }
   const std::optional<ValueType> getValType() const noexcept { return ValTy; }
@@ -91,6 +95,9 @@ private:
 
 class VariantTy {
 public:
+  VariantTy() : Cases{} {}
+  VariantTy(std::initializer_list<Case> Cs) : Cases{Cs} {}
+
   Span<const Case> getCases() const noexcept { return Cases; }
   std::vector<Case> &getCases() noexcept { return Cases; }
 

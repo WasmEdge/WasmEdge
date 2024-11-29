@@ -23,19 +23,27 @@ public:
 
 namespace Types {
 
-// variant method {
-//   get,
-//   head,
-//   post,
-//   put,
-//   delete,
-//   connect,
-//   options,
-//   trace,
-//   patch,
-//   other(string)
-// }
-class Method : public Component::Variant, public AST::Component::VariantTy {};
+class Method : public Component::Variant<Tuple<>,    // get
+                                         Tuple<>,    // head
+                                         Tuple<>,    // post
+                                         Tuple<>,    // put
+                                         Tuple<>,    // delete
+                                         Tuple<>,    // connect
+                                         Tuple<>,    // options
+                                         Tuple<>,    // trace
+                                         Tuple<>,    // patch
+                                         std::string // other(string)
+                                         >,
+               public AST::Component::VariantTy {
+  Method()
+      : AST::Component::VariantTy{
+            Case("get"),     Case("head"),
+            Case("post"),    Case("put"),
+            Case("delete"),  Case("connect"),
+            Case("options"), Case("trace"),
+            Case("patch"),   Case("other", PrimValType::String),
+        } {}
+};
 
 class ErrorCode : public Component::Variant,
                   public AST::Component::VariantTy {};

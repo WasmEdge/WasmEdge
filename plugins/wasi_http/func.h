@@ -45,6 +45,19 @@ class Method : public Component::Variant<Tuple<>,    // get
         } {}
 };
 
+class Scheme : public Component::Variant<Tuple<>,    // HTTP
+                                         Tuple<>,    // HTTPS
+                                         std::string // other(string)
+                                         >,
+               public AST::Component::VariantTy {
+  Scheme()
+      : AST::Component::VariantTy{
+            Case("HTTP"),
+            Case("HTTPS"),
+            Case("other", PrimValType::String),
+        } {}
+};
+
 class ErrorCode : public Component::Variant,
                   public AST::Component::VariantTy {};
 

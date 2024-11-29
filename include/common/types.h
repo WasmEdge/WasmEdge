@@ -597,7 +597,8 @@ private:
 
 namespace Component {
 
-template <typename... Types> class Variant : public ValComp {
+template <typename... Types> struct Variant : public ValComp {
+  Variant() : Content{} {}
   Variant(std::variant<Types...> V) : Content{V} {}
 
 private:

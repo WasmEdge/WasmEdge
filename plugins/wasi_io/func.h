@@ -30,7 +30,7 @@ class OutputStream_BlockingWriteAndFlush
 public:
   OutputStream_BlockingWriteAndFlush(WasiIOEnvironment &HostEnv)
       : WasiIO(HostEnv) {}
-  Expect<void> body() { return {}; }
+  Expect<Result<Tuple<>, StreamError::T>> body(List<uint8_t> Contents);
 };
 
 } // namespace Host

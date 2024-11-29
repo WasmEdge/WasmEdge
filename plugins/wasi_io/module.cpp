@@ -30,7 +30,7 @@ WasiIOStreamsModule::WasiIOStreamsModule()
   addHostFunc("[method]output-stream.blocking-write-and-flush",
               std::make_unique<OutputStream_BlockingWriteAndFlush>(Env));
 
-  addHostType("error", StreamError());
+  addHostType("error", StreamError::ast());
 }
 
 } // namespace Host

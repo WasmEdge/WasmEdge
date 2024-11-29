@@ -6,5 +6,12 @@
 #include "common/errcode.h"
 
 namespace WasmEdge {
-namespace Host {} // namespace Host
+namespace Host {
+
+Expect<Result<Tuple<>, StreamError::T>>
+OutputStream_BlockingWriteAndFlush::body(List<uint8_t> /* Contents */) {
+  return Result<Tuple<>, StreamError::T>(StreamError::closed());
+}
+
+} // namespace Host
 } // namespace WasmEdge

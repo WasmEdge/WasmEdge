@@ -145,6 +145,9 @@ private:
 
 class OptionTy {
 public:
+  OptionTy() {}
+  OptionTy(ValueType T) : ValTy{T} {}
+
   const ValueType getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
 

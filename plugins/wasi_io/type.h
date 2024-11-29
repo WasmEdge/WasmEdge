@@ -39,15 +39,21 @@ public:
             new Runtime::Instance::ComponentInstance("output-stream")) {}
 };
 
-class StreamError : public Component::Variant<uint32_t, Tuple<>>,
-                    public AST::Component::VariantTy {
-public:
-  StreamError()
-      : AST::Component::VariantTy{
-            AST::Component::Case("last-operation-failed",
-                                 AST::Component::PrimValType::U32),
-            AST::Component::Case("closed")} {}
-};
+namespace StreamError {
+// varian
+using T = Component::Variant<uint32_t, Tuple<>>;
+
+T lastOperationFailed(uint32_t IOErr) noexcept { return T(IOErr); }
+T closed() noexcept { return T{}; }
+
+AST::Component::VariantTy ast() noexcept {
+  return AST::Component::VariantTy{
+      AST::Component::Case("last-operation-failed",
+                           AST::Component::PrimValType::U32),
+      AST::Component::Case("closed")};
+}
+
+} // namespace StreamError
 
 } // namespace Host
 } // namespace WasmEdge

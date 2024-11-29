@@ -39,10 +39,14 @@ public:
             new Runtime::Instance::ComponentInstance("output-stream")) {}
 };
 
-class StreamError : public AST::Component::ResourceType {
+class StreamError : public Component::Variant<uint32_t, Tuple<>>,
+                    public AST::Component::VariantTy {
 public:
   StreamError()
-      : ResourceType(new Runtime::Instance::ComponentInstance("error")) {}
+      : AST::Component::VariantTy{
+            AST::Component::Case("last-operation-failed",
+                                 AST::Component::PrimValType::U32),
+            AST::Component::Case("closed")} {}
 };
 
 } // namespace Host

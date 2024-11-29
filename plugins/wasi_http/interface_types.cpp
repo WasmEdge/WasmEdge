@@ -10,6 +10,7 @@ namespace WasmEdge {
 namespace Host {
 
 WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
+  addHostType("method", Method());
   addHostFunc("http-error-code", std::make_unique<Types::HttpErrorCode>(Env));
 }
 

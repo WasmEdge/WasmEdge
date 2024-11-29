@@ -11,6 +11,7 @@ namespace Host {
 
 WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("method", Method());
+  addHostType("scheme", Scheme());
   addHostFunc("http-error-code", std::make_unique<Types::HttpErrorCode>(Env));
 }
 

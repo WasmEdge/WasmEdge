@@ -89,12 +89,6 @@ Executor::instantiate(Runtime::StoreManager &,
           break;
         case SortCase::Type: {
           auto Ty = CInst->getType(Exp.getName());
-          // FIXME: The `dateime` record from `wasi:clocks/wall-clock@0.2.0`
-          // will need this message to debug it.
-          //
-          // spdlog::warn("component `{}`, from `{}` loading type `{} := {}` ",
-          //              CompInst.getComponentName(),
-          //              CInst->getComponentName(), Exp.getName(), Ty);
           CompInst.addType(Ty);
           break;
         }

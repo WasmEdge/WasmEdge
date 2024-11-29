@@ -12,6 +12,8 @@ namespace Host {
 WasiIOErrorModule::WasiIOErrorModule()
     : ComponentInstance("wasi:io/error@0.2.0") {
   addHostType("error", IoError(getEnv()));
+  addHostFunc("[method]error.to-debug-string",
+              std::make_unique<ToDebugString>(Env));
 }
 
 WasiIOStreamsModule::WasiIOStreamsModule()

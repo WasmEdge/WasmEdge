@@ -494,7 +494,7 @@ template <typename T> struct List : public ValComp {
 private:
   std::vector<T> Content;
 };
-template <typename... Types> class Record : public ValComp {
+template <typename... Types> struct Record : public ValComp {
   Record(Types &&...Args) : Content(std::forward<Types>(Args)...) {}
 
 private:
@@ -534,7 +534,8 @@ private:
 
 namespace Component {
 
-template <typename... Types> class Variant : public ValComp {
+template <typename... Types> struct Variant : public ValComp {
+  Variant() : Content{} {}
   Variant(std::variant<Types...> V) : Content{V} {}
 
 private:

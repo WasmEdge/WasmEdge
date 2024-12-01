@@ -411,10 +411,14 @@ get_wasmedge_ggml_plugin() {
 		info "Detected CUDA version from nvcc: ${cuda}"
 		if [ "${cuda}" == "" ]; then
 			info "CUDA version is not detected from nvcc: Use the CPU version."
-			info "Or you can use '-c 11' or '-c 12' to install the cuda-11 or cuda-12 version manually."
+			info "If you want to install cuda-11 or cuda-12 version manually, you can specify the following options:"
+			info "Use options '-c 11' (a.k.a. '--ggmlcuda=11') or '-c 12' (a.k.a. '--ggmlcuda=12')"
+			info "Please refer to the document for more information: https://wasmedge.org/docs/contribute/installer_v2/"
 		elif [ "${cudart}" == "0" ]; then
 			info "libcudart.so is not found in the default installation path of CUDA: Use the CPU version."
-			info "Or you can use '-c 11' or '-c 12' to install the cuda-11 or cuda-12 version manually."
+			info "If you want to install cuda-11 or cuda-12 version manually, you can specify the following options:"
+			info "Use options '-c 11' (a.k.a. '--ggmlcuda=11') or '-c 12' (a.k.a. '--ggmlcuda=12')"
+			info "Please refer to the document for more information: https://wasmedge.org/docs/contribute/installer_v2/"
 			cuda="" # Reset cuda detection result because of the libcudart.so is not found.
 		fi
 
@@ -434,7 +438,13 @@ get_wasmedge_ggml_plugin() {
 		_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
 	else
 		info "Use ${GGML_BUILD_NUMBER} GGML plugin"
-		_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/${VERSION}/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
+		if [[ "${VERSION}" =~ ^"0.14.1" ]]; then
+			# Due to the cuda assets are too large to be inside the repo tree
+			# We are using the release assets instead of the repo tree from 0.14.1
+			_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/releases/download/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
+		else
+			_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/${VERSION}/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
+		fi
 	fi
 
 	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"

@@ -42,6 +42,9 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   //   5.  Serialize import description of global type.
   //   6.  Serialize invalid import description of global type without
   //       Mut-Globals proposal.
+  //   7.  Serialize import description of tag type.
+  //   8.  Serialize import description of tag type without the exception
+  //   handling proposal.
 
   Desc.setModuleName("");
   Desc.setExternalName("");
@@ -140,6 +143,26 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
 
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Var);
   EXPECT_FALSE(SerNoImpMutGlob.serializeSection(createImportSec(Desc), Output));
+
+  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
+  Desc.setExternalType(WasmEdge::ExternalType::Tag);
+  Desc.getExternalTagType().setTypeIdx(0x02U);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
+  Expected = {
+      0x02U,                                           // Import section
+      0x10U,                                           // Content size = 16
+      0x01U,                                           // Vector length = 1
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               // Module name: test
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
+      0x04U,                                           // Tag type
+      0x00U, 0x02U                                     // TypeIdx value
+  };
+  EXPECT_EQ(Expected, Output);
+
+  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createImportSec(Desc), Output));
 }
 
 TEST(SerializeDescriptionTest, SerializeExportDesc) {
@@ -152,6 +175,9 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   //   1.  Serialize export description with empty module name.
   //   2.  Serialize export description with non-empty module name.
   //   3.  Serialize export description of table type.
+  //   7.  Serialize export description of tag type.
+  //   8.  Serialize export description of tag type without the exception
+  //   handling proposal.
 
   Desc.setExternalName("");
   Desc.setExternalType(WasmEdge::ExternalType::Function);
@@ -197,5 +223,24 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
       0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Table type and table index
   };
   EXPECT_EQ(Output, Expected);
+
+  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
+  Desc.setExternalType(WasmEdge::ExternalType::Tag);
+  Desc.setExternalIndex(0x02U);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
+  Expected = {
+      0x07U,                                           // Export section
+      0x0BU,                                           // Content size = 10
+      0x01U,                                           // Vector length = 1
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
+      0x04U,                                           // Tag type
+      0x00U, 0x02U                                     // TypeIdx value
+  };
+  EXPECT_EQ(Expected, Output);
+
+  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
+  Output = {};
+  EXPECT_FALSE(Ser.serializeSection(createExportSec(Desc), Output));
 }
 } // namespace

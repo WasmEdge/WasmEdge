@@ -361,6 +361,27 @@ TEST(SerializeSectionTest, SerializeDataCountSection) {
 
   EXPECT_EQ(Output, Expected);
 }
+
+TEST(SerializeSectionTest, SerializeTagSection) {
+  WasmEdge::AST::TagSection TagSec;
+
+  TagSec.getContent().resize(3);
+  TagSec.getContent()[0].setTypeIdx(0x00U);
+  TagSec.getContent()[1].setTypeIdx(0x01U);
+  TagSec.getContent()[2].setTypeIdx(0x02U);
+
+  std::vector<uint8_t> Output;
+  EXPECT_TRUE(Ser.serializeSection(TagSec, Output));
+  std::vector<uint8_t> Expected = {
+      0x0DU,        // section ID
+      0x07U,        // Content size = 10
+      0x03U,        // Vector Length = 3
+      0x00U, 0x00U, // First typeidx
+      0x00U, 0x01U, // Second typeidx
+      0x00U, 0x02U  // Third type idx
+  };
+  EXPECT_EQ(Output, Expected);
+}
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

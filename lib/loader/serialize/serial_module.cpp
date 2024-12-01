@@ -25,9 +25,9 @@ Serializer::serializeModule(const AST::Module &Mod) const noexcept {
                    const AST::GlobalSection *, const AST::ExportSection *,
                    const AST::StartSection *, const AST::ElementSection *,
                    const AST::CodeSection *, const AST::DataSection *,
-                   const AST::DataCountSection *>;
+                   const AST::DataCountSection *, const AST::TagSection *>;
   std::vector<SecVariant> Sections;
-  Sections.reserve(Mod.getCustomSections().size() + 12);
+  Sections.reserve(Mod.getCustomSections().size() + 13);
   for (auto &CustomSec : Mod.getCustomSections()) {
     Sections.push_back(&CustomSec);
   }
@@ -43,6 +43,7 @@ Serializer::serializeModule(const AST::Module &Mod) const noexcept {
   Sections.push_back(&Mod.getCodeSection());
   Sections.push_back(&Mod.getDataSection());
   Sections.push_back(&Mod.getDataCountSection());
+  Sections.push_back(&Mod.getTagSection());
   std::sort(Sections.begin(), Sections.end(), [&](auto &A, auto &B) {
     auto Getter = [](auto &Sec) { return Sec->getStartOffset(); };
     return std::visit(Getter, A) < std::visit(Getter, B);

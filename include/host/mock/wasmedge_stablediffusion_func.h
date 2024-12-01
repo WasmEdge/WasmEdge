@@ -20,7 +20,7 @@ public:
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
                         uint32_t, uint32_t, uint32_t, uint32_t, uint32_t,
-                        uint32_t, uint32_t, uint32_t) {
+                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {
     printPluginMock("WasmEdge-Stable-Diffusion"sv);
     return kStableDiffusionError;
   }

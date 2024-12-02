@@ -51,8 +51,28 @@ void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
   }
 }
 
+Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
+  Params.model = GraphRef.ModelFilePath;
+  Params.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
+  Params.n_ctx = static_cast<uint32_t>(GraphRef.CtxSize);
+  Params.n_batch = static_cast<uint32_t>(GraphRef.BatchSize);
+  Params.n_ubatch = static_cast<uint32_t>(GraphRef.UBatchSize);
+  Params.warmup = GraphRef.WarmUp;
+  Params.cpuparams.n_threads = static_cast<uint32_t>(GraphRef.Threads);
+  Params.cpuparams_batch.n_threads = static_cast<uint32_t>(GraphRef.Threads);
+  Params.embedding = GraphRef.Embedding;
+  Params.sampling.temp = static_cast<float>(GraphRef.Temp);
+  Params.sampling.top_p = static_cast<float>(GraphRef.TopP);
+  Params.sampling.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
+  Params.sampling.penalty_present =
+      static_cast<float>(GraphRef.PresencePenalty);
+  Params.sampling.grammar = GraphRef.Grammar;
+  return ErrNo::Success;
+}
+
 Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
-                            bool *IsModelUpdated = nullptr) noexcept {
+                            bool *IsModelUpdated = nullptr,
+                            bool *IsContextUpdated = nullptr) noexcept {
   simdjson::dom::parser Parser;
   simdjson::dom::element Doc;
   auto ParseError = Parser.parse(Metadata).get(Doc);
@@ -79,6 +99,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   main-gpu: int64_t
   //   tensor-split: string, comma-separated floating number list
   //   use-mmap: use mmap
+  //   warmup: bool
   // Context parameters (used by the llama context):
   //   ctx-size: uint64_t
   //   batch-size: uint64_t
@@ -93,11 +114,8 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   grammar: string
 
   // Get the current llama parameters.
-  llama_model_params ModelParams = llama_model_default_params();
-  ModelParams.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
-  ModelParams.main_gpu = static_cast<int32_t>(GraphRef.MainGPU);
-  ModelParams.tensor_split = GraphRef.TensorSplit.data();
-  ModelParams.use_mmap = GraphRef.UseMMap;
+  common_params Params;
+  setupParams(GraphRef, Params);
 
   // The plugin parameters.
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
@@ -226,6 +244,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("warmup").error() == simdjson::SUCCESS) {
+    auto Err = Doc["warmup"].get<bool>().get(GraphRef.WarmUp);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the warmup option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
 
   // The context parameters.
   if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
@@ -328,28 +354,15 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   }
 
   // Check if the model is updated.
-  if (IsModelUpdated && ModelParams.n_gpu_layers != GraphRef.NGPULayers) {
+  if (IsModelUpdated && Params.n_gpu_layers != GraphRef.NGPULayers) {
     *IsModelUpdated = true;
   }
 
-  return ErrNo::Success;
-}
+  // Check if the context parameters are updated.
+  if (IsContextUpdated && Params.embedding != GraphRef.Embedding) {
+    *IsContextUpdated = true;
+  }
 
-Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
-  Params.model = GraphRef.ModelFilePath;
-  Params.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
-  Params.n_ctx = static_cast<uint32_t>(GraphRef.CtxSize);
-  Params.n_batch = static_cast<uint32_t>(GraphRef.BatchSize);
-  Params.n_ubatch = static_cast<uint32_t>(GraphRef.UBatchSize);
-  Params.cpuparams.n_threads = static_cast<uint32_t>(GraphRef.Threads);
-  Params.cpuparams_batch.n_threads = static_cast<uint32_t>(GraphRef.Threads);
-  Params.embedding = GraphRef.Embedding;
-  Params.sampling.temp = static_cast<float>(GraphRef.Temp);
-  Params.sampling.top_p = static_cast<float>(GraphRef.TopP);
-  Params.sampling.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
-  Params.sampling.penalty_present =
-      static_cast<float>(GraphRef.PresencePenalty);
-  Params.sampling.grammar = GraphRef.Grammar;
   return ErrNo::Success;
 }
 
@@ -840,6 +853,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   }
 
   bool IsModelParamsUpdated = false;
+  bool IsContextParamsUpdated = false;
   // Use index 1 for metadata.
   if (Index == 1) {
     if (GraphRef.EnableDebugLog) {
@@ -848,7 +862,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
     const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
                                Tensor.Tensor.size());
-    auto Res = parseMetadata(GraphRef, Metadata, &IsModelParamsUpdated);
+    auto Res = parseMetadata(GraphRef, Metadata, &IsModelParamsUpdated,
+                             &IsContextParamsUpdated);
 
     if (Res != ErrNo::Success) {
       spdlog::error("[WASI-NN] GGML backend: Failed to parse metadata."sv);
@@ -877,6 +892,26 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
     }
 #endif
+
+    // Some changes of context parameters will require the context to be
+    // reloaded.
+    if (IsContextParamsUpdated) {
+      if (GraphRef.EnableLog) {
+        spdlog::info(
+            "[WASI-NN] GGML backend: Reloaded model due to parameters change."sv);
+      }
+      llama_free(GraphRef.LlamaContext);
+      common_params Params;
+      setupParams(GraphRef, Params);
+      GraphRef.LlamaContext = llama_new_context_with_model(
+          GraphRef.LlamaModel, common_context_params_to_llama(Params));
+      if (GraphRef.LlamaContext == nullptr) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: Error: unable to init context."sv);
+        Env.NNGraph.pop_back();
+        return ErrNo::InvalidArgument;
+      }
+    }
 
     if (GraphRef.EnableDebugLog) {
       spdlog::info(

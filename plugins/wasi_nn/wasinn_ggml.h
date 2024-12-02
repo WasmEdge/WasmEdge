@@ -40,6 +40,7 @@ struct Graph {
   int64_t NGPULayers = 0;
   std::vector<float> TensorSplit;
   bool UseMMap = true;
+  bool WarmUp = false;
   // Context parameters:
   uint64_t CtxSize;
   uint64_t BatchSize;

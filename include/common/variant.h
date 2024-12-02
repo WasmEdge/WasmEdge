@@ -113,6 +113,20 @@ template <typename T>
 static constexpr bool not_in_place_tag =
     !is_in_place_tag<remove_cvref_t<T>>::value;
 
+template <typename T> struct overload {
+  template <typename U> tag<T> operator()(T, U &&) const;
+};
+
+template <typename... Types> struct make_overloads : Types... {
+  void operator()() const;
+  using Types::operator()...;
+};
+
+template <typename T, typename... Types>
+using best_match_t =
+    typename std::invoke_result_t<make_overloads<overload<Types>...>, T,
+                                  T>::type;
+
 template <typename T, typename... Types>
 struct index_of : std::integral_constant<std::size_t, 0> {};
 
@@ -153,9 +167,6 @@ template <typename... Types> class Variant {
   template <typename T>
   static constexpr bool not_self =
       !std::is_same_v<detail::remove_cvref_t<T>, Variant>;
-  template <typename T>
-  static constexpr bool accept_type =
-      (std::is_same_v<detail::remove_cvref_t<T>, Types> || ...);
 
   VariadicUnion<Types...> Storage;
 
@@ -167,24 +178,25 @@ public:
   constexpr Variant &operator=(Variant &&) noexcept = default;
   ~Variant() noexcept = default;
 
-  template <typename T, typename = std::enable_if_t<
-                            detail::not_in_place_tag<T> && not_self<T>>>
+  template <typename T, typename = std::enable_if_t<not_self<T>>,
+            typename = std::enable_if_t<detail::not_in_place_tag<T>>,
+            typename U = detail::best_match_t<T, Types...>,
+            size_t N = detail::index_of_v<U, Types...>,
+            typename = std::enable_if_t<std::less<>()(N, sizeof...(Types))>,
+            typename = std::enable_if_t<std::is_constructible_v<U, T>>>
   constexpr Variant(T &&Value) noexcept
-      : Variant(
-            std::in_place_index_t<std::variant<detail::tag<Types>...>(
-                                      detail::tag<detail::remove_cvref_t<T>>())
-                                      .index()>(),
-            std::forward<T>(Value)) {}
+      : Variant(std::in_place_index_t<N>(), std::forward<T>(Value)) {}
 
-  template <std::size_t N, typename... Args>
+  template <std::size_t N, typename... Args,
+            typename = std::enable_if_t<std::less<>()(N, sizeof...(Types))>>
   constexpr Variant(std::in_place_index_t<N> In, Args &&...Values) noexcept
       : Storage(In, std::forward<Args>(Values)...) {}
 
-  template <typename T, typename = std::enable_if_t<accept_type<T>>,
-            typename... Args>
+  template <typename T, typename... Args,
+            size_t N = detail::index_of_v<T, Types...>,
+            typename = std::enable_if_t<std::less<>()(N, sizeof...(Types))>>
   constexpr Variant(std::in_place_type_t<T>, Args &&...Values) noexcept
-      : Variant(std::in_place_index_t<detail::index_of_v<T, Types...>>(),
-                std::forward<Args>(Values)...) {}
+      : Variant(std::in_place_index_t<N>(), std::forward<Args>(Values)...) {}
 
   template <typename T> constexpr T &get() &noexcept {
     return Storage.template get<T>();

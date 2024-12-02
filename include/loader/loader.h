@@ -211,7 +211,7 @@ private:
   Expect<void> loadUniversalWASM(AST::Module &Mod);
   Expect<void> loadModuleAOT(AST::AOTSection &AOTSection);
   Expect<void> loadComponent(AST::Component::Component &Comp,
-                             std::optional<uint32_t> Bound = std::nullopt);
+                             std::optional<uint64_t> Bound = std::nullopt);
   /// @}
 
   /// \name Load AST section node helper functions

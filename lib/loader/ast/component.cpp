@@ -101,7 +101,7 @@ Loader::loadUnit() {
 }
 
 Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
-                                   std::optional<uint32_t> Bound) {
+                                   std::optional<uint64_t> Bound) {
   using namespace AST::Component;
 
   uint64_t StartOffset = FMgr.getOffset();

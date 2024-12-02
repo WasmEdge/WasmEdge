@@ -4,6 +4,7 @@
 wasmedge_add_library(wasmedgePluginWasiIO
   SHARED
   env.cpp
+  type.cpp
   func.cpp
   module.cpp
 )

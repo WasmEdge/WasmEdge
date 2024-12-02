@@ -40,18 +40,13 @@ public:
 };
 
 namespace StreamError {
-// varian
+
 using T = Component::Variant<uint32_t, Tuple<>>;
 
-T lastOperationFailed(uint32_t IOErr) noexcept { return T(IOErr); }
-T closed() noexcept { return T{}; }
+T lastOperationFailed(uint32_t IOErr) noexcept;
+T closed() noexcept;
 
-AST::Component::VariantTy ast() noexcept {
-  return AST::Component::VariantTy{
-      AST::Component::Case("last-operation-failed",
-                           AST::Component::PrimValType::U32),
-      AST::Component::Case("closed")};
-}
+AST::Component::VariantTy ast() noexcept;
 
 } // namespace StreamError
 

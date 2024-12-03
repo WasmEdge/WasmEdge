@@ -692,6 +692,15 @@ template <> struct Wit<bool> {
 template <> struct Wit<uint8_t> {
   static inline ValType type() noexcept { return InterfaceType(TypeCode::U8); }
 };
+template <> struct Wit<uint16_t> {
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::U16); }
+};
+template <> struct Wit<uint32_t> {
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::U32); }
+};
+template <> struct Wit<uint64_t> {
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::U64); }
+};
 template <> struct Wit<std::string> {
   static inline ValType type() noexcept {
     return InterfaceType(TypeCode::String);

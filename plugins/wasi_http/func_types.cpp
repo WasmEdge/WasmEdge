@@ -83,8 +83,8 @@ VariantTy ErrorCode::ast() noexcept {
       Case("internal-error", OptionTy(PrimValType::String))};
 }
 
-Expect<Option<ErrorCode>> HttpErrorCode::body(uint32_t Err) {
-  return std::nullopt;
+Expect<Option<ErrorCode::T>> HttpErrorCode::body(uint32_t) {
+  return Option<ErrorCode::T>();
 }
 
 VariantTy HeaderError::ast() noexcept {

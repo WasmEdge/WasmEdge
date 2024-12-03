@@ -572,8 +572,50 @@ private:
 };
 template <typename T> struct Option : public ValComp {
   Option() : Content{std::nullopt} {}
-  Option(T Arg) : Content(Arg) {}
-  Option(std::optional<T> Arg) : Content(Arg) {}
+  Option(T &&Arg) : Content(Arg) {}
+
+private:
+  std::optional<T> Content;
+};
+struct Enum : public ValComp {
+  Enum() {}
+
+private:
+  std::vector<std::string> Labels;
+};
+template <typename V, typename E> struct Result : public ValComp {
+  Result(V Val) : Content{Val} {}
+  Result(E Error) : Content{Error} {}
+
+  bool isOk() { return std::holds_alternative<V>(Content); }
+  bool isErr() { return std::holds_alternative<E>(Content); }
+
+private:
+  std::variant<V, E> Content;
+};
+
+namespace Component {
+
+template <typename... Types> struct Variant : public ValComp {
+  Variant() : Content{} {}
+  Variant(std::variant<Types...> V) : Content{V} {}
+
+private:
+  std::variant<Types...> Content;
+};
+
+} // namespace Component
+// TODO: add Record<Ts ...> : public ValComp
+template <typename... Types> struct Tuple : public ValComp {
+  Tuple(Types &&...Args)
+      : Content(std::make_tuple(std::forward<Types>(Args)...)) {}
+
+private:
+  std::tuple<Types...> Content;
+};
+template <typename T> struct Option : public ValComp {
+  Option() : Content{std::nullopt} {}
+  Option(T &&Arg) : Content(Arg) {}
 
 private:
   std::optional<T> Content;

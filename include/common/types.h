@@ -509,8 +509,7 @@ private:
 };
 template <typename T> struct Option : public ValComp {
   Option() : Content{std::nullopt} {}
-  Option(T Arg) : Content(Arg) {}
-  Option(std::optional<T> Arg) : Content(Arg) {}
+  Option(T &&Arg) : Content(Arg) {}
 
 private:
   std::optional<T> Content;

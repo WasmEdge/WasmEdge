@@ -88,6 +88,12 @@ public:
   Expect<Option<ErrorCode>> body(uint32_t Err);
 };
 
+namespace HeaderError {
+using T = Component::Variant<Tuple<>, Tuple<>, Tuple<>>;
+
+AST::Component::VariantTy ast() noexcept;
+} // namespace HeaderError
+
 } // namespace Types
 
 } // namespace Host

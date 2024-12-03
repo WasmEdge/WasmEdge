@@ -18,6 +18,8 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("field-size-payload", FieldSizePayload::ast());
   addHostType("error-code", ErrorCode::ast());
   addHostFunc("http-error-code", std::make_unique<HttpErrorCode>(Env));
+  addHostType("header-error", HeaderError::ast());
+  addHostType("field-key", AST::Component::PrimValType::String);
 }
 
 } // namespace Host

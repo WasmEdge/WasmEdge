@@ -85,6 +85,14 @@ Expect<Option<ErrorCode>> HttpErrorCode::body(uint32_t Err) {
   return std::nullopt;
 }
 
+AST::Component::VariantTy HeaderError::ast() noexcept {
+  return VariantTy{
+      Case("invalid-syntax"),
+      Case("forbidden"),
+      Case("immutable"),
+  };
+}
+
 } // namespace Types
 
 } // namespace Host

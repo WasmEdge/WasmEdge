@@ -79,6 +79,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   main-gpu: int64_t
   //   tensor-split: string, comma-separated floating number list
   //   use-mmap: use mmap
+  //   warmup: bool
   // Context parameters (used by the llama context):
   //   ctx-size: uint64_t
   //   batch-size: uint64_t
@@ -226,6 +227,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if (Doc.at_key("warmup").error() == simdjson::SUCCESS) {
+    auto Err = Doc["warmup"].get<bool>().get(GraphRef.WarmUp);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the warmup option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
 
   // The context parameters.
   if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
@@ -341,6 +350,7 @@ Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
   Params.n_ctx = static_cast<uint32_t>(GraphRef.CtxSize);
   Params.n_batch = static_cast<uint32_t>(GraphRef.BatchSize);
   Params.n_ubatch = static_cast<uint32_t>(GraphRef.UBatchSize);
+  Params.warmup = GraphRef.WarmUp;
   Params.cpuparams.n_threads = static_cast<uint32_t>(GraphRef.Threads);
   Params.cpuparams_batch.n_threads = static_cast<uint32_t>(GraphRef.Threads);
   Params.embedding = GraphRef.Embedding;

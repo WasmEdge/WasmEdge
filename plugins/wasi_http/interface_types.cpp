@@ -10,13 +10,14 @@ namespace WasmEdge {
 namespace Host {
 
 WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
-  addHostType("method", Types::Method());
-  addHostType("scheme", Types::Scheme());
-  addHostType("DNS-error-payload", DNSErrorPayload());
-  addHostType("TLS-alert-received-payload", TLSAlertReceivedPayload());
-  addHostType("field-size-payload", FieldSizePayload());
-  addHostType("error-code", Types::ErrorCode());
-  addHostFunc("http-error-code", std::make_unique<Types::HttpErrorCode>(Env));
+  using namespace Types;
+  addHostType("method", Method::ast());
+  addHostType("scheme", Scheme::ast());
+  addHostType("DNS-error-payload", DNSErrorPayload::ast());
+  addHostType("TLS-alert-received-payload", TLSAlertReceivedPayload::ast());
+  addHostType("field-size-payload", FieldSizePayload::ast());
+  addHostType("error-code", ErrorCode::ast());
+  addHostFunc("http-error-code", std::make_unique<HttpErrorCode>(Env));
 }
 
 } // namespace Host

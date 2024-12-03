@@ -107,6 +107,9 @@ private:
 
 class ListTy {
 public:
+  ListTy() : ValTy{} {}
+  ListTy(ValueType &&T) : ValTy{T} {}
+
   const ValueType getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
 

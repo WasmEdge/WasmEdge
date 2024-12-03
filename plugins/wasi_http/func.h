@@ -94,6 +94,16 @@ using T = Component::Variant<Tuple<>, Tuple<>, Tuple<>>;
 AST::Component::VariantTy ast() noexcept;
 } // namespace HeaderError
 
+namespace FieldKey {
+using T = std::string;
+AST::Component::PrimValType ast() noexcept;
+} // namespace FieldKey
+
+namespace FieldValue {
+using T = List<uint8_t>;
+AST::Component::ListTy ast() noexcept;
+} // namespace FieldValue
+
 } // namespace Types
 
 } // namespace Host

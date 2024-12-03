@@ -93,6 +93,14 @@ AST::Component::VariantTy HeaderError::ast() noexcept {
   };
 }
 
+AST::Component::PrimValType FieldKey::ast() noexcept {
+  return PrimValType::String;
+}
+
+AST::Component::ListTy FieldValue::ast() noexcept {
+  return ListTy(PrimValType::U8);
+}
+
 } // namespace Types
 
 } // namespace Host

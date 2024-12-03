@@ -6,11 +6,6 @@ if(WASMEDGE_PLUGIN_WASI_CRYPTO)
   add_subdirectory(wasi_crypto)
 endif()
 
-# WASI plug-in: WASI-Http proposal.
-if(WASMEDGE_PLUGIN_WASI_HTTP)
-  add_subdirectory(wasi_http)
-endif()
-
 # WASI plug-in: WASI-Logging proposal.
 if(WASMEDGE_PLUGIN_WASI_LOGGING)
   # BUILTIN-PLUGIN: Add the wasi-logging plugin here after the new plugin
@@ -28,6 +23,7 @@ if(WASMEDGE_PREVIEW2)
   set(WASMEDGE_PLUGIN_WASI_CLOCKS ON)
   set(WASMEDGE_PLUGIN_WASI_FILESYSTEM ON)
   set(WASMEDGE_PLUGIN_WASI_CLI ON)
+  set(WASMEDGE_PLUGIN_WASI_HTTP ON)
 endif()
 # WASI plug-in: WASI-Poll proposal.
 if(WASMEDGE_PLUGIN_WASI_POLL)
@@ -48,6 +44,10 @@ endif()
 # WASI plug-in: WASI-Cli proposal.
 if(WASMEDGE_PLUGIN_WASI_CLI)
   add_subdirectory(wasi_cli)
+endif()
+# WASI plug-in: WASI-Http proposal.
+if(WASMEDGE_PLUGIN_WASI_HTTP)
+  add_subdirectory(wasi_http)
 endif()
 
 # WasmEdge plug-in: wasm-bpf.

@@ -10,8 +10,10 @@ namespace Host {
 
 namespace Types {
 
-AST::Component::VariantTy Method::ast() noexcept {
-  return AST::Component::VariantTy{
+using namespace AST::Component;
+
+VariantTy Method::ast() noexcept {
+  return VariantTy{
       Case("get"),     Case("head"),
       Case("post"),    Case("put"),
       Case("delete"),  Case("connect"),
@@ -20,31 +22,31 @@ AST::Component::VariantTy Method::ast() noexcept {
   };
 }
 
-AST::Component::VariantTy Scheme::ast() noexcept {
-  return AST::Component::VariantTy{
+VariantTy Scheme::ast() noexcept {
+  return VariantTy{
       Case("HTTP"),
       Case("HTTPS"),
-      Case("other", PrimValType::String),
+      Case("other", AST::Component::PrimValType::String),
   };
 }
 
-AST::Component::RecordTy DNSErrorPayload::ast() noexcept {
-  return RecordTy{LabelValType("rcode", Option<std::string>),
-                  LabelValType("info-code", Option<u16>)};
+RecordTy DNSErrorPayload::ast() noexcept {
+  return RecordTy{LabelValType("rcode", OptionTy(PrimValType::String)),
+                  LabelValType("info-code", OptionTy(PrimValType::U16))};
 }
 
-AST::Component::RecordTy TLSAlertReceivedPayload::ast() noexcept {
-  return RecordTy{LabelValType("alert-id", Option<u8>),
-                  LabelValType("alert-message", Option<std::string>)};
+RecordTy TLSAlertReceivedPayload::ast() noexcept {
+  return RecordTy{LabelValType("alert-id", OptionTy(PrimValType::U8)),
+                  LabelValType("alert-message", OptionTy(PrimValType::String))};
 }
 
-AST::Component::RecordTy FieldSizePayload::ast() noexcept {
-  return RecordTy{LabelValType("field-name", Option<std::string>),
-                  LabelValType("field-size", Option<u32>)};
+RecordTy FieldSizePayload::ast() noexcept {
+  return RecordTy{LabelValType("field-name", OptionTy(PrimValType::String)),
+                  LabelValType("field-size", OptionTy(PrimValType::U32))};
 }
 
-AST::Component::VariantTy ErrorCode::ast() noexcept {
-  return AST::Component::VariantTy{
+VariantTy ErrorCode::ast() noexcept {
+  return VariantTy{
       Case("DNS-timeout"), Case("DNS-error", DNSErrorPayload()),
       Case("destination-not-found"), Case("destination-unavailable"),
       Case("destination-IP-prohibited"), Case("destination-IP-unroutable"),
@@ -52,24 +54,24 @@ AST::Component::VariantTy ErrorCode::ast() noexcept {
       Case("connection-timeout"), Case("connection-read-timeout"),
       Case("connection-write-timeout"), Case("connection-limit-reached"),
       Case("TLS-protocol-error"), Case("TLS-certificate-error"),
-      Case("TLS-alert-received", TLSAlertReceivedPayload()),
+      // Case("TLS-alert-received", TLSAlertReceivedPayload::ast()),
       Case("HTTP-request-denied"), Case("HTTP-request-length-required"),
-      Case("HTTP-request-body-size", OptionTy(PrimValType::U64)),
+      // Case("HTTP-request-body-size", OptionTy(PrimValType::U64)),
       Case("HTTP-request-method-invalid"), Case("HTTP-request-URI-invalid"),
       Case("HTTP-request-URI-too-long"),
-      Case("HTTP-request-header-section-size", OptionTy(PrimValType::U32)),
-      Case("HTTP-request-header-size", OptionTy(FieldSizePayload())),
-      Case("HTTP-request-trailer-section-size", OptionTy(PrimValType::U32)),
-      Case("HTTP-request-trailer-size", FieldSizePayload),
+      // Case("HTTP-request-header-section-size", OptionTy(PrimValType::U32)),
+      // Case("HTTP-request-header-size", OptionTy(FieldSizePayload())),
+      // Case("HTTP-request-trailer-section-size", OptionTy(PrimValType::U32)),
+      // Case("HTTP-request-trailer-size", FieldSizePayload::ast()),
       Case("HTTP-response-incomplete"),
-      Case("HTTP-response-header-section-size", OptionTy(PrimValType::U32)),
-      Case("HTTP-response-header-size",
-           FieldSizePayload(OptionTy(PrimValType::U32))),
-      Case("HTTP-response-body-size", OptionTy(PrimValType::U64)),
-      Case("HTTP-response-trailer-section-size", OptionTy(PrimValType::U32)),
-      Case("HTTP-response-trailer-size", FieldSizePayload()),
-      Case("HTTP-response-transfer-coding", OptionTy(PrimValType::String)),
-      Case("HTTP-response-content-coding", OptionTy(PrimValType::String)),
+      // Case("HTTP-response-header-section-size", OptionTy(PrimValType::U32)),
+      // Case("HTTP-response-header-size",
+      //      FieldSizePayload(OptionTy(PrimValType::U32))),
+      // Case("HTTP-response-body-size", OptionTy(PrimValType::U64)),
+      // Case("HTTP-response-trailer-section-size", OptionTy(PrimValType::U32)),
+      // Case("HTTP-response-trailer-size", FieldSizePayload::ast()),
+      // Case("HTTP-response-transfer-coding", OptionTy(PrimValType::String)),
+      // Case("HTTP-response-content-coding", OptionTy(PrimValType::String)),
       Case("HTTP-response-timeout"), Case("HTTP-upgrade-failed"),
       Case("HTTP-protocol-error"), Case("loop-detected"),
       Case("configuration-error"),
@@ -85,7 +87,7 @@ Expect<Option<ErrorCode>> HttpErrorCode::body(uint32_t Err) {
   return std::nullopt;
 }
 
-AST::Component::VariantTy HeaderError::ast() noexcept {
+VariantTy HeaderError::ast() noexcept {
   return VariantTy{
       Case("invalid-syntax"),
       Case("forbidden"),
@@ -93,13 +95,9 @@ AST::Component::VariantTy HeaderError::ast() noexcept {
   };
 }
 
-AST::Component::PrimValType FieldKey::ast() noexcept {
-  return PrimValType::String;
-}
+PrimValType FieldKey::ast() noexcept { return PrimValType::String; }
 
-AST::Component::ListTy FieldValue::ast() noexcept {
-  return ListTy(PrimValType::U8);
-}
+ListTy FieldValue::ast() noexcept { return ListTy(PrimValType::U8); }
 
 } // namespace Types
 

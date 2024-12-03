@@ -83,6 +83,8 @@ AST::Component::VariantTy ast() noexcept;
 class HttpErrorCode : public WasiHttp<HttpErrorCode> {
 public:
   HttpErrorCode(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  // TODO: http-error-code: func(err: borrow<io-error>) -> option<error-code>;
+  // The input is borrow<io-error> and io-error is imported from wasi:io/error
   Expect<Option<ErrorCode>> body(uint32_t Err);
 };
 

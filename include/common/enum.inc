@@ -1181,15 +1181,18 @@ T(Rec, 0x4E, "rec")                // -0x32 for recursive type
 T(Epsilon, 0x40, "-")              // -0x40 for result type
 // component model: wasm interface types
 T(U8, 0x80, "u8")           // uint8
-T(String, 0x80, "string")   // string type
-T(List, 0x81, "list")       // list type
-T(Bool, 0x82, "bool")       // bool type
-T(Tuple, 0x83, "tuple")     // tuple type
-T(Option, 0x84, "option")   // option type
-T(Enum, 0x85, "enum")       // enum type
-T(Result, 0x86, "result")   // result type
-T(Record, 0x87, "record")   // record type
-T(Variant, 0x88, "variant") // variant type
+T(U16, 0x81, "u16")         // uint16
+T(U32, 0x82, "u32")         // uint32
+T(U64, 0x83, "u64")         // uint64
+T(String, 0x84, "string")   // string type
+T(List, 0x85, "list")       // list type
+T(Bool, 0x86, "bool")       // bool type
+T(Tuple, 0x87, "tuple")     // tuple type
+T(Option, 0x88, "option")   // option type
+T(Enum, 0x89, "enum")       // enum type
+T(Result, 0x8A, "result")   // result type
+T(Record, 0x8B, "record")   // record type
+T(Variant, 0x8C, "variant") // variant type
 
 #undef T
 #endif // UseTypeCode

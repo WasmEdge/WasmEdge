@@ -48,19 +48,19 @@ AST::Component::VariantTy ast() noexcept;
 } // namespace Scheme
 
 namespace DNSErrorPayload {
-using T = Record<Option<std::string>, Option<u16>>;
+using T = Record<Option<std::string>, Option<uint16_t>>;
 
 AST::Component::RecordTy ast() noexcept;
 } // namespace DNSErrorPayload
 
 namespace TLSAlertReceivedPayload {
-using T = Record<Option<u8>, Option<std::string>>;
+using T = Record<Option<uint8_t>, Option<std::string>>;
 
 AST::Component::RecordTy ast() noexcept;
 }; // namespace TLSAlertReceivedPayload
 
 namespace FieldSizePayload {
-using T = Record<Option<std::string>, Option<u32>>;
+using T = Record<Option<std::string>, Option<uint32_t>>;
 
 AST::Component::RecordTy ast() noexcept;
 }; // namespace FieldSizePayload
@@ -85,7 +85,7 @@ public:
   HttpErrorCode(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
   // TODO: http-error-code: func(err: borrow<io-error>) -> option<error-code>;
   // The input is borrow<io-error> and io-error is imported from wasi:io/error
-  Expect<Option<ErrorCode>> body(uint32_t Err);
+  Expect<Option<ErrorCode::T>> body(uint32_t Err);
 };
 
 namespace HeaderError {

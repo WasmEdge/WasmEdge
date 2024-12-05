@@ -1,26 +1,14 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
 #include "executor/coredump.h"
 #include "ast/section.h"
 #include "common/errcode.h"
 #include "common/types.h"
-#include "loader/serialize.h"
 #include "runtime/stackmgr.h"
 #include "spdlog/spdlog.h"
 #include <cstdint>
 #include <cstring>
 #include <vector>
-
-#define ENCODE_LEB128(Content, Value)                                          \
-  {                                                                            \
-    auto TempValue = Value;                                                    \
-    do {                                                                       \
-      uint8_t Byte = TempValue & 0x7F;                                         \
-      TempValue >>= 7;                                                         \
-      if (TempValue != 0) {                                                    \
-        Byte |= 0x80;                                                          \
-      }                                                                        \
-      Content.push_back(Byte);                                                 \
-    } while (TempValue != 0);                                                  \
-  }
 
 namespace WasmEdge {
 namespace Coredump {
@@ -32,6 +20,8 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
   }
   // Generate coredump.
   const auto *CurrentInstance = StackMgr.getModule();
+  const Configure Config;
+  Loader::Serializer Ser(Config);
   AST::Module Module{};
   std::vector<Byte> &Magic = Module.getMagic();
   std::string MagicStr("\0asm", 4);
@@ -42,19 +32,18 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
 
   Module.getCustomSections().emplace_back(createCore());
   Module.getCustomSections().emplace_back(createCorestack(
-      StackMgr.getFramesSpan(), StackMgr.getValueSpan(), ForWasmgdb));
+      Ser, StackMgr.getFramesSpan(), StackMgr.getValueSpan(), ForWasmgdb));
   // TODO: reconstruct data instances
   // Module.getDataSection() =
   //     createData(CurrentInstance->getOwnedDataInstances());
   // TODO: pass all module instances
-  Module.getCustomSections().emplace_back(createCoremodules({CurrentInstance}));
+  Module.getCustomSections().emplace_back(
+      createCoremodules(Ser, {CurrentInstance}));
   Module.getCustomSections().emplace_back(createCoreinstances({}));
   Module.getMemorySection() =
       createMemory(CurrentInstance->getMemoryInstances());
   Module.getGlobalSection() =
       createGlobals(CurrentInstance->getGlobalInstances());
-  const Configure Config;
-  Loader::Serializer Ser(Config);
   auto Res = Ser.serializeModule(Module);
   if (Res.has_value()) {
     spdlog::info("Coredump generated.");
@@ -84,10 +73,9 @@ AST::CustomSection createCore() {
   return Core;
 }
 
-AST::CustomSection
-createCorestack(Span<const Runtime::StackManager::Frame> Frames,
-                Span<const Runtime::StackManager::Value> ValueStack,
-                bool ForWasmgdb) {
+AST::CustomSection createCorestack(
+    Loader::Serializer Ser, Span<const Runtime::StackManager::Frame> Frames,
+    Span<const Runtime::StackManager::Value> ValueStack, bool ForWasmgdb) {
   AST::CustomSection CoreStack;
   CoreStack.setName("corestack");
   auto &Content = CoreStack.getContent();
@@ -100,7 +88,7 @@ createCorestack(Span<const Runtime::StackManager::Frame> Frames,
   std::string ThreadName = "main";
   Content.insert(Content.end(), ThreadName.begin(), ThreadName.end());
   auto FramesSize = Frames.size() - 1;
-  ENCODE_LEB128(Content, FramesSize)
+  Ser.serializeU32(FramesSize, Content);
   for (size_t Idx = FramesSize; Idx > 0; Idx--) {
     if (Frames[Idx].Module == nullptr) {
       continue;
@@ -128,12 +116,12 @@ createCorestack(Span<const Runtime::StackManager::Frame> Frames,
       Stacks = Span<const Runtime::StackManager::Value>(
           ValueStack.begin() + Vstart, Vsize);
     }
-    ENCODE_LEB128(Content, Funcidx)
-    ENCODE_LEB128(Content, Codeoffset)
+    Ser.serializeU32(Funcidx, Content);
+    Ser.serializeU32(Codeoffset, Content);
     // locals size
-    ENCODE_LEB128(Content, Frames[Idx].Locals)
+    Ser.serializeU32(Frames[Idx].Locals, Content);
     // stack size
-    ENCODE_LEB128(Content, Vsize)
+    Ser.serializeU32(Vsize, Content);
     for (auto &Iter : Locals) {
       // 0x7F implies i32, since it doesn't support i128 and wasmgdb not support
       // i64
@@ -192,11 +180,12 @@ AST::MemorySection createMemory(
 }
 
 AST::CustomSection createCoremodules(
+    Loader::Serializer Ser,
     Span<const Runtime::Instance::ModuleInstance *const> ModuleInstances) {
   AST::CustomSection CoreModules;
   CoreModules.setName("coremodules");
   auto &Content = CoreModules.getContent();
-  ENCODE_LEB128(Content, ModuleInstances.size())
+  Ser.serializeU32(ModuleInstances.size(), Content);
   for (auto &Module : ModuleInstances) {
     auto Name = Module->getModuleName();
     Content.push_back(0x00);

@@ -95,8 +95,8 @@ public:
 
   void *getHostData() const noexcept { return HostData; }
 
-  Span<const DataInstance *const> getOwnedDataInstances() const noexcept {
-    return DataInsts;
+  Span<const FunctionInstance *const> getFunctionInstances() const noexcept {
+    return FuncInsts;
   }
 
   Span<const MemoryInstance *const> getMemoryInstances() const noexcept {
@@ -107,8 +107,8 @@ public:
     return GlobInsts;
   }
 
-  Span<const FunctionInstance *const> getFunctionInstances() const noexcept {
-    return FuncInsts;
+  Span<const DataInstance *const> getOwnedDataInstances() const noexcept {
+    return DataInsts;
   }
 
   /// Add exist instances and move ownership with exporting name.

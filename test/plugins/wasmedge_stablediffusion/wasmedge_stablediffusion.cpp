@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <string>
+#include <sys/types.h>
 #include <vector>
 
 using WasmEdge::Host::StableDiffusion::ErrNo;
@@ -115,6 +116,7 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
 
   std::string Prompt = "a lovely cat";
   std::string Prompt2 = "with blue eyes";
+  std::vector<uint32_t> SkipLayers = {7, 8, 9};
   std::string OutputPathString = "./stableDiffusion/output.png";
   std::vector<char> OutputPath(OutputPathString.begin(),
                                OutputPathString.end());
@@ -178,12 +180,13 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             1,           // VaeDecodeOnly
             0,           // VaeTiling
             -1,          // NThreads
-            34,          // Wtype
+            36,          // Wtype
             1,           // RngType
             0,           // Schedule
             0,           // ClipOnCpu
             0,           // ControlNetCpu
             0,           // VaeOnCpu
+            0,           // DiffusionFlashAttn
             SessionPtr}, // SessiontIdPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
@@ -194,10 +197,12 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   // Test: text_to_image -- generate image from text.
   {
     uint32_t PromptPtr = UINT32_C(0);
-    uint32_t OutputPathPtr = PromptPtr + PromptData.size();
+    uint32_t SkipLayersPtr = PromptPtr + PromptData.size();
+    uint32_t OutputPathPtr = SkipLayersPtr + SkipLayers.size() * 4;
     uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath.size();
     OutputPtr = BytesWrittenPtr + 4;
     writeBinaries<char>(MemInst, PromptData, PromptPtr);
+    writeBinaries<uint32_t>(MemInst, SkipLayers, SkipLayersPtr);
     writeBinaries<char>(MemInst, OutputPath, OutputPathPtr);
     EXPECT_TRUE(HostFuncTextToImage.run(
         CallFrame,
@@ -227,6 +232,11 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             0,                                        // UpscaleModelPathPtr
             0,                                        // UpscaleModelPathLen
             1,                                        // UpscaleRepeats
+            SkipLayersPtr,                            // SkipLayersPtr
+            static_cast<uint32_t>(SkipLayers.size()), // SkipLayersLen
+            0.0f,                                     // SlgScale
+            0.01f,                                    // SkipLayerStart
+            0.2,                                      // SkipLayerEnd
             OutputPathPtr,                            // OutputPathPtr
             static_cast<uint32_t>(OutputPath.size()), // OutputPathLen
             OutputPtr,                                // OutBufferPtr
@@ -242,10 +252,12 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   // Test: text_to_image -- reuse context to generate image from text.
   {
     uint32_t PromptPtr = UINT32_C(0);
-    uint32_t OutputPathPtr = PromptPtr + PromptData.size();
+    uint32_t SkipLayersPtr = PromptPtr + PromptData.size();
+    uint32_t OutputPathPtr = SkipLayersPtr + SkipLayers.size() * 4;
     uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath.size();
     OutputPtr = BytesWrittenPtr + 4;
     writeBinaries<char>(MemInst, PromptData, PromptPtr);
+    writeBinaries<uint32_t>(MemInst, SkipLayers, SkipLayersPtr);
     writeBinaries<char>(MemInst, OutputPath, OutputPathPtr);
     EXPECT_TRUE(HostFuncTextToImage.run(
         CallFrame,
@@ -275,6 +287,11 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             0,                                        // UpscaleModelPathPtr
             0,                                        // UpscaleModelPathLen
             1,                                        // UpscaleRepeats
+            SkipLayersPtr,                            // SkipLayersPtr
+            static_cast<uint32_t>(SkipLayers.size()), // SkipLayersLen
+            0.0f,                                     // SlgScale
+            0.01f,                                    // SkipLayerStart
+            0.2,                                      // SkipLayerEnd
             OutputPathPtr,                            // OutputPathPtr
             static_cast<uint32_t>(OutputPath.size()), // OutputPathLen
             OutputPtr,                                // OutBufferPtr
@@ -318,12 +335,13 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             0,           // VaeDecodeOnly
             0,           // VaeTiling
             -1,          // NThreads
-            34,          // Wtype
+            36,          // Wtype
             1,           // RngType
             0,           // Schedule
             0,           // ClipOnCpu
             0,           // ControlNetCpu
             0,           // VaeOnCpu
+            0,           // DiffusionFlashAttn
             SessionPtr}, // SessiontIdPtr
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
@@ -334,11 +352,13 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   {
     uint32_t PromptPtr = UINT32_C(0);
     uint32_t InputPathPtr = PromptPtr + PromptData2.size();
-    uint32_t OutputPathPtr = InputPathPtr + InputPath.size();
+    uint32_t SkipLayersPtr = InputPathPtr + InputPath.size();
+    uint32_t OutputPathPtr = SkipLayersPtr + SkipLayers.size() * 4;
     uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath2.size();
     OutputPtr = BytesWrittenPtr + 4;
     writeBinaries<char>(MemInst, PromptData2, PromptPtr);
     writeBinaries<char>(MemInst, InputPath, InputPathPtr);
+    writeBinaries<uint32_t>(MemInst, SkipLayers, SkipLayersPtr);
     writeBinaries<char>(MemInst, OutputPath2, OutputPathPtr);
     EXPECT_TRUE(HostFuncImageToImage.run(
         CallFrame,
@@ -371,6 +391,11 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             0,                                         // UpscaleModelPathPtr
             0,                                         // UpscaleModelPathLen
             1,                                         // UpscaleRepeats
+            SkipLayersPtr,                             // SkipLayersPtr
+            static_cast<uint32_t>(SkipLayers.size()),  // SkipLayersLen
+            0.0f,                                      // SlgScale
+            0.01f,                                     // SkipLayerStart
+            0.2,                                       // SkipLayerEnd
             OutputPathPtr,                             // OutputPathPtr
             static_cast<uint32_t>(OutputPath2.size()), // OutputPathLen
             OutputPtr,                                 // OutBufferPtr
@@ -386,11 +411,13 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   {
     uint32_t PromptPtr = UINT32_C(0);
     uint32_t InputPathPtr = PromptPtr + PromptData2.size();
-    uint32_t OutputPathPtr = InputPathPtr + InputPath.size();
+    uint32_t SkipLayersPtr = InputPathPtr + InputPath.size();
+    uint32_t OutputPathPtr = SkipLayersPtr + SkipLayers.size() * 4;
     uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath2.size();
     OutputPtr = BytesWrittenPtr + 4;
     writeBinaries<char>(MemInst, PromptData2, PromptPtr);
     writeBinaries<char>(MemInst, InputPath, InputPathPtr);
+    writeBinaries<uint32_t>(MemInst, SkipLayers, SkipLayersPtr);
     writeBinaries<char>(MemInst, OutputPath2, OutputPathPtr);
     EXPECT_TRUE(HostFuncImageToImage.run(
         CallFrame,
@@ -423,6 +450,11 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             0,                                         // UpscaleModelPathPtr
             0,                                         // UpscaleModelPathLen
             1,                                         // UpscaleRepeats
+            SkipLayersPtr,                             // SkipLayersPtr
+            static_cast<uint32_t>(SkipLayers.size()),  // SkipLayersLen
+            0.0f,                                      // SlgScale
+            0.01f,                                     // SkipLayerStart
+            0.2,                                       // SkipLayerEnd
             OutputPathPtr,                             // OutputPathPtr
             static_cast<uint32_t>(OutputPath2.size()), // OutputPathLen
             OutputPtr,                                 // OutBufferPtr
@@ -438,10 +470,12 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   // Test: text_to_image -- non exist SessionId.
   {
     uint32_t PromptPtr = UINT32_C(0);
-    uint32_t OutputPathPtr = PromptPtr + PromptData.size();
+    uint32_t SkipLayersPtr = PromptPtr + PromptData.size();
+    uint32_t OutputPathPtr = SkipLayersPtr + SkipLayers.size() * 4;
     uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath.size();
     OutputPtr = BytesWrittenPtr + 4;
     writeBinaries<char>(MemInst, PromptData, PromptPtr);
+    writeBinaries<uint32_t>(MemInst, SkipLayers, SkipLayersPtr);
     writeBinaries<char>(MemInst, OutputPath, OutputPathPtr);
     EXPECT_TRUE(HostFuncTextToImage.run(
         CallFrame,
@@ -471,6 +505,11 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             0,                                        // UpscaleModelPathPtr
             0,                                        // UpscaleModelPathLen
             1,                                        // UpscaleRepeats
+            SkipLayersPtr,                            // SkipLayersPtr
+            static_cast<uint32_t>(SkipLayers.size()), // SkipLayersLen
+            0.0f,                                     // SlgScale
+            0.01f,                                    // SkipLayerStart
+            0.2,                                      // SkipLayerEnd
             OutputPathPtr,                            // OutputPathPtr
             static_cast<uint32_t>(OutputPath.size()), // OutputPathLen
             OutputPtr,                                // OutBufferPtr
@@ -485,11 +524,13 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   {
     uint32_t PromptPtr = UINT32_C(0);
     uint32_t InputPathPtr = PromptPtr + PromptData2.size();
-    uint32_t OutputPathPtr = InputPathPtr + InputPath.size();
+    uint32_t SkipLayersPtr = InputPathPtr + InputPath.size();
+    uint32_t OutputPathPtr = SkipLayersPtr + SkipLayers.size() * 4;
     uint32_t BytesWrittenPtr = OutputPathPtr + OutputPath2.size();
     OutputPtr = BytesWrittenPtr + 4;
     writeBinaries<char>(MemInst, PromptData2, PromptPtr);
     writeBinaries<char>(MemInst, InputPath, InputPathPtr);
+    writeBinaries<uint32_t>(MemInst, SkipLayers, SkipLayersPtr);
     writeBinaries<char>(MemInst, OutputPath2, OutputPathPtr);
     EXPECT_TRUE(HostFuncImageToImage.run(
         CallFrame,
@@ -522,6 +563,11 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
             0,                                         // UpscaleModelPathPtr
             0,                                         // UpscaleModelPathLen
             1,                                         // UpscaleRepeats
+            SkipLayersPtr,                             // SkipLayersPtr
+            static_cast<uint32_t>(SkipLayers.size()),  // SkipLayersLen
+            0.0f,                                      // SlgScale
+            0.01f,                                     // SkipLayerStart
+            0.2,                                       // SkipLayerEnd
             OutputPathPtr,                             // OutputPathPtr
             static_cast<uint32_t>(OutputPath2.size()), // OutputPathLen
             OutputPtr,                                 // OutBufferPtr

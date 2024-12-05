@@ -110,12 +110,10 @@ sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
 }
 
 void upscalerModel(const char *UpscaleModelPath, uint32_t UpscaleRepeats,
-                   int32_t NThreads, uint32_t Wtype, uint32_t BatchCount,
-                   sd_image_t *Results) {
+                   int32_t NThreads, uint32_t BatchCount, sd_image_t *Results) {
   // unused for RealESRGAN_x4plus_anime_6B.pth
   int UpscaleFactor = 4;
-  upscaler_ctx_t *UpscalerCtx = new_upscaler_ctx(UpscaleModelPath, NThreads,
-                                                 static_cast<sd_type_t>(Wtype));
+  upscaler_ctx_t *UpscalerCtx = new_upscaler_ctx(UpscaleModelPath, NThreads);
   if (UpscalerCtx == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Create upscaler ctx failed."sv);
   } else {
@@ -247,7 +245,7 @@ Expect<uint32_t> SDCreateContext::body(
     uint32_t IdEmbedDirPtr, uint32_t IdEmbedDirLen, uint32_t VaeDecodeOnly,
     uint32_t VaeTiling, int32_t NThreads, uint32_t Wtype, uint32_t RngType,
     uint32_t Schedule, uint32_t ClipOnCpu, uint32_t ControlNetCpu,
-    uint32_t VaeOnCpu, uint32_t SessiontIdPtr) {
+    uint32_t VaeOnCpu, uint32_t DiffusionFlashAttn, uint32_t SessiontIdPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
   // Check the input model buffer.
@@ -318,7 +316,8 @@ Expect<uint32_t> SDCreateContext::body(
       IdEmbedDir.data(), static_cast<bool>(VaeDecodeOnly),
       static_cast<bool>(VaeTiling), false, NThreads,
       static_cast<sd_type_t>(Wtype), static_cast<rng_type_t>(RngType),
-      static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu);
+      static_cast<schedule_t>(Schedule), ClipOnCpu, ControlNetCpu, VaeOnCpu,
+      DiffusionFlashAttn);
   if (Ctx == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Failed to create context."sv);
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
@@ -337,9 +336,10 @@ Expect<uint32_t> SDTextToImage::body(
     uint32_t NormalizeInput, uint32_t InputIdImagesDirPtr,
     uint32_t InputIdImagesDirLen, uint32_t CannyPreprocess,
     uint32_t UpscaleModelPathPtr, uint32_t UpscaleModelPathLen,
-    uint32_t UpscaleRepeats, uint32_t OutputPathPtr, uint32_t OutputPathLen,
-    uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
-    uint32_t BytesWrittenPtr) {
+    uint32_t UpscaleRepeats, uint32_t SkipLayersPtr, uint32_t SkipLayersLen,
+    float SlgScale, float SkipLayerStart, float SkipLayerEnd,
+    uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
+    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
   // Check the input model buffer.
@@ -358,6 +358,8 @@ Expect<uint32_t> SDTextToImage::body(
                 "Failed when accessing the return bytes written memory."sv)
   MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
                  "Failed when accessing the output path memory."sv)
+  MEM_SPAN_CHECK(SkipLayersSpan, MemInst, int32_t, SkipLayersPtr, SkipLayersLen,
+                 "Failed when accessing the SkipLayers memory."sv)
   std::string Prompt(PromptSpan.begin(), PromptSpan.end());
   std::string NegativePrompt(NegativePromptSpan.begin(),
                              NegativePromptSpan.end());
@@ -381,11 +383,12 @@ Expect<uint32_t> SDTextToImage::body(
   }
   // Generate images
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
-  Results =
-      txt2img(SDCtx, Prompt.data(), NegativePrompt.data(), ClipSkip, CfgScale,
-              Guidance, Width, Height, sample_method_t(SampleMethod),
-              SampleSteps, Seed, BatchCount, ControlImage, ControlStrength,
-              StyleRatio, NormalizeInput, InputIdImagesDir.data());
+  Results = txt2img(
+      SDCtx, Prompt.data(), NegativePrompt.data(), ClipSkip, CfgScale, Guidance,
+      Width, Height, sample_method_t(SampleMethod), SampleSteps, Seed,
+      BatchCount, ControlImage, ControlStrength, StyleRatio, NormalizeInput,
+      InputIdImagesDir.data(), SkipLayersSpan.data(), SkipLayersSpan.size(),
+      SlgScale, SkipLayerStart, SkipLayerEnd);
   free(ControlImage);
   if (Results == nullptr) {
     spdlog::error("[WasmEdge-StableDiffusion] Generate failed."sv);
@@ -400,8 +403,7 @@ Expect<uint32_t> SDTextToImage::body(
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
     upscalerModel(UpscaleModelPath.data(), UpscaleRepeats,
-                  Env.getNThreads(SessionId), Env.getWtype(SessionId),
-                  BatchCount, Results);
+                  Env.getNThreads(SessionId), BatchCount, Results);
   }
   // Save results
   if (!saveResults(Results, BatchCount, OutputPath, OutputPathLen, BytesWritten,
@@ -422,8 +424,10 @@ Expect<uint32_t> SDImageToImage::body(
     uint32_t InputIdImagesDirPtr, uint32_t InputIdImagesDirLen,
     uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
     uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
-    uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
-    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
+    uint32_t SkipLayersPtr, uint32_t SkipLayersLen, float SlgScale,
+    float SkipLayerStart, float SkipLayerEnd, uint32_t OutputPathPtr,
+    uint32_t OutputPathLen, uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+    uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
   // Check the input parameter valid.
@@ -444,6 +448,8 @@ Expect<uint32_t> SDImageToImage::body(
                 "Failed when accessing the return bytes written memory."sv)
   MEM_SPAN_CHECK(OutputPathSpan, MemInst, char, OutputPathPtr, OutputPathLen,
                  "Failed when accessing the output path memory."sv)
+  MEM_SPAN_CHECK(SkipLayersSpan, MemInst, int32_t, SkipLayersPtr, SkipLayersLen,
+                 "Failed when accessing the SkipLayers memory."sv)
   if (!parameterCheck(Env, Width, Height, SessionId)) {
     return static_cast<uint32_t>(ErrNo::InvalidArgument);
   }
@@ -526,11 +532,13 @@ Expect<uint32_t> SDImageToImage::body(
   // Generate images
   sd_image_t *Results = nullptr;
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
-  Results = img2img(SDCtx, InputImage, Prompt.data(), NegativePrompt.data(),
-                    ClipSkip, CfgScale, Guidance, Width, Height,
-                    sample_method_t(SampleMethod), SampleSteps, Strength, Seed,
-                    BatchCount, ControlImage, ControlStrength, StyleRatio,
-                    NormalizeInput, InputIdImagesDir.data());
+  Results =
+      img2img(SDCtx, InputImage, Prompt.data(), NegativePrompt.data(), ClipSkip,
+              CfgScale, Guidance, Width, Height, sample_method_t(SampleMethod),
+              SampleSteps, Strength, Seed, BatchCount, ControlImage,
+              ControlStrength, StyleRatio, NormalizeInput,
+              InputIdImagesDir.data(), SkipLayersSpan.data(),
+              SkipLayersSpan.size(), SlgScale, SkipLayerStart, SkipLayerEnd);
   free(ControlImage);
   free(InputImageBuffer);
   if (Results == nullptr) {
@@ -546,8 +554,7 @@ Expect<uint32_t> SDImageToImage::body(
     std::string UpscaleModelPath(UpscaleModelSpan.begin(),
                                  UpscaleModelSpan.end());
     upscalerModel(UpscaleModelPath.data(), UpscaleRepeats,
-                  Env.getNThreads(SessionId), Env.getWtype(SessionId),
-                  BatchCount, Results);
+                  Env.getNThreads(SessionId), BatchCount, Results);
   }
   // Save results
   if (!saveResults(Results, BatchCount, OutputPath, OutputPathLen, BytesWritten,

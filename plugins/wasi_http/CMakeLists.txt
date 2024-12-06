@@ -10,7 +10,9 @@ wasmedge_add_library(wasmedgePluginWasiHttp
   SHARED
   env.cpp
   func.cpp
+  func_types.cpp
   module.cpp
+  interface_types.cpp
 )
 
 target_compile_options(wasmedgePluginWasiHttp

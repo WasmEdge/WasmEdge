@@ -50,19 +50,22 @@ AST::Component::VariantTy ast() noexcept;
 namespace DNSErrorPayload {
 using T = Record<Option<std::string>, Option<uint16_t>>;
 
-AST::Component::RecordTy ast() noexcept;
+AST::Component::RecordTy
+ast(Runtime::Instance::ComponentInstance *Comp) noexcept;
 } // namespace DNSErrorPayload
 
 namespace TLSAlertReceivedPayload {
 using T = Record<Option<uint8_t>, Option<std::string>>;
 
-AST::Component::RecordTy ast() noexcept;
+AST::Component::RecordTy
+ast(Runtime::Instance::ComponentInstance *Comp) noexcept;
 }; // namespace TLSAlertReceivedPayload
 
 namespace FieldSizePayload {
 using T = Record<Option<std::string>, Option<uint32_t>>;
 
-AST::Component::RecordTy ast() noexcept;
+AST::Component::RecordTy
+ast(Runtime::Instance::ComponentInstance *Comp) noexcept;
 }; // namespace FieldSizePayload
 
 namespace ErrorCode {
@@ -76,7 +79,11 @@ using T =
                        Option<std::string>, Option<std::string>, Tuple<>,
                        Tuple<>, Tuple<>, Tuple<>, Tuple<>, Option<std::string>>;
 
-AST::Component::VariantTy ast() noexcept;
+AST::Component::VariantTy
+ast(Runtime::Instance::ComponentInstance *Comp,
+    AST::Component::TypeIndex DNSErrorPayload,
+    AST::Component::TypeIndex TLSAlterReceivedPayload,
+    AST::Component::TypeIndex FieldSizePayload) noexcept;
 } // namespace ErrorCode
 
 // http-error-code: func(err: borrow<io-error>) -> option<error-code>;

@@ -300,6 +300,13 @@ const DefType ComponentInstance::getType(uint32_t Idx) const noexcept {
   // spdlog::info("component `{}` has {} types", CompName, Types.size());
   return Types[Idx];
 }
+TypeIndex ComponentInstance::getLastTypeIndex() noexcept {
+  return static_cast<TypeIndex>(Types.size() - 1);
+}
+TypeIndex ComponentInstance::typeToIndex(DefType Ty) noexcept {
+  addType(Ty);
+  return getLastTypeIndex();
+}
 
 std::shared_ptr<ResourceHandle>
 ComponentInstance::removeResource(uint32_t ResourceTypeIndex,

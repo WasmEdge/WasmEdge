@@ -124,6 +124,8 @@ public:
   void addCoreFuncType(const AST::FunctionType &Ty) noexcept;
   void addType(DefType Ty) noexcept;
   const DefType getType(uint32_t Idx) const noexcept;
+  TypeIndex typeToIndex(DefType Ty) noexcept;
+  TypeIndex getLastTypeIndex() noexcept;
 
   std::shared_ptr<ResourceHandle> removeResource(uint32_t ResourceTypeIndex,
                                                  uint32_t HandleIndex) noexcept;

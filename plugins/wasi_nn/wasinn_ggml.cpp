@@ -903,8 +903,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       llama_free(GraphRef.LlamaContext);
       common_params Params;
       setupParams(GraphRef, Params);
-      llama_new_context_with_model(GraphRef.LlamaModel,
-                                   common_context_params_to_llama(Params));
+      GraphRef.LlamaContext = llama_new_context_with_model(
+          GraphRef.LlamaModel, common_context_params_to_llama(Params));
       if (GraphRef.LlamaContext == nullptr) {
         spdlog::error(
             "[WASI-NN] GGML backend: Error: unable to init context."sv);

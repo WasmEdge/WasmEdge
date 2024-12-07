@@ -113,6 +113,17 @@
             ]
         },
         {
+            "plugin": "wasi_nn-tensorrt",
+            "bin": "libwasmedgePluginWasiNN",
+            "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=TensorRT -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            "platforms": [
+                "ubuntu2004_tensorrt_cuda12"
+            ]
+        },
+        {
             "plugin": "wasm_bpf",
             "bin": "libwasmedgePluginWasmBpf",
             "dir": "wasm_bpf",

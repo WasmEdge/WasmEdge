@@ -212,28 +212,26 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #else
   LinkResult = lld::mach_o::link(
 #endif
-      std::initializer_list<const char *> {
-        "lld", "-arch",
+      std::initializer_list<const char *>{
+          "lld", "-arch",
 #if defined(__x86_64__)
-            "x86_64",
+          "x86_64",
 #elif defined(__aarch64__)
-            "arm64",
+          "arm64",
 #else
 #error Unsupported architecture on the MacOS!
 #endif
 #if LLVM_VERSION_MAJOR >= 14
-            // LLVM 14 replaces the older mach_o lld implementation with the new
-            // one. And it require -arch and -platform_version to always be
-            // specified. Reference: https://reviews.llvm.org/D97799
-            "-platform_version", "macos", OSVersion.c_str(), SDKVersion.c_str(),
+          // LLVM 14 replaces the older mach_o lld implementation with the new
+          // one. And it require -arch and -platform_version to always be
+          // specified. Reference: https://reviews.llvm.org/D97799
+          "-platform_version", "macos", OSVersion.c_str(), SDKVersion.c_str(),
 #else
-            "-sdk_version", SDKVersion.c_str(),
+          "-sdk_version", SDKVersion.c_str(),
 #endif
-            "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
-            "-syslibroot",
-            "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
-            ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str()
-      },
+          "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
+          "-syslibroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
+          ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str()},
 #elif WASMEDGE_OS_LINUX
   LinkResult = lld::elf::link(
       std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",

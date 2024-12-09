@@ -30,8 +30,8 @@ public:
 
   Error(ErrCode C, std::string M) noexcept : Code(C), Message(std::move(M)) {}
   ErrCode code() const noexcept { return Code; }
-  std::string_view message() const &noexcept { return Message; }
-  std::string message() &&noexcept { return std::move(Message); }
+  std::string_view message() const & noexcept { return Message; }
+  std::string message() && noexcept { return std::move(Message); }
 
 private:
   ErrCode Code;

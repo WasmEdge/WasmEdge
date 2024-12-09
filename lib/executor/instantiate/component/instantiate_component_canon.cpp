@@ -212,7 +212,8 @@ public:
              Instance::FunctionInstance *Realloc)
       : HostFunctionBase(0), Exec(Exec), HigherFunc(Func), Memory(Memory),
         Realloc(Realloc) {
-    flattenFunctype();
+    auto &HigherType = HigherFunc->getFuncType();
+    flattenFunctype(HigherType);
   }
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
@@ -279,9 +280,7 @@ public:
   }
 
 private:
-  void flattenFunctype() {
-    auto &HigherType = HigherFunc->getFuncType();
-
+  void flattenFunctype(const AST::FunctionType &HigherType) {
     auto &FuncType = DefType.getCompositeType().getFuncType();
     for (auto &ParamTy : HigherType.getParamTypes()) {
       flattenType(FuncType.getParamTypes(), ParamTy);

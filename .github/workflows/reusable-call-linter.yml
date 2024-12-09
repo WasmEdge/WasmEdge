@@ -2,13 +2,13 @@ name: Clang-Format
 
 on:
   workflow_call:
-    
+
 permissions:
   contents: read
-  
+
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # https://github.com/actions/runner-images/issues/10636
     steps:
       - uses: actions/checkout@v4
         with:
@@ -16,10 +16,10 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Install clang-format-15
+      - name: Install clang-format-18
         run: |
           sudo apt update
-          sudo apt install clang-format-15
+          sudo apt install clang-format-18
       - name: Run clang-format
         run: |
-          bash ./.github/scripts/clang-format.sh `which clang-format-15`
+          bash ./.github/scripts/clang-format.sh `which clang-format-18`

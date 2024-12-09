@@ -133,7 +133,23 @@ public:
       Inner.Data.Code = TypeCode::RefNull;
       Inner.Data.HTCode = C;
       break;
-      // Component Type
+    // Component Type
+    case TypeCode::U8:
+      Inner.Data.Code = TypeCode::U8;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::U16:
+      Inner.Data.Code = TypeCode::U16;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::U32:
+      Inner.Data.Code = TypeCode::U32;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::U64:
+      Inner.Data.Code = TypeCode::U64;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::String:
       Inner.Data.Code = TypeCode::String;
       Inner.Data.HTCode = C;

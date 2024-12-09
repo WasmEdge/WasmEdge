@@ -118,6 +118,32 @@ PrimValType FieldKey::ast() noexcept { return PrimValType::String; }
 
 ListTy FieldValue::ast() noexcept { return ListTy(PrimValType::U8); }
 
+AST::Component::ResourceType Fields::ast() noexcept {
+  return ResourceType(new Runtime::Instance::ComponentInstance("fields"));
+}
+AST::Component::ResourceType Headers::ast() noexcept { return Fields::ast(); }
+AST::Component::ResourceType Trailers::ast() noexcept { return Fields::ast(); }
+
+AST::Component::ResourceType IncomingRequest::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("incoming-request"));
+}
+
+AST::Component::ResourceType OutgoingRequest::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("outgoing-request"));
+}
+
+AST::Component::ResourceType RequestOptions::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("request-options"));
+}
+
+AST::Component::ResourceType ResponseOutparam::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("response-outparam"));
+}
+
 } // namespace Types
 
 } // namespace Host

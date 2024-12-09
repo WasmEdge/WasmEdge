@@ -111,6 +111,41 @@ using T = List<uint8_t>;
 AST::Component::ListTy ast() noexcept;
 } // namespace FieldValue
 
+namespace Fields {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace Fields
+
+namespace Headers {
+using T = Fields::T;
+AST::Component::ResourceType ast() noexcept;
+} // namespace Headers
+
+namespace Trailers {
+using T = Fields::T;
+AST::Component::ResourceType ast() noexcept;
+} // namespace Trailers
+
+namespace IncomingRequest {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace IncomingRequest
+
+namespace OutgoingRequest {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace OutgoingRequest
+
+namespace RequestOptions {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace RequestOptions
+
+namespace ResponseOutparam {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace ResponseOutparam
+
 } // namespace Types
 
 } // namespace Host

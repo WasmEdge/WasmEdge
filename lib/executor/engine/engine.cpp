@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "executor/coredump.h"
 #include "executor/executor.h"
 
 #include <array>
@@ -2157,6 +2158,13 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       }
     }
     if (auto Res = Dispatch(); !Res) {
+      auto ErrCode = Res.error();
+
+      if (Conf.getRuntimeConfigure().isEnableCoredump() &&
+          ErrCode.getErrCodePhase() == WasmPhase::Execution) {
+        Coredump::generateCoredump(
+            StackMgr, Conf.getRuntimeConfigure().isCoredumpWasmgdb());
+      }
       return Unexpect(Res);
     }
     PC++;

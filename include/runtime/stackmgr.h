@@ -137,6 +137,9 @@ public:
     return From;
   }
 
+  // Get all frames
+  Span<const Frame> getFramesSpan() const { return FrameStack; }
+
   /// Push handler for try-catch block.
   void
   pushHandler(AST::InstrView::iterator TryIt, uint32_t BlockParamNum,
@@ -186,6 +189,9 @@ public:
     ValueStack.erase(ValueStack.end() - EraseBegin,
                      ValueStack.end() - EraseEnd);
   }
+
+  // Get all Value
+  Span<const Value> getValueSpan() const { return ValueStack; }
 
   /// Unsafe leave top label.
   AST::InstrView::iterator

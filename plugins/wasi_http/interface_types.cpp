@@ -35,6 +35,12 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("request-options", RequestOptions::ast());
   addHostType("response-outparam", ResponseOutparam::ast());
   addHostType("status-code", PrimValType::U16);
+  addHostType("incoming-response", IncomingResponse::ast());
+  addHostType("incoming-body", IncomingBody::ast());
+  addHostType("future-trailers", FutureTrailers::ast());
+  addHostType("outgoing-response", OutgoingResponse::ast());
+  addHostType("outgoing-body", OutgoingBody::ast());
+  addHostType("future-incoming-response", FutureIncomingResponse::ast());
 }
 
 } // namespace Host

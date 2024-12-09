@@ -144,6 +144,36 @@ AST::Component::ResourceType ResponseOutparam::ast() noexcept {
       new Runtime::Instance::ComponentInstance("response-outparam"));
 }
 
+AST::Component::ResourceType IncomingResponse::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("incoming-response"));
+}
+
+AST::Component::ResourceType IncomingBody::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("incoming-body"));
+}
+
+AST::Component::ResourceType FutureTrailers::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("future-trailers"));
+}
+
+AST::Component::ResourceType OutgoingResponse::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("outgoing-response"));
+}
+
+AST::Component::ResourceType OutgoingBody::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("outgoing-body"));
+}
+
+AST::Component::ResourceType FutureIncomingResponse::ast() noexcept {
+  return ResourceType(
+      new Runtime::Instance::ComponentInstance("future-incoming-response"));
+}
+
 } // namespace Types
 
 } // namespace Host

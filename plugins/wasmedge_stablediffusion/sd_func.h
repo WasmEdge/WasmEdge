@@ -26,7 +26,7 @@ public:
        uint32_t IdEmbedDirPtr, uint32_t IdEmbedDirLen, uint32_t VaeDecodeOnly,
        uint32_t VaeTiling, int32_t NThreads, uint32_t Wtype, uint32_t RngType,
        uint32_t Schedule, uint32_t ClipOnCpu, uint32_t ControlNetCpu,
-       uint32_t VaeOnCpu, uint32_t SessiontIdPtr);
+       uint32_t VaeOnCpu, uint32_t DiffusionFlashAttn, uint32_t SessiontIdPtr);
 };
 
 class SDImageToImage : public StableDiffusion::Func<SDImageToImage> {
@@ -43,9 +43,10 @@ public:
        float StyleRatio, uint32_t NormalizeInput, uint32_t InputIdImagesDirPtr,
        uint32_t InputIdImagesDirLen, uint32_t CannyPreprocess,
        uint32_t UpscaleModelPathPtr, uint32_t UpscaleModelPathLen,
-       uint32_t UpscaleRepeats, uint32_t OutputPathPtr, uint32_t OutputPathLen,
-       uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
-       uint32_t BytesWrittenPtr);
+       uint32_t UpscaleRepeats, uint32_t SkipLayersPtr, uint32_t SkipLayersLen,
+       float SlgScale, float SkipLayerStart, float SkipLayerEnd,
+       uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
+       uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr);
 };
 
 class SDTextToImage : public StableDiffusion::Func<SDTextToImage> {
@@ -62,8 +63,10 @@ public:
        uint32_t InputIdImagesDirPtr, uint32_t InputIdImagesDirLen,
        uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
        uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
-       uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
-       uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr);
+       uint32_t SkipLayersPtr, uint32_t SkipLayersLen, float SlgScale,
+       float SkipLayerStart, float SkipLayerEnd, uint32_t OutputPathPtr,
+       uint32_t OutputPathLen, uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
+       uint32_t BytesWrittenPtr);
 };
 
 class SDConvert : public StableDiffusion::Func<SDConvert> {

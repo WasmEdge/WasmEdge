@@ -11,6 +11,7 @@ namespace Host {
 
 WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   using namespace Types;
+  using namespace AST::Component;
   addHostType("method", Method::ast());
   addHostType("scheme", Scheme::ast());
   addHostType("DNS-error-payload", DNSErrorPayload::ast(this));
@@ -33,6 +34,7 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("outgoing-request", OutgoingRequest::ast());
   addHostType("request-options", RequestOptions::ast());
   addHostType("response-outparam", ResponseOutparam::ast());
+  addHostType("status-code", PrimValType::U16);
 }
 
 } // namespace Host

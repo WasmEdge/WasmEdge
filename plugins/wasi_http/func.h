@@ -146,6 +146,8 @@ using T = uint32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace ResponseOutparam
 
+using StatusCode = uint16_t;
+
 } // namespace Types
 
 } // namespace Host

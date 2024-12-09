@@ -148,6 +148,36 @@ AST::Component::ResourceType ast() noexcept;
 
 using StatusCode = uint16_t;
 
+namespace IncomingResponse {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace IncomingResponse
+
+namespace IncomingBody {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace IncomingBody
+
+namespace FutureTrailers {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace FutureTrailers
+
+namespace OutgoingResponse {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace OutgoingResponse
+
+namespace OutgoingBody {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace OutgoingBody
+
+namespace FutureIncomingResponse {
+using T = uint32_t;
+AST::Component::ResourceType ast() noexcept;
+} // namespace FutureIncomingResponse
+
 } // namespace Types
 
 } // namespace Host

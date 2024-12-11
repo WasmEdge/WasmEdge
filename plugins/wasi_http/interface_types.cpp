@@ -27,7 +27,11 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("header-error", HeaderError::ast());
   addHostType("field-key", FieldKey::ast());
   addHostType("field-value", FieldValue::ast());
+
   addHostType("fields", Fields::ast());
+  addHostFunc("[constructor]fields",
+              std::make_unique<Fields::Constructor>(Env));
+
   addHostType("headers", Headers::ast());
   addHostType("trailers", Trailers::ast());
   addHostType("incoming-request", IncomingRequest::ast());

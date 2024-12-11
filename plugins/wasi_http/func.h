@@ -114,6 +114,13 @@ AST::Component::ListTy ast() noexcept;
 namespace Fields {
 using T = uint32_t;
 AST::Component::ResourceType ast() noexcept;
+
+class Constructor : public WasiHttp<Constructor> {
+public:
+  Constructor(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<T> body();
+};
+
 } // namespace Fields
 
 namespace Headers {

@@ -118,9 +118,16 @@ PrimValType FieldKey::ast() noexcept { return PrimValType::String; }
 
 ListTy FieldValue::ast() noexcept { return ListTy(PrimValType::U8); }
 
-AST::Component::ResourceType Fields::ast() noexcept {
+namespace Fields {
+
+AST::Component::ResourceType ast() noexcept {
   return ResourceType(new Runtime::Instance::ComponentInstance("fields"));
 }
+
+Expect<T> Constructor::body() { return 0; }
+
+} // namespace Fields
+
 AST::Component::ResourceType Headers::ast() noexcept { return Fields::ast(); }
 AST::Component::ResourceType Trailers::ast() noexcept { return Fields::ast(); }
 

@@ -19,8 +19,8 @@ using namespace AST::Component;
 using namespace Runtime;
 
 namespace {
-void pushType(Runtime::Instance::ComponentInstance &Comp,
-              std::vector<ValType> &Types, const ValueType &VT) {
+Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
+                      std::vector<ValType> &Types, const ValueType &VT) {
   // notice that we might need to convert one type to multiple types, and hence,
   // we must let this function control the vector need to be modified.
   auto Func = [&](auto &&Type) {
@@ -56,28 +56,44 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
         break;
       }
     } else if constexpr (std::is_same_v<T, TypeIndex>) {
-      const auto &Ty = Comp.getType(Type);
-      spdlog::warn("Type {} is not handled yet"sv, Ty);
+      auto RTy = Comp.getType(Type);
+      if (!RTy) {
+        return Unexpect(RTy);
+      }
+      spdlog::warn("Type {} is not handled yet"sv, *RTy);
     }
   };
   std::visit(Func, VT);
+
+  return {};
 }
 
-AST::FunctionType convert(Runtime::Instance::ComponentInstance &Comp,
-                          const FuncType &DT) {
+Expect<AST::FunctionType> convert(Runtime::Instance::ComponentInstance &Comp,
+                                  const FuncType &DT) {
+  Expect<void> Res;
+
   std::vector<ValType> ParamTypes{};
   for (const auto &P : DT.getParamList()) {
-    pushType(Comp, ParamTypes, P.getValType());
+    Res = pushType(Comp, ParamTypes, P.getValType());
+    if (!Res) {
+      return Unexpect(Res);
+    }
   }
 
   std::vector<ValType> ResultTypes{};
   auto Func = [&](auto &&Type) {
     using T = std::decay_t<decltype(Type)>;
     if constexpr (std::is_same_v<T, ValueType>) {
-      pushType(Comp, ResultTypes, Type);
+      Res = pushType(Comp, ResultTypes, Type);
+      if (!Res) {
+        return Unexpect(Res);
+      }
     } else if constexpr (std::is_same_v<T, std::vector<LabelValType>>) {
       for (const auto &R : Type) {
-        pushType(Comp, ResultTypes, R.getValType());
+        Res = pushType(Comp, ResultTypes, R.getValType());
+        if (!Res) {
+          return Unexpect(Res);
+        }
       }
     }
   };
@@ -123,7 +139,11 @@ public:
             Runtime::Instance::ComponentInstance &Comp)
       : HostFunctionBase(), Exec(Exec), LowerFunc(Func), Memory(M), Realloc(R) {
     // The convert is simply let component type to internal type.
-    FuncType = convert(Comp, DefinedType);
+    auto RFuncType = convert(Comp, DefinedType);
+    if (!RFuncType) {
+      spdlog::error("failed to lift function");
+    }
+    FuncType = *RFuncType;
     spdlog::info("lifted: {}"sv, FuncType);
   }
 
@@ -419,8 +439,12 @@ public:
       }
     }
 
-    const auto &AstFuncType = CompInst.getType(C.getFuncTypeIndex());
-    if (unlikely(!std::holds_alternative<FuncType>(AstFuncType))) {
+    auto AstFuncType = CompInst.getType(C.getFuncTypeIndex());
+    if (!AstFuncType) {
+      spdlog::error("cannot lift type"sv);
+      return Unexpect(AstFuncType);
+    }
+    if (unlikely(!std::holds_alternative<FuncType>(*AstFuncType))) {
       // It doesn't make sense if one tries to lift an instance not a
       // function, so unlikely happen.
       spdlog::error("cannot lift a non-function"sv);
@@ -429,8 +453,9 @@ public:
     }
 
     auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
-    CompInst.addFunctionInstance(ThisExecutor.lifting(
-        CompInst, std::get<FuncType>(AstFuncType), FuncInst, Mem, ReallocFunc));
+    CompInst.addFunctionInstance(
+        ThisExecutor.lifting(CompInst, std::get<FuncType>(*AstFuncType),
+                             FuncInst, Mem, ReallocFunc));
 
     return {};
   }
@@ -507,15 +532,18 @@ public:
 
   Expect<void> operator()(const ResourceNew &RNew) {
     auto TypIdx = RNew.getTypeIndex();
-    auto Typ = CompInst.getType(TypIdx);
-    if (!std::holds_alternative<ResourceType>(Typ)) {
+    auto RTyp = CompInst.getType(TypIdx);
+    if (!RTyp) {
+      return Unexpect(RTyp);
+    }
+    if (!std::holds_alternative<ResourceType>(*RTyp)) {
       spdlog::error(
           "resource.new cannot instantiate a deftype that's not a resource.");
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     }
 
-    auto RTyp = std::get<ResourceType>(Typ);
-    spdlog::info("get {}", RTyp);
+    auto ResourceTyp = std::get<ResourceType>(*RTyp);
+    spdlog::info("get {}", ResourceTyp);
     spdlog::warn("resource.new is not supported yet"sv);
 
     return {};
@@ -523,15 +551,18 @@ public:
 
   Expect<void> operator()(const ResourceDrop &RDrop) {
     auto TypIdx = RDrop.getTypeIndex();
-    auto Typ = CompInst.getType(TypIdx);
-    if (!std::holds_alternative<ResourceType>(Typ)) {
+    auto RTyp = CompInst.getType(TypIdx);
+    if (!RTyp) {
+      return Unexpect(RTyp);
+    }
+    if (!std::holds_alternative<ResourceType>(*RTyp)) {
       spdlog::error("resource.drop cannot instantiate a deftype that's not a "
                     "resource.");
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     }
 
-    auto RTyp = std::get<ResourceType>(Typ);
-    auto Drop = ThisExecutor.resourceDrop(TypIdx, RTyp, CompInst);
+    auto ResourceTyp = std::get<ResourceType>(*RTyp);
+    auto Drop = ThisExecutor.resourceDrop(TypIdx, ResourceTyp, CompInst);
     Instance::Component::FunctionInstance *F = Drop.get();
     CompInst.addCoreFunctionInstance(
         ThisExecutor.lowering(F, nullptr, nullptr));

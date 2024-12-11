@@ -123,7 +123,7 @@ public:
   const AST::Component::DefType getType(std::string_view Name) const noexcept;
   void addCoreFuncType(const AST::FunctionType &Ty) noexcept;
   void addType(DefType Ty) noexcept;
-  const DefType getType(uint32_t Idx) const noexcept;
+  Expect<const DefType> getType(uint32_t Idx) const noexcept;
   TypeIndex typeToIndex(DefType Ty) noexcept;
   TypeIndex getLastTypeIndex() noexcept;
 

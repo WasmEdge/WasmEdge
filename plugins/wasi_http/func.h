@@ -121,6 +121,29 @@ public:
   Expect<T> body();
 };
 
+// TODO:
+// from-list: static func(
+//   entries: list<tuple<field-name,field-value>>
+// ) -> result<fields, header-error>;
+
+// TODO: get: func(name: field-name) -> list<field-value>;
+
+// TODO: has: func(name: field-name) -> bool;
+
+// TODO:
+// set: func(name: field-name, value: list<field-value>)
+//        -> result<_, header-error>;
+
+// TODO: delete: func(name: field-name) -> result<_, header-error>;
+
+// TODO:
+// append: func(name: field-name, value: field-value)
+//           -> result<_, header-error>;
+
+// TODO: entries: func() -> list<tuple<field-name,field-value>>;
+
+// TODO: clone: func() -> fields;
+
 } // namespace Fields
 
 namespace Headers {

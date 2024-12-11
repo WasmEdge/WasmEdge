@@ -295,9 +295,12 @@ void ComponentInstance::addCoreFuncType(const AST::FunctionType &Ty) noexcept {
   addType(FT);
 }
 void ComponentInstance::addType(DefType Ty) noexcept { Types.emplace_back(Ty); }
-const DefType ComponentInstance::getType(uint32_t Idx) const noexcept {
-  // spdlog::info("get type from component at index {}", Idx);
-  // spdlog::info("component `{}` has {} types", CompName, Types.size());
+Expect<const DefType> ComponentInstance::getType(uint32_t Idx) const noexcept {
+  if (Types.size() <= Idx) {
+    spdlog::error("component: `{}`, access types: {}/{}", this->CompName, Idx,
+                  Types.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return Types[Idx];
 }
 TypeIndex ComponentInstance::getLastTypeIndex() noexcept {

@@ -9,9 +9,16 @@
 // https://github.com/gabime/spdlog/pull/3198
 #pragma clang diagnostic ignored "-Wextra-semi"
 #endif
-#include "spdlog/sinks/callback_sink.h"
+#include <spdlog/sinks/callback_sink.h>
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic pop
+#endif
+#ifdef _WIN32
+#include <spdlog/sinks/wincolor_sink.h>
+using color_sink_t = spdlog::sinks::wincolor_stdout_sink_mt;
+#else
+#include <spdlog/sinks/ansicolor_sink.h>
+using color_sink_t = spdlog::sinks::ansicolor_stdout_sink_mt;
 #endif
 
 namespace WasmEdge {
@@ -33,10 +40,15 @@ void setCriticalLoggingLevel() { spdlog::set_level(spdlog::level::critical); }
 
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback) {
-  auto Callback_sink =
-      std::make_shared<spdlog::sinks::callback_sink_mt>(Callback);
-  spdlog::set_default_logger(
-      std::make_shared<spdlog::logger>("WasmEdge", Callback_sink));
+  if (Callback) {
+    auto Callback_sink =
+        std::make_shared<spdlog::sinks::callback_sink_mt>(Callback);
+    spdlog::set_default_logger(
+        std::make_shared<spdlog::logger>("WasmEdge", Callback_sink));
+  } else {
+    spdlog::set_default_logger(
+        std::make_shared<spdlog::logger>("", std::make_shared<color_sink_t>()));
+  }
 }
 
 } // namespace Log

@@ -68,8 +68,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           break;
         }
         case CoreSort::Global: {
-          M->exportGlobal(S.getName(),
-                          CompInst.getCoreGlobalInstance(SortIdx.getSortIdx()));
+          auto Res = CompInst.getCoreGlobalInstance(SortIdx.getSortIdx());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          M->exportGlobal(S.getName(), *Res);
           break;
         }
         case CoreSort::Type:

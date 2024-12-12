@@ -99,10 +99,10 @@ public:
   MemoryInstance *getCoreMemoryInstance(uint32_t Index) const noexcept;
 
   void addCoreGlobalInstance(GlobalInstance *Inst) noexcept;
-  GlobalInstance *getCoreGlobalInstance(uint32_t Index) const noexcept;
+  Expect<GlobalInstance *> getCoreGlobalInstance(uint32_t Index) const noexcept;
 
   void addCoreType(const CoreDefType &Ty) noexcept;
-  const CoreDefType getCoreType(uint32_t Idx) const noexcept;
+  Expect<const CoreDefType> getCoreType(uint32_t Idx) const noexcept;
 
   void addHostType(std::string_view Name, PrimValType &&Type) noexcept;
   void addHostType(std::string_view Name, RecordTy &&Type) noexcept;

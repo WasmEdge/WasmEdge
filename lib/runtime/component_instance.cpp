@@ -197,15 +197,26 @@ ComponentInstance::getCoreMemoryInstance(uint32_t Index) const noexcept {
 void ComponentInstance::addCoreGlobalInstance(GlobalInstance *Inst) noexcept {
   CoreGlobInstList.push_back(Inst);
 }
-GlobalInstance *
+Expect<GlobalInstance *>
 ComponentInstance::getCoreGlobalInstance(uint32_t Index) const noexcept {
+  if (CoreGlobInstList.size() <= Index) {
+    spdlog::error("component: `{}`, access core types: {}/{}", this->CompName,
+                  Index, CoreGlobInstList.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return CoreGlobInstList[Index];
 }
 
 void ComponentInstance::addCoreType(const CoreDefType &Ty) noexcept {
   CoreTypes.emplace_back(Ty);
 }
-const CoreDefType ComponentInstance::getCoreType(uint32_t Idx) const noexcept {
+Expect<const CoreDefType>
+ComponentInstance::getCoreType(uint32_t Idx) const noexcept {
+  if (CoreTypes.size() <= Idx) {
+    spdlog::error("component: `{}`, access core types: {}/{}", this->CompName,
+                  Idx, CoreTypes.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return CoreTypes[Idx];
 }
 

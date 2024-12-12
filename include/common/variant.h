@@ -41,28 +41,28 @@ union VariadicUnion<FirstT, RestT...> {
   constexpr VariadicUnion(std::in_place_index_t<N>, Args &&...Values)
       : Rest(std::in_place_index<N - 1>, std::forward<Args>(Values)...) {}
 
-  template <typename T> constexpr const T &get() const &noexcept {
+  template <typename T> constexpr const T &get() const & noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return First;
     } else {
       return Rest.template get<T>();
     }
   }
-  template <typename T> constexpr T &get() &noexcept {
+  template <typename T> constexpr T &get() & noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return First;
     } else {
       return Rest.template get<T>();
     }
   }
-  template <typename T> constexpr const T &&get() const &&noexcept {
+  template <typename T> constexpr const T &&get() const && noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return std::move(First);
     } else {
       return std::move(Rest).template get<T>();
     }
   }
-  template <typename T> constexpr T &&get() &&noexcept {
+  template <typename T> constexpr T &&get() && noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       return std::move(First);
     } else {
@@ -71,7 +71,7 @@ union VariadicUnion<FirstT, RestT...> {
   }
 
   template <typename T, typename... Args>
-  constexpr T &emplace(Args &&...Values) &noexcept {
+  constexpr T &emplace(Args &&...Values) & noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       ::new (&First) FirstT(std::forward<Args>(Values)...);
       return *std::launder(&First);
@@ -81,7 +81,7 @@ union VariadicUnion<FirstT, RestT...> {
   }
 
   template <typename T, typename... Args>
-  constexpr T &emplace(Args &&...Values) &&noexcept {
+  constexpr T &emplace(Args &&...Values) && noexcept {
     if constexpr (std::is_same_v<T, FirstT>) {
       ::new (&First) FirstT(std::forward<Args>(Values)...);
       return std::move(*std::launder(&First));
@@ -198,29 +198,29 @@ public:
   constexpr Variant(std::in_place_type_t<T>, Args &&...Values) noexcept
       : Variant(std::in_place_index_t<N>(), std::forward<Args>(Values)...) {}
 
-  template <typename T> constexpr T &get() &noexcept {
+  template <typename T> constexpr T &get() & noexcept {
     return Storage.template get<T>();
   }
 
-  template <typename T> constexpr T &&get() &&noexcept {
+  template <typename T> constexpr T &&get() && noexcept {
     return std::move(Storage).template get<T>();
   }
 
-  template <typename T> constexpr const T &get() const &noexcept {
+  template <typename T> constexpr const T &get() const & noexcept {
     return Storage.template get<T>();
   }
 
-  template <typename T> constexpr const T &&get() const &&noexcept {
+  template <typename T> constexpr const T &&get() const && noexcept {
     return std::move(Storage).template get<T>();
   }
 
   template <typename T, typename... Args>
-  constexpr T &emplace(Args &&...Values) &noexcept {
+  constexpr T &emplace(Args &&...Values) & noexcept {
     return Storage.template emplace<T>(std::forward<Args>(Values)...);
   }
 
   template <typename T, typename... Args>
-  constexpr T &&emplace(Args &&...Values) &&noexcept {
+  constexpr T &&emplace(Args &&...Values) && noexcept {
     return std::move(Storage).template emplace<T>(
         std::forward<Args>(Values)...);
   }

@@ -138,6 +138,7 @@ if(WASMEDGE_BUILD_SHARED_LIB)
 endif()
 
 if(WASMEDGE_BUILD_STATIC_LIB)
+  wasmedge_add_static_lib_component_command(fmt::fmt)
   wasmedge_add_static_lib_component_command(spdlog::spdlog)
   wasmedge_add_static_lib_component_command(wasmedgeSystem)
   wasmedge_add_static_lib_component_command(wasmedgeCommon)

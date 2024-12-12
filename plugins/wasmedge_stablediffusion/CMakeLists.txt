@@ -31,8 +31,8 @@ endif()
 message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
   stable-diffusion
-  GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
-  GIT_TAG        master-9578fdc
+  GIT_REPOSITORY https://github.com/second-state/stable-diffusion.cpp.git
+  GIT_TAG        d08889cb3f86f49d3f4f9c0c7e3781238c44bd3d
   GIT_SHALLOW    TRUE
   )
 set(SD_BUILD_SHARED_LIBS ON CACHE INTERNAL "Stable diffusion plugin: Build shared libs")
@@ -108,6 +108,7 @@ else()
     -Wno-unused-value
     -Wno-uninitialized
     -Wno-format
+    -Wno-enum-compare
 	)
 endif()
 
@@ -115,7 +116,7 @@ if(WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL)
   add_custom_command(
     TARGET wasmedgePluginWasmEdgeStableDiffusion
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
+    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-metal/ggml-metal.metal ggml-metal.metal
     COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
   )
 endif()

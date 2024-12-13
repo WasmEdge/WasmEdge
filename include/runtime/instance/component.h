@@ -96,7 +96,7 @@ public:
   TableInstance *getCoreTableInstance(uint32_t Index) const noexcept;
 
   void addCoreMemoryInstance(MemoryInstance *Inst) noexcept;
-  MemoryInstance *getCoreMemoryInstance(uint32_t Index) const noexcept;
+  Expect<MemoryInstance *> getCoreMemoryInstance(uint32_t Index) const noexcept;
 
   void addCoreGlobalInstance(GlobalInstance *Inst) noexcept;
   Expect<GlobalInstance *> getCoreGlobalInstance(uint32_t Index) const noexcept;

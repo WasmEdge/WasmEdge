@@ -174,5 +174,17 @@ private:
                                  uint32_t GraphId);
 };
 
+class WasiNNFinalizeExecCtx : public WasiNN<WasiNNFinalizeExecCtx> {
+public:
+  WasiNNFinalizeExecCtx(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Context) {
+    return bodyImpl(Frame, Context).map(castErrNo);
+  }
+
+private:
+  Expect<WASINN::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
+                                 uint32_t Context);
+};
+
 } // namespace Host
 } // namespace WasmEdge

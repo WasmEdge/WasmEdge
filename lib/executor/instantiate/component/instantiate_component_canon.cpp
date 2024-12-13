@@ -429,7 +429,11 @@ public:
         }
       } else if (std::holds_alternative<Memory>(Opt)) {
         auto MemIdx = std::get<Memory>(Opt).getMemIndex();
-        Mem = CompInst.getCoreMemoryInstance(MemIdx);
+        auto RMem = CompInst.getCoreMemoryInstance(MemIdx);
+        if (!RMem) {
+          return Unexpect(RMem);
+        }
+        Mem = *RMem;
       } else if (std::holds_alternative<Realloc>(Opt)) {
         ReallocFunc = CompInst.getCoreFunctionInstance(
             std::get<Realloc>(Opt).getFuncIndex());
@@ -484,7 +488,11 @@ public:
         }
       } else if (std::holds_alternative<Memory>(Opt)) {
         auto MemIdx = std::get<Memory>(Opt).getMemIndex();
-        Mem = CompInst.getCoreMemoryInstance(MemIdx);
+        auto RMem = CompInst.getCoreMemoryInstance(MemIdx);
+        if (!RMem) {
+          return Unexpect(RMem);
+        }
+        Mem = *RMem;
       } else if (std::holds_alternative<Realloc>(Opt)) {
         ReallocFunc = CompInst.getCoreFunctionInstance(
             std::get<Realloc>(Opt).getFuncIndex());

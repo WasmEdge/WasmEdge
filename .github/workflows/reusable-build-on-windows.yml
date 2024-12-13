@@ -27,7 +27,7 @@ jobs:
       - name: Install dependency
         uses: crazy-max/ghaction-chocolatey@v3
         with:
-          args: install ninja
+          args: install --no-progress ninja
       - name: Upgrade dependency
         uses: crazy-max/ghaction-chocolatey@v3
         with:

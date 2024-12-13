@@ -209,7 +209,7 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
   if (!link) {
     return static_cast<int32_t>(libbpf_get_error(link));
   }
-  links.emplace(std::unique_ptr<bpf_link, int32_t (*)(bpf_link * obj)>{
+  links.emplace(std::unique_ptr<bpf_link, int32_t (*)(bpf_link *obj)>{
       link, bpf_link__destroy});
   return 0;
 }

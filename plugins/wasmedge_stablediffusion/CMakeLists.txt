@@ -31,24 +31,18 @@ endif()
 message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
   stable-diffusion
-  GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
-  GIT_TAG        ac54e0076052a196b7df961eb1f792c9ff4d7f22
+  GIT_REPOSITORY https://github.com/second-state/stable-diffusion.cpp.git
+  GIT_TAG        d08889cb3f86f49d3f4f9c0c7e3781238c44bd3d
   GIT_SHALLOW    TRUE
-)
+  )
+set(SD_BUILD_SHARED_LIBS ON CACHE INTERNAL "Stable diffusion plugin: Build shared libs")
 FetchContent_MakeAvailable(stable-diffusion)
 set_property(TARGET stable-diffusion PROPERTY POSITION_INDEPENDENT_CODE ON)
 if(APPLE AND CMAKE_SYSTEM_VERSION VERSION_LESS 23)
   # `cblas_sgemm()` introduced in macOS 13.3.
   set(GGML_NO_ACCELERATE ON CACHE INTERNAL "Stable diffusion plugin: Turn off accelerate")
 endif()
-get_target_property(SD_DEPS stable-diffusion LINK_LIBRARIES)
-foreach(dep ${SD_DEPS})
-  if(TARGET ${dep})
-    set_target_properties(${dep} PROPERTIES
-      POSITION_INDEPENDENT_CODE ON
-    )
-  endif()
-endforeach()
+
 
 wasmedge_add_library(wasmedgePluginWasmEdgeStableDiffusion
   SHARED
@@ -114,6 +108,7 @@ else()
     -Wno-unused-value
     -Wno-uninitialized
     -Wno-format
+    -Wno-enum-compare
 	)
 endif()
 
@@ -121,7 +116,7 @@ if(WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL)
   add_custom_command(
     TARGET wasmedgePluginWasmEdgeStableDiffusion
     POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-metal.metal ggml-metal.metal
+    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-metal/ggml-metal.metal ggml-metal.metal
     COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
   )
 endif()

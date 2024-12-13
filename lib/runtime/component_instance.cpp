@@ -189,8 +189,13 @@ ComponentInstance::getCoreTableInstance(uint32_t Index) const noexcept {
 void ComponentInstance::addCoreMemoryInstance(MemoryInstance *Inst) noexcept {
   CoreMemInstList.push_back(Inst);
 }
-MemoryInstance *
+Expect<MemoryInstance *>
 ComponentInstance::getCoreMemoryInstance(uint32_t Index) const noexcept {
+  if (CoreMemInstList.size() <= Index) {
+    spdlog::error("component: `{}`, access core memory instance: {}/{}",
+                  this->CompName, Index, CoreMemInstList.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return CoreMemInstList[Index];
 }
 
@@ -200,8 +205,8 @@ void ComponentInstance::addCoreGlobalInstance(GlobalInstance *Inst) noexcept {
 Expect<GlobalInstance *>
 ComponentInstance::getCoreGlobalInstance(uint32_t Index) const noexcept {
   if (CoreGlobInstList.size() <= Index) {
-    spdlog::error("component: `{}`, access core types: {}/{}", this->CompName,
-                  Index, CoreGlobInstList.size());
+    spdlog::error("component: `{}`, access core global instance: {}/{}",
+                  this->CompName, Index, CoreGlobInstList.size());
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   return CoreGlobInstList[Index];

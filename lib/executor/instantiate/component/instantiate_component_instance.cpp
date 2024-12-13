@@ -63,8 +63,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           break;
         }
         case CoreSort::Memory: {
-          M->exportMemory(S.getName(),
-                          CompInst.getCoreMemoryInstance(SortIdx.getSortIdx()));
+          auto Res = CompInst.getCoreMemoryInstance(SortIdx.getSortIdx());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          M->exportMemory(S.getName(), *Res);
           break;
         }
         case CoreSort::Global: {

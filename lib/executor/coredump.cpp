@@ -74,7 +74,7 @@ AST::CustomSection createCore() {
 }
 
 AST::CustomSection createCorestack(
-    Loader::Serializer Ser, Span<const Runtime::StackManager::Frame> Frames,
+    Loader::Serializer &Ser, Span<const Runtime::StackManager::Frame> Frames,
     Span<const Runtime::StackManager::Value> ValueStack, bool ForWasmgdb) {
   AST::CustomSection CoreStack;
   CoreStack.setName("corestack");
@@ -88,7 +88,7 @@ AST::CustomSection createCorestack(
   std::string ThreadName = "main";
   Content.insert(Content.end(), ThreadName.begin(), ThreadName.end());
   auto FramesSize = Frames.size() - 1;
-  Ser.serializeU32(FramesSize, Content);
+  Ser.serializeU32(static_cast<uint32_t>(FramesSize), Content);
   for (size_t Idx = FramesSize; Idx > 0; Idx--) {
     if (Frames[Idx].Module == nullptr) {
       continue;
@@ -180,12 +180,12 @@ AST::MemorySection createMemory(
 }
 
 AST::CustomSection createCoremodules(
-    Loader::Serializer Ser,
+    Loader::Serializer &Ser,
     Span<const Runtime::Instance::ModuleInstance *const> ModuleInstances) {
   AST::CustomSection CoreModules;
   CoreModules.setName("coremodules");
   auto &Content = CoreModules.getContent();
-  Ser.serializeU32(ModuleInstances.size(), Content);
+  Ser.serializeU32(static_cast<uint32_t>(ModuleInstances.size()), Content);
   for (auto &Module : ModuleInstances) {
     auto Name = Module->getModuleName();
     Content.push_back(0x00);

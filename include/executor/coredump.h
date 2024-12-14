@@ -15,10 +15,10 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
                       bool ForWasmgdb) noexcept;
 AST::CustomSection createCore();
 AST::CustomSection createCoremodules(
-    Loader::Serializer Ser,
+    Loader::Serializer &Ser,
     Span<const Runtime::Instance::ModuleInstance *const> ModuleInstances);
 AST::CustomSection createCorestack(
-    Loader::Serializer Ser, Span<const Runtime::StackManager::Frame> Frames,
+    Loader::Serializer &Ser, Span<const Runtime::StackManager::Frame> Frames,
     Span<const Runtime::StackManager::Value> ValueStack, bool ForWasmgdb);
 AST::CustomSection createCoreinstances(
     Span<const Runtime::Instance::ModuleInstance *const> ModuleInstances);

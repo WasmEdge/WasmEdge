@@ -85,8 +85,8 @@ A committer must meet the responsibilities and has the requirements of a Contrib
 
 The process for a Contributor to become a committer is as follows:
 
-1. The contributor is nominated by opening a PR against the appropriate repository by the existing committers, reviwers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
-2. At least 1/3 members of the committers, reviwers, and maintainers who are already Approvers, approve the PR.
+1. The contributor is nominated by opening a PR against the appropriate repository by the existing committers, reviewers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
+2. At least 1/3 members of the committers, reviewers, and maintainers who are already Approvers, approve the PR.
 
 ### Reviewer
 <!-- Some projects have CI/CD systems that allow for designating people as official reviewers, whose reviews count towards a PR being accepted into the project.  Other projects offer reviewers specific recognition and status.  This role is for either of those kinds of projects. Smaller projects will not use it.-->
@@ -117,8 +117,8 @@ Reviewers have all the rights and responsibilities of a committer, plus:
 
 The process of becoming a Reviewer is:
 
-1. The contributor is nominated by opening a PR against the appropriate repository by the existing reviwers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
-2. At least 1/2 members of the committers, reviwers, and maintainers that owns that repository or main directory, who are already Approvers, approve the PR.
+1. The contributor is nominated by opening a PR against the appropriate repository by the existing reviewers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
+2. At least 1/2 members of the committers, reviewers, and maintainers that owns that repository or main directory, who are already Approvers, approve the PR.
 
 
 ### Maintainer

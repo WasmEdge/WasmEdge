@@ -494,6 +494,7 @@ TEST(APICoreTest, Log) {
   EXPECT_TRUE(true);
   WasmEdge_LogOff();
   EXPECT_TRUE(true);
+  WasmEdge_LogSetCallback(nullptr);
 }
 
 TEST(APICoreTest, ValType) {

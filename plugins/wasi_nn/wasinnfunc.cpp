@@ -645,5 +645,32 @@ Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
   }
 }
 
+Expect<WASINN::ErrNo>
+WasiNNFinalizeExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
+                                uint32_t Context) {
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (Env.NNRPCChannel != nullptr) {
+    // TODO: implement RPC for finalize_execution_context
+    spdlog::error(
+        "[WASI-NN] RPC client is not implemented for finalize_execution_context"sv);
+    return WASINN::ErrNo::UnsupportedOperation;
+  }
+#endif
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  if (Env.NNContext.size() <= Context) {
+    spdlog::error(
+        "[WASI-NN] finalize_execution_context: Execution Context does not exist."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  spdlog::error(
+      "[WASI-NN] finalize_execution_context: No backend supports finalize_execution_context."sv);
+  return WASINN::ErrNo::InvalidArgument;
+}
+
 } // namespace Host
 } // namespace WasmEdge

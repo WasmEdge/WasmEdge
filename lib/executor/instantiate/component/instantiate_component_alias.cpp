@@ -23,7 +23,11 @@ Executor::instantiate(Runtime::StoreManager &,
       if (std::holds_alternative<AliasTargetExport>(T)) {
         // This means instance exports a function
         auto &Exp = std::get<AliasTargetExport>(T);
-        const auto *ModInst = CompInst.getModuleInstance(Exp.getInstanceIdx());
+        auto RModInst = CompInst.getModuleInstance(Exp.getInstanceIdx());
+        if (!RModInst) {
+          return Unexpect(RModInst);
+        }
+        const auto *ModInst = *RModInst;
 
         switch (std::get<CoreSort>(S)) {
         case CoreSort::Func: {

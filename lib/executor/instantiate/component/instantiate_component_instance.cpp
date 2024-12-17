@@ -27,8 +27,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       for (auto &Arg : Instantiate.getArgs()) {
         // instantiate a list of `(with (name $instance))`
         // each $instance get named as `name` as statement tell
-        StoreMgr.addNamedModule(Arg.getName(),
-                                CompInst.getModuleInstance(Arg.getIndex()));
+        auto Res = CompInst.getModuleInstance(Arg.getIndex());
+        if (!Res) {
+          return Unexpect(Res);
+        }
+        StoreMgr.addNamedModule(Arg.getName(), *Res);
       }
       const AST::Module &Mod = CompInst.getModule(Instantiate.getModuleIdx());
       auto Res = instantiate(StoreMgr, Mod);
@@ -133,10 +136,14 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           case CoreSort::Module:
             spdlog::warn("incomplete (with {}) core:module"sv, Arg.getName());
             break;
-          case CoreSort::Instance:
-            StoreMgr.addNamedModule(
-                Arg.getName(), CompInst.getModuleInstance(Idx.getSortIdx()));
+          case CoreSort::Instance: {
+            auto Res = CompInst.getModuleInstance(Idx.getSortIdx());
+            if (!Res) {
+              return Unexpect(Res);
+            }
+            StoreMgr.addNamedModule(Arg.getName(), *Res);
             break;
+          }
           }
         } else if (std::holds_alternative<SortCase>(S)) {
           switch (std::get<SortCase>(S)) {

@@ -51,15 +51,21 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         switch (SortIdx.getSort()) {
         case CoreSort::Func: {
           // The module instance takes functions and export them
-          M->exportFunction(
-              S.getName(),
-              // get stored core function
-              CompInst.getCoreFunctionInstance(SortIdx.getSortIdx()));
+
+          // get stored core function
+          auto Res = CompInst.getCoreFunctionInstance(SortIdx.getSortIdx());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          M->exportFunction(S.getName(), *Res);
           break;
         }
         case CoreSort::Table: {
-          M->exportTable(S.getName(),
-                         CompInst.getCoreTableInstance(SortIdx.getSortIdx()));
+          auto Res = CompInst.getCoreTableInstance(SortIdx.getSortIdx());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          M->exportTable(S.getName(), *Res);
           break;
         }
         case CoreSort::Memory: {

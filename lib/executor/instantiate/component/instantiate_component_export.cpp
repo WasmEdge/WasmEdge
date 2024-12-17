@@ -28,7 +28,11 @@ Executor::instantiate(Runtime::StoreManager &,
     if (std::holds_alternative<CoreSort>(S)) {
       switch (std::get<CoreSort>(S)) {
       case CoreSort::Module: {
-        auto const *Mod = CompInst.getModuleInstance(Index);
+        auto Res = CompInst.getModuleInstance(Index);
+        if (!Res) {
+          return Unexpect(Res);
+        }
+        auto const *Mod = *Res;
         CompInst.addExport(ExportName, Mod);
         break;
       }

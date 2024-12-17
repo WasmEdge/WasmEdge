@@ -71,7 +71,8 @@ public:
   void
   addCoreFunctionInstance(std::unique_ptr<FunctionInstance> &&Inst) noexcept;
   void addCoreFunctionInstance(FunctionInstance *Inst) noexcept;
-  FunctionInstance *getCoreFunctionInstance(uint32_t Index) const noexcept;
+  Expect<FunctionInstance *>
+  getCoreFunctionInstance(uint32_t Index) const noexcept;
 
   void addFunctionInstance(
       std::unique_ptr<Component::FunctionInstance> Inst) noexcept;
@@ -93,7 +94,7 @@ public:
   getFuncExports() const noexcept;
 
   void addCoreTableInstance(TableInstance *Inst) noexcept;
-  TableInstance *getCoreTableInstance(uint32_t Index) const noexcept;
+  Expect<TableInstance *> getCoreTableInstance(uint32_t Index) const noexcept;
 
   void addCoreMemoryInstance(MemoryInstance *Inst) noexcept;
   Expect<MemoryInstance *> getCoreMemoryInstance(uint32_t Index) const noexcept;

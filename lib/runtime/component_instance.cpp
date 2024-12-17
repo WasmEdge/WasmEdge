@@ -125,8 +125,13 @@ void ComponentInstance::addCoreFunctionInstance(
     FunctionInstance *Inst) noexcept {
   CoreFuncInstList.push_back(Inst);
 }
-FunctionInstance *
+Expect<FunctionInstance *>
 ComponentInstance::getCoreFunctionInstance(uint32_t Index) const noexcept {
+  if (CoreFuncInstList.size() <= Index) {
+    spdlog::error("component: `{}`, access core function instance: {}/{}",
+                  this->CompName, Index, CoreFuncInstList.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return CoreFuncInstList[Index];
 }
 
@@ -181,8 +186,13 @@ ComponentInstance::getFuncExports() const noexcept {
 void ComponentInstance::addCoreTableInstance(TableInstance *Inst) noexcept {
   CoreTabInstList.push_back(Inst);
 }
-TableInstance *
+Expect<TableInstance *>
 ComponentInstance::getCoreTableInstance(uint32_t Index) const noexcept {
+  if (CoreTabInstList.size() <= Index) {
+    spdlog::error("component: `{}`, access core table instance: {}/{}",
+                  this->CompName, Index, CoreTabInstList.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return CoreTabInstList[Index];
 }
 

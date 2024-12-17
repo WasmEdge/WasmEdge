@@ -435,8 +435,12 @@ public:
         }
         Mem = *RMem;
       } else if (std::holds_alternative<Realloc>(Opt)) {
-        ReallocFunc = CompInst.getCoreFunctionInstance(
+        auto Res = CompInst.getCoreFunctionInstance(
             std::get<Realloc>(Opt).getFuncIndex());
+        if (!Res) {
+          return Unexpect(Res);
+        }
+        ReallocFunc = *Res;
       } else if (std::holds_alternative<PostReturn>(Opt)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
         return Unexpect(ErrCode::Value::InvalidCanonOption);
@@ -456,7 +460,11 @@ public:
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     }
 
-    auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
+    auto RFuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
+    if (!RFuncInst) {
+      return Unexpect(RFuncInst);
+    }
+    auto FuncInst = *RFuncInst;
     CompInst.addFunctionInstance(
         ThisExecutor.lifting(CompInst, std::get<FuncType>(*AstFuncType),
                              FuncInst, Mem, ReallocFunc));
@@ -494,8 +502,12 @@ public:
         }
         Mem = *RMem;
       } else if (std::holds_alternative<Realloc>(Opt)) {
-        ReallocFunc = CompInst.getCoreFunctionInstance(
+        auto Res = CompInst.getCoreFunctionInstance(
             std::get<Realloc>(Opt).getFuncIndex());
+        if (!Res) {
+          return Unexpect(Res);
+        }
+        ReallocFunc = *Res;
       } else if (std::holds_alternative<PostReturn>(Opt)) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
         return Unexpect(ErrCode::Value::InvalidCanonOption);

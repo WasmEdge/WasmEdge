@@ -104,9 +104,12 @@ Executor::instantiate(Runtime::StoreManager &,
 
         switch (std::get<SortCase>(S)) {
         case SortCase::Func: {
-          auto *FuncInst = CompInst.getComponentInstance(Out.getComponent())
+          auto RFuncInst = CompInst.getComponentInstance(Out.getComponent())
                                ->getCoreFunctionInstance(Out.getIndex());
-          CompInst.addCoreFunctionInstance(FuncInst);
+          if (!RFuncInst) {
+            return Unexpect(RFuncInst);
+          }
+          CompInst.addCoreFunctionInstance(*RFuncInst);
           break;
         }
         case SortCase::Value: // TODO: need real use cases to analysis how to

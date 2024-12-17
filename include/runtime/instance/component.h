@@ -56,7 +56,8 @@ public:
 
   void addModuleInstance(ModuleInstance *Inst) noexcept;
   void addModuleInstance(std::unique_ptr<ModuleInstance> Inst) noexcept;
-  const ModuleInstance *getModuleInstance(uint32_t Index) const noexcept;
+  Expect<const ModuleInstance *>
+  getModuleInstance(uint32_t Index) const noexcept;
 
   void addComponentInstance(const ComponentInstance *Inst) noexcept;
   void addComponentInstance(std::unique_ptr<ComponentInstance> Inst) noexcept;

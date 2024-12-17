@@ -82,8 +82,13 @@ void ComponentInstance::addModuleInstance(
   ModInstList.push_back(Inst.get());
   OwnedModInstList.push_back(std::move(Inst));
 }
-const ModuleInstance *
+Expect<const ModuleInstance *>
 ComponentInstance::getModuleInstance(uint32_t Index) const noexcept {
+  if (ModInstList.size() <= Index) {
+    spdlog::error("component: `{}`, access module instance: {}/{}",
+                  this->CompName, Index, ModInstList.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return ModInstList[Index];
 }
 

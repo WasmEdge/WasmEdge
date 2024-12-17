@@ -65,6 +65,10 @@ public:
                                 std::vector<uint8_t> &OutVec) const noexcept;
   /// @}
 
+  void serializeU32(uint32_t Num, std::vector<uint8_t> &OutVec) const noexcept {
+    serializeUN<uint32_t, 32>(Num, OutVec, OutVec.end());
+  }
+
 private:
   /// \name Serialize functions for the other nodes of AST.
   /// @{
@@ -147,9 +151,6 @@ private:
   void serializeU32(uint32_t Num, std::vector<uint8_t> &OutVec,
                     std::vector<uint8_t>::iterator It) const noexcept {
     serializeUN<uint32_t, 32>(Num, OutVec, It);
-  }
-  void serializeU32(uint32_t Num, std::vector<uint8_t> &OutVec) const noexcept {
-    serializeUN<uint32_t, 32>(Num, OutVec, OutVec.end());
   }
   void serializeU64(uint64_t Num, std::vector<uint8_t> &OutVec,
                     std::vector<uint8_t>::iterator It) const noexcept {

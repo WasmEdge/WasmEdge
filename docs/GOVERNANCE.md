@@ -2,31 +2,74 @@
 
 As a sandbox project hosted by CNCF, the WasmEdge Runtime follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/master/code-of-conduct.md).
 
-## Maintainer responsibilities
+- [Values](#values)
+- [Maintainers Structure](#maintainers-structure)
+  - [Maintainers](#maintainers-responsibilities)
+  - [Reviewers](#reviewers)
+  - [Committers](#committers)
+  - [Adding maintainers](#adding-maintainers)
+  - [When does a maintainer lose maintainer status](#when-does-a-maintainer-lose-maintainer-status)
+  - [Conflict resolution and voting](#conflict-resolution-and-voting)
+- [Meetings](#meetings)
+- [CNCF Resources](#cncf-resources)
+- [Code of Conduct Enforcement](#code-of-conduct)
+- [Security Response Team](#security-response-team)
+- [Voting](#voting)
+- [Modifications](#modifying-this-charter)
+- [Credits](#credits)
 
-* Monitor email aliases.
-* Monitor Slack (delayed response is perfectly acceptable).
-* Triage GitHub issues and perform pull request reviews for other maintainers and the community. The areas of specialization listed in OWNERS.md can be used to help with routing an issue/question to the right person.
-* Triage build issues - file issues for known flaky builds or bugs, and either fix or find someone to fix any main build breakages.
-* During GitHub issue triage, apply all applicable [labels](https://github.com/WasmEdge/WasmEdge/labels) to each new issue. Labels are extremely useful for future issue to follow-up. Which labels to apply is somewhat subjective so just use your best judgment. A few of the most important labels that are not self-explanatory are:
-  * good first issue: Mark any issue that can reasonably be accomplished by a new contributor with this label.
-  * help wanted: Unless it is immediately obvious that someone is going to work on an issue (and if so assign it), mark it help wanted.
-  * question: If it's unclear if an issue is immediately actionable, mark it with the question label. Questions are easy to search for and close out at a later time. Questions can be promoted to other issue types once it's clear they are actionable (at which point the question label should be removed).
-* Make sure that ongoing PRs are moving forward at the right pace or closing them.
-* Participate when called upon in the security release process. Note that although this should be a rare occurrence, if a serious vulnerability is found, the process may take up to several full days of work to implement. This reality should be taken into account when discussing time commitment obligations with employers.
+The [TODO: PROJECTNAME] and its leadership embrace the following values:
 
-## Reviewers
+* Openness: Communication and decision-making happens in the open and is discoverable for future
+  reference. As much as possible, all discussions and work take place in public
+  forums and open repositories.
 
-A reviewer is a core maintainer within the project. They share in reviewing issues and pull requests and their LGTM counts towards the required LGTM count to merge a code change into the project.
-Reviewers are part of the organization but do not have write access. Becoming a reviewer is a core aspect in the journey to becoming a committer.
+* Fairness: All stakeholders have the opportunity to provide feedback and submit
+  contributions, which will be considered on their merits.
 
-## Committers
+* Community over Product or Company: Sustaining and growing our community takes
+  priority over shipping code or sponsors' organizational goals.  Each
+  contributor participates in the project as an individual.
 
-A committer is a core maintainer who is responsible for the overall quality and stewardship of the project. They share the same reviewing responsibilities as reviewers, but are also responsible for upholding the project bylaws as well as participating in project level votes.
+* Inclusivity: We innovate through different perspectives and skill sets, which
+  can only be accomplished in a welcoming and respectful environment.
+
+* Participation: Responsibilities within the project are earned through
+  participation, and there is a clear path up the contributor ladder into leadership
+  positions.
+
+## Maintainers Structure
+
+There are three levels of maintainers for WasmEdge. The WasmEdge maintainers oversee the overall
+project and its health. Committers focus on a single codebase, a group of related
+codebases, a service (e.g., a website), or project to support the other projects (e.g., marketing or
+community management). Reviewers help review the GitHub issues and PRs. See the [Contributor Ladder](./CONTRIBUTION_LADDER.md) for more detailed information on responsibilities.
+
+### Maintainers
+
+WasmEdge Maintainers have write access to the [WasmEdge](https://github.com/WasmEdge/WasmEdge) GitHub repo.
+They can merge their own patches or patches from others. The current maintainers
+can be found in [MAINTAINERS.md](./MAINTAINERS.md).  Maintainers collectively manage the project's
+resources and contributors.
+
+This privilege is granted with some expectation of responsibility: maintainers are people who care about the WasmEdge project and want to help it grow and improve. A maintainer is not just someone who can make changes, but someone who has demonstrated their ability to collaborate with the team, get the most knowledgeable people to review code and docs, contribute high-quality code, and follow through to fix issues (in code or tests).
+
+A maintainer is a contributor to the project's success and a citizen helping the project succeed.
+
+The collective team of all Maintainers is known as the Maintainer Council, which is the governing body for the project.
+
+
+### Reviewers
+
+A Reviewer is an established contributor who regularly participates in the project. Reviewers have privileges in both project repositories and elections, and as such are expected to act in the interests of the whole project. Becoming a reviewer is a core aspect in the journey to becoming a committer.
+
+### Committers
+
+A Committer has responsibility for specific code, documentation, test, or other project areas. They are collectively responsible, with other Committers, for reviewing all changes to those areas and indicating whether those changes are ready to merge. They have a track record of contribution and review in the project.
 
 Committers are part of the organization with write access to all repositories. Committers are expected to remain actively involved in the project and participate in voting and discussing proposed project-level changes.
 
-## Adding maintainers
+### Adding maintainers
 
 Maintainers are first and foremost contributors who have shown they are committed to the long-term success of a project. Contributors wanting to become maintainers are expected to be deeply involved in contributing code, pull request review, and triage of issues in the project for more than three months.
 
@@ -38,15 +81,15 @@ After a candidate has been informally proposed in the maintainers' channel, the 
 
 If a candidate is approved, they will be invited to add their own LGTM or approval to the pull request to acknowledge their agreement. A maintainer will verify the number of votes that have been received and the allotted seven days have passed, then merge the pull request and invite the contributor to the organization and the [private maintainer mailing list](cncf-wasmedge-runtime-maintainers@lists.cncf.io)).
 
-## When does a maintainer lose maintainer status
+### When does a maintainer lose maintainer status
 
 If a maintainer is no longer interested or cannot perform the maintainer duties listed above, they should volunteer to be moved to emeritus status. In extreme cases this can also occur by a vote of the maintainers per the voting process below.
 
-## Conflict resolution and voting
+### Conflict resolution and voting
 
 In general, we prefer that technical issues and maintainer membership are amicably worked out between the persons involved. If a dispute cannot be decided independently, the maintainers can be called in to decide an issue. If the maintainers themselves cannot decide an issue, the issue will be resolved by voting. The voting process is a simple majority in which each maintainer receives one vote.
 
-## Adding new projects to the WasmEdge Runtime GitHub organization
+## Adding new projects
 
 New projects will be added to the WasmEdge organization via GitHub issue discussion in one of the existing projects in the organization. Once sufficient discussion has taken place (~3-5 business days but depending on the volume of conversation), the maintainers of *the project where the issue was opened* (since different projects in the organization may have different maintainers) will decide whether the new project should be added. See the section above on voting if the maintainers cannot easily decide.
 
@@ -61,7 +104,7 @@ Maintainers will also have closed meetings in order to discuss security reports 
 ## CNCF Resources
 Any Maintainer may suggest a request for CNCF resources, either in the [mailing list](cncf-wasmedge-runtime-maintainers@lists.cncf.io), or during a meeting. A simple majority of Maintainers approve the request. The Maintainers may also choose to delegate working with the CNCF to non-Maintainer community members, who will then be added to the CNCF's Maintainer List for that purpose.
 
-### Code of Conduct
+## Code of Conduct
 Code of Conduct violations by community members will be discussed and resolved on the private Maintainer mailing list. If a Maintainer is directly involved in the report, the Maintainers will instead designate two Maintainers to work with the CNCF Code of Conduct Committee in resolving it.
 
 ## Security Response Team
@@ -69,8 +112,6 @@ Code of Conduct violations by community members will be discussed and resolved o
 The Maintainers will appoint a Security Response Team to handle security reports. This committee may simply consist of the Maintainer Council themselves. If this responsibility is delegated, the Maintainers will appoint a team of at least two contributors to handle it. The Maintainers will review who is assigned to this at least once a year.
 
 The Security Response Team is responsible for handling all reports of security holes and breaches according to the [security policy](./SECURITY.md).
-
-
 
 ## Voting
 

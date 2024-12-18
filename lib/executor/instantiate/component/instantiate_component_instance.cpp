@@ -144,15 +144,18 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           case SortCase::Type: // TODO: figure out how to do this registry
             spdlog::warn("incomplete (with {}) type"sv, Arg.getName());
             break;
-          case SortCase::Component:
-            if (auto Res = StoreMgr.registerComponent(
-                    Arg.getName(),
-                    CompInst.getComponentInstance(Idx.getSortIdx()));
+          case SortCase::Component: {
+            auto RComp = CompInst.getComponentInstance(Idx.getSortIdx());
+            if (!RComp) {
+              return Unexpect(RComp);
+            }
+            if (auto Res = StoreMgr.registerComponent(Arg.getName(), *RComp);
                 !Res) {
               spdlog::error("failed to register component instance"sv);
               return Unexpect(Res);
             }
             break;
+          }
           case SortCase::Instance:
             // TODO: figure out how to do this registry
             spdlog::warn("incomplete (with {}) instance"sv, Arg.getName());

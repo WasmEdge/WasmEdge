@@ -101,8 +101,13 @@ void ComponentInstance::addComponentInstance(
   CompInstList.push_back(Inst.get());
   OwnedCompInstList.push_back(std::move(Inst));
 }
-const ComponentInstance *
+Expect<const ComponentInstance *>
 ComponentInstance::getComponentInstance(uint32_t Index) const noexcept {
+  if (CompInstList.size() <= Index) {
+    spdlog::error("component: `{}`, access component instance: {}/{}",
+                  this->CompName, Index, CompInstList.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return CompInstList[Index];
 }
 

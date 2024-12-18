@@ -17,7 +17,7 @@ Please follow the [installation step](https://emscripten.org/docs/getting_starte
 
 ### The Socket C++ Program to WASM
 
-A example signal thread server and a simple client are provided. The header file `wrapper.h` provided the `sock_*_v2` function signature let emcc to generate the api import.
+An example signal thread server and a simple client are provided. The header file `wrapper.h` provided the `sock_*_v2` function signature let emcc to generate the api import.
 
 The Unix Domain Socket use file path as input address, therefore the address format V2 are required. Unlike the address V1 has only 4 or 8 bytes. The address has fixed 128 bytes storage and make it large enough to store the unix path.
 

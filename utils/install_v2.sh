@@ -12,6 +12,7 @@ YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
 TMP_DIR="/tmp/wasmedge.$$"
 
+
 info() {
 	command printf '\e[0;32mInfo\e[0m: %s\n\n' "$1"
 }
@@ -194,6 +195,13 @@ check_os_arch() {
 			RELEASE_PKG="darwin_${ARCH}.tar.gz"
 			_LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
 
+			;;
+		'Windows_NT' | MINGW*)
+
+			error "Detected ${OS} - currently unsupported"
+			eprintf "Please download WasmEdge manually from the release page:"
+			eprintf "https://github.com/WasmEdge/WasmEdge/releases/latest"
+			exit 1
 			;;
 		*)
 			error "Detected ${OS}-${ARCH} - currently unsupported"

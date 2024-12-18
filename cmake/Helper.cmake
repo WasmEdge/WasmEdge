@@ -398,3 +398,120 @@ function(wasmedge_setup_spdlog)
     wasmedge_setup_target(spdlog)
   endif()
 endfunction()
+
+function(wasmedge_setup_boost)
+  if(TARGET Boost::boost)
+    return()
+  endif()
+  # setup boost
+  find_package(Boost 1.74.0 CONFIG)
+  if(${Boost_FOUND})
+  else()
+    include(FetchContent)
+    message(STATUS "Downloading boost 1.82.0 source")
+    FetchContent_Declare(
+      Boost
+      URL http://sources.buildroot.net/boost/boost_1_82_0.tar.bz2
+      URL_HASH SHA256=a6e1ab9b0860e6a2881dd7b21fe9f737a095e5f33a3a874afc6a345228597ee6
+    )
+    set(BOOST_ENABLE_CMAKE ON)
+    set(BOOST_RUNTIME_LINK static)
+    FetchContent_MakeAvailable(Boost)
+    message(STATUS "Downloading boost 1.82.0 source - done")
+    add_library(Boost_boost INTERFACE)
+    add_library(Boost::boost ALIAS Boost_boost)
+    target_include_directories(Boost_boost SYSTEM INTERFACE ${boost_SOURCE_DIR})
+  endif()
+endfunction()
+
+function(wasmedge_setup_png)
+  if(TARGET wasmedgeDepsPNG)
+    return()
+  endif()
+  # setup libpng
+  add_library(wasmedgeDepsPNG STATIC IMPORTED GLOBAL)
+  if(APPLE)
+    # For MacOS, use the installed libpng library.
+    find_package(PNG REQUIRED)
+    # The find_package will get the shared library. Therefore find the static one.
+    find_library(PNG_STATIC NAMES libpng16.a)
+    set_target_properties(wasmedgeDepsPNG
+      PROPERTIES
+      IMPORTED_LOCATION ${PNG_STATIC}
+      INTERFACE_INCLUDE_DIRECTORIES "${PNG_INCLUDE_DIR}"
+    )
+  elseif(UNIX)
+    # Fetch and build libpng.
+    include(FetchContent)
+    message(STATUS "Downloading libpng source")
+    FetchContent_Declare(
+      wasmedge_image_libpng
+      URL "https://downloads.sourceforge.net/libpng/libpng-1.6.39.tar.gz"
+      URL_HASH "SHA256=af4fb7f260f839919e5958e5ab01a275d4fe436d45442a36ee62f73e5beb75ba"
+    )
+    FetchContent_MakeAvailable(wasmedge_image_libpng)
+    message(STATUS "Downloading libpng source - done")
+    add_custom_command(
+      OUTPUT ${wasmedge_image_libpng_SOURCE_DIR}/.libs/libpng16.a
+      COMMAND ${CMAKE_COMMAND} -E env CFLAGS=-fPIC ./configure --enable-shared=off
+      COMMAND make
+      WORKING_DIRECTORY ${wasmedge_image_libpng_SOURCE_DIR}
+    )
+    add_custom_target(wasmedgeDepsPNG_target
+      ALL DEPENDS
+      ${wasmedge_image_libpng_SOURCE_DIR}/.libs/libpng16.a
+    )
+    add_dependencies(wasmedgeDepsPNG wasmedgeDepsPNG_target)
+    set_target_properties(wasmedgeDepsPNG
+      PROPERTIES
+      IMPORTED_LOCATION ${wasmedge_image_libpng_SOURCE_DIR}/.libs/libpng16.a
+      INTERFACE_INCLUDE_DIRECTORIES ${wasmedge_image_libpng_SOURCE_DIR}
+    )
+  endif()
+endfunction()
+
+function(wasmedge_setup_jpeg)
+  if(TARGET wasmedgeDepsJPEG)
+    return()
+  endif()
+  # setup libpng
+  add_library(wasmedgeDepsJPEG STATIC IMPORTED GLOBAL)
+  if(APPLE)
+    # For MacOS, use the installed libjpeg library.
+    find_package(JPEG REQUIRED)
+    # The find_package will get the shared library. Therefore find the static one.
+    find_library(JPEG_STATIC NAMES libjpeg.a)
+    set_target_properties(wasmedgeDepsJPEG
+      PROPERTIES
+      IMPORTED_LOCATION ${JPEG_STATIC}
+      INTERFACE_INCLUDE_DIRECTORIES "${JPEG_INCLUDE_DIR}"
+    )
+  elseif(UNIX)
+    # Fetch and build libjpeg.
+    include(FetchContent)
+    message(STATUS "Downloading libjpeg source")
+    FetchContent_Declare(
+      wasmedge_image_libjpeg
+      URL "http://ijg.org/files/jpegsrc.v9e.tar.gz"
+      URL_HASH "SHA256=4077d6a6a75aeb01884f708919d25934c93305e49f7e3f36db9129320e6f4f3d"
+    )
+    FetchContent_MakeAvailable(wasmedge_image_libjpeg)
+    message(STATUS "Downloading libjpeg source - done")
+    add_custom_command(
+      OUTPUT ${wasmedge_image_libjpeg_SOURCE_DIR}/.libs/libjpeg.a
+      COMMAND ${CMAKE_COMMAND} -E env CFLAGS=-fPIC ./configure --enable-shared=off
+      COMMAND make
+      WORKING_DIRECTORY ${wasmedge_image_libjpeg_SOURCE_DIR}
+    )
+    add_custom_target(wasmedgeDepsJPEG_target
+      ALL DEPENDS
+      ${wasmedge_image_libjpeg_SOURCE_DIR}/.libs/libjpeg.a
+    )
+    add_dependencies(wasmedgeDepsJPEG wasmedgeDepsJPEG_target)
+    set_target_properties(wasmedgeDepsJPEG
+      PROPERTIES
+      IMPORTED_LOCATION ${wasmedge_image_libjpeg_SOURCE_DIR}/.libs/libjpeg.a
+      INTERFACE_INCLUDE_DIRECTORIES ${wasmedge_image_libjpeg_SOURCE_DIR}
+    )
+  endif()
+endfunction()

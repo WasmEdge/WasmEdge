@@ -3,8 +3,8 @@
 * [Contributor Ladder](#contributor-ladder-template)
     * [Community Participant](#community-participant)
     * [Contributor](#contributor)
-    * [Committer](#committer)
     * [Reviewer](#reviewer)
+    * [Committer](#committer)
     * [Maintainer](#maintainer)
 * [Inactivity](#inactivity)
 * [Involuntary Removal](#involuntary-removal-or-demotion)
@@ -56,11 +56,11 @@ Description: A Contributor contributes directly to the project and adds value to
     * Eligible to become a Committer
 
 
-### Committer
+### Reviewer
 
-Description: A Committer is an established contributor who regularly participates in the project. Committers have privileges in both project repositories and elections, and as such are expected to act in the interests of the whole project.
+Description: A Reviewer is an established contributor who regularly participates in the project. Reviewers have privileges in both project repositories and elections, and as such are expected to act in the interests of the whole project.
 
-A committer must meet the responsibilities and has the requirements of a Contributor, plus:
+A Reviewer must meet the responsibilities and has the requirements of a Contributor, plus:
 
 * Responsibilities include:
     * Continues to contribute regularly, as demonstrated by having at least 30 GitHub contributions per year, as shown by Devstats. 
@@ -73,36 +73,33 @@ A committer must meet the responsibilities and has the requirements of a Contrib
         * Or some equivalent combination or contribution
     * Must have been contributing for at least 3 months
     * Must be actively contributing to at least one project area
-    * [TODO: other requirements] <!--TODO: such as repository access or enabling 2FA on their GitHub account -->
-
+   
 * Privileges:
     * May be assigned Issues and Reviews
     * May give commands to CI/CD automation
-    * Entitled to vote in the committer proposal
-    * Can recommend other contributors to become a committer
-    * Is listed as Approver in the OWNERS file under the WasmEdge/WasmEdge repos.
+    * Entitled to vote in the Reviewer proposal
+    * Can recommend other contributors to become a reviewer
+    * Is listed as Reviewer in the [OWNERS file](./OWNER.md) under the WasmEdge/WasmEdge repos.
       
 
-The process for a Contributor to become a committer is as follows:
+The process for a Contributor to become a Reviewer is as follows:
 
-1. The contributor is nominated by opening a PR against the appropriate repository by the existing committers, reviewers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
-2. At least 1/3 members of the committers, reviewers, and maintainers who are already Approvers, approve the PR.
+1. The contributor is nominated by opening a PR against the appropriate repository by the existing reviewers, committers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
+2. At least 1/3 members of the reviewers, committers, and maintainers who are already Approvers, approve the PR.
 
-### Reviewer
-<!-- Some projects have CI/CD systems that allow for designating people as official reviewers, whose reviews count towards a PR being accepted into the project.  Other projects offer reviewers specific recognition and status.  This role is for either of those kinds of projects. Smaller projects will not use it.-->
-<!--TODO: project leads to fill in exact details of this role for your project-->
-Description: A Reviewer has responsibility for specific code, documentation, test, or other project areas. They are collectively responsible, with other Reviewers, for reviewing all changes to those areas and indicating whether those changes are ready to merge. They have a track record of contribution and review in the project.
+### Committer
+Description: A Committer has responsibility for specific code, documentation, test, or other project areas. They are collectively responsible, with other Committers, for reviewing all changes to those areas and indicating whether those changes are ready to merge. They have a track record of contribution and review in the project.
 
-Reviewers are responsible for a "specific area." This can be a specific code directory, driver, chapter of the docs, test job, event, or other clearly-defined project component that is smaller than an entire repository or subproject. Most often it is one or a set of directories in one or more Git repositories. The "specific area" below refers to this area of responsibility.
+Committers are responsible for a "specific area." This can be a specific code directory, driver, chapter of the docs, test job, event, or other clearly-defined project component that is smaller than an entire repository or subproject. Most often it is one or a set of directories in one or more Git repositories. The "specific area" below refers to this area of responsibility.
 
-Reviewers have all the rights and responsibilities of a committer, plus:
+Committers have all the rights and responsibilities of a reviewer, plus:
 
 * Responsibilities include:
     * Reviewing most Pull Requests against their specific areas of responsibility
     * Reviewing at least 15 PRs per year
     * Helping other contributors become reviewers
 * Requirements:
-    * Experience as a Contributor for at least 6 months
+    * Experience as a Reviewer for at least 6 months
     * Is a reviewer
     * Has reviewed, or helped review, at least 15 Pull Requests
     * Has analyzed and resolved test failures in their specific area
@@ -112,12 +109,12 @@ Reviewers have all the rights and responsibilities of a committer, plus:
 * Additional privileges:
     * Has GitHub or CI/CD rights to approve pull requests in specific directories
     * Can recommend and review other contributors to become Reviewers
-    * Is listed as Reviewers in the OWNERS file under the WasmEdge/WasmEdge repos.
+    * Is listed as Committers in the [OWNERS file](./OWNER.md) under the WasmEdge/WasmEdge repos.
   
 
-The process of becoming a Reviewer is:
+The process of becoming a Committer is:
 
-1. The contributor is nominated by opening a PR against the appropriate repository by the existing reviewers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
+1. The contributor is nominated by opening a PR against the appropriate repository by the existing reviewers, committers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
 2. At least 1/2 members of the committers, reviewers, and maintainers that owns that repository or main directory, who are already Approvers, approve the PR.
 
 

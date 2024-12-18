@@ -38,7 +38,7 @@ emcc client.cpp -o client.wasm -sERROR_ON_UNDEFINED_SYMBOLS=0 -sSTANDALONE_WASM
 
 ## Results and Evaluation
 
-Try to input an string in client. The example server will return a reversed string to client.
+Try to input a string in client. The example server will return a reversed string to client.
 
 ### Client
 

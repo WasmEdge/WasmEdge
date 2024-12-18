@@ -154,7 +154,13 @@ ComponentInstance::getFunctionInstance(uint32_t Index) const noexcept {
   return FuncInstList[Index];
 }
 
-ValInterface ComponentInstance::getValue(uint32_t Index) const noexcept {
+Expect<ValInterface>
+ComponentInstance::getValue(uint32_t Index) const noexcept {
+  if (ValueList.size() <= Index) {
+    spdlog::error("component: `{}`, access value: {}/{}", this->CompName, Index,
+                  ValueList.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return ValueList[Index];
 }
 void ComponentInstance::setValue(uint32_t Index, ValInterface V) noexcept {

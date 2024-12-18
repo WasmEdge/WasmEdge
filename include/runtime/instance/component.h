@@ -61,7 +61,8 @@ public:
 
   void addComponentInstance(const ComponentInstance *Inst) noexcept;
   void addComponentInstance(std::unique_ptr<ComponentInstance> Inst) noexcept;
-  const ComponentInstance *getComponentInstance(uint32_t Index) const noexcept;
+  Expect<const ComponentInstance *>
+  getComponentInstance(uint32_t Index) const noexcept;
 
   void addHostFunc(
       std::string_view Name,

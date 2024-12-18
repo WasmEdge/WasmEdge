@@ -79,7 +79,11 @@ Executor::instantiate(Runtime::StoreManager &,
     } else if (std::holds_alternative<SortCase>(S)) {
       if (std::holds_alternative<AliasTargetExport>(T)) {
         auto &Exp = std::get<AliasTargetExport>(T);
-        auto *CInst = CompInst.getComponentInstance(Exp.getInstanceIdx());
+        auto RComp = CompInst.getComponentInstance(Exp.getInstanceIdx());
+        if (!RComp) {
+          return Unexpect(RComp);
+        }
+        auto *CInst = *RComp;
 
         switch (std::get<SortCase>(S)) {
         case SortCase::Func: {
@@ -108,8 +112,11 @@ Executor::instantiate(Runtime::StoreManager &,
 
         switch (std::get<SortCase>(S)) {
         case SortCase::Func: {
-          auto RFuncInst = CompInst.getComponentInstance(Out.getComponent())
-                               ->getCoreFunctionInstance(Out.getIndex());
+          auto Res = CompInst.getComponentInstance(Out.getComponent());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          auto RFuncInst = (*Res)->getCoreFunctionInstance(Out.getIndex());
           if (!RFuncInst) {
             return Unexpect(RFuncInst);
           }

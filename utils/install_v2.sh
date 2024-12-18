@@ -12,26 +12,6 @@ YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
 TMP_DIR="/tmp/wasmedge.$$"
 
-# OS Detection Block
-# This block detects if the script is being run on an unsupported Windows environment.
-# "uname -s" outputs:
-# - 'Linux' on Linux
-# - 'Darwin' on macOS
-# - 'MINGW64_NT-xxxx' or similar on Windows Git Bash
-# - 'Windows_NT' in certain Windows environments
-#
-# If the OS is detected as Windows (Git Bash or native), the script exits early
-# and provides a link for manual installation
-
-OS=$(uname -s)
-
-if [[ "$OS" =~ ^MINGW.* || "$OS" = "Windows_NT" ]]; then
-    echo "Error: This script does not support Windows directly (including Git Bash)."
-    echo "Please download WasmEdge manually from the release page:"
-    echo "https://github.com/WasmEdge/WasmEdge/releases/latest"
-    exit 1
-fi
-
 
 info() {
 	command printf '\e[0;32mInfo\e[0m: %s\n\n' "$1"
@@ -181,7 +161,6 @@ check_os_arch() {
 	RELEASE_PKG="ubuntu20.04_x86_64.tar.gz"
 	IPKG="WasmEdge-${VERSION}-${OS}"
 	_LD_LIBRARY_PATH_="LD_LIBRARY_PATH"
-
 	case ${OS} in
 		'Linux')
 			case ${ARCH} in
@@ -215,6 +194,13 @@ check_os_arch() {
 			RELEASE_PKG="darwin_${ARCH}.tar.gz"
 			_LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
 
+			;;
+		'Windows_NT' | MINGW*)
+
+			error "Detected ${OS} - currently unsupported"
+			eprintf "Please download WasmEdge manually from the release page:"
+			eprintf "https://github.com/WasmEdge/WasmEdge/releases/latest"
+			exit 1
 			;;
 		*)
 			error "Detected ${OS}-${ARCH} - currently unsupported"

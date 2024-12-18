@@ -82,7 +82,7 @@ public:
   getFunctionInstance(uint32_t Index) const noexcept;
 
   // values stored in component instance
-  ValInterface getValue(uint32_t Index) const noexcept;
+  Expect<ValInterface> getValue(uint32_t Index) const noexcept;
   void setValue(uint32_t Index, ValInterface V) noexcept;
 
   void addExport(std::string_view Name, const ModuleInstance *Inst) noexcept;

@@ -12,7 +12,6 @@ YELLOW=$'\e[0;33m'
 NC=$'\e[0m' # No Color
 TMP_DIR="/tmp/wasmedge.$$"
 
-
 info() {
 	command printf '\e[0;32mInfo\e[0m: %s\n\n' "$1"
 }
@@ -197,7 +196,6 @@ check_os_arch() {
 
 			;;
 		'Windows_NT' | MINGW*)
-
 			error "Detected ${OS} - currently unsupported"
 			eprintf "Please download WasmEdge manually from the release page:"
 			eprintf "https://github.com/WasmEdge/WasmEdge/releases/latest"

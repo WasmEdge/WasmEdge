@@ -88,7 +88,7 @@ public:
   int32_t LlamaNPos = 0;
   // Preserve for llava
   struct llava_image_embed *LlavaImageEmbd = nullptr;
-  size_t LlavaImagePosition = 0;
+  size_t ImagePosition = 0;
 };
 #else
 struct Graph {};

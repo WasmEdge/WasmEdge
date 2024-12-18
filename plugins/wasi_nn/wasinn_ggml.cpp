@@ -27,6 +27,27 @@ namespace WasmEdge::Host::WASINN::GGML {
 
 namespace {
 
+// Macro for logging debug message.
+#define LOG_DEBUG(Debug, ...)                                                  \
+  if (Debug) {                                                                 \
+    spdlog::info("[WASI-NN][Debug] GGML backend: "sv __VA_ARGS__);             \
+  }
+
+// Macro for logging info message.
+#define LOG_INFO(Info, ...)                                                    \
+  if (Info) {                                                                  \
+    spdlog::info("[WASI-NN] GGML backend: "sv __VA_ARGS__);                    \
+  }
+
+// Macro for logging warning message.
+#define LOG_WARN(...) spdlog::warn("[WASI-NN] GGML backend: "sv __VA_ARGS__);
+
+// Macro for logging error message and return.
+#define RET_ERROR(Error, ...)                                                  \
+  spdlog::error("[WASI-NN] GGML backend: "sv __VA_ARGS__);                     \
+  return Error;
+
+// Llama logging callback.
 void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
                       void *UserData) {
   Graph &GraphRef = *reinterpret_cast<Graph *>(UserData);
@@ -51,7 +72,8 @@ void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
   }
 }
 
-Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
+// Setup llama common params from graph.
+void setupParams(Graph &GraphRef, common_params &Params) {
   Params.model = GraphRef.ModelFilePath;
   Params.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
   Params.n_ctx = static_cast<int32_t>(GraphRef.CtxSize);
@@ -67,9 +89,9 @@ Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
   Params.sampling.penalty_present =
       static_cast<float>(GraphRef.PresencePenalty);
   Params.sampling.grammar = GraphRef.Grammar;
-  return ErrNo::Success;
 }
 
+// Parse metadata from json.
 Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
                             bool *IsModelUpdated = nullptr,
                             bool *IsContextUpdated = nullptr) noexcept {
@@ -77,8 +99,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   simdjson::dom::element Doc;
   auto ParseError = Parser.parse(Metadata).get(Doc);
   if (ParseError) {
-    spdlog::error("[WASI-NN] GGML backend: Parse metadata error"sv);
-    return ErrNo::InvalidEncoding;
+    RET_ERROR(ErrNo::InvalidEncoding, "parse metadata error."sv)
   }
 
   // Get metadata from the json.
@@ -121,50 +142,44 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
     auto Err = Doc["enable-log"].get<bool>().get(GraphRef.EnableLog);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the enable-log option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the enable-log option."sv)
     }
   }
   if (Doc.at_key("enable-debug-log").error() == simdjson::SUCCESS) {
     auto Err = Doc["enable-debug-log"].get<bool>().get(GraphRef.EnableDebugLog);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the enable-debug-log option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the enable-debug-log option."sv)
     }
   }
   if (Doc.at_key("stream-stdout").error() == simdjson::SUCCESS) {
     auto Err = Doc["stream-stdout"].get<bool>().get(GraphRef.StreamStdout);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the stream-stdout option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the stream-stdout option."sv)
     }
   }
   if (Doc.at_key("embedding").error() == simdjson::SUCCESS) {
     auto Err = Doc["embedding"].get<bool>().get(GraphRef.Embedding);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the embedding option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the embedding option."sv)
     }
   }
   if (Doc.at_key("n-predict").error() == simdjson::SUCCESS) {
     auto Err = Doc["n-predict"].get<int64_t>().get(GraphRef.NPredict);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the n-predict option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-predict option."sv)
     }
   }
   if (Doc.at_key("reverse-prompt").error() == simdjson::SUCCESS) {
     std::string_view ReversePrompt;
     auto Err = Doc["reverse-prompt"].get<std::string_view>().get(ReversePrompt);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the reverse-prompt option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the reverse-prompt option."sv)
     }
     GraphRef.ReversePrompt = ReversePrompt;
   }
@@ -172,9 +187,8 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     std::string_view MMProjModelPath;
     auto Err = Doc["mmproj"].get<std::string_view>().get(MMProjModelPath);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the mmproj option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the mmproj option."sv)
     }
     GraphRef.MMProjModelPath = MMProjModelPath;
   }
@@ -182,9 +196,8 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     std::string_view ImagePath;
     auto Err = Doc["image"].get<std::string_view>().get(ImagePath);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the image option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the image option."sv)
     }
     GraphRef.ImagePath = ImagePath;
   }
@@ -193,17 +206,15 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   if (Doc.at_key("n-gpu-layers").error() == simdjson::SUCCESS) {
     auto Err = Doc["n-gpu-layers"].get<int64_t>().get(GraphRef.NGPULayers);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the n-gpu-layers option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-gpu-layers option."sv)
     }
   }
   if (Doc.at_key("main-gpu").error() == simdjson::SUCCESS) {
     auto Err = Doc["main-gpu"].get<int64_t>().get(GraphRef.MainGPU);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the main-gpu option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the main-gpu option."sv)
     }
   }
   if (Doc.at_key("tensor-split").error() == simdjson::SUCCESS) {
@@ -212,9 +223,8 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     std::string_view TSV;
     auto Err = Doc["tensor-split"].get<std::string_view>().get(TSV);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the tensor-split option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the tensor-split option."sv)
     }
     std::string TS(TSV);
     std::replace(TS.begin(), TS.end(), ',', ' ');
@@ -227,10 +237,10 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
     size_t NDevices = llama_max_devices();
     if (GraphRef.TensorSplit.size() > NDevices) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Number of Tensor-Split is larger "
-          "than MaxDevices, please reduce the size of tensor-split."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(
+          ErrNo::InvalidArgument,
+          "Number of Tensor-Split is larger than MaxDevices, please reduce "sv
+          "the size of tensor-split."sv)
     }
     for (size_t Idx = GraphRef.TensorSplit.size(); Idx < NDevices; Idx++) {
       GraphRef.TensorSplit.push_back(0.0f);
@@ -239,17 +249,15 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   if (Doc.at_key("use-mmap").error() == simdjson::SUCCESS) {
     auto Err = Doc["use-mmap"].get<bool>().get(GraphRef.UseMMap);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the use-mmap option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the use-mmap option."sv)
     }
   }
   if (Doc.at_key("warmup").error() == simdjson::SUCCESS) {
     auto Err = Doc["warmup"].get<bool>().get(GraphRef.WarmUp);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the warmup option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the warmup option."sv)
     }
   }
 
@@ -257,33 +265,29 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
     auto Err = Doc["ctx-size"].get<int64_t>().get(GraphRef.CtxSize);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the ctx-size option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the ctx-size option."sv)
     }
   }
   if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
     auto Err = Doc["batch-size"].get<int64_t>().get(GraphRef.BatchSize);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the batch-size option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the batch-size option."sv)
     }
   }
   if (Doc.at_key("ubatch-size").error() == simdjson::SUCCESS) {
     auto Err = Doc["ubatch-size"].get<int64_t>().get(GraphRef.UBatchSize);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the ubatch-size option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the ubatch-size option."sv)
     }
   }
   if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
     auto Err = Doc["threads"].get<int64_t>().get(GraphRef.Threads);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the threads option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the threads option."sv)
     }
   }
 
@@ -291,53 +295,46 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
     auto Err = Doc["temp"].get<double>().get(GraphRef.Temp);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the temp option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the temp option."sv)
     }
     GraphRef.Temp = std::max(0.0, GraphRef.Temp);
   }
   if (Doc.at_key("top-p").error() == simdjson::SUCCESS) {
     auto Err = Doc["top-p"].get<double>().get(GraphRef.TopP);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the top-p option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the top-p option."sv)
     }
   }
   if (Doc.at_key("repeat-penalty").error() == simdjson::SUCCESS) {
     auto Err = Doc["repeat-penalty"].get<double>().get(GraphRef.RepeatPenalty);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the repeat-penalty option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the repeat-penalty option."sv)
     }
   }
   if (Doc.at_key("presence-penalty").error() == simdjson::SUCCESS) {
     auto Err =
         Doc["presence-penalty"].get<double>().get(GraphRef.PresencePenalty);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the presence-penalty option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the presence-penalty option."sv)
     }
   }
   if (Doc.at_key("frequency-penalty").error() == simdjson::SUCCESS) {
     auto Err =
         Doc["frequency-penalty"].get<double>().get(GraphRef.FrequencyPenalty);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the frequency-penalty option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the frequency-penalty option."sv)
     }
   }
   if (Doc.at_key("grammar").error() == simdjson::SUCCESS) {
     std::string_view Grammar;
     auto Err = Doc["grammar"].get<std::string_view>().get(Grammar);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the grammar option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the grammar option."sv)
     }
     GraphRef.Grammar = Grammar;
   }
@@ -345,9 +342,8 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     std::string_view JsonSchema;
     auto Err = Doc["json-schema"].get<std::string_view>().get(JsonSchema);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the json-schema option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the json-schema option."sv)
     }
     GraphRef.Grammar =
         json_schema_to_grammar(nlohmann::ordered_json::parse(JsonSchema));
@@ -366,15 +362,13 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   return ErrNo::Success;
 }
 
-Expect<ErrNo> buildOutputMetadata(Context &CxtRef,
-                                  std::string &Metadata) noexcept {
+void buildOutputMetadata(Context &CxtRef, std::string &Metadata) noexcept {
   Metadata = fmt::format(R"({{"input_tokens": {}, )"
                          R"("output_tokens": {}, )"
                          R"("llama_build_number": {}, )"
                          R"("llama_commit": "{}"}})"sv,
                          CxtRef.LlamaNInputs, CxtRef.LlamaOutputTokens.size(),
                          LLAMA_BUILD_NUMBER, LLAMA_COMMIT);
-  return ErrNo::Success;
 }
 
 void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
@@ -449,9 +443,7 @@ static bool evaluateQwen2vlImageEmbed(
         nullptr,                         // logits
     };
     if (llama_decode(CtxLlama, Batch)) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: evaluateQwen2vlImageEmbed failed to eval"sv);
-      return false;
+      RET_ERROR(false, "evaluateQwen2vlImageEmbed: fail to eval."sv)
     }
     *NPast += NEval;
     Processed += NEval;
@@ -466,11 +458,11 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
 
   // End the inference if the context is full.
   if (NPast + static_cast<uint32_t>(Tokens.size()) > NCtx) {
-    if (GraphRef.EnableLog) {
-      spdlog::info(
-          "[WASI-NN] GGML backend: the context if full ({} / {} tokens). Please increase your context size."sv,
-          NPast + static_cast<uint32_t>(Tokens.size()), NCtx);
-    }
+    LOG_INFO(
+        GraphRef.EnableLog,
+        "the context if full ({} / {} tokens). Please increase your context "sv
+        "size."sv,
+        NPast + static_cast<uint32_t>(Tokens.size()), NCtx)
     return ErrNo::ContextFull;
   }
 
@@ -497,13 +489,13 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
     // Decode the batch.
     auto Status = llama_decode(LlamaContext, Batch);
     if (Status == 1) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
-      return ErrNo::RuntimeError;
+      RET_ERROR(ErrNo::RuntimeError,
+                "failed to llama_decode: try reducing the size of the batch "sv
+                "or increasing the size of context."sv)
     } else if (Status < 0) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
-      return ErrNo::RuntimeError;
+      RET_ERROR(ErrNo::RuntimeError,
+                "failed to llama_decode: internal fatal error. Please open "sv
+                "an issue on GitHub."sv)
     }
     NPast += NEval;
     NPos += NEval;
@@ -531,13 +523,13 @@ ErrNo batchDecode(llama_context *LlamaContext, llama_batch &Batch,
   // Decode the batch.
   auto Status = llama_decode(LlamaContext, Batch);
   if (Status == 1) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
-    return ErrNo::RuntimeError;
+    RET_ERROR(ErrNo::RuntimeError,
+              "failed to llama_decode: try reducing the size of the batch or "sv
+              "increasing the size of context."sv)
   } else if (Status < 0) {
-    spdlog::error(
-        "[WASI-NN] GGML backend: failed to llama_decode: internal fatal error. Please open an issue on GitHub"sv);
-    return ErrNo::RuntimeError;
+    RET_ERROR(ErrNo::RuntimeError,
+              "failed to llama_decode: internal fatal error. Please open an "sv
+              "issue on GitHub."sv)
   }
 
   for (int I = 0; I < Batch.n_tokens; I++) {
@@ -569,31 +561,23 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
                            uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: getEmbedding"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding"sv)
 
   if (CxtRef.LlamaInputs.size() == 0) {
-    spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
-    return ErrNo::InvalidArgument;
+    RET_ERROR(ErrNo::InvalidArgument, "Llama input is not set!"sv)
   }
 
   // Clear the outputs.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "getEmbedding: clear the previous output and tokens"sv)
   CxtRef.LlamaOutputs.clear();
   CxtRef.LlamaOutputTokens.clear();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "getEmbedding: clear the previous output and tokens...Done"sv)
 
-  // Main predict loop.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: handle embedding"sv);
-  }
+  // Main prediction loop.
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding: enter embedding loop"sv)
+
   // Clear the llama context.
   llama_kv_cache_clear(GraphRef.LlamaContext);
 
@@ -604,20 +588,19 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
 
   // Add SEP if not present.
   if (CxtRef.LlamaInputs.back() != llama_token_sep(GraphRef.LlamaModel)) {
-    spdlog::warn(
-        "[WASI-NN] GGML backend: last token in the prompt is not SEP, 'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF header"sv);
+    LOG_WARN(
+        "last token in the prompt is not SEP, "sv
+        "'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF "sv
+        "header."sv)
   }
 
   // Check if the input is too long.
   if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) > GraphRef.BatchSize) {
-    if (GraphRef.EnableLog) {
-      spdlog::info(
-          "[WASI-NN] GGML backend: the prompt is too long. "
-          "Your input has {} tokens exceeds batch size {}. "
-          "Please reduce the input size or increase your batch-size."sv,
-          CxtRef.LlamaInputs.size(), GraphRef.BatchSize);
-    }
-    return ErrNo::PromptTooLong;
+    RET_ERROR(
+        ErrNo::PromptTooLong,
+        "the prompt is too long. Your input has {} tokens exceeds batch "sv
+        "size {}. Please reduce the input size or increase your batch-size."sv,
+        CxtRef.LlamaInputs.size(), GraphRef.BatchSize)
   }
 
   const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel);
@@ -630,16 +613,12 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   ReturnCode = batchDecode(GraphRef.LlamaContext, Batch, Embeddings.data(),
                            NEmbd, GraphRef.EmbdNormalize);
   if (ReturnCode != ErrNo::Success) {
-    spdlog::error("[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
-    return ReturnCode;
+    RET_ERROR(ReturnCode, "failed to evaluate input tokens."sv)
   }
-
   buildOutputEmbedding(CxtRef.LlamaOutputs, NEmbd, Embeddings.data());
 
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: enter embedding loop...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "getEmbedding: enter embedding loop...Done"sv)
 
   if (GraphRef.EnableLog) {
     common_perf_print(GraphRef.LlamaContext, /* Sampler */ nullptr);
@@ -650,17 +629,14 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   llama_kv_cache_clear(GraphRef.LlamaContext);
   llama_batch_free(Batch);
 
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: getEmbedding...Done"sv);
-  }
-
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding...Done"sv)
   return ErrNo::Success;
 }
 
 const std::string_view Base64ImageTagPrefix = "<img src=\"data:image/"sv;
 const std::string_view Base64ImageBytesPrefix = ";base64,"sv;
 const std::string_view Base64ImageTagSuffix = "\">"sv;
-const std::string_view PromptImagePlaceholder = "<image>"sv;
+const std::string_view LlavaPromptImagePlaceholder = "<image>"sv;
 
 bool containsBase64Image(Graph &GraphRef, std::string_view Prompt) noexcept {
   // Check if the prompt contains a base64 image.
@@ -669,82 +645,74 @@ bool containsBase64Image(Graph &GraphRef, std::string_view Prompt) noexcept {
 
   auto Base64ImageTagBeginPos = Prompt.find(Base64ImageTagPrefix);
   if (Base64ImageTagBeginPos == std::string::npos) {
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: No base64 image tag found in the prompt."sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "No base64 image tag found in the prompt."sv)
     return false;
   }
   auto Base64ImageTagEndPos =
       Prompt.find(Base64ImageTagSuffix, Base64ImageTagBeginPos);
   if (Base64ImageTagEndPos == std::string::npos) {
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: Found an unclosed base64 image tag."sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "Found an unclosed base64 image tag."sv)
     return false;
   }
   return true;
 }
 
-struct llava_image_embed *
-loadBase64ImageFromPrompt(Graph &GraphRef, clip_ctx *ClipContext,
-                          std::string_view Prompt) noexcept {
-  // Load the base64 image from the prompt.
-  // Follow this link for the supported image formats:
-  // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
-
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: loadBase64ImageFromPrompt"sv);
-  }
-
+std::string_view findBase64ImagePayload(std::string_view Prompt) noexcept {
   // Find `<img src="data:image/`
   auto Base64ImageTagBeginPos = Prompt.find(Base64ImageTagPrefix);
   if (Base64ImageTagBeginPos == std::string::npos) {
-    return nullptr;
+    return Prompt.substr();
   }
 
   // Find `;base64,` (skip the image type part)
   auto Base64ImageBytesBeginPos =
       Prompt.find(Base64ImageBytesPrefix, Base64ImageTagBeginPos);
   if (Base64ImageTagBeginPos == std::string::npos) {
-    return nullptr;
+    return Prompt.substr();
   }
 
   // Find `">`
   auto Base64ImageTagEndPos =
       Prompt.find(Base64ImageTagSuffix, Base64ImageBytesBeginPos);
   if (Base64ImageTagEndPos == std::string::npos) {
-    return nullptr;
+    return Prompt.substr();
   }
 
-  auto Base64Str =
-      Prompt.substr(Base64ImageBytesBeginPos + Base64ImageBytesPrefix.size(),
-                    Base64ImageTagEndPos - Base64ImageBytesBeginPos -
-                        Base64ImageBytesPrefix.size());
+  return Prompt.substr(Base64ImageBytesBeginPos + Base64ImageBytesPrefix.size(),
+                       Base64ImageTagEndPos - Base64ImageBytesBeginPos -
+                           Base64ImageBytesPrefix.size());
+}
+
+struct llava_image_embed *
+llavaLoadBase64ImageFromPrompt(Graph &GraphRef, clip_ctx *ClipContext,
+                               std::string_view Prompt) noexcept {
+  // Load the base64 image from the prompt.
+  // Follow this link for the supported image formats:
+  // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
+  LOG_DEBUG(GraphRef.EnableDebugLog, "llavaLoadBase64ImageFromPrompt"sv)
 
   // Decode the base64 image.
+  auto Base64Str = findBase64ImagePayload(Prompt);
+  if (Base64Str.size() == 0) {
+    return nullptr;
+  }
   auto RequiredBytes = base64::required_encode_size(Base64Str.size());
   auto ImageBytes = std::vector<unsigned char>(RequiredBytes);
   try {
     base64::decode(Base64Str.begin(), Base64Str.end(), ImageBytes.begin());
   } catch (const base64_error &E) {
-    spdlog::error("[WASI-NN] GGML backend: Error when base64::decode: {}"sv,
-                  E.what());
-    return nullptr;
+    RET_ERROR(nullptr, "Error when base64::decode: {}"sv, E.what())
   }
 
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: loadBase64ImageFromPrompt...Done"sv);
-  }
-
+  LOG_DEBUG(GraphRef.EnableDebugLog, "llavaLoadBase64ImageFromPrompt...Done"sv)
   return llava_image_embed_make_with_bytes(
       ClipContext, static_cast<int>(GraphRef.Threads), ImageBytes.data(),
       static_cast<int>(ImageBytes.size()));
 }
 
-ErrNo replaceBase64ImagePlaceholderInPrompt(std::string &Prompt) noexcept {
+ErrNo replaceBase64ImagePlaceholderInPrompt(
+    std::string &Prompt, const std::string_view Placeholder) noexcept {
   // Replace the base64 image in the prompt with a placeholder.
 
   // Find `<img src="data:image/`
@@ -762,9 +730,7 @@ ErrNo replaceBase64ImagePlaceholderInPrompt(std::string &Prompt) noexcept {
 
   auto Base64ImageTagLength = Base64ImageTagEndPos - Base64ImageTagBeginPos +
                               Base64ImageTagSuffix.size();
-  Prompt.replace(Base64ImageTagBeginPos, Base64ImageTagLength,
-                 PromptImagePlaceholder);
-
+  Prompt.replace(Base64ImageTagBeginPos, Base64ImageTagLength, Placeholder);
   return ErrNo::Success;
 }
 
@@ -815,70 +781,55 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // Ignore context or model updates when initializing the graph.
     auto Res = parseMetadata(GraphRef, Metadata);
     if (Res != ErrNo::Success) {
-      spdlog::error("[WASI-NN] GGML backend: Failed to parse metadata."sv);
       Env.NNGraph.pop_back();
-      return Res;
+      RET_ERROR(Res, "Failed to parse metadata."sv)
     }
   }
-  if (GraphRef.EnableLog) {
-    spdlog::info("[WASI-NN] GGML backend: LLAMA_COMMIT {}"sv, LLAMA_COMMIT);
-    spdlog::info("[WASI-NN] GGML backend: LLAMA_BUILD_NUMBER {}"sv,
-                 LLAMA_BUILD_NUMBER);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load"sv)
+  LOG_INFO(GraphRef.EnableLog, "LLAMA_COMMIT {}"sv, LLAMA_COMMIT)
+  LOG_INFO(GraphRef.EnableLog, "LLAMA_BUILD_NUMBER {}"sv, LLAMA_BUILD_NUMBER)
 
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: Handling model path."sv);
-  }
   // Handle the model path.
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path."sv)
   auto Weight = Builders[0];
   const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
                                   Weight.size());
   if (BinModel.substr(0, 8) == "preload:"sv) {
     GraphRef.ModelFilePath = BinModel.substr(8);
   } else {
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: Model path not found in nn-preload, "
-          "write model into a tmpfile."sv);
-    }
-    // TODO: pass the model directly to ggml
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "load: Model path not found in nn-preload, write model into "sv
+              "a tmpfile."sv)
+    // TODO: pass the model directly to ggml.
     // Write ggml model to file.
     GraphRef.ModelFilePath = "ggml-model.bin"sv;
     std::ofstream TempFile(GraphRef.ModelFilePath,
                            std::ios::out | std::ios::binary);
     if (!TempFile) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Failed to create the temporary file. "
-          "Currently, our workaround involves creating a temporary model "
-          "file named \"ggml-model.bin\" and passing this filename as a "
-          "parameter to the ggml llama library."sv);
       Env.NNGraph.pop_back();
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Failed to create the temporary file. Currently, our "sv
+                "workaround involves creating a temporary model file named "sv
+                "\"ggml-model.bin\" and passing this filename as a "sv
+                "parameter to the ggml llama library."sv)
     }
     TempFile.write(BinModel.data(), BinModel.size());
     TempFile.close();
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: Write model into a tmpfile...Done"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "load: Write model into a tmpfile...Done"sv)
   }
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: Finished handling model path."sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path...Done"sv)
+
   // Check if the model exists.
   if (!std::filesystem::exists(
           std::filesystem::u8path(GraphRef.ModelFilePath))) {
-    spdlog::error("[WASI-NN] GGML backend: Model file not found."sv);
     Env.NNGraph.pop_back();
-    return ErrNo::ModelNotFound;
+    RET_ERROR(ErrNo::ModelNotFound, "model file not found."sv)
   }
 
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: Initialize ggml model with given parameters"sv);
-  }
   // Initialize ggml parameters.
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "load: initialize ggml model with given parameters."sv)
   common_params Params;
   setupParams(GraphRef, Params);
   llama_backend_init();
@@ -889,41 +840,32 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.LlamaModel = LlamaInit.model;
   GraphRef.LlamaContext = LlamaInit.context;
   if (GraphRef.LlamaModel == nullptr) {
-    spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
     Env.NNGraph.pop_back();
-    return ErrNo::InvalidArgument;
+    RET_ERROR(ErrNo::InvalidArgument, "unable to init model."sv)
   }
   if (GraphRef.LlamaContext == nullptr) {
-    spdlog::error("[WASI-NN] GGML backend: Error: unable to init context."sv);
     Env.NNGraph.pop_back();
-    return ErrNo::InvalidArgument;
+    RET_ERROR(ErrNo::InvalidArgument, "unable to init context."sv)
   }
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: Initialize ggml model with given parameters...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "load: initialize ggml model with given parameters...Done"sv)
 
   // Store the loaded graph.
   GraphId = static_cast<uint32_t>(Env.NNGraph.size() - 1);
 
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load...Done"sv)
   return ErrNo::Success;
 }
 
 Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                           uint32_t &ContextId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: initExecCtx"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx"sv)
   Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
   ContextId = static_cast<uint32_t>(Env.NNContext.size() - 1);
-  if (GraphRef.EnableLog) {
-    spdlog::info("[WASI-NN] GGML backend: llama_system_info: {}"sv,
-                 llama_print_system_info());
-  }
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: initExecCtx...Done"sv);
-  }
+  LOG_INFO(GraphRef.EnableLog, "llama_system_info: {}"sv,
+           llama_print_system_info())
+  LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
   return ErrNo::Success;
 }
 
@@ -931,46 +873,38 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                        uint32_t Index, const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: setInput"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "setInput"sv)
 
+  // Use index 1 for metadata.
   bool IsModelParamsUpdated = false;
   bool IsContextParamsUpdated = false;
-  // Use index 1 for metadata.
   if (Index == 1) {
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: found Metadata, processing"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: found Metadata, processing"sv)
     const std::string Metadata(reinterpret_cast<char *>(Tensor.Tensor.data()),
                                Tensor.Tensor.size());
     auto Res = parseMetadata(GraphRef, Metadata, &IsModelParamsUpdated,
                              &IsContextParamsUpdated);
-
     if (Res != ErrNo::Success) {
-      spdlog::error("[WASI-NN] GGML backend: Failed to parse metadata."sv);
-      return Res;
+      RET_ERROR(Res, "failed to parse metadata."sv)
     }
 
 #ifndef __APPLE__
-    // XXX: Due to the limitation of WASI-NN proposal,
-    // this is a workaround for non-macOS devices.
-    // However, if the model params is updated in Config stage,
-    // then, we doesn't encourage to use this to avoid the model
+    // XXX: Due to the limitation of WASI-NN proposal, this is a workaround for
+    // non-macOS devices. However, if the model params is updated in Config
+    // stage, then, we don't encourage to use this to avoid the model
     // reloading.
     {
       if (IsModelParamsUpdated) {
+        LOG_INFO(GraphRef.EnableLog,
+                 "Reloaded model due to parameters change."sv)
         llama_model_params ModelParams = llama_model_default_params();
         ModelParams.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
         llama_free_model(GraphRef.LlamaModel);
         GraphRef.LlamaModel = llama_load_model_from_file(
             GraphRef.ModelFilePath.c_str(), ModelParams);
         if (GraphRef.LlamaModel == nullptr) {
-          spdlog::error(
-              "[WASI-NN] GGML backend: Error: unable to init model."sv);
           Env.NNGraph.pop_back();
-          return ErrNo::InvalidArgument;
+          RET_ERROR(ErrNo::InvalidArgument, "unable to init model."sv)
         }
       }
     }
@@ -979,123 +913,87 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // Some changes of context parameters will require the context to be
     // reloaded.
     if (IsContextParamsUpdated) {
-      if (GraphRef.EnableLog) {
-        spdlog::info(
-            "[WASI-NN] GGML backend: Reloaded model due to parameters change."sv);
-      }
+      LOG_INFO(GraphRef.EnableLog,
+               "Reloaded context due to parameters change."sv)
       llama_free(GraphRef.LlamaContext);
       common_params Params;
       setupParams(GraphRef, Params);
       GraphRef.LlamaContext = llama_new_context_with_model(
           GraphRef.LlamaModel, common_context_params_to_llama(Params));
       if (GraphRef.LlamaContext == nullptr) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Error: unable to init context."sv);
         Env.NNGraph.pop_back();
-        return ErrNo::InvalidArgument;
+        RET_ERROR(ErrNo::InvalidArgument, "unable to init context."sv)
       }
     }
 
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: found Metadata, processing...Done"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "setInput: found Metadata, processing...Done"sv)
     return ErrNo::Success;
   }
 
   // Clear the llama context.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: clear llama context"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context"sv)
   llama_kv_cache_clear(GraphRef.LlamaContext);
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: clear llama context...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context...Done"sv)
 
   // Set the input.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: set the input"sv);
-  }
   const bool AddSpecial = true;
   const bool ParseSpecial = true;
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
   CxtRef.LlamaInputs.clear();
-  if (GraphRef.MMProjModelPath == ""sv) {
-    // Text only prompt.
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info("[WASI-NN][Debug] GGML backend: tokenize text prompt"sv);
-    }
-    CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext, Prompt,
-                                         AddSpecial, ParseSpecial);
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: tokenize text prompt...Done"sv);
-    }
-  } else {
+  if (GraphRef.MMProjModelPath != ""sv) {
     // Handle llava format prompt.
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: handle llava format prompt"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: handle llava format prompt"sv)
     // Check if the prompt contains a base64 image.
     bool ContainsBase64Image = containsBase64Image(GraphRef, Prompt);
     if (GraphRef.ImagePath == ""sv && ContainsBase64Image == false) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Error: when using llava model, "
-          "you need to specify the image path or have the base64 encoded "
-          "image in the prompt."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(
+          ErrNo::InvalidArgument,
+          "when using llava model, you need to specify the image path or "sv
+          "have the base64 encoded image in the prompt."sv)
     }
 
     // Show some warnings.
-    if (GraphRef.EnableLog) {
-      if (GraphRef.CtxSize < 4096) {
-        spdlog::info(
-            "[WASI-NN] GGML backend: Context size is {}, "
-            "we recommend context size >= 2048 when using llava-v1.5 "
-            "and context size >= 4096 when using llava-v1.6 for better results."sv,
-            GraphRef.CtxSize);
-      }
+    if (GraphRef.CtxSize < 4096) {
+      LOG_INFO(
+          GraphRef.EnableLog,
+          "Context size is {}, we recommend context size >= 2048 when using "sv
+          "llava-v1.5 and context size >= 4096 when using llava-v1.6 for "sv
+          "better results."sv,
+          GraphRef.CtxSize)
     }
 
     // Load the clip model if not loaded.
     if (GraphRef.ClipContext == nullptr) {
-      spdlog::info(
-          "[WASI-NN] GGML backend: Load the clip model. "
-          "Because llama.cpp disabled the GPU support for CLIP, "
-          "the step of loading images in CLIP can only use the CPU, "
-          "which may result in reduced efficiency. "
-          "(You can refer to PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv);
+      LOG_INFO(
+          true,
+          "Load the clip model. Because llama.cpp disabled the GPU support "sv
+          "for CLIP, the step of loading images in CLIP can only use the "sv
+          "CPU, which may result in reduced efficiency. (You can refer to "sv
+          "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
       GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
                                              GraphRef.EnableLog ? 1 : 0);
       if (GraphRef.ClipContext == nullptr) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Error: unable to load the clip model."sv);
-        return ErrNo::InvalidArgument;
+        RET_ERROR(ErrNo::InvalidArgument, "unable to load the clip model."sv)
       }
       if (clip_is_qwen2vl(GraphRef.ClipContext)) {
         GraphRef.VisionModelType = VisionModel::Qwen2VL;
-        spdlog::info(
-            "[WASI-NN] GGML backend: The Qwen2VL clip model is loaded."sv);
-        if (GraphRef.EnableLog) {
-          spdlog::info("[WASI-NN] GGML backend: Qwen2vl model detected."sv);
-        }
+        LOG_INFO(true, "Qwen2vl model loaded."sv)
       }
     }
 
     // Get image embed.
     if (ContainsBase64Image) {
       // Load the base64 image from the prompt.
-      CxtRef.LlavaImageEmbd =
-          loadBase64ImageFromPrompt(GraphRef, GraphRef.ClipContext, Prompt);
+      CxtRef.LlavaImageEmbd = llavaLoadBase64ImageFromPrompt(
+          GraphRef, GraphRef.ClipContext, Prompt);
       // Replace the base64 image in the prompt with a placeholder.
-      auto Res = replaceBase64ImagePlaceholderInPrompt(Prompt);
+      auto Res = replaceBase64ImagePlaceholderInPrompt(
+          Prompt, LlavaPromptImagePlaceholder);
       if (Res != ErrNo::Success) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: Error: unable to replace the base64 image in the prompt."sv);
         clip_free(GraphRef.ClipContext);
-        return Res;
+        RET_ERROR(Res, "unable to replace the base64 image in the prompt."sv)
       }
     } else {
       // Load the image from the file.
@@ -1104,28 +1002,25 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           GraphRef.ImagePath.c_str());
     }
     if (CxtRef.LlavaImageEmbd == nullptr) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Error: unable to load the image."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument, "unable to load the image."sv)
     }
 
     // We split prompt by <image> as placeholder and save the position.
-    auto PlaceholderPosition = Prompt.find(PromptImagePlaceholder);
+    auto PlaceholderPosition = Prompt.find(LlavaPromptImagePlaceholder);
     if (PlaceholderPosition == std::string::npos) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Error: unable to find the placeholder in the llava prompt."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "unable to find the placeholder in the llava prompt."sv)
     }
     std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
-    std::string PromptAfterImage =
-        Prompt.substr(PlaceholderPosition + PromptImagePlaceholder.length());
+    std::string PromptAfterImage = Prompt.substr(
+        PlaceholderPosition + LlavaPromptImagePlaceholder.length());
     std::vector<llama_token> EmbdInputBeforeImage = common_tokenize(
         GraphRef.LlamaContext, PromptBeforeImage, AddSpecial, ParseSpecial);
     // Do not add special token (such as <BOS>, <EOS>, ... tokens.) to the
     // tokens after the image.
     std::vector<llama_token> EmbdInputAfterImage = common_tokenize(
         GraphRef.LlamaContext, PromptAfterImage, false, ParseSpecial);
-    CxtRef.LlavaImagePosition = EmbdInputBeforeImage.size();
+    CxtRef.ImagePosition = EmbdInputBeforeImage.size();
     CxtRef.LlamaInputs.reserve(EmbdInputBeforeImage.size() +
                                EmbdInputAfterImage.size());
     CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
@@ -1134,17 +1029,20 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
                               EmbdInputAfterImage.begin(),
                               EmbdInputAfterImage.end());
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: handle llava format prompt...Done"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "setInput: handle llava format prompt...Done"sv)
+  } else {
+    // Text only prompt.
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
+    CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext, Prompt,
+                                         AddSpecial, ParseSpecial);
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "setInput: tokenize text prompt...Done"sv)
   }
   CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   GraphRef.ComputeSingleStarted = false;
 
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: setInput...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "setInput...Done"sv)
   return ErrNo::Success;
 }
 
@@ -1153,67 +1051,45 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                         uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: getOutput with Index {}"sv,
-                 Index);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput with Index {}"sv, Index)
   // Index 1 is for the metadata of the outputs.
   if (Index == 1) {
     std::string Metadata;
-    auto Res = buildOutputMetadata(CxtRef, Metadata);
-    if (Res != ErrNo::Success) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Failed to build output metadata."sv);
-      return Res;
-    }
+    buildOutputMetadata(CxtRef, Metadata);
     std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
     BytesWritten = static_cast<uint32_t>(Metadata.length());
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: getOutput with Index {}...Done"sv,
-          Index);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput with Index {}...Done"sv,
+              Index)
     return ErrNo::Success;
   }
 
   std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.length(),
               OutBuffer.data());
   BytesWritten = static_cast<uint32_t>(CxtRef.LlamaOutputs.length());
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: getOutput with Index {}...Done"sv,
-        Index);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput with Index {}...Done"sv, Index)
   return ErrNo::Success;
 }
 
 Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: compute"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "compute")
 
   if (GraphRef.Embedding) {
     return getEmbedding(Env, ContextId);
   }
 
   if (CxtRef.LlamaInputs.size() == 0) {
-    spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
-    return ErrNo::InvalidArgument;
+    RET_ERROR(ErrNo::InvalidArgument, "llama input is not set!"sv)
   }
 
   // Clear the outputs.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "compute: clear the previous output and tokens")
   CxtRef.LlamaOutputs.clear();
   CxtRef.LlamaOutputTokens.clear();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: clear the previous output and tokens...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "compute: clear the previous output and tokens...Done")
 
   // Clear the llama context.
   llama_kv_cache_clear(GraphRef.LlamaContext);
@@ -1237,38 +1113,26 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Check if the input is too long.
   if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
-    if (GraphRef.EnableLog) {
-      spdlog::info("[WASI-NN] GGML backend: the prompt is too long. Your input "
-                   "has {} tokens. Please reduce it to {} tokens."sv,
-                   CxtRef.LlamaInputs.size(), MaxTokensListSize);
-    }
-    return ErrNo::PromptTooLong;
+    RET_ERROR(
+        ErrNo::PromptTooLong,
+        "the prompt is too long. Your input has {} tokens. Please reduce it "sv
+        "to {} tokens."sv,
+        CxtRef.LlamaInputs.size(), MaxTokensListSize)
   }
 
   // Evaluate input tokens.
-  if (CxtRef.LlavaImageEmbd == nullptr) {
-    // Text only prompt.
-    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
-                                std::move(CxtRef.LlamaInputs), NPast, NPos);
-    if (ReturnCode != ErrNo::Success) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
-      return ReturnCode;
-    }
-  } else {
+  if (CxtRef.LlavaImageEmbd != nullptr) {
     // Llava format prompt with image data.
-    std::vector<llama_token> EmbdInputBeforeImage(
-        CxtRef.LlamaInputs.begin(),
-        CxtRef.LlamaInputs.begin() + CxtRef.LlavaImagePosition);
+    std::vector<llama_token> EmbdInputBeforeImage(CxtRef.LlamaInputs.begin(),
+                                                  CxtRef.LlamaInputs.begin() +
+                                                      CxtRef.ImagePosition);
     std::vector<llama_token> EmbdInputAfterImage(CxtRef.LlamaInputs.begin() +
-                                                     CxtRef.LlavaImagePosition,
+                                                     CxtRef.ImagePosition,
                                                  CxtRef.LlamaInputs.end());
     ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
                                 std::move(EmbdInputBeforeImage), NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: failed to evaluate input tokens before image."sv);
-      return ReturnCode;
+      RET_ERROR(ReturnCode, "failed to evaluate input tokens before image."sv)
     }
 
     bool EvalImageStatus = false;
@@ -1287,23 +1151,24 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     }
 
     if (!EvalImageStatus) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: failed to evaluate embed image tokens."sv);
-      return ErrNo::RuntimeError;
+      RET_ERROR(ErrNo::RuntimeError, "failed to evaluate embed image tokens."sv)
     }
     ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
                                 std::move(EmbdInputAfterImage), NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: failed to evaluate input tokens after image."sv);
-      return ReturnCode;
+      RET_ERROR(ReturnCode, "failed to evaluate input tokens after image."sv)
+    }
+  } else {
+    // Text only prompt.
+    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+                                std::move(CxtRef.LlamaInputs), NPast, NPos);
+    if (ReturnCode != ErrNo::Success) {
+      RET_ERROR(ReturnCode, "failed to evaluate input tokens."sv)
     }
   }
 
-  // Main predict loop.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: enter main predict loop"sv);
-  }
+  // Main prediction loop.
+  LOG_DEBUG(GraphRef.EnableDebugLog, "compute: enter main prediction loop"sv)
   while (NRemain > 0) {
     // Use idx = -1 to sample the next token.
     const llama_token Id =
@@ -1322,16 +1187,12 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     // Break if reverse prompt is found.
     if (!GraphRef.ReversePrompt.empty() &&
         CxtRef.LlamaOutputs.find(GraphRef.ReversePrompt) != std::string::npos) {
-      if (GraphRef.EnableLog) {
-        spdlog::info("[WASI-NN] GGML backend: reverse prompt found"sv);
-      }
+      LOG_INFO(GraphRef.EnableLog, "reverse prompt found."sv)
       break;
     }
     // Deal with end of text token.
     if (llama_token_is_eog(GraphRef.LlamaModel, common_sampler_last(Sampler))) {
-      if (GraphRef.EnableLog) {
-        spdlog::info("[WASI-NN] GGML backend: EOS token found"sv);
-      }
+      LOG_INFO(GraphRef.EnableLog, "EOS token found."sv)
       break;
     }
     // Evaluate the output token.
@@ -1341,10 +1202,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       break;
     }
   }
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: enter main predict loop...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "compute: enter main prediction loop...Done"sv)
   // End of main predict loop.
 
   if (GraphRef.EnableLog) {
@@ -1353,24 +1212,16 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // We free the contexts here to keep the ggml plugin stateless.
   // Users could fully control the contexts by themselves via their prompt.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: delete llama sampler to make it stateless"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "compute: delete llama sampler to make it stateless"sv)
   common_sampler_free(Sampler);
   if (CxtRef.LlavaImageEmbd != nullptr) {
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;
   }
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: delete llama sampler to make it stateless...Done"sv);
-  }
-
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: compute...Done"sv);
-  }
-
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "compute: delete llama sampler to make it stateless...Done"sv)
+  LOG_DEBUG(GraphRef.EnableDebugLog, "compute...Done"sv)
   return ReturnCode;
 }
 
@@ -1379,38 +1230,24 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
                               uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: getOutputSingle with Index {}"sv,
-        Index);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle with Index {}"sv, Index)
+
   // Index 1 is for the metadata of the outputs.
   if (Index == 1) {
     std::string Metadata;
-    auto Res = buildOutputMetadata(CxtRef, Metadata);
-    if (Res != ErrNo::Success) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Failed to build output metadata."sv);
-      return Res;
-    }
+    buildOutputMetadata(CxtRef, Metadata);
     std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
     BytesWritten = static_cast<uint32_t>(Metadata.length());
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: getOutputSingle with Index {}...Done"sv,
-          Index);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle with Index {}...Done"sv,
+              Index)
     return ErrNo::Success;
   }
   std::string LastToken = common_token_to_piece(
       GraphRef.LlamaContext, CxtRef.LlamaOutputTokens.back());
   std::copy_n(LastToken.data(), LastToken.length(), OutBuffer.data());
   BytesWritten = static_cast<uint32_t>(LastToken.length());
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: getOutputSingle with Index {}...Done"sv,
-        Index);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle with Index {}...Done"sv,
+            Index)
   return ErrNo::Success;
 }
 
@@ -1418,32 +1255,23 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
                             uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-
-  // Logging.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: computeSingleToken"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle"sv)
 
   // New compute single token context.
   if (!GraphRef.ComputeSingleStarted) {
     GraphRef.ComputeSingleStarted = true;
     // Check if the input is set before setting up the context.
     if (CxtRef.LlamaInputs.size() == 0) {
-      spdlog::error("[WASI-NN] GGML backend: Llama input is not set!"sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument, "llama input is not set!"sv)
     }
 
     // Clear the outputs.
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: clear the previous output and tokens"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "computeSingle: clear the previous output and tokens"sv)
     CxtRef.LlamaOutputs.clear();
     CxtRef.LlamaOutputTokens.clear();
-    if (GraphRef.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: clear the previous output and tokens...Done"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "computeSingle: clear the previous output and tokens...Done"sv)
 
     // Clear the llama context.
     llama_kv_cache_clear(GraphRef.LlamaContext);
@@ -1465,64 +1293,55 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
 
     // Check if the input is too long.
     if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
-      if (GraphRef.EnableLog) {
-        spdlog::info(
-            "[WASI-NN] GGML backend: the prompt is too long. Your input has {} tokens. Please reduce it to {} tokens."sv,
-            CxtRef.LlamaInputs.size(), MaxTokensListSize);
-      }
-      return ErrNo::PromptTooLong;
+      RET_ERROR(
+          ErrNo::PromptTooLong,
+          "the prompt is too long. Your input has {} tokens. Please reduce "sv
+          "it to {} tokens."sv,
+          CxtRef.LlamaInputs.size(), MaxTokensListSize)
     }
 
     // Evaluate input tokens.
-    if (CxtRef.LlavaImageEmbd == nullptr) {
-      // Text only prompt.
-      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
-                                  std::move(CxtRef.LlamaInputs),
-                                  CxtRef.LlamaNPast, CxtRef.LlamaNPos);
-      if (ReturnCode != ErrNo::Success) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
-        return ReturnCode;
-      }
-    } else {
+    if (CxtRef.LlavaImageEmbd != nullptr) {
       // Llava format prompt with image data.
-      std::vector<llama_token> EmbdInputBeforeImage(
-          CxtRef.LlamaInputs.begin(),
-          CxtRef.LlamaInputs.begin() + CxtRef.LlavaImagePosition);
-      std::vector<llama_token> EmbdInputAfterImage(
-          CxtRef.LlamaInputs.begin() + CxtRef.LlavaImagePosition,
-          CxtRef.LlamaInputs.end());
+      std::vector<llama_token> EmbdInputBeforeImage(CxtRef.LlamaInputs.begin(),
+                                                    CxtRef.LlamaInputs.begin() +
+                                                        CxtRef.ImagePosition);
+      std::vector<llama_token> EmbdInputAfterImage(CxtRef.LlamaInputs.begin() +
+                                                       CxtRef.ImagePosition,
+                                                   CxtRef.LlamaInputs.end());
       ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
                                   std::move(EmbdInputBeforeImage),
                                   CxtRef.LlamaNPast, CxtRef.LlamaNPos);
       if (ReturnCode != ErrNo::Success) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: failed to evaluate input tokens before image."sv);
-        return ReturnCode;
+        RET_ERROR(ReturnCode, "failed to evaluate input tokens before image."sv)
       }
       bool EvalImageStatus = llava_eval_image_embed(
           GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
           static_cast<int>(GraphRef.BatchSize), &CxtRef.LlamaNPast);
       if (!EvalImageStatus) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: failed to evaluate embed image tokens."sv);
-        return ErrNo::RuntimeError;
+        RET_ERROR(ErrNo::RuntimeError,
+                  "failed to evaluate embed image tokens."sv)
       }
       ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
                                   std::move(EmbdInputAfterImage),
                                   CxtRef.LlamaNPast, CxtRef.LlamaNPos);
       if (ReturnCode != ErrNo::Success) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: failed to evaluate input tokens after image."sv);
-        return ReturnCode;
+        RET_ERROR(ReturnCode, "failed to evaluate input tokens after image."sv)
+      }
+    } else {
+      // Text only prompt.
+      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+                                  std::move(CxtRef.LlamaInputs),
+                                  CxtRef.LlamaNPast, CxtRef.LlamaNPos);
+      if (ReturnCode != ErrNo::Success) {
+        RET_ERROR(ReturnCode, "failed to evaluate input tokens."sv)
       }
     }
   }
 
-  // Main predict process.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: enter main predict process"sv);
-  }
+  // Main prediction process.
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "computeSingle: enter main prediction process"sv)
   auto ReturnCode = ErrNo::Success;
   // Use idx = -1 to sample the next token.
   const llama_token Id = common_sampler_sample(
@@ -1537,35 +1356,25 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   if (llama_token_is_eog(GraphRef.LlamaModel,
                          common_sampler_last(CxtRef.LlamaSampler))) {
     ReturnCode = ErrNo::EndOfSequence;
-    if (GraphRef.EnableLog) {
-      spdlog::info("[WASI-NN] GGML backend: EOS token found"sv);
-    }
+    LOG_INFO(GraphRef.EnableLog, "EOS token found."sv)
   }
   // Evaluate the output token if not EOS.
   if (ReturnCode != ErrNo::EndOfSequence) {
     ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext, {Id},
                                 CxtRef.LlamaNPast, CxtRef.LlamaNPos);
   }
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: enter main predict process...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "computeSingle: enter main prediction process...Done"sv)
   // End of main predict process.
 
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: computeSingleToken...Done"sv);
-  }
-
+  LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle...Done"sv)
   return ReturnCode;
 }
 
 Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: finiSingle"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle"sv)
 
   // Logging for the llama timings.
   if (GraphRef.EnableLog) {
@@ -1573,22 +1382,15 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   // Clear the outputs.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: finiSingle: clear the previous output and tokens"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "finiSingle: clear the previous output and tokens"sv)
   CxtRef.LlamaOutputs.clear();
   CxtRef.LlamaOutputTokens.clear();
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: finiSingle: clear the previous output and tokens...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "finiSingle: clear the previous output and tokens...Done"sv)
 
   // Clear the llama context.
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: finiSingle: clear the llama context"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle: clear the llama context"sv)
   llama_kv_cache_clear(GraphRef.LlamaContext);
   common_sampler_reset(CxtRef.LlamaSampler);
   common_sampler_free(CxtRef.LlamaSampler);
@@ -1601,43 +1403,29 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;
   }
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info(
-        "[WASI-NN][Debug] GGML backend: finiSingle: free the llama context...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "finiSingle: clear the llama context...Done"sv)
 
   // Reset the context variables.
   CxtRef.LlamaNPast = 0;
 
-  if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: finiSingle...Done"sv);
-  }
-
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle...Done"sv)
   return ErrNo::Success;
 }
 
 Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  const bool IsDebugLog = GraphRef.EnableDebugLog;
-  if (IsDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: unload"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "unload"sv)
+
   if (GraphRef.LlamaModel != nullptr) {
-    if (IsDebugLog) {
-      spdlog::info("[WASI-NN][Debug] GGML backend: unload: free llama model"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "unload: free llama model"sv)
     llama_free_model(GraphRef.LlamaModel);
     GraphRef.LlamaModel = nullptr;
-    if (IsDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] GGML backend: unload: free llama model...Done"sv);
-    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "unload: free llama model...Done"sv)
   }
   Env.NNGraph.erase(Env.NNGraph.begin() + GraphId);
   Env.mdRemoveById(GraphId);
-  if (IsDebugLog) {
-    spdlog::info("[WASI-NN][Debug] GGML backend: unload...Done"sv);
-  }
+  LOG_DEBUG(GraphRef.EnableDebugLog, "unload...Done"sv)
   return ErrNo::Success;
 }
 

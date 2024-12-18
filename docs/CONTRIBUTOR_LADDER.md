@@ -97,10 +97,9 @@ Committers have all the rights and responsibilities of a reviewer, plus:
 * Responsibilities include:
     * Reviewing most Pull Requests against their specific areas of responsibility
     * Reviewing at least 15 PRs per year
-    * Helping other contributors become reviewers
+    * Helping other contributors become Committers
 * Requirements:
     * Experience as a Reviewer for at least 6 months
-    * Is a reviewer
     * Has reviewed, or helped review, at least 15 Pull Requests
     * Has analyzed and resolved test failures in their specific area
     * Has demonstrated an in-depth knowledge of the specific area
@@ -108,14 +107,14 @@ Committers have all the rights and responsibilities of a reviewer, plus:
     * Is supportive of new and occasional contributors and helps get useful PRs in shape to commit
 * Additional privileges:
     * Has GitHub or CI/CD rights to approve pull requests in specific directories
-    * Can recommend and review other contributors to become Reviewers
+    * Can recommend and review other contributors to become Committers
     * Is listed as Committers in the [OWNERS file](./OWNER.md) under the WasmEdge/WasmEdge repos.
   
 
 The process of becoming a Committer is:
 
 1. The contributor is nominated by opening a PR against the appropriate repository by the existing reviewers, committers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
-2. At least 1/2 members of the committers, reviewers, and maintainers that owns that repository or main directory, who are already Approvers, approve the PR.
+2. At least 1/2 members of the reviewers, committers, and maintainers that owns that repository or main directory, who are already Approvers, approve the PR.
 
 
 ### Maintainer

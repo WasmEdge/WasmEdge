@@ -21,14 +21,53 @@ void typeConvert(ValueType &VT, const ValType &Ty) noexcept {
   case TypeCode::I64:
     VT.emplace<PrimValType>(PrimValType::S64);
     break;
+  case TypeCode::U8:
+    VT.emplace<PrimValType>(PrimValType::U8);
+    break;
+  case TypeCode::U16:
+    VT.emplace<PrimValType>(PrimValType::U16);
+    break;
+  case TypeCode::U32:
+    VT.emplace<PrimValType>(PrimValType::U32);
+    break;
+  case TypeCode::U64:
+    VT.emplace<PrimValType>(PrimValType::U64);
+    break;
   case TypeCode::F32:
     VT.emplace<PrimValType>(PrimValType::Float32);
     break;
   case TypeCode::F64:
     VT.emplace<PrimValType>(PrimValType::Float64);
     break;
-
+  case TypeCode::Bool:
+    VT.emplace<PrimValType>(PrimValType::Bool);
+    break;
+  case TypeCode::String:
+    VT.emplace<PrimValType>(PrimValType::String);
+    break;
+  case TypeCode::List:
+    spdlog::warn("list todo");
+    break;
+  case TypeCode::Tuple:
+    spdlog::warn("tuple todo");
+    break;
+  case TypeCode::Option:
+    spdlog::warn("option todo");
+    break;
+  case TypeCode::Enum:
+    spdlog::warn("enum todo");
+    break;
+  case TypeCode::Result:
+    spdlog::warn("result todo");
+    break;
+  case TypeCode::Record:
+    spdlog::warn("record todo");
+    break;
+  case TypeCode::Variant:
+    spdlog::warn("variant todo");
+    break;
   default:
+    spdlog::error("unknown");
     break;
   }
 }

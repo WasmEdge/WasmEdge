@@ -62,7 +62,7 @@ Expect<void> Loader::loadType(LabelValType &Ty) {
   return loadType(Ty.getValType());
 }
 
-Expect<void> Loader::loadType(Record &RecTy) {
+Expect<void> Loader::loadType(RecordTy &RecTy) {
   // syntax:
   //     lt*:vec(<labelvaltype>)
   //
@@ -115,7 +115,7 @@ Expect<void> Loader::loadType(VariantTy &Ty) {
 
 Expect<void> Loader::loadType(ListTy &Ty) { return loadType(Ty.getValType()); }
 
-Expect<void> Loader::loadType(Tuple &Ty) {
+Expect<void> Loader::loadType(TupleTy &Ty) {
   if (auto Res = loadVec<TypeSection>(
           Ty.getTypes(),
           [this](ValueType T) -> Expect<void> { return loadType(T); })) {
@@ -143,7 +143,7 @@ Expect<void> Loader::loadType(Flags &Ty) {
   }
 }
 
-Expect<void> Loader::loadType(Enum &Ty) {
+Expect<void> Loader::loadType(EnumTy &Ty) {
   if (auto Res = loadVec<TypeSection>(
           Ty.getLabels(), [this](std::string Label) -> Expect<void> {
             return loadLabel(Label);
@@ -154,9 +154,11 @@ Expect<void> Loader::loadType(Enum &Ty) {
   }
 }
 
-Expect<void> Loader::loadType(Option &Ty) { return loadType(Ty.getValType()); }
+Expect<void> Loader::loadType(OptionTy &Ty) {
+  return loadType(Ty.getValType());
+}
 
-Expect<void> Loader::loadType(Result &Ty) {
+Expect<void> Loader::loadType(ResultTy &Ty) {
   if (auto Res = loadOption<ValueType>(
           [this](ValueType VTy) -> Expect<void> { return loadType(VTy); })) {
     Ty.getValType() = *Res;
@@ -216,7 +218,8 @@ Expect<void> Loader::loadType(DefType &Ty) {
         static_cast<PrimValType>(Tag));
     break;
   case 0x72:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Record>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<RecordTy>());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
@@ -235,7 +238,8 @@ Expect<void> Loader::loadType(DefType &Ty) {
     }
     break;
   case 0x6f:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Tuple>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<TupleTy>());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
@@ -247,19 +251,21 @@ Expect<void> Loader::loadType(DefType &Ty) {
     }
     break;
   case 0x6d:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Enum>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<EnumTy>()); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     break;
   case 0x6b:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Option>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<OptionTy>());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     break;
   case 0x6a:
-    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<Result>()); !Res) {
+    if (auto Res = loadType(Ty.emplace<DefValType>().emplace<ResultTy>());
+        !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
@@ -296,14 +302,14 @@ Expect<void> Loader::loadType(DefType &Ty) {
     break;
   }
   case 0x3f: {
-    if (auto Res = loadType(Ty.emplace<ResourceType>(false)); !Res) {
+    if (auto Res = loadType(Ty.emplace<ResourceType>(true)); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
     break;
   }
   case 0x3e: {
-    if (auto Res = loadType(Ty.emplace<ResourceType>(true)); !Res) {
+    if (auto Res = loadType(Ty.emplace<ResourceType>(false)); !Res) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
       return Unexpect(Res);
     }
@@ -401,29 +407,32 @@ Expect<void> Loader::loadType(ResourceType &Ty) {
     return Unexpect(Res);
   }
 
-  if (Ty.IsAsync()) {
-    if (auto Res = FMgr.readU32()) {
-      Ty.getDestructor().emplace(*Res);
-    } else {
-      return Unexpect(Res);
-    }
+  if (Ty.IsSync()) {
     if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
           auto RCallback = FMgr.readU32();
           if (!RCallback) {
             return Unexpect(RCallback);
           }
-          Ty.getCallback().emplace(*RCallback);
+          Ty.getDestructor().emplace(*RCallback);
           return {};
         });
         !Res) {
       return Unexpect(Res);
     }
   } else {
+    if (auto Res = FMgr.readU32()) {
+      spdlog::info("resource drop index: {}", *Res);
+      Ty.getDestructor().emplace(*Res);
+    } else {
+      return Unexpect(Res);
+    }
+
     if (auto Res = loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
-          auto RDestructor = FMgr.readU32();
-          if (!RDestructor)
-            return Unexpect(RDestructor);
-          Ty.getDestructor().emplace(*RDestructor);
+          auto RCallback = FMgr.readU32();
+          if (!RCallback) {
+            return Unexpect(RCallback);
+          }
+          Ty.getCallback().emplace(*RCallback);
           return {};
         });
         !Res) {

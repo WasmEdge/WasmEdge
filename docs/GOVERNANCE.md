@@ -18,7 +18,7 @@ As a sandbox project hosted by CNCF, the WasmEdge Runtime follows the [CNCF Code
 - [Modifications](#modifying-this-charter)
 - [Credits](#credits)
 
-The [TODO: PROJECTNAME] and its leadership embrace the following values:
+The WasmEdge project and its leadership embrace the following values:
 
 * Openness: Communication and decision-making happens in the open and is discoverable for future
   reference. As much as possible, all discussions and work take place in public

@@ -161,6 +161,7 @@ check_os_arch() {
 	RELEASE_PKG="ubuntu20.04_x86_64.tar.gz"
 	IPKG="WasmEdge-${VERSION}-${OS}"
 	_LD_LIBRARY_PATH_="LD_LIBRARY_PATH"
+
 	case ${OS} in
 		'Linux')
 			case ${ARCH} in

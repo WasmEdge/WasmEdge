@@ -66,9 +66,9 @@ A Reviewer must meet the responsibilities and has the requirements of a Contribu
     * Continues to contribute regularly, as demonstrated by having at least 30 GitHub contributions per year, as shown by Devstats. 
 * Requirements:
     * Must have successful contributions to the project, including at least one of the following:
-        * 5 accepted PRs,
+        * 2 accepted PRs,
         * Reviewed 5 PRs,
-        * Resolved and closed 10 Issues,
+        * Resolved and closed 10 issues,
         * Become responsible for a key project management area,
         * Or some equivalent combination or contribution
     * Must have been contributing for at least 3 months
@@ -96,10 +96,10 @@ Committers have all the rights and responsibilities of a reviewer, plus:
 
 * Responsibilities include:
     * Reviewing most Pull Requests against their specific areas of responsibility
-    * Reviewing at least 15 PRs per year
+    * Accepted 5 PRs with code changes (not just docs or typo fixes) per year
     * Helping other contributors become Committers
 * Requirements:
-    * Experience as a Reviewer for at least 6 months
+    * Experience as a Reviewer for at least 3 months
     * Has reviewed, or helped review, at least 15 Pull Requests
     * Has analyzed and resolved test failures in their specific area
     * Has demonstrated an in-depth knowledge of the specific area
@@ -133,7 +133,7 @@ A Maintainer must meet the responsibilities and requirements of a Reviewer, plus
     * Determining strategy and policy for the project
     * Participating in, and leading, community meetings
 * Requirements
-    * Experience as a Reviewer for at least 6 months
+    * Experience as a Reviewer for at least 3 months
     * Demonstrates a broad knowledge of the project across multiple areas
     * Is able to exercise judgment for the good of the project, independent of their employer, friends, or team
     * Mentors other contributors
@@ -157,8 +157,8 @@ Process of becoming a maintainer:
 It is important for contributors to be and stay active to set an example and show commitment to the project. Inactivity is harmful to the project as it may lead to unexpected delays, contributor attrition, and a lost of trust in the project.
 
 * Inactivity is measured by:
-    * Periods of no contributions for longer than 6 months
-    * Periods of no communication for longer than 6 months
+    * Periods of no contributions for longer than 12 months
+    * Periods of no communication for longer than 12 months
 * Consequences of being inactive include:
     * Involuntary removal or demotion
     * Being asked to move to Emeritus status

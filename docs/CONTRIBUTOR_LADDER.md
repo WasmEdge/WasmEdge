@@ -128,7 +128,7 @@ A Maintainer must meet the responsibilities and requirements of a Committer, plu
     * Determining strategy and policy for the project
     * Participating in, and leading, community meetings
 * Requirements
-    * Experience as a Commiter for at least 3 months
+    * Experience as a Committer for at least 3 months
     * Demonstrates a broad knowledge of the project across multiple areas
     * Is able to exercise judgment for the good of the project, independent of their employer, friends, or team
     * Mentors other contributors
@@ -142,7 +142,7 @@ A Maintainer must meet the responsibilities and requirements of a Committer, plu
 
 Process of becoming a maintainer:
 
-1. Any current Maintainer may nominate a current Commiter to become a new Maintainer, by opening a PR against the root of the WasmEdge/WasmEdge repo adding the nominee as an Approver in the OWNERS file.
+1. Any current Maintainer may nominate a current Committer to become a new Maintainer, by opening a PR against the root of the WasmEdge/WasmEdge repo adding the nominee as an Approver in the OWNERS file.
 2. The nominee will add a comment to the PR testifying that they agree to all requirements of becoming a Maintainer.
 3. A 2/3 of the current Maintainers must then approve the PR.
 

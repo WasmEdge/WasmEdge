@@ -25,16 +25,20 @@ struct Graph {
   llama_model *LlamaModel = nullptr;
   std::string ModelFilePath;
   llama_context *LlamaContext = nullptr;
+  struct clip_ctx *ClipContext = nullptr;
   // Plugin parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
   bool StreamStdout = false;
   bool Embedding = false;
+  int32_t EmbdNormalize =
+      2; // -1=none, 0=max absolute int16, 1=taxicab, 2=euclidean, >2=p-norm
   bool ComputeSingleStarted = false;
   uint64_t NPredict;
   std::string ReversePrompt;
   std::string MMProjModelPath;
   std::string ImagePath;
+  bool Qwen2vl = false;
   // Model parameters:
   int64_t MainGPU = 0; // Use GPU 0 by default
   int64_t NGPULayers = 0;
@@ -66,6 +70,7 @@ public:
   // Preserve for computing single token
   common_sampler *LlamaSampler = nullptr;
   int32_t LlamaNPast = 0;
+  int32_t LlamaNPos = 0;
   // Preserve for llava
   struct llava_image_embed *LlavaImageEmbd = nullptr;
   size_t LlavaImagePosition = 0;

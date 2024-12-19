@@ -96,7 +96,7 @@ Committers have all the rights and responsibilities of a reviewer, plus:
 
 * Responsibilities include:
     * Reviewing most Pull Requests against their specific areas of responsibility
-    * Accepted 5 PRs with code changes (not just docs or typo fixes) per year
+    * 5 accepted PRs with code changes (not just docs or typo fixes) per year
     * Helping other contributors become Committers
 * Requirements:
     * Experience as a Reviewer for at least 3 months

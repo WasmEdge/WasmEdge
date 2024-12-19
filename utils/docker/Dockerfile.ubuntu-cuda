@@ -9,12 +9,29 @@ RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86
     rm -f ${CUDA_KEYRING}
 
 ARG NVCC_VER=12-0
+ARG TENSORRT=OFF
 RUN apt-get update && \
     apt-get install -y \
         cuda-nvcc-${NVCC_VER} \
         libcublas-dev-${NVCC_VER} \
         pkg-config \
-        unzip
+        unzip && \
+    case TENSORRT in \
+        ON) apt-get install -y \
+            cuda-nvml-dev-${NVCC_VER} \
+            cuda-nvrtc-dev-${NVCC_VER} \
+            cuda-profiler-api-${NVCC_VER} \
+            libcurand-dev-${NVCC_VER} \
+            libnccl-dev \
+            python3-distutils \
+            python3-libnvinfer-dev \
+            python3-setuptools \
+            libpython3-dev \
+            tensorrt-dev \
+            openmpi-bin \
+            libopenmpi-dev \
+            git-lfs;; \
+    esac
 
 ENV CXXFLAGS="-Wno-error"
 

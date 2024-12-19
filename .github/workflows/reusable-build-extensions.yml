@@ -37,6 +37,7 @@ jobs:
       ubuntu2004_x86_64: ${{ steps.readfile.outputs.ubuntu2004_x86_64 }}
       ubuntu2004_cuda11: ${{ steps.readfile.outputs.ubuntu2004_cuda11 }}
       ubuntu2004_cuda12: ${{ steps.readfile.outputs.ubuntu2004_cuda12 }}
+      ubuntu2004_tensorrt_cuda12: ${{ steps.readfile.outputs.ubuntu2004_tensorrt_cuda12 }}
       ubuntu_latest: ${{ steps.readfile.outputs.ubuntu_latest }}
     steps:
       - uses: actions/checkout@v4
@@ -69,6 +70,7 @@ jobs:
               "ubuntu2004_x86_64",
               "ubuntu2004_cuda11",
               "ubuntu2004_cuda12",
+              "ubuntu2004_tensorrt_cuda12",
               "ubuntu_latest",
             ]
             for (const tag of asset_tags) {
@@ -112,6 +114,10 @@ jobs:
             docker_tag: 'ubuntu-20.04-build-gcc-cuda12'
             asset_tag: 'ubuntu20.04_x86_64'
             plugins: ${{ needs.prepare.outputs.ubuntu2004_cuda12 }}
+          - runner: 'ubuntu-latest'
+            docker_tag: 'ubuntu-20.04-build-gcc-tensorrt-cuda12'
+            asset_tag: 'ubuntu20.04_x86_64'
+            plugins: ${{ needs.prepare.outputs.ubuntu2004_tensorrt_cuda12 }}
     name: ${{ matrix.asset_tag }}
     uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
     with:

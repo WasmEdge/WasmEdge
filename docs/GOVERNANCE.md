@@ -49,7 +49,7 @@ community management). Reviewers help review the GitHub issues and PRs. See the 
 
 WasmEdge Maintainers have write access to the [WasmEdge](https://github.com/WasmEdge/WasmEdge) GitHub repo.
 They can merge their own patches or patches from others. The current maintainers
-can be found in [MAINTAINERS.md](./MAINTAINERS.md).  Maintainers collectively manage the project's
+can be found in [MAINTAINERS.md](./OWNERS.md).  Maintainers collectively manage the project's
 resources and contributors.
 
 This privilege is granted with some expectation of responsibility: maintainers are people who care about the WasmEdge project and want to help it grow and improve. A maintainer is not just someone who can make changes, but someone who has demonstrated their ability to collaborate with the team, get the most knowledgeable people to review code and docs, contribute high-quality code, and follow through to fix issues (in code or tests).

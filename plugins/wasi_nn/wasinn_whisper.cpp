@@ -3,6 +3,8 @@
 
 #include "wasinn_whisper.h"
 #include "wasinnenv.h"
+#include <cstdint>
+#include <vector>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 #define DR_WAV_IMPLEMENTATION
@@ -16,6 +18,327 @@ namespace WasmEdge::Host::WASINN::Whisper {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 
 namespace {
+int TimestampToSample(int64_t t, int n_samples, int whisper_sample_rate) {
+  return std::max(
+      0, std::min((int)n_samples - 1, (int)((t * whisper_sample_rate) / 100)));
+}
+std::string ToTimestamp(int64_t T, bool Comma) {
+  int64_t Msec = T * 10;
+  int64_t Hr = Msec / (1000 * 60 * 60);
+  Msec = Msec - Hr * (1000 * 60 * 60);
+  int64_t Min = Msec / (1000 * 60);
+  Msec = Msec - Min * (1000 * 60);
+  int64_t Sec = Msec / 1000;
+  Msec = Msec - Sec * 1000;
+
+  char Buf[32];
+  snprintf(Buf, sizeof(Buf), "%02d:%02d:%02d%s%03d", (int)Hr, (int)Min,
+           (int)Sec, Comma ? "," : ".", (int)Msec);
+
+  return std::string(Buf);
+}
+
+std::string
+estimateDiarizationSpeaker(const std::vector<std::vector<float>> PCMF32s,
+                           int64_t T0, int64_t T1, bool IdOnly = false) {
+  std::string speaker = "";
+  const int64_t n_samples = PCMF32s[0].size();
+
+  const int64_t is0 = TimestampToSample(T0, n_samples, WHISPER_SAMPLE_RATE);
+  const int64_t is1 = TimestampToSample(T1, n_samples, WHISPER_SAMPLE_RATE);
+
+  double energy0 = 0.0f;
+  double energy1 = 0.0f;
+
+  for (int64_t j = is0; j < is1; j++) {
+    energy0 += fabs(PCMF32s[0][j]);
+    energy1 += fabs(PCMF32s[1][j]);
+  }
+
+  if (energy0 > 1.1 * energy1) {
+    speaker = "0";
+  } else if (energy1 > 1.1 * energy0) {
+    speaker = "1";
+  } else {
+    speaker = "?";
+  }
+
+  // printf("is0 = %lld, is1 = %lld, energy0 = %f, energy1 = %f, speaker =
+  // %s\n", is0, is1, energy0, energy1, speaker.c_str());
+
+  if (!IdOnly) {
+    speaker.insert(0, "(speaker ");
+    speaker.append(")");
+  }
+
+  return speaker;
+}
+
+bool outputSrt(whisper_context *Ctx, const std::string &Fname,
+               const Config &Params,
+               const std::vector<std::vector<float>> &PCMF32s) {
+  std::ofstream fout(Fname);
+  if (!fout.is_open()) {
+    spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
+                  Fname);
+    return false;
+  }
+  spdlog::info("[WASI-NN] Whisper backend: saving output to {}."sv, Fname);
+
+  const int NSegments = whisper_full_n_segments(Ctx);
+  for (int i = 0; i < NSegments; ++i) {
+    const std::string &text = whisper_full_get_segment_text(Ctx, i);
+    const int64_t t0 = whisper_full_get_segment_t0(Ctx, i);
+    const int64_t t1 = whisper_full_get_segment_t1(Ctx, i);
+    std::string speaker = "";
+
+    if (Params.Diarize && PCMF32s.size() == 2) {
+      speaker = estimateDiarizationSpeaker(PCMF32s, t0, t1);
+    }
+
+    fout << i + 1 + Params.OffsetN << "\n";
+    fout << ToTimestamp(t0, true) << " --> " << ToTimestamp(t1, true) << "\n";
+    fout << speaker << text << "\n\n";
+  }
+  return true;
+}
+
+static bool outputLrc(whisper_context *Ctx, const std::string &Fname,
+                      const Config &Params,
+                      const std::vector<std::vector<float>> &PCMF32s) {
+  std::ofstream Fout(Fname);
+  if (!Fout.is_open()) {
+    spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
+                  Fname);
+    return false;
+  }
+
+  spdlog::info("[WASI-NN] Whisper backend: saving output to {}."sv, Fname);
+
+  Fout << "[by:whisper.cpp]\n";
+
+  const int NSegments = whisper_full_n_segments(Ctx);
+  for (int I = 0; I < NSegments; ++I) {
+    const std::string &text = whisper_full_get_segment_text(Ctx, I);
+    const int64_t T = whisper_full_get_segment_t0(Ctx, I);
+
+    int64_t Msec = T * 10;
+    int64_t Min = Msec / (1000 * 60);
+    Msec = Msec - Min * (1000 * 60);
+    int64_t Sec = Msec / 1000;
+    Msec = Msec - Sec * 1000;
+
+    char Buf[16];
+    snprintf(Buf, sizeof(Buf), "%02d:%02d.%02d", (int)Min, (int)Sec,
+             (int)(Msec / 10));
+    std::string timestamp_lrc = std::string(Buf);
+    std::string speaker = "";
+
+    if (Params.Diarize && PCMF32s.size() == 2) {
+      const int64_t t0 = whisper_full_get_segment_t0(Ctx, I);
+      const int64_t t1 = whisper_full_get_segment_t1(Ctx, I);
+      speaker = estimateDiarizationSpeaker(PCMF32s, t0, t1);
+    }
+
+    Fout << '[' << timestamp_lrc << ']' << speaker << text << "\n";
+  }
+
+  return true;
+}
+
+std::string escapeDoubleQuotesAndBackslashes(const std::string &Str) {
+  if (Str.empty()) {
+    return "";
+  }
+
+  size_t EscapedLength = Str.size() + 1;
+
+  for (size_t i = 0; Str[i] != '\0'; i++) {
+    if (Str[i] == '"' || Str[i] == '\\') {
+      EscapedLength++;
+    }
+  }
+
+  std::string escaped;
+  escaped.push_back(EscapedLength);
+
+  size_t pos = 0;
+  for (size_t i = 0; Str[i] != '\0'; i++) {
+    if (Str[i] == '"' || Str[i] == '\\') {
+      escaped[pos++] = '\\';
+    }
+    escaped[pos++] = Str[i];
+  }
+
+  return escaped;
+}
+
+bool outputJson(whisper_context *Ctx, const std::string &Fname,
+                const Config &Params,
+                const std::vector<std::vector<float>> &PCMF32s, bool Full) {
+  std::ofstream Fout(Fname);
+  int Indent = 0;
+
+  auto Doindent = [&]() {
+    for (int i = 0; i < Indent; i++)
+      Fout << "\t";
+  };
+
+  auto StartArr = [&](const std::string &Name) {
+    Doindent();
+    Fout << "\"" << Name << "\": [\n";
+    Indent++;
+  };
+
+  auto EndArr = [&](bool End) {
+    Indent--;
+    Doindent();
+    Fout << (End ? "]\n" : "],\n");
+  };
+
+  auto StartObj = [&](const std::string &Name) {
+    Doindent();
+    if (!Name.empty()) {
+      Fout << "\"" << Name << "\": {\n";
+    } else {
+      Fout << "{\n";
+    }
+    Indent++;
+  };
+
+  auto EndObj = [&](bool End) {
+    Indent--;
+    Doindent();
+    Fout << (End ? "}\n" : "},\n");
+  };
+
+  auto StartValue = [&](const std::string &Name) {
+    Doindent();
+    Fout << "\"" << Name << "\": ";
+  };
+
+  auto ValueS = [&](const std::string &Name, const std::string &Val, bool End) {
+    StartValue(Name);
+    std::string ValEscaped = escapeDoubleQuotesAndBackslashes(Val);
+    Fout << "\"" << ValEscaped << (End ? "\"\n" : "\",\n");
+  };
+
+  auto EndValue = [&](bool End) { Fout << (End ? "\n" : ",\n"); };
+
+  auto ValueI = [&](const std::string &Name, const int64_t Val, bool End) {
+    StartValue(Name);
+    Fout << Val;
+    EndValue(End);
+  };
+
+  auto ValueF = [&](const std::string &Name, const float Val, bool End) {
+    StartValue(Name);
+    Fout << Val;
+    EndValue(End);
+  };
+
+  auto ValueB = [&](const std::string &Name, const bool Val, bool End) {
+    StartValue(Name);
+    Fout << (Val ? "true" : "false");
+    EndValue(End);
+  };
+
+  auto TimesO = [&](int64_t T0, int64_t T1, bool End) {
+    StartObj("timestamps");
+    ValueS("from", ToTimestamp(T0, true), false);
+    ValueS("to", ToTimestamp(T1, true), true);
+    EndObj(false);
+    StartObj("offsets");
+    ValueI("from", T0 * 10, false);
+    ValueI("to", T1 * 10, true);
+    EndObj(End);
+  };
+
+  if (!Fout.is_open()) {
+    spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
+                  Fname);
+    return false;
+  }
+
+  spdlog::info("[WASI-NN] Whisper backend: saving output to {}."sv, Fname);
+
+  StartObj(nullptr);
+  ValueS("systeminfo", whisper_print_system_info(), false);
+  StartObj("model");
+  ValueS("type", whisper_model_type_readable(Ctx), false);
+  ValueB("multilingual", whisper_is_multilingual(Ctx), false);
+  ValueI("vocab", whisper_model_n_vocab(Ctx), false);
+  StartObj("audio");
+  ValueI("ctx", whisper_model_n_audio_ctx(Ctx), false);
+  ValueI("state", whisper_model_n_audio_state(Ctx), false);
+  ValueI("head", whisper_model_n_audio_head(Ctx), false);
+  ValueI("layer", whisper_model_n_audio_layer(Ctx), true);
+  EndObj(false);
+  StartObj("text");
+  ValueI("ctx", whisper_model_n_text_ctx(Ctx), false);
+  ValueI("state", whisper_model_n_text_state(Ctx), false);
+  ValueI("head", whisper_model_n_text_head(Ctx), false);
+  ValueI("layer", whisper_model_n_text_layer(Ctx), true);
+  EndObj(false);
+  ValueI("mels", whisper_model_n_mels(Ctx), false);
+  ValueI("ftype", whisper_model_ftype(Ctx), true);
+  EndObj(false);
+  StartObj("params");
+  ValueS("model", "Wasi-nn preload", false);
+  ValueS("language", Params.SpokenLanguage, false);
+  ValueB("translate", Params.Translate, true);
+  EndObj(false);
+  StartObj("result");
+  ValueS("language", whisper_lang_str(whisper_full_lang_id(Ctx)), true);
+  EndObj(false);
+  StartArr("transcription");
+
+  const int NSegments = whisper_full_n_segments(Ctx);
+  for (int I = 0; I < NSegments; ++I) {
+    const std::string &Text = whisper_full_get_segment_text(Ctx, I);
+
+    const int64_t T0 = whisper_full_get_segment_t0(Ctx, I);
+    const int64_t T1 = whisper_full_get_segment_t1(Ctx, I);
+
+    StartObj(nullptr);
+    TimesO(T0, T1, false);
+    ValueS("text", Text, !Params.Diarize && !Params.TinyDiarize && !Full);
+
+    if (Full) {
+      StartArr("tokens");
+      const int n = whisper_full_n_tokens(Ctx, I);
+      for (int j = 0; j < n; ++j) {
+        auto token = whisper_full_get_token_data(Ctx, I, j);
+        StartObj(nullptr);
+        ValueS("text", whisper_token_to_str(Ctx, token.id), false);
+        if (token.t0 > -1 && token.t1 > -1) {
+          // If we have per-token timestamps, write them out
+          TimesO(token.t0, token.t1, false);
+        }
+        ValueI("id", token.id, false);
+        ValueF("p", token.p, false);
+        ValueF("t_dtw", token.t_dtw, true);
+        EndObj(j == (n - 1));
+      }
+      EndArr(!Params.Diarize && !Params.TinyDiarize);
+    }
+
+    if (Params.Diarize && PCMF32s.size() == 2) {
+      ValueS("speaker", estimateDiarizationSpeaker(PCMF32s, T0, T1, true),
+             true);
+    }
+
+    if (Params.TinyDiarize) {
+      ValueB("speaker_turn_next",
+             whisper_full_get_segment_speaker_turn_next(Ctx, I), true);
+    }
+    EndObj(I == (NSegments - 1));
+  }
+
+  EndArr(true);
+  EndObj(true);
+  return true;
+}
 
 bool checkAudioRIFF(const std::string_view Buf, const std::string_view Format) {
   if (Buf.size() < 12 || Buf.substr(0, 4) != "RIFF"sv) {
@@ -31,7 +354,8 @@ bool checkAudioRIFF(const std::string_view Buf, const std::string_view Format) {
   return true;
 }
 
-bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32) {
+bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32,
+             std::vector<std::vector<float>> &PCMF32s, bool Stereo) {
   // Not to use the helper function in examples of whisper.cpp to prevent from
   // copy.
   drwav WAV;
@@ -75,6 +399,16 @@ bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32) {
     for (uint64_t I = 0; I < N; I++) {
       PCMF32[I] =
           static_cast<float>(PCM16[2 * I] + PCM16[2 * I + 1]) / 65536.0f;
+    }
+  }
+  if (Stereo) {
+    PCMF32s.resize(2);
+
+    PCMF32s[0].resize(N);
+    PCMF32s[1].resize(N);
+    for (uint64_t I = 0; I < N; I++) {
+      PCMF32s[0][I] = float(PCM16[2 * I]) / 32768.0f;
+      PCMF32s[1][I] = float(PCM16[2 * I + 1]) / 32768.0f;
     }
   }
   return true;
@@ -161,6 +495,12 @@ void setWhisperParams(Context &CxtRef) noexcept {
   WParam.grammar_penalty = ConfigRef.GrammarPenalty;
   WParam.new_segment_callback = WhisperOutputSegmentCallback;
   WParam.new_segment_callback_user_data = &CxtRef;
+  WParam.greedy.best_of = ConfigRef.BestOf;
+  WParam.strategy =
+      (ConfigRef.BeamSize > 1)
+          ? whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH
+          : whisper_sampling_strategy::WHISPER_SAMPLING_GREEDY;
+  WParam.beam_search.beam_size = ConfigRef.BeamSize;
 
   if (ConfigRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: Config: threads: {}",
@@ -369,6 +709,117 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
     ConfigRef.InitialPrompt = Prompt;
     PrintParsedOption("prompt"sv, ConfigRef.InitialPrompt);
   }
+  if (Doc.at_key("best-of").error() == simdjson::SUCCESS) {
+    auto Err = Doc["best-of"].get<uint64_t>().get(ConfigRef.BestOf);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the best-of option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("best-of"sv, ConfigRef.BestOf);
+  }
+  if (Doc.at_key("beam-size").error() == simdjson::SUCCESS) {
+    auto Err = Doc["beam-size"].get<uint64_t>().get(ConfigRef.BeamSize);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the beam-size option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("beam-size"sv, ConfigRef.BeamSize);
+  }
+  if (Doc.at_key("output-srt").error() == simdjson::SUCCESS) {
+    auto Err = Doc["output-srt"].get<bool>().get(ConfigRef.OutputSrt);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the output-srt "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("output-srt"sv, ConfigRef.OutputLrc);
+  }
+  if (Doc.at_key("output-Lrc").error() == simdjson::SUCCESS) {
+    auto Err = Doc["output-Lrc"].get<bool>().get(ConfigRef.OutputLrc);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the output-Lrc"
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("output-Lrc"sv, ConfigRef.OutputLrc);
+  }
+  if (Doc.at_key("output-json").error() == simdjson::SUCCESS) {
+    auto Err = Doc["output-json"].get<bool>().get(ConfigRef.OutputJson);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the output-json "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("output-json"sv, ConfigRef.OutputJson);
+  }
+  if (Doc.at_key("output-json-full").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["output-json-full"].get<bool>().get(ConfigRef.OutputJsonFull);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the output-json-full "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("output-json-full"sv, ConfigRef.OutputJsonFull);
+  }
+  if (Doc.at_key("no-timestamps").error() == simdjson::SUCCESS) {
+    auto Err = Doc["no-timestamps"].get<bool>().get(ConfigRef.NoTimestamps);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the no-timestamps "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("no-timestamps"sv, ConfigRef.NoTimestamps);
+  }
+  if (Doc.at_key("file-name").error() == simdjson::SUCCESS) {
+    std::string_view FileName;
+    auto Err = Doc["file-name"].get<std::string_view>().get(FileName);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the file name "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    ConfigRef.FileName = FileName;
+    PrintParsedOption("output-file"sv, ConfigRef.FileName);
+  }
+  if (Doc.at_key("audio-Ctx").error() == simdjson::SUCCESS) {
+    auto Err = Doc["audio-Ctx"].get<uint64_t>().get(ConfigRef.AudioCtx);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the audio-Ctx "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("audio-Ctx"sv, ConfigRef.AudioCtx);
+  }
+  if (Doc.at_key("diarize").error() == simdjson::SUCCESS) {
+    auto Err = Doc["diarize"].get<bool>().get(ConfigRef.Diarize);
+    if (Err) {
+      spdlog::error("[WASI-NN] Whisper backend: Unable to retrieve the diarize "
+                    "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("diarize"sv, ConfigRef.Diarize);
+  }
+  if (Doc.at_key("offset-n").error() == simdjson::SUCCESS) {
+    auto Err = Doc["offset-n"].get<uint64_t>().get(ConfigRef.OffsetN);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] Whisper backend: Unable to retrieve the offset-n "
+          "option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    PrintParsedOption("offset-n"sv, ConfigRef.OffsetN);
+  }
+
   return ErrNo::Success;
 }
 
@@ -563,7 +1014,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     spdlog::error("[WASI-NN] Only WAV format supported now."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-  if (!loadWAV(Tensor.Tensor, CxtRef.InputPCM)) {
+  if (!loadWAV(Tensor.Tensor, CxtRef.InputPCM, CxtRef.InputPCMs,
+               CxtRef.WhisperConfig.Diarize)) {
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -577,6 +1029,7 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                         uint32_t Index, Span<uint8_t> OutBuffer,
                         uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (CxtRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: getOutput with Index {}"sv,
                  Index);
@@ -596,6 +1049,25 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
         "[WASI-NN][Debug] Whisper backend: getOutput with Index {}...Done"sv,
         Index);
   }
+
+  if (CxtRef.WhisperConfig.OutputSrt) {
+    const auto Fname = CxtRef.WhisperConfig.FileName + ".srt";
+    outputSrt(GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
+              CxtRef.InputPCMs);
+  }
+
+  if (CxtRef.WhisperConfig.OutputLrc) {
+    const auto Fname = CxtRef.WhisperConfig.FileName + ".lrc";
+    outputLrc(GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
+              CxtRef.InputPCMs);
+  }
+
+  if (CxtRef.WhisperConfig.OutputJson) {
+    const auto Fname = CxtRef.WhisperConfig.FileName + ".lrc";
+    outputJson(GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
+               CxtRef.InputPCMs, CxtRef.WhisperConfig.OutputJsonFull);
+  }
+
   return ErrNo::Success;
 }
 

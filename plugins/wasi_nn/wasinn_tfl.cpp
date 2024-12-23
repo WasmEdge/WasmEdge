@@ -24,8 +24,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::InvalidArgument;
   }
   // Add a new graph.
-  Env.NNGraph.emplace_back(WASINN::Backend::TensorflowLite);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::TensorflowLite);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
 
   // Copy graph builder data to TfLiteModData and create a new TfLiteModel.
   GraphRef.TfLiteModData.assign(Builders[0].begin(), Builders[0].end());
@@ -33,12 +33,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                                          GraphRef.TfLiteModData.size());
   if (unlikely(GraphRef.TFLiteMod == nullptr)) {
     spdlog::error("[WASI-NN] Cannot import TFLite model");
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return WASINN::ErrNo::InvalidArgument;
   }
 
   // Store the loaded graph.
-  GraphId = Env.NNGraph.size() - 1;
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
   return WASINN::ErrNo::Success;
 }
 
@@ -52,8 +53,8 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
   }
 
   // Create context.
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-  auto &CxtRef = Env.NNContext.back().get<Context>();
+  uint32_t CId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
+  auto &CxtRef = Env.NNContext[CId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   auto *TFLiteOps = TfLiteInterpreterOptionsCreate();
   TfLiteInterpreterOptionsSetNumThreads(TFLiteOps, 2);
@@ -61,12 +62,13 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
   TfLiteInterpreterOptionsDelete(TFLiteOps);
   if (unlikely(CxtRef.TFLiteInterp == nullptr)) {
     spdlog::error("[WASI-NN] Cannot create TFLite interpreter.");
-    Env.NNContext.pop_back();
+    Env.deleteContext(CId);
     return WASINN::ErrNo::Busy;
   }
   TfLiteInterpreterAllocateTensors(CxtRef.TFLiteInterp);
 
-  ContextId = Env.NNContext.size() - 1;
+  ContextId = CId;
+  Env.NNContext[ContextId].setReady();
   return WASINN::ErrNo::Success;
 }
 

@@ -771,11 +771,11 @@ ErrNo replaceBase64ImagePlaceholderInPrompt(
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
                    [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::GGML);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::GGML);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
 
   // Initialize the plugin parameters.
-  auto ContextDefault = llama_context_default_params();
+  llama_context_params ContextDefault = llama_context_default_params();
   const common_params ParamsDefault;
   GraphRef.EnableLog = false;
   GraphRef.EnableDebugLog = false;
@@ -813,10 +813,12 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // Ignore context or model updates when initializing the graph.
     auto Res = parseMetadata(GraphRef, Metadata);
     if (Res != ErrNo::Success) {
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       RET_ERROR(Res, "Failed to parse metadata."sv)
     }
   }
+
+  // Logging.
   LOG_DEBUG(GraphRef.EnableDebugLog, "load"sv)
   LOG_INFO(GraphRef.EnableLog, "LLAMA_COMMIT {}"sv, LLAMA_COMMIT)
   LOG_INFO(GraphRef.EnableLog, "LLAMA_BUILD_NUMBER {}"sv, LLAMA_BUILD_NUMBER)
@@ -838,7 +840,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     std::ofstream TempFile(GraphRef.ModelFilePath,
                            std::ios::out | std::ios::binary);
     if (!TempFile) {
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       RET_ERROR(ErrNo::InvalidArgument,
                 "Failed to create the temporary file. Currently, our "sv
                 "workaround involves creating a temporary model file named "sv
@@ -855,7 +857,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Check if the model exists.
   if (!std::filesystem::exists(
           std::filesystem::u8path(GraphRef.ModelFilePath))) {
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     RET_ERROR(ErrNo::ModelNotFound, "model file not found."sv)
   }
 
@@ -872,18 +874,19 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.LlamaModel = std::move(LlamaInit.model);
   GraphRef.LlamaContext = std::move(LlamaInit.context);
   if (GraphRef.LlamaModel == nullptr) {
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     RET_ERROR(ErrNo::InvalidArgument, "unable to init model."sv)
   }
   if (GraphRef.LlamaContext == nullptr) {
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     RET_ERROR(ErrNo::InvalidArgument, "unable to init context."sv)
   }
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "load: initialize ggml model with given parameters...Done"sv)
 
   // Store the loaded graph.
-  GraphId = static_cast<uint32_t>(Env.NNGraph.size() - 1);
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "load...Done"sv)
   return ErrNo::Success;
@@ -893,10 +896,10 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                           uint32_t &ContextId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx"sv)
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-  ContextId = static_cast<uint32_t>(Env.NNContext.size() - 1);
+  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
   LOG_INFO(GraphRef.EnableLog, "llama_system_info: {}"sv,
            llama_print_system_info())
+  Env.NNContext[ContextId].setReady();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
   return ErrNo::Success;
 }
@@ -926,7 +929,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // stage, then, we don't encourage to use this to avoid the model
     // reloading.
     {
-      if (IsModelParamsUpdated) {
+      if (IsModelParamsUpdated || GraphRef.LlamaModel == nullptr) {
+        // The llama model may be nullptr if set_input with updated model params
+        // last time. Therefore besides the model params updated, we should
+        // reload the llama model if the model is nullptr.
         LOG_INFO(GraphRef.EnableLog,
                  "Reloaded model due to parameters change."sv)
         llama_model_params ModelParams = llama_model_default_params();
@@ -935,7 +941,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         GraphRef.LlamaModel = llama_model_ptr(llama_load_model_from_file(
             GraphRef.ModelFilePath.c_str(), ModelParams));
         if (GraphRef.LlamaModel == nullptr) {
-          Env.NNGraph.pop_back();
+          Env.NNGraph[CxtRef.GraphId].setInvalid();
           RET_ERROR(ErrNo::InvalidArgument, "unable to init model."sv)
         }
       }
@@ -944,25 +950,30 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
     // Some changes of context parameters will require the context to be
     // reloaded.
-    if (IsContextParamsUpdated) {
+    if (IsContextParamsUpdated || GraphRef.LlamaContext == nullptr) {
       LOG_INFO(GraphRef.EnableLog,
-               "Reloaded context due to parameters change."sv)
+               "Reloaded llama context due to parameters change."sv)
       GraphRef.LlamaContext.reset();
       common_params Params;
       setupParams(GraphRef, Params);
-      GraphRef.LlamaContext =
-          llama_context_ptr(llama_context_ptr(llama_new_context_with_model(
-              GraphRef.LlamaModel.get(),
-              common_context_params_to_llama(Params))));
+      GraphRef.LlamaContext = llama_context_ptr(llama_new_context_with_model(
+          GraphRef.LlamaModel.get(), common_context_params_to_llama(Params)));
       if (GraphRef.LlamaContext == nullptr) {
-        Env.NNGraph.pop_back();
+        Env.NNGraph[CxtRef.GraphId].setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "unable to init context."sv)
       }
     }
 
+    Env.NNGraph[CxtRef.GraphId].setReady();
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: found Metadata, processing...Done"sv)
     return ErrNo::Success;
+  }
+
+  if (!Env.NNGraph[CxtRef.GraphId].isReady()) {
+    RET_ERROR(ErrNo::InvalidArgument,
+              "Graph is invalid. Please reload again by passing metadata "sv
+              "in set_input or unload graph."sv)
   }
 
   // Clear the llama context.
@@ -1453,16 +1464,32 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
 Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "unload"sv)
+  const bool IsDebugLog = GraphRef.EnableDebugLog;
+  LOG_DEBUG(IsDebugLog, "unload"sv)
 
   if (GraphRef.LlamaModel != nullptr) {
-    LOG_DEBUG(GraphRef.EnableDebugLog, "unload: free llama model"sv)
+    LOG_DEBUG(IsDebugLog, "unload: free llama model"sv)
     GraphRef.LlamaModel.reset();
-    LOG_DEBUG(GraphRef.EnableDebugLog, "unload: free llama model...Done"sv)
+    LOG_DEBUG(IsDebugLog, "unload: free llama model...Done"sv)
   }
-  Env.NNGraph.erase(Env.NNGraph.begin() + GraphId);
+  if (GraphRef.LlamaContext != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free llama context"sv)
+    GraphRef.LlamaContext.reset();
+    LOG_DEBUG(IsDebugLog, "unload: free llama context...Done"sv)
+  }
+  Env.deleteGraph(GraphId);
   Env.mdRemoveById(GraphId);
-  LOG_DEBUG(GraphRef.EnableDebugLog, "unload...Done"sv)
+  LOG_DEBUG(IsDebugLog, "unload...Done"sv)
+  return ErrNo::Success;
+}
+
+Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
+                              uint32_t ContextId) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finalize_execution_context"sv)
+  Env.deleteContext(ContextId);
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finalize_execution_context...Done"sv)
   return ErrNo::Success;
 }
 
@@ -1504,6 +1531,9 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 

@@ -323,6 +323,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // Swap to the tmp. env.
   NNGraphTmp.emplace_back(Backend::OpenVINO);
+  NNGraphTmp.back().setReady();
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   // Test: init_execution_context -- graph id exceeds.
@@ -373,6 +374,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
 
   // Swap to the tmp. env.
   NNContextTmp.emplace_back(0, NNGraphTmp[0]);
+  NNContextTmp.back().setReady();
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   // Test: set_input -- context id exceeds.
@@ -721,6 +723,7 @@ TEST(WasiNNTest, PyTorchBackend) {
 
   // Swap to the tmp. env.
   NNGraphTmp.emplace_back(Backend::PyTorch);
+  NNGraphTmp.back().setReady();
   // Test: init_execution_context -- graph id exceeds.
   // TODO: not null test for pytorch now
   //   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
@@ -782,6 +785,7 @@ TEST(WasiNNTest, PyTorchBackend) {
   }
 
   NNContextTmp.emplace_back(0, NNGraphTmp[0]);
+  NNContextTmp.back().setReady();
 
   // Test: set_input -- tensor type not FP32.
   BuilderPtr = SetInputEntryPtr;
@@ -1103,6 +1107,7 @@ TEST(WasiNNTest, TFLiteBackend) {
   // Swap to the tmp. env.
   // Test: init_execution_context -- graph id exceeds.
   NNGraphTmp.emplace_back(Backend::TensorflowLite);
+  NNGraphTmp.back().setReady();
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
   {
@@ -1162,6 +1167,7 @@ TEST(WasiNNTest, TFLiteBackend) {
   }
 
   NNContextTmp.emplace_back(0, NNGraphTmp[0]);
+  NNContextTmp.back().setReady();
 
   // Test: set_input -- set input successfully.
   BuilderPtr = SetInputEntryPtr;

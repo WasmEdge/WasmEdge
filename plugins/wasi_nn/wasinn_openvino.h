@@ -25,9 +25,9 @@ struct Graph {
 };
 
 struct Context {
-  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
+  Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}
   ~Context() noexcept {}
-  size_t GraphId;
+  uint32_t GraphId;
   ov::InferRequest OpenVINOInferRequest;
 };
 
@@ -39,7 +39,7 @@ struct Environ {
 #else
 struct Graph {};
 struct Context {
-  Context(size_t, Graph &) noexcept {}
+  Context(uint32_t, Graph &) noexcept {}
 };
 struct Environ {};
 #endif

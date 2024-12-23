@@ -27,8 +27,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>>, WASINN::Device,
                            uint32_t &GraphId) noexcept {
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::ChatTTS);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::ChatTTS);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
   // Initialize the plugin parameters.
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] ChatTTS backend: Load."sv);
@@ -43,7 +43,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (GraphRef.ChatTTSModule == nullptr) {
       spdlog::error(
           "[WASI-NN] ChatTTS backend: Can not find ChatTTS library."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return WASINN::ErrNo::RuntimeError;
     }
   }
@@ -53,20 +53,20 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (ChatFunction == nullptr || !PyCallable_Check(ChatFunction)) {
       spdlog::error(
           "[WASI-NN] ChatTTS backend: Can not find Chat class in ChatTTS."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return WASINN::ErrNo::RuntimeError;
     }
     GraphRef.Chat = PyObject_CallObject(ChatFunction, nullptr);
     Py_XDECREF(ChatFunction);
     if (GraphRef.Chat == nullptr) {
       spdlog::error("[WASI-NN] ChatTTS backend: Can not create chat."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return WASINN::ErrNo::RuntimeError;
     }
     PyObject *LoadMethod = PyObject_GetAttrString(GraphRef.Chat, "load");
     if (LoadMethod == nullptr || !PyCallable_Check(LoadMethod)) {
       spdlog::error("[WASI-NN] ChatTTS backend: Can not load chat."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return WASINN::ErrNo::RuntimeError;
     }
     PyObject *Value = PyObject_CallObject(LoadMethod, nullptr);
@@ -74,7 +74,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     Py_XDECREF(LoadMethod);
   }
   // Store the loaded graph.
-  GraphId = Env.NNGraph.size() - 1;
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
 
   return WASINN::ErrNo::Success;
 }
@@ -86,8 +87,8 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
         "[WASI-NN] ChatTTS backend: Model has been released, please reload it."sv);
     return WASINN::ErrNo::RuntimeError;
   }
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-  ContextId = Env.NNContext.size() - 1;
+  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
+  Env.NNContext[ContextId].setReady();
   return ErrNo::Success;
 }
 
@@ -120,7 +121,6 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto ParseError = Parser.parse(Metadata).get(Doc);
     if (ParseError) {
       spdlog::error("[WASI-NN] ChatTTS backend: Parse metadata error"sv);
-      Env.NNGraph.pop_back();
       return ErrNo::InvalidEncoding;
     }
     // Handle Refine Text Params
@@ -237,6 +237,7 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   }
   return WASINN::ErrNo::InvalidArgument;
 }
+
 Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
   if (!Py_IsInitialized()) {
@@ -305,11 +306,10 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
 }
 
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+                             uint32_t GraphId) noexcept {
+  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN] Neural speed backend: start unload."sv);
+    spdlog::info("[WASI-NN] ChatTTS backend: start unload."sv);
   }
   if (Py_IsInitialized()) {
     Py_XDECREF(GraphRef.ParamsRefineText);
@@ -320,6 +320,7 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     GraphRef.ChatTTSModule = nullptr;
     Py_Finalize();
   }
+  Env.deleteGraph(GraphId);
   return WASINN::ErrNo::Success;
 }
 

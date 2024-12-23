@@ -25,8 +25,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   auto Weight = Builders[1];
 
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::OpenVINO);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::OpenVINO);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
 
   // Store device information
   GraphRef.TargetDevice = Device;
@@ -42,11 +42,12 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
         ModelString, GraphRef.OpenVINOIWeightTensor);
   } catch (const std::exception &EX) {
     spdlog::error("[WASI-NN] Model Load Exception: {}", EX.what());
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return WASINN::ErrNo::RuntimeError;
   }
   // Store the loaded graph.
-  GraphId = Env.NNGraph.size() - 1;
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
   return WASINN::ErrNo::Success;
 }
 
@@ -60,8 +61,8 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
     return WASINN::ErrNo::MissingMemory;
   }
   // Create context.
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-  ContextId = Env.NNContext.size() - 1;
+  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
+  Env.NNContext[ContextId].setReady();
   return WASINN::ErrNo::Success;
 }
 

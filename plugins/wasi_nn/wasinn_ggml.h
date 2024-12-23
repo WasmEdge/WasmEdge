@@ -76,8 +76,8 @@ struct Graph {
 
 struct Context {
 public:
-  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
-  size_t GraphId;
+  Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}
+  uint32_t GraphId;
   std::vector<llama_token> LlamaInputs;
   uint64_t LlamaNInputs = 0;
   std::string LlamaOutputs;
@@ -93,7 +93,7 @@ public:
 #else
 struct Graph {};
 struct Context {
-  Context(size_t, Graph &) noexcept {}
+  Context(uint32_t, Graph &) noexcept {}
 };
 #endif
 
@@ -124,4 +124,6 @@ Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
                                  uint32_t ContextId) noexcept;
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
                              uint32_t GraphId) noexcept;
+Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
+                                      uint32_t ContextId) noexcept;
 } // namespace WasmEdge::Host::WASINN::GGML

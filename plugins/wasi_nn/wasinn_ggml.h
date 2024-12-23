@@ -21,20 +21,39 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::GGML {
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+
+enum class EmbdNormalizeType : int32_t {
+  // Follow:
+  // https://github.com/ggerganov/llama.cpp/blob/0bf2d10c5514ff61b99897a4a5054f846e384e1e/common/common.h#L312
+  None = -1,
+  MaxAbsolute = 0,
+  Taxicab = 1,
+  Euclidean = 2,
+  PNorm = 3,
+};
+
+enum class VisionModel : uint8_t {
+  Llava = 0,
+  Qwen2VL = 1,
+};
+
 struct Graph {
   llama_model *LlamaModel = nullptr;
   std::string ModelFilePath;
   llama_context *LlamaContext = nullptr;
+  struct clip_ctx *ClipContext = nullptr;
   // Plugin parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
   bool StreamStdout = false;
   bool Embedding = false;
+  EmbdNormalizeType EmbdNormalize = EmbdNormalizeType::Euclidean;
   bool ComputeSingleStarted = false;
   uint64_t NPredict;
   std::string ReversePrompt;
   std::string MMProjModelPath;
   std::string ImagePath;
+  VisionModel VisionModelType = VisionModel::Llava;
   // Model parameters:
   int64_t MainGPU = 0; // Use GPU 0 by default
   int64_t NGPULayers = 0;
@@ -66,6 +85,7 @@ public:
   // Preserve for computing single token
   common_sampler *LlamaSampler = nullptr;
   int32_t LlamaNPast = 0;
+  int32_t LlamaNPos = 0;
   // Preserve for llava
   struct llava_image_embed *LlavaImageEmbd = nullptr;
   size_t LlavaImagePosition = 0;

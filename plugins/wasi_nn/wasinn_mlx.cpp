@@ -52,8 +52,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders, WASINN::Device,
                            uint32_t &GraphId) noexcept {
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::MLX);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::MLX);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: Load."sv);
   }
@@ -62,7 +62,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   if (Builders.size() <= 1) {
     spdlog::error(
         "[WASI-NN] MLX backend: Lack model weight or required metadata (tokenizer, model_type)."sv);
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   const std::string Metadata = std::string(
@@ -72,7 +72,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   auto ParseError = Parser.parse(Metadata).get(Doc);
   if (ParseError) {
     spdlog::error("[WASI-NN] MLX backend: Parse metadata error"sv);
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ErrNo::InvalidEncoding;
   }
   if (Doc.at_key("model_type").error() == simdjson::SUCCESS) {
@@ -81,14 +81,14 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.ModelType = ModelType;
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Unable to retrieve the model_type option."sv);
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   if (Doc.at_key("enable_debug_log").error() == simdjson::SUCCESS) {
@@ -97,7 +97,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the enable_debug_log option."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.EnableDebugLog = EnableDebugLog;
@@ -108,14 +108,14 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     TokenizerPath = TokenizerPathView;
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   if (Doc.at_key("max_token").error() == simdjson::SUCCESS) {
@@ -124,7 +124,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (Err) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the max_token option."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.MaxToken = MaxToken;
@@ -141,7 +141,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (ErrQBits || ErrGroupSize || ErrIsQuantized) {
       spdlog::error(
           "[WASI-NN] MLX backend: Unable to retrieve the q_bits or group_size option."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.IsQuantized = IsQuantized;
@@ -154,13 +154,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     auto Bytes = loadBytesFromFile(TokenizerPath);
     if (Bytes.empty()) {
       spdlog::error("[WASI-NN] MLX backend: Load tokenizer failed."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     GraphRef.Tok = tokenizers::Tokenizer::FromBlobJSON(Bytes);
   } else {
     spdlog::error("[WASI-NN] MLX backend: Tokenizer path not found."sv);
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
 
@@ -176,7 +176,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.Prmopt = LLaMA2Prompt();
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
 
@@ -191,7 +191,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                                Weight.size());
     spdlog::info("[WASI-NN] MLX BinModel: {}"sv, BinModel.size());
     if (BinModel.size() == 0) {
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
     std::string ModelFilePath;
@@ -210,7 +210,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       if (!TempFile) {
         spdlog::error(
             "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);
-        Env.NNGraph.pop_back();
+        Env.deleteGraph(GId);
         return ErrNo::InvalidArgument;
       }
       TempFile.write(BinModel.data(), BinModel.size());
@@ -229,7 +229,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
     } else {
       spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
   }
@@ -238,14 +238,15 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }
 
-  GraphId = Env.NNGraph.size() - 1;
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
   return WASINN::ErrNo::Success;
 }
 
 Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                                   uint32_t &ContextId) noexcept {
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-  ContextId = Env.NNContext.size() - 1;
+  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
+  Env.NNContext[ContextId].setReady();
   return ErrNo::Success;
 }
 
@@ -276,6 +277,7 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   BytesWritten = StringTmp.length();
   return WASINN::ErrNo::Success;
 }
+
 Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();

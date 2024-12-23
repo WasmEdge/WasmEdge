@@ -34,7 +34,4 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
-  return reportBackendNotSupported();
-}
 } // namespace WasmEdge::Host::WASINN::NeuralSpeed

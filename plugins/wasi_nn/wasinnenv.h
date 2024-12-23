@@ -276,7 +276,7 @@ struct WasiNNEnvironment :
   }
 
   uint32_t newGraph(Backend BE) noexcept {
-    std::unique_lock Lock(MdMutex);
+    std::unique_lock Lock(GraphMutex);
     uint32_t ID = static_cast<uint32_t>(NNGraph.size());
     if (NNGraphRecycle.empty()) {
       NNGraph.emplace_back(BE);
@@ -289,7 +289,7 @@ struct WasiNNEnvironment :
   }
 
   uint32_t newContext(uint32_t GId, Graph &G) noexcept {
-    std::unique_lock Lock(MdMutex);
+    std::unique_lock Lock(GraphMutex);
     assuming(NNGraph.size() > GId);
     // TODO: Merge GId into graph class.
     uint32_t ID = static_cast<uint32_t>(NNContext.size());
@@ -306,7 +306,7 @@ struct WasiNNEnvironment :
 
   void deleteGraph(const uint32_t Id) noexcept {
     // TODO: Add the deallocation callback.
-    std::unique_lock Lock(MdMutex);
+    std::unique_lock Lock(GraphMutex);
     if (Id < NNGraph.size()) {
       auto &G = NNGraph[Id];
       G.setFinalized();
@@ -324,7 +324,7 @@ struct WasiNNEnvironment :
 
   void deleteContext(const uint32_t Id) noexcept {
     // TODO: Add the deallocation callback.
-    std::unique_lock Lock(MdMutex);
+    std::unique_lock Lock(GraphMutex);
     if (Id < NNContext.size() &&
         NNContextRecycle.find(Id) == NNContextRecycle.end()) {
       auto GId = NNContext[Id].getGraphId();
@@ -356,6 +356,7 @@ struct WasiNNEnvironment :
   std::unordered_map<std::string, uint32_t> MdMap;
 
   // Graph and context
+  mutable std::shared_mutex GraphMutex;
   std::unordered_set<uint32_t> NNGraphRecycle;
   std::vector<Graph> NNGraph;
   std::unordered_set<uint32_t> NNContextRecycle;

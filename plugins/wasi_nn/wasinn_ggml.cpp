@@ -396,8 +396,72 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
                   NEmbd, fmt::join(Embeddings, Embeddings + NEmbd, ","sv));
 }
 
+static bool evaluateQwen2vlImageEmbed(
+    llama_context *CtxLlama, const struct llava_image_embed *ImageEmbed,
+    int NBatch, int *NPast, int *StPosId, struct clip_image_size *ImageSize) {
+  int NEmbd = llama_n_embd(llama_get_model(CtxLlama));
+  const int PatchSize = 14 * 2;
+  const int Ph =
+      ImageSize->height / PatchSize + (ImageSize->height % PatchSize > 0);
+  const int Pw =
+      ImageSize->width / PatchSize + (ImageSize->width % PatchSize > 0);
+  auto ImgTokens = ImageEmbed->n_image_pos;
+  std::vector<llama_pos> MRopePos;
+  MRopePos.resize(ImgTokens * 4);
+
+  for (int Y = 0; Y < Ph; Y++) {
+    for (int X = 0; X < Pw; X++) {
+      int I = Y * Pw + X;
+      MRopePos[I] = *StPosId;
+      MRopePos[I + ImgTokens] = *StPosId + Y;
+      MRopePos[I + ImgTokens * 2] = *StPosId + X;
+      MRopePos[I + ImgTokens * 3] = 0;
+    }
+  }
+  *StPosId += std::max(Pw, Ph);
+
+  int Processed = 0;
+  std::vector<llama_pos> BatchMRopePos;
+  BatchMRopePos.resize(ImgTokens * 4);
+
+  for (int I = 0; I < ImgTokens; I += NBatch) {
+    int NEval = ImgTokens - I;
+    if (NEval > NBatch) {
+      NEval = NBatch;
+    }
+
+    std::fill(BatchMRopePos.begin(), BatchMRopePos.end(), 0);
+    std::copy_n(&MRopePos[Processed], NEval, BatchMRopePos.data());
+    std::copy_n(&MRopePos[ImgTokens * 1 + Processed], NEval,
+                &BatchMRopePos[NEval * 1]);
+    std::copy_n(&MRopePos[ImgTokens * 2 + Processed], NEval,
+                &BatchMRopePos[NEval * 2]);
+    std::copy_n(&MRopePos[ImgTokens * 3 + Processed], NEval,
+                &BatchMRopePos[NEval * 3]);
+
+    llama_batch Batch = {
+        static_cast<int32_t>(NEval),     // n_tokens
+        nullptr,                         // token
+        (ImageEmbed->embed + I * NEmbd), // embed
+        BatchMRopePos.data(),            // pos
+        nullptr,                         // n_seq_id
+        nullptr,                         // seq_id
+        nullptr,                         // logits
+    };
+    if (llama_decode(CtxLlama, Batch)) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: evaluateQwen2vlImageEmbed failed to eval"sv);
+      return false;
+    }
+    *NPast += NEval;
+    Processed += NEval;
+  }
+  return true;
+}
+
 ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
-                     std::vector<llama_token> Tokens, int &NPast) noexcept {
+                     std::vector<llama_token> Tokens, int &NPast,
+                     int &NPos) noexcept {
   uint32_t NCtx = llama_n_ctx(LlamaContext);
 
   // End the inference if the context is full.
@@ -410,17 +474,28 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
     return ErrNo::ContextFull;
   }
 
+  std::vector<llama_pos> LlamaPos;
   for (int I = 0; I < static_cast<int>(Tokens.size());
        I += static_cast<int>(GraphRef.BatchSize)) {
     int NEval = static_cast<int>(Tokens.size()) - I;
     if (NEval > static_cast<int>(GraphRef.BatchSize)) {
       NEval = static_cast<int>(GraphRef.BatchSize);
     }
-    // llama_batch_get_one(*token, n_tokens)
-    // - Return batch for single sequence of tokens.
-    // - The sequence ID will be fixed to 0.
-    auto Status =
-        llama_decode(LlamaContext, llama_batch_get_one(&Tokens[I], NEval));
+    // Get a batch for single sequence of tokens.
+    auto Batch = llama_batch_get_one(&Tokens[I], NEval);
+
+    // Add pos information for Qwen2vl.
+    if (GraphRef.VisionModelType == VisionModel::Qwen2VL) {
+      LlamaPos.resize(Batch.n_tokens * 4);
+      std::fill(LlamaPos.begin(), LlamaPos.end(), 0);
+      for (int J = 0; J < Batch.n_tokens * 3; J++) {
+        LlamaPos[J] = NPos + (J % Batch.n_tokens);
+      }
+      Batch.pos = LlamaPos.data();
+    }
+
+    // Decode the batch.
+    auto Status = llama_decode(LlamaContext, Batch);
     if (Status == 1) {
       spdlog::error(
           "[WASI-NN] GGML backend: failed to llama_decode: try reducing the size of the batch or increasing the size of context"sv);
@@ -431,6 +506,7 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
       return ErrNo::RuntimeError;
     }
     NPast += NEval;
+    NPos += NEval;
   }
 
   return ErrNo::Success;
@@ -447,7 +523,8 @@ void batchAddSeq(llama_batch &Batch, const std::vector<llama_token> &Tokens,
 }
 
 ErrNo batchDecode(llama_context *LlamaContext, llama_batch &Batch,
-                  float *Output, int NEmbd) noexcept {
+                  float *Output, int NEmbd,
+                  EmbdNormalizeType EmbdNormalize) noexcept {
   // Clear previous kv_cache values (irrelevant for embeddings)
   llama_kv_cache_clear(LlamaContext);
 
@@ -481,7 +558,8 @@ ErrNo batchDecode(llama_context *LlamaContext, llama_batch &Batch,
     }
 
     // Normalize the embeddings.
-    common_embd_normalize(Embd, Output, NEmbd);
+    common_embd_normalize(Embd, Output, NEmbd,
+                          static_cast<int32_t>(EmbdNormalize));
   }
 
   return ErrNo::Success;
@@ -548,8 +626,8 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
       /* n_seq_max */ 1);
   std::vector<float> Embeddings(NEmbd);
   batchAddSeq(Batch, CxtRef.LlamaInputs, SequenceId);
-  ReturnCode =
-      batchDecode(GraphRef.LlamaContext, Batch, Embeddings.data(), NEmbd);
+  ReturnCode = batchDecode(GraphRef.LlamaContext, Batch, Embeddings.data(),
+                           NEmbd, GraphRef.EmbdNormalize);
   if (ReturnCode != ErrNo::Success) {
     spdlog::error("[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
     return ReturnCode;
@@ -699,6 +777,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Initialize the plugin parameters.
   auto ContextDefault = llama_context_default_params();
+  const common_params ParamsDefault;
   GraphRef.EnableLog = false;
   GraphRef.EnableDebugLog = false;
   GraphRef.StreamStdout = false;
@@ -706,12 +785,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.ReversePrompt = ""sv;
   GraphRef.MMProjModelPath = ""sv;
   GraphRef.ImagePath = ""sv;
+  GraphRef.EmbdNormalize =
+      static_cast<EmbdNormalizeType>(ParamsDefault.embd_normalize);
   // Initialize the model parameters.
   llama_model_params ModelParams = llama_model_default_params();
   GraphRef.NGPULayers = ModelParams.n_gpu_layers;
   // Initialize the context parameters.
   GraphRef.CtxSize = ContextDefault.n_ctx;
   GraphRef.BatchSize = ContextDefault.n_batch;
+  GraphRef.UBatchSize = ContextDefault.n_ubatch;
   GraphRef.Threads = ContextDefault.n_threads;
   // Initialize the sampling parameters.
   const common_params_sampling SamplerDefault;
@@ -976,32 +1058,50 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
     }
 
-    // Load image for llava.
-    int LlavaVerbosity = 0;
-    if (GraphRef.EnableLog) {
-      LlavaVerbosity = 1;
+    // Load the clip model if not loaded.
+    if (GraphRef.ClipContext == nullptr) {
+      if (GraphRef.EnableLog) {
+        spdlog::info(
+            "[WASI-NN] GGML backend: Load the clip model. "
+            "Because llama.cpp disabled the GPU support for CLIP, "
+            "the step of loading images in CLIP can only use the CPU, "
+            "which may result in reduced efficiency. "
+            "(You can refer to PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv);
+      }
+      GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
+                                             GraphRef.EnableLog ? 1 : 0);
+      if (GraphRef.ClipContext == nullptr) {
+        spdlog::error(
+            "[WASI-NN] GGML backend: Error: unable to load the clip model."sv);
+        return ErrNo::InvalidArgument;
+      }
+      if (clip_is_qwen2vl(GraphRef.ClipContext)) {
+        GraphRef.VisionModelType = VisionModel::Qwen2VL;
+        if (GraphRef.EnableLog) {
+          spdlog::info("[WASI-NN] GGML backend: Qwen2vl model detected."sv);
+        }
+      }
     }
-    auto ClipContext =
-        clip_model_load(GraphRef.MMProjModelPath.c_str(), LlavaVerbosity);
+
+    // Get image embed.
     if (ContainsBase64Image) {
       // Load the base64 image from the prompt.
       CxtRef.LlavaImageEmbd =
-          loadBase64ImageFromPrompt(GraphRef, ClipContext, Prompt);
+          loadBase64ImageFromPrompt(GraphRef, GraphRef.ClipContext, Prompt);
       // Replace the base64 image in the prompt with a placeholder.
       auto Res = replaceBase64ImagePlaceholderInPrompt(Prompt);
       if (Res != ErrNo::Success) {
         spdlog::error(
             "[WASI-NN] GGML backend: Error: unable to replace the base64 image in the prompt."sv);
-        clip_free(ClipContext);
+        clip_free(GraphRef.ClipContext);
         return Res;
       }
     } else {
       // Load the image from the file.
       CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
-          ClipContext, static_cast<int>(GraphRef.Threads),
+          GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
           GraphRef.ImagePath.c_str());
     }
-    clip_free(ClipContext);
     if (CxtRef.LlavaImageEmbd == nullptr) {
       spdlog::error(
           "[WASI-NN] GGML backend: Error: unable to load the image."sv);
@@ -1125,6 +1225,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Prepare variables;
   int32_t NPast = 0;
+  int32_t NPos = 0;
   uint64_t NRemain = GraphRef.NPredict;
   // Get the context size.
   const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext);
@@ -1147,7 +1248,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   if (CxtRef.LlavaImageEmbd == nullptr) {
     // Text only prompt.
     ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
-                                std::move(CxtRef.LlamaInputs), NPast);
+                                std::move(CxtRef.LlamaInputs), NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
           "[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
@@ -1162,22 +1263,35 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
                                                      CxtRef.LlavaImagePosition,
                                                  CxtRef.LlamaInputs.end());
     ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
-                                std::move(EmbdInputBeforeImage), NPast);
+                                std::move(EmbdInputBeforeImage), NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
           "[WASI-NN] GGML backend: failed to evaluate input tokens before image."sv);
       return ReturnCode;
     }
-    bool EvalImageStatus =
-        llava_eval_image_embed(GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
-                               static_cast<int>(GraphRef.BatchSize), &NPast);
+
+    bool EvalImageStatus = false;
+    switch (GraphRef.VisionModelType) {
+    case VisionModel::Llava:
+      EvalImageStatus =
+          llava_eval_image_embed(GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
+                                 static_cast<int>(GraphRef.BatchSize), &NPast);
+      break;
+    case VisionModel::Qwen2VL:
+      auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
+      EvalImageStatus = evaluateQwen2vlImageEmbed(
+          GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
+          static_cast<int>(GraphRef.BatchSize), &NPast, &NPos, ImageSize);
+      break;
+    }
+
     if (!EvalImageStatus) {
       spdlog::error(
           "[WASI-NN] GGML backend: failed to evaluate embed image tokens."sv);
       return ErrNo::RuntimeError;
     }
     ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
-                                std::move(EmbdInputAfterImage), NPast);
+                                std::move(EmbdInputAfterImage), NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
           "[WASI-NN] GGML backend: failed to evaluate input tokens after image."sv);
@@ -1220,7 +1334,8 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       break;
     }
     // Evaluate the output token.
-    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext, {Id}, NPast);
+    ReturnCode =
+        evaluateTokens(GraphRef, GraphRef.LlamaContext, {Id}, NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
       break;
     }
@@ -1338,6 +1453,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     CxtRef.LlamaSampler =
         common_sampler_init(GraphRef.LlamaModel, Params.sampling);
     CxtRef.LlamaNPast = 0;
+    CxtRef.LlamaNPos = 0;
 
     // Get the context size.
     const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext);
@@ -1359,9 +1475,9 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     // Evaluate input tokens.
     if (CxtRef.LlavaImageEmbd == nullptr) {
       // Text only prompt.
-      ReturnCode =
-          evaluateTokens(GraphRef, GraphRef.LlamaContext,
-                         std::move(CxtRef.LlamaInputs), CxtRef.LlamaNPast);
+      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+                                  std::move(CxtRef.LlamaInputs),
+                                  CxtRef.LlamaNPast, CxtRef.LlamaNPos);
       if (ReturnCode != ErrNo::Success) {
         spdlog::error(
             "[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
@@ -1375,9 +1491,9 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
       std::vector<llama_token> EmbdInputAfterImage(
           CxtRef.LlamaInputs.begin() + CxtRef.LlavaImagePosition,
           CxtRef.LlamaInputs.end());
-      ReturnCode =
-          evaluateTokens(GraphRef, GraphRef.LlamaContext,
-                         std::move(EmbdInputBeforeImage), CxtRef.LlamaNPast);
+      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+                                  std::move(EmbdInputBeforeImage),
+                                  CxtRef.LlamaNPast, CxtRef.LlamaNPos);
       if (ReturnCode != ErrNo::Success) {
         spdlog::error(
             "[WASI-NN] GGML backend: failed to evaluate input tokens before image."sv);
@@ -1391,9 +1507,9 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
             "[WASI-NN] GGML backend: failed to evaluate embed image tokens."sv);
         return ErrNo::RuntimeError;
       }
-      ReturnCode =
-          evaluateTokens(GraphRef, GraphRef.LlamaContext,
-                         std::move(EmbdInputAfterImage), CxtRef.LlamaNPast);
+      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+                                  std::move(EmbdInputAfterImage),
+                                  CxtRef.LlamaNPast, CxtRef.LlamaNPos);
       if (ReturnCode != ErrNo::Success) {
         spdlog::error(
             "[WASI-NN] GGML backend: failed to evaluate input tokens after image."sv);
@@ -1427,7 +1543,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   // Evaluate the output token if not EOS.
   if (ReturnCode != ErrNo::EndOfSequence) {
     ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext, {Id},
-                                CxtRef.LlamaNPast);
+                                CxtRef.LlamaNPast, CxtRef.LlamaNPos);
   }
   if (GraphRef.EnableDebugLog) {
     spdlog::info(
@@ -1476,6 +1592,10 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   common_sampler_reset(CxtRef.LlamaSampler);
   common_sampler_free(CxtRef.LlamaSampler);
   CxtRef.LlamaSampler = nullptr;
+  if (GraphRef.ClipContext != nullptr) {
+    clip_free(GraphRef.ClipContext);
+    GraphRef.ClipContext = nullptr;
+  }
   if (CxtRef.LlavaImageEmbd != nullptr) {
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;

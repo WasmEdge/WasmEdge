@@ -8,6 +8,11 @@
 #include "plugin/plugin.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
+#include <torch/csrc/inductor/aoti_runner/model_container_runner.h>
+#include <torch/csrc/inductor/aoti_runner/model_container_runner_cpu.h>
+#ifdef TORCHAOTI_USE_CUDA
+#include <torch/csrc/inductor/aoti_runner/model_container_runner_cuda.h>
+#endif
 #include <torch/script.h>
 #include <vector>
 #endif
@@ -19,16 +24,65 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::PyTorch {
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH
-struct Graph {
-  torch::jit::Module TorchModel;
+
+class PyBaseModule {
+public:
+  virtual ~PyBaseModule() = default;
+  virtual Expect<ErrNo> setDevice(Device Device) = 0;
+  virtual Expect<ErrNo> loadFromPath(const std::string &Path,
+                                     Device Device) = 0;
+  virtual Expect<ErrNo> loadFromBinary(std::istream &In, Device Device) = 0;
+  virtual Expect<ErrNo> run(std::vector<at::Tensor> In,
+                            std::vector<at::Tensor> &Out) = 0;
+
+  torch::DeviceType getDevice() const { return TorchDevice; }
+
+protected:
   torch::DeviceType TorchDevice = at::kCPU;
+};
+
+class TorchScript : public PyBaseModule {
+  Expect<ErrNo> setDevice(Device Device) override;
+
+public:
+  Expect<ErrNo> loadFromPath(const std::string &Path, Device Device) override;
+  Expect<ErrNo> loadFromBinary(std::istream &In, Device Device) override;
+  Expect<ErrNo> run(std::vector<at::Tensor> In,
+                    std::vector<at::Tensor> &Out) override;
+
+  torch::jit::Module TorchModel;
+};
+
+class AOTInductor : public PyBaseModule {
+  Expect<ErrNo> setDevice(Device Device) override;
+
+public:
+  AOTInductor();
+  Expect<ErrNo> loadFromPath(const std::string &Path, Device Device) override;
+  Expect<ErrNo> loadFromBinary(std::istream &In, Device Device) override;
+  Expect<ErrNo> run(std::vector<at::Tensor> In,
+                    std::vector<at::Tensor> &Out) override;
+
+  torch::inductor::AOTIModelContainerRunner *TorchModel;
+
+  ~AOTInductor() {
+    if (TorchModel) {
+      delete TorchModel;
+    }
+  }
+};
+
+enum class PyModelBackend { TorchScript, AOTInductor, UNKNOWN };
+
+struct Graph {
+  PyBaseModule *Model = nullptr;
 };
 
 struct Context {
 public:
   Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
   size_t GraphId;
-  std::vector<torch::jit::IValue> TorchInputs;
+  std::vector<at::Tensor> TorchInputs;
   std::vector<at::Tensor> TorchOutputs;
 };
 #else
@@ -55,4 +109,6 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
+Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
+                             uint32_t GraphId) noexcept;
 } // namespace WasmEdge::Host::WASINN::PyTorch

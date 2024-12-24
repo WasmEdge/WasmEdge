@@ -203,6 +203,25 @@ public:
     atomicNotifyAll();
   }
 
+  /// \name Helper Functions for canonical ABI
+  /// @{
+  std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
+  lifting(Runtime::Instance::ComponentInstance &Comp,
+          const WasmEdge::AST::Component::FuncType &FuncType,
+          Runtime::Instance::FunctionInstance *F,
+          Runtime::Instance::MemoryInstance *Memory,
+          Runtime::Instance::FunctionInstance *Realloc);
+
+  std::unique_ptr<Runtime::Instance::FunctionInstance>
+  lowering(Runtime::Instance::Component::FunctionInstance *F,
+           Runtime::Instance::MemoryInstance *Memory,
+           Runtime::Instance::FunctionInstance *Realloc);
+
+  std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
+  resourceDrop(uint32_t TypIdx, AST::Component::ResourceType &RTyp,
+               Runtime::Instance::ComponentInstance &CompInst);
+  /// @}
+
 private:
   /// Run Wasm bytecode expression for initialization.
   Expect<void> runExpression(Runtime::StackManager &StackMgr,
@@ -310,21 +329,6 @@ private:
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::ExportSection &);
-  /// @}
-
-  /// \name Helper Functions for canonical ABI
-  /// @{
-  std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
-  lifting(Runtime::Instance::ComponentInstance &Comp,
-          const WasmEdge::AST::Component::FuncType &FuncType,
-          Runtime::Instance::FunctionInstance *F,
-          Runtime::Instance::MemoryInstance *Memory,
-          Runtime::Instance::FunctionInstance *Realloc);
-
-  std::unique_ptr<Runtime::Instance::FunctionInstance>
-  lowering(Runtime::Instance::Component::FunctionInstance *F,
-           Runtime::Instance::MemoryInstance *Memory,
-           Runtime::Instance::FunctionInstance *Realloc);
   /// @}
 
   /// \name Helper Functions for block controls.

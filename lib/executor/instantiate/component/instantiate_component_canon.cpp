@@ -5,6 +5,7 @@
 #include "executor/executor.h"
 
 #include "runtime/instance/module.h"
+#include "spdlog/spdlog.h"
 
 #include <sstream>
 #include <string_view>
@@ -18,8 +19,8 @@ using namespace AST::Component;
 using namespace Runtime;
 
 namespace {
-void pushType(Runtime::Instance::ComponentInstance &Comp,
-              std::vector<ValType> &Types, const ValueType &T) {
+Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
+                      std::vector<ValType> &Types, const ValueType &T) {
   // notice that we might need to convert one type to multiple types, and hence,
   // we must let this function control the vector need to be modified.
   if (std::holds_alternative<PrimValType>(T)) {
@@ -27,8 +28,10 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
     case PrimValType::Bool:
     case PrimValType::Char:
     case PrimValType::S8:
-    case PrimValType::U8:
       Types.push_back(ValType(TypeCode::I8));
+      break;
+    case PrimValType::U8:
+      Types.push_back(ValType(TypeCode::U8));
       break;
     case PrimValType::S16:
     case PrimValType::U16:
@@ -54,30 +57,74 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
     }
   } else {
     auto Idx = std::get<TypeIndex>(T);
-    const auto &Ty = Comp.getType(Idx);
-    spdlog::warn("Type {} is not handled yet"sv, Ty);
+    auto RTy = Comp.getType(Idx);
+    if (!RTy) {
+      return Unexpect(RTy);
+    }
+    spdlog::warn("Type {} is not handled yet"sv, *RTy);
   }
+
+  return {};
 }
 
-AST::FunctionType convert(Runtime::Instance::ComponentInstance &Comp,
-                          const FuncType &DT) {
+Expect<AST::FunctionType> convert(Runtime::Instance::ComponentInstance &Comp,
+                                  const FuncType &DT) {
+  Expect<void> Res;
+
   std::vector<ValType> ParamTypes{};
   for (const auto &P : DT.getParamList()) {
-    pushType(Comp, ParamTypes, P.getValType());
+    Res = pushType(Comp, ParamTypes, P.getValType());
+    if (!Res) {
+      return Unexpect(Res);
+    }
   }
 
   std::vector<ValType> ResultTypes{};
   if (std::holds_alternative<ValueType>(DT.getResultList())) {
-    pushType(Comp, ResultTypes, std::get<ValueType>(DT.getResultList()));
+    Res = pushType(Comp, ResultTypes, std::get<ValueType>(DT.getResultList()));
+    if (!Res) {
+      return Unexpect(Res);
+    }
   } else {
     const auto &RL = DT.getResultList();
     for (const auto &R : std::get<std::vector<LabelValType>>(RL)) {
-      pushType(Comp, ResultTypes, R.getValType());
+      Res = pushType(Comp, ResultTypes, R.getValType());
+      if (!Res) {
+        return Unexpect(Res);
+      }
     }
   }
 
   return AST::FunctionType(ParamTypes, ResultTypes);
 }
+
+void flattenType(std::vector<WasmEdge::ValType> &Output, const ValType &Ty) {
+  switch (Ty.getCode()) {
+  case TypeCode::String:
+    Output.push_back(TypeCode::I32);
+    Output.push_back(TypeCode::I32);
+    break;
+  case TypeCode::List: {
+    // TODO:
+    // if maybe_length is not None:
+    //     return flatten_type(elem_type) * maybe_length
+    Output.push_back(TypeCode::I32);
+    Output.push_back(TypeCode::I32);
+    break;
+  }
+  case TypeCode::Record: {
+    auto R = static_cast<const InterfaceType &>(Ty);
+    for (auto FT : R.getArgs()) {
+      flattenType(Output, FT);
+    }
+    break;
+  }
+  default:
+    Output.push_back(Ty);
+    break;
+  }
+}
+
 } // namespace
 
 class LiftTrans : public WasmEdge::Runtime::Component::HostFunctionBase {
@@ -88,7 +135,11 @@ public:
             Runtime::Instance::ComponentInstance &Comp)
       : HostFunctionBase(), Exec(Exec), LowerFunc(Func), Memory(M), Realloc(R) {
     // The convert is simply let component type to internal type.
-    FuncType = convert(Comp, DefinedType);
+    auto RFuncType = convert(Comp, DefinedType);
+    if (!RFuncType) {
+      spdlog::error("failed to lift function");
+    }
+    FuncType = *RFuncType;
     spdlog::info("lifted: {}"sv, FuncType);
   }
 
@@ -170,9 +221,8 @@ Executor::lifting(Runtime::Instance::ComponentInstance &Comp,
                   const FuncType &FuncType, Instance::FunctionInstance *Func,
                   Instance::MemoryInstance *Memory,
                   Instance::FunctionInstance *Realloc) {
-  auto R = std::make_unique<Instance::Component::FunctionInstance>(
+  return std::make_unique<Instance::Component::FunctionInstance>(
       std::make_unique<LiftTrans>(this, FuncType, Func, Memory, Realloc, Comp));
-  return R;
 }
 
 class LowerTrans : public HostFunctionBase {
@@ -183,33 +233,7 @@ public:
       : HostFunctionBase(0), Exec(Exec), HigherFunc(Func), Memory(Memory),
         Realloc(Realloc) {
     auto &HigherType = HigherFunc->getFuncType();
-
-    auto &FuncType = DefType.getCompositeType().getFuncType();
-    for (auto &ParamTy : HigherType.getParamTypes()) {
-      switch (ParamTy.getCode()) {
-      case TypeCode::String:
-        FuncType.getParamTypes().push_back(TypeCode::I32);
-        FuncType.getParamTypes().push_back(TypeCode::I32);
-        break;
-      default:
-        FuncType.getParamTypes().push_back(ParamTy);
-        break;
-      }
-    }
-
-    for (auto &ReturnTy : HigherType.getReturnTypes()) {
-      switch (ReturnTy.getCode()) {
-      case TypeCode::String:
-        FuncType.getReturnTypes().push_back(TypeCode::I32);
-        FuncType.getReturnTypes().push_back(TypeCode::I32);
-        break;
-      default:
-        FuncType.getReturnTypes().push_back(ReturnTy);
-        break;
-      }
-    }
-
-    spdlog::info("lower: {}"sv, FuncType);
+    flattenFunctype(HigherType);
   }
 
   Expect<void> run(const Runtime::CallingFrame &, Span<const ValVariant> Args,
@@ -276,6 +300,18 @@ public:
   }
 
 private:
+  void flattenFunctype(const AST::FunctionType &HigherType) {
+    auto &FuncType = DefType.getCompositeType().getFuncType();
+    for (auto &ParamTy : HigherType.getParamTypes()) {
+      flattenType(FuncType.getParamTypes(), ParamTy);
+    }
+    for (auto &ReturnTy : HigherType.getReturnTypes()) {
+      flattenType(FuncType.getReturnTypes(), ReturnTy);
+    }
+
+    spdlog::info("lower: {}"sv, FuncType);
+  }
+
   Executor *Exec;
   /* HigherFunc: a component function we are wrapping
    */
@@ -290,89 +326,264 @@ std::unique_ptr<Instance::FunctionInstance>
 Executor::lowering(Instance::Component::FunctionInstance *Func,
                    Instance::MemoryInstance *Memory,
                    Instance::FunctionInstance *Realloc) {
-  auto R = std::make_unique<Instance::FunctionInstance>(
+  return std::make_unique<Instance::FunctionInstance>(
       std::make_unique<LowerTrans>(this, Func, Memory, Realloc));
-  return R;
 }
+
+class ResourceDropHostFunction
+    : public WasmEdge::Runtime::Component::HostFunctionBase {
+public:
+  ResourceDropHostFunction(Executor *E, uint32_t Idx,
+                           AST::Component::ResourceType &RT,
+                           Runtime::Instance::ComponentInstance &C)
+      : Exec{E}, TypIdx{Idx}, RTyp{RT}, Comp{C} {
+    std::vector<ValType> ParamTypes{ValType(TypeCode::I32)};
+    // NOTE: resource destructor only use type `i32`
+    // 1. at sync mode: [i32] -> []
+    // 2. at async mode: [i32] -> [i32]
+    // for now, we ignore async case, to simplify our program here, but at
+    // future shall make a full concept supportings.
+    std::vector<ValType> ResultTypes{};
+    FuncType = AST::FunctionType(ParamTypes, ResultTypes);
+  }
+
+  Expect<void> run(Span<const ValInterface> Args,
+                   Span<ValInterface> /* Rets */) {
+    if (Args.size() != 1 || !std::holds_alternative<ValVariant>(Args[0])) {
+      spdlog::info("bad argument");
+      return Unexpect(ErrCode::Value::ResourceDropArgument);
+    }
+
+    auto ResourceIdx = std::get<ValVariant>(Args[0]).get<uint32_t>();
+
+    std::shared_ptr<Runtime::Instance::ResourceHandle> Handle =
+        Comp.removeResource(TypIdx, ResourceIdx);
+    if (Handle->isOwn()) {
+      // TODO: assert borrowScope is None
+      // TODO: trap lendCount != 0
+
+      // TODO: Comp is RTyp.impl
+      if (true) {
+        if (*RTyp.getDestructor()) {
+          auto Idx = *RTyp.getDestructor();
+          auto F = Comp.getFunctionInstance(Idx);
+          auto Arg = ValInterface(ValVariant(Handle->getRep()));
+          Exec->invoke(F, {Arg}, {ValType(TypeCode::I32)});
+        }
+      } else {
+        if (*RTyp.getDestructor()) {
+          // TODO
+          // caller_opts = CanonicalOptions(sync = sync)
+          // callee_opts = CanonicalOptions(sync = rt.dtor_sync, callback =
+          // rt.dtor_callback)
+          // ft = FuncType([U32Type()],[])
+          // callee = partial(canon_lift, callee_opts, rt.impl, ft, rt.dtor)
+          // flat_results = await canon_lower(caller_opts, ft, callee, task,
+          // [h.rep])
+        } else {
+          // task.trap_if_on_the_stack(rt.impl)
+        }
+      }
+    } else {
+      // TODO: Handle.borrowScope.todo -= 1
+    }
+
+    return {};
+  }
+
+private:
+  Executor *Exec;
+  uint32_t TypIdx;
+  AST::Component::ResourceType &RTyp;
+  Runtime::Instance::ComponentInstance &Comp;
+};
+
+std::unique_ptr<Instance::Component::FunctionInstance>
+Executor::resourceDrop(uint32_t TypIdx, AST::Component::ResourceType &RTyp,
+                       Runtime::Instance::ComponentInstance &CompInst) {
+  return std::make_unique<Instance::Component::FunctionInstance>(
+      std::make_unique<ResourceDropHostFunction>(this, TypIdx, RTyp, CompInst));
+}
+
+class CanonOptionVisitor {
+private:
+  Executor &ThisExecutor;
+  Runtime::Instance::ComponentInstance &CompInst;
+
+public:
+  CanonOptionVisitor(Executor &E, Runtime::Instance::ComponentInstance &CInst)
+      : ThisExecutor{E}, CompInst{CInst} {}
+
+  // lift wrap a core wasm function to a component function, with proper
+  // modification about canonical ABI.
+  Expect<void> operator()(const Lift &L) {
+    const auto &Opts = L.getOptions();
+
+    Runtime::Instance::MemoryInstance *Mem = nullptr;
+    Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
+    for (auto &Opt : Opts) {
+      if (std::holds_alternative<StringEncoding>(Opt)) {
+        switch (std::get<StringEncoding>(Opt)) {
+        case StringEncoding::UTF8:
+          spdlog::warn("ignore utf8");
+          break;
+        case StringEncoding::UTF16:
+          spdlog::warn("ignore utf16");
+          break;
+        case StringEncoding::Latin1:
+          spdlog::warn("ignore latin1");
+          break;
+        default:
+          assumingUnreachable();
+        }
+      } else if (std::holds_alternative<Memory>(Opt)) {
+        auto MemIdx = std::get<Memory>(Opt).getMemIndex();
+        auto RMem = CompInst.getCoreMemoryInstance(MemIdx);
+        if (!RMem) {
+          return Unexpect(RMem);
+        }
+        Mem = *RMem;
+      } else if (std::holds_alternative<Realloc>(Opt)) {
+        auto Res = CompInst.getCoreFunctionInstance(
+            std::get<Realloc>(Opt).getFuncIndex());
+        if (!Res) {
+          return Unexpect(Res);
+        }
+        ReallocFunc = *Res;
+      } else if (std::holds_alternative<PostReturn>(Opt)) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+        return Unexpect(ErrCode::Value::InvalidCanonOption);
+      }
+    }
+
+    auto AstFuncType = CompInst.getType(L.getFuncTypeIndex());
+    if (!AstFuncType) {
+      spdlog::error("cannot lift type"sv);
+      return Unexpect(AstFuncType);
+    }
+    if (unlikely(!std::holds_alternative<FuncType>(*AstFuncType))) {
+      // It doesn't make sense if one tries to lift an instance not a
+      // function, so unlikely happen.
+      spdlog::error("cannot lift a non-function"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+      return Unexpect(ErrCode::Value::InvalidCanonOption);
+    }
+
+    auto RFuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
+    if (!RFuncInst) {
+      return Unexpect(RFuncInst);
+    }
+    auto FuncInst = *RFuncInst;
+    CompInst.addFunctionInstance(
+        ThisExecutor.lifting(CompInst, std::get<FuncType>(*AstFuncType),
+                             FuncInst, Mem, ReallocFunc));
+
+    return {};
+  }
+
+  // lower sends a component function to a core wasm function, with proper
+  // modification about canonical ABI.
+  Expect<void> operator()(const Lower &L) {
+    Runtime::Instance::MemoryInstance *Mem = nullptr;
+    Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
+
+    const auto &Opts = L.getOptions();
+    for (auto &Opt : Opts) {
+      if (std::holds_alternative<StringEncoding>(Opt)) {
+        switch (std::get<StringEncoding>(Opt)) {
+        case StringEncoding::UTF8:
+          spdlog::warn("ignore utf8");
+          break;
+        case StringEncoding::UTF16:
+          spdlog::warn("ignore utf16");
+          break;
+        case StringEncoding::Latin1:
+          spdlog::warn("ignore latin1");
+          break;
+        default:
+          assumingUnreachable();
+        }
+      } else if (std::holds_alternative<Memory>(Opt)) {
+        auto MemIdx = std::get<Memory>(Opt).getMemIndex();
+        auto RMem = CompInst.getCoreMemoryInstance(MemIdx);
+        if (!RMem) {
+          return Unexpect(RMem);
+        }
+        Mem = *RMem;
+      } else if (std::holds_alternative<Realloc>(Opt)) {
+        auto Res = CompInst.getCoreFunctionInstance(
+            std::get<Realloc>(Opt).getFuncIndex());
+        if (!Res) {
+          return Unexpect(Res);
+        }
+        ReallocFunc = *Res;
+      } else if (std::holds_alternative<PostReturn>(Opt)) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+        return Unexpect(ErrCode::Value::InvalidCanonOption);
+      }
+    }
+
+    auto *FuncInst = CompInst.getFunctionInstance(L.getFuncIndex());
+    CompInst.addCoreFunctionInstance(
+        ThisExecutor.lowering(FuncInst, Mem, ReallocFunc));
+
+    return {};
+  }
+
+  Expect<void> operator()(const ResourceNew &RNew) {
+    auto TypIdx = RNew.getTypeIndex();
+    auto RTyp = CompInst.getType(TypIdx);
+    if (!RTyp) {
+      return Unexpect(RTyp);
+    }
+    if (!std::holds_alternative<ResourceType>(*RTyp)) {
+      spdlog::error(
+          "resource.new cannot instantiate a deftype that's not a resource.");
+      return Unexpect(ErrCode::Value::InvalidCanonOption);
+    }
+
+    auto ResourceTyp = std::get<ResourceType>(*RTyp);
+    spdlog::info("get {}", ResourceTyp);
+    spdlog::warn("resource.new is not supported yet"sv);
+
+    return {};
+  }
+
+  Expect<void> operator()(const ResourceDrop &RDrop) {
+    auto TypIdx = RDrop.getTypeIndex();
+    auto RTyp = CompInst.getType(TypIdx);
+    if (!RTyp) {
+      return Unexpect(RTyp);
+    }
+    if (!std::holds_alternative<ResourceType>(*RTyp)) {
+      spdlog::error("resource.drop cannot instantiate a deftype that's not a "
+                    "resource.");
+      return Unexpect(ErrCode::Value::InvalidCanonOption);
+    }
+
+    auto ResourceTyp = std::get<ResourceType>(*RTyp);
+    auto Drop = ThisExecutor.resourceDrop(TypIdx, ResourceTyp, CompInst);
+    Instance::Component::FunctionInstance *F = Drop.get();
+    CompInst.addCoreFunctionInstance(
+        ThisExecutor.lowering(F, nullptr, nullptr));
+
+    return {};
+  }
+
+  Expect<void> operator()(const ResourceRep &) {
+    spdlog::warn("resource.rep is not supported yet"sv);
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+};
 
 Expect<void>
 Executor::instantiate(Runtime::StoreManager &,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CanonSection &CanonSec) {
-  for (auto &C : CanonSec.getContent()) {
-    if (std::holds_alternative<Lift>(C)) {
-      // lift wrap a core wasm function to a component function, with proper
-      // modification about canonical ABI.
-
-      const auto &L = std::get<Lift>(C);
-
-      const auto &Opts = L.getOptions();
-
-      Runtime::Instance::MemoryInstance *Mem = nullptr;
-      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
-      for (auto &Opt : Opts) {
-        if (std::holds_alternative<StringEncoding>(Opt)) {
-          spdlog::warn("incomplete canonical option `string-encoding`"sv);
-        } else if (std::holds_alternative<Memory>(Opt)) {
-          auto MemIdx = std::get<Memory>(Opt).getMemIndex();
-          Mem = CompInst.getCoreMemoryInstance(MemIdx);
-        } else if (std::holds_alternative<Realloc>(Opt)) {
-          ReallocFunc = CompInst.getCoreFunctionInstance(
-              std::get<Realloc>(Opt).getFuncIndex());
-        } else if (std::holds_alternative<PostReturn>(Opt)) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
-          return Unexpect(ErrCode::Value::InvalidCanonOption);
-        }
-      }
-
-      const auto &AstFuncType = CompInst.getType(L.getFuncTypeIndex());
-      if (unlikely(!std::holds_alternative<FuncType>(AstFuncType))) {
-        // It doesn't make sense if one tries to lift an instance not a
-        // function, so unlikely happen.
-        spdlog::error("cannot lift a non-function"sv);
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
-        return Unexpect(ErrCode::Value::InvalidCanonOption);
-      }
-
-      auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
-      CompInst.addFunctionInstance(lifting(CompInst,
-                                           std::get<FuncType>(AstFuncType),
-                                           FuncInst, Mem, ReallocFunc));
-    } else if (std::holds_alternative<Lower>(C)) {
-      // lower sends a component function to a core wasm function, with proper
-      // modification about canonical ABI.
-      const auto &L = std::get<Lower>(C);
-
-      Runtime::Instance::MemoryInstance *Mem = nullptr;
-      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
-      const auto &Opts = L.getOptions();
-      for (auto &Opt : Opts) {
-        if (std::holds_alternative<StringEncoding>(Opt)) {
-          spdlog::warn("incomplete canonical option `string-encoding`"sv);
-          return Unexpect(ErrCode::Value::InvalidCanonOption);
-        } else if (std::holds_alternative<Memory>(Opt)) {
-          auto MemIdx = std::get<Memory>(Opt).getMemIndex();
-          Mem = CompInst.getCoreMemoryInstance(MemIdx);
-        } else if (std::holds_alternative<Realloc>(Opt)) {
-          ReallocFunc = CompInst.getCoreFunctionInstance(
-              std::get<Realloc>(Opt).getFuncIndex());
-        } else if (std::holds_alternative<PostReturn>(Opt)) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
-          return Unexpect(ErrCode::Value::InvalidCanonOption);
-        }
-      }
-
-      auto *FuncInst = CompInst.getFunctionInstance(L.getFuncIndex());
-      CompInst.addCoreFunctionInstance(lowering(FuncInst, Mem, ReallocFunc));
-    } else if (std::holds_alternative<ResourceNew>(C)) {
-      spdlog::warn("resource is not supported yet"sv);
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    } else if (std::holds_alternative<ResourceDrop>(C)) {
-      spdlog::warn("resource is not supported yet"sv);
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    } else if (std::holds_alternative<ResourceRep>(C)) {
-      spdlog::warn("resource is not supported yet"sv);
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
+  for (const Canon &C : CanonSec.getContent()) {
+    auto Res = std::visit(CanonOptionVisitor{*this, CompInst}, C);
+    if (!Res) {
+      return Unexpect(Res);
     }
   }
 

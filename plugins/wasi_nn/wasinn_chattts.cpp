@@ -305,9 +305,8 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
 }
 
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+                             uint32_t GraphId) noexcept {
+  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] Neural speed backend: start unload."sv);
   }
@@ -320,6 +319,7 @@ Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
     GraphRef.ChatTTSModule = nullptr;
     Py_Finalize();
   }
+  Env.NNGraph.erase(Env.NNGraph.begin() + GraphId);
   return WASINN::ErrNo::Success;
 }
 

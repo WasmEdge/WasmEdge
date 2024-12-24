@@ -21,8 +21,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   auto Weight = Builders[0];
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::PyTorch);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::PyTorch);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
   // Setup Graph Device
   if (Device == Device::CPU) {
     GraphRef.TorchDevice = at::kCPU;
@@ -46,19 +46,19 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     GraphRef.TorchModel.to(GraphRef.TorchDevice);
   } catch (const c10::Error &e) {
     spdlog::error("[WASI-NN] Failed when load the TorchScript model.");
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   // Store the loaded graph.
-  GraphId = Env.NNGraph.size() - 1;
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
   return ErrNo::Success;
 }
 
 Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                           uint32_t &ContextId) noexcept {
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-
-  ContextId = Env.NNContext.size() - 1;
+  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
+  Env.NNContext[ContextId].setReady();
   return ErrNo::Success;
 }
 

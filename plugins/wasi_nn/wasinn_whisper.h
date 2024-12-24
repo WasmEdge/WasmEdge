@@ -61,9 +61,9 @@ struct Graph {
 
 struct Context {
 public:
-  Context(size_t GId, Graph &G) noexcept
+  Context(uint32_t GId, Graph &G) noexcept
       : GraphId(GId), WhisperConfig(G.WhisperConfig) {}
-  size_t GraphId;
+  uint32_t GraphId;
   // mono-channel F32 PCM input.
   std::vector<float> InputPCM;
   // Whisper config. Inherit from the graph and accept metadata when setting
@@ -76,7 +76,7 @@ public:
 #else
 struct Graph {};
 struct Context {
-  Context(size_t, Graph &) noexcept {}
+  Context(uint32_t, Graph &) noexcept {}
 };
 #endif
 

@@ -14,7 +14,7 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::Tensorflow {
 struct Graph {};
 struct Context {
-  Context(size_t, Graph &) noexcept {}
+  Context(uint32_t, Graph &) noexcept {}
 };
 
 struct Environ {};

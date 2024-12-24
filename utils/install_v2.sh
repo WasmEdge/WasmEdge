@@ -195,6 +195,12 @@ check_os_arch() {
 			_LD_LIBRARY_PATH_="DYLD_LIBRARY_PATH"
 
 			;;
+		'Windows_NT' | MINGW*)
+			error "Detected ${OS} - currently unsupported"
+			eprintf "Please download WasmEdge manually from the release page:"
+			eprintf "https://github.com/WasmEdge/WasmEdge/releases/latest"
+			exit 1
+			;;
 		*)
 			error "Detected ${OS}-${ARCH} - currently unsupported"
 			eprintf "Use --os and --arch to specify the OS and ARCH"

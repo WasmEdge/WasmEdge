@@ -31,7 +31,7 @@ std::string toTimestamp(int64_t T, bool Comma) {
   int64_t Sec = Msec / 1000;
   Msec = Msec - Sec * 1000;
 
-  char Buf[32];
+  char Buf[32] = {};
   snprintf(Buf, sizeof(Buf), "%02d:%02d:%02d%s%03d", static_cast<int>(Hr),
            static_cast<int>(Min), static_cast<int>(Sec), Comma ? "," : ".",
            static_cast<int>(Msec));
@@ -45,20 +45,20 @@ estimateDiarizationSpeaker(const std::vector<std::vector<float>> PCMF32s,
   std::string Speaker = "";
   const int64_t NSamples = PCMF32s[0].size();
 
-  const int64_t is0 = timestampToSample(T0, NSamples, WHISPER_SAMPLE_RATE);
-  const int64_t is1 = timestampToSample(T1, NSamples, WHISPER_SAMPLE_RATE);
+  const int64_t Is0 = timestampToSample(T0, NSamples, WHISPER_SAMPLE_RATE);
+  const int64_t Is1 = timestampToSample(T1, NSamples, WHISPER_SAMPLE_RATE);
 
-  double energy0 = 0.0f;
-  double energy1 = 0.0f;
+  double Energy0 = 0.0f;
+  double Energy1 = 0.0f;
 
-  for (int64_t j = is0; j < is1; j++) {
-    energy0 += fabs(PCMF32s[0][j]);
-    energy1 += fabs(PCMF32s[1][j]);
+  for (int64_t I = Is0; I < Is1; I++) {
+    Energy0 += fabs(PCMF32s[0][I]);
+    Energy1 += fabs(PCMF32s[1][I]);
   }
 
-  if (energy0 > 1.1 * energy1) {
+  if (Energy0 > 1.1 * Energy1) {
     Speaker = "0";
-  } else if (energy1 > 1.1 * energy0) {
+  } else if (Energy1 > 1.1 * Energy0) {
     Speaker = "1";
   } else {
     Speaker = "?";
@@ -426,31 +426,27 @@ void WhisperOutputSegmentCallback(struct whisper_context *WhisperCtx,
   auto &CxtRef = *reinterpret_cast<Context *>(UserData);
   const int SegN = whisper_full_n_segments(WhisperCtx);
 
-  auto ToTimeStr = [](int64_t T) -> std::string {
-    T *= 10;
-    uint32_t HR = static_cast<uint32_t>(T / (1000 * 60 * 60));
-    T %= 1000 * 60 * 60;
-    uint32_t M = static_cast<uint32_t>(T / (1000 * 60));
-    T %= 1000 * 60;
-    uint32_t S = static_cast<uint32_t>(T / 1000);
-    uint32_t MS = static_cast<uint32_t>(T % 1000);
-    char Buf[32];
-    snprintf(Buf, sizeof(Buf), "%02d:%02d:%02d.%03d", HR, M, S, MS);
-    return std::string(Buf);
-  };
-
+  std::string Speaker = "";
   // Output the last new N segments.
   for (int I = SegN - NewN; I < SegN; I++) {
-    int64_t T0 = whisper_full_get_segment_t0(WhisperCtx, I);
-    int64_t T1 = whisper_full_get_segment_t1(WhisperCtx, I);
-    // TODO: Add the print timestamp config.
-    CxtRef.Outputs += "[";
-    CxtRef.Outputs += ToTimeStr(T0);
-    CxtRef.Outputs += " --> ";
-    CxtRef.Outputs += ToTimeStr(T1);
-    CxtRef.Outputs += "] ";
-    CxtRef.Outputs += whisper_full_get_segment_text(WhisperCtx, I);
-    CxtRef.Outputs += "\n";
+    int64_t T0 = 0;
+    int64_t T1 = 0;
+    if (!CxtRef.WhisperConfig.NoTimestamps) {
+      T0 = whisper_full_get_segment_t0(WhisperCtx, I);
+      T1 = whisper_full_get_segment_t1(WhisperCtx, I);
+      CxtRef.Outputs += "[";
+      CxtRef.Outputs += toTimestamp(T0, false);
+      CxtRef.Outputs += " --> ";
+      CxtRef.Outputs += toTimestamp(T1, false);
+      CxtRef.Outputs += "] ";
+    }
+    if (CxtRef.WhisperConfig.Diarize && CxtRef.InputPCMs.size() == 2) {
+      Speaker = estimateDiarizationSpeaker(CxtRef.InputPCMs, T0, T1);
+    }
+    CxtRef.Outputs += Speaker + whisper_full_get_segment_text(WhisperCtx, I);
+    if (!CxtRef.WhisperConfig.NoTimestamps || CxtRef.WhisperConfig.Diarize) {
+      CxtRef.Outputs += "\n";
+    }
   }
 }
 
@@ -478,6 +474,9 @@ void setWhisperParams(Context &CxtRef) noexcept {
   WParam.new_segment_callback = WhisperOutputSegmentCallback;
   WParam.new_segment_callback_user_data = &CxtRef;
   WParam.greedy.best_of = ConfigRef.BestOf;
+  WParam.print_timestamps = !ConfigRef.NoTimestamps;
+  WParam.no_timestamps = ConfigRef.NoTimestamps;
+  WParam.audio_ctx = ConfigRef.AudioCtx;
   WParam.strategy =
       (ConfigRef.BeamSize > 1)
           ? whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH
@@ -523,7 +522,7 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
     return ErrNo::InvalidEncoding;
   }
 
-  auto PrintParsedOption = [=](std::string_view Name, const auto &Val) {
+  auto PrintParsedOption = [&](std::string_view Name, const auto &Val) {
     if (ConfigRef.EnableDebugLog) {
       spdlog::info(
           "[WASI-NN][Debug] Whisper backend: Parsed metadata -- {}:{}"sv, Name,
@@ -772,15 +771,15 @@ Expect<ErrNo> parseMetadata(Config &ConfigRef,
     ConfigRef.FileName = FileName;
     PrintParsedOption("output-file"sv, ConfigRef.FileName);
   }
-  if (Doc.at_key("audio-Ctx").error() == simdjson::SUCCESS) {
-    auto Err = Doc["audio-Ctx"].get<uint64_t>().get(ConfigRef.AudioCtx);
+  if (Doc.at_key("audio-ctx").error() == simdjson::SUCCESS) {
+    auto Err = Doc["audio-ctx"].get<uint64_t>().get(ConfigRef.AudioCtx);
     if (Err) {
       spdlog::error(
-          "[WASI-NN] Whisper backend: Unable to retrieve the audio-Ctx "
+          "[WASI-NN] Whisper backend: Unable to retrieve the audio-ctx "
           "option."sv);
       return ErrNo::InvalidArgument;
     }
-    PrintParsedOption("audio-Ctx"sv, ConfigRef.AudioCtx);
+    PrintParsedOption("audio-ctx"sv, ConfigRef.AudioCtx);
   }
   if (Doc.at_key("diarize").error() == simdjson::SUCCESS) {
     auto Err = Doc["diarize"].get<bool>().get(ConfigRef.Diarize);

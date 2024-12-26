@@ -429,7 +429,7 @@ class ComponentSection : public Section {
 public:
   /// Getter of content.
   const Component &getContent() const noexcept { return *Content; }
-  std::shared_ptr<Component> getContent() noexcept { return Content; }
+  std::shared_ptr<Component> &getContent() noexcept { return Content; }
 
 private:
   std::shared_ptr<Component> Content;

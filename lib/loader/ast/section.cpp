@@ -252,7 +252,7 @@ Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
       return Unexpect(Res);
     }
 
-    Sec.getContent() = NestedComp;
+    Sec.getContent() = std::move(NestedComp);
     return {};
   });
 }

@@ -1,6 +1,6 @@
 # WasmEdge WASI-Crypto example
 
-This is a example for demonstrate how to use wasi-crypto plugin of WasmEdge in Rust which is adopted from wasi-crypto tests.
+This is an example for demonstrate how to use wasi-crypto plugin of WasmEdge in Rust which is adopted from wasi-crypto tests.
 
 ## Prerequisites
 

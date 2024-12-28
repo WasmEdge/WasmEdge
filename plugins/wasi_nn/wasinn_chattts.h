@@ -17,11 +17,29 @@ struct WasiNNEnvironment;
 
 namespace WasmEdge::Host::WASINN::ChatTTS {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS
+class GIL {
+private:
+  PyGILState_STATE GState;
+
+public:
+  GIL() : GState(PyGILState_Ensure()) {}
+  ~GIL() { PyGILState_Release(GState); }
+  GIL(const GIL &) = delete;
+  GIL &operator=(const GIL &) = delete;
+};
 struct Graph {
   bool EnableDebugLog = false;
-  Graph() noexcept { Py_Initialize(); }
+  Graph() noexcept {
+    if (!Py_IsInitialized()) {
+      Py_Initialize();
+      if (PyGILState_Check()) {
+        PyEval_SaveThread();
+      }
+    }
+  }
   ~Graph() noexcept {
     if (Py_IsInitialized()) {
+      GIL Lock;
       Py_XDECREF(Chat);
       Py_XDECREF(ChatTTSModule);
     }

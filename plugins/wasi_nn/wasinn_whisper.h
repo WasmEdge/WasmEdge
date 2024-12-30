@@ -6,6 +6,7 @@
 #include "wasinntypes.h"
 
 #include "plugin/plugin.h"
+#include <cstdint>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 #include <whisper.h>
@@ -38,8 +39,20 @@ struct Config {
   bool Translate = false;
   bool DetectLanguage = false;
   bool SplitOnWord = false;
+  bool Diarize = false;
+  bool TinyDiarize = false;
   std::string SpokenLanguage;
   std::string InitialPrompt;
+  uint64_t BestOf = 5;
+  uint64_t BeamSize = 5;
+  uint64_t OffsetN = 0;
+  std::string FileName = "output";
+  bool OutputSrt = false;
+  bool OutputLrc = false;
+  bool OutputJson = false;
+  bool OutputJsonFull = false;
+  bool NoTimestamps = false;
+  uint64_t AudioCtx = 0;
   // Sampling parameters:
   float WordThreshold = 0.01f;
   float EntropyThreshold = 2.40f;
@@ -66,6 +79,7 @@ public:
   size_t GraphId;
   // mono-channel F32 PCM input.
   std::vector<float> InputPCM;
+  std::vector<std::vector<float>> InputPCMs;
   // Whisper config. Inherit from the graph and accept metadata when setting
   // input.
   Config WhisperConfig;

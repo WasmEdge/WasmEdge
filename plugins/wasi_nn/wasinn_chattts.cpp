@@ -37,7 +37,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   // Create Model class
   if (!Py_IsInitialized()) {
     Py_Initialize();
+    if (PyGILState_Check()) {
+      PyEval_SaveThread();
+    }
   }
+  GIL Lock;
   if (GraphRef.ChatTTSModule == nullptr) {
     GraphRef.ChatTTSModule = PyImport_ImportModule("ChatTTS");
     if (GraphRef.ChatTTSModule == nullptr) {
@@ -123,6 +127,7 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       Env.NNGraph.pop_back();
       return ErrNo::InvalidEncoding;
     }
+    GIL Lock;
     // Handle Refine Text Params
     PyObject *PromptObj = nullptr;
     if (Doc.at_key("prompt").error() == simdjson::SUCCESS) {
@@ -253,6 +258,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     spdlog::error("[WASI-NN] ChatTTS backend: Input is not set!"sv);
     return ErrNo::InvalidArgument;
   }
+  GIL Lock;
   PyObject *InputStr = PyUnicode_FromString(CxtRef.Inputs.c_str());
   PyObject *InferMethod = PyObject_GetAttrString(GraphRef.Chat, "infer");
   PyObject *Result = nullptr;
@@ -305,20 +311,21 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
 }
 
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t ContextId) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+                             uint32_t GraphId) noexcept {
+  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] Neural speed backend: start unload."sv);
   }
   if (Py_IsInitialized()) {
+    GIL Lock;
     Py_XDECREF(GraphRef.ParamsRefineText);
     Py_XDECREF(GraphRef.ParamsInferCode);
     Py_XDECREF(GraphRef.Chat);
     Py_XDECREF(GraphRef.ChatTTSModule);
+    GraphRef.ParamsRefineText = nullptr;
+    GraphRef.ParamsInferCode = nullptr;
     GraphRef.Chat = nullptr;
     GraphRef.ChatTTSModule = nullptr;
-    Py_Finalize();
   }
   return WASINN::ErrNo::Success;
 }

@@ -5,17 +5,19 @@
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-#include "simdjson.h"
 #include <base64.hpp>
 #include <clip.h>
-#include <common.h>
-#include <cstdlib>
 #include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>
 #include <json.hpp>
-#include <llama.h>
-#include <llava.h>
-#include <sampling.h>
+#include <simdjson.h>
+
+#include <boost/gil.hpp>
+#include <boost/gil/extension/io/jpeg.hpp>
+#include <boost/gil/extension/io/png.hpp>
+#include <boost/gil/extension/numeric/resample.hpp>
+#include <boost/gil/extension/numeric/sampler.hpp>
+#include <boost/gil/io/io.hpp>
 
 #include <algorithm>
 #include <filesystem>
@@ -126,6 +128,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   //   use-mmap: bool
   //   warmup: bool
   //   mmproj: string
+  //   mllamaproj: string
   // Context parameters (used by the llama context):
   //   ctx-size: int64_t
   //   batch-size: int64_t
@@ -244,6 +247,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the mmproj option."sv)
     }
     GraphRef.MMProjModelPath = MMProjModelPath;
+  }
+  if (Doc.at_key("mllamaproj").error() == simdjson::SUCCESS) {
+    std::string_view MllamaProjModelPath;
+    auto Err =
+        Doc["mllamaproj"].get<std::string_view>().get(MllamaProjModelPath);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the mllamaproj option."sv)
+    }
+    GraphRef.MllamaProjModelPath = MllamaProjModelPath;
   }
 
   // The context parameters.
@@ -399,6 +412,7 @@ const std::string_view Base64ImageTagPrefix = "<img src=\"data:image/"sv;
 const std::string_view Base64ImageBytesPrefix = ";base64,"sv;
 const std::string_view Base64ImageTagSuffix = "\">"sv;
 const std::string_view LlavaPromptImagePlaceholder = "<image>"sv;
+const std::string_view MllamaPromptImagePlaceholder = "<|image|>"sv;
 
 // Get base64 image position if found in prompt.
 std::optional<std::tuple<size_t, size_t, size_t>>
@@ -456,6 +470,120 @@ extractBase64ImagePayload(std::string &Prompt,
                  EndTagPos - BeginTagPos + Base64ImageTagSuffix.size(),
                  Placeholder);
   return std::make_pair(ImageBytes, ImageType);
+}
+
+// Template to decode, resize, and flatten image for mllama input from buffer.
+template <typename FormatTag>
+std::vector<float> loadMllamaImageFromBuf(Span<const uint8_t> InBuf, uint32_t W,
+                                          uint32_t H) {
+  // Load image.
+  using Image = boost::gil::rgb8_image_t;
+  std::stringstream ImgStream;
+  uint32_t C = boost::gil::num_channels<typename Image::view_t>::value;
+  std::vector<char> ImgData(W * H * C);
+  std::vector<float> OutBuf(W * H * C);
+  ImgStream.write(reinterpret_cast<const char *>(InBuf.data()), InBuf.size());
+  Image Img;
+  try {
+    boost::gil::read_and_convert_image(ImgStream, Img, FormatTag());
+  } catch (std::exception const &e) {
+    RET_ERROR({}, "Decode image fail: {}"sv, e.what())
+  }
+  // Resize image.
+  typename Image::view_t ImgView = boost::gil::interleaved_view(
+      W, H, reinterpret_cast<typename Image::value_type *>(ImgData.data()),
+      W * C * sizeof(char));
+  boost::gil::resize_view(boost::gil::const_view(Img), ImgView,
+                          boost::gil::bilinear_sampler());
+  // Normalize image.
+  float Mean[3] = {0.48145466, 0.4578275, 0.40821073};
+  float Std[3] = {0.26862954, 0.26130258, 0.27577711};
+  for (uint32_t Y = 0; Y < H; Y++) {
+    for (uint32_t X = 0; X < W; X++) {
+      uint32_t P = Y * W + X;
+      for (uint32_t Z = 0; Z < C; Z++) {
+        OutBuf[W * H * Z + P] =
+            (static_cast<uint8_t>(ImgData[P * C + Z]) / 255.0 - Mean[Z]) /
+            Std[Z];
+      }
+    }
+  }
+  return OutBuf;
+}
+
+// Helper function to load mllama image embed from file.
+struct ::mllama_image *loadMllamaImage(std::string_view Path, uint32_t W,
+                                       uint32_t H) {
+  // Load image file into buffer.
+  std::ifstream Fin(std::string(Path),
+                    std::ios::in | std::ios::binary | std::ios::ate);
+  if (!Fin) {
+    return nullptr;
+  }
+  std::vector<uint8_t> Buf(static_cast<std::size_t>(Fin.tellg()));
+  Fin.seekg(0, std::ios::beg);
+  if (!Fin.read(reinterpret_cast<char *>(Buf.data()),
+                static_cast<std::streamsize>(Buf.size()))) {
+    return nullptr;
+  }
+  Fin.close();
+
+  // Check image file type and decode image.
+  std::vector<float> FlatImage;
+  auto IsEndsWith = [](std::string_view Str, std::string_view Suffix) {
+    return Str.size() >= Suffix.size() &&
+           Str.compare(Str.size() - Suffix.size(), Suffix.size(), Suffix) == 0;
+  };
+  if (IsEndsWith(Path, ".png") || IsEndsWith(Path, ".PNG")) {
+    FlatImage = loadMllamaImageFromBuf<boost::gil::png_tag>(
+        Span<const uint8_t>(Buf.begin(), Buf.size()), W, H);
+  } else if (IsEndsWith(Path, ".jpeg") || IsEndsWith(Path, ".JPEG") ||
+             IsEndsWith(Path, ".jpg") || IsEndsWith(Path, ".JPG")) {
+    FlatImage = loadMllamaImageFromBuf<boost::gil::jpeg_tag>(
+        Span<const uint8_t>(Buf.begin(), Buf.size()), W, H);
+  }
+  if (FlatImage.size() == 0) {
+    return nullptr;
+  }
+
+  // Mllama load image.
+  auto *MllamaImage = mllama_image_init();
+  if (!mllama_image_load_from_data(
+          reinterpret_cast<const void *>(FlatImage.data()),
+          static_cast<int>(FlatImage.size()) * sizeof(float), W, H, 3, 4, 1,
+          MllamaImage)) {
+    mllama_image_free(MllamaImage);
+    return nullptr;
+  }
+  return MllamaImage;
+}
+
+// Helper function to load mllama image embed from buffer.
+struct ::mllama_image *loadMllamaImage(Span<const uint8_t> Buf,
+                                       std::string_view FileType, uint32_t W,
+                                       uint32_t H) {
+  // Check image file type and load into buffer.
+  std::vector<float> FlatImage;
+  if (FileType == "png"sv || FileType == "PNG"sv) {
+    FlatImage = loadMllamaImageFromBuf<boost::gil::png_tag>(Buf, W, H);
+  } else if (FileType == "jpeg"sv || FileType == "JPEG"sv ||
+             FileType == "jpg"sv || FileType == "JPG"sv) {
+    FlatImage = loadMllamaImageFromBuf<boost::gil::jpeg_tag>(Buf, W, H);
+  }
+  if (FlatImage.size() == 0) {
+    return nullptr;
+  }
+
+  // Mllama load image.
+  auto *MllamaImage = mllama_image_init();
+  if (!mllama_image_load_from_data(
+          reinterpret_cast<const void *>(FlatImage.data()),
+          static_cast<int>(FlatImage.size()) * sizeof(float), W, H, 3, 4, 1,
+          MllamaImage)) {
+    mllama_image_free(MllamaImage);
+    return nullptr;
+  }
+  return MllamaImage;
 }
 
 // <<<<<<<< Input related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -585,6 +713,7 @@ bool evaluateQwen2vlImageEmbed(llama_context *LlamaCxt,
         static_cast<int32_t>(NEval),     // n_tokens
         nullptr,                         // token
         (ImageEmbed->embed + I * NEmbd), // embed
+        NEmbd,                           // n_embd
         BatchMRopePos.data(),            // pos
         nullptr,                         // n_seq_id
         nullptr,                         // seq_id
@@ -679,8 +808,17 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
   }
 
   // Evaluate input tokens.
-  if (CxtRef.LlavaImageEmbd != nullptr) {
-    // Llava format prompt with image data.
+  if (CxtRef.LlavaImageEmbd != nullptr || CxtRef.MllamaImageEmbd != nullptr) {
+    // Input with image.
+
+    // Cross attention setting added by mllama.
+    if (CxtRef.MllamaImageEmbd != nullptr) {
+      llama_set_cross_attention(GraphRef.LlamaContext, true);
+    } else {
+      llama_set_cross_attention(GraphRef.LlamaContext, false);
+    }
+
+    // Evaluate tokens before image.
     ReturnCode =
         evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
                                                CxtRef.ImagePosition),
@@ -691,25 +829,50 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                 FuncLabel)
     }
 
-    bool EvalImageStatus = false;
-    switch (GraphRef.VisionModelType) {
-    case VisionModel::Llava:
-      EvalImageStatus = llava_eval_image_embed(
-          GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
-          static_cast<int>(GraphRef.BatchSize), &CxtRef.NPos);
-      break;
-    case VisionModel::Qwen2VL:
-      auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
-      EvalImageStatus = evaluateQwen2vlImageEmbed(
-          GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
-          static_cast<int>(GraphRef.BatchSize), CxtRef.NPos, ImageSize);
-      break;
+    // Evaluate image embed.
+    if (CxtRef.LlavaImageEmbd != nullptr) {
+      // Llava case.
+      bool EvalImageStatus = false;
+      switch (GraphRef.VisionModelType) {
+      case VisionModel::Llava:
+        EvalImageStatus = llava_eval_image_embed(
+            GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
+            static_cast<int>(GraphRef.BatchSize), &CxtRef.NPos);
+        break;
+      case VisionModel::Qwen2VL:
+        auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
+        EvalImageStatus = evaluateQwen2vlImageEmbed(
+            GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
+            static_cast<int>(GraphRef.BatchSize), CxtRef.NPos, ImageSize);
+        break;
+      }
+      if (!EvalImageStatus) {
+        RET_ERROR(ErrNo::RuntimeError,
+                  "{}: failed to evaluate llava image embed tokens."sv,
+                  FuncLabel)
+      }
+    } else if (CxtRef.MllamaImageEmbd != nullptr) {
+      // Mllama case.
+      uint32_t NEmbd = llama_n_embd(GraphRef.LlamaModel) *
+                       mllama_n_positions(GraphRef.MllamaContext) *
+                       mllama_n_tiles(GraphRef.MllamaContext);
+      struct llama_batch MllamaImageBatch = llama_batch_init(1, NEmbd, 1);
+      if (!mllama_image_encode(GraphRef.MllamaContext, GGML_DEFAULT_N_THREADS,
+                               CxtRef.MllamaImageEmbd, MllamaImageBatch.embd)) {
+        RET_ERROR(ErrNo::RuntimeError,
+                  "{}: failed to evaluate mllama image embed tokens."sv,
+                  FuncLabel)
+      }
+      MllamaImageBatch.n_tokens = 1;
+      MllamaImageBatch.pos[0] = CxtRef.NPos;
+      MllamaImageBatch.n_seq_id[0] = 1;
+      MllamaImageBatch.seq_id[0][0] = 0;
+      llama_decode(GraphRef.LlamaContext, MllamaImageBatch);
+      llama_batch_free(MllamaImageBatch);
+      CxtRef.NPos++;
     }
 
-    if (!EvalImageStatus) {
-      RET_ERROR(ErrNo::RuntimeError,
-                "{}: failed to evaluate embed image tokens."sv, FuncLabel)
-    }
+    // Evaluate tokens after image.
     ReturnCode =
         evaluateTokens(Span<const llama_token>(
                            CxtRef.LlamaInputs.begin() + CxtRef.ImagePosition,
@@ -720,7 +883,9 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                 "{}: failed to evaluate input tokens after image."sv, FuncLabel)
     }
   } else {
-    // Text only prompt.
+    // Input with text only.
+    // Cross attention setting added by mllama.
+    llama_set_cross_attention(GraphRef.LlamaContext, false);
     ReturnCode =
         evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
                                                CxtRef.LlamaInputs.size()),
@@ -734,6 +899,10 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
   if (CxtRef.LlavaImageEmbd != nullptr) {
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;
+  }
+  if (CxtRef.MllamaImageEmbd != nullptr) {
+    mllama_image_free(CxtRef.MllamaImageEmbd);
+    CxtRef.MllamaImageEmbd = nullptr;
   }
   return ErrNo::Success;
 }
@@ -857,6 +1026,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   llama_model_params ModelParamsDefault = llama_model_default_params();
   GraphRef.NGPULayers = ModelParamsDefault.n_gpu_layers;
   GraphRef.MMProjModelPath = ""sv;
+  GraphRef.MllamaProjModelPath = ""sv;
   // Initialize the context parameters.
   llama_context_params ContextParamsDefault = llama_context_default_params();
   GraphRef.CtxSize = ContextParamsDefault.n_ctx;
@@ -1113,43 +1283,64 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   llama_kv_cache_clear(GraphRef.LlamaContext);
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context...Done"sv)
 
-  // Set the input.
-  const bool AddSpecial = true;
-  const bool ParseSpecial = true;
-  std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
-                     Tensor.Tensor.size());
+  // Clear the old input.
   CxtRef.LlamaInputs.clear();
   if (CxtRef.LlavaImageEmbd != nullptr) {
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;
   }
-  auto Base64ImagePos = findBase64ImagePayload(Prompt);
+  if (CxtRef.MllamaImageEmbd != nullptr) {
+    mllama_image_free(CxtRef.MllamaImageEmbd);
+    CxtRef.MllamaImageEmbd = nullptr;
+  }
 
+  // Set the input.
+  const bool AddSpecial = true;
+  const bool ParseSpecial = true;
+  std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
+                     Tensor.Tensor.size());
+  auto Base64ImagePos = findBase64ImagePayload(Prompt);
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
     // Prompt with image input. Check is llava or mllama case.
 
     // First check the projection model is loaded.
-    if (GraphRef.ClipContext == nullptr) {
-      LOG_INFO(
-          true,
-          "Load the clip model. Because llama.cpp disabled the GPU support "sv
-          "for CLIP, the step of loading images in CLIP can only use the "sv
-          "CPU, which may result in reduced efficiency. (You can refer to "sv
-          "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
-      GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
-                                             GraphRef.EnableLog ? 1 : 0);
-      if (GraphRef.ClipContext == nullptr) {
-        RET_ERROR(ErrNo::InvalidArgument, "unable to load the clip model."sv)
-      }
-      if (clip_is_qwen2vl(GraphRef.ClipContext)) {
-        GraphRef.VisionModelType = VisionModel::Qwen2VL;
-        LOG_INFO(true, "Qwen2vl model loaded."sv)
+    if (GraphRef.ClipContext == nullptr && GraphRef.MllamaContext == nullptr) {
+      if (GraphRef.MMProjModelPath != ""sv) {
+        // Load the llava projection model.
+        LOG_INFO(
+            true,
+            "Load the clip model. Because llama.cpp disabled the GPU support "sv
+            "for CLIP, the step of loading images in CLIP can only use the "sv
+            "CPU, which may result in reduced efficiency. (You can refer to "sv
+            "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
+        GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
+                                               GraphRef.EnableLog ? 1 : 0);
+        if (GraphRef.ClipContext == nullptr) {
+          RET_ERROR(ErrNo::InvalidArgument, "unable to load the clip model."sv)
+        }
+        if (clip_is_qwen2vl(GraphRef.ClipContext)) {
+          GraphRef.VisionModelType = VisionModel::Qwen2VL;
+          LOG_INFO(true, "Qwen2vl model loaded."sv)
+        } else {
+          GraphRef.VisionModelType = VisionModel::Llava;
+        }
+      } else if (GraphRef.MllamaProjModelPath != ""sv) {
+        // Load the mllama projection model.
+        GraphRef.MllamaContext = mllama_model_load(
+            GraphRef.MllamaProjModelPath.c_str(), GraphRef.EnableLog ? 1 : 0);
+        if (GraphRef.MllamaContext == nullptr) {
+          RET_ERROR(ErrNo::InvalidArgument,
+                    "unable to load the mllama projection model."sv)
+        }
+      } else {
+        // Cannot find any projection model path.
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "neithor clip nor mllama projection model path are set."sv)
       }
     }
 
-    // Prompt with image.
+    // Start log.
     if (GraphRef.ClipContext != nullptr) {
-      // Llava case.
       LOG_DEBUG(GraphRef.EnableDebugLog,
                 "setInput: handle llava format prompt."sv)
 
@@ -1162,55 +1353,108 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
             "for better results."sv,
             GraphRef.CtxSize)
       }
+    } else {
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: handle mllama format prompt."sv)
+    }
 
-      // Get image embed.
-      // Follow this link for the supported image formats:
-      // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
-      if (Base64ImagePos.has_value()) {
-        // Extract the payload and image type from the prompt.
-        auto Payload = extractBase64ImagePayload(Prompt, *Base64ImagePos,
-                                                 LlavaPromptImagePlaceholder);
-        if (Payload.has_value()) {
-          CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
-              GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
-              Payload->first.data(), static_cast<int>(Payload->first.size()));
-        }
+    // Load the image embed.
+    const std::string_view Placeholder =
+        (GraphRef.ClipContext != nullptr ? LlavaPromptImagePlaceholder
+                                         : MllamaPromptImagePlaceholder);
+    if (Base64ImagePos.has_value()) {
+      // The image payload is in the prompt.
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: load image payload in prompt."sv)
+
+      // Extract the payload and image type from the prompt.
+      auto Payload =
+          extractBase64ImagePayload(Prompt, *Base64ImagePos, Placeholder);
+      if (unlikely(!Payload.has_value())) {
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "unable to extract image payload from the prompt."sv)
+      }
+
+      // Load the payload into image embed.
+      if (GraphRef.ClipContext != nullptr) {
+        // Llava case.
+        // Follow this link for the supported image formats:
+        // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
+        CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
+            GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
+            Payload->first.data(), static_cast<int>(Payload->first.size()));
       } else {
-        // Load the image from the file.
+        // Mllama case. PNG and JPG format supported only.
+        CxtRef.MllamaImageEmbd = loadMllamaImage(
+            Span<const uint8_t>(Payload->first.begin(), Payload->first.size()),
+            Payload->second, 560, 560);
+      }
+    } else {
+      // The image from file.
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: load image from file path {}."sv,
+                CxtRef.Conf.ImagePath)
+
+      // Load the image from file into image embed.
+      if (GraphRef.ClipContext != nullptr) {
+        // Llava case.
+        // Follow this link for the supported image formats:
+        // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
         CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
             GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
             CxtRef.Conf.ImagePath.c_str());
+      } else {
+        // Mllama case. PNG and JPG format supported only.
+        CxtRef.MllamaImageEmbd =
+            loadMllamaImage(CxtRef.Conf.ImagePath, 560, 560);
       }
+    }
+
+    // Check the image is loaded.
+    if (GraphRef.ClipContext != nullptr) {
       if (CxtRef.LlavaImageEmbd == nullptr) {
         RET_ERROR(ErrNo::InvalidArgument, "llava unable to load the image."sv)
       }
-
-      // We split prompt by <image> as placeholder and save the position.
-      auto PlaceholderPosition = Prompt.find(LlavaPromptImagePlaceholder);
-      if (PlaceholderPosition == std::string::npos) {
-        RET_ERROR(ErrNo::InvalidArgument,
-                  "unable to find the placeholder in the llava prompt."sv)
+    } else {
+      if (CxtRef.MllamaImageEmbd == nullptr) {
+        RET_ERROR(ErrNo::InvalidArgument, "mllama unable to load the image."sv)
       }
-      std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
-      std::string PromptAfterImage = Prompt.substr(
-          PlaceholderPosition + LlavaPromptImagePlaceholder.length());
-      std::vector<llama_token> EmbdInputBeforeImage = common_tokenize(
-          GraphRef.LlamaContext, PromptBeforeImage, AddSpecial, ParseSpecial);
-      // Do not add special token (such as <BOS>, <EOS>, ... tokens.) to the
-      // tokens after the image.
-      std::vector<llama_token> EmbdInputAfterImage = common_tokenize(
-          GraphRef.LlamaContext, PromptAfterImage, false, ParseSpecial);
-      CxtRef.ImagePosition = EmbdInputBeforeImage.size();
-      CxtRef.LlamaInputs.reserve(EmbdInputBeforeImage.size() +
-                                 EmbdInputAfterImage.size());
-      CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
-                                EmbdInputBeforeImage.begin(),
-                                EmbdInputBeforeImage.end());
-      CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
-                                EmbdInputAfterImage.begin(),
-                                EmbdInputAfterImage.end());
+    }
+
+    // Prepare the input tokens.
+    // Split the prompt by the image placeholder and save the position.
+    auto PlaceholderPosition = Prompt.find(Placeholder);
+    if (PlaceholderPosition == std::string::npos) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "unable to find the {} placeholder in prompt."sv, Placeholder)
+    }
+    std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
+    std::string PromptAfterImage = Prompt.substr(
+        PlaceholderPosition + LlavaPromptImagePlaceholder.length());
+    std::vector<llama_token> EmbdInputBeforeImage = common_tokenize(
+        GraphRef.LlamaContext, PromptBeforeImage, AddSpecial, ParseSpecial);
+    // Do not add special token (such as <BOS>, <EOS>, ... tokens.) to the
+    // tokens after the image.
+    std::vector<llama_token> EmbdInputAfterImage = common_tokenize(
+        GraphRef.LlamaContext, PromptAfterImage, false, ParseSpecial);
+    CxtRef.ImagePosition = EmbdInputBeforeImage.size();
+    CxtRef.LlamaInputs.reserve(EmbdInputBeforeImage.size() +
+                               EmbdInputAfterImage.size());
+    CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
+                              EmbdInputBeforeImage.begin(),
+                              EmbdInputBeforeImage.end());
+    CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
+                              EmbdInputAfterImage.begin(),
+                              EmbdInputAfterImage.end());
+    CxtRef.Conf.ImagePath = ""sv;
+
+    // End log.
+    if (GraphRef.ClipContext != nullptr) {
       LOG_DEBUG(GraphRef.EnableDebugLog,
                 "setInput: handle llava format prompt...Done"sv)
+    } else {
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: handle mllama format prompt...Done"sv)
     }
   } else {
     // Text only prompt.
@@ -1407,6 +1651,12 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
     GraphRef.ClipContext = nullptr;
     LOG_DEBUG(IsDebugLog, "unload: free clip context...Done"sv)
   }
+  if (GraphRef.MllamaContext != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free mllama context"sv)
+    mllama_free(GraphRef.MllamaContext);
+    GraphRef.MllamaContext = nullptr;
+    LOG_DEBUG(IsDebugLog, "unload: free mllama context...Done"sv)
+  }
   Env.deleteGraph(GraphId);
   Env.mdRemoveById(GraphId);
 
@@ -1428,6 +1678,14 @@ Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
     CxtRef.LlavaImageEmbd = nullptr;
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "finalize_execution_context: free llava image embed...Done"sv)
+  }
+  if (CxtRef.MllamaImageEmbd != nullptr) {
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "finalize_execution_context: free mllama image embed"sv)
+    mllama_image_free(CxtRef.MllamaImageEmbd);
+    CxtRef.MllamaImageEmbd = nullptr;
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "finalize_execution_context: free mllama image embed...Done"sv)
   }
   if (CxtRef.LlamaSampler != nullptr) {
     LOG_DEBUG(GraphRef.EnableDebugLog,

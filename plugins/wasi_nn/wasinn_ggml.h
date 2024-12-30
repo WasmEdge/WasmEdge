@@ -11,6 +11,7 @@
 #include <common.h>
 #include <llama.h>
 #include <llava.h>
+#include <mllama.h>
 #include <sampling.h>
 #endif
 
@@ -68,6 +69,9 @@ struct Graph {
   std::string MMProjModelPath;
   struct clip_ctx *ClipContext = nullptr;
   VisionModel VisionModelType = VisionModel::Llava;
+  // Mllama context (for mllama):
+  std::string MllamaProjModelPath;
+  struct mllama_ctx *MllamaContext = nullptr;
   // Context parameters:
   int64_t CtxSize;
   int64_t BatchSize;
@@ -96,6 +100,8 @@ public:
   std::vector<llama_token> LlamaOutputTokens;
   // Preserve for llava
   struct llava_image_embed *LlavaImageEmbd = nullptr;
+  // Preserve for mllama
+  struct ::mllama_image *MllamaImageEmbd = nullptr;
   // Data for computing:
   bool ComputeSingleStarted = false;
   struct common_sampler *LlamaSampler = nullptr;

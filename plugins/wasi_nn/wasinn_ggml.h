@@ -37,29 +37,37 @@ enum class VisionModel : uint8_t {
   Qwen2VL = 1,
 };
 
+struct LocalConfig {
+  // Configurations which can be changed in every contexts.
+  // The graph handles a default config and parsed from metadata when loading.
+  // The context inherits a copy from graph when creating, and can be modified
+  // when parsing metadata in set_input.
+  bool StreamStdout = false;
+  EmbdNormalizeType EmbdNormalize = EmbdNormalizeType::Euclidean;
+  int64_t NPredict;
+  std::string ReversePrompt;
+  std::string ImagePath;
+};
+
 struct Graph {
-  llama_model *LlamaModel = nullptr;
-  std::string ModelFilePath;
-  llama_context *LlamaContext = nullptr;
-  struct clip_ctx *ClipContext = nullptr;
   // Plugin parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
-  bool StreamStdout = false;
-  bool Embedding = false;
-  EmbdNormalizeType EmbdNormalize = EmbdNormalizeType::Euclidean;
-  bool ComputeSingleStarted = false;
-  int64_t NPredict;
-  std::string ReversePrompt;
-  std::string MMProjModelPath;
-  std::string ImagePath;
-  VisionModel VisionModelType = VisionModel::Llava;
   // Model parameters:
   int64_t MainGPU = 0; // Use GPU 0 by default
   int64_t NGPULayers = 0;
   std::vector<float> TensorSplit;
+  bool Embedding = false;
   bool UseMMap = true;
   bool WarmUp = false;
+  // Model context:
+  llama_model *LlamaModel = nullptr;
+  llama_context *LlamaContext = nullptr;
+  std::string ModelFilePath;
+  // Clip context (for llava):
+  std::string MMProjModelPath;
+  struct clip_ctx *ClipContext = nullptr;
+  VisionModel VisionModelType = VisionModel::Llava;
   // Context parameters:
   int64_t CtxSize;
   int64_t BatchSize;
@@ -72,23 +80,34 @@ struct Graph {
   double PresencePenalty = 0.00;
   double FrequencyPenalty = 0.00;
   std::string Grammar;
+  // Configs.
+  LocalConfig Conf;
 };
 
 struct Context {
 public:
-  Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}
+  Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), Conf(G.Conf) {}
   uint32_t GraphId;
+  // Llama inputs:
   std::vector<llama_token> LlamaInputs;
   uint64_t LlamaNInputs = 0;
+  // Llama outputs:
   std::string LlamaOutputs;
   std::vector<llama_token> LlamaOutputTokens;
-  // Preserve for computing single token
-  common_sampler *LlamaSampler = nullptr;
-  int32_t LlamaNPast = 0;
-  int32_t LlamaNPos = 0;
   // Preserve for llava
   struct llava_image_embed *LlavaImageEmbd = nullptr;
+  // Data for computing:
+  bool ComputeSingleStarted = false;
+  struct common_sampler *LlamaSampler = nullptr;
+  // Handle the batch in the context to prevent from reallocation in every
+  // computing.
+  struct llama_batch LlamaBatch;
+  struct llama_batch OutputBatch;
+  int64_t TokenBatchSize = 0;
   size_t ImagePosition = 0;
+  int32_t NPos = 0;
+  // Configs:
+  LocalConfig Conf;
 };
 #else
 struct Graph {};

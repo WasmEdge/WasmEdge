@@ -9,9 +9,7 @@
 namespace WasmEdge {
 namespace Host {
 
-WasiPollModule::WasiPollModule() : ComponentInstance("wasi:poll/poll") {
-  addHostFunc("drop-pollable", std::make_unique<Drop>(Env));
-}
+WasiPollModule::WasiPollModule() : ComponentInstance("wasi:poll/poll") {}
 
 } // namespace Host
 } // namespace WasmEdge

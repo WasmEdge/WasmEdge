@@ -14,12 +14,12 @@ namespace Executor {
 using namespace std::literals;
 using namespace AST::Component;
 
+// In this function, we will create a new module instance and insert it into
+// component module instance index space.
 Expect<void>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CoreInstanceSection &Sec) {
-  // In this function, we will create a new module instance and insert it into
-  // component module instance index space.
   for (const CoreInstanceExpr &InstExpr : Sec.getContent()) {
     if (std::holds_alternative<CoreInstantiate>(InstExpr)) {
       auto &Instantiate = std::get<CoreInstantiate>(InstExpr);
@@ -27,8 +27,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       for (auto &Arg : Instantiate.getArgs()) {
         // instantiate a list of `(with (name $instance))`
         // each $instance get named as `name` as statement tell
-        StoreMgr.addNamedModule(Arg.getName(),
-                                CompInst.getModuleInstance(Arg.getIndex()));
+        auto Res = CompInst.getModuleInstance(Arg.getIndex());
+        if (!Res) {
+          return Unexpect(Res);
+        }
+        StoreMgr.addNamedModule(Arg.getName(), *Res);
       }
       const AST::Module &Mod = CompInst.getModule(Instantiate.getModuleIdx());
       auto Res = instantiate(StoreMgr, Mod);
@@ -51,25 +54,37 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         switch (SortIdx.getSort()) {
         case CoreSort::Func: {
           // The module instance takes functions and export them
-          M->exportFunction(
-              S.getName(),
-              // get stored core function
-              CompInst.getCoreFunctionInstance(SortIdx.getSortIdx()));
+
+          // get stored core function
+          auto Res = CompInst.getCoreFunctionInstance(SortIdx.getSortIdx());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          M->exportFunction(S.getName(), *Res);
           break;
         }
         case CoreSort::Table: {
-          M->exportTable(S.getName(),
-                         CompInst.getCoreTableInstance(SortIdx.getSortIdx()));
+          auto Res = CompInst.getCoreTableInstance(SortIdx.getSortIdx());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          M->exportTable(S.getName(), *Res);
           break;
         }
         case CoreSort::Memory: {
-          M->exportMemory(S.getName(),
-                          CompInst.getCoreMemoryInstance(SortIdx.getSortIdx()));
+          auto Res = CompInst.getCoreMemoryInstance(SortIdx.getSortIdx());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          M->exportMemory(S.getName(), *Res);
           break;
         }
         case CoreSort::Global: {
-          M->exportGlobal(S.getName(),
-                          CompInst.getCoreGlobalInstance(SortIdx.getSortIdx()));
+          auto Res = CompInst.getCoreGlobalInstance(SortIdx.getSortIdx());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          M->exportGlobal(S.getName(), *Res);
           break;
         }
         case CoreSort::Type:
@@ -121,10 +136,14 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           case CoreSort::Module:
             spdlog::warn("incomplete (with {}) core:module"sv, Arg.getName());
             break;
-          case CoreSort::Instance:
-            StoreMgr.addNamedModule(
-                Arg.getName(), CompInst.getModuleInstance(Idx.getSortIdx()));
+          case CoreSort::Instance: {
+            auto Res = CompInst.getModuleInstance(Idx.getSortIdx());
+            if (!Res) {
+              return Unexpect(Res);
+            }
+            StoreMgr.addNamedModule(Arg.getName(), *Res);
             break;
+          }
           }
         } else if (std::holds_alternative<SortCase>(S)) {
           switch (std::get<SortCase>(S)) {
@@ -137,15 +156,18 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           case SortCase::Type: // TODO: figure out how to do this registry
             spdlog::warn("incomplete (with {}) type"sv, Arg.getName());
             break;
-          case SortCase::Component:
-            if (auto Res = StoreMgr.registerComponent(
-                    Arg.getName(),
-                    CompInst.getComponentInstance(Idx.getSortIdx()));
+          case SortCase::Component: {
+            auto RComp = CompInst.getComponentInstance(Idx.getSortIdx());
+            if (!RComp) {
+              return Unexpect(RComp);
+            }
+            if (auto Res = StoreMgr.registerComponent(Arg.getName(), *RComp);
                 !Res) {
               spdlog::error("failed to register component instance"sv);
               return Unexpect(Res);
             }
             break;
+          }
           case SortCase::Instance:
             // TODO: figure out how to do this registry
             spdlog::warn("incomplete (with {}) instance"sv, Arg.getName());

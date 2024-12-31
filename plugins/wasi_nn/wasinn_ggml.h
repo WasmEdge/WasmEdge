@@ -49,7 +49,7 @@ struct Graph {
   bool Embedding = false;
   EmbdNormalizeType EmbdNormalize = EmbdNormalizeType::Euclidean;
   bool ComputeSingleStarted = false;
-  uint64_t NPredict;
+  int64_t NPredict;
   std::string ReversePrompt;
   std::string MMProjModelPath;
   std::string ImagePath;
@@ -61,10 +61,10 @@ struct Graph {
   bool UseMMap = true;
   bool WarmUp = false;
   // Context parameters:
-  uint64_t CtxSize;
-  uint64_t BatchSize;
-  uint64_t UBatchSize;
-  uint64_t Threads;
+  int64_t CtxSize;
+  int64_t BatchSize;
+  int64_t UBatchSize;
+  int64_t Threads;
   // Sampling parameters:
   double Temp = 0.80;
   double TopP = 0.95;

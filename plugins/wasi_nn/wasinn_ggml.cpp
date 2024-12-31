@@ -1060,14 +1060,12 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
     // Load the clip model if not loaded.
     if (GraphRef.ClipContext == nullptr) {
-      if (GraphRef.EnableLog) {
-        spdlog::info(
-            "[WASI-NN] GGML backend: Load the clip model. "
-            "Because llama.cpp disabled the GPU support for CLIP, "
-            "the step of loading images in CLIP can only use the CPU, "
-            "which may result in reduced efficiency. "
-            "(You can refer to PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv);
-      }
+      spdlog::info(
+          "[WASI-NN] GGML backend: Load the clip model. "
+          "Because llama.cpp disabled the GPU support for CLIP, "
+          "the step of loading images in CLIP can only use the CPU, "
+          "which may result in reduced efficiency. "
+          "(You can refer to PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv);
       GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
                                              GraphRef.EnableLog ? 1 : 0);
       if (GraphRef.ClipContext == nullptr) {
@@ -1077,6 +1075,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
       if (clip_is_qwen2vl(GraphRef.ClipContext)) {
         GraphRef.VisionModelType = VisionModel::Qwen2VL;
+        spdlog::info(
+            "[WASI-NN] GGML backend: The Qwen2VL clip model is loaded."sv);
         if (GraphRef.EnableLog) {
           spdlog::info("[WASI-NN] GGML backend: Qwen2vl model detected."sv);
         }

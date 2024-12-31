@@ -365,6 +365,8 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
         std::initializer_list<WasmEdge::ValVariant>{
             InputPathPtr,                              // ImagePtr
             static_cast<uint32_t>(InputPath.size()),   // ImageLen
+            0,                                         // MaskInputPtr
+            0,                                         // MaskInputLen
             SessionId,                                 // SessionId
             3.5f,                                      // Guidance
             256,                                       // Width
@@ -424,6 +426,8 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
         std::initializer_list<WasmEdge::ValVariant>{
             InputPathPtr,                              // ImagePtr
             static_cast<uint32_t>(InputPath.size()),   // ImageLen
+            0,                                         // MaskInputPtr
+            0,                                         // MaskInputLen
             SessionId,                                 // SessionId
             3.5f,                                      // Guidance
             256,                                       // Width
@@ -537,6 +541,8 @@ TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
         std::initializer_list<WasmEdge::ValVariant>{
             InputPathPtr,                              // ImagePtr
             static_cast<uint32_t>(InputPath.size()),   // ImageLen
+            0,                                         // MaskInputPtr
+            0,                                         // MaskInputLen
             -1,                                        // SessionId
             3.5f,                                      // Guidance
             256,                                       // Width

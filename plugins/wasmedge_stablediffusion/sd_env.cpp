@@ -17,7 +17,7 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .Name = "wasmedge_stablediffusion",
     .Description = "Stable Diffusion plug-in for WasmEdge.",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
-    .Version = {0, 3, 0, 0},
+    .Version = {0, 4, 0, 0},
     .ModuleCount = 1,
     .ModuleDescriptions =
         (Plugin::PluginModule::ModuleDescriptor[]){

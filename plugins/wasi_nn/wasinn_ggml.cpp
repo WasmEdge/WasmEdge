@@ -54,12 +54,12 @@ void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
 Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
   Params.model = GraphRef.ModelFilePath;
   Params.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
-  Params.n_ctx = static_cast<uint32_t>(GraphRef.CtxSize);
-  Params.n_batch = static_cast<uint32_t>(GraphRef.BatchSize);
-  Params.n_ubatch = static_cast<uint32_t>(GraphRef.UBatchSize);
+  Params.n_ctx = static_cast<int32_t>(GraphRef.CtxSize);
+  Params.n_batch = static_cast<int32_t>(GraphRef.BatchSize);
+  Params.n_ubatch = static_cast<int32_t>(GraphRef.UBatchSize);
   Params.warmup = GraphRef.WarmUp;
-  Params.cpuparams.n_threads = static_cast<uint32_t>(GraphRef.Threads);
-  Params.cpuparams_batch.n_threads = static_cast<uint32_t>(GraphRef.Threads);
+  Params.cpuparams.n_threads = static_cast<int32_t>(GraphRef.Threads);
+  Params.cpuparams_batch.n_threads = static_cast<int32_t>(GraphRef.Threads);
   Params.embedding = GraphRef.Embedding;
   Params.sampling.temp = static_cast<float>(GraphRef.Temp);
   Params.sampling.top_p = static_cast<float>(GraphRef.TopP);
@@ -89,7 +89,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   enable-debug-log: bool
   //   stream-stdout: bool
   //   embedding: bool
-  //   n-predict: uint64_t
+  //   n-predict: int64_t
   //   reverse-prompt: string
   //   mmproj: string
   //   image: string
@@ -101,10 +101,10 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   use-mmap: use mmap
   //   warmup: bool
   // Context parameters (used by the llama context):
-  //   ctx-size: uint64_t
-  //   batch-size: uint64_t
-  //   ubatch-size: uint64_t
-  //   threads: uint64_t
+  //   ctx-size: int64_t
+  //   batch-size: int64_t
+  //   ubatch-size: int64_t
+  //   threads: int64_t
   // Sampling parameters (used by the llama sampling context).
   //   temp: double
   //   top-p: double
@@ -151,7 +151,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
   }
   if (Doc.at_key("n-predict").error() == simdjson::SUCCESS) {
-    auto Err = Doc["n-predict"].get<uint64_t>().get(GraphRef.NPredict);
+    auto Err = Doc["n-predict"].get<int64_t>().get(GraphRef.NPredict);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the n-predict option."sv);
@@ -255,7 +255,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
 
   // The context parameters.
   if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
-    auto Err = Doc["ctx-size"].get<uint64_t>().get(GraphRef.CtxSize);
+    auto Err = Doc["ctx-size"].get<int64_t>().get(GraphRef.CtxSize);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the ctx-size option."sv);
@@ -263,7 +263,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
   }
   if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
-    auto Err = Doc["batch-size"].get<uint64_t>().get(GraphRef.BatchSize);
+    auto Err = Doc["batch-size"].get<int64_t>().get(GraphRef.BatchSize);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the batch-size option."sv);
@@ -271,7 +271,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
   }
   if (Doc.at_key("ubatch-size").error() == simdjson::SUCCESS) {
-    auto Err = Doc["ubatch-size"].get<uint64_t>().get(GraphRef.UBatchSize);
+    auto Err = Doc["ubatch-size"].get<int64_t>().get(GraphRef.UBatchSize);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the ubatch-size option."sv);
@@ -279,7 +279,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
   }
   if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
-    auto Err = Doc["threads"].get<uint64_t>().get(GraphRef.Threads);
+    auto Err = Doc["threads"].get<int64_t>().get(GraphRef.Threads);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the threads option."sv);
@@ -608,7 +608,7 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   }
 
   // Check if the input is too long.
-  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > GraphRef.BatchSize) {
+  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) > GraphRef.BatchSize) {
     if (GraphRef.EnableLog) {
       spdlog::info(
           "[WASI-NN] GGML backend: the prompt is too long. "
@@ -1226,7 +1226,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // Prepare variables;
   int32_t NPast = 0;
   int32_t NPos = 0;
-  uint64_t NRemain = GraphRef.NPredict;
+  int64_t NRemain = GraphRef.NPredict;
   // Get the context size.
   const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext);
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)

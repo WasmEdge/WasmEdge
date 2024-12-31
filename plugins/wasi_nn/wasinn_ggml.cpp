@@ -604,7 +604,8 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
 
   // Add SEP if not present.
   if (CxtRef.LlamaInputs.back() != llama_token_sep(GraphRef.LlamaModel)) {
-    CxtRef.LlamaInputs.push_back(llama_token_sep(GraphRef.LlamaModel));
+    spdlog::warn(
+        "[WASI-NN] GGML backend: last token in the prompt is not SEP, 'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF header"sv);
   }
 
   // Check if the input is too long.

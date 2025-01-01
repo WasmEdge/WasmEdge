@@ -57,7 +57,8 @@ public:
   ~Environ() noexcept;
 
   void init(Span<const std::string> Dirs, std::string ProgramName,
-            Span<const std::string> Args, Span<const std::string> Envs);
+            Span<const std::string> Args, Span<const std::string> Envs,
+            std::array<std::optional<int>, 3> Stdio = {std::nullopt, std::nullopt, std::nullopt});
 
   void fini() noexcept;
 

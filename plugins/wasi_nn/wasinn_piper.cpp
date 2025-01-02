@@ -273,12 +273,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   }
 
   // Add a new graph.
-  auto &GraphRef = Env.NNGraph.emplace_back(Backend::Piper).get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::Piper);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
   GraphRef.Config = std::make_unique<RunConfig>();
   auto String = std::string{Builders[0].begin(), Builders[0].end()};
   if (auto Res = parseRunConfig(*GraphRef.Config, String);
       Res != WASINN::ErrNo::Success) {
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     spdlog::error("[WASI-NN] Piper backend: Failed to parse run config."sv);
     return Res;
   }
@@ -294,13 +295,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (!GraphRef.Config->ESpeakDataPath) {
       spdlog::error(
           "[WASI-NN] Piper backend: espeak-ng data directory is required for eSpeakPhonemes"sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return WASINN::ErrNo::InvalidArgument;
     }
     if (!std::filesystem::exists(GraphRef.Config->ESpeakDataPath.value())) {
       spdlog::error(
           "[WASI-NN] Piper backend: espeak-ng data directory doesn't exist"sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return WASINN::ErrNo::InvalidArgument;
     }
     // User provided path
@@ -316,13 +317,13 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     if (!GraphRef.Config->TashkeelModelPath) {
       spdlog::error(
           "[WASI-NN] Piper backend: libtashkeel ort model is required for Arabic"sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return WASINN::ErrNo::InvalidArgument;
     }
     if (!std::filesystem::exists(GraphRef.Config->TashkeelModelPath.value())) {
       spdlog::error(
           "[WASI-NN] Piper backend: libtashkeel ort model doesn't exist"sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return WASINN::ErrNo::InvalidArgument;
     }
     GraphRef.PiperConfig->useTashkeel = true;
@@ -349,7 +350,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       GraphRef.Voice->synthesisConfig.phonemeSilenceSeconds;
 
   // Store the loaded graph.
-  GraphId = Env.NNGraph.size() - 1;
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
   return WASINN::ErrNo::Success;
 }
 
@@ -357,8 +359,8 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
                                   uint32_t GraphId,
                                   uint32_t &ContextId) noexcept {
   // Create context.
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-  ContextId = Env.NNContext.size() - 1;
+  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
+  Env.NNContext[ContextId].setReady();
   return WASINN::ErrNo::Success;
 }
 

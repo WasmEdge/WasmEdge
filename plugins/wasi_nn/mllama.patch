@@ -1,0 +1,2091 @@
+diff --git a/examples/llava/llava.cpp b/examples/llava/llava.cpp
+index 16f30c56..0f0f3f62 100644
+--- a/examples/llava/llava.cpp
++++ b/examples/llava/llava.cpp
+@@ -429,7 +429,7 @@ struct llava_embd_batch {
+     std::vector<llama_seq_id *> seq_ids;
+     std::vector<int8_t>         logits;
+     llama_batch batch;
+-    llava_embd_batch(float * embd, int32_t n_tokens, llama_pos pos_0, llama_seq_id seq_id) {
++    llava_embd_batch(float * embd, int32_t n_embd, int32_t n_tokens, llama_pos pos_0, llama_seq_id seq_id) {
+         pos     .resize(n_tokens);
+         n_seq_id.resize(n_tokens);
+         seq_ids .resize(n_tokens + 1);
+@@ -441,6 +441,7 @@ struct llava_embd_batch {
+             /*n_tokens       =*/ n_tokens,
+             /*tokens         =*/ nullptr,
+             /*embd           =*/ embd,
++            /*n_embd         =*/ n_embd,
+             /*pos            =*/ pos.data(),
+             /*n_seq_id       =*/ n_seq_id.data(),
+             /*seq_id         =*/ seq_ids.data(),
+@@ -464,7 +465,7 @@ bool llava_eval_image_embed(llama_context * ctx_llama, const struct llava_image_
+             n_eval = n_batch;
+         }
+         float * embd = image_embed->embed+i*n_embd;
+-        llava_embd_batch llava_batch = llava_embd_batch(embd, n_eval, *n_past, 0);
++        llava_embd_batch llava_batch = llava_embd_batch(embd, n_embd, n_eval, *n_past, 0);
+         if (llama_decode(ctx_llama, llava_batch.batch)) {
+             LOG_ERR("%s : failed to eval\n", __func__);
+             return false;
+diff --git a/examples/llava/mllama.cpp b/examples/llava/mllama.cpp
+new file mode 100644
+index 00000000..7fc62158
+--- /dev/null
++++ b/examples/llava/mllama.cpp
+@@ -0,0 +1,900 @@
++// NOTE: This is modified from clip.cpp for Mllama only
++#include "mllama.h"
++#include "ggml.h"
++#include "ggml-cpu.h"
++#include "ggml-alloc.h"
++#include "ggml-backend.h"
++
++#ifdef GGML_USE_CUDA
++#include "ggml-cuda.h"
++#endif
++
++#ifdef GGML_USE_METAL
++#include "ggml-metal.h"
++#endif
++
++#ifdef GGML_USE_CANN
++#include "ggml-cann.h"
++#endif
++
++#ifdef GGML_USE_VULKAN
++#include "ggml-vulkan.h"
++#endif
++
++#include <algorithm>
++#include <cmath>
++#include <cstdarg>
++#include <cstdlib>
++#include <cstring>
++#include <fstream>
++#include <stdexcept>
++#include <vector>
++
++#define REQUIRE(x)                                           \
++    do {                                                     \
++        if (!(x)) {                                          \
++            throw std::runtime_error("REQUIRE failed: " #x); \
++        }                                                    \
++    } while (0)
++
++#define LOG(fmt, ...) fprintf(stderr, "%s: " fmt "\n", __func__, ##__VA_ARGS__)
++
++#if defined(_WIN32)
++#define WIN32_LEAN_AND_MEAN
++#ifndef NOMINMAX
++    #define NOMINMAX
++#endif
++#include <windows.h>
++#if __GLIBCXX__
++#include <cstdio>
++#include <ext/stdio_filebuf.h>
++#include <fcntl.h>
++#endif
++#endif
++
++struct mllama_image {
++    int width;
++    int height;
++
++    int num_channels = 3;
++    int num_tiles = 4;
++
++    int aspect_ratio_id;
++
++    std::vector<float> data;
++};
++
++static std::string format(const char *fmt, ...) {
++    va_list args;
++    va_start(args, fmt);
++    std::vector<char> b(128);
++    int n = vsnprintf(b.data(), b.size(), fmt, args);
++    REQUIRE(n >= 0 && static_cast<size_t>(n) < b.size());
++    va_end(args);
++    return std::string(b.data(), b.size());
++}
++
++//
++// utilities to get data from a gguf file
++//
++
++static int get_key_index(const gguf_context *ctx, const char *key) {
++    int key_index = gguf_find_key(ctx, key);
++    REQUIRE(key_index != -1);
++    return key_index;
++}
++
++static std::vector<uint32_t> get_u32_array(const gguf_context *ctx, const std::string &key) {
++    const int i = get_key_index(ctx, key.c_str());
++    const int n = gguf_get_arr_n(ctx, i);
++    const uint32_t *data = (uint32_t *)gguf_get_arr_data(ctx, i);
++
++    std::vector<uint32_t> s(n);
++    for (size_t j = 0; j < s.size(); j++) {
++        s[j] = data[j];
++    }
++
++    return s;
++}
++
++static uint32_t get_u32(const gguf_context *ctx, const std::string &key) {
++    return gguf_get_val_u32(ctx, get_key_index(ctx, key.c_str()));
++}
++
++static float get_f32(const gguf_context *ctx, const std::string &key) {
++    return gguf_get_val_f32(ctx, get_key_index(ctx, key.c_str()));
++}
++
++static std::string get_ftype(int ftype) {
++    return ggml_type_name(static_cast<ggml_type>(ftype));
++}
++
++//
++// mllama layers
++//
++
++struct mllama_hparams {
++    uint32_t image_size;
++    uint32_t patch_size;
++    uint32_t hidden_size;
++    uint32_t n_intermediate;
++    uint32_t projection_dim;
++    uint32_t n_head;
++    uint32_t n_layer;
++    uint32_t n_global_layer;
++    uint32_t n_tiles;
++
++    float eps;
++
++    std::vector<bool> intermediate_layers;
++};
++
++struct mllama_layer {
++    // attention
++    struct ggml_tensor *k_w;
++    struct ggml_tensor *k_b;
++    struct ggml_tensor *q_w;
++    struct ggml_tensor *q_b;
++    struct ggml_tensor *v_w;
++    struct ggml_tensor *v_b;
++
++    struct ggml_tensor *o_w;
++    struct ggml_tensor *o_b;
++
++    struct ggml_tensor *attn_gate;
++
++    // layernorm 1
++    struct ggml_tensor *ln_1_w;
++    struct ggml_tensor *ln_1_b;
++
++    // ff
++    struct ggml_tensor *ff_i_w;
++    struct ggml_tensor *ff_i_b;
++
++    struct ggml_tensor *ff_o_w;
++    struct ggml_tensor *ff_o_b;
++
++    struct ggml_tensor *ff_gate;
++
++    // layernorm 2
++    struct ggml_tensor *ln_2_w;
++    struct ggml_tensor *ln_2_b;
++};
++
++struct mllama_vision_model {
++    struct mllama_hparams hparams;
++
++    // embeddings
++    struct ggml_tensor *class_embedding;
++    struct ggml_tensor *patch_embeddings;
++    struct ggml_tensor *position_embeddings;
++    struct ggml_tensor *position_embeddings_gate;
++    struct ggml_tensor *tile_position_embeddings;
++    struct ggml_tensor *tile_position_embeddings_gate;
++    struct ggml_tensor *pre_tile_position_embeddings;
++    struct ggml_tensor *pre_tile_position_embeddings_gate;
++    struct ggml_tensor *post_tile_position_embeddings;
++    struct ggml_tensor *post_tile_position_embeddings_gate;
++
++    struct ggml_tensor *pre_ln_w;
++    struct ggml_tensor *pre_ln_b;
++
++    std::vector<mllama_layer> layers;
++    std::vector<mllama_layer> global_layers;
++
++    struct ggml_tensor *post_ln_w;
++    struct ggml_tensor *post_ln_b;
++
++    struct ggml_tensor *mm_0_w;
++    struct ggml_tensor *mm_0_b;
++};
++
++struct mllama_ctx {
++    struct mllama_vision_model vision_model;
++
++    uint32_t ftype = 1;
++
++    struct gguf_context *ctx_gguf;
++    struct ggml_context *ctx_data;
++
++    std::vector<uint8_t> buf_compute_meta;
++
++    // memory buffers to evaluate the model
++    ggml_backend_buffer_t params_buffer = nullptr;
++
++    ggml_backend_t backend = nullptr;
++    ggml_gallocr_t compute_alloc = nullptr;
++};
++
++static ggml_tensor *mllama_image_build_encoder_layer(
++    struct ggml_context *ctx0, const size_t il, const struct mllama_layer &layer, struct ggml_tensor *embeddings,
++    const float eps, const int hidden_size, const int batch_size, const int n_head, const int d_head) {
++    struct ggml_tensor *cur = embeddings;
++
++    {
++        // layernorm1
++        cur = ggml_norm(ctx0, cur, eps);
++        cur = ggml_add(ctx0, ggml_mul(ctx0, cur, layer.ln_1_w), layer.ln_1_b);
++        ggml_set_name(cur, format("%d pre layernorm", il).c_str());
++    }
++
++    {
++        // self-attention
++        struct ggml_tensor *Q = ggml_mul_mat(ctx0, layer.q_w, cur);
++        if (layer.q_b != nullptr) {
++            Q = ggml_add(ctx0, Q, layer.q_b);
++        }
++
++        Q = ggml_reshape_4d(ctx0, Q, d_head, n_head, Q->ne[1], batch_size);
++        Q = ggml_cont(ctx0, ggml_permute(ctx0, Q, 0, 2, 1, 3));
++        ggml_set_name(Q, format("%d query", il).c_str());
++
++        struct ggml_tensor *K = ggml_mul_mat(ctx0, layer.k_w, cur);
++        if (layer.k_b != nullptr) {
++            K = ggml_add(ctx0, K, layer.k_b);
++        }
++
++        K = ggml_reshape_4d(ctx0, K, d_head, n_head, K->ne[1], batch_size);
++        K = ggml_cont(ctx0, ggml_permute(ctx0, K, 0, 2, 1, 3));
++        ggml_set_name(K, format("%d key", il).c_str());
++
++        struct ggml_tensor *V = ggml_mul_mat(ctx0, layer.v_w, cur);
++        if (layer.v_b != nullptr) {
++            V = ggml_add(ctx0, V, layer.v_b);
++        }
++
++        V = ggml_reshape_4d(ctx0, V, d_head, n_head, V->ne[1], batch_size);
++        V = ggml_cont(ctx0, ggml_permute(ctx0, V, 1, 2, 0, 3));
++        ggml_set_name(V, format("%d value", il).c_str());
++
++        struct ggml_tensor *KQ = ggml_mul_mat(ctx0, K, Q);
++        KQ = ggml_scale_inplace(ctx0, KQ, 1.0f / sqrtf((float)d_head));
++        KQ = ggml_soft_max_inplace(ctx0, KQ);
++        ggml_set_name(KQ, format("%d KQ", il).c_str());
++
++        struct ggml_tensor *KQV = ggml_mul_mat(ctx0, V, KQ);
++        KQV = ggml_reshape_4d(ctx0, KQV, d_head, KQV->ne[1], n_head, batch_size);
++        KQV = ggml_permute(ctx0, KQV, 0, 2, 1, 3);
++        KQV = ggml_cont_3d(ctx0, KQV, hidden_size, KQV->ne[2], batch_size);
++        ggml_set_name(KQV, format("%d KQV", il).c_str());
++
++        cur = ggml_mul_mat(ctx0, layer.o_w, KQV);
++        if (layer.o_b != nullptr) {
++            cur = ggml_add(ctx0, cur, layer.o_b);
++        }
++        ggml_set_name(cur, format("%d self attention", il).c_str());
++
++        if (layer.attn_gate != nullptr) {
++            cur = ggml_mul_inplace(ctx0, cur, layer.attn_gate);
++            ggml_set_name(cur, format("%d self attention gate", il).c_str());
++        }
++    }
++
++    cur = ggml_add(ctx0, cur, embeddings);
++    ggml_set_name(cur, format("%d residual", il).c_str());
++
++    embeddings = cur;
++
++    {
++        // layernorm2
++        cur = ggml_norm(ctx0, cur, eps);
++        cur = ggml_add(ctx0, ggml_mul(ctx0, cur, layer.ln_2_w), layer.ln_2_b);
++        ggml_set_name(cur, format("%d post layernorm", il).c_str());
++    }
++
++    {
++        // feed forward
++        cur = ggml_add(ctx0, ggml_mul_mat(ctx0, layer.ff_i_w, cur), layer.ff_i_b);
++        cur = ggml_gelu_inplace(ctx0, cur);
++        cur = ggml_add(ctx0, ggml_mul_mat(ctx0, layer.ff_o_w, cur), layer.ff_o_b);
++        ggml_set_name(cur, format("%d feed forward", il).c_str());
++
++        if (layer.ff_gate != nullptr) {
++            cur = ggml_mul_inplace(ctx0, cur, layer.ff_gate);
++            ggml_set_name(cur, format("%d feed forward gate", il).c_str());
++        }
++    }
++
++    // residual 2
++    cur = ggml_add(ctx0, cur, embeddings);
++    ggml_set_name(cur, format("%d residual", il).c_str());
++
++    embeddings = cur;
++
++    return embeddings;
++}
++
++static ggml_cgraph *mllama_image_build_graph(mllama_ctx *ctx, const mllama_image_batch *imgs) {
++    const auto &model = ctx->vision_model;
++    const auto &hparams = model.hparams;
++
++    const int image_size = hparams.image_size;
++    const int image_size_width = image_size;
++    const int image_size_height = image_size;
++
++    const int patch_size = hparams.patch_size;
++    const int num_patches = ((image_size_width / patch_size) * (image_size_height / patch_size));
++    const int num_positions = num_patches + (model.class_embedding == nullptr ? 0 : 1);
++    const int hidden_size = hparams.hidden_size;
++    const int n_head = hparams.n_head;
++    const int d_head = hidden_size / n_head;
++
++    const int batch_size = imgs->size;
++    REQUIRE(batch_size == 1);
++
++    int num_tiles = 4;
++    int num_channels = 3;
++    if (imgs->data != nullptr) {
++        num_tiles = imgs->data[0].num_tiles > 0 ? imgs->data[0].num_tiles : num_tiles;
++        num_channels = imgs->data[0].num_channels > 0 ? imgs->data[0].num_channels : num_channels;
++    }
++
++    struct ggml_init_params params = {
++        ctx->buf_compute_meta.size(), // mem_size
++        ctx->buf_compute_meta.data(), // mem_buffer
++        true,                         // no_alloc
++    };
++
++    struct ggml_context *ctx0 = ggml_init(params);
++    struct ggml_cgraph *gf = ggml_new_graph(ctx0);
++
++    struct ggml_tensor *inp_raw = ggml_new_tensor_4d(ctx0, GGML_TYPE_F32, image_size_width, image_size_height, num_channels, num_tiles);
++    ggml_set_name(inp_raw, "inp_raw");
++    ggml_set_input(inp_raw);
++
++    struct ggml_tensor *inp = ggml_conv_2d(ctx0, model.patch_embeddings, inp_raw, patch_size, patch_size, 0, 0, 1, 1);
++
++    inp = ggml_reshape_3d(ctx0, inp, num_patches, hidden_size, num_tiles);
++    inp = ggml_cont(ctx0, ggml_permute(ctx0, inp, 1, 0, 2, 3));
++
++    struct ggml_tensor *aspect_ratios = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, imgs->size);
++    ggml_set_name(aspect_ratios, "aspect_ratios");
++    ggml_set_input(aspect_ratios);
++
++    if (model.pre_tile_position_embeddings != nullptr) {
++        struct ggml_tensor *pre_tile_position_embeddings = ggml_get_rows(ctx0, model.pre_tile_position_embeddings, aspect_ratios);
++        ggml_set_name(pre_tile_position_embeddings, "pre_tile_position_embeddings");
++
++        pre_tile_position_embeddings = ggml_reshape_3d(ctx0, pre_tile_position_embeddings, hidden_size, 1, num_tiles);
++        if (model.pre_tile_position_embeddings_gate != nullptr) {
++            pre_tile_position_embeddings = ggml_mul_inplace(ctx0, pre_tile_position_embeddings, model.pre_tile_position_embeddings_gate);
++        }
++
++        inp = ggml_add(ctx0, inp, pre_tile_position_embeddings);
++    }
++
++    struct ggml_tensor *embeddings = inp;
++
++    if (model.class_embedding != nullptr) {
++        // concat class_embeddings and patch_embeddings
++        embeddings = ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, hidden_size, num_positions, num_tiles);
++        ggml_set_name(embeddings, "embeddings");
++        ggml_set_input(embeddings);
++        for (int i = 0; i < num_tiles; ++i) {
++            // repeat class embeddings for each tile
++            embeddings = ggml_acc_inplace(ctx0, embeddings, model.class_embedding, embeddings->nb[1], embeddings->nb[2], embeddings->nb[3], i * embeddings->nb[2]);
++        }
++
++        embeddings = ggml_acc_inplace(ctx0, embeddings, inp, embeddings->nb[1], embeddings->nb[2], embeddings->nb[3], model.class_embedding->nb[1]);
++    }
++
++    struct ggml_tensor *positions = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, num_positions);
++    ggml_set_name(positions, "positions");
++    ggml_set_input(positions);
++
++    struct ggml_tensor *position_embd = ggml_get_rows(ctx0, model.position_embeddings, positions);
++    if (model.position_embeddings_gate != nullptr) {
++        position_embd = ggml_mul_inplace(ctx0, position_embd, model.position_embeddings_gate);
++    }
++
++    embeddings = ggml_add(ctx0, embeddings, position_embd);
++
++    if (model.tile_position_embeddings != nullptr) {
++        struct ggml_tensor *tile_position_embeddings = ggml_get_rows(ctx0, model.tile_position_embeddings, aspect_ratios);
++        ggml_set_name(tile_position_embeddings, "tile_position_embeddings");
++
++        tile_position_embeddings = ggml_reshape_3d(ctx0, tile_position_embeddings, hidden_size, num_positions, num_tiles);
++        if (model.tile_position_embeddings_gate != nullptr) {
++            tile_position_embeddings = ggml_mul_inplace(ctx0, tile_position_embeddings, model.tile_position_embeddings_gate);
++        }
++
++        embeddings = ggml_add(ctx0, embeddings, tile_position_embeddings);
++    }
++
++    // pre-layernorm
++    if (model.pre_ln_w != nullptr) {
++        embeddings = ggml_mul(ctx0, ggml_norm(ctx0, embeddings, hparams.eps), model.pre_ln_w);
++        if (model.pre_ln_b != nullptr) {
++            embeddings = ggml_add(ctx0, embeddings, model.pre_ln_b);
++        }
++
++        ggml_set_name(embeddings, "pre layernorm");
++    }
++
++    const int num_padding_patches = 8 - (embeddings->ne[1] % 8) % 8;
++
++    embeddings = ggml_pad(ctx0, embeddings, 0, num_padding_patches, 0, 0);
++    embeddings = ggml_view_3d(ctx0, embeddings, embeddings->ne[0], embeddings->ne[1] * embeddings->ne[2], batch_size, embeddings->nb[1], embeddings->nb[2] * embeddings->ne[3], 0);
++
++    std::vector<struct ggml_tensor *> intermediate_embeddings;
++
++    // encoder
++    for (size_t il = 0; il < model.layers.size(); il++) {
++        if (hparams.intermediate_layers[il]) {
++            intermediate_embeddings.push_back(embeddings);
++        }
++
++        embeddings = mllama_image_build_encoder_layer(
++            ctx0, il, model.layers[il], embeddings,
++            hparams.eps, hidden_size, batch_size, n_head, d_head);
++    }
++
++    // post-layernorm
++    if (model.post_ln_w != nullptr) {
++        embeddings = ggml_mul(ctx0, ggml_norm(ctx0, embeddings, hparams.eps), model.post_ln_w);
++        if (model.post_ln_b != nullptr) {
++            embeddings = ggml_add(ctx0, embeddings, model.post_ln_b);
++        }
++
++        ggml_set_name(embeddings, "post layernorm");
++    }
++
++    embeddings = ggml_reshape_3d(ctx0, embeddings, hidden_size, num_positions + num_padding_patches, num_tiles);
++
++    if (model.post_tile_position_embeddings != nullptr) {
++        struct ggml_tensor *post_tile_position_embeddings = ggml_get_rows(ctx0, model.post_tile_position_embeddings, aspect_ratios);
++        ggml_set_name(post_tile_position_embeddings, "post_tile_position_embeddings");
++
++        post_tile_position_embeddings = ggml_reshape_3d(ctx0, post_tile_position_embeddings, hidden_size, 1, num_tiles);
++        if (model.post_tile_position_embeddings_gate != nullptr) {
++            post_tile_position_embeddings = ggml_mul(ctx0, post_tile_position_embeddings, model.post_tile_position_embeddings_gate);
++        }
++
++        embeddings = ggml_add(ctx0, embeddings, post_tile_position_embeddings);
++    }
++
++    embeddings = ggml_reshape_3d(ctx0, embeddings, hidden_size, num_tiles * (num_positions + num_padding_patches), 1);
++
++    // global encoder
++    for (size_t il = 0; il < model.global_layers.size(); il++) {
++        embeddings = mllama_image_build_encoder_layer(
++            ctx0, il, model.global_layers[il], embeddings,
++            hparams.eps, hidden_size, batch_size, n_head, d_head);
++    }
++
++    struct ggml_tensor *stacked_embeddings = ggml_new_tensor_3d(ctx0, GGML_TYPE_F32, 0, hidden_size, (num_positions + num_padding_patches) * num_tiles);
++    for (size_t i = 0; i < intermediate_embeddings.size(); ++i) {
++        stacked_embeddings = ggml_concat(ctx0, stacked_embeddings, ggml_reshape_3d(ctx0, intermediate_embeddings[i], 1, intermediate_embeddings[i]->ne[0], intermediate_embeddings[i]->ne[1]), 0);
++    }
++
++    stacked_embeddings = ggml_reshape_4d(ctx0, stacked_embeddings, intermediate_embeddings.size() * hidden_size, num_positions + num_padding_patches, num_tiles, batch_size);
++    stacked_embeddings = ggml_unpad(ctx0, stacked_embeddings, 0, num_padding_patches, 0, 0);
++
++    embeddings = ggml_reshape_3d(ctx0, embeddings, hidden_size, num_positions + num_padding_patches, num_tiles);
++    embeddings = ggml_unpad(ctx0, embeddings, 0, num_padding_patches, 0, 0);
++    embeddings = ggml_concat(ctx0, embeddings, stacked_embeddings, 0);
++
++    // mllama projector
++    embeddings = ggml_add(ctx0, ggml_mul_mat(ctx0, model.mm_0_w, embeddings), model.mm_0_b);
++    ggml_set_name(embeddings, "multi modal projector");
++
++    // build the graph
++    ggml_build_forward_expand(gf, embeddings);
++
++    ggml_free(ctx0);
++
++    return gf;
++}
++
++static struct ggml_tensor *mllama_tensor_load(struct ggml_context *ctx, const char *name, const bool optional) {
++    struct ggml_tensor *cur = ggml_get_tensor(ctx, name);
++    REQUIRE(cur != nullptr || optional);
++    return cur;
++}
++
++static std::vector<struct mllama_layer> mllama_layers_load(struct ggml_context *ctx, const char *prefix, const int n) {
++    std::vector<struct mllama_layer> layers(n);
++    for (size_t i = 0; i < layers.size(); i++) {
++        auto &layer = layers[i];
++        layer.ln_1_w = mllama_tensor_load(ctx, format("%s.blk.%d.ln1.weight", prefix, i).c_str(), false);
++        layer.ln_1_b = mllama_tensor_load(ctx, format("%s.blk.%d.ln1.bias", prefix, i).c_str(), false);
++        layer.ln_2_w = mllama_tensor_load(ctx, format("%s.blk.%d.ln2.weight", prefix, i).c_str(), false);
++        layer.ln_2_b = mllama_tensor_load(ctx, format("%s.blk.%d.ln2.bias", prefix, i).c_str(), false);
++
++        layer.k_w = mllama_tensor_load(ctx, format("%s.blk.%d.attn_k.weight", prefix, i).c_str(), false);
++        layer.k_b = mllama_tensor_load(ctx, format("%s.blk.%d.attn_k.bias", prefix, i).c_str(), true);
++        layer.q_w = mllama_tensor_load(ctx, format("%s.blk.%d.attn_q.weight", prefix, i).c_str(), false);
++        layer.q_b = mllama_tensor_load(ctx, format("%s.blk.%d.attn_q.bias", prefix, i).c_str(), true);
++        layer.v_w = mllama_tensor_load(ctx, format("%s.blk.%d.attn_v.weight", prefix, i).c_str(), false);
++        layer.v_b = mllama_tensor_load(ctx, format("%s.blk.%d.attn_v.bias", prefix, i).c_str(), true);
++        layer.o_w = mllama_tensor_load(ctx, format("%s.blk.%d.attn_out.weight", prefix, i).c_str(), false);
++        layer.o_b = mllama_tensor_load(ctx, format("%s.blk.%d.attn_out.bias", prefix, i).c_str(), true);
++
++        layer.ff_i_w = mllama_tensor_load(ctx, format("%s.blk.%d.ffn_down.weight", prefix, i).c_str(), false);
++        layer.ff_i_b = mllama_tensor_load(ctx, format("%s.blk.%d.ffn_down.bias", prefix, i).c_str(), false);
++        layer.ff_o_w = mllama_tensor_load(ctx, format("%s.blk.%d.ffn_up.weight", prefix, i).c_str(), false);
++        layer.ff_o_b = mllama_tensor_load(ctx, format("%s.blk.%d.ffn_up.bias", prefix, i).c_str(), false);
++
++        layer.attn_gate = mllama_tensor_load(ctx, format("%s.blk.%d.attn_gate", prefix, i).c_str(), true);
++        layer.ff_gate = mllama_tensor_load(ctx, format("%s.blk.%d.ffn_gate", prefix, i).c_str(), true);
++    }
++
++    return layers;
++}
++
++// read and create ggml_context containing the tensors and their data
++struct mllama_ctx *mllama_model_load(const char *fname, const int verbosity = 1) {
++    struct ggml_context *meta = nullptr;
++
++    struct gguf_init_params params = {
++        true,  // no_alloc
++        &meta, // ctx
++    };
++
++    struct gguf_context *ctx = gguf_init_from_file(fname, params);
++    REQUIRE(ctx != nullptr);
++
++    if (verbosity >= 1) {
++        const int n_tensors = gguf_get_n_tensors(ctx);
++        const int n_kv = gguf_get_n_kv(ctx);
++        const std::string ftype = get_ftype(get_u32(ctx, "general.file_type"));
++        const int idx_desc = get_key_index(ctx, "general.description");
++        const std::string description = gguf_get_val_str(ctx, idx_desc);
++        const int idx_name = gguf_find_key(ctx, "general.name");
++        if (idx_name != -1) { // make name optional temporarily as some of the uploaded models missing it due to a bug
++            const std::string name = gguf_get_val_str(ctx, idx_name);
++            LOG("model name:   %s", name.c_str());
++        }
++        LOG("description:  %s", description.c_str());
++        LOG("GGUF version: %d", gguf_get_version(ctx));
++        LOG("alignment:    %zu", gguf_get_alignment(ctx));
++        LOG("n_tensors:    %d", n_tensors);
++        LOG("n_kv:         %d", n_kv);
++        LOG("ftype:        %s", ftype.c_str());
++        LOG("");
++    }
++    const int n_tensors = gguf_get_n_tensors(ctx);
++
++    mllama_ctx *new_mllama = new mllama_ctx{};
++
++#ifdef GGML_USE_CUDA
++    new_mllama->backend = ggml_backend_cuda_init(0);
++    LOG("vision using CUDA backend");
++#endif
++
++#ifdef GGML_USE_METAL
++    new_mllama->backend = ggml_backend_metal_init();
++    LOG("vision using Metal backend");
++#endif
++
++#ifdef GGML_USE_CANN
++    new_mllama->backend = ggml_backend_cann_init(0);
++    LOG("vision using CANN backend");
++#endif
++
++#ifdef GGML_USE_VULKAN
++    new_mllama->backend = ggml_backend_vk_init(0);
++    LOG("vision using Vulkan backend");
++#endif
++
++    if (!new_mllama->backend) {
++        new_mllama->backend = ggml_backend_cpu_init();
++        LOG("vision using CPU backend");
++    }
++
++    // load tensors
++    {
++        std::vector<uint8_t> read_buf;
++        struct ggml_init_params params = {
++            (n_tensors + 1) * ggml_tensor_overhead(), // mem_size
++            nullptr,                                  // mem_buffer
++            true,                                     // no_alloc
++        };
++
++        new_mllama->ctx_data = ggml_init(params);
++        if (!new_mllama->ctx_data) {
++            LOG("ggml_init() failed");
++            mllama_free(new_mllama);
++            gguf_free(ctx);
++            return nullptr;
++        }
++
++#ifdef _WIN32
++        int wlen = MultiByteToWideChar(CP_UTF8, 0, fname, -1, NULL, 0);
++        if (!wlen) {
++            return NULL;
++        }
++        wchar_t * wbuf = (wchar_t *) malloc(wlen * sizeof(wchar_t));
++        wlen = MultiByteToWideChar(CP_UTF8, 0, fname, -1, wbuf, wlen);
++        if (!wlen) {
++            free(wbuf);
++            return NULL;
++        }
++#if __GLIBCXX__
++        int fd = _wopen(wbuf, _O_RDONLY | _O_BINARY);
++        __gnu_cxx::stdio_filebuf<char> buffer(fd, std::ios_base::in);
++        std::istream fin(&buffer);
++#else // MSVC
++        // unused in our current build
++        auto fin = std::ifstream(wbuf, std::ios::binary);
++#endif
++        free(wbuf);
++#else
++        auto fin = std::ifstream(fname, std::ios::binary);
++#endif
++        if (!fin) {
++            LOG("cannot open model file for loading tensors\n");
++            mllama_free(new_mllama);
++            gguf_free(ctx);
++            return nullptr;
++        }
++
++        // add tensors to context
++        for (int i = 0; i < n_tensors; ++i) {
++            const char *name = gguf_get_tensor_name(ctx, i);
++            struct ggml_tensor *t = ggml_get_tensor(meta, name);
++            struct ggml_tensor *cur = ggml_dup_tensor(new_mllama->ctx_data, t);
++            ggml_set_name(cur, name);
++        }
++
++        // alloc memory and offload data
++        new_mllama->params_buffer = ggml_backend_alloc_ctx_tensors(new_mllama->ctx_data, new_mllama->backend);
++        for (int i = 0; i < n_tensors; ++i) {
++            const char *name = gguf_get_tensor_name(ctx, i);
++            struct ggml_tensor *cur = ggml_get_tensor(new_mllama->ctx_data, name);
++            const size_t offset = gguf_get_data_offset(ctx) + gguf_get_tensor_offset(ctx, i);
++            fin.seekg(offset, std::ios::beg);
++            if (!fin) {
++                LOG("failed to seek for tensor %s\n", name);
++                mllama_free(new_mllama);
++                gguf_free(ctx);
++                return nullptr;
++            }
++            int num_bytes = ggml_nbytes(cur);
++            if (ggml_backend_buffer_is_host(new_mllama->params_buffer)) {
++                // for the CPU and Metal backend, we can read directly into the tensor
++                fin.read(reinterpret_cast<char *>(cur->data), num_bytes);
++            } else {
++                // read into a temporary buffer first, then copy to device memory
++                read_buf.resize(num_bytes);
++                fin.read(reinterpret_cast<char *>(read_buf.data()), num_bytes);
++                ggml_backend_tensor_set(cur, read_buf.data(), 0, num_bytes);
++            }
++        }
++
++#if defined(_WIN32) && defined(__GLIBCXX__)
++        close(fd);
++#else
++        fin.close();
++#endif
++    }
++
++    // vision model
++    // load vision model
++    auto &vision_model = new_mllama->vision_model;
++    auto &hparams = vision_model.hparams;
++    hparams.hidden_size = get_u32(ctx, "mllama.vision.embedding_length");
++    hparams.n_head = get_u32(ctx, "mllama.vision.attention.head_count");
++    hparams.n_intermediate = get_u32(ctx, "mllama.vision.feed_forward_length");
++    hparams.n_layer = get_u32(ctx, "mllama.vision.block_count");
++    hparams.n_global_layer = get_u32(ctx, "mllama.vision.global.block_count");
++    hparams.n_tiles = get_u32(ctx, "mllama.vision.max_num_tiles");
++    hparams.image_size = get_u32(ctx, "mllama.vision.image_size");
++    hparams.patch_size = get_u32(ctx, "mllama.vision.patch_size");
++    hparams.projection_dim = get_u32(ctx, "mllama.vision.projection_dim");
++    hparams.eps = get_f32(ctx, "mllama.vision.attention.layer_norm_epsilon");
++
++    std::vector<uint32_t> intermediate_layers_indices = get_u32_array(ctx, "mllama.vision.intermediate_layers_indices");
++    hparams.intermediate_layers.resize(hparams.n_layer);
++    for (size_t i = 0; i < intermediate_layers_indices.size(); i++) {
++        hparams.intermediate_layers[intermediate_layers_indices[i]] = true;
++    }
++
++    if (verbosity >= 2) {
++        LOG("");
++        LOG("vision model hparams");
++        LOG("image_size         %d", hparams.image_size);
++        LOG("patch_size         %d", hparams.patch_size);
++        LOG("v_hidden_size      %d", hparams.hidden_size);
++        LOG("v_n_intermediate   %d", hparams.n_intermediate);
++        LOG("v_projection_dim   %d", hparams.projection_dim);
++        LOG("v_n_head           %d", hparams.n_head);
++        LOG("v_n_layer          %d", hparams.n_layer);
++        LOG("v_n_global_layer   %d", hparams.n_global_layer);
++        LOG("v_eps              %f", hparams.eps);
++    }
++
++    vision_model.class_embedding = mllama_tensor_load(new_mllama->ctx_data, "v.class_embd", true);
++    vision_model.patch_embeddings = mllama_tensor_load(new_mllama->ctx_data, "v.patch_embd.weight", true);
++
++    vision_model.position_embeddings = mllama_tensor_load(new_mllama->ctx_data, "v.position_embd.weight", true);
++    vision_model.position_embeddings_gate = mllama_tensor_load(new_mllama->ctx_data, "v.position_embd.gate", true);
++
++    vision_model.pre_ln_w = mllama_tensor_load(new_mllama->ctx_data, "v.pre_ln.weight", true);
++    vision_model.pre_ln_b = mllama_tensor_load(new_mllama->ctx_data, "v.pre_ln.bias", true);
++    vision_model.post_ln_w = mllama_tensor_load(new_mllama->ctx_data, "v.post_ln.weight", true);
++    vision_model.post_ln_b = mllama_tensor_load(new_mllama->ctx_data, "v.post_ln.bias", true);
++
++    vision_model.tile_position_embeddings = mllama_tensor_load(new_mllama->ctx_data, "v.tile_position_embd.weight", true);
++    vision_model.tile_position_embeddings_gate = mllama_tensor_load(new_mllama->ctx_data, "v.tile_position_embd.gate", true);
++
++    vision_model.pre_tile_position_embeddings = mllama_tensor_load(new_mllama->ctx_data, "v.pre_tile_position_embd.weight", true);
++    vision_model.pre_tile_position_embeddings_gate = mllama_tensor_load(new_mllama->ctx_data, "v.pre_tile_position_embd.gate", true);
++
++    vision_model.post_tile_position_embeddings = mllama_tensor_load(new_mllama->ctx_data, "v.post_tile_position_embd.weight", true);
++    vision_model.post_tile_position_embeddings_gate = mllama_tensor_load(new_mllama->ctx_data, "v.post_tile_position_embd.gate", true);
++
++    vision_model.mm_0_w = mllama_tensor_load(new_mllama->ctx_data, "mm.0.weight", false);
++    vision_model.mm_0_b = mllama_tensor_load(new_mllama->ctx_data, "mm.0.bias", false);
++
++    vision_model.layers = mllama_layers_load(new_mllama->ctx_data, "v", hparams.n_layer);
++    vision_model.global_layers = mllama_layers_load(new_mllama->ctx_data, "v.global", hparams.n_global_layer);
++
++    ggml_free(meta);
++
++    new_mllama->ctx_gguf = ctx;
++
++    {
++        // measure mem requirement and allocate
++        new_mllama->buf_compute_meta.resize(GGML_DEFAULT_GRAPH_SIZE * ggml_tensor_overhead() + ggml_graph_overhead());
++        new_mllama->compute_alloc = ggml_gallocr_new(ggml_backend_get_default_buffer_type(new_mllama->backend));
++        struct mllama_image_batch batch;
++        batch.size = 1;
++        ggml_cgraph *gf = mllama_image_build_graph(new_mllama, &batch);
++        ggml_gallocr_reserve(new_mllama->compute_alloc, gf);
++        size_t compute_memory_buffer_size = ggml_gallocr_get_buffer_size(new_mllama->compute_alloc, 0);
++        LOG("compute allocated memory: %.2f MB", compute_memory_buffer_size / 1024.0 / 1024.0);
++    }
++
++    return new_mllama;
++}
++
++struct mllama_image *mllama_image_init() {
++    return new mllama_image();
++}
++
++void mllama_image_free(struct mllama_image *img) { delete img; }
++void mllama_image_batch_free(struct mllama_image_batch *batch) {
++    if (batch->size > 0) {
++        delete[] batch->data;
++        batch->size = 0;
++    }
++}
++
++bool mllama_image_load_from_data(const void *data, const int n, const int width, const int height, const int num_channels, const int num_tiles, const int aspect_ratio_id, struct mllama_image *img) {
++    img->width = width;
++    img->height = height;
++    img->num_channels = num_channels;
++    img->num_tiles = num_tiles;
++    img->aspect_ratio_id = aspect_ratio_id;
++    img->data.resize(n);
++
++    memcpy(img->data.data(), data, n);
++    return true;
++}
++
++inline int mllama(int x, int lower, int upper) {
++    return std::max(lower, std::min(x, upper));
++}
++
++void mllama_free(mllama_ctx *ctx) {
++    ggml_free(ctx->ctx_data);
++    gguf_free(ctx->ctx_gguf);
++
++    ggml_backend_buffer_free(ctx->params_buffer);
++    ggml_backend_free(ctx->backend);
++    ggml_gallocr_free(ctx->compute_alloc);
++    delete ctx;
++}
++
++bool mllama_image_encode(struct mllama_ctx *ctx, const int n_threads, mllama_image *img, float *vec) {
++    mllama_image_batch imgs{};
++    imgs.size = 1;
++    imgs.data = img;
++    return mllama_image_batch_encode(ctx, n_threads, &imgs, vec);
++}
++
++bool mllama_image_batch_encode(mllama_ctx *ctx, const int n_threads, const mllama_image_batch *imgs, float *vec) {
++    int batch_size = imgs->size;
++    REQUIRE(batch_size == 1);
++
++    // build the inference graph
++    ggml_cgraph *gf = mllama_image_build_graph(ctx, imgs);
++    ggml_gallocr_alloc_graph(ctx->compute_alloc, gf);
++
++    // set inputs
++    const auto &model = ctx->vision_model;
++    const auto &hparams = model.hparams;
++
++    const int image_size = hparams.image_size;
++    int image_size_width = image_size;
++    int image_size_height = image_size;
++
++    const int patch_size = hparams.patch_size;
++    const int num_patches = ((image_size_width / patch_size) * (image_size_height / patch_size));
++    const int num_positions = num_patches + (model.class_embedding == nullptr ? 0 : 1);
++
++    {
++        struct ggml_tensor *inp_raw = ggml_graph_get_tensor(gf, "inp_raw");
++        ggml_backend_tensor_set(inp_raw, imgs->data[0].data.data(), 0, ggml_nbytes(inp_raw));
++    }
++
++    {
++        struct ggml_tensor *embeddings = ggml_graph_get_tensor(gf, "embeddings");
++        if (embeddings != nullptr) {
++            void *zeros = malloc(ggml_nbytes(embeddings));
++            memset(zeros, 0, ggml_nbytes(embeddings));
++            ggml_backend_tensor_set(embeddings, zeros, 0, ggml_nbytes(embeddings));
++            free(zeros);
++        }
++    }
++
++    {
++        struct ggml_tensor *positions = ggml_graph_get_tensor(gf, "positions");
++        if (positions != nullptr) {
++            int *positions_data = (int *)malloc(ggml_nbytes(positions));
++            for (int i = 0; i < num_positions; i++) {
++                positions_data[i] = i;
++            }
++            ggml_backend_tensor_set(positions, positions_data, 0, ggml_nbytes(positions));
++            free(positions_data);
++        }
++    }
++
++    {
++        struct ggml_tensor *aspect_ratios = ggml_graph_get_tensor(gf, "aspect_ratios");
++        if (aspect_ratios != nullptr) {
++            int *aspect_ratios_data = (int *)malloc(ggml_nbytes(aspect_ratios));
++            aspect_ratios_data[0] = imgs->data[0].aspect_ratio_id;
++            ggml_backend_tensor_set(aspect_ratios, aspect_ratios_data, 0, ggml_nbytes(aspect_ratios));
++            free(aspect_ratios_data);
++        }
++    }
++
++    if (ggml_backend_is_cpu(ctx->backend)) {
++        ggml_backend_cpu_set_n_threads(ctx->backend, n_threads);
++    }
++
++    ggml_backend_graph_compute(ctx->backend, gf);
++
++    // the last node is the embedding tensor
++    struct ggml_tensor *embeddings = ggml_graph_node(gf, ggml_graph_n_nodes(gf) - 1);
++
++    // copy the embeddings to the location passed by the user
++    ggml_backend_tensor_get(embeddings, vec, 0, ggml_nbytes(embeddings));
++
++    return true;
++}
++
++int32_t mllama_image_size(const struct mllama_ctx *ctx) {
++    return ctx->vision_model.hparams.image_size;
++}
++
++int32_t mllama_patch_size(const struct mllama_ctx *ctx) {
++    return ctx->vision_model.hparams.patch_size;
++}
++
++int32_t mllama_hidden_size(const struct mllama_ctx *ctx) {
++    return ctx->vision_model.hparams.hidden_size;
++}
++
++int mllama_n_patches(const struct mllama_ctx *ctx) {
++    const auto &hparams = ctx->vision_model.hparams;
++    return (hparams.image_size / hparams.patch_size) * (hparams.image_size / hparams.patch_size);
++}
++
++int mllama_n_positions(const struct mllama_ctx *ctx) {
++    return mllama_n_patches(ctx) + (ctx->vision_model.class_embedding == nullptr ? 0 : 1);
++}
++
++int mllama_n_tiles(const struct mllama_ctx *ctx) {
++    return ctx->vision_model.hparams.n_tiles;
++}
++
++int mllama_n_embd(const struct mllama_ctx *ctx) {
++    return ctx->vision_model.hparams.projection_dim;
++}
++
++size_t mllama_n_embd_bytes(const struct mllama_ctx *ctx) {
++    return mllama_n_positions(ctx) * mllama_n_embd(ctx) * mllama_n_tiles(ctx) * sizeof(float);
++}
+diff --git a/examples/llava/mllama.h b/examples/llava/mllama.h
+new file mode 100644
+index 00000000..446dbb9e
+--- /dev/null
++++ b/examples/llava/mllama.h
+@@ -0,0 +1,61 @@
++#ifndef MLLAMA_H
++#define MLLAMA_H
++
++#include <stddef.h>
++#include <stdint.h>
++
++#ifdef LLAMA_SHARED
++#if defined(_WIN32) && !defined(__MINGW32__)
++#ifdef LLAMA_BUILD
++#define MLLAMA_API __declspec(dllexport)
++#else
++#define MLLAMA_API __declspec(dllimport)
++#endif
++#else
++#define MLLAMA_API __attribute__((visibility("default")))
++#endif
++#else
++#define MLLAMA_API
++#endif
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++struct mllama_ctx;
++
++struct mllama_image_batch {
++    struct mllama_image *data;
++    size_t size;
++};
++
++MLLAMA_API struct mllama_ctx *mllama_model_load(const char *fname, int verbosity);
++MLLAMA_API struct mllama_ctx *mllama_model_load_cpu(const char *fname, int verbosity);
++
++MLLAMA_API void mllama_free(struct mllama_ctx *ctx);
++
++MLLAMA_API int32_t mllama_image_size(const struct mllama_ctx *ctx);
++MLLAMA_API int32_t mllama_patch_size(const struct mllama_ctx *ctx);
++MLLAMA_API int32_t mllama_hidden_size(const struct mllama_ctx *ctx);
++
++MLLAMA_API int mllama_n_patches(const struct mllama_ctx *ctx);
++MLLAMA_API int mllama_n_positions(const struct mllama_ctx *ctx);
++MLLAMA_API int mllama_n_tiles(const struct mllama_ctx *ctx);
++MLLAMA_API int mllama_n_embd(const struct mllama_ctx *ctx);
++MLLAMA_API size_t mllama_n_embd_bytes(const struct mllama_ctx *ctx);
++
++MLLAMA_API struct mllama_image *mllama_image_init();
++
++MLLAMA_API void mllama_image_free(struct mllama_image *img);
++MLLAMA_API void mllama_image_batch_free(struct mllama_image_batch *batch);
++
++MLLAMA_API bool mllama_image_load_from_data(const void *data, const int n, const int nx, const int ny, const int nc, const int nt, const int aspect_ratio_id, struct mllama_image *img);
++
++MLLAMA_API bool mllama_image_encode(struct mllama_ctx *ctx, int n_threads, struct mllama_image *img, float *vec);
++MLLAMA_API bool mllama_image_batch_encode(struct mllama_ctx *ctx, int n_threads, const struct mllama_image_batch *imgs, float *vec);
++
++#ifdef __cplusplus
++}
++#endif
++
++#endif // MLLAMA_H
+diff --git a/ggml/include/ggml.h b/ggml/include/ggml.h
+index c714fc8c..1bc50fca 100644
+--- a/ggml/include/ggml.h
++++ b/ggml/include/ggml.h
+@@ -499,6 +499,7 @@ extern "C" {
+         GGML_OP_UPSCALE, // nearest interpolate
+         GGML_OP_PAD,
+         GGML_OP_PAD_REFLECT_1D,
++        GGML_OP_UNPAD,
+         GGML_OP_ARANGE,
+         GGML_OP_TIMESTEP_EMBEDDING,
+         GGML_OP_ARGSORT,
+@@ -1735,6 +1736,15 @@ extern "C" {
+             int                   p0,
+             int                   p1);
+ 
++    // unpad each dimension: [x, ..., x, y, ..., y] -> [x, ..., x]
++    GGML_API struct ggml_tensor * ggml_unpad(
++            struct ggml_context * ctx,
++            struct ggml_tensor  * a,
++            int                  p0,
++            int                  p1,
++            int                  p2,
++            int                  p3);
++
+     // Ref: https://github.com/CompVis/stable-diffusion/blob/main/ldm/modules/diffusionmodules/util.py#L151
+     // timesteps: [N,]
+     // return: [N, dim]
+diff --git a/ggml/src/ggml-cpu/ggml-cpu.c b/ggml/src/ggml-cpu/ggml-cpu.c
+index b7fefb9d..34752213 100644
+--- a/ggml/src/ggml-cpu/ggml-cpu.c
++++ b/ggml/src/ggml-cpu/ggml-cpu.c
+@@ -10588,6 +10588,63 @@ static void ggml_compute_forward_pad_reflect_1d(
+     }
+ }
+ 
++// ggml_compute_forward_unpad_f32
++
++static void ggml_compute_forward_unpad_f32(
++    const struct ggml_compute_params *params,
++    struct ggml_tensor *dst) {
++
++    const struct ggml_tensor * src0 = dst->src[0];
++
++    GGML_ASSERT(src0->nb[0] == sizeof(float));
++    GGML_ASSERT( dst->nb[0] == sizeof(float));
++
++    const int ith = params->ith;
++    const int nth = params->nth;
++
++    GGML_TENSOR_UNARY_OP_LOCALS
++
++    float * dst_ptr = (float *) dst->data;
++
++    // TODO: optimize
++
++    for (int64_t i2 = 0; i2 < ne2; ++i2) {
++        for (int64_t i1 = ith; i1 < ne1; i1 += nth) {
++            for (int64_t i0 = 0; i0 < ne0; ++i0) {
++                for (int64_t i3 = 0; i3 < ne3; ++i3) {
++                    const int64_t dst_idx = i3*(ne0*ne1*ne2) + i2*(ne0*ne1) + i1*ne0 + i0;
++
++                    const float * src_ptr = (const float *)((char *) src0->data + i3*nb03 + i2*nb02 + i1*nb01 + i0*nb00);
++
++                    if (i0 < ne00 && i1 < ne01 && i2 < ne02 && i3 < ne03) {
++                        dst_ptr[dst_idx] = *src_ptr;
++                    }
++                }
++            }
++        }
++    }
++}
++
++// ggml_compute_forward_unpad
++
++static void ggml_compute_forward_unpad(
++    const struct ggml_compute_params * params,
++    struct ggml_tensor * dst) {
++
++    const struct ggml_tensor * src0 = dst->src[0];
++
++    switch (src0->type) {
++        case GGML_TYPE_F32:
++            {
++                ggml_compute_forward_unpad_f32(params, dst);
++            } break;
++        default:
++            {
++                GGML_ABORT("fatal error");
++            }
++    }
++}
++
+ // ggml_compute_forward_arange
+ 
+ static void ggml_compute_forward_arange_f32(
+@@ -12690,6 +12747,10 @@ static void ggml_compute_forward(struct ggml_compute_params * params, struct ggm
+             {
+                 ggml_compute_forward_pad_reflect_1d(params, tensor);
+             } break;
++        case GGML_OP_UNPAD:
++            {
++                ggml_compute_forward_unpad(params, tensor);
++            } break;
+         case GGML_OP_ARANGE:
+             {
+                 ggml_compute_forward_arange(params, tensor);
+@@ -13033,6 +13094,7 @@ static int ggml_get_n_tasks(struct ggml_tensor * node, int n_threads) {
+         case GGML_OP_UPSCALE:
+         case GGML_OP_PAD:
+         case GGML_OP_PAD_REFLECT_1D:
++        case GGML_OP_UNPAD:
+         case GGML_OP_ARANGE:
+         case GGML_OP_TIMESTEP_EMBEDDING:
+         case GGML_OP_ARGSORT:
+diff --git a/ggml/src/ggml-cuda/ggml-cuda.cu b/ggml/src/ggml-cuda/ggml-cuda.cu
+index c180adc8..c407eceb 100644
+--- a/ggml/src/ggml-cuda/ggml-cuda.cu
++++ b/ggml/src/ggml-cuda/ggml-cuda.cu
+@@ -2081,6 +2081,9 @@ static bool ggml_cuda_compute_forward(ggml_backend_cuda_context & ctx, struct gg
+         case GGML_OP_PAD:
+             ggml_cuda_op_pad(ctx, dst);
+             break;
++        case GGML_OP_UNPAD:
++            ggml_cuda_op_unpad(ctx, dst);
++            break;
+         case GGML_OP_ARANGE:
+             ggml_cuda_op_arange(ctx, dst);
+             break;
+@@ -3006,6 +3009,7 @@ static bool ggml_backend_cuda_device_supports_op(ggml_backend_dev_t dev, const g
+         case GGML_OP_GROUP_NORM:
+         case GGML_OP_UPSCALE:
+         case GGML_OP_PAD:
++        case GGML_OP_UNPAD:
+         case GGML_OP_ARANGE:
+         case GGML_OP_TIMESTEP_EMBEDDING:
+         case GGML_OP_LEAKY_RELU:
+diff --git a/ggml/src/ggml-cuda/pad.cu b/ggml/src/ggml-cuda/pad.cu
+index aba539e8..39fd4b16 100644
+--- a/ggml/src/ggml-cuda/pad.cu
++++ b/ggml/src/ggml-cuda/pad.cu
+@@ -47,3 +47,49 @@ void ggml_cuda_op_pad(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+         src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3],
+         dst->ne[0], dst->ne[1], dst->ne[2], dst->ne[3], stream);
+ }
++
++static __global__ void unpad_f32(const float * x, float * dst, const int ne0, const int ne00, const int ne01, const int ne02, const int ne03) {
++    // blockIdx.z: idx of ne2*ne3, aka ne02*ne03
++    // blockIdx.y: idx of ne1
++    // blockIDx.x: idx of ne0 / BLOCK_SIZE
++    int nidx = threadIdx.x + blockIdx.x * blockDim.x;
++    if (nidx >= ne0) {
++        return;
++    }
++
++    // operation
++    int offset_dst =
++        nidx +
++        blockIdx.y * ne0 +
++        blockIdx.z * ne0 * gridDim.y;
++    if (nidx < ne00 && blockIdx.y < ne01 && blockIdx.z < ne02*ne03) {
++        int offset_src =
++            nidx +
++            blockIdx.y * ne00 +
++            blockIdx.z * ne00 * ne01;
++        dst[offset_dst] = x[offset_src];
++    }
++}
++
++static void unpad_f32_cuda(const float * x, float * dst,
++    const int ne00, const int ne01, const int ne02, const int ne03,
++    const int ne0, const int ne1, const int ne2, const int ne3, cudaStream_t stream) {
++    int num_blocks = (ne0 + CUDA_PAD_BLOCK_SIZE - 1) / CUDA_PAD_BLOCK_SIZE;
++    dim3 gridDim(num_blocks, ne1, ne2*ne3);
++    unpad_f32<<<gridDim, CUDA_PAD_BLOCK_SIZE, 0, stream>>>(x, dst, ne0, ne00, ne01, ne02, ne03);
++}
++
++void ggml_cuda_op_unpad(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
++    const ggml_tensor * src0 = dst->src[0];
++    const float * src0_d = (const float *)src0->data;
++    float * dst_d = (float *)dst->data;
++    cudaStream_t stream = ctx.stream();
++
++    GGML_ASSERT(src0->type == GGML_TYPE_F32);
++    GGML_ASSERT(dst->type == GGML_TYPE_F32);
++    GGML_ASSERT(src0->ne[3] == 1 && dst->ne[3] == 1); // just 3D tensors
++
++    unpad_f32_cuda(src0_d, dst_d,
++        src0->ne[0], src0->ne[1], src0->ne[2], src0->ne[3],
++        dst->ne[0], dst->ne[1], dst->ne[2], dst->ne[3], stream);
++}
+diff --git a/ggml/src/ggml-cuda/pad.cuh b/ggml/src/ggml-cuda/pad.cuh
+index 8fd386b0..e2ededc3 100644
+--- a/ggml/src/ggml-cuda/pad.cuh
++++ b/ggml/src/ggml-cuda/pad.cuh
+@@ -3,3 +3,4 @@
+ #define CUDA_PAD_BLOCK_SIZE 256
+ 
+ void ggml_cuda_op_pad(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
++void ggml_cuda_op_unpad(ggml_backend_cuda_context & ctx, ggml_tensor * dst);
+diff --git a/ggml/src/ggml-metal/ggml-metal.m b/ggml/src/ggml-metal/ggml-metal.m
+index 28f590f9..ec9a655a 100644
+--- a/ggml/src/ggml-metal/ggml-metal.m
++++ b/ggml/src/ggml-metal/ggml-metal.m
+@@ -311,6 +311,7 @@ static void ggml_backend_metal_device_rel(struct ggml_backend_metal_device_conte
+     GGML_METAL_KERNEL_TYPE_UPSCALE_F32,
+     GGML_METAL_KERNEL_TYPE_PAD_F32,
+     GGML_METAL_KERNEL_TYPE_PAD_REFLECT_1D_F32,
++    GGML_METAL_KERNEL_TYPE_UNPAD_F32,
+     GGML_METAL_KERNEL_TYPE_ARANGE_F32,
+     GGML_METAL_KERNEL_TYPE_TIMESTEP_EMBEDDING_F32,
+     GGML_METAL_KERNEL_TYPE_ARGSORT_F32_I32_ASC,
+@@ -910,6 +911,7 @@ @implementation GGMLMetalClass
+         GGML_METAL_ADD_KERNEL(GGML_METAL_KERNEL_TYPE_UPSCALE_F32,                   upscale_f32,                    true);
+         GGML_METAL_ADD_KERNEL(GGML_METAL_KERNEL_TYPE_PAD_F32,                       pad_f32,                        true);
+         GGML_METAL_ADD_KERNEL(GGML_METAL_KERNEL_TYPE_PAD_REFLECT_1D_F32,            pad_reflect_1d_f32,             true);
++        GGML_METAL_ADD_KERNEL(GGML_METAL_KERNEL_TYPE_UNPAD_F32,                     unpad_f32,                      true);
+         GGML_METAL_ADD_KERNEL(GGML_METAL_KERNEL_TYPE_TIMESTEP_EMBEDDING_F32,        timestep_embedding_f32,         true);
+         GGML_METAL_ADD_KERNEL(GGML_METAL_KERNEL_TYPE_ARANGE_F32,                    arange_f32,                     true);
+         GGML_METAL_ADD_KERNEL(GGML_METAL_KERNEL_TYPE_ARGSORT_F32_I32_ASC,           argsort_f32_i32_asc,            true);
+@@ -1145,6 +1147,7 @@ static bool ggml_metal_supports_op(const struct ggml_backend_metal_device_contex
+         case GGML_OP_UPSCALE:
+         case GGML_OP_PAD:
+         case GGML_OP_PAD_REFLECT_1D:
++        case GGML_OP_UNPAD:
+         case GGML_OP_ARANGE:
+         case GGML_OP_TIMESTEP_EMBEDDING:
+         case GGML_OP_ARGSORT:
+@@ -1378,6 +1381,36 @@ static void ggml_metal_encode_node(
+ 
+                 const int nth = MIN(1024, ne0);
+ 
++                [encoder dispatchThreadgroups:MTLSizeMake(ne1, ne2, ne3) threadsPerThreadgroup:MTLSizeMake(nth, 1, 1)];
++            } break;
++        case GGML_OP_UNPAD:
++            {
++                GGML_ASSERT(src0->type == GGML_TYPE_F32);
++
++                id<MTLComputePipelineState> pipeline = ctx->kernels[GGML_METAL_KERNEL_TYPE_UNPAD_F32].pipeline;
++
++                [encoder setComputePipelineState:pipeline];
++                [encoder setBuffer:id_src0 offset:offs_src0 atIndex:0];
++                [encoder setBuffer:id_dst  offset:offs_dst  atIndex:1];
++                [encoder setBytes:&ne00 length:sizeof(ne00) atIndex:2];
++                [encoder setBytes:&ne01 length:sizeof(ne01) atIndex:3];
++                [encoder setBytes:&ne02 length:sizeof(ne02) atIndex:4];
++                [encoder setBytes:&ne03 length:sizeof(ne03) atIndex:5];
++                [encoder setBytes:&nb00 length:sizeof(nb00) atIndex:6];
++                [encoder setBytes:&nb01 length:sizeof(nb01) atIndex:7];
++                [encoder setBytes:&nb02 length:sizeof(nb02) atIndex:8];
++                [encoder setBytes:&nb03 length:sizeof(nb03) atIndex:9];
++                [encoder setBytes:&ne0  length:sizeof(ne0)  atIndex:10];
++                [encoder setBytes:&ne1  length:sizeof(ne1)  atIndex:11];
++                [encoder setBytes:&ne2  length:sizeof(ne2)  atIndex:12];
++                [encoder setBytes:&ne3  length:sizeof(ne3)  atIndex:13];
++                [encoder setBytes:&nb0  length:sizeof(nb0)  atIndex:14];
++                [encoder setBytes:&nb1  length:sizeof(nb1)  atIndex:15];
++                [encoder setBytes:&nb2  length:sizeof(nb2)  atIndex:16];
++                [encoder setBytes:&nb3  length:sizeof(nb3)  atIndex:17];
++
++                const int nth = MIN(1024, ne0);
++
+                 [encoder dispatchThreadgroups:MTLSizeMake(ne1, ne2, ne3) threadsPerThreadgroup:MTLSizeMake(nth, 1, 1)];
+             } break;
+         case GGML_OP_ADD:
+diff --git a/ggml/src/ggml-metal/ggml-metal.metal b/ggml/src/ggml-metal/ggml-metal.metal
+index 8ba43904..204c93e6 100644
+--- a/ggml/src/ggml-metal/ggml-metal.metal
++++ b/ggml/src/ggml-metal/ggml-metal.metal
+@@ -2944,6 +2944,51 @@ kernel void kernel_pad_reflect_1d_f32(
+     }
+ }
+ 
++kernel void kernel_unpad_f32(
++    device  const char * src0,
++    device        char * dst,
++    constant   int64_t & ne00,
++    constant   int64_t & ne01,
++    constant   int64_t & ne02,
++    constant   int64_t & ne03,
++    constant  uint64_t & nb00,
++    constant  uint64_t & nb01,
++    constant  uint64_t & nb02,
++    constant  uint64_t & nb03,
++    constant   int64_t & ne0,
++    constant   int64_t & ne1,
++    constant   int64_t & ne2,
++    constant   int64_t & ne3,
++    constant  uint64_t & nb0,
++    constant  uint64_t & nb1,
++    constant  uint64_t & nb2,
++    constant  uint64_t & nb3,
++    uint3 tgpig[[threadgroup_position_in_grid]],
++    uint3 tpitg[[thread_position_in_threadgroup]],
++    uint3   ntg[[threads_per_threadgroup]]) {
++
++    const int64_t i3 = tgpig.z;
++    const int64_t i2 = tgpig.y;
++    const int64_t i1 = tgpig.x;
++
++    const int64_t i03 = i3;
++    const int64_t i02 = i2;
++    const int64_t i01 = i1;
++
++    device const float * src0_ptr = (device const float *) (src0 + i03*nb03 + i02*nb02 + i01*nb01);
++    device       float * dst_ptr  = (device       float *) (dst  +  i3*nb3  +  i2*nb2  +  i1*nb1);
++
++    if (i1 < ne01 && i2 < ne02 && i3 < ne03) {
++        for (int i0 = tpitg.x; i0 < ne0; i0 += ntg.x) {
++            if (i0 < ne00) {
++                dst_ptr[i0] = src0_ptr[i0];
++            }
++        }
++
++        return;
++    }
++}
++
+ kernel void kernel_arange_f32(
+     device        char * dst,
+     constant   int64_t & ne0,
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+index 2bbe5f48..8ed37984 100644
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -954,6 +954,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
+     "UPSCALE",
+     "PAD",
+     "PAD_REFLECT_1D",
++    "UNPAD",
+     "ARANGE",
+     "TIMESTEP_EMBEDDING",
+     "ARGSORT",
+@@ -987,7 +988,7 @@ static const char * GGML_OP_NAME[GGML_OP_COUNT] = {
+     "OPT_STEP_ADAMW",
+ };
+ 
+-static_assert(GGML_OP_COUNT == 82, "GGML_OP_COUNT != 82");
++static_assert(GGML_OP_COUNT == 83, "GGML_OP_COUNT != 83");
+ 
+ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
+     "none",
+@@ -1050,6 +1051,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
+     "upscale(x)",
+     "pad(x)",
+     "pad_reflect_1d(x)",
++    "unpad(x)",
+     "arange(start, stop, step)",
+     "timestep_embedding(timesteps, dim, max_period)",
+     "argsort(x)",
+@@ -1083,7 +1085,7 @@ static const char * GGML_OP_SYMBOL[GGML_OP_COUNT] = {
+     "adamw(x)",
+ };
+ 
+-static_assert(GGML_OP_COUNT == 82, "GGML_OP_COUNT != 82");
++static_assert(GGML_OP_COUNT == 83, "GGML_OP_COUNT != 83");
+ 
+ static_assert(GGML_OP_POOL_COUNT == 2, "GGML_OP_POOL_COUNT != 2");
+ 
+@@ -4214,6 +4216,26 @@ struct ggml_tensor * ggml_pad_reflect_1d(
+     return result;
+ }
+ 
++// ggml_unpad
++
++struct ggml_tensor * ggml_unpad(
++    struct ggml_context * ctx,
++    struct ggml_tensor  * a,
++    int p0, int p1, int p2, int p3) {
++    bool is_node = false;
++
++    struct ggml_tensor * result = ggml_new_tensor_4d(ctx, a->type,
++            a->ne[0] - p0,
++            a->ne[1] - p1,
++            a->ne[2] - p2,
++            a->ne[3] - p3);
++
++    result->op = GGML_OP_UNPAD;
++    result->src[0] = a;
++
++    return result;
++}
++
+ // ggml_arange
+ 
+ struct ggml_tensor * ggml_arange(
+diff --git a/include/llama.h b/include/llama.h
+index a4abf395..e8e1ca4e 100644
+--- a/include/llama.h
++++ b/include/llama.h
+@@ -237,6 +237,7 @@ extern "C" {
+     //
+     // - token  : the token ids of the input (used when embd is NULL)
+     // - embd   : token embeddings (i.e. float vector of size n_embd) (used when token is NULL)
++    // - n_embd : number of token embeddings
+     // - pos    : the positions of the respective token in the sequence
+     //            (if set to NULL, the token position will be tracked automatically by llama_decode)
+     // - seq_id : the sequence to which the respective token belongs
+@@ -249,6 +250,7 @@ extern "C" {
+ 
+         llama_token  *  token;
+         float        *  embd;
++        int32_t         n_embd;
+         llama_pos    *  pos;
+         int32_t      *  n_seq_id;
+         llama_seq_id ** seq_id;
+@@ -423,6 +425,8 @@ extern "C" {
+                      struct llama_model * model,
+             struct llama_context_params   params);
+ 
++    LLAMA_API void llama_set_cross_attention(struct llama_context * ctx, bool cross_attn_state);
++
+     // Frees all allocated memory
+     LLAMA_API void llama_free(struct llama_context * ctx);
+ 
+diff --git a/src/llama.cpp b/src/llama.cpp
+index 4d41602f..6c3c1621 100644
+--- a/src/llama.cpp
++++ b/src/llama.cpp
+@@ -146,6 +146,7 @@ static std::string format(const char * fmt, ...) {
+ 
+ enum llm_arch {
+     LLM_ARCH_LLAMA,
++    LLM_ARCH_MLLAMA,
+     LLM_ARCH_DECI,
+     LLM_ARCH_FALCON,
+     LLM_ARCH_BAICHUAN,
+@@ -204,7 +205,8 @@ enum llm_arch {
+ 
+ static const std::map<llm_arch, const char *> LLM_ARCH_NAMES = {
+     { LLM_ARCH_LLAMA,            "llama"            },
+-    { LLM_ARCH_DECI,             "deci"            },
++    { LLM_ARCH_MLLAMA,           "mllama"           },
++    { LLM_ARCH_DECI,             "deci"             },
+     { LLM_ARCH_FALCON,           "falcon"           },
+     { LLM_ARCH_GROK,             "grok"             },
+     { LLM_ARCH_GPT2,             "gpt2"             },
+@@ -300,6 +302,7 @@ enum llm_kv {
+     LLM_KV_TIME_DECAY_EXTRA_DIM,
+     LLM_KV_RESIDUAL_SCALE,
+     LLM_KV_EMBEDDING_SCALE,
++    LLM_KV_ATTENTION_CROSS_ATTENTION_LAYERS,
+ 
+     LLM_KV_ATTENTION_HEAD_COUNT,
+     LLM_KV_ATTENTION_HEAD_COUNT_KV,
+@@ -426,6 +429,7 @@ static const std::map<llm_kv, const char *> LLM_KV_NAMES = {
+     { LLM_KV_TIME_DECAY_EXTRA_DIM,              "%s.time_decay_extra_dim"              },
+     { LLM_KV_RESIDUAL_SCALE,                    "%s.residual_scale"                    },
+     { LLM_KV_EMBEDDING_SCALE,                   "%s.embedding_scale"                   },
++    { LLM_KV_ATTENTION_CROSS_ATTENTION_LAYERS,  "%s.attention.cross_attention_layers"  },
+ 
+     { LLM_KV_ATTENTION_HEAD_COUNT,             "%s.attention.head_count"             },
+     { LLM_KV_ATTENTION_HEAD_COUNT_KV,          "%s.attention.head_count_kv"          },
+@@ -647,6 +651,14 @@ enum llm_tensor {
+     LLM_TENSOR_POS_NET_ATTN_K,
+     LLM_TENSOR_POS_NET_ATTN_V,
+     LLM_TENSOR_POS_NET_ATTN_OUT,
++    LLM_TENSOR_CROSS_ATTN_K_NORM,
++    LLM_TENSOR_CROSS_ATTN_K_PROJ,
++    LLM_TENSOR_CROSS_ATTN_O_PROJ,
++    LLM_TENSOR_CROSS_ATTN_Q_NORM,
++    LLM_TENSOR_CROSS_ATTN_Q_PROJ,
++    LLM_TENSOR_CROSS_ATTN_V_PROJ,
++    LLM_TENSOR_CROSS_ATTN_ATTN_GATE,
++    LLM_TENSOR_CROSS_ATTN_MLP_GATE,
+ };
+ 
+ static const std::map<llm_arch, std::map<llm_tensor, const char *>> LLM_TENSOR_NAMES = {
+@@ -676,6 +688,40 @@ static const std::map<llm_arch, std::map<llm_tensor, const char *>> LLM_TENSOR_N
+             { LLM_TENSOR_FFN_UP_EXPS,     "blk.%d.ffn_up_exps" },
+         },
+     },
++    {
++        LLM_ARCH_MLLAMA,
++        {
++            { LLM_TENSOR_TOKEN_EMBD,      "token_embd" },
++            { LLM_TENSOR_OUTPUT_NORM,     "output_norm" },
++            { LLM_TENSOR_OUTPUT,          "output" },
++            { LLM_TENSOR_ROPE_FREQS,      "rope_freqs" },
++            { LLM_TENSOR_ATTN_NORM,       "blk.%d.attn_norm" },
++            { LLM_TENSOR_ATTN_Q,          "blk.%d.attn_q" },
++            { LLM_TENSOR_ATTN_K,          "blk.%d.attn_k" },
++            { LLM_TENSOR_ATTN_V,          "blk.%d.attn_v" },
++            { LLM_TENSOR_ATTN_OUT,        "blk.%d.attn_output" },
++            { LLM_TENSOR_ATTN_ROT_EMBD,   "blk.%d.attn_rot_embd" },
++            { LLM_TENSOR_FFN_GATE_INP,    "blk.%d.ffn_gate_inp" },
++            { LLM_TENSOR_FFN_NORM,        "blk.%d.ffn_norm" },
++            { LLM_TENSOR_FFN_GATE,        "blk.%d.ffn_gate" },
++            { LLM_TENSOR_FFN_DOWN,        "blk.%d.ffn_down" },
++            { LLM_TENSOR_FFN_UP,          "blk.%d.ffn_up" },
++            { LLM_TENSOR_FFN_GATE_EXP,    "blk.%d.ffn_gate.%d" },
++            { LLM_TENSOR_FFN_DOWN_EXP,    "blk.%d.ffn_down.%d" },
++            { LLM_TENSOR_FFN_UP_EXP,      "blk.%d.ffn_up.%d" },
++            { LLM_TENSOR_FFN_GATE_EXPS,   "blk.%d.ffn_gate_exps" },
++            { LLM_TENSOR_FFN_DOWN_EXPS,   "blk.%d.ffn_down_exps" },
++            { LLM_TENSOR_FFN_UP_EXPS,     "blk.%d.ffn_up_exps" },
++            { LLM_TENSOR_CROSS_ATTN_K_NORM,    "blk.%d.cross_attn_k_norm" },
++            { LLM_TENSOR_CROSS_ATTN_K_PROJ,    "blk.%d.cross_attn_k_proj" },
++            { LLM_TENSOR_CROSS_ATTN_O_PROJ,    "blk.%d.cross_attn_o_proj" },
++            { LLM_TENSOR_CROSS_ATTN_Q_NORM,    "blk.%d.cross_attn_q_norm" },
++            { LLM_TENSOR_CROSS_ATTN_Q_PROJ,    "blk.%d.cross_attn_q_proj" },
++            { LLM_TENSOR_CROSS_ATTN_V_PROJ,    "blk.%d.cross_attn_v_proj" },
++            { LLM_TENSOR_CROSS_ATTN_ATTN_GATE, "blk.%d.cross_attn_attn_gate" },
++            { LLM_TENSOR_CROSS_ATTN_MLP_GATE,  "blk.%d.cross_attn_mlp_gate" },
++        },
++    },
+     {
+         LLM_ARCH_DECI,
+         {
+@@ -2556,6 +2602,7 @@ enum e_model {
+     MODEL_40B,
+     MODEL_65B,
+     MODEL_70B,
++    MODEL_90B,
+     MODEL_236B,
+     MODEL_314B,
+     MODEL_SMALL,
+@@ -2613,6 +2660,7 @@ struct llama_hparams {
+     std::array<uint32_t, LLAMA_MAX_LAYERS> n_head_arr;
+     std::array<uint32_t, LLAMA_MAX_LAYERS> n_head_kv_arr;
+     std::array<uint32_t, LLAMA_MAX_LAYERS> n_ff_arr;
++    std::array<uint32_t, LLAMA_MAX_LAYERS> cross_attn_layers;
+ 
+     uint32_t n_layer_dense_lead = 0;
+     uint32_t n_lora_q = 0;
+@@ -2696,6 +2744,10 @@ struct llama_hparams {
+         GGML_ABORT("fatal error");
+     }
+ 
++    bool cross_attention_layers(uint32_t il) const {
++        return std::find(cross_attn_layers.begin(), cross_attn_layers.end(), il) != cross_attn_layers.end();
++    }
++
+     uint32_t n_gqa(uint32_t il = 0) const {
+         const uint32_t n_head    = this->n_head(il);
+         const uint32_t n_head_kv = this->n_head_kv(il);
+@@ -2769,6 +2821,7 @@ struct llama_cparams {
+     bool offload_kqv;
+     bool flash_attn;
+     bool no_perf;
++    bool cross_attn = false;
+ 
+     enum llama_pooling_type pooling_type;
+ 
+@@ -2972,6 +3025,16 @@ struct llama_layer {
+     struct ggml_tensor * ffn_up_scale   = nullptr;
+     struct ggml_tensor * ffn_down_scale = nullptr;
+ 
++    // cross attention
++    struct ggml_tensor * cross_attn_k_norm    = nullptr;
++    struct ggml_tensor * cross_attn_k_proj    = nullptr;
++    struct ggml_tensor * cross_attn_o_proj    = nullptr;
++    struct ggml_tensor * cross_attn_q_norm    = nullptr;
++    struct ggml_tensor * cross_attn_q_proj    = nullptr;
++    struct ggml_tensor * cross_attn_v_proj    = nullptr;
++    struct ggml_tensor * cross_attn_attn_gate = nullptr;
++    struct ggml_tensor * cross_attn_mlp_gate  = nullptr;
++
+     struct llama_layer_posnet posnet;
+ 
+     struct llama_layer_convnext convnext;
+@@ -3570,6 +3633,7 @@ struct llama_context {
+     struct ggml_tensor * inp_pos_bucket;    // I32 [n_batch|n_kv, n_batch]
+     struct ggml_tensor * inp_embd_enc;      // F32 [n_embd, n_outputs_enc]
+     struct ggml_tensor * inp_KQ_mask_cross; // F32 [n_outputs_enc, n_batch]
++    struct ggml_tensor * inp_cross_attn_state; // F32 [4, n_embd, 1061]
+ };
+ 
+ struct llama_lora_weight {
+@@ -3735,6 +3799,17 @@ static bool llama_kv_cache_init(
+         }
+         ggml_context * ctx = ctx_for_buft(buft);
+ 
++        // for cross attention layers
++        if (model.arch == LLM_ARCH_MLLAMA && hparams.cross_attention_layers(i)) {
++            ggml_tensor * k = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, hparams.n_embd_head_k, 6404, hparams.n_head_kv(i));
++            ggml_tensor * v = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, hparams.n_embd_head_v, 6404, hparams.n_head_kv(i));
++            ggml_format_name(k, "cache_k_l%d", i);
++            ggml_format_name(v, "cache_v_l%d", i);
++            cache.k_l.push_back(k);
++            cache.v_l.push_back(v);
++            continue;
++        }
++
+         if (!ctx) {
+             LLAMA_LOG_ERROR("%s: failed to create ggml context for kv cache\n", __func__);
+             return false;
+@@ -5670,12 +5745,14 @@ static void llm_load_hparams(
+     }
+ 
+     // zero-out the array hparams
+-    std::fill(hparams.n_head_arr.begin(),    hparams.n_head_arr.end(),    0);
+-    std::fill(hparams.n_head_kv_arr.begin(), hparams.n_head_kv_arr.end(), 0);
+-    std::fill(hparams.n_ff_arr.begin(),      hparams.n_ff_arr.end(),      0);
++    std::fill(hparams.n_head_arr.begin(),          hparams.n_head_arr.end(),         0);
++    std::fill(hparams.n_head_kv_arr.begin(),       hparams.n_head_kv_arr.end(),      0);
++    std::fill(hparams.n_ff_arr.begin(),            hparams.n_ff_arr.end(),           0);
++    std::fill(hparams.cross_attn_layers.begin(),   hparams.cross_attn_layers.end(), -1);
+ 
+-    ml.get_key_or_arr(LLM_KV_FEED_FORWARD_LENGTH,  hparams.n_ff_arr,   hparams.n_layer, false);
+-    ml.get_key_or_arr(LLM_KV_ATTENTION_HEAD_COUNT, hparams.n_head_arr, hparams.n_layer, false);
++    ml.get_key_or_arr(LLM_KV_FEED_FORWARD_LENGTH,       hparams.n_ff_arr,          hparams.n_layer, false);
++    ml.get_key_or_arr(LLM_KV_ATTENTION_HEAD_COUNT,      hparams.n_head_arr,        hparams.n_layer, false);
++    ml.get_arr(LLM_KV_ATTENTION_CROSS_ATTENTION_LAYERS, hparams.cross_attn_layers, false);
+ 
+     // n_head_kv is optional, default to n_head
+     hparams.n_head_kv_arr = hparams.n_head_arr;
+@@ -5724,7 +5801,7 @@ static void llm_load_hparams(
+ 
+         ml.get_key(LLM_KV_ROPE_DIMENSION_COUNT, hparams.n_rot, false);
+ 
+-        if (model.arch == LLM_ARCH_LLAMA || model.arch == LLM_ARCH_DECI || model.arch == LLM_ARCH_FALCON) {
++        if (model.arch == LLM_ARCH_LLAMA || model.arch == LLM_ARCH_MLLAMA || model.arch == LLM_ARCH_DECI || model.arch == LLM_ARCH_FALCON) {
+             if (hparams.n_rot != hparams.n_embd_head_k) {
+                 throw std::runtime_error(format("invalid n_rot: %u, expected %u", hparams.n_rot, hparams.n_embd_head_k));
+             }
+@@ -5764,6 +5841,16 @@ static void llm_load_hparams(
+                     }
+                 }
+             } break;
++        case LLM_ARCH_MLLAMA:
++            {
++                ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
++
++                switch (hparams.n_layer) {
++                    case 40: model.type = e_model::MODEL_11B; break;
++                    case 100: model.type = e_model::MODEL_90B; break;
++                    default: model.type = e_model::MODEL_UNKNOWN;
++                }
++            } break;
+         case LLM_ARCH_DECI:
+             {
+                 ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
+@@ -7465,6 +7552,14 @@ static const std::map<llm_tensor, llm_tensor_info> llm_tensor_info_mapping = {
+     {LLM_TENSOR_CONVNEXT_PW1,               {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL_MAT}},
+     {LLM_TENSOR_CONVNEXT_PW2,               {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL_MAT}},
+     {LLM_TENSOR_CONVNEXT_GAMMA,             {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL}},
++    {LLM_TENSOR_CROSS_ATTN_K_NORM,          {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL}},
++    {LLM_TENSOR_CROSS_ATTN_K_PROJ,          {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL_MAT}},
++    {LLM_TENSOR_CROSS_ATTN_O_PROJ,          {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL_MAT}},
++    {LLM_TENSOR_CROSS_ATTN_Q_NORM,          {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL}},
++    {LLM_TENSOR_CROSS_ATTN_Q_PROJ,          {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL_MAT}},
++    {LLM_TENSOR_CROSS_ATTN_V_PROJ,          {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL_MAT}},
++    {LLM_TENSOR_CROSS_ATTN_ATTN_GATE,       {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL_MAT}},
++    {LLM_TENSOR_CROSS_ATTN_MLP_GATE,        {LLM_TENSOR_LAYER_REPEATING, GGML_OP_MUL_MAT}},
+ };
+ 
+ // checks if the weight tensor can be used with the specified buffer type and device
+@@ -8086,6 +8181,52 @@ static bool llm_load_tensors(
+                         layer.rope_short = create_tensor(tn(LLM_TENSOR_ROPE_FACTORS_SHORT, "weight", i), { n_embd_head_qk_rope/2 }, llama_model_loader::TENSOR_NOT_REQUIRED | (i != 0 ? llama_model_loader::TENSOR_DUPLICATED : 0));
+                     }
+                 } break;
++            case LLM_ARCH_MLLAMA:
++                {
++                    model.tok_embd = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab+8}, 0);
++
++                    // output
++                    {
++                        model.output_norm = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd}, 0);
++                        model.output      = create_tensor(tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab}, llama_model_loader::TENSOR_NOT_REQUIRED);
++
++                        // if output is NULL, init from the input tok embed
++                        if (model.output == NULL) {
++                            model.output = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, llama_model_loader::TENSOR_DUPLICATED);
++                        }
++                    }
++
++                    for (int i = 0; i < n_layer; ++i) {
++                        auto & layer = model.layers[i];
++
++                        if (hparams.cross_attention_layers(i)) {
++                            layer.cross_attn_k_norm = create_tensor(tn(LLM_TENSOR_CROSS_ATTN_K_NORM, "weight", i), {128}, 0);
++                            layer.cross_attn_k_proj = create_tensor(tn(LLM_TENSOR_CROSS_ATTN_K_PROJ, "weight", i), {n_embd, 1024}, 0);
++                            layer.cross_attn_o_proj = create_tensor(tn(LLM_TENSOR_CROSS_ATTN_O_PROJ, "weight", i), {n_embd, n_embd}, 0);
++                            layer.cross_attn_q_norm = create_tensor(tn(LLM_TENSOR_CROSS_ATTN_Q_NORM, "weight", i), {128}, 0);
++                            layer.cross_attn_q_proj = create_tensor(tn(LLM_TENSOR_CROSS_ATTN_Q_PROJ, "weight", i), {n_embd, n_embd}, 0);
++                            layer.cross_attn_v_proj = create_tensor(tn(LLM_TENSOR_CROSS_ATTN_V_PROJ, "weight", i), {n_embd, 1024}, 0);
++                            layer.cross_attn_attn_gate = create_tensor(tn(LLM_TENSOR_CROSS_ATTN_ATTN_GATE, i), {1}, 0);
++                            layer.cross_attn_mlp_gate = create_tensor(tn(LLM_TENSOR_CROSS_ATTN_MLP_GATE, i), {1}, 0);
++                            layer.attn_norm = create_tensor(tn(LLM_TENSOR_ATTN_NORM, "weight", i), {n_embd}, 0);
++                            layer.ffn_down = create_tensor(tn(LLM_TENSOR_FFN_DOWN, "weight", i), {n_ff, n_embd}, 0);
++                            layer.ffn_gate = create_tensor(tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd, n_ff}, 0);
++                            layer.ffn_up   = create_tensor(tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd, n_ff}, 0);
++                            layer.ffn_norm = create_tensor(tn(LLM_TENSOR_FFN_NORM, "weight", i), {n_embd}, 0);
++                        } else {
++                            layer.attn_norm = create_tensor(tn(LLM_TENSOR_ATTN_NORM, "weight", i), {n_embd}, 0);
++                            layer.wq = create_tensor(tn(LLM_TENSOR_ATTN_Q,   "weight", i), {n_embd, n_embd_head_k * n_head}, 0);
++                            layer.wk = create_tensor(tn(LLM_TENSOR_ATTN_K,   "weight", i), {n_embd, n_embd_k_gqa}, 0);
++                            layer.wv = create_tensor(tn(LLM_TENSOR_ATTN_V,   "weight", i), {n_embd, n_embd_v_gqa}, 0);
++                            layer.wo = create_tensor(tn(LLM_TENSOR_ATTN_OUT, "weight", i), {n_embd_head_k * n_head, n_embd}, 0);
++                            layer.ffn_norm = create_tensor(tn(LLM_TENSOR_FFN_NORM, "weight", i), {n_embd}, 0);
++                            layer.rope_freqs = create_tensor(tn(LLM_TENSOR_ROPE_FREQS, "weight", i), {n_rot/2}, llama_model_loader::TENSOR_NOT_REQUIRED | (i != 0 ? llama_model_loader::TENSOR_DUPLICATED : 0));
++                            layer.ffn_gate = create_tensor(tn(LLM_TENSOR_FFN_GATE, "weight", i), {n_embd,   n_ff}, 0);
++                            layer.ffn_down = create_tensor(tn(LLM_TENSOR_FFN_DOWN, "weight", i), {  n_ff, n_embd}, 0);
++                            layer.ffn_up   = create_tensor(tn(LLM_TENSOR_FFN_UP,   "weight", i), {n_embd,   n_ff}, 0);
++                        }
++                    }
++                } break;
+             case LLM_ARCH_GROK:
+                 {
+                     if (n_expert == 0) {
+@@ -9876,7 +10017,8 @@ static int llama_model_load(const std::string & fname, llama_model & model, llam
+ 
+         if (model.vocab.type != LLAMA_VOCAB_TYPE_NONE &&
+             model.hparams.n_vocab != model.vocab.id_to_token.size()) {
+-            throw std::runtime_error("vocab size mismatch");
++            // throw std::runtime_error("vocab size mismatch");
++            LLAMA_LOG_WARN("%s: vocab mismatch %u !- %zu ...\n", __func__, model.hparams.n_vocab, model.vocab.id_to_token.size());
+         }
+ 
+         if (params.vocab_only) {
+@@ -9960,6 +10102,21 @@ static struct ggml_tensor * llm_build_inp_embd(
+     return inpL;
+ }
+ 
++static struct ggml_tensor * llm_build_inp_cross_attn_state(
++        struct ggml_context * ctx,
++       struct llama_context & lctx,
++        const llama_hparams & hparams,
++         const llm_build_cb & cb) {
++    const int64_t n_embd = hparams.n_embd;
++
++    struct ggml_tensor * inpCAS = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, n_embd, 1601, 4);
++    cb(inpCAS, "inp_cross_attn_state", -1);
++    ggml_set_input(inpCAS);
++    lctx.inp_cross_attn_state = inpCAS;
++
++    return inpCAS;
++}
++
+ static void llm_build_kv_store(
+         struct ggml_context * ctx,
+         const llama_hparams & hparams,
+@@ -10933,6 +11090,7 @@ struct llm_build_context {
+         lctx.inp_pos_bucket    = nullptr;
+         lctx.inp_embd_enc      = nullptr;
+         lctx.inp_KQ_mask_cross = nullptr;
++        lctx.inp_cross_attn_state = nullptr;
+     }
+ 
+     void free() {
+@@ -12687,6 +12845,240 @@ struct llm_build_context {
+         return gf;
+     }
+ 
++    struct ggml_cgraph * build_mllama() {
++        struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, llama_model_max_nodes(model), false);
++
++        // mutable variable, needed during the last layer of the computation to skip unused tokens
++        int32_t n_tokens = this->n_tokens;
++
++        const int64_t n_embd_head = hparams.n_embd_head_v;
++        GGML_ASSERT(n_embd_head == hparams.n_embd_head_k);
++        GGML_ASSERT(n_embd_head == hparams.n_rot);
++
++        struct ggml_tensor * cur;
++        struct ggml_tensor * inpL;
++        struct ggml_tensor * inpCAS;
++
++        inpL = llm_build_inp_embd(ctx0, lctx, hparams, ubatch, model.tok_embd, cb);
++        inpCAS = llm_build_inp_cross_attn_state(ctx0, lctx, hparams, cb);
++
++        // inp_pos - contains the positions
++        struct ggml_tensor * inp_pos = build_inp_pos();
++
++        // KQ_mask (mask for 1 head, it will be broadcasted to all heads)
++        struct ggml_tensor * KQ_mask = build_inp_KQ_mask();
++
++        for (int il = 0; il < n_layer; ++il) {
++            struct ggml_tensor * inpSA = inpL;
++
++            // norm
++            cur = llm_build_norm(ctx0, inpL, hparams,
++                    model.layers[il].attn_norm, NULL,
++                    LLM_NORM_RMS, cb, il);
++            cb(cur, "attn_norm", il);
++
++            if (hparams.cross_attention_layers(il)) {
++                if (!ubatch.embd && !cparams.cross_attn) {
++                    continue;
++                }
++
++                // cross attention layer
++                struct ggml_tensor * Qcur = ggml_mul_mat(ctx0, model.layers[il].cross_attn_q_proj, cur);
++                cb(Qcur, "Qcur", il);
++
++                Qcur = ggml_reshape_3d(ctx0, Qcur, n_embd_head, n_head, n_tokens);
++                cb(Qcur, "Qcur", il);
++
++                Qcur = ggml_cont(ctx0, ggml_permute(ctx0, Qcur, 0, 2, 1, 3));
++                cb(Qcur, "Qcur", il);
++
++                Qcur = llm_build_norm(ctx0, Qcur, hparams, model.layers[il].cross_attn_q_norm, NULL, LLM_NORM_RMS, cb, il);
++                cb(Qcur, "Qcur", il);
++
++                struct ggml_tensor * Kcur, * Vcur;
++                if (ubatch.embd) {
++                    Kcur = ggml_mul_mat(ctx0, model.layers[il].cross_attn_k_proj, inpCAS);
++                    cb(Kcur, "Kcur", il);
++
++                    Kcur = ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, 6404);
++                    cb(Kcur, "Kcur", il);
++
++                    Kcur = ggml_cont(ctx0, ggml_permute(ctx0, Kcur, 0, 2, 1, 3));
++                    cb(Kcur, "Kcur", il);
++
++                    Kcur = llm_build_norm(ctx0, Kcur, hparams, model.layers[il].cross_attn_k_norm, NULL, LLM_NORM_RMS, cb, il);
++                    cb(Kcur, "Kcur", il);
++
++                    ggml_build_forward_expand(gf, ggml_cpy(ctx0, Kcur, kv_self.k_l[il]));
++
++                    Vcur = ggml_mul_mat(ctx0, model.layers[il].cross_attn_v_proj, inpCAS);
++                    cb(Vcur, "Vcur", il);
++
++                    Vcur = ggml_reshape_3d(ctx0, Vcur, n_embd_head, n_head_kv, 6404);
++                    cb(Vcur, "Vcur", il);
++
++                    Vcur = ggml_permute(ctx0, Vcur, 0, 2, 1, 3);
++                    cb(Vcur, "Vcur", il);
++
++                    ggml_build_forward_expand(gf, ggml_cpy(ctx0, Vcur, kv_self.v_l[il]));
++                } else {
++                    Kcur = ggml_view_tensor(ctx0, kv_self.k_l[il]);
++                    cb(Kcur, "Kcur (view)", il);
++
++                    Vcur = ggml_view_tensor(ctx0, kv_self.v_l[il]);
++                    cb(Vcur, "Vcur (view)", il);
++                }
++
++                struct ggml_tensor * kq = ggml_mul_mat(ctx0, Kcur, Qcur);
++                cb(kq, "kq", il);
++
++                // TODO: apply causal masks
++                struct ggml_tensor * kq_soft_max = ggml_soft_max_ext(ctx0, kq, nullptr, 1.f/sqrtf(float(n_embd_head)), hparams.f_max_alibi_bias);
++                cb(kq_soft_max, "kq_soft_max", il);
++
++                Vcur = ggml_cont(ctx0, ggml_transpose(ctx0, Vcur));
++                cb(Vcur, "Vcur", il);
++
++                struct ggml_tensor * kqv = ggml_mul_mat(ctx0, Vcur, kq_soft_max);
++                cb(kqv, "kqv", il);
++
++                struct ggml_tensor * kqv_merged = ggml_permute(ctx0, kqv, 0, 2, 1, 3);
++                cb(kqv_merged, "kqv_merged", il);
++
++                cur = ggml_cont_2d(ctx0, kqv_merged, n_embd_head_v*n_head, n_tokens);
++                cb(cur, "kqv_merged_cont", il);
++
++                cur = ggml_mul_mat(ctx0, model.layers[il].cross_attn_o_proj, cur);
++                cb(cur, "cur", il);
++
++                // TODO: do this in place once?
++                cur = ggml_mul(ctx0, cur, ggml_tanh(ctx0, model.layers[il].cross_attn_attn_gate));
++
++                struct ggml_tensor * ffn_inp = ggml_add(ctx0, cur, inpSA);
++                cb(ffn_inp, "ffn_inp", il);
++
++                // feed-forward network
++                cur = llm_build_norm(ctx0, ffn_inp, hparams,
++                        model.layers[il].ffn_norm, NULL,
++                        LLM_NORM_RMS, cb, il);
++                cb(cur, "ffn_norm", il);
++
++                cur = llm_build_ffn(ctx0, lctx, cur,
++                        model.layers[il].ffn_up,   model.layers[il].ffn_up_b,   NULL,
++                        model.layers[il].ffn_gate, model.layers[il].ffn_gate_b, NULL,
++                        model.layers[il].ffn_down, model.layers[il].ffn_down_b, NULL,
++                        NULL,
++                        LLM_FFN_SILU, LLM_FFN_PAR, cb, il);
++                cb(cur, "ffn_out", il);
++
++                // TODO: do this inplace once?
++                cur = ggml_add_inplace(ctx0, ggml_mul_inplace(ctx0, cur, ggml_tanh(ctx0, model.layers[il].cross_attn_mlp_gate)), ffn_inp);
++                cb(cur, "ffn_out", il);
++
++                cur = lctx.cvec.apply_to(ctx0, cur, il);
++                cb(cur, "l_out", il);
++
++                // input for next layer
++                inpL = cur;
++            } else {
++                // self attention layer
++
++                // rope freq factors for llama3; may return nullptr for llama2 and other models
++                struct ggml_tensor * rope_factors = build_rope_factors(il);
++
++                // compute Q and K and RoPE them
++                struct ggml_tensor * Qcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wq, cur);
++                cb(Qcur, "Qcur", il);
++                if (model.layers[il].bq) {
++                    Qcur = ggml_add(ctx0, Qcur, model.layers[il].bq);
++                    cb(Qcur, "Qcur", il);
++                }
++
++                struct ggml_tensor * Kcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wk, cur);
++                cb(Kcur, "Kcur", il);
++                if (model.layers[il].bk) {
++                    Kcur = ggml_add(ctx0, Kcur, model.layers[il].bk);
++                    cb(Kcur, "Kcur", il);
++                }
++
++                struct ggml_tensor * Vcur = llm_build_lora_mm(lctx, ctx0, model.layers[il].wv, cur);
++                cb(Vcur, "Vcur", il);
++                if (model.layers[il].bv) {
++                    Vcur = ggml_add(ctx0, Vcur, model.layers[il].bv);
++                    cb(Vcur, "Vcur", il);
++                }
++
++                Qcur = ggml_rope_ext(
++                    ctx0, ggml_reshape_3d(ctx0, Qcur, n_embd_head, n_head, n_tokens), inp_pos, rope_factors,
++                    n_rot, rope_type, n_ctx_orig, freq_base, freq_scale,
++                    ext_factor, attn_factor, beta_fast, beta_slow
++                );
++                cb(Qcur, "Qcur", il);
++
++                Kcur = ggml_rope_ext(
++                    ctx0, ggml_reshape_3d(ctx0, Kcur, n_embd_head, n_head_kv, n_tokens), inp_pos, rope_factors,
++                    n_rot, rope_type, n_ctx_orig, freq_base, freq_scale,
++                    ext_factor, attn_factor, beta_fast, beta_slow
++                );
++                cb(Kcur, "Kcur", il);
++
++                cur = llm_build_kv(ctx0, lctx, kv_self, gf,
++                    model.layers[il].wo, model.layers[il].bo,
++                    Kcur, Vcur, Qcur, KQ_mask, n_tokens, kv_head, n_kv, 1.0f/sqrtf(float(n_embd_head)), cb, il);
++
++
++                if (il == n_layer - 1) {
++                    // skip computing output for unused tokens
++                    struct ggml_tensor * inp_out_ids = build_inp_out_ids();
++                    n_tokens = n_outputs;
++                    cur   = ggml_get_rows(ctx0,   cur, inp_out_ids);
++                    inpSA = ggml_get_rows(ctx0, inpSA, inp_out_ids);
++                }
++
++                struct ggml_tensor * ffn_inp = ggml_add(ctx0, cur, inpSA);
++                cb(ffn_inp, "ffn_inp", il);
++
++                // feed-forward network
++                cur = llm_build_norm(ctx0, ffn_inp, hparams,
++                        model.layers[il].ffn_norm, NULL,
++                        LLM_NORM_RMS, cb, il);
++                cb(cur, "ffn_norm", il);
++
++                cur = llm_build_ffn(ctx0, lctx, cur,
++                        model.layers[il].ffn_up,   model.layers[il].ffn_up_b,   NULL,
++                        model.layers[il].ffn_gate, model.layers[il].ffn_gate_b, NULL,
++                        model.layers[il].ffn_down, model.layers[il].ffn_down_b, NULL,
++                        NULL,
++                        LLM_FFN_SILU, LLM_FFN_PAR, cb, il);
++                cb(cur, "ffn_out", il);
++
++                cur = ggml_add(ctx0, cur, ffn_inp);
++                cb(cur, "ffn_out", il);
++
++                cur = lctx.cvec.apply_to(ctx0, cur, il);
++                cb(cur, "l_out", il);
++
++                // input for next layer
++                inpL = cur;
++            }
++        }
++
++        cur = inpL;
++
++        cur = llm_build_norm(ctx0, cur, hparams,
++                model.output_norm, NULL,
++                LLM_NORM_RMS, cb, -1);
++        cb(cur, "result_norm", -1);
++
++        // lm_head
++        cur = llm_build_lora_mm(lctx, ctx0, model.output, cur);
++        cb(cur, "result_output", -1);
++
++        ggml_build_forward_expand(gf, cur);
++
++        return gf;
++    }
++
+     struct ggml_cgraph * build_mpt() {
+         struct ggml_cgraph * gf = ggml_new_graph_custom(ctx0, llama_model_max_nodes(model), false);
+ 
+@@ -17687,6 +18079,10 @@ static struct ggml_cgraph * llama_build_graph(
+             {
+                 result = llm.build_llama();
+             } break;
++        case LLM_ARCH_MLLAMA:
++            {
++                result = llm.build_mllama();
++            } break;
+         case LLM_ARCH_DECI:
+             {
+                 result = llm.build_deci();
+@@ -17960,10 +18356,19 @@ static void llama_set_inputs(llama_context & lctx, const llama_ubatch & ubatch)
+     }
+ 
+     if (ubatch.embd) {
+-        const int64_t n_embd   = hparams.n_embd;
+-        const int64_t n_tokens = ubatch.n_tokens;
++        if (lctx.inp_cross_attn_state && lctx.inp_cross_attn_state->buffer) {
++            ggml_backend_tensor_set(lctx.inp_cross_attn_state, ubatch.embd, 0, ggml_nbytes(lctx.inp_cross_attn_state));
++            // zero out inp_embd since it's not used
++            float * inp_embd_data = (float *)lctx.inp_embd->data;
++            for (int i = 0; i < ggml_nelements(lctx.inp_embd); ++i) {
++                inp_embd_data[i] = 0.0f;
++            }
++        } else {
++            const int64_t n_embd   = hparams.n_embd;
++            const int64_t n_tokens = ubatch.n_tokens;
+ 
+-        ggml_backend_tensor_set(lctx.inp_embd, ubatch.embd, 0, n_tokens*n_embd*ggml_element_size(lctx.inp_embd));
++            ggml_backend_tensor_set(lctx.inp_embd, ubatch.embd, 0, n_tokens*n_embd*ggml_element_size(lctx.inp_embd));
++        }
+     }
+ 
+     if (ubatch.pos && lctx.inp_pos) {
+@@ -18569,7 +18974,7 @@ static int llama_decode_internal(
+         n_outputs = 1;
+     }
+ 
+-    lctx.sbatch.from_batch(batch, n_embd,
++    lctx.sbatch.from_batch(batch, batch.n_embd,
+         /* simple_split */ !kv_self.recurrent,
+         /* logits_all   */ n_outputs == n_tokens_all);
+ 
+@@ -18877,7 +19282,7 @@ static int llama_encode_internal(
+ 
+     const int64_t n_embd = hparams.n_embd;
+ 
+-    lctx.sbatch.from_batch(batch, n_embd, /* simple_split */ true, /* logits_all */ true);
++    lctx.sbatch.from_batch(batch, batch.n_embd, /* simple_split */ true, /* logits_all */ true);
+ 
+     const llama_ubatch ubatch = lctx.sbatch.split_simple(n_tokens);
+ 
+@@ -19908,7 +20313,9 @@ static void llama_model_quantize_internal(const std::string & fname_inp, const s
+         if (llama_model_has_encoder(&model)) {
+             n_attn_layer *= 3;
+         }
+-        GGML_ASSERT((qs.n_attention_wv == n_attn_layer) && "n_attention_wv is unexpected");
++        if (qs.n_attention_wv != n_attn_layer) {
++            LLAMA_LOG_WARN("%s: n_attention_wv is unexpected, expected: %d, found: %d\n", __func__, n_attn_layer, qs.n_attention_wv);
++        }
+     }
+ 
+     size_t total_size_org = 0;
+@@ -21066,6 +21473,7 @@ enum llama_rope_type llama_rope_type(const struct llama_model * model) {
+ 
+         // use what we call a normal RoPE, operating on pairs of consecutive head values
+         case LLM_ARCH_LLAMA:
++        case LLM_ARCH_MLLAMA:
+         case LLM_ARCH_DECI:
+         case LLM_ARCH_BAICHUAN:
+         case LLM_ARCH_STARCODER:
+@@ -22486,6 +22894,10 @@ void llama_set_causal_attn(struct llama_context * ctx, bool causal_attn) {
+     ctx->cparams.causal_attn = causal_attn;
+ }
+ 
++void llama_set_cross_attention(struct llama_context * ctx, bool cross_attention) {
++    ctx->cparams.cross_attn = cross_attention;
++}
++
+ struct llama_batch llama_batch_get_one(
+              llama_token * tokens,
+                  int32_t   n_tokens) {
+@@ -22493,6 +22905,7 @@ struct llama_batch llama_batch_get_one(
+         /*n_tokens       =*/ n_tokens,
+         /*tokens         =*/ tokens,
+         /*embd           =*/ nullptr,
++        /*n_embd         =*/ 0,
+         /*pos            =*/ nullptr,
+         /*n_seq_id       =*/ nullptr,
+         /*seq_id         =*/ nullptr,
+@@ -22505,6 +22918,7 @@ struct llama_batch llama_batch_init(int32_t n_tokens_alloc, int32_t embd, int32_
+         /*n_tokens       =*/ 0,
+         /*tokens         =*/ nullptr,
+         /*embd           =*/ nullptr,
++        /*n_embd         =*/ 0,
+         /*pos            =*/ nullptr,
+         /*n_seq_id       =*/ nullptr,
+         /*seq_id         =*/ nullptr,
+@@ -22513,6 +22927,7 @@ struct llama_batch llama_batch_init(int32_t n_tokens_alloc, int32_t embd, int32_
+ 
+     if (embd) {
+         batch.embd = (float *) malloc(sizeof(float) * n_tokens_alloc * embd);
++        batch.n_embd = embd;
+     } else {
+         batch.token = (llama_token *) malloc(sizeof(llama_token) * n_tokens_alloc);
+     }

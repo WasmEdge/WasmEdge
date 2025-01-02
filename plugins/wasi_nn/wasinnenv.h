@@ -21,6 +21,8 @@
 
 #include <cstdint>
 #include <functional>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
@@ -64,17 +66,9 @@ class Graph {
 public:
   Graph() = delete;
   Graph(Backend BE) noexcept : Impl(std::in_place_type_t<std::monostate>()) {
-    switch (BE) {
-#define EACH(B)                                                                \
-  case Backend::B:                                                             \
-    Impl.emplace<B::Graph>();                                                  \
-    break;
-      FOR_EACH_BACKEND(EACH)
-#undef EACH
-    default:
-      __builtin_unreachable();
-    }
+    init(BE);
   }
+
   Backend getBackend() const noexcept {
     using V = std::decay_t<decltype(Impl)>;
     switch (Impl.index()) {
@@ -87,6 +81,7 @@ public:
       __builtin_unreachable();
     }
   }
+
   template <Backend B> auto &get() noexcept {
     return *std::get_if<detail::BackendGraphT<B>>(&Impl);
   }
@@ -97,29 +92,59 @@ public:
   template <typename T> const auto &get() const noexcept {
     return *std::get_if<T>(&Impl);
   }
-  std::variant<
-#define EACH(B) B::Graph,
-      FOR_EACH_BACKEND(EACH)
-#undef EACH
-          std::monostate>
-      Impl;
-};
 
-class Context {
-public:
-  Context() = delete;
-  Context(size_t GId, Graph &G) noexcept
-      : Impl(std::in_place_type_t<std::monostate>()) {
-    switch (G.getBackend()) {
+  void init(Backend BE) noexcept {
+    switch (BE) {
 #define EACH(B)                                                                \
   case Backend::B:                                                             \
-    Impl.emplace<B::Context>(GId, G.get<Backend::B>());                        \
+    Impl.emplace<B::Graph>();                                                  \
     break;
       FOR_EACH_BACKEND(EACH)
 #undef EACH
     default:
       __builtin_unreachable();
     }
+    Stat = Status::Empty;
+    CtxCnt = 0;
+  }
+  void reset() noexcept {
+    Impl = std::monostate{};
+    Stat = Status::Empty;
+    CtxCnt = 0;
+  }
+  void increaseContext() noexcept { CtxCnt++; }
+  void decreaseContext() noexcept {
+    if (CtxCnt > 0) {
+      CtxCnt--;
+    }
+  }
+  uint32_t getContextCount() const noexcept { return CtxCnt; }
+  bool isFinalized() const noexcept {
+    return Stat == Status::Empty || Stat == Status::Finalized;
+  }
+  bool isReady() const noexcept { return Stat == Status::Ready; }
+  void setInvalid() noexcept { Stat = Status::Invalid; }
+  void setFinalized() noexcept { Stat = Status::Finalized; }
+  void setReady() noexcept { Stat = Status::Ready; }
+
+private:
+  std::variant<
+#define EACH(B) B::Graph,
+      FOR_EACH_BACKEND(EACH)
+#undef EACH
+          std::monostate>
+      Impl;
+  enum class Status : uint8_t { Empty, Invalid, Finalized, Ready };
+  Status Stat;
+  uint32_t CtxCnt;
+};
+
+class Context {
+public:
+  Context() = delete;
+  Context(uint32_t GId, Graph &G) noexcept
+      : Impl(std::in_place_type_t<std::monostate>()) {
+    init(GId, G);
   }
 
   Backend getBackend() const noexcept {
@@ -145,12 +170,42 @@ public:
   template <typename T> const auto &get() const noexcept {
     return *std::get_if<T>(&Impl);
   }
+
+  void init(uint32_t GId, Graph &G) noexcept {
+    switch (G.getBackend()) {
+#define EACH(B)                                                                \
+  case Backend::B:                                                             \
+    Impl.emplace<B::Context>(GId, G.get<Backend::B>());                        \
+    break;
+      FOR_EACH_BACKEND(EACH)
+#undef EACH
+    default:
+      __builtin_unreachable();
+    }
+    Stat = Status::Empty;
+    GraphId = GId;
+  }
+  void reset() noexcept {
+    Impl = std::monostate{};
+    Stat = Status::Empty;
+    GraphId = 0;
+  }
+  uint32_t getGraphId() const noexcept {
+    return static_cast<uint32_t>(GraphId);
+  }
+  bool isReady() const noexcept { return Stat == Status::Ready; }
+  void setReady() noexcept { Stat = Status::Ready; }
+
+private:
   std::variant<
 #define EACH(B) B::Context,
       FOR_EACH_BACKEND(EACH)
 #undef EACH
           std::monostate>
       Impl;
+  enum class Status : uint8_t { Empty, Ready };
+  Status Stat;
+  uint32_t GraphId;
 };
 
 struct WasiNNEnvironment :
@@ -211,13 +266,88 @@ struct WasiNNEnvironment :
     return WASINN::ErrNo::NotFound;
   }
 
-  mutable std::shared_mutex MdMutex; ///< Protect MdMap
+  uint32_t newGraph(Backend BE) noexcept {
+    uint32_t ID = static_cast<uint32_t>(NNGraph.size());
+    if (NNGraphRecycle.empty()) {
+      NNGraph.emplace_back(BE);
+    } else {
+      ID = *NNGraphRecycle.begin();
+      NNGraph[ID].init(BE);
+      NNGraphRecycle.erase(ID);
+    }
+    return ID;
+  }
+
+  uint32_t newContext(uint32_t GId, Graph &G) noexcept {
+    assuming(NNGraph.size() > GId);
+    // TODO: Merge GId into graph class.
+    uint32_t ID = static_cast<uint32_t>(NNContext.size());
+    if (NNContextRecycle.empty()) {
+      NNContext.emplace_back(GId, G);
+    } else {
+      ID = *NNContextRecycle.begin();
+      NNContext[ID].init(GId, G);
+      NNContextRecycle.erase(ID);
+    }
+    G.increaseContext();
+    return ID;
+  }
+
+  void deleteGraph(const uint32_t Id) noexcept {
+    // TODO: Add the deallocation callback.
+    if (Id < NNGraph.size()) {
+      auto &G = NNGraph[Id];
+      G.setFinalized();
+      if (G.getContextCount() == 0) {
+        // Checked all contexts are deleted. Release the graph id.
+        if (Id == NNGraph.size() - 1) {
+          NNGraph.pop_back();
+        } else {
+          G.reset();
+          NNGraphRecycle.insert(Id);
+        }
+      }
+    }
+  }
+
+  void deleteContext(const uint32_t Id) noexcept {
+    // TODO: Add the deallocation callback.
+    if (Id < NNContext.size()) {
+      auto GId = NNContext[Id].getGraphId();
+      auto &G = NNGraph[GId];
+      G.decreaseContext();
+      if (G.getContextCount() == 0 && G.isFinalized()) {
+        // Checked all contexts are deleted. Release the graph id.
+        if (GId == NNGraph.size() - 1) {
+          NNGraph.pop_back();
+        } else {
+          G.reset();
+          NNGraphRecycle.insert(GId);
+        }
+      }
+      if (Id == NNContext.size() - 1) {
+        NNContext.pop_back();
+      } else {
+        NNContext[Id].reset();
+        NNContextRecycle.insert(Id);
+      }
+    }
+  }
+
+  // Md storage
+  mutable std::shared_mutex MdMutex;
   std::unordered_map<std::string, std::tuple<std::vector<std::vector<uint8_t>>,
                                              Backend, Device>>
       RawMdMap;
   std::unordered_map<std::string, uint32_t> MdMap;
+
+  // Graph and context
+  std::unordered_set<uint32_t> NNGraphRecycle;
   std::vector<Graph> NNGraph;
+  std::unordered_set<uint32_t> NNContextRecycle;
   std::vector<Context> NNContext;
+
+  // Preload model list
   static PO::List<std::string> NNModels;
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   static PO::Option<std::string> NNRPCURI; // For RPC client mode

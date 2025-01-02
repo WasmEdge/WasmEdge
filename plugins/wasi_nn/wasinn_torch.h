@@ -80,15 +80,15 @@ struct Graph {
 
 struct Context {
 public:
-  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
-  size_t GraphId;
+  Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}
+  uint32_t GraphId;
   std::vector<at::Tensor> TorchInputs;
   std::vector<at::Tensor> TorchOutputs;
 };
 #else
 struct Graph {};
 struct Context {
-  Context(size_t, Graph &) noexcept {}
+  Context(uint32_t, Graph &) noexcept {}
 };
 #endif
 

@@ -177,8 +177,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   auto Weight = Builders[0];
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::PyTorch);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::PyTorch);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
 
   // Load the model from the binary data.
   // Note: Pytorch use try catch to handle the error.
@@ -210,15 +210,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     return ErrNo::InvalidArgument;
   }
 
-  GraphId = Env.NNGraph.size() - 1;
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
   return ErrNo::Success;
 }
 
 Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                           uint32_t &ContextId) noexcept {
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-
-  ContextId = Env.NNContext.size() - 1;
+  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
+  Env.NNContext[ContextId].setReady();
   return ErrNo::Success;
 }
 

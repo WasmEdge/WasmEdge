@@ -78,8 +78,8 @@ struct Graph {
   std::unique_ptr<piper::Voice> Voice;
 };
 struct Context {
-  Context(size_t GId, Graph &) noexcept : GraphId(GId) {}
-  size_t GraphId;
+  Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}
+  uint32_t GraphId;
   std::optional<std::string> Line;
   std::unique_ptr<std::optional<SynthesisConfig>> JsonInputSynthesisConfig;
   std::optional<std::vector<uint8_t>> Output;
@@ -87,7 +87,7 @@ struct Context {
 #else
 struct Graph {};
 struct Context {
-  Context(size_t, Graph &) noexcept {}
+  Context(uint32_t, Graph &) noexcept {}
 };
 #endif
 

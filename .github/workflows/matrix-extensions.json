@@ -171,7 +171,39 @@
                 "manylinux2014_x86_64",
                 "manylinux2014_aarch64",
                 "manylinux_2_28_x86_64",
-                "manylinux_2_28_aarch64"
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
+            ]
+        },
+        {
+            "plugin": "wasmedge_stablediffusion-cuda-11",
+            "bin": "libwasmedgePluginWasmEdgeStableDiffusion",
+            "dir": "wasmedge_stablediffusion",
+            "target": "wasmedgePluginWasmEdgeStableDiffusion",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES='60;61;70' -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            "platforms": [
+                "ubuntu2004_cuda11"
+            ]
+        },
+        {
+            "plugin": "wasmedge_stablediffusion-cuda-12",
+            "bin": "libwasmedgePluginWasmEdgeStableDiffusion",
+            "dir": "wasmedge_stablediffusion",
+            "target": "wasmedgePluginWasmEdgeStableDiffusion",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES='60;61;70' -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            "platforms": [
+                "ubuntu2004_cuda12"
+            ]
+        },
+        {
+            "plugin": "wasmedge_stablediffusion-metal",
+            "bin": "libwasmedgePluginWasmEdgeStableDiffusion",
+            "dir": "wasmedge_stablediffusion",
+            "target": "wasmedgePluginWasmEdgeStableDiffusion",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_METAL=ON",
+            "platforms": [
+                "macos_arm64"
             ]
         },
         {

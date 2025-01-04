@@ -2,12 +2,12 @@
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 
-if(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS)
-  message(STATUS "Stable diffusion plugin: Enable SD_CUBLAS")
-  set(SD_CUBLAS ON CACHE BOOL "Stable diffusion plugin: Enable SD_CUBLAS")
+if(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUDA)
+  message(STATUS "Stable diffusion plugin: Enable SD_CUDA")
+  set(SD_CUDA ON CACHE BOOL "Stable diffusion plugin: Enable SD_CUDA")
 else()
-  message(STATUS "Stable diffusion plugin: Disable SD_CUBLAS")
-  set(SD_CUBLAS OFF CACHE BOOL "Stable diffusion plugin: Disable SD_CUBLAS")
+  message(STATUS "Stable diffusion plugin: Disable SD_CUDA")
+  set(SD_CUDA OFF CACHE BOOL "Stable diffusion plugin: Disable SD_CUDA")
 endif()
 
 if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL)
@@ -31,8 +31,8 @@ endif()
 message(STATUS "Downloading stable diffusion source")
 FetchContent_Declare(
   stable-diffusion
-  GIT_REPOSITORY https://github.com/second-state/stable-diffusion.cpp.git
-  GIT_TAG        d08889cb3f86f49d3f4f9c0c7e3781238c44bd3d
+  GIT_REPOSITORY https://github.com/leejet/stable-diffusion.cpp.git
+  GIT_TAG        dcf91f9e0f2cbf9da472ee2a556751ed4bab2d2a
   GIT_SHALLOW    TRUE
   )
 set(SD_BUILD_SHARED_LIBS ON CACHE INTERNAL "Stable diffusion plugin: Build shared libs")

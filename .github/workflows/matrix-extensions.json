@@ -224,7 +224,7 @@
             "bin": "libwasmedgePluginWasmEdgeStableDiffusion",
             "dir": "wasmedge_stablediffusion",
             "target": "wasmedgePluginWasmEdgeStableDiffusion",
-            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS=ON -DCMAKE_CUDA_ARCHITECTURES='60;61;70' -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES='60;61;70' -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
             "platforms": [
                 "ubuntu2004_cuda11"
             ]
@@ -234,7 +234,7 @@
             "bin": "libwasmedgePluginWasmEdgeStableDiffusion",
             "dir": "wasmedge_stablediffusion",
             "target": "wasmedgePluginWasmEdgeStableDiffusion",
-            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUBLAS=ON -DCMAKE_CUDA_ARCHITECTURES='60;61;70' -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
+            "options": "-DWASMEDGE_PLUGIN_STABLEDIFFUSION=ON -DWASMEDGE_PLUGIN_STABLEDIFFUSION_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES='60;61;70' -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
             "platforms": [
                 "ubuntu2004_cuda12"
             ]

@@ -175,6 +175,9 @@ AST::MemorySection createMemory(
     Span<const Runtime::Instance::MemoryInstance *const> MemoryInstances) {
   AST::MemorySection Memory;
   auto &Content = Memory.getContent();
+  if (MemoryInstances.size() == 0) {
+    return Memory;
+  }
   Content.push_back(MemoryInstances[0]->getMemoryType());
   return Memory;
 }

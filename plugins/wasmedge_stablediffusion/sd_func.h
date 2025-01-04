@@ -34,7 +34,8 @@ public:
   SDImageToImage(StableDiffusion::SDEnviornment &HostEnv) : Func(HostEnv) {}
   Expect<uint32_t>
   body(const Runtime::CallingFrame &Frame, uint32_t ImagePtr, uint32_t ImageLen,
-       uint32_t SessionId, float Guidance, uint32_t Width, uint32_t Height,
+       uint32_t MaskImagePtr, uint32_t MaskImageLen, uint32_t SessionId,
+       float Guidance, uint32_t Width, uint32_t Height,
        uint32_t ControlImagePtr, uint32_t ControlImageLen, uint32_t PromptPtr,
        uint32_t PromptLen, uint32_t NegativePromptPtr,
        uint32_t NegativePromptLen, int32_t ClipSkip, float CfgScale,

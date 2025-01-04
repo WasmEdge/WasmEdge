@@ -109,6 +109,24 @@ sd_image_t *readControlImage(Span<uint8_t> ControlImage, int Width, int Height,
   return ControlImg;
 }
 
+sd_image_t readMaskImage(Span<uint8_t> MaskImage, int Width, int Height) {
+  uint8_t *MaskImageBuffer = NULL;
+  std::string MaskImagePath(MaskImage.begin(), MaskImage.end());
+  int Channel = 0;
+  if (MaskImagePath.substr(0, 5) == "path:"sv) {
+    MaskImageBuffer =
+        stbi_load(MaskImagePath.substr(5).data(), &Width, &Height, &Channel, 3);
+  } else if (MaskImage.size() != 0) {
+    MaskImageBuffer = stbi_load_from_memory(MaskImage.data(), MaskImage.size(),
+                                            &Width, &Height, &Channel, 3);
+  } else {
+    std::vector<uint8_t> Arr(Width * Height, 255);
+    MaskImageBuffer = Arr.data();
+  }
+  return {static_cast<uint32_t>(Width), static_cast<uint32_t>(Height), 1,
+          MaskImageBuffer};
+}
+
 void upscalerModel(const char *UpscaleModelPath, uint32_t UpscaleRepeats,
                    int32_t NThreads, uint32_t BatchCount, sd_image_t *Results) {
   // unused for RealESRGAN_x4plus_anime_6B.pth
@@ -415,24 +433,26 @@ Expect<uint32_t> SDTextToImage::body(
 
 Expect<uint32_t> SDImageToImage::body(
     const Runtime::CallingFrame &Frame, uint32_t ImagePtr, uint32_t ImageLen,
-    uint32_t SessionId, float Guidance, uint32_t Width, uint32_t Height,
-    uint32_t ControlImagePtr, uint32_t ControlImageLen, uint32_t PromptPtr,
-    uint32_t PromptLen, uint32_t NegativePromptPtr, uint32_t NegativePromptLen,
-    int32_t ClipSkip, float CfgScale, uint32_t SampleMethod,
-    uint32_t SampleSteps, float Strength, uint32_t Seed, uint32_t BatchCount,
-    float ControlStrength, float StyleRatio, uint32_t NormalizeInput,
-    uint32_t InputIdImagesDirPtr, uint32_t InputIdImagesDirLen,
-    uint32_t CannyPreprocess, uint32_t UpscaleModelPathPtr,
-    uint32_t UpscaleModelPathLen, uint32_t UpscaleRepeats,
-    uint32_t SkipLayersPtr, uint32_t SkipLayersLen, float SlgScale,
-    float SkipLayerStart, float SkipLayerEnd, uint32_t OutputPathPtr,
-    uint32_t OutputPathLen, uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
-    uint32_t BytesWrittenPtr) {
+    uint32_t MaskImagePtr, uint32_t MaskImageLen, uint32_t SessionId,
+    float Guidance, uint32_t Width, uint32_t Height, uint32_t ControlImagePtr,
+    uint32_t ControlImageLen, uint32_t PromptPtr, uint32_t PromptLen,
+    uint32_t NegativePromptPtr, uint32_t NegativePromptLen, int32_t ClipSkip,
+    float CfgScale, uint32_t SampleMethod, uint32_t SampleSteps, float Strength,
+    uint32_t Seed, uint32_t BatchCount, float ControlStrength, float StyleRatio,
+    uint32_t NormalizeInput, uint32_t InputIdImagesDirPtr,
+    uint32_t InputIdImagesDirLen, uint32_t CannyPreprocess,
+    uint32_t UpscaleModelPathPtr, uint32_t UpscaleModelPathLen,
+    uint32_t UpscaleRepeats, uint32_t SkipLayersPtr, uint32_t SkipLayersLen,
+    float SlgScale, float SkipLayerStart, float SkipLayerEnd,
+    uint32_t OutputPathPtr, uint32_t OutputPathLen, uint32_t OutBufferPtr,
+    uint32_t OutBufferMaxSize, uint32_t BytesWrittenPtr) {
   // Check memory instance from module.
   MEMINST_CHECK(MemInst, Frame, 0)
   // Check the input parameter valid.
   MEM_SPAN_CHECK(ImageSpan, MemInst, uint8_t, ImagePtr, ImageLen,
                  "Failed when accessing the input image memory."sv)
+  MEM_SPAN_CHECK(MaskImageSpan, MemInst, uint8_t, MaskImagePtr, MaskImageLen,
+                 "Failed when accessing the input mask image memory."sv)
   MEM_SPAN_CHECK(PromptSpan, MemInst, char, PromptPtr, PromptLen,
                  "Failed when accessing the promp memory."sv)
   MEM_SPAN_CHECK(NegativePromptSpan, MemInst, char, NegativePromptPtr,
@@ -529,15 +549,17 @@ Expect<uint32_t> SDImageToImage::body(
     ControlImage =
         readControlImage(ControlImageSpan, Width, Height, CannyPreprocess);
   }
+  // Read mask image
+  sd_image_t MaskImage = readMaskImage(MaskImageSpan, Width, Height);
   // Generate images
   sd_image_t *Results = nullptr;
   spdlog::info("[WasmEdge-StableDiffusion] Start to generate image."sv);
   Results =
-      img2img(SDCtx, InputImage, Prompt.data(), NegativePrompt.data(), ClipSkip,
-              CfgScale, Guidance, Width, Height, sample_method_t(SampleMethod),
-              SampleSteps, Strength, Seed, BatchCount, ControlImage,
-              ControlStrength, StyleRatio, NormalizeInput,
-              InputIdImagesDir.data(), SkipLayersSpan.data(),
+      img2img(SDCtx, InputImage, MaskImage, Prompt.data(),
+              NegativePrompt.data(), ClipSkip, CfgScale, Guidance, Width,
+              Height, sample_method_t(SampleMethod), SampleSteps, Strength,
+              Seed, BatchCount, ControlImage, ControlStrength, StyleRatio,
+              NormalizeInput, InputIdImagesDir.data(), SkipLayersSpan.data(),
               SkipLayersSpan.size(), SlgScale, SkipLayerStart, SkipLayerEnd);
   free(ControlImage);
   free(InputImageBuffer);

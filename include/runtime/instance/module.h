@@ -96,19 +96,27 @@ public:
   void *getHostData() const noexcept { return HostData; }
 
   Span<const FunctionInstance *const> getFunctionInstances() const noexcept {
-    return FuncInsts;
+    return Span<const FunctionInstance *const>(
+        const_cast<const FunctionInstance *const *>(FuncInsts.data()),
+        FuncInsts.size());
   }
 
   Span<const MemoryInstance *const> getMemoryInstances() const noexcept {
-    return MemInsts;
+    return Span<const MemoryInstance *const>(
+        const_cast<const MemoryInstance *const *>(MemInsts.data()),
+        MemInsts.size());
   }
 
   Span<const GlobalInstance *const> getGlobalInstances() const noexcept {
-    return GlobInsts;
+    return Span<const GlobalInstance *const>(
+        const_cast<const GlobalInstance *const *>(GlobInsts.data()),
+        GlobInsts.size());
   }
 
   Span<const DataInstance *const> getOwnedDataInstances() const noexcept {
-    return DataInsts;
+    return Span<const DataInstance *const>(
+        const_cast<const DataInstance *const *>(DataInsts.data()),
+        DataInsts.size());
   }
 
   /// Add exist instances and move ownership with exporting name.

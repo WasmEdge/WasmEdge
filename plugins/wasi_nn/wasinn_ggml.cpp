@@ -68,6 +68,7 @@ Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
   Params.sampling.penalty_present =
       static_cast<float>(GraphRef.PresencePenalty);
   Params.sampling.grammar = GraphRef.Grammar;
+  Params.sampling.seed = static_cast<uint32_t>(GraphRef.Seed);
   return ErrNo::Success;
 }
 
@@ -114,6 +115,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   presence-penalty: double
   //   frequency-penalty: double
   //   grammar: string
+  //   seed: uint64_t
 
   // Get the current llama parameters.
   common_params Params;
@@ -373,6 +375,14 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
     GraphRef.Grammar =
         json_schema_to_grammar(nlohmann::ordered_json::parse(JsonSchema));
+  }
+  if (Doc.at_key("seed").error() == simdjson::SUCCESS) {
+    auto Err = Doc["seed"].get<uint64_t>().get(GraphRef.Seed);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the seed option."sv);
+      return ErrNo::InvalidArgument;
+    }
   }
 
   // Check if the model is updated.

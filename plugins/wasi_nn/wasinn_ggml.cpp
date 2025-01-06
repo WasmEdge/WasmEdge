@@ -69,6 +69,7 @@ Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
       static_cast<float>(GraphRef.PresencePenalty);
   Params.sampling.grammar = GraphRef.Grammar;
   Params.sampling.seed = static_cast<uint32_t>(GraphRef.Seed);
+  Params.sampling.top_k = static_cast<int32_t>(GraphRef.TopK);
   return ErrNo::Success;
 }
 
@@ -162,14 +163,15 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
-  if(Doc.at_key("top-k").error() == simdjson::SUCCESS){
-    auto Err = Doc["top-k"].get<int64_t>().get(GraphRef.TopK);
+  if (Doc.at_key("top-k").error() == simdjson::SUCCESS) {
+    int64_t TopK;
+    auto Err = Doc["top-k"].get<int64_t>().get(TopK);
     if (Err) {
       spdlog::error(
-        "[WASI-NN] GGML backend: Unable to retrieve the top-k option."sv
-      );
+          "[WASI-NN] GGML backend: Unable to retrieve the top-k option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.TopK = TopK;
   }
   if (Doc.at_key("reverse-prompt").error() == simdjson::SUCCESS) {
     std::string_view ReversePrompt;
@@ -845,6 +847,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.PresencePenalty = SamplerDefault.penalty_present;
   GraphRef.FrequencyPenalty = SamplerDefault.penalty_freq;
   GraphRef.Grammar = SamplerDefault.grammar;
+  GraphRef.TopK = SamplerDefault.top_k;
 
   // Set llama log callback.
   llama_log_set(LlamaLogCallback, &GraphRef);

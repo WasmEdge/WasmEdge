@@ -6,6 +6,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include "simdjson.h"
+
 #include <base64.hpp>
 #include <clip.h>
 #include <common.h>

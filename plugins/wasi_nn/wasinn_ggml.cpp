@@ -58,6 +58,7 @@ Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
   Params.n_batch = static_cast<int32_t>(GraphRef.BatchSize);
   Params.n_ubatch = static_cast<int32_t>(GraphRef.UBatchSize);
   Params.warmup = GraphRef.WarmUp;
+  Params.split_mode = GraphRef.SplitMode;
   Params.cpuparams.n_threads = static_cast<int32_t>(GraphRef.Threads);
   Params.cpuparams_batch.n_threads = static_cast<int32_t>(GraphRef.Threads);
   Params.embedding = GraphRef.Embedding;
@@ -100,6 +101,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
   //   tensor-split: string, comma-separated floating number list
   //   use-mmap: use mmap
   //   warmup: bool
+  //   split-mode: string, {none,layer,row}
   // Context parameters (used by the llama context):
   //   ctx-size: int64_t
   //   batch-size: int64_t
@@ -249,6 +251,26 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the warmup option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("split-mode").error() == simdjson::SUCCESS) {
+    std::string_view SplitMode;
+    auto Err = Doc["split-mode"].get<std::string_view>().get(SplitMode);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the split-mode option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    if (SplitMode == "none") {
+      GraphRef.SplitMode = LLAMA_SPLIT_MODE_NONE;
+    } else if (SplitMode == "layer") {
+      GraphRef.SplitMode = LLAMA_SPLIT_MODE_LAYER;
+    } else if (SplitMode == "row") {
+      GraphRef.SplitMode = LLAMA_SPLIT_MODE_ROW;
+    } else {
+      spdlog::error("[WASI-NN] GGML backend: Invalid split-mode option: {}"sv,
+                    SplitMode);
       return ErrNo::InvalidArgument;
     }
   }

@@ -595,7 +595,7 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
     spdlog::info("[WASI-NN][Debug] GGML backend: handle embedding"sv);
   }
   // Clear the llama context.
-  llama_kv_cache_clear(GraphRef.LlamaContext);
+  llama_kv_cache_clear(GraphRef.LlamaContext.get());
 
   // Use the const sequence id here.
   const llama_seq_id SequenceId = 0;
@@ -603,7 +603,7 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   auto ReturnCode = ErrNo::Success;
 
   // Add SEP if not present.
-  if (CxtRef.LlamaInputs.back() != llama_token_sep(GraphRef.LlamaModel)) {
+  if (CxtRef.LlamaInputs.back() != llama_token_sep(GraphRef.LlamaModel.get())) {
     spdlog::warn(
         "[WASI-NN] GGML backend: last token in the prompt is not SEP, 'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF header"sv);
   }
@@ -620,15 +620,15 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
     return ErrNo::PromptTooLong;
   }
 
-  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel);
+  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel.get());
   struct llama_batch Batch = llama_batch_init(
       /* n_tokens_alloc */ static_cast<int32_t>(GraphRef.BatchSize),
       /* embd */ 0,
       /* n_seq_max */ 1);
   std::vector<float> Embeddings(NEmbd);
   batchAddSeq(Batch, CxtRef.LlamaInputs, SequenceId);
-  ReturnCode = batchDecode(GraphRef.LlamaContext, Batch, Embeddings.data(),
-                           NEmbd, GraphRef.EmbdNormalize);
+  ReturnCode = batchDecode(GraphRef.LlamaContext.get(), Batch,
+                           Embeddings.data(), NEmbd, GraphRef.EmbdNormalize);
   if (ReturnCode != ErrNo::Success) {
     spdlog::error("[WASI-NN] GGML backend: failed to evaluate input tokens."sv);
     return ReturnCode;
@@ -642,12 +642,12 @@ Expect<ErrNo> getEmbedding(WasiNNEnvironment &Env,
   }
 
   if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext, /* Sampler */ nullptr);
+    common_perf_print(GraphRef.LlamaContext.get(), /* Sampler */ nullptr);
   }
 
   // We clear the contexts here to keep the ggml plugin stateless.
   // Users could fully control the contexts by themselves via their prompt.
-  llama_kv_cache_clear(GraphRef.LlamaContext);
+  llama_kv_cache_clear(GraphRef.LlamaContext.get());
   llama_batch_free(Batch);
 
   if (GraphRef.EnableDebugLog) {
@@ -886,8 +886,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Initialize the llama model and context.
   common_init_result LlamaInit = common_init_from_params(Params);
-  GraphRef.LlamaModel = LlamaInit.model;
-  GraphRef.LlamaContext = LlamaInit.context;
+  GraphRef.LlamaModel = std::move(LlamaInit.model);
+  GraphRef.LlamaContext = std::move(LlamaInit.context);
   if (GraphRef.LlamaModel == nullptr) {
     spdlog::error("[WASI-NN] GGML backend: Error: unable to init model."sv);
     Env.NNGraph.pop_back();
@@ -963,9 +963,9 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       if (IsModelParamsUpdated) {
         llama_model_params ModelParams = llama_model_default_params();
         ModelParams.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
-        llama_free_model(GraphRef.LlamaModel);
-        GraphRef.LlamaModel = llama_load_model_from_file(
-            GraphRef.ModelFilePath.c_str(), ModelParams);
+        GraphRef.LlamaModel.reset();
+        GraphRef.LlamaModel = llama_model_ptr(llama_load_model_from_file(
+            GraphRef.ModelFilePath.c_str(), ModelParams));
         if (GraphRef.LlamaModel == nullptr) {
           spdlog::error(
               "[WASI-NN] GGML backend: Error: unable to init model."sv);
@@ -983,11 +983,13 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         spdlog::info(
             "[WASI-NN] GGML backend: Reloaded model due to parameters change."sv);
       }
-      llama_free(GraphRef.LlamaContext);
+      GraphRef.LlamaContext.reset();
       common_params Params;
       setupParams(GraphRef, Params);
-      GraphRef.LlamaContext = llama_new_context_with_model(
-          GraphRef.LlamaModel, common_context_params_to_llama(Params));
+      GraphRef.LlamaContext =
+          llama_context_ptr(llama_context_ptr(llama_new_context_with_model(
+              GraphRef.LlamaModel.get(),
+              common_context_params_to_llama(Params))));
       if (GraphRef.LlamaContext == nullptr) {
         spdlog::error(
             "[WASI-NN] GGML backend: Error: unable to init context."sv);
@@ -1007,7 +1009,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: clear llama context"sv);
   }
-  llama_kv_cache_clear(GraphRef.LlamaContext);
+  llama_kv_cache_clear(GraphRef.LlamaContext.get());
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] GGML backend: clear llama context...Done"sv);
   }
@@ -1026,7 +1028,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     if (GraphRef.EnableDebugLog) {
       spdlog::info("[WASI-NN][Debug] GGML backend: tokenize text prompt"sv);
     }
-    CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext, Prompt,
+    CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext.get(), Prompt,
                                          AddSpecial, ParseSpecial);
     if (GraphRef.EnableDebugLog) {
       spdlog::info(
@@ -1119,12 +1121,13 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
     std::string PromptAfterImage =
         Prompt.substr(PlaceholderPosition + PromptImagePlaceholder.length());
-    std::vector<llama_token> EmbdInputBeforeImage = common_tokenize(
-        GraphRef.LlamaContext, PromptBeforeImage, AddSpecial, ParseSpecial);
+    std::vector<llama_token> EmbdInputBeforeImage =
+        common_tokenize(GraphRef.LlamaContext.get(), PromptBeforeImage,
+                        AddSpecial, ParseSpecial);
     // Do not add special token (such as <BOS>, <EOS>, ... tokens.) to the
     // tokens after the image.
     std::vector<llama_token> EmbdInputAfterImage = common_tokenize(
-        GraphRef.LlamaContext, PromptAfterImage, false, ParseSpecial);
+        GraphRef.LlamaContext.get(), PromptAfterImage, false, ParseSpecial);
     CxtRef.LlavaImagePosition = EmbdInputBeforeImage.size();
     CxtRef.LlamaInputs.reserve(EmbdInputBeforeImage.size() +
                                EmbdInputAfterImage.size());
@@ -1216,20 +1219,20 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   // Clear the llama context.
-  llama_kv_cache_clear(GraphRef.LlamaContext);
+  llama_kv_cache_clear(GraphRef.LlamaContext.get());
 
   // Setup the parameters and sampler.
   common_params Params;
   setupParams(GraphRef, Params);
   struct common_sampler *Sampler =
-      common_sampler_init(GraphRef.LlamaModel, Params.sampling);
+      common_sampler_init(GraphRef.LlamaModel.get(), Params.sampling);
 
   // Prepare variables;
   int32_t NPast = 0;
   int32_t NPos = 0;
   int64_t NRemain = GraphRef.NPredict;
   // Get the context size.
-  const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext);
+  const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
   const uint64_t MaxTokensListSize = NCtx - 4;
   // Return value.
@@ -1248,7 +1251,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // Evaluate input tokens.
   if (CxtRef.LlavaImageEmbd == nullptr) {
     // Text only prompt.
-    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext.get(),
                                 std::move(CxtRef.LlamaInputs), NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
@@ -1263,7 +1266,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     std::vector<llama_token> EmbdInputAfterImage(CxtRef.LlamaInputs.begin() +
                                                      CxtRef.LlavaImagePosition,
                                                  CxtRef.LlamaInputs.end());
-    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext.get(),
                                 std::move(EmbdInputBeforeImage), NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
@@ -1274,14 +1277,14 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     bool EvalImageStatus = false;
     switch (GraphRef.VisionModelType) {
     case VisionModel::Llava:
-      EvalImageStatus =
-          llava_eval_image_embed(GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
-                                 static_cast<int>(GraphRef.BatchSize), &NPast);
+      EvalImageStatus = llava_eval_image_embed(
+          GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
+          static_cast<int>(GraphRef.BatchSize), &NPast);
       break;
     case VisionModel::Qwen2VL:
       auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
       EvalImageStatus = evaluateQwen2vlImageEmbed(
-          GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
+          GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
           static_cast<int>(GraphRef.BatchSize), &NPast, &NPos, ImageSize);
       break;
     }
@@ -1291,7 +1294,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
           "[WASI-NN] GGML backend: failed to evaluate embed image tokens."sv);
       return ErrNo::RuntimeError;
     }
-    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext.get(),
                                 std::move(EmbdInputAfterImage), NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
       spdlog::error(
@@ -1306,17 +1309,19 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
   while (NRemain > 0) {
     // Use idx = -1 to sample the next token.
-    const llama_token Id =
-        common_sampler_sample(Sampler, GraphRef.LlamaContext, /* idx */ -1);
+    const llama_token Id = common_sampler_sample(
+        Sampler, GraphRef.LlamaContext.get(), /* idx */ -1);
     common_sampler_accept(Sampler, Id, /* accept_grammar */ true);
     --NRemain;
 
     // Save the output token.
     CxtRef.LlamaOutputTokens.emplace_back(Id);
-    CxtRef.LlamaOutputs += common_token_to_piece(GraphRef.LlamaContext, Id);
+    CxtRef.LlamaOutputs +=
+        common_token_to_piece(GraphRef.LlamaContext.get(), Id);
     // When setting StreamStdout, we print the output to stdout.
     if (GraphRef.StreamStdout) {
-      fmt::print("{}"sv, common_token_to_piece(GraphRef.LlamaContext, Id));
+      fmt::print("{}"sv,
+                 common_token_to_piece(GraphRef.LlamaContext.get(), Id));
       std::fflush(stdout);
     }
     // Break if reverse prompt is found.
@@ -1328,15 +1333,16 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
       break;
     }
     // Deal with end of text token.
-    if (llama_token_is_eog(GraphRef.LlamaModel, common_sampler_last(Sampler))) {
+    if (llama_token_is_eog(GraphRef.LlamaModel.get(),
+                           common_sampler_last(Sampler))) {
       if (GraphRef.EnableLog) {
         spdlog::info("[WASI-NN] GGML backend: EOS token found"sv);
       }
       break;
     }
     // Evaluate the output token.
-    ReturnCode =
-        evaluateTokens(GraphRef, GraphRef.LlamaContext, {Id}, NPast, NPos);
+    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext.get(), {Id},
+                                NPast, NPos);
     if (ReturnCode != ErrNo::Success) {
       break;
     }
@@ -1348,7 +1354,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   // End of main predict loop.
 
   if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext, Sampler);
+    common_perf_print(GraphRef.LlamaContext.get(), Sampler);
   }
 
   // We free the contexts here to keep the ggml plugin stateless.
@@ -1403,7 +1409,7 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
     return ErrNo::Success;
   }
   std::string LastToken = common_token_to_piece(
-      GraphRef.LlamaContext, CxtRef.LlamaOutputTokens.back());
+      GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
   std::copy_n(LastToken.data(), LastToken.length(), OutBuffer.data());
   BytesWritten = static_cast<uint32_t>(LastToken.length());
   if (GraphRef.EnableDebugLog) {
@@ -1446,18 +1452,18 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     }
 
     // Clear the llama context.
-    llama_kv_cache_clear(GraphRef.LlamaContext);
+    llama_kv_cache_clear(GraphRef.LlamaContext.get());
 
     // Setup the parameters and sampler.
     common_params Params;
     setupParams(GraphRef, Params);
     CxtRef.LlamaSampler =
-        common_sampler_init(GraphRef.LlamaModel, Params.sampling);
+        common_sampler_init(GraphRef.LlamaModel.get(), Params.sampling);
     CxtRef.LlamaNPast = 0;
     CxtRef.LlamaNPos = 0;
 
     // Get the context size.
-    const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext);
+    const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
     // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
     const uint64_t MaxTokensListSize = NCtx - 4;
     // Return value.
@@ -1476,7 +1482,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     // Evaluate input tokens.
     if (CxtRef.LlavaImageEmbd == nullptr) {
       // Text only prompt.
-      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext.get(),
                                   std::move(CxtRef.LlamaInputs),
                                   CxtRef.LlamaNPast, CxtRef.LlamaNPos);
       if (ReturnCode != ErrNo::Success) {
@@ -1492,7 +1498,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
       std::vector<llama_token> EmbdInputAfterImage(
           CxtRef.LlamaInputs.begin() + CxtRef.LlavaImagePosition,
           CxtRef.LlamaInputs.end());
-      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext.get(),
                                   std::move(EmbdInputBeforeImage),
                                   CxtRef.LlamaNPast, CxtRef.LlamaNPos);
       if (ReturnCode != ErrNo::Success) {
@@ -1501,14 +1507,14 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
         return ReturnCode;
       }
       bool EvalImageStatus = llava_eval_image_embed(
-          GraphRef.LlamaContext, CxtRef.LlavaImageEmbd,
+          GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
           static_cast<int>(GraphRef.BatchSize), &CxtRef.LlamaNPast);
       if (!EvalImageStatus) {
         spdlog::error(
             "[WASI-NN] GGML backend: failed to evaluate embed image tokens."sv);
         return ErrNo::RuntimeError;
       }
-      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext,
+      ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext.get(),
                                   std::move(EmbdInputAfterImage),
                                   CxtRef.LlamaNPast, CxtRef.LlamaNPos);
       if (ReturnCode != ErrNo::Success) {
@@ -1526,15 +1532,15 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   auto ReturnCode = ErrNo::Success;
   // Use idx = -1 to sample the next token.
   const llama_token Id = common_sampler_sample(
-      CxtRef.LlamaSampler, GraphRef.LlamaContext, /* idx */ -1);
+      CxtRef.LlamaSampler, GraphRef.LlamaContext.get(), /* idx */ -1);
   common_sampler_accept(CxtRef.LlamaSampler, Id, /* accept_grammar */ true);
 
   // Save the output token.
   // In single token mode, we do not handle StreamStdout and ReversePrompt.
   CxtRef.LlamaOutputTokens.emplace_back(Id);
-  CxtRef.LlamaOutputs += common_token_to_piece(GraphRef.LlamaContext, Id);
+  CxtRef.LlamaOutputs += common_token_to_piece(GraphRef.LlamaContext.get(), Id);
   // Deal with end of text token.
-  if (llama_token_is_eog(GraphRef.LlamaModel,
+  if (llama_token_is_eog(GraphRef.LlamaModel.get(),
                          common_sampler_last(CxtRef.LlamaSampler))) {
     ReturnCode = ErrNo::EndOfSequence;
     if (GraphRef.EnableLog) {
@@ -1543,7 +1549,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   }
   // Evaluate the output token if not EOS.
   if (ReturnCode != ErrNo::EndOfSequence) {
-    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext, {Id},
+    ReturnCode = evaluateTokens(GraphRef, GraphRef.LlamaContext.get(), {Id},
                                 CxtRef.LlamaNPast, CxtRef.LlamaNPos);
   }
   if (GraphRef.EnableDebugLog) {
@@ -1569,7 +1575,7 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Logging for the llama timings.
   if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext, CxtRef.LlamaSampler);
+    common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler);
   }
 
   // Clear the outputs.
@@ -1589,7 +1595,7 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     spdlog::info(
         "[WASI-NN][Debug] GGML backend: finiSingle: clear the llama context"sv);
   }
-  llama_kv_cache_clear(GraphRef.LlamaContext);
+  llama_kv_cache_clear(GraphRef.LlamaContext.get());
   common_sampler_reset(CxtRef.LlamaSampler);
   common_sampler_free(CxtRef.LlamaSampler);
   CxtRef.LlamaSampler = nullptr;
@@ -1626,8 +1632,7 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
     if (IsDebugLog) {
       spdlog::info("[WASI-NN][Debug] GGML backend: unload: free llama model"sv);
     }
-    llama_free_model(GraphRef.LlamaModel);
-    GraphRef.LlamaModel = nullptr;
+    GraphRef.LlamaModel.reset();
     if (IsDebugLog) {
       spdlog::info(
           "[WASI-NN][Debug] GGML backend: unload: free llama model...Done"sv);

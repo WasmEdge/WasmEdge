@@ -9,6 +9,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include <common.h>
+#include <llama-cpp.h>
 #include <llama.h>
 #include <llava.h>
 #include <sampling.h>
@@ -38,9 +39,9 @@ enum class VisionModel : uint8_t {
 };
 
 struct Graph {
-  llama_model *LlamaModel = nullptr;
+  llama_model_ptr LlamaModel = nullptr;
   std::string ModelFilePath;
-  llama_context *LlamaContext = nullptr;
+  llama_context_ptr LlamaContext = nullptr;
   struct clip_ctx *ClipContext = nullptr;
   // Plugin parameters:
   bool EnableLog = false;

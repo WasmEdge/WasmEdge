@@ -162,6 +162,15 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
       return ErrNo::InvalidArgument;
     }
   }
+  if(Doc.at_key("top-k").error() == simdjson::SUCCESS){
+    auto Err = Doc["top-k"].get<int64_t>().get(GraphRef.TopK);
+    if (Err) {
+      spdlog::error(
+        "[WASI-NN] GGML backend: Unable to retrieve the top-k option."sv
+      );
+      return ErrNo::InvalidArgument;
+    }
+  }
   if (Doc.at_key("reverse-prompt").error() == simdjson::SUCCESS) {
     std::string_view ReversePrompt;
     auto Err = Doc["reverse-prompt"].get<std::string_view>().get(ReversePrompt);

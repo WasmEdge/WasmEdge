@@ -74,6 +74,7 @@ struct Graph {
   double PresencePenalty = 0.00;
   double FrequencyPenalty = 0.00;
   std::string Grammar;
+  uint64_t Seed = LLAMA_DEFAULT_SEED;
 };
 
 struct Context {

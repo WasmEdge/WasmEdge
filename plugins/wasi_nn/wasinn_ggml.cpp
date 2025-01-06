@@ -509,6 +509,11 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
                      int &NPos) noexcept {
   uint32_t NCtx = llama_n_ctx(LlamaContext);
 
+  if (NPast > std::numeric_limits<uint32_t>::max() - static_cast<uint32_t>(Tokens.size())) {
+    spdlog::error("[WASI-NN] GGML backend: integer overflow detected when calculating context size."sv);
+    return ErrNo::RuntimeError;
+  }
+
   // End the inference if the context is full.
   if (NPast + static_cast<uint32_t>(Tokens.size()) > NCtx) {
     if (GraphRef.EnableLog) {

@@ -15,6 +15,7 @@
 #pragma once
 
 #include "common/errcode.h"
+#include <array>
 #include <csetjmp>
 
 namespace WasmEdge {
@@ -29,9 +30,15 @@ public:
 
   std::jmp_buf &buffer() noexcept { return Buffer; }
 
+  Span<void *const> stacktrace() const noexcept {
+    return Span<void *const>{StackTraceBuffer}.first(StackTraceSize);
+  }
+
 private:
   Fault *Prev = nullptr;
   std::jmp_buf Buffer;
+  std::array<void *, 256> StackTraceBuffer;
+  size_t StackTraceSize;
 };
 
 } // namespace WasmEdge

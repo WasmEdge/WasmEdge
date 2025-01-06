@@ -3,6 +3,7 @@
 
 #include "executor/coredump.h"
 #include "executor/executor.h"
+#include "system/stacktrace.h"
 
 #include <array>
 #include <cstdint>
@@ -2158,6 +2159,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       }
     }
     if (auto Res = Dispatch(); !Res) {
+      StackTraceSize = interpreterStackTrace(StackMgr, StackTrace).size();
       auto ErrCode = Res.error();
 
       if (Conf.getRuntimeConfigure().isEnableCoredump() &&

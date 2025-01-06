@@ -6,6 +6,7 @@ wasmedge_add_library(wasmedgeSystem
   fault.cpp
   mmap.cpp
   path.cpp
+  stacktrace.cpp
 )
 
 target_include_directories(wasmedgeSystem
@@ -17,3 +18,10 @@ target_link_libraries(wasmedgeSystem
   PUBLIC
   wasmedgeCommon
 )
+
+if(WIN32)
+  target_link_libraries(wasmedgeSystem
+    PRIVATE
+    dbghelp
+  )
+endif()

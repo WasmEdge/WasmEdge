@@ -61,6 +61,7 @@ struct Graph {
   std::vector<float> TensorSplit;
   bool UseMMap = true;
   bool WarmUp = false;
+  enum llama_split_mode SplitMode = LLAMA_SPLIT_MODE_LAYER;
   // Context parameters:
   int64_t CtxSize;
   int64_t BatchSize;

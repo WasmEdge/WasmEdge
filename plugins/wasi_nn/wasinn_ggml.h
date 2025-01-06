@@ -73,7 +73,6 @@ struct Graph {
   double RepeatPenalty = 1.10;
   double PresencePenalty = 0.00;
   double FrequencyPenalty = 0.00;
-  int32_t TopK = 5;
   std::string Grammar;
   uint64_t Seed = LLAMA_DEFAULT_SEED;
 };

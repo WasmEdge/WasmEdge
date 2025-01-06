@@ -9,6 +9,7 @@
 #include <base64.hpp>
 #include <clip.h>
 #include <common.h>
+#include <vector>
 #include <cstdlib>
 #include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>

@@ -173,7 +173,6 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
           "[WASI-NN] GGML backend: Unable to retrieve the top-k option."sv);
       return ErrNo::InvalidArgument;
     }
-    GraphRef.TopK = TopK;
   }
   if (Doc.at_key("reverse-prompt").error() == simdjson::SUCCESS) {
     std::string_view ReversePrompt;

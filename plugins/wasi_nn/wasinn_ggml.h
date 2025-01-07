@@ -70,12 +70,12 @@ struct Graph {
   // Sampling parameters:
   double Temp = 0.80;
   double TopP = 0.95;
-  int32_t TopK = 40;
   double RepeatPenalty = 1.10;
   double PresencePenalty = 0.00;
   double FrequencyPenalty = 0.00;
   std::string Grammar;
   uint64_t Seed = LLAMA_DEFAULT_SEED;
+  uint64_t TopK = 40;
 };
 
 struct Context {

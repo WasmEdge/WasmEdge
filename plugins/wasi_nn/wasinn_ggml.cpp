@@ -71,7 +71,7 @@ Expect<ErrNo> setupParams(Graph &GraphRef, common_params &Params) {
       static_cast<float>(GraphRef.PresencePenalty);
   Params.sampling.grammar = GraphRef.Grammar;
   Params.sampling.seed = static_cast<uint32_t>(GraphRef.Seed);
-  Params.sampling.top_k = static_cast<int32_t>(GraphRef.TopK);
+  Params.sampling.top_k = static_cast<uint64_t>(GraphRef.TopK);
   return ErrNo::Success;
 }
 

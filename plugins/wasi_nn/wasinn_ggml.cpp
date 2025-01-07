@@ -10,7 +10,6 @@
 #include <base64.hpp>
 #include <clip.h>
 #include <common.h>
-#include <vector>
 #include <cstdlib>
 #include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>
@@ -18,6 +17,7 @@
 #include <llama.h>
 #include <llava.h>
 #include <sampling.h>
+#include <vector>
 
 #include <algorithm>
 #include <filesystem>
@@ -509,8 +509,10 @@ ErrNo evaluateTokens(Graph &GraphRef, struct llama_context *LlamaContext,
                      int &NPos) noexcept {
   uint32_t NCtx = llama_n_ctx(LlamaContext);
 
-  if (NPast > std::numeric_limits<uint32_t>::max() - static_cast<uint32_t>(Tokens.size())) {
-    spdlog::error("[WASI-NN] GGML backend: integer overflow detected when calculating context size."sv);
+  if (NPast > std::numeric_limits<uint32_t>::max() -
+                  static_cast<uint32_t>(Tokens.size())) {
+    spdlog::error(
+        "[WASI-NN] GGML backend: integer overflow detected when calculating context size."sv);
     return ErrNo::RuntimeError;
   }
 

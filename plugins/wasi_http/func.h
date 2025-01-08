@@ -188,6 +188,12 @@ public:
   Expect<StatusCode> body();
 };
 
+class MethodHeaders : public WasiHttp<MethodHeaders> {
+public:
+  MethodHeaders(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<Headers::T> body();
+};
+
 } // namespace IncomingResponse
 
 namespace IncomingBody {

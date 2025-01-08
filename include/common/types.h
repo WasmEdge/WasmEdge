@@ -807,16 +807,10 @@ template <> struct Wit<uint64_t> {
   static inline ValType type() noexcept { return InterfaceType(TypeCode::U64); }
 };
 template <> struct Wit<int8_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::S8); }
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::I8); }
 };
 template <> struct Wit<int16_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::S16); }
-};
-template <> struct Wit<int32_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::S32); }
-};
-template <> struct Wit<int64_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::S64); }
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::I16); }
 };
 template <> struct Wit<std::string> {
   static inline ValType type() noexcept {

@@ -181,6 +181,13 @@ using StatusCode = uint16_t;
 namespace IncomingResponse {
 using T = uint32_t;
 AST::Component::ResourceType ast() noexcept;
+
+class Status : public WasiHttp<Status> {
+public:
+  Status(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<StatusCode> body();
+};
+
 } // namespace IncomingResponse
 
 namespace IncomingBody {

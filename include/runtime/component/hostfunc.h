@@ -58,12 +58,6 @@ template <> struct convert<int8_t> {
 template <> struct convert<int16_t> {
   static int16_t run(const ValInterface &V) { return std::get<int16_t>(V); }
 };
-template <> struct convert<int32_t> {
-  static int32_t run(const ValInterface &V) { return std::get<int32_t>(V); }
-};
-template <> struct convert<int64_t> {
-  static int64_t run(const ValInterface &V) { return std::get<int64_t>(V); }
-};
 
 template <> struct convert<std::string> {
   static std::string run(const ValInterface &V) {
@@ -132,12 +126,6 @@ template <> struct emplace<int8_t> {
 };
 template <> struct emplace<int16_t> {
   static void run(ValInterface &V, int16_t Arg) { V.emplace<int16_t>(Arg); }
-};
-template <> struct emplace<int32_t> {
-  static void run(ValInterface &V, int32_t Arg) { V.emplace<int32_t>(Arg); }
-};
-template <> struct emplace<int64_t> {
-  static void run(ValInterface &V, int64_t Arg) { V.emplace<int64_t>(Arg); }
 };
 template <> struct emplace<std::string> {
   static void run(ValInterface &V, std::string Arg) {

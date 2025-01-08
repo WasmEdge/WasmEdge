@@ -43,6 +43,28 @@ template <> struct convert<bool> {
 template <> struct convert<uint8_t> {
   static uint8_t run(const ValInterface &V) { return std::get<uint8_t>(V); }
 };
+template <> struct convert<uint16_t> {
+  static uint16_t run(const ValInterface &V) { return std::get<uint16_t>(V); }
+};
+template <> struct convert<uint32_t> {
+  static uint32_t run(const ValInterface &V) { return std::get<uint32_t>(V); }
+};
+template <> struct convert<uint64_t> {
+  static uint64_t run(const ValInterface &V) { return std::get<uint64_t>(V); }
+};
+template <> struct convert<int8_t> {
+  static int8_t run(const ValInterface &V) { return std::get<int8_t>(V); }
+};
+template <> struct convert<int16_t> {
+  static int16_t run(const ValInterface &V) { return std::get<int16_t>(V); }
+};
+template <> struct convert<int32_t> {
+  static int32_t run(const ValInterface &V) { return std::get<int32_t>(V); }
+};
+template <> struct convert<int64_t> {
+  static int64_t run(const ValInterface &V) { return std::get<int64_t>(V); }
+};
+
 template <> struct convert<std::string> {
   static std::string run(const ValInterface &V) {
     return std::get<std::string>(V);
@@ -95,6 +117,27 @@ template <> struct emplace<bool> {
 };
 template <> struct emplace<uint8_t> {
   static void run(ValInterface &V, uint8_t Arg) { V.emplace<uint8_t>(Arg); }
+};
+template <> struct emplace<uint16_t> {
+  static void run(ValInterface &V, uint16_t Arg) { V.emplace<uint16_t>(Arg); }
+};
+template <> struct emplace<uint32_t> {
+  static void run(ValInterface &V, uint32_t Arg) { V.emplace<uint32_t>(Arg); }
+};
+template <> struct emplace<uint64_t> {
+  static void run(ValInterface &V, uint64_t Arg) { V.emplace<uint64_t>(Arg); }
+};
+template <> struct emplace<int8_t> {
+  static void run(ValInterface &V, int8_t Arg) { V.emplace<int8_t>(Arg); }
+};
+template <> struct emplace<int16_t> {
+  static void run(ValInterface &V, int16_t Arg) { V.emplace<int16_t>(Arg); }
+};
+template <> struct emplace<int32_t> {
+  static void run(ValInterface &V, int32_t Arg) { V.emplace<int32_t>(Arg); }
+};
+template <> struct emplace<int64_t> {
+  static void run(ValInterface &V, int64_t Arg) { V.emplace<int64_t>(Arg); }
 };
 template <> struct emplace<std::string> {
   static void run(ValInterface &V, std::string Arg) {

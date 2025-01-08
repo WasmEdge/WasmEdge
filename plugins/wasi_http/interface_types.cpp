@@ -40,6 +40,9 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("response-outparam", ResponseOutparam::ast());
   addHostType("status-code", PrimValType::U16);
   addHostType("incoming-response", IncomingResponse::ast());
+  addHostFunc("[method]incoming-response.status",
+              std::make_unique<IncomingResponse::Status>(Env));
+
   addHostType("incoming-body", IncomingBody::ast());
   addHostType("future-trailers", FutureTrailers::ast());
   addHostType("outgoing-response", OutgoingResponse::ast());

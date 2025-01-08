@@ -112,7 +112,7 @@ AST::Component::ListTy ast() noexcept;
 } // namespace FieldValue
 
 namespace Fields {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 
 class Constructor : public WasiHttp<Constructor> {
@@ -157,29 +157,29 @@ AST::Component::ResourceType ast() noexcept;
 } // namespace Trailers
 
 namespace IncomingRequest {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace IncomingRequest
 
 namespace OutgoingRequest {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace OutgoingRequest
 
 namespace RequestOptions {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace RequestOptions
 
 namespace ResponseOutparam {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace ResponseOutparam
 
 using StatusCode = uint16_t;
 
 namespace IncomingResponse {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 
 class Status : public WasiHttp<Status> {
@@ -197,27 +197,33 @@ public:
 } // namespace IncomingResponse
 
 namespace IncomingBody {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace IncomingBody
 
 namespace FutureTrailers {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace FutureTrailers
 
 namespace OutgoingResponse {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
+
+class Constructor : public WasiHttp<Constructor> {
+public:
+  Constructor(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<T> body(int32_t);
+};
 } // namespace OutgoingResponse
 
 namespace OutgoingBody {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace OutgoingBody
 
 namespace FutureIncomingResponse {
-using T = uint32_t;
+using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace FutureIncomingResponse
 

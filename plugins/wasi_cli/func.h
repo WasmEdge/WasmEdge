@@ -48,7 +48,7 @@ public:
   // TODO
   // 1. use wasi:io/streams@0.2.2.{input-stream};
   // 2. get-stdin: func() -> input-stream;
-  Expect<uint32_t> body() { return 0; }
+  Expect<int32_t> body() { return 0; }
 };
 
 class GetStdout : public WasiCli<GetStdout> {
@@ -57,7 +57,7 @@ public:
   // TODO
   // 1. use wasi:io/streams@0.2.2.{output-stream};
   // 2. get-stdout: func() -> output-stream;
-  Expect<uint32_t> body() { return 1; }
+  Expect<int32_t> body() { return 1; }
 };
 
 class GetStderr : public WasiCli<GetStderr> {
@@ -66,7 +66,7 @@ public:
   // TODO
   // 1. use wasi:io/streams@0.2.2.{output-stream};
   // 2. get-stderr: func() -> output-stream;
-  Expect<uint32_t> body() { return 2; }
+  Expect<int32_t> body() { return 2; }
 };
 
 } // namespace Host

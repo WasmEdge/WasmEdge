@@ -179,10 +179,16 @@ AST::Component::ResourceType FutureTrailers::ast() noexcept {
       new Runtime::Instance::ComponentInstance("future-trailers"));
 }
 
-AST::Component::ResourceType OutgoingResponse::ast() noexcept {
+namespace OutgoingResponse {
+
+AST::Component::ResourceType ast() noexcept {
   return ResourceType(
       new Runtime::Instance::ComponentInstance("outgoing-response"));
 }
+
+Expect<T> Constructor::body(int32_t) { return 0; }
+
+} // namespace OutgoingResponse
 
 AST::Component::ResourceType OutgoingBody::ast() noexcept {
   return ResourceType(

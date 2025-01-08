@@ -151,10 +151,16 @@ AST::Component::ResourceType ResponseOutparam::ast() noexcept {
       new Runtime::Instance::ComponentInstance("response-outparam"));
 }
 
-AST::Component::ResourceType IncomingResponse::ast() noexcept {
+namespace IncomingResponse {
+
+AST::Component::ResourceType ast() noexcept {
   return ResourceType(
       new Runtime::Instance::ComponentInstance("incoming-response"));
 }
+
+Expect<StatusCode> Status::body() { return 200; }
+
+} // namespace IncomingResponse
 
 AST::Component::ResourceType IncomingBody::ast() noexcept {
   return ResourceType(

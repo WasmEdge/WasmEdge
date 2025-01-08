@@ -561,7 +561,8 @@ private:
 
 using ValInterface = std::variant<
     // constant types in component types
-    uint8_t, bool, std::string,
+    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
+    bool, std::string,
     // composition type like List, Record, Variant
     //
     // we need to copy them at many place, so we just use shared_ptr
@@ -715,6 +716,18 @@ template <> struct Wit<uint32_t> {
 };
 template <> struct Wit<uint64_t> {
   static inline ValType type() noexcept { return InterfaceType(TypeCode::U64); }
+};
+template <> struct Wit<int8_t> {
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::S8); }
+};
+template <> struct Wit<int16_t> {
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::S16); }
+};
+template <> struct Wit<int32_t> {
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::S32); }
+};
+template <> struct Wit<int64_t> {
+  static inline ValType type() noexcept { return InterfaceType(TypeCode::S64); }
 };
 template <> struct Wit<std::string> {
   static inline ValType type() noexcept {

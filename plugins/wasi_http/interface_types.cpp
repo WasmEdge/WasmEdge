@@ -42,6 +42,8 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("incoming-response", IncomingResponse::ast());
   addHostFunc("[method]incoming-response.status",
               std::make_unique<IncomingResponse::Status>(Env));
+  addHostFunc("[method]incoming-response.headers",
+              std::make_unique<IncomingResponse::MethodHeaders>(Env));
 
   addHostType("incoming-body", IncomingBody::ast());
   addHostType("future-trailers", FutureTrailers::ast());

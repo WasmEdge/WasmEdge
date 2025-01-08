@@ -158,7 +158,14 @@ AST::Component::ResourceType ast() noexcept {
       new Runtime::Instance::ComponentInstance("incoming-response"));
 }
 
-Expect<StatusCode> Status::body() { return 200; }
+Expect<StatusCode> Status::body() {
+  // TODO: find out how to use `uint32_t` to find out current status
+  return 200;
+}
+Expect<Headers::T> MethodHeaders::body() {
+  // TODO: find out how to return a proper value
+  return 0;
+}
 
 } // namespace IncomingResponse
 

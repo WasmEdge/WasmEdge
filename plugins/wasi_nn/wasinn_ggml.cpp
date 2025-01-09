@@ -653,13 +653,31 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
     if (NEval > static_cast<int>(GraphRef.BatchSize)) {
       NEval = static_cast<int>(GraphRef.BatchSize);
     }
+
+    // LlamaPos for Qwen2VL.
+    static std::vector<llama_pos> LlamaPos;
+    if (GraphRef.VisionModelType == VisionModel::Qwen2VL) {
+      LlamaPos.resize(NEval * 4);
+      std::fill(LlamaPos.begin(), LlamaPos.end(), 0);
+      for (int J = 0; J < NEval * 3; J++) {
+        LlamaPos[J] = NPos + (J % NEval);
+      }
+    }
+
     // Fill the batch with pos information.
     fillBatch(Span<const llama_token>(Tokens.begin() + I, NEval), GraphRef,
               Batch, NPos,
               IsLogits && I + NEval >= static_cast<int>(Tokens.size()));
 
+    // Set the LlamaPos for Qwen2VL.
+    llama_pos *OriginBatchPos = Batch.pos;
+    if (GraphRef.VisionModelType == VisionModel::Qwen2VL) {
+      Batch.pos = LlamaPos.data();
+    }
+
     // Decode the batch.
     auto Status = llama_decode(GraphRef.LlamaContext.get(), Batch);
+    Batch.pos = OriginBatchPos;
     if (Status == 1) {
       RET_ERROR(ErrNo::RuntimeError,
                 "failed to llama_decode: try reducing the size of the batch "sv

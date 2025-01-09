@@ -6,12 +6,10 @@
 #include "common/span.h"
 #include "common/spdlog.h"
 
-#include <boost/gil.hpp>
-#include <boost/gil/extension/io/jpeg.hpp>
-#include <boost/gil/extension/io/png.hpp>
-#include <boost/gil/extension/numeric/resample.hpp>
-#include <boost/gil/extension/numeric/sampler.hpp>
-#include <boost/gil/io/io.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include <stb_image_resize2.h>
 
 #include <sstream>
 #include <string>
@@ -23,58 +21,81 @@ namespace WasmEdgeImage {
 
 namespace {
 
-// Helper function to decode and resize image.
-template <typename Image, typename FormatTag>
-bool decodeImgToSize(Span<const char> Buf, uint32_t W, uint32_t H,
-                     Span<char> DstBuf) {
-  std::stringstream ImgStream;
-  ImgStream.write(Buf.data(), Buf.size());
-  Image Img;
-  try {
-    boost::gil::read_and_convert_image(ImgStream, Img, FormatTag());
-  } catch (std::exception const &e) {
-    spdlog::error("[WasmEdge-Image] Decode image fail: {}"sv, e.what());
+bool decodeImgToSize(Span<const uint8_t> Buf, uint32_t W, uint32_t H,
+                     DataType OutType, Span<uint8_t> DstBuf) noexcept {
+  // Specify the target data format.
+  bool IsRGB = true;
+  bool IsU8 = true;
+  switch (OutType) {
+  case DataType::BGR8:
+    IsRGB = false;
+    [[fallthrough]];
+  case DataType::RGB8:
+    break;
+  case DataType::BGR32F:
+    IsRGB = false;
+    [[fallthrough]];
+  case DataType::RGB32F:
+    IsU8 = false;
+    break;
+  default:
     return false;
   }
 
-  uint32_t C = boost::gil::num_channels<typename Image::view_t>::value;
-  typename Image::view_t ImgView = boost::gil::interleaved_view(
-      W, H, reinterpret_cast<typename Image::value_type *>(DstBuf.data()),
-      W * C * sizeof(char));
-  boost::gil::resize_view(boost::gil::const_view(Img), ImgView,
-                          boost::gil::bilinear_sampler());
+  // Load and decode the image from buffer.
+  union RawImagePtr {
+    uint8_t *U8;
+    float *F32;
+  };
+  RawImagePtr RawImg;
+  RawImg.U8 = nullptr;
+  int IW, IH, IC;
+  if (IsU8) {
+    RawImg.U8 = stbi_load_from_memory(Buf.data(), Buf.size(), &IW, &IH, &IC, 3);
+  } else {
+    RawImg.F32 =
+        stbi_loadf_from_memory(Buf.data(), Buf.size(), &IW, &IH, &IC, 3);
+  }
+  if (RawImg.U8 == nullptr) {
+    spdlog::error("[WasmEdge-Image] Load image failed."sv);
+    return false;
+  }
+
+  // Resize.
+  if (unlikely(DstBuf.size() <
+               W * H * 3 * (IsU8 ? sizeof(uint8_t) : sizeof(float)))) {
+    spdlog::error("[WasmEdge-Image] Output buffer size {} not enough. "sv
+                  "At least need {} bytes."sv,
+                  DstBuf.size(),
+                  W * H * 3 * (IsU8 ? sizeof(uint8_t) : sizeof(float)));
+    return false;
+  }
+  if (IsU8) {
+    stbir_resize_uint8_linear(RawImg.U8, IW, IH, 0, DstBuf.data(),
+                              static_cast<int>(W), static_cast<int>(H), 0,
+                              STBIR_RGB);
+  } else {
+    stbir_resize_float_linear(
+        RawImg.F32, IW, IH, 0, reinterpret_cast<float *>(DstBuf.data()),
+        static_cast<int>(W), static_cast<int>(H), 0, STBIR_RGB);
+  }
+
+  // Handle BGR case.
+  if (!IsRGB) {
+    if (IsU8) {
+      for (uint32_t I = 0; I < W * H; I++) {
+        std::swap(DstBuf[I * 3], DstBuf[I * 3 + 2]);
+      }
+    } else {
+      auto F32DstBuf = Span<float>(reinterpret_cast<float *>(DstBuf.data()),
+                                   DstBuf.size() / sizeof(float));
+      for (uint32_t I = 0; I < W * H; I++) {
+        std::swap(F32DstBuf[I * 3], F32DstBuf[I * 3 + 2]);
+      }
+    }
+  }
+  stbi_image_free(RawImg.U8);
   return true;
-}
-
-// Helper function to normalize image.
-void normalizeImg(Span<const char> SrcBuf, Span<float> DstBuf) {
-  for (uint32_t I = 0; I < DstBuf.size(); I++) {
-    DstBuf[I] = static_cast<uint8_t>(SrcBuf[I]) / 255.0;
-  }
-}
-
-// Template to decode and resize image to the target format.
-template <typename Image, typename FormatTag>
-uint32_t readBufToImg(Span<const char> InBuf, uint32_t W, uint32_t H,
-                      Span<char> OutBuf) {
-  if (unlikely(!decodeImgToSize<Image, FormatTag>(InBuf, W, H, OutBuf))) {
-    return static_cast<uint32_t>(ErrNo::Fail);
-  }
-  return static_cast<uint32_t>(ErrNo::Success);
-}
-
-// Template to decode and resize image to the target format.
-template <typename Image, typename FormatTag>
-uint32_t readBufToFlattenImg(Span<const char> InBuf, uint32_t W, uint32_t H,
-                             Span<char> OutBuf) {
-  std::vector<char> ImgData(3 * W * H);
-  if (unlikely(!decodeImgToSize<Image, FormatTag>(
-          InBuf, W, H, Span<char>(ImgData.data(), ImgData.size())))) {
-    return static_cast<uint32_t>(ErrNo::Fail);
-  }
-  normalizeImg(ImgData, Span<float>(reinterpret_cast<float *>(OutBuf.data()),
-                                    OutBuf.size() / sizeof(float)));
-  return static_cast<uint32_t>(ErrNo::Success);
 }
 
 #define MEMINST_CHECK(Out, CallFrame, Index)                                   \
@@ -102,31 +123,18 @@ Expect<uint32_t> LoadJPG::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   // Check the input image buffer.
-  MEM_SPAN_CHECK(ImgBufSpan, MemInst, char, InImgBufPtr, InImgBufLen,
+  MEM_SPAN_CHECK(ImgBufSpan, MemInst, uint8_t, InImgBufPtr, InImgBufLen,
                  "Failed when accessing the input image buffer memory."sv)
 
   // Check the output decoded image buffer.
-  MEM_SPAN_CHECK(OutBufSpan, MemInst, char, OutBufPtr, OutBufLen,
+  MEM_SPAN_CHECK(OutBufSpan, MemInst, uint8_t, OutBufPtr, OutBufLen,
                  "Failed when accessing the output image data buffer memory."sv)
 
-  switch (static_cast<DataType>(OutType)) {
-  case DataType::RGB8:
-    return readBufToImg<boost::gil::rgb8_image_t, boost::gil::jpeg_tag>(
-        ImgBufSpan, OutImgW, OutImgH, OutBufSpan);
-  case DataType::BGR8:
-    return readBufToImg<boost::gil::bgr8_image_t, boost::gil::jpeg_tag>(
-        ImgBufSpan, OutImgW, OutImgH, OutBufSpan);
-  case DataType::RGB32F:
-    return readBufToFlattenImg<boost::gil::rgb8_image_t, boost::gil::jpeg_tag>(
-        ImgBufSpan, OutImgW, OutImgH, OutBufSpan);
-  case DataType::BGR32F:
-    return readBufToFlattenImg<boost::gil::bgr8_image_t, boost::gil::jpeg_tag>(
-        ImgBufSpan, OutImgW, OutImgH, OutBufSpan);
-    break;
-  default:
-    spdlog::error("[WasmEdge-Image] Invalid output data format."sv);
+  if (unlikely(!decodeImgToSize(ImgBufSpan, OutImgW, OutImgH,
+                                static_cast<DataType>(OutType), OutBufSpan))) {
     return static_cast<uint32_t>(ErrNo::Fail);
   }
+  return static_cast<uint32_t>(ErrNo::Success);
 }
 
 Expect<uint32_t> LoadPNG::body(const Runtime::CallingFrame &Frame,
@@ -138,31 +146,41 @@ Expect<uint32_t> LoadPNG::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0)
 
   // Check the input image buffer.
-  MEM_SPAN_CHECK(ImgBufSpan, MemInst, char, InImgBufPtr, InImgBufLen,
+  MEM_SPAN_CHECK(ImgBufSpan, MemInst, uint8_t, InImgBufPtr, InImgBufLen,
                  "Failed when accessing the input image buffer memory."sv)
 
   // Check the output decoded image buffer.
-  MEM_SPAN_CHECK(OutBufSpan, MemInst, char, OutBufPtr, OutBufLen,
+  MEM_SPAN_CHECK(OutBufSpan, MemInst, uint8_t, OutBufPtr, OutBufLen,
                  "Failed when accessing the output image data buffer memory."sv)
 
-  switch (static_cast<DataType>(OutType)) {
-  case DataType::RGB8:
-    return readBufToImg<boost::gil::rgb8_image_t, boost::gil::png_tag>(
-        ImgBufSpan, OutImgW, OutImgH, OutBufSpan);
-  case DataType::BGR8:
-    return readBufToImg<boost::gil::bgr8_image_t, boost::gil::png_tag>(
-        ImgBufSpan, OutImgW, OutImgH, OutBufSpan);
-  case DataType::RGB32F:
-    return readBufToFlattenImg<boost::gil::rgb8_image_t, boost::gil::png_tag>(
-        ImgBufSpan, OutImgW, OutImgH, OutBufSpan);
-  case DataType::BGR32F:
-    return readBufToFlattenImg<boost::gil::bgr8_image_t, boost::gil::png_tag>(
-        ImgBufSpan, OutImgW, OutImgH, OutBufSpan);
-    break;
-  default:
-    spdlog::error("[WasmEdge-Image] Invalid output data format."sv);
+  if (unlikely(!decodeImgToSize(ImgBufSpan, OutImgW, OutImgH,
+                                static_cast<DataType>(OutType), OutBufSpan))) {
     return static_cast<uint32_t>(ErrNo::Fail);
   }
+  return static_cast<uint32_t>(ErrNo::Success);
+}
+
+Expect<uint32_t> LoadImage::body(const Runtime::CallingFrame &Frame,
+                                 uint32_t InImgBufPtr, uint32_t InImgBufLen,
+                                 uint32_t OutImgW, uint32_t OutImgH,
+                                 uint32_t OutType, uint32_t OutBufPtr,
+                                 uint32_t OutBufLen) {
+  // Check memory instance from module.
+  MEMINST_CHECK(MemInst, Frame, 0)
+
+  // Check the input image buffer.
+  MEM_SPAN_CHECK(ImgBufSpan, MemInst, uint8_t, InImgBufPtr, InImgBufLen,
+                 "Failed when accessing the input image buffer memory."sv)
+
+  // Check the output decoded image buffer.
+  MEM_SPAN_CHECK(OutBufSpan, MemInst, uint8_t, OutBufPtr, OutBufLen,
+                 "Failed when accessing the output image data buffer memory."sv)
+
+  if (unlikely(!decodeImgToSize(ImgBufSpan, OutImgW, OutImgH,
+                                static_cast<DataType>(OutType), OutBufSpan))) {
+    return static_cast<uint32_t>(ErrNo::Fail);
+  }
+  return static_cast<uint32_t>(ErrNo::Success);
 }
 
 } // namespace WasmEdgeImage

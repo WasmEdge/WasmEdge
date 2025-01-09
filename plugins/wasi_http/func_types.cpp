@@ -146,11 +146,16 @@ AST::Component::ResourceType RequestOptions::ast() noexcept {
       new Runtime::Instance::ComponentInstance("request-options"));
 }
 
-AST::Component::ResourceType ResponseOutparam::ast() noexcept {
+namespace ResponseOutparam {
+
+AST::Component::ResourceType ast() noexcept {
   return ResourceType(
       new Runtime::Instance::ComponentInstance("response-outparam"));
 }
 
+Expect<void> Set::body() { return {}; }
+
+} // namespace ResponseOutparam
 namespace IncomingResponse {
 
 AST::Component::ResourceType ast() noexcept {
@@ -188,12 +193,20 @@ AST::Component::ResourceType ast() noexcept {
 
 Expect<T> Constructor::body(int32_t) { return 0; }
 
+Expect<void> Body::body() { return {}; }
+
 } // namespace OutgoingResponse
 
-AST::Component::ResourceType OutgoingBody::ast() noexcept {
+namespace OutgoingBody {
+
+AST::Component::ResourceType ast() noexcept {
   return ResourceType(
       new Runtime::Instance::ComponentInstance("outgoing-body"));
 }
+
+Expect<void> Write::body() { return {}; }
+
+} // namespace OutgoingBody
 
 AST::Component::ResourceType FutureIncomingResponse::ast() noexcept {
   return ResourceType(

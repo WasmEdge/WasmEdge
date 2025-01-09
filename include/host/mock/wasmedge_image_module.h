@@ -15,6 +15,7 @@ public:
       : Runtime::Instance::ModuleInstance("wasmedge_image") {
     addHostFunc("load_jpg", std::make_unique<WasmEdgeImageMock::LoadJPG>());
     addHostFunc("load_png", std::make_unique<WasmEdgeImageMock::LoadPNG>());
+    addHostFunc("load_image", std::make_unique<WasmEdgeImageMock::LoadImage>());
   }
 };
 

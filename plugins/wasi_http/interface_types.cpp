@@ -37,7 +37,11 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("incoming-request", IncomingRequest::ast());
   addHostType("outgoing-request", OutgoingRequest::ast());
   addHostType("request-options", RequestOptions::ast());
+
   addHostType("response-outparam", ResponseOutparam::ast());
+  addHostFunc("[static]response-outparam.set",
+              std::make_unique<ResponseOutparam::Set>(Env));
+
   addHostType("status-code", PrimValType::U16);
   addHostType("incoming-response", IncomingResponse::ast());
   addHostFunc("[method]incoming-response.status",
@@ -51,8 +55,13 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("outgoing-response", OutgoingResponse::ast());
   addHostFunc("[constructor]outgoing-response",
               std::make_unique<OutgoingResponse::Constructor>(Env));
+  addHostFunc("[method]outgoing-response.body",
+              std::make_unique<OutgoingResponse::Body>(Env));
 
   addHostType("outgoing-body", OutgoingBody::ast());
+  addHostFunc("[method]outgoing-body.write",
+              std::make_unique<OutgoingBody::Write>(Env));
+
   addHostType("future-incoming-response", FutureIncomingResponse::ast());
 }
 

@@ -174,6 +174,13 @@ AST::Component::ResourceType ast() noexcept;
 namespace ResponseOutparam {
 using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
+
+class Set : public WasiHttp<Set> {
+public:
+  Set(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<void> body();
+};
+
 } // namespace ResponseOutparam
 
 using StatusCode = uint16_t;
@@ -215,11 +222,25 @@ public:
   Constructor(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
   Expect<T> body(int32_t);
 };
+
+class Body : public WasiHttp<Body> {
+public:
+  Body(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<void> body();
+};
+
 } // namespace OutgoingResponse
 
 namespace OutgoingBody {
 using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
+
+class Write : public WasiHttp<Write> {
+public:
+  Write(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<void> body();
+};
+
 } // namespace OutgoingBody
 
 namespace FutureIncomingResponse {

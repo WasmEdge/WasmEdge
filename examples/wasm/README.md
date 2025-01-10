@@ -48,8 +48,8 @@ The `hello.wasm` example is a WebAssembly which compiled from a Rust application
 If you want to compile it, please [install Rust toolchain](https://www.rust-lang.org/tools/install). And then use the following commands in the `hello` folder:
 
 ```bash
-cargo build --offline --release --target=wasm32-wasi
-# The hello.wasm will be located at `target/wasm32-wasi/release/hello.wasm`
+cargo build --offline --release --target=wasm32-wasip1
+# The hello.wasm will be located at `target/wasm32-wasip1/release/hello.wasm`
 ```
 
 ```bash

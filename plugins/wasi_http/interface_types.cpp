@@ -61,6 +61,8 @@ WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
   addHostType("outgoing-body", OutgoingBody::ast());
   addHostFunc("[method]outgoing-body.write",
               std::make_unique<OutgoingBody::Write>(Env));
+  addHostFunc("[static]outgoing-body.finish",
+              std::make_unique<OutgoingBody::Finish>(Env));
 
   addHostType("future-incoming-response", FutureIncomingResponse::ast());
 }

@@ -205,6 +205,7 @@ AST::Component::ResourceType ast() noexcept {
 }
 
 Expect<void> Write::body() { return {}; }
+Expect<void> Finish::body() { return {}; }
 
 } // namespace OutgoingBody
 

@@ -174,7 +174,8 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::exportPkcs8() const noexcept {
   EVP_PKEY *Key = Ctx.get();
   BioPtr Bio{BIO_new(BIO_s_mem())};
 
-  opensslCheck(i2d_PKCS8PrivateKey_bio(Bio.get(), Key, nullptr, nullptr, 0, nullptr, nullptr));
+  opensslCheck(i2d_PKCS8PrivateKey_bio(Bio.get(), Key, nullptr, nullptr, 0,
+                                       nullptr, nullptr));
 
   BUF_MEM *Mem = nullptr;
   opensslCheck(BIO_get_mem_ptr(Bio.get(), &Mem));

@@ -3,10 +3,10 @@
 #include "common/errcode.h"
 #include "common/types.h"
 #include "executor/executor.h"
-
 #include "runtime/instance/module.h"
 #include "spdlog/spdlog.h"
 
+#include <cmath>
 #include <sstream>
 #include <string_view>
 #include <variant>
@@ -17,6 +17,9 @@ namespace Executor {
 using namespace std::literals;
 using namespace AST::Component;
 using namespace Runtime;
+
+#define MAX_FLAT_PARAMS 16
+#define MAX_FLAT_RESULTS 1
 
 namespace {
 Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
@@ -102,7 +105,24 @@ Expect<AST::FunctionType> convert(Runtime::Instance::ComponentInstance &Comp,
   return AST::FunctionType(ParamTypes, ResultTypes);
 }
 
-void flattenType(std::vector<WasmEdge::ValType> &Output, const ValType &Ty) {
+ValType discriminantType(size_t N) {
+  assert(0 < N && N < 4294967296);
+  uint E = std::ceil(log2(N) / 8);
+  switch (E) {
+  case 0:
+    return ValType(TypeCode::I8);
+  case 1:
+    return ValType(TypeCode::I8);
+  case 2:
+    return ValType(TypeCode::I16);
+  case 3:
+    return ValType(TypeCode::I32);
+  default:
+    assumingUnreachable();
+  }
+}
+
+void flattenType(std::vector<ValType> &Output, const ValType &Ty) {
   switch (Ty.getCode()) {
   case TypeCode::String:
     Output.push_back(TypeCode::I32);
@@ -120,6 +140,33 @@ void flattenType(std::vector<WasmEdge::ValType> &Output, const ValType &Ty) {
     auto R = static_cast<const InterfaceType &>(Ty);
     for (auto FT : R.getArgs()) {
       flattenType(Output, FT);
+    }
+    break;
+  }
+  case TypeCode::Result: {
+    auto R = static_cast<const InterfaceType &>(Ty);
+
+    std::vector<ValType> Flat{};
+
+    auto T = R.getArgs()[0];
+    auto E = R.getArgs()[1];
+    std::vector<ValType> TOutput{};
+    flattenType(TOutput, T);
+    std::vector<ValType> EOutput{};
+    flattenType(EOutput, E);
+
+    for (size_t I = 0; I < TOutput.size(); ++I) {
+      auto FT = TOutput[I];
+      Flat.push_back(FT);
+    }
+    for (size_t I = 0; I < EOutput.size(); ++I) {
+      auto FT = EOutput[I];
+      Flat.push_back(FT);
+    }
+
+    Output.push_back(discriminantType(R.getArgs().size()));
+    for (auto T : Flat) {
+      Output.push_back(T);
     }
     break;
   }
@@ -291,15 +338,30 @@ public:
   }
 
 private:
+  // TODO: opts.sync was read from canonical lift/lower command
   void flattenFunctype(const AST::FunctionType &HigherType) {
     auto &FuncType = DefType.getCompositeType().getFuncType();
+
+    std::vector<ValType> FlatParams{};
+    std::vector<ValType> FlatResults{};
     for (auto &ParamTy : HigherType.getParamTypes()) {
-      flattenType(FuncType.getParamTypes(), ParamTy);
+      flattenType(FlatParams, ParamTy);
     }
     for (auto &ReturnTy : HigherType.getReturnTypes()) {
-      flattenType(FuncType.getReturnTypes(), ReturnTy);
+      flattenType(FlatResults, ReturnTy);
+    }
+    if (FlatParams.size() > MAX_FLAT_PARAMS) {
+      FlatParams.clear();
+      FlatParams.push_back(ValType(TypeCode::I32));
+    }
+    // context: lower
+    if (FlatResults.size() > MAX_FLAT_RESULTS) {
+      FlatParams.push_back(ValType(TypeCode::I32));
+      FlatResults.clear();
     }
 
+    FuncType.getParamTypes() = FlatParams;
+    FuncType.getReturnTypes() = FlatResults;
     spdlog::info("lower: {}"sv, FuncType);
   }
 

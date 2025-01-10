@@ -1092,7 +1092,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           common_sampler_free(CxtRef.LlamaSampler);
           CxtRef.LlamaSampler = nullptr;
         }
-        GraphRef.LlamaModel = llama_model_ptr(llama_load_model_from_file(
+        GraphRef.LlamaModel = llama_model_ptr(llama_model_load_from_file(
             GraphRef.ModelFilePath.c_str(), ModelParams));
         if (GraphRef.LlamaModel == nullptr) {
           Env.NNGraph[CxtRef.GraphId].setInvalid();

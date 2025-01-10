@@ -241,6 +241,12 @@ public:
   Expect<void> body();
 };
 
+class Finish : public WasiHttp<Finish> {
+public:
+  Finish(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<void> body();
+};
+
 } // namespace OutgoingBody
 
 namespace FutureIncomingResponse {

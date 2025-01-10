@@ -30,13 +30,13 @@ std::string loadBytesFromFile(const std::string &Path) {
   return Data;
 }
 
-enum AnserSataus {
+enum AnswerSataus {
   STOP,
   WAIT,
   GO,
 };
 
-AnserSataus answerSataus(std::string Text, std::string End) {
+AnswerSataus answerSataus(std::string Text, std::string End) {
   if (endsWith(Text, End)) {
     return STOP;
   }
@@ -311,7 +311,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     // TODO: break when the token is the eos_token_id
     TokenList.insert(TokenList.end(), Tokens.begin(), Tokens.end());
     Answer = GraphRef.Tok->Decode(TokenList);
-    const AnserSataus Status = answerSataus(Answer, GraphRef.Prmopt.TextEnd);
+    const AnswerSataus Status = answerSataus(Answer, GraphRef.Prmopt.TextEnd);
     if (Status == STOP) {
       break;
     }

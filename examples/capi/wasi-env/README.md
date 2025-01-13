@@ -67,14 +67,14 @@ clang set_wasi_env.c -o set_wasm_env -lwasmedge
 For building the WASM from the rust source, the following steps are required:
 
 * Install the [rust and cargo](https://www.rust-lang.org/tools/install).
-* Install the `wasm32-wasi` target: `$ rustup target add wasm32-wasi`
+* Install the `wasm32-wasip1` target: `$ rustup target add wasm32-wasip1`
 
 ```bash
 cd rust
-cargo build --release --target=wasm32-wasi
-# The output wasm will be at `target/wasm32-wasi/release/wasi_get_env.wasm`.
+cargo build --release --target=wasm32-wasip1
+# The output wasm will be at `target/wasm32-wasip1/release/wasi_get_env.wasm`.
 # Copy it to the same level of set_wasi_env.c
-cp ./target/wasm32-wasi/release/wasi_get_env.wasm ../
+cp ./target/wasm32-wasip1/release/wasi_get_env.wasm ../
 ```
 
 ## Run

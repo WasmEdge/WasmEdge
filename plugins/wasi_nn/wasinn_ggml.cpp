@@ -574,7 +574,7 @@ bool evaluateQwen2vlImageEmbed(llama_context *LlamaCxt,
                                const struct llava_image_embed *ImageEmbed,
                                int64_t NBatch, int32_t &NPos,
                                struct clip_image_size *ImageSize) {
-  int NEmbd = llama_n_embd(llama_get_model(LlamaCxt));
+  int NEmbd = llama_model_n_embd(llama_get_model(LlamaCxt));
   const int PatchSize = 14 * 2;
   const int Ph =
       ImageSize->height / PatchSize + (ImageSize->height % PatchSize > 0);
@@ -817,8 +817,8 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
     }
   }
   // Deal with end of text token.
-  if (llama_token_is_eog(GraphRef.LlamaModel.get(),
-                         common_sampler_last(CxtRef.LlamaSampler))) {
+  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
+  if (llama_vocab_is_eog(Vocab, common_sampler_last(CxtRef.LlamaSampler))) {
     LOG_INFO(GraphRef.EnableLog, "EOS token found."sv)
     return ErrNo::EndOfSequence;
   }
@@ -831,9 +831,10 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
 Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding"sv)
 
+  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
   // Add SEP if not present.
   if (CxtRef.LlamaInputs.size() > 0 &&
-      CxtRef.LlamaInputs.back() != llama_token_sep(GraphRef.LlamaModel.get())) {
+      CxtRef.LlamaInputs.back() != llama_vocab_sep(Vocab)) {
     LOG_WARN(
         "last token in the prompt is not SEP, "sv
         "'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF "sv
@@ -856,7 +857,7 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   }
 
   // Main prediction loop.
-  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel.get());
+  const int32_t NEmbd = llama_model_n_embd(GraphRef.LlamaModel.get());
   std::vector<float> Embeddings(NEmbd);
 
   for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
@@ -1110,7 +1111,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       GraphRef.LlamaContext.reset();
       common_params Params;
       setupCommonParams(GraphRef, Params);
-      GraphRef.LlamaContext = llama_context_ptr(llama_new_context_with_model(
+      GraphRef.LlamaContext = llama_context_ptr(llama_init_from_model(
           GraphRef.LlamaModel.get(), common_context_params_to_llama(Params)));
       if (GraphRef.LlamaContext == nullptr) {
         Env.NNGraph[CxtRef.GraphId].setInvalid();

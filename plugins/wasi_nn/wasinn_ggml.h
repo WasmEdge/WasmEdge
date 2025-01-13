@@ -48,6 +48,7 @@ struct LocalConfig {
   int64_t NPredict;
   std::string ReversePrompt;
   std::string ImagePath;
+  bool AlwaysRegenerateImageEmbd = false;
 };
 
 struct Graph {

@@ -598,7 +598,7 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "2f6ff7b1b47970f124a05374a3d5c60ece415ac9ef30bcc7530b5bb660b6"
         "3f0e24a7c933464db5707ef9625ff083d3a2afde6e2f40bcc3807b15a702"
         "3e28cd3c23ecbe66098bd0a029a8792ae5259282c116b32a28908aaa1bcf"
-        "ef61d9529fd"_u8v}},
+        "ef61d9529f"_u8v}},
       {});
 }
 

@@ -19,19 +19,13 @@ target_include_directories(wasmedgePluginWasmEdgeImage
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# Need libjpeg, libpng, zlib, and boost.
-find_package(ZLIB REQUIRED)
-wasmedge_setup_jpeg()
-wasmedge_setup_png()
-wasmedge_setup_boost()
-
+# Need stb_image.
+wasmedge_setup_stb_image()
 target_link_libraries(wasmedgePluginWasmEdgeImage
   PUBLIC
-  Boost::boost
-  wasmedgeDepsJPEG
-  wasmedgeDepsPNG
-  z
+  wasmedgeDepsSTBImage
 )
+
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginWasmEdgeImage
     PRIVATE

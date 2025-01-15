@@ -6,11 +6,11 @@ This is an example of using the WASI-Logging plugin of WasmEdge in Rust.
 
 ### Install Rust
 
-Follow the instructions below to install Rust and wasm32-wasi target.
+Follow the instructions below to install Rust and wasm32-wasip1 target.
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-rustup target add wasm32-wasi
+rustup target add wasm32-wasip1
 ```
 
 ### Install WasmEdge and WASI-Logging plugin
@@ -40,10 +40,10 @@ cp -r wit /path/to/wasmedge/examples/plugin/wasi-logging
 ## Build the example
 
 ```sh
-cargo build --target wasm32-wasi
+cargo build --target wasm32-wasip1
 ```
 
-Then we get `target/wasm32-wasi/debug/wasi-logging-example.wasm`.
+Then we get `target/wasm32-wasip1/debug/wasi-logging-example.wasm`.
 
 ## Logging context
 
@@ -54,7 +54,7 @@ For the logging context of the `log` function in Rust, developers can use the `"
 We can run this example with `wasmedge` like
 
 ```sh
-wasmedge target/wasm32-wasi/debug/wasi-logging-example.wasm
+wasmedge target/wasm32-wasip1/debug/wasi-logging-example.wasm
 ```
 
 This example should run successfully and print out the log as follow.

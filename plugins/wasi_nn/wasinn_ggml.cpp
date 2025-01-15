@@ -44,6 +44,9 @@ namespace {
 // Macro for logging warning message.
 #define LOG_WARN(...) spdlog::warn("[WASI-NN] GGML backend: "sv __VA_ARGS__);
 
+// Macro for logging error message.
+#define LOG_ERROR(...) spdlog::error("[WASI-NN] GGML backend: "sv __VA_ARGS__);
+
 // Macro for logging error message and return.
 #define RET_ERROR(Error, ...)                                                  \
   spdlog::error("[WASI-NN] GGML backend: "sv __VA_ARGS__);                     \
@@ -134,6 +137,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   //   batch-size: int64_t
   //   ubatch-size: int64_t
   //   threads: int64_t
+  //   [local-config] always-regenerate-image-embd: bool
   // Sampling parameters (used by the llama sampling context):
   //   temp: double
   //   top-p: double
@@ -245,20 +249,18 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     std::string_view SplitMode;
     auto Err = Doc["split-mode"].get<std::string_view>().get(SplitMode);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the split-mode option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the split-mode option."sv)
     }
-    if (SplitMode == "none") {
+    if (SplitMode == "none"sv) {
       GraphRef.SplitMode = LLAMA_SPLIT_MODE_NONE;
-    } else if (SplitMode == "layer") {
+    } else if (SplitMode == "layer"sv) {
       GraphRef.SplitMode = LLAMA_SPLIT_MODE_LAYER;
-    } else if (SplitMode == "row") {
+    } else if (SplitMode == "row"sv) {
       GraphRef.SplitMode = LLAMA_SPLIT_MODE_ROW;
     } else {
-      spdlog::error("[WASI-NN] GGML backend: Invalid split-mode option: {}"sv,
-                    SplitMode);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unknown split-mode: {}. Valid: none, layer, row."sv, SplitMode)
     }
   }
   if (Doc.at_key("mmproj").error() == simdjson::SUCCESS) {
@@ -361,9 +363,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   if (Doc.at_key("seed").error() == simdjson::SUCCESS) {
     auto Err = Doc["seed"].get<uint64_t>().get(GraphRef.Seed);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the seed option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the seed option."sv)
     }
   }
 
@@ -399,6 +399,14 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the image option."sv)
     }
     ConfRef.ImagePath = ImagePath;
+  }
+  if (Doc.at_key("always-regenerate-image-embd").error() == simdjson::SUCCESS) {
+    auto Err = Doc["always-regenerate-image-embd"].get<bool>().get(
+        ConfRef.AlwaysRegenerateImageEmbd);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the always-regenerate-image-embd option."sv)
+    }
   }
 
   // Check if the model parameters are updated.
@@ -447,13 +455,13 @@ findBase64ImagePayload(std::string_view Prompt,
   // Find `;base64,` (skip the image type part)
   auto PayloadPos = Prompt.find(Base64ImageBytesPrefix, BeginTagPos);
   if (PayloadPos == std::string::npos) {
-    LOG_DEBUG(IsDebugLog, "Cannot locate the payload."sv)
+    LOG_DEBUG(IsDebugLog, "base64: Cannot locate the payload."sv)
     return std::nullopt;
   }
   // Find `">`
   auto EndTagPos = Prompt.find(Base64ImageTagSuffix, PayloadPos);
   if (EndTagPos == std::string::npos) {
-    LOG_DEBUG(IsDebugLog, "Base64 image tag unclosed."sv)
+    LOG_DEBUG(IsDebugLog, "base64: image tag unclosed."sv)
     return std::nullopt;
   }
   return std::make_tuple(BeginTagPos, PayloadPos, EndTagPos);
@@ -481,7 +489,7 @@ extractBase64ImagePayload(std::string &Prompt,
     base64::decode(Payload.begin(), Payload.end(), ImageBytes.begin());
   } catch (const base64_error &E) {
     RET_ERROR(std::make_pair(std::vector<uint8_t>(), ""),
-              "Error when base64::decode: {}"sv, E.what())
+              "base64: Error when calling base64::decode: {}"sv, E.what())
   }
 
   // Replace the base64 image with the placeholder.
@@ -574,7 +582,7 @@ bool evaluateQwen2vlImageEmbed(llama_context *LlamaCxt,
                                const struct llava_image_embed *ImageEmbed,
                                int64_t NBatch, int32_t &NPos,
                                struct clip_image_size *ImageSize) {
-  int NEmbd = llama_n_embd(llama_get_model(LlamaCxt));
+  int NEmbd = llama_model_n_embd(llama_get_model(LlamaCxt));
   const int PatchSize = 14 * 2;
   const int Ph =
       ImageSize->height / PatchSize + (ImageSize->height % PatchSize > 0);
@@ -639,10 +647,11 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
   // End the inference if the context is full.
   uint32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
   if (NPos + static_cast<uint32_t>(Tokens.size()) > NCtx) {
-    LOG_INFO(GraphRef.EnableLog,
-             "the context if full ({} / {} tokens). Please increase your "sv
-             "context size."sv,
-             NPos + static_cast<uint32_t>(Tokens.size()), NCtx)
+    LOG_INFO(
+        GraphRef.EnableLog,
+        "evaluateTokens: the context if full ({} / {} tokens). Please increase your "sv
+        "context size."sv,
+        NPos + static_cast<uint32_t>(Tokens.size()), NCtx)
     return ErrNo::ContextFull;
   }
 
@@ -679,13 +688,15 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
     auto Status = llama_decode(GraphRef.LlamaContext.get(), Batch);
     Batch.pos = OriginBatchPos;
     if (Status == 1) {
-      RET_ERROR(ErrNo::RuntimeError,
-                "failed to llama_decode: try reducing the size of the batch "sv
-                "or increasing the size of context."sv)
+      RET_ERROR(
+          ErrNo::RuntimeError,
+          "evaluateTokens: failed to llama_decode: try reducing the size of the batch "sv
+          "or increasing the size of context."sv)
     } else if (Status < 0) {
-      RET_ERROR(ErrNo::RuntimeError,
-                "failed to llama_decode: internal fatal error. Please open "sv
-                "an issue on GitHub."sv)
+      RET_ERROR(
+          ErrNo::RuntimeError,
+          "evaluateTokens: failed to llama_decode: internal fatal error. Please open "sv
+          "an issue on GitHub."sv)
     }
   }
 
@@ -745,15 +756,23 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
     bool EvalImageStatus = false;
     switch (GraphRef.VisionModelType) {
     case VisionModel::Llava:
+      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd"sv,
+                LogPrefix)
       EvalImageStatus = llava_eval_image_embed(
           GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
           static_cast<int>(GraphRef.BatchSize), &CxtRef.NPos);
+      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd...done"sv,
+                LogPrefix)
       break;
     case VisionModel::Qwen2VL:
+      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd"sv,
+                LogPrefix)
       auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
       EvalImageStatus = evaluateQwen2vlImageEmbed(
           GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
           static_cast<int>(GraphRef.BatchSize), CxtRef.NPos, ImageSize);
+      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd...done"sv,
+                LogPrefix)
       break;
     }
 
@@ -783,6 +802,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
 
   CxtRef.Conf.ImagePath = ""sv;
   if (CxtRef.LlavaImageEmbd != nullptr) {
+    LOG_DEBUG(GraphRef.EnableDebugLog, "{}: ImageEmbd consumed"sv, LogPrefix)
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;
   }
@@ -812,14 +832,14 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
     if (!CxtRef.Conf.ReversePrompt.empty() &&
         CxtRef.LlamaOutputs.find(CxtRef.Conf.ReversePrompt) !=
             std::string::npos) {
-      LOG_INFO(GraphRef.EnableLog, "reverse prompt found."sv)
+      LOG_INFO(GraphRef.EnableLog, "sampleOutput: reverse prompt found."sv)
       return ErrNo::EndOfSequence;
     }
   }
   // Deal with end of text token.
-  if (llama_token_is_eog(GraphRef.LlamaModel.get(),
-                         common_sampler_last(CxtRef.LlamaSampler))) {
-    LOG_INFO(GraphRef.EnableLog, "EOS token found."sv)
+  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
+  if (llama_vocab_is_eog(Vocab, common_sampler_last(CxtRef.LlamaSampler))) {
+    LOG_INFO(GraphRef.EnableLog, "sampleOutput: EOS token found."sv)
     return ErrNo::EndOfSequence;
   }
   // Evaluate the output token.
@@ -831,11 +851,12 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
 Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding"sv)
 
+  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
   // Add SEP if not present.
   if (CxtRef.LlamaInputs.size() > 0 &&
-      CxtRef.LlamaInputs.back() != llama_token_sep(GraphRef.LlamaModel.get())) {
+      CxtRef.LlamaInputs.back() != llama_vocab_sep(Vocab)) {
     LOG_WARN(
-        "last token in the prompt is not SEP, "sv
+        "getEmbedding: last token in the prompt is not SEP, "sv
         "'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF "sv
         "header."sv)
   }
@@ -844,7 +865,7 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) > GraphRef.BatchSize) {
     RET_ERROR(
         ErrNo::PromptTooLong,
-        "the prompt is too long. Your input has {} tokens exceeds batch "sv
+        "getEmbedding: the prompt is too long. Your input has {} tokens exceeds batch "sv
         "size {}. Please reduce the input size or increase your batch-size."sv,
         CxtRef.LlamaInputs.size(), GraphRef.BatchSize)
   }
@@ -856,7 +877,7 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   }
 
   // Main prediction loop.
-  const int32_t NEmbd = llama_n_embd(GraphRef.LlamaModel.get());
+  const int32_t NEmbd = llama_model_n_embd(GraphRef.LlamaModel.get());
   std::vector<float> Embeddings(NEmbd);
 
   for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
@@ -870,9 +891,7 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
     if (Embd == nullptr) {
       Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), I);
       if (Embd == nullptr) {
-        spdlog::error(
-            "[WASI-NN] GGML backend: failed to get embeddings for token {}"sv,
-            I);
+        LOG_ERROR("getEmbedding: failed to get embeddings for token {}"sv, I);
         continue;
       }
     }
@@ -943,7 +962,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     auto Res = parseMetadata(GraphRef, GraphRef.Conf, Metadata);
     if (Res != ErrNo::Success) {
       Env.deleteGraph(GId);
-      RET_ERROR(Res, "Failed to parse metadata."sv)
+      RET_ERROR(Res, "load: Failed to parse metadata."sv)
     }
   }
 
@@ -971,7 +990,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     if (!TempFile) {
       Env.deleteGraph(GId);
       RET_ERROR(ErrNo::InvalidArgument,
-                "Failed to create the temporary file. Currently, our "sv
+                "load: Failed to create the temporary file. Currently, our "sv
                 "workaround involves creating a temporary model file named "sv
                 "\"ggml-model.bin\" and passing this filename as a "sv
                 "parameter to the ggml llama library."sv)
@@ -987,7 +1006,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   if (!std::filesystem::exists(
           std::filesystem::u8path(GraphRef.ModelFilePath))) {
     Env.deleteGraph(GId);
-    RET_ERROR(ErrNo::ModelNotFound, "model file not found."sv)
+    RET_ERROR(ErrNo::ModelNotFound, "load: model file not found."sv)
   }
 
   // Initialize ggml parameters.
@@ -1004,11 +1023,11 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.LlamaContext = std::move(LlamaInit.context);
   if (GraphRef.LlamaModel == nullptr) {
     Env.deleteGraph(GId);
-    RET_ERROR(ErrNo::InvalidArgument, "unable to init model."sv)
+    RET_ERROR(ErrNo::InvalidArgument, "load: unable to init model."sv)
   }
   if (GraphRef.LlamaContext == nullptr) {
     Env.deleteGraph(GId);
-    RET_ERROR(ErrNo::InvalidArgument, "unable to init context."sv)
+    RET_ERROR(ErrNo::InvalidArgument, "load: unable to init context."sv)
   }
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "load: initialize ggml model with given parameters...Done"sv)
@@ -1066,7 +1085,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         parseMetadata(GraphRef, CxtRef.Conf, Metadata, &IsModelParamsUpdated,
                       &IsContextParamsUpdated, &IsSamplerParamsUpdated);
     if (Res != ErrNo::Success) {
-      RET_ERROR(Res, "failed to parse metadata."sv)
+      RET_ERROR(Res, "setInput: failed to parse metadata."sv)
     }
 
 #ifndef __APPLE__
@@ -1079,7 +1098,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         // The llama model may be nullptr if set_input with updated model params
         // last time. Therefore besides the model params updated, we should
         // reload the llama model if the model is nullptr.
-        LOG_INFO(GraphRef.EnableLog, "Reload model due to parameters change."sv)
+        LOG_INFO(GraphRef.EnableLog,
+                 "setInput: Reload model due to parameters change."sv)
         llama_model_params ModelParams = llama_model_default_params();
         ModelParams.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
         GraphRef.LlamaModel.reset();
@@ -1092,11 +1112,11 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           common_sampler_free(CxtRef.LlamaSampler);
           CxtRef.LlamaSampler = nullptr;
         }
-        GraphRef.LlamaModel = llama_model_ptr(llama_load_model_from_file(
+        GraphRef.LlamaModel = llama_model_ptr(llama_model_load_from_file(
             GraphRef.ModelFilePath.c_str(), ModelParams));
         if (GraphRef.LlamaModel == nullptr) {
           Env.NNGraph[CxtRef.GraphId].setInvalid();
-          RET_ERROR(ErrNo::InvalidArgument, "unable to init model."sv)
+          RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init model."sv)
         }
       }
     }
@@ -1106,15 +1126,15 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // reloaded.
     if (IsContextParamsUpdated || GraphRef.LlamaContext == nullptr) {
       LOG_INFO(GraphRef.EnableLog,
-               "Reload llama context due to parameters change."sv)
+               "setInput: Reload llama context due to parameters change."sv)
       GraphRef.LlamaContext.reset();
       common_params Params;
       setupCommonParams(GraphRef, Params);
-      GraphRef.LlamaContext = llama_context_ptr(llama_new_context_with_model(
+      GraphRef.LlamaContext = llama_context_ptr(llama_init_from_model(
           GraphRef.LlamaModel.get(), common_context_params_to_llama(Params)));
       if (GraphRef.LlamaContext == nullptr) {
         Env.NNGraph[CxtRef.GraphId].setInvalid();
-        RET_ERROR(ErrNo::InvalidArgument, "unable to init context."sv)
+        RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init context."sv)
       }
     }
 
@@ -1122,7 +1142,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // reallocated.
     if (IsSamplerParamsUpdated || CxtRef.LlamaSampler == nullptr) {
       LOG_INFO(GraphRef.EnableLog,
-               "Reallocate llama sampler due to parameters change."sv)
+               "setInput: Reallocate llama sampler due to parameters change."sv)
       if (CxtRef.LlamaSampler) {
         common_sampler_free(CxtRef.LlamaSampler);
       }
@@ -1132,7 +1152,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           common_sampler_init(GraphRef.LlamaModel.get(), CommonSampling);
       if (GraphRef.LlamaContext == nullptr) {
         Env.NNGraph[CxtRef.GraphId].setInvalid();
-        RET_ERROR(ErrNo::InvalidArgument, "unable to init sampler."sv)
+        RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
       }
     }
 
@@ -1151,9 +1171,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   // Check the graph is valid after reloading during previous set_input.
   if (!Env.NNGraph[CxtRef.GraphId].isReady()) {
-    RET_ERROR(ErrNo::InvalidArgument,
-              "Graph is invalid. Please reload again by passing metadata "sv
-              "in set_input or unload graph."sv)
+    RET_ERROR(
+        ErrNo::InvalidArgument,
+        "setInput: Graph is invalid. Please reload again by passing metadata "sv
+        "in set_input or unload graph."sv)
   }
 
   // Clear the llama context.
@@ -1167,10 +1188,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
   CxtRef.LlamaInputs.clear();
-  if (CxtRef.LlavaImageEmbd != nullptr) {
-    llava_image_embed_free(CxtRef.LlavaImageEmbd);
-    CxtRef.LlavaImageEmbd = nullptr;
-  }
+
   auto Base64ImagePos = findBase64ImagePayload(Prompt);
 
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
@@ -1180,20 +1198,22 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     if (GraphRef.ClipContext == nullptr) {
       LOG_INFO(
           true,
-          "Load the clip model. Because llama.cpp disabled the GPU support "sv
+          "setInput: Load the clip model. Because llama.cpp disabled the GPU support "sv
           "for CLIP, the step of loading images in CLIP can only use the "sv
           "CPU, which may result in reduced efficiency. (You can refer to "sv
           "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
       GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
                                              GraphRef.EnableLog ? 1 : 0);
       if (GraphRef.ClipContext == nullptr) {
-        RET_ERROR(ErrNo::InvalidArgument, "unable to load the clip model."sv)
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "setInput: unable to load the clip model."sv)
       }
       if (clip_is_qwen2vl(GraphRef.ClipContext)) {
         GraphRef.VisionModelType = VisionModel::Qwen2VL;
-        LOG_INFO(true, "Qwen2vl model loaded."sv)
+        LOG_INFO(true, "setInput: Qwen2vl model loaded."sv)
       } else {
         GraphRef.VisionModelType = VisionModel::Llava;
+        LOG_INFO(true, "setInput: Llava model loaded."sv)
       }
     }
 
@@ -1207,7 +1227,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       if (GraphRef.CtxSize < 4096) {
         LOG_INFO(
             GraphRef.EnableLog,
-            "Context size is {}, we recommend context size >= 2048 when "sv
+            "setInput: Context size is {}, we recommend context size >= 2048 when "sv
             "using llava-v1.5 and context size >= 4096 when using llava-v1.6 "sv
             "for better results."sv,
             GraphRef.CtxSize)
@@ -1217,29 +1237,74 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       // Follow this link for the supported image formats:
       // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
       if (Base64ImagePos.has_value()) {
+        LOG_DEBUG(GraphRef.EnableDebugLog,
+                  "setInput: Compute image embd from the base64 image."sv)
         // Extract the payload and image type from the prompt.
         auto Payload = extractBase64ImagePayload(Prompt, *Base64ImagePos,
                                                  LlavaPromptImagePlaceholder);
         if (Payload.has_value()) {
-          CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
-              GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
-              Payload->first.data(), static_cast<int>(Payload->first.size()));
+          // Only regenerate the image embedding if the
+          // always-regenerate-image-embd is on or the image embedding is not
+          // yet computed.
+          if (CxtRef.LlavaImageEmbd == nullptr ||
+              CxtRef.Conf.AlwaysRegenerateImageEmbd) {
+            // Free existing image embedding if regeneration is needed
+            if (CxtRef.LlavaImageEmbd != nullptr) {
+              llava_image_embed_free(CxtRef.LlavaImageEmbd);
+              CxtRef.LlavaImageEmbd = nullptr;
+            }
+
+            // Create a new image embedding
+            CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
+                GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
+                Payload->first.data(), static_cast<int>(Payload->first.size()));
+          } else {
+            LOG_DEBUG(
+                GraphRef.EnableDebugLog,
+                "setInput: Previous image embd is not yet consumed. Use the cached base64 image embd instead of computing a new one"sv)
+          }
         }
+        LOG_DEBUG(GraphRef.EnableDebugLog,
+                  "setInput: Compute image embd from the base64 image...Done"sv)
       } else {
-        // Load the image from the file.
-        CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
-            GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
-            CxtRef.Conf.ImagePath.c_str());
+        // Only regenerate the image embedding if the
+        // always-regenerate-image-embd is on or the image embedding is not yet
+        // computed.
+        if (CxtRef.LlavaImageEmbd == nullptr ||
+            CxtRef.Conf.AlwaysRegenerateImageEmbd) {
+          // Free existing image embedding if regeneration is needed
+          if (CxtRef.LlavaImageEmbd != nullptr) {
+            llava_image_embed_free(CxtRef.LlavaImageEmbd);
+            CxtRef.LlavaImageEmbd = nullptr;
+          }
+
+          LOG_DEBUG(GraphRef.EnableDebugLog,
+                    "setInput: Compute image embd from file: {}"sv,
+                    CxtRef.Conf.ImagePath)
+          // Load the image from the file.
+          CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
+              GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
+              CxtRef.Conf.ImagePath.c_str());
+          LOG_DEBUG(GraphRef.EnableDebugLog,
+                    "setInput: Compute image embd from file: {}...Done"sv,
+                    CxtRef.Conf.ImagePath)
+        } else {
+          LOG_DEBUG(
+              GraphRef.EnableDebugLog,
+              "setInput: Previous image embd is not yet consumed. Use the cached image embd instead of computing a new one"sv)
+        }
       }
       if (CxtRef.LlavaImageEmbd == nullptr) {
-        RET_ERROR(ErrNo::InvalidArgument, "llava unable to load the image."sv)
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "setInput: llava unable to load the image."sv)
       }
 
       // We split prompt by <image> as placeholder and save the position.
       auto PlaceholderPosition = Prompt.find(LlavaPromptImagePlaceholder);
       if (PlaceholderPosition == std::string::npos) {
-        RET_ERROR(ErrNo::InvalidArgument,
-                  "unable to find the placeholder in the llava prompt."sv)
+        RET_ERROR(
+            ErrNo::InvalidArgument,
+            "setInput: unable to find the placeholder in the llava prompt."sv)
       }
       std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
       std::string PromptAfterImage = Prompt.substr(
@@ -1285,22 +1350,22 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
                         uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput with Index {}"sv, Index)
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}"sv, Index)
 
   // Use index 1 for the metadata of the outputs.
   if (Index == 1) {
     std::string Metadata = buildOutputMetadata(CxtRef);
     std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
     BytesWritten = static_cast<uint32_t>(Metadata.length());
-    LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput with Index {}...Done"sv,
-              Index)
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "getOutput: with Index {} a.k.a Metadata ...Done"sv, Index)
     return ErrNo::Success;
   }
 
   std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.length(),
               OutBuffer.data());
   BytesWritten = static_cast<uint32_t>(CxtRef.LlamaOutputs.length());
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput with Index {}...Done"sv, Index)
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}...Done"sv, Index)
   return ErrNo::Success;
 }
 
@@ -1351,15 +1416,15 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
                               uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle with Index {}"sv, Index)
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}"sv, Index)
 
   // Use index 1 for the metadata of the outputs.
   if (Index == 1) {
     std::string Metadata = buildOutputMetadata(CxtRef);
     std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
     BytesWritten = static_cast<uint32_t>(Metadata.length());
-    LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle with Index {}...Done"sv,
-              Index)
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "getOutputSingle: with Index {} a.k.a Metadata...Done"sv, Index)
     return ErrNo::Success;
   }
 
@@ -1367,7 +1432,7 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
       GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
   std::copy_n(LastToken.data(), LastToken.length(), OutBuffer.data());
   BytesWritten = static_cast<uint32_t>(LastToken.length());
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle with Index {}...Done"sv,
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}...Done"sv,
             Index)
   return ErrNo::Success;
 }

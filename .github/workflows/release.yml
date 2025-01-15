@@ -140,7 +140,7 @@ jobs:
         run: |
           git config --global --add safe.directory $(pwd)
       - name: generate sbom
-        uses: advanced-security/sbom-generator-action@v0.0.1
+        uses: advanced-security/sbom-generator-action@v0.0.2
         id: sbom
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

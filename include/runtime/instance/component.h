@@ -92,7 +92,7 @@ public:
                  Component::FunctionInstance *Inst) noexcept;
   Component::FunctionInstance *
   findFuncExports(std::string_view Name) const noexcept;
-  std::vector<std::pair<std::string, const AST::FunctionType &>>
+  std::vector<std::pair<std::string, const AST::Component::FunctionType &>>
   getFuncExports() const noexcept;
 
   void addCoreTableInstance(TableInstance *Inst) noexcept;

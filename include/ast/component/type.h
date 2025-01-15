@@ -209,6 +209,47 @@ private:
   ResultList ResList;
 };
 
+/// AST FunctionType node.
+class FunctionType {
+public:
+  /// Constructors.
+  FunctionType() noexcept = default;
+  FunctionType(Span<const InterfaceType> P,
+               Span<const InterfaceType> R) noexcept
+      : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
+
+  /// `==` and `!=` operator overloadings.
+  friend bool operator==(const FunctionType &LHS,
+                         const FunctionType &RHS) noexcept {
+    return LHS.ParamTypes == RHS.ParamTypes &&
+           LHS.ReturnTypes == RHS.ReturnTypes;
+  }
+
+  friend bool operator!=(const FunctionType &LHS,
+                         const FunctionType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
+
+  /// Getter of param types.
+  const std::vector<InterfaceType> &getParamTypes() const noexcept {
+    return ParamTypes;
+  }
+  std::vector<InterfaceType> &getParamTypes() noexcept { return ParamTypes; }
+
+  /// Getter of return types.
+  const std::vector<InterfaceType> &getReturnTypes() const noexcept {
+    return ReturnTypes;
+  }
+  std::vector<InterfaceType> &getReturnTypes() noexcept { return ReturnTypes; }
+
+private:
+  /// \name Data of FunctionType.
+  /// @{
+  std::vector<InterfaceType> ParamTypes;
+  std::vector<InterfaceType> ReturnTypes;
+  /// @}
+};
+
 enum class IndexKind : Byte {
   CoreType = 0x00,
   FuncType = 0x02,
@@ -264,7 +305,7 @@ public:
 // TODO: wait GC proposal
 // st:<core:structtype>     => st   (GC proposal)
 // at:<core:arraytype>      => at   (GC proposal)
-using CoreDefType = std::variant<FunctionType, ModuleType>;
+using CoreDefType = std::variant<WasmEdge::AST::FunctionType, ModuleType>;
 class CoreType {
 public:
   CoreDefType getType() const noexcept { return T; }
@@ -690,17 +731,17 @@ struct fmt::formatter<WasmEdge::AST::Component::CoreType>
   fmt::format_context::iterator
   format(const WasmEdge::AST::Component::CoreType &Type,
          fmt::format_context &Ctx) const noexcept {
-    using namespace WasmEdge::AST;
+    using namespace WasmEdge;
     using namespace std::literals;
 
     fmt::memory_buffer Buffer;
 
     std::visit(Overloaded{
-                   [&](const FunctionType &) {
+                   [&](const AST::FunctionType &) {
                      fmt::format_to(std::back_inserter(Buffer),
                                     "core:function type"sv);
                    },
-                   [&](const Component::ModuleType &) {
+                   [&](const AST::Component::ModuleType &) {
                      fmt::format_to(std::back_inserter(Buffer),
                                     "core:module type"sv);
                    },
@@ -811,5 +852,30 @@ struct fmt::formatter<WasmEdge::AST::Component::DefType>
                 }},
             Type),
         Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::FunctionType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::FunctionType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "[ "sv);
+    for (auto &P : Type.getParamTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "{} "sv, P);
+    }
+    fmt::format_to(std::back_inserter(Buffer), "] -> [ "sv);
+    for (auto &R : Type.getReturnTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "{} "sv, R);
+    }
+    fmt::format_to(std::back_inserter(Buffer), "]"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
   }
 };

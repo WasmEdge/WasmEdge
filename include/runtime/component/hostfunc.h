@@ -17,7 +17,7 @@ namespace Component {
 
 class HostFunctionBase {
 public:
-  HostFunctionBase() : FuncType{AST::FunctionType()} {}
+  HostFunctionBase() : FuncType{AST::Component::FunctionType()} {}
   virtual ~HostFunctionBase() = default;
 
   /// Run host function body.
@@ -25,11 +25,13 @@ public:
                            Span<ValInterface> Rets) = 0;
 
   /// Getter of function type.
-  const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
-  AST::FunctionType &getFuncType() noexcept { return FuncType; }
+  const AST::Component::FunctionType &getFuncType() const noexcept {
+    return FuncType;
+  }
+  AST::Component::FunctionType &getFuncType() noexcept { return FuncType; }
 
 protected:
-  AST::FunctionType FuncType;
+  AST::Component::FunctionType FuncType;
 };
 
 template <typename ArgT> struct convert {

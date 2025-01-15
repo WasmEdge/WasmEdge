@@ -153,7 +153,8 @@ ComponentInstance::getComponentInstance(uint32_t Index) const noexcept {
 void ComponentInstance::addHostFunc(
     std::string_view Name,
     std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> &&Func) {
-  addCoreFuncType(Func->getFuncType());
+  // TODO: create addFuncType to store type
+  // addFuncType(Func->getFuncType());
   auto FuncInst =
       std::make_unique<Instance::Component::FunctionInstance>(std::move(Func));
   unsafeAddHostFunc(Name, std::move(FuncInst));
@@ -161,7 +162,7 @@ void ComponentInstance::addHostFunc(
 void ComponentInstance::addHostFunc(
     std::string_view Name,
     std::unique_ptr<Component::FunctionInstance> &&Func) {
-  addCoreFuncType(Func->getFuncType());
+  // addFuncType(Func->getFuncType());
   unsafeAddHostFunc(Name, std::move(Func));
 }
 
@@ -228,9 +229,9 @@ ComponentInstance::findFuncExports(std::string_view Name) const noexcept {
   spdlog::warn("lookp name {}", Name);
   return ExportFuncMap.at(std::string(Name));
 }
-std::vector<std::pair<std::string, const AST::FunctionType &>>
+std::vector<std::pair<std::string, const AST::Component::FunctionType &>>
 ComponentInstance::getFuncExports() const noexcept {
-  std::vector<std::pair<std::string, const AST::FunctionType &>> R;
+  std::vector<std::pair<std::string, const AST::Component::FunctionType &>> R;
   R.reserve(ExportFuncMap.size());
   for (auto &&[Name, Func] : ExportFuncMap) {
     const auto &FuncType = Func->getFuncType();

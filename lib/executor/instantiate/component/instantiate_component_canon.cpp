@@ -23,7 +23,7 @@ using namespace Runtime;
 
 namespace {
 Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
-                      std::vector<ValType> &Types, const ValueType &VT) {
+                      std::vector<InterfaceType> &Types, const ValueType &VT) {
   // notice that we might need to convert one type to multiple types, and hence,
   // we must let this function control the vector need to be modified.
   auto Func = [&](auto &&Type) {
@@ -71,11 +71,12 @@ Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
   return {};
 }
 
-Expect<AST::FunctionType> convert(Runtime::Instance::ComponentInstance &Comp,
-                                  const FuncType &DT) {
+Expect<AST::Component::FunctionType>
+liftFlattenType(Runtime::Instance::ComponentInstance &Comp,
+                const FuncType &DT) {
   Expect<void> Res;
 
-  std::vector<ValType> ParamTypes{};
+  std::vector<InterfaceType> ParamTypes{};
   for (const auto &P : DT.getParamList()) {
     Res = pushType(Comp, ParamTypes, P.getValType());
     if (!Res) {
@@ -83,7 +84,7 @@ Expect<AST::FunctionType> convert(Runtime::Instance::ComponentInstance &Comp,
     }
   }
 
-  std::vector<ValType> ResultTypes{};
+  std::vector<InterfaceType> ResultTypes{};
   auto Func = [&](auto &&Type) {
     using T = std::decay_t<decltype(Type)>;
     if constexpr (std::is_same_v<T, ValueType>) {
@@ -102,7 +103,7 @@ Expect<AST::FunctionType> convert(Runtime::Instance::ComponentInstance &Comp,
   };
   std::visit(Func, DT.getResultList());
 
-  return AST::FunctionType(ParamTypes, ResultTypes);
+  return AST::Component::FunctionType(ParamTypes, ResultTypes);
 }
 
 ValType discriminantType(size_t N) {
@@ -122,7 +123,7 @@ ValType discriminantType(size_t N) {
   }
 }
 
-void flattenType(std::vector<ValType> &Output, const ValType &Ty) {
+void flattenType(std::vector<ValType> &Output, const InterfaceType &Ty) {
   switch (Ty.getCode()) {
   case TypeCode::String:
     Output.push_back(TypeCode::I32);
@@ -137,24 +138,20 @@ void flattenType(std::vector<ValType> &Output, const ValType &Ty) {
     break;
   }
   case TypeCode::Record: {
-    auto R = static_cast<const InterfaceType &>(Ty);
-    for (auto FT : R.getArgs()) {
+    for (auto FT : Ty.getArgs()) {
       flattenType(Output, FT);
     }
     break;
   }
   case TypeCode::Result: {
-    auto R = static_cast<const InterfaceType &>(Ty);
-
-    std::vector<ValType> Flat{};
-
-    auto T = R.getArgs()[0];
-    auto E = R.getArgs()[1];
+    auto T = Ty.getArgs()[0];
+    auto E = Ty.getArgs()[1];
     std::vector<ValType> TOutput{};
     flattenType(TOutput, T);
     std::vector<ValType> EOutput{};
     flattenType(EOutput, E);
 
+    std::vector<ValType> Flat{};
     for (size_t I = 0; I < TOutput.size(); ++I) {
       auto FT = TOutput[I];
       Flat.push_back(FT);
@@ -164,14 +161,14 @@ void flattenType(std::vector<ValType> &Output, const ValType &Ty) {
       Flat.push_back(FT);
     }
 
-    Output.push_back(discriminantType(R.getArgs().size()));
+    Output.push_back(discriminantType(Ty.getArgs().size()));
     for (auto T : Flat) {
       Output.push_back(T);
     }
     break;
   }
   default:
-    Output.push_back(Ty);
+    Output.push_back(Ty.getValType());
     break;
   }
 }
@@ -181,12 +178,13 @@ void flattenType(std::vector<ValType> &Output, const ValType &Ty) {
 class LiftTrans : public WasmEdge::Runtime::Component::HostFunctionBase {
 public:
   LiftTrans(Executor *Exec, const AST::Component::FuncType &DefinedType,
-            Instance::FunctionInstance *Func, Instance::MemoryInstance *M,
+            Instance::FunctionInstance *CoreFunc, Instance::MemoryInstance *M,
             Instance::FunctionInstance *R,
             Runtime::Instance::ComponentInstance &Comp)
-      : HostFunctionBase(), Exec(Exec), LowerFunc(Func), Memory(M), Realloc(R) {
+      : HostFunctionBase(), Exec(Exec), LowerFunc(CoreFunc), Memory(M),
+        Realloc(R) {
     // The convert is simply let component type to internal type.
-    auto RFuncType = convert(Comp, DefinedType);
+    auto RFuncType = liftFlattenType(Comp, DefinedType);
     if (!RFuncType) {
       spdlog::error("failed to lift function");
     }
@@ -260,13 +258,13 @@ private:
   Instance::FunctionInstance *Realloc;
 };
 
-std::unique_ptr<Instance::Component::FunctionInstance>
-Executor::lifting(Runtime::Instance::ComponentInstance &Comp,
-                  const FuncType &FuncType, Instance::FunctionInstance *Func,
-                  Instance::MemoryInstance *Memory,
-                  Instance::FunctionInstance *Realloc) {
+std::unique_ptr<Instance::Component::FunctionInstance> Executor::lifting(
+    Runtime::Instance::ComponentInstance &Comp, const FuncType &FuncType,
+    Instance::FunctionInstance *CoreFunc, Instance::MemoryInstance *Memory,
+    Instance::FunctionInstance *Realloc) {
   return std::make_unique<Instance::Component::FunctionInstance>(
-      std::make_unique<LiftTrans>(this, FuncType, Func, Memory, Realloc, Comp));
+      std::make_unique<LiftTrans>(this, FuncType, CoreFunc, Memory, Realloc,
+                                  Comp));
 }
 
 class LowerTrans : public HostFunctionBase {
@@ -338,9 +336,14 @@ public:
   }
 
 private:
+  // This is flatten function type for lowering, and hence it's about converting
+  // `InterfaceType` to `ValType`
+  //
   // TODO: opts.sync was read from canonical lift/lower command
-  void flattenFunctype(const AST::FunctionType &HigherType) {
+  void flattenFunctype(const AST::Component::FunctionType &HigherType) {
     auto &FuncType = DefType.getCompositeType().getFuncType();
+
+    spdlog::warn("still?");
 
     std::vector<ValType> FlatParams{};
     std::vector<ValType> FlatResults{};
@@ -390,14 +393,14 @@ public:
                            AST::Component::ResourceType &RT,
                            Runtime::Instance::ComponentInstance &C)
       : Exec{E}, TypIdx{Idx}, RTyp{RT}, Comp{C} {
-    std::vector<ValType> ParamTypes{ValType(TypeCode::I32)};
+    std::vector<InterfaceType> ParamTypes{InterfaceType(TypeCode::I32)};
     // NOTE: resource destructor only use type `i32`
     // 1. at sync mode: [i32] -> []
     // 2. at async mode: [i32] -> [i32]
     // for now, we ignore async case, to simplify our program here, but at
     // future shall make a full concept supportings.
-    std::vector<ValType> ResultTypes{};
-    FuncType = AST::FunctionType(ParamTypes, ResultTypes);
+    std::vector<InterfaceType> ResultTypes{};
+    FuncType = AST::Component::FunctionType(ParamTypes, ResultTypes);
   }
 
   Expect<void> run(Span<const ValInterface> Args,
@@ -421,7 +424,7 @@ public:
           auto Idx = *RTyp.getDestructor();
           auto F = Comp.getFunctionInstance(Idx);
           auto Arg = ValInterface(ValVariant(Handle->getRep()));
-          Exec->invoke(F, {Arg}, {ValType(TypeCode::I32)});
+          Exec->invoke(F, {Arg}, {InterfaceType(TypeCode::I32)});
         }
       } else {
         if (*RTyp.getDestructor()) {
@@ -526,10 +529,10 @@ public:
     if (!RFuncInst) {
       return Unexpect(RFuncInst);
     }
-    auto FuncInst = *RFuncInst;
+    auto CoreFuncInst = *RFuncInst;
     CompInst.addFunctionInstance(
         ThisExecutor.lifting(CompInst, std::get<FuncType>(*AstFuncType),
-                             FuncInst, Mem, ReallocFunc));
+                             CoreFuncInst, Mem, ReallocFunc));
 
     return {};
   }
@@ -663,7 +666,9 @@ Executor::instantiate(Runtime::StoreManager &,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CanonSection &CanonSec) {
   for (const Canon &C : CanonSec.getContent()) {
-    auto Res = std::visit(CanonOptionVisitor{*this, CompInst}, C);
+    auto V = CanonOptionVisitor{*this, CompInst};
+    spdlog::info("crash start, {}", C);
+    auto Res = std::visit(V, C);
     if (!Res) {
       return Unexpect(Res);
     }

@@ -1117,10 +1117,11 @@ M(ValueTypes, "value types")     // Value type list
 M(Mutation, "mutation")          // Const or Var
 M(ExternalType, "external type") // External typing
 M(FunctionType, "function type") // Function type
-M(Table, "table")                // Table instance
-M(Memory, "memory")              // Memory instance
-M(Global, "global")              // Global instance
-M(Version, "version")            // Versions
+M(CompFunctionType, "component function type") // (Component) Function type
+M(Table, "table")                              // Table instance
+M(Memory, "memory")                            // Memory instance
+M(Global, "global")                            // Global instance
+M(Version, "version")                          // Versions
 
 #undef M
 #endif // UseMismatchCategory

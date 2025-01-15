@@ -360,16 +360,38 @@ private:
 };
 
 /// wasm interface type
-class InterfaceType : public ValType {
+class InterfaceType {
 public:
-  InterfaceType(TypeCode C) : ValType(C) {}
-  InterfaceType(TypeCode C, std::initializer_list<ValType> Args)
-      : ValType(C), TyArgs(Args) {}
+  InterfaceType(TypeCode C) : VTyp{C} {}
+  InterfaceType(TypeCode C, std::initializer_list<InterfaceType> Args)
+      : VTyp{C}, TyArgs{Args} {}
 
-  Span<const ValType> getArgs() const noexcept override { return TyArgs; }
+  TypeCode getCode() const noexcept { return VTyp.getCode(); }
+  Span<const InterfaceType> getArgs() const noexcept override { return TyArgs; }
+  ValType getValType() const noexcept { return VTyp; }
+
+  friend bool operator==(const InterfaceType &LHS,
+                         const InterfaceType &RHS) noexcept {
+    auto LAs = LHS.getArgs();
+    auto RAs = RHS.getArgs();
+    if (LAs.size() != RAs.size()) {
+      return false;
+    }
+    for (size_t I = 0; I < LAs.size(); ++I) {
+      if (LAs[I] != RAs[I]) {
+        return false;
+      }
+    }
+    return LHS.VTyp == RHS.VTyp;
+  }
+  friend bool operator!=(const InterfaceType &LHS,
+                         const InterfaceType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
 
 private:
-  std::vector<ValType> TyArgs;
+  ValType VTyp;
+  std::vector<InterfaceType> TyArgs;
 };
 
 /// BlockType definition.
@@ -787,68 +809,83 @@ template <> inline ValType ValTypeFromType<double>() noexcept {
 }
 
 template <typename T> struct Wit {
-  static inline ValType type() noexcept { return ValTypeFromType<T>(); }
+  static inline InterfaceType type() noexcept {
+    auto VT = ValTypeFromType<T>();
+    return InterfaceType(VT.getCode());
+  }
 };
 template <> struct Wit<bool> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::Bool);
   }
 };
 template <> struct Wit<uint8_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::U8); }
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::U8);
+  }
 };
 template <> struct Wit<uint16_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::U16); }
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::U16);
+  }
 };
 template <> struct Wit<uint32_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::U32); }
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::U32);
+  }
 };
 template <> struct Wit<uint64_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::U64); }
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::U64);
+  }
 };
 template <> struct Wit<int8_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::I8); }
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::I8);
+  }
 };
 template <> struct Wit<int16_t> {
-  static inline ValType type() noexcept { return InterfaceType(TypeCode::I16); }
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::I16);
+  }
 };
 template <> struct Wit<std::string> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::String);
   }
 };
 template <typename... Types> struct Wit<Record<Types...>> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::Record, {Wit<Types>::type()...});
   }
 };
 template <typename T> struct Wit<List<T>> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::List, {Wit<T>::type()});
   }
 };
 template <typename... Types> struct Wit<Tuple<Types...>> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::Tuple, {Wit<Types>::type()...});
   }
 };
 template <typename T> struct Wit<Option<T>> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::Option, {Wit<T>::type()});
   }
 };
 template <> struct Wit<Enum> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::Enum, {});
   }
 };
 template <typename V, typename E> struct Wit<Result<V, E>> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::Result, {Wit<V>::type(), Wit<E>::type()});
   }
 };
 template <typename... Types> struct Wit<Component::Variant<Types...>> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::Variant, {Wit<Types>::type()...});
   }
 };
@@ -925,11 +962,11 @@ struct fmt::formatter<WasmEdge::InterfaceType>
   format(const WasmEdge::InterfaceType &Type,
          fmt::format_context &Ctx) const noexcept {
     using namespace std::literals;
-    WasmEdge::ValType VType(Type);
 
     fmt::memory_buffer Buffer;
 
-    fmt::format_to(std::back_inserter(Buffer), "{}"sv, VType);
+    fmt::format_to(std::back_inserter(Buffer), "{} "sv,
+                   WasmEdge::TypeCodeStr[Type.getCode()]);
     for (auto T : Type.getArgs()) {
       fmt::format_to(std::back_inserter(Buffer), "{}"sv, T);
     }

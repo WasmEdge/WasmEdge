@@ -191,6 +191,15 @@ fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>::format(
                    fmt::join(Info.GotParams, " , "sv),
                    fmt::join(Info.GotReturns, " , "sv));
     break;
+  case WasmEdge::ErrInfo::MismatchCategory::CompFunctionType:
+    fmt::format_to(Iter,
+                   "Expected: FuncType {{params{{{}}} returns{{{}}}}} , "
+                   "Got: FuncType {{params{{{}}} returns{{{}}}}}"sv,
+                   fmt::join(Info.CompExpParams, " , "sv),
+                   fmt::join(Info.CompExpReturns, " , "sv),
+                   fmt::join(Info.CompGotParams, " , "sv),
+                   fmt::join(Info.CompGotReturns, " , "sv));
+    break;
   case WasmEdge::ErrInfo::MismatchCategory::Table:
     Iter = fmt::format_to(Iter, "Expected: TableType {{RefType{{{}}} "sv,
                           static_cast<WasmEdge::ValType>(Info.ExpValType));

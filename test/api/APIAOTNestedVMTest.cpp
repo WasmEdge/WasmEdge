@@ -10,10 +10,12 @@
 
 #include "wasmedge/wasmedge.h"
 
+#include <array>
 #include <fmt/format.h>
 #include <gtest/gtest.h>
 #include <stack>
 
+namespace {
 /// C++ overloaded error checking functions
 /// `try` is keyword, `_try` is reserved in msvc
 void _Try(const char *name, const WasmEdge_Result &r) {
@@ -28,18 +30,23 @@ template <typename T> T *_Try(const char *name, T *r) {
   }
   return r;
 }
-/// C++ error checking macro
-#define TRY(fn)                                                                \
-  [](auto &&...args) {                                                         \
-    return _Try(#fn, fn(std::forward<decltype(args)>(args)...));               \
+/// C++ error checking function wrapper.
+/// Accepts same arguments `(A...)` as wrapped function instead of `(auto...)`.
+template <typename T> struct TryWrap;
+template <typename R, typename... A> struct TryWrap<R (*)(A...)> {
+  static auto wrap(const char *name, R (*fn)(A...)) {
+    return [name, fn](A... args) { return _Try(name, fn(args...)); };
   }
+};
+/// C++ error checking macro
+#define TRY(fn) TryWrap<decltype(&fn)>::wrap(#fn, &fn)
 
 /// C++ non-owned wasmedge string
 struct StringView {
   WasmEdge_String ffi{{}, {}};
   StringView() {}
   StringView(std::string_view s)
-      : ffi{WasmEdge_StringWrap(s.data(), s.size())} {}
+      : ffi{WasmEdge_StringWrap(s.data(), static_cast<uint32_t>(s.size()))} {}
   operator WasmEdge_String() const { return ffi; }
 };
 
@@ -133,7 +140,7 @@ void callWasm(const char *fn_name) {
   WasmEdge_ModuleInstanceAddFunction(
       host, StringView{"hostFnCheck"},
       WasmEdge_FunctionInstanceCreate(
-          TRY(WasmEdge_FunctionTypeCreate)(nullptr, 0, nullptr, 0),
+          Ptr{TRY(WasmEdge_FunctionTypeCreate)(nullptr, 0, nullptr, 0)},
           [](void *, const WasmEdge_CallingFrameContext *frame,
              const WasmEdge_Value *, WasmEdge_Value *) {
             hostFnCheck(frame);
@@ -143,7 +150,7 @@ void callWasm(const char *fn_name) {
   WasmEdge_ModuleInstanceAddFunction(
       host, StringView{"hostFnOverwrite"},
       WasmEdge_FunctionInstanceCreate(
-          TRY(WasmEdge_FunctionTypeCreate)(nullptr, 0, nullptr, 0),
+          Ptr{TRY(WasmEdge_FunctionTypeCreate)(nullptr, 0, nullptr, 0)},
           [](void *, const WasmEdge_CallingFrameContext *,
              const WasmEdge_Value *, WasmEdge_Value *) {
             hostFnOverwrite();
@@ -189,3 +196,4 @@ TEST(APIAOTNestedVMTest, NestedVM) {
   EXPECT_EQ(called_hostFnCheck, 2);
   EXPECT_EQ(called_hostFnOverwrite, 1);
 }
+} // namespace

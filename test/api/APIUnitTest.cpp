@@ -223,64 +223,64 @@ char *Preopens[] = {&PreopensVec[0], &PreopensVec[12], &PreopensVec[21],
                     &PreopensVec[32], &PreopensVec[49]};
 char TPath[] = "apiTestData/test.wasm";
 
-void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
+void hexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
   std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
   TFile.write(reinterpret_cast<const char *>(Wasm.data()),
               static_cast<std::streamsize>(Wasm.size()));
   TFile.close();
 }
 
-WasmEdge_Result ExternAdd(void *, const WasmEdge_CallingFrameContext *,
+WasmEdge_Result externAdd(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
-  int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
+  const int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
   Out[0] = WasmEdge_ValueGenI32(*Val1 + Val2);
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternSub(void *, const WasmEdge_CallingFrameContext *,
+WasmEdge_Result externSub(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
-  int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
+  const int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
   Out[0] = WasmEdge_ValueGenI32(*Val1 - Val2);
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternMul(void *, const WasmEdge_CallingFrameContext *,
+WasmEdge_Result externMul(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
-  int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
+  const int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
   Out[0] = WasmEdge_ValueGenI32(*Val1 * Val2);
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternDiv(void *, const WasmEdge_CallingFrameContext *,
+WasmEdge_Result externDiv(void *, const WasmEdge_CallingFrameContext *,
                           const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // {externref, i32} -> {i32}
   int32_t *Val1 = static_cast<int32_t *>(WasmEdge_ValueGetExternRef(In[0]));
-  int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
+  const int32_t Val2 = WasmEdge_ValueGetI32(In[1]);
   Out[0] = WasmEdge_ValueGenI32(*Val1 / Val2);
   return WasmEdge_Result_Success;
 }
 
-WasmEdge_Result ExternTerm(void *, const WasmEdge_CallingFrameContext *,
+WasmEdge_Result externTerm(void *, const WasmEdge_CallingFrameContext *,
                            const WasmEdge_Value *, WasmEdge_Value *Out) {
   // {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(1234);
   return WasmEdge_Result_Terminate;
 }
 
-WasmEdge_Result ExternFail(void *, const WasmEdge_CallingFrameContext *,
+WasmEdge_Result externFail(void *, const WasmEdge_CallingFrameContext *,
                            const WasmEdge_Value *, WasmEdge_Value *Out) {
   // {} -> {i32}
   Out[0] = WasmEdge_ValueGenI32(5678);
   return WasmEdge_ResultGen(WasmEdge_ErrCategory_UserLevelError, 0x5678);
 }
 
-WasmEdge_Result ExternWrap(void *This, void *Data,
+WasmEdge_Result externWrap(void *This, void *Data,
                            const WasmEdge_CallingFrameContext *MemCxt,
                            const WasmEdge_Value *In, const uint32_t,
                            WasmEdge_Value *Out, const uint32_t) {
@@ -310,10 +310,10 @@ WasmEdge_ModuleInstanceContext *createExternModule
   HostName = WasmEdge_StringCreateByCString("func-add");
   if (IsWrap) {
     HostFunc = WasmEdge_FunctionInstanceCreateBinding(
-        HostFType, ExternWrap, reinterpret_cast<void *>(ExternAdd), nullptr, 0);
+        HostFType, externWrap, reinterpret_cast<void *>(externAdd), nullptr, 0);
   } else {
     HostFunc =
-        WasmEdge_FunctionInstanceCreate(HostFType, ExternAdd, nullptr, 0);
+        WasmEdge_FunctionInstanceCreate(HostFType, externAdd, nullptr, 0);
   }
   WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
@@ -321,10 +321,10 @@ WasmEdge_ModuleInstanceContext *createExternModule
   HostName = WasmEdge_StringCreateByCString("func-sub");
   if (IsWrap) {
     HostFunc = WasmEdge_FunctionInstanceCreateBinding(
-        HostFType, ExternWrap, reinterpret_cast<void *>(ExternSub), nullptr, 0);
+        HostFType, externWrap, reinterpret_cast<void *>(externSub), nullptr, 0);
   } else {
     HostFunc =
-        WasmEdge_FunctionInstanceCreate(HostFType, ExternSub, nullptr, 0);
+        WasmEdge_FunctionInstanceCreate(HostFType, externSub, nullptr, 0);
   }
   WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
@@ -332,10 +332,10 @@ WasmEdge_ModuleInstanceContext *createExternModule
   HostName = WasmEdge_StringCreateByCString("func-mul");
   if (IsWrap) {
     HostFunc = WasmEdge_FunctionInstanceCreateBinding(
-        HostFType, ExternWrap, reinterpret_cast<void *>(ExternMul), nullptr, 0);
+        HostFType, externWrap, reinterpret_cast<void *>(externMul), nullptr, 0);
   } else {
     HostFunc =
-        WasmEdge_FunctionInstanceCreate(HostFType, ExternMul, nullptr, 0);
+        WasmEdge_FunctionInstanceCreate(HostFType, externMul, nullptr, 0);
   }
   WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
@@ -343,10 +343,10 @@ WasmEdge_ModuleInstanceContext *createExternModule
   HostName = WasmEdge_StringCreateByCString("func-div");
   if (IsWrap) {
     HostFunc = WasmEdge_FunctionInstanceCreateBinding(
-        HostFType, ExternWrap, reinterpret_cast<void *>(ExternDiv), nullptr, 0);
+        HostFType, externWrap, reinterpret_cast<void *>(externDiv), nullptr, 0);
   } else {
     HostFunc =
-        WasmEdge_FunctionInstanceCreate(HostFType, ExternDiv, nullptr, 0);
+        WasmEdge_FunctionInstanceCreate(HostFType, externDiv, nullptr, 0);
   }
   WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
@@ -358,11 +358,11 @@ WasmEdge_ModuleInstanceContext *createExternModule
   HostName = WasmEdge_StringCreateByCString("func-term");
   if (IsWrap) {
     HostFunc = WasmEdge_FunctionInstanceCreateBinding(
-        HostFType, ExternWrap, reinterpret_cast<void *>(ExternTerm), nullptr,
+        HostFType, externWrap, reinterpret_cast<void *>(externTerm), nullptr,
         0);
   } else {
     HostFunc =
-        WasmEdge_FunctionInstanceCreate(HostFType, ExternTerm, nullptr, 0);
+        WasmEdge_FunctionInstanceCreate(HostFType, externTerm, nullptr, 0);
   }
   WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
@@ -370,11 +370,11 @@ WasmEdge_ModuleInstanceContext *createExternModule
   HostName = WasmEdge_StringCreateByCString("func-fail");
   if (IsWrap) {
     HostFunc = WasmEdge_FunctionInstanceCreateBinding(
-        HostFType, ExternWrap, reinterpret_cast<void *>(ExternFail), nullptr,
+        HostFType, externWrap, reinterpret_cast<void *>(externFail), nullptr,
         0);
   } else {
     HostFunc =
-        WasmEdge_FunctionInstanceCreate(HostFType, ExternFail, nullptr, 0);
+        WasmEdge_FunctionInstanceCreate(HostFType, externFail, nullptr, 0);
   }
   WasmEdge_ModuleInstanceAddFunction(HostMod, HostName, HostFunc);
   WasmEdge_StringDelete(HostName);
@@ -776,10 +776,10 @@ TEST(APICoreTest, FunctionType) {
 }
 
 TEST(APICoreTest, TableType) {
-  WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false, /* Min */ 10,
-                         /* Max */ 20};
-  WasmEdge_Limit Lim2 = {/* HasMax */ false, /* Shared */ false, /* Min */ 30,
-                         /* Max */ 30};
+  const WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false,
+                               /* Min */ 10, /* Max */ 20};
+  const WasmEdge_Limit Lim2 = {/* HasMax */ false, /* Shared */ false,
+                               /* Min */ 30, /* Max */ 30};
   WasmEdge_TableTypeContext *TType =
       WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), Lim1);
   EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(WasmEdge_TableTypeGetRefType(TType)));
@@ -797,10 +797,10 @@ TEST(APICoreTest, TableType) {
 }
 
 TEST(APICoreTest, MemoryType) {
-  WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false, /* Min */ 10,
-                         /* Max */ 20};
-  WasmEdge_Limit Lim2 = {/* HasMax */ false, /* Shared */ false, /* Min */ 30,
-                         /* Max */ 30};
+  const WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false,
+                               /* Min */ 10, /* Max */ 20};
+  const WasmEdge_Limit Lim2 = {/* HasMax */ false, /* Shared */ false,
+                               /* Min */ 30, /* Max */ 30};
   WasmEdge_MemoryTypeContext *MType = WasmEdge_MemoryTypeCreate(Lim1);
   EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(MType), Lim1));
   EXPECT_FALSE(
@@ -1253,7 +1253,7 @@ TEST(APICoreTest, Compiler) {
   Compiler = WasmEdge_CompilerCreate(Conf);
 
   // Prepare TPath
-  HexToFile(TestWasm, TPath);
+  hexToFile(TestWasm, TPath);
   // Compile file for universal WASM output format
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
@@ -1381,7 +1381,7 @@ TEST(APICoreTest, Loader) {
   Loader = WasmEdge_LoaderCreate(Conf);
 
   // Prepare TPath
-  HexToFile(TestWasm, TPath);
+  hexToFile(TestWasm, TPath);
   // Parse from file
   Mod = nullptr;
   EXPECT_TRUE(
@@ -1452,7 +1452,7 @@ TEST(APICoreTest, Validator) {
   Validator = WasmEdge_ValidatorCreate(Conf);
 
   // Prepare TPath
-  HexToFile(TestWasm, TPath);
+  hexToFile(TestWasm, TPath);
   // Load and parse file
   WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
   EXPECT_NE(Mod, nullptr);
@@ -1482,7 +1482,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
 
   // Prepare TPath
-  HexToFile(TestWasm, TPath);
+  hexToFile(TestWasm, TPath);
   // Load and validate file
   WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
   EXPECT_NE(Mod, nullptr);
@@ -1789,7 +1789,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   WasmEdge_ValType Result[1] = {WasmEdge_ValTypeGenI32()};
   WasmEdge_FunctionTypeContext *FuncType =
       WasmEdge_FunctionTypeCreate(nullptr, 0, Result, 1);
-  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, ExternTerm, nullptr, 0);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externTerm, nullptr, 0);
   WasmEdge_FunctionTypeDelete(FuncType);
   EXPECT_NE(FuncCxt, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(
@@ -1843,7 +1843,7 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 15), 0U);
 
   // Prepare TPath
-  HexToFile(TestWasm, TPath);
+  hexToFile(TestWasm, TPath);
   // Register host module and instantiate wasm module
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
   EXPECT_NE(HostMod, nullptr);
@@ -2009,11 +2009,11 @@ TEST(APICoreTest, Instance) {
 
   // Function instance creation
   // host function "func-add": {externref, i32} -> {i32}
-  FuncCxt = WasmEdge_FunctionInstanceCreate(nullptr, ExternAdd, nullptr, 0);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(nullptr, externAdd, nullptr, 0);
   EXPECT_EQ(FuncCxt, nullptr);
   FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, nullptr, nullptr, 0);
   EXPECT_EQ(FuncCxt, nullptr);
-  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, ExternAdd, nullptr, 0);
+  FuncCxt = WasmEdge_FunctionInstanceCreate(FuncType, externAdd, nullptr, 0);
   EXPECT_NE(FuncCxt, nullptr);
   WasmEdge_FunctionInstanceDelete(FuncCxt);
   EXPECT_TRUE(true);
@@ -2021,13 +2021,13 @@ TEST(APICoreTest, Instance) {
   // Function instance create binding
   // host function for binding "func-add-binding": {externref, i32} -> {i32}
   FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
-      nullptr, ExternWrap, reinterpret_cast<void *>(ExternAdd), nullptr, 0);
+      nullptr, externWrap, reinterpret_cast<void *>(externAdd), nullptr, 0);
   EXPECT_EQ(FuncCxt, nullptr);
   FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
-      FuncType, nullptr, reinterpret_cast<void *>(ExternAdd), nullptr, 0);
+      FuncType, nullptr, reinterpret_cast<void *>(externAdd), nullptr, 0);
   EXPECT_EQ(FuncCxt, nullptr);
   FuncCxt = WasmEdge_FunctionInstanceCreateBinding(
-      FuncType, ExternWrap, reinterpret_cast<void *>(ExternAdd), nullptr, 0);
+      FuncType, externWrap, reinterpret_cast<void *>(externAdd), nullptr, 0);
   EXPECT_NE(FuncCxt, nullptr);
   WasmEdge_FunctionTypeDelete(FuncType);
 
@@ -2432,7 +2432,7 @@ TEST(APICoreTest, ModuleInstance) {
   Param[1] = WasmEdge_ValTypeGenI32();
   Result[0] = WasmEdge_ValTypeGenI32();
   HostFType = WasmEdge_FunctionTypeCreate(Param, 2, Result, 1);
-  HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, ExternAdd, nullptr, 0);
+  HostFunc = WasmEdge_FunctionInstanceCreate(HostFType, externAdd, nullptr, 0);
   EXPECT_NE(HostFunc, nullptr);
   HostName = WasmEdge_StringCreateByCString("func-add");
   WasmEdge_ModuleInstanceAddFunction(nullptr, HostName, HostFunc);
@@ -2445,8 +2445,8 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_StringDelete(HostName);
 
   // Add host table "table"
-  WasmEdge_Limit TabLimit = {/* HasMax */ true, /* Shared */ false,
-                             /* Min */ 10, /* Max */ 20};
+  const WasmEdge_Limit TabLimit = {/* HasMax */ true, /* Shared */ false,
+                                   /* Min */ 10, /* Max */ 20};
   HostTType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), TabLimit);
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
   EXPECT_NE(HostTable, nullptr);
@@ -2461,8 +2461,9 @@ TEST(APICoreTest, ModuleInstance) {
   WasmEdge_StringDelete(HostName);
 
   // Add host memory "memory"
-  WasmEdge_Limit MemLimit = {/* HasMax */ true, /* Shared */ false, /* Min */ 1,
-                             /* Max */ 2};
+  const WasmEdge_Limit MemLimit = {/* HasMax */ true, /* Shared */ false,
+                                   /* Min */ 1,
+                                   /* Max */ 2};
   HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   EXPECT_NE(HostMemory, nullptr);
@@ -2597,7 +2598,7 @@ TEST(APICoreTest, Async) {
   P[1] = WasmEdge_ValueGenI32(456);
 
   // Prepare TPath
-  HexToFile(TestWasm, TPath);
+  hexToFile(TestWasm, TPath);
   // WASM from file
   std::vector<uint8_t> Buf;
   EXPECT_TRUE(readToVector(TPath, Buf));
@@ -3135,7 +3136,7 @@ TEST(APICoreTest, VM) {
   const WasmEdge_FunctionTypeContext *FuncTypes[15];
 
   // Prepare TPath
-  HexToFile(TestWasm, TPath);
+  hexToFile(TestWasm, TPath);
   // WASM from file
   std::vector<uint8_t> Buf;
   EXPECT_TRUE(readToVector(TPath, Buf));

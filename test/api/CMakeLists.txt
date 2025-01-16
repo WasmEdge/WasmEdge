@@ -78,4 +78,16 @@ if(WASMEDGE_USE_LLVM)
     wasmedgeAPITestHelpers
     wasmedge_shared
   )
+
+  wasmedge_add_executable(wasmedgeAPIAOTNestedVMTests
+    APIAOTNestedVMTest.cpp
+  )
+
+  add_test(wasmedgeAPIAOTNestedVMTests wasmedgeAPIAOTNestedVMTests)
+
+  target_link_libraries(wasmedgeAPIAOTNestedVMTests
+    PRIVATE
+    wasmedgeAPITestHelpers
+    wasmedge_shared
+  )
 endif()

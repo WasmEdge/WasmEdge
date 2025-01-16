@@ -13,6 +13,44 @@
 namespace WasmEdge {
 namespace Executor {
 
+Executor::SavedThreadLocal::SavedThreadLocal(
+    Executor &Ex, Runtime::StackManager &StackMgr,
+    const Runtime::Instance::FunctionInstance &Func) noexcept {
+  // Prepare the execution context.
+  auto *ModInst =
+      const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());
+  for (uint32_t I = 0; I < ModInst->getMemoryNum(); ++I) {
+    // Update the memory pointers to prevent from the address change due to
+    // the page growing.
+    auto MemoryPtr =
+        reinterpret_cast<std::atomic<uint8_t *> *>(&(ModInst->MemoryPtrs[I]));
+    uint8_t *const DataPtr = (*(ModInst->getMemory(I)))->getDataPtr();
+    std::atomic_store_explicit(MemoryPtr, DataPtr, std::memory_order_relaxed);
+  }
+  SavedThis = This;
+  This = &Ex;
+
+  SavedExecutionContext = ExecutionContext;
+  ExecutionContext.StopToken = &Ex.StopToken;
+  ExecutionContext.Memories = ModInst->MemoryPtrs.data();
+  ExecutionContext.Globals = ModInst->GlobalPtrs.data();
+  if (Ex.Stat) {
+    ExecutionContext.InstrCount = &Ex.Stat->getInstrCountRef();
+    ExecutionContext.CostTable = Ex.Stat->getCostTable().data();
+    ExecutionContext.Gas = &Ex.Stat->getTotalCostRef();
+    ExecutionContext.GasLimit = Ex.Stat->getCostLimit();
+  }
+
+  SavedCurrentStack = CurrentStack;
+  CurrentStack = &StackMgr;
+}
+
+Executor::SavedThreadLocal::~SavedThreadLocal() noexcept {
+  CurrentStack = SavedCurrentStack;
+  ExecutionContext = SavedExecutionContext;
+  This = SavedThis;
+}
+
 Expect<AST::InstrView::iterator>
 Executor::enterFunction(Runtime::StackManager &StackMgr,
                         const Runtime::Instance::FunctionInstance &Func,
@@ -123,24 +161,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Prepare arguments.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
-
-    SavedThreadLocal SavedThreadLocal;
-
-    {
-      // Prepare the execution context.
-      auto *ModInst =
-          const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());
-      for (uint32_t I = 0; I < ModInst->getMemoryNum(); ++I) {
-        // Update the memory pointers to prevent from the address change due to
-        // the page growing.
-        auto MemoryPtr = reinterpret_cast<std::atomic<uint8_t *> *>(
-            &(ModInst->MemoryPtrs[I]));
-        uint8_t *const DataPtr = (*(ModInst->getMemory(I)))->getDataPtr();
-        std::atomic_store_explicit(MemoryPtr, DataPtr,
-                                   std::memory_order_relaxed);
-      }
-      prepare(StackMgr, ModInst->MemoryPtrs.data(), ModInst->GlobalPtrs.data());
-    }
+    SavedThreadLocal Saved(*this, StackMgr, Func);
 
     ErrCode Err;
     try {

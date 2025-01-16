@@ -15,13 +15,14 @@
 #include <stack>
 
 /// C++ overloaded error checking functions
-void _try(const char *name, const WasmEdge_Result &r) {
+/// `try` is keyword, `_try` is reserved in msvc
+void _Try(const char *name, const WasmEdge_Result &r) {
   if (not WasmEdge_ResultOK(r)) {
     throw std::runtime_error{
         fmt::format("{}: {}", name, WasmEdge_ResultGetMessage(r))};
   }
 }
-template <typename T> T *_try(const char *name, T *r) {
+template <typename T> T *_Try(const char *name, T *r) {
   if (r == nullptr) {
     throw std::runtime_error{name};
   }
@@ -30,7 +31,7 @@ template <typename T> T *_try(const char *name, T *r) {
 /// C++ error checking macro
 #define TRY(fn)                                                                \
   [](auto &&...args) {                                                         \
-    return _try(#fn, fn(std::forward<decltype(args)>(args)...));               \
+    return _Try(#fn, fn(std::forward<decltype(args)>(args)...));               \
   }
 
 /// C++ non-owned wasmedge string

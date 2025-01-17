@@ -619,6 +619,7 @@ TEST(HostMockTest, WasmEdgeImage) {
 
   WasmEdge::Host::WasmEdgeImageMock::LoadJPG ImageLoadJPG;
   WasmEdge::Host::WasmEdgeImageMock::LoadPNG ImageLoadPNG;
+  WasmEdge::Host::WasmEdgeImageMock::LoadImage ImageLoadImage;
 
   EXPECT_TRUE(ImageLoadJPG.run(
       CallFrame, std::array<WasmEdge::ValVariant, 7>{0, 0, 0, 0, 0, 0, 0},
@@ -628,10 +629,14 @@ TEST(HostMockTest, WasmEdgeImage) {
       CallFrame, std::array<WasmEdge::ValVariant, 7>{0, 0, 0, 0, 0, 0, 0},
       Errno));
   EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
+  EXPECT_TRUE(ImageLoadImage.run(
+      CallFrame, std::array<WasmEdge::ValVariant, 7>{0, 0, 0, 0, 0, 0, 0},
+      Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(), 1U);
 
   WasmEdge::Host::WasmEdgeImageModuleMock ImageModule;
   EXPECT_EQ(ImageModule.getModuleName(), "wasmedge_image");
-  EXPECT_EQ(ImageModule.getFuncExportNum(), 2U);
+  EXPECT_EQ(ImageModule.getFuncExportNum(), 3U);
 }
 
 GTEST_API_ int main(int argc, char **argv) {

@@ -120,7 +120,7 @@ jobs:
       # DO NOT skip the whole job to prevent descending jobs to be skipped
       - if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
         name: Bake and Push
-        uses: docker/bake-action@v5
+        uses: docker/bake-action@v6
         with:
           files: utils/docker/docker-bake.ci-image-base.hcl
           push: ${{ github.event_name != 'pull_request' }}
@@ -159,7 +159,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Bake and Push
-        uses: docker/bake-action@v5
+        uses: docker/bake-action@v6
         with:
           files: utils/docker/docker-bake.ubuntu.hcl
           targets: ${{ matrix.targets }}
@@ -215,7 +215,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Bake and Push
-        uses: docker/bake-action@v5
+        uses: docker/bake-action@v6
         with:
           files: utils/docker/docker-bake.manylinux.hcl
           targets: ${{ matrix.targets }}

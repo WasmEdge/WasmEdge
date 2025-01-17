@@ -14,7 +14,7 @@ struct WasiNNEnvironment;
 namespace WasmEdge::Host::WASINN::NeuralSpeed {
 struct Graph {};
 struct Context {
-  Context(size_t, Graph &) noexcept {}
+  Context(uint32_t, Graph &) noexcept {}
 };
 
 struct Environ {};
@@ -34,7 +34,4 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
                                 uint32_t &BytesWritten) noexcept;
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept;
-
 } // namespace WasmEdge::Host::WASINN::NeuralSpeed

@@ -311,7 +311,8 @@ function(wasmedge_setup_simdjson)
       simdjson
       GIT_REPOSITORY https://github.com/simdjson/simdjson.git
       GIT_TAG  tags/v3.10.0
-      GIT_SHALLOW TRUE)
+      GIT_SHALLOW TRUE
+    )
     set(SIMDJSON_DEVELOPER_MODE OFF CACHE BOOL "SIMDJSON developer mode" FORCE)
     FetchContent_MakeAvailable(simdjson)
     set_property(TARGET simdjson PROPERTY POSITION_INDEPENDENT_CODE ON)
@@ -397,4 +398,23 @@ function(wasmedge_setup_spdlog)
     message(STATUS "Downloading spdlog source -- done")
     wasmedge_setup_target(spdlog)
   endif()
+endfunction()
+
+function(wasmedge_setup_stb_image)
+  if(TARGET wasmedgeDepsSTBImage)
+    return()
+  endif()
+  # setup stb_image
+  include(FetchContent)
+  message(STATUS "Downloading stb_image source")
+  FetchContent_Declare(
+    stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG        5c205738c191bcb0abc65c4febfa9bd25ff35234
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(stb)
+  message(STATUS "Downloading stb_image source -- done")
+  add_library(wasmedgeDepsSTBImage INTERFACE)
+  target_include_directories(wasmedgeDepsSTBImage SYSTEM INTERFACE ${stb_SOURCE_DIR})
 endfunction()

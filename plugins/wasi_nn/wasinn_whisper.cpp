@@ -839,8 +839,8 @@ Expect<ErrNo> handleTranslationConfig(whisper_context *WhisperCtx,
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
                    [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
   // Add a new graph.
-  Env.NNGraph.emplace_back(Backend::Whisper);
-  auto &GraphRef = Env.NNGraph.back().get<Graph>();
+  uint32_t GId = Env.newGraph(Backend::Whisper);
+  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
 
   // Initialize the parameters.
   auto CParam = whisper_context_default_params();
@@ -860,7 +860,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     auto Res = parseMetadata(GraphRef.WhisperConfig, Metadata);
     if (Res != ErrNo::Success) {
       spdlog::error("[WASI-NN] Whisper backend: Failed to parse metadata."sv);
-      Env.NNGraph.pop_back();
+      Env.deleteGraph(GId);
       return Res;
     }
   }
@@ -893,7 +893,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     spdlog::error(
         "[WASI-NN] Whisper backend: Error: unable to init whisper context from "
         "model."sv);
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
   if (GraphRef.WhisperConfig.EnableDebugLog) {
@@ -905,12 +905,13 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   auto ResTranslateConfig =
       handleTranslationConfig(GraphRef.WhisperCtx, GraphRef.WhisperConfig);
   if (ResTranslateConfig != ErrNo::Success) {
-    Env.NNGraph.pop_back();
+    Env.deleteGraph(GId);
     return ResTranslateConfig;
   }
 
   // Store the loaded graph.
-  GraphId = Env.NNGraph.size() - 1;
+  GraphId = GId;
+  Env.NNGraph[GId].setReady();
 
   return ErrNo::Success;
 }
@@ -921,8 +922,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   if (GraphRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: initExecCtx"sv);
   }
-  Env.NNContext.emplace_back(GraphId, Env.NNGraph[GraphId]);
-  ContextId = Env.NNContext.size() - 1;
+  ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   CxtRef.WhisperParams = whisper_full_default_params(
       whisper_sampling_strategy::WHISPER_SAMPLING_BEAM_SEARCH);
@@ -931,6 +931,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
     spdlog::info("[WASI-NN] Whisper backend: whisper_system_info: {}"sv,
                  whisper_print_system_info());
   }
+  Env.NNContext[ContextId].setReady();
   if (GraphRef.WhisperConfig.EnableDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: initExecCtx...Done"sv);
   }
@@ -1092,13 +1093,30 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
           "[WASI-NN][Debug] Whisper backend: unload: free whisper context...Done"sv);
     }
   }
-  Env.NNGraph.erase(Env.NNGraph.begin() + GraphId);
+  Env.deleteGraph(GraphId);
+  Env.mdRemoveById(GraphId);
   if (IsDebugLog) {
     spdlog::info("[WASI-NN][Debug] Whisper backend: unload...Done"sv);
   }
   return ErrNo::Success;
 }
 
+Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
+                              uint32_t ContextId) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  const bool IsDebugLog = CxtRef.WhisperConfig.EnableDebugLog;
+  if (IsDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] Whisper backend: finalize_execution_context"sv);
+  }
+  // TODO: Free resources
+  Env.deleteContext(ContextId);
+  if (IsDebugLog) {
+    spdlog::info(
+        "[WASI-NN][Debug] Whisper backend: finalize_execution_context...Done"sv);
+  }
+  return ErrNo::Success;
+}
 #else
 
 namespace {
@@ -1128,6 +1146,9 @@ Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 

@@ -6,11 +6,11 @@ This is an example for demonstrate how to use wasi-crypto plugin of WasmEdge in 
 
 ### Install Rust
 
-Follow the instructions below to install rust and wasm32-wasi target.
+Follow the instructions below to install rust and wasm32-wasip1 target.
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-rustup target add wasm32-wasi
+rustup target add wasm32-wasip1
 ```
 
 ### Install WasmEdge and WASI-crypto plugin
@@ -33,17 +33,17 @@ export WASMEDGE_PLUGIN_PATH=$PWD/plugins/wasi_crypto
 ## Build the example
 
 ```bash
-cargo b --target wasm32-wasi
+cargo b --target wasm32-wasip1
 ```
 
-Then we get `target/wasm32-wasi/debug/wasi-crypto-example.wasm`.
+Then we get `target/wasm32-wasip1/debug/wasi-crypto-example.wasm`.
 
 ## Run the example
 
 We can run this example with `wasmedge` like
 
 ```bash
-wasmedge target/wasm32-wasi/debug/wasi-crypto-example.wasm
+wasmedge target/wasm32-wasip1/debug/wasi-crypto-example.wasm
 ```
 
 This example should run successfully and print out the signatures as follows.

@@ -50,15 +50,15 @@ struct Graph {
   PyObject *ParamsInferCode = nullptr;
 };
 struct Context {
-  Context(size_t Gid, Graph &) noexcept : GraphId(Gid) {}
-  size_t GraphId;
+  Context(uint32_t Gid, Graph &) noexcept : GraphId(Gid) {}
+  uint32_t GraphId;
   std::string Inputs;
   std::vector<uint8_t> Outputs;
 };
 #else
 struct Graph {};
 struct Context {
-  Context(size_t, Graph &) noexcept {}
+  Context(uint32_t, Graph &) noexcept {}
 };
 #endif
 

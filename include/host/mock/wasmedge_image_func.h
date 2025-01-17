@@ -33,6 +33,15 @@ public:
   }
 };
 
+class LoadImage : public Runtime::HostFunction<LoadImage> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t, uint32_t,
+                        uint32_t, uint32_t, uint32_t, uint32_t, uint32_t) {
+    printPluginMock("WasmEdge-Image"sv);
+    return kWasmEdgeImageError;
+  }
+};
+
 } // namespace WasmEdgeImageMock
 } // namespace Host
 } // namespace WasmEdge

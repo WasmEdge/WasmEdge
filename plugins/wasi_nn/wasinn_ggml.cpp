@@ -22,6 +22,7 @@
 #include <filesystem>
 #include <optional>
 #include <sstream>
+#include <vector>
 #include <tuple>
 #endif
 
@@ -104,6 +105,15 @@ void setupCommonParams(Graph &GraphRef, common_params &Params) noexcept {
   Params.cpuparams.n_threads = static_cast<int32_t>(GraphRef.Threads);
   Params.cpuparams_batch.n_threads = static_cast<int32_t>(GraphRef.Threads);
   Params.embedding = GraphRef.Embedding;
+  Params.sampling.temp = static_cast<float>(GraphRef.Temp);
+  Params.sampling.top_p = static_cast<float>(GraphRef.TopP);
+  Params.sampling.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
+  Params.sampling.penalty_present =
+      static_cast<float>(GraphRef.PresencePenalty);
+  Params.sampling.grammar = GraphRef.Grammar;
+  Params.sampling.seed = static_cast<uint32_t>(GraphRef.Seed);
+  Params.sampling.top_k = static_cast<int32_t>(GraphRef.TopK);
+  return ErrNo::Success;
   setupSamplerParams(GraphRef, Params.sampling);
 }
 
@@ -180,7 +190,60 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the enable-debug-log option."sv)
     }
   }
-
+  if (Doc.at_key("embedding").error() == simdjson::SUCCESS) {
+    auto Err = Doc["embedding"].get<bool>().get(GraphRef.Embedding);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the embedding option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("n-predict").error() == simdjson::SUCCESS) {
+    auto Err = Doc["n-predict"].get<int64_t>().get(GraphRef.NPredict);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the n-predict option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("top-k").error() == simdjson::SUCCESS) {
+    auto Err = Doc["top-k"].get<int32_t>().get(GraphRef.TopK);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the top-k option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("reverse-prompt").error() == simdjson::SUCCESS) {
+    std::string_view ReversePrompt;
+    auto Err = Doc["reverse-prompt"].get<std::string_view>().get(ReversePrompt);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the reverse-prompt option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.ReversePrompt = ReversePrompt;
+  }
+  if (Doc.at_key("mmproj").error() == simdjson::SUCCESS) {
+    std::string_view MMProjModelPath;
+    auto Err = Doc["mmproj"].get<std::string_view>().get(MMProjModelPath);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the mmproj option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.MMProjModelPath = MMProjModelPath;
+  }
+  if (Doc.at_key("image").error() == simdjson::SUCCESS) {
+    std::string_view ImagePath;
+    auto Err = Doc["image"].get<std::string_view>().get(ImagePath);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the image option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.ImagePath = ImagePath;
+  }
   // The model parameters.
   if (Doc.at_key("main-gpu").error() == simdjson::SUCCESS) {
     auto Err = Doc["main-gpu"].get<int64_t>().get(GraphRef.MainGPU);
@@ -944,21 +1007,14 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.UBatchSize = ContextParamsDefault.n_ubatch;
   GraphRef.Threads = ContextParamsDefault.n_threads;
   // Initialize the sampling parameters.
-  const common_params_sampling SamplerParamsDefault;
-  GraphRef.Temp = SamplerParamsDefault.temp;
-  GraphRef.TopP = SamplerParamsDefault.top_p;
-  GraphRef.RepeatPenalty = SamplerParamsDefault.penalty_repeat;
-  GraphRef.PresencePenalty = SamplerParamsDefault.penalty_present;
-  GraphRef.FrequencyPenalty = SamplerParamsDefault.penalty_freq;
-  GraphRef.Grammar = SamplerParamsDefault.grammar;
-  // Initialize the config parameters.
-  const common_params CommonParamsDefault;
-  GraphRef.Conf.StreamStdout = false;
-  GraphRef.Conf.EmbdNormalize =
-      static_cast<EmbdNormalizeType>(CommonParamsDefault.embd_normalize);
-  GraphRef.Conf.NPredict = ContextParamsDefault.n_ctx;
-  GraphRef.Conf.ReversePrompt = ""sv;
-  GraphRef.Conf.ImagePath = ""sv;
+  const common_params_sampling SamplerDefault;
+  GraphRef.Temp = SamplerDefault.temp;
+  GraphRef.TopP = SamplerDefault.top_p;
+  GraphRef.RepeatPenalty = SamplerDefault.penalty_repeat;
+  GraphRef.PresencePenalty = SamplerDefault.penalty_present;
+  GraphRef.FrequencyPenalty = SamplerDefault.penalty_freq;
+  GraphRef.Grammar = SamplerDefault.grammar;
+  GraphRef.TopK = SamplerDefault.top_k;
 
   // Set llama log callback.
   llama_log_set(LlamaLogCallback, &GraphRef);

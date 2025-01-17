@@ -167,7 +167,7 @@ Expect<ErrNo> parseMetadata(Graph &GraphRef, const std::string &Metadata,
     }
   }
   if (Doc.at_key("top-k").error() == simdjson::SUCCESS) {
-    auto Err = Doc["top-k"].get<int64_t>().get(GraphRef.TopK);
+    auto Err = Doc["top-k"].get<int32_t>().get(GraphRef.TopK);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the top-k option."sv);

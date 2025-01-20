@@ -302,7 +302,13 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the threads option."sv)
     }
   }
-
+  if (Doc.at_key("top-k").error() == simdjson::SUCCESS) {
+    auto Err = Doc["top-k"].get<double>().get(GraphRef.TopK);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the top-k option."sv)
+    }
+  }
   // The sampling parameters.
   if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
     auto Err = Doc["temp"].get<double>().get(GraphRef.Temp);

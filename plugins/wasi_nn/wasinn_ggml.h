@@ -85,6 +85,7 @@ struct Graph {
   std::string Grammar;
   uint64_t Seed = LLAMA_DEFAULT_SEED;
   // Configs.
+  double TopK;
   LocalConfig Conf;
 };
 

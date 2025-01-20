@@ -84,6 +84,7 @@ void setupSamplerParams(Graph &GraphRef,
                         common_params_sampling &Sampling) noexcept {
   Sampling.temp = static_cast<float>(GraphRef.Temp);
   Sampling.top_p = static_cast<float>(GraphRef.TopP);
+  Sampling.top_k = static_cast<int32_t>(GraphRef.TopP);
   Sampling.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
   Sampling.penalty_present = static_cast<float>(GraphRef.PresencePenalty);
   Sampling.penalty_freq = static_cast<float>(GraphRef.FrequencyPenalty);
@@ -303,7 +304,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
   if (Doc.at_key("top-k").error() == simdjson::SUCCESS) {
-    auto Err = Doc["top-k"].get<double>().get(GraphRef.TopK);
+    auto Err = Doc["top-k"].get<int32_t>().get(GraphRef.TopK);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the top-k option."sv)
@@ -944,6 +945,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   const common_params_sampling SamplerParamsDefault;
   GraphRef.Temp = SamplerParamsDefault.temp;
   GraphRef.TopP = SamplerParamsDefault.top_p;
+  GraphRef.TopK = SamplerParamsDefault.top_k;
   GraphRef.RepeatPenalty = SamplerParamsDefault.penalty_repeat;
   GraphRef.PresencePenalty = SamplerParamsDefault.penalty_present;
   GraphRef.FrequencyPenalty = SamplerParamsDefault.penalty_freq;

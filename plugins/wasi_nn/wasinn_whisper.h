@@ -113,4 +113,6 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
                              uint32_t GraphId) noexcept;
+Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
+                                      uint32_t ContextId) noexcept;
 } // namespace WasmEdge::Host::WASINN::Whisper

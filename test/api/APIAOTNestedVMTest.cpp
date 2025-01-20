@@ -18,24 +18,24 @@
 namespace {
 /// C++ overloaded error checking functions
 /// `try` is keyword, `_try` is reserved in msvc
-void _Try(const char *name, const WasmEdge_Result &r) {
-  if (not WasmEdge_ResultOK(r)) {
+void _Try(const char *Name, const WasmEdge_Result &R) {
+  if (not WasmEdge_ResultOK(R)) {
     throw std::runtime_error{
-        fmt::format("{}: {}", name, WasmEdge_ResultGetMessage(r))};
+        fmt::format("{}: {}", Name, WasmEdge_ResultGetMessage(R))};
   }
 }
-template <typename T> T *_Try(const char *name, T *r) {
-  if (r == nullptr) {
-    throw std::runtime_error{name};
+template <typename T> T *_Try(const char *Name, T *R) {
+  if (R == nullptr) {
+    throw std::runtime_error{Name};
   }
-  return r;
+  return R;
 }
 /// C++ error checking function wrapper.
 /// Accepts same arguments `(A...)` as wrapped function instead of `(auto...)`.
 template <typename T> struct TryWrap;
 template <typename R, typename... A> struct TryWrap<R (*)(A...)> {
-  static auto wrap(const char *name, R (*fn)(A...)) {
-    return [name, fn](A... args) { return _Try(name, fn(args...)); };
+  static auto wrap(const char *Name, R (*Fn)(A...)) {
+    return [Name, Fn](A... Args) { return _Try(Name, Fn(Args...)); };
   }
 };
 /// C++ error checking macro
@@ -43,46 +43,46 @@ template <typename R, typename... A> struct TryWrap<R (*)(A...)> {
 
 /// C++ non-owned wasmedge string
 struct StringView {
-  WasmEdge_String ffi{{}, {}};
+  WasmEdge_String Ffi{{}, {}};
   StringView() {}
-  StringView(std::string_view s)
-      : ffi{WasmEdge_StringWrap(s.data(), static_cast<uint32_t>(s.size()))} {}
-  operator WasmEdge_String() const { return ffi; }
+  StringView(std::string_view S)
+      : Ffi{WasmEdge_StringWrap(S.data(), static_cast<uint32_t>(S.size()))} {}
+  operator WasmEdge_String() const { return Ffi; }
 };
 
 /// C++ overloaded wasmedge object deleters
-void deletePtr(WasmEdge_LoaderContext *ptr) { WasmEdge_LoaderDelete(ptr); }
-void deletePtr(WasmEdge_ASTModuleContext *ptr) {
-  WasmEdge_ASTModuleDelete(ptr);
+void deletePtr(WasmEdge_LoaderContext *Ptr) { WasmEdge_LoaderDelete(Ptr); }
+void deletePtr(WasmEdge_ASTModuleContext *Ptr) {
+  WasmEdge_ASTModuleDelete(Ptr);
 }
-void deletePtr(WasmEdge_ValidatorContext *ptr) {
-  WasmEdge_ValidatorDelete(ptr);
+void deletePtr(WasmEdge_ValidatorContext *Ptr) {
+  WasmEdge_ValidatorDelete(Ptr);
 }
-void deletePtr(WasmEdge_ExecutorContext *ptr) { WasmEdge_ExecutorDelete(ptr); }
-void deletePtr(WasmEdge_StoreContext *ptr) { WasmEdge_StoreDelete(ptr); }
-void deletePtr(WasmEdge_ModuleInstanceContext *ptr) {
-  WasmEdge_ModuleInstanceDelete(ptr);
+void deletePtr(WasmEdge_ExecutorContext *Ptr) { WasmEdge_ExecutorDelete(Ptr); }
+void deletePtr(WasmEdge_StoreContext *Ptr) { WasmEdge_StoreDelete(Ptr); }
+void deletePtr(WasmEdge_ModuleInstanceContext *Ptr) {
+  WasmEdge_ModuleInstanceDelete(Ptr);
 }
-void deletePtr(WasmEdge_FunctionTypeContext *ptr) {
-  WasmEdge_FunctionTypeDelete(ptr);
+void deletePtr(WasmEdge_FunctionTypeContext *Ptr) {
+  WasmEdge_FunctionTypeDelete(Ptr);
 }
-void deletePtr(WasmEdge_CompilerContext *ptr) { WasmEdge_CompilerDelete(ptr); }
+void deletePtr(WasmEdge_CompilerContext *Ptr) { WasmEdge_CompilerDelete(Ptr); }
 
 /// C++ owned wasmedge object pointer
 template <typename T> struct Ptr {
-  using Ffi = T *;
-  Ffi ffi{};
+  using Pffi = T *;
+  Pffi Ffi{};
   Ptr() {}
-  Ptr(Ffi ffi) : ffi{ffi} {}
+  Ptr(Pffi Ffi) : Ffi{Ffi} {}
   Ptr(const Ptr &) = delete;
-  Ptr(Ptr &&other) { std::swap(ffi, other.ffi); }
+  Ptr(Ptr &&Other) { std::swap(Ffi, Other.Ffi); }
   ~Ptr() {
-    if (ffi != nullptr) {
-      deletePtr(ffi);
+    if (Ffi != nullptr) {
+      deletePtr(Ffi);
     }
   }
-  operator Ffi() const { return ffi; }
-  operator Ffi *() { return &ffi; }
+  operator Pffi() const { return Ffi; }
+  operator Pffi *() { return &Ffi; }
 };
 
 /*
@@ -98,7 +98,7 @@ template <typename T> struct Ptr {
   )
 )
 */
-const std::array<uint8_t, 107> embedded_nested_wasm{
+const std::array<uint8_t, 107> EmbeddedNestedWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
     0x00, 0x00, 0x02, 0x29, 0x02, 0x03, 0x65, 0x6e, 0x76, 0x0b, 0x68, 0x6f,
     0x73, 0x74, 0x46, 0x6e, 0x43, 0x68, 0x65, 0x63, 0x6b, 0x00, 0x00, 0x03,
@@ -111,44 +111,44 @@ const std::array<uint8_t, 107> embedded_nested_wasm{
 };
 
 /// Test compiles embedded wasm to this file
-const char *path_nested_wasm_compiled = "aot_nested.wasm";
+const char *PathNestedWasmCompiled = "aot_nested.wasm";
 
 /// Forward declare host functions
-void hostFnCheck(const WasmEdge_CallingFrameContext *frame);
+void hostFnCheck(const WasmEdge_CallingFrameContext *Frame);
 void hostFnOverwrite();
 
 /// Compile embedded wasm
 void compileWasm() {
   TRY(WasmEdge_CompilerCompileFromBuffer)
-  (Ptr{TRY(WasmEdge_CompilerCreate)(nullptr)}, embedded_nested_wasm.data(),
-   embedded_nested_wasm.size(), path_nested_wasm_compiled);
+  (Ptr{TRY(WasmEdge_CompilerCreate)(nullptr)}, EmbeddedNestedWasm.data(),
+   EmbeddedNestedWasm.size(), PathNestedWasmCompiled);
 }
 
 /// Stack of nested VM
-thread_local std::stack<WasmEdge_ExecutorContext *> executors_stack;
+thread_local std::stack<WasmEdge_ExecutorContext *> ExecutorsStack;
 /// Call specified function from embedded wasm
-void callWasm(const char *fn_name) {
-  Ptr<WasmEdge_ASTModuleContext> module;
+void callWasm(const char *FnName) {
+  Ptr<WasmEdge_ASTModuleContext> Module;
   TRY(WasmEdge_LoaderParseFromFile)
-  (Ptr{TRY(WasmEdge_LoaderCreate)(nullptr)}, module, path_nested_wasm_compiled);
+  (Ptr{TRY(WasmEdge_LoaderCreate)(nullptr)}, Module, PathNestedWasmCompiled);
   TRY(WasmEdge_ValidatorValidate)
-  (Ptr{TRY(WasmEdge_ValidatorCreate)(nullptr)}, module);
+  (Ptr{TRY(WasmEdge_ValidatorCreate)(nullptr)}, Module);
 
-  static auto executor = Ptr{TRY(WasmEdge_ExecutorCreate)(nullptr, nullptr)};
-  auto store = Ptr{TRY(WasmEdge_StoreCreate)()};
-  auto host = Ptr{TRY(WasmEdge_ModuleInstanceCreate)(StringView{"env"})};
+  static auto Executor = Ptr{TRY(WasmEdge_ExecutorCreate)(nullptr, nullptr)};
+  auto Store = Ptr{TRY(WasmEdge_StoreCreate)()};
+  auto Host = Ptr{TRY(WasmEdge_ModuleInstanceCreate)(StringView{"env"})};
   WasmEdge_ModuleInstanceAddFunction(
-      host, StringView{"hostFnCheck"},
+      Host, StringView{"hostFnCheck"},
       WasmEdge_FunctionInstanceCreate(
           Ptr{TRY(WasmEdge_FunctionTypeCreate)(nullptr, 0, nullptr, 0)},
-          [](void *, const WasmEdge_CallingFrameContext *frame,
+          [](void *, const WasmEdge_CallingFrameContext *Frame,
              const WasmEdge_Value *, WasmEdge_Value *) {
-            hostFnCheck(frame);
+            hostFnCheck(Frame);
             return WasmEdge_Result_Success;
           },
           nullptr, 0));
   WasmEdge_ModuleInstanceAddFunction(
-      host, StringView{"hostFnOverwrite"},
+      Host, StringView{"hostFnOverwrite"},
       WasmEdge_FunctionInstanceCreate(
           Ptr{TRY(WasmEdge_FunctionTypeCreate)(nullptr, 0, nullptr, 0)},
           [](void *, const WasmEdge_CallingFrameContext *,
@@ -157,27 +157,27 @@ void callWasm(const char *fn_name) {
             return WasmEdge_Result_Success;
           },
           nullptr, 0));
-  TRY(WasmEdge_ExecutorRegisterImport)(executor, store, host);
+  TRY(WasmEdge_ExecutorRegisterImport)(Executor, Store, Host);
 
-  Ptr<WasmEdge_ModuleInstanceContext> instance;
-  TRY(WasmEdge_ExecutorInstantiate)(executor, instance, store, module);
-  auto *wasm_fn =
-      TRY(WasmEdge_ModuleInstanceFindFunction)(instance, StringView{fn_name});
-  executors_stack.push(executor);
-  TRY(WasmEdge_ExecutorInvoke)(executor, wasm_fn, nullptr, 0, nullptr, 0);
-  executors_stack.pop();
+  Ptr<WasmEdge_ModuleInstanceContext> Instance;
+  TRY(WasmEdge_ExecutorInstantiate)(Executor, Instance, Store, Module);
+  auto *WasmFn =
+      TRY(WasmEdge_ModuleInstanceFindFunction)(Instance, StringView{FnName});
+  ExecutorsStack.push(Executor);
+  TRY(WasmEdge_ExecutorInvoke)(Executor, WasmFn, nullptr, 0, nullptr, 0);
+  ExecutorsStack.pop();
 }
 
-size_t called_hostFnCheck = 0;
-void hostFnCheck(const WasmEdge_CallingFrameContext *frame) {
-  ++called_hostFnCheck;
-  auto *executor = WasmEdge_CallingFrameGetExecutor(frame);
-  EXPECT_EQ(executor, executors_stack.top());
+size_t CalledHostFnCheck = 0;
+void hostFnCheck(const WasmEdge_CallingFrameContext *Frame) {
+  ++CalledHostFnCheck;
+  auto *Executor = WasmEdge_CallingFrameGetExecutor(Frame);
+  EXPECT_EQ(Executor, ExecutorsStack.top());
 }
 
-size_t called_hostFnOverwrite = 0;
+size_t CalledHostFnOverwrite = 0;
 void hostFnOverwrite() {
-  ++called_hostFnOverwrite;
+  ++CalledHostFnOverwrite;
   callWasm("wasmFnOverwrite");
 }
 
@@ -193,7 +193,7 @@ TEST(APIAOTNestedVMTest, NestedVM) {
   compileWasm();
   callWasm("wasmFn");
   // wasmedge doesn't build GMock by default
-  EXPECT_EQ(called_hostFnCheck, 2);
-  EXPECT_EQ(called_hostFnOverwrite, 1);
+  EXPECT_EQ(CalledHostFnCheck, 2);
+  EXPECT_EQ(CalledHostFnOverwrite, 1);
 }
 } // namespace

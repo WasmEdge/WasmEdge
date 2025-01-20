@@ -28,6 +28,7 @@ jobs:
       - name: Build WasmEdge
         uses: docker/bake-action@v6
         with:
+          source: .
           files: ./utils/docker/docker-bake.debian-static.hcl
       - name: Upload artifact
         uses: actions/upload-artifact@v4

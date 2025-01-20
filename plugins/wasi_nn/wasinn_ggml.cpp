@@ -84,7 +84,7 @@ void setupSamplerParams(Graph &GraphRef,
                         common_params_sampling &Sampling) noexcept {
   Sampling.temp = static_cast<float>(GraphRef.Temp);
   Sampling.top_p = static_cast<float>(GraphRef.TopP);
-  Sampling.top_k = static_cast<int32_t>(GraphRef.TopP);
+  Sampling.top_k = static_cast<int32_t>(GraphRef.TopK);
   Sampling.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
   Sampling.penalty_present = static_cast<float>(GraphRef.PresencePenalty);
   Sampling.penalty_freq = static_cast<float>(GraphRef.FrequencyPenalty);

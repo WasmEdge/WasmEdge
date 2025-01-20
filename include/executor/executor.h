@@ -138,12 +138,6 @@ public:
       Stat->setCostLimit(Conf.getStatisticsConfigure().getCostLimit());
     }
   }
-  ~Executor() noexcept {
-    ExecutionContext.StopToken = nullptr;
-    ExecutionContext.InstrCount = nullptr;
-    ExecutionContext.CostTable = nullptr;
-    ExecutionContext.Gas = nullptr;
-  }
 
   /// Getter of Configure
   const Configure &getConfigure() const { return Conf; }
@@ -895,22 +889,6 @@ private:
   std::unordered_multimap<uint32_t, Waiter> WaiterMap;
 
 private:
-  /// Prepare execution context
-  void prepare(Runtime::StackManager &StackMgr, uint8_t *const *Memories,
-               ValVariant *const *Globals) noexcept {
-    This = this;
-    ExecutionContext.StopToken = &StopToken;
-    ExecutionContext.Memories = Memories;
-    ExecutionContext.Globals = Globals;
-    if (Stat) {
-      ExecutionContext.InstrCount = &Stat->getInstrCountRef();
-      ExecutionContext.CostTable = Stat->getCostTable().data();
-      ExecutionContext.Gas = &Stat->getTotalCostRef();
-      ExecutionContext.GasLimit = Stat->getCostLimit();
-    }
-    CurrentStack = &StackMgr;
-  }
-
   /// Execution context for compiled functions
   struct ExecutionContextStruct {
     uint8_t *const *Memories;
@@ -924,18 +902,13 @@ private:
 
   /// Restores thread local VM reference after overwriting it.
   struct SavedThreadLocal {
-    SavedThreadLocal()
-        : SavedThis(This), SavedCurrentStack(CurrentStack),
-          SavedExecutionContext(ExecutionContext) {}
+    SavedThreadLocal(Executor &Ex, Runtime::StackManager &StackMgr,
+                     const Runtime::Instance::FunctionInstance &Func) noexcept;
 
     SavedThreadLocal(const SavedThreadLocal &) = delete;
     SavedThreadLocal(SavedThreadLocal &&) = delete;
 
-    ~SavedThreadLocal() {
-      This = SavedThis;
-      CurrentStack = SavedCurrentStack;
-      ExecutionContext = SavedExecutionContext;
-    }
+    ~SavedThreadLocal() noexcept;
 
     Executor *SavedThis;
     Runtime::StackManager *SavedCurrentStack;

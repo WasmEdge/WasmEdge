@@ -709,9 +709,9 @@ WasiNNFinalizeExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
 
   switch (Env.NNContext[ContextId].getBackend()) {
   case WASINN::Backend::GGML:
-    return WASINN::GGML::unload(Env, ContextId);
+    return WASINN::GGML::finalizeExecCtx(Env, ContextId);
   case WASINN::Backend::Whisper:
-    return WASINN::Whisper::unload(Env, ContextId);
+    return WASINN::Whisper::finalizeExecCtx(Env, ContextId);
   default:
     spdlog::error("[WASI-NN] finalize_execution_context: Only GGML and "sv
                   "Whisper backends support finalize_execution_context."sv);

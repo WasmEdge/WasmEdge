@@ -120,7 +120,8 @@ bool compileModule(const WasmEdge::Configure &Conf, std::string_view InPath,
 
   std::vector<WasmEdge::Byte> Data;
   std::unique_ptr<WasmEdge::AST::Module> Module;
-  return Load.loadFile(InPath)
+  return Compiler.checkConfigure()
+      .and_then([&]() noexcept { return Load.loadFile(InPath); })
       .and_then([&](auto Result) noexcept {
         Data = std::move(Result);
         return Load.parseModule(InPath);

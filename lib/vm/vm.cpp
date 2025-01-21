@@ -481,6 +481,13 @@ Expect<void> VM::unsafeInstantiate() {
     if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
       LLVM::Compiler Compiler(Conf);
+      if (auto Res = Compiler.checkConfigure(); !Res) {
+        const auto Err = static_cast<uint32_t>(Res.error());
+        spdlog::error(
+            "Compiler Configure failed. Error code: {}, use interpreter mode instead."sv,
+            Err);
+      }
+
       LLVM::JIT JIT(Conf);
       if (auto Res = Compiler.compile(*Mod); !Res) {
         const auto Err = static_cast<uint32_t>(Res.error());

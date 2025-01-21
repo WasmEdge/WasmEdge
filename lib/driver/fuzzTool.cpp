@@ -40,6 +40,11 @@ int FuzzTool(const uint8_t *Data, size_t Size) noexcept {
   }
 
   LLVM::Compiler Compiler(Conf);
+  if (auto Res = Compiler.checkConfigure(); !Res) {
+    const auto Err = static_cast<uint32_t>(Res.error());
+    spdlog::error("Compiler Configure failed. Error code: {}"sv, Err);
+  }
+
   LLVM::CodeGen CodeGen(Conf);
   if (auto Res = Compiler.compile(*Module); !Res) {
     const auto Err = static_cast<uint32_t>(Res.error());

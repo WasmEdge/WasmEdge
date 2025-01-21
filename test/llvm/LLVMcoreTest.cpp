@@ -527,6 +527,31 @@ TEST(AsyncExecute, CustomWasmInterruptTest) {
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
+TEST(Configure, ConfigureTest) {
+  {
+    WasmEdge::Configure Conf;
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    auto Result = Compiler.checkConfigure();
+    EXPECT_TRUE(Result);
+  }
+  {
+    WasmEdge::Configure Conf;
+    Conf.addProposal(Proposal::GC);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    auto Result = Compiler.checkConfigure();
+    EXPECT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::InvalidConfigure);
+  }
+  {
+    WasmEdge::Configure Conf;
+    Conf.addProposal(Proposal::ExceptionHandling);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    auto Result = Compiler.checkConfigure();
+    EXPECT_FALSE(Result);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::InvalidConfigure);
+  }
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

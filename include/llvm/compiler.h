@@ -29,6 +29,8 @@ class Compiler {
 public:
   Compiler(const Configure &Conf) noexcept : Context(nullptr), Conf(Conf) {}
 
+  Expect<void> checkConfigure() noexcept;
+
   Expect<Data> compile(const AST::Module &Module) noexcept;
 
   struct CompileContext;

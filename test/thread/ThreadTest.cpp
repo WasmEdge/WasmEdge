@@ -241,6 +241,7 @@ TEST(AOTAsyncExecute, ThreadTest) {
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     WasmEdge::LLVM::Compiler Compiler(Conf);
     WasmEdge::LLVM::CodeGen CodeGen(Conf);
+    ASSERT_TRUE(Compiler.checkConfigure());
     auto Module = *Loader.parseModule(MersenneTwister19937);
     ASSERT_TRUE(ValidatorEngine.validate(*Module));
     auto Data = Compiler.compile(*Module);
@@ -293,6 +294,7 @@ TEST(AOTAsyncExecute, GasThreadTest) {
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     WasmEdge::LLVM::Compiler Compiler(Conf);
     WasmEdge::LLVM::CodeGen CodeGen(Conf);
+    ASSERT_TRUE(Compiler.checkConfigure());
     auto Module = *Loader.parseModule(MersenneTwister19937);
     ASSERT_TRUE(ValidatorEngine.validate(*Module));
     auto Data = Compiler.compile(*Module);

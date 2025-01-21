@@ -822,6 +822,8 @@ E(SetValueToConst, 0x000A, "set value into const")
 E(SetValueErrorType, 0x000B, "set value type mismatch")
 // User defined error
 E(UserDefError, 0x000C, "user defined error code")
+// Invalid Configure
+E(InvalidConfigure, 0x000D, "invalid configure")
 
 // Load phase
 // @{

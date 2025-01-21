@@ -582,6 +582,19 @@ inline constexpr bool operator<(detail::uint128_fallback LHS,
          (LHS.high() == RHS.high() && LHS.low() < RHS.low());
 }
 
+inline constexpr detail::uint128_fallback
+operator+(detail::uint128_fallback LHS, unsigned int RHS) {
+  uint64_t NewLow = LHS.low() + RHS;
+  uint64_t NewHigh = LHS.high() + (NewLow < LHS.low());
+  return {NewHigh, NewLow};
+}
+
+inline constexpr detail::uint128_fallback
+operator-(unsigned int LHS, detail::uint128_fallback RHS) {
+  uint128_fallback Result = RHS;
+  return (~Result) + 1 + LHS;
+}
+
 inline constexpr detail::uint128_fallback &
 operator/=(detail::uint128_fallback &LHS, unsigned int RHSi) {
   const uint64_t RHS = static_cast<uint64_t>(RHSi);
@@ -685,20 +698,29 @@ public:
 
   template <typename FormatContext>
   auto format(WasmEdge::uint128 V, FormatContext &Ctx) const {
+    auto Out = Ctx.out();
     auto S = Specs;
+#if FMT_VERSION >= 110100
+    detail::handle_dynamic_spec(S.dynamic_width(), S.width, S.width_ref, Ctx);
+    detail::handle_dynamic_spec(S.dynamic_precision(), S.precision,
+                                S.precision_ref, Ctx);
+#else
     detail::handle_dynamic_spec<detail::width_checker>(S.width, S.width_ref,
                                                        Ctx);
     detail::handle_dynamic_spec<detail::precision_checker>(
         S.precision, S.precision_ref, Ctx);
-    constexpr const unsigned Prefixes[4] = {0, 0, 0x1000000u | '+',
-                                            0x1000000u | ' '};
+#endif
+
     const detail::uint128_t U =
         (detail::uint128_t{static_cast<uint64_t>(V >> 64)} << 64) |
         detail::uint128_t{static_cast<uint64_t>(V)};
-    return detail::write_int<Char>(
-        Ctx.out(),
-        detail::write_int_arg<detail::uint128_t>{U, Prefixes[S.sign]}, S,
-        Ctx.locale());
+#if FMT_VERSION >= 110100
+    return detail::write_int<Char>(Out, detail::make_write_int_arg(U, S.sign()),
+                                   S);
+#else
+    return detail::write_int<Char>(Out, detail::make_write_int_arg(U, S.sign),
+                                   S, Ctx.locale());
+#endif
   }
 };
 FMT_END_NAMESPACE

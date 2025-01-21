@@ -2,6 +2,13 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #pragma once
 
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcpp"
+#include <ciso646>
+#pragma GCC diagnostic pop
+#endif
+
 #include "common/errcode.h"
 #include "common/span.h"
 #include <llvm-c/Analysis.h>

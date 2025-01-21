@@ -3,11 +3,8 @@
 
 #include "validator/formchecker.h"
 
-#include "common/enum_ast.hpp"
 #include "common/errinfo.h"
-#include "common/spdlog.h"
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <tuple>
@@ -239,7 +236,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Memory,
                            Instr.getTargetIndex(), Mems);
     }
-    auto IsAtomic = Instr.getOpCode() >= OpCode::I32__atomic__load &&
+    auto IsAtomic = Instr.getOpCode() >= OpCode::Memory__atomic__notify &&
                     Instr.getOpCode() <= OpCode::I64__atomic__rmw32__cmpxchg_u;
     if (Instr.getMemoryAlign() > 31 ||
         (!IsAtomic && (1UL << Instr.getMemoryAlign()) > (N >> 3UL))) {

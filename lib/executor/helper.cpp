@@ -5,6 +5,7 @@
 
 #include "common/spdlog.h"
 #include "system/fault.h"
+#include "system/stacktrace.h"
 
 #include <cstdint>
 #include <utility>
@@ -169,6 +170,19 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       Fault FaultHandler;
       uint32_t Code = PREPARE_FAULT(FaultHandler);
       if (Code != 0) {
+        auto InnerStackTrace = FaultHandler.stacktrace();
+        {
+          std::array<void *, 256> Buffer;
+          auto OuterStackTrace = stackTrace(Buffer);
+          while (!OuterStackTrace.empty() && !InnerStackTrace.empty() &&
+                 InnerStackTrace[InnerStackTrace.size() - 1] ==
+                     OuterStackTrace[OuterStackTrace.size() - 1]) {
+            InnerStackTrace = InnerStackTrace.first(InnerStackTrace.size() - 1);
+            OuterStackTrace = OuterStackTrace.first(OuterStackTrace.size() - 1);
+          }
+        }
+        StackTraceSize =
+            compiledStackTrace(StackMgr, InnerStackTrace, StackTrace).size();
         Err = ErrCode(static_cast<ErrCategory>(Code >> 24), Code);
       } else {
         auto &Wrapper = FuncType.getSymbol();
@@ -182,6 +196,10 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       if (Err != ErrCode::Value::Terminated) {
         spdlog::error(Err);
       }
+      StackTraceSize +=
+          interpreterStackTrace(
+              StackMgr, Span<uint32_t>{StackTrace}.subspan(StackTraceSize))
+              .size();
       return Unexpect(Err);
     }
 

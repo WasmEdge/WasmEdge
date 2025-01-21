@@ -5,6 +5,7 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "system/stacktrace.h"
 
 namespace WasmEdge {
 namespace Executor {
@@ -148,6 +149,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
 
   // Call runFunction.
   if (auto Res = runFunction(StackMgr, *FuncInst, Params); !Res) {
+    dumpStackTrace(Span<const uint32_t>{StackTrace}.first(StackTraceSize));
     return Unexpect(Res);
   }
 

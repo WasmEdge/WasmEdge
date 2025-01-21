@@ -208,7 +208,9 @@ public:
 
   /// Unsafe getter of module address.
   const Instance::ModuleInstance *getModule() const noexcept {
-    assuming(!FrameStack.empty());
+    if (unlikely(FrameStack.empty())) {
+      return nullptr;
+    }
     return FrameStack.back().Module;
   }
 

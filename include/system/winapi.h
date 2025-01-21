@@ -150,6 +150,8 @@ using LPWORD_ = WORD_ *;
 using DWORD_ = uint32_t;
 using PDWORD_ = DWORD_ *;
 using LPDWORD_ = DWORD_ *;
+using DWORD64_ = uint64_t;
+using PDWORD64_ = DWORD64_ *;
 using VOID_ = void;
 using PVOID_ = void *;
 using LPVOID_ = void *;
@@ -778,7 +780,7 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
     GetStdHandle(WasmEdge::winapi::DWORD_ nStdHandle);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
-void WASMEDGE_WINAPI_WINAPI_CC
+WasmEdge::winapi::VOID_ WASMEDGE_WINAPI_WINAPI_CC
 GetSystemTimeAsFileTime(WasmEdge::winapi::LPFILETIME_ lpSystemTimeAsFileTime);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
@@ -945,7 +947,7 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
     WASMEDGE_WINAPI_WINAPI_CC
     CreateTransaction(
         WasmEdge::winapi::LPSECURITY_ATTRIBUTES_ lpTransactionAttributes,
-        void *UOW, WasmEdge::winapi::DWORD_ CreateOptions,
+        WasmEdge::winapi::PVOID_ UOW, WasmEdge::winapi::DWORD_ CreateOptions,
         WasmEdge::winapi::DWORD_ IsolationLevel,
         WasmEdge::winapi::DWORD_ IsolationFlags,
         WasmEdge::winapi::DWORD_ Timeout,
@@ -1013,7 +1015,8 @@ WasmEdge::winapi::HANDLE_ WASMEDGE_WINAPI_WINAPI_CC CreateFileMappingFromApp(
     WasmEdge::winapi::ULONG64_ MaximumSize, WasmEdge::winapi::PCWSTR_ Name);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
-void WASMEDGE_WINAPI_WINAPI_CC GetSystemTimePreciseAsFileTime(
+WasmEdge::winapi::VOID_ WASMEDGE_WINAPI_WINAPI_CC
+GetSystemTimePreciseAsFileTime(
     WasmEdge::winapi::LPFILETIME_ lpSystemTimeAsFileTime);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
@@ -1115,6 +1118,9 @@ using NEARPROC_ = int(WASMEDGE_WINAPI_WINAPI_CC *)();
 using PROC_ = int(WASMEDGE_WINAPI_WINAPI_CC *)();
 #endif
 
+using CONTEXT_ = struct _CONTEXT;
+using PCONTEXT_ = CONTEXT_ *;
+
 using RUNTIME_FUNCTION_ = struct _IMAGE_RUNTIME_FUNCTION_ENTRY {
   DWORD_ BeginAddress;
   DWORD_ EndAddress;
@@ -1125,6 +1131,25 @@ using RUNTIME_FUNCTION_ = struct _IMAGE_RUNTIME_FUNCTION_ENTRY {
 };
 using PRUNTIME_FUNCTION_ = RUNTIME_FUNCTION_ *;
 
+using SYMBOL_INFOW_ = struct _SYMBOL_INFOW {
+  ULONG_ SizeOfStruct;
+  ULONG_ TypeIndex;
+  ULONG64_ Reserved[2];
+  ULONG_ Index;
+  ULONG_ Size;
+  ULONG64_ ModBase;
+  ULONG_ Flags;
+  ULONG64_ Value;
+  ULONG64_ Address;
+  ULONG_ Register;
+  ULONG_ Scope;
+  ULONG_ Tag;
+  ULONG_ NameLen;
+  ULONG_ MaxNameLen;
+  WCHAR_ Name[1];
+};
+using PSYMBOL_INFOW_ = SYMBOL_INFOW_ *;
+
 static inline constexpr const DWORD_ FORMAT_MESSAGE_ALLOCATE_BUFFER_ =
     0x00000100;
 static inline constexpr const DWORD_ FORMAT_MESSAGE_IGNORE_INSERTS_ =
@@ -1132,6 +1157,9 @@ static inline constexpr const DWORD_ FORMAT_MESSAGE_IGNORE_INSERTS_ =
 static inline constexpr const DWORD_ FORMAT_MESSAGE_FROM_SYSTEM_ = 0x00001000;
 static inline constexpr const WORD_ LANG_NEUTRAL_ = 0x00;
 static inline constexpr const WORD_ SUBLANG_DEFAULT_ = 0x01;
+
+static inline constexpr const DWORD_ SYMOPT_DEFERRED_LOADS_ = 0x4;
+static inline constexpr const size_t MAX_SYM_NAME_ = 2000;
 
 WASMEDGE_WINAPI_FORCEINLINE inline constexpr WORD_
 MAKELANGID_(WORD_ p, WORD_ s) noexcept {
@@ -1175,9 +1203,40 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOLEAN_
                         WasmEdge::winapi::ULONG_ EntryCount,
                         WasmEdge::winapi::ULONG_PTR_ BaseAddress);
 
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::SHORT_ WASMEDGE_WINAPI_WINAPI_CC
+RtlCaptureStackBackTrace(WasmEdge::winapi::ULONG_ FramesToSkip,
+                         WasmEdge::winapi::ULONG_ FramesToCapture,
+                         WasmEdge::winapi::PVOID_ *BackTrace,
+                         WasmEdge::winapi::PULONG_ BackTraceHash);
+
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOLEAN_
     WASMEDGE_WINAPI_WINAPI_CC
     RtlDeleteFunctionTable(WasmEdge::winapi::PRUNTIME_FUNCTION_ FunctionTable);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+SymCleanup(WasmEdge::winapi::HANDLE_ hProcess);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+SymFromAddrW(WasmEdge::winapi::HANDLE_ hProcess,
+             WasmEdge::winapi::DWORD64_ Address,
+             WasmEdge::winapi::PDWORD64_ Displacement,
+             WasmEdge::winapi::PSYMBOL_INFOW_ Symbol);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::DWORD64_
+    WASMEDGE_WINAPI_WINAPI_CC
+    SymGetModuleBase64(WasmEdge::winapi::HANDLE_ hProcess,
+                       WasmEdge::winapi::DWORD64_ qwAddr);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+SymInitializeW(WasmEdge::winapi::HANDLE_ hProcess,
+               WasmEdge::winapi::PCWSTR_ UserSearchPath,
+               WasmEdge::winapi::BOOL_ fInvadeProcess);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
+SymRefreshModuleList(WasmEdge::winapi::HANDLE_ hProcess);
+
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::DWORD_ WASMEDGE_WINAPI_WINAPI_CC
+SymSetOptions(WasmEdge::winapi::DWORD_ SymOptions);
 
 } // extern "C"
 
@@ -1188,7 +1247,14 @@ using ::GetModuleHandleW;
 using ::GetProcAddress;
 using ::LoadLibraryExW;
 using ::RtlAddFunctionTable;
+using ::RtlCaptureStackBackTrace;
 using ::RtlDeleteFunctionTable;
+using ::SymCleanup;
+using ::SymFromAddrW;
+using ::SymGetModuleBase64;
+using ::SymInitializeW;
+using ::SymRefreshModuleList;
+using ::SymSetOptions;
 } // namespace WasmEdge::winapi
 
 namespace WasmEdge::winapi {
@@ -1262,7 +1328,7 @@ static inline constexpr const DWORD_ PAGE_EXECUTE_READ_ = 0x20;
 
 extern "C" {
 
-WASMEDGE_WINAPI_SYMBOL_IMPORT void WASMEDGE_WINAPI_WINAPI_CC
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::VOID_ WASMEDGE_WINAPI_WINAPI_CC
 CoTaskMemFree(WasmEdge::winapi::LPVOID_ pv);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HLOCAL_
@@ -1306,9 +1372,6 @@ static inline constexpr const DWORD_ EXCEPTION_INT_DIVIDE_BY_ZERO_ =
 static inline constexpr const DWORD_ EXCEPTION_INT_OVERFLOW_ = 0xC0000095L;
 static inline constexpr const LONG_ EXCEPTION_CONTINUE_EXECUTION_ =
     static_cast<LONG_>(0xffffffff);
-
-using CONTEXT_ = struct _CONTEXT;
-using PCONTEXT_ = CONTEXT_ *;
 
 using EXCEPTION_RECORD_ = struct _EXCEPTION_RECORD {
   DWORD_ ExceptionCode;
@@ -1381,12 +1444,10 @@ AdjustTokenPrivileges(WasmEdge::winapi::HANDLE_ TokenHandle,
                       WasmEdge::winapi::PDWORD_ ReturnLength);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
-    WASMEDGE_WINAPI_WINAPI_CC
-    GetCurrentProcess(void);
+    WASMEDGE_WINAPI_WINAPI_CC GetCurrentProcess(WasmEdge::winapi::VOID_);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
-    WASMEDGE_WINAPI_WINAPI_CC
-    GetCurrentThread(void);
+    WASMEDGE_WINAPI_WINAPI_CC GetCurrentThread(WasmEdge::winapi::VOID_);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT
 WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
@@ -1755,10 +1816,11 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::SOCKET_
     WASMEDGE_WINAPI_WINAPI_CC
     socket(int af, int type, int protocol);
 
-WASMEDGE_WINAPI_SYMBOL_IMPORT int WASMEDGE_WINAPI_WINAPI_CC WSACleanup(void);
+WASMEDGE_WINAPI_SYMBOL_IMPORT int
+    WASMEDGE_WINAPI_WINAPI_CC WSACleanup(WasmEdge::winapi::VOID_);
 
-WASMEDGE_WINAPI_SYMBOL_IMPORT int WASMEDGE_WINAPI_WINAPI_CC
-WSAGetLastError(void);
+WASMEDGE_WINAPI_SYMBOL_IMPORT int
+    WASMEDGE_WINAPI_WINAPI_CC WSAGetLastError(WasmEdge::winapi::VOID_);
 
 WASMEDGE_WINAPI_SYMBOL_IMPORT int WASMEDGE_WINAPI_WINAPI_CC
 WSAStartup(WasmEdge::winapi::WORD_ wVersionRequested,

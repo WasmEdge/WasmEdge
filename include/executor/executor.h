@@ -921,6 +921,9 @@ private:
   static thread_local Runtime::StackManager *CurrentStack;
   /// Execution context for compiled functions
   static thread_local ExecutionContextStruct ExecutionContext;
+  /// Record stack track on error
+  static thread_local std::array<uint32_t, 256> StackTrace;
+  static thread_local size_t StackTraceSize;
   /// @}
 
 private:

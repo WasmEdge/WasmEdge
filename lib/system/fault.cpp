@@ -6,6 +6,7 @@
 #include "common/config.h"
 #include "common/defines.h"
 #include "common/spdlog.h"
+#include "system/stacktrace.h"
 
 #include <atomic>
 #include <csetjmp>
@@ -115,6 +116,8 @@ Fault::~Fault() noexcept {
 
 [[noreturn]] void Fault::emitFault(ErrCode Error) {
   assuming(localHandler != nullptr);
+  auto Buffer = stackTrace(localHandler->StackTraceBuffer);
+  localHandler->StackTraceSize = Buffer.size();
   longjmp(localHandler->Buffer, static_cast<int>(Error.operator uint32_t()));
 }
 

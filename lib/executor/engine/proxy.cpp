@@ -12,6 +12,8 @@ namespace Executor {
 thread_local Executor *Executor::This = nullptr;
 thread_local Runtime::StackManager *Executor::CurrentStack = nullptr;
 thread_local Executor::ExecutionContextStruct Executor::ExecutionContext;
+thread_local std::array<uint32_t, 256> Executor::StackTrace;
+thread_local size_t Executor::StackTraceSize = 0;
 
 template <typename RetT, typename... ArgsT>
 struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,

@@ -7,6 +7,8 @@
 #include "common/spdlog.h"
 #include "system/stacktrace.h"
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -139,7 +141,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
     if (ParamTypes[I].isRefType() && (!ParamTypes[I].isNullableRefType() &&
                                       Params[I].get<RefVariant>().isNull())) {
       spdlog::error(ErrCode::Value::NonNullRequired);
-      spdlog::error("    Cannot pass a null reference as argument of {}.",
+      spdlog::error("    Cannot pass a null reference as argument of {}."sv,
                     ParamTypes[I]);
       return Unexpect(ErrCode::Value::NonNullRequired);
     }

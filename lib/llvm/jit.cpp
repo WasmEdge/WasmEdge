@@ -76,7 +76,7 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
 
   if (Conf.getCompilerConfigure().isDumpIR()) {
     if (auto ErrorMessage = LLModule.printModuleToFile("wasm-jit.ll")) {
-      spdlog::error("printModuleToFile failed");
+      spdlog::error("printModuleToFile failed"sv);
     }
   }
 

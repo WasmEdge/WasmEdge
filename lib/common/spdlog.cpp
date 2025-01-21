@@ -21,6 +21,8 @@ using color_sink_t = spdlog::sinks::wincolor_stdout_sink_mt;
 using color_sink_t = spdlog::sinks::ansicolor_stdout_sink_mt;
 #endif
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Log {
 
@@ -44,10 +46,10 @@ void setLoggingCallback(
     auto Callback_sink =
         std::make_shared<spdlog::sinks::callback_sink_mt>(Callback);
     spdlog::set_default_logger(
-        std::make_shared<spdlog::logger>("WasmEdge", Callback_sink));
+        std::make_shared<spdlog::logger>("WasmEdge"s, Callback_sink));
   } else {
-    spdlog::set_default_logger(
-        std::make_shared<spdlog::logger>("", std::make_shared<color_sink_t>()));
+    spdlog::set_default_logger(std::make_shared<spdlog::logger>(
+        ""s, std::make_shared<color_sink_t>()));
   }
 }
 

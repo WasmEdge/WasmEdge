@@ -178,7 +178,7 @@ std::filesystem::path createTemp(const std::filesystem::path Model) noexcept {
 // Write output object and link
 Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
                                  const LLVM::MemoryBuffer &OSVec) noexcept {
-  spdlog::info("output start");
+  spdlog::info("output start"sv);
   std::filesystem::path ObjectName;
   {
     // tempfile
@@ -191,7 +191,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     ObjectName = createTemp(OPath);
     if (ObjectName.empty()) {
       // TODO:return error
-      spdlog::error("so file creation failed:{}", OPath.u8string());
+      spdlog::error("so file creation failed:{}"sv, OPath.u8string());
       return Unexpect(ErrCode::Value::IllegalPath);
     }
     std::ofstream OS(ObjectName, std::ios_base::binary);
@@ -268,9 +268,9 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     std::filesystem::remove(LibPath, Error);
 #endif
 
-    spdlog::info("codegen done");
+    spdlog::info("codegen done"sv);
   } else {
-    spdlog::error("link error");
+    spdlog::error("link error"sv);
   }
 
 #if WASMEDGE_OS_MACOS
@@ -278,7 +278,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   if (LinkResult) {
     pid_t PID = ::fork();
     if (PID == -1) {
-      spdlog::error("codesign error on fork:{}", std::strerror(errno));
+      spdlog::error("codesign error on fork:{}"sv, std::strerror(errno));
     } else if (PID == 0) {
       execlp("/usr/bin/codesign", "codesign", "-s", "-",
              OutputPath.u8string().c_str(), nullptr);
@@ -287,7 +287,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
       int ChildStat;
       waitpid(PID, &ChildStat, 0);
       if (const int Status = WEXITSTATUS(ChildStat); Status != 0) {
-        spdlog::error("codesign exited with status {}", Status);
+        spdlog::error("codesign exited with status {}"sv, Status);
       }
     }
   }
@@ -308,7 +308,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     SharedObjectName = createTemp(SOPath);
     if (SharedObjectName.empty()) {
       // TODO:return error
-      spdlog::error("so file creation failed:{}", SOPath.u8string());
+      spdlog::error("so file creation failed:{}"sv, SOPath.u8string());
       return Unexpect(ErrCode::Value::IllegalPath);
     }
     std::ofstream OS(SharedObjectName, std::ios_base::binary);
@@ -324,7 +324,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
   if (auto [Res, ErrorMessage] =
           LLVM::MemoryBuffer::getFile(SharedObjectName.u8string().c_str());
       unlikely(ErrorMessage)) {
-    spdlog::error("object file open error:{}", ErrorMessage.string_view());
+    spdlog::error("object file open error:{}"sv, ErrorMessage.string_view());
     return Unexpect(ErrCode::Value::IllegalPath);
   } else {
     SOFile = std::move(Res);
@@ -333,7 +333,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
   LLVM::Binary ObjFile;
   if (auto [Res, ErrorMessage] = LLVM::Binary::create(SOFile, LLContext);
       unlikely(ErrorMessage)) {
-    spdlog::error("object file parse error:{}", ErrorMessage.string_view());
+    spdlog::error("object file parse error:{}"sv, ErrorMessage.string_view());
     return Unexpect(ErrCode::Value::IllegalPath);
   } else {
     ObjFile = std::move(Res);
@@ -477,11 +477,11 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     OSCustomSecVec = OS.str();
   }
 
-  spdlog::info("output start");
+  spdlog::info("output start"sv);
 
   std::ofstream OS(OutputPath, std::ios_base::binary);
   if (!OS) {
-    spdlog::error("output failed.");
+    spdlog::error("output failed."sv);
     return Unexpect(ErrCode::Value::IllegalPath);
   }
   OS.write(reinterpret_cast<const char *>(Data.data()),
@@ -493,7 +493,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
   std::error_code Error;
   std::filesystem::remove(SharedObjectName, Error);
 
-  spdlog::info("output done");
+  spdlog::info("output done"sv);
   return {};
 }
 
@@ -586,18 +586,18 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
   if (Conf.getCompilerConfigure().isDumpIR()) {
     if (auto ErrorMessage = LLModule.printModuleToFile("wasm.ll");
         unlikely(ErrorMessage)) {
-      spdlog::error("wasm.ll open error:{}", ErrorMessage.string_view());
+      spdlog::error("wasm.ll open error:{}"sv, ErrorMessage.string_view());
       return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::IllegalPath);
     }
   }
 
-  spdlog::info("codegen start");
+  spdlog::info("codegen start"sv);
   // codegen
   {
     if (Conf.getCompilerConfigure().isDumpIR()) {
       if (auto ErrorMessage = LLModule.printModuleToFile("wasm-opt.ll")) {
         // TODO:return error
-        spdlog::error("printModuleToFile failed");
+        spdlog::error("printModuleToFile failed"sv);
         return Unexpect(ErrCode::Value::IllegalPath);
       }
     }
@@ -606,7 +606,7 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
         TM.emitToMemoryBuffer(LLModule, LLVMObjectFile);
     if (ErrorMessage) {
       // TODO:return error
-      spdlog::error("addPassesToEmitFile failed");
+      spdlog::error("addPassesToEmitFile failed"sv);
       return Unexpect(ErrCode::Value::IllegalPath);
     }
 

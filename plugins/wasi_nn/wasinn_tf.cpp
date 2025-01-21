@@ -4,10 +4,12 @@
 #include "wasinn_tf.h"
 #include "wasinnenv.h"
 
+using namespace std::literals;
+
 namespace WasmEdge::Host::WASINN::Tensorflow {
 namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
-  spdlog::error("[WASI-NN] Tensorflow backend is not supported.");
+  spdlog::error("[WASI-NN] Tensorflow backend is not supported."sv);
   return WASINN::ErrNo::InvalidArgument;
 }
 } // namespace

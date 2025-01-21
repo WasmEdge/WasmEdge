@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+using namespace std::literals;
+
 namespace WasmEdge::Host::WASINN::OpenVINO {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
@@ -13,7 +15,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            WASINN::Device Device, uint32_t &GraphId) noexcept {
   // The graph builder length must be 2.
   if (Builders.size() != 2) {
-    spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 2",
+    spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 2"sv,
                   Builders.size());
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -41,7 +43,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.OpenVINOModel = Env.OpenVINOCore.read_model(
         ModelString, GraphRef.OpenVINOIWeightTensor);
   } catch (const std::exception &EX) {
-    spdlog::error("[WASI-NN] Model Load Exception: {}", EX.what());
+    spdlog::error("[WASI-NN] Model Load Exception: {}"sv, EX.what());
     Env.deleteGraph(GId);
     return WASINN::ErrNo::RuntimeError;
   }
@@ -57,7 +59,7 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
   // Check the network and the execution network with the graph ID.
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
   if (GraphRef.OpenVINOModel == nullptr) {
-    spdlog::error("[WASI-NN] Model for Graph:{} is empty!", GraphId);
+    spdlog::error("[WASI-NN] Model for Graph:{} is empty!"sv, GraphId);
     return WASINN::ErrNo::MissingMemory;
   }
   // Create context.
@@ -73,27 +75,27 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
 
   if (GraphRef.OpenVINOModel == nullptr) {
-    spdlog::error("[WASI-NN] The founded openvino session is empty");
+    spdlog::error("[WASI-NN] The founded openvino session is empty"sv);
     return WASINN::ErrNo::MissingMemory;
   }
 
   if (Tensor.Dimension.size() > 8) {
-    spdlog::error("[WASI-NN] Tensor dimension is out of range, expect "
-                  "it under 8-dim, "
-                  "but got {}-dim.",
+    spdlog::error("[WASI-NN] Tensor dimension is out of range, expect it under "
+                  "8-dim, but got {}-dim."sv,
                   Tensor.Dimension.size());
     return WASINN::ErrNo::InvalidArgument;
   }
   if (Tensor.RType != WASINN::TensorType::F32) {
     spdlog::error(
-        "[WASI-NN] Only F32 inputs and outputs are supported for now.");
+        "[WASI-NN] Only F32 inputs and outputs are supported for now."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
   // Check the input index.
   if (GraphRef.OpenVINOModel->inputs().size() <= Index) {
-    spdlog::error("[WASI-NN] The input index {} exceeds the inputs number {}.",
-                  Index, GraphRef.OpenVINOModel->inputs().size());
+    spdlog::error(
+        "[WASI-NN] The input index {} exceeds the inputs number {}."sv, Index,
+        GraphRef.OpenVINOModel->inputs().size());
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -119,7 +121,7 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
     CxtRef.OpenVINOInferRequest = CompiledModel.create_infer_request();
     CxtRef.OpenVINOInferRequest.set_input_tensor(Index, InputTensor);
   } catch (const std::exception &EX) {
-    spdlog::error("[WASI-NN] Set Input Exception: {}", EX.what());
+    spdlog::error("[WASI-NN] Set Input Exception: {}"sv, EX.what());
     return WASINN::ErrNo::RuntimeError;
   }
   return WASINN::ErrNo::Success;
@@ -135,7 +137,7 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
   // Check the output index.
   if (GraphRef.OpenVINOModel->outputs().size() <= Index) {
     spdlog::error(
-        "[WASI-NN] The output index {} exceeds the outputs number {}.", Index,
+        "[WASI-NN] The output index {} exceeds the outputs number {}."sv, Index,
         GraphRef.OpenVINOModel->outputs().size());
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -147,7 +149,7 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
     std::copy_n(static_cast<const uint8_t *>(OutputTensor.data()), BytesWritten,
                 OutBuffer.data());
   } catch (const std::exception &EX) {
-    spdlog::error("[WASI-NN] Get Output Exception: {}", EX.what());
+    spdlog::error("[WASI-NN] Get Output Exception: {}"sv, EX.what());
     return WASINN::ErrNo::RuntimeError;
   }
   return WASINN::ErrNo::Success;
@@ -159,7 +161,7 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
   try {
     CxtRef.OpenVINOInferRequest.infer();
   } catch (const std::exception &EX) {
-    spdlog::error("[WASI-NN] Infer Request Exception: {}", EX.what());
+    spdlog::error("[WASI-NN] Infer Request Exception: {}"sv, EX.what());
     return WASINN::ErrNo::RuntimeError;
   }
   return WASINN::ErrNo::Success;
@@ -168,7 +170,7 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
 namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
   spdlog::error("[WASI-NN] OpenVINO backend is not built. use "
-                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"OpenVINO\" to build it.");
+                "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"OpenVINO\" to build it."sv);
   return WASINN::ErrNo::InvalidArgument;
 }
 } // namespace

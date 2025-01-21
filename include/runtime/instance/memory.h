@@ -45,14 +45,15 @@ public:
   MemoryInstance(const AST::MemoryType &MType,
                  uint32_t PageLim = UINT32_C(65536)) noexcept
       : MemType(MType), PageLimit(PageLim) {
+    using namespace std::literals;
     if (MemType.getLimit().getMin() > PageLimit) {
-      spdlog::error("Memory Instance: Limited {} page in configuration.",
+      spdlog::error("Memory Instance: Limited {} page in configuration."sv,
                     PageLimit);
       MemType.getLimit().setMin(PageLimit);
     }
     DataPtr = Allocator::allocate(MemType.getLimit().getMin());
     if (DataPtr == nullptr) {
-      spdlog::error("Memory Instance: Unable to find usable memory address.");
+      spdlog::error("Memory Instance: Unable to find usable memory address."sv);
       MemType.getLimit().setMin(0U);
       return;
     }

@@ -83,7 +83,7 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
     spdlog::error("[WASI-NN] Unknown device {}."sv, Target);
     return WASINN::ErrNo::InvalidArgument;
   }
-  spdlog::debug("[WASI-NN] Using device: {}.", Device);
+  spdlog::debug("[WASI-NN] Using device: {}."sv, Device);
 
   // Builders' Layout:
   //   | builder-0 | builder-0 len | builder-1 | builder-1 len | ...
@@ -259,17 +259,15 @@ WasiNNInitExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
   if (Env.NNGraph.size() <= GraphId || Env.NNGraph[GraphId].isFinalized()) {
-    spdlog::error(
-        "[WASI-NN] init_execution_context: Graph ID {} does not exist or is "sv
-        "unloaded."sv,
-        GraphId);
+    spdlog::error("[WASI-NN] init_execution_context: Graph ID {} does not "
+                  "exist or is unloaded."sv,
+                  GraphId);
     return WASINN::ErrNo::InvalidArgument;
   }
   if (!Env.NNGraph[GraphId].isReady()) {
-    spdlog::error(
-        "[WASI-NN] init_execution_context: Graph ID {} is invalid. Please "sv
-        "reload or unload this graph."sv,
-        GraphId);
+    spdlog::error("[WASI-NN] init_execution_context: Graph ID {} is invalid. "
+                  "Please reload or unload this graph."sv,
+                  GraphId);
     return WASINN::ErrNo::InvalidArgument;
   }
 

@@ -106,7 +106,7 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     Data = std::move(*Res);
   } else {
     const auto Err = static_cast<uint32_t>(Res.error());
-    spdlog::error("Load failed. Error code: {}", Err);
+    spdlog::error("Load failed. Error code: {}"sv, Err);
     return EXIT_FAILURE;
   }
 
@@ -115,7 +115,7 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     Module = std::move(*Res);
   } else {
     const auto Err = static_cast<uint32_t>(Res.error());
-    spdlog::error("Parse Module failed. Error code: {}", Err);
+    spdlog::error("Parse Module failed. Error code: {}"sv, Err);
     return EXIT_FAILURE;
   }
 
@@ -123,7 +123,7 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     Validator::Validator ValidatorEngine(Conf);
     if (auto Res = ValidatorEngine.validate(*Module); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
-      spdlog::error("Validate Module failed. Error code: {}", Err);
+      spdlog::error("Validate Module failed. Error code: {}"sv, Err);
       return EXIT_FAILURE;
     }
   }
@@ -166,19 +166,19 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     LLVM::CodeGen CodeGen(Conf);
     if (auto Res = Compiler.compile(*Module); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());
-      spdlog::error("Compilation failed. Error code: {}", Err);
+      spdlog::error("Compilation failed. Error code: {}"sv, Err);
       return EXIT_FAILURE;
     } else if (auto Res2 = CodeGen.codegen(Data, std::move(*Res), OutputPath);
                !Res2) {
       const auto Err = static_cast<uint32_t>(Res2.error());
-      spdlog::error("Code Generation failed. Error code: {}", Err);
+      spdlog::error("Code Generation failed. Error code: {}"sv, Err);
       return EXIT_FAILURE;
     }
   }
 
   return EXIT_SUCCESS;
 #else
-  spdlog::error("Compilation is not supported!");
+  spdlog::error("Compilation is not supported!"sv);
 
   return EXIT_FAILURE;
 #endif

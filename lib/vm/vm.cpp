@@ -304,7 +304,7 @@ VM::unsafeRunWasmFile(const AST::Component::Component &Component,
   if (auto Res = ValidatorEngine.validate(Component); !Res) {
     return Unexpect(Res);
   }
-  spdlog::error("component execution is not done yet.");
+  spdlog::error("component execution is not done yet."sv);
   return Unexpect(ErrCode::Value::RuntimeError);
 }
 
@@ -331,7 +331,7 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
-  spdlog::error(ErrInfo::InfoExecuting("", Func));
+  spdlog::error(ErrInfo::InfoExecuting(""sv, Func));
   return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
@@ -502,7 +502,7 @@ Expect<void> VM::unsafeInstantiate() {
         LoaderEngine.loadExecutable(*Mod, std::move(*Res2));
       }
 #else
-      spdlog::error("LLVM disabled, JIT is unsupported!");
+      spdlog::error("LLVM disabled, JIT is unsupported!"sv);
 #endif
     }
 
@@ -539,7 +539,7 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
     return *Res;
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
-  spdlog::error(ErrInfo::InfoExecuting("When invoking", Func));
+  spdlog::error(ErrInfo::InfoExecuting("When invoking"sv, Func));
   return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
@@ -550,7 +550,7 @@ VM::unsafeExecute(std::string_view Func, Span<const ValInterface> Params,
     return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
-  spdlog::error(ErrInfo::InfoExecuting("When invoking", Func));
+  spdlog::error(ErrInfo::InfoExecuting("When invoking"sv, Func));
   return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 

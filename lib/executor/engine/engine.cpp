@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <cstring>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -66,9 +68,9 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   }
 
   if (Res) {
-    spdlog::debug(" Execution succeeded.");
+    spdlog::debug(" Execution succeeded."sv);
   } else if (Res.error() == ErrCode::Value::Terminated) {
-    spdlog::debug(" Terminated.");
+    spdlog::debug(" Terminated."sv);
   }
 
   if (Stat && Conf.getStatisticsConfigure().isTimeMeasuring()) {

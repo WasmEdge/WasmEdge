@@ -19,6 +19,8 @@
 #elif WASMEDGE_OS_WINDOWS
 #endif
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Host {
 
@@ -187,13 +189,13 @@ Expect<uint32_t> WasmEdgeProcessRun::body(const Runtime::CallingFrame &) {
 #endif
       switch (errno) {
       case EACCES:
-        spdlog::error("Permission denied.");
+        spdlog::error("Permission denied."sv);
         break;
       case ENOENT:
-        spdlog::error("Command not found.");
+        spdlog::error("Command not found."sv);
         break;
       default:
-        spdlog::error("Unknown error.");
+        spdlog::error("Unknown error."sv);
         break;
       }
       _exit(-1);
@@ -297,7 +299,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(const Runtime::CallingFrame &) {
   Env.TimeOut = Env.DEFAULT_TIMEOUT;
   return Env.ExitCode;
 #elif WASMEDGE_OS_WINDOWS
-  spdlog::error("wasmedge_process doesn't support windows now.");
+  spdlog::error("wasmedge_process doesn't support windows now."sv);
   return Unexpect(ErrCode::Value::HostFuncError);
 #endif
 }

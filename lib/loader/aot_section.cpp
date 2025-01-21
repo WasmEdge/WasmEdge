@@ -12,6 +12,8 @@ extern void __deregister_frame(void *);
 }
 #endif
 
+using namespace std::literals;
+
 namespace {
 inline constexpr uint64_t roundDownPageBoundary(const uint64_t Value) {
 // ARM64 Mac has a special page size
@@ -93,7 +95,8 @@ Expect<void> AOTSection::load(const AST::AOTSection &AOTSec) noexcept {
   for (const auto &[Pointer, Size] : ExecutableRanges) {
     if (!Allocator::set_chunk_executable(Pointer, Size)) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error("    set_chunk_executable failed:{}", std::strerror(errno));
+      spdlog::error("    set_chunk_executable failed:{}"sv,
+                    std::strerror(errno));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
   }

@@ -8,6 +8,8 @@ extern "C" {
 #include <bpf/libbpf.h>
 }
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Host {
 
@@ -32,8 +34,8 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
   uint32_t info_len = sizeof(map_info);
   int32_t err;
   if ((err = bpf_map_get_info_by_fd(fd, &map_info, &info_len)) != 0) {
-    spdlog::debug("[WasmEdge Wasm_bpf] Invalid map fd found: fd={},err={}", fd,
-                  err);
+    spdlog::debug("[WasmEdge Wasm_bpf] Invalid map fd found: fd={},err={}"sv,
+                  fd, err);
     // Invalid map fd
     return err;
   }
@@ -61,7 +63,7 @@ BpfMapOperate::body(const WasmEdge::Runtime::CallingFrame &Frame, int32_t fd,
     return bpf_map_delete_elem_flags(fd, key_ptr, flags);
   }
   default: // More syscall commands can be allowed here
-    spdlog::debug("[WasmEdge Wasm_bpf] Invalid map operation", cmd);
+    spdlog::debug("[WasmEdge Wasm_bpf] Invalid map operation"sv, cmd);
     return -EINVAL;
   }
 }

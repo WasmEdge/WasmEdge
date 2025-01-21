@@ -4,13 +4,15 @@
 
 #include <variant>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Validator {
 
 using namespace AST::Component;
 
 Expect<void> Validator::validate(const AST::Component::Component &Comp) {
-  spdlog::warn("component validation is not done yet.");
+  spdlog::warn("component validation is not done yet."sv);
 
   for (auto &Sec : Comp.getSections()) {
     if (auto Res = std::visit(SectionVisitor{*this}, Sec); !Res) {

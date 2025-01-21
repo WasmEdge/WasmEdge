@@ -4,6 +4,8 @@
 #include "sd_env.h"
 #include "sd_module.h"
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Host {
 namespace {
@@ -79,7 +81,7 @@ void SBLog(enum sd_log_level_t Level, const char *Log, void *) {
     break;
   }
 
-  spdlog::info("[WasmEdge-StableDiffusion] SD-log: [{}] {}", LevelStr, Log);
+  spdlog::info("[WasmEdge-StableDiffusion] SD-log: [{}] {}"sv, LevelStr, Log);
 }
 
 } // namespace StableDiffusion

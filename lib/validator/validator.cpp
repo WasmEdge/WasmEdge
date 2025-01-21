@@ -14,6 +14,8 @@
 #include <variant>
 #include <vector>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Validator {
 
@@ -160,7 +162,7 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
   // In current version, the length of type index vector will be <= 1.
   if (Type.getSuperTypeIndices().size() > 1) {
     spdlog::error(ErrCode::Value::InvalidSubType);
-    spdlog::error("    Accepts 1 super type currently.");
+    spdlog::error("    Accepts 1 super type currently."sv);
     return Unexpect(ErrCode::Value::InvalidSubType);
   }
   for (auto Index : Type.getSuperTypeIndices()) {
@@ -173,13 +175,13 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
     }
     if (TypeVec[Index]->isFinal()) {
       spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error("    Super type should not be final.");
+      spdlog::error("    Super type should not be final."sv);
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
     auto &SuperType = TypeVec[Index]->getCompositeType();
     if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType, CompType)) {
       spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error("    Super type not matched.");
+      spdlog::error("    Super type not matched."sv);
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
   }
@@ -411,7 +413,7 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     }
     if (!Checker.getTypes()[TId]->getCompositeType().isFunc()) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
-      spdlog::error("    Defined type index {} is not a function type.", TId);
+      spdlog::error("    Defined type index {} is not a function type."sv, TId);
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     Checker.addRef(static_cast<uint32_t>(Checker.getFunctions().size()));
@@ -590,7 +592,7 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
     }
     if (!TypeVec[TId]->getCompositeType().isFunc()) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
-      spdlog::error("    Defined type index {} is not a function type.", TId);
+      spdlog::error("    Defined type index {} is not a function type."sv, TId);
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     Checker.addFunc(TId);
@@ -702,7 +704,7 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
     assuming(TId < Checker.getTypes().size());
     if (!Checker.getTypes()[TId]->getCompositeType().isFunc()) {
       spdlog::error(ErrCode::Value::InvalidStartFunc);
-      spdlog::error("    Defined type index {} is not a function type.", TId);
+      spdlog::error("    Defined type index {} is not a function type."sv, TId);
       return Unexpect(ErrCode::Value::InvalidStartFunc);
     }
     auto &Type = Checker.getTypes()[TId]->getCompositeType().getFuncType();
@@ -754,7 +756,7 @@ Expect<void> Validator::validate(const AST::TagSection &TagSec) {
     auto &CompType = TypeVec[TagTypeIdx]->getCompositeType();
     if (!CompType.isFunc()) {
       spdlog::error(ErrCode::Value::InvalidTagIdx);
-      spdlog::error("    Defined type index {} is not a function type.",
+      spdlog::error("    Defined type index {} is not a function type."sv,
                     TagTypeIdx);
       return Unexpect(ErrCode::Value::InvalidTagIdx);
     }

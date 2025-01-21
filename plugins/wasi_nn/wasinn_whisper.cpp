@@ -14,6 +14,8 @@
 #include <algorithm>
 #endif
 
+using namespace std::literals;
+
 namespace WasmEdge::Host::WASINN::Whisper {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER
 
@@ -484,30 +486,31 @@ void setWhisperParams(Context &CxtRef) noexcept {
   WParam.beam_search.beam_size = ConfigRef.BeamSize;
 
   if (ConfigRef.EnableDebugLog) {
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: threads: {}",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: threads: {}"sv,
                  ConfigRef.ThreadsNum);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: processors: {}",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: processors: {}"sv,
                  ConfigRef.ProcessorsNum);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: max-context: {}",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: max-context: {}"sv,
                  ConfigRef.MaxTokenContext);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: offset-t: {}",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: offset-t: {}"sv,
                  ConfigRef.TimeOffsetMS);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: duration: {}",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: duration: {}"sv,
                  ConfigRef.DurationMS);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: max-len: {}",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: max-len: {}"sv,
                  ConfigRef.MaxSegmentLength);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: split-on-word : {}",
-                 ConfigRef.SplitOnWord);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: translate: {}",
+    spdlog::info(
+        "[WASI-NN][Debug] Whisper backend: Config: split-on-word : {}"sv,
+        ConfigRef.SplitOnWord);
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: translate: {}"sv,
                  ConfigRef.Translate);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: language: \"{}\"",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: language: \"{}\""sv,
                  ConfigRef.SpokenLanguage);
     spdlog::info(
-        "[WASI-NN][Debug] Whisper backend: Config: detect-language: {}",
+        "[WASI-NN][Debug] Whisper backend: Config: detect-language: {}"sv,
         ConfigRef.DetectLanguage);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: temperature: {}",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: temperature: {}"sv,
                  ConfigRef.Temperature);
-    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: prompt: \"{}\"",
+    spdlog::info("[WASI-NN][Debug] Whisper backend: Config: prompt: \"{}\""sv,
                  ConfigRef.InitialPrompt);
   }
 }
@@ -969,20 +972,20 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
     setWhisperParams(CxtRef);
     if (CxtRef.WhisperConfig.EnableDebugLog) {
-      spdlog::info(
-          "[WASI-NN][Debug] Whisper backend: found Metadata, processing...Done"sv);
+      spdlog::info("[WASI-NN][Debug] Whisper backend: found Metadata, "
+                   "processing...Done"sv);
     }
     return ErrNo::Success;
   }
 
   if (Tensor.Dimension.size() != 2) {
     spdlog::error("[WASI-NN] Tensor dimension is out of range, expect 2-dim, "
-                  "but got {}-dim.",
+                  "but got {}-dim."sv,
                   Tensor.Dimension.size());
     return WASINN::ErrNo::InvalidArgument;
   }
   if (Tensor.Dimension[0] != 1) {
-    spdlog::error("[WASI-NN] Only 1 channel supported for now.");
+    spdlog::error("[WASI-NN] Only 1 channel supported for now."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -1019,7 +1022,7 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   // Check out buffer max size.
   if (OutBuffer.size() < CxtRef.Outputs.length()) {
-    spdlog::error("[WASI-NN] Expect out buffer max size {}, but got {}",
+    spdlog::error("[WASI-NN] Expect out buffer max size {}, but got {}"sv,
                   CxtRef.Outputs.length(), OutBuffer.size());
     return WASINN::ErrNo::InvalidArgument;
   }

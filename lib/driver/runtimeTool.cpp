@@ -18,6 +18,8 @@
 #include <string_view>
 #include <vector>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Driver {
 
@@ -216,7 +218,6 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 }
 
 int Tool(struct DriverToolOptions &Opt) noexcept {
-  using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
   Log::setInfoLoggingLevel();
@@ -266,11 +267,11 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   }
   if (Opt.PropGC.value()) {
     Conf.addProposal(Proposal::GC);
-    spdlog::warn("GC proposal is enabled, this is experimental.");
+    spdlog::warn("GC proposal is enabled, this is experimental."sv);
   }
   if (Opt.PropComponent.value()) {
     Conf.addProposal(Proposal::Component);
-    spdlog::warn("component model is enabled, this is experimental.");
+    spdlog::warn("component model is enabled, this is experimental."sv);
   }
   if (Opt.PropExceptionHandling.value()) {
     Conf.addProposal(Proposal::ExceptionHandling);
@@ -282,8 +283,8 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.addProposal(Proposal::Threads);
     Conf.addProposal(Proposal::GC);
     Conf.addProposal(Proposal::Component);
-    spdlog::warn("GC proposal is enabled, this is experimental.");
-    spdlog::warn("component model is enabled, this is experimental.");
+    spdlog::warn("GC proposal is enabled, this is experimental."sv);
+    spdlog::warn("component model is enabled, this is experimental."sv);
     Conf.addProposal(Proposal::ExceptionHandling);
   }
 
@@ -411,7 +412,6 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     }
     const auto &FuncName = Opt.Args.value().front();
 
-    using namespace std::literals::string_literals;
     const auto InitFunc = "_initialize"s;
 
     bool HasInit = false;

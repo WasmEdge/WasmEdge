@@ -8,6 +8,8 @@
 
 #include <optional>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -476,8 +478,8 @@ Expect<void> Loader::loadInstanceDecl(InstanceDecl &Decl) {
     break;
   }
   default:
-    spdlog::error("unknown instance decl, {} is not one of 0x00|0x01|0x02|0x04",
-                  *RTag);
+    spdlog::error(
+        "unknown instance decl, {} is not one of 0x00|0x01|0x02|0x04"sv, *RTag);
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
                         ASTNodeAttr::DefType);
   }

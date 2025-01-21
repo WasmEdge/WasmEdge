@@ -19,6 +19,8 @@
 #error Unsupported os!
 #endif
 
+using namespace std::literals;
+
 namespace WasmEdge::Loader {
 
 // Open so file. See "include/loader/shared_library.h".
@@ -41,13 +43,13 @@ Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
                                                    winapi::SUBLANG_DEFAULT_),
                                reinterpret_cast<winapi::LPSTR_>(&ErrorText), 0,
                                nullptr)) {
-      spdlog::error("    load library failed:{}", ErrorText);
+      spdlog::error("    load library failed:{}"sv, ErrorText);
       winapi::LocalFree(ErrorText);
     } else {
-      spdlog::error("    load library failed:{:x}", Code);
+      spdlog::error("    load library failed:{:x}"sv, Code);
     }
 #else
-    spdlog::error("    load library failed:{}", ::dlerror());
+    spdlog::error("    load library failed:{}"sv, ::dlerror());
 #endif
     return Unexpect(ErrCode::Value::IllegalPath);
   }

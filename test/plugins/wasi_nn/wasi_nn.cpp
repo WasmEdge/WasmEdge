@@ -16,6 +16,7 @@
 #include <numeric>
 #include <vector>
 
+using namespace std::literals;
 using WasmEdge::Host::WASINN::Backend;
 using WasmEdge::Host::WASINN::Device;
 using WasmEdge::Host::WASINN::ErrNo;
@@ -42,7 +43,6 @@ inline std::unique_ptr<T> dynamicPointerCast(std::unique_ptr<U> &&R) noexcept {
 
 std::unique_ptr<WasmEdge::Host::WasiNNModule>
 createModule(std::string_view NNRPCURI = "") {
-  using namespace std::literals::string_view_literals;
   WasmEdge::Plugin::Plugin::load(
       std::filesystem::u8path("../../../plugins/wasi_nn/" WASMEDGE_LIB_PREFIX
                               "wasmedgePluginWasiNN" WASMEDGE_LIB_EXTENSION));
@@ -933,7 +933,7 @@ TEST(WasiNNTest, TFLiteBackend) {
   std::vector<uint8_t> WeightRead =
       readEntireFile("./wasinn_tflite_fixtures/"
                      "lite-model_aiy_vision_classifier_birds_V1_3.tflite");
-  spdlog::info("Read {}", TensorData.size());
+  spdlog::info("Read {}"sv, TensorData.size());
   std::vector<uint32_t> TensorDim{1, 224, 224, 3};
   uint32_t BuilderPtr = UINT32_C(0);
   uint32_t LoadEntryPtr = UINT32_C(0);

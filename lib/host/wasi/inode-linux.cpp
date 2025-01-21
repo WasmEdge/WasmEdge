@@ -19,6 +19,8 @@
 #include <string_view>
 #include <vector>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Host {
 namespace WASI {
@@ -1080,7 +1082,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
   if (NeedAddress) {
     switch (SockAddr.ss_family) {
     case AF_UNSPEC: {
-      spdlog::warn("remote address unavailable");
+      spdlog::warn("remote address unavailable"sv);
       // if ss_family is AF_UNSPEC, the access of the other members are
       // undefined.
       break;

@@ -28,16 +28,17 @@ namespace WASILogging {
 class LogEnv {
 public:
   LogEnv() noexcept {
+    using namespace std::literals;
     // Get the stdout and stderr logger.
-    StdoutLogger = spdlog::get("wasi_logging_stdout");
+    StdoutLogger = spdlog::get("wasi_logging_stdout"s);
     if (!StdoutLogger) {
-      StdoutLogger = spdlog::stdout_color_mt("wasi_logging_stdout");
+      StdoutLogger = spdlog::stdout_color_mt("wasi_logging_stdout"s);
       StdoutLogger->set_level(spdlog::level::trace);
       StdoutLogger->set_pattern(DefFormat);
     }
-    StderrLogger = spdlog::get("wasi_logging_stderr");
+    StderrLogger = spdlog::get("wasi_logging_stderr"s);
     if (!StderrLogger) {
-      StderrLogger = spdlog::stderr_color_mt("wasi_logging_stderr");
+      StderrLogger = spdlog::stderr_color_mt("wasi_logging_stderr"s);
       StderrLogger->set_level(spdlog::level::trace);
       StderrLogger->set_pattern(DefFormat);
     }

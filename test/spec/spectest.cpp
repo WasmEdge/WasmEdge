@@ -630,15 +630,15 @@ bool SpecTest::compares(
 bool SpecTest::stringContains(std::string_view Expected,
                               std::string_view Got) const {
   if (Expected.rfind(Got, 0) != 0) {
-    spdlog::error("   ##### expected text : {}", Expected);
-    spdlog::error("   ######## error text : {}", Got);
+    spdlog::error("   ##### expected text : {}"sv, Expected);
+    spdlog::error("   ######## error text : {}"sv, Got);
     return false;
   }
   return true;
 }
 
 void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
-  spdlog::info("{} {}", Proposal, UnitName);
+  spdlog::info("{} {}"sv, Proposal, UnitName);
   auto TestFileName =
       (TestsuiteRoot / Proposal / UnitName / (std::string(UnitName) + ".json"s))
           .string();

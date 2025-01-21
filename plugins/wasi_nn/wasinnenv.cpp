@@ -11,6 +11,8 @@
 #include <grpc/grpc.h>
 #endif
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Host {
 

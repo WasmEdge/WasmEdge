@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -85,7 +87,7 @@ Loader::loadUnit() {
       return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Component,
                              FMgr.getLastOffset(), ASTNodeAttr::Component);
     }
-    spdlog::warn("component model is an experimental proposal");
+    spdlog::warn("component model is an experimental proposal"sv);
     auto Comp = std::make_unique<AST::Component::Component>();
     Comp->getMagic() = WasmMagic;
     Comp->getVersion() = {Ver[0], Ver[1]};

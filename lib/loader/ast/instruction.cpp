@@ -7,6 +7,8 @@
 #include <utility>
 #include <vector>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -455,7 +457,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // LEGACY-EH: remove the `Rethrow` case after deprecating legacy EH.
   case OpCode::Rethrow:
     spdlog::error(ErrCode::Value::IllegalOpCode);
-    spdlog::error("    Deprecated `rethrow` instruction.");
+    spdlog::error("    Deprecated `rethrow` instruction."sv);
     return Unexpect(ErrCode::Value::IllegalOpCode);
 
   case OpCode::Br:
@@ -467,7 +469,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // LEGACY-EH: remove the `Delegate` case after deprecating legacy EH.
   case OpCode::Delegate:
     spdlog::error(ErrCode::Value::IllegalOpCode);
-    spdlog::error("    Deprecated `delegate` instruction.");
+    spdlog::error("    Deprecated `delegate` instruction."sv);
     return Unexpect(ErrCode::Value::IllegalOpCode);
 
   case OpCode::Br_table: {

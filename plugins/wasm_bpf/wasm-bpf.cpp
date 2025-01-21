@@ -16,6 +16,8 @@ extern "C" {
 #include <bpf/libbpf.h>
 }
 
+using namespace std::literals;
+
 static int32_t bpf_buffer_sample(void *ctx, void *data, size_t size);
 static int32_t libbpf_print_fn(enum libbpf_print_level level,
                                const char *format, va_list args) {
@@ -23,7 +25,7 @@ static int32_t libbpf_print_fn(enum libbpf_print_level level,
     return 0;
   char buf[DEBUG_PRINT_BUFFER_SIZE];
   int32_t len = vsnprintf(buf, sizeof(buf), format, args);
-  spdlog::debug("[WasmEdge Wasm_bpf] {}", buf);
+  spdlog::debug("[WasmEdge Wasm_bpf] {}"sv, buf);
   return len;
 }
 
@@ -195,7 +197,7 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
     bpf_object *o = obj.get();
     bpf_program *prog = bpf_object__find_program_by_name(o, name);
     if (!prog) {
-      spdlog::error("[WasmEdge Wasm_bpf] get prog {} fail", name);
+      spdlog::error("[WasmEdge Wasm_bpf] get prog {} fail"sv, name);
       return -1;
     }
     // TODO: attach dynamically base on bpf_program__section_name(prog) and

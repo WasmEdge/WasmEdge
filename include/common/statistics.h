@@ -83,13 +83,14 @@ public:
 
   /// Add cost and return false if exceeded limit.
   bool addCost(uint64_t Cost) {
+    using namespace std::literals;
     const auto Limit = CostLimit;
     uint64_t OldCostSum = CostSum.load(std::memory_order_relaxed);
     uint64_t NewCostSum;
     do {
       NewCostSum = OldCostSum + Cost;
       if (unlikely(NewCostSum > Limit)) {
-        spdlog::error("Cost exceeded limit. Force terminate the execution.");
+        spdlog::error("Cost exceeded limit. Force terminate the execution."sv);
         return false;
       }
     } while (!CostSum.compare_exchange_weak(OldCostSum, NewCostSum,
@@ -151,34 +152,35 @@ public:
   }
 
   void dumpToLog(const Configure &Conf) const noexcept {
+    using namespace std::literals;
     auto Nano = [](auto &&Duration) {
       return std::chrono::nanoseconds(Duration).count();
     };
     const auto &StatConf = Conf.getStatisticsConfigure();
     if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
         StatConf.isCostMeasuring()) {
-      spdlog::info("====================  Statistics  ====================");
+      spdlog::info("====================  Statistics  ===================="sv);
     }
     if (StatConf.isTimeMeasuring()) {
-      spdlog::info(" Total execution time: {} ns", Nano(getTotalExecTime()));
-      spdlog::info(" Wasm instructions execution time: {} ns",
+      spdlog::info(" Total execution time: {} ns"sv, Nano(getTotalExecTime()));
+      spdlog::info(" Wasm instructions execution time: {} ns"sv,
                    Nano(getWasmExecTime()));
-      spdlog::info(" Host functions execution time: {} ns",
+      spdlog::info(" Host functions execution time: {} ns"sv,
                    Nano(getHostFuncExecTime()));
     }
     if (StatConf.isInstructionCounting()) {
-      spdlog::info(" Executed wasm instructions count: {}", getInstrCount());
+      spdlog::info(" Executed wasm instructions count: {}"sv, getInstrCount());
     }
     if (StatConf.isCostMeasuring()) {
-      spdlog::info(" Gas costs: {}", getTotalCost());
+      spdlog::info(" Gas costs: {}"sv, getTotalCost());
     }
     if (StatConf.isInstructionCounting() && StatConf.isTimeMeasuring()) {
-      spdlog::info(" Instructions per second: {}",
+      spdlog::info(" Instructions per second: {}"sv,
                    static_cast<uint64_t>(getInstrPerSecond()));
     }
     if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
         StatConf.isCostMeasuring()) {
-      spdlog::info("=======================   End   ======================");
+      spdlog::info("=======================   End   ======================"sv);
     }
   }
 

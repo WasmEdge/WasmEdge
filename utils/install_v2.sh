@@ -338,9 +338,11 @@ EOF
 on_exit() {
 	cat <<EOF
 ${RED}
-	Please see --help
-	If issue persists make a trace using -V and submit it to
-https://github.com/WasmEdge/WasmEdge/issues/new?assignees=&labels=&template=bug_report.md
+	Troubleshooting:
+	1. Please check --help for the correct usage.
+	2. Make a trace by re-runing the installer with the -V flag if the issue persists.
+	3. Submit the reproduction steps and full trace log to the issue tracker
+https://github.com/WasmEdge/WasmEdge/issues/new?template=bug_report.yml
 ${NC}
 EOF
 }

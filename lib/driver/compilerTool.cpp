@@ -158,6 +158,11 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
           CompilerConfigure::OutputFormat::Native);
     }
     LLVM::Compiler Compiler(Conf);
+    if (auto Res = Compiler.checkConfigure(); !Res) {
+      const auto Err = static_cast<uint32_t>(Res.error());
+      spdlog::error("Compiler Configure failed. Error code: {}"sv, Err);
+      return EXIT_FAILURE;
+    }
     LLVM::CodeGen CodeGen(Conf);
     if (auto Res = Compiler.compile(*Module); !Res) {
       const auto Err = static_cast<uint32_t>(Res.error());

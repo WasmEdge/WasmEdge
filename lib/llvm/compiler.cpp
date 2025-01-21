@@ -5184,6 +5184,21 @@ std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
 namespace WasmEdge {
 namespace LLVM {
 
+Expect<void> Compiler::checkConfigure() noexcept {
+  if (Conf.hasProposal(Proposal::GC)) {
+    spdlog::error(ErrCode::Value::InvalidConfigure);
+    spdlog::error("    Proposal GC is not yet supported in LLVM backend");
+    return Unexpect(ErrCode::Value::InvalidConfigure);
+  }
+  if (Conf.hasProposal(Proposal::ExceptionHandling)) {
+    spdlog::error(ErrCode::Value::InvalidConfigure);
+    spdlog::error(
+        "    Proposal ExceptionHandling is not yet supported in LLVM backend");
+    return Unexpect(ErrCode::Value::InvalidConfigure);
+  }
+  return {};
+}
+
 Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {

@@ -1718,7 +1718,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
         std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
         std::vector<WasmEdge::Byte> Data;
         std::unique_ptr<WasmEdge::AST::Module> Module;
-        return Cxt->Load.loadFile(InputPath)
+        return Cxt->Compiler.checkConfigure()
+            .and_then([&]() noexcept { return Cxt->Load.loadFile(InputPath); })
             .and_then([&](auto Result) noexcept {
               Data = std::move(Result);
               return Cxt->Load.parseModule(Data);

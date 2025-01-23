@@ -19,7 +19,9 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <math.h>
 #include <optional>
+#include <regex>
 #include <sstream>
 #include <tuple>
 #endif
@@ -89,6 +91,13 @@ void setupSamplerParams(Graph &GraphRef,
   Sampling.penalty_freq = static_cast<float>(GraphRef.FrequencyPenalty);
   Sampling.grammar = GraphRef.Grammar;
   Sampling.seed = static_cast<uint32_t>(GraphRef.Seed);
+
+  if (GraphRef.TextToSpeech) {
+    Sampling.top_k = 4;
+    Sampling.samplers = {
+        COMMON_SAMPLER_TYPE_TOP_K,
+    };
+  }
 }
 
 // Setup llama common params from graph.
@@ -132,6 +141,10 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   //   warmup: bool
   //   split-mode: string, {none,layer,row}
   //   mmproj: string
+  // TTS parameters:
+  //   tts: bool
+  //   model-vocoder: string
+  //   tts-output-file: string
   // Context parameters (used by the llama context):
   //   ctx-size: int64_t
   //   batch-size: int64_t
@@ -271,6 +284,34 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the mmproj option."sv)
     }
     GraphRef.MMProjModelPath = MMProjModelPath;
+  }
+
+  // The TTS parameters.
+  if (Doc.at_key("tts").error() == simdjson::SUCCESS) {
+    auto Err = Doc["tts"].get<bool>().get(GraphRef.TextToSpeech);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the tts option."sv)
+    }
+  }
+  if (Doc.at_key("model-vocoder").error() == simdjson::SUCCESS) {
+    std::string_view VocoderModelPath;
+    auto Err =
+        Doc["model-vocoder"].get<std::string_view>().get(VocoderModelPath);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the model-vocoder option."sv)
+    }
+    GraphRef.VocoderModelPath = VocoderModelPath;
+  }
+  if (Doc.at_key("tts-output-file").error() == simdjson::SUCCESS) {
+    std::string_view TTSOutputFilePath;
+    auto Err =
+        Doc["tts-output-file"].get<std::string_view>().get(TTSOutputFilePath);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the tts-output-file option."sv)
+    }
+    GraphRef.TTSOutputFilePath = TTSOutputFilePath;
   }
 
   // The context parameters.
@@ -497,6 +538,263 @@ extractBase64ImagePayload(std::string &Prompt,
                  EndTagPos - BeginTagPos + Base64ImageTagSuffix.size(),
                  Placeholder);
   return std::make_pair(ImageBytes, ImageType);
+}
+
+// TTS function to process the prompt text.
+const std::vector<llama_token> TTSVoiceData = llama_tokens{
+    151667, 198,    1782,   155780, 151669, 151929, 152412, 152308, 152585,
+    152460, 153375, 151670, 198,    74455,  155808, 151669, 151799, 151873,
+    151863, 152446, 152372, 152204, 152728, 152229, 152470, 151970, 153413,
+    152419, 153334, 153289, 153374, 153199, 152040, 153260, 152721, 152680,
+    153297, 152419, 153248, 152400, 152691, 153368, 153437, 151670, 198,
+    1722,   155828, 151669, 152607, 152256, 152991, 152299, 152688, 153163,
+    153016, 152789, 153198, 152712, 151911, 153107, 152623, 152170, 152395,
+    152852, 152207, 152461, 153321, 153309, 151750, 152137, 153340, 152573,
+    152267, 153347, 151789, 152681, 153339, 151992, 152512, 151751, 152179,
+    153434, 153180, 152900, 153440, 152474, 153122, 153129, 151904, 152311,
+    151670, 198,    1499,   155791, 151669, 152276, 152454, 153354, 152544,
+    153204, 153272, 152708, 153433, 152319, 153226, 153043, 152325, 153267,
+    152622, 151670, 198,    4250,   155797, 151669, 153454, 153342, 151989,
+    152458, 153420, 152303, 152271, 152827, 153036, 153196, 151708, 153263,
+    152561, 153207, 152213, 152112, 153204, 151722, 152542, 151670, 198,
+    19789,  155796, 151669, 153353, 153182, 152345, 152471, 152477, 153014,
+    152002, 152191, 151734, 152312, 152810, 152237, 153224, 153169, 153224,
+    152244, 153387, 153404, 151670, 198,    16069,  155811, 151669, 152265,
+    151946, 151808, 152412, 152363, 152305, 153156, 152733, 152810, 153157,
+    152016, 152100, 152069, 153234, 152317, 152589, 152707, 153121, 153341,
+    152159, 152114, 153156, 153001, 153504, 153376, 152272, 152433, 152325,
+    151941, 151670, 198,    285,    155788, 151669, 152238, 152255, 153427,
+    152318, 153009, 152381, 152474, 152680, 152157, 153255, 152324, 151682,
+    151670, 198,    32955,  155804, 151669, 153490, 153419, 152364, 152405,
+    152682, 152206, 152078, 153369, 152725, 153193, 153027, 152946, 152488,
+    153070, 151883, 152890, 152489, 153144, 153375, 152358, 151685, 152494,
+    152117, 152740, 151670, 198,    37448,  480,    155840, 151669, 151902,
+    152720, 153377, 152027, 152378, 152821, 153207, 153459, 153028, 153068,
+    152507, 153255, 152158, 152921, 151958, 152609, 152748, 152822, 152286,
+    151714, 152730, 152377, 152353, 152470, 152606, 152162, 152186, 153071,
+    152244, 153118, 153375, 153018, 152712, 153098, 152976, 152336, 151843,
+    153202, 152297, 151736, 153380, 153502, 152702, 152115, 153181, 152735,
+    153277, 153457, 152393, 153112, 152595, 151670, 198,    19098,  155808,
+    151669, 152464, 153452, 152595, 153312, 151937, 151933, 153197, 152239,
+    153163, 152922, 153402, 152034, 152591, 153438, 152215, 151673, 152005,
+    151785, 152642, 151924, 153278, 151805, 151974, 153482, 152718, 152862,
+    153347, 151670, 198,    72,     155780, 151669, 151795, 152111, 152746,
+    152377, 153471, 152309, 151670, 198,    19016,  155788, 151669, 153181,
+    152271, 152190, 152842, 152224, 152701, 152939, 152536, 152091, 151815,
+    152733, 151672, 151670, 198,    14689,  155788, 151669, 152291, 152072,
+    152942, 151734, 153042, 153504, 152589, 153333, 151839, 151941, 153038,
+    153180, 151670, 198,    36996,  8303,   155832, 151669, 152231, 152256,
+    152835, 152801, 152985, 153400, 152393, 152818, 152765, 152249, 152600,
+    151699, 152302, 152752, 153018, 153009, 151992, 153054, 152847, 153354,
+    153228, 152662, 153355, 152532, 153393, 151782, 152458, 152048, 152757,
+    152428, 153195, 151906, 153006, 153178, 153250, 152331, 152284, 152780,
+    153138, 153319, 151980, 153142, 152418, 152228, 152733, 151670, 198,
+    9096,   155801, 151669, 151698, 153321, 152217, 153039, 152935, 153400,
+    152122, 152531, 153106, 152169, 152892, 152957, 151851, 152427, 152826,
+    152451, 151851, 152901, 152885, 152594, 153446, 153080, 151670, 198,
+    14689,  155795, 151669, 152658, 151700, 153321, 152450, 152530, 153191,
+    151673, 151690, 151698, 152714, 152846, 152981, 153171, 153384, 153364,
+    153188, 153246, 151670, 198,    1055,   155779, 151669, 151869, 152388,
+    152711, 153334, 151736, 151670, 198,    1782,   155780, 151669, 153483,
+    153240, 152241, 152558, 152697, 153046, 151670, 198,    5804,   1363,
+    155820, 151669, 152941, 152764, 152605, 153034, 153434, 153372, 153347,
+    151887, 152453, 152758, 152133, 152510, 152694, 152431, 152321, 153088,
+    152676, 152223, 152581, 152459, 152015, 152502, 153063, 152712, 153294,
+    153451, 153032, 152903, 152859, 152989, 151748, 152669, 152661, 152650,
+    152409, 151861, 151670, 198,    300,    7973,   155828, 151669, 153095,
+    152469, 152988, 152894, 151819, 152391, 153019, 152058, 153062, 153230,
+    151826, 152112, 152306, 152264, 152769, 153390, 152384, 152435, 152790,
+    153393, 152983, 152540, 152252, 152034, 153107, 152540, 151919, 151893,
+    152558, 152817, 152946, 152956, 152129, 152715, 153131, 153490, 151734,
+    152271, 152707, 151734, 153321, 152450, 151670, 198,    8088,   155792,
+    151669, 152452, 153497, 153353, 152679, 152533, 152382, 152374, 152611,
+    153341, 153163, 152285, 153411, 152495, 153141, 152320, 151670, 198,
+    1199,   155781, 151669, 151764, 152360, 153295, 152634, 153342, 152199,
+    152271, 151670, 198,    43366,  155799, 151669, 152308, 151682, 152889,
+    152016, 152385, 152629, 152495, 151826, 153321, 152958, 152180, 151886,
+    153432, 152922, 152128, 153024, 153040, 152593, 152287, 151677, 151670,
+    198,    53660,  155808, 151669, 151727, 152092, 152680, 153331, 151699,
+    152316, 152938, 152289, 152433, 153384, 151781, 153137, 153259, 152175,
+    153213, 152291, 151869, 152691, 152489, 151941, 152049, 152034, 153053,
+    152179, 153160, 151676, 153367, 151670, 198,    268,    4123,   480,
+    155821, 151669, 152350, 152173, 152536, 151991, 151960, 153144, 153013,
+    152358, 152234, 153135, 152291, 153235, 152143, 152583, 152402, 153483,
+    152678, 152192, 152533, 152946, 151797, 153103, 152310, 152293, 151825,
+    152548, 153442, 152109, 152659, 153325, 152781, 152570, 152957, 151752,
+    152265, 153381, 152515, 151670, 198,    437,    155787, 151669, 152957,
+    152659, 151975, 152709, 152402, 152836, 152174, 151792, 153409, 153327,
+    152990, 151670, 198,    275,    155781, 151669, 152520, 153038, 152067,
+    153273, 153185, 152265, 152974, 151670, 198,    94273,  155799, 151669,
+    152953, 152938, 153427, 152244, 151920, 153423, 152929, 152367, 153052,
+    152129, 152331, 152257, 152987, 152777, 153448, 152408, 151696, 152408,
+    152326, 152699, 151670, 198,    385,    16239,  155828, 151669, 152306,
+    152268, 153438, 153228, 152978, 152957, 153153, 153393, 152795, 152110,
+    152918, 152923, 152467, 152331, 153053, 153330, 151889, 153444, 152234,
+    152624, 151779, 152801, 152784, 152139, 152222, 152751, 152512, 153287,
+    153141, 153052, 151840, 152589, 152508, 153499, 152109, 152255, 151739,
+    152267, 152759, 153318, 153165, 153349, 151670,
+};
+
+const std::map<int, std::string> Ones = {
+    {0, "zero"},     {1, "one"},        {2, "two"},       {3, "three"},
+    {4, "four"},     {5, "five"},       {6, "six"},       {7, "seven"},
+    {8, "eight"},    {9, "nine"},       {10, "ten"},      {11, "eleven"},
+    {12, "twelve"},  {13, "thirteen"},  {14, "fourteen"}, {15, "fifteen"},
+    {16, "sixteen"}, {17, "seventeen"}, {18, "eighteen"}, {19, "nineteen"}};
+
+const std::map<int, std::string> Tens = {
+    {2, "twenty"}, {3, "thirty"},  {4, "forty"},  {5, "fifty"},
+    {6, "sixty"},  {7, "seventy"}, {8, "eighty"}, {9, "ninety"}};
+
+// Convert a number less than 1000 to words
+std::string convertLessThanThousand(int Num) {
+  std::string result;
+
+  if (Num >= 100) {
+    result += Ones.at(Num / 100) + " hundred ";
+    Num %= 100;
+  }
+
+  if (Num >= 20) {
+    result += Tens.at(Num / 10);
+    if (Num % 10 > 0) {
+      result += "-" + Ones.at(Num % 10);
+    }
+  } else if (Num > 0) {
+    result += Ones.at(Num);
+  }
+
+  return result;
+}
+
+std::string numberToWords(const std::string &NumberStr) {
+  try {
+    size_t DecimalPos = NumberStr.find('.');
+    std::string IntegerPart = NumberStr.substr(0, DecimalPos);
+
+    int IntNumber = std::stoi(IntegerPart);
+    std::string Result;
+
+    if (IntNumber == 0) {
+      Result = "zero";
+    } else {
+      if (IntNumber >= 1000000000) {
+        int billions = IntNumber / 1000000000;
+        Result += convertLessThanThousand(billions) + " billion ";
+        IntNumber %= 1000000000;
+      }
+
+      if (IntNumber >= 1000000) {
+        int millions = IntNumber / 1000000;
+        Result += convertLessThanThousand(millions) + " million ";
+        IntNumber %= 1000000;
+      }
+
+      if (IntNumber >= 1000) {
+        int thousands = IntNumber / 1000;
+        Result += convertLessThanThousand(thousands) + " thousand ";
+        IntNumber %= 1000;
+      }
+
+      if (IntNumber > 0) {
+        Result += convertLessThanThousand(IntNumber);
+      }
+    }
+
+    // Handle decimal part
+    if (DecimalPos != std::string::npos) {
+      Result += " point";
+      std::string decimal_part = NumberStr.substr(DecimalPos + 1);
+      for (char digit : decimal_part) {
+        Result += " " + Ones.at(digit - '0');
+      }
+    }
+
+    return Result;
+  } catch (const std::exception &) {
+    // Skip if fails
+    return " ";
+  }
+}
+
+std::string replaceNumbersWithWords(const std::string &InputText) {
+  std::regex NumberPattern(R"(\d+(\.\d+)?)");
+  std::string Result;
+  auto It =
+      std::sregex_iterator(InputText.begin(), InputText.end(), NumberPattern);
+  auto End = std::sregex_iterator();
+
+  size_t LastPos = 0;
+  for (std::sregex_iterator I = It; I != End; ++I) {
+    const std::smatch &Match = *I;
+    Result.append(InputText, LastPos, Match.position() - LastPos);
+    Result.append(numberToWords(Match.str()));
+    LastPos = Match.position() + Match.length();
+  }
+  Result.append(InputText, LastPos);
+
+  return Result;
+}
+
+// Based on:
+// https://github.com/edwko/OuteTTS/blob/a613e79c489d8256dd657ea9168d78de75895d82/outetts/version/v1/prompt_processor.py#L39
+// https://github.com/ggerganov/llama.cpp/blob/b4488/examples/tts/tts.cpp#L374
+std::string processTTSPromptText(const std::string &Text) {
+  std::string ProcessedText = replaceNumbersWithWords(Text);
+
+  std::transform(
+      ProcessedText.begin(), ProcessedText.end(), ProcessedText.begin(),
+      [](unsigned char c) { return static_cast<char>(::tolower(c)); });
+
+  std::regex SpecialChars(R"([-_/,\.\\])");
+  ProcessedText = std::regex_replace(ProcessedText, SpecialChars, " ");
+
+  std::regex NonAlpha(R"([^a-z\s])");
+  ProcessedText = std::regex_replace(ProcessedText, NonAlpha, "");
+
+  std::regex MultipleSpaces(R"(\s+)");
+  ProcessedText = std::regex_replace(ProcessedText, MultipleSpaces, " ");
+
+  ProcessedText =
+      std::regex_replace(ProcessedText, std::regex(R"(^\s+|\s+$)"), "");
+
+  ProcessedText =
+      std::regex_replace(ProcessedText, std::regex(R"(\s)"), "<|text_sep|>");
+
+  return ProcessedText;
+}
+
+std::vector<llama_token> processTTSPrompt(Graph &GraphRef,
+                                          std::string &Prompt) noexcept {
+  std::string ProcessedPrompt = processTTSPromptText(Prompt);
+  std::vector<llama_token> Result, TmpTokens;
+  Result = common_tokenize(GraphRef.LlamaContext.get(), "<|im_start|>\n",
+                           /* add_special */ true,
+                           /* parse_special */ true);
+  TmpTokens = common_tokenize(
+      GraphRef.LlamaContext.get(),
+      "<|text_start|>the<|text_sep|>overall<|text_sep|>package<|text_sep|>from<"
+      "|text_sep|>just<|text_sep|>two<|text_sep|>people<|text_sep|>is<|text_"
+      "sep|>pretty<|text_sep|>remarkable<|text_sep|>sure<|text_sep|>i<|text_"
+      "sep|>have<|text_sep|>some<|text_sep|>critiques<|text_sep|>about<|text_"
+      "sep|>some<|text_sep|>of<|text_sep|>the<|text_sep|>gameplay<|text_sep|>"
+      "aspects<|text_sep|>but<|text_sep|>its<|text_sep|>still<|text_sep|>"
+      "really<|text_sep|>enjoyable<|text_sep|>and<|text_sep|>it<|text_sep|>"
+      "looks<|text_sep|>lovely<|text_sep|>",
+      /* add_special */ false,
+      /* parse_special */ true);
+  Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
+  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), ProcessedPrompt,
+                              /* add_special */ false,
+                              /* parse_special */ true);
+  Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
+  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), "<|text_end|>\n",
+                              /* add_special */ false,
+                              /* parse_special */ true);
+  Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
+  Result.insert(Result.end(), TTSVoiceData.begin(), TTSVoiceData.end());
+
+  return Result;
 }
 
 // <<<<<<<< Input related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -911,6 +1209,257 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   return ErrNo::Success;
 }
 
+// TTS related functions.
+void fillHannWindow(int Length, bool Periodic, float *Output) {
+  int Offset = -1;
+  float Pi = static_cast<float>(std::acos(-1));
+  if (Periodic) {
+    Offset = 0;
+  }
+  for (int I = 0; I < Length; I++) {
+    double Value =
+        0.5 *
+        (1.0 - cosf(static_cast<float>((2.0 * Pi * I) / (Length + Offset))));
+    Output[I] = static_cast<float>(Value);
+  }
+}
+
+void twiddle(float *Real, float *Imag, int K, int N) {
+  float Pi = static_cast<float>(std::acos(-1));
+  float Angle = 2 * Pi * K / N;
+  *Real = cos(Angle);
+  *Imag = sin(Angle);
+}
+
+void irfft(int N, const float *InpCplx, float *OutReal) {
+  int NN = N / 2 + 1;
+
+  std::vector<float> RealInput(NN);
+  std::vector<float> ImagInput(NN);
+  for (int I = 0; I < NN; ++I) {
+    RealInput[I] = InpCplx[2 * I];
+    ImagInput[I] = InpCplx[2 * I + 1];
+  }
+
+  std::vector<float> RealOutput(N);
+  std::vector<float> ImagOutput(N);
+
+  for (int K = 0; K < N; ++K) {
+    RealOutput[K] = 0.0f;
+    ImagOutput[K] = 0.0f;
+    for (int M = 0; M < NN; ++M) {
+      float TwiddleReal;
+      float TwiddleImag;
+
+      twiddle(&TwiddleReal, &TwiddleImag, K * M, N);
+
+      RealOutput[K] += RealInput[M] * TwiddleReal - ImagInput[M] * TwiddleImag;
+      ImagOutput[K] += RealInput[M] * TwiddleImag + ImagInput[M] * TwiddleReal;
+    }
+  }
+
+  for (int I = 0; I < N; ++I) {
+    OutReal[I] = RealOutput[I] / NN;
+  }
+}
+
+void fold(const std::vector<float> &Data, int64_t NOut, int64_t NWin,
+          int64_t NHop, int64_t NPad, std::vector<float> &Output) {
+  int64_t OutputHeight = NOut;
+  int64_t KernelW = NWin;
+  int64_t StrideW = NHop;
+  int64_t Width = NOut;
+
+  Output.resize(Width, 0.0f);
+
+  int64_t ColIdx = 0;
+  for (int64_t WCol = 0; WCol < Width; ++WCol) {
+    int64_t Start = WCol * StrideW - NPad;
+    int64_t End = Start + KernelW;
+
+    for (int64_t WIm = Start; WIm < End; ++WIm) {
+      if (WIm >= 0 && WIm < OutputHeight &&
+          ColIdx < static_cast<int64_t>(Data.size())) {
+        Output[WIm] += Data[ColIdx];
+      }
+      ColIdx++;
+    }
+  }
+
+  Output.resize(NOut - 2 * NPad);
+}
+
+std::vector<float> embdToAudio(const float *Embd, const int NCodes,
+                               const int NEmbd, const int NThread) {
+  const int NFft = 1280;
+  const int NHop = 320;
+  const int NWin = 1280;
+  const int NPad = (NWin - NHop) / 2;
+  const int NOut = (NCodes - 1) * NHop + NWin;
+
+  std::vector<float> Hann(NFft);
+
+  fillHannWindow(static_cast<int>(Hann.size()), true, Hann.data());
+
+  int NSpec = NEmbd * NCodes;
+
+  std::vector<float> E(NSpec);
+  std::vector<float> S(NSpec);
+  std::vector<float> ST(NSpec);
+
+  for (int L = 0; L < NCodes; ++L) {
+    for (int K = 0; K < NEmbd; ++K) {
+      E[K * NCodes + L] = Embd[L * NEmbd + K];
+    }
+  }
+
+  for (int K = 0; K < NEmbd / 2; ++K) {
+    for (int L = 0; L < NCodes; ++L) {
+      float Mag = E[(K)*NCodes + L];
+      float Phi = E[(K + NEmbd / 2) * NCodes + L];
+
+      Mag = exp(Mag);
+
+      if (Mag > 1e2) {
+        Mag = 1e2;
+      }
+      S[2 * (K * NCodes + L) + 0] = Mag * cosf(Phi);
+      S[2 * (K * NCodes + L) + 1] = Mag * sinf(Phi);
+    }
+  }
+
+  for (int L = 0; L < NCodes; ++L) {
+    for (int K = 0; K < NEmbd / 2; ++K) {
+      ST[L * NEmbd + 2 * K + 0] = S[2 * (K * NCodes + L) + 0];
+      ST[L * NEmbd + 2 * K + 1] = S[2 * (K * NCodes + L) + 1];
+    }
+  }
+
+  std::vector<float> Res(NCodes * NFft);
+  std::vector<float> Hann2(NCodes * NFft);
+
+  std::vector<std::thread> Workers(NThread);
+  for (int I = 0; I < NThread; ++I) {
+    Workers[I] = std::thread([&, I]() {
+      for (int L = I; L < NCodes; L += NThread) {
+        irfft(NFft, ST.data() + L * NEmbd, Res.data() + L * NFft);
+        for (int J = 0; J < NFft; ++J) {
+          Res[L * NFft + J] *= Hann[J];
+          Hann2[L * NFft + J] = Hann[J] * Hann[J];
+        }
+      }
+    });
+  }
+  for (int I = 0; I < NThread; ++I) {
+    Workers[I].join();
+  }
+
+  std::vector<float> Audio;
+  std::vector<float> Env;
+
+  fold(Res, NOut, NWin, NHop, NPad, Audio);
+  fold(Hann2, NOut, NWin, NHop, NPad, Env); // TODO: can be done once
+
+  for (size_t I = 0; I < Audio.size(); ++I) {
+    Audio[I] /= Env[I];
+  }
+
+  return Audio;
+}
+
+struct WavHeader {
+  char Riff[4] = {'R', 'I', 'F', 'F'};
+  uint32_t ChunkSize;
+  char Wave[4] = {'W', 'A', 'V', 'E'};
+  char Fmt[4] = {'f', 'm', 't', ' '};
+  uint32_t FmtChunkSize = 16;
+  uint16_t AudioFormat = 1; // PCM
+  uint16_t NumChannels = 1; // Mono
+  uint32_t SampleRate;
+  uint32_t ByteRate;
+  uint16_t BlockAlign;
+  uint16_t BitsPerSample = 16;
+  char Data[4] = {'d', 'a', 't', 'a'};
+  uint32_t DataSize;
+};
+
+void audioDataToWav(const std::string &Filename, const std::vector<float> &Data,
+                    int SampleRate) {
+  std::ofstream File(Filename, std::ios::binary);
+  if (!File) {
+    LOG_ERROR("audioDataToWav: Failed to open file '{}' for writing"sv,
+              Filename);
+    return;
+  }
+
+  WavHeader Header;
+  Header.SampleRate = SampleRate;
+  Header.ByteRate =
+      Header.SampleRate * Header.NumChannels * (Header.BitsPerSample / 8);
+  Header.BlockAlign = Header.NumChannels * (Header.BitsPerSample / 8);
+  Header.DataSize =
+      static_cast<uint32_t>(Data.size() * (Header.BitsPerSample / 8));
+  Header.ChunkSize = 36 + Header.DataSize;
+
+  File.write(reinterpret_cast<const char *>(&Header), sizeof(Header));
+
+  for (const auto &Sample : Data) {
+    int16_t PCMSample =
+        static_cast<int16_t>(std::clamp(Sample * 32767.0, -32768.0, 32767.0));
+    File.write(reinterpret_cast<const char *>(&PCMSample), sizeof(PCMSample));
+  }
+
+  File.close();
+}
+
+// TextToSpeech function, will generate voice data from codes.
+ErrNo codesToSpeech(Graph &GraphRef, Context &CxtRef) noexcept {
+  // Remove all non-audio tokens.
+  CxtRef.LlamaOutputTokens.erase(
+      std::remove_if(CxtRef.LlamaOutputTokens.begin(),
+                     CxtRef.LlamaOutputTokens.end(),
+                     [](llama_token T) { return T < 151672 || T > 155772; }),
+      CxtRef.LlamaOutputTokens.end());
+
+  // Adjust the token values for audio data.
+  for (llama_token &Token : CxtRef.LlamaOutputTokens) {
+    Token -= 151672;
+  }
+
+  // Put codes into batch.
+  const uint32_t NCodes =
+      static_cast<uint32_t>(CxtRef.LlamaOutputTokens.size());
+  llama_batch TTSBatch =
+      llama_batch_init(NCodes, /* embd */ 0, /* n_seq_max */ 1);
+  for (uint32_t I = 0; I < NCodes; ++I) {
+    common_batch_add(TTSBatch, CxtRef.LlamaOutputTokens[I], I,
+                     /* seq_ids */ {0}, /* logits */ true);
+  }
+  if (llama_decode(GraphRef.TTSContext.get(), TTSBatch) != 0) {
+    RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval."sv)
+  }
+  llama_batch_free(TTSBatch);
+
+  // Get embeddings.
+  const int NEmbd = llama_model_n_embd(GraphRef.TTSModel.get());
+  const float *Embd = llama_get_embeddings(GraphRef.TTSContext.get());
+
+  // Embeddings to audio.
+  std::vector<float> AudioData =
+      embdToAudio(Embd, NCodes, NEmbd, static_cast<int>(GraphRef.Threads));
+
+  // Zero out first 0.25 seconds of audio.
+  const uint32_t SamplingRate = 24000;
+  for (uint32_t i = 0; i < SamplingRate / 4; ++i) {
+    AudioData[i] = 0.0f;
+  }
+
+  // Save .wav file
+  audioDataToWav(GraphRef.TTSOutputFilePath, AudioData, SamplingRate);
+
+  return ErrNo::Success;
+}
+
 // <<<<<<<< Compute related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 } // namespace
@@ -1031,6 +1580,25 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   }
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "load: initialize ggml model with given parameters...Done"sv)
+
+  // Initialize the TTS related model and context.
+  if (GraphRef.TextToSpeech) {
+    LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model."sv)
+    Params.model = GraphRef.VocoderModelPath;
+    Params.embedding = true;
+    common_init_result TTSInit = common_init_from_params(Params);
+    GraphRef.TTSModel = std::move(TTSInit.model);
+    GraphRef.TTSContext = std::move(TTSInit.context);
+    if (GraphRef.TTSModel == nullptr) {
+      Env.deleteGraph(GId);
+      RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS model."sv)
+    }
+    if (GraphRef.TTSContext == nullptr) {
+      Env.deleteGraph(GId);
+      RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS context."sv)
+    }
+    LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model...Done"sv)
+  }
 
   // Store the loaded graph.
   GraphId = GId;
@@ -1328,6 +1896,11 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       LOG_DEBUG(GraphRef.EnableDebugLog,
                 "setInput: handle llava format prompt...Done"sv)
     }
+  } else if (GraphRef.TextToSpeech == true) {
+    // TTS prompt.
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize tts prompt"sv)
+    CxtRef.LlamaInputs = processTTSPrompt(GraphRef, Prompt);
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize tts prompt...Done"sv)
   } else {
     // Text only prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
@@ -1402,6 +1975,20 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "compute: enter main prediction loop...Done"sv)
   // End of main prediction loop.
+
+  // TTS: convert output codes to audio file.
+  if (GraphRef.TextToSpeech) {
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "compute: convert output codes to audio file."sv)
+    ReturnCode = codesToSpeech(GraphRef, CxtRef);
+    if (ReturnCode != ErrNo::Success) {
+      RET_ERROR(ReturnCode,
+                "compute: failed to convert output codes to audio "sv
+                "file."sv)
+    }
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "compute: convert output codes to audio file...Done"sv)
+  }
 
   if (GraphRef.EnableLog) {
     common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler);
@@ -1521,6 +2108,16 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
     clip_free(GraphRef.ClipContext);
     GraphRef.ClipContext = nullptr;
     LOG_DEBUG(IsDebugLog, "unload: free clip context...Done"sv)
+  }
+  if (GraphRef.TTSModel != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free TTS model"sv)
+    GraphRef.TTSModel.reset();
+    LOG_DEBUG(IsDebugLog, "unload: free TTS model...Done"sv)
+  }
+  if (GraphRef.TTSContext != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free TTS context"sv)
+    GraphRef.TTSContext.reset();
+    LOG_DEBUG(IsDebugLog, "unload: free TTS context...Done"sv)
   }
   Env.deleteGraph(GraphId);
   Env.mdRemoveById(GraphId);

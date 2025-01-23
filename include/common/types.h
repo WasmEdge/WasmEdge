@@ -206,6 +206,9 @@ public:
     assuming(isRefType());
   }
 
+  virtual ~ValType() = default;
+  virtual Span<const ValType> getArgs() const noexcept;
+
   friend bool operator==(const ValType &LHS, const ValType &RHS) noexcept {
     return (LHS.Inner.Data.Code == RHS.Inner.Data.Code) &&
            (LHS.Inner.Data.HTCode == RHS.Inner.Data.HTCode) &&
@@ -363,7 +366,9 @@ public:
   InterfaceType(TypeCode C, std::initializer_list<ValType> Args)
       : ValType(C), TyArgs(Args) {}
 
-  Span<const ValType> getArgs() const noexcept { return TyArgs; }
+  ~InterfaceType() override { TyArgs.clear(); }
+
+  Span<const ValType> getArgs() const noexcept override { return TyArgs; }
 
 private:
   std::vector<ValType> TyArgs;
@@ -381,6 +386,7 @@ public:
   };
 
   BlockType() noexcept = default;
+  ~BlockType() noexcept = default;
   BlockType(const ValType &VType) noexcept { setData(VType); }
   BlockType(uint32_t Idx) noexcept { setData(Idx); }
 
@@ -499,7 +505,7 @@ using ValVariant =
 
 // Here are some high-level composited type, provided by component model
 struct ValComp {
-  virtual ~ValComp() {}
+  virtual ~ValComp() = default;
 };
 template <typename T> struct List : public ValComp {
   List(std::initializer_list<T> As) : Content(As) {}

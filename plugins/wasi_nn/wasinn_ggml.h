@@ -71,6 +71,12 @@ struct Graph {
   std::string MMProjModelPath;
   struct clip_ctx *ClipContext = nullptr;
   VisionModel VisionModelType = VisionModel::Llava;
+  // Text-to-speech:
+  bool TextToSpeech = false;
+  std::string VocoderModelPath;
+  std::string TTSOutputFilePath = "output.wav";
+  llama_model_ptr TTSModel = nullptr;
+  llama_context_ptr TTSContext = nullptr;
   // Context parameters:
   int64_t CtxSize;
   int64_t BatchSize;

@@ -112,6 +112,23 @@ void setupCommonParams(Graph &GraphRef, common_params &Params) noexcept {
   Params.cpuparams.n_threads = static_cast<int32_t>(GraphRef.Threads);
   Params.cpuparams_batch.n_threads = static_cast<int32_t>(GraphRef.Threads);
   Params.embedding = GraphRef.Embedding;
+  Params.n_keep = static_cast<int32_t>(GraphRef.NKeep);
+  Params.n_chunks = static_cast<int32_t>(GraphRef.NChunks);
+  Params.n_parallel = static_cast<int32_t>(GraphRef.NParallel);
+  Params.n_sequences = static_cast<int32_t>(GraphRef.NSequences);
+  Params.grp_attn_n = static_cast<int32_t>(GraphRef.GrpAttnN);
+  Params.grp_attn_w = static_cast<int32_t>(GraphRef.GrpAttnW);
+  Params.n_print = static_cast<int32_t>(GraphRef.NPrint);
+  Params.rope_freq_base = static_cast<float>(GraphRef.RopeFreqBase);
+  Params.rope_freq_scale = static_cast<float>(GraphRef.RopeFreqScale);
+  Params.yarn_ext_factor = static_cast<float>(GraphRef.YarnExtFactor);
+  Params.yarn_attn_factor = static_cast<float>(GraphRef.YarnAttnFactor);
+  Params.yarn_beta_fast = static_cast<float>(GraphRef.YarnBetaFast);
+  Params.yarn_beta_slow = static_cast<float>(GraphRef.YarnBetaSlow);
+  Params.yarn_orig_ctx = static_cast<int32_t>(GraphRef.YarnOrigCtx);
+  Params.defrag_thold = static_cast<float>(GraphRef.DefragThold);
+  Params.split_mode = GraphRef.SplitMode;
+
   setupSamplerParams(GraphRef, Params.sampling);
 }
 
@@ -335,6 +352,137 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the ubatch-size option."sv)
     }
+  }
+  if (Doc.at_key("n-keep").error() == simdjson::SUCCESS) {
+    auto Err = Doc["n-keep"].get<int64_t>().get(GraphRef.NKeep);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the n-keep option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("n-chunks").error() == simdjson::SUCCESS) {
+    auto Err = Doc["n-chunks"].get<int64_t>().get(GraphRef.NChunks);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the n-chunks option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("n-parallel").error() == simdjson::SUCCESS) {
+    auto Err = Doc["n-parallel"].get<int64_t>().get(GraphRef.NParallel);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the n-parallel option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("n-sequences").error() == simdjson::SUCCESS) {
+    auto Err = Doc["n-sequences"].get<int64_t>().get(GraphRef.NSequences);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the n-sequences option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("grp-attn-n").error() == simdjson::SUCCESS) {
+    auto Err = Doc["grp-attn-n"].get<int64_t>().get(GraphRef.GrpAttnN);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the grp-attn-n option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("grp-attn-w").error() == simdjson::SUCCESS) {
+    auto Err = Doc["grp-attn-w"].get<int64_t>().get(GraphRef.GrpAttnW);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the grp-attn-w option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("n-print").error() == simdjson::SUCCESS) {
+    auto Err = Doc["n-print"].get<int64_t>().get(GraphRef.NPrint);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the n-print option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("rope-freq-base").error() == simdjson::SUCCESS) {
+    auto Err = Doc["rope-freq-base"].get<double>().get(GraphRef.RopeFreqBase);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the rope-freq-base option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("rope-freq-scale").error() == simdjson::SUCCESS) {
+    auto Err = Doc["rope-freq-scale"].get<double>().get(GraphRef.RopeFreqScale);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the rope-freq-scale option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("yarn-ext-factor").error() == simdjson::SUCCESS) {
+    auto Err = Doc["yarn-ext-factor"].get<double>().get(GraphRef.YarnExtFactor);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the yarn-ext-factor option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("yarn-attn-factor").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["yarn-attn-factor"].get<double>().get(GraphRef.YarnAttnFactor);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the yarn-attn-factor option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("yarn-beta-fast").error() == simdjson::SUCCESS) {
+    auto Err = Doc["yarn-beta-fast"].get<double>().get(GraphRef.YarnBetaFast);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the yarn-beta-fast option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("yarn-beta-slow").error() == simdjson::SUCCESS) {
+    auto Err = Doc["yarn-beta-slow"].get<double>().get(GraphRef.YarnBetaSlow);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the yarn-beta-slow option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("yarn-orig-ctx").error() == simdjson::SUCCESS) {
+    auto Err = Doc["yarn-orig-ctx"].get<int64_t>().get(GraphRef.YarnOrigCtx);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the yarn-orig-ctx option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("defrag-thold").error() == simdjson::SUCCESS) {
+    auto Err = Doc["defrag-thold"].get<double>().get(GraphRef.DefragThold);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the defrag-thold option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("split-mode").error() == simdjson::SUCCESS) {
+    int64_t SplitMode;
+    auto Err = Doc["split-mode"].get<int64_t>().get(SplitMode);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the split-mode option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.SplitMode = static_cast<llama_split_mode>(SplitMode);
   }
   if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
     auto Err = Doc["threads"].get<int64_t>().get(GraphRef.Threads);
@@ -1473,6 +1621,14 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the plugin parameters.
   GraphRef.EnableLog = false;
   GraphRef.EnableDebugLog = false;
+  GraphRef.NKeep = 0;
+  GraphRef.NChunks = -1;
+  GraphRef.NParallel = 1;
+  GraphRef.GrpAttnN = 1;
+  GraphRef.GrpAttnW = 512;
+  GraphRef.NPrint = -1;
+  GraphRef.TensorSplit = {};
+  GraphRef.SplitMode = LLAMA_SPLIT_MODE_LAYER;
   // Initialize the model parameters.
   llama_model_params ModelParamsDefault = llama_model_default_params();
   GraphRef.NGPULayers = ModelParamsDefault.n_gpu_layers;
@@ -1482,6 +1638,16 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.CtxSize = ContextParamsDefault.n_ctx;
   GraphRef.BatchSize = ContextParamsDefault.n_batch;
   GraphRef.UBatchSize = ContextParamsDefault.n_ubatch;
+  GraphRef.Threads = ContextParamsDefault.n_threads;
+  GraphRef.NSequences = ContextParamsDefault.n_seq_max;
+  GraphRef.RopeFreqBase = ContextParamsDefault.rope_freq_base;
+  GraphRef.RopeFreqScale = ContextParamsDefault.rope_freq_scale;
+  GraphRef.YarnExtFactor = ContextParamsDefault.yarn_ext_factor;
+  GraphRef.YarnAttnFactor = ContextParamsDefault.yarn_attn_factor;
+  GraphRef.YarnBetaFast = ContextParamsDefault.yarn_beta_fast;
+  GraphRef.YarnBetaSlow = ContextParamsDefault.yarn_beta_slow;
+  GraphRef.YarnOrigCtx = ContextParamsDefault.yarn_orig_ctx;
+  GraphRef.DefragThold = ContextParamsDefault.defrag_thold;
   GraphRef.Threads = ContextParamsDefault.n_threads;
   // Initialize the sampling parameters.
   const common_params_sampling SamplerParamsDefault;

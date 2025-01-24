@@ -82,6 +82,21 @@ struct Graph {
   int64_t BatchSize;
   int64_t UBatchSize;
   int64_t Threads;
+  int64_t NKeep;
+  int64_t NChunks;
+  int64_t NParallel;
+  int64_t NSequences;
+  int64_t GrpAttnN;
+  int64_t GrpAttnW;
+  int64_t NPrint;
+  double RopeFreqBase;
+  double RopeFreqScale;
+  double YarnExtFactor;
+  double YarnAttnFactor;
+  double YarnBetaFast;
+  double YarnBetaSlow;
+  int64_t YarnOrigCtx;
+  double DefragThold;
   // Sampling parameters:
   double Temp = 0.80;
   double TopP = 0.95;

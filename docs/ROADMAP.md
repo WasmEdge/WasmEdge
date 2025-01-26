@@ -24,40 +24,66 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 1. For roadmap entries which have reached their deadlines, mark them as `"Staled"`.
 2. The assignees of roadmap entries can request for updating the timeline.
-3. The staled roadmap entries will be marked as `"Closed"` if no response from their assignees in the next quarterly discussion, and their related issues and pull requests will also be closed.
+3. The staled roadmap entries will be marked as `"Inactive"` or `"Closed"` if no response from their assignees in the next quarterly discussion. The assignee will be removed, and we welcome everyone work on it if they interest in.
+4. The inactive roadmap entries will be closed if they will not be planned to support, and their related issues and pull requests will also be closed.
 
 ## Current Roadmap
 
-Last Updated: Q4 / 2024
+Last Updated: Q1 / 2025
 
-| Theme              | Description | Timeline | Assignee |
-| ---                | ----------- | -------- | -------- |
-| Proposal           | GC proposal for AOT/JIT     | Q4 / 2024 | [@q82419](https://github.com/q82419) |
-| Proposal           | Exception-Handling proposal for AOT/JIT | Q4 / 2024 | [@q82419](https://github.com/q82419) |
-| Proposal           | Typed continuation proposal | Q2 / 2025 | |
-| Proposal           | Stack-switch proposal       | Q2 / 2025 | |
-| Proposal           | [WASI signature proposal](https://github.com/WasmEdge/WasmEdge/pull/517) | Q2 / 2025 | |
-| Feature            | Wasm coredump | Q2 / 2025 | |
-| Proposal           | [WASM C API proposal](https://github.com/WasmEdge/WasmEdge/pull/346) | Q4 / 2024 | [@q82419](https://github.com/q82419) |
-| Proposal           | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/pull/2964) | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
-| Feature            | DWARF symbol | Q2 / 2025 | |
-| Languages Bindings | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) | Q2 / 2025 | |
-| Proposal           | Whisper backend for WASI-NN | Q3 / 2024 | [@q82419](https://github.com/q82419) |
-| Proposal           | WASI-NN GGML plugin with latest llama.cpp integration | Q4 / 2024 | [@dm4](https://github.com/dm4) |
-| Language Bindings  | Move Go binding back into WasmEdge org | Q4 / 2024 | [@q82419](https://github.com/q82419) |
-| Feature            | [Redirection of stdin, stdout, and stderr in C SDK](https://github.com/WasmEdge/WasmEdge/issues/2936) | Q4 / 2024 | [@hydai](https://github.com/hydai) |
-| Proposal           | Component-Model: start section | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
-| Proposal           | Component-Model: resource type | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
-| Proposal           | WASI: partial preview2 as plugins | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) |
-| Proposal           | [Move the Rust (burn.rs) plug-ins into an independent repo](https://github.com/WasmEdge/WasmEdge/issues/3767) | Q4 / 2024 | [@CaptainVincent](https://github.com/CaptainVincent) |
-| Proposal           | [WASI-NN GGML plugin with CANN support](https://github.com/WasmEdge/WasmEdge/issues/3768) | Q4 / 2024 | [@dm4](https://github.com/dm4) |
-| Feature            | [Upgrade CI workflows Ubuntu to 24.04](https://github.com/WasmEdge/WasmEdge/pull/3774) | Q4 / 2024 | [@0yi0](https://github.com/0yi0) |
-| Feature            | Update installer to use manylinux_2_28 from 0.15.0 | Q4 / 2024 | |
-| Feature            | Refactor structure of CI workflows to reduce duplicates and improve efficiency | Q4 / 2024 | [@0yi0](https://github.com/0yi0) |
-| Feature            | Support TensorRT in WASI-NN plugin | Q4 / 2024 | [@ibmibmibm](https://github.com/ibmibmibm) |
-| Feature            | Support LLVM19 | Q4 / 2024 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Theme            | Description | Timeline | Assignee |
+| ---              | ----------- | -------- | -------- |
+| Proposal         | GC proposal for AOT/JIT     | Q3 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal         | Exception-Handling proposal for AOT/JIT | Q3 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal         | Typed continuation proposal | Q3 / 2025 | |
+| Proposal         | Stack-switch proposal       | Q3 / 2025 | |
+| Proposal         | [WASI signature proposal](https://github.com/WasmEdge/WasmEdge/pull/517) | Q2 / 2025 | |
+| Feature          | Wasm coredump | Q2 / 2025 | |
+| Feature          | DWARF symbol | Q2 / 2025 | |
+| Language Binding | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) | Q2 / 2025 | |
+| Proposal         | WASI-NN GGML plugin with latest llama.cpp integration | Q1 / 2025 | [@dm4](https://github.com/dm4) |
+| Proposal         | [WASI-NN GGML plugin: support mllama for llama 3.2](https://github.com/WasmEdge/WasmEdge/pull/3929) | Q1 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal         | [WASI-NN TensorRT plugin initial support](https://github.com/WasmEdge/WasmEdge/pull/3878) | Q1 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Proposal         | WASI-NN ChatTTS plugin with llama.cpp integration | Q1 / 2025 | [@dm4](https://github.com/dm4) |
+| Proposal         | [WASI preview2 partial as plugins](https://github.com/WasmEdge/WasmEdge/pull/3753) | Q1 / 2025 | [@dannypsnl](https://github.com/dannypsnl) |
+| Proposal         | [Component model proposal: validator (LFX 2025/term1)](https://github.com/WasmEdge/WasmEdge/issues/3966) | Q1 / 2025 | [@dannypsnl](https://github.com/dannypsnl) |
+| Feature          | [Setup workflows for](https://github.com/WasmEdge/WasmEdge/issues/3840) [cpp-plugins repo](https://github.com/WasmEdge/cpp-plugins) | Q1 / 2025 | [@0yi0](https://github.com/0yi0) |
+| Feature          | [Apply `-Wshadow` and `-Wshadow-field` to enhance the codebase](https://github.com/WasmEdge/WasmEdge/pull/3055) | Q1 / 2025 | [@hydai](https://github.com/hydai) |
+| Feature          | Fix the IWYU reported errors | Q1 / 2025 | [@hydai](https://github.com/hydai) |
+| Feature          | A new WasmEdge installer and plugin manager | Q2 / 2025 | [@hydai](https://github.com/hydai) |
+| Feature          | Support stack tracing in the JIT and AOT modes | Q2 / 2025 | [@hydai](https://github.com/hydai) |
+| Feature          | Upgrade WasmEdge version in Runwasi | Q1 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) |
+| Feature          | Add support for WasmEdge plugins in Runwasi | Q1 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) |
+
+## Inactive Roadmap
+
+| Theme | Description |
+| ----- | ----------- |
+| Language Binding | [Update Java binding with 0.14](https://github.com/WasmEdge/WasmEdge/pull/3663) |
+| Proposal | [WASM C API proposal](https://github.com/WasmEdge/WasmEdge/pull/346) |
+| Proposal | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/pull/2964) |
+| Language Binding | Move Go binding back into WasmEdge org |
+| Feature | [Redirection of stdin, stdout, and stderr in C SDK](https://github.com/WasmEdge/WasmEdge/issues/2936) |
+| Proposal | [WASI-NN GGML plugin with CANN support](https://github.com/WasmEdge/WasmEdge/issues/3768) |
 
 ## Previous Roadmap
+
+### Q4/2024
+
+| Theme | Description | Timeline | Assignee | Status |
+| --- | --- | --- | --- | --- |
+| Proposal | [Move the Rust (burn.rs) plug-ins into an independent repo](https://github.com/WasmEdge/WasmEdge/issues/3767) | Q4 / 2024 | [@CaptainVincent](https://github.com/CaptainVincent) | Completed |
+| Proposal | Component-Model: start section | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) | Completed |
+| Proposal | Component-Model: resource type | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) | Completed |
+| Feature | [Upgrade CI workflows Ubuntu to 24.04](https://github.com/WasmEdge/WasmEdge/pull/3774) | Q4 / 2024 | [@0yi0](https://github.com/0yi0) | Completed |
+| Feature | Refactor structure of CI workflows to reduce duplicates and improve efficiency | Q4 / 2024 | [@0yi0](https://github.com/0yi0) | Completed |
+| Feature | Support LLVM19 | Q4 / 2024 | [@ibmibmibm](https://github.com/ibmibmibm) | Completed |
+| Proposal | [WASM C API proposal](https://github.com/WasmEdge/WasmEdge/pull/346) | Q4 / 2024 | [@q82419](https://github.com/q82419) | Staled |
+| Proposal | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/pull/2964) | Q4 / 2024 | [@dannypsnl](https://github.com/dannypsnl) | Staled |
+| Language Binding | Move Go binding back into WasmEdge org | Q4 / 2024 | [@q82419](https://github.com/q82419) | Staled |
+| Feature | [Redirection of stdin, stdout, and stderr in C SDK](https://github.com/WasmEdge/WasmEdge/issues/2936) | Q4 / 2024 | [@hydai](https://github.com/hydai) | Staled |
+| Proposal | [WASI-NN GGML plugin with CANN support](https://github.com/WasmEdge/WasmEdge/issues/3768) | Q4 / 2024 | [@dm4](https://github.com/dm4) | Staled |
+| Feature | Update installer to use manylinux_2_28 from 0.15.0 | Q4 / 2024 | | Staled |
 
 ### Q3/2024
 

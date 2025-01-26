@@ -10,13 +10,15 @@
 #include <cstring>
 #include <vector>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Coredump {
 void generateCoredump(const Runtime::StackManager &StackMgr,
                       bool ForWasmgdb) noexcept {
-  spdlog::info("Generating coredump...");
+  spdlog::info("Generating coredump..."sv);
   if (ForWasmgdb) {
-    spdlog::info("For wasmgdb");
+    spdlog::info("For wasmgdb"sv);
   }
   // Generate coredump.
   const auto *CurrentInstance = StackMgr.getModule();
@@ -46,7 +48,7 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
       createGlobals(CurrentInstance->getGlobalInstances());
   auto Res = Ser.serializeModule(Module);
   if (Res.has_value()) {
-    spdlog::info("Coredump generated.");
+    spdlog::info("Coredump generated."sv);
     std::time_t Time = std::time(nullptr);
     std::string CoredumpPath = "coredump." + std::to_string(Time);
     std::ofstream File(CoredumpPath, std::ios::out | std::ios::binary);
@@ -55,11 +57,11 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
                  static_cast<uint32_t>(Res->size()));
       File.close();
     } else {
-      spdlog::error("Failed to generate coredump.");
+      spdlog::error("Failed to generate coredump."sv);
       assumingUnreachable();
     }
   } else {
-    spdlog::error("Failed to serialize coredump.");
+    spdlog::error("Failed to serialize coredump."sv);
     assumingUnreachable();
   }
 

@@ -18,6 +18,7 @@
 #include <vector>
 
 using namespace WasmEdge::winapi;
+using namespace std::literals;
 
 namespace WasmEdge {
 namespace Host {
@@ -317,14 +318,14 @@ private:
           Succeed = true;
         } else if (const auto Error = GetLastError();
                    Error != ERROR_NOT_ALL_ASSIGNED_) {
-          spdlog::error("AdjustTokenPrivileges failed:0x{:08x}",
+          spdlog::error("AdjustTokenPrivileges failed:0x{:08x}"sv,
                         GetLastError());
         }
       } else {
-        spdlog::error("OpenProcessToken failed:0x{:08x}", GetLastError());
+        spdlog::error("OpenProcessToken failed:0x{:08x}"sv, GetLastError());
       }
     } else {
-      spdlog::error("LookupPrivilegeValueW failed:0x{:08x}", GetLastError());
+      spdlog::error("LookupPrivilegeValueW failed:0x{:08x}"sv, GetLastError());
     }
   }
   bool Succeed = false;
@@ -436,7 +437,6 @@ HandleHolder::filestatGet(__wasi_filestat_t &FileStat) const noexcept {
     } else {
       FileStat.filetype = getDiskFileType(*Res);
     }
-    using namespace std::literals;
     std::wstring Filename;
     FindHolder Finder;
     HandleHolder Holder;
@@ -1430,7 +1430,6 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
                   sizeof(WCHAR_)],
             Reparse.SymbolicLinkReparseBuffer.SubstituteNameLength /
                 sizeof(WCHAR_)};
-    using namespace std::literals;
     if (!(Reparse.SymbolicLinkReparseBuffer.Flags & SYMLINK_FLAG_RELATIVE_) &&
         Data.size() >= 4 && Data.substr(0, 4) == L"\\??\\"sv) {
       Data = Data.substr(3);

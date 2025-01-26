@@ -18,7 +18,7 @@ namespace Driver {
 void loadPlugins(void) {
   Plugin::Plugin::loadFromDefaultPaths();
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
-    spdlog::info("Loaded Plugin: {} from path: {}", Plugin.name(),
+    spdlog::info("Loaded Plugin: {} from path: {}"sv, Plugin.name(),
                  Plugin.path());
   }
 }

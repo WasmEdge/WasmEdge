@@ -37,7 +37,7 @@ Executor::instantiate(Runtime::StoreManager &,
           break;
         }
         case CoreSort::Table:
-          spdlog::warn("incomplete core alias sort: table");
+          spdlog::warn("incomplete core alias sort: table"sv);
           break;
         case CoreSort::Memory: {
           auto *MemInst = ModInst->getMemoryExports(

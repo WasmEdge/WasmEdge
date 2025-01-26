@@ -8,18 +8,20 @@
 #include "tensorflow/lite/c/common.h"
 #endif
 
+using namespace std::literals;
+
 namespace WasmEdge::Host::WASINN::TensorflowLite {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders,
                            WASINN::Device Device, uint32_t &GraphId) noexcept {
   if ((Device != WASINN::Device::CPU)) {
-    spdlog::error("[WASI-NN] TensorflowLite Only support CPU target.");
+    spdlog::error("[WASI-NN] TensorflowLite Only support CPU target."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
   // The graph builder length must be 1.
   if (Builders.size() != 1) {
-    spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 1",
+    spdlog::error("[WASI-NN] Wrong GraphBuilder Length {:d}, expect 1"sv,
                   Builders.size());
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -32,7 +34,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   GraphRef.TFLiteMod = TfLiteModelCreate(GraphRef.TfLiteModData.data(),
                                          GraphRef.TfLiteModData.size());
   if (unlikely(GraphRef.TFLiteMod == nullptr)) {
-    spdlog::error("[WASI-NN] Cannot import TFLite model");
+    spdlog::error("[WASI-NN] Cannot import TFLite model"sv);
     Env.deleteGraph(GId);
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -48,7 +50,7 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
                                   uint32_t &ContextId) noexcept {
   // Check the network and the execution network with the graph ID.
   if (Env.NNGraph[GraphId].get<Graph>().TFLiteMod == nullptr) {
-    spdlog::error("[WASI-NN] Model for Graph:{} is missing!", GraphId);
+    spdlog::error("[WASI-NN] Model for Graph:{} is missing!"sv, GraphId);
     return WASINN::ErrNo::MissingMemory;
   }
 
@@ -61,7 +63,7 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
   CxtRef.TFLiteInterp = TfLiteInterpreterCreate(GraphRef.TFLiteMod, TFLiteOps);
   TfLiteInterpreterOptionsDelete(TFLiteOps);
   if (unlikely(CxtRef.TFLiteInterp == nullptr)) {
-    spdlog::error("[WASI-NN] Cannot create TFLite interpreter.");
+    spdlog::error("[WASI-NN] Cannot create TFLite interpreter."sv);
     Env.deleteContext(CId);
     return WASINN::ErrNo::Busy;
   }
@@ -89,22 +91,23 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
   // Check the input data size.
   const auto HoldTensorByteSize = TfLiteTensorByteSize(HoldTensor);
   if (HoldTensorByteSize != Tensor.Tensor.size()) {
-    spdlog::error("[WASI-NN] Expect tensor byte size {}, but got {}",
+    spdlog::error("[WASI-NN] Expect tensor byte size {}, but got {}"sv,
                   HoldTensorByteSize, Tensor.Tensor.size());
     return WASINN::ErrNo::InvalidArgument;
   }
   // Check the input tensor dimensions.
   const auto HoldTensorNumDims = TfLiteTensorNumDims(HoldTensor);
   if (static_cast<size_t>(HoldTensorNumDims) != Tensor.Dimension.size()) {
-    spdlog::error("[WASI-NN] Expect tensor number of dimensions {}, but got {}",
-                  HoldTensorNumDims, Tensor.Dimension.size());
+    spdlog::error(
+        "[WASI-NN] Expect tensor number of dimensions {}, but got {}"sv,
+        HoldTensorNumDims, Tensor.Dimension.size());
     return WASINN::ErrNo::InvalidArgument;
   }
   for (uint32_t I = 0; I < Tensor.Dimension.size(); I++) {
     const auto HoldTensorDim = TfLiteTensorDim(HoldTensor, I);
     if (static_cast<uint32_t>(HoldTensorDim) != Tensor.Dimension[I]) {
-      spdlog::error("[WASI-NN] Expect tensor dimension[{}] = {}, but got {}", I,
-                    HoldTensorDim, Tensor.Dimension[I]);
+      spdlog::error("[WASI-NN] Expect tensor dimension[{}] = {}, but got {}"sv,
+                    I, HoldTensorDim, Tensor.Dimension[I]);
       return WASINN::ErrNo::InvalidArgument;
     }
   }
@@ -124,20 +127,20 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
     LiteType = WASINN::TensorType::I32;
     break;
   default:
-    spdlog::error("[WASI-NN] Unsupported TFLite type: {}",
+    spdlog::error("[WASI-NN] Unsupported TFLite type: {}"sv,
                   TfLiteTypeGetName(Type));
     return WASINN::ErrNo::InvalidArgument;
   }
 
   if (unlikely(LiteType != Tensor.RType)) {
-    spdlog::error("[WASI-NN] Expect tensor type {}, but got {}", LiteType,
+    spdlog::error("[WASI-NN] Expect tensor type {}, but got {}"sv, LiteType,
                   Tensor.RType);
     return WASINN::ErrNo::InvalidArgument;
   }
   TfLiteStatus Stat = TfLiteTensorCopyFromBuffer(
       HoldTensor, Tensor.Tensor.data(), Tensor.Tensor.size());
   if (unlikely(Stat != TfLiteStatus::kTfLiteOk)) {
-    spdlog::error("[WASI-NN] Copy tensor memory failed");
+    spdlog::error("[WASI-NN] Copy tensor memory failed"sv);
     return WASINN::ErrNo::Busy;
   }
 
@@ -152,7 +155,7 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
   uint32_t OutCnt = TfLiteInterpreterGetOutputTensorCount(CxtRef.TFLiteInterp);
   if (Index >= OutCnt) {
     spdlog::error("[WASI-NN] Invalid index id {} for the input, only {} "
-                  "outputs are allowed",
+                  "outputs are allowed"sv,
                   Index, OutCnt);
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -161,7 +164,7 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
   const uint32_t BytesToWrite = TfLiteTensorByteSize(HoldTensor);
   // Check out buffer max size.
   if (OutBuffer.size() < BytesToWrite) {
-    spdlog::error("[WASI-NN] Expect out buffer max size {}, but got {}",
+    spdlog::error("[WASI-NN] Expect out buffer max size {}, but got {}"sv,
                   BytesToWrite, OutBuffer.size());
     return WASINN::ErrNo::InvalidArgument;
   }
@@ -175,12 +178,12 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   // Run session
   if (unlikely(CxtRef.TFLiteInterp == nullptr)) {
-    spdlog::error("[WASI-NN] Tensorflow Lite context empty");
+    spdlog::error("[WASI-NN] Tensorflow Lite context empty"sv);
     return WASINN::ErrNo::MissingMemory;
   }
   TfLiteStatus Stat = TfLiteInterpreterInvoke(CxtRef.TFLiteInterp);
   if (unlikely(Stat != TfLiteStatus::kTfLiteOk)) {
-    spdlog::error("[WASI-NN] Invocation failed.");
+    spdlog::error("[WASI-NN] Invocation failed."sv);
     return WASINN::ErrNo::Busy;
   }
   return WASINN::ErrNo::Success;
@@ -190,7 +193,7 @@ namespace {
 Expect<WASINN::ErrNo> reportBackendNotSupported() noexcept {
   spdlog::error(
       "[WASI-NN] TensorflowLite backend is not built. use "
-      "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it.");
+      "-WASMEDGE_PLUGIN_WASI_NN_BACKEND=\"Tensorflowlite\" to build it."sv);
   return WASINN::ErrNo::InvalidArgument;
 }
 } // namespace

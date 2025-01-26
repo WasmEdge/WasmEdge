@@ -14,6 +14,8 @@
 #include <utility>
 #include <vector>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Loader {
 
@@ -207,7 +209,7 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
     if (unlikely(!SubType.getCompositeType().isFunc())) {
       // TODO: GC - AOT: implement other composite types.
       spdlog::error(ErrCode::Value::MalformedSection);
-      spdlog::error("    Currently AOT not support GC proposal yet.");
+      spdlog::error("    Currently AOT not support GC proposal yet."sv);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
       return Unexpect(ErrCode::Value::MalformedSection);
     }

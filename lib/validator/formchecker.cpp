@@ -3,14 +3,13 @@
 
 #include "validator/formchecker.h"
 
-#include "common/enum_ast.hpp"
 #include "common/errinfo.h"
-#include "common/spdlog.h"
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <tuple>
+
+using namespace std::literals;
 
 namespace WasmEdge {
 namespace Validator {
@@ -237,7 +236,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Memory,
                            Instr.getTargetIndex(), Mems);
     }
-    auto IsAtomic = Instr.getOpCode() >= OpCode::I32__atomic__load &&
+    auto IsAtomic = Instr.getOpCode() >= OpCode::Memory__atomic__notify &&
                     Instr.getOpCode() <= OpCode::I64__atomic__rmw32__cmpxchg_u;
     if (Instr.getMemoryAlign() > 31 ||
         (!IsAtomic && (1UL << Instr.getMemoryAlign()) > (N >> 3UL))) {
@@ -477,7 +476,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   // LEGACY-EH: remove the `Rethrow` after deprecating legacy EH.
   case OpCode::Rethrow:
     spdlog::error(ErrCode::Value::TypeCheckFailed);
-    spdlog::error("    Deprecated `rethrow` instruction.");
+    spdlog::error("    Deprecated `rethrow` instruction."sv);
     return Unexpect(ErrCode::Value::TypeCheckFailed);
 
   case OpCode::Throw_ref:
@@ -783,7 +782,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   // LEGACY-EH: remove the `Delegate` after deprecating legacy EH.
   case OpCode::Delegate:
     spdlog::error(ErrCode::Value::TypeCheckFailed);
-    spdlog::error("    Deprecated `delegate` instruction.");
+    spdlog::error("    Deprecated `delegate` instruction."sv);
     return Unexpect(ErrCode::Value::TypeCheckFailed);
 
   // Reference Instructions.
@@ -852,7 +851,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
           Fields.emplace_back(unpackType(FType.getStorageType()));
         } else if (!FType.getStorageType().isDefaultable()) {
           spdlog::error(ErrCode::Value::TypeCheckFailed);
-          spdlog::error("    Value type should be defaultable.");
+          spdlog::error("    Value type should be defaultable."sv);
           return Unexpect(ErrCode::Value::TypeCheckFailed);
         }
       }
@@ -921,7 +920,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       } else if (Instr.getOpCode() == OpCode::Array__new_default) {
         if (!SType.isDefaultable()) {
           spdlog::error(ErrCode::Value::TypeCheckFailed);
-          spdlog::error("    Value type should be defaultable.");
+          spdlog::error("    Value type should be defaultable."sv);
           return Unexpect(ErrCode::Value::TypeCheckFailed);
         }
         return StackTrans({ValType(TypeCode::I32)},
@@ -2337,7 +2336,7 @@ Expect<VType> FormChecker::popType() {
     }
     // Value stack underflow
     spdlog::error(ErrCode::Value::TypeCheckFailed);
-    spdlog::error("    Value stack underflow.");
+    spdlog::error("    Value stack underflow."sv);
     return Unexpect(ErrCode::Value::TypeCheckFailed);
   }
   auto Res = ValStack.back();
@@ -2383,7 +2382,7 @@ Expect<FormChecker::CtrlFrame> FormChecker::popCtrl() {
   if (CtrlStack.empty()) {
     // Ctrl stack is empty when popping.
     spdlog::error(ErrCode::Value::TypeCheckFailed);
-    spdlog::error("    Control stack underflow.");
+    spdlog::error("    Control stack underflow."sv);
     return Unexpect(ErrCode::Value::TypeCheckFailed);
   }
   if (auto Res = popTypes(CtrlStack.back().EndTypes); !Res) {
@@ -2392,7 +2391,7 @@ Expect<FormChecker::CtrlFrame> FormChecker::popCtrl() {
   if (ValStack.size() != CtrlStack.back().Height) {
     // Value stack size not matched.
     spdlog::error(ErrCode::Value::TypeCheckFailed);
-    spdlog::error("    Value stack underflow.");
+    spdlog::error("    Value stack underflow."sv);
     return Unexpect(ErrCode::Value::TypeCheckFailed);
   }
   // When popping a frame, reset the inited locals during this frame.

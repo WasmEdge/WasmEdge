@@ -5207,7 +5207,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   }
 
   std::unique_lock Lock(Mutex);
-  spdlog::info("compile start");
+  spdlog::info("compile start"sv);
 
   LLVM::Core::init();
 
@@ -5245,16 +5245,16 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   compile(Module.getExportSection());
   // StartSection is not required to compile
 
-  spdlog::info("verify start");
+  spdlog::info("verify start"sv);
   LLModule.verify(LLVMPrintMessageAction);
 
-  spdlog::info("optimize start");
+  spdlog::info("optimize start"sv);
   auto &TM = D.extract().TM;
   {
     auto Triple = LLModule.getTarget();
     auto [TheTarget, ErrorMessage] = LLVM::Target::getFromTriple(Triple);
     if (ErrorMessage) {
-      spdlog::error("getFromTriple failed:{}", ErrorMessage.string_view());
+      spdlog::error("getFromTriple failed:{}"sv, ErrorMessage.string_view());
       return Unexpect(ErrCode::Value::IllegalPath);
     } else {
       std::string CPUName;
@@ -5331,7 +5331,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
         LLVM::Value::getConstNull(IntrinsicsTableTy), "intrinsics");
   }
 
-  spdlog::info("optimize done");
+  spdlog::info("optimize done"sv);
   return Expect<Data>{std::move(D)};
 }
 

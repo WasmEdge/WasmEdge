@@ -2245,92 +2245,87 @@ Expect<uint32_t> WasiSockGetAddrinfo::body(
     return __WASI_ERRNO_NOSYS;
   }
 
-  auto initWasiAddrinfoArray =
-      [&MemInst](uint8_t_ptr Base, uint32_t Length,
-                 Span<__wasi_addrinfo_t *> WasiAddrinfoArray) noexcept
-      -> WASI::WasiExpect<void> {
-    for (uint32_t Item = 0; Item < Length; Item++) {
-      auto *const TmpAddrinfo = MemInst->getPointer<__wasi_addrinfo_t *>(Base);
-      if (TmpAddrinfo == nullptr) {
-        return WASI::WasiUnexpect(__WASI_ERRNO_FAULT);
+  auto Body = [&]() -> WASI::WasiExpect<void> {
+    auto initWasiAddrinfoArray =
+        [&MemInst](uint8_t_ptr Base, uint32_t Length,
+                   Span<__wasi_addrinfo_t *> WasiAddrinfoArray) noexcept
+        -> WASI::WasiExpect<void> {
+      for (uint32_t Item = 0; Item < Length; Item++) {
+        auto *const TmpAddrinfo =
+            MemInst->getPointer<__wasi_addrinfo_t *>(Base);
+        if (TmpAddrinfo == nullptr) {
+          return WASI::WasiUnexpect(__WASI_ERRNO_FAULT);
+        }
+        WasiAddrinfoArray[Item] = TmpAddrinfo;
+        Base = TmpAddrinfo->ai_next;
       }
-      WasiAddrinfoArray[Item] = TmpAddrinfo;
-      Base = TmpAddrinfo->ai_next;
-    }
+      return {};
+    };
+
+    auto initAiAddrArray =
+        [&MemInst](Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                   Span<__wasi_sockaddr_t *> WasiSockAddrArray) noexcept
+        -> WASI::WasiExpect<void> {
+      for (uint32_t Item = 0; Item < WasiAddrinfoArray.size(); Item++) {
+        auto *const Addr = MemInst->getPointer<__wasi_sockaddr_t *>(
+            WasiAddrinfoArray[Item]->ai_addr);
+        if (Addr == nullptr) {
+          return WASI::WasiUnexpect(__WASI_ERRNO_FAULT);
+        }
+        WasiSockAddrArray[Item] = Addr;
+      }
+      return {};
+    };
+
+    auto initAiAddrSaDataArray =
+        [&MemInst](Span<__wasi_sockaddr_t *> WasiSockAddrArray,
+                   Span<char *> AiSockAddrSaDataArray) noexcept
+        -> WASI::WasiExpect<void> {
+      for (uint32_t Item = 0; Item < WasiSockAddrArray.size(); Item++) {
+        const auto WasiSockAddr =
+            MemInst->getSpan<char>(WasiSockAddrArray[Item]->sa_data,
+                                   WasiSockAddrArray[Item]->sa_data_len);
+        if (WasiSockAddr.size() != WasiSockAddrArray[Item]->sa_data_len) {
+          return WASI::WasiUnexpect(__WASI_ERRNO_FAULT);
+        }
+        AiSockAddrSaDataArray[Item] = WasiSockAddr.data();
+      }
+      return {};
+    };
+
+    auto initAiCanonnameArray =
+        [&MemInst](Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
+                   Span<char *> WasiAddrinfoCanonnameArray) noexcept
+        -> WASI::WasiExpect<void> {
+      for (uint32_t Item = 0; Item < WasiAddrinfoArray.size(); Item++) {
+        const auto CanonName =
+            MemInst->getSpan<char>(WasiAddrinfoArray[Item]->ai_canonname,
+                                   WasiAddrinfoArray[Item]->ai_canonname_len);
+        if (CanonName.size() != WasiAddrinfoArray[Item]->ai_canonname_len) {
+          return WASI::WasiUnexpect(__WASI_ERRNO_FAULT);
+        }
+        WasiAddrinfoCanonnameArray[Item] = CanonName.data();
+      }
+      return {};
+    };
+
+    std::vector<__wasi_addrinfo_t *> WasiAddrinfoArray(MaxResLength, nullptr);
+    std::vector<__wasi_sockaddr_t *> WasiSockAddrArray(MaxResLength, nullptr);
+    std::vector<char *> AiAddrSaDataArray(MaxResLength, nullptr);
+    std::vector<char *> AiCanonnameArray(MaxResLength, nullptr);
+
+    EXPECTED_TRY(
+        initWasiAddrinfoArray(*ResBuf, MaxResLength, WasiAddrinfoArray));
+    EXPECTED_TRY(initAiAddrArray(WasiAddrinfoArray, WasiSockAddrArray));
+    EXPECTED_TRY(initAiAddrSaDataArray(WasiSockAddrArray, AiAddrSaDataArray));
+    EXPECTED_TRY(initAiCanonnameArray(WasiAddrinfoArray, AiCanonnameArray));
+
+    EXPECTED_TRY(Env.getAddrInfo(
+        Node, Service, *Hint, MaxResLength, WasiAddrinfoArray,
+        WasiSockAddrArray, AiAddrSaDataArray, AiCanonnameArray, *ResLength));
     return {};
   };
-
-  auto initAiAddrArray =
-      [&MemInst](Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
-                 Span<__wasi_sockaddr_t *> WasiSockAddrArray) noexcept
-      -> WASI::WasiExpect<void> {
-    for (uint32_t Item = 0; Item < WasiAddrinfoArray.size(); Item++) {
-      auto *const Addr = MemInst->getPointer<__wasi_sockaddr_t *>(
-          WasiAddrinfoArray[Item]->ai_addr);
-      if (Addr == nullptr) {
-        return WASI::WasiUnexpect(__WASI_ERRNO_FAULT);
-      }
-      WasiSockAddrArray[Item] = Addr;
-    }
-    return {};
-  };
-
-  auto initAiAddrSaDataArray =
-      [&MemInst](Span<__wasi_sockaddr_t *> WasiSockAddrArray,
-                 Span<char *> AiSockAddrSaDataArray) noexcept
-      -> WASI::WasiExpect<void> {
-    for (uint32_t Item = 0; Item < WasiSockAddrArray.size(); Item++) {
-      const auto WasiSockAddr =
-          MemInst->getSpan<char>(WasiSockAddrArray[Item]->sa_data,
-                                 WasiSockAddrArray[Item]->sa_data_len);
-      if (WasiSockAddr.size() != WasiSockAddrArray[Item]->sa_data_len) {
-        return WASI::WasiUnexpect(__WASI_ERRNO_FAULT);
-      }
-      AiSockAddrSaDataArray[Item] = WasiSockAddr.data();
-    }
-    return {};
-  };
-
-  auto initAiCanonnameArray =
-      [&MemInst](Span<__wasi_addrinfo_t *> WasiAddrinfoArray,
-                 Span<char *> WasiAddrinfoCanonnameArray) noexcept
-      -> WASI::WasiExpect<void> {
-    for (uint32_t Item = 0; Item < WasiAddrinfoArray.size(); Item++) {
-      const auto CanonName =
-          MemInst->getSpan<char>(WasiAddrinfoArray[Item]->ai_canonname,
-                                 WasiAddrinfoArray[Item]->ai_canonname_len);
-      if (CanonName.size() != WasiAddrinfoArray[Item]->ai_canonname_len) {
-        return WASI::WasiUnexpect(__WASI_ERRNO_FAULT);
-      }
-      WasiAddrinfoCanonnameArray[Item] = CanonName.data();
-    }
-    return {};
-  };
-
-  std::vector<__wasi_addrinfo_t *> WasiAddrinfoArray(MaxResLength, nullptr);
-  std::vector<__wasi_sockaddr_t *> WasiSockAddrArray(MaxResLength, nullptr);
-  std::vector<char *> AiAddrSaDataArray(MaxResLength, nullptr);
-  std::vector<char *> AiCanonnameArray(MaxResLength, nullptr);
-
-  if (auto Res =
-          initWasiAddrinfoArray(*ResBuf, MaxResLength, WasiAddrinfoArray);
-      unlikely(!Res)) {
-    return WASI::WasiUnexpect(Res);
-  }
-  initAiAddrArray(WasiAddrinfoArray, WasiSockAddrArray);
-  if (auto Res = initAiAddrSaDataArray(WasiSockAddrArray, AiAddrSaDataArray);
-      unlikely(!Res)) {
-    return WASI::WasiUnexpect(Res);
-  }
-  if (auto Res = initAiCanonnameArray(WasiAddrinfoArray, AiCanonnameArray);
-      unlikely(!Res)) {
-    return WASI::WasiUnexpect(Res);
-  }
-
-  if (auto Res = Env.getAddrInfo(
-          Node, Service, *Hint, MaxResLength, WasiAddrinfoArray,
-          WasiSockAddrArray, AiAddrSaDataArray, AiCanonnameArray, *ResLength);
-      unlikely(!Res)) {
+  if (auto Res = Body(); unlikely(!Res)) {
     return Res.error();
   }
 

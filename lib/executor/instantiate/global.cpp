@@ -27,11 +27,11 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
   // instances.
   for (const auto &GlobSeg : GlobSec.getContent()) {
     // Run initialize expression.
-    if (auto Res = runExpression(StackMgr, GlobSeg.getExpr().getInstrs());
-        !Res) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(runExpression(StackMgr, GlobSeg.getExpr().getInstrs())
+                     .map_error([](auto E) {
+                       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+                       return E;
+                     }));
 
     // Pop result from stack.
     ValVariant InitValue = StackMgr.pop();

@@ -69,14 +69,9 @@ public:
                                Span<char *> AiAddrSaDataArray,
                                Span<char *> AiCanonnameArray,
                                /*Out*/ __wasi_size_t &ResLength) {
-
-    if (auto Res = VINode::getAddrinfo(
-            Node, Service, Hint, MaxResLength, WasiAddrinfoArray,
-            WasiSockaddrArray, AiAddrSaDataArray, AiCanonnameArray, ResLength);
-        unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    }
-    return {};
+    return VINode::getAddrinfo(Node, Service, Hint, MaxResLength,
+                               WasiAddrinfoArray, WasiSockaddrArray,
+                               AiAddrSaDataArray, AiCanonnameArray, ResLength);
   }
 
   constexpr const std::vector<std::string> &getArguments() const noexcept {
@@ -224,9 +219,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdAdvise(Offset, Len, Advice);
     }
+    return Node->fdAdvise(Offset, Len, Advice);
   }
 
   /// Force the allocation of space in a file.
@@ -241,9 +235,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdAllocate(Offset, Len);
     }
+    return Node->fdAllocate(Offset, Len);
   }
 
   /// Close a file descriptor.
@@ -271,9 +264,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdDatasync();
     }
+    return Node->fdDatasync();
   }
 
   /// Get the attributes of a file descriptor.
@@ -288,9 +280,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdFdstatGet(FdStat);
     }
+    return Node->fdFdstatGet(FdStat);
   }
 
   /// Adjust the flags associated with a file descriptor.
@@ -304,9 +295,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdFdstatSetFlags(FdFlags);
     }
+    return Node->fdFdstatSetFlags(FdFlags);
   }
 
   /// Adjust the rights associated with a file descriptor.
@@ -323,11 +313,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdFdstatSetRights(FsRightsBase, FsRightsInheriting);
     }
-
-    return {};
+    return Node->fdFdstatSetRights(FsRightsBase, FsRightsInheriting);
   }
 
   /// Return the attributes of an open file.
@@ -339,9 +326,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdFilestatGet(Filestat);
     }
+    return Node->fdFilestatGet(Filestat);
   }
 
   /// Adjust the size of an open file. If this increases the file's size, the
@@ -356,9 +342,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdFilestatSetSize(Size);
     }
+    return Node->fdFilestatSetSize(Size);
   }
 
   /// Adjust the timestamps of an open file or directory.
@@ -376,9 +361,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdFilestatSetTimes(ATim, MTim, FstFlags);
     }
+    return Node->fdFilestatSetTimes(ATim, MTim, FstFlags);
   }
 
   /// Read from a file descriptor, without using and updating the file
@@ -396,9 +380,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdPread(IOVs, Offset, NRead);
     }
+    return Node->fdPread(IOVs, Offset, NRead);
   }
 
   /// Return a description of the given preopened file descriptor.
@@ -410,13 +393,12 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
+    if (const auto &Path = Node->name(); Path.empty()) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
     } else {
-      if (const auto &Path = Node->name(); Path.empty()) {
-        return WasiUnexpect(__WASI_ERRNO_INVAL);
-      } else {
-        PreStat.tag = __WASI_PREOPENTYPE_DIR;
-        PreStat.u.dir.pr_name_len = static_cast<__wasi_size_t>(Path.size());
-      }
+      PreStat.tag = __WASI_PREOPENTYPE_DIR;
+      PreStat.u.dir.pr_name_len = static_cast<__wasi_size_t>(Path.size());
     }
     return {};
   }
@@ -431,14 +413,13 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
+    if (const auto &Path = Node->name(); Path.empty()) {
+      return WasiUnexpect(__WASI_ERRNO_INVAL);
+    } else if (Buffer.size() < Path.size()) {
+      return WasiUnexpect(__WASI_ERRNO_NAMETOOLONG);
     } else {
-      if (const auto &Path = Node->name(); Path.empty()) {
-        return WasiUnexpect(__WASI_ERRNO_INVAL);
-      } else if (Buffer.size() < Path.size()) {
-        return WasiUnexpect(__WASI_ERRNO_NAMETOOLONG);
-      } else {
-        std::copy_n(Path.begin(), Path.size(), Buffer.begin());
-      }
+      std::copy_n(Path.begin(), Path.size(), Buffer.begin());
     }
     return {};
   }
@@ -459,9 +440,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdPwrite(IOVs, Offset, NWritten);
     }
+    return Node->fdPwrite(IOVs, Offset, NWritten);
   }
 
   /// Read from a file descriptor.
@@ -476,9 +456,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdRead(IOVs, NRead);
     }
+    return Node->fdRead(IOVs, NRead);
   }
 
   /// Read directory entries from a directory.
@@ -505,9 +484,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdReaddir(Buffer, Cookie, Size);
     }
+    return Node->fdReaddir(Buffer, Cookie, Size);
   }
 
   /// Atomically replace a file descriptor by renumbering another file
@@ -556,9 +534,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdSeek(Offset, Whence, Size);
     }
+    return Node->fdSeek(Offset, Whence, Size);
   }
 
   /// Synchronize the data and metadata of a file to disk.
@@ -570,9 +547,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdSync();
     }
+    return Node->fdSync();
   }
 
   /// Return the current offset of a file descriptor.
@@ -587,9 +563,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdTell(Size);
     }
+    return Node->fdTell(Size);
   }
 
   /// Write to a file descriptor.
@@ -605,9 +580,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->fdWrite(IOVs, NWritten);
     }
+    return Node->fdWrite(IOVs, NWritten);
   }
 
   /// Create a directory.
@@ -623,6 +597,9 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathCreateDirectory(std::move(Node), Path);
   }
 
@@ -643,6 +620,9 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathFilestatGet(std::move(Node), Path, Flags, Filestat);
   }
 
@@ -667,6 +647,9 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathFilestatSetTimes(std::move(Node), Path, Flags, ATim,
                                         MTim, FstFlags);
   }
@@ -694,7 +677,13 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto OldNode = getNodeOrNull(Old);
+    if (unlikely(!OldNode)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     auto NewNode = getNodeOrNull(New);
+    if (unlikely(!OldNode)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathLink(std::move(OldNode), OldPath, std::move(NewNode),
                             NewPath, LookupFlags);
   }
@@ -739,14 +728,12 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
-    if (auto Res =
-            VINode::pathOpen(std::move(Node), Path, LookupFlags, OpenFlags,
-                             FsRightsBase, FsRightsInheriting, FdFlags);
-        unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    } else {
-      Node = std::move(*Res);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
     }
+    EXPECTED_TRY(Node,
+                 VINode::pathOpen(std::move(Node), Path, LookupFlags, OpenFlags,
+                                  FsRightsBase, FsRightsInheriting, FdFlags));
 
     return generateRandomFdToNode(Node);
   }
@@ -768,6 +755,9 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathReadlink(std::move(Node), Path, Buffer, NRead);
   }
 
@@ -786,6 +776,9 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathRemoveDirectory(std::move(Node), Path);
   }
 
@@ -810,7 +803,13 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto OldNode = getNodeOrNull(Old);
+    if (unlikely(!OldNode)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     auto NewNode = getNodeOrNull(New);
+    if (unlikely(!NewNode)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathRename(std::move(OldNode), OldPath, std::move(NewNode),
                               NewPath);
   }
@@ -838,6 +837,9 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto NewNode = getNodeOrNull(New);
+    if (unlikely(!NewNode)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathSymlink(OldPath, std::move(NewNode), NewPath);
   }
 
@@ -856,6 +858,9 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
     auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    }
     return VINode::pathUnlinkFile(std::move(Node), Path);
   }
 
@@ -944,32 +949,26 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockBind(AddressFamily, Address, Port);
     }
+    return Node->sockBind(AddressFamily, Address, Port);
   }
 
   WasiExpect<void> sockListen(__wasi_fd_t Fd, int32_t Backlog) noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockListen(Backlog);
     }
+    return Node->sockListen(Backlog);
   }
 
   WasiExpect<__wasi_fd_t> sockAccept(__wasi_fd_t Fd,
                                      __wasi_fdflags_t FdFlags) noexcept {
     auto Node = getNodeOrNull(Fd);
-    std::shared_ptr<VINode> NewNode;
-
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else if (auto Res = Node->sockAccept(FdFlags); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    } else {
-      NewNode = std::move(*Res);
     }
+
+    EXPECTED_TRY(auto NewNode, Node->sockAccept(FdFlags));
 
     return generateRandomFdToNode(NewNode);
   }
@@ -981,9 +980,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockConnect(AddressFamily, Address, Port);
     }
+    return Node->sockConnect(AddressFamily, Address, Port);
   }
 
   /// Receive a message from a socket.
@@ -1002,9 +1000,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockRecv(RiData, RiFlags, NRead, RoFlags);
     }
+    return Node->sockRecv(RiData, RiFlags, NRead, RoFlags);
   }
 
   /// Receive a message from a socket.
@@ -1029,10 +1026,9 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockRecvFrom(RiData, RiFlags, AddressFamilyPtr, Address,
-                                PortPtr, NRead, RoFlags);
     }
+    return Node->sockRecvFrom(RiData, RiFlags, AddressFamilyPtr, Address,
+                              PortPtr, NRead, RoFlags);
   }
 
   /// Send a message on a socket.
@@ -1051,9 +1047,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockSend(SiData, SiFlags, NWritten);
     }
+    return Node->sockSend(SiData, SiFlags, NWritten);
   }
 
   /// Send a message on a socket.
@@ -1077,10 +1072,9 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockSendTo(SiData, SiFlags, AddressFamily, Address, Port,
-                              NWritten);
     }
+    return Node->sockSendTo(SiData, SiFlags, AddressFamily, Address, Port,
+                            NWritten);
   }
 
   /// Shut down socket send and receive channels.
@@ -1094,9 +1088,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockShutdown(SdFlags);
     }
+    return Node->sockShutdown(SdFlags);
   }
 
   WasiExpect<void> sockGetOpt(__wasi_fd_t Fd,
@@ -1106,9 +1099,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockGetOpt(SockOptLevel, SockOptName, Flag);
     }
+    return Node->sockGetOpt(SockOptLevel, SockOptName, Flag);
   }
 
   WasiExpect<void> sockSetOpt(__wasi_fd_t Fd,
@@ -1118,9 +1110,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockSetOpt(SockOptLevel, SockOptName, Flag);
     }
+    return Node->sockSetOpt(SockOptLevel, SockOptName, Flag);
   }
 
   /// Return the address and port of the file descriptor.
@@ -1131,9 +1122,8 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockGetLocalAddr(AddressFamilyPtr, Address, PortPtr);
     }
+    return Node->sockGetLocalAddr(AddressFamilyPtr, Address, PortPtr);
   }
 
   /// Retrieve the remote address and port from the given file descriptor.
@@ -1144,18 +1134,16 @@ public:
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->sockGetPeerAddr(AddressFamilyPtr, Address, PortPtr);
     }
+    return Node->sockGetPeerAddr(AddressFamilyPtr, Address, PortPtr);
   }
 
   WasiExpect<uint64_t> getNativeHandler(__wasi_fd_t Fd) const noexcept {
     auto Node = getNodeOrNull(Fd);
     if (unlikely(!Node)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
-    } else {
-      return Node->getNativeHandler();
     }
+    return Node->getNativeHandler();
   }
 
   static std::string randomFilename() noexcept {

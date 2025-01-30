@@ -222,9 +222,7 @@ private:
       // Content: vec(T).
       serializeU32(static_cast<uint32_t>(Content.size()), OutVec);
       for (const auto &Item : Content) {
-        if (auto Res = Func(Item, OutVec); unlikely(!Res)) {
-          return Unexpect(Res);
-        }
+        EXPECTED_TRY(Func(Item, OutVec));
       }
       // Backward insert the section size.
       serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,

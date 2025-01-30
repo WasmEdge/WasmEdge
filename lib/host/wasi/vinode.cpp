@@ -30,20 +30,17 @@ VINode::VINode(INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
 
 std::shared_ptr<VINode> VINode::stdIn(__wasi_rights_t FRB,
                                       __wasi_rights_t FRI) {
-  auto Node = std::make_shared<VINode>(INode::stdIn(), FRB, FRI);
-  return Node;
+  return std::make_shared<VINode>(INode::stdIn(), FRB, FRI);
 }
 
 std::shared_ptr<VINode> VINode::stdOut(__wasi_rights_t FRB,
                                        __wasi_rights_t FRI) {
-  auto Node = std::make_shared<VINode>(INode::stdOut(), FRB, FRI);
-  return Node;
+  return std::make_shared<VINode>(INode::stdOut(), FRB, FRI);
 }
 
 std::shared_ptr<VINode> VINode::stdErr(__wasi_rights_t FRB,
                                        __wasi_rights_t FRI) {
-  auto Node = std::make_shared<VINode>(INode::stdErr(), FRB, FRI);
-  return Node;
+  return std::make_shared<VINode>(INode::stdErr(), FRB, FRI);
 }
 
 std::string VINode::canonicalGuest(std::string_view Path) {
@@ -94,26 +91,18 @@ WasiExpect<std::shared_ptr<VINode>> VINode::bind(__wasi_rights_t FRB,
                                                  __wasi_rights_t FRI,
                                                  std::string Name,
                                                  std::string SystemPath) {
-  if (auto Res = INode::open(std::move(SystemPath), __WASI_OFLAGS_DIRECTORY,
-                             __wasi_fdflags_t(0), VFS::Read);
-      unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    return std::make_shared<VINode>(std::move(*Res), FRB, FRI, std::move(Name));
-  }
+  EXPECTED_TRY(auto Node,
+               INode::open(std::move(SystemPath), __WASI_OFLAGS_DIRECTORY,
+                           __wasi_fdflags_t(0), VFS::Read));
+  return std::make_shared<VINode>(std::move(Node), FRB, FRI, std::move(Name));
 }
 
 WasiExpect<void> VINode::pathCreateDirectory(std::shared_ptr<VINode> Fd,
                                              std::string_view Path) {
-  std::vector<char> Buffer;
-  if (auto Res = resolvePath(Fd, Path, false); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Fd->can(__WASI_RIGHTS_PATH_CREATE_DIRECTORY)) {
+  if (!Fd->can(__WASI_RIGHTS_PATH_CREATE_DIRECTORY)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    Buffer = std::move(*Res);
   }
-
+  EXPECTED_TRY(auto Buffer, resolvePath(Fd, Path, false));
   return Fd->Node.pathCreateDirectory(std::string(Path));
 }
 
@@ -121,15 +110,10 @@ WasiExpect<void> VINode::pathFilestatGet(std::shared_ptr<VINode> Fd,
                                          std::string_view Path,
                                          __wasi_lookupflags_t Flags,
                                          __wasi_filestat_t &Filestat) {
-  std::vector<char> Buffer;
-  if (auto Res = resolvePath(Fd, Path, Flags); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Fd->can(__WASI_RIGHTS_PATH_FILESTAT_GET)) {
+  if (!Fd->can(__WASI_RIGHTS_PATH_FILESTAT_GET)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    Buffer = std::move(*Res);
   }
-
+  EXPECTED_TRY(auto Buffer, resolvePath(Fd, Path, Flags));
   return Fd->Node.pathFilestatGet(std::string(Path), Filestat);
 }
 
@@ -139,15 +123,10 @@ WasiExpect<void> VINode::pathFilestatSetTimes(std::shared_ptr<VINode> Fd,
                                               __wasi_timestamp_t ATim,
                                               __wasi_timestamp_t MTim,
                                               __wasi_fstflags_t FstFlags) {
-  std::vector<char> Buffer;
-  if (auto Res = resolvePath(Fd, Path, Flags); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Fd->can(__WASI_RIGHTS_PATH_FILESTAT_SET_TIMES)) {
+  if (!Fd->can(__WASI_RIGHTS_PATH_FILESTAT_SET_TIMES)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    Buffer = std::move(*Res);
   }
-
+  EXPECTED_TRY(auto Buffer, resolvePath(Fd, Path, Flags));
   return Fd->Node.pathFilestatSetTimes(std::string(Path), ATim, MTim, FstFlags);
 }
 
@@ -159,23 +138,14 @@ WasiExpect<void> VINode::pathLink(std::shared_ptr<VINode> Old,
   if (unlikely(!New)) {
     return WasiUnexpect(__WASI_ERRNO_BADF);
   }
-
-  std::vector<char> OldBuffer, NewBuffer;
-  if (auto Res = resolvePath(Old, OldPath, LookupFlags); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Old->can(__WASI_RIGHTS_PATH_LINK_SOURCE)) {
+  if (!Old->can(__WASI_RIGHTS_PATH_LINK_SOURCE)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    OldBuffer = std::move(*Res);
   }
-
-  if (auto Res = resolvePath(New, NewPath, LookupFlags); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!New->can(__WASI_RIGHTS_PATH_LINK_TARGET)) {
+  if (!New->can(__WASI_RIGHTS_PATH_LINK_TARGET)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    NewBuffer = std::move(*Res);
   }
+  EXPECTED_TRY(auto OldBuffer, resolvePath(Old, OldPath, LookupFlags));
+  EXPECTED_TRY(auto NewBuffer, resolvePath(New, NewPath, LookupFlags));
 
   return INode::pathLink(Old->Node, std::string(OldPath), New->Node,
                          std::string(NewPath));
@@ -215,14 +185,10 @@ VINode::pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
     RequiredInheritingRights |= __WASI_RIGHTS_FD_DATASYNC;
   }
 
-  std::vector<char> Buffer;
-  if (auto Res = resolvePath(Fd, Path, LookupFlags); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Fd->can(RequiredRights, RequiredInheritingRights)) {
+  if (!Fd->can(RequiredRights, RequiredInheritingRights)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    Buffer = std::move(*Res);
   }
+  EXPECTED_TRY(auto Buffer, resolvePath(Fd, Path, LookupFlags));
   VFS::Flags VFSFlags = static_cast<VFS::Flags>(0);
   if (Read) {
     VFSFlags |= VFS::Read;
@@ -237,29 +203,21 @@ VINode::pathOpen(std::shared_ptr<VINode> Fd, std::string_view Path,
 WasiExpect<void> VINode::pathReadlink(std::shared_ptr<VINode> Fd,
                                       std::string_view Path, Span<char> Buffer,
                                       __wasi_size_t &NRead) {
-  std::vector<char> PathBuffer;
-  if (auto Res = resolvePath(Fd, Path, static_cast<__wasi_lookupflags_t>(0));
-      unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Fd->can(__WASI_RIGHTS_PATH_READLINK)) {
+  if (!Fd->can(__WASI_RIGHTS_PATH_READLINK)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    PathBuffer = std::move(*Res);
   }
+  EXPECTED_TRY(auto PathBuffer,
+               resolvePath(Fd, Path, static_cast<__wasi_lookupflags_t>(0)));
 
   return Fd->Node.pathReadlink(std::string(Path), Buffer, NRead);
 }
 
 WasiExpect<void> VINode::pathRemoveDirectory(std::shared_ptr<VINode> Fd,
                                              std::string_view Path) {
-  std::vector<char> Buffer;
-  if (auto Res = resolvePath(Fd, Path, false); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Fd->can(__WASI_RIGHTS_PATH_REMOVE_DIRECTORY)) {
+  if (!Fd->can(__WASI_RIGHTS_PATH_REMOVE_DIRECTORY)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    Buffer = std::move(*Res);
   }
+  EXPECTED_TRY(auto Buffer, resolvePath(Fd, Path, false));
 
   return Fd->Node.pathRemoveDirectory(std::string(Path));
 }
@@ -268,21 +226,14 @@ WasiExpect<void> VINode::pathRename(std::shared_ptr<VINode> Old,
                                     std::string_view OldPath,
                                     std::shared_ptr<VINode> New,
                                     std::string_view NewPath) {
-  std::vector<char> OldBuffer, NewBuffer;
-  if (auto Res = resolvePath(Old, OldPath, false); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Old->can(__WASI_RIGHTS_PATH_RENAME_SOURCE)) {
+  if (!Old->can(__WASI_RIGHTS_PATH_RENAME_SOURCE)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    OldBuffer = std::move(*Res);
   }
-  if (auto Res = resolvePath(New, NewPath, false); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!New->can(__WASI_RIGHTS_PATH_RENAME_TARGET)) {
+  if (!New->can(__WASI_RIGHTS_PATH_RENAME_TARGET)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    NewBuffer = std::move(*Res);
   }
+  EXPECTED_TRY(auto OldBuffer, resolvePath(Old, OldPath, false));
+  EXPECTED_TRY(auto NewBuffer, resolvePath(New, NewPath, false));
 
   return INode::pathRename(Old->Node, std::string(OldPath), New->Node,
                            std::string(NewPath));
@@ -294,30 +245,21 @@ WasiExpect<void> VINode::pathSymlink(std::string_view OldPath,
   if (unlikely(!New)) {
     return WasiUnexpect(__WASI_ERRNO_BADF);
   }
-
-  std::vector<char> NewBuffer;
-  if (auto Res = resolvePath(New, NewPath); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!New->can(__WASI_RIGHTS_PATH_SYMLINK)) {
+  if (!New->can(__WASI_RIGHTS_PATH_SYMLINK)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    NewBuffer = std::move(*Res);
   }
+  EXPECTED_TRY(auto NewBuffer, resolvePath(New, NewPath));
 
   return New->Node.pathSymlink(std::string(OldPath), std::string(NewPath));
 }
 
 WasiExpect<void> VINode::pathUnlinkFile(std::shared_ptr<VINode> Fd,
                                         std::string_view Path) {
-  std::vector<char> Buffer;
-  if (auto Res = resolvePath(Fd, Path, static_cast<__wasi_lookupflags_t>(0));
-      unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (!Fd->can(__WASI_RIGHTS_PATH_UNLINK_FILE)) {
+  if (!Fd->can(__WASI_RIGHTS_PATH_UNLINK_FILE)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
-  } else {
-    Buffer = std::move(*Res);
   }
+  EXPECTED_TRY(auto Buffer,
+               resolvePath(Fd, Path, static_cast<__wasi_lookupflags_t>(0)));
 
   return Fd->Node.pathUnlinkFile(std::string(Path));
 }
@@ -330,46 +272,36 @@ VINode::getAddrinfo(std::string_view Node, std::string_view Service,
                     Span<char *> AiAddrSaDataArray,
                     Span<char *> AiCanonnameArray,
                     /*Out*/ __wasi_size_t &ResLength) noexcept {
-  if (auto Res = INode::getAddrinfo(
-          Node, Service, Hint, MaxResLength, WasiAddrinfoArray,
-          WasiSockaddrArray, AiAddrSaDataArray, AiCanonnameArray, ResLength);
-      unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
-  return {};
+  return INode::getAddrinfo(Node, Service, Hint, MaxResLength,
+                            WasiAddrinfoArray, WasiSockaddrArray,
+                            AiAddrSaDataArray, AiCanonnameArray, ResLength);
 }
 
 WasiExpect<std::shared_ptr<VINode>>
 VINode::sockOpen(__wasi_address_family_t SysDomain,
                  __wasi_sock_type_t SockType) {
-  if (auto Res = INode::sockOpen(SysDomain, SockType); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    __wasi_rights_t Rights =
-        __WASI_RIGHTS_SOCK_OPEN | __WASI_RIGHTS_SOCK_CLOSE |
-        __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
-        __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO |
-        __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_SOCK_BIND |
-        __WASI_RIGHTS_POLL_FD_READWRITE | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
-        __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_WRITE;
-    return std::make_shared<VINode>(std::move(*Res), Rights, Rights);
-  }
+  EXPECTED_TRY(auto Node, INode::sockOpen(SysDomain, SockType));
+  __wasi_rights_t Rights =
+      __WASI_RIGHTS_SOCK_OPEN | __WASI_RIGHTS_SOCK_CLOSE |
+      __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
+      __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO |
+      __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_SOCK_BIND |
+      __WASI_RIGHTS_POLL_FD_READWRITE | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
+      __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_WRITE;
+  return std::make_shared<VINode>(std::move(Node), Rights, Rights);
 }
 
 WasiExpect<std::shared_ptr<VINode>>
 VINode::sockAccept(__wasi_fdflags_t FdFlags) {
-  if (auto Res = Node.sockAccept(FdFlags); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    __wasi_rights_t Rights =
-        __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
-        __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO |
-        __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_POLL_FD_READWRITE |
-        __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_READ |
-        __WASI_RIGHTS_FD_WRITE;
-    return std::make_shared<VINode>(std::move(*Res), Rights, Rights,
-                                    std::string());
-  }
+  EXPECTED_TRY(auto NewNode, Node.sockAccept(FdFlags));
+  __wasi_rights_t Rights =
+      __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
+      __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO |
+      __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_POLL_FD_READWRITE |
+      __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_READ |
+      __WASI_RIGHTS_FD_WRITE;
+  return std::make_shared<VINode>(std::move(NewNode), Rights, Rights,
+                                  std::string());
 }
 
 WasiExpect<std::shared_ptr<VINode>>
@@ -379,14 +311,10 @@ VINode::directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
                    __wasi_rights_t RightsInheriting) {
   std::string PathStr(Path);
 
-  if (auto Res =
-          Node.pathOpen(std::move(PathStr), OpenFlags, FdFlags, VFSFlags);
-      unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    return std::make_shared<VINode>(std::move(*Res), RightsBase,
-                                    RightsInheriting);
-  }
+  EXPECTED_TRY(auto NewNode,
+               Node.pathOpen(std::move(PathStr), OpenFlags, FdFlags, VFSFlags));
+  return std::make_shared<VINode>(std::move(NewNode), RightsBase,
+                                  RightsInheriting);
 }
 
 WasiExpect<std::vector<char>>
@@ -474,24 +402,20 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
 
         std::vector<char> NewBuffer(16384);
         __wasi_size_t NRead;
-        if (auto Res =
-                Fd->Node.pathReadlink(std::string(Part), NewBuffer, NRead);
-            unlikely(!Res)) {
-          return WasiUnexpect(Res);
-        } else {
-          NewBuffer.resize(NRead);
-          // Don't drop Buffer now because Path may referencing it.
-          if (!Remain.empty()) {
-            if (NewBuffer.back() != '/') {
-              NewBuffer.push_back('/');
-            }
-            NewBuffer.insert(NewBuffer.end(), Remain.begin(), Remain.end());
+        EXPECTED_TRY(
+            Fd->Node.pathReadlink(std::string(Part), NewBuffer, NRead));
+        NewBuffer.resize(NRead);
+        // Don't drop Buffer now because Path may referencing it.
+        if (!Remain.empty()) {
+          if (NewBuffer.back() != '/') {
+            NewBuffer.push_back('/');
           }
-          // slow retry
-          Buffer = std::move(NewBuffer);
-          Path = std::string_view(Buffer.data(), Buffer.size());
-          break;
+          NewBuffer.insert(NewBuffer.end(), Remain.begin(), Remain.end());
         }
+        // slow retry
+        Buffer = std::move(NewBuffer);
+        Path = std::string_view(Buffer.data(), Buffer.size());
+        break;
       }
 
       if (LastPart) {
@@ -503,23 +427,19 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
         return WasiUnexpect(__WASI_ERRNO_NOTDIR);
       }
 
-      if (auto Child =
-              Fd->Node.pathOpen(std::string(Part), __WASI_OFLAGS_DIRECTORY,
-                                static_cast<__wasi_fdflags_t>(0), VFSFlags);
-          unlikely(!Child)) {
-        return WasiUnexpect(Child);
-      } else {
-        // fast retry
-        PartFds.push_back(std::exchange(
-            Fd, std::make_shared<VINode>(std::move(*Child), Fd->FsRightsBase,
-                                         Fd->FsRightsInheriting)));
-        Path = Remain;
-        if (Path.empty()) {
-          Path = "."sv;
-          return {};
-        }
-        continue;
+      EXPECTED_TRY(auto Child, Fd->Node.pathOpen(
+                                   std::string(Part), __WASI_OFLAGS_DIRECTORY,
+                                   static_cast<__wasi_fdflags_t>(0), VFSFlags));
+      // fast retry
+      PartFds.push_back(std::exchange(
+          Fd, std::make_shared<VINode>(std::move(Child), Fd->FsRightsBase,
+                                       Fd->FsRightsInheriting)));
+      Path = Remain;
+      if (Path.empty()) {
+        Path = "."sv;
+        return {};
       }
+      continue;
     } while (true);
   } while (true);
 }

@@ -47,29 +47,19 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   }
 
   // Enter and execute function.
-  AST::InstrView::iterator StartIt = {};
-  Expect<void> Res = {};
-  if (auto GetIt = enterFunction(StackMgr, Func, Func.getInstrs().end())) {
-    StartIt = *GetIt;
-  } else {
-    if (GetIt.error() == ErrCode::Value::Terminated) {
-      // Handle the terminated case in entering AOT or host functions.
-      // For the terminated case, not return now to print the statistics.
-      Res = Unexpect(GetIt.error());
-    } else {
-      return Unexpect(GetIt);
-    }
-  }
-  if (Res) {
-    // If not terminated, execute the instructions in interpreter mode.
-    // For the entering AOT or host functions, the `StartIt` is equal to the end
-    // of instruction list, therefore the execution will return immediately.
-    Res = execute(StackMgr, StartIt, Func.getInstrs().end());
-  }
+  Expect<void> Res =
+      enterFunction(StackMgr, Func, Func.getInstrs().end())
+          .and_then([&](AST::InstrView::iterator StartIt) {
+            // If not terminated, execute the instructions in interpreter mode.
+            // For the entering AOT or host functions, the `StartIt` is equal to
+            // the end of instruction list, therefore the execution will return
+            // immediately.
+            return execute(StackMgr, StartIt, Func.getInstrs().end());
+          });
 
   if (Res) {
     spdlog::debug(" Execution succeeded."sv);
-  } else if (Res.error() == ErrCode::Value::Terminated) {
+  } else if (likely(Res.error() == ErrCode::Value::Terminated)) {
     spdlog::debug(" Terminated."sv);
   }
 
@@ -82,13 +72,11 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     Stat->dumpToLog(Conf);
   }
 
-  if (Res) {
-    return {};
-  }
-  if (Res.error() == ErrCode::Value::Terminated) {
+  if (!Res && likely(Res.error() == ErrCode::Value::Terminated)) {
     StackMgr.reset();
   }
-  return Unexpect(Res);
+
+  return Res;
 }
 
 Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
@@ -2160,17 +2148,15 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
         }
       }
     }
-    if (auto Res = Dispatch(); !Res) {
+    EXPECTED_TRY(Dispatch().map_error([this, &StackMgr](auto E) {
       StackTraceSize = interpreterStackTrace(StackMgr, StackTrace).size();
-      auto ErrCode = Res.error();
-
       if (Conf.getRuntimeConfigure().isEnableCoredump() &&
-          ErrCode.getErrCodePhase() == WasmPhase::Execution) {
+          E.getErrCodePhase() == WasmPhase::Execution) {
         Coredump::generateCoredump(
             StackMgr, Conf.getRuntimeConfigure().isCoredumpWasmgdb());
       }
-      return Unexpect(Res);
-    }
+      return E;
+    }));
     PC++;
   }
   return {};

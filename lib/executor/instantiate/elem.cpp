@@ -22,11 +22,12 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     std::vector<RefVariant> InitVals;
     for (const auto &Expr : ElemSeg.getInitExprs()) {
       // Run init expr of every elements and get the result reference.
-      if (auto Res = runExpression(StackMgr, Expr.getInstrs()); !Res) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(
+          runExpression(StackMgr, Expr.getInstrs()).map_error([](auto E) {
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
+            return E;
+          }));
       // Pop result from stack.
       InitVals.push_back(StackMgr.pop().get<RefVariant>());
     }
@@ -34,12 +35,13 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     uint32_t Offset = 0;
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       // Run initialize expression.
-      if (auto Res = runExpression(StackMgr, ElemSeg.getExpr().getInstrs());
-          !Res) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(
+          runExpression(StackMgr, ElemSeg.getExpr().getInstrs())
+              .map_error([](auto E) {
+                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
+                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
+                return E;
+              }));
       Offset = StackMgr.pop().get<uint32_t>();
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
@@ -80,13 +82,14 @@ Expect<void> Executor::initTable(Runtime::StackManager &StackMgr,
       const uint32_t Off = ElemInst->getOffset();
 
       // Replace table[Off : Off + n] with elem[0 : n].
-      if (auto Res = TabInst->setRefs(
-              ElemInst->getRefs(), Off, 0,
-              static_cast<uint32_t>(ElemInst->getRefs().size()));
-          !Res) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(
+          TabInst
+              ->setRefs(ElemInst->getRefs(), Off, 0,
+                        static_cast<uint32_t>(ElemInst->getRefs().size()))
+              .map_error([](auto E) {
+                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
+                return E;
+              }));
 
       // Drop the element instance.
       ElemInst->clear();

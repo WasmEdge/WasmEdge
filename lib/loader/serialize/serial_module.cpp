@@ -54,10 +54,10 @@ Serializer::serializeModule(const AST::Module &Mod) const noexcept {
     auto SerVisit = [&OutVec, this](auto &A) -> Expect<void> {
       return serializeSection(*A, OutVec);
     };
-    if (auto Res = std::visit(SerVisit, Sec); !Res) {
+    EXPECTED_TRY(std::visit(SerVisit, Sec).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      return Unexpect(Res);
-    }
+      return E;
+    }));
   }
   return OutVec;
 }

@@ -19,44 +19,47 @@ using namespace Runtime;
 
 namespace {
 void pushType(Runtime::Instance::ComponentInstance &Comp,
-              std::vector<ValType> &Types, const ValueType &T) {
+              std::vector<ValType> &Types, const ValueType &VT) {
   // notice that we might need to convert one type to multiple types, and hence,
   // we must let this function control the vector need to be modified.
-  if (std::holds_alternative<PrimValType>(T)) {
-    switch (std::get<PrimValType>(T)) {
-    case PrimValType::Bool:
-    case PrimValType::Char:
-    case PrimValType::S8:
-    case PrimValType::U8:
-      Types.push_back(ValType(TypeCode::I8));
-      break;
-    case PrimValType::S16:
-    case PrimValType::U16:
-      Types.push_back(ValType(TypeCode::I16));
-      break;
-    case PrimValType::S32:
-    case PrimValType::U32:
-      Types.push_back(ValType(TypeCode::I32));
-      break;
-    case PrimValType::S64:
-    case PrimValType::U64:
-      Types.push_back(ValType(TypeCode::I64));
-      break;
-    case PrimValType::Float32:
-      Types.push_back(ValType(TypeCode::F32));
-      break;
-    case PrimValType::Float64:
-      Types.push_back(ValType(TypeCode::F64));
-      break;
-    case PrimValType::String:
-      Types.push_back(InterfaceType(TypeCode::String));
-      break;
+  auto Func = [&](auto &&Type) {
+    using T = std::decay_t<decltype(Type)>;
+    if constexpr (std::is_same_v<T, PrimValType>) {
+      switch (Type) {
+      case PrimValType::Bool:
+      case PrimValType::Char:
+      case PrimValType::S8:
+      case PrimValType::U8:
+        Types.push_back(ValType(TypeCode::I8));
+        break;
+      case PrimValType::S16:
+      case PrimValType::U16:
+        Types.push_back(ValType(TypeCode::I16));
+        break;
+      case PrimValType::S32:
+      case PrimValType::U32:
+        Types.push_back(ValType(TypeCode::I32));
+        break;
+      case PrimValType::S64:
+      case PrimValType::U64:
+        Types.push_back(ValType(TypeCode::I64));
+        break;
+      case PrimValType::Float32:
+        Types.push_back(ValType(TypeCode::F32));
+        break;
+      case PrimValType::Float64:
+        Types.push_back(ValType(TypeCode::F64));
+        break;
+      case PrimValType::String:
+        Types.push_back(InterfaceType(TypeCode::String));
+        break;
+      }
+    } else if constexpr (std::is_same_v<T, TypeIndex>) {
+      const auto &Ty = Comp.getType(Type);
+      spdlog::warn("Type {} is not handled yet"sv, Ty);
     }
-  } else {
-    auto Idx = std::get<TypeIndex>(T);
-    const auto &Ty = Comp.getType(Idx);
-    spdlog::warn("Type {} is not handled yet"sv, Ty);
-  }
+  };
+  std::visit(Func, VT);
 }
 
 AST::FunctionType convert(Runtime::Instance::ComponentInstance &Comp,
@@ -67,14 +70,17 @@ AST::FunctionType convert(Runtime::Instance::ComponentInstance &Comp,
   }
 
   std::vector<ValType> ResultTypes{};
-  if (std::holds_alternative<ValueType>(DT.getResultList())) {
-    pushType(Comp, ResultTypes, std::get<ValueType>(DT.getResultList()));
-  } else {
-    const auto &RL = DT.getResultList();
-    for (const auto &R : std::get<std::vector<LabelValType>>(RL)) {
-      pushType(Comp, ResultTypes, R.getValType());
+  auto Func = [&](auto &&Type) {
+    using T = std::decay_t<decltype(Type)>;
+    if constexpr (std::is_same_v<T, ValueType>) {
+      pushType(Comp, ResultTypes, Type);
+    } else if constexpr (std::is_same_v<T, std::vector<LabelValType>>) {
+      for (const auto &R : Type) {
+        pushType(Comp, ResultTypes, R.getValType());
+      }
     }
-  }
+  };
+  std::visit(Func, DT.getResultList());
 
   return AST::FunctionType(ParamTypes, ResultTypes);
 }
@@ -106,12 +112,10 @@ public:
         auto StrSize = static_cast<uint32_t>(Str.size());
         std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
                                             ValVariant(0), ValVariant(StrSize)};
-        auto RPtr = Exec->invoke(Realloc, ReallocArgs,
-                                 Realloc->getFuncType().getParamTypes());
-        if (!RPtr) {
-          return Unexpect(RPtr);
-        }
-        ValVariant PtrInMem = (*RPtr)[0].first;
+        EXPECTED_TRY(auto RPtr,
+                     Exec->invoke(Realloc, ReallocArgs,
+                                  Realloc->getFuncType().getParamTypes()));
+        ValVariant PtrInMem = RPtr[0].first;
 
         Memory->setBytes(std::vector<Byte>{Str.begin(), Str.end()},
                          PtrInMem.get<uint32_t>(), 0,
@@ -130,15 +134,10 @@ public:
     }
 
     auto &LowerFuncType = LowerFunc->getFuncType();
-    auto Res =
-        Exec->invoke(LowerFunc, LowerArgs, LowerFuncType.getParamTypes());
-    if (!Res) {
-      return Unexpect(Res);
-    }
-
+    EXPECTED_TRY(auto ResultList, Exec->invoke(LowerFunc, LowerArgs,
+                                               LowerFuncType.getParamTypes()));
     uint32_t RI = 0;
     uint32_t TakeI = 0;
-    auto ResultList = *Res;
     for (auto const &HighTy : HigherFuncType.getReturnTypes()) {
       switch (HighTy.getCode()) {
       case TypeCode::String: {
@@ -237,14 +236,10 @@ public:
       }
     }
 
-    auto Res =
-        Exec->invoke(HigherFunc, HigherArgs, HigherFuncType.getParamTypes());
-    if (!Res) {
-      return Unexpect(Res);
-    }
-
+    EXPECTED_TRY(auto ResultList, Exec->invoke(HigherFunc, HigherArgs,
+                                               HigherFuncType.getParamTypes()));
     uint32_t RI = 0;
-    for (auto &[RetVal, RetTy] : *Res) {
+    for (auto &[RetVal, RetTy] : ResultList) {
       switch (RetTy.getCode()) {
       case TypeCode::String: {
         auto const &Str = std::get<std::string>(RetVal);
@@ -252,12 +247,10 @@ public:
         auto StrSize = static_cast<uint32_t>(Str.size());
         std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
                                             ValVariant(0), ValVariant(StrSize)};
-        auto RPtr = Exec->invoke(Realloc, ReallocArgs,
-                                 Realloc->getFuncType().getParamTypes());
-        if (!RPtr) {
-          return Unexpect(RPtr);
-        }
-        ValVariant V = (*RPtr)[0].first;
+        EXPECTED_TRY(auto RPtr,
+                     Exec->invoke(Realloc, ReallocArgs,
+                                  Realloc->getFuncType().getParamTypes()));
+        ValVariant V = RPtr[0].first;
 
         Memory->setBytes(std::vector<Byte>{Str.begin(), Str.end()},
                          V.get<uint32_t>(), 0,
@@ -299,81 +292,88 @@ Expect<void>
 Executor::instantiate(Runtime::StoreManager &,
                       Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CanonSection &CanonSec) {
-  for (auto &C : CanonSec.getContent()) {
-    if (std::holds_alternative<Lift>(C)) {
-      // lift wrap a core wasm function to a component function, with proper
-      // modification about canonical ABI.
+  for (auto &Content : CanonSec.getContent()) {
+    auto Func1 = [this, &CompInst](auto &&C) -> Expect<void> {
+      using T = std::decay_t<decltype(C)>;
+      if constexpr (std::is_same_v<T, Lift>) {
+        // lift wrap a core wasm function to a component function, with proper
+        // modification about canonical ABI.
+        const auto &Opts = C.getOptions();
+        Runtime::Instance::MemoryInstance *Mem = nullptr;
+        Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
+        for (auto &Opt : Opts) {
+          auto Func2 = [&](auto &&O) -> Expect<void> {
+            using U = std::decay_t<decltype(O)>;
+            if constexpr (std::is_same_v<U, StringEncoding>) {
+              spdlog::warn("incomplete canonical option `string-encoding`"sv);
+            } else if constexpr (std::is_same_v<U, Memory>) {
+              auto MemIdx = O.getMemIndex();
+              Mem = CompInst.getCoreMemoryInstance(MemIdx);
+            } else if constexpr (std::is_same_v<U, Realloc>) {
+              ReallocFunc = CompInst.getCoreFunctionInstance(O.getFuncIndex());
+            } else if constexpr (std::is_same_v<U, PostReturn>) {
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+              return Unexpect(ErrCode::Value::InvalidCanonOption);
+            }
+            return {};
+          };
+          EXPECTED_TRY(std::visit(Func2, Opt));
+        }
 
-      const auto &L = std::get<Lift>(C);
-
-      const auto &Opts = L.getOptions();
-
-      Runtime::Instance::MemoryInstance *Mem = nullptr;
-      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
-      for (auto &Opt : Opts) {
-        if (std::holds_alternative<StringEncoding>(Opt)) {
-          spdlog::warn("incomplete canonical option `string-encoding`"sv);
-        } else if (std::holds_alternative<Memory>(Opt)) {
-          auto MemIdx = std::get<Memory>(Opt).getMemIndex();
-          Mem = CompInst.getCoreMemoryInstance(MemIdx);
-        } else if (std::holds_alternative<Realloc>(Opt)) {
-          ReallocFunc = CompInst.getCoreFunctionInstance(
-              std::get<Realloc>(Opt).getFuncIndex());
-        } else if (std::holds_alternative<PostReturn>(Opt)) {
+        const auto &AstFuncType = CompInst.getType(C.getFuncTypeIndex());
+        if (unlikely(!std::holds_alternative<FuncType>(AstFuncType))) {
+          // It doesn't make sense if one tries to lift an instance not a
+          // function, so unlikely happen.
+          spdlog::error("cannot lift a non-function"sv);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
           return Unexpect(ErrCode::Value::InvalidCanonOption);
         }
-      }
 
-      const auto &AstFuncType = CompInst.getType(L.getFuncTypeIndex());
-      if (unlikely(!std::holds_alternative<FuncType>(AstFuncType))) {
-        // It doesn't make sense if one tries to lift an instance not a
-        // function, so unlikely happen.
-        spdlog::error("cannot lift a non-function"sv);
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+        auto *FuncInst = CompInst.getCoreFunctionInstance(C.getCoreFuncIndex());
+        CompInst.addFunctionInstance(lifting(CompInst,
+                                             std::get<FuncType>(AstFuncType),
+                                             FuncInst, Mem, ReallocFunc));
+      } else if constexpr (std::is_same_v<T, Lower>) {
+        // lower sends a component function to a core wasm function, with proper
+        // modification about canonical ABI.
+        const auto &Opts = C.getOptions();
+        Runtime::Instance::MemoryInstance *Mem = nullptr;
+        Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
+        for (auto &Opt : Opts) {
+          auto Func2 = [&](auto &&O) -> Expect<void> {
+            using U = std::decay_t<decltype(O)>;
+            if constexpr (std::is_same_v<U, StringEncoding>) {
+              spdlog::warn("incomplete canonical option `string-encoding`"sv);
+              return Unexpect(ErrCode::Value::InvalidCanonOption);
+            } else if constexpr (std::is_same_v<U, Memory>) {
+              auto MemIdx = O.getMemIndex();
+              Mem = CompInst.getCoreMemoryInstance(MemIdx);
+            } else if constexpr (std::is_same_v<U, Realloc>) {
+              ReallocFunc = CompInst.getCoreFunctionInstance(O.getFuncIndex());
+            } else if constexpr (std::is_same_v<U, PostReturn>) {
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+              return Unexpect(ErrCode::Value::InvalidCanonOption);
+            }
+            return {};
+          };
+          EXPECTED_TRY(std::visit(Func2, Opt));
+        }
+
+        auto *FuncInst = CompInst.getFunctionInstance(C.getFuncIndex());
+        CompInst.addCoreFunctionInstance(lowering(FuncInst, Mem, ReallocFunc));
+      } else if constexpr (std::is_same_v<T, ResourceNew>) {
+        spdlog::warn("resource is not supported yet"sv);
+        return Unexpect(ErrCode::Value::InvalidCanonOption);
+      } else if constexpr (std::is_same_v<T, ResourceDrop>) {
+        spdlog::warn("resource is not supported yet"sv);
+        return Unexpect(ErrCode::Value::InvalidCanonOption);
+      } else if constexpr (std::is_same_v<T, ResourceRep>) {
+        spdlog::warn("resource is not supported yet"sv);
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
-
-      auto *FuncInst = CompInst.getCoreFunctionInstance(L.getCoreFuncIndex());
-      CompInst.addFunctionInstance(lifting(CompInst,
-                                           std::get<FuncType>(AstFuncType),
-                                           FuncInst, Mem, ReallocFunc));
-    } else if (std::holds_alternative<Lower>(C)) {
-      // lower sends a component function to a core wasm function, with proper
-      // modification about canonical ABI.
-      const auto &L = std::get<Lower>(C);
-
-      Runtime::Instance::MemoryInstance *Mem = nullptr;
-      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
-      const auto &Opts = L.getOptions();
-      for (auto &Opt : Opts) {
-        if (std::holds_alternative<StringEncoding>(Opt)) {
-          spdlog::warn("incomplete canonical option `string-encoding`"sv);
-          return Unexpect(ErrCode::Value::InvalidCanonOption);
-        } else if (std::holds_alternative<Memory>(Opt)) {
-          auto MemIdx = std::get<Memory>(Opt).getMemIndex();
-          Mem = CompInst.getCoreMemoryInstance(MemIdx);
-        } else if (std::holds_alternative<Realloc>(Opt)) {
-          ReallocFunc = CompInst.getCoreFunctionInstance(
-              std::get<Realloc>(Opt).getFuncIndex());
-        } else if (std::holds_alternative<PostReturn>(Opt)) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
-          return Unexpect(ErrCode::Value::InvalidCanonOption);
-        }
-      }
-
-      auto *FuncInst = CompInst.getFunctionInstance(L.getFuncIndex());
-      CompInst.addCoreFunctionInstance(lowering(FuncInst, Mem, ReallocFunc));
-    } else if (std::holds_alternative<ResourceNew>(C)) {
-      spdlog::warn("resource is not supported yet"sv);
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    } else if (std::holds_alternative<ResourceDrop>(C)) {
-      spdlog::warn("resource is not supported yet"sv);
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    } else if (std::holds_alternative<ResourceRep>(C)) {
-      spdlog::warn("resource is not supported yet"sv);
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    }
+      return {};
+    };
+    EXPECTED_TRY(std::visit(Func1, Content));
   }
 
   return {};

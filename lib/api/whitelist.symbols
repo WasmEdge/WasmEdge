@@ -1,0 +1,3 @@
+WasmEdge_ASTModuleListExports
+WasmEdge_VMInstantiate
+WasmEdge_VMRunWasm

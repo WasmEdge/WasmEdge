@@ -99,3 +99,9 @@ jobs:
         run: |
           mv build\\WasmEdge-${{ env.product_version }}-windows.msi WasmEdge-${{ env.product_version }}-windows.msi
           gh release upload ${{ inputs.version }} WasmEdge-${{ env.product_version }}-windows.msi --clobber
+      - name: Run check_symbols.sh
+        run: |
+          bash ./path/to/check_symbols.sh
+        shell: bash
+        env:
+          SYMBOLS_PATH: ${{ github.workspace }}/build

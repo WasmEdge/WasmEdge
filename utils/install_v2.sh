@@ -340,7 +340,7 @@ on_exit() {
 ${RED}
 	Troubleshooting:
 	1. Please check --help for the correct usage.
-	2. Make a trace by re-runing the installer with the -V flag if the issue persists.
+	2. Make a trace by re-running the installer with the -V flag if the issue persists.
 	3. Submit the reproduction steps and full trace log to the issue tracker
 https://github.com/WasmEdge/WasmEdge/issues/new?template=bug_report.yml
 ${NC}

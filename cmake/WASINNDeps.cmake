@@ -328,6 +328,8 @@ function(wasmedge_setup_llama_target target)
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
       GIT_TAG        b4466
       GIT_SHALLOW    FALSE
+      UPDATE_DISCONNECTED TRUE
+      PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/mllama.patch"
     )
     FetchContent_MakeAvailable(llama)
     message(STATUS "Downloading llama.cpp source -- done")
@@ -344,6 +346,7 @@ function(wasmedge_setup_llama_target target)
     wasmedge_add_library(llava OBJECT
       ${llama_SOURCE_DIR}/examples/llava/clip.cpp
       ${llama_SOURCE_DIR}/examples/llava/llava.cpp
+      ${llama_SOURCE_DIR}/examples/mllama/mllama.cpp
     )
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(llava
@@ -397,6 +400,7 @@ function(wasmedge_setup_llama_target target)
         -Wno-format-nonliteral
         -Wno-documentation
         -Wno-unused-template
+        -Wno-sign-compare
       )
       # string_split<std::string> in common.h unused
       target_compile_options(${target}
@@ -409,16 +413,20 @@ function(wasmedge_setup_llama_target target)
       ${llama_SOURCE_DIR}
       ${llama_SOURCE_DIR}/common
       ${llama_SOURCE_DIR}/examples/llava
+      ${llama_SOURCE_DIR}/examples/mllama
     )
   endif()
+
   # Only the plugin library needs to fully linking the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
     wasmedge_setup_simdjson()
+    wasmedge_setup_stb_image()
     target_link_libraries(${target}
       PRIVATE
       common
       simdjson::simdjson
       llava
+      wasmedgeDepsSTBImage
     )
   endif()
 endfunction()

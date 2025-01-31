@@ -5,17 +5,17 @@
 #include "wasinnenv.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-#include "simdjson.h"
 #include <base64.hpp>
 #include <clip.h>
-#include <common.h>
-#include <cstdlib>
 #include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>
 #include <json.hpp>
-#include <llama.h>
-#include <llava.h>
-#include <sampling.h>
+#include <simdjson.h>
+
+// #define STB_IMAGE_IMPLEMENTATION (Defined in clip.cpp)
+#include "stb_image.h"
+#define STB_IMAGE_RESIZE_IMPLEMENTATION
+#include "stb_image_resize2.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -132,6 +132,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   //   warmup: bool
   //   split-mode: string, {none,layer,row}
   //   mmproj: string
+  //   mllamaproj: string
   // Context parameters (used by the llama context):
   //   ctx-size: int64_t
   //   batch-size: int64_t
@@ -271,6 +272,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the mmproj option."sv)
     }
     GraphRef.MMProjModelPath = MMProjModelPath;
+  }
+  if (Doc.at_key("mllamaproj").error() == simdjson::SUCCESS) {
+    std::string_view MllamaProjModelPath;
+    auto Err =
+        Doc["mllamaproj"].get<std::string_view>().get(MllamaProjModelPath);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the mllamaproj option."sv)
+    }
+    GraphRef.MllamaProjModelPath = MllamaProjModelPath;
   }
 
   // The context parameters.
@@ -440,6 +451,7 @@ const std::string_view Base64ImageTagPrefix = "<img src=\"data:image/"sv;
 const std::string_view Base64ImageBytesPrefix = ";base64,"sv;
 const std::string_view Base64ImageTagSuffix = "\">"sv;
 const std::string_view LlavaPromptImagePlaceholder = "<image>"sv;
+const std::string_view MllamaPromptImagePlaceholder = "<|image|>"sv;
 
 // Get base64 image position if found in prompt.
 std::optional<std::tuple<size_t, size_t, size_t>>
@@ -497,6 +509,72 @@ extractBase64ImagePayload(std::string &Prompt,
                  EndTagPos - BeginTagPos + Base64ImageTagSuffix.size(),
                  Placeholder);
   return std::make_pair(ImageBytes, ImageType);
+}
+
+// Helper function to normalize image embed to mllama image.
+struct ::mllama_image *normalizeMllamaImage(float *ImgData, int OrigW,
+                                            int OrigH, uint32_t W, uint32_t H) {
+  // Normalize image.
+  std::vector<float> FlatImage(W * H * 3);
+  float *ResizedImg = stbir_resize_float_linear(ImgData, OrigW, OrigH, 0,
+                                                nullptr, W, H, 0, STBIR_RGB);
+  float Mean[3] = {0.48145466f, 0.4578275f, 0.40821073f};
+  float Std[3] = {0.26862954f, 0.26130258f, 0.27577711f};
+  for (uint32_t Y = 0; Y < H; Y++) {
+    for (uint32_t X = 0; X < W; X++) {
+      uint32_t P = Y * W + X;
+      for (uint32_t Z = 0; Z < 3; Z++) {
+        FlatImage[W * H * Z + P] = (ResizedImg[P * 3 + Z] - Mean[Z]) / Std[Z];
+      }
+    }
+  }
+  stbi_image_free(ResizedImg);
+
+  // Mllama load image.
+  auto *MllamaImage = mllama_image_init();
+  if (!mllama_image_load_from_data(
+          reinterpret_cast<const void *>(FlatImage.data()),
+          static_cast<int>(FlatImage.size()) * sizeof(float), 560, 560, 3, 4, 1,
+          MllamaImage)) {
+    mllama_image_free(MllamaImage);
+    return nullptr;
+  }
+  return MllamaImage;
+}
+
+// Helper function to load mllama image embed from file.
+struct ::mllama_image *loadMllamaImage(const char *Path, uint32_t W,
+                                       uint32_t H) {
+  // Load into buffer.
+  int IW, IH, IC;
+  float *ImgData = stbi_loadf(Path, &IW, &IH, &IC, 3);
+  if (!ImgData) {
+    return nullptr;
+  }
+
+  // Normalize image.
+  struct ::mllama_image *MllamaImage =
+      normalizeMllamaImage(ImgData, IW, IH, W, H);
+  stbi_image_free(ImgData);
+  return MllamaImage;
+}
+
+// Helper function to load mllama image embed from buffer.
+struct ::mllama_image *loadMllamaImage(Span<const uint8_t> Buf, uint32_t W,
+                                       uint32_t H) {
+  // Load into buffer.
+  int IW, IH, IC;
+  float *ImgData = stbi_loadf_from_memory(
+      Buf.data(), static_cast<int>(Buf.size()), &IW, &IH, &IC, 3);
+  if (!ImgData) {
+    return nullptr;
+  }
+
+  // Normalize image.
+  struct ::mllama_image *MllamaImage =
+      normalizeMllamaImage(ImgData, IW, IH, W, H);
+  stbi_image_free(ImgData);
+  return MllamaImage;
 }
 
 // <<<<<<<< Input related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -626,6 +704,7 @@ bool evaluateQwen2vlImageEmbed(llama_context *LlamaCxt,
         static_cast<int32_t>(NEval),     // n_tokens
         nullptr,                         // token
         (ImageEmbed->embed + I * NEmbd), // embed
+        NEmbd,                           // n_embd
         BatchMRopePos.data(),            // pos
         nullptr,                         // n_seq_id
         nullptr,                         // seq_id
@@ -741,8 +820,17 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
   }
 
   // Evaluate input tokens.
-  if (CxtRef.LlavaImageEmbd != nullptr) {
-    // Llava format prompt with image data.
+  if (CxtRef.LlavaImageEmbd != nullptr || CxtRef.MllamaImageEmbd != nullptr) {
+    // Input with image.
+
+    // Cross attention setting added by mllama.
+    if (CxtRef.MllamaImageEmbd != nullptr) {
+      llama_set_cross_attention(GraphRef.LlamaContext.get(), true);
+    } else {
+      llama_set_cross_attention(GraphRef.LlamaContext.get(), false);
+    }
+
+    // Evaluate tokens before image.
     ReturnCode =
         evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
                                                CxtRef.ImagePosition),
@@ -753,33 +841,55 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                 LogPrefix)
     }
 
+    // Evaluate image embed.
     bool EvalImageStatus = false;
-    switch (GraphRef.VisionModelType) {
-    case VisionModel::Llava:
-      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd"sv,
-                LogPrefix)
-      EvalImageStatus = llava_eval_image_embed(
-          GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
-          static_cast<int>(GraphRef.BatchSize), &CxtRef.NPos);
-      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd...done"sv,
-                LogPrefix)
-      break;
-    case VisionModel::Qwen2VL:
-      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd"sv,
-                LogPrefix)
-      auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
-      EvalImageStatus = evaluateQwen2vlImageEmbed(
-          GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
-          static_cast<int>(GraphRef.BatchSize), CxtRef.NPos, ImageSize);
-      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd...done"sv,
-                LogPrefix)
-      break;
+    if (CxtRef.LlavaImageEmbd != nullptr) {
+      // Llava case.
+      switch (GraphRef.VisionModelType) {
+      case VisionModel::Llava:
+        LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd"sv,
+                  LogPrefix)
+        EvalImageStatus = llava_eval_image_embed(
+            GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
+            static_cast<int>(GraphRef.BatchSize), &CxtRef.NPos);
+        LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd...done"sv,
+                  LogPrefix)
+        break;
+      case VisionModel::Qwen2VL:
+        LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd"sv,
+                  LogPrefix)
+        auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
+        EvalImageStatus = evaluateQwen2vlImageEmbed(
+            GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
+            static_cast<int>(GraphRef.BatchSize), CxtRef.NPos, ImageSize);
+        LOG_DEBUG(GraphRef.EnableDebugLog,
+                  "{}: Eval Qwen2VL image embd...done"sv, LogPrefix)
+      }
+    } else if (CxtRef.MllamaImageEmbd != nullptr) {
+      // Mllama case.
+      uint32_t NEmbd = llama_model_n_embd(GraphRef.LlamaModel.get()) *
+                       mllama_n_positions(GraphRef.MllamaContext) *
+                       mllama_n_tiles(GraphRef.MllamaContext);
+      struct llama_batch MllamaImageBatch = llama_batch_init(1, NEmbd, 1);
+      EvalImageStatus =
+          mllama_image_encode(GraphRef.MllamaContext, GGML_DEFAULT_N_THREADS,
+                              CxtRef.MllamaImageEmbd, MllamaImageBatch.embd);
+      if (EvalImageStatus) {
+        MllamaImageBatch.n_tokens = 1;
+        MllamaImageBatch.pos[0] = CxtRef.NPos;
+        MllamaImageBatch.n_seq_id[0] = 1;
+        MllamaImageBatch.seq_id[0][0] = 0;
+        llama_decode(GraphRef.LlamaContext.get(), MllamaImageBatch);
+        llama_batch_free(MllamaImageBatch);
+        CxtRef.NPos++;
+      }
     }
-
     if (!EvalImageStatus) {
       RET_ERROR(ErrNo::RuntimeError,
                 "{}: failed to evaluate embed image tokens."sv, LogPrefix)
     }
+
+    // Evaluate tokens after image.
     ReturnCode =
         evaluateTokens(Span<const llama_token>(
                            CxtRef.LlamaInputs.begin() + CxtRef.ImagePosition,
@@ -790,7 +900,9 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                 "{}: failed to evaluate input tokens after image."sv, LogPrefix)
     }
   } else {
-    // Text only prompt.
+    // Input with text only.
+    // Cross attention setting added by mllama.
+    llama_set_cross_attention(GraphRef.LlamaContext.get(), false);
     ReturnCode =
         evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
                                                CxtRef.LlamaInputs.size()),
@@ -805,6 +917,10 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
     LOG_DEBUG(GraphRef.EnableDebugLog, "{}: ImageEmbd consumed"sv, LogPrefix)
     llava_image_embed_free(CxtRef.LlavaImageEmbd);
     CxtRef.LlavaImageEmbd = nullptr;
+  }
+  if (CxtRef.MllamaImageEmbd != nullptr) {
+    mllama_image_free(CxtRef.MllamaImageEmbd);
+    CxtRef.MllamaImageEmbd = nullptr;
   }
   return ErrNo::Success;
 }
@@ -928,6 +1044,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   llama_model_params ModelParamsDefault = llama_model_default_params();
   GraphRef.NGPULayers = ModelParamsDefault.n_gpu_layers;
   GraphRef.MMProjModelPath = ""sv;
+  GraphRef.MllamaProjModelPath = ""sv;
   // Initialize the context parameters.
   llama_context_params ContextParamsDefault = llama_context_default_params();
   GraphRef.CtxSize = ContextParamsDefault.n_ctx;
@@ -1182,106 +1299,169 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   llama_kv_cache_clear(GraphRef.LlamaContext.get());
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context...Done"sv)
 
+  // Clear the old input.
+  CxtRef.LlamaInputs.clear();
+  if (CxtRef.LlavaImageEmbd != nullptr) {
+    llava_image_embed_free(CxtRef.LlavaImageEmbd);
+    CxtRef.LlavaImageEmbd = nullptr;
+  }
+  if (CxtRef.MllamaImageEmbd != nullptr) {
+    mllama_image_free(CxtRef.MllamaImageEmbd);
+    CxtRef.MllamaImageEmbd = nullptr;
+  }
+
   // Set the input.
   const bool AddSpecial = true;
   const bool ParseSpecial = true;
   std::string Prompt(reinterpret_cast<char *>(Tensor.Tensor.data()),
                      Tensor.Tensor.size());
-  CxtRef.LlamaInputs.clear();
-
   auto Base64ImagePos = findBase64ImagePayload(Prompt);
 
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
     // Prompt with image input. Check is llava or mllama case.
 
     // First check the projection model is loaded.
-    if (GraphRef.ClipContext == nullptr) {
-      LOG_INFO(
-          true,
-          "setInput: Load the clip model. Because llama.cpp disabled the GPU support "sv
-          "for CLIP, the step of loading images in CLIP can only use the "sv
-          "CPU, which may result in reduced efficiency. (You can refer to "sv
-          "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
-      GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
-                                             GraphRef.EnableLog ? 1 : 0);
-      if (GraphRef.ClipContext == nullptr) {
-        RET_ERROR(ErrNo::InvalidArgument,
-                  "setInput: unable to load the clip model."sv)
-      }
-      if (clip_is_qwen2vl(GraphRef.ClipContext)) {
-        GraphRef.VisionModelType = VisionModel::Qwen2VL;
-        LOG_INFO(true, "setInput: Qwen2vl model loaded."sv)
+    if (GraphRef.ClipContext == nullptr && GraphRef.MllamaContext == nullptr) {
+      if (GraphRef.MMProjModelPath != ""sv) {
+        // Load the llava projection model.
+        LOG_INFO(
+            true,
+            "Load the clip model. Because llama.cpp disabled the GPU support "sv
+            "for CLIP, the step of loading images in CLIP can only use the "sv
+            "CPU, which may result in reduced efficiency. (You can refer to "sv
+            "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
+        GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
+                                               GraphRef.EnableLog ? 1 : 0);
+        if (GraphRef.ClipContext == nullptr) {
+          RET_ERROR(ErrNo::InvalidArgument, "unable to load the clip model."sv)
+        }
+        if (clip_is_qwen2vl(GraphRef.ClipContext)) {
+          GraphRef.VisionModelType = VisionModel::Qwen2VL;
+          LOG_INFO(true, "setInput: Qwen2vl model loaded."sv)
+        } else {
+          GraphRef.VisionModelType = VisionModel::Llava;
+          LOG_INFO(true, "setInput: Llava model loaded."sv)
+        }
+      } else if (GraphRef.MllamaProjModelPath != ""sv) {
+        // Load the mllama projection model.
+        GraphRef.MllamaContext = mllama_model_load(
+            GraphRef.MllamaProjModelPath.c_str(), GraphRef.EnableLog ? 1 : 0);
+        if (GraphRef.MllamaContext == nullptr) {
+          RET_ERROR(ErrNo::InvalidArgument,
+                    "unable to load the mllama projection model."sv)
+        }
       } else {
-        GraphRef.VisionModelType = VisionModel::Llava;
-        LOG_INFO(true, "setInput: Llava model loaded."sv)
+        // Cannot find any projection model path.
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "neithor clip nor mllama projection model path are set."sv)
       }
     }
 
-    // Prompt with image.
+    // Start log.
     if (GraphRef.ClipContext != nullptr) {
-      // Llava case.
       LOG_DEBUG(GraphRef.EnableDebugLog,
                 "setInput: handle llava format prompt."sv)
-
       // Show some warnings.
       if (GraphRef.CtxSize < 4096) {
         LOG_INFO(
             GraphRef.EnableLog,
-            "setInput: Context size is {}, we recommend context size >= 2048 when "sv
-            "using llava-v1.5 and context size >= 4096 when using llava-v1.6 "sv
-            "for better results."sv,
+            "setInput: Context size is {}, we recommend context size >= 2048 "sv
+            "when using llava-v1.5 and context size >= 4096 when using "sv
+            "llava-v1.6 for better results."sv,
             GraphRef.CtxSize)
       }
+    } else {
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: handle mllama format prompt."sv)
+    }
 
-      // Get image embed.
-      // Follow this link for the supported image formats:
-      // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
-      if (Base64ImagePos.has_value()) {
-        LOG_DEBUG(GraphRef.EnableDebugLog,
-                  "setInput: Compute image embd from the base64 image."sv)
-        // Extract the payload and image type from the prompt.
-        auto Payload = extractBase64ImagePayload(Prompt, *Base64ImagePos,
-                                                 LlavaPromptImagePlaceholder);
-        if (Payload.has_value()) {
-          // Only regenerate the image embedding if the
-          // always-regenerate-image-embd is on or the image embedding is not
-          // yet computed.
-          if (CxtRef.LlavaImageEmbd == nullptr ||
-              CxtRef.Conf.AlwaysRegenerateImageEmbd) {
-            // Free existing image embedding if regeneration is needed
-            if (CxtRef.LlavaImageEmbd != nullptr) {
-              llava_image_embed_free(CxtRef.LlavaImageEmbd);
-              CxtRef.LlavaImageEmbd = nullptr;
-            }
+    // Load the image embed.
+    // Follow this link for the supported image formats:
+    // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
+    const std::string_view Placeholder =
+        (GraphRef.ClipContext != nullptr ? LlavaPromptImagePlaceholder
+                                         : MllamaPromptImagePlaceholder);
+    if (Base64ImagePos.has_value()) {
+      // The image payload is in the prompt.
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: Compute image embd from the base64 image."sv)
 
-            // Create a new image embedding
-            CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
-                GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
-                Payload->first.data(), static_cast<int>(Payload->first.size()));
-          } else {
-            LOG_DEBUG(
-                GraphRef.EnableDebugLog,
-                "setInput: Previous image embd is not yet consumed. Use the cached base64 image embd instead of computing a new one"sv)
-          }
-        }
-        LOG_DEBUG(GraphRef.EnableDebugLog,
-                  "setInput: Compute image embd from the base64 image...Done"sv)
-      } else {
-        // Only regenerate the image embedding if the
-        // always-regenerate-image-embd is on or the image embedding is not yet
-        // computed.
+      // Extract the payload and image type from the prompt.
+      auto Payload =
+          extractBase64ImagePayload(Prompt, *Base64ImagePos, Placeholder);
+      if (unlikely(!Payload.has_value())) {
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "unable to extract image payload from the prompt."sv)
+      }
+
+      // Load the payload into image embed.
+      // Only regenerate the image embedding if the
+      // always-regenerate-image-embd is ON or the image embedding is not yet
+      // computed.
+      if (GraphRef.ClipContext != nullptr) {
+        // Llava case.
         if (CxtRef.LlavaImageEmbd == nullptr ||
             CxtRef.Conf.AlwaysRegenerateImageEmbd) {
-          // Free existing image embedding if regeneration is needed
+          // Free existing image embedding if regeneration is needed.
+          if (CxtRef.LlavaImageEmbd != nullptr) {
+            llava_image_embed_free(CxtRef.LlavaImageEmbd);
+            CxtRef.LlavaImageEmbd = nullptr;
+          }
+          // Create a new image embedding.
+          CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
+              GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
+              Payload->first.data(), static_cast<int>(Payload->first.size()));
+        } else {
+          LOG_DEBUG(
+              GraphRef.EnableDebugLog,
+              "setInput: Previous image embd is not yet consumed. Use the "sv
+              "cached base64 image embd instead of computing a new one."sv)
+        }
+      } else {
+        // Mllama case.
+        if (CxtRef.MllamaImageEmbd == nullptr ||
+            CxtRef.Conf.AlwaysRegenerateImageEmbd) {
+          // Free existing image embedding if regeneration is needed.
+          if (CxtRef.MllamaImageEmbd != nullptr) {
+            mllama_image_free(CxtRef.MllamaImageEmbd);
+            CxtRef.MllamaImageEmbd = nullptr;
+          }
+          // Create a new image embedding.
+          CxtRef.MllamaImageEmbd =
+              loadMllamaImage(Span<const uint8_t>(Payload->first.begin(),
+                                                  Payload->first.size()),
+                              560, 560);
+        } else {
+          LOG_DEBUG(
+              GraphRef.EnableDebugLog,
+              "setInput: Previous image embd is not yet consumed. Use the "sv
+              "cached base64 image embd instead of computing a new one."sv)
+        }
+      }
+
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: Compute image embd from the base64 image...Done"sv)
+    } else {
+      // The image is from file.
+
+      // Load the image from file into image embed.
+      // Only regenerate the image embedding if the
+      // always-regenerate-image-embd is on or the image embedding is not yet
+      // computed.
+      if (GraphRef.ClipContext != nullptr) {
+        // Llava case.
+        if (CxtRef.LlavaImageEmbd == nullptr ||
+            CxtRef.Conf.AlwaysRegenerateImageEmbd) {
+          // Free existing image embedding if regeneration is needed.
           if (CxtRef.LlavaImageEmbd != nullptr) {
             llava_image_embed_free(CxtRef.LlavaImageEmbd);
             CxtRef.LlavaImageEmbd = nullptr;
           }
 
+          // Load the image from the file.
           LOG_DEBUG(GraphRef.EnableDebugLog,
                     "setInput: Compute image embd from file: {}"sv,
                     CxtRef.Conf.ImagePath)
-          // Load the image from the file.
           CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
               GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
               CxtRef.Conf.ImagePath.c_str());
@@ -1291,42 +1471,83 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         } else {
           LOG_DEBUG(
               GraphRef.EnableDebugLog,
-              "setInput: Previous image embd is not yet consumed. Use the cached image embd instead of computing a new one"sv)
+              "setInput: Previous image embd is not yet consumed. Use the "sv
+              "cached base64 image embd instead of computing a new one."sv)
+        }
+      } else {
+        // Mllama case.
+        if (CxtRef.MllamaImageEmbd == nullptr ||
+            CxtRef.Conf.AlwaysRegenerateImageEmbd) {
+          // Free existing image embedding if regeneration is needed.
+          if (CxtRef.MllamaImageEmbd != nullptr) {
+            mllama_image_free(CxtRef.MllamaImageEmbd);
+            CxtRef.MllamaImageEmbd = nullptr;
+          }
+
+          // Load the image from the file.
+          LOG_DEBUG(GraphRef.EnableDebugLog,
+                    "setInput: Compute image embd from file: {}"sv,
+                    CxtRef.Conf.ImagePath)
+          CxtRef.MllamaImageEmbd =
+              loadMllamaImage(CxtRef.Conf.ImagePath.c_str(), 560, 560);
+          LOG_DEBUG(GraphRef.EnableDebugLog,
+                    "setInput: Compute image embd from file: {}...Done"sv,
+                    CxtRef.Conf.ImagePath)
+        } else {
+          LOG_DEBUG(
+              GraphRef.EnableDebugLog,
+              "setInput: Previous image embd is not yet consumed. Use the "sv
+              "cached base64 image embd instead of computing a new one."sv)
         }
       }
-      if (CxtRef.LlavaImageEmbd == nullptr) {
-        RET_ERROR(ErrNo::InvalidArgument,
-                  "setInput: llava unable to load the image."sv)
-      }
+    }
 
-      // We split prompt by <image> as placeholder and save the position.
-      auto PlaceholderPosition = Prompt.find(LlavaPromptImagePlaceholder);
-      if (PlaceholderPosition == std::string::npos) {
-        RET_ERROR(
-            ErrNo::InvalidArgument,
-            "setInput: unable to find the placeholder in the llava prompt."sv)
+    // Check the image is loaded.
+    if (GraphRef.ClipContext != nullptr) {
+      if (unlikely(CxtRef.LlavaImageEmbd == nullptr)) {
+        RET_ERROR(ErrNo::InvalidArgument, "llava unable to load the image."sv)
       }
-      std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
-      std::string PromptAfterImage = Prompt.substr(
-          PlaceholderPosition + LlavaPromptImagePlaceholder.length());
-      std::vector<llama_token> EmbdInputBeforeImage =
-          common_tokenize(GraphRef.LlamaContext.get(), PromptBeforeImage,
-                          AddSpecial, ParseSpecial);
-      // Do not add special token (such as <BOS>, <EOS>, ... tokens.) to the
-      // tokens after the image.
-      std::vector<llama_token> EmbdInputAfterImage = common_tokenize(
-          GraphRef.LlamaContext.get(), PromptAfterImage, false, ParseSpecial);
-      CxtRef.ImagePosition = EmbdInputBeforeImage.size();
-      CxtRef.LlamaInputs.reserve(EmbdInputBeforeImage.size() +
-                                 EmbdInputAfterImage.size());
-      CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
-                                EmbdInputBeforeImage.begin(),
-                                EmbdInputBeforeImage.end());
-      CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
-                                EmbdInputAfterImage.begin(),
-                                EmbdInputAfterImage.end());
+    } else {
+      if (unlikely(CxtRef.MllamaImageEmbd == nullptr)) {
+        RET_ERROR(ErrNo::InvalidArgument, "mllama unable to load the image."sv)
+      }
+    }
+
+    // Prepare the input text tokens.
+    // Split the prompt by the image placeholder and save the position.
+    auto PlaceholderPosition = Prompt.find(Placeholder);
+    if (PlaceholderPosition == std::string::npos) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "unable to find the {} placeholder in prompt."sv, Placeholder)
+    }
+    std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
+    std::string PromptAfterImage = Prompt.substr(
+        PlaceholderPosition + LlavaPromptImagePlaceholder.length());
+    std::vector<llama_token> EmbdInputBeforeImage =
+        common_tokenize(GraphRef.LlamaContext.get(), PromptBeforeImage,
+                        AddSpecial, ParseSpecial);
+    // Do not add special token (such as <BOS>, <EOS>, ... tokens.) to the
+    // tokens after the image.
+    std::vector<llama_token> EmbdInputAfterImage = common_tokenize(
+        GraphRef.LlamaContext.get(), PromptAfterImage, false, ParseSpecial);
+    CxtRef.ImagePosition = EmbdInputBeforeImage.size();
+    CxtRef.LlamaInputs.reserve(EmbdInputBeforeImage.size() +
+                               EmbdInputAfterImage.size());
+    CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
+                              EmbdInputBeforeImage.begin(),
+                              EmbdInputBeforeImage.end());
+    CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
+                              EmbdInputAfterImage.begin(),
+                              EmbdInputAfterImage.end());
+    CxtRef.Conf.ImagePath = ""sv;
+
+    // End log.
+    if (GraphRef.ClipContext != nullptr) {
       LOG_DEBUG(GraphRef.EnableDebugLog,
                 "setInput: handle llava format prompt...Done"sv)
+    } else {
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: handle mllama format prompt...Done"sv)
     }
   } else {
     // Text only prompt.
@@ -1522,6 +1743,12 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
     GraphRef.ClipContext = nullptr;
     LOG_DEBUG(IsDebugLog, "unload: free clip context...Done"sv)
   }
+  if (GraphRef.MllamaContext != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free mllama context"sv)
+    mllama_free(GraphRef.MllamaContext);
+    GraphRef.MllamaContext = nullptr;
+    LOG_DEBUG(IsDebugLog, "unload: free mllama context...Done"sv)
+  }
   Env.deleteGraph(GraphId);
   Env.mdRemoveById(GraphId);
 
@@ -1543,6 +1770,14 @@ Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
     CxtRef.LlavaImageEmbd = nullptr;
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "finalize_execution_context: free llava image embed...Done"sv)
+  }
+  if (CxtRef.MllamaImageEmbd != nullptr) {
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "finalize_execution_context: free mllama image embed"sv)
+    mllama_image_free(CxtRef.MllamaImageEmbd);
+    CxtRef.MllamaImageEmbd = nullptr;
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "finalize_execution_context: free mllama image embed...Done"sv)
   }
   if (CxtRef.LlamaSampler != nullptr) {
     LOG_DEBUG(GraphRef.EnableDebugLog,

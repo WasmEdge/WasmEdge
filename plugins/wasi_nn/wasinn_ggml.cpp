@@ -81,57 +81,6 @@ void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
 
 // >>>>>>>> Metadata related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-// Setup llama sampler params from graph.
-void setupSamplerParams(Graph &GraphRef,
-                        common_params_sampling &Sampling) noexcept {
-  Sampling.temp = static_cast<float>(GraphRef.Temp);
-  Sampling.top_p = static_cast<float>(GraphRef.TopP);
-  Sampling.penalty_repeat = static_cast<float>(GraphRef.RepeatPenalty);
-  Sampling.penalty_present = static_cast<float>(GraphRef.PresencePenalty);
-  Sampling.penalty_freq = static_cast<float>(GraphRef.FrequencyPenalty);
-  Sampling.grammar = GraphRef.Grammar;
-  Sampling.seed = static_cast<uint32_t>(GraphRef.Seed);
-
-  if (GraphRef.TextToSpeech) {
-    Sampling.top_k = 4;
-    Sampling.samplers = {
-        COMMON_SAMPLER_TYPE_TOP_K,
-    };
-  }
-}
-
-// Setup llama common params from graph.
-void setupCommonParams(Graph &GraphRef, common_params &Params) noexcept {
-  Params.model = GraphRef.ModelFilePath;
-  Params.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
-  Params.n_ctx = static_cast<int32_t>(GraphRef.CtxSize);
-  Params.n_batch = static_cast<int32_t>(GraphRef.BatchSize);
-  Params.n_ubatch = static_cast<int32_t>(GraphRef.UBatchSize);
-  Params.warmup = GraphRef.WarmUp;
-  Params.split_mode = GraphRef.SplitMode;
-  Params.cpuparams.n_threads = static_cast<int32_t>(GraphRef.Threads);
-  Params.cpuparams_batch.n_threads = static_cast<int32_t>(GraphRef.Threads);
-  Params.embedding = GraphRef.Embedding;
-  Params.n_keep = static_cast<int32_t>(GraphRef.NKeep);
-  Params.n_chunks = static_cast<int32_t>(GraphRef.NChunks);
-  Params.n_parallel = static_cast<int32_t>(GraphRef.NParallel);
-  Params.n_sequences = static_cast<int32_t>(GraphRef.NSequences);
-  Params.grp_attn_n = static_cast<int32_t>(GraphRef.GrpAttnN);
-  Params.grp_attn_w = static_cast<int32_t>(GraphRef.GrpAttnW);
-  Params.n_print = static_cast<int32_t>(GraphRef.NPrint);
-  Params.rope_freq_base = static_cast<float>(GraphRef.RopeFreqBase);
-  Params.rope_freq_scale = static_cast<float>(GraphRef.RopeFreqScale);
-  Params.yarn_ext_factor = static_cast<float>(GraphRef.YarnExtFactor);
-  Params.yarn_attn_factor = static_cast<float>(GraphRef.YarnAttnFactor);
-  Params.yarn_beta_fast = static_cast<float>(GraphRef.YarnBetaFast);
-  Params.yarn_beta_slow = static_cast<float>(GraphRef.YarnBetaSlow);
-  Params.yarn_orig_ctx = static_cast<int32_t>(GraphRef.YarnOrigCtx);
-  Params.defrag_thold = static_cast<float>(GraphRef.DefragThold);
-  Params.split_mode = GraphRef.SplitMode;
-
-  setupSamplerParams(GraphRef, Params.sampling);
-}
-
 // Parse metadata from json.
 ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                     const std::string &Metadata, bool *IsModelUpdated = nullptr,
@@ -183,16 +132,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   //   image: string
 
   // Get the current llama parameters.
-  int64_t PrevNGPULayers = GraphRef.NGPULayers;
-  bool PrevEmbedding = GraphRef.Embedding;
+  int64_t PrevNGPULayers = GraphRef.Params.n_gpu_layers;
+  bool PrevEmbedding = GraphRef.Params.embedding;
   // Get the current sampler parameters.
-  double PrevTemp = GraphRef.Temp;
-  double PrevTopP = GraphRef.TopP;
-  double PrevRepeatPenalty = GraphRef.RepeatPenalty;
-  double PrevPresencePenalty = GraphRef.PresencePenalty;
-  double PrevFrequencyPenalty = GraphRef.FrequencyPenalty;
-  std::string PrevGrammar = GraphRef.Grammar;
-  uint64_t PrevSeed = GraphRef.Seed;
+  double PrevTemp = GraphRef.Sampling.temp;
+  double PrevTopP = GraphRef.Sampling.top_p;
+  double PrevRepeatPenalty = GraphRef.Sampling.penalty_repeat;
+  double PrevPresencePenalty = GraphRef.Sampling.penalty_present;
+  double PrevFrequencyPenalty = GraphRef.Sampling.penalty_freq;
+  std::string PrevGrammar = GraphRef.Sampling.grammar;
+  uint64_t PrevSeed = GraphRef.Sampling.seed;
 
   // The plugin parameters.
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
@@ -212,18 +161,22 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
   // The model parameters.
   if (Doc.at_key("main-gpu").error() == simdjson::SUCCESS) {
-    auto Err = Doc["main-gpu"].get<int64_t>().get(GraphRef.MainGPU);
+    int64_t MainGPU;
+    auto Err = Doc["main-gpu"].get<int64_t>().get(MainGPU);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the main-gpu option."sv)
     }
+    GraphRef.Params.main_gpu = static_cast<int32_t>(MainGPU);
   }
   if (Doc.at_key("n-gpu-layers").error() == simdjson::SUCCESS) {
-    auto Err = Doc["n-gpu-layers"].get<int64_t>().get(GraphRef.NGPULayers);
+    int64_t NGPULayers;
+    auto Err = Doc["n-gpu-layers"].get<int64_t>().get(NGPULayers);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the n-gpu-layers option."sv)
     }
+    GraphRef.Params.n_gpu_layers = static_cast<int32_t>(NGPULayers);
   }
   if (Doc.at_key("tensor-split").error() == simdjson::SUCCESS) {
     // The TensorSplit is a comma-separated list of non-negative values.
@@ -237,6 +190,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     std::string TS(TSV);
     std::replace(TS.begin(), TS.end(), ',', ' ');
     std::stringstream SS(TS);
+    std::vector<float> TensorSplit;
     GraphRef.TensorSplit.clear();
     while (SS.good()) {
       float TmpTensor;
@@ -255,21 +209,22 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
   if (Doc.at_key("embedding").error() == simdjson::SUCCESS) {
-    auto Err = Doc["embedding"].get<bool>().get(GraphRef.Embedding);
+
+    auto Err = Doc["embedding"].get<bool>().get(GraphRef.Params.embedding);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the embedding option."sv)
     }
   }
   if (Doc.at_key("use-mmap").error() == simdjson::SUCCESS) {
-    auto Err = Doc["use-mmap"].get<bool>().get(GraphRef.UseMMap);
+    auto Err = Doc["use-mmap"].get<bool>().get(GraphRef.Params.use_mmap);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the use-mmap option."sv)
     }
   }
   if (Doc.at_key("warmup").error() == simdjson::SUCCESS) {
-    auto Err = Doc["warmup"].get<bool>().get(GraphRef.WarmUp);
+    auto Err = Doc["warmup"].get<bool>().get(GraphRef.Params.warmup);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the warmup option."sv)
@@ -333,146 +288,181 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
   // The context parameters.
   if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
-    auto Err = Doc["ctx-size"].get<int64_t>().get(GraphRef.CtxSize);
+    int64_t CtxSize;
+    auto Err = Doc["ctx-size"].get<int64_t>().get(CtxSize);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the ctx-size option."sv)
     }
+    GraphRef.Params.n_ctx = static_cast<int32_t>(CtxSize);
   }
   if (Doc.at_key("batch-size").error() == simdjson::SUCCESS) {
-    auto Err = Doc["batch-size"].get<int64_t>().get(GraphRef.BatchSize);
+    int64_t BatchSize;
+    auto Err = Doc["batch-size"].get<int64_t>().get(BatchSize);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the batch-size option."sv)
     }
+    GraphRef.Params.n_batch = static_cast<int32_t>(BatchSize);
   }
   if (Doc.at_key("ubatch-size").error() == simdjson::SUCCESS) {
-    auto Err = Doc["ubatch-size"].get<int64_t>().get(GraphRef.UBatchSize);
+    int64_t UBatchSize;
+    auto Err = Doc["ubatch-size"].get<int64_t>().get(UBatchSize);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the ubatch-size option."sv)
     }
+    GraphRef.Params.n_batch = static_cast<int32_t>(UBatchSize);
   }
   if (Doc.at_key("n-keep").error() == simdjson::SUCCESS) {
-    auto Err = Doc["n-keep"].get<int64_t>().get(GraphRef.NKeep);
+    int64_t NKeep;
+    auto Err = Doc["n-keep"].get<int64_t>().get(NKeep);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the n-keep option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.n_keep = static_cast<int32_t>(NKeep);
   }
   if (Doc.at_key("n-chunks").error() == simdjson::SUCCESS) {
-    auto Err = Doc["n-chunks"].get<int64_t>().get(GraphRef.NChunks);
+    int64_t NChunks;
+    auto Err = Doc["n-chunks"].get<int64_t>().get(NChunks);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the n-chunks option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.n_chunks = static_cast<int32_t>(NChunks);
   }
   if (Doc.at_key("n-parallel").error() == simdjson::SUCCESS) {
-    auto Err = Doc["n-parallel"].get<int64_t>().get(GraphRef.NParallel);
+    int64_t NParallel;
+    auto Err = Doc["n-parallel"].get<int64_t>().get(NParallel);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the n-parallel option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.n_parallel = static_cast<int32_t>(NParallel);
   }
   if (Doc.at_key("n-sequences").error() == simdjson::SUCCESS) {
-    auto Err = Doc["n-sequences"].get<int64_t>().get(GraphRef.NSequences);
+    int64_t NSequences;
+    auto Err = Doc["n-sequences"].get<int64_t>().get(NSequences);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the n-sequences option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.n_sequences = static_cast<int32_t>(NSequences);
   }
   if (Doc.at_key("grp-attn-n").error() == simdjson::SUCCESS) {
-    auto Err = Doc["grp-attn-n"].get<int64_t>().get(GraphRef.GrpAttnN);
+    int64_t GrpAttnN;
+    auto Err = Doc["grp-attn-n"].get<int64_t>().get(GrpAttnN);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the grp-attn-n option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.grp_attn_n = static_cast<int32_t>(GrpAttnN);
   }
   if (Doc.at_key("grp-attn-w").error() == simdjson::SUCCESS) {
-    auto Err = Doc["grp-attn-w"].get<int64_t>().get(GraphRef.GrpAttnW);
+    int64_t GrpAttnW;
+    auto Err = Doc["grp-attn-w"].get<int64_t>().get(GrpAttnW);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the grp-attn-w option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.grp_attn_w = static_cast<int32_t>(GrpAttnW);
   }
   if (Doc.at_key("n-print").error() == simdjson::SUCCESS) {
-    auto Err = Doc["n-print"].get<int64_t>().get(GraphRef.NPrint);
+    int64_t NPrint;
+    auto Err = Doc["n-print"].get<int64_t>().get(NPrint);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the n-print option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.n_print = static_cast<int32_t>(NPrint);
   }
   if (Doc.at_key("rope-freq-base").error() == simdjson::SUCCESS) {
-    auto Err = Doc["rope-freq-base"].get<double>().get(GraphRef.RopeFreqBase);
+    double RopeFreqBase;
+    auto Err = Doc["rope-freq-base"].get<double>().get(RopeFreqBase);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the rope-freq-base option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.rope_freq_base = RopeFreqBase;
   }
   if (Doc.at_key("rope-freq-scale").error() == simdjson::SUCCESS) {
-    auto Err = Doc["rope-freq-scale"].get<double>().get(GraphRef.RopeFreqScale);
+    double RopeFreqScale;
+    auto Err = Doc["rope-freq-scale"].get<double>().get(RopeFreqScale);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the rope-freq-scale option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.rope_freq_scale = RopeFreqScale;
   }
   if (Doc.at_key("yarn-ext-factor").error() == simdjson::SUCCESS) {
-    auto Err = Doc["yarn-ext-factor"].get<double>().get(GraphRef.YarnExtFactor);
+    double YarnExtFactor;
+    auto Err = Doc["yarn-ext-factor"].get<double>().get(YarnExtFactor);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the yarn-ext-factor option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.yarn_ext_factor = YarnExtFactor;
   }
   if (Doc.at_key("yarn-attn-factor").error() == simdjson::SUCCESS) {
-    auto Err =
-        Doc["yarn-attn-factor"].get<double>().get(GraphRef.YarnAttnFactor);
+    double YarnAttnFactor;
+    auto Err = Doc["yarn-attn-factor"].get<double>().get(YarnAttnFactor);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the yarn-attn-factor option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.yarn_attn_factor = YarnAttnFactor;
   }
   if (Doc.at_key("yarn-beta-fast").error() == simdjson::SUCCESS) {
-    auto Err = Doc["yarn-beta-fast"].get<double>().get(GraphRef.YarnBetaFast);
+    double YarnBetaFast;
+    auto Err = Doc["yarn-beta-fast"].get<double>().get(YarnBetaFast);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the yarn-beta-fast option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.yarn_beta_fast = YarnBetaFast;
   }
   if (Doc.at_key("yarn-beta-slow").error() == simdjson::SUCCESS) {
-    auto Err = Doc["yarn-beta-slow"].get<double>().get(GraphRef.YarnBetaSlow);
+    double YarnBetaSlow;
+    auto Err = Doc["yarn-beta-slow"].get<double>().get(YarnBetaSlow);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the yarn-beta-slow option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.yarn_beta_slow = YarnBetaSlow;
   }
   if (Doc.at_key("yarn-orig-ctx").error() == simdjson::SUCCESS) {
-    auto Err = Doc["yarn-orig-ctx"].get<int64_t>().get(GraphRef.YarnOrigCtx);
+    int64_t YarnOrigCtx;
+    auto Err = Doc["yarn-orig-ctx"].get<int64_t>().get(YarnOrigCtx);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the yarn-orig-ctx option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.yarn_orig_ctx = YarnOrigCtx;
   }
   if (Doc.at_key("defrag-thold").error() == simdjson::SUCCESS) {
-    auto Err = Doc["defrag-thold"].get<double>().get(GraphRef.DefragThold);
+    double DefragThold;
+    auto Err = Doc["defrag-thold"].get<double>().get(DefragThold);
     if (Err) {
       spdlog::error(
           "[WASI-NN] GGML backend: Unable to retrieve the defrag-thold option."sv);
       return ErrNo::InvalidArgument;
     }
+    GraphRef.Params.defrag_thold = DefragThold;
   }
   if (Doc.at_key("split-mode").error() == simdjson::SUCCESS) {
     int64_t SplitMode;
@@ -494,41 +484,48 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
   // The sampling parameters.
   if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
-    auto Err = Doc["temp"].get<double>().get(GraphRef.Temp);
+    double Temp;
+    auto Err = Doc["temp"].get<double>().get(Temp);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the temp option."sv)
     }
-    GraphRef.Temp = std::max(0.0, GraphRef.Temp);
+    GraphRef.Sampling.temp = std::max(0.0, Temp);
   }
   if (Doc.at_key("top-p").error() == simdjson::SUCCESS) {
-    auto Err = Doc["top-p"].get<double>().get(GraphRef.TopP);
+    double TopP;
+    auto Err = Doc["top-p"].get<double>().get(TopP);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the top-p option."sv)
     }
+    GraphRef.Sampling.top_p = std::max(0.0, TopP);
   }
   if (Doc.at_key("repeat-penalty").error() == simdjson::SUCCESS) {
-    auto Err = Doc["repeat-penalty"].get<double>().get(GraphRef.RepeatPenalty);
+    double RepeatPenalty;
+    auto Err = Doc["repeat-penalty"].get<double>().get(RepeatPenalty);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the repeat-penalty option."sv)
     }
+    GraphRef.Sampling.penalty_repeat = std::max(0.0, RepeatPenalty);
   }
   if (Doc.at_key("presence-penalty").error() == simdjson::SUCCESS) {
-    auto Err =
-        Doc["presence-penalty"].get<double>().get(GraphRef.PresencePenalty);
+    double PresencePenalty;
+    auto Err = Doc["presence-penalty"].get<double>().get(PresencePenalty);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the presence-penalty option."sv)
     }
+    GraphRef.Sampling.penalty_present = std::max(0.0, PresencePenalty);
   }
   if (Doc.at_key("frequency-penalty").error() == simdjson::SUCCESS) {
-    auto Err =
-        Doc["frequency-penalty"].get<double>().get(GraphRef.FrequencyPenalty);
+    double FrequencyPenalty;
+    auto Err = Doc["frequency-penalty"].get<double>().get(FrequencyPenalty);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the frequency-penalty option."sv)
     }
+    GraphRef.Sampling.penalty_freq = std::max(0.0, FrequencyPenalty);
   }
   if (Doc.at_key("grammar").error() == simdjson::SUCCESS) {
     std::string_view Grammar;
@@ -537,7 +534,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the grammar option."sv)
     }
-    GraphRef.Grammar = Grammar;
+    GraphRef.Sampling.grammar = Grammar;
   }
   if (Doc.at_key("json-schema").error() == simdjson::SUCCESS) {
     std::string_view JsonSchema;
@@ -546,14 +543,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the json-schema option."sv)
     }
-    GraphRef.Grammar =
+    GraphRef.Sampling.grammar =
         json_schema_to_grammar(nlohmann::ordered_json::parse(JsonSchema));
   }
   if (Doc.at_key("seed").error() == simdjson::SUCCESS) {
-    auto Err = Doc["seed"].get<uint64_t>().get(GraphRef.Seed);
+    uint64_t Seed;
+    auto Err = Doc["seed"].get<uint64_t>().get(Seed);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the seed option."sv)
     }
+    GraphRef.Sampling.seed = Seed;
   }
 
   // The config parameters.
@@ -598,23 +597,32 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
 
+  if (GraphRef.TextToSpeech) {
+    Sampling.top_k = 4;
+    Sampling.samplers = {
+        COMMON_SAMPLER_TYPE_TOP_K,
+    };
+  }
+
   // Check if the model parameters are updated.
-  if (IsModelUpdated && PrevNGPULayers != GraphRef.NGPULayers) {
+  if (IsModelUpdated && PrevNGPULayers != GraphRef.Params.n_gpu_layers) {
     *IsModelUpdated = true;
   }
 
   // Check if the context parameters are updated.
-  if (IsContextUpdated && PrevEmbedding != GraphRef.Embedding) {
+  if (IsContextUpdated && PrevEmbedding != GraphRef.Params.embedding) {
     *IsContextUpdated = true;
   }
 
   // Check if the sampler parameters are updated.
   if (IsSamplerUpdated &&
-      (PrevTemp != GraphRef.Temp || PrevTopP != GraphRef.TopP ||
-       PrevRepeatPenalty != GraphRef.RepeatPenalty ||
-       PrevPresencePenalty != GraphRef.PresencePenalty ||
-       PrevFrequencyPenalty != GraphRef.FrequencyPenalty ||
-       PrevGrammar != GraphRef.Grammar || PrevSeed != GraphRef.Seed)) {
+      (PrevTemp != GraphRef.Sampling.temp ||
+       PrevTopP != GraphRef.Sampling.top_p ||
+       PrevRepeatPenalty != GraphRef.Sampling.penalty_repeat ||
+       PrevPresencePenalty != GraphRef.Sampling.penalty_present ||
+       PrevFrequencyPenalty != GraphRef.Sampling.penalty_freq ||
+       PrevGrammar != GraphRef.Sampling.grammar ||
+       PrevSeed != GraphRef.Sampling.seed)) {
     *IsSamplerUpdated = true;
   }
 
@@ -1002,7 +1010,7 @@ struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
 // Fill tokens (smaller than batch size) into a batch with position data.
 void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
                llama_batch &Batch, int &NPos, bool IsLogit = false) {
-  assuming(GraphRef.BatchSize >= static_cast<int64_t>(Tokens.size()));
+  assuming(GraphRef.Params.n_batch >= static_cast<int64_t>(Tokens.size()));
   assuming(Batch.token != nullptr);
   assuming(Batch.pos != nullptr);
   assuming(Batch.logits != nullptr);
@@ -1103,10 +1111,10 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
 
   // Loop for decode batch. Split tokens into batch size length.
   for (int I = 0; I < static_cast<int>(Tokens.size());
-       I += static_cast<int>(GraphRef.BatchSize)) {
+       I += static_cast<int>(GraphRef.Params.n_batch)) {
     int NEval = static_cast<int>(Tokens.size()) - I;
-    if (NEval > static_cast<int>(GraphRef.BatchSize)) {
-      NEval = static_cast<int>(GraphRef.BatchSize);
+    if (NEval > static_cast<int>(GraphRef.Params.n_batch)) {
+      NEval = static_cast<int>(GraphRef.Params.n_batch);
     }
 
     // LlamaPos for Qwen2VL.
@@ -1206,7 +1214,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                 LogPrefix)
       EvalImageStatus = llava_eval_image_embed(
           GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
-          static_cast<int>(GraphRef.BatchSize), &CxtRef.NPos);
+          static_cast<int>(GraphRef.Params.n_batch), &CxtRef.NPos);
       LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd...done"sv,
                 LogPrefix)
       break;
@@ -1216,7 +1224,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
       auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
       EvalImageStatus = evaluateQwen2vlImageEmbed(
           GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
-          static_cast<int>(GraphRef.BatchSize), CxtRef.NPos, ImageSize);
+          static_cast<int>(GraphRef.Params.n_batch), CxtRef.NPos, ImageSize);
       LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd...done"sv,
                 LogPrefix)
       break;
@@ -1308,12 +1316,13 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   }
 
   // Check if the input is too long.
-  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) > GraphRef.BatchSize) {
+  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) >
+      GraphRef.Params.n_batch) {
     RET_ERROR(
         ErrNo::PromptTooLong,
         "getEmbedding: the prompt is too long. Your input has {} tokens exceeds batch "sv
         "size {}. Please reduce the input size or increase your batch-size."sv,
-        CxtRef.LlamaInputs.size(), GraphRef.BatchSize)
+        CxtRef.LlamaInputs.size(), GraphRef.Params.n_batch)
   }
 
   // Evaluate the input tokens.
@@ -1621,44 +1630,37 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the plugin parameters.
   GraphRef.EnableLog = false;
   GraphRef.EnableDebugLog = false;
-  GraphRef.NKeep = 0;
-  GraphRef.NChunks = -1;
-  GraphRef.NParallel = 1;
-  GraphRef.GrpAttnN = 1;
-  GraphRef.GrpAttnW = 512;
-  GraphRef.NPrint = -1;
-  GraphRef.TensorSplit = {};
-  GraphRef.SplitMode = LLAMA_SPLIT_MODE_LAYER;
+  const common_params CommonParamsDefault;
+  GraphRef.Params = CommonParamsDefault;
+  GraphRef.Params.n_keep = 0;
+  GraphRef.Params.n_chunks = -1;
+  GraphRef.Params.n_parallel = 1;
+  GraphRef.Params.grp_attn_n = 1;
+  GraphRef.Params.grp_attn_w = 512;
+  GraphRef.Params.n_print = -1;
+  GraphRef.SplitMode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
   // Initialize the model parameters.
   llama_model_params ModelParamsDefault = llama_model_default_params();
-  GraphRef.NGPULayers = ModelParamsDefault.n_gpu_layers;
+  GraphRef.Params.n_gpu_layers = ModelParamsDefault.n_gpu_layers;
   GraphRef.MMProjModelPath = ""sv;
   // Initialize the context parameters.
   llama_context_params ContextParamsDefault = llama_context_default_params();
-  GraphRef.CtxSize = ContextParamsDefault.n_ctx;
-  GraphRef.BatchSize = ContextParamsDefault.n_batch;
-  GraphRef.UBatchSize = ContextParamsDefault.n_ubatch;
   GraphRef.Threads = ContextParamsDefault.n_threads;
-  GraphRef.NSequences = ContextParamsDefault.n_seq_max;
-  GraphRef.RopeFreqBase = ContextParamsDefault.rope_freq_base;
-  GraphRef.RopeFreqScale = ContextParamsDefault.rope_freq_scale;
-  GraphRef.YarnExtFactor = ContextParamsDefault.yarn_ext_factor;
-  GraphRef.YarnAttnFactor = ContextParamsDefault.yarn_attn_factor;
-  GraphRef.YarnBetaFast = ContextParamsDefault.yarn_beta_fast;
-  GraphRef.YarnBetaSlow = ContextParamsDefault.yarn_beta_slow;
-  GraphRef.YarnOrigCtx = ContextParamsDefault.yarn_orig_ctx;
-  GraphRef.DefragThold = ContextParamsDefault.defrag_thold;
-  GraphRef.Threads = ContextParamsDefault.n_threads;
+  GraphRef.Params.n_ctx = ContextParamsDefault.n_ctx;
+  GraphRef.Params.n_batch = ContextParamsDefault.n_batch;
+  GraphRef.Params.n_ubatch = ContextParamsDefault.n_ubatch;
+  GraphRef.Params.rope_freq_base = ContextParamsDefault.rope_freq_base;
+  GraphRef.Params.rope_freq_scale = ContextParamsDefault.rope_freq_scale;
+  GraphRef.Params.yarn_ext_factor = ContextParamsDefault.yarn_ext_factor;
+  GraphRef.Params.yarn_attn_factor = ContextParamsDefault.yarn_attn_factor;
+  GraphRef.Params.yarn_beta_fast = ContextParamsDefault.yarn_beta_fast;
+  GraphRef.Params.yarn_beta_slow = ContextParamsDefault.yarn_beta_slow;
+  GraphRef.Params.yarn_orig_ctx = ContextParamsDefault.yarn_orig_ctx;
+  GraphRef.Params.defrag_thold = ContextParamsDefault.defrag_thold;
   // Initialize the sampling parameters.
   const common_params_sampling SamplerParamsDefault;
-  GraphRef.Temp = SamplerParamsDefault.temp;
-  GraphRef.TopP = SamplerParamsDefault.top_p;
-  GraphRef.RepeatPenalty = SamplerParamsDefault.penalty_repeat;
-  GraphRef.PresencePenalty = SamplerParamsDefault.penalty_present;
-  GraphRef.FrequencyPenalty = SamplerParamsDefault.penalty_freq;
-  GraphRef.Grammar = SamplerParamsDefault.grammar;
+  GraphRef.Sampling = SamplerParamsDefault;
   // Initialize the config parameters.
-  const common_params CommonParamsDefault;
   GraphRef.Conf.StreamStdout = false;
   GraphRef.Conf.EmbdNormalize =
       static_cast<EmbdNormalizeType>(CommonParamsDefault.embd_normalize);
@@ -1723,12 +1725,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     Env.deleteGraph(GId);
     RET_ERROR(ErrNo::ModelNotFound, "load: model file not found."sv)
   }
+  GraphRef.Params.model = GraphRef.ModelFilePath;
 
   // Initialize ggml parameters.
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "load: initialize ggml model with given parameters."sv)
-  common_params Params;
-  setupCommonParams(GraphRef, Params);
+
+  common_params Params = GraphRef.Params;
+  Params.cpuparams.n_threads = static_cast<int32_t>(GraphRef.Threads);
+  Params.cpuparams_batch.n_threads = static_cast<int32_t>(GraphRef.Threads);
   llama_backend_init();
   llama_numa_init(Params.numa);
 
@@ -1784,17 +1789,15 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
 
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   // Allocate the batch for input string prompt tokens.
-  CxtRef.LlamaBatch = allocBatch(GraphRef.BatchSize);
-  CxtRef.CurrentBatchSize = GraphRef.BatchSize;
+  CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+  CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
 
   // Allocate the batch for output sampling. The batch size is always 1.
   CxtRef.OutputBatch = allocBatch(1);
 
   // Allocate sampler.
-  common_params_sampling CommonSampling;
-  setupSamplerParams(GraphRef, CommonSampling);
   CxtRef.LlamaSampler =
-      common_sampler_init(GraphRef.LlamaModel.get(), CommonSampling);
+      common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Sampling);
 
   Env.NNContext[ContextId].setReady();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
@@ -1835,7 +1838,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         LOG_INFO(GraphRef.EnableLog,
                  "setInput: Reload model due to parameters change."sv)
         llama_model_params ModelParams = llama_model_default_params();
-        ModelParams.n_gpu_layers = static_cast<int32_t>(GraphRef.NGPULayers);
+        ModelParams.n_gpu_layers =
+            static_cast<int32_t>(GraphRef.Params.n_gpu_layers);
         GraphRef.LlamaModel.reset();
         // Due to the model change, the context and sampler should also be
         // reloaded. The new context and sampler will be created in the next
@@ -1862,10 +1866,9 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       LOG_INFO(GraphRef.EnableLog,
                "setInput: Reload llama context due to parameters change."sv)
       GraphRef.LlamaContext.reset();
-      common_params Params;
-      setupCommonParams(GraphRef, Params);
       GraphRef.LlamaContext = llama_context_ptr(llama_init_from_model(
-          GraphRef.LlamaModel.get(), common_context_params_to_llama(Params)));
+          GraphRef.LlamaModel.get(),
+          common_context_params_to_llama(GraphRef.Params)));
       if (GraphRef.LlamaContext == nullptr) {
         Env.NNGraph[CxtRef.GraphId].setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init context."sv)
@@ -1880,10 +1883,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       if (CxtRef.LlamaSampler) {
         common_sampler_free(CxtRef.LlamaSampler);
       }
-      common_params_sampling CommonSampling;
-      setupSamplerParams(GraphRef, CommonSampling);
       CxtRef.LlamaSampler =
-          common_sampler_init(GraphRef.LlamaModel.get(), CommonSampling);
+          common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Sampling);
       if (GraphRef.LlamaContext == nullptr) {
         Env.NNGraph[CxtRef.GraphId].setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
@@ -1891,10 +1892,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
 
     // Check that is batch size changed.
-    if (CxtRef.CurrentBatchSize != GraphRef.BatchSize) {
+    if (CxtRef.CurrentBatchSize != GraphRef.Params.n_batch) {
       llama_batch_free(CxtRef.LlamaBatch);
-      CxtRef.LlamaBatch = allocBatch(GraphRef.BatchSize);
-      CxtRef.CurrentBatchSize = GraphRef.BatchSize;
+      CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+      CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
     }
 
     Env.NNGraph[CxtRef.GraphId].setReady();
@@ -1958,13 +1959,13 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                 "setInput: handle llava format prompt."sv)
 
       // Show some warnings.
-      if (GraphRef.CtxSize < 4096) {
+      if (GraphRef.Params.n_ctx < 4096) {
         LOG_INFO(
             GraphRef.EnableLog,
             "setInput: Context size is {}, we recommend context size >= 2048 when "sv
             "using llava-v1.5 and context size >= 4096 when using llava-v1.6 "sv
             "for better results."sv,
-            GraphRef.CtxSize)
+            GraphRef.Params.n_ctx)
       }
 
       // Get image embed.
@@ -2113,7 +2114,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute")
 
-  if (GraphRef.Embedding) {
+  if (GraphRef.Params.embedding) {
     return getEmbedding(GraphRef, CxtRef);
   }
 

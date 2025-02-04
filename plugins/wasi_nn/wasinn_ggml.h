@@ -55,13 +55,8 @@ struct Graph {
   // Plugin parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
-  // Model parameters:
-  int64_t MainGPU = 0; // Use GPU 0 by default
-  int64_t NGPULayers = 0;
+  common_params Params;
   std::vector<float> TensorSplit;
-  bool Embedding = false;
-  bool UseMMap = true;
-  bool WarmUp = false;
   enum llama_split_mode SplitMode = LLAMA_SPLIT_MODE_LAYER;
   // Model context:
   llama_model_ptr LlamaModel = nullptr;
@@ -78,33 +73,8 @@ struct Graph {
   llama_model_ptr TTSModel = nullptr;
   llama_context_ptr TTSContext = nullptr;
   // Context parameters:
-  int64_t CtxSize;
-  int64_t BatchSize;
-  int64_t UBatchSize;
   int64_t Threads;
-  int64_t NKeep;
-  int64_t NChunks;
-  int64_t NParallel;
-  int64_t NSequences;
-  int64_t GrpAttnN;
-  int64_t GrpAttnW;
-  int64_t NPrint;
-  double RopeFreqBase;
-  double RopeFreqScale;
-  double YarnExtFactor;
-  double YarnAttnFactor;
-  double YarnBetaFast;
-  double YarnBetaSlow;
-  int64_t YarnOrigCtx;
-  double DefragThold;
-  // Sampling parameters:
-  double Temp = 0.80;
-  double TopP = 0.95;
-  double RepeatPenalty = 1.10;
-  double PresencePenalty = 0.00;
-  double FrequencyPenalty = 0.00;
-  std::string Grammar;
-  uint64_t Seed = LLAMA_DEFAULT_SEED;
+  common_params_sampling Sampling;
   // Configs.
   LocalConfig Conf;
 };

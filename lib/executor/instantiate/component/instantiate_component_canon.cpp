@@ -343,8 +343,6 @@ private:
   void flattenFunctype(const AST::Component::FunctionType &HigherType) {
     auto &FuncType = DefType.getCompositeType().getFuncType();
 
-    spdlog::warn("still?");
-
     std::vector<ValType> FlatParams{};
     std::vector<ValType> FlatResults{};
     for (auto &ParamTy : HigherType.getParamTypes()) {
@@ -667,7 +665,6 @@ Executor::instantiate(Runtime::StoreManager &,
                       const AST::Component::CanonSection &CanonSec) {
   for (const Canon &C : CanonSec.getContent()) {
     auto V = CanonOptionVisitor{*this, CompInst};
-    spdlog::info("crash start, {}", C);
     auto Res = std::visit(V, C);
     if (!Res) {
       return Unexpect(Res);

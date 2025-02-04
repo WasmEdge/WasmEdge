@@ -74,6 +74,7 @@ struct Graph {
   llama_context_ptr TTSContext = nullptr;
   // Context parameters:
   int64_t Threads;
+  int64_t ThreadsBatch;
   common_params_sampling Sampling;
   // Configs.
   LocalConfig Conf;

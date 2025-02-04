@@ -464,6 +464,127 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
     GraphRef.Params.defrag_thold = DefragThold;
   }
+  if (Doc.at_key("mask-valid").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["mask-valid"].get<bool>().get(GraphRef.Params.cpuparams.mask_valid);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the mask-valid option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("priority").error() == simdjson::SUCCESS) {
+    int64_t Priority;
+    auto Err = Doc["priority"].get<int64_t>().get(Priority);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the priority option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Params.cpuparams.priority =
+        static_cast<ggml_sched_priority>(Priority);
+  }
+  if (Doc.at_key("strict-cpu").error() == simdjson::SUCCESS) {
+    auto Err =
+        Doc["strict-cpu"].get<bool>().get(GraphRef.Params.cpuparams.strict_cpu);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the strict-cpu option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("poll").error() == simdjson::SUCCESS) {
+    int64_t Poll;
+    auto Err = Doc["poll"].get<int64_t>().get(Poll);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the poll option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Params.cpuparams.poll = static_cast<int32_t>(Poll);
+  }
+  if (Doc.at_key("mask-valid-batch").error() == simdjson::SUCCESS) {
+    auto Err = Doc["mask-valid-batch"].get<bool>().get(
+        GraphRef.Params.cpuparams_batch.mask_valid);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the mask-valid-batch option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("priority-batch").error() == simdjson::SUCCESS) {
+    int64_t Priority;
+    auto Err = Doc["priority-batch"].get<int64_t>().get(Priority);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the priority-batch option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Params.cpuparams_batch.priority =
+        static_cast<ggml_sched_priority>(Priority);
+  }
+  if (Doc.at_key("strict-cpu-batch").error() == simdjson::SUCCESS) {
+    auto Err = Doc["strict-cpu-batch"].get<bool>().get(
+        GraphRef.Params.cpuparams_batch.strict_cpu);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the strict-cpu-batch option."sv);
+      return ErrNo::InvalidArgument;
+    }
+  }
+  if (Doc.at_key("poll-batch").error() == simdjson::SUCCESS) {
+    int64_t Poll;
+    auto Err = Doc["poll-batch"].get<int64_t>().get(Poll);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the poll-batch option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Params.cpuparams_batch.poll = static_cast<int32_t>(Poll);
+  }
+  if (Doc.at_key("numa").error() == simdjson::SUCCESS) {
+    int64_t Numa;
+    auto Err = Doc["numa"].get<int64_t>().get(Numa);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the numa option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Params.numa = static_cast<ggml_numa_strategy>(Numa);
+  }
+  if (Doc.at_key("rope-scaling-type").error() == simdjson::SUCCESS) {
+    int64_t RopeScalingType;
+    auto Err = Doc["rope-scaling-type"].get<int64_t>().get(RopeScalingType);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the rope-scaling-type option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Params.rope_scaling_type =
+        static_cast<llama_rope_scaling_type>(RopeScalingType);
+  }
+  if (Doc.at_key("pooling-type").error() == simdjson::SUCCESS) {
+    int64_t PoolingType;
+    auto Err = Doc["pooling-type"].get<int64_t>().get(PoolingType);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the pooling-type option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Params.pooling_type =
+        static_cast<enum llama_pooling_type>(PoolingType);
+  }
+  if (Doc.at_key("attention-type").error() == simdjson::SUCCESS) {
+    int64_t AttentionType;
+    auto Err = Doc["attention-type"].get<int64_t>().get(AttentionType);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] GGML backend: Unable to retrieve the attention-type option."sv);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Params.attention_type =
+        static_cast<llama_attention_type>(AttentionType);
+  }
   if (Doc.at_key("split-mode").error() == simdjson::SUCCESS) {
     int64_t SplitMode;
     auto Err = Doc["split-mode"].get<int64_t>().get(SplitMode);
@@ -479,6 +600,13 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the threads option."sv)
+    }
+  }
+  if (Doc.at_key("threads-batch").error() == simdjson::SUCCESS) {
+    auto Err = Doc["threads-batch"].get<int64_t>().get(GraphRef.ThreadsBatch);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the threads-batch option."sv)
     }
   }
 
@@ -1650,7 +1778,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Params.n_batch = ContextParamsDefault.n_batch;
   GraphRef.Params.n_ubatch = ContextParamsDefault.n_ubatch;
   GraphRef.Params.cpuparams.n_threads = ContextParamsDefault.n_threads_batch;
-  GraphRef.Params.cpuparams_batch.n_threads = ContextParamsDefault.n_threads_batch;
+  GraphRef.Params.cpuparams_batch.n_threads =
+      ContextParamsDefault.n_threads_batch;
   GraphRef.Params.rope_scaling_type = ContextParamsDefault.rope_scaling_type;
   GraphRef.Params.pooling_type = ContextParamsDefault.pooling_type;
   GraphRef.Params.attention_type = ContextParamsDefault.attention_type;

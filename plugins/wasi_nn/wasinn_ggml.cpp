@@ -1649,6 +1649,11 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Params.n_ctx = ContextParamsDefault.n_ctx;
   GraphRef.Params.n_batch = ContextParamsDefault.n_batch;
   GraphRef.Params.n_ubatch = ContextParamsDefault.n_ubatch;
+  GraphRef.Params.cpuparams.n_threads = ContextParamsDefault.n_threads_batch;
+  GraphRef.Params.cpuparams_batch.n_threads = ContextParamsDefault.n_threads_batch;
+  GraphRef.Params.rope_scaling_type = ContextParamsDefault.rope_scaling_type;
+  GraphRef.Params.pooling_type = ContextParamsDefault.pooling_type;
+  GraphRef.Params.attention_type = ContextParamsDefault.attention_type;
   GraphRef.Params.rope_freq_base = ContextParamsDefault.rope_freq_base;
   GraphRef.Params.rope_freq_scale = ContextParamsDefault.rope_freq_scale;
   GraphRef.Params.yarn_ext_factor = ContextParamsDefault.yarn_ext_factor;
@@ -1657,6 +1662,16 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Params.yarn_beta_slow = ContextParamsDefault.yarn_beta_slow;
   GraphRef.Params.yarn_orig_ctx = ContextParamsDefault.yarn_orig_ctx;
   GraphRef.Params.defrag_thold = ContextParamsDefault.defrag_thold;
+  GraphRef.Params.cb_eval = ContextParamsDefault.cb_eval;
+  GraphRef.Params.cb_eval_user_data = ContextParamsDefault.cb_eval_user_data;
+  GraphRef.Params.cache_type_k = ContextParamsDefault.type_k;
+  GraphRef.Params.cache_type_v = ContextParamsDefault.type_v;
+  GraphRef.Params.logits_all = ContextParamsDefault.logits_all;
+  GraphRef.Params.embedding = ContextParamsDefault.embeddings;
+  GraphRef.Params.no_kv_offload = !ContextParamsDefault.offload_kqv;
+  GraphRef.Params.flash_attn = ContextParamsDefault.flash_attn;
+  GraphRef.Params.no_perf = ContextParamsDefault.no_perf;
+
   // Initialize the sampling parameters.
   const common_params_sampling SamplerParamsDefault;
   GraphRef.Sampling = SamplerParamsDefault;

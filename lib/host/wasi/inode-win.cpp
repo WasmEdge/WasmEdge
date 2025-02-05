@@ -210,9 +210,8 @@ inline WasiExpect<DWORD_> getAttribute(HANDLE_ Handle) noexcept {
 }
 
 inline WasiExpect<void> forceDirectory(HANDLE_ Handle) noexcept {
-  if (auto Res = getAttribute(Handle); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else if (unlikely(!((*Res) & FILE_ATTRIBUTE_DIRECTORY_))) {
+  EXPECTED_TRY(auto Attr, getAttribute(Handle));
+  if (unlikely(!(Attr & FILE_ATTRIBUTE_DIRECTORY_))) {
     return WasiUnexpect(__WASI_ERRNO_NOTDIR);
   }
 
@@ -286,16 +285,8 @@ getHandlePath(HANDLE_ Handle) noexcept {
 inline WasiExpect<std::filesystem::path>
 getRelativePath(HANDLE_ Handle, std::string_view Path) noexcept {
   // Check if the path is a directory or not
-  if (auto Res = forceDirectory(Handle); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
-
-  std::filesystem::path FullPath;
-  if (auto Res = getHandlePath(Handle); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    FullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(forceDirectory(Handle));
+  EXPECTED_TRY(auto FullPath, getHandlePath(Handle));
 
   // Append the paths together
   FullPath /= std::filesystem::u8path(Path);
@@ -373,13 +364,8 @@ bool HandleHolder::reopen(const DWORD_ AccessFlags, const DWORD_ ShareFlags,
   HandleHolder NewFile(
       ReOpenFile(Handle, AccessFlags, ShareFlags, AttributeFlags), false);
 #else
-  std::filesystem::path Path;
-  if (auto Res = getHandlePath(Handle); unlikely(!Res)) {
-    return false;
-  } else {
-    Path = std::move(*Res);
-  }
-  HandleHolder NewFile(Path, AccessFlags, ShareFlags, OPEN_EXISTING_,
+  EXPECTED_TRY(auto FullPath, getHandlePath(Handle));
+  HandleHolder NewFile(FullPath, AccessFlags, ShareFlags, OPEN_EXISTING_,
                        AttributeFlags);
 #endif
   if (unlikely(!NewFile.ok())) {
@@ -417,8 +403,7 @@ HandleHolder::filestatGet(__wasi_filestat_t &FileStat) const noexcept {
 #if WINAPI_PARTITION_DESKTOP
     BY_HANDLE_FILE_INFORMATION_ FileInfo;
     if (unlikely(!GetFileInformationByHandle(Handle, &FileInfo))) {
-      auto Res = detail::fromLastError(GetLastError());
-      return WasiUnexpect(Res);
+      return WasiUnexpect(detail::fromLastError(GetLastError()));
     }
 
     FileStat.dev = FileInfo.dwVolumeSerialNumber;
@@ -432,11 +417,8 @@ HandleHolder::filestatGet(__wasi_filestat_t &FileStat) const noexcept {
     FileStat.mtim = detail::fromFiletime(FileInfo.ftLastWriteTime);
     FileStat.ctim = detail::fromFiletime(FileInfo.ftCreationTime);
 #else
-    if (auto Res = getAttribute(Handle); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    } else {
-      FileStat.filetype = getDiskFileType(*Res);
-    }
+    EXPECTED_TRY(auto Attr, getAttribute(Handle));
+    FileStat.filetype = getDiskFileType(Attr);
     std::wstring Filename;
     FindHolder Finder;
     HandleHolder Holder;
@@ -446,17 +428,14 @@ HandleHolder::filestatGet(__wasi_filestat_t &FileStat) const noexcept {
       Finder.emplace(Handle);
       break;
     default:
-      if (auto Res = getHandlePath(Handle); unlikely(!Res)) {
-        return WasiUnexpect(Res);
-      } else {
-        Filename = Res->filename().native();
-        Holder = HandleHolder(Res->parent_path(), FILE_GENERIC_READ_,
-                              FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
-                              FILE_ATTRIBUTE_DIRECTORY_ |
-                                  FILE_FLAG_BACKUP_SEMANTICS_ |
-                                  FILE_FLAG_OPEN_REPARSE_POINT_);
-        Finder.emplace(Holder.Handle);
-      }
+      EXPECTED_TRY(auto FullPath, getHandlePath(Handle));
+      Filename = FullPath.filename().native();
+      Holder =
+          HandleHolder(FullPath.parent_path(), FILE_GENERIC_READ_,
+                       FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
+                       FILE_ATTRIBUTE_DIRECTORY_ | FILE_FLAG_BACKUP_SEMANTICS_ |
+                           FILE_FLAG_OPEN_REPARSE_POINT_);
+      Finder.emplace(Holder.Handle);
       break;
     }
     do {
@@ -497,29 +476,17 @@ HandleHolder::filestatGet(__wasi_filestat_t &FileStat) const noexcept {
 template <typename T>
 WasiExpect<void> FindHolderBase<T>::emplace(HANDLE_ PathHandle) noexcept {
   reset();
-  if (auto Res = getHandlePath(PathHandle); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    Path = std::move(*Res);
-  }
+  EXPECTED_TRY(Path, getHandlePath(PathHandle));
   Handle = PathHandle;
-  if (auto Res = Proxy::doRewind(static_cast<T &>(*this), true);
-      unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
-  return {};
+  return Proxy::doRewind(static_cast<T &>(*this), true);
 }
 
 template <typename T>
 WasiExpect<void> FindHolderBase<T>::seek(uint64_t NewCookie) noexcept {
   if (NewCookie < Cookie) {
-    if (auto Res = Proxy::doRewind(static_cast<T &>(*this), false);
-        unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    } else {
-      Cookie = 0;
-      Buffer.clear();
-    }
+    EXPECTED_TRY(Proxy::doRewind(static_cast<T &>(*this), false));
+    Cookie = 0;
+    Buffer.clear();
   }
   // seekdir() emulation - go to the Cookie'th file/directory
   if (unlikely(NewCookie != Cookie)) {
@@ -690,15 +657,8 @@ INode INode::stdErr() noexcept {
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,
                               VFS::Flags VFSFlags) noexcept {
-  DWORD_ AttributeFlags;
-  DWORD_ AccessFlags;
-  DWORD_ CreationDisposition;
-  if (auto Res = getOpenFlags(OpenFlags, FdFlags, VFSFlags); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    std::tie(AttributeFlags, AccessFlags, CreationDisposition) = *Res;
-  }
-
+  EXPECTED_TRY(auto Pack, getOpenFlags(OpenFlags, FdFlags, VFSFlags));
+  const auto [AttributeFlags, AccessFlags, CreationDisposition] = Pack;
   const DWORD_ ShareFlags = FILE_SHARE_VALID_FLAGS_;
   const auto FullPath = std::filesystem::u8path(Path);
 
@@ -1095,16 +1055,12 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
                                   __wasi_dircookie_t Cookie,
                                   __wasi_size_t &Size) noexcept {
   if (likely(Find.ok())) {
-    if (auto Res = Find.seek(Cookie); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    }
+    EXPECTED_TRY(Find.seek(Cookie));
   }
 
   if (unlikely(!Find.ok())) {
     // Begin the search for files
-    if (auto Res = Find.emplace(Handle); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    }
+    EXPECTED_TRY(Find.emplace(Handle));
   }
 
   bool FindNextResult = true;
@@ -1127,9 +1083,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
       break;
     }
 
-    if (auto Res = Find.loadDirent(); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    }
+    EXPECTED_TRY(Find.loadDirent());
 
     FindNextResult = Find.next();
   } while (!Buffer.empty());
@@ -1236,12 +1190,7 @@ WasiExpect<uint64_t> INode::getNativeHandler() const noexcept {
 }
 
 WasiExpect<void> INode::pathCreateDirectory(std::string Path) const noexcept {
-  std::filesystem::path FullPath;
-  if (auto Res = getRelativePath(Handle, Path); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    FullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto FullPath, getRelativePath(Handle, Path));
 
   if (unlikely(!CreateDirectoryW(FullPath.c_str(), nullptr))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
@@ -1252,12 +1201,7 @@ WasiExpect<void> INode::pathCreateDirectory(std::string Path) const noexcept {
 WasiExpect<void>
 INode::pathFilestatGet(std::string Path,
                        __wasi_filestat_t &FileStat) const noexcept {
-  std::filesystem::path FullPath;
-  if (auto Res = getRelativePath(Handle, Path); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    FullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto FullPath, getRelativePath(Handle, Path));
 
   HandleHolder File(
       FullPath, FILE_GENERIC_READ_, FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
@@ -1274,12 +1218,7 @@ WasiExpect<void>
 INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
                             __wasi_timestamp_t MTim,
                             __wasi_fstflags_t FstFlags) const noexcept {
-  std::filesystem::path FullPath;
-  if (auto Res = getRelativePath(Handle, Path); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    FullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto FullPath, getRelativePath(Handle, Path));
 
   HandleHolder File(FullPath, FILE_GENERIC_READ_ | FILE_GENERIC_WRITE_,
                     FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
@@ -1326,18 +1265,8 @@ INode::pathFilestatSetTimes(std::string Path, __wasi_timestamp_t ATim,
 WasiExpect<void> INode::pathLink(const INode &Old, std::string OldPath,
                                  const INode &New,
                                  std::string NewPath) noexcept {
-  std::filesystem::path OldFullPath;
-  if (auto Res = getRelativePath(Old.Handle, OldPath); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    OldFullPath = std::move(*Res);
-  }
-  std::filesystem::path NewFullPath;
-  if (auto Res = getRelativePath(New.Handle, NewPath); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    NewFullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto OldFullPath, getRelativePath(Old.Handle, OldPath));
+  EXPECTED_TRY(auto NewFullPath, getRelativePath(New.Handle, NewPath));
 
   // Create the hard link from the paths
   if (unlikely(!CreateHardLinkW(NewFullPath.c_str(), OldFullPath.c_str(),
@@ -1357,23 +1286,11 @@ WasiExpect<void> INode::pathLink(const INode &, std::string, const INode &,
 WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
                                   __wasi_fdflags_t FdFlags,
                                   VFS::Flags VFSFlags) const noexcept {
-  DWORD_ AttributeFlags;
-  DWORD_ AccessFlags;
-  DWORD_ CreationDisposition;
-  if (auto Res = getOpenFlags(OpenFlags, FdFlags, VFSFlags); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    std::tie(AttributeFlags, AccessFlags, CreationDisposition) = *Res;
-  }
-
+  EXPECTED_TRY(auto Pack, getOpenFlags(OpenFlags, FdFlags, VFSFlags));
+  const auto [AttributeFlags, AccessFlags, CreationDisposition] = Pack;
   const DWORD_ ShareFlags = FILE_SHARE_VALID_FLAGS_;
 
-  std::filesystem::path FullPath;
-  if (auto Res = getRelativePath(Handle, Path); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    FullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto FullPath, getRelativePath(Handle, Path));
 
   INode Result(FullPath, AccessFlags, ShareFlags, CreationDisposition,
                AttributeFlags);
@@ -1396,12 +1313,7 @@ WasiExpect<INode> INode::pathOpen(std::string Path, __wasi_oflags_t OpenFlags,
 
 WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
                                      __wasi_size_t &NRead) const noexcept {
-  std::filesystem::path FullPath;
-  if (auto Res = getRelativePath(Handle, Path); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    FullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto FullPath, getRelativePath(Handle, Path));
 
   // Fill the Buffer with the contents of the link
   HandleHolder Link(FullPath, 0, FILE_SHARE_VALID_FLAGS_, OPEN_EXISTING_,
@@ -1454,12 +1366,7 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
 }
 
 WasiExpect<void> INode::pathRemoveDirectory(std::string Path) const noexcept {
-  std::filesystem::path FullPath;
-  if (auto Res = getRelativePath(Handle, Path); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    FullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto FullPath, getRelativePath(Handle, Path));
 
   if (unlikely(!RemoveDirectoryW(FullPath.c_str()))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
@@ -1470,18 +1377,8 @@ WasiExpect<void> INode::pathRemoveDirectory(std::string Path) const noexcept {
 WasiExpect<void> INode::pathRename(const INode &Old, std::string OldPath,
                                    const INode &New,
                                    std::string NewPath) noexcept {
-  std::filesystem::path OldFullPath;
-  if (auto Res = getRelativePath(Old.Handle, OldPath); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    OldFullPath = std::move(*Res);
-  }
-  std::filesystem::path NewFullPath;
-  if (auto Res = getRelativePath(New.Handle, NewPath); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    NewFullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto OldFullPath, getRelativePath(Old.Handle, OldPath));
+  EXPECTED_TRY(auto NewFullPath, getRelativePath(New.Handle, NewPath));
 
   const auto OldAttr = GetFileAttributesW(OldFullPath.c_str());
   const auto NewAttr = GetFileAttributesW(NewFullPath.c_str());
@@ -1534,12 +1431,7 @@ WasiExpect<void> INode::pathSymlink(std::string OldPath,
   if (!SymlinkPriviledgeHolder::ok()) {
     return WasiUnexpect(__WASI_ERRNO_PERM);
   }
-  std::filesystem::path NewFullPath;
-  if (auto Res = getRelativePath(Handle, NewPath); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    NewFullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto NewFullPath, getRelativePath(Handle, NewPath));
   if (GetFileAttributesW(NewFullPath.c_str()) == INVALID_FILE_ATTRIBUTES_) {
     assuming(!NewPath.empty());
     if (NewPath.back() == '/') {
@@ -1571,12 +1463,7 @@ WasiExpect<void> INode::pathSymlink(std::string, std::string) const noexcept {
 #endif
 
 WasiExpect<void> INode::pathUnlinkFile(std::string Path) const noexcept {
-  std::filesystem::path FullPath;
-  if (auto Res = getRelativePath(Handle, Path); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  } else {
-    FullPath = std::move(*Res);
-  }
+  EXPECTED_TRY(auto FullPath, getRelativePath(Handle, Path));
 
   if (unlikely(!DeleteFileW(FullPath.c_str()))) {
     return WasiUnexpect(detail::fromLastError(GetLastError()));
@@ -1671,9 +1558,7 @@ WasiExpect<void> INode::getAddrinfo(std::string_view Node,
 
 WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
                                   __wasi_sock_type_t SockType) noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   const int SysAddressFamily = toAddressFamily(AddressFamily);
   const int SysType = toSockType(SockType);
@@ -1691,9 +1576,7 @@ WasiExpect<INode> INode::sockOpen(__wasi_address_family_t AddressFamily,
 WasiExpect<void> INode::sockBind(__wasi_address_family_t AddressFamily,
                                  Span<const uint8_t> Address,
                                  uint16_t Port) noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   Variant<sockaddr, sockaddr_in, sockaddr_in6> ServerAddr;
   size_t Size;
@@ -1728,9 +1611,7 @@ WasiExpect<void> INode::sockBind(__wasi_address_family_t AddressFamily,
 }
 
 WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   if (auto Res = listen(Socket, Backlog); unlikely(Res == SOCKET_ERROR_)) {
     return WasiUnexpect(detail::fromWSALastError());
@@ -1739,9 +1620,7 @@ WasiExpect<void> INode::sockListen(int32_t Backlog) noexcept {
 }
 
 WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   SOCKET_ NewSock;
   if (NewSock = accept(Socket, nullptr, nullptr);
@@ -1764,9 +1643,7 @@ WasiExpect<INode> INode::sockAccept(__wasi_fdflags_t FdFlags) noexcept {
 WasiExpect<void> INode::sockConnect(__wasi_address_family_t AddressFamily,
                                     Span<const uint8_t> Address,
                                     uint16_t Port) noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   Variant<sockaddr, sockaddr_in, sockaddr_in6> ClientAddr;
   size_t Size;
@@ -1803,9 +1680,7 @@ WasiExpect<void> INode::sockConnect(__wasi_address_family_t AddressFamily,
 WasiExpect<void> INode::sockRecv(Span<Span<uint8_t>> RiData,
                                  __wasi_riflags_t RiFlags, __wasi_size_t &NRead,
                                  __wasi_roflags_t &RoFlags) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   int SysRiFlags = 0;
   if (RiFlags & __WASI_RIFLAGS_RECV_PEEK) {
@@ -1850,9 +1725,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
                                      Span<uint8_t> Address, uint16_t *PortPtr,
                                      __wasi_size_t &NRead,
                                      __wasi_roflags_t &RoFlags) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   int SysRiFlags = 0;
   if (RiFlags & __WASI_RIFLAGS_RECV_PEEK) {
@@ -1940,9 +1813,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
 WasiExpect<void> INode::sockSend(Span<Span<const uint8_t>> SiData,
                                  __wasi_siflags_t,
                                  __wasi_size_t &NWritten) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   std::size_t TotalBufSize = 0;
   for (auto &IOV : SiData) {
@@ -1972,9 +1843,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
                                    __wasi_address_family_t AddressFamily,
                                    Span<const uint8_t> Address, uint16_t Port,
                                    __wasi_size_t &NWritten) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   std::size_t TotalBufSize = 0;
   for (auto &IOV : SiData) {
@@ -2026,9 +1895,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
 }
 
 WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   int SysFlags;
   switch (static_cast<uint8_t>(SdFlags)) {
@@ -2055,9 +1922,8 @@ WasiExpect<void> INode::sockShutdown(__wasi_sdflags_t SdFlags) const noexcept {
 WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
                                    __wasi_sock_opt_so_t SockOptName,
                                    Span<uint8_t> &Flag) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
+
   auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
   auto SysSockOptName = toSockOptSoName(SockOptName);
   socklen_t Size = static_cast<socklen_t>(Flag.size());
@@ -2131,9 +1997,8 @@ WasiExpect<void> INode::sockGetOpt(__wasi_sock_opt_level_t SockOptLevel,
 WasiExpect<void> INode::sockSetOpt(__wasi_sock_opt_level_t SockOptLevel,
                                    __wasi_sock_opt_so_t SockOptName,
                                    Span<const uint8_t> Flag) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
+
   auto SysSockOptLevel = toSockOptLevel(SockOptLevel);
   auto SysSockOptName = toSockOptSoName(SockOptName);
 
@@ -2151,9 +2016,7 @@ WasiExpect<void>
 INode::sockGetLocalAddr(__wasi_address_family_t *AddressFamilyPtr,
                         Span<uint8_t> Address,
                         uint16_t *PortPtr) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   Variant<sockaddr, sockaddr_in, sockaddr_in6, sockaddr_storage> SocketAddr;
   socklen_t Slen = sizeof(SocketAddr);
@@ -2201,9 +2064,7 @@ WasiExpect<void>
 INode::sockGetPeerAddr(__wasi_address_family_t *AddressFamilyPtr,
                        Span<uint8_t> Address,
                        uint16_t *PortPtr) const noexcept {
-  if (auto Res = detail::ensureWSAStartup(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(detail::ensureWSAStartup());
 
   Variant<sockaddr, sockaddr_in, sockaddr_in6, sockaddr_storage> SocketAddr;
   socklen_t Slen = sizeof(SocketAddr);
@@ -2250,11 +2111,8 @@ INode::sockGetPeerAddr(__wasi_address_family_t *AddressFamilyPtr,
 WasiExpect<__wasi_filetype_t> INode::filetype() const noexcept {
   switch (fastGetFileType(Type, Handle)) {
   case FILE_TYPE_DISK_:
-    if (auto Res = getAttribute(Handle); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    } else {
-      return getDiskFileType(*Res);
-    }
+    return getAttribute(Handle).map(
+        [](auto Attr) { return getDiskFileType(Attr); });
   case FILE_TYPE_CHAR_:
     return __WASI_FILETYPE_CHARACTER_DEVICE;
   case FILE_TYPE_PIPE_:
@@ -2268,19 +2126,17 @@ WasiExpect<__wasi_filetype_t> INode::filetype() const noexcept {
 }
 
 bool INode::isDirectory() const noexcept {
-  if (auto Res = getAttribute(Handle); unlikely(!Res)) {
-    return false;
-  } else {
-    return (*Res) & FILE_ATTRIBUTE_DIRECTORY_;
-  }
+  return getAttribute(Handle)
+      .map([](DWORD_ Attr) -> bool { return Attr & FILE_ATTRIBUTE_DIRECTORY_; })
+      .value_or(false);
 }
 
 bool INode::isSymlink() const noexcept {
-  if (auto Res = getAttribute(Handle); unlikely(!Res)) {
-    return false;
-  } else {
-    return (*Res) & FILE_ATTRIBUTE_REPARSE_POINT_;
-  }
+  return getAttribute(Handle)
+      .map([](DWORD_ Attr) -> bool {
+        return Attr & FILE_ATTRIBUTE_REPARSE_POINT_;
+      })
+      .value_or(false);
 }
 
 WasiExpect<__wasi_filesize_t> INode::filesize() const noexcept {

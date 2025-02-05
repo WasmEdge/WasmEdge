@@ -81,11 +81,8 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     if (Type.isEmpty()) {
       OutVec.push_back(static_cast<uint8_t>(TypeCode::Epsilon));
     } else if (Type.isValType()) {
-      if (auto Res = serializeValType(Type.getValType(),
-                                      ASTNodeAttr::Instruction, OutVec);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(serializeValType(Type.getValType(), ASTNodeAttr::Instruction,
+                                    OutVec));
     } else {
       if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
         return logNeedProposal(ErrCode::Value::MalformedValType,
@@ -114,9 +111,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
 
   case OpCode::Try_table: {
     // Serialize the result type.
-    if (auto Res = serializeBlockType(Instr.getTryCatch().ResType); !Res) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeBlockType(Instr.getTryCatch().ResType));
     // Serialize the vector of catches.
     uint32_t VecCnt = static_cast<uint32_t>(Instr.getTryCatch().Catch.size());
     serializeU32(VecCnt, OutVec);
@@ -187,11 +182,8 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Ref__cast:
   case OpCode::Ref__test_null:
   case OpCode::Ref__cast_null:
-    if (auto Res = serializeHeapType(Instr.getValType(),
-                                     ASTNodeAttr::Instruction, OutVec);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeHeapType(Instr.getValType(), ASTNodeAttr::Instruction,
+                                   OutVec));
     return {};
   case OpCode::Ref__eq:
   case OpCode::Ref__is_null:
@@ -243,17 +235,11 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     // LabelIdx
     serializeU32(Instr.getBrCast().Jump.TargetIndex, OutVec);
     // First RefType
-    if (auto Res = serializeHeapType(Instr.getBrCast().RType1,
-                                     ASTNodeAttr::Instruction, OutVec);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeHeapType(Instr.getBrCast().RType1,
+                                   ASTNodeAttr::Instruction, OutVec));
     // Second RefType.
-    if (auto Res = serializeHeapType(Instr.getBrCast().RType2,
-                                     ASTNodeAttr::Instruction, OutVec);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeHeapType(Instr.getBrCast().RType2,
+                                   ASTNodeAttr::Instruction, OutVec));
     return {};
   }
   // Parametric Instructions.
@@ -264,10 +250,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     uint32_t VecCnt = static_cast<uint32_t>(Instr.getValTypeList().size());
     serializeU32(VecCnt, OutVec);
     for (auto &VType : Instr.getValTypeList()) {
-      if (auto Res = serializeValType(VType, ASTNodeAttr::Instruction, OutVec);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(serializeValType(VType, ASTNodeAttr::Instruction, OutVec));
     }
     return {};
   }
@@ -340,10 +323,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
       serializeU32(Instr.getSourceIndex(), OutVec);
       return {};
     } else {
-      if (auto Res = serializeCheckZero(Instr.getTargetIndex());
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(serializeCheckZero(Instr.getTargetIndex()));
       return serializeCheckZero(Instr.getTargetIndex());
     }
 
@@ -532,9 +512,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::V128__store16_lane:
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
-    if (auto Res = serializeMemImmediate(); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeMemImmediate());
     OutVec.push_back(Instr.getMemoryLane());
     return {};
 

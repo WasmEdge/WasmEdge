@@ -54,86 +54,87 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
     switch (NewSectionId) {
     case 0x00:
       Mod.getCustomSections().emplace_back();
-      if (auto Res = loadSection(Mod.getCustomSections().back()); !Res) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(
+          loadSection(Mod.getCustomSections().back()).map_error([](auto E) {
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+            return E;
+          }));
       break;
     case 0x01:
-      if (auto Res = loadSection(Mod.getTypeSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getTypeSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x02:
-      if (auto Res = loadSection(Mod.getImportSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getImportSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x03:
-      if (auto Res = loadSection(Mod.getFunctionSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getFunctionSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x04:
-      if (auto Res = loadSection(Mod.getTableSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getTableSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x05:
-      if (auto Res = loadSection(Mod.getMemorySection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getMemorySection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x06:
-      if (auto Res = loadSection(Mod.getGlobalSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getGlobalSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x07:
-      if (auto Res = loadSection(Mod.getExportSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getExportSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x08:
-      if (auto Res = loadSection(Mod.getStartSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getStartSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x09:
-      if (auto Res = loadSection(Mod.getElementSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getElementSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x0A:
-      if (auto Res = loadSection(Mod.getCodeSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getCodeSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x0B:
-      if (auto Res = loadSection(Mod.getDataSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getDataSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     case 0x0C:
@@ -144,10 +145,10 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
                                Proposal::BulkMemoryOperations,
                                FMgr.getLastOffset(), ASTNodeAttr::Module);
       }
-      if (auto Res = loadSection(Mod.getDataCountSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getDataCountSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       HasDataSection = true;
       Secs.set(NewSectionId);
       break;
@@ -158,10 +159,10 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
                                Proposal::ExceptionHandling,
                                FMgr.getLastOffset(), ASTNodeAttr::Module);
       }
-      if (auto Res = loadSection(Mod.getTagSection()); !Res) {
+      EXPECTED_TRY(loadSection(Mod.getTagSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       Secs.set(NewSectionId);
       break;
     default:
@@ -282,12 +283,10 @@ Expect<void> Loader::loadUniversalWASM(AST::Module &Mod) {
   // Fallback to the interpreter mode case: Re-read the code section.
   WASMType = InputType::WASM;
   FMgr.seek(Mod.getCodeSection().getStartOffset());
-  if (auto Res = loadSection(Mod.getCodeSection()); !Res) {
+  return loadSection(Mod.getCodeSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    return Unexpect(Res);
-  }
-
-  return {};
+    return E;
+  });
 }
 
 Expect<void> Loader::loadModuleAOT(AST::AOTSection &AOTSection) {

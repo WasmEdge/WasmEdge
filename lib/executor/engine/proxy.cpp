@@ -104,15 +104,8 @@ Expect<void> Executor::call(Runtime::StackManager &StackMgr,
   }
 
   auto Instrs = FuncInst->getInstrs();
-  AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end())) {
-    StartIt = *Res;
-  } else {
-    return Unexpect(Res);
-  }
-  if (auto Res = execute(StackMgr, StartIt, Instrs.end()); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
+  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
@@ -215,15 +208,8 @@ Executor::callIndirect(Runtime::StackManager &StackMgr, const uint32_t TableIdx,
   }
 
   auto Instrs = FuncInst->getInstrs();
-  AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end())) {
-    StartIt = *Res;
-  } else {
-    return Unexpect(Res);
-  }
-  if (auto Res = execute(StackMgr, StartIt, Instrs.end()); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
+  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
@@ -262,16 +248,8 @@ Expect<void> Executor::memCopy(Runtime::StackManager &StackMgr,
   auto *MemInstSrc = getMemInstByIdx(StackMgr, SrcMemIdx);
   assuming(MemInstSrc);
 
-  if (auto Data = MemInstSrc->getBytes(SrcOff, Len); unlikely(!Data)) {
-    return Unexpect(Data);
-  } else {
-    if (auto Res = MemInstDst->setBytes(*Data, DstOff, 0, Len);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-  }
-
-  return {};
+  EXPECTED_TRY(auto Data, MemInstSrc->getBytes(SrcOff, Len));
+  return MemInstDst->setBytes(Data, DstOff, 0, Len);
 }
 
 Expect<void> Executor::memFill(Runtime::StackManager &StackMgr,
@@ -279,11 +257,8 @@ Expect<void> Executor::memFill(Runtime::StackManager &StackMgr,
                                const uint8_t Val, const uint32_t Len) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
-  if (auto Res = MemInst->fillBytes(Val, Off, Len); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
 
-  return {};
+  return MemInst->fillBytes(Val, Off, Len);
 }
 
 Expect<void> Executor::memInit(Runtime::StackManager &StackMgr,
@@ -295,12 +270,7 @@ Expect<void> Executor::memInit(Runtime::StackManager &StackMgr,
   auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
   assuming(DataInst);
 
-  if (auto Res = MemInst->setBytes(DataInst->getData(), DstOff, SrcOff, Len);
-      unlikely(!Res)) {
-    return Unexpect(Res);
-  }
-
-  return {};
+  return MemInst->setBytes(DataInst->getData(), DstOff, SrcOff, Len);
 }
 
 Expect<void> Executor::dataDrop(Runtime::StackManager &StackMgr,
@@ -317,11 +287,7 @@ Expect<RefVariant> Executor::tableGet(Runtime::StackManager &StackMgr,
                                       const uint32_t Off) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
-  if (auto Res = TabInst->getRefAddr(Off); unlikely(!Res)) {
-    return Unexpect(Res);
-  } else {
-    return *Res;
-  }
+  return TabInst->getRefAddr(Off);
 }
 
 Expect<void> Executor::tableSet(Runtime::StackManager &StackMgr,
@@ -329,11 +295,7 @@ Expect<void> Executor::tableSet(Runtime::StackManager &StackMgr,
                                 const RefVariant Ref) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
-  if (auto Res = TabInst->setRefAddr(Off, Ref); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
-
-  return {};
+  return TabInst->setRefAddr(Off, Ref);
 }
 
 Expect<void> Executor::tableCopy(Runtime::StackManager &StackMgr,
@@ -346,16 +308,8 @@ Expect<void> Executor::tableCopy(Runtime::StackManager &StackMgr,
   auto *TabInstSrc = getTabInstByIdx(StackMgr, TableIdxSrc);
   assuming(TabInstSrc);
 
-  if (auto Refs = TabInstSrc->getRefs(0, SrcOff + Len); unlikely(!Refs)) {
-    return Unexpect(Refs);
-  } else {
-    if (auto Res = TabInstDst->setRefs(*Refs, DstOff, SrcOff, Len);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
-  }
-
-  return {};
+  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(0, SrcOff + Len));
+  return TabInstDst->setRefs(Refs, DstOff, SrcOff, Len);
 }
 
 Expect<uint32_t> Executor::tableGrow(Runtime::StackManager &StackMgr,
@@ -385,11 +339,7 @@ Expect<void> Executor::tableFill(Runtime::StackManager &StackMgr,
                                  const uint32_t Len) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
-  if (auto Res = TabInst->fillRefs(Ref, Off, Len); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
-
-  return {};
+  return TabInst->fillRefs(Ref, Off, Len);
 }
 
 Expect<void> Executor::tableInit(Runtime::StackManager &StackMgr,
@@ -401,12 +351,7 @@ Expect<void> Executor::tableInit(Runtime::StackManager &StackMgr,
   assuming(TabInst);
   auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
   assuming(ElemInst);
-  if (auto Res = TabInst->setRefs(ElemInst->getRefs(), DstOff, SrcOff, Len);
-      unlikely(!Res)) {
-    return Unexpect(Res);
-  }
-
-  return {};
+  return TabInst->setRefs(ElemInst->getRefs(), DstOff, SrcOff, Len);
 }
 
 Expect<void> Executor::elemDrop(Runtime::StackManager &StackMgr,
@@ -469,15 +414,8 @@ Expect<void> Executor::callRef(Runtime::StackManager &StackMgr,
   }
 
   auto Instrs = FuncInst->getInstrs();
-  AST::InstrView::iterator StartIt;
-  if (auto Res = enterFunction(StackMgr, *FuncInst, Instrs.end())) {
-    StartIt = *Res;
-  } else {
-    return Unexpect(Res);
-  }
-  if (auto Res = execute(StackMgr, StartIt, Instrs.end()); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
+  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();

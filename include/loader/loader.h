@@ -218,14 +218,11 @@ private:
   /// @{
   Expect<uint32_t> loadVecCnt() {
     // Read the vector size.
-    if (auto Res = FMgr.readU32()) {
-      if ((*Res) / 2 > FMgr.getRemainSize()) {
-        return Unexpect(ErrCode::Value::IntegerTooLong);
-      }
-      return *Res;
-    } else {
-      return Unexpect(Res);
+    EXPECTED_TRY(auto Cnt, FMgr.readU32());
+    if (Cnt / 2 > FMgr.getRemainSize()) {
+      return Unexpect(ErrCode::Value::IntegerTooLong);
     }
+    return Cnt;
   }
 
   template <typename ASTType, typename T, typename ElemLoader>
@@ -242,10 +239,10 @@ private:
 
     // Sequently create the AST node T and read data.
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = Func(Vec[I]); !Res) {
+      EXPECTED_TRY(Func(Vec[I]).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(NodeAttrFromAST<ASTType>()));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
     }
     return {};
   }
@@ -263,10 +260,7 @@ private:
       Sec.setContentSize(*Res);
       auto StartOffset = FMgr.getOffset();
       // Invoke the callback function.
-      auto ResContent = Func();
-      if (!ResContent) {
-        return Unexpect(ResContent);
-      }
+      EXPECTED_TRY(Func());
       // Check the read size matches the section size.
       auto EndOffset = FMgr.getOffset();
       if (EndOffset - StartOffset != Sec.getContentSize()) {
@@ -374,16 +368,11 @@ private:
   Expect<void> loadLabel(std::string &Label);
   template <typename T>
   Expect<std::optional<T>> loadOption(std::function<Expect<void>(T &)> F) {
-    auto RTag = FMgr.readByte();
-    if (!RTag) {
-      return Unexpect(RTag);
-    }
-    switch (*RTag) {
+    EXPECTED_TRY(auto Tag, FMgr.readByte());
+    switch (Tag) {
     case 0x01: {
       T V;
-      if (auto Res = F(V); !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(F(V));
       return std::optional<T>{V};
     }
     case 0x00:

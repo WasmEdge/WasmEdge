@@ -185,22 +185,15 @@ Serializer::serializeType(const AST::SubType &SType,
   OutVec.push_back(static_cast<uint8_t>(CTypeCode));
   switch (CTypeCode) {
   case TypeCode::Func:
-    if (auto Res =
-            serializeType(SType.getCompositeType().getFuncType(), OutVec);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeType(SType.getCompositeType().getFuncType(), OutVec));
     break;
   case TypeCode::Array:
     if (!Conf.hasProposal(Proposal::GC)) {
       return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
                              ASTNodeAttr::Type_Rec);
     }
-    if (auto Res = serializeType(
-            SType.getCompositeType().getFieldTypes().front(), OutVec);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeType(SType.getCompositeType().getFieldTypes().front(),
+                               OutVec));
     break;
   case TypeCode::Struct:
     // Struct type: vec(fieldtype)
@@ -212,9 +205,7 @@ Serializer::serializeType(const AST::SubType &SType,
         static_cast<uint32_t>(SType.getCompositeType().getFieldTypes().size()),
         OutVec);
     for (auto FType : SType.getCompositeType().getFieldTypes()) {
-      if (auto Res = serializeType(FType, OutVec); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(serializeType(FType, OutVec));
     }
     break;
   default:
@@ -232,10 +223,7 @@ Serializer::serializeType(const AST::FunctionType &Type,
   // Param types: vec(valtype).
   serializeU32(static_cast<uint32_t>(Type.getParamTypes().size()), OutVec);
   for (auto &VType : Type.getParamTypes()) {
-    if (auto Res = serializeValType(VType, ASTNodeAttr::Type_Function, OutVec);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeValType(VType, ASTNodeAttr::Type_Function, OutVec));
   }
   // Return types: vec(valtype).
   if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) &&
@@ -245,10 +233,7 @@ Serializer::serializeType(const AST::FunctionType &Type,
   }
   serializeU32(static_cast<uint32_t>(Type.getReturnTypes().size()), OutVec);
   for (auto &VType : Type.getReturnTypes()) {
-    if (auto Res = serializeValType(VType, ASTNodeAttr::Type_Function, OutVec);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(serializeValType(VType, ASTNodeAttr::Type_Function, OutVec));
   }
   return {};
 }
@@ -258,16 +243,12 @@ Expect<void>
 Serializer::serializeType(const AST::TableType &Type,
                           std::vector<uint8_t> &OutVec) const noexcept {
   // Table type: elemtype:valtype + limit.
-  if (auto Res =
-          serializeRefType(Type.getRefType(), ASTNodeAttr::Type_Table, OutVec);
-      unlikely(!Res)) {
-    return Unexpect(Res);
-  }
-  if (auto Res = serializeLimit(Type.getLimit(), OutVec); !Res) {
+  EXPECTED_TRY(
+      serializeRefType(Type.getRefType(), ASTNodeAttr::Type_Table, OutVec));
+  return serializeLimit(Type.getLimit(), OutVec).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
-    return Unexpect(Res);
-  }
-  return {};
+    return E;
+  });
 }
 
 // Serialize memory type. See "include/loader/serialize.h".
@@ -275,11 +256,10 @@ Expect<void>
 Serializer::serializeType(const AST::MemoryType &Type,
                           std::vector<uint8_t> &OutVec) const noexcept {
   // Memory type: limit.
-  if (auto Res = serializeLimit(Type.getLimit(), OutVec); unlikely(!Res)) {
+  return serializeLimit(Type.getLimit(), OutVec).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
-    return Unexpect(Res);
-  }
-  return {};
+    return E;
+  });
 }
 
 // Serialize global type. See "include/loader/serialize.h".
@@ -287,11 +267,8 @@ Expect<void>
 Serializer::serializeType(const AST::GlobalType &Type,
                           std::vector<uint8_t> &OutVec) const noexcept {
   // Global type: valtype + valmut.
-  if (auto Res =
-          serializeValType(Type.getValType(), ASTNodeAttr::Type_Global, OutVec);
-      unlikely(!Res)) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(
+      serializeValType(Type.getValType(), ASTNodeAttr::Type_Global, OutVec));
   OutVec.push_back(static_cast<uint8_t>(Type.getValMut()));
   return {};
 }
@@ -301,11 +278,8 @@ Expect<void>
 Serializer::serializeType(const AST::FieldType &Type,
                           std::vector<uint8_t> &OutVec) const noexcept {
   // Field type: storage type + valmut
-  if (auto Res = serializeValType(Type.getStorageType(), ASTNodeAttr::Type_Rec,
-                                  OutVec);
-      unlikely(!Res)) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(
+      serializeValType(Type.getStorageType(), ASTNodeAttr::Type_Rec, OutVec));
   OutVec.push_back(static_cast<uint8_t>(Type.getValMut()));
   return {};
 }

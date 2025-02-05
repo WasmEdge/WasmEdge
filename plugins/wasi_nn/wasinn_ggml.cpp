@@ -611,6 +611,95 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   }
 
   // The sampling parameters.
+  if (Doc.at_key("n-prev").error() == simdjson::SUCCESS) {
+    int64_t NPrev;
+    auto Err = Doc["n-prev"].get<int64_t>().get(NPrev);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the n_prev option."sv)
+    }
+    GraphRef.Sampling.n_prev = NPrev;
+  } 
+  if (Doc.at_key("n-probs").error() == simdjson::SUCCESS) {
+    int64_t NProbs;
+    auto Err = Doc["n-probs"].get<int64_t>().get(NProbs);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the n_probs option."sv)
+    }
+    GraphRef.Sampling.n_probs = NProbs;
+  }
+  if (Doc.at_key("min-keep").error() == simdjson::SUCCESS) {
+    int64_t MinKeep;
+    auto Err = Doc["min-keep"].get<int64_t>().get(MinKeep);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the min-keep option."sv)
+    }
+    GraphRef.Sampling.min_keep = MinKeep;
+  }
+  if (Doc.at_key("top-k").error() == simdjson::SUCCESS) {
+    int64_t TopK;
+    auto Err = Doc["top-k"].get<int64_t>().get(TopK);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the top-k option."sv)
+    }
+    GraphRef.Sampling.top_k = TopK;
+  }
+  if (Doc.at_key("min-p").error() == simdjson::SUCCESS) {
+    double MinP;
+    auto Err = Doc["min-p"].get<double>().get(MinP);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the min-p option."sv)
+    }
+    GraphRef.Sampling.min_p = MinP;
+  }
+  if (Doc.at_key("xtc-probability").error() == simdjson::SUCCESS) {
+    double XtcProbability;
+    auto Err = Doc["xtc-probability"].get<double>().get(XtcProbability);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the xtc-probability option."sv)
+    }
+    GraphRef.Sampling.xtc_probability = XtcProbability;
+  }
+  if (Doc.at_key("xtc-threshold").error() == simdjson::SUCCESS) {
+    double XtcThreshold;
+    auto Err = Doc["xtc-threshold"].get<double>().get(XtcThreshold);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the xtc-threshold option."sv)
+    }
+    GraphRef.Sampling.xtc_threshold = XtcThreshold;
+  }
+  if (Doc.at_key("typ-p").error() == simdjson::SUCCESS) {
+    double TypP;
+    auto Err = Doc["typ-p"].get<double>().get(TypP);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the typ-p option."sv)
+    }
+    GraphRef.Sampling.typ_p = TypP;
+  }
+  // add dynatemp-range, dynatemp-exponent, last-n-penalty
+  if (Doc.at_key("dynatemp-range").error() == simdjson::SUCCESS) {
+    double DynaTempRange;
+    auto Err = Doc["dynatemp-range"].get<double>().get(DynaTempRange);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the dynatemp-range option."sv)
+    }
+    GraphRef.Sampling.dynatemp_range = DynaTempRange;
+  } 
+  if (Doc.at_key("dynatemp-exponent").error() == simdjson::SUCCESS) {
+    double DynaTempExponent;
+    auto Err = Doc["dynatemp-exponent"].get<double>().get(DynaTempExponent);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the dynatemp-exponent option."sv)
+    }
+    GraphRef.Sampling.dynatemp_exponent = DynaTempExponent; 
+  }
+  if (Doc.at_key("last-n-penalty").error() == simdjson::SUCCESS) {
+    double LastNPenalty;
+    auto Err = Doc["last-n-penalty"].get<double>().get(LastNPenalty);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the last-n-penalty option."sv)
+    }
+    GraphRef.Sampling.penalty_last_n = LastNPenalty;
+  }
   if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
     double Temp;
     auto Err = Doc["temp"].get<double>().get(Temp);
@@ -655,6 +744,73 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
     GraphRef.Sampling.penalty_freq = std::max(0.0, FrequencyPenalty);
   }
+  // add dry-multipier, dry-base, dry-allowed-length, dry-penalty-last-n, mirostat, mirostat-eta, ignore-eos, noperf, timing-per-token
+  if (Doc.at_key("dry-multipier").error() == simdjson::SUCCESS) {
+    double DryMultiplier;
+    auto Err = Doc["dry-multipier"].get<double>().get(DryMultiplier);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the dry-multipier option."sv)
+    }
+    GraphRef.Sampling.dry_multiplier = DryMultiplier;
+  }
+  if (Doc.at_key("dry-base").error() == simdjson::SUCCESS) {
+    double DryBase;
+    auto Err = Doc["dry-base"].get<double>().get(DryBase);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the dry-base option."sv)
+    }
+    GraphRef.Sampling.dry_base = DryBase;
+  }
+  if (Doc.at_key("dry-allowed-length").error() == simdjson::SUCCESS) {
+    int64_t DryAllowedLength;
+    auto Err = Doc["dry-allowed-length"].get<int64_t>().get(DryAllowedLength);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the dry-allowed-length option."sv)
+    } 
+    GraphRef.Sampling.dry_allowed_length = DryAllowedLength;
+  }
+  if (Doc.at_key("dry-penalty-last-n").error() == simdjson::SUCCESS) {
+    double DryLastNPenalty;
+    auto Err = Doc["dry-last-n-penalty"].get<double>().get(DryLastNPenalty);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the dry-last-n-penalty option."sv)
+    } 
+    GraphRef.Sampling.penalty_last_n = DryLastNPenalty;
+  }
+  if (Doc.at_key("mirostat").error() == simdjson::SUCCESS) {
+    double Mirostat;
+    auto Err = Doc["mirostat"].get<double>().get(Mirostat);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the mirostat option."sv)  
+    }
+    GraphRef.Sampling.mirostat = Mirostat;
+  }
+  if (Doc.at_key("mirostat-eta").error() == simdjson::SUCCESS) {
+    double MirostatEta;
+    auto Err = Doc["mirostat-eta"].get<double>().get(MirostatEta);  
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the mirostat-eta option."sv)
+    }
+    GraphRef.Sampling.mirostat_eta = MirostatEta;
+  } 
+  if (Doc.at_key("ignore-eos").error() == simdjson::SUCCESS) {
+    auto Err = Doc["ignore-eos"].get<bool>().get(GraphRef.Sampling.ignore_eos);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the ignore-eos option."sv)
+    }
+  }
+  if (Doc.at_key("no-perf").error() == simdjson::SUCCESS) {
+    auto Err = Doc["no-perf"].get<bool>().get(GraphRef.Sampling.no_perf);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the no-perf option."sv)
+    }
+  } 
+  if (Doc.at_key("timing-per-token").error() == simdjson::SUCCESS) {
+    auto Err = Doc["timing-per-token"].get<bool>().get(GraphRef.Sampling.timing_per_token);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the timing-per-token option."sv)
+    }
+  } 
   if (Doc.at_key("grammar").error() == simdjson::SUCCESS) {
     std::string_view Grammar;
     auto Err = Doc["grammar"].get<std::string_view>().get(Grammar);

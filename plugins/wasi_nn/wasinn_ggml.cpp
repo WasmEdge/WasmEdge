@@ -704,9 +704,9 @@ std::string numberToWords(const std::string &NumberStr) {
     // Handle decimal part
     if (DecimalPos != std::string::npos) {
       Result += " point";
-      std::string decimal_part = NumberStr.substr(DecimalPos + 1);
-      for (char digit : decimal_part) {
-        Result += " " + Ones.at(digit - '0');
+      std::string DecimalPart = NumberStr.substr(DecimalPos + 1);
+      for (char Digit : DecimalPart) {
+        Result += " " + Ones.at(Digit - '0');
       }
     }
 
@@ -1450,8 +1450,8 @@ ErrNo codesToSpeech(Graph &GraphRef, Context &CxtRef) noexcept {
 
   // Zero out first 0.25 seconds of audio.
   const uint32_t SamplingRate = 24000;
-  for (uint32_t i = 0; i < SamplingRate / 4; ++i) {
-    AudioData[i] = 0.0f;
+  for (uint32_t I = 0; I < SamplingRate / 4; ++I) {
+    AudioData[I] = 0.0f;
   }
 
   // Save .wav file

@@ -61,7 +61,6 @@ struct Graph {
   // Model context:
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;
-  std::string ModelFilePath;
   // Clip context (for llava):
   std::string MMProjModelPath;
   struct clip_ctx *ClipContext = nullptr;
@@ -72,10 +71,6 @@ struct Graph {
   std::string TTSOutputFilePath = "output.wav";
   llama_model_ptr TTSModel = nullptr;
   llama_context_ptr TTSContext = nullptr;
-  // Context parameters:
-  int64_t Threads;
-  int64_t ThreadsBatch;
-  common_params_sampling Sampling;
   // Configs.
   LocalConfig Conf;
 };

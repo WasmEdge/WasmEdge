@@ -135,13 +135,13 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   int64_t PrevNGPULayers = GraphRef.Params.n_gpu_layers;
   bool PrevEmbedding = GraphRef.Params.embedding;
   // Get the current sampler parameters.
-  double PrevTemp = GraphRef.Sampling.temp;
-  double PrevTopP = GraphRef.Sampling.top_p;
-  double PrevRepeatPenalty = GraphRef.Sampling.penalty_repeat;
-  double PrevPresencePenalty = GraphRef.Sampling.penalty_present;
-  double PrevFrequencyPenalty = GraphRef.Sampling.penalty_freq;
-  std::string PrevGrammar = GraphRef.Sampling.grammar;
-  uint64_t PrevSeed = GraphRef.Sampling.seed;
+  double PrevTemp = GraphRef.Params.sampling.temp;
+  double PrevTopP = GraphRef.Params.sampling.top_p;
+  double PrevRepeatPenalty = GraphRef.Params.sampling.penalty_repeat;
+  double PrevPresencePenalty = GraphRef.Params.sampling.penalty_present;
+  double PrevFrequencyPenalty = GraphRef.Params.sampling.penalty_freq;
+  std::string PrevGrammar = GraphRef.Params.sampling.grammar;
+  uint64_t PrevSeed = GraphRef.Params.sampling.seed;
 
   // The plugin parameters.
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
@@ -596,18 +596,22 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     GraphRef.SplitMode = static_cast<llama_split_mode>(SplitMode);
   }
   if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
-    auto Err = Doc["threads"].get<int64_t>().get(GraphRef.Threads);
+    int64_t NThreads;
+    auto Err = Doc["threads"].get<int64_t>().get(NThreads);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the threads option."sv)
     }
+    GraphRef.Params.cpuparams.n_threads = NThreads;
   }
   if (Doc.at_key("threads-batch").error() == simdjson::SUCCESS) {
-    auto Err = Doc["threads-batch"].get<int64_t>().get(GraphRef.ThreadsBatch);
+    int64_t NThreadsBatch;
+    auto Err = Doc["threads-batch"].get<int64_t>().get(NThreadsBatch);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the threads-batch option."sv)
     }
+    GraphRef.Params.cpuparams_batch.n_threads = NThreadsBatch;
   }
 
   // The sampling parameters.
@@ -618,7 +622,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the n_prev option."sv)
     }
-    GraphRef.Sampling.n_prev = NPrev;
+    GraphRef.Params.sampling.n_prev = NPrev;
   }
   if (Doc.at_key("n-probs").error() == simdjson::SUCCESS) {
     int64_t NProbs;
@@ -627,7 +631,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the n_probs option."sv)
     }
-    GraphRef.Sampling.n_probs = NProbs;
+    GraphRef.Params.sampling.n_probs = NProbs;
   }
   if (Doc.at_key("min-keep").error() == simdjson::SUCCESS) {
     int64_t MinKeep;
@@ -636,7 +640,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the min-keep option."sv)
     }
-    GraphRef.Sampling.min_keep = MinKeep;
+    GraphRef.Params.sampling.min_keep = MinKeep;
   }
   if (Doc.at_key("top-k").error() == simdjson::SUCCESS) {
     int64_t TopK;
@@ -645,7 +649,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the top-k option."sv)
     }
-    GraphRef.Sampling.top_k = TopK;
+    GraphRef.Params.sampling.top_k = TopK;
   }
   if (Doc.at_key("min-p").error() == simdjson::SUCCESS) {
     double MinP;
@@ -654,7 +658,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the min-p option."sv)
     }
-    GraphRef.Sampling.min_p = MinP;
+    GraphRef.Params.sampling.min_p = MinP;
   }
   if (Doc.at_key("xtc-probability").error() == simdjson::SUCCESS) {
     double XtcProbability;
@@ -663,7 +667,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the xtc-probability option."sv)
     }
-    GraphRef.Sampling.xtc_probability = XtcProbability;
+    GraphRef.Params.sampling.xtc_probability = XtcProbability;
   }
   if (Doc.at_key("xtc-threshold").error() == simdjson::SUCCESS) {
     double XtcThreshold;
@@ -672,7 +676,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the xtc-threshold option."sv)
     }
-    GraphRef.Sampling.xtc_threshold = XtcThreshold;
+    GraphRef.Params.sampling.xtc_threshold = XtcThreshold;
   }
   if (Doc.at_key("typ-p").error() == simdjson::SUCCESS) {
     double TypP;
@@ -681,7 +685,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the typ-p option."sv)
     }
-    GraphRef.Sampling.typ_p = TypP;
+    GraphRef.Params.sampling.typ_p = TypP;
   }
   if (Doc.at_key("dynatemp-range").error() == simdjson::SUCCESS) {
     double DynaTempRange;
@@ -690,7 +694,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the dynatemp-range option."sv)
     }
-    GraphRef.Sampling.dynatemp_range = DynaTempRange;
+    GraphRef.Params.sampling.dynatemp_range = DynaTempRange;
   }
   if (Doc.at_key("dynatemp-exponent").error() == simdjson::SUCCESS) {
     double DynaTempExponent;
@@ -699,7 +703,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the dynatemp-exponent option."sv)
     }
-    GraphRef.Sampling.dynatemp_exponent = DynaTempExponent;
+    GraphRef.Params.sampling.dynatemp_exponent = DynaTempExponent;
   }
   if (Doc.at_key("last-n-penalty").error() == simdjson::SUCCESS) {
     double LastNPenalty;
@@ -708,7 +712,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the last-n-penalty option."sv)
     }
-    GraphRef.Sampling.penalty_last_n = LastNPenalty;
+    GraphRef.Params.sampling.penalty_last_n = LastNPenalty;
   }
   if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
     double Temp;
@@ -716,7 +720,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the temp option."sv)
     }
-    GraphRef.Sampling.temp = std::max(0.0, Temp);
+    GraphRef.Params.sampling.temp = std::max(0.0, Temp);
   }
   if (Doc.at_key("top-p").error() == simdjson::SUCCESS) {
     double TopP;
@@ -725,7 +729,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the top-p option."sv)
     }
-    GraphRef.Sampling.top_p = std::max(0.0, TopP);
+    GraphRef.Params.sampling.top_p = std::max(0.0, TopP);
   }
   if (Doc.at_key("repeat-penalty").error() == simdjson::SUCCESS) {
     double RepeatPenalty;
@@ -734,7 +738,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the repeat-penalty option."sv)
     }
-    GraphRef.Sampling.penalty_repeat = std::max(0.0, RepeatPenalty);
+    GraphRef.Params.sampling.penalty_repeat = std::max(0.0, RepeatPenalty);
   }
   if (Doc.at_key("presence-penalty").error() == simdjson::SUCCESS) {
     double PresencePenalty;
@@ -743,7 +747,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the presence-penalty option."sv)
     }
-    GraphRef.Sampling.penalty_present = std::max(0.0, PresencePenalty);
+    GraphRef.Params.sampling.penalty_present = std::max(0.0, PresencePenalty);
   }
   if (Doc.at_key("frequency-penalty").error() == simdjson::SUCCESS) {
     double FrequencyPenalty;
@@ -752,7 +756,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the frequency-penalty option."sv)
     }
-    GraphRef.Sampling.penalty_freq = std::max(0.0, FrequencyPenalty);
+    GraphRef.Params.sampling.penalty_freq = std::max(0.0, FrequencyPenalty);
   }
   if (Doc.at_key("dry-multipier").error() == simdjson::SUCCESS) {
     double DryMultiplier;
@@ -761,7 +765,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the dry-multipier option."sv)
     }
-    GraphRef.Sampling.dry_multiplier = DryMultiplier;
+    GraphRef.Params.sampling.dry_multiplier = DryMultiplier;
   }
   if (Doc.at_key("dry-base").error() == simdjson::SUCCESS) {
     double DryBase;
@@ -770,7 +774,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the dry-base option."sv)
     }
-    GraphRef.Sampling.dry_base = DryBase;
+    GraphRef.Params.sampling.dry_base = DryBase;
   }
   if (Doc.at_key("dry-allowed-length").error() == simdjson::SUCCESS) {
     int64_t DryAllowedLength;
@@ -779,7 +783,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the dry-allowed-length option."sv)
     }
-    GraphRef.Sampling.dry_allowed_length = DryAllowedLength;
+    GraphRef.Params.sampling.dry_allowed_length = DryAllowedLength;
   }
   if (Doc.at_key("dry-penalty-last-n").error() == simdjson::SUCCESS) {
     double DryLastNPenalty;
@@ -788,7 +792,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the dry-last-n-penalty option."sv)
     }
-    GraphRef.Sampling.penalty_last_n = DryLastNPenalty;
+    GraphRef.Params.sampling.penalty_last_n = DryLastNPenalty;
   }
   if (Doc.at_key("mirostat").error() == simdjson::SUCCESS) {
     double Mirostat;
@@ -797,7 +801,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the mirostat option."sv)
     }
-    GraphRef.Sampling.mirostat = Mirostat;
+    GraphRef.Params.sampling.mirostat = Mirostat;
   }
   if (Doc.at_key("mirostat-eta").error() == simdjson::SUCCESS) {
     double MirostatEta;
@@ -806,17 +810,17 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the mirostat-eta option."sv)
     }
-    GraphRef.Sampling.mirostat_eta = MirostatEta;
+    GraphRef.Params.sampling.mirostat_eta = MirostatEta;
   }
   if (Doc.at_key("ignore-eos").error() == simdjson::SUCCESS) {
-    auto Err = Doc["ignore-eos"].get<bool>().get(GraphRef.Sampling.ignore_eos);
+    auto Err = Doc["ignore-eos"].get<bool>().get(GraphRef.Params.sampling.ignore_eos);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the ignore-eos option."sv)
     }
   }
   if (Doc.at_key("no-perf").error() == simdjson::SUCCESS) {
-    auto Err = Doc["no-perf"].get<bool>().get(GraphRef.Sampling.no_perf);
+    auto Err = Doc["no-perf"].get<bool>().get(GraphRef.Params.sampling.no_perf);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the no-perf option."sv)
@@ -824,7 +828,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   }
   if (Doc.at_key("timing-per-token").error() == simdjson::SUCCESS) {
     auto Err = Doc["timing-per-token"].get<bool>().get(
-        GraphRef.Sampling.timing_per_token);
+        GraphRef.Params.sampling.timing_per_token);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the timing-per-token option."sv)
@@ -837,7 +841,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the grammar option."sv)
     }
-    GraphRef.Sampling.grammar = Grammar;
+    GraphRef.Params.sampling.grammar = Grammar;
   }
   if (Doc.at_key("json-schema").error() == simdjson::SUCCESS) {
     std::string_view JsonSchema;
@@ -846,7 +850,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the json-schema option."sv)
     }
-    GraphRef.Sampling.grammar =
+    GraphRef.Params.sampling.grammar =
         json_schema_to_grammar(nlohmann::ordered_json::parse(JsonSchema));
   }
   if (Doc.at_key("seed").error() == simdjson::SUCCESS) {
@@ -855,7 +859,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the seed option."sv)
     }
-    GraphRef.Sampling.seed = Seed;
+    GraphRef.Params.sampling.seed = Seed;
   }
 
   // The config parameters.
@@ -1702,13 +1706,13 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
   // Check if the sampler parameters are updated.
   if (IsSamplerUpdated &&
-      (PrevTemp != GraphRef.Sampling.temp ||
-       PrevTopP != GraphRef.Sampling.top_p ||
-       PrevRepeatPenalty != GraphRef.Sampling.penalty_repeat ||
-       PrevPresencePenalty != GraphRef.Sampling.penalty_present ||
-       PrevFrequencyPenalty != GraphRef.Sampling.penalty_freq ||
-       PrevGrammar != GraphRef.Sampling.grammar ||
-       PrevSeed != GraphRef.Sampling.seed)) {
+      (PrevTemp != GraphRef.Params.sampling.temp ||
+       PrevTopP != GraphRef.Params.sampling.top_p ||
+       PrevRepeatPenalty != GraphRef.Params.sampling.penalty_repeat ||
+       PrevPresencePenalty != GraphRef.Params.sampling.penalty_present ||
+       PrevFrequencyPenalty != GraphRef.Params.sampling.penalty_freq ||
+       PrevGrammar != GraphRef.Params.sampling.grammar ||
+       PrevSeed != GraphRef.Params.sampling.seed)) {
     *IsSamplerUpdated = true;
   }
 
@@ -2731,7 +2735,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.MMProjModelPath = ""sv;
   // Initialize the context parameters.
   llama_context_params ContextParamsDefault = llama_context_default_params();
-  GraphRef.Threads = ContextParamsDefault.n_threads;
+  GraphRef.Params.cpuparams.n_threads = ContextParamsDefault.n_threads;
   GraphRef.Params.n_ctx = ContextParamsDefault.n_ctx;
   GraphRef.Params.n_batch = ContextParamsDefault.n_batch;
   GraphRef.Params.n_ubatch = ContextParamsDefault.n_ubatch;
@@ -2761,7 +2765,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Initialize the sampling parameters.
   const common_params_sampling SamplerParamsDefault;
-  GraphRef.Sampling = SamplerParamsDefault;
+  GraphRef.Params.sampling = SamplerParamsDefault;
   // Initialize the config parameters.
   GraphRef.Conf.StreamStdout = false;
   GraphRef.Conf.EmbdNormalize =
@@ -2796,15 +2800,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
                                   Weight.size());
   if (BinModel.substr(0, 8) == "preload:"sv) {
-    GraphRef.ModelFilePath = BinModel.substr(8);
+    GraphRef.Params.model = BinModel.substr(8);
   } else {
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "load: Model path not found in nn-preload, write model into "sv
               "a tmpfile."sv)
     // TODO: pass the model directly to ggml.
     // Write ggml model to file.
-    GraphRef.ModelFilePath = "ggml-model.bin"sv;
-    std::ofstream TempFile(GraphRef.ModelFilePath,
+    GraphRef.Params.model = "ggml-model.bin"sv;
+    std::ofstream TempFile(GraphRef.Params.model,
                            std::ios::out | std::ios::binary);
     if (!TempFile) {
       Env.deleteGraph(GId);
@@ -2823,19 +2827,19 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Check if the model exists.
   if (!std::filesystem::exists(
-          std::filesystem::u8path(GraphRef.ModelFilePath))) {
+          std::filesystem::u8path(GraphRef.Params.model))) {
     Env.deleteGraph(GId);
     RET_ERROR(ErrNo::ModelNotFound, "load: model file not found."sv)
   }
-  GraphRef.Params.model = GraphRef.ModelFilePath;
+  GraphRef.Params.model = GraphRef.Params.model;
 
   // Initialize ggml parameters.
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "load: initialize ggml model with given parameters."sv)
 
   common_params Params = GraphRef.Params;
-  Params.cpuparams.n_threads = static_cast<int32_t>(GraphRef.Threads);
-  Params.cpuparams_batch.n_threads = static_cast<int32_t>(GraphRef.Threads);
+  Params.cpuparams.n_threads = static_cast<int32_t>(GraphRef.Params.cpuparams.n_threads);
+  Params.cpuparams_batch.n_threads = static_cast<int32_t>(GraphRef.Params.cpuparams.n_threads);
   llama_backend_init();
   llama_numa_init(Params.numa);
 
@@ -2899,7 +2903,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
 
   // Allocate sampler.
   CxtRef.LlamaSampler =
-      common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Sampling);
+      common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sampling);
 
   Env.NNContext[ContextId].setReady();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
@@ -2953,7 +2957,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           CxtRef.LlamaSampler = nullptr;
         }
         GraphRef.LlamaModel = llama_model_ptr(llama_model_load_from_file(
-            GraphRef.ModelFilePath.c_str(), ModelParams));
+            GraphRef.Params.model.c_str(), ModelParams));
         if (GraphRef.LlamaModel == nullptr) {
           Env.NNGraph[CxtRef.GraphId].setInvalid();
           RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init model."sv)
@@ -2986,7 +2990,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         common_sampler_free(CxtRef.LlamaSampler);
       }
       CxtRef.LlamaSampler =
-          common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Sampling);
+          common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sampling);
       if (GraphRef.LlamaContext == nullptr) {
         Env.NNGraph[CxtRef.GraphId].setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
@@ -3093,7 +3097,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
             // Create a new image embedding
             CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
-                GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
+                GraphRef.ClipContext, static_cast<int>(GraphRef.Params.cpuparams.n_threads),
                 Payload->first.data(), static_cast<int>(Payload->first.size()));
           } else {
             LOG_DEBUG(
@@ -3120,7 +3124,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                     CxtRef.Conf.ImagePath)
           // Load the image from the file.
           CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
-              GraphRef.ClipContext, static_cast<int>(GraphRef.Threads),
+              GraphRef.ClipContext, static_cast<int>(GraphRef.Params.cpuparams.n_threads),
               CxtRef.Conf.ImagePath.c_str());
           LOG_DEBUG(GraphRef.EnableDebugLog,
                     "setInput: Compute image embd from file: {}...Done"sv,

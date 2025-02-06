@@ -324,7 +324,7 @@ VM::unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
           spdlog::error(
               ErrInfo::InfoExecuting(CompInst->getComponentName(), Func));
         }
-        return *E;
+        return E;
       });
 }
 

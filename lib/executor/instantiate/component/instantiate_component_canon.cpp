@@ -105,7 +105,7 @@ liftFlattenType(Runtime::Instance::ComponentInstance &Comp,
 
 ValType discriminantType(size_t N) {
   assert(0 < N && N < 4294967296);
-  uint E = std::ceil(log2(N) / 8);
+  uint8_t E = std::ceil(log2(N) / 8);
   switch (E) {
   case 0:
     return ValType(TypeCode::I8);

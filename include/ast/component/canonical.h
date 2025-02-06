@@ -133,7 +133,7 @@ struct fmt::formatter<WasmEdge::AST::Component::Canon>
                    Opt)) {
       fmt::format_to(std::back_inserter(Buffer), "resource-rep"sv);
     } else {
-      fmt::format_to(std::back_inserter(Buffer), "!!!unkown"sv);
+      fmt::format_to(std::back_inserter(Buffer), "!!!unknown"sv);
     }
 
     return formatter<std::string_view>::format(

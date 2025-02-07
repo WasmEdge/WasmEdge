@@ -159,8 +159,8 @@ void flattenType(std::vector<ValType> &Output, const InterfaceType &Ty) {
     }
 
     Output.push_back(discriminantType(Ty.getArgs().size()));
-    for (auto T : Flat) {
-      Output.push_back(T);
+    for (auto FT : Flat) {
+      Output.push_back(FT);
     }
     break;
   }

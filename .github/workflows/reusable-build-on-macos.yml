@@ -43,13 +43,15 @@ jobs:
       - name: Setup build environment - non-release
         if: ${{ !inputs.release }}
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@18 ninja wabt grpc
+          brew tap WasmEdge/llvm
+          brew install llvm ninja wabt grpc
+          brew install --build-from-source WasmEdge/llvm/lld
       - name: Setup build environment - release
         if: ${{ inputs.release }}
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
-          brew install llvm@18 ninja wabt
+          brew tap WasmEdge/llvm
+          brew install llvm ninja wabt
+          brew install --build-from-source WasmEdge/llvm/lld
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |
@@ -57,13 +59,17 @@ jobs:
           echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
       - name: Build WasmEdge
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
-          export LLVM_DIR="$(brew --prefix)/opt/llvm@18/lib/cmake"
           export CC=clang
           export CXX=clang++
           rm -rf build output
           mkdir -p output
-          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS -DWASMEDGE_LINK_LLVM_STATIC=ON -DWASMEDGE_BUILD_PACKAGE="TGZ" -DCMAKE_INSTALL_PREFIX:PATH=$GITHUB_WORKSPACE/output .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
+            -DLLVM_DIR:PATH="$(brew --prefix)/opt/llvm/lib/cmake/llvm" \
+            -DLLD_DIR:PATH="$(brew --prefix)/opt/lld/lib/cmake/lld" \
+            -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS \
+            -DWASMEDGE_LINK_LLVM_STATIC=ON \
+            -DWASMEDGE_BUILD_PACKAGE="TGZ" \
+            -DCMAKE_INSTALL_PREFIX:PATH=$GITHUB_WORKSPACE/output .
           cmake --build build
       - name: Test WasmEdge
         run: |
@@ -108,6 +114,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
           mv build/WasmEdge-${{ inputs.version }}-Darwin.tar.gz WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-darwin_${{ matrix.arch }}.tar.gz --clobber

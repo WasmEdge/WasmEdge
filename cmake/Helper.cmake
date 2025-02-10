@@ -213,7 +213,15 @@ endfunction()
 # Generate the list of static libs to statically link LLVM.
 if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLVM)
   # Pack the LLVM and lld static libraries.
-  find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
+  find_package(LLVM REQUIRED HINTS "${LLVM_DIR}")
+  find_package(LLD HINTS "${LLVM_DIR}" "${LLD_DIR}")
+  if(LLD_FOUND)
+    get_property(LLD_LIBRARY_DIR TARGET lldELF PROPERTY IMPORTED_LOCATION_RELEASE)
+    get_filename_component(LLD_LIBRARY_DIR "${LLD_LIBRARY_DIR}" DIRECTORY)
+  endif()
+  if(NOT IS_DIRECTORY "${LLD_LIBRARY_DIR}")
+    set(LLD_LIBRARY_DIR ${LLVM_LIBRARY_DIR})
+  endif()
   execute_process(
     COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
     core lto native nativecodegen option passes support orcjit transformutils all-targets
@@ -225,8 +233,8 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   set(WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")
 
   list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-    ${LLVM_LIBRARY_DIR}/liblldELF.a
-    ${LLVM_LIBRARY_DIR}/liblldCommon.a
+    ${LLD_LIBRARY_DIR}/liblldELF.a
+    ${LLD_LIBRARY_DIR}/liblldCommon.a
   )
   foreach(LIB_NAME IN LISTS WASMEDGE_LLVM_LINK_LIBS_NAME)
     list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
@@ -236,18 +244,18 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
     # For LLVM <= 13
     list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-      ${LLVM_LIBRARY_DIR}/liblldCore.a
-      ${LLVM_LIBRARY_DIR}/liblldDriver.a
-      ${LLVM_LIBRARY_DIR}/liblldReaderWriter.a
-      ${LLVM_LIBRARY_DIR}/liblldYAML.a
+      ${LLD_LIBRARY_DIR}/liblldCore.a
+      ${LLD_LIBRARY_DIR}/liblldDriver.a
+      ${LLD_LIBRARY_DIR}/liblldReaderWriter.a
+      ${LLD_LIBRARY_DIR}/liblldYAML.a
     )
   else()
     # For LLVM 14
     list(APPEND WASMEDGE_LLVM_LINK_STATIC_COMPONENTS
-      ${LLVM_LIBRARY_DIR}/liblldMinGW.a
-      ${LLVM_LIBRARY_DIR}/liblldCOFF.a
-      ${LLVM_LIBRARY_DIR}/liblldMachO.a
-      ${LLVM_LIBRARY_DIR}/liblldWasm.a
+      ${LLD_LIBRARY_DIR}/liblldMinGW.a
+      ${LLD_LIBRARY_DIR}/liblldCOFF.a
+      ${LLD_LIBRARY_DIR}/liblldMachO.a
+      ${LLD_LIBRARY_DIR}/liblldWasm.a
     )
   endif()
   if(LLVM_VERSION_MAJOR GREATER_EQUAL 15)

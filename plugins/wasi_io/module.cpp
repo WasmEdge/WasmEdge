@@ -27,6 +27,16 @@ WasiIOStreamsModule::WasiIOStreamsModule()
               std::make_unique<OutputStream_Write>(Env));
   addHostFunc("[method]output-stream.blocking-flush",
               std::make_unique<OutputStream_BlockingFlush>(Env));
+  // @since(version = 0.2.0)
+  // blocking-write-and-flush: func(
+  //     contents: list<u8>
+  // ) -> result<_, stream-error>;
+  //
+  // NOTE: refers to
+  // https://component-model.bytecodealliance.org/design/wit.html#results
+  // result<u32>     // no data associated with the error case
+  // result<_, u32>  // no data associated with the success case
+  // result          // no data associated with either case
   addHostFunc("[method]output-stream.blocking-write-and-flush",
               std::make_unique<OutputStream_BlockingWriteAndFlush>(Env));
 

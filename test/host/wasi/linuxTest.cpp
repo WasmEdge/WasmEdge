@@ -141,7 +141,7 @@ TEST(LinuxTest, toTimeval) {
   EXPECT_EQ(result.tv_usec, kExpectResult.tv_usec);
 }
 
-TEST(LinuxTest, toTimeva_with_timespec_signiture) {
+TEST(LinuxTest, toTimeva_with_timespec_signature) {
   const __time_t kSec = 20;
   const __time_t kNsec = 30 * 1000 * 1000;
   const timespec kTime = {kSec, kNsec};

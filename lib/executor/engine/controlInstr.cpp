@@ -148,11 +148,9 @@ Expect<void> Executor::runCallOp(Runtime::StackManager &StackMgr,
                                  bool IsTailCall) noexcept {
   // Get Function address.
   const auto *FuncInst = getFuncInstByIdx(StackMgr, Instr.getTargetIndex());
-  if (auto Res = enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall); !Res) {
-    return Unexpect(Res);
-  } else {
-    PC = (*Res) - 1;
-  }
+  EXPECTED_TRY(auto NextPC,
+               enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
+  PC = NextPC - 1;
   return {};
 }
 
@@ -170,11 +168,9 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
 
   // Get Function address.
   const auto *FuncInst = retrieveFuncRef(Ref);
-  if (auto Res = enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall); !Res) {
-    return Unexpect(Res);
-  } else {
-    PC = (*Res) - 1;
-  }
+  EXPECTED_TRY(auto NextPC,
+               enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
+  PC = NextPC - 1;
   return {};
 }
 
@@ -239,11 +235,9 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   }
 
   // Enter the function.
-  if (auto Res = enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall); !Res) {
-    return Unexpect(Res);
-  } else {
-    PC = (*Res) - 1;
-  }
+  EXPECTED_TRY(auto NextPC,
+               enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
+  PC = NextPC - 1;
   return {};
 }
 

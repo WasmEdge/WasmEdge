@@ -28,13 +28,12 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
   uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
-  if (auto Res = MemInst.loadValue<T, BitWidth / 8>(Val.emplace<T>(), EA);
-      !Res) {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
-  return {};
+  return MemInst.loadValue<T, BitWidth / 8>(Val.emplace<T>(), EA)
+      .map_error([&Instr](auto E) {
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      });
 }
 
 template <typename T, uint32_t BitWidth>
@@ -58,12 +57,11 @@ TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
   uint32_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
-  if (auto Res = MemInst.storeValue<T, BitWidth / 8>(C, EA); !Res) {
+  return MemInst.storeValue<T, BitWidth / 8>(C, EA).map_error([&Instr](auto E) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
-  return {};
+    return E;
+  });
 }
 
 template <typename TIn, typename TOut>
@@ -88,27 +86,28 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
-  if (auto Res = MemInst.loadValue<decltype(Buffer), 8>(Buffer, EA); !Res) {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
+  return MemInst.loadValue<decltype(Buffer), 8>(Buffer, EA)
+      .map_error([&Instr](auto E) {
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      })
+      .map([&]() {
+        using VTIn = SIMDArray<TIn, 8>;
+        using VTOut = SIMDArray<TOut, 16>;
 
-  using VTIn = SIMDArray<TIn, 8>;
-  using VTOut = SIMDArray<TOut, 16>;
+        VTIn Value;
+        std::memcpy(&Value, &Buffer, 8);
 
-  VTIn Value;
-  std::memcpy(&Value, &Buffer, 8);
-
-  if constexpr (sizeof(TOut) == 2) {
-    Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3], Value[4],
-                             Value[5], Value[6], Value[7]});
-  } else if constexpr (sizeof(TOut) == 4) {
-    Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3]});
-  } else if constexpr (sizeof(TOut) == 8) {
-    Val.emplace<VTOut>(VTOut{Value[0], Value[1]});
-  }
-  return {};
+        if constexpr (sizeof(TOut) == 2) {
+          Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3],
+                                   Value[4], Value[5], Value[6], Value[7]});
+        } else if constexpr (sizeof(TOut) == 4) {
+          Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3]});
+        } else if constexpr (sizeof(TOut) == 8) {
+          Val.emplace<VTOut>(VTOut{Value[0], Value[1]});
+        }
+      });
 }
 
 template <typename T>
@@ -133,25 +132,26 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
   // Value = Mem.Data[EA : N / 8]
   using VT = SIMDArray<T, 16>;
   uint64_t Buffer;
-  if (auto Res = MemInst.loadValue<decltype(Buffer), sizeof(T)>(Buffer, EA);
-      !Res) {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
-  const T Part = static_cast<T>(Buffer);
+  return MemInst.loadValue<decltype(Buffer), sizeof(T)>(Buffer, EA)
+      .map_error([&Instr](auto E) {
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      })
+      .map([&]() {
+        const T Part = static_cast<T>(Buffer);
 
-  if constexpr (sizeof(T) == 1) {
-    Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part, Part,
-                       Part, Part, Part, Part, Part, Part, Part});
-  } else if constexpr (sizeof(T) == 2) {
-    Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part});
-  } else if constexpr (sizeof(T) == 4) {
-    Val.emplace<VT>(VT{Part, Part, Part, Part});
-  } else if constexpr (sizeof(T) == 8) {
-    Val.emplace<VT>(VT{Part, Part});
-  }
-  return {};
+        if constexpr (sizeof(T) == 1) {
+          Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part,
+                             Part, Part, Part, Part, Part, Part, Part, Part});
+        } else if constexpr (sizeof(T) == 2) {
+          Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part});
+        } else if constexpr (sizeof(T) == 4) {
+          Val.emplace<VT>(VT{Part, Part, Part, Part});
+        } else if constexpr (sizeof(T) == 8) {
+          Val.emplace<VT>(VT{Part, Part});
+        }
+      });
 }
 
 template <typename T>
@@ -177,16 +177,16 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
-  if (auto Res = MemInst.loadValue<decltype(Buffer), sizeof(T)>(Buffer, EA);
-      !Res) {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
-
-  Result[Instr.getMemoryLane()] = static_cast<T>(Buffer);
-  Val.emplace<VT>(Result);
-  return {};
+  return MemInst.loadValue<decltype(Buffer), sizeof(T)>(Buffer, EA)
+      .map_error([&Instr](auto E) {
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      })
+      .map([&]() {
+        Result[Instr.getMemoryLane()] = static_cast<T>(Buffer);
+        Val.emplace<VT>(Result);
+      });
 }
 
 template <typename T>
@@ -212,12 +212,12 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
   uint32_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
-  if (auto Res = MemInst.storeValue<decltype(C), sizeof(T)>(C, EA); !Res) {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
-  return {};
+  return MemInst.storeValue<decltype(C), sizeof(T)>(C, EA).map_error(
+      [&Instr](auto E) {
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      });
 }
 
 } // namespace Executor

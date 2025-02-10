@@ -20,15 +20,13 @@ Serializer::serializeSegment(const AST::TableSegment &Seg,
     OutVec.push_back(0x40);
     OutVec.push_back(0x00);
   }
-  if (auto Res = serializeType(Seg.getTableType(), OutVec); unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
-    return Unexpect(Res);
-  }
-  if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
-    return Unexpect(Res);
-  }
-  return {};
+  return Expect<void>{}
+      .and_then([&]() { return serializeType(Seg.getTableType(), OutVec); })
+      .and_then([&]() { return serializeExpression(Seg.getExpr(), OutVec); })
+      .map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
+        return E;
+      });
 }
 
 // Serialize global segment. See "include/loader/serialize.h".
@@ -36,15 +34,13 @@ Expect<void>
 Serializer::serializeSegment(const AST::GlobalSegment &Seg,
                              std::vector<uint8_t> &OutVec) const noexcept {
   // Global segment: globaltype + expr.
-  if (auto Res = serializeType(Seg.getGlobalType(), OutVec); unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
-    return Unexpect(Res);
-  }
-  if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
-    return Unexpect(Res);
-  }
-  return {};
+  return Expect<void>{}
+      .and_then([&]() { return serializeType(Seg.getGlobalType(), OutVec); })
+      .and_then([&]() { return serializeExpression(Seg.getExpr(), OutVec); })
+      .map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
+        return E;
+      });
 }
 
 // Serialize element segment. See "include/loader/serialize.h".
@@ -76,6 +72,11 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
     break;
   }
 
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
+    return E;
+  };
+
   // Serialize idx.
   if (Seg.getIdx() != 0) {
     Mode |= 0x02;
@@ -84,10 +85,8 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
 
   // Serialize OffExpr.
   if (Seg.getMode() == AST::ElementSegment::ElemMode::Active) {
-    if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(
+        serializeExpression(Seg.getExpr(), OutVec).map_error(ReportError));
   }
 
   // Distinguish between FuncIdx and Expr.
@@ -110,11 +109,8 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
   if (Mode & 0x03) {
     if (Mode & 0x04) {
       // Serialize RefType.
-      if (auto Res = serializeRefType(Seg.getRefType(),
-                                      ASTNodeAttr::Seg_Element, OutVec);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(
+          serializeRefType(Seg.getRefType(), ASTNodeAttr::Seg_Element, OutVec));
     } else {
       // Serialize ElemKind.
       OutVec.push_back(0x00);
@@ -126,10 +122,7 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
   for (auto &Expr : Seg.getInitExprs()) {
     if (Mode & 0x04) {
       // Serialize vec(expr).
-      if (auto Res = serializeExpression(Expr, OutVec); unlikely(!Res)) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(serializeExpression(Expr, OutVec).map_error(ReportError));
     } else {
       // Serialize vec(FuncIdx).
       serializeU32(Expr.getInstrs()[0].getTargetIndex(), OutVec);
@@ -149,16 +142,13 @@ Serializer::serializeSegment(const AST::CodeSegment &Seg,
   serializeU32(static_cast<uint32_t>(Seg.getLocals().size()), OutVec);
   for (auto &Locals : Seg.getLocals()) {
     serializeU32(Locals.first, OutVec);
-    if (auto Res =
-            serializeValType(Locals.second, ASTNodeAttr::Seg_Code, OutVec);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(
+        serializeValType(Locals.second, ASTNodeAttr::Seg_Code, OutVec));
   }
-  if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
+  EXPECTED_TRY(serializeExpression(Seg.getExpr(), OutVec).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-    return Unexpect(Res);
-  }
+    return E;
+  }));
   // Backward insert the section size.
   serializeU32(static_cast<uint32_t>(OutVec.size() - OrgSize), OutVec,
                std::next(OutVec.begin(), static_cast<ptrdiff_t>(OrgSize)));
@@ -187,10 +177,11 @@ Serializer::serializeSegment(const AST::DataSegment &Seg,
     } else {
       OutVec.push_back(0x00);
     }
-    if (auto Res = serializeExpression(Seg.getExpr(), OutVec); unlikely(!Res)) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(
+        serializeExpression(Seg.getExpr(), OutVec).map_error([](auto E) {
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
+          return E;
+        }));
     break;
 
   case AST::DataSegment::DataMode::Passive:

@@ -8,29 +8,14 @@ namespace Loader {
 using namespace AST::Component;
 
 Expect<void> Loader::loadStart(Start &S) {
-  if (auto Res = FMgr.readU32()) {
-    S.getFunctionIndex() = *Res;
-  } else {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(S.getFunctionIndex(), FMgr.readU32());
 
   auto F = [this](uint32_t &V) -> Expect<void> {
-    if (auto Res = FMgr.readU32()) {
-      V = *Res;
-      return {};
-    } else {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(V, FMgr.readU32());
+    return {};
   };
-  if (auto Res = loadVec<StartSection>(S.getArguments(), F); !Res) {
-    return Unexpect(Res);
-  }
-
-  if (auto Res = FMgr.readU32()) {
-    S.getResult() = *Res;
-  } else {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(loadVec<StartSection>(S.getArguments(), F));
+  EXPECTED_TRY(S.getResult(), FMgr.readU32());
   return {};
 }
 

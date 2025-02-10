@@ -67,13 +67,18 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
-  // Set path and check the header.
-  if (auto Res = FMgr.setPath(FilePath); !Res) {
-    spdlog::error(Res.error());
-    spdlog::error(ErrInfo::InfoFile(FilePath));
-    return Unexpect(Res);
-  }
 
+  // Set path and check the header.
+  EXPECTED_TRY(FMgr.setPath(FilePath).map_error([&FilePath](auto E) {
+    spdlog::error(E);
+    spdlog::error(ErrInfo::InfoFile(FilePath));
+    return E;
+  }));
+
+  auto ReportError = [&FilePath](auto E) {
+    spdlog::error(ErrInfo::InfoFile(FilePath));
+    return E;
+  };
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
@@ -85,75 +90,49 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     WASMType = InputType::SharedLibrary;
     FMgr.reset();
     std::shared_ptr<SharedLibrary> Library = std::make_shared<SharedLibrary>();
-    if (auto Res = Library->load(FilePath); !Res) {
+    EXPECTED_TRY(Library->load(FilePath).map_error(ReportError));
+    EXPECTED_TRY(auto Version, Library->getVersion().map_error(ReportError));
+    if (Version != AOT::kBinaryVersion) {
+      spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, Version));
       spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(Res);
-    }
-    if (auto Res = Library->getVersion()) {
-      if (*Res != AOT::kBinaryVersion) {
-        spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, *Res));
-        spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(ErrCode::Value::MalformedVersion);
-      }
-    } else {
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(Res);
+      return Unexpect(ErrCode::Value::MalformedVersion);
     }
 
-    std::unique_ptr<AST::Module> Mod;
-    if (auto Code = Library->getWasm()) {
-      // Set the binary and load module.
-      // Not to use parseModule() here to keep the `WASMType` value.
-      if (auto Res = FMgr.setCode(*Code); !Res) {
-        spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(Res);
-      }
-      if (auto Res = loadUnit()) {
-        if (std::holds_alternative<std::unique_ptr<AST::Module>>(*Res)) {
-          Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Res));
-        }
-      } else {
-        spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(Res);
+    EXPECTED_TRY(auto Code, Library->getWasm().map_error(ReportError));
+    // Set the binary and load module.
+    // Not to use parseModule() here to keep the `WASMType` value.
+    EXPECTED_TRY(FMgr.setCode(Code).map_error(ReportError));
+    EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
+    if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
+        likely(!!Ptr)) {
+      if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+        // If the configure is set to force interpreter mode, not to load the
+        // AOT related data.
+        EXPECTED_TRY(loadExecutable(**Ptr, Library).map_error(ReportError));
       }
     } else {
+      spdlog::error("Component Module is not supported in AOT."sv);
       spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(Code);
+      return Unexpect(ErrCode::Value::IllegalGrammar);
     }
-    if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-      // If the configure is set to force interpreter mode, not to load the AOT
-      // related data.
-      if (auto Res = loadExecutable(*Mod, Library); unlikely(!Res)) {
-        spdlog::error(ErrInfo::InfoFile(FilePath));
-        return Unexpect(Res);
-      }
-    }
-    return Mod;
+    return Unit;
   }
-  default:
+  default: {
     // Universal WASM, WASM, or other cases. Load and parse the module directly.
     WASMType = InputType::WASM;
-    auto Unit = loadUnit();
-    if (!Unit) {
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(Unit);
-    }
-    switch (Unit->index()) {
-    case 0: // component
-      return Unit;
-    case 1: // module
-    default: {
-      auto Mod = std::move(std::get<std::unique_ptr<AST::Module>>(*Unit));
+    EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
+    if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
+        likely(!!Ptr)) {
       if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
         // If the configure is set to force interpreter mode, not to set the
         // symbol.
-        if (auto &Symbol = Mod->getSymbol()) {
+        if (auto &Symbol = (*Ptr)->getSymbol()) {
           *Symbol = IntrinsicsTable;
         }
       }
-      return Mod;
     }
-    }
+    return Unit;
+  }
   }
 }
 
@@ -161,9 +140,7 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
-  if (auto Res = FMgr.setCode(Code); !Res) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
@@ -189,27 +166,21 @@ Loader::parseWasmUnit(Span<const uint8_t> Code) {
 // Parse module from file path. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(const std::filesystem::path &FilePath) {
-  if (auto R = parseWasmUnit(FilePath)) {
-    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*R)) {
-      return std::move(std::get<std::unique_ptr<AST::Module>>(*R));
-    }
-    return Unexpect(ErrCode::Value::MalformedVersion);
-  } else {
-    return Unexpect(R);
+  EXPECTED_TRY(auto ComponentOrModule, parseWasmUnit(FilePath));
+  if (auto M = std::get_if<std::unique_ptr<AST::Module>>(&ComponentOrModule)) {
+    return std::move(*M);
   }
+  return Unexpect(ErrCode::Value::MalformedVersion);
 }
 
 // Parse module from byte code. See "include/loader/loader.h".
 Expect<std::unique_ptr<AST::Module>>
 Loader::parseModule(Span<const uint8_t> Code) {
-  if (auto R = parseWasmUnit(Code)) {
-    if (std::holds_alternative<std::unique_ptr<AST::Module>>(*R)) {
-      return std::move(std::get<std::unique_ptr<AST::Module>>(*R));
-    }
-    return Unexpect(ErrCode::Value::MalformedVersion);
-  } else {
-    return Unexpect(R);
+  EXPECTED_TRY(auto ComponentOrModule, parseWasmUnit(Code));
+  if (auto M = std::get_if<std::unique_ptr<AST::Module>>(&ComponentOrModule)) {
+    return std::move(*M);
   }
+  return Unexpect(ErrCode::Value::MalformedVersion);
 }
 
 // Serialize module into byte code. See "include/loader/loader.h".

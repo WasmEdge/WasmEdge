@@ -75,9 +75,7 @@ struct CoreDefTypeVisitor {
   Expect<void> operator()(const AST::FunctionType &) { return {}; }
   Expect<void> operator()(const ModuleType &Mod) {
     for (const ModuleDecl &D : Mod.getContent()) {
-      if (auto Res = std::visit(ModuleDeclVisitor{}, D); !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(std::visit(ModuleDeclVisitor{}, D));
     }
     return {};
   }
@@ -209,18 +207,13 @@ struct SectionVisitor {
   }
   Expect<void> operator()(const InstanceSection &Sec) {
     for (const InstanceExpr &E : Sec.getContent()) {
-      if (auto Res = std::visit(InstanceExprVisitor{}, E); !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(std::visit(InstanceExprVisitor{}, E));
     }
     return {};
   }
   Expect<void> operator()(const AliasSection &Sec) {
     for (const Alias &A : Sec.getContent()) {
-      if (auto Res = std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget());
-          !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget()));
     }
     return {};
   }
@@ -228,17 +221,13 @@ struct SectionVisitor {
     // TODO: As described in the explainer, each module type is validated with
     // an initially-empty type index space.
     for (const CoreDefType &T : Sec.getContent()) {
-      if (auto Res = std::visit(CoreDefTypeVisitor{}, T); !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(std::visit(CoreDefTypeVisitor{}, T));
     }
     return {};
   }
   Expect<void> operator()(const TypeSection &Sec) {
     for (const DefType &T : Sec.getContent()) {
-      if (auto Res = std::visit(DefTypeVisitor{}, T); !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(std::visit(DefTypeVisitor{}, T));
     }
     // TODO: Validation of resourcetype requires the destructor (if present) to
     // have type [i32] -> [].
@@ -248,9 +237,7 @@ struct SectionVisitor {
   Expect<void> operator()(const CanonSection &Sec) {
     // TODO: Validation prevents duplicate or conflicting canonopt.
     for (const Canon &C : Sec.getContent()) {
-      if (auto Res = std::visit(CanonVisitor{}, C); !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(std::visit(CanonVisitor{}, C));
     }
 
     return {};
@@ -300,9 +287,7 @@ struct SectionVisitor {
       // names are disjoint.
       I.getName();
 
-      if (auto Res = std::visit(ExternDescVisitor{}, I.getDesc()); !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(std::visit(ExternDescVisitor{}, I.getDesc()));
     }
     // TODO: Validation requires that all resource types transitively used in
     // the type of an export are introduced by a preceding importdecl or
@@ -320,9 +305,7 @@ struct SectionVisitor {
         auto SI = E.getSortIndex();
         SI.getSort();
         SI.getSortIdx();
-        if (auto Res = std::visit(ExternDescVisitor{}, *E.getDesc()); !Res) {
-          return Unexpect(Res);
-        }
+        EXPECTED_TRY(std::visit(ExternDescVisitor{}, *E.getDesc()));
       }
     }
 

@@ -15,77 +15,65 @@ namespace Executor {
 Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
                                const AST::Component::Component &Comp) {
-  auto Res = instantiate(StoreMgr, Comp);
-  if (!Res) {
-    return Unexpect(Res);
-  }
-  return Res;
+  return instantiate(StoreMgr, Comp);
 }
 Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
                                const AST::Component::Component &Comp,
                                std::string_view Name) {
-  auto Res = instantiate(StoreMgr, Comp, Name);
-  if (!Res) {
-    return Unexpect(Res);
-  }
-  return Res;
+  return instantiate(StoreMgr, Comp, Name);
 }
 
 /// Instantiate a WASM Module. See "include/executor/executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
                             const AST::Module &Mod) {
-  if (auto Res = instantiate(StoreMgr, Mod)) {
-    return Res;
-  } else {
+  return instantiate(StoreMgr, Mod).map_error([this](auto E) {
     // If Statistics is enabled, then dump it here.
     // When there is an error happened, the following execution will not
     // execute.
     if (Stat) {
       Stat->dumpToLog(Conf);
     }
-    return Unexpect(Res);
-  }
+    return E;
+  });
 }
 
 /// Register a named WASM module. See "include/executor/executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::registerModule(Runtime::StoreManager &StoreMgr,
                          const AST::Module &Mod, std::string_view Name) {
-  if (auto Res = instantiate(StoreMgr, Mod, Name)) {
-    return Res;
-  } else {
+  return instantiate(StoreMgr, Mod, Name).map_error([this](auto E) {
     // If Statistics is enabled, then dump it here.
     // When there is an error happened, the following execution will not
     // execute.
     if (Stat) {
       Stat->dumpToLog(Conf);
     }
-    return Unexpect(Res);
-  }
+    return E;
+  });
 }
 
 /// Register an instantiated module. See "include/executor/executor.h".
 Expect<void>
 Executor::registerModule(Runtime::StoreManager &StoreMgr,
                          const Runtime::Instance::ModuleInstance &ModInst) {
-  if (auto Res = StoreMgr.registerModule(&ModInst); !Res) {
-    spdlog::error(ErrCode::Value::ModuleNameConflict);
+  return StoreMgr.registerModule(&ModInst).map_error([](auto E) {
+    E = ErrCode::Value::ModuleNameConflict;
+    spdlog::error(E);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    return Unexpect(ErrCode::Value::ModuleNameConflict);
-  }
-  return {};
+    return E;
+  });
 }
 Expect<void> Executor::registerComponent(
     Runtime::StoreManager &StoreMgr,
     const Runtime::Instance::ComponentInstance &CompInst) {
-  if (auto Res = StoreMgr.registerComponent(&CompInst); !Res) {
-    spdlog::error(ErrCode::Value::ModuleNameConflict);
+  return StoreMgr.registerComponent(&CompInst).map_error([](auto E) {
+    E = ErrCode::Value::ModuleNameConflict;
+    spdlog::error(E);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
-    return Unexpect(ErrCode::Value::ModuleNameConflict);
-  }
-  return {};
+    return E;
+  });
 }
 
 /// Register a host function which will be invoked before calling a
@@ -150,10 +138,10 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   Runtime::StackManager StackMgr;
 
   // Call runFunction.
-  if (auto Res = runFunction(StackMgr, *FuncInst, Params); !Res) {
+  EXPECTED_TRY(runFunction(StackMgr, *FuncInst, Params).map_error([](auto E) {
     dumpStackTrace(Span<const uint32_t>{StackTrace}.first(StackTraceSize));
-    return Unexpect(Res);
-  }
+    return E;
+  }));
 
   // Get return values.
   std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
@@ -239,9 +227,7 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   auto &HostFunc = FuncInst->getHostFunc();
   std::vector<ValInterface> Rets(RTypes.size());
 
-  if (auto Res = HostFunc.run(std::move(Params), Rets); !Res) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(HostFunc.run(std::move(Params), Rets));
 
   std::vector<std::pair<ValInterface, ValType>> R;
   auto RType = RTypes.begin();

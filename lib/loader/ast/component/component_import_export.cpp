@@ -9,36 +9,28 @@ namespace Loader {
 using namespace AST::Component;
 
 Expect<void> Loader::loadImport(AST::Component::Import &Im) {
-  if (auto Res = loadImportName(Im.getName()); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Import));
-    return Unexpect(Res);
-  }
-  if (auto Res = loadExternDesc(Im.getDesc()); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Import));
-    return Unexpect(Res);
-  }
-  return {};
+  return Expect<void>{}
+      .and_then([&]() { return loadImportName(Im.getName()); })
+      .and_then([&]() { return loadExternDesc(Im.getDesc()); })
+      .map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Import));
+        return E;
+      });
 }
 
 Expect<void> Loader::loadExport(AST::Component::Export &Ex) {
-  if (auto Res = loadExportName(Ex.getName()); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Export));
-    return Unexpect(Res);
-  }
-  if (auto Res = loadSortIndex(Ex.getSortIndex()); !Res) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Export));
-    return Unexpect(Res);
-  }
-  if (auto Res =
-          loadOption<ExternDesc>([this](ExternDesc Desc) -> Expect<void> {
-            return loadExternDesc(Desc);
-          })) {
-    Ex.getDesc() = *Res;
-  } else {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Export));
-    return Unexpect(Res);
-  }
-  return {};
+  return Expect<void>{}
+      .and_then([&]() { return loadExportName(Ex.getName()); })
+      .and_then([&]() { return loadSortIndex(Ex.getSortIndex()); })
+      .and_then([&]() {
+        return loadOption<ExternDesc>(
+            [this](ExternDesc Desc) { return loadExternDesc(Desc); });
+      })
+      .map([&](auto Desc) { Ex.getDesc() = std::move(Desc); })
+      .map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Export));
+        return E;
+      });
 }
 
 } // namespace Loader

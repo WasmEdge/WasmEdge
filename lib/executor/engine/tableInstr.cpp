@@ -13,15 +13,17 @@ Expect<void> Executor::runTableGetOp(Runtime::StackManager &StackMgr,
   uint32_t Idx = StackMgr.pop().get<uint32_t>();
 
   // Get table[Idx] and push to Stack.
-  if (auto Res = TabInst.getRefAddr(Idx)) {
-    StackMgr.push(*Res);
-  } else {
-    spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
-                                           {Idx},
-                                           {ValTypeFromType<uint32_t>()}));
-    return Unexpect(Res);
-  }
-  return {};
+  return TabInst.getRefAddr(Idx)
+      .map_error([&Instr, &Idx](auto E) {
+        spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                               Instr.getOffset(), {Idx},
+                                               {ValTypeFromType<uint32_t>()}));
+        return E;
+      })
+      .and_then([&](auto Ref) -> Expect<void> {
+        StackMgr.push(Ref);
+        return {};
+      });
 }
 
 Expect<void> Executor::runTableSetOp(Runtime::StackManager &StackMgr,
@@ -34,13 +36,12 @@ Expect<void> Executor::runTableSetOp(Runtime::StackManager &StackMgr,
   uint32_t Idx = StackMgr.pop().get<uint32_t>();
 
   // Set table[Idx] with Ref.
-  if (auto Res = TabInst.setRefAddr(Idx, Ref); !Res) {
+  return TabInst.setRefAddr(Idx, Ref).map_error([&Instr, &Idx](auto E) {
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()}));
-    return Unexpect(Res);
-  }
-  return {};
+    return E;
+  });
 }
 
 Expect<void>
@@ -54,13 +55,12 @@ Executor::runTableInitOp(Runtime::StackManager &StackMgr,
   uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
   // Replace tab[Dst : Dst + Len] with elem[Src : Src + Len].
-  if (auto Res = TabInst.setRefs(ElemInst.getRefs(), Dst, Src, Len)) {
-    return {};
-  } else {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
+  return TabInst.setRefs(ElemInst.getRefs(), Dst, Src, Len)
+      .map_error([&Instr](auto E) {
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      });
 }
 
 Expect<void>
@@ -81,19 +81,14 @@ Executor::runTableCopyOp(Runtime::StackManager &StackMgr,
   uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
   // Replace tab_dst[Dst : Dst + Len] with tab_src[Src : Src + Len].
-  if (auto Refs = TabInstSrc.getRefs(0, Src + Len)) {
-    if (auto Res = TabInstDst.setRefs(*Refs, Dst, Src, Len)) {
-      return {};
-    } else {
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(Res);
-    }
-  } else {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Refs);
-  }
+  return TabInstSrc.getRefs(0, Src + Len)
+      .and_then(
+          [&](auto Refs) { return TabInstDst.setRefs(Refs, Dst, Src, Len); })
+      .map_error([&Instr](auto E) {
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      });
 }
 
 Expect<void>
@@ -131,13 +126,11 @@ Expect<void> Executor::runTableFillOp(Runtime::StackManager &StackMgr,
   uint32_t Off = StackMgr.pop().get<uint32_t>();
 
   // Fill refs with ref_value.
-  if (auto Res = TabInst.fillRefs(Val, Off, Len)) {
-    return {};
-  } else {
+  return TabInst.fillRefs(Val, Off, Len).map_error([&Instr](auto E) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
+    return E;
+  });
 }
 
 } // namespace Executor

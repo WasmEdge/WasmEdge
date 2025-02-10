@@ -10,6 +10,8 @@
 #include <string_view>
 #include <utility>
 
+using namespace std::literals;
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -117,33 +119,30 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
     const auto *ImpModInst = StoreMgr.findModule(ModName);
     if (unlikely(ImpModInst == nullptr)) {
       auto Res = logUnknownError(ModName, ExtName, ExtType);
-      if (ModName == "wasi_snapshot_preview1") {
+      if (ModName == "wasi_snapshot_preview1"sv) {
         spdlog::error("    This is a WASI related import. Please ensure that "
-                      "you've turned on the WASI configuration.");
-      } else if (ModName == "wasi_nn") {
+                      "you've turned on the WASI configuration."sv);
+      } else if (ModName == "wasi_nn"sv) {
         spdlog::error("    This is a WASI-NN related import. Please ensure "
                       "that you've turned on the WASI-NN configuration and "
-                      "installed the WASI-NN plug-in.");
-      } else if (ModName == "wasi_crypto_common" ||
-                 ModName == "wasi_crypto_asymmetric_common" ||
-                 ModName == "wasi_crypto_kx" ||
-                 ModName == "wasi_crypto_signatures" ||
-                 ModName == "wasi_crypto_symmetric") {
+                      "installed the WASI-NN plug-in."sv);
+      } else if (ModName == "wasi_crypto_common"sv ||
+                 ModName == "wasi_crypto_asymmetric_common"sv ||
+                 ModName == "wasi_crypto_kx"sv ||
+                 ModName == "wasi_crypto_signatures"sv ||
+                 ModName == "wasi_crypto_symmetric"sv) {
         spdlog::error("    This is a WASI-Crypto related import. Please ensure "
                       "that you've turned on the WASI-Crypto configuration and "
                       "installed the WASI-Crypto plug-in.");
-      } else if (ModName == "env") {
+      } else if (ModName == "env"sv) {
         spdlog::error(
             "    This may be the import of host environment like JavaScript or "
             "Golang. Please check that you've registered the necessary host "
-            "modules from the host programming language.");
+            "modules from the host programming language."sv);
       }
       return Res;
     }
-    if (auto Res = checkImportMatched(ModName, ExtName, ExtType, *ImpModInst);
-        unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(checkImportMatched(ModName, ExtName, ExtType, *ImpModInst));
 
     // Add the imports into module instance.
     switch (ExtType) {
@@ -162,7 +161,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
         bool IsMatchV2 = false;
         const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
         const auto &ImpFuncType = ImpInst->getFuncType();
-        if (ModName == "wasi_snapshot_preview1") {
+        if (ModName == "wasi_snapshot_preview1"sv) {
           /*
            * The following functions should provide V1 and V2.
              "sock_open_v2",
@@ -177,15 +176,16 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
              "sock_getlocaladdr_v2",
              "sock_getpeeraddr_v2"
              */
-          std::vector<std::string> CompatibleWASISocketAPI = {
-              "sock_open",         "sock_bind",       "sock_connect",
-              "sock_listen",       "sock_accept",     "sock_recv",
-              "sock_recv_from",    "sock_send",       "sock_send_to",
-              "sock_getlocaladdr", "sock_getpeeraddr"};
+          std::vector<std::string_view> CompatibleWASISocketAPI = {
+              "sock_open"sv,         "sock_bind"sv,       "sock_connect"sv,
+              "sock_listen"sv,       "sock_accept"sv,     "sock_recv"sv,
+              "sock_recv_from"sv,    "sock_send"sv,       "sock_send_to"sv,
+              "sock_getlocaladdr"sv, "sock_getpeeraddr"sv};
           for (auto Iter = CompatibleWASISocketAPI.begin();
                Iter != CompatibleWASISocketAPI.end(); Iter++) {
             if (ExtName == *Iter) {
-              auto *ImpInstV2 = ImpModInst->findFuncExports(*Iter + "_v2");
+              auto *ImpInstV2 =
+                  ImpModInst->findFuncExports(std::string(*Iter) + "_v2");
               if (!AST::TypeMatcher::matchType(
                       ModInst.getTypeList(), *ExpDefType.getTypeIndex(),
                       ImpModInst->getTypeList(), ImpInst->getTypeIndex())) {

@@ -56,7 +56,7 @@ namespace {
   return Error;
 
 // Llama logging callback.
-void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
+void llamaLogCallback(ggml_log_level LogLevel, const char *LogText,
                       void *UserData) {
   Graph &GraphRef = *reinterpret_cast<Graph *>(UserData);
   if (!GraphRef.EnableLog) {
@@ -1974,23 +1974,23 @@ const std::map<int, std::string> Tens = {
 
 // Convert a number less than 1000 to words
 std::string convertLessThanThousand(int Num) {
-  std::string result;
+  std::string Result;
 
   if (Num >= 100) {
-    result += Ones.at(Num / 100) + " hundred ";
+    Result += Ones.at(Num / 100) + " hundred ";
     Num %= 100;
   }
 
   if (Num >= 20) {
-    result += Tens.at(Num / 10);
+    Result += Tens.at(Num / 10);
     if (Num % 10 > 0) {
-      result += "-" + Ones.at(Num % 10);
+      Result += "-" + Ones.at(Num % 10);
     }
   } else if (Num > 0) {
-    result += Ones.at(Num);
+    Result += Ones.at(Num);
   }
 
-  return result;
+  return Result;
 }
 
 std::string numberToWords(const std::string &NumberStr) {
@@ -2005,20 +2005,20 @@ std::string numberToWords(const std::string &NumberStr) {
       Result = "zero";
     } else {
       if (IntNumber >= 1000000000) {
-        int billions = IntNumber / 1000000000;
-        Result += convertLessThanThousand(billions) + " billion ";
+        int Billions = IntNumber / 1000000000;
+        Result += convertLessThanThousand(Billions) + " billion ";
         IntNumber %= 1000000000;
       }
 
       if (IntNumber >= 1000000) {
-        int millions = IntNumber / 1000000;
-        Result += convertLessThanThousand(millions) + " million ";
+        int Millions = IntNumber / 1000000;
+        Result += convertLessThanThousand(Millions) + " million ";
         IntNumber %= 1000000;
       }
 
       if (IntNumber >= 1000) {
-        int thousands = IntNumber / 1000;
-        Result += convertLessThanThousand(thousands) + " thousand ";
+        int Thousands = IntNumber / 1000;
+        Result += convertLessThanThousand(Thousands) + " thousand ";
         IntNumber %= 1000;
       }
 
@@ -2030,9 +2030,9 @@ std::string numberToWords(const std::string &NumberStr) {
     // Handle decimal part
     if (DecimalPos != std::string::npos) {
       Result += " point";
-      std::string decimal_part = NumberStr.substr(DecimalPos + 1);
-      for (char digit : decimal_part) {
-        Result += " " + Ones.at(digit - '0');
+      std::string DecimalPart = NumberStr.substr(DecimalPos + 1);
+      for (char Digit : DecimalPart) {
+        Result += " " + Ones.at(Digit - '0');
       }
     }
 
@@ -2070,7 +2070,7 @@ std::string processTTSPromptText(const std::string &Text) {
 
   std::transform(
       ProcessedText.begin(), ProcessedText.end(), ProcessedText.begin(),
-      [](unsigned char c) { return static_cast<char>(::tolower(c)); });
+      [](unsigned char C) { return static_cast<char>(::tolower(C)); });
 
   std::regex SpecialChars(R"([-_/,\.\\])");
   ProcessedText = std::regex_replace(ProcessedText, SpecialChars, " ");
@@ -2316,7 +2316,8 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
           ErrNo::RuntimeError,
           "evaluateTokens: failed to llama_decode: try reducing the size of the batch "sv
           "or increasing the size of context."sv)
-    } else if (Status < 0) {
+    }
+    if (Status < 0) {
       RET_ERROR(
           ErrNo::RuntimeError,
           "evaluateTokens: failed to llama_decode: internal fatal error. Please open "sv
@@ -2391,7 +2392,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
     case VisionModel::Qwen2VL:
       LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd"sv,
                 LogPrefix)
-      auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
+      auto *ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
       EvalImageStatus = evaluateQwen2vlImageEmbed(
           GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
           static_cast<int>(GraphRef.Params.n_batch), CxtRef.NPos, ImageSize);
@@ -2778,8 +2779,8 @@ ErrNo codesToSpeech(Graph &GraphRef, Context &CxtRef) noexcept {
 
   // Zero out first 0.25 seconds of audio.
   const uint32_t SamplingRate = 24000;
-  for (uint32_t i = 0; i < SamplingRate / 4; ++i) {
-    AudioData[i] = 0.0f;
+  for (uint32_t I = 0; I < SamplingRate / 4; ++I) {
+    AudioData[I] = 0.0f;
   }
 
   // Save .wav file
@@ -2856,7 +2857,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Conf.ImagePath = ""sv;
 
   // Set llama log callback.
-  llama_log_set(LlamaLogCallback, &GraphRef);
+  llama_log_set(llamaLogCallback, &GraphRef);
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {
@@ -3118,7 +3119,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
     // Prompt with image input. Check is llava or mllama case.
 
-    // First check the projection model is loaded.
+    // First check the projection model is given.
+    if (GraphRef.MMProjModelPath == ""sv) {
+      RET_ERROR(
+          ErrNo::InvalidArgument,
+          "setInput: the given model does not support image input, so a projection model is required."sv)
+    }
+
+    // Make sure the projection model is loaded.
     if (GraphRef.ClipContext == nullptr) {
       LOG_INFO(
           true,

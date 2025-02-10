@@ -54,9 +54,7 @@ Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
   }
   case ExternalType::Global: {
     // Read the global type node.
-    if (auto Res = loadType(ImpDesc.getExternalGlobalType()); !Res) {
-      return Unexpect(Res.error());
-    }
+    EXPECTED_TRY(loadType(ImpDesc.getExternalGlobalType()));
     // Import the mutable globals are for ImportExportMutGlobals proposal.
     if (ImpDesc.getExternalGlobalType().getValMut() == ValMut::Var &&
         unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {

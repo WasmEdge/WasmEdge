@@ -16,30 +16,25 @@ Expect<void> Loader::loadSort(Sort &Sort) {
   //        | 0x03                  => type
   //        | 0x04                  => component
   //        | 0x05                  => instance
-  auto RTag = FMgr.readByte();
-  if (!RTag) {
+  auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
-    return Unexpect(RTag);
-  }
-  switch (*RTag) {
+    return E;
+  };
+  EXPECTED_TRY(auto Tag, FMgr.readByte().map_error(ReportError));
+  switch (Tag) {
   case 0x00:
-    if (auto Res = loadCoreSort(Sort.emplace<CoreSort>()); !Res) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
-      return Unexpect(Res);
-    }
-    break;
+    return loadCoreSort(Sort.emplace<CoreSort>()).map_error(ReportError);
   case 0x01:
   case 0x02:
   case 0x03:
   case 0x04:
   case 0x05:
-    Sort = static_cast<SortCase>(*RTag);
-    break;
+    Sort = static_cast<SortCase>(Tag);
+    return {};
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
                         ASTNodeAttr::Sort);
   }
-  return {};
 }
 
 Expect<void> Loader::loadCoreSort(CoreSort &Sort) {
@@ -50,11 +45,8 @@ Expect<void> Loader::loadCoreSort(CoreSort &Sort) {
   //           | 0x10       => type
   //           | 0x11       => module
   //           | 0x12       => instance
-  auto Res = FMgr.readByte();
-  if (!Res) {
-    return Unexpect(Res);
-  }
-  switch (*Res) {
+  EXPECTED_TRY(auto B, FMgr.readByte());
+  switch (B) {
   case 0x00:
   case 0x01:
   case 0x02:
@@ -62,7 +54,7 @@ Expect<void> Loader::loadCoreSort(CoreSort &Sort) {
   case 0x10:
   case 0x11:
   case 0x12:
-    Sort = static_cast<CoreSort>(*Res);
+    Sort = static_cast<CoreSort>(B);
     return {};
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
@@ -71,26 +63,14 @@ Expect<void> Loader::loadCoreSort(CoreSort &Sort) {
 }
 
 Expect<void> Loader::loadSortIndex(SortIndex<Sort> &SortIdx) {
-  if (auto Res = loadSort(SortIdx.getSort()); !Res) {
-    return Unexpect(Res);
-  }
-  if (auto Res = FMgr.readU32(); !Res) {
-    return Unexpect(Res);
-  } else {
-    SortIdx.getSortIdx() = *Res;
-  }
+  EXPECTED_TRY(loadSort(SortIdx.getSort()));
+  EXPECTED_TRY(SortIdx.getSortIdx(), FMgr.readU32());
 
   return {};
 }
 Expect<void> Loader::loadCoreSortIndex(SortIndex<CoreSort> &SortIdx) {
-  if (auto Res = loadCoreSort(SortIdx.getSort()); !Res) {
-    return Unexpect(Res);
-  }
-  if (auto Res = FMgr.readU32(); !Res) {
-    return Unexpect(Res);
-  } else {
-    SortIdx.getSortIdx() = *Res;
-  }
+  EXPECTED_TRY(loadCoreSort(SortIdx.getSort()));
+  EXPECTED_TRY(SortIdx.getSortIdx(), FMgr.readU32());
 
   return {};
 }

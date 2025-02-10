@@ -214,18 +214,12 @@ Expect<ValMut> Loader::loadMutability(ASTNodeAttr From) {
 }
 
 Expect<void> Loader::loadFieldType(AST::FieldType &FType) {
-  if (auto Res = loadValType(ASTNodeAttr::Type_Rec, true)) {
-    FType.setStorageType(*Res);
-  } else {
-    // The error code logging is handled.
-    return Unexpect(Res);
-  }
-  if (auto Res = loadMutability(ASTNodeAttr::Type_Rec)) {
-    FType.setValMut(*Res);
-  } else {
-    // The error code logging is handled.
-    return Unexpect(Res);
-  }
+  // The error code logging is handled.
+  EXPECTED_TRY(auto Type, loadValType(ASTNodeAttr::Type_Rec, true));
+  FType.setStorageType(Type);
+  // The error code logging is handled.
+  EXPECTED_TRY(auto Mut, loadMutability(ASTNodeAttr::Type_Rec));
+  FType.setValMut(Mut);
   return {};
 }
 
@@ -234,31 +228,23 @@ Expect<void> Loader::loadCompositeType(AST::CompositeType &CType) {
     switch (static_cast<TypeCode>(*CodeByte)) {
     case TypeCode::Array: {
       AST::FieldType FType;
-      if (auto Res = loadFieldType(FType); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(loadFieldType(FType));
       CType.setArrayType(std::move(FType));
       return {};
     }
     case TypeCode::Struct: {
       std::vector<AST::FieldType> FList;
-      if (auto Res = loadVec<AST::SubType>(
-              FList,
-              [this](AST::FieldType &FType) -> Expect<void> {
-                // The error code logging is handled.
-                return loadFieldType(FType);
-              });
-          !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(loadVec<AST::SubType>(
+          FList, [this](AST::FieldType &FType) -> Expect<void> {
+            // The error code logging is handled.
+            return loadFieldType(FType);
+          }));
       CType.setStructType(std::move(FList));
       return {};
     }
     case TypeCode::Func: {
       AST::FunctionType FuncType;
-      if (auto Res = loadType(FuncType); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(loadType(FuncType));
       CType.setFunctionType(std::move(FuncType));
       return {};
     }
@@ -346,20 +332,16 @@ Expect<void> Loader::loadType(AST::SubType &SType) {
       break;
     }
     FMgr.readByte();
-    if (auto Res = loadVec<AST::SubType>(
-            SType.getSuperTypeIndices(),
-            [this](uint32_t &Idx) -> Expect<void> {
-              if (auto Num = FMgr.readU32()) {
-                Idx = *Num;
-              } else {
-                return logLoadError(Num.error(), FMgr.getLastOffset(),
-                                    ASTNodeAttr::Type_Sub);
-              }
-              return {};
-            });
-        !Res) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(loadVec<AST::SubType>(
+        SType.getSuperTypeIndices(), [this](uint32_t &Idx) -> Expect<void> {
+          if (auto Num = FMgr.readU32()) {
+            Idx = *Num;
+          } else {
+            return logLoadError(Num.error(), FMgr.getLastOffset(),
+                                ASTNodeAttr::Type_Sub);
+          }
+          return {};
+        }));
     return loadCompositeType(SType.getCompositeType());
   } else {
     return logLoadError(CodeByte.error(), FMgr.getLastOffset(),
@@ -371,27 +353,17 @@ Expect<void> Loader::loadType(AST::SubType &SType) {
 Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   // Read type of Func (0x60). Moved into the composite type.
   auto LoadValType = [this](ValType &VT) -> Expect<void> {
-    if (auto Res = loadValType(ASTNodeAttr::Type_Function)) {
-      VT = *Res;
-    } else {
-      // The error code logging is handled.
-      return Unexpect(Res);
-    }
+    // The error code logging is handled.
+    EXPECTED_TRY(VT, loadValType(ASTNodeAttr::Type_Function));
     return {};
   };
   // Read vector of parameter types.
-  if (auto Res =
-          loadVec<AST::FunctionType>(FuncType.getParamTypes(), LoadValType);
-      !Res) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(
+      loadVec<AST::FunctionType>(FuncType.getParamTypes(), LoadValType));
 
   // Read vector of result types.
-  if (auto Res =
-          loadVec<AST::FunctionType>(FuncType.getReturnTypes(), LoadValType);
-      !Res) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(
+      loadVec<AST::FunctionType>(FuncType.getReturnTypes(), LoadValType));
 
   if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) &&
       FuncType.getReturnTypes().size() > 1) {
@@ -405,73 +377,61 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
 // Load binary to construct MemoryType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::MemoryType &MemType) {
   // Read limit.
-  if (auto Res = loadLimit(MemType.getLimit()); !Res) {
+  return loadLimit(MemType.getLimit()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
-    return Unexpect(Res);
-  }
-  return {};
+    return E;
+  });
 }
 
 // Load binary to construct TableType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::TableType &TabType) {
   // Read reference type.
-  if (auto Res = loadRefType(ASTNodeAttr::Type_Table)) {
-    TabType.setRefType(*Res);
-  } else {
-    // The AST node information is handled.
-    return Unexpect(Res);
-  }
+  // The AST node information is handled.
+  EXPECTED_TRY(auto Type, loadRefType(ASTNodeAttr::Type_Table));
+  TabType.setRefType(Type);
 
   // Read limit.
-  if (auto Res = loadLimit(TabType.getLimit()); !Res) {
+  return loadLimit(TabType.getLimit()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Table));
-    return Unexpect(Res);
-  }
-  return {};
+    return E;
+  });
 }
 
 // Load binary to construct GlobalType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::GlobalType &GlobType) {
   // Read value type.
-  if (auto Res = loadValType(ASTNodeAttr::Type_Global)) {
-    GlobType.setValType(*Res);
-  } else {
-    // The AST node information is handled.
-    return Unexpect(Res);
-  }
+  // The AST node information is handled.
+  EXPECTED_TRY(auto Type, loadValType(ASTNodeAttr::Type_Global));
+  GlobType.setValType(Type);
 
   // Read mutability.
-  if (auto Res = loadMutability(ASTNodeAttr::Type_Global)) {
-    GlobType.setValMut(*Res);
-  } else {
-    // The AST node information is handled.
-    return Unexpect(Res);
-  }
+  // The AST node information is handled.
+  EXPECTED_TRY(auto Mut, loadMutability(ASTNodeAttr::Type_Global));
+  GlobType.setValMut(Mut);
   return {};
 }
 
 // Load binary to construct Tag node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::TagType &TgType) {
-  if (auto Res = FMgr.readByte()) {
-    // The preserved byte for future extension possibility for tag
-    // It supports only 0x00 currently, which is for exception handling.
-    if (unlikely(*Res != 0x00)) {
-      spdlog::error(ErrCode::Value::ExpectedZeroByte);
-      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
-      return Unexpect(ErrCode::Value::ExpectedZeroByte);
-    }
-  } else {
-    spdlog::error(Res.error());
+  EXPECTED_TRY(auto B, FMgr.readByte().map_error([this](auto E) {
+    spdlog::error(E);
     spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
-    return Unexpect(Res);
-  }
-  if (auto Res = FMgr.readU32()) {
-    TgType.setTypeIdx(*Res);
-  } else {
-    spdlog::error(Res.error());
+    return E;
+  }));
+
+  // The preserved byte for future extension possibility for tag
+  // It supports only 0x00 currently, which is for exception handling.
+  if (unlikely(B != 0x00)) {
+    spdlog::error(ErrCode::Value::ExpectedZeroByte);
     spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
-    return Unexpect(Res);
+    return Unexpect(ErrCode::Value::ExpectedZeroByte);
   }
+  EXPECTED_TRY(auto Idx, FMgr.readU32().map_error([this](auto E) {
+    spdlog::error(E);
+    spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+    return E;
+  }));
+  TgType.setTypeIdx(Idx);
   return {};
 }
 

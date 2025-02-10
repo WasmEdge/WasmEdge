@@ -39,13 +39,12 @@ Expect<void> Executor::runMemoryInitOp(
   uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
   // Replace mem[Dst : Dst + Len] with data[Src : Src + Len].
-  if (auto Res = MemInst.setBytes(DataInst.getData(), Dst, Src, Len)) {
-    return {};
-  } else {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
+  return MemInst.setBytes(DataInst.getData(), Dst, Src, Len)
+      .map_error([&Instr](auto E) {
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      });
 }
 
 Expect<void>
@@ -66,19 +65,17 @@ Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
   uint32_t Dst = StackMgr.pop().get<uint32_t>();
 
   // Replace mem[Dst : Dst + Len] with mem[Src : Src + Len].
-  if (auto Data = MemInstSrc.getBytes(Src, Len)) {
-    if (auto Res = MemInstDst.setBytes(*Data, Dst, 0, Len)) {
-      return {};
-    } else {
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(Res);
-    }
-  } else {
+  EXPECTED_TRY(auto Data,
+               MemInstSrc.getBytes(Src, Len).map_error([&Instr](auto E) {
+                 spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                                        Instr.getOffset()));
+                 return E;
+               }));
+  return MemInstDst.setBytes(Data, Dst, 0, Len).map_error([&Instr](auto E) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Data);
-  }
+    return E;
+  });
 }
 
 Expect<void>
@@ -91,13 +88,11 @@ Executor::runMemoryFillOp(Runtime::StackManager &StackMgr,
   uint32_t Off = StackMgr.pop().get<uint32_t>();
 
   // Fill data with Val.
-  if (auto Res = MemInst.fillBytes(Val, Off, Len)) {
-    return {};
-  } else {
+  return MemInst.fillBytes(Val, Off, Len).map_error([&Instr](auto E) {
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  }
+    return E;
+  });
 }
 
 } // namespace Executor

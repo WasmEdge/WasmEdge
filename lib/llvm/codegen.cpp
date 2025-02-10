@@ -316,9 +316,7 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     OS.close();
   }
 
-  if (auto Res = outputNativeLibrary(SharedObjectName, OSVec); unlikely(!Res)) {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(outputNativeLibrary(SharedObjectName, OSVec));
 
   LLVM::MemoryBuffer SOFile;
   if (auto [Res, ErrorMessage] =
@@ -612,14 +610,9 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
 
     if (Conf.getCompilerConfigure().getOutputFormat() ==
         CompilerConfigure::OutputFormat::Wasm) {
-      if (auto Res = outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(outputWasmLibrary(LLContext, OutputPath, WasmData, OSVec));
     } else {
-      if (auto Res = outputNativeLibrary(OutputPath, OSVec); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(outputNativeLibrary(OutputPath, OSVec));
     }
   }
 

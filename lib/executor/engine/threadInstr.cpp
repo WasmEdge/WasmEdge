@@ -35,14 +35,15 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
   }
 
   uint32_t Count = RawCount.get<uint32_t>();
-  if (auto Res = atomicNotify(MemInst, Address, Count); unlikely(!Res)) {
-    spdlog::error(Res.error());
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  } else {
-    RawAddress.emplace<uint32_t>(*Res);
-  }
+  EXPECTED_TRY(
+      auto Total,
+      atomicNotify(MemInst, Address, Count).map_error([&Instr](auto E) {
+        spdlog::error(E);
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      }));
+  RawAddress.emplace<uint32_t>(Total);
   return {};
 }
 

@@ -61,8 +61,8 @@ ARG UBUNTU_VER
 
 COPY wasi-nn/install-openvino.sh .
 ENV OPENVINO_UBUNTU_VERSION=${UBUNTU_VER}
-ENV OPENVINO_VERSION="2024.2.0"
-ENV OPENVINO_YEAR="2024"
+ENV OPENVINO_VERSION="2025.0.0"
+ENV OPENVINO_YEAR="2025"
 RUN [ "/bin/bash", "install-openvino.sh" ]
 
 COPY wasi-nn/install-onnxruntime.sh .

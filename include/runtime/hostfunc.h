@@ -85,14 +85,13 @@ protected:
                                    std::make_index_sequence<F::ArgsN>());
     auto FuncArgTuple =
         std::tuple_cat(std::move(GeneralArguments), std::move(ArgTuple));
-    if (auto RetTuple = std::apply(&T::body, std::move(FuncArgTuple))) {
-      if constexpr (F::hasReturn) {
-        using RetsT = typename F::RetsT;
-        fromTuple(std::forward<SpanR>(Rets), RetsT(*RetTuple),
-                  std::make_index_sequence<F::RetsN>());
-      }
+    if constexpr (F::hasReturn) {
+      EXPECTED_TRY(typename F::RetsT RetTuple,
+                   std::apply(&T::body, std::move(FuncArgTuple)));
+      fromTuple(std::forward<SpanR>(Rets), std::move(RetTuple),
+                std::make_index_sequence<F::RetsN>());
     } else {
-      return Unexpect(RetTuple);
+      EXPECTED_TRY(std::apply(&T::body, std::move(FuncArgTuple)));
     }
 
     return {};

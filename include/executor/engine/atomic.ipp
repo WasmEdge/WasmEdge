@@ -40,16 +40,14 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
 
   int64_t Timeout = RawTimeout.get<int64_t>();
 
-  if (auto Res = atomicWait<T>(MemInst, Address, RawValue.get<T>(), Timeout);
-      unlikely(!Res)) {
-    spdlog::error(Res.error());
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(Res);
-  } else {
-    RawAddress.emplace<uint32_t>(*Res);
-  }
-  return {};
+  return atomicWait<T>(MemInst, Address, RawValue.get<T>(), Timeout)
+      .map_error([&Instr](auto E) {
+        spdlog::error(E);
+        spdlog::error(
+            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+        return E;
+      })
+      .map([&](auto V) { RawAddress.emplace<uint32_t>(V); });
 }
 
 template <typename T, typename I>

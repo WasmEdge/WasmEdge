@@ -23,12 +23,13 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     // Initialize memory if the data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Run initialize expression.
-      if (auto Res = runExpression(StackMgr, DataSeg.getExpr().getInstrs());
-          unlikely(!Res)) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(runExpression(StackMgr, DataSeg.getExpr().getInstrs())
+                       .map_error([](auto E) {
+                         spdlog::error(
+                             ErrInfo::InfoAST(ASTNodeAttr::Expression));
+                         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
+                         return E;
+                       }));
       Offset = StackMgr.pop().get<uint32_t>();
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
@@ -71,13 +72,14 @@ Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
       const uint32_t Off = DataInst->getOffset();
 
       // Replace mem[Off : Off + n] with data[0 : n].
-      if (auto Res = MemInst->setBytes(
-              DataInst->getData(), Off, 0,
-              static_cast<uint32_t>(DataInst->getData().size()));
-          !Res) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(
+          MemInst
+              ->setBytes(DataInst->getData(), Off, 0,
+                         static_cast<uint32_t>(DataInst->getData().size()))
+              .map_error([](auto E) {
+                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
+                return E;
+              }));
 
       // Drop the data instance.
       DataInst->clear();

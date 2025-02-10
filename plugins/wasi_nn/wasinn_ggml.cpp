@@ -1762,7 +1762,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
     // Prompt with image input. Check is llava or mllama case.
 
-    // First check the projection model is loaded.
+    // First check the projection model is given.
+    if (GraphRef.MMProjModelPath == ""sv) {
+      RET_ERROR(
+          ErrNo::InvalidArgument,
+          "setInput: the given model does not support image input, so a projection model is required."sv)
+    }
+
+    // Make sure the projection model is loaded.
     if (GraphRef.ClipContext == nullptr) {
       LOG_INFO(
           true,

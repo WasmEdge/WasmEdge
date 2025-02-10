@@ -12,48 +12,47 @@ namespace Loader {
 // Load binary of TableSegment node. See "include/loader/loader.h".
 Expect<void> Loader::loadSegment(AST::TableSegment &TabSeg) {
   // Check the first byte is the reftype in table type or not.
-  if (auto CheckByte = FMgr.peekByte()) {
-    if (*CheckByte == 0x40U) {
-      // Table segment case is for FunctionReferences proposal.
-      if (!Conf.hasProposal(Proposal::FunctionReferences)) {
-        return logNeedProposal(ErrCode::Value::MalformedTable,
-                               Proposal::FunctionReferences,
-                               FMgr.getLastOffset(), ASTNodeAttr::Seg_Table);
-      }
-      FMgr.readByte();
+  EXPECTED_TRY(auto CheckByte, FMgr.peekByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Seg_Table)
+        .value();
+  }));
 
-      // Check the second byte.
-      if (auto Res = FMgr.readByte()) {
-        if (*Res != 0x00U) {
-          return logLoadError(ErrCode::Value::MalformedTable,
-                              FMgr.getLastOffset(), ASTNodeAttr::Seg_Table);
-        }
-      } else {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Seg_Table);
-      }
-
-      // Read the table type.
-      if (auto Res = loadType(TabSeg.getTableType()); unlikely(!Res)) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
-        return Unexpect(Res);
-      }
-
-      // Read the expression.
-      if (auto Res = loadExpression(TabSeg.getExpr()); unlikely(!Res)) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
-        return Unexpect(Res);
-      }
-    } else {
-      // The table type case.
-      if (auto Res = loadType(TabSeg.getTableType()); unlikely(!Res)) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
-        return Unexpect(Res);
-      }
+  if (CheckByte == 0x40U) {
+    // Table segment case is for FunctionReferences proposal.
+    if (!Conf.hasProposal(Proposal::FunctionReferences)) {
+      return logNeedProposal(ErrCode::Value::MalformedTable,
+                             Proposal::FunctionReferences, FMgr.getLastOffset(),
+                             ASTNodeAttr::Seg_Table);
     }
+    FMgr.readByte();
+
+    // Check the second byte.
+    EXPECTED_TRY(auto B, FMgr.readByte().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Seg_Table)
+          .value();
+    }));
+    if (B != 0x00U) {
+      return logLoadError(ErrCode::Value::MalformedTable, FMgr.getLastOffset(),
+                          ASTNodeAttr::Seg_Table);
+    }
+
+    // Read the table type.
+    EXPECTED_TRY(loadType(TabSeg.getTableType()).map_error([](auto E) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
+      return E;
+    }));
+
+    // Read the expression.
+    EXPECTED_TRY(loadExpression(TabSeg.getExpr()).map_error([](auto E) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
+      return E;
+    }));
   } else {
-    return logLoadError(CheckByte.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Seg_Table);
+    // The table type case.
+    EXPECTED_TRY(loadType(TabSeg.getTableType()).map_error([](auto E) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Table));
+      return E;
+    }));
   }
 
   return {};
@@ -61,19 +60,19 @@ Expect<void> Loader::loadSegment(AST::TableSegment &TabSeg) {
 
 // Load binary of GlobalSegment node. See "include/loader/loader.h".
 Expect<void> Loader::loadSegment(AST::GlobalSegment &GlobSeg) {
-  // Read global type node.
-  if (auto Res = loadType(GlobSeg.getGlobalType()); unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
-    return Unexpect(Res);
-  }
-
-  // Read the expression.
-  if (auto Res = loadExpression(GlobSeg.getExpr()); unlikely(!Res)) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
-    return Unexpect(Res);
-  }
-
-  return {};
+  return Expect<void>{}
+      .and_then([this, &GlobSeg]() {
+        // Read global type node.
+        return loadType(GlobSeg.getGlobalType());
+      })
+      .and_then([this, &GlobSeg]() {
+        // Read the expression.
+        return loadExpression(GlobSeg.getExpr());
+      })
+      .map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Global));
+        return E;
+      });
 }
 
 // Load binary of ElementSegment node. See "include/loader/loader.h".
@@ -94,19 +93,16 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // Mode: element initial integer, u32
   // TableIdx: target table index, u32
   // OffExpr: init offset expression, expr
-  // ElemKind: byte 0x00, RefType::FuncRef
+  // ElemKind: byte 0x00, ref.func
   // RefType: reference type, RefType
   // vec(FuncIdx): function index vector, vec(u32)
   // vec(expr): reference init list, vec(expr)
 
   // Read the checking byte.
-  uint32_t Check;
-  if (auto Res = FMgr.readU32()) {
-    Check = *Res;
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Seg_Element);
-  }
+  EXPECTED_TRY(uint32_t Check, FMgr.readU32().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Seg_Element)
+        .value();
+  }));
   // Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
   if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
@@ -145,12 +141,13 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   switch (Check) {
   case 0x02:
   case 0x06:
-    if (auto Res = FMgr.readU32()) {
-      ElemSeg.setIdx(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Element);
-    }
+    EXPECTED_TRY(FMgr.readU32()
+                     .map_error([this](auto E) {
+                       return logLoadError(E, FMgr.getLastOffset(),
+                                           ASTNodeAttr::Seg_Element)
+                           .value();
+                     })
+                     .map([&](auto Idx) { ElemSeg.setIdx(Idx); }));
     break;
 
   default:
@@ -163,10 +160,10 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   case 0x02:
   case 0x04:
   case 0x06:
-    if (auto Res = loadExpression(ElemSeg.getExpr()); unlikely(!Res)) {
+    EXPECTED_TRY(loadExpression(ElemSeg.getExpr()).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-      return Unexpect(Res);
-    }
+      return E;
+    }));
     break;
 
   default:
@@ -174,39 +171,38 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   }
 
   // Read element kind and init function indices.
-  ElemSeg.setRefType(TypeCode::FuncRef);
   switch (Check) {
   case 0x01:
   case 0x02:
   case 0x03:
-    if (auto Res = FMgr.readByte()) {
-      if (*Res != 0x00U) {
-        return logLoadError(ErrCode::Value::ExpectedZeroByte,
-                            FMgr.getLastOffset(), ASTNodeAttr::Seg_Element);
-      }
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Element);
-    }
+    EXPECTED_TRY(FMgr.readByte()
+                     .and_then([&](auto B) -> Expect<void> {
+                       if (B != 0x00U) {
+                         return Unexpect(ErrCode::Value::ExpectedZeroByte);
+                       };
+                       return {};
+                     })
+                     .map_error([this](auto E) {
+                       return logLoadError(E, FMgr.getLastOffset(),
+                                           ASTNodeAttr::Seg_Element)
+                           .value();
+                     }));
     [[fallthrough]];
 
   case 0x00: {
-    uint32_t VecCnt = 0;
-    if (auto Res = FMgr.readU32()) {
-      VecCnt = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Seg_Element);
-    }
+    EXPECTED_TRY(uint32_t VecCnt, FMgr.readU32().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Seg_Element)
+          .value();
+    }));
     for (uint32_t I = 0; I < VecCnt; ++I) {
       // For each element in vec(funcidx), make expr(ref.func idx end).
       ElemSeg.getInitExprs().emplace_back();
       AST::Instruction RefFunc(OpCode::Ref__func);
       AST::Instruction End(OpCode::End);
-      if (auto Res = loadInstruction(RefFunc); unlikely(!Res)) {
+      EXPECTED_TRY(loadInstruction(RefFunc).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-        return Unexpect(Res);
-      }
+        return E;
+      }));
       ElemSeg.getInitExprs().back().getInstrs().emplace_back(
           std::move(RefFunc));
       ElemSeg.getInitExprs().back().getInstrs().emplace_back(std::move(End));
@@ -217,18 +213,23 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     break;
   }
 
+  // Set the default reference type.
+  if (Check == 0x04) {
+    ElemSeg.setRefType(TypeCode::FuncRef);
+  } else {
+    ElemSeg.setRefType(ValType(TypeCode::Ref, TypeCode::FuncRef));
+  }
+
   // Read the reference type and init expressions.
   switch (Check) {
   case 0x05:
   case 0x06:
-  case 0x07:
-    if (auto Res = loadRefType(ASTNodeAttr::Seg_Element)) {
-      ElemSeg.setRefType(*Res);
-    } else {
-      // The AST node information is handled.
-      return Unexpect(Res);
-    }
+  case 0x07: {
+    // The AST node information is handled.
+    EXPECTED_TRY(auto Type, loadRefType(ASTNodeAttr::Seg_Element));
+    ElemSeg.setRefType(Type);
     [[fallthrough]];
+  }
   case 0x04: {
     return loadVec<AST::ElementSegment>(
         ElemSeg.getInitExprs(), [this](AST::Expression &Expr) -> Expect<void> {
@@ -267,7 +268,6 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t TotalLocalCnt = 0;
   for (uint32_t I = 0; I < VecCnt; ++I) {
     uint32_t LocalCnt = 0;
-    ValType LocalType;
     if (auto Res = FMgr.readU32(); unlikely(!Res)) {
       return logLoadError(Res.error(), FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);
@@ -281,12 +281,8 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     }
     TotalLocalCnt += LocalCnt;
     // Read the value type.
-    if (auto Res = loadValType(ASTNodeAttr::Seg_Code)) {
-      LocalType = *Res;
-    } else {
-      // The AST node information is handled.
-      return Unexpect(Res);
-    }
+    // The AST node information is handled.
+    EXPECTED_TRY(ValType LocalType, loadValType(ASTNodeAttr::Seg_Code));
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }
 
@@ -297,11 +293,11 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     FMgr.seek(ExprSizeBound);
   } else {
     // Read function body with expected expression size.
-    if (auto Res = loadExpression(CodeSeg.getExpr(), ExprSizeBound);
-        unlikely(!Res)) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Code));
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(
+        loadExpression(CodeSeg.getExpr(), ExprSizeBound).map_error([](auto E) {
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Code));
+          return E;
+        }));
   }
 
   return {};
@@ -354,10 +350,10 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
 
   case 0x00: // 0x00 expr vec(byte) , Active
     // Read the offset expression.
-    if (auto Res = loadExpression(DataSeg.getExpr()); !Res) {
+    EXPECTED_TRY(loadExpression(DataSeg.getExpr()).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
-      return Unexpect(Res);
-    }
+      return E;
+    }));
     DataSeg.setMode(AST::DataSegment::DataMode::Active);
     [[fallthrough]];
 

@@ -14,21 +14,11 @@ namespace Loader {
 
 // OpCode loader. See "include/loader/loader.h".
 Expect<OpCode> Loader::loadOpCode() {
-  uint8_t Prefix;
-  if (auto B1 = FMgr.readByte()) {
-    Prefix = (*B1);
-  } else {
-    return Unexpect(B1);
-  }
+  EXPECTED_TRY(uint8_t Prefix, FMgr.readByte());
 
   if (Prefix >= 0xFBU && Prefix <= 0xFEU) {
     // Multi-byte OpCode case.
-    uint32_t Extend;
-    if (auto B2 = FMgr.readU32()) {
-      Extend = (*B2);
-    } else {
-      return Unexpect(B2);
-    }
+    EXPECTED_TRY(uint32_t Extend, FMgr.readU32());
     if (Prefix == 0xFBU) {
       switch (Extend) {
 #define UseOpCode
@@ -153,7 +143,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     }
 
     // Check with proposals.
-    if (auto Res = Conf.isInstrNeedProposal(Code); unlikely(Res.has_value())) {
+    if (auto Res = Conf.isInstrNeedProposal(Code); unlikely(!!Res)) {
       return logNeedProposal(ErrCode::Value::IllegalOpCode, Res.value(), Offset,
                              ASTNodeAttr::Instruction);
     }
@@ -214,9 +204,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
 
     // Create the instruction node and load contents.
     Instrs.emplace_back(Code, static_cast<uint32_t>(Offset));
-    if (auto Res = loadInstruction(Instrs.back()); !Res) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(loadInstruction(Instrs.back()));
 
     if (Code == OpCode::End) {
       // Post process the End instruction.
@@ -312,34 +300,24 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   auto readMemImmediate = [this, readU32, &Instr]() -> Expect<void> {
     Instr.getTargetIndex() = 0;
-    if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
-      return Unexpect(Res);
+    EXPECTED_TRY(readU32(Instr.getMemoryAlign()));
+    if (Conf.hasProposal(Proposal::MultiMemories) &&
+        Instr.getMemoryAlign() >= 64) {
+      Instr.getMemoryAlign() -= 64;
+      EXPECTED_TRY(readU32(Instr.getTargetIndex()));
     }
-    if (Instr.getMemoryAlign() >= 128) {
-      return logLoadError(ErrCode::Value::InvalidStoreAlignment,
+    if (unlikely(Instr.getMemoryAlign() >= 32)) {
+      // This is for WASM32. May change for memory64 proposal in the future.
+      return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-    } else if (Instr.getMemoryAlign() >= 64) {
-      if (Conf.hasProposal(Proposal::MultiMemories)) {
-        Instr.getMemoryAlign() -= 64;
-        if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-          return Unexpect(Res);
-        }
-      } else {
-        return logLoadError(ErrCode::Value::InvalidStoreAlignment,
-                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-      }
     }
-    if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
     return {};
   };
 
   auto readCheckZero = [this, readU8](uint32_t &Dst) -> Expect<void> {
     uint8_t C = 0;
-    if (auto Res = readU8(C); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readU8(C));
     if (C != UINT8_C(0)) {
       return logLoadError(ErrCode::Value::ExpectedZeroByte,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
@@ -361,12 +339,9 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
           // Value type case. Seek back to the origin offset and read the
           // valtype.
           FMgr.seek(StartOffset);
-          if (auto TypeRes = loadValType(ASTNodeAttr::Instruction)) {
-            Dst.setData(*TypeRes);
-          } else {
-            // The AST node information is handled.
-            return Unexpect(TypeRes);
-          }
+          // The AST node information is handled.
+          EXPECTED_TRY(auto Type, loadValType(ASTNodeAttr::Instruction));
+          Dst.setData(Type);
         }
       } else {
         // Type index case.
@@ -404,9 +379,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Try_table: {
     Instr.setTryCatch();
     // Read the result type.
-    if (auto Res = readBlockType(Instr.getTryCatch().ResType); !Res) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readBlockType(Instr.getTryCatch().ResType));
     uint32_t VecCnt = 0;
     // Read the vector of catch.
     if (auto Res = loadVecCnt()) {
@@ -430,14 +403,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       }
       if (!Desc.IsAll) {
         // Read the tag index.
-        if (auto Res = readU32(Desc.TagIndex); !Res) {
-          return Unexpect(Res);
-        }
+        EXPECTED_TRY(readU32(Desc.TagIndex));
       }
       // Read the label index.
-      if (auto Res = readU32(Desc.LabelIndex); !Res) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(readU32(Desc.LabelIndex));
     }
     return {};
   }
@@ -483,10 +452,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     Instr.setLabelListSize(VecCnt + 1);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = readU32(Instr.getLabelList()[I].TargetIndex);
-          unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(readU32(Instr.getLabelList()[I].TargetIndex));
     }
     // Read default label.
     return readU32(Instr.getLabelList()[VecCnt].TargetIndex);
@@ -501,14 +467,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Call_indirect:
   case OpCode::Return_call_indirect: {
     // Read the type index.
-    if (auto Res = readU32(Instr.getTargetIndex()); !Res) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readU32(Instr.getTargetIndex()));
     uint64_t SrcIdxOffset = FMgr.getOffset();
     // Read the table index.
-    if (auto Res = readU32(Instr.getSourceIndex()); !Res) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readU32(Instr.getSourceIndex()));
     if ((Instr.getSourceIndex() > 0 || FMgr.getOffset() - SrcIdxOffset > 1) &&
         !Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
@@ -521,23 +483,21 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // Reference Instructions.
   case OpCode::Ref__null:
   case OpCode::Ref__test_null:
-  case OpCode::Ref__cast_null:
-    if (auto Res = loadHeapType(TypeCode::RefNull, ASTNodeAttr::Instruction)) {
-      Instr.setValType(*Res);
-    } else {
-      // The AST node information is handled.
-      return Unexpect(Res);
-    }
+  case OpCode::Ref__cast_null: {
+    // The AST node information is handled.
+    EXPECTED_TRY(auto Type,
+                 loadHeapType(TypeCode::RefNull, ASTNodeAttr::Instruction));
+    Instr.setValType(Type);
     return {};
+  }
   case OpCode::Ref__test:
-  case OpCode::Ref__cast:
-    if (auto Res = loadHeapType(TypeCode::Ref, ASTNodeAttr::Instruction)) {
-      Instr.setValType(*Res);
-    } else {
-      // The AST node information is handled.
-      return Unexpect(Res);
-    }
+  case OpCode::Ref__cast: {
+    // The AST node information is handled.
+    EXPECTED_TRY(auto Type,
+                 loadHeapType(TypeCode::Ref, ASTNodeAttr::Instruction));
+    Instr.setValType(Type);
     return {};
+  }
   case OpCode::Ref__is_null:
   case OpCode::Ref__eq:
   case OpCode::Ref__as_non_null:
@@ -563,9 +523,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Array__copy:
   case OpCode::Array__init_data:
   case OpCode::Array__init_elem:
-    if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readU32(Instr.getTargetIndex()));
     return readU32(Instr.getSourceIndex());
   case OpCode::Br_on_cast:
   case OpCode::Br_on_cast_fail: {
@@ -624,12 +582,9 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     }
     Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
-      if (auto Res = loadValType(ASTNodeAttr::Instruction)) {
-        Instr.getValTypeList()[I] = *Res;
-      } else {
-        // The AST node information is handled.
-        return Unexpect(Res);
-      }
+      // The AST node information is handled.
+      EXPECTED_TRY(auto Type, loadValType(ASTNodeAttr::Instruction));
+      Instr.getValTypeList()[I] = Type;
     }
     return {};
   }
@@ -644,9 +599,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   // Table Instructions.
   case OpCode::Table__init:
-    if (auto Res = readU32(Instr.getSourceIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readU32(Instr.getSourceIndex()));
     [[fallthrough]];
   case OpCode::Table__get:
   case OpCode::Table__set:
@@ -656,9 +609,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Elem__drop:
     return readU32(Instr.getTargetIndex());
   case OpCode::Table__copy:
-    if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readU32(Instr.getTargetIndex()));
     return readU32(Instr.getSourceIndex());
 
   // Memory Instructions.
@@ -692,9 +643,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       return logLoadError(ErrCode::Value::DataCountRequired, Instr.getOffset(),
                           ASTNodeAttr::Instruction);
     }
-    if (auto Res = readU32(Instr.getSourceIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readU32(Instr.getSourceIndex()));
     [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
@@ -705,14 +654,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return readCheckZero(Instr.getTargetIndex());
   case OpCode::Memory__copy:
     if (Conf.hasProposal(Proposal::MultiMemories)) {
-      if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-        return Unexpect(Res);
-      }
+      EXPECTED_TRY(readU32(Instr.getTargetIndex()));
       return readU32(Instr.getSourceIndex());
     }
-    if (auto Res = readCheckZero(Instr.getTargetIndex()); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readCheckZero(Instr.getTargetIndex()));
     return readCheckZero(Instr.getSourceIndex());
   case OpCode::Data__drop:
     if (!HasDataSection) {
@@ -922,9 +867,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::V128__store32_lane:
   case OpCode::V128__store64_lane:
     // Read memory immediate.
-    if (auto Res = readMemImmediate(); unlikely(!Res)) {
-      return Unexpect(Res);
-    }
+    EXPECTED_TRY(readMemImmediate());
     // Read lane index.
     return readU8(Instr.getMemoryLane());
 

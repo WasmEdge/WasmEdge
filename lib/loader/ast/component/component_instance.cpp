@@ -13,20 +13,12 @@ Expect<void> Loader::loadInstantiateArg(InstantiateArg<SortIndex<Sort>> &Arg) {
   // syntax `(with n si)`
   //
   // instantiatearg ::= n:<string>  si:<sortidx>
-  if (auto Res = FMgr.readName()) {
-    Arg.getName() = *Res;
-  } else {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(Arg.getName(), FMgr.readName());
   return loadSortIndex(Arg.getIndex());
 }
 
 Expect<void> Loader::loadInlineExport(InlineExport<Sort> &Exp) {
-  if (auto Res = FMgr.readName()) {
-    Exp.getName() = *Res;
-  } else {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(Exp.getName(), FMgr.readName());
   return loadSortIndex(Exp.getSortIdx());
 }
 
@@ -34,136 +26,97 @@ Expect<void> Loader::loadInstantiateArg(CoreInstantiateArg &Arg) {
   // syntax `(with n (instance i))`
   //
   // core:instantiatearg ::= n:<core:name> 0x12 i:<instanceidx>
-  if (auto Res = FMgr.readName()) {
-    Arg.getName() = *Res;
-  } else {
-    return Unexpect(Res);
-  }
-  if (auto Res = FMgr.readByte(); !Res) {
+  EXPECTED_TRY(Arg.getName(), FMgr.readName());
+  EXPECTED_TRY(auto B, FMgr.readByte().map_error([this](auto) {
     return logLoadError(ErrCode::Value::MalformedCoreInstance,
-                        FMgr.getLastOffset(), ASTNodeAttr::CoreInstance);
-  } else if (*Res != 0x12U) {
-    return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
+                        FMgr.getLastOffset(), ASTNodeAttr::CoreInstance)
+        .value();
+  }));
+  if (B != 0x12U) {
+    return logLoadError(ErrCode::Value::IllegalGrammar, FMgr.getLastOffset(),
                         ASTNodeAttr::CoreInstance);
   }
-  if (auto Res = FMgr.readU32()) {
-    Arg.getIndex() = *Res;
-  } else {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(Arg.getIndex(), FMgr.readU32());
 
   return {};
 }
 
 Expect<void> Loader::loadInlineExport(InlineExport<CoreSort> &Exp) {
-  if (auto Res = FMgr.readName()) {
-    Exp.getName() = *Res;
-  } else {
-    return Unexpect(Res);
-  }
+  EXPECTED_TRY(Exp.getName(), FMgr.readName());
   return loadCoreSortIndex(Exp.getSortIdx());
 }
 
 Expect<void> Loader::loadInstance(InstanceExpr &InstanceExpr) {
-  if (auto Tag = FMgr.readByte()) {
-    switch (*Tag) {
-    case 0x00: {
-      uint32_t Idx = 0;
-      if (auto Res = FMgr.readU32()) {
-        Idx = *Res;
-      } else {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Instance));
-        return Unexpect(Res);
-      }
-      std::vector<InstantiateArg<SortIndex<Sort>>> Args{};
-      if (auto Res = loadVec<InstanceSection>(
-              Args,
-              [this](InstantiateArg<SortIndex<Sort>> &Arg) -> Expect<void> {
-                return loadInstantiateArg(Arg);
-              });
-          !Res) {
-        return Unexpect(Res);
-      }
-
-      InstanceExpr.emplace<Instantiate>(Instantiate(Idx, std::move(Args)));
-      break;
-    }
-    case 0x01: {
-      std::vector<InlineExport<Sort>> Exports{};
-      if (auto Res = loadVec<InstanceSection>(
-              Exports,
-              [this](InlineExport<Sort> &Arg) -> Expect<void> {
-                return loadInlineExport(Arg);
-              });
-          !Res) {
-        return Unexpect(Res);
-      }
-
-      InstanceExpr.emplace<CompInlineExports>(InlineExports(Exports));
-      break;
-    }
-    default:
-      return logLoadError(ErrCode::Value::MalformedInstance,
-                          FMgr.getLastOffset(), ASTNodeAttr::Instance);
-    }
-
-    return {};
-  } else {
+  auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Instance));
-    return Unexpect(Tag);
+    return E;
+  };
+  EXPECTED_TRY(auto Tag, FMgr.readByte().map_error(ReportError));
+  switch (Tag) {
+  case 0x00: {
+    EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
+    std::vector<InstantiateArg<SortIndex<Sort>>> Args{};
+    EXPECTED_TRY(loadVec<InstanceSection>(
+        Args, [this](InstantiateArg<SortIndex<Sort>> &Arg) -> Expect<void> {
+          return loadInstantiateArg(Arg);
+        }));
+
+    InstanceExpr.emplace<Instantiate>(Instantiate(Idx, std::move(Args)));
+    break;
   }
+  case 0x01: {
+    std::vector<InlineExport<Sort>> Exports{};
+    EXPECTED_TRY(
+        loadVec<InstanceSection>(Exports, [this](InlineExport<Sort> &Arg) {
+          return loadInlineExport(Arg);
+        }));
+
+    InstanceExpr.emplace<CompInlineExports>(InlineExports(Exports));
+    break;
+  }
+  default:
+    return logLoadError(ErrCode::Value::MalformedInstance, FMgr.getLastOffset(),
+                        ASTNodeAttr::Instance);
+  }
+
+  return {};
 }
 
 Expect<void> Loader::loadCoreInstance(CoreInstanceExpr &InstanceExpr) {
-  if (auto Tag = FMgr.readByte()) {
-    switch (*Tag) {
-    case 0x00: {
-      uint32_t Idx = 0;
-      if (auto Res = FMgr.readU32()) {
-        Idx = *Res;
-      } else {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::CoreInstance));
-        return Unexpect(Res);
-      }
-      std::vector<CoreInstantiateArg> Args{};
-      if (auto Res = loadVec<CoreInstanceSection>(
-              Args,
-              [this](CoreInstantiateArg &Arg) -> Expect<void> {
-                return loadInstantiateArg(Arg);
-              });
-          !Res) {
-        return Unexpect(Res);
-      }
-
-      InstanceExpr.emplace<CoreInstantiate>(CoreInstantiate(Idx, Args));
-
-      break;
-    }
-    case 0x01: {
-      std::vector<InlineExport<CoreSort>> Exports{};
-      if (auto Res = loadVec<CoreInstanceSection>(
-              Exports,
-              [this](InlineExport<CoreSort> &Arg) -> Expect<void> {
-                return loadInlineExport(Arg);
-              });
-          !Res) {
-        return Unexpect(Res);
-      }
-
-      InstanceExpr.emplace<CoreInlineExports>(CoreInlineExports(Exports));
-
-      break;
-    }
-    default:
-      return logLoadError(ErrCode::Value::MalformedCoreInstance,
-                          FMgr.getLastOffset(), ASTNodeAttr::CoreInstance);
-    }
-
-    return {};
-  } else {
+  auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::CoreInstance));
-    return Unexpect(Tag);
+    return E;
+  };
+  EXPECTED_TRY(auto Tag, FMgr.readByte().map_error(ReportError));
+  switch (Tag) {
+  case 0x00: {
+    EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
+    std::vector<CoreInstantiateArg> Args{};
+    EXPECTED_TRY(
+        loadVec<CoreInstanceSection>(Args, [this](CoreInstantiateArg &Arg) {
+          return loadInstantiateArg(Arg);
+        }));
+
+    InstanceExpr.emplace<CoreInstantiate>(CoreInstantiate(Idx, Args));
+
+    break;
   }
+  case 0x01: {
+    std::vector<InlineExport<CoreSort>> Exports{};
+    EXPECTED_TRY(loadVec<CoreInstanceSection>(
+        Exports,
+        [this](InlineExport<CoreSort> &Arg) { return loadInlineExport(Arg); }));
+
+    InstanceExpr.emplace<CoreInlineExports>(CoreInlineExports(Exports));
+
+    break;
+  }
+  default:
+    return logLoadError(ErrCode::Value::MalformedCoreInstance,
+                        FMgr.getLastOffset(), ASTNodeAttr::CoreInstance);
+  }
+
+  return {};
 }
 
 } // namespace Loader

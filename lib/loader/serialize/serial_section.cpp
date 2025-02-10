@@ -53,10 +53,10 @@ Serializer::serializeSection(const AST::TypeSection &Sec,
         serializeU32(RecInfo->RecTypeSize, OutVec);
         RecCnt++;
       }
-      if (auto Res = serializeType(STypes[I], OutVec); unlikely(!Res)) {
+      EXPECTED_TRY(serializeType(STypes[I], OutVec).map_error([](auto E) {
         spdlog::error(ASTNodeAttr::Sec_Type);
-        return Unexpect(Res);
-      }
+        return E;
+      }));
     }
     // Backward insert the recursive type vector size.
     serializeU32(RecCnt, OutVec,

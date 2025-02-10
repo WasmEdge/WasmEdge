@@ -196,9 +196,7 @@ WasiExpect<void> INode::fdDatasync() const noexcept {
 }
 
 WasiExpect<void> INode::fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept {
-  if (auto Res = updateStat(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(updateStat());
 
   if (int FdFlags = ::fcntl(Fd, F_GETFL); unlikely(FdFlags < 0)) {
     return WasiUnexpect(fromErrNo(errno));
@@ -249,9 +247,7 @@ INode::fdFdstatSetFlags(__wasi_fdflags_t FdFlags) const noexcept {
 
 WasiExpect<void>
 INode::fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
-  if (auto Res = updateStat(); unlikely(!Res)) {
-    return WasiUnexpect(Res);
-  }
+  EXPECTED_TRY(updateStat());
 
   // Zeroing out these values to prevent leaking information about the host
   // environment from special fd such as stdin, stdout and stderr.
@@ -321,9 +317,7 @@ INode::fdFilestatSetTimes(__wasi_timestamp_t ATim, __wasi_timestamp_t MTim,
   }
 
   if (NeedFile) {
-    if (auto Res = updateStat(); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    }
+    EXPECTED_TRY(updateStat());
   }
 
   timespec Now;
@@ -1337,9 +1331,7 @@ __wasi_filetype_t INode::unsafeFiletype() const noexcept {
 
 WasiExpect<__wasi_filetype_t> INode::filetype() const noexcept {
   if (!Stat) {
-    if (auto Res = updateStat(); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    }
+    EXPECTED_TRY(updateStat());
   }
   return unsafeFiletype();
 }
@@ -1364,9 +1356,7 @@ bool INode::isSymlink() const noexcept {
 
 WasiExpect<__wasi_filesize_t> INode::filesize() const noexcept {
   if (!Stat) {
-    if (auto Res = updateStat(); unlikely(!Res)) {
-      return WasiUnexpect(Res);
-    }
+    EXPECTED_TRY(updateStat());
   }
   return Stat->st_size;
 }

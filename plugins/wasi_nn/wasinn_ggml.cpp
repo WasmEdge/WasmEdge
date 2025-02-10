@@ -56,7 +56,7 @@ namespace {
   return Error;
 
 // Llama logging callback.
-void LlamaLogCallback(ggml_log_level LogLevel, const char *LogText,
+void llamaLogCallback(ggml_log_level LogLevel, const char *LogText,
                       void *UserData) {
   Graph &GraphRef = *reinterpret_cast<Graph *>(UserData);
   if (!GraphRef.EnableLog) {
@@ -112,6 +112,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   //   tts: bool
   //   model-vocoder: string
   //   tts-output-file: string
+  //   tts-speaker-file: string
   // Context parameters (used by the llama context):
   //   ctx-size: int64_t
   //   batch-size: int64_t
@@ -285,6 +286,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the tts-output-file option."sv)
     }
     GraphRef.TTSOutputFilePath = TTSOutputFilePath;
+  }
+  if (Doc.at_key("tts-speaker-file").error() == simdjson::SUCCESS) {
+    std::string_view TTSSpeakerFilePath;
+    auto Err =
+        Doc["tts-speaker-file"].get<std::string_view>().get(TTSSpeakerFilePath);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the tts-speaker-file option."sv)
+    }
+    GraphRef.TTSSpeakerFilePath = TTSSpeakerFilePath;
   }
 
   // The context parameters.
@@ -1867,99 +1878,13 @@ extractBase64ImagePayload(std::string &Prompt,
 }
 
 // TTS function to process the prompt text.
-const std::vector<llama_token> TTSVoiceData = llama_tokens{
-    151667, 198,    1782,   155780, 151669, 151929, 152412, 152308, 152585,
-    152460, 153375, 151670, 198,    74455,  155808, 151669, 151799, 151873,
-    151863, 152446, 152372, 152204, 152728, 152229, 152470, 151970, 153413,
-    152419, 153334, 153289, 153374, 153199, 152040, 153260, 152721, 152680,
-    153297, 152419, 153248, 152400, 152691, 153368, 153437, 151670, 198,
-    1722,   155828, 151669, 152607, 152256, 152991, 152299, 152688, 153163,
-    153016, 152789, 153198, 152712, 151911, 153107, 152623, 152170, 152395,
-    152852, 152207, 152461, 153321, 153309, 151750, 152137, 153340, 152573,
-    152267, 153347, 151789, 152681, 153339, 151992, 152512, 151751, 152179,
-    153434, 153180, 152900, 153440, 152474, 153122, 153129, 151904, 152311,
-    151670, 198,    1499,   155791, 151669, 152276, 152454, 153354, 152544,
-    153204, 153272, 152708, 153433, 152319, 153226, 153043, 152325, 153267,
-    152622, 151670, 198,    4250,   155797, 151669, 153454, 153342, 151989,
-    152458, 153420, 152303, 152271, 152827, 153036, 153196, 151708, 153263,
-    152561, 153207, 152213, 152112, 153204, 151722, 152542, 151670, 198,
-    19789,  155796, 151669, 153353, 153182, 152345, 152471, 152477, 153014,
-    152002, 152191, 151734, 152312, 152810, 152237, 153224, 153169, 153224,
-    152244, 153387, 153404, 151670, 198,    16069,  155811, 151669, 152265,
-    151946, 151808, 152412, 152363, 152305, 153156, 152733, 152810, 153157,
-    152016, 152100, 152069, 153234, 152317, 152589, 152707, 153121, 153341,
-    152159, 152114, 153156, 153001, 153504, 153376, 152272, 152433, 152325,
-    151941, 151670, 198,    285,    155788, 151669, 152238, 152255, 153427,
-    152318, 153009, 152381, 152474, 152680, 152157, 153255, 152324, 151682,
-    151670, 198,    32955,  155804, 151669, 153490, 153419, 152364, 152405,
-    152682, 152206, 152078, 153369, 152725, 153193, 153027, 152946, 152488,
-    153070, 151883, 152890, 152489, 153144, 153375, 152358, 151685, 152494,
-    152117, 152740, 151670, 198,    37448,  480,    155840, 151669, 151902,
-    152720, 153377, 152027, 152378, 152821, 153207, 153459, 153028, 153068,
-    152507, 153255, 152158, 152921, 151958, 152609, 152748, 152822, 152286,
-    151714, 152730, 152377, 152353, 152470, 152606, 152162, 152186, 153071,
-    152244, 153118, 153375, 153018, 152712, 153098, 152976, 152336, 151843,
-    153202, 152297, 151736, 153380, 153502, 152702, 152115, 153181, 152735,
-    153277, 153457, 152393, 153112, 152595, 151670, 198,    19098,  155808,
-    151669, 152464, 153452, 152595, 153312, 151937, 151933, 153197, 152239,
-    153163, 152922, 153402, 152034, 152591, 153438, 152215, 151673, 152005,
-    151785, 152642, 151924, 153278, 151805, 151974, 153482, 152718, 152862,
-    153347, 151670, 198,    72,     155780, 151669, 151795, 152111, 152746,
-    152377, 153471, 152309, 151670, 198,    19016,  155788, 151669, 153181,
-    152271, 152190, 152842, 152224, 152701, 152939, 152536, 152091, 151815,
-    152733, 151672, 151670, 198,    14689,  155788, 151669, 152291, 152072,
-    152942, 151734, 153042, 153504, 152589, 153333, 151839, 151941, 153038,
-    153180, 151670, 198,    36996,  8303,   155832, 151669, 152231, 152256,
-    152835, 152801, 152985, 153400, 152393, 152818, 152765, 152249, 152600,
-    151699, 152302, 152752, 153018, 153009, 151992, 153054, 152847, 153354,
-    153228, 152662, 153355, 152532, 153393, 151782, 152458, 152048, 152757,
-    152428, 153195, 151906, 153006, 153178, 153250, 152331, 152284, 152780,
-    153138, 153319, 151980, 153142, 152418, 152228, 152733, 151670, 198,
-    9096,   155801, 151669, 151698, 153321, 152217, 153039, 152935, 153400,
-    152122, 152531, 153106, 152169, 152892, 152957, 151851, 152427, 152826,
-    152451, 151851, 152901, 152885, 152594, 153446, 153080, 151670, 198,
-    14689,  155795, 151669, 152658, 151700, 153321, 152450, 152530, 153191,
-    151673, 151690, 151698, 152714, 152846, 152981, 153171, 153384, 153364,
-    153188, 153246, 151670, 198,    1055,   155779, 151669, 151869, 152388,
-    152711, 153334, 151736, 151670, 198,    1782,   155780, 151669, 153483,
-    153240, 152241, 152558, 152697, 153046, 151670, 198,    5804,   1363,
-    155820, 151669, 152941, 152764, 152605, 153034, 153434, 153372, 153347,
-    151887, 152453, 152758, 152133, 152510, 152694, 152431, 152321, 153088,
-    152676, 152223, 152581, 152459, 152015, 152502, 153063, 152712, 153294,
-    153451, 153032, 152903, 152859, 152989, 151748, 152669, 152661, 152650,
-    152409, 151861, 151670, 198,    300,    7973,   155828, 151669, 153095,
-    152469, 152988, 152894, 151819, 152391, 153019, 152058, 153062, 153230,
-    151826, 152112, 152306, 152264, 152769, 153390, 152384, 152435, 152790,
-    153393, 152983, 152540, 152252, 152034, 153107, 152540, 151919, 151893,
-    152558, 152817, 152946, 152956, 152129, 152715, 153131, 153490, 151734,
-    152271, 152707, 151734, 153321, 152450, 151670, 198,    8088,   155792,
-    151669, 152452, 153497, 153353, 152679, 152533, 152382, 152374, 152611,
-    153341, 153163, 152285, 153411, 152495, 153141, 152320, 151670, 198,
-    1199,   155781, 151669, 151764, 152360, 153295, 152634, 153342, 152199,
-    152271, 151670, 198,    43366,  155799, 151669, 152308, 151682, 152889,
-    152016, 152385, 152629, 152495, 151826, 153321, 152958, 152180, 151886,
-    153432, 152922, 152128, 153024, 153040, 152593, 152287, 151677, 151670,
-    198,    53660,  155808, 151669, 151727, 152092, 152680, 153331, 151699,
-    152316, 152938, 152289, 152433, 153384, 151781, 153137, 153259, 152175,
-    153213, 152291, 151869, 152691, 152489, 151941, 152049, 152034, 153053,
-    152179, 153160, 151676, 153367, 151670, 198,    268,    4123,   480,
-    155821, 151669, 152350, 152173, 152536, 151991, 151960, 153144, 153013,
-    152358, 152234, 153135, 152291, 153235, 152143, 152583, 152402, 153483,
-    152678, 152192, 152533, 152946, 151797, 153103, 152310, 152293, 151825,
-    152548, 153442, 152109, 152659, 153325, 152781, 152570, 152957, 151752,
-    152265, 153381, 152515, 151670, 198,    437,    155787, 151669, 152957,
-    152659, 151975, 152709, 152402, 152836, 152174, 151792, 153409, 153327,
-    152990, 151670, 198,    275,    155781, 151669, 152520, 153038, 152067,
-    153273, 153185, 152265, 152974, 151670, 198,    94273,  155799, 151669,
-    152953, 152938, 153427, 152244, 151920, 153423, 152929, 152367, 153052,
-    152129, 152331, 152257, 152987, 152777, 153448, 152408, 151696, 152408,
-    152326, 152699, 151670, 198,    385,    16239,  155828, 151669, 152306,
-    152268, 153438, 153228, 152978, 152957, 153153, 153393, 152795, 152110,
-    152918, 152923, 152467, 152331, 153053, 153330, 151889, 153444, 152234,
-    152624, 151779, 152801, 152784, 152139, 152222, 152751, 152512, 153287,
-    153141, 153052, 151840, 152589, 152508, 153499, 152109, 152255, 151739,
-    152267, 152759, 153318, 153165, 153349, 151670,
+// clang-format off
+const TTSSpeakerProfile TTSDefaultSpeakerProfile = {
+  // Speaker profile from edwko/OuteTTS (en_female_1.json).
+  "<|text_start|>uhm<|text_sep|>now<|text_sep|>being<|text_sep|>the<|text_sep|>one<|text_sep|>to<|text_sep|>say<|text_sep|>i<|text_sep|>know<|text_sep|>the<|text_sep|>worst<|text_sep|>of<|text_sep|>you<|text_sep|>and<|text_sep|>ive<|text_sep|>been<|text_sep|>directly<|text_sep|>affected<|text_sep|>by<|text_sep|>people<|text_sep|>like<|text_sep|>you<|text_sep|>but<|text_sep|>its<|text_sep|>a<|text_sep|>clean<|text_sep|>slate<|text_sep|>with<|text_sep|>me<|text_sep|>buddy<|text_sep|>you<|text_sep|>know<|text_sep|>like<|text_sep|>thats<|text_sep|>really<|text_sep|>powerful<|text_sep|>in<|text_sep|>and<|text_sep|>of<|text_sep|>itself<|text_sep|>",
+  "<|audio_start|>\nuhm<|t_0.36|><|code_start|><|447|><|223|><|967|><|301|><|965|><|827|><|393|><|908|><|764|><|1167|><|711|><|1222|><|324|><|1318|><|806|><|498|><|1198|><|1127|><|1178|><|916|><|1234|><|1411|><|1428|><|706|><|427|><|1605|><|1578|><|code_end|>\nnow<|t_0.36|><|code_start|><|1049|><|327|><|385|><|1070|><|732|><|1480|><|450|><|1025|><|1469|><|174|><|1013|><|1710|><|1674|><|775|><|771|><|251|><|778|><|1400|><|897|><|1487|><|366|><|441|><|1000|><|393|><|271|><|1000|><|768|><|code_end|>\nbeing<|t_0.27|><|code_start|><|926|><|406|><|1457|><|437|><|1231|><|672|><|1785|><|521|><|1179|><|1559|><|198|><|1086|><|733|><|122|><|1344|><|845|><|348|><|1389|><|470|><|1773|><|code_end|>\nthe<|t_0.08|><|code_start|><|1775|><|562|><|768|><|1222|><|768|><|963|><|code_end|>\none<|t_0.21|><|code_start|><|1757|><|744|><|144|><|1610|><|655|><|616|><|1317|><|225|><|1325|><|913|><|1342|><|992|><|1018|><|80|><|1777|><|883|><|code_end|>\nto<|t_0.08|><|code_start|><|487|><|1363|><|1682|><|1426|><|655|><|1483|><|code_end|>\nsay<|t_0.27|><|code_start|><|1644|><|1804|><|731|><|273|><|1592|><|731|><|1523|><|1404|><|984|><|1207|><|430|><|1132|><|1123|><|768|><|1116|><|829|><|1082|><|1095|><|440|><|1162|><|code_end|>\ni<|t_0.33|><|code_start|><|1330|><|335|><|1162|><|1155|><|308|><|1162|><|1150|><|1481|><|612|><|674|><|712|><|1745|><|1188|><|1787|><|1135|><|1275|><|1237|><|1143|><|408|><|1063|><|393|><|927|><|1298|><|132|><|1686|><|code_end|>\nknow<|t_0.27|><|code_start|><|983|><|1677|><|586|><|1528|><|1435|><|835|><|1396|><|706|><|987|><|22|><|1172|><|218|><|1404|><|1001|><|521|><|1389|><|775|><|1416|><|877|><|120|><|code_end|>\nthe<|t_0.16|><|code_start|><|916|><|1756|><|513|><|1245|><|1392|><|89|><|1266|><|12|><|1045|><|1075|><|904|><|35|><|code_end|>\nworst<|t_0.32|><|code_start|><|1607|><|174|><|1231|><|144|><|932|><|490|><|771|><|1504|><|798|><|674|><|364|><|80|><|1314|><|1636|><|449|><|1704|><|713|><|1795|><|968|><|1527|><|1302|><|1529|><|1176|><|795|><|code_end|>\nof<|t_0.12|><|code_start|><|1193|><|1205|><|390|><|1128|><|1091|><|883|><|322|><|377|><|1070|><|code_end|>\nyou<|t_0.17|><|code_start|><|1016|><|1332|><|926|><|281|><|927|><|1368|><|1687|><|918|><|67|><|1638|><|1317|><|1265|><|1770|><|code_end|>\nand<|t_0.28|><|code_start|><|1129|><|1633|><|1373|><|1207|><|405|><|879|><|1030|><|1253|><|1071|><|612|><|724|><|1770|><|665|><|1046|><|1351|><|1450|><|1541|><|1384|><|111|><|1477|><|284|><|code_end|>\nive<|t_0.35|><|code_start|><|674|><|266|><|89|><|1333|><|1183|><|1526|><|1143|><|883|><|1135|><|732|><|827|><|1119|><|594|><|1261|><|1024|><|1347|><|92|><|1392|><|825|><|1710|><|1289|><|1598|><|1070|><|1525|><|1442|><|555|><|code_end|>\nbeen<|t_0.17|><|code_start|><|1461|><|194|><|337|><|1128|><|188|><|892|><|848|><|1280|><|959|><|754|><|231|><|649|><|1304|><|code_end|>\ndirectly<|t_0.87|><|code_start|><|1030|><|353|><|570|><|1331|><|470|><|1832|><|1362|><|1809|><|1383|><|101|><|325|><|1557|><|1242|><|1512|><|180|><|227|><|1242|><|643|><|209|><|464|><|171|><|1219|><|174|><|1723|><|734|><|118|><|1269|><|643|><|209|><|187|><|612|><|1231|><|68|><|567|><|1242|><|505|><|319|><|1268|><|794|><|678|><|40|><|1286|><|470|><|1454|><|199|><|965|><|188|><|300|><|1234|><|1125|><|794|><|1289|><|1224|><|257|><|469|><|1121|><|101|><|823|><|1769|><|1683|><|95|><|255|><|59|><|67|><|832|><|code_end|>\naffected<|t_0.44|><|code_start|><|510|><|873|><|787|><|1228|><|771|><|1428|><|501|><|751|><|696|><|258|><|845|><|1818|><|1112|><|498|><|1111|><|985|><|1073|><|832|><|1427|><|168|><|163|><|447|><|119|><|567|><|1626|><|1820|><|903|><|635|><|1060|><|10|><|1632|><|35|><|1635|><|code_end|>\nby<|t_0.19|><|code_start|><|144|><|144|><|460|><|185|><|1112|><|1044|><|498|><|1192|><|656|><|1333|><|1001|><|1186|><|1186|><|454|><|code_end|>\npeople<|t_0.48|><|code_start|><|1260|><|747|><|351|><|526|><|612|><|1151|><|1262|><|1791|><|344|><|1752|><|1547|><|930|><|1302|><|1703|><|1289|><|92|><|1407|><|1482|><|508|><|1431|><|355|><|1696|><|337|><|199|><|1157|><|223|><|464|><|568|><|845|><|411|><|826|><|718|><|1786|><|545|><|712|><|580|><|code_end|>\nlike<|t_0.32|><|code_start|><|630|><|532|><|526|><|607|><|526|><|839|><|1305|><|660|><|459|><|339|><|717|><|1178|><|1148|><|687|><|149|><|1390|><|229|><|199|><|513|><|712|><|1451|><|731|><|582|><|1551|><|code_end|>\nyou<|t_0.21|><|code_start|><|1389|><|954|><|1781|><|1047|><|1236|><|930|><|809|><|1621|><|1268|><|384|><|242|><|587|><|869|><|816|><|1680|><|405|><|code_end|>\nbut<|t_0.59|><|code_start|><|1089|><|1590|><|908|><|80|><|594|><|1046|><|1706|><|1025|><|1150|><|405|><|548|><|893|><|1285|><|464|><|301|><|939|><|643|><|23|><|285|><|161|><|209|><|453|><|72|><|167|><|417|><|244|><|151|><|643|><|391|><|199|><|651|><|1023|><|337|><|1010|><|54|><|331|><|1167|><|756|><|388|><|934|><|1060|><|18|><|1624|><|1060|><|code_end|>\nits<|t_0.16|><|code_start|><|1102|><|183|><|1199|><|1258|><|1285|><|35|><|659|><|180|><|426|><|1587|><|1733|><|942|><|code_end|>\na<|t_0.04|><|code_start|><|791|><|1012|><|818|><|code_end|>\nclean<|t_0.61|><|code_start|><|1819|><|976|><|163|><|447|><|316|><|223|><|763|><|457|><|1208|><|1808|><|1697|><|1162|><|1660|><|1833|><|1054|><|1734|><|1121|><|1309|><|1643|><|924|><|1677|><|1548|><|869|><|1268|><|223|><|674|><|111|><|792|><|1670|><|912|><|174|><|1554|><|90|><|80|><|1563|><|1621|><|1698|><|1544|><|992|><|988|><|175|><|793|><|1661|><|1026|><|80|><|1761|><|code_end|>\nslate<|t_0.40|><|code_start|><|1802|><|322|><|1689|><|1577|><|1302|><|1552|><|1529|><|1722|><|1580|><|582|><|1642|><|1529|><|1020|><|582|><|1538|><|970|><|437|><|1141|><|1477|><|988|><|335|><|1611|><|922|><|1558|><|1120|><|1189|><|423|><|188|><|171|><|562|><|code_end|>\nwith<|t_0.15|><|code_start|><|963|><|1347|><|1274|><|747|><|1230|><|712|><|1408|><|1290|><|957|><|1279|><|258|><|code_end|>\nme<|t_0.09|><|code_start|><|638|><|1058|><|174|><|1452|><|1038|><|894|><|1571|><|code_end|>\nbuddy<|t_0.32|><|code_start|><|1003|><|130|><|1341|><|938|><|40|><|804|><|167|><|89|><|1456|><|1189|><|1155|><|1171|><|1434|><|1077|><|1029|><|1455|><|1622|><|1037|><|163|><|1411|><|1165|><|1463|><|837|><|1202|><|code_end|>\nyou<|t_0.36|><|code_start|><|1354|><|1165|><|615|><|1588|><|1192|><|1445|><|1033|><|982|><|401|><|1079|><|684|><|1570|><|266|><|31|><|420|><|163|><|893|><|845|><|905|><|1827|><|1804|><|153|><|627|><|243|><|1179|><|298|><|1147|><|code_end|>\nknow<|t_0.19|><|code_start|><|163|><|1542|><|1366|><|698|><|1753|><|206|><|916|><|1499|><|245|><|665|><|600|><|894|><|587|><|1741|><|code_end|>\nlike<|t_0.24|><|code_start|><|1106|><|1280|><|1062|><|1304|><|945|><|809|><|598|><|104|><|1001|><|822|><|965|><|189|><|693|><|1810|><|1293|><|199|><|1277|><|44|><|code_end|>\nthats<|t_0.24|><|code_start|><|121|><|1789|><|1443|><|370|><|1154|><|393|><|1178|><|1200|><|1264|><|424|><|1391|><|381|><|978|><|1346|><|704|><|1808|><|1579|><|1492|><|code_end|>\nreally<|t_0.56|><|code_start|><|1177|><|1761|><|1723|><|1360|><|1413|><|830|><|551|><|193|><|59|><|332|><|598|><|734|><|1684|><|1802|><|60|><|1590|><|353|><|89|><|1636|><|1396|><|893|><|143|><|455|><|1501|><|435|><|1082|><|621|><|1593|><|677|><|474|><|971|><|1513|><|913|><|828|><|1381|><|1148|><|1798|><|1186|><|1443|><|38|><|335|><|883|><|code_end|>\npowerful<|t_0.63|><|code_start|><|1773|><|458|><|1070|><|964|><|826|><|1220|><|1012|><|1738|><|1125|><|669|><|490|><|1169|><|922|><|958|><|1204|><|489|><|1001|><|886|><|1045|><|675|><|1471|><|1652|><|732|><|698|><|1124|><|480|><|897|><|1484|><|1028|><|35|><|594|><|1465|><|505|><|1669|><|436|><|851|><|1288|><|31|><|1501|><|1187|><|394|><|909|><|1541|><|1793|><|1720|><|922|><|840|><|code_end|>\nin<|t_0.16|><|code_start|><|1317|><|523|><|630|><|1343|><|1187|><|719|><|907|><|636|><|111|><|1524|><|188|><|1382|><|code_end|>\nand<|t_0.13|><|code_start|><|1074|><|922|><|1280|><|1496|><|1050|><|832|><|133|><|1435|><|1049|><|1774|><|code_end|>\nof<|t_0.12|><|code_start|><|960|><|1052|><|1192|><|1303|><|1112|><|970|><|417|><|60|><|1155|><|code_end|>\nitself<|t_0.47|><|code_start|><|1682|><|1209|><|1410|><|513|><|1222|><|861|><|167|><|406|><|1551|><|582|><|634|><|1529|><|786|><|1363|><|1578|><|1739|><|873|><|424|><|1041|><|1328|><|955|><|1110|><|1490|><|1424|><|1199|><|988|><|1162|><|1133|><|1193|><|978|><|470|><|832|><|963|><|1251|><|733|><|code_end|>",
 };
+// clang-format on
 
 const std::map<int, std::string> Ones = {
     {0, "zero"},     {1, "one"},        {2, "two"},       {3, "three"},
@@ -1974,23 +1899,23 @@ const std::map<int, std::string> Tens = {
 
 // Convert a number less than 1000 to words
 std::string convertLessThanThousand(int Num) {
-  std::string result;
+  std::string Result;
 
   if (Num >= 100) {
-    result += Ones.at(Num / 100) + " hundred ";
+    Result += Ones.at(Num / 100) + " hundred ";
     Num %= 100;
   }
 
   if (Num >= 20) {
-    result += Tens.at(Num / 10);
+    Result += Tens.at(Num / 10);
     if (Num % 10 > 0) {
-      result += "-" + Ones.at(Num % 10);
+      Result += "-" + Ones.at(Num % 10);
     }
   } else if (Num > 0) {
-    result += Ones.at(Num);
+    Result += Ones.at(Num);
   }
 
-  return result;
+  return Result;
 }
 
 std::string numberToWords(const std::string &NumberStr) {
@@ -2005,20 +1930,20 @@ std::string numberToWords(const std::string &NumberStr) {
       Result = "zero";
     } else {
       if (IntNumber >= 1000000000) {
-        int billions = IntNumber / 1000000000;
-        Result += convertLessThanThousand(billions) + " billion ";
+        int Billions = IntNumber / 1000000000;
+        Result += convertLessThanThousand(Billions) + " billion ";
         IntNumber %= 1000000000;
       }
 
       if (IntNumber >= 1000000) {
-        int millions = IntNumber / 1000000;
-        Result += convertLessThanThousand(millions) + " million ";
+        int Millions = IntNumber / 1000000;
+        Result += convertLessThanThousand(Millions) + " million ";
         IntNumber %= 1000000;
       }
 
       if (IntNumber >= 1000) {
-        int thousands = IntNumber / 1000;
-        Result += convertLessThanThousand(thousands) + " thousand ";
+        int Thousands = IntNumber / 1000;
+        Result += convertLessThanThousand(Thousands) + " thousand ";
         IntNumber %= 1000;
       }
 
@@ -2030,9 +1955,9 @@ std::string numberToWords(const std::string &NumberStr) {
     // Handle decimal part
     if (DecimalPos != std::string::npos) {
       Result += " point";
-      std::string decimal_part = NumberStr.substr(DecimalPos + 1);
-      for (char digit : decimal_part) {
-        Result += " " + Ones.at(digit - '0');
+      std::string DecimalPart = NumberStr.substr(DecimalPos + 1);
+      for (char Digit : DecimalPart) {
+        Result += " " + Ones.at(Digit - '0');
       }
     }
 
@@ -2070,7 +1995,7 @@ std::string processTTSPromptText(const std::string &Text) {
 
   std::transform(
       ProcessedText.begin(), ProcessedText.end(), ProcessedText.begin(),
-      [](unsigned char c) { return static_cast<char>(::tolower(c)); });
+      [](unsigned char C) { return static_cast<char>(::tolower(C)); });
 
   std::regex SpecialChars(R"([-_/,\.\\])");
   ProcessedText = std::regex_replace(ProcessedText, SpecialChars, " ");
@@ -2090,25 +2015,67 @@ std::string processTTSPromptText(const std::string &Text) {
   return ProcessedText;
 }
 
+std::optional<TTSSpeakerProfile>
+getSpeakerProfileFromFile(const std::string &FilePath) {
+  std::ifstream JsonFile(FilePath);
+  if (!JsonFile.is_open()) {
+    return std::nullopt;
+  }
+  nlohmann::json JsonData;
+  JsonFile >> JsonData;
+  JsonFile.close();
+
+  // Initialize the outputs
+  std::string AudioOutputText = "<|audio_start|>\n";
+  std::string TextOutput = "<|text_start|>";
+
+  // Iterate through each word in the JSON data
+  for (const auto &WordData : JsonData["words"]) {
+    std::string Word = WordData["word"];
+    double Duration = WordData["duration"];
+    std::vector<int> Codes = WordData["codes"];
+
+    // Create the audio output entry
+    std::ostringstream WordEntry;
+    WordEntry << Word << "<|t_" << std::fixed << std::setprecision(2)
+              << Duration << "|><|code_start|>";
+    for (const auto &Code : Codes) {
+      WordEntry << "<|" << Code << "|>";
+    }
+    WordEntry << "<|code_end|>\n";
+    AudioOutputText += WordEntry.str();
+
+    // Create the text output entry
+    TextOutput += Word + "<|text_sep|>";
+  }
+
+  return TTSSpeakerProfile{TextOutput, AudioOutputText};
+}
+
 std::vector<llama_token> processTTSPrompt(Graph &GraphRef,
                                           std::string &Prompt) noexcept {
+  // Use the custom speaker profile if available.
+  TTSSpeakerProfile SpeakerProfile = TTSDefaultSpeakerProfile;
+  if (!GraphRef.TTSSpeakerFilePath.empty()) {
+    std::optional<TTSSpeakerProfile> SpeakerProfileOpt =
+        getSpeakerProfileFromFile(GraphRef.TTSSpeakerFilePath);
+    if (SpeakerProfileOpt.has_value()) {
+      SpeakerProfile = *SpeakerProfileOpt;
+    } else {
+      RET_ERROR(
+          {},
+          "processTTSPrompt: Failed to load speaker profile from file: {}"sv,
+          GraphRef.TTSSpeakerFilePath);
+    }
+  }
   std::string ProcessedPrompt = processTTSPromptText(Prompt);
   std::vector<llama_token> Result, TmpTokens;
   Result = common_tokenize(GraphRef.LlamaContext.get(), "<|im_start|>\n",
                            /* add_special */ true,
                            /* parse_special */ true);
-  TmpTokens = common_tokenize(
-      GraphRef.LlamaContext.get(),
-      "<|text_start|>the<|text_sep|>overall<|text_sep|>package<|text_sep|>from<"
-      "|text_sep|>just<|text_sep|>two<|text_sep|>people<|text_sep|>is<|text_"
-      "sep|>pretty<|text_sep|>remarkable<|text_sep|>sure<|text_sep|>i<|text_"
-      "sep|>have<|text_sep|>some<|text_sep|>critiques<|text_sep|>about<|text_"
-      "sep|>some<|text_sep|>of<|text_sep|>the<|text_sep|>gameplay<|text_sep|>"
-      "aspects<|text_sep|>but<|text_sep|>its<|text_sep|>still<|text_sep|>"
-      "really<|text_sep|>enjoyable<|text_sep|>and<|text_sep|>it<|text_sep|>"
-      "looks<|text_sep|>lovely<|text_sep|>",
-      /* add_special */ false,
-      /* parse_special */ true);
+  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), SpeakerProfile.Text,
+                              /* add_special */ false,
+                              /* parse_special */ true);
   Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
   TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), ProcessedPrompt,
                               /* add_special */ false,
@@ -2118,7 +2085,10 @@ std::vector<llama_token> processTTSPrompt(Graph &GraphRef,
                               /* add_special */ false,
                               /* parse_special */ true);
   Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
-  Result.insert(Result.end(), TTSVoiceData.begin(), TTSVoiceData.end());
+  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), SpeakerProfile.Data,
+                              /* add_special */ false,
+                              /* parse_special */ true);
+  Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
 
   return Result;
 }
@@ -2316,7 +2286,8 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
           ErrNo::RuntimeError,
           "evaluateTokens: failed to llama_decode: try reducing the size of the batch "sv
           "or increasing the size of context."sv)
-    } else if (Status < 0) {
+    }
+    if (Status < 0) {
       RET_ERROR(
           ErrNo::RuntimeError,
           "evaluateTokens: failed to llama_decode: internal fatal error. Please open "sv
@@ -2391,7 +2362,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
     case VisionModel::Qwen2VL:
       LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd"sv,
                 LogPrefix)
-      auto ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
+      auto *ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
       EvalImageStatus = evaluateQwen2vlImageEmbed(
           GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
           static_cast<int>(GraphRef.Params.n_batch), CxtRef.NPos, ImageSize);
@@ -2778,8 +2749,8 @@ ErrNo codesToSpeech(Graph &GraphRef, Context &CxtRef) noexcept {
 
   // Zero out first 0.25 seconds of audio.
   const uint32_t SamplingRate = 24000;
-  for (uint32_t i = 0; i < SamplingRate / 4; ++i) {
-    AudioData[i] = 0.0f;
+  for (uint32_t I = 0; I < SamplingRate / 4; ++I) {
+    AudioData[I] = 0.0f;
   }
 
   // Save .wav file
@@ -2856,7 +2827,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Conf.ImagePath = ""sv;
 
   // Set llama log callback.
-  llama_log_set(LlamaLogCallback, &GraphRef);
+  llama_log_set(llamaLogCallback, &GraphRef);
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {
@@ -3118,7 +3089,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
     // Prompt with image input. Check is llava or mllama case.
 
-    // First check the projection model is loaded.
+    // First check the projection model is given.
+    if (GraphRef.MMProjModelPath == ""sv) {
+      RET_ERROR(
+          ErrNo::InvalidArgument,
+          "setInput: the given model does not support image input, so a projection model is required."sv)
+    }
+
+    // Make sure the projection model is loaded.
     if (GraphRef.ClipContext == nullptr) {
       LOG_INFO(
           true,
@@ -3258,6 +3236,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // TTS prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize tts prompt"sv)
     CxtRef.LlamaInputs = processTTSPrompt(GraphRef, Prompt);
+    if (CxtRef.LlamaInputs.empty()) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "setInput: failed to tokenize tts prompt."sv)
+    }
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize tts prompt...Done"sv)
   } else {
     // Text only prompt.

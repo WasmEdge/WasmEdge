@@ -12,10 +12,10 @@ Serializer::serializeExpression(const AST::Expression &Expr,
                                 std::vector<uint8_t> &OutVec) const noexcept {
   // Expression: instr*.
   for (const auto &Instr : Expr.getInstrs()) {
-    if (auto Res = serializeInstruction(Instr, OutVec); unlikely(!Res)) {
+    EXPECTED_TRY(serializeInstruction(Instr, OutVec).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
-      return Unexpect(Res);
-    }
+      return E;
+    }));
   }
   return {};
 }

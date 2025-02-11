@@ -166,7 +166,32 @@ WasiCryptoExpect<__wasi_keypair_t>
 Context::keypairGenerateManaged(__wasi_secrets_manager_t,
                                 AsymmetricCommon::Algorithm,
                                 __wasi_opt_options_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  auto SecretsManager = SecretsManagerManager.get(SecretsManagerHandle);
+  if (!SecretsManager) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
+  }
+
+  auto OptOptions = mapAndTransposeOptional(
+      OptOptionsHandle,
+      [this](__wasi_options_t OptionsHandle) noexcept {
+        return OptionsManager.get(OptionsHandle);
+      });
+  if (!OptOptions) {
+    return WasiCryptoUnexpect(OptOptions);
+  }
+
+  return AsymmetricCommon::generateKp(Alg, asOptionalRef(*OptOptions))
+      .and_then([this, &SecretsManagerHandle](auto &&Kp) noexcept {
+        return KeyPairManager.registerManager(std::forward<decltype(Kp)>(Kp))
+            .and_then([SecretsManagerHandle](auto KpHandle) noexcept {
+              if (!SecretsManagerManager.associateKeyPair(
+                      SecretsManagerHandle, KpHandle)) {
+                return WasiCryptoUnexpect(
+                    __WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
+              }
+              return WasiCryptoExpect<__wasi_keypair_t>{KpHandle};
+            });
+      });
 }
 
 WasiCryptoExpect<void> Context::keypairStoreManaged(__wasi_secrets_manager_t,

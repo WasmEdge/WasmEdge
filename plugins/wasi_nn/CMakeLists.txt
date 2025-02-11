@@ -22,6 +22,18 @@ wasmedge_add_library(wasmedgePluginWasiNN
 include(WASINNDeps)
 wasmedge_setup_wasinn_target(wasmedgePluginWasiNN PLUGINLIB)
 
+# Handle the version of the WASI-NN plugin
+string(REPLACE "." ";" WASI_NN_VERSION_LIST ${WASMEDGE_WASI_NN_VERSION})
+list(GET WASI_NN_VERSION_LIST 0 WASI_NN_VERSION_MAJOR)
+list(GET WASI_NN_VERSION_LIST 1 WASI_NN_VERSION_MINOR)
+list(GET WASI_NN_VERSION_LIST 2 WASI_NN_VERSION_PATCH)
+
+target_compile_definitions(wasmedgePluginWasiNN PRIVATE
+    WASI_NN_VERSION_MAJOR=${WASI_NN_VERSION_MAJOR}
+    WASI_NN_VERSION_MINOR=${WASI_NN_VERSION_MINOR}
+    WASI_NN_VERSION_PATCH=${WASI_NN_VERSION_PATCH}
+)
+
 # This for-each iteration is for the additional sources.
 # The dependencies are moved into `cmake/WASINNDeps.cmake`.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})

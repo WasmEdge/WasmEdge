@@ -173,7 +173,8 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     /* Name */ "wasi_nn",
     /* Description */ "",
     /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,
-    /* Version */ {0, 10, 1, 0},
+    /* Version */
+    {WASI_NN_VERSION_MAJOR, WASI_NN_VERSION_MINOR, WASI_NN_VERSION_PATCH, 0},
     /* ModuleCount */ 1,
     /* ModuleDescriptions */ MD,
     /* ComponentCount */ 0,

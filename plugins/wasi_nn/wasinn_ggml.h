@@ -61,18 +61,14 @@ struct Graph {
   bool EnableLog = false;
   bool EnableDebugLog = false;
   common_params Params;
-  std::vector<float> TensorSplit;
-  enum llama_split_mode SplitMode = LLAMA_SPLIT_MODE_LAYER;
   // Model context:
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;
   // Clip context (for llava):
-  std::string MMProjModelPath;
   struct clip_ctx *ClipContext = nullptr;
   VisionModel VisionModelType = VisionModel::Llava;
   // Text-to-speech:
   bool TextToSpeech = false;
-  std::string VocoderModelPath;
   std::string TTSOutputFilePath = "output.wav";
   std::string TTSSpeakerFilePath;
   llama_model_ptr TTSModel = nullptr;

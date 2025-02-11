@@ -95,43 +95,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     RET_ERROR(ErrNo::InvalidEncoding, "parse metadata error."sv)
   }
 
-  // Currently supported metadata:
-  // Plugin parameters (used by this graph and created contexts):
-  //   enable-log: bool
-  //   enable-debug-log: bool
-  // Model parameters (need to reload the model if updated):
-  //   main-gpu: int64_t
-  //   n-gpu-layers: int64_t
-  //   tensor-split: string, comma-separated floating number list
-  //   embedding: bool
-  //   use-mmap: bool
-  //   warmup: bool
-  //   split-mode: string, {none,layer,row}
-  //   mmproj: string
-  // TTS parameters:
-  //   tts: bool
-  //   model-vocoder: string
-  //   tts-output-file: string
-  //   tts-speaker-file: string
-  // Context parameters (used by the llama context):
-  //   ctx-size: int64_t
-  //   batch-size: int64_t
-  //   ubatch-size: int64_t
-  //   threads: int64_t
-  //   [local-config] always-regenerate-image-embd: bool
-  // Sampling parameters (used by the llama sampling context):
-  //   temp: double
-  //   top-p: double
-  //   repeat-penalty: double
-  //   presence-penalty: double
-  //   frequency-penalty: double
-  //   grammar: string
-  //   seed: uint64_t
-  // Config parameters (mutable config at runtime for contexts):
-  //   stream-stdout: bool
-  //   n-predict: int64_t
-  //   reverse-prompt: string
-  //   image: string
 
   // Get the current llama parameters.
   int64_t PrevNGPULayers = GraphRef.Params.n_gpu_layers;
@@ -192,22 +155,23 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     std::string TS(TSV);
     std::replace(TS.begin(), TS.end(), ',', ' ');
     std::stringstream SS(TS);
-    std::vector<float> TensorSplit;
-    GraphRef.TensorSplit.clear();
+    std::memset(GraphRef.Params.tensor_split, 0,
+                sizeof(GraphRef.Params.tensor_split));
+    uint32_t TensorSplitSize = 0;
     while (SS.good()) {
       float TmpTensor;
       SS >> TmpTensor;
-      GraphRef.TensorSplit.push_back(TmpTensor);
+      GraphRef.Params.tensor_split[TensorSplitSize++] = TmpTensor;
     }
     size_t NDevices = llama_max_devices();
-    if (GraphRef.TensorSplit.size() > NDevices) {
+    if (TensorSplitSize > NDevices) {
       RET_ERROR(
           ErrNo::InvalidArgument,
           "Number of Tensor-Split is larger than MaxDevices, please reduce "sv
           "the size of tensor-split."sv)
     }
-    for (size_t Idx = GraphRef.TensorSplit.size(); Idx < NDevices; Idx++) {
-      GraphRef.TensorSplit.push_back(0.0f);
+    for (size_t Idx = TensorSplitSize; Idx < NDevices; Idx++) {
+      GraphRef.Params.tensor_split[TensorSplitSize++] = 0.0f;
     }
   }
   if (Doc.at_key("embedding").error() == simdjson::SUCCESS) {
@@ -216,13 +180,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the embedding option."sv)
-    }
-  }
-  if (Doc.at_key("use-mmap").error() == simdjson::SUCCESS) {
-    auto Err = Doc["use-mmap"].get<bool>().get(GraphRef.Params.use_mmap);
-    if (Err) {
-      RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the use-mmap option."sv)
     }
   }
   if (Doc.at_key("warmup").error() == simdjson::SUCCESS) {
@@ -240,11 +197,11 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the split-mode option."sv)
     }
     if (SplitMode == "none"sv) {
-      GraphRef.SplitMode = LLAMA_SPLIT_MODE_NONE;
+      GraphRef.Params.split_mode = LLAMA_SPLIT_MODE_NONE;
     } else if (SplitMode == "layer"sv) {
-      GraphRef.SplitMode = LLAMA_SPLIT_MODE_LAYER;
+      GraphRef.Params.split_mode = LLAMA_SPLIT_MODE_LAYER;
     } else if (SplitMode == "row"sv) {
-      GraphRef.SplitMode = LLAMA_SPLIT_MODE_ROW;
+      GraphRef.Params.split_mode = LLAMA_SPLIT_MODE_ROW;
     } else {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unknown split-mode: {}. Valid: none, layer, row."sv, SplitMode)
@@ -257,7 +214,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the mmproj option."sv)
     }
-    GraphRef.MMProjModelPath = MMProjModelPath;
+    GraphRef.Params.mmproj = MMProjModelPath;
   }
 
   // The TTS parameters.
@@ -275,7 +232,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the model-vocoder option."sv)
     }
-    GraphRef.VocoderModelPath = VocoderModelPath;
+    GraphRef.Params.vocoder.model = VocoderModelPath;
   }
   if (Doc.at_key("tts-output-file").error() == simdjson::SUCCESS) {
     std::string_view TTSOutputFilePath;
@@ -605,7 +562,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
           "[WASI-NN] GGML backend: Unable to retrieve the split-mode option."sv);
       return ErrNo::InvalidArgument;
     }
-    GraphRef.SplitMode = static_cast<llama_split_mode>(SplitMode);
+    GraphRef.Params.split_mode = static_cast<llama_split_mode>(SplitMode);
   }
   if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
     int64_t NThreads;
@@ -841,11 +798,12 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the ignore-eos option."sv)
     }
   }
-  if (Doc.at_key("no-perf").error() == simdjson::SUCCESS) {
-    auto Err = Doc["no-perf"].get<bool>().get(GraphRef.Params.sampling.no_perf);
+  if (Doc.at_key("no-perf-sampling").error() == simdjson::SUCCESS) {
+    auto Err = Doc["no-perf-sampling"].get<bool>().get(
+        GraphRef.Params.sampling.no_perf);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the no-perf option."sv)
+                "Unable to retrieve the no-perf-sampling option."sv)
     }
   }
   if (Doc.at_key("timing-per-token").error() == simdjson::SUCCESS) {
@@ -884,67 +842,78 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     GraphRef.Params.sampling.seed = static_cast<int32_t>(Seed);
   }
   // The speculative parameters.
-  if (Doc.at_key("n_ctx-speculative").error() == simdjson::SUCCESS) {
+  if (Doc.at_key("n-ctx-speculative").error() == simdjson::SUCCESS) {
     int64_t NCtxSpeculative;
-    auto Err = Doc["n_ctx-speculative"].get<int64_t>().get(NCtxSpeculative);
+    auto Err = Doc["n-ctx-speculative"].get<int64_t>().get(NCtxSpeculative);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the n_ctx-speculative option."sv)
+                "Unable to retrieve the n-ctx-speculative option."sv)
     }
     GraphRef.Params.speculative.n_ctx = static_cast<int32_t>(NCtxSpeculative);
   }
-  if (Doc.at_key("n_max-speculative").error() == simdjson::SUCCESS) {
+  if (Doc.at_key("n-max-speculative").error() == simdjson::SUCCESS) {
     int64_t NMaxSpeculative;
-    auto Err = Doc["n_max-speculative"].get<int64_t>().get(NMaxSpeculative);
+    auto Err = Doc["n-max-speculative"].get<int64_t>().get(NMaxSpeculative);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the n_max-speculative option."sv)
+                "Unable to retrieve the n-max-speculative option."sv)
     }
     GraphRef.Params.speculative.n_max = static_cast<int32_t>(NMaxSpeculative);
   }
-  if (Doc.at_key("n_min-speculative").error() == simdjson::SUCCESS) {
+  if (Doc.at_key("n-min-speculative").error() == simdjson::SUCCESS) {
     int64_t NMinSpeculative;
-    auto Err = Doc["n_min-speculative"].get<int64_t>().get(NMinSpeculative);
+    auto Err = Doc["n-min-speculative"].get<int64_t>().get(NMinSpeculative);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the n_min-speculative option."sv)
+                "Unable to retrieve the n-min-speculative option."sv)
     }
     GraphRef.Params.speculative.n_min = static_cast<int32_t>(NMinSpeculative);
   }
-  if (Doc.at_key("p_split-speculative").error() == simdjson::SUCCESS) {
-    double PSplitSpeculative;
-    auto Err = Doc["p_split-speculative"].get<double>().get(PSplitSpeculative);
+  if (Doc.at_key("n-gpu-layers-speculative").error() == simdjson::SUCCESS) {
+    int64_t NGPULatersinSpeculative;
+    auto Err = Doc["n-gpu-layers-speculative"].get<int64_t>().get(
+        NGPULatersinSpeculative);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the p_split-speculative option."sv)
+                "Unable to retrieve the n-gpu-layers-speculative option."sv)
+    }
+    GraphRef.Params.speculative.n_gpu_layers =
+        static_cast<int32_t>(NGPULatersinSpeculative);
+  }
+  if (Doc.at_key("p-split-speculative").error() == simdjson::SUCCESS) {
+    double PSplitSpeculative;
+    auto Err = Doc["p-split-speculative"].get<double>().get(PSplitSpeculative);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the p-split-speculative option."sv)
     }
     GraphRef.Params.speculative.p_split = static_cast<float>(PSplitSpeculative);
   }
-  if (Doc.at_key("p_min-speculative").error() == simdjson::SUCCESS) {
+  if (Doc.at_key("p-min-speculative").error() == simdjson::SUCCESS) {
     double PMinSpeculative;
-    auto Err = Doc["p_min-speculative"].get<double>().get(PMinSpeculative);
+    auto Err = Doc["p-min-speculative"].get<double>().get(PMinSpeculative);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the p_min-speculative option."sv)
+                "Unable to retrieve the p-min-speculative option."sv)
     }
     GraphRef.Params.speculative.p_min = static_cast<float>(PMinSpeculative);
   }
   // The vocoder parameters.
-  if (Doc.at_key("hf_repo").error() == simdjson::SUCCESS) {
+  if (Doc.at_key("hf-repo-vocoder").error() == simdjson::SUCCESS) {
     std::string_view HfRepo;
-    auto Err = Doc["hf_repo"].get<std::string_view>().get(HfRepo);
+    auto Err = Doc["hf-repo-vocoder"].get<std::string_view>().get(HfRepo);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the hf_repo option."sv)
+                "Unable to retrieve the hf-repo-vocoder option."sv)
     }
     GraphRef.Params.vocoder.hf_repo = HfRepo;
   }
-  if (Doc.at_key("hf_file").error() == simdjson::SUCCESS) {
+  if (Doc.at_key("hf-file-vocoder").error() == simdjson::SUCCESS) {
     std::string_view HfFile;
-    auto Err = Doc["hf_file"].get<std::string_view>().get(HfFile);
+    auto Err = Doc["hf-file-vocoder"].get<std::string_view>().get(HfFile);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the hf_file option."sv)
+                "Unable to retrieve the hf-file-vocoder option."sv)
     }
     GraphRef.Params.vocoder.hf_file = HfFile;
   }
@@ -1241,6 +1210,13 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the usage option."sv)
     }
   }
+  if (Doc.at_key("use-color").error() == simdjson::SUCCESS) {
+    auto Err = Doc["use-color"].get<bool>().get(GraphRef.Params.use_color);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the use-color option."sv)
+    }
+  }
   if (Doc.at_key("special").error() == simdjson::SUCCESS) {
     auto Err = Doc["special"].get<bool>().get(GraphRef.Params.special);
     if (Err) {
@@ -1314,6 +1290,35 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the flash-attn option."sv)
+    }
+  }
+  if (Doc.at_key("no-perf").error() == simdjson::SUCCESS) {
+    auto Err = Doc["no-perf"].get<bool>().get(GraphRef.Params.no_perf);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the no-perf option."sv)
+    }
+  }
+  if (Doc.at_key("ctx-shift").error() == simdjson::SUCCESS) {
+    auto Err = Doc["ctx-shift"].get<bool>().get(GraphRef.Params.ctx_shift);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the ctx-shift option."sv)
+    }
+  }
+  if (Doc.at_key("input-prefix-bos").error() == simdjson::SUCCESS) {
+    auto Err = Doc["input-prefix-bos"].get<bool>().get(
+        GraphRef.Params.input_prefix_bos);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the input-prefix-bos option."sv)
+    }
+  }
+  if (Doc.at_key("logits-all").error() == simdjson::SUCCESS) {
+    auto Err = Doc["logits-all"].get<bool>().get(GraphRef.Params.logits_all);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the logits-all option."sv)
     }
   }
   if (Doc.at_key("use-mlock").error() == simdjson::SUCCESS) {
@@ -2780,11 +2785,11 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Params.grp_attn_n = 1;
   GraphRef.Params.grp_attn_w = 512;
   GraphRef.Params.n_print = -1;
-  GraphRef.SplitMode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
+  GraphRef.Params.split_mode = llama_split_mode::LLAMA_SPLIT_MODE_LAYER;
   // Initialize the model parameters.
   llama_model_params ModelParamsDefault = llama_model_default_params();
   GraphRef.Params.n_gpu_layers = ModelParamsDefault.n_gpu_layers;
-  GraphRef.MMProjModelPath = ""sv;
+  GraphRef.Params.mmproj = ""sv;
   // Initialize the context parameters.
   llama_context_params ContextParamsDefault = llama_context_default_params();
   GraphRef.Params.cpuparams.n_threads = ContextParamsDefault.n_threads;
@@ -2915,7 +2920,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the TTS related model and context.
   if (GraphRef.TextToSpeech) {
     LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model."sv)
-    Params.model = GraphRef.VocoderModelPath;
+    Params.model = GraphRef.Params.vocoder.model;
     Params.embedding = true;
     common_init_result TTSInit = common_init_from_params(Params);
     GraphRef.TTSModel = std::move(TTSInit.model);
@@ -3089,8 +3094,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
     // Prompt with image input. Check is llava or mllama case.
 
-    // First check the projection model is given.
-    if (GraphRef.MMProjModelPath == ""sv) {
+    // First check the projection model is loaded.
+    if (GraphRef.Params.mmproj == ""sv) {
       RET_ERROR(
           ErrNo::InvalidArgument,
           "setInput: the given model does not support image input, so a projection model is required."sv)
@@ -3104,7 +3109,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           "for CLIP, the step of loading images in CLIP can only use the "sv
           "CPU, which may result in reduced efficiency. (You can refer to "sv
           "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
-      GraphRef.ClipContext = clip_model_load(GraphRef.MMProjModelPath.c_str(),
+      GraphRef.ClipContext = clip_model_load(GraphRef.Params.mmproj.c_str(),
                                              GraphRef.EnableLog ? 1 : 0);
       if (GraphRef.ClipContext == nullptr) {
         RET_ERROR(ErrNo::InvalidArgument,

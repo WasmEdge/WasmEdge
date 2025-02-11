@@ -3,10 +3,21 @@
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 set -e
-echo "Installing OpenVINO with version 2024.2.0"
-wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu20 main" | tee /etc/apt/sources.list.d/intel-openvino-2024.list
+
+if [[ ! -v "${OPENVINO_VERSION}" ]]; then
+  OPENVINO_VERSION="2025.0.0"
+fi
+if [[ ! -v "${OPENVINO_YEAR}" ]]; then
+  OPENVINO_YEAR="2025"
+fi
+
+echo "Installing OpenVINO with version ${OPENVINO_VERSION}"
+KEY_FILE=GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+wget https://apt.repos.intel.com/intel-gpg-keys/$KEY_FILE && \
+    apt-key add $KEY_FILE && \
+    rm -f $KEY_FILE
+UBUNTU_VERSION="ubuntu${OPENVINO_UBUNTU_VERSION:-20}"
+echo "deb https://apt.repos.intel.com/openvino/$OPENVINO_YEAR ${UBUNTU_VERSION} main" | tee /etc/apt/sources.list.d/intel-openvino-$OPENVINO_YEAR.list
 apt update
-apt-get -y install openvino-2024.2.0
+apt-get -y install openvino-$OPENVINO_VERSION
 ldconfig

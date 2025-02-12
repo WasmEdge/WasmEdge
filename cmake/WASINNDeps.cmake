@@ -96,6 +96,12 @@ function(wasmedge_setup_wasinn_target target)
       endif()
       target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX)
       wasmedge_setup_mlx_target(${target})
+    elseif(BACKEND STREQUAL "tensorrt")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build TensorRT backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_TENSORRT)
+      wasmedge_setup_tensorrt_target(${target})
     else()
       # Add the message of other backends here.
       message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")
@@ -611,4 +617,30 @@ function(wasmedge_setup_mlx_target target)
       simdjson::simdjson
     )
   endif()
+endfunction()
+
+# Function of preparing TensorRT library.
+function(wasmedge_setup_tensorrt_target target)
+  wasmedge_setup_simdjson()
+  include(FetchContent)
+  set(BUILD_PYT OFF CACHE INTERNAL "Build in PyTorch TorchScript class mode")
+  set(BUILD_PYBIND OFF CACHE INTERNAL "Build Python bindings for C++ runtime and batch manager")
+  set(BUILD_TESTS OFF CACHE INTERNAL "Build Google tests")
+  set(BUILD_BENCHMARKS OFF CACHE INTERNAL "Build benchmarks")
+  FetchContent_Declare(
+    tensorrt_llm
+    GIT_REPOSITORY https://github.com/NVIDIA/TensorRT-LLM.git
+    GIT_TAG        v0.14.0
+    GIT_SHALLOW    TRUE
+    SOURCE_SUBDIR  cpp
+  )
+  FetchContent_MakeAvailable(tensorrt_llm)
+  target_include_directories(${target} PRIVATE
+    ${tensorrt_llm_SOURCE_DIR}/cpp/include
+  )
+  target_link_libraries(${target} PRIVATE
+    tensorrt_llm
+    nvinfer_plugin_tensorrt_llm
+    simdjson::simdjson
+  )
 endfunction()

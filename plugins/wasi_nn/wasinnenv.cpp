@@ -37,7 +37,9 @@ std::map<std::string_view, Backend> BackendMap = {
     {"whisper"sv, Backend::Whisper},
     {"mlx"sv, Backend::MLX},
     {"piper"sv, Backend::Piper},
-    {"chattts"sv, Backend::ChatTTS}};
+    {"chattts"sv, Backend::ChatTTS},
+    {"tensorrt"sv, Backend::TensorRT},
+};
 
 std::map<std::string_view, Device> DeviceMap = {{"cpu"sv, Device::CPU},
                                                 {"gpu"sv, Device::GPU},
@@ -53,6 +55,11 @@ bool load(const std::filesystem::path &Path, std::vector<uint8_t> &Data) {
   File.seekg(0, std::ios::end);
   std::streampos FileSize = File.tellg();
   File.seekg(0, std::ios::beg);
+  if (static_cast<uint64_t>(FileSize) >= Data.max_size()) {
+    spdlog::error("[WASI-NN] File too big:{}."sv,
+                  static_cast<uint64_t>(FileSize));
+    return false;
+  }
   Data.resize(FileSize);
   File.read(reinterpret_cast<char *>(Data.data()), FileSize);
   File.close();

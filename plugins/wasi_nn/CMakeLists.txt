@@ -17,6 +17,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinn_whisper.cpp
   wasinn_chattts.cpp
   wasinn_mlx.cpp
+  wasinn_tensorrt.cpp
 )
 
 include(WASINNDeps)

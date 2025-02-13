@@ -38,6 +38,11 @@ enum class VisionModel : uint8_t {
   Qwen2VL = 1,
 };
 
+struct TTSSpeakerProfile {
+  std::string Text;
+  std::string Data;
+};
+
 struct LocalConfig {
   // Configurations which can be changed in every contexts.
   // The graph handles a default config and parsed from metadata when loading.
@@ -75,6 +80,7 @@ struct Graph {
   bool TextToSpeech = false;
   std::string VocoderModelPath;
   std::string TTSOutputFilePath = "output.wav";
+  std::string TTSSpeakerFilePath;
   llama_model_ptr TTSModel = nullptr;
   llama_context_ptr TTSContext = nullptr;
   // Context parameters:

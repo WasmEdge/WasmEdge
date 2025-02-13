@@ -115,6 +115,11 @@ if(WASMEDGE_BUILD_SHARED_LIB)
       PRIVATE
       "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/libwasmedge.lds"
     )
+  elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    set_target_properties(wasmedge_shared PROPERTIES
+      LINK_FLAGS
+      "-Wl,-exported_symbols_list,${CMAKE_CURRENT_SOURCE_DIR}/whitelist.symbols"
+    )
   endif()
 
   target_link_libraries(wasmedge_shared

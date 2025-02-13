@@ -101,7 +101,8 @@ jobs:
           gh release upload ${{ inputs.version }} WasmEdge-${{ env.product_version }}-windows.msi --clobber
       - name: Run check_symbols.sh
         run: |
-          bash ./path/to/check_symbols.sh
+          chmod +x ./scripts/check_symbols.sh
+          bash ./scripts/check_symbols.sh
         shell: bash
         env:
           SYMBOLS_PATH: ${{ github.workspace }}/build

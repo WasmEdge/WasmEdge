@@ -359,13 +359,23 @@ private:
 /// wasm interface type
 class InterfaceType {
 public:
-  InterfaceType(TypeCode C) : VTyp{C} {}
+  InterfaceType(TypeCode C) : VTyp{C}, CaseName{std::nullopt} {}
+  InterfaceType(TypeCode C, std::string_view Name) : VTyp{C}, CaseName{Name} {}
   InterfaceType(TypeCode C, std::initializer_list<InterfaceType> Args)
-      : VTyp{C}, TyArgs{Args} {}
+      : VTyp{C}, TyArgs{Args}, CaseName{std::nullopt} {}
 
   TypeCode getCode() const noexcept { return VTyp.getCode(); }
   Span<const InterfaceType> getArgs() const noexcept { return TyArgs; }
   ValType getValType() const noexcept { return VTyp; }
+
+  bool isNone() const noexcept {
+    auto Code = getCode();
+    return Code == TypeCode::Tuple && getArgs().empty();
+  }
+
+  // case name exists to be the type arguments of variant type
+  std::optional<std::string> getCaseName() const noexcept { return CaseName; }
+  void setCaseName(std::string &&N) noexcept { CaseName.emplace(N); }
 
   friend bool operator==(const InterfaceType &LHS,
                          const InterfaceType &RHS) noexcept {
@@ -389,6 +399,7 @@ public:
 private:
   ValType VTyp;
   std::vector<InterfaceType> TyArgs;
+  std::optional<std::string> CaseName;
 };
 
 /// BlockType definition.

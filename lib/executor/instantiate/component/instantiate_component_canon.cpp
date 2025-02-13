@@ -103,24 +103,48 @@ liftFlattenType(Runtime::Instance::ComponentInstance &Comp,
   return AST::Component::FunctionType(ParamTypes, ResultTypes);
 }
 
-ValType discriminantType(size_t N) {
+InterfaceType discriminantType(size_t N) {
   assert(0 < N && N < 4294967296);
   uint8_t E = static_cast<uint8_t>(std::ceil(log2(N) / 8));
   switch (E) {
   case 0:
-    return ValType(TypeCode::I8);
+    return InterfaceType(TypeCode::U8);
   case 1:
-    return ValType(TypeCode::I8);
+    return InterfaceType(TypeCode::U8);
   case 2:
-    return ValType(TypeCode::I16);
+    return InterfaceType(TypeCode::U16);
   case 3:
-    return ValType(TypeCode::I32);
+    return InterfaceType(TypeCode::U32);
   default:
     assumingUnreachable();
   }
 }
 
-void flattenType(std::vector<ValType> &Output, const InterfaceType &Ty) {
+InterfaceType despecialize(InterfaceType Ty) {
+  switch (Ty.getCode()) {
+  case TypeCode::Enum:
+    return Ty;
+  case TypeCode::Option: {
+    auto T = Ty.getArgs()[0];
+    T.setCaseName("some");
+    return InterfaceType(TypeCode::Variant,
+                         {InterfaceType(TypeCode::Tuple, "none"), T});
+    return Ty;
+  }
+  case TypeCode::Result: {
+    auto Ok = Ty.getArgs()[0];
+    auto Err = Ty.getArgs()[1];
+    Ok.setCaseName("ok");
+    Err.setCaseName("error");
+    return InterfaceType(TypeCode::Variant, {Ok, Err});
+  }
+  default:
+    return Ty;
+  }
+}
+
+void flattenType(std::vector<ValType> &Output, const InterfaceType &SpecialTy) {
+  auto Ty = despecialize(SpecialTy);
   switch (Ty.getCode()) {
   case TypeCode::String:
     Output.push_back(TypeCode::I32);
@@ -140,7 +164,9 @@ void flattenType(std::vector<ValType> &Output, const InterfaceType &Ty) {
     }
     break;
   }
-  case TypeCode::Result: {
+  case TypeCode::Variant: {
+    // TODO: implement variant
+    // flatten_variant(cases)
     auto T = Ty.getArgs()[0];
     auto E = Ty.getArgs()[1];
     std::vector<ValType> TOutput{};
@@ -158,7 +184,8 @@ void flattenType(std::vector<ValType> &Output, const InterfaceType &Ty) {
       Flat.push_back(FT);
     }
 
-    Output.push_back(discriminantType(Ty.getArgs().size()));
+    auto const DT = discriminantType(Ty.getArgs().size());
+    flattenType(Output, DT);
     for (auto FT : Flat) {
       Output.push_back(FT);
     }

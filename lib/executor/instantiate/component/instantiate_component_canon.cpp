@@ -2,6 +2,7 @@
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "executor/component/canon.h"
 #include "executor/executor.h"
 #include "runtime/instance/module.h"
 #include "spdlog/spdlog.h"
@@ -17,9 +18,6 @@ namespace Executor {
 using namespace std::literals;
 using namespace AST::Component;
 using namespace Runtime;
-
-#define MAX_FLAT_PARAMS 16
-#define MAX_FLAT_RESULTS 1
 
 namespace {
 Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
@@ -129,7 +127,6 @@ InterfaceType despecialize(InterfaceType Ty) {
     T.setCaseName("some");
     return InterfaceType(TypeCode::Variant,
                          {InterfaceType(TypeCode::Tuple, "none"), T});
-    return Ty;
   }
   case TypeCode::Result: {
     auto Ok = Ty.getArgs()[0];
@@ -140,6 +137,44 @@ InterfaceType despecialize(InterfaceType Ty) {
   }
   default:
     return Ty;
+  }
+}
+
+void flattenType(std::vector<ValType> &Output, const InterfaceType &SpecialTy);
+
+ValType join(ValType A, ValType B) {
+  if (A == B) {
+    return A;
+  } else if ((A.getCode() == TypeCode::I32 && B.getCode() == TypeCode::F32) ||
+             (A.getCode() == TypeCode::F32 && B.getCode() == TypeCode::I32)) {
+    return ValType(TypeCode::I32);
+  } else {
+    return ValType(TypeCode::I64);
+  }
+}
+
+void flattenVariant(std::vector<ValType> &Output,
+                    Span<const InterfaceType> Cases) {
+  std::vector<ValType> Flat;
+
+  for (auto C : Cases) {
+    if (!C.isNone()) {
+      std::vector<ValType> FTs;
+      flattenType(FTs, C);
+      for (size_t I = 0; I < FTs.size(); ++I) {
+        auto FT = FTs[I];
+        if (I < Flat.size()) {
+          Flat[I] = join(Flat[I], FT);
+        } else {
+          Flat.push_back(FT);
+        }
+      }
+    }
+  }
+
+  flattenType(Output, discriminantType(Cases.size()));
+  for (auto T : Flat) {
+    Output.push_back(T);
   }
 }
 
@@ -165,30 +200,7 @@ void flattenType(std::vector<ValType> &Output, const InterfaceType &SpecialTy) {
     break;
   }
   case TypeCode::Variant: {
-    // TODO: implement variant
-    // flatten_variant(cases)
-    auto T = Ty.getArgs()[0];
-    auto E = Ty.getArgs()[1];
-    std::vector<ValType> TOutput{};
-    flattenType(TOutput, T);
-    std::vector<ValType> EOutput{};
-    flattenType(EOutput, E);
-
-    std::vector<ValType> Flat{};
-    for (size_t I = 0; I < TOutput.size(); ++I) {
-      auto FT = TOutput[I];
-      Flat.push_back(FT);
-    }
-    for (size_t I = 0; I < EOutput.size(); ++I) {
-      auto FT = EOutput[I];
-      Flat.push_back(FT);
-    }
-
-    auto const DT = discriminantType(Ty.getArgs().size());
-    flattenType(Output, DT);
-    for (auto FT : Flat) {
-      Output.push_back(FT);
-    }
+    flattenVariant(Output, Ty.getArgs());
     break;
   }
   default:

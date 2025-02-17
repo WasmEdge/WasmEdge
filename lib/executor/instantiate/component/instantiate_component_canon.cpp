@@ -181,6 +181,19 @@ void flattenVariant(std::vector<ValType> &Output,
 void flattenType(std::vector<ValType> &Output, const InterfaceType &SpecialTy) {
   auto Ty = despecialize(SpecialTy);
   switch (Ty.getCode()) {
+  case TypeCode::Bool:
+  case TypeCode::U8:
+  case TypeCode::U16:
+  case TypeCode::U32:
+  case TypeCode::I8:
+  case TypeCode::I16:
+  case TypeCode::I32:
+    Output.push_back(TypeCode::I32);
+    break;
+  case TypeCode::U64:
+  case TypeCode::I64:
+    Output.push_back(TypeCode::I64);
+    break;
   case TypeCode::String:
     Output.push_back(TypeCode::I32);
     Output.push_back(TypeCode::I32);

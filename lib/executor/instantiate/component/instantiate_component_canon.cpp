@@ -140,7 +140,7 @@ InterfaceType despecialize(InterfaceType Ty) {
   }
 }
 
-void flattenType(std::vector<ValType> &Output, const InterfaceType &SpecialTy);
+std::vector<ValType> flattenType(const InterfaceType &SpecialTy);
 
 ValType join(ValType A, ValType B) {
   if (A == B) {
@@ -153,14 +153,12 @@ ValType join(ValType A, ValType B) {
   }
 }
 
-void flattenVariant(std::vector<ValType> &Output,
-                    Span<const InterfaceType> Cases) {
-  std::vector<ValType> Flat;
+std::vector<ValType> flattenVariant(Span<const InterfaceType> Cases) {
+  std::vector<ValType> Flat{};
 
   for (auto C : Cases) {
     if (!C.isNone()) {
-      std::vector<ValType> FTs;
-      flattenType(FTs, C);
+      std::vector<ValType> FTs = flattenType(C);
       for (size_t I = 0; I < FTs.size(); ++I) {
         auto FT = FTs[I];
         if (I < Flat.size()) {
@@ -172,13 +170,13 @@ void flattenVariant(std::vector<ValType> &Output,
     }
   }
 
-  flattenType(Output, discriminantType(Cases.size()));
-  for (auto T : Flat) {
-    Output.push_back(T);
-  }
+  auto InTy = discriminantType(Cases.size());
+  std::vector<ValType> Output = flattenType(InTy);
+  Output.insert(Output.end(), Flat.begin(), Flat.end());
+  return Output;
 }
 
-void flattenType(std::vector<ValType> &Output, const InterfaceType &SpecialTy) {
+std::vector<ValType> flattenType(const InterfaceType &SpecialTy) {
   auto Ty = despecialize(SpecialTy);
   switch (Ty.getCode()) {
   case TypeCode::Bool:
@@ -188,37 +186,31 @@ void flattenType(std::vector<ValType> &Output, const InterfaceType &SpecialTy) {
   case TypeCode::I8:
   case TypeCode::I16:
   case TypeCode::I32:
-    Output.push_back(TypeCode::I32);
-    break;
+    return {TypeCode::I32};
   case TypeCode::U64:
   case TypeCode::I64:
-    Output.push_back(TypeCode::I64);
-    break;
+    return {TypeCode::I64};
   case TypeCode::String:
-    Output.push_back(TypeCode::I32);
-    Output.push_back(TypeCode::I32);
-    break;
+    return {TypeCode::I32, TypeCode::I32};
   case TypeCode::List: {
     // TODO:
     // if maybe_length is not None:
     //     return flatten_type(elem_type) * maybe_length
-    Output.push_back(TypeCode::I32);
-    Output.push_back(TypeCode::I32);
-    break;
+    return {TypeCode::I32, TypeCode::I32};
   }
   case TypeCode::Record: {
+    std::vector<ValType> Flat;
     for (auto FT : Ty.getArgs()) {
-      flattenType(Output, FT);
+      auto V = flattenType(FT);
+      Flat.insert(Flat.end(), V.begin(), V.end());
     }
-    break;
+    return Flat;
   }
   case TypeCode::Variant: {
-    flattenVariant(Output, Ty.getArgs());
-    break;
+    return flattenVariant(Ty.getArgs());
   }
   default:
-    Output.push_back(Ty.getValType());
-    break;
+    return {Ty.getValType()};
   }
 }
 
@@ -395,10 +387,12 @@ private:
     std::vector<ValType> FlatParams{};
     std::vector<ValType> FlatResults{};
     for (auto &ParamTy : HigherType.getParamTypes()) {
-      flattenType(FlatParams, ParamTy);
+      auto V = flattenType(ParamTy);
+      FlatParams.insert(FlatParams.end(), V.begin(), V.end());
     }
     for (auto &ReturnTy : HigherType.getReturnTypes()) {
-      flattenType(FlatResults, ReturnTy);
+      auto V = flattenType(ReturnTy);
+      FlatResults.insert(FlatResults.end(), V.begin(), V.end());
     }
     if (FlatParams.size() > MAX_FLAT_PARAMS) {
       FlatParams.clear();

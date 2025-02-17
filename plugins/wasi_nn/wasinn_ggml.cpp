@@ -2392,7 +2392,10 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
 
   // Save the output token.
   CxtRef.LlamaOutputTokens.emplace_back(Id);
-  CxtRef.LlamaOutputs += common_token_to_piece(GraphRef.LlamaContext.get(), Id);
+  std::string OutputString =
+      common_token_to_piece(GraphRef.LlamaContext.get(), Id);
+  CxtRef.LlamaOutputs.insert(CxtRef.LlamaOutputs.end(), OutputString.begin(),
+                             OutputString.end());
   // In single token mode, we do not handle StreamStdout and ReversePrompt.
   if (!IsSingleTokenMode) {
     // When setting StreamStdout, we print the output to stdout.
@@ -2403,8 +2406,8 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
     }
     // Break if reverse prompt is found.
     if (!CxtRef.Conf.ReversePrompt.empty() &&
-        CxtRef.LlamaOutputs.find(CxtRef.Conf.ReversePrompt) !=
-            std::string::npos) {
+        std::string(CxtRef.LlamaOutputs.begin(), CxtRef.LlamaOutputs.end())
+                .find(CxtRef.Conf.ReversePrompt) != std::string::npos) {
       LOG_INFO(GraphRef.EnableLog, "sampleOutput: reverse prompt found."sv)
       return ErrNo::EndOfSequence;
     }
@@ -2475,7 +2478,10 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
                           static_cast<int32_t>(CxtRef.Conf.EmbdNormalize));
   }
 
-  buildOutputEmbedding(CxtRef.LlamaOutputs, NEmbd, Embeddings.data());
+  std::string EmbeddingString;
+  buildOutputEmbedding(EmbeddingString, NEmbd, Embeddings.data());
+  CxtRef.LlamaOutputs =
+      std::vector<uint8_t>(EmbeddingString.begin(), EmbeddingString.end());
 
   if (GraphRef.EnableLog) {
     common_perf_print(GraphRef.LlamaContext.get(), /* Sampler */ nullptr);
@@ -2659,15 +2665,9 @@ struct WavHeader {
   uint32_t DataSize;
 };
 
-void audioDataToWav(const std::string &Filename, const std::vector<float> &Data,
-                    int SampleRate) {
-  std::ofstream File(Filename, std::ios::binary);
-  if (!File) {
-    LOG_ERROR("audioDataToWav: Failed to open file '{}' for writing"sv,
-              Filename);
-    return;
-  }
-
+std::vector<uint8_t> audioDataToWav(const std::vector<float> &Data,
+                                    int SampleRate) {
+  std::vector<uint8_t> WavData;
   WavHeader Header;
   Header.SampleRate = SampleRate;
   Header.ByteRate =
@@ -2677,15 +2677,17 @@ void audioDataToWav(const std::string &Filename, const std::vector<float> &Data,
       static_cast<uint32_t>(Data.size() * (Header.BitsPerSample / 8));
   Header.ChunkSize = 36 + Header.DataSize;
 
-  File.write(reinterpret_cast<const char *>(&Header), sizeof(Header));
+  WavData.insert(WavData.end(), reinterpret_cast<uint8_t *>(&Header),
+                 reinterpret_cast<uint8_t *>(&Header) + sizeof(Header));
 
   for (const auto &Sample : Data) {
     int16_t PCMSample =
         static_cast<int16_t>(std::clamp(Sample * 32767.0, -32768.0, 32767.0));
-    File.write(reinterpret_cast<const char *>(&PCMSample), sizeof(PCMSample));
+    WavData.insert(WavData.end(), reinterpret_cast<uint8_t *>(&PCMSample),
+                   reinterpret_cast<uint8_t *>(&PCMSample) + sizeof(PCMSample));
   }
 
-  File.close();
+  return WavData;
 }
 
 // TextToSpeech function, will generate voice data from codes.
@@ -2731,8 +2733,21 @@ ErrNo codesToSpeech(Graph &GraphRef, Context &CxtRef) noexcept {
     AudioData[I] = 0.0f;
   }
 
-  // Save .wav file
-  audioDataToWav(GraphRef.TTSOutputFilePath, AudioData, SamplingRate);
+  // Convert audio data to wav and put it into output buffer.
+  CxtRef.LlamaOutputs = audioDataToWav(AudioData, SamplingRate);
+
+  // Save .wav file if path is provided.
+  if (!GraphRef.TTSOutputFilePath.empty()) {
+    std::ofstream File(GraphRef.TTSOutputFilePath, std::ios::binary);
+    if (!File) {
+      RET_ERROR(ErrNo::RuntimeError,
+                "codesToSpeech: Failed to open file '{}' for writing"sv,
+                GraphRef.TTSOutputFilePath);
+    }
+    File.write(reinterpret_cast<const char *>(CxtRef.LlamaOutputs.data()),
+               CxtRef.LlamaOutputs.size());
+    File.close();
+  }
 
   return ErrNo::Success;
 }
@@ -3253,9 +3268,9 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     return ErrNo::Success;
   }
 
-  std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.length(),
+  std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.size(),
               OutBuffer.data());
-  BytesWritten = static_cast<uint32_t>(CxtRef.LlamaOutputs.length());
+  BytesWritten = static_cast<uint32_t>(CxtRef.LlamaOutputs.size());
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}...Done"sv, Index)
   return ErrNo::Success;
 }

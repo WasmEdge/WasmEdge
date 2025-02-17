@@ -886,7 +886,7 @@ E(IntrinsicsTableNotFound, 0x011B, "intrinsics table not found")
 // Malformed table (Ref-types proposal)
 E(MalformedTable, 0x011C, "malformed table")
 // Alignment must < 64 without and < 128 with multi-memory proposal.
-E(InvalidStoreAlignment, 0x011D, "invalid store alignment")
+E(MalformedMemoryOpFlags, 0x011D, "malformed memop flags")
 // @}
 
 // Validation phase

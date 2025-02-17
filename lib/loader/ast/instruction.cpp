@@ -313,19 +313,17 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     if (auto Res = readU32(Instr.getMemoryAlign()); unlikely(!Res)) {
       return Unexpect(Res);
     }
-    if (Instr.getMemoryAlign() >= 128) {
-      return logLoadError(ErrCode::Value::InvalidStoreAlignment,
-                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-    } else if (Instr.getMemoryAlign() >= 64) {
-      if (Conf.hasProposal(Proposal::MultiMemories)) {
-        Instr.getMemoryAlign() -= 64;
-        if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
-          return Unexpect(Res);
-        }
-      } else {
-        return logLoadError(ErrCode::Value::InvalidStoreAlignment,
-                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+    if (Conf.hasProposal(Proposal::MultiMemories) &&
+        Instr.getMemoryAlign() >= 64) {
+      Instr.getMemoryAlign() -= 64;
+      if (auto Res = readU32(Instr.getTargetIndex()); unlikely(!Res)) {
+        return Unexpect(Res);
       }
+    }
+    if (unlikely(Instr.getMemoryAlign() >= 32)) {
+      // This is for WASM32. May change for memory64 proposal in the future.
+      return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
+                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
     if (auto Res = readU32(Instr.getMemoryOffset()); unlikely(!Res)) {
       return Unexpect(Res);

@@ -301,17 +301,15 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   auto readMemImmediate = [this, readU32, &Instr]() -> Expect<void> {
     Instr.getTargetIndex() = 0;
     EXPECTED_TRY(readU32(Instr.getMemoryAlign()));
-    if (Instr.getMemoryAlign() >= 128) {
-      return logLoadError(ErrCode::Value::InvalidStoreAlignment,
+    if (Conf.hasProposal(Proposal::MultiMemories) &&
+        Instr.getMemoryAlign() >= 64) {
+      Instr.getMemoryAlign() -= 64;
+      EXPECTED_TRY(readU32(Instr.getTargetIndex()));
+    }
+    if (unlikely(Instr.getMemoryAlign() >= 32)) {
+      // This is for WASM32. May change for memory64 proposal in the future.
+      return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-    } else if (Instr.getMemoryAlign() >= 64) {
-      if (Conf.hasProposal(Proposal::MultiMemories)) {
-        Instr.getMemoryAlign() -= 64;
-        EXPECTED_TRY(readU32(Instr.getTargetIndex()));
-      } else {
-        return logLoadError(ErrCode::Value::InvalidStoreAlignment,
-                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
-      }
     }
     EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
     return {};

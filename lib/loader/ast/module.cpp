@@ -5,7 +5,6 @@
 #include "loader/loader.h"
 #include "loader/shared_library.h"
 
-#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -25,8 +24,8 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
 
   // Variables to record the loaded section types.
   HasDataSection = false;
-  std::bitset<0x0EU> Secs;
-
+  std::vector<uint8_t> Secs = {0x0BU, 0x0AU, 0x0CU, 0x09U, 0x08U, 0x07U, 0x06U,
+                               0x0DU, 0x05U, 0x04U, 0x03U, 0x02U, 0x01U};
   uint64_t Offset = FMgr.getOffset();
 
   // Read Section index and create Section nodes.
@@ -44,11 +43,16 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
       }
     }
 
-    // Sections except the custom section should be unique.
-    if (NewSectionId > 0x00U && NewSectionId < 0x0DU &&
-        Secs.test(NewSectionId)) {
-      return logLoadError(ErrCode::Value::JunkSection, FMgr.getLastOffset(),
-                          ASTNodeAttr::Module);
+    // Sections except the custom section should be unique and in order.
+    if (NewSectionId > 0x00U && NewSectionId < 0x0EU) {
+      while (Secs.size() > 0 && Secs.back() != NewSectionId) {
+        Secs.pop_back();
+      }
+      if (Secs.empty()) {
+        return logLoadError(ErrCode::Value::JunkSection, FMgr.getLastOffset(),
+                            ASTNodeAttr::Module);
+      }
+      Secs.pop_back();
     }
 
     switch (NewSectionId) {
@@ -65,77 +69,66 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x02:
       EXPECTED_TRY(loadSection(Mod.getImportSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x03:
       EXPECTED_TRY(loadSection(Mod.getFunctionSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x04:
       EXPECTED_TRY(loadSection(Mod.getTableSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x05:
       EXPECTED_TRY(loadSection(Mod.getMemorySection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x06:
       EXPECTED_TRY(loadSection(Mod.getGlobalSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x07:
       EXPECTED_TRY(loadSection(Mod.getExportSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x08:
       EXPECTED_TRY(loadSection(Mod.getStartSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x09:
       EXPECTED_TRY(loadSection(Mod.getElementSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x0A:
       EXPECTED_TRY(loadSection(Mod.getCodeSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x0B:
       EXPECTED_TRY(loadSection(Mod.getDataSection()).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     case 0x0C:
       // This section is for BulkMemoryOperations or ReferenceTypes proposal.
@@ -150,7 +143,6 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
         return E;
       }));
       HasDataSection = true;
-      Secs.set(NewSectionId);
       break;
     case 0x0D:
       // This section is for ExceptionHandling proposal.
@@ -163,7 +155,6 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
         return E;
       }));
-      Secs.set(NewSectionId);
       break;
     default:
       return logLoadError(ErrCode::Value::MalformedSection,

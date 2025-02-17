@@ -85,7 +85,7 @@ public:
   std::vector<llama_token> LlamaInputs;
   uint64_t LlamaNInputs = 0;
   // Llama outputs:
-  std::string LlamaOutputs;
+  std::vector<uint8_t> LlamaOutputs;
   std::vector<llama_token> LlamaOutputTokens;
   // Preserve for llava
   struct llava_image_embed *LlavaImageEmbd = nullptr;

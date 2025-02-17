@@ -572,15 +572,15 @@ TEST(SectionTest, LoadDataCountSection) {
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
-      0x0BU,                             // Data section
-      0x0BU,                             // Content size = 11
-      0x01U,                             // Vector length = 1
-      0x00U,                             // Prefix 0x00
-      0x45U, 0x46U, 0x47U, 0x0BU,        // Expression
-      0x04U, 0x74U, 0x65U, 0x73U, 0x74U, // Vector length = 4, "test"
-      0x0CU,                             // Datacount section
-      0x01U,                             // Content size = 1
-      0x01U                              // Content
+      0x0CU,                            // Datacount section
+      0x01U,                            // Content size = 1
+      0x01U,                            // Content
+      0x0BU,                            // Data section
+      0x0BU,                            // Content size = 11
+      0x01U,                            // Vector length = 1
+      0x00U,                            // Prefix 0x00
+      0x45U, 0x46U, 0x47U, 0x0BU,       // Expression
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U // Vector length = 4, "test"
   };
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 

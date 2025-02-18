@@ -308,9 +308,11 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     // index, and should check the init exprs for the real type index to do type
     // matching. But for the table type, the type index is recorded into the
     // heap type. So it will fail here to do strict type matching. Therefore,
-    // only check the FuncRef and ExternRef here.
+    // only check the FuncRef and ExternRef and the nullable here.
     if (TableVec[ElemSeg.getIdx()].isFuncRefType() !=
-        ElemSeg.getRefType().isFuncRefType()) {
+            ElemSeg.getRefType().isFuncRefType() ||
+        (!TableVec[ElemSeg.getIdx()].isNullableRefType() &&
+         ElemSeg.getRefType().isNullableRefType())) {
       // Reference type not matched.
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(TableVec[ElemSeg.getIdx()],

@@ -93,7 +93,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // Mode: element initial integer, u32
   // TableIdx: target table index, u32
   // OffExpr: init offset expression, expr
-  // ElemKind: byte 0x00, RefType::FuncRef
+  // ElemKind: byte 0x00, ref.func
   // RefType: reference type, RefType
   // vec(FuncIdx): function index vector, vec(u32)
   // vec(expr): reference init list, vec(expr)
@@ -171,7 +171,6 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   }
 
   // Read element kind and init function indices.
-  ElemSeg.setRefType(TypeCode::FuncRef);
   switch (Check) {
   case 0x01:
   case 0x02:
@@ -212,6 +211,13 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   }
   default:
     break;
+  }
+
+  // Set the default reference type.
+  if (Check == 0x04) {
+    ElemSeg.setRefType(TypeCode::FuncRef);
+  } else {
+    ElemSeg.setRefType(ValType(TypeCode::Ref, TypeCode::FuncRef));
   }
 
   // Read the reference type and init expressions.

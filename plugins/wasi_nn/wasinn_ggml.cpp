@@ -95,7 +95,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     RET_ERROR(ErrNo::InvalidEncoding, "parse metadata error."sv)
   }
 
-
   // Get the current llama parameters.
   int64_t PrevNGPULayers = GraphRef.Params.n_gpu_layers;
   bool PrevEmbedding = GraphRef.Params.embedding;
@@ -180,13 +179,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the embedding option."sv)
-    }
-  }
-  if (Doc.at_key("warmup").error() == simdjson::SUCCESS) {
-    auto Err = Doc["warmup"].get<bool>().get(GraphRef.Params.warmup);
-    if (Err) {
-      RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the warmup option."sv)
     }
   }
   if (Doc.at_key("split-mode").error() == simdjson::SUCCESS) {
@@ -554,16 +546,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     GraphRef.Params.attention_type =
         static_cast<llama_attention_type>(AttentionType);
   }
-  if (Doc.at_key("split-mode").error() == simdjson::SUCCESS) {
-    int64_t SplitMode;
-    auto Err = Doc["split-mode"].get<int64_t>().get(SplitMode);
-    if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the split-mode option."sv);
-      return ErrNo::InvalidArgument;
-    }
-    GraphRef.Params.split_mode = static_cast<llama_split_mode>(SplitMode);
-  }
   if (Doc.at_key("threads").error() == simdjson::SUCCESS) {
     int64_t NThreads;
     auto Err = Doc["threads"].get<int64_t>().get(NThreads);
@@ -916,15 +898,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the hf-file-vocoder option."sv)
     }
     GraphRef.Params.vocoder.hf_file = HfFile;
-  }
-  if (Doc.at_key("mode-vocoder").error() == simdjson::SUCCESS) {
-    std::string_view ModeVocoder;
-    auto Err = Doc["mode-vocoder"].get<std::string_view>().get(ModeVocoder);
-    if (Err) {
-      RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the mode-vocoder option."sv)
-    }
-    GraphRef.Params.vocoder.model = ModeVocoder;
   }
   if (Doc.at_key("model-url-vocoder").error() == simdjson::SUCCESS) {
     std::string_view ModelUrlVocoder;

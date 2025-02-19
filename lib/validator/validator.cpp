@@ -761,7 +761,7 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       // For initialization case, global indices must be imported globals.
       auto GlobIdx = Instr.getTargetIndex();
       uint32_t ValidGlobalSize = Checker.getNumImportGlobals();
-      if (Conf.hasProposal(Proposal::GC)) {
+      if (Conf.hasProposal(Proposal::FunctionReferences)) {
         ValidGlobalSize = static_cast<uint32_t>(Checker.getGlobals().size());
       }
       if (GlobIdx >= ValidGlobalSize) {

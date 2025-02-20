@@ -60,42 +60,19 @@ struct Graph {
   // Plugin parameters:
   bool EnableLog = false;
   bool EnableDebugLog = false;
-  // Model parameters:
-  int64_t MainGPU = 0; // Use GPU 0 by default
-  int64_t NGPULayers = 0;
-  std::vector<float> TensorSplit;
-  bool Embedding = false;
-  bool UseMMap = true;
-  bool WarmUp = false;
-  enum llama_split_mode SplitMode = LLAMA_SPLIT_MODE_LAYER;
+  common_params Params;
   // Model context:
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;
-  std::string ModelFilePath;
   // Clip context (for llava):
-  std::string MMProjModelPath;
   struct clip_ctx *ClipContext = nullptr;
   VisionModel VisionModelType = VisionModel::Llava;
   // Text-to-speech:
   bool TextToSpeech = false;
-  std::string VocoderModelPath;
   std::string TTSOutputFilePath = "output.wav";
   std::string TTSSpeakerFilePath;
   llama_model_ptr TTSModel = nullptr;
   llama_context_ptr TTSContext = nullptr;
-  // Context parameters:
-  int64_t CtxSize;
-  int64_t BatchSize;
-  int64_t UBatchSize;
-  int64_t Threads;
-  // Sampling parameters:
-  double Temp = 0.80;
-  double TopP = 0.95;
-  double RepeatPenalty = 1.10;
-  double PresencePenalty = 0.00;
-  double FrequencyPenalty = 0.00;
-  std::string Grammar;
-  uint64_t Seed = LLAMA_DEFAULT_SEED;
   // Configs.
   LocalConfig Conf;
 };

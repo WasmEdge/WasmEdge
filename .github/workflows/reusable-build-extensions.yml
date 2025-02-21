@@ -17,14 +17,14 @@ jobs:
   #
   # 'paths-filter' example:
   #
-  #   wasmedge_stablediffusion:
-  #     - paths/to/wasmedge_stablediffusion
-  #     - other/paths/to/wasmedge_stablediffusion
+  #   wasi_nn:
+  #     - paths/to/wasi_nn
+  #     - other/paths/to/wasi_nn
   #
-  # plugin: 'wasmedge_stablediffusion-metal'
+  # plugin: 'wasi_nn-ggml'
   #
-  #   process.env['wasmedge_stablediffusion'] => true
-  #   process.env['wasmedge_stablediffusion-metal'] => undefined
+  #   process.env['wasi_nn'] => true
+  #   process.env['wasi_nn-ggml'] => undefined
   # ------------------------------------------------------------------#
   prepare:
     name: Prepare ${{ inputs.asset_tag }}

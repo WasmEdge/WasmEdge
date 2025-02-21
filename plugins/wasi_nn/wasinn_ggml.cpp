@@ -2778,6 +2778,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   llama_model_params ModelParamsDefault = llama_model_default_params();
   GraphRef.Params.n_gpu_layers = ModelParamsDefault.n_gpu_layers;
   GraphRef.Params.mmproj = ""sv;
+  GraphRef.Params.warmup = false;
   // Initialize the context parameters.
   llama_context_params ContextParamsDefault = llama_context_default_params();
   GraphRef.Params.cpuparams.n_threads = ContextParamsDefault.n_threads;

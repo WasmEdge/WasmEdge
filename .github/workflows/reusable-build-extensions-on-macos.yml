@@ -36,9 +36,6 @@ jobs:
       test_dir: build/test/plugins/${{ matrix.dir }}
       output_dir: build/plugins/${{ matrix.dir }}
     steps:
-      - id: var
-        run: |
-          echo "artifact=WasmEdge-plugin-${{ matrix.plugin }}-${{ inputs.version }}-${{ inputs.asset_tag }}.tar.gz" >> $GITHUB_OUTPUT
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -55,6 +52,7 @@ jobs:
           export OpenSSL_DIR="$(brew --prefix)/opt/openssl"
           export CC=clang
           export CXX=clang++
+
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
             -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
@@ -63,19 +61,36 @@ jobs:
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
             ${{ matrix.options }}
           cmake --build build --target ${target}
-      - if: ${{ !endsWith(matrix.plugin, 'metal') }}
-        name: Package ${{ matrix.plugin }}
+      - id: var
+        run: |
+          export prefix="WasmEdge-plugin-${{ matrix.plugin }}"
+          export postfix="${{ inputs.version }}-${{ inputs.asset_tag }}"
+
+          echo "artifact=${prefix}-${postfix}.tar.gz" >> $GITHUB_OUTPUT
+          echo "artifact_test=${prefix}-no-metal-${postfix}.tar.gz" >> $GITHUB_OUTPUT
+          echo "artifacts=${prefix}-*.tar.gz" >> $GITHUB_OUTPUT
+      - name: Package ${{ matrix.plugin }}
+        shell: bash
         run: |
           cp -f ${output_dir}/${bin_name} ${bin_name}
           tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
-      - if: ${{ endsWith(matrix.plugin, 'metal') }}
-        name: Package ${{ matrix.plugin }} with metal files
+      - if: ${{ !inputs.release && contains(matrix.plugin, 'stablediffusion') && contains(inputs.asset_tag, 'arm64') }}
+        name: Rebuild with METAL=OFF for testing
         run: |
-          export FILES="${bin_name} ggml-metal.metal ggml-common.h"
-          for file_name in $FILES; do
-            cp -f ${output_dir}/${file_name} .
-          done
-          tar -zcvf ${{ steps.var.outputs.artifact }} ${FILES}
+          rm -rf build/
+
+          cmake -Bbuild -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWASMEDGE_BUILD_TESTS=ON \
+            -DWASMEDGE_BUILD_TOOLS=OFF \
+            -DWASMEDGE_USE_LLVM=OFF \
+            -DWASMEDGE_PLUGIN_STABLEDIFFUSION_METAL=OFF \
+            -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
+            ${{ matrix.options }}
+          cmake --build build --target ${target}
+
+          cp -f ${output_dir}/${bin_name} ${bin_name}
+          tar -zcvf ${{ steps.var.outputs.artifact_test }} ${bin_name}
       - if: ${{ !inputs.release }}
         name: Test ${{ matrix.plugin }}
         run: |
@@ -92,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.var.outputs.artifact }}
-          path: ${{ steps.var.outputs.artifact }}
+          path: ${{ steps.var.outputs.artifacts }}
       - if: ${{ inputs.release }}
         name: Install gh for release
         run: |

@@ -17,7 +17,7 @@ namespace Component {
 
 class HostFunctionBase {
 public:
-  HostFunctionBase() : FuncType{AST::FunctionType()} {}
+  HostFunctionBase() : FuncType{AST::Component::FunctionType()} {}
   virtual ~HostFunctionBase() = default;
 
   /// Run host function body.
@@ -25,11 +25,13 @@ public:
                            Span<ValInterface> Rets) = 0;
 
   /// Getter of function type.
-  const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
-  AST::FunctionType &getFuncType() noexcept { return FuncType; }
+  const AST::Component::FunctionType &getFuncType() const noexcept {
+    return FuncType;
+  }
+  AST::Component::FunctionType &getFuncType() noexcept { return FuncType; }
 
 protected:
-  AST::FunctionType FuncType;
+  AST::Component::FunctionType FuncType;
 };
 
 template <typename ArgT> struct convert {
@@ -40,6 +42,25 @@ template <typename ArgT> struct convert {
 template <> struct convert<bool> {
   static bool run(const ValInterface &V) { return std::get<bool>(V); }
 };
+template <> struct convert<uint8_t> {
+  static uint8_t run(const ValInterface &V) { return std::get<uint8_t>(V); }
+};
+template <> struct convert<uint16_t> {
+  static uint16_t run(const ValInterface &V) { return std::get<uint16_t>(V); }
+};
+template <> struct convert<uint32_t> {
+  static uint32_t run(const ValInterface &V) { return std::get<uint32_t>(V); }
+};
+template <> struct convert<uint64_t> {
+  static uint64_t run(const ValInterface &V) { return std::get<uint64_t>(V); }
+};
+template <> struct convert<int8_t> {
+  static int8_t run(const ValInterface &V) { return std::get<int8_t>(V); }
+};
+template <> struct convert<int16_t> {
+  static int16_t run(const ValInterface &V) { return std::get<int16_t>(V); }
+};
+
 template <> struct convert<std::string> {
   static std::string run(const ValInterface &V) {
     return std::get<std::string>(V);
@@ -51,6 +72,36 @@ template <typename T> struct convert<List<T>> {
     return *dynamic_cast<List<T> *>(C);
   }
 };
+template <typename... Types> struct convert<Record<Types...>> {
+  static Record<Types...> run(const ValInterface &V) {
+    auto *C = std::get<std::shared_ptr<ValComp>>(V).get();
+    return *dynamic_cast<Record<Types...> *>(C);
+  }
+};
+template <typename... Types> struct convert<Tuple<Types...>> {
+  static Tuple<Types...> run(const ValInterface &V) {
+    auto *C = std::get<std::shared_ptr<ValComp>>(V).get();
+    return *dynamic_cast<Tuple<Types...> *>(C);
+  }
+};
+template <typename T> struct convert<Option<T>> {
+  static Option<T> run(const ValInterface &V) {
+    auto *C = std::get<std::shared_ptr<ValComp>>(V).get();
+    return *dynamic_cast<Option<T> *>(C);
+  }
+};
+template <> struct convert<Enum> {
+  static Enum run(const ValInterface &V) {
+    auto *C = std::get<std::shared_ptr<ValComp>>(V).get();
+    return *dynamic_cast<Enum *>(C);
+  }
+};
+template <typename V, typename E> struct convert<Result<V, E>> {
+  static Result<V, E> run(const ValInterface &Val) {
+    auto *C = std::get<std::shared_ptr<ValComp>>(Val).get();
+    return *dynamic_cast<Result<V, E> *>(C);
+  }
+};
 
 template <typename ArgT> struct emplace {
   static void run(ValInterface &V, ArgT Arg) {
@@ -60,6 +111,24 @@ template <typename ArgT> struct emplace {
 template <> struct emplace<bool> {
   static void run(ValInterface &V, bool Arg) { V.emplace<bool>(Arg); }
 };
+template <> struct emplace<uint8_t> {
+  static void run(ValInterface &V, uint8_t Arg) { V.emplace<uint8_t>(Arg); }
+};
+template <> struct emplace<uint16_t> {
+  static void run(ValInterface &V, uint16_t Arg) { V.emplace<uint16_t>(Arg); }
+};
+template <> struct emplace<uint32_t> {
+  static void run(ValInterface &V, uint32_t Arg) { V.emplace<uint32_t>(Arg); }
+};
+template <> struct emplace<uint64_t> {
+  static void run(ValInterface &V, uint64_t Arg) { V.emplace<uint64_t>(Arg); }
+};
+template <> struct emplace<int8_t> {
+  static void run(ValInterface &V, int8_t Arg) { V.emplace<int8_t>(Arg); }
+};
+template <> struct emplace<int16_t> {
+  static void run(ValInterface &V, int16_t Arg) { V.emplace<int16_t>(Arg); }
+};
 template <> struct emplace<std::string> {
   static void run(ValInterface &V, std::string Arg) {
     V.emplace<std::string>(Arg);
@@ -68,6 +137,39 @@ template <> struct emplace<std::string> {
 template <typename T> struct emplace<List<T>> {
   static void run(ValInterface &V, List<T> Arg) {
     V.emplace<std::shared_ptr<ValComp>>(std::make_shared<List<T>>(Arg));
+  }
+};
+template <typename... Types> struct emplace<Record<Types...>> {
+  static void run(ValInterface &V, Record<Types...> Arg) {
+    V.emplace<std::shared_ptr<ValComp>>(
+        std::make_shared<Record<Types...>>(Arg));
+  }
+};
+template <typename... Types> struct emplace<Tuple<Types...>> {
+  static void run(ValInterface &V, Tuple<Types...> Arg) {
+    V.emplace<std::shared_ptr<ValComp>>(std::make_shared<Tuple<Types...>>(Arg));
+  }
+};
+template <typename T> struct emplace<Option<T>> {
+  static void run(ValInterface &V, Option<T> Arg) {
+    V.emplace<std::shared_ptr<ValComp>>(std::make_shared<Option<T>>(Arg));
+  }
+};
+template <> struct emplace<Enum> {
+  static void run(ValInterface &V, Enum Arg) {
+    V.emplace<std::shared_ptr<ValComp>>(std::make_shared<Enum>(Arg));
+  }
+};
+template <typename V, typename E> struct emplace<Result<V, E>> {
+  static void run(ValInterface &Val, Result<V, E> Arg) {
+    Val.emplace<std::shared_ptr<ValComp>>(std::make_shared<Result<V, E>>(Arg));
+  }
+};
+template <typename... Types>
+struct emplace<WasmEdge::Component::Variant<Types...>> {
+  static void run(ValInterface &V, WasmEdge::Component::Variant<Types...> Arg) {
+    V.emplace<std::shared_ptr<ValComp>>(
+        std::make_shared<WasmEdge::Component::Variant<Types...>>(Arg));
   }
 };
 

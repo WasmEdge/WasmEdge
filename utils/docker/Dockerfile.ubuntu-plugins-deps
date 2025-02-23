@@ -60,10 +60,17 @@ RUN [ "/bin/bash", "install-pytorch.sh"  ]
 ARG UBUNTU_VER
 
 COPY wasi-nn/install-openvino.sh .
+COPY wasi-nn/install-openvino-genai.sh .
 ENV OPENVINO_UBUNTU_VERSION=${UBUNTU_VER}
 ENV OPENVINO_VERSION="2025.0.0"
 ENV OPENVINO_YEAR="2025"
+ENV OPENVINOGEN_VERSION="2025.0.0.0"
+ENV OPENVINOGEN_YEAR="2025.0"
+ENV OPENVINOGEN_DIRNAME="openvino_genai"
 RUN [ "/bin/bash", "install-openvino.sh" ]
+RUN [ "/bin/bash", "install-openvino-genai.sh" ]
+RUN [ "ls", "-al" ]
+RUN [ "/bin/bash", "-c", "echo \"source ./openvino_genai/setupvars.sh\" >> .bashrc" ]
 
 COPY wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
@@ -76,6 +83,7 @@ RUN rm -f \
     install-ffmpeg-v6.0.sh \
     install-pytorch.sh \
     install-openvino.sh \
-    install-onnxruntime.sh
+    install-onnxruntime.sh \
+    install-openvino-genai.sh
 
 RUN rm -rf /var/lib/apt/lists/*

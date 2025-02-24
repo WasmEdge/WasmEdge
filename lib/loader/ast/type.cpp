@@ -364,13 +364,6 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
   // Read vector of result types.
   EXPECTED_TRY(
       loadVec<AST::FunctionType>(FuncType.getReturnTypes(), LoadValType));
-
-  if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) &&
-      FuncType.getReturnTypes().size() > 1) {
-    return logNeedProposal(ErrCode::Value::MalformedValType,
-                           Proposal::MultiValue, FMgr.getLastOffset(),
-                           ASTNodeAttr::Type_Function);
-  }
   return {};
 }
 

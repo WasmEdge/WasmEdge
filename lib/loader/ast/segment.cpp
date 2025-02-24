@@ -99,16 +99,23 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
   // vec(expr): reference init list, vec(expr)
 
   // Read the checking byte.
-  EXPECTED_TRY(uint32_t Check, FMgr.readU32().map_error([this](auto E) {
-    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Seg_Element)
-        .value();
-  }));
-  // Check > 0 cases are for BulkMemoryOperations or ReferenceTypes proposal.
-  if (Check > 0 && !Conf.hasProposal(Proposal::BulkMemoryOperations) &&
-      !Conf.hasProposal(Proposal::ReferenceTypes)) {
-    return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
-                           Proposal::BulkMemoryOperations, FMgr.getLastOffset(),
-                           ASTNodeAttr::Seg_Element);
+  uint32_t Check = 0;
+  if (unlikely(!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
+               !Conf.hasProposal(Proposal::ReferenceTypes))) {
+    // Legacy for BulkMemoryOperations and ReferenceTypes proposals turned off.
+    // Element segment binary format: TableIdx + OffExpr + vec(FuncIdx)
+    EXPECTED_TRY(FMgr.readU32()
+                     .map_error([this](auto E) {
+                       return logLoadError(E, FMgr.getLastOffset(),
+                                           ASTNodeAttr::Seg_Element)
+                           .value();
+                     })
+                     .map([&](auto Idx) { ElemSeg.setIdx(Idx); }));
+  } else {
+    EXPECTED_TRY(Check, FMgr.readU32().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Seg_Element)
+          .value();
+    }));
   }
 
   // Check the prefix byte.

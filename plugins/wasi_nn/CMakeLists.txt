@@ -7,6 +7,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinnfunc.cpp
   wasinnmodule.cpp
   wasinn_openvino.cpp
+  wasinn_openvino_genai.cpp
   wasinn_onnx.cpp
   wasinn_tf.cpp
   wasinn_torch.cpp

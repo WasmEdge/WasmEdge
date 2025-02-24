@@ -1,4 +1,7 @@
 name: Build on Ubuntu
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
 
 on:
   workflow_call:
@@ -49,6 +52,7 @@ jobs:
         if: ${{ matrix.tests }}
         run: |
           echo "BUILD_TESTS=ON" | tee -a $GITHUB_ENV
+          source ~/.bashrc
       - name: Grant the safe directory for git
         run: |
           git config --global --add safe.directory $(pwd)

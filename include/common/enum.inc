@@ -760,18 +760,18 @@ P(MultiValue, "Multi-value")
 P(BulkMemoryOperations, "Bulk Memory Operations")
 P(ReferenceTypes, "Reference Types")
 P(SIMD, "Fixed-width SIMD")
-// Phase 4 proposals
+// Phase 5 proposals
 P(TailCall, "Tail Call")
 P(ExtendedConst, "Extended Const Expressions")
 P(FunctionReferences, "Typed Function References")
 P(GC, "Garbage Collection")
 P(MultiMemories, "Multiple Memories")
-P(Threads, "Threads")
 P(RelaxSIMD, "Relaxed SIMD")
-// Phase 3 proposals
 P(Annotations, "Custom Annotation Syntax in the Text Format")
-P(Memory64, "Memory64")
+// Phase 4 proposals
+P(Threads, "Threads")
 P(ExceptionHandling, "Exception Handling")
+P(Memory64, "Memory64")
 // Phase 1 proposals
 P(Component, "Component Model")
 #undef P

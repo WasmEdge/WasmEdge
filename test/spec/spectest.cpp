@@ -259,26 +259,47 @@ parseEithersList(const simdjson::dom::array &Args) {
 }
 
 struct TestsuiteProposal {
+  TestsuiteProposal(
+      std::string_view P,
+      const std::vector<WasmEdge::Proposal> &EnableProps = {},
+      const std::vector<WasmEdge::Proposal> &DisableProps = {},
+      WasmEdge::SpecTest::TestMode M = WasmEdge::SpecTest::TestMode::All)
+      : Path(P), Mode(M) {
+    for (const auto &Prop : EnableProps) {
+      Conf.addProposal(Prop);
+    }
+    for (const auto &Prop : DisableProps) {
+      Conf.removeProposal(Prop);
+    }
+  }
+
   std::string_view Path;
   WasmEdge::Configure Conf;
   WasmEdge::SpecTest::TestMode Mode = WasmEdge::SpecTest::TestMode::All;
 };
 
 static const TestsuiteProposal TestsuiteProposals[] = {
-    {"core"sv, {}},
+    {"wasm-1.0"sv,
+     {},
+     {Proposal::NonTrapFloatToIntConversions, Proposal::SignExtensionOperators,
+      Proposal::MultiValue, Proposal::BulkMemoryOperations,
+      Proposal::ReferenceTypes, Proposal::SIMD}},
+    {"wasm-2.0"sv, {}},
     {"multi-memory"sv, {Proposal::MultiMemories}},
     {"tail-call"sv, {Proposal::TailCall}},
     {"extended-const"sv, {Proposal::ExtendedConst}},
     {"threads"sv, {Proposal::Threads}},
     {"function-references"sv,
      {Proposal::FunctionReferences, Proposal::TailCall}},
-    {"gc"sv, {Proposal::GC}, WasmEdge::SpecTest::TestMode::Interpreter},
+    {"gc"sv, {Proposal::GC}, {}, WasmEdge::SpecTest::TestMode::Interpreter},
     {"exception-handling"sv,
      {Proposal::ExceptionHandling, Proposal::TailCall},
+     {},
      WasmEdge::SpecTest::TestMode::Interpreter},
     // LEGACY-EH: remove the legacy EH test after deprecating legacy EH.
     {"exception-handling-legacy"sv,
      {Proposal::ExceptionHandling, Proposal::TailCall},
+     {},
      WasmEdge::SpecTest::TestMode::Interpreter},
     {"relaxed-simd"sv, {Proposal::RelaxSIMD}},
 };

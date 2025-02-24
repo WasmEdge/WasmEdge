@@ -23,16 +23,32 @@ namespace WasmEdge {
 
 namespace {
 Proposal ProposalList[] = {
-    Proposal::TailCall, Proposal::MultiMemories,      Proposal::Annotations,
-    Proposal::Memory64, Proposal::ExceptionHandling,  Proposal::ExtendedConst,
-    Proposal::Threads,  Proposal::FunctionReferences, Proposal::GC,
-    Proposal::RelaxSIMD};
+    // Should be in reversed order due to the proposal dependencies.
+    Proposal::Memory64,
+    Proposal::ExceptionHandling,
+    Proposal::Threads,
+    Proposal::Annotations,
+    Proposal::RelaxSIMD,
+    Proposal::MultiMemories,
+    Proposal::GC,
+    Proposal::FunctionReferences,
+    Proposal::ExtendedConst,
+    Proposal::TailCall,
+    Proposal::SIMD,
+    Proposal::ReferenceTypes,
+    Proposal::BulkMemoryOperations,
+    Proposal::MultiValue,
+    Proposal::SignExtensionOperators,
+    Proposal::NonTrapFloatToIntConversions,
+    Proposal::ImportExportMutGlobals};
 } // namespace
 
 WasmEdge_ConfigureContext *createConf(const Configure &Conf) {
   auto *Cxt = WasmEdge_ConfigureCreate();
   for (auto &I : ProposalList) {
-    if (Conf.hasProposal(I)) {
+    if (!Conf.hasProposal(I)) {
+      WasmEdge_ConfigureRemoveProposal(Cxt, static_cast<WasmEdge_Proposal>(I));
+    } else {
       WasmEdge_ConfigureAddProposal(Cxt, static_cast<WasmEdge_Proposal>(I));
     }
   }

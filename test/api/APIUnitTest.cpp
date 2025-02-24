@@ -1258,18 +1258,18 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_CompilerCompile(Compiler, TPath, "test_aot.wasm")));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.55.wasm",
+      Compiler, "../spec/testSuites/wasm-2.0/binary/binary.55.wasm",
       "success_aot.wasm")));
   // File not found
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_CompilerCompile(Compiler, "not_exist.wasm",
                                                   "not_exist_aot.wasm")));
   // Parse failed
-  EXPECT_TRUE(isErrMatch(
-      WasmEdge_ErrCode_UnexpectedEnd,
-      WasmEdge_CompilerCompile(Compiler,
-                               "../spec/testSuites/core/binary/binary.4.wasm",
-                               "parse_error_aot.wasm")));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_UnexpectedEnd,
+                         WasmEdge_CompilerCompile(
+                             Compiler,
+                             "../spec/testSuites/wasm-2.0/binary/binary.4.wasm",
+                             "parse_error_aot.wasm")));
   WasmEdge_CompilerDelete(Compiler);
   // Check the header of the output files.
   OutFile.open("test_aot.wasm", std::ios::binary);
@@ -1288,7 +1288,7 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
       Compiler, TPath, "test_aot" WASMEDGE_LIB_EXTENSION)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompile(
-      Compiler, "../spec/testSuites/core/binary/binary.55.wasm",
+      Compiler, "../spec/testSuites/wasm-2.0/binary/binary.55.wasm",
       "success_aot" WASMEDGE_LIB_EXTENSION)));
   // Check the header of the output files.
   OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);

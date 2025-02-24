@@ -145,6 +145,13 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
         return E;
       }));
     }
+    if (unlikely(!Conf.hasProposal(Proposal::MultiValue)) &&
+        FType.getReturnTypes().size() > 1) {
+      spdlog::error(ErrCode::Value::InvalidResultArity);
+      spdlog::error(ErrInfo::InfoProposal(Proposal::MultiValue));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
+      return Unexpect(ErrCode::Value::InvalidResultArity);
+    }
     for (auto &RType : FType.getReturnTypes()) {
       EXPECTED_TRY(Checker.validate(RType).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
@@ -575,11 +582,13 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
       spdlog::error(
           ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::FunctionType, TId,
                                    static_cast<uint32_t>(TypeVec.size())));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     if (!TypeVec[TId]->getCompositeType().isFunc()) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
       spdlog::error("    Defined type index {} is not a function type."sv, TId);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
       return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
     }
     Checker.addFunc(TId);

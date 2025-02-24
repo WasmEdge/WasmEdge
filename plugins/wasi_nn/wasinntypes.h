@@ -43,6 +43,7 @@ enum class Backend : uint8_t {
   MLX = 10,
   Piper = 11,
   ChatTTS = 12,
+  OpenVINOGenAI = 13,
 };
 
 #define FOR_EACH_BACKEND(F)                                                    \
@@ -56,7 +57,8 @@ enum class Backend : uint8_t {
   F(Whisper)                                                                   \
   F(Piper)                                                                     \
   F(ChatTTS)                                                                   \
-  F(MLX)
+  F(MLX)                                                                       \
+  F(OpenVINOGenAI)
 
 struct TensorData {
   Span<uint32_t> Dimension;

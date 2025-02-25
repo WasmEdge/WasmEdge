@@ -115,7 +115,7 @@ option(WASMEDGE_PLUGIN_PROCESS "Enable and build WasmEdge process plugin." OFF)
 #   WasmEdge plug-in: Stable-diffusion.
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION "Enable and build WasmEdge stable-diffusion plugin." OFF)
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION_CUDA "Enable CUDA in the stable-diffusion plugin." OFF)
-option(WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL "Enable Metal in the stable-diffusion plugin." OFF)
+option(WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL "Enable Metal in the stable-diffusion plugin." ON)
 option(WASMEDGE_PLUGIN_STABLEDIFFUSION_OPENMP "Enable OpenMP in the stable-diffusion plugin." OFF)
 #   WasmEdge plug-in: TensorFlow.
 option(WASMEDGE_PLUGIN_TENSORFLOW "Enable and build WasmEdge TensorFlow plugin." OFF)

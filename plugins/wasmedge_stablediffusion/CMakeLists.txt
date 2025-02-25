@@ -99,25 +99,16 @@ else()
   target_compile_options(
     stable-diffusion
     PRIVATE
-		-Wno-unused-function
-		-Wno-unused-variable
-		-Wno-unused-parameter
-		-Wno-missing-field-initializers
+    -Wno-unused-function
+    -Wno-unused-variable
+    -Wno-unused-parameter
+    -Wno-missing-field-initializers
     -Wno-deprecated-declarations
     -Wno-braced-scalar-init
     -Wno-unused-value
     -Wno-uninitialized
     -Wno-format
     -Wno-enum-compare
-	)
-endif()
-
-if(WASMEDGE_PLUGIN_STABLEDIFFUSION_METAL)
-  add_custom_command(
-    TARGET wasmedgePluginWasmEdgeStableDiffusion
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-metal/ggml-metal.metal ggml-metal.metal
-    COMMAND ${CMAKE_COMMAND} -E copy ${stable-diffusion_SOURCE_DIR}/ggml/src/ggml-common.h ggml-common.h
   )
 endif()
 

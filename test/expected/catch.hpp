@@ -7692,7 +7692,7 @@ namespace Catch {
                 result = -erfc_inv(2.0 * p);
                 // result *= normal distribution standard deviation (1.0) * sqrt(2)
                 result *= /*sd * */ ROOT_TWO;
-                // result += normal disttribution mean (0)
+                // result += normal distribution mean (0)
                 return result;
             }
 

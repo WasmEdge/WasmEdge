@@ -3,12 +3,13 @@
 
 find_package(LLVM REQUIRED HINTS "${LLVM_CMAKE_PATH}")
 get_filename_component(LLVM_DIR "${LLVM_DIR}" ABSOLUTE)
-list(APPEND CMAKE_MODULE_PATH ${LLVM_DIR})
+list(APPEND CMAKE_MODULE_PATH "${LLVM_DIR}")
 include(LLVMConfig)
 include(AddLLVM)
 
 get_filename_component(LLD_DIR "${LLVM_LIBRARY_DIR}/cmake/lld" ABSOLUTE)
-find_package(LLD REQUIRED HINTS ${LLD_DIR})
+find_package(LLD REQUIRED HINTS "${LLD_CMAKE_PATH}" "${LLD_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${LLD_DIR}")
 
 if(WASMEDGE_LINK_LLVM_STATIC)
   wasmedge_add_library(wasmedgeLLVM
@@ -78,6 +79,7 @@ target_include_directories(wasmedgeLLVM
   SYSTEM
   PRIVATE
   ${LLVM_INCLUDE_DIR}
+  ${LLD_INCLUDE_DIRS}
 )
 
 target_include_directories(wasmedgeLLVM

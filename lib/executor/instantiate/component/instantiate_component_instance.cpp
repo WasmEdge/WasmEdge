@@ -31,8 +31,12 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           StoreMgr.addNamedModule(Arg.getName(), Inst);
         }
         const AST::Module &Mod = CompInst.getModule(Expr.getModuleIdx());
-        EXPECTED_TRY(auto Inst, instantiate(StoreMgr, Mod));
-        CompInst.addModuleInstance(std::move(Inst));
+        if (auto Res = instantiate(StoreMgr, Mod)) {
+          CompInst.addModuleInstance(std::move(*Res));
+        } else {
+          spdlog::error("instantiating core instance {}", Expr.getModuleIdx());
+          return Unexpect(Res);
+        }
       } else if constexpr (std::is_same_v<T,
                                           AST::Component::CoreInlineExports>) {
         // create an immediate module instance, which has no name

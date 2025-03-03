@@ -53,7 +53,7 @@ jobs:
     - name: Ensure git safe directory
       run: |
         git config --global --add safe.directory $(pwd)
-    - uses: uraimo/run-on-arch-action@v2
+    - uses: uraimo/run-on-arch-action@v3
       name: Build WasmEdge
       with:
         arch: riscv64

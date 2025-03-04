@@ -292,8 +292,11 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     Py_XDECREF(Kwargs);
   }
   if (Result != nullptr) {
-    PyObject *Wav0 = PyList_GetItem(Result, 0);
+    PyObject *Index = PyLong_FromLong(0);
+    PyObject *Wav0 = PyObject_GetItem(Result, Index);
+    Py_XDECREF(Index);
     PyObject *BytesObj = PyObject_CallMethod(Wav0, "tobytes", nullptr);
+    Py_XDECREF(Wav0);
     char *Bytes = PyBytes_AsString(BytesObj);
     Py_ssize_t size = PyBytes_Size(BytesObj);
     CxtRef.Outputs = std::vector<uint8_t>(Bytes, Bytes + size);

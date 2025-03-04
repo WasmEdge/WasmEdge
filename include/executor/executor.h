@@ -340,6 +340,17 @@ private:
                               AST::InstrView::iterator &PC) noexcept;
   /// @}
 
+  /// \name Helper Functions for atomic operations.
+  /// @{
+  template <typename T>
+  Expect<uint32_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                              uint32_t Address, T Expected,
+                              int64_t Timeout) noexcept;
+  Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                                uint32_t Address, uint32_t Count) noexcept;
+  void atomicNotifyAll() noexcept;
+  /// @}
+
   /// \name Helper Functions for getting instances or types.
   /// @{
   /// Helper function for get defined type by index.
@@ -735,7 +746,6 @@ private:
   template <typename T> Expect<void> runVectorFloorOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorTruncOp(ValVariant &Val) const;
   template <typename T> Expect<void> runVectorNearestOp(ValVariant &Val) const;
-
   /// ======= Relaxed SIMD instructions =======
   template <typename T>
   Expect<void> runVectorRelaxedLaneselectOp(ValVariant &Val1,
@@ -794,102 +804,91 @@ private:
                              const AST::Instruction &Instr);
   /// @}
 
+public:
   /// \name Run compiled functions
   /// @{
-public:
-  Expect<void> trap(Runtime::StackManager &StackMgr,
-                    const uint32_t Code) noexcept;
-  Expect<void> call(Runtime::StackManager &StackMgr, const uint32_t FuncIdx,
-                    const ValVariant *Args, ValVariant *Rets) noexcept;
-  Expect<void> callIndirect(Runtime::StackManager &StackMgr,
-                            const uint32_t TableIdx, const uint32_t FuncTypeIdx,
-                            const uint32_t FuncIdx, const ValVariant *Args,
+  Expect<void> proxyTrap(Runtime::StackManager &StackMgr,
+                         const uint32_t Code) noexcept;
+  Expect<void> proxyCall(Runtime::StackManager &StackMgr,
+                         const uint32_t FuncIdx, const ValVariant *Args,
+                         ValVariant *Rets) noexcept;
+  Expect<void> proxyCallIndirect(Runtime::StackManager &StackMgr,
+                                 const uint32_t TableIdx,
+                                 const uint32_t FuncTypeIdx,
+                                 const uint32_t FuncIdx, const ValVariant *Args,
+                                 ValVariant *Rets) noexcept;
+  Expect<void> proxyCallRef(Runtime::StackManager &StackMgr,
+                            const RefVariant Ref, const ValVariant *Args,
                             ValVariant *Rets) noexcept;
-  Expect<uint32_t> memGrow(Runtime::StackManager &StackMgr,
-                           const uint32_t MemIdx,
-                           const uint32_t NewSize) noexcept;
-  Expect<uint32_t> memSize(Runtime::StackManager &StackMgr,
-                           const uint32_t MemIdx) noexcept;
-  Expect<void> memCopy(Runtime::StackManager &StackMgr,
-                       const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
-                       const uint32_t DstOff, const uint32_t SrcOff,
-                       const uint32_t Len) noexcept;
-  Expect<void> memFill(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                       const uint32_t Off, const uint8_t Val,
-                       const uint32_t Len) noexcept;
-  Expect<void> memInit(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                       const uint32_t DataIdx, const uint32_t DstOff,
-                       const uint32_t SrcOff, const uint32_t Len) noexcept;
-  Expect<void> dataDrop(Runtime::StackManager &StackMgr,
-                        const uint32_t DataIdx) noexcept;
-  Expect<RefVariant> tableGet(Runtime::StackManager &StackMgr,
-                              const uint32_t TableIdx,
-                              const uint32_t Off) noexcept;
-  Expect<void> tableSet(Runtime::StackManager &StackMgr,
-                        const uint32_t TableIdx, const uint32_t Off,
-                        const RefVariant Ref) noexcept;
-  Expect<void> tableCopy(Runtime::StackManager &StackMgr,
-                         const uint32_t TableIdxDst, const uint32_t TableIdxSrc,
-                         const uint32_t DstOff, const uint32_t SrcOff,
-                         const uint32_t Len) noexcept;
-  Expect<uint32_t> tableGrow(Runtime::StackManager &StackMgr,
-                             const uint32_t TableIdx, const RefVariant Val,
-                             const uint32_t NewSize) noexcept;
-  Expect<uint32_t> tableSize(Runtime::StackManager &StackMgr,
-                             const uint32_t TableIdx) noexcept;
-  Expect<void> tableFill(Runtime::StackManager &StackMgr,
-                         const uint32_t TableIdx, const uint32_t Off,
-                         const RefVariant Ref, const uint32_t Len) noexcept;
-  Expect<void> tableInit(Runtime::StackManager &StackMgr,
-                         const uint32_t TableIdx, const uint32_t ElemIdx,
-                         const uint32_t DstOff, const uint32_t SrcOff,
-                         const uint32_t Len) noexcept;
-  Expect<void> elemDrop(Runtime::StackManager &StackMgr,
-                        const uint32_t ElemIdx) noexcept;
-  Expect<RefVariant> refFunc(Runtime::StackManager &StackMgr,
-                             const uint32_t FuncIdx) noexcept;
-  Expect<void *> tableGetFuncSymbol(Runtime::StackManager &StackMgr,
-                                    const uint32_t TableIdx,
-                                    const uint32_t FuncTypeIdx,
-                                    const uint32_t FuncIdx) noexcept;
-  Expect<uint32_t> memoryAtomicNotify(Runtime::StackManager &StackMgr,
-                                      const uint32_t MemIdx,
-                                      const uint32_t Offset,
-                                      const uint32_t Count) noexcept;
+  Expect<RefVariant> proxyRefFunc(Runtime::StackManager &StackMgr,
+                                  const uint32_t FuncIdx) noexcept;
+  Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
+                                   const uint32_t TableIdx,
+                                   const uint32_t Off) noexcept;
+  Expect<void> proxyTableSet(Runtime::StackManager &StackMgr,
+                             const uint32_t TableIdx, const uint32_t Off,
+                             const RefVariant Ref) noexcept;
+  Expect<void> proxyTableInit(Runtime::StackManager &StackMgr,
+                              const uint32_t TableIdx, const uint32_t ElemIdx,
+                              const uint32_t DstOff, const uint32_t SrcOff,
+                              const uint32_t Len) noexcept;
+  Expect<void> proxyElemDrop(Runtime::StackManager &StackMgr,
+                             const uint32_t ElemIdx) noexcept;
+  Expect<void> proxyTableCopy(Runtime::StackManager &StackMgr,
+                              const uint32_t TableIdxDst,
+                              const uint32_t TableIdxSrc, const uint32_t DstOff,
+                              const uint32_t SrcOff,
+                              const uint32_t Len) noexcept;
+  Expect<uint32_t> proxyTableGrow(Runtime::StackManager &StackMgr,
+                                  const uint32_t TableIdx, const RefVariant Val,
+                                  const uint32_t NewSize) noexcept;
+  Expect<uint32_t> proxyTableSize(Runtime::StackManager &StackMgr,
+                                  const uint32_t TableIdx) noexcept;
+  Expect<void> proxyTableFill(Runtime::StackManager &StackMgr,
+                              const uint32_t TableIdx, const uint32_t Off,
+                              const RefVariant Ref,
+                              const uint32_t Len) noexcept;
+  Expect<uint32_t> proxyMemGrow(Runtime::StackManager &StackMgr,
+                                const uint32_t MemIdx,
+                                const uint32_t NewSize) noexcept;
+  Expect<uint32_t> proxyMemSize(Runtime::StackManager &StackMgr,
+                                const uint32_t MemIdx) noexcept;
+  Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
+                            const uint32_t MemIdx, const uint32_t DataIdx,
+                            const uint32_t DstOff, const uint32_t SrcOff,
+                            const uint32_t Len) noexcept;
+  Expect<void> proxyDataDrop(Runtime::StackManager &StackMgr,
+                             const uint32_t DataIdx) noexcept;
+  Expect<void> proxyMemCopy(Runtime::StackManager &StackMgr,
+                            const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
+                            const uint32_t DstOff, const uint32_t SrcOff,
+                            const uint32_t Len) noexcept;
+  Expect<void> proxyMemFill(Runtime::StackManager &StackMgr,
+                            const uint32_t MemIdx, const uint32_t Off,
+                            const uint8_t Val, const uint32_t Len) noexcept;
+  Expect<uint32_t> proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
+                                        const uint32_t MemIdx,
+                                        const uint32_t Offset,
+                                        const uint32_t Count) noexcept;
   Expect<uint32_t>
-  memoryAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                   const uint32_t Offset, const uint64_t Expected,
-                   const int64_t Timeout, const uint32_t BitWidth) noexcept;
-  Expect<void> callRef(Runtime::StackManager &StackMgr, const RefVariant Ref,
-                       const ValVariant *Args, ValVariant *Rets) noexcept;
-  Expect<void *> refGetFuncSymbol(Runtime::StackManager &StackMgr,
-                                  const RefVariant Ref) noexcept;
-
-  template <typename FuncPtr> struct ProxyHelper;
+  proxyMemAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
+                     const uint32_t Offset, const uint64_t Expected,
+                     const int64_t Timeout, const uint32_t BitWidth) noexcept;
+  Expect<void *> proxyTableGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                         const uint32_t TableIdx,
+                                         const uint32_t FuncTypeIdx,
+                                         const uint32_t FuncIdx) noexcept;
+  Expect<void *> proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                       const RefVariant Ref) noexcept;
+  /// @}
 
   /// Callbacks for compiled modules
   static const Executable::IntrinsicsTable Intrinsics;
+  /// Proxy helper template struct
+  template <typename FuncPtr> struct ProxyHelper;
 
 private:
-  template <typename T>
-  Expect<uint32_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                              uint32_t Address, T Expected,
-                              int64_t Timeout) noexcept;
-  Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                                uint32_t Address, uint32_t Count) noexcept;
-  void atomicNotifyAll() noexcept;
-
-  struct Waiter {
-    std::mutex Mutex;
-    std::condition_variable Cond;
-    Runtime::Instance::MemoryInstance *MemInst;
-    Waiter(Runtime::Instance::MemoryInstance *Inst) noexcept : MemInst(Inst) {}
-  };
-  std::mutex WaiterMapMutex;
-  std::unordered_multimap<uint32_t, Waiter> WaiterMap;
-
-private:
-  /// Execution context for compiled functions
+  /// Execution context for compiled functions.
   struct ExecutionContextStruct {
     uint8_t *const *Memories;
     ValVariant *const *Globals;
@@ -924,9 +923,19 @@ private:
   /// Record stack track on error
   static thread_local std::array<uint32_t, 256> StackTrace;
   static thread_local size_t StackTraceSize;
-  /// @}
 
-private:
+  /// Waiter struct for atomic instructions
+  struct Waiter {
+    std::mutex Mutex;
+    std::condition_variable Cond;
+    Runtime::Instance::MemoryInstance *MemInst;
+    Waiter(Runtime::Instance::MemoryInstance *Inst) noexcept : MemInst(Inst) {}
+  };
+  /// Waiter map mutex
+  std::mutex WaiterMapMutex;
+  /// Waiter multimap
+  std::unordered_multimap<uint32_t, Waiter> WaiterMap;
+
   /// WasmEdge configuration
   const Configure Conf;
   /// Executor statistics

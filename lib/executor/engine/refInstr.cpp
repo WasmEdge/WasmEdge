@@ -123,7 +123,6 @@ Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
           ->newStruct(DefIndex, std::move(Vals));
   StackMgr.push(RefVariant(Inst->getDefType(), Inst));
-
   return {};
 }
 
@@ -522,7 +521,6 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
 
 Expect<void> Executor::runRefConvOp(RefVariant &Ref,
                                     TypeCode TCode) const noexcept {
-
   if (TCode == TypeCode::AnyRef) {
     // Internalize.
     if (Ref.isNull()) {

@@ -15,7 +15,7 @@ This document has not yet covered all workflows.
 | Ubuntu 24.04 | x86_64 | clang | `ubuntu-24.04-build-clang` | o ||
 | Ubuntu 24.04 | x86_64 | gcc | `ubuntu-24.04-build-gcc` | o ||
 | Ubuntu 22.04 | x86_64 | gcc | `ubuntu-22.04-build-gcc` | coverage ||
-| Ubuntu 20.04 | x86_64 | clang | `ubuntu-20.04-build-clang` || o |
+| Ubuntu 20.04 | x86_64 | clang | `ubuntu-20.04-build-clang` | o | o |
 | Ubuntu 20.04 | aarch64 | clang | `ubuntu-20.04-build-clang-aarch64` | o | o |
 
 ### WasmEdge plugins

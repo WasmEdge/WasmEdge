@@ -535,7 +535,7 @@ protected:
 
   /// \name Data for compiled functions.
   /// @{
-  std::vector<uint8_t *> MemoryPtrs;
+  std::vector<uint8_t **> MemoryPtrs;
   std::vector<ValVariant *> GlobalPtrs;
   /// @}
 

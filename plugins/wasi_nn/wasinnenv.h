@@ -9,6 +9,7 @@
 #include "wasinn_neuralspeed.h"
 #include "wasinn_onnx.h"
 #include "wasinn_openvino.h"
+#include "wasinn_openvino_genai.h"
 #include "wasinn_piper.h"
 #include "wasinn_tf.h"
 #include "wasinn_tfl.h"

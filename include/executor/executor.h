@@ -890,7 +890,7 @@ public:
 private:
   /// Execution context for compiled functions.
   struct ExecutionContextStruct {
-    uint8_t *const *Memories;
+    uint8_t **const *Memories;
     ValVariant *const *Globals;
     std::atomic_uint64_t *InstrCount;
     uint64_t *CostTable;

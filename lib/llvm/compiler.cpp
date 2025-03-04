@@ -154,6 +154,7 @@ struct LLVM::Compiler::CompileContext {
   LLVM::Type Int32PtrTy;
   LLVM::Type Int64PtrTy;
   LLVM::Type Int128PtrTy;
+  LLVM::Type Int8PtrPtrTy;
   LLVM::Type ExecCtxTy;
   LLVM::Type ExecCtxPtrTy;
   LLVM::Type IntrinsicsTableTy;
@@ -229,11 +230,12 @@ struct LLVM::Compiler::CompileContext {
         Int8PtrTy(Int8Ty.getPointerTo()), Int32PtrTy(Int32Ty.getPointerTo()),
         Int64PtrTy(Int64Ty.getPointerTo()),
         Int128PtrTy(Int128Ty.getPointerTo()),
+        Int8PtrPtrTy(Int8PtrTy.getPointerTo()),
         ExecCtxTy(LLVM::Type::getStructType(
             "ExecCtx",
             std::initializer_list<LLVM::Type>{
                 // Memory
-                Int8PtrTy.getPointerTo(),
+                Int8PtrPtrTy.getPointerTo(),
                 // Globals
                 Int128PtrTy.getPointerTo(),
                 // InstrCount
@@ -323,9 +325,12 @@ struct LLVM::Compiler::CompileContext {
   LLVM::Value getMemory(LLVM::Builder &Builder, LLVM::Value ExecCtx,
                         uint32_t Index) noexcept {
     auto Array = Builder.createExtractValue(ExecCtx, 0);
+    auto VPtrPtr = Builder.createLoad(
+        Int8PtrPtrTy, Builder.createInBoundsGEP1(Int8PtrPtrTy, Array,
+                                                 LLContext.getInt64(Index)));
     auto VPtr = Builder.createLoad(
-        Int8PtrTy, Builder.createInBoundsGEP1(Int8PtrTy, Array,
-                                              LLContext.getInt64(Index)));
+        Int8PtrTy,
+        Builder.createInBoundsGEP1(Int8PtrTy, VPtrPtr, LLContext.getInt64(0)));
     VPtr.setMetadata(LLContext, LLVM::Core::InvariantGroup,
                      LLVM::Metadata(LLContext, {}));
     return Builder.createBitCast(VPtr, Int8PtrTy);
@@ -4168,14 +4173,6 @@ private:
                                     Value, LLContext.getInt64(Index)),
         Context.Int64x2Ty);
   }
-  void compileStoreLaneOp(unsigned MemoryIndex, unsigned Offset,
-                          unsigned Alignment, unsigned Index, LLVM::Type LoadTy,
-                          LLVM::Type VectorTy) noexcept {
-    auto Vector = Stack.back();
-    Stack.back() = Builder.createExtractElement(
-        Builder.createBitCast(Vector, VectorTy), LLContext.getInt64(Index));
-    compileStoreOp(MemoryIndex, Offset, Alignment, LoadTy);
-  }
   void compileStoreOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
                       LLVM::Type LoadTy, bool Trunc = false,
                       bool BitCast = false) noexcept {
@@ -4199,6 +4196,14 @@ private:
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
     auto StoreInst = Builder.createStore(V, Ptr, true);
     StoreInst.setAlignment(1 << Alignment);
+  }
+  void compileStoreLaneOp(unsigned MemoryIndex, unsigned Offset,
+                          unsigned Alignment, unsigned Index, LLVM::Type LoadTy,
+                          LLVM::Type VectorTy) noexcept {
+    auto Vector = Stack.back();
+    Stack.back() = Builder.createExtractElement(
+        Builder.createBitCast(Vector, VectorTy), LLContext.getInt64(Index));
+    compileStoreOp(MemoryIndex, Offset, Alignment, LoadTy);
   }
   void compileSplatOp(LLVM::Type VectorTy) noexcept {
     auto Undef = LLVM::Value::getUndef(VectorTy);

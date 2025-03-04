@@ -15,10 +15,20 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
   ModInst.MemoryPtrs.resize(ModInst.getMemoryNum() +
                             MemSec.getContent().size());
 
+  // Set the memory pointers of imported memories.
+  for (uint32_t I = 0; I < ModInst.getMemoryNum(); ++I) {
+    ModInst.MemoryPtrs[I] = &((*ModInst.getMemory(I))->getDataPtr());
+  }
+
   // Iterate through the memory types to instantiate memory instances.
   for (const auto &MemType : MemSec.getContent()) {
     // Create and add the memory instance into the module instance.
     ModInst.addMemory(MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
+    const auto Index = ModInst.getMemoryNum() - 1;
+    Runtime::Instance::MemoryInstance *MemInst = *ModInst.getMemory(Index);
+
+    // Set the memory pointers of instantiated memories.
+    ModInst.MemoryPtrs[Index] = &(MemInst->getDataPtr());
   }
   return {};
 }

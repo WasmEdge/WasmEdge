@@ -1,6 +1,7 @@
 group "default" {
   targets = [
     "cuda",
+    "cuda-tensorrt",
     "final"
   ]
 }
@@ -160,6 +161,26 @@ target "cuda" {
   args       = {
     BASE_IMAGE = "wasmedge/wasmedge:ubuntu-20.04-build-gcc"
     NVCC_VER   = replace(cuda, ".", "-")
+  }
+}
+
+target "cuda-tensorrt" {
+  dockerfile = "Dockerfile.ubuntu-cuda"
+  context    = "./utils/docker"
+
+  matrix     = {
+    cuda = ["12.6"]
+  }
+
+  name       = "base-2004-gcc-tensorrt-cuda${major(cuda)}"
+  contexts   = {
+    "wasmedge/wasmedge:ubuntu-20.04-build-gcc" = "target:base-2004-gcc"
+  }
+  tags       = ["wasmedge/wasmedge:ubuntu-20.04-build-gcc-tensorrt-cuda${major(cuda)}"]
+  args       = {
+    BASE_IMAGE = "wasmedge/wasmedge:ubuntu-20.04-build-gcc"
+    NVCC_VER   = replace(cuda, ".", "-")
+    TENSORRT   = "ON"
   }
 }
 

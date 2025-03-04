@@ -10,6 +10,7 @@
 #include "wasinn_onnx.h"
 #include "wasinn_openvino.h"
 #include "wasinn_piper.h"
+#include "wasinn_tensorrt.h"
 #include "wasinn_tf.h"
 #include "wasinn_tfl.h"
 #include "wasinn_torch.h"

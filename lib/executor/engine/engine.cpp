@@ -98,7 +98,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     };
 
     switch (Instr.getOpCode()) {
-    // Control instructions.
+    // Control instructions
     case OpCode::Unreachable:
       spdlog::error(ErrCode::Value::Unreachable);
       spdlog::error(
@@ -191,7 +191,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::Ref__as_non_null:
       return runRefAsNonNullOp(StackMgr.getTop().get<RefVariant>(), Instr);
 
-      // GC Instructions
+    // Reference Instructions (GC proposal)
     case OpCode::Struct__new:
       return runStructNewOp(StackMgr, Instr.getTargetIndex());
     case OpCode::Struct__new_default:
@@ -444,7 +444,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runMemoryFillOp(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
 
-    // Const numeric instructions
+    // Const Numeric Instructions
     case OpCode::I32__const:
     case OpCode::I64__const:
     case OpCode::F32__const:
@@ -452,7 +452,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       StackMgr.push(Instr.getNum());
       return {};
 
-    // Unary numeric instructions
+    // Unary Numeric Instructions
     case OpCode::I32__eqz:
       return runEqzOp<uint32_t>(StackMgr.getTop());
     case OpCode::I64__eqz:
@@ -557,24 +557,8 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runExtendOp<int64_t, uint64_t, 16>(StackMgr.getTop());
     case OpCode::I64__extend32_s:
       return runExtendOp<int64_t, uint64_t, 32>(StackMgr.getTop());
-    case OpCode::I32__trunc_sat_f32_s:
-      return runTruncateSatOp<float, int32_t>(StackMgr.getTop());
-    case OpCode::I32__trunc_sat_f32_u:
-      return runTruncateSatOp<float, uint32_t>(StackMgr.getTop());
-    case OpCode::I32__trunc_sat_f64_s:
-      return runTruncateSatOp<double, int32_t>(StackMgr.getTop());
-    case OpCode::I32__trunc_sat_f64_u:
-      return runTruncateSatOp<double, uint32_t>(StackMgr.getTop());
-    case OpCode::I64__trunc_sat_f32_s:
-      return runTruncateSatOp<float, int64_t>(StackMgr.getTop());
-    case OpCode::I64__trunc_sat_f32_u:
-      return runTruncateSatOp<float, uint64_t>(StackMgr.getTop());
-    case OpCode::I64__trunc_sat_f64_s:
-      return runTruncateSatOp<double, int64_t>(StackMgr.getTop());
-    case OpCode::I64__trunc_sat_f64_u:
-      return runTruncateSatOp<double, uint64_t>(StackMgr.getTop());
 
-      // Binary numeric instructions
+    // Binary Numeric Instructions
     case OpCode::I32__eq: {
       ValVariant Rhs = StackMgr.pop();
       return runEqOp<uint32_t>(StackMgr.getTop(), Rhs);
@@ -879,6 +863,24 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant Rhs = StackMgr.pop();
       return runCopysignOp<double>(StackMgr.getTop(), Rhs);
     }
+
+    // Saturating Truncation Numeric Instructions
+    case OpCode::I32__trunc_sat_f32_s:
+      return runTruncateSatOp<float, int32_t>(StackMgr.getTop());
+    case OpCode::I32__trunc_sat_f32_u:
+      return runTruncateSatOp<float, uint32_t>(StackMgr.getTop());
+    case OpCode::I32__trunc_sat_f64_s:
+      return runTruncateSatOp<double, int32_t>(StackMgr.getTop());
+    case OpCode::I32__trunc_sat_f64_u:
+      return runTruncateSatOp<double, uint32_t>(StackMgr.getTop());
+    case OpCode::I64__trunc_sat_f32_s:
+      return runTruncateSatOp<float, int64_t>(StackMgr.getTop());
+    case OpCode::I64__trunc_sat_f32_u:
+      return runTruncateSatOp<float, uint64_t>(StackMgr.getTop());
+    case OpCode::I64__trunc_sat_f64_s:
+      return runTruncateSatOp<double, int64_t>(StackMgr.getTop());
+    case OpCode::I64__trunc_sat_f64_u:
+      return runTruncateSatOp<double, uint64_t>(StackMgr.getTop());
 
     // SIMD Memory Instructions
     case OpCode::V128__load:
@@ -1272,7 +1274,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorGeOp<double>(StackMgr.getTop(), Rhs);
     }
-
     case OpCode::V128__not: {
       auto &Val = StackMgr.getTop().get<uint128_t>();
       Val = ~Val;
@@ -1344,7 +1345,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     }
     case OpCode::V128__any_true:
       return runVectorAnyTrueOp(StackMgr.getTop());
-
     case OpCode::I8x16__abs:
       return runVectorAbsOp<int8_t>(StackMgr.getTop());
     case OpCode::I8x16__neg:
@@ -1419,7 +1419,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorAvgrOp<uint8_t, uint16_t>(StackMgr.getTop(), Rhs);
     }
-
     case OpCode::I16x8__abs:
       return runVectorAbsOp<int16_t>(StackMgr.getTop());
     case OpCode::I16x8__neg:
@@ -1528,7 +1527,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runVectorExtAddPairwiseOp<int8_t, int16_t>(StackMgr.getTop());
     case OpCode::I16x8__extadd_pairwise_i8x16_u:
       return runVectorExtAddPairwiseOp<uint8_t, uint16_t>(StackMgr.getTop());
-
     case OpCode::I32x4__abs:
       return runVectorAbsOp<int32_t>(StackMgr.getTop());
     case OpCode::I32x4__neg:
@@ -1605,7 +1603,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runVectorExtAddPairwiseOp<int16_t, int32_t>(StackMgr.getTop());
     case OpCode::I32x4__extadd_pairwise_i16x8_u:
       return runVectorExtAddPairwiseOp<uint16_t, uint32_t>(StackMgr.getTop());
-
     case OpCode::I64x2__abs:
       return runVectorAbsOp<int64_t>(StackMgr.getTop());
     case OpCode::I64x2__neg:
@@ -1662,7 +1659,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorExtMulHighOp<uint32_t, uint64_t>(StackMgr.getTop(), Rhs);
     }
-
     case OpCode::F32x4__abs:
       return runVectorAbsOp<float>(StackMgr.getTop());
     case OpCode::F32x4__neg:
@@ -1701,7 +1697,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorMaxOp<float>(StackMgr.getTop(), Rhs);
     }
-
     case OpCode::F64x2__abs:
       return runVectorAbsOp<double>(StackMgr.getTop());
     case OpCode::F64x2__neg:
@@ -1740,7 +1735,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       ValVariant Rhs = StackMgr.pop();
       return runVectorMaxOp<double>(StackMgr.getTop(), Rhs);
     }
-
     case OpCode::I32x4__trunc_sat_f32x4_s:
       return runVectorTruncSatOp<float, int32_t>(StackMgr.getTop());
     case OpCode::I32x4__trunc_sat_f32x4_u:
@@ -1817,7 +1811,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::F64x2__nearest:
       return runVectorNearestOp<double>(StackMgr.getTop());
 
-    // Relaxed SIMD
+    // Relaxed SIMD Instructions
     case OpCode::I8x16__relaxed_swizzle: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
@@ -1923,10 +1917,9 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runVectorRelaxedIntegerDotProductOpAdd(StackMgr.getTop(), Rhs, C);
     }
 
-    // Threads instructions
+    // Atomic Instructions
     case OpCode::Atomic__fence:
       return runMemoryFenceOp();
-
     case OpCode::Memory__atomic__notify:
       return runAtomicNotifyOp(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
@@ -1936,7 +1929,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::Memory__atomic__wait64:
       return runAtomicWaitOp<int64_t>(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);
-
     case OpCode::I32__atomic__load:
       return runAtomicLoadOp<int32_t, uint32_t>(
           StackMgr, *getMemInstByIdx(StackMgr, Instr.getTargetIndex()), Instr);

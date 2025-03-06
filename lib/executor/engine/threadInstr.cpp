@@ -10,40 +10,17 @@ Expect<void>
 Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
                             Runtime::Instance::MemoryInstance &MemInst,
                             const AST::Instruction &Instr) {
-  ValVariant RawCount = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
-
-  uint32_t Address = RawAddress.get<uint32_t>();
-
-  if (Address >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Address + static_cast<uint64_t>(Instr.getMemoryOffset()),
-        sizeof(uint32_t), MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  }
-  Address += Instr.getMemoryOffset();
-
-  if (Address % sizeof(uint32_t) != 0) {
-    spdlog::error(ErrCode::Value::UnalignedAtomicAccess);
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
-  }
-
-  uint32_t Count = RawCount.get<uint32_t>();
-  EXPECTED_TRY(
-      auto Total,
-      atomicNotify(MemInst, Address, Count).map_error([&Instr](auto E) {
-        spdlog::error(E);
-        spdlog::error(
-            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return E;
-      }));
-  RawAddress.emplace<uint32_t>(Total);
+  auto [Count, Offset] = StackMgr.pops<uint32_t, uint32_t>();
+  EXPECTED_TRY(const uint32_t EA,
+               atomicAddressGet<uint32_t>(MemInst, Offset, Instr));
+  EXPECTED_TRY(uint32_t Total,
+               atomicNotify(MemInst, EA, Count).map_error([&Instr](auto E) {
+                 spdlog::error(E);
+                 spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                                        Instr.getOffset()));
+                 return E;
+               }));
+  StackMgr.push(Total);
   return {};
 }
 

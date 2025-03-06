@@ -275,6 +275,7 @@ protected:
   friend class Executor::Executor;
   friend class ComponentInstance;
   friend class Runtime::CallingFrame;
+  friend class GC::Allocator;
 
   /// Create and copy the defined type to this module instance.
   void addDefinedType(const AST::SubType &SType) {
@@ -312,18 +313,6 @@ protected:
   template <typename... Args> void addData(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedDataInsts, DataInsts, std::forward<Args>(Values)...);
-  }
-  template <typename... Args> ArrayInstance *newArray(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedArrayInsts.push_back(
-        std::make_unique<ArrayInstance>(this, std::forward<Args>(Values)...));
-    return OwnedArrayInsts.back().get();
-  }
-  template <typename... Args> StructInstance *newStruct(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedStructInsts.push_back(
-        std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
-    return OwnedStructInsts.back().get();
   }
 
   /// Import instances into this module instance.

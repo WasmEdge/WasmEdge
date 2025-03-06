@@ -20,6 +20,7 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
+#include "gc/allocator.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "runtime/stackmgr.h"
@@ -464,7 +465,7 @@ private:
                                  const AST::Instruction &Instr) const noexcept;
   Expect<void> runStructNewOp(Runtime::StackManager &StackMgr,
                               const uint32_t DefIndex,
-                              bool IsDefault = false) const noexcept;
+                              bool IsDefault = false) noexcept;
   Expect<void> runStructGetOp(ValVariant &Val, const uint32_t Idx,
                               const AST::CompositeType &CompType,
                               const AST::Instruction &Instr,
@@ -474,15 +475,15 @@ private:
                               const AST::Instruction &Instr) const noexcept;
   Expect<void> runArrayNewOp(Runtime::StackManager &StackMgr,
                              const uint32_t DefIndex, uint32_t InitCnt,
-                             uint32_t ValCnt) const noexcept;
+                             uint32_t ValCnt) noexcept;
   Expect<void>
   runArrayNewDataOp(Runtime::StackManager &StackMgr,
                     const Runtime::Instance::DataInstance &DataInst,
-                    const AST::Instruction &Instr) const noexcept;
+                    const AST::Instruction &Instr) noexcept;
   Expect<void>
   runArrayNewElemOp(Runtime::StackManager &StackMgr,
                     const Runtime::Instance::ElementInstance &ElemInst,
-                    const AST::Instruction &Instr) const noexcept;
+                    const AST::Instruction &Instr) noexcept;
   Expect<void> runArraySetOp(const ValVariant &Val, const uint32_t Idx,
                              const RefVariant &InstRef,
                              const AST::CompositeType &CompType,
@@ -948,6 +949,9 @@ private:
   std::atomic_uint32_t StopToken = 0;
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
+
+  /// GC Allocator
+  GC::Allocator Allocator;
 };
 
 } // namespace Executor

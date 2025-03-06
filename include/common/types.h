@@ -259,6 +259,20 @@ public:
     return false;
   }
 
+  TypeCode getGCType() const noexcept {
+    if (isRefType()) {
+      switch (Inner.Data.HTCode) {
+      case TypeCode::StructRef:
+        return TypeCode::StructRef;
+      case TypeCode::ArrayRef:
+        return TypeCode::ArrayRef;
+      default:
+        break;
+      }
+    }
+    return TypeCode::NullRef;
+  }
+
   uint32_t getBitWidth() const noexcept {
     switch (Inner.Data.Code) {
     case TypeCode::I8:
@@ -404,12 +418,6 @@ struct RefVariant {
   }
   RefVariant(const Runtime::Instance::FunctionInstance *P) noexcept {
     setData(TypeCode::FuncRef, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::StructInstance *P) noexcept {
-    setData(TypeCode::StructRef, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::ArrayInstance *P) noexcept {
-    setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
   }
 
   // Getter of type.

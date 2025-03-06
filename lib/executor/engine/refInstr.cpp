@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "executor/executor.h"
+#include "experimental/scope.hpp"
 
 namespace WasmEdge {
 namespace Executor {
@@ -83,8 +84,10 @@ Expect<void> Executor::runRefNullOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void> Executor::runRefIsNullOp(ValVariant &Val) const noexcept {
-  Val.emplace<uint32_t>(Val.get<RefVariant>().isNull() ? 1U : 0U);
+Expect<void>
+Executor::runRefIsNullOp(Runtime::StackManager &StackMgr) const noexcept {
+  const auto Val = StackMgr.peekTop<RefVariant>();
+  StackMgr.emplaceTop<uint32_t>(Val.isNull() ? 1U : 0U);
   return {};
 }
 
@@ -95,35 +98,39 @@ Expect<void> Executor::runRefFuncOp(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void> Executor::runRefEqOp(ValVariant &Val1,
-                                  const ValVariant &Val2) const noexcept {
-  Val1.emplace<uint32_t>(Val1.get<RefVariant>().getPtr<void>() ==
-                                 Val2.get<RefVariant>().getPtr<void>()
-                             ? 1U
-                             : 0U);
+Expect<void>
+Executor::runRefEqOp(Runtime::StackManager &StackMgr) const noexcept {
+  auto [Val2, Val1] = StackMgr.popsPeekTop<RefVariant, RefVariant>();
+  StackMgr.emplaceTop<uint32_t>(
+      Val1.getPtr<void>() == Val2.getPtr<void>() ? 1U : 0U);
   return {};
 }
 
 Expect<void>
-Executor::runRefAsNonNullOp(RefVariant &Ref,
+Executor::runRefAsNonNullOp(Runtime::StackManager &StackMgr,
                             const AST::Instruction &Instr) const noexcept {
+  auto Ref = StackMgr.peekTop<RefVariant>();
   if (Ref.isNull()) {
     return Unexpect(logError(ErrCode::Value::CastNullToNonNull, Instr));
   }
   Ref.getType().toNonNullableRef();
+  StackMgr.emplaceTop(std::move(Ref));
   return {};
 }
 
 Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
-                                      const bool IsDefault) const noexcept {
+                                      const bool IsDefault) noexcept {
+  Allocator.autoCollect();
   if (IsDefault) {
-    StackMgr.push(*structNew(StackMgr, TypeIdx));
+    EXPECTED_TRY(auto Ref, structNew(StackMgr, TypeIdx));
+    StackMgr.push(std::move(Ref));
   } else {
     const auto &CompType = getCompositeTypeByIdx(StackMgr, TypeIdx);
     const uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
-    std::vector<ValVariant> Vals = StackMgr.pop(N);
-    StackMgr.push(*structNew(StackMgr, TypeIdx, Vals));
+    std::vector<ValVariant> Vals = StackMgr.popVec(N);
+    EXPECTED_TRY(auto Ref, structNew(StackMgr, TypeIdx, Vals));
+    StackMgr.push(std::move(Ref));
   }
   return {};
 }
@@ -133,21 +140,21 @@ Expect<void> Executor::runStructGetOp(Runtime::StackManager &StackMgr,
                                       const uint32_t Off,
                                       const AST::Instruction &Instr,
                                       const bool IsSigned) const noexcept {
-  const RefVariant Ref = StackMgr.getTop().get<RefVariant>();
+  const auto Ref = StackMgr.peekTop<RefVariant>();
   EXPECTED_TRY(
       auto Val,
       structGet(StackMgr, Ref, TypeIdx, Off, IsSigned).map_error([&](auto E) {
         return logError(E, Instr);
       }));
-  StackMgr.getTop() = Val;
+  StackMgr.emplaceTop(std::move(Val));
   return {};
 }
 
 Expect<void>
-Executor::runStructSetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
+Executor::runStructSetOp(Runtime::StackManager &StackMgr,
                          const uint32_t TypeIdx, const uint32_t Off,
                          const AST::Instruction &Instr) const noexcept {
-  const RefVariant Ref = StackMgr.pop().get<RefVariant>();
+  const auto [Val, Ref] = StackMgr.pops<ValVariant, RefVariant>();
   EXPECTED_TRY(
       structSet(StackMgr, Ref, Val, TypeIdx, Off).map_error([&](auto E) {
         return logError(E, Instr);
@@ -158,15 +165,20 @@ Executor::runStructSetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
 Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
                                      const uint32_t TypeIdx,
                                      const uint32_t InitCnt,
-                                     uint32_t Length) const noexcept {
+                                     uint32_t Length) noexcept {
+  Allocator.autoCollect();
   assuming(InitCnt == 0 || InitCnt == 1 || InitCnt == Length);
   if (InitCnt == 0) {
-    StackMgr.push(*arrayNew(StackMgr, TypeIdx, Length));
+    EXPECTED_TRY(auto Ref, arrayNew(StackMgr, TypeIdx, Length));
+    StackMgr.push(std::move(Ref));
   } else if (InitCnt == 1) {
-    StackMgr.getTop().emplace<RefVariant>(
-        *arrayNew(StackMgr, TypeIdx, Length, {StackMgr.getTop()}));
+    const auto Val = StackMgr.peekTop<ValVariant>();
+    EXPECTED_TRY(auto Ref, arrayNew(StackMgr, TypeIdx, Length, {Val}));
+    StackMgr.emplaceTop(std::move(Ref));
   } else {
-    StackMgr.push(*arrayNew(StackMgr, TypeIdx, Length, StackMgr.pop(Length)));
+    const auto Vals = StackMgr.popVec(Length);
+    EXPECTED_TRY(auto Ref, arrayNew(StackMgr, TypeIdx, Length, Vals));
+    StackMgr.push(std::move(Ref));
   }
   return {};
 }
@@ -174,11 +186,12 @@ Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
                             const uint32_t TypeIdx, const uint32_t DataIdx,
-                            const AST::Instruction &Instr) const noexcept {
-  const uint32_t Length = StackMgr.pop().get<uint32_t>();
-  const uint32_t Start = StackMgr.getTop().get<uint32_t>();
+                            const AST::Instruction &Instr) noexcept {
+  Allocator.autoCollect();
+  const uint32_t Length = StackMgr.pop<uint32_t>();
+  const uint32_t Start = StackMgr.peekTop<uint32_t>();
   EXPECTED_TRY(
-      auto InstRef,
+      auto Ref,
       arrayNewData(StackMgr, TypeIdx, DataIdx, Start, Length)
           .map_error([&](auto E) {
             auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
@@ -188,17 +201,18 @@ Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
               return logMemoryOOB(E, *DataInst, Start, BSize * Length);
             });
           }));
-  StackMgr.getTop().emplace<RefVariant>(InstRef);
+  StackMgr.emplaceTop<RefVariant>(std::move(Ref));
   return {};
 }
 
 Expect<void>
 Executor::runArrayNewElemOp(Runtime::StackManager &StackMgr,
                             const uint32_t TypeIdx, const uint32_t ElemIdx,
-                            const AST::Instruction &Instr) const noexcept {
-  const uint32_t Length = StackMgr.pop().get<uint32_t>();
-  const uint32_t Start = StackMgr.getTop().get<uint32_t>();
-  EXPECTED_TRY(auto InstRef,
+                            const AST::Instruction &Instr) noexcept {
+  Allocator.autoCollect();
+  uint32_t Length, Start;
+  std::tie(Length, Start) = StackMgr.popsPeekTop<uint32_t, uint32_t>();
+  EXPECTED_TRY(auto Ref,
                arrayNewElem(StackMgr, TypeIdx, ElemIdx, Start, Length)
                    .map_error([&](auto E) {
                      auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
@@ -206,7 +220,7 @@ Executor::runArrayNewElemOp(Runtime::StackManager &StackMgr,
                        return logTableOOB(E, *ElemInst, Start, Length);
                      });
                    }));
-  StackMgr.getTop().emplace<RefVariant>(InstRef);
+  StackMgr.emplaceTop(std::move(Ref));
   return {};
 }
 
@@ -214,24 +228,26 @@ Expect<void> Executor::runArrayGetOp(Runtime::StackManager &StackMgr,
                                      const uint32_t TypeIdx,
                                      const AST::Instruction &Instr,
                                      const bool IsSigned) const noexcept {
-  const uint32_t Idx = StackMgr.pop().get<uint32_t>();
-  const RefVariant Ref = StackMgr.getTop().get<RefVariant>();
+  uint32_t Idx;
+  RefVariant Ref;
+  std::tie(Idx, Ref) = StackMgr.popsPeekTop<uint32_t, RefVariant>();
   EXPECTED_TRY(
       auto Val,
       arrayGet(StackMgr, Ref, TypeIdx, Idx, IsSigned).map_error([&](auto E) {
         return logError(E, Instr,
                         [&]() { return logArrayOOB(E, Idx, 1, Ref); });
       }));
-  StackMgr.getTop() = Val;
+  StackMgr.emplaceTop(std::move(Val));
   return {};
 }
 
 Expect<void>
-Executor::runArraySetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
-                        const uint32_t TypeIdx,
+Executor::runArraySetOp(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                         const AST::Instruction &Instr) const noexcept {
-  const uint32_t Idx = StackMgr.pop().get<uint32_t>();
-  const RefVariant Ref = StackMgr.pop().get<RefVariant>();
+  ValVariant Val;
+  uint32_t Idx;
+  RefVariant Ref;
+  std::tie(Val, Idx, Ref) = StackMgr.pops<ValVariant, uint32_t, RefVariant>();
   EXPECTED_TRY(
       arraySet(StackMgr, Ref, Val, TypeIdx, Idx).map_error([&](auto E) {
         return logError(E, Instr,
@@ -241,23 +257,31 @@ Executor::runArraySetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
 }
 
 Expect<void>
-Executor::runArrayLenOp(ValVariant &Val,
+Executor::runArrayLenOp(Runtime::StackManager &StackMgr,
                         const AST::Instruction &Instr) const noexcept {
-  const auto *Inst =
-      Val.get<RefVariant>().getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
-    return Unexpect(logError(ErrCode::Value::AccessNullArray, Instr));
+  const auto Ref = StackMgr.peekTop<RefVariant>();
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
+    spdlog::error(ErrCode::Value::AccessNullArray);
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  Val.emplace<uint32_t>(Inst->getLength());
+  const Runtime::Instance::ArrayInstance Inst{Raw};
+  StackMgr.emplaceTop<uint32_t>(Inst.getLength());
   return {};
 }
 
 Expect<void>
-Executor::runArrayFillOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
-                         const ValVariant &Val, const uint32_t TypeIdx,
+Executor::runArrayFillOp(Runtime::StackManager &StackMgr,
+                         const uint32_t TypeIdx,
                          const AST::Instruction &Instr) const noexcept {
-  const uint32_t Idx = StackMgr.pop().get<uint32_t>();
-  const RefVariant Ref = StackMgr.pop().get<RefVariant>();
+  uint32_t Cnt;
+  ValVariant Val;
+  uint32_t Idx;
+  RefVariant Ref;
+  std::tie(Cnt, Val, Idx, Ref) =
+      StackMgr.pops<uint32_t, ValVariant, uint32_t, RefVariant>();
   EXPECTED_TRY(
       arrayFill(StackMgr, Ref, Val, TypeIdx, Idx, Cnt).map_error([&](auto E) {
         return logError(E, Instr,
@@ -267,13 +291,16 @@ Executor::runArrayFillOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
 }
 
 Expect<void>
-Executor::runArrayCopyOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
+Executor::runArrayCopyOp(Runtime::StackManager &StackMgr,
                          const uint32_t DstTypeIdx, const uint32_t SrcTypeIdx,
                          const AST::Instruction &Instr) const noexcept {
-  const uint32_t SrcIdx = StackMgr.pop().get<uint32_t>();
-  const RefVariant SrcRef = StackMgr.pop().get<RefVariant>();
-  const uint32_t DstIdx = StackMgr.pop().get<uint32_t>();
-  const RefVariant DstRef = StackMgr.pop().get<RefVariant>();
+  uint32_t Cnt;
+  uint32_t SrcIdx;
+  RefVariant SrcRef;
+  uint32_t DstIdx;
+  RefVariant DstRef;
+  std::tie(Cnt, SrcIdx, SrcRef, DstIdx, DstRef) =
+      StackMgr.pops<uint32_t, uint32_t, RefVariant, uint32_t, RefVariant>();
   EXPECTED_TRY(arrayCopy(StackMgr, DstRef, DstTypeIdx, DstIdx, SrcRef,
                          SrcTypeIdx, SrcIdx, Cnt)
                    .map_error([&](auto E) {
@@ -285,12 +312,16 @@ Executor::runArrayCopyOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
   return {};
 }
 
-Expect<void> Executor::runArrayInitDataOp(
-    Runtime::StackManager &StackMgr, const uint32_t Cnt, const uint32_t TypeIdx,
-    const uint32_t DataIdx, const AST::Instruction &Instr) const noexcept {
-  const uint32_t SrcIdx = StackMgr.pop().get<uint32_t>();
-  const uint32_t DstIdx = StackMgr.pop().get<uint32_t>();
-  const RefVariant Ref = StackMgr.pop().get<RefVariant>();
+Expect<void>
+Executor::runArrayInitDataOp(Runtime::StackManager &StackMgr,
+                             const uint32_t TypeIdx, const uint32_t DataIdx,
+                             const AST::Instruction &Instr) const noexcept {
+  uint32_t Cnt;
+  uint32_t SrcIdx;
+  uint32_t DstIdx;
+  RefVariant Ref;
+  std::tie(Cnt, SrcIdx, DstIdx, Ref) =
+      StackMgr.pops<uint32_t, uint32_t, uint32_t, RefVariant>();
   EXPECTED_TRY(
       arrayInitData(StackMgr, Ref, TypeIdx, DataIdx, DstIdx, SrcIdx, Cnt)
           .map_error([&](auto E) {
@@ -306,12 +337,16 @@ Expect<void> Executor::runArrayInitDataOp(
   return {};
 }
 
-Expect<void> Executor::runArrayInitElemOp(
-    Runtime::StackManager &StackMgr, const uint32_t Cnt, const uint32_t TypeIdx,
-    const uint32_t ElemIdx, const AST::Instruction &Instr) const noexcept {
-  const uint32_t SrcIdx = StackMgr.pop().get<uint32_t>();
-  const uint32_t DstIdx = StackMgr.pop().get<uint32_t>();
-  const RefVariant Ref = StackMgr.pop().get<RefVariant>();
+Expect<void>
+Executor::runArrayInitElemOp(Runtime::StackManager &StackMgr,
+                             const uint32_t TypeIdx, const uint32_t ElemIdx,
+                             const AST::Instruction &Instr) const noexcept {
+  uint32_t Cnt;
+  uint32_t SrcIdx;
+  uint32_t DstIdx;
+  RefVariant Ref;
+  std::tie(Cnt, SrcIdx, DstIdx, Ref) =
+      StackMgr.pops<uint32_t, uint32_t, uint32_t, RefVariant>();
   EXPECTED_TRY(
       arrayInitElem(StackMgr, Ref, TypeIdx, ElemIdx, DstIdx, SrcIdx, Cnt)
           .map_error([&](auto E) {
@@ -323,30 +358,30 @@ Expect<void> Executor::runArrayInitElemOp(
   return {};
 }
 
-Expect<void>
-Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
-                       ValVariant &Val, const AST::Instruction &Instr,
-                       const bool IsCast) const noexcept {
+Expect<void> Executor::runRefTestOp(Runtime::StackManager &StackMgr,
+                                    const AST::Instruction &Instr,
+                                    bool IsCast) const noexcept {
+  const Runtime::Instance::ModuleInstance *ModInst = StackMgr.getModule();
+  const auto Ref = StackMgr.peekTop<RefVariant>();
   // Copy the value type here due to handling the externalized case.
-  auto VT = Val.get<RefVariant>().getType();
+  auto VT = Ref.getType();
   if (VT.isExternalized()) {
     VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
   }
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst =
-        Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
+    auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
     // Reference must not be nullptr here because the null references are typed
     // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    if (Raw->ModInst) {
+      GotTypeList = Raw->ModInst->getTypeList();
     }
   }
 
   if (AST::TypeMatcher::matchType(ModInst->getTypeList(), Instr.getValType(),
                                   GotTypeList, VT)) {
     if (!IsCast) {
-      Val.emplace<uint32_t>(1U);
+      StackMgr.emplaceTop<uint32_t>(1U);
     }
   } else {
     if (IsCast) {
@@ -356,14 +391,15 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
           ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(ErrCode::Value::CastFailed);
     } else {
-      Val.emplace<uint32_t>(0U);
+      StackMgr.emplaceTop<uint32_t>(0U);
     }
   }
   return {};
 }
 
-Expect<void> Executor::runRefConvOp(RefVariant &Ref,
+Expect<void> Executor::runRefConvOp(Runtime::StackManager &StackMgr,
                                     TypeCode TCode) const noexcept {
+  auto Ref = StackMgr.peekTop<RefVariant>();
   if (TCode == TypeCode::AnyRef) {
     // Internalize.
     if (Ref.isNull()) {
@@ -384,21 +420,24 @@ Expect<void> Executor::runRefConvOp(RefVariant &Ref,
       Ref.getType().setExternalized();
     }
   }
+  StackMgr.emplaceTop(std::move(Ref));
   return {};
 }
 
-Expect<void> Executor::runRefI31Op(ValVariant &Val) const noexcept {
-  uint32_t RefNum = (Val.get<uint32_t>() & 0x7FFFFFFFU) | 0x80000000U;
-  Val = RefVariant(ValType(TypeCode::Ref, TypeCode::I31Ref),
-                   reinterpret_cast<void *>(static_cast<uint64_t>(RefNum)));
+Expect<void>
+Executor::runRefI31Op(Runtime::StackManager &StackMgr) const noexcept {
+  uint32_t RefNum = (StackMgr.peekTop<uint32_t>() & 0x7FFFFFFFU) | 0x80000000U;
+  StackMgr.emplaceTop(
+      RefVariant(ValType(TypeCode::Ref, TypeCode::I31Ref),
+                 reinterpret_cast<void *>(static_cast<uint64_t>(RefNum))));
   return {};
 }
 
-Expect<void> Executor::runI31GetOp(ValVariant &Val,
+Expect<void> Executor::runI31GetOp(Runtime::StackManager &StackMgr,
                                    const AST::Instruction &Instr,
                                    const bool IsSigned) const noexcept {
-  uint32_t RefNum = static_cast<uint32_t>(
-      reinterpret_cast<uintptr_t>(Val.get<RefVariant>().getPtr<void>()));
+  uint32_t RefNum = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
+      StackMgr.peekTop<RefVariant>().getPtr<void>()));
   if ((RefNum & 0x80000000U) == 0) {
     return Unexpect(logError(ErrCode::Value::AccessNullI31, Instr));
   }
@@ -406,20 +445,18 @@ Expect<void> Executor::runI31GetOp(ValVariant &Val,
   if (IsSigned) {
     RefNum |= ((RefNum & 0x40000000U) << 1);
   }
-  Val.emplace<uint32_t>(RefNum);
+  StackMgr.emplaceTop(std::move(RefNum));
   return {};
 }
 
-Expect<RefVariant>
-Executor::structNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
-                    Span<const ValVariant> Args) const noexcept {
+Expect<RefVariant> Executor::structNew(Runtime::StackManager &StackMgr,
+                                       const uint32_t TypeIdx,
+                                       Span<const ValVariant> Args) noexcept {
   /// TODO: The array and struct instances are owned by the module instance
   /// currently because of referring the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
   const auto &CompType = getCompositeTypeByIdx(StackMgr, TypeIdx);
   uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
-  Runtime::Instance::ModuleInstance *ModInst =
-      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
   std::vector<ValVariant> Vals(N);
   for (uint32_t I = 0; I < N; I++) {
     const auto &VType = CompType.getFieldTypes()[I].getStorageType();
@@ -431,9 +468,12 @@ Executor::structNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                     : ValVariant(static_cast<uint128_t>(0U));
     }
   }
-  WasmEdge::Runtime::Instance::StructInstance *Inst =
-      ModInst->newStruct(TypeIdx, std::move(Vals));
-  return RefVariant(Inst->getDefType(), Inst);
+  Runtime::Instance::StructInstance Inst(Allocator, StackMgr.getModule(),
+                                         TypeIdx, std::move(Vals));
+  if (Inst.getRaw() == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullStruct);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
 Expect<ValVariant> Executor::structGet(Runtime::StackManager &StackMgr,
@@ -441,60 +481,71 @@ Expect<ValVariant> Executor::structGet(Runtime::StackManager &StackMgr,
                                        const uint32_t TypeIdx,
                                        const uint32_t Off,
                                        const bool IsSigned) const noexcept {
-  const auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullStruct);
   }
+  const Runtime::Instance::StructInstance Inst{Raw};
   const auto &VType = getStructStorageTypeByIdx(StackMgr, TypeIdx, Off);
-  return unpackVal(VType, Inst->getField(Off), IsSigned);
+  return unpackVal(VType, Inst.getField(Off), IsSigned);
 }
 
 Expect<void> Executor::structSet(Runtime::StackManager &StackMgr,
                                  const RefVariant Ref, const ValVariant Val,
                                  const uint32_t TypeIdx,
                                  const uint32_t Off) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullStruct);
   }
+  Runtime::Instance::StructInstance Inst{Raw};
   const auto &VType = getStructStorageTypeByIdx(StackMgr, TypeIdx, Off);
-  Inst->getField(Off) = packVal(VType, Val);
+  Inst.getField(Off) = packVal(VType, Val);
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
-Expect<RefVariant>
-Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
-                   const uint32_t Length,
-                   Span<const ValVariant> Args) const noexcept {
+Expect<RefVariant> Executor::arrayNew(Runtime::StackManager &StackMgr,
+                                      const uint32_t TypeIdx,
+                                      const uint32_t Length,
+                                      Span<const ValVariant> Args) noexcept {
   /// TODO: The array and struct instances are owned by the module instance
   /// currently because of referring the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
+  Runtime::Instance::GCInstance::RawData *Raw = nullptr;
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
-  Runtime::Instance::ModuleInstance *ModInst =
-      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
   if (Args.size() == 0) {
     // New and fill with default values.
     auto InitVal = VType.isRefType()
                        ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
                        : ValVariant(static_cast<uint128_t>(0U));
-    Inst = ModInst->newArray(TypeIdx, Length, InitVal);
+    Runtime::Instance::ArrayInstance Inst(Allocator, StackMgr.getModule(),
+                                          TypeIdx, Length, InitVal);
+    Raw = Inst.getRaw();
   } else if (Args.size() == 1) {
     // New and fill with the arg value.
-    Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
+    Runtime::Instance::ArrayInstance Inst(Allocator, StackMgr.getModule(),
+                                          TypeIdx, Length,
+                                          packVal(VType, Args[0]));
+    Raw = Inst.getRaw();
   } else {
     // New with args.
-    Inst = ModInst->newArray(
-        TypeIdx,
+    Runtime::Instance::ArrayInstance Inst(
+        Allocator, StackMgr.getModule(), TypeIdx,
         packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
+    Raw = Inst.getRaw();
   }
-  return RefVariant(Inst->getDefType(), Inst);
+  if (Raw == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Raw);
 }
 
-Expect<RefVariant>
-Executor::arrayNewData(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
-                       const uint32_t DataIdx, const uint32_t Start,
-                       const uint32_t Length) const noexcept {
+Expect<RefVariant> Executor::arrayNewData(Runtime::StackManager &StackMgr,
+                                          const uint32_t TypeIdx,
+                                          const uint32_t DataIdx,
+                                          const uint32_t Start,
+                                          const uint32_t Length) noexcept {
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
   const uint32_t BSize = VType.getBitWidth() / 8;
   auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
@@ -503,23 +554,25 @@ Executor::arrayNewData(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
       DataInst->getData().size()) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  Runtime::Instance::ModuleInstance *ModInst =
-      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
   std::vector<ValVariant> Args;
   Args.reserve(Length);
   for (uint32_t Idx = 0; Idx < Length; Idx++) {
     // The value has been packed.
     Args.push_back(DataInst->loadValue(Start + Idx * BSize, BSize));
   }
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, std::move(Args));
-  return RefVariant(Inst->getDefType(), Inst);
+  Runtime::Instance::ArrayInstance Inst(Allocator, StackMgr.getModule(),
+                                        TypeIdx, std::move(Args));
+  if (Inst.getRaw() == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
-Expect<RefVariant>
-Executor::arrayNewElem(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
-                       const uint32_t ElemIdx, const uint32_t Start,
-                       const uint32_t Length) const noexcept {
+Expect<RefVariant> Executor::arrayNewElem(Runtime::StackManager &StackMgr,
+                                          const uint32_t TypeIdx,
+                                          const uint32_t ElemIdx,
+                                          const uint32_t Start,
+                                          const uint32_t Length) noexcept {
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
   auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
   assuming(ElemInst);
@@ -530,11 +583,13 @@ Executor::arrayNewElem(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   }
   std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
                                ElemSrc.begin() + Start + Length);
-  Runtime::Instance::ModuleInstance *ModInst =
-      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
-  return RefVariant(Inst->getDefType(), Inst);
+  Runtime::Instance::ArrayInstance Inst(Allocator, StackMgr.getModule(),
+                                        TypeIdx,
+                                        packVals(VType, std::move(Refs)));
+  if (Inst.getRaw() == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
 Expect<ValVariant> Executor::arrayGet(Runtime::StackManager &StackMgr,
@@ -542,30 +597,33 @@ Expect<ValVariant> Executor::arrayGet(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const uint32_t Idx,
                                       const bool IsSigned) const noexcept {
-  const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  if (Idx >= Inst->getLength()) {
+  Runtime::Instance::ArrayInstance Inst{Raw};
+  if (Idx >= Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
-  return unpackVal(VType, Inst->getData(Idx), IsSigned);
+  return unpackVal(VType, Inst.getData(Idx), IsSigned);
 }
 
 Expect<void> Executor::arraySet(Runtime::StackManager &StackMgr,
                                 const RefVariant &Ref, const ValVariant &Val,
                                 const uint32_t TypeIdx,
                                 const uint32_t Idx) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  if (Idx >= Inst->getLength()) {
+  Runtime::Instance::ArrayInstance Inst{Raw};
+  if (Idx >= Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
-  Inst->getData(Idx) = packVal(VType, Val);
+  Inst.getData(Idx) = packVal(VType, Val);
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
@@ -573,17 +631,19 @@ Expect<void> Executor::arrayFill(Runtime::StackManager &StackMgr,
                                  const RefVariant &Ref, const ValVariant &Val,
                                  const uint32_t TypeIdx, const uint32_t Idx,
                                  const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   if (static_cast<uint64_t>(Idx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
-  auto Arr = Inst->getArray();
+  auto Arr = Inst.getArray();
   std::fill(Arr.begin() + Idx, Arr.begin() + Idx + Cnt, packVal(VType, Val));
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
@@ -592,12 +652,13 @@ Executor::arrayInitData(Runtime::StackManager &StackMgr, const RefVariant &Ref,
                         const uint32_t TypeIdx, const uint32_t DataIdx,
                         const uint32_t DstIdx, const uint32_t SrcIdx,
                         const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
@@ -611,9 +672,10 @@ Executor::arrayInitData(Runtime::StackManager &StackMgr, const RefVariant &Ref,
 
   for (uint32_t Idx = 0; Idx < Cnt; Idx++) {
     // The value has been packed.
-    Inst->getData(DstIdx + Idx) =
+    Inst.getData(DstIdx + Idx) =
         DataInst->loadValue(SrcIdx + Idx * BSize, BSize);
   }
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
@@ -622,12 +684,13 @@ Executor::arrayInitElem(Runtime::StackManager &StackMgr, const RefVariant &Ref,
                         const uint32_t TypeIdx, const uint32_t ElemIdx,
                         const uint32_t DstIdx, const uint32_t SrcIdx,
                         const uint32_t Cnt) const noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
@@ -639,11 +702,12 @@ Executor::arrayInitElem(Runtime::StackManager &StackMgr, const RefVariant &Ref,
     return Unexpect(ErrCode::Value::TableOutOfBounds);
   }
 
-  auto Arr = Inst->getArray();
+  auto Arr = Inst.getArray();
   // The value has been packed.
   std::transform(ElemSrc.begin() + SrcIdx, ElemSrc.begin() + SrcIdx + Cnt,
                  Arr.begin() + DstIdx,
                  [&](const RefVariant &V) { return packVal(VType, V); });
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
@@ -652,25 +716,27 @@ Executor::arrayCopy(Runtime::StackManager &StackMgr, const RefVariant &DstRef,
                     const uint32_t DstTypeIdx, const uint32_t DstIdx,
                     const RefVariant &SrcRef, const uint32_t SrcTypeIdx,
                     const uint32_t SrcIdx, const uint32_t Cnt) const noexcept {
-  auto *SrcInst = SrcRef.getPtr<Runtime::Instance::ArrayInstance>();
-  auto *DstInst = DstRef.getPtr<Runtime::Instance::ArrayInstance>();
-  if (SrcInst == nullptr) {
+  auto *SrcRaw = SrcRef.getPtr<Runtime::Instance::GCInstance::RawData>();
+  auto *DstRaw = DstRef.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (SrcRaw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  if (DstInst == nullptr) {
+  if (DstRaw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  const Runtime::Instance::ArrayInstance SrcInst{SrcRaw};
+  Runtime::Instance::ArrayInstance DstInst{DstRaw};
   if (static_cast<uint64_t>(SrcIdx) + static_cast<uint64_t>(Cnt) >
-      SrcInst->getLength()) {
+      SrcInst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   if (static_cast<uint64_t>(DstIdx) + static_cast<uint64_t>(Cnt) >
-      DstInst->getLength()) {
+      DstInst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
 
-  auto SrcArr = SrcInst->getArray();
-  auto DstArr = DstInst->getArray();
+  auto SrcArr = SrcInst.getArray();
+  auto DstArr = DstInst.getArray();
   const auto &SrcVType = getArrayStorageTypeByIdx(StackMgr, SrcTypeIdx);
   const auto &DstVType = getArrayStorageTypeByIdx(StackMgr, DstTypeIdx);
   if (DstIdx <= SrcIdx) {
@@ -686,6 +752,7 @@ Executor::arrayCopy(Runtime::StackManager &StackMgr, const RefVariant &DstRef,
                      return packVal(DstVType, unpackVal(SrcVType, V));
                    });
   }
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(DstRaw));
   return {};
 }
 

@@ -16,54 +16,42 @@
 #include "ast/type.h"
 #include "common/span.h"
 #include "common/types.h"
-#include "runtime/instance/composite.h"
+#include "gc/allocator.h"
+#include "runtime/instance/gc.h"
 
 #include <vector>
 
-namespace WasmEdge {
-namespace Runtime {
-namespace Instance {
+namespace WasmEdge::Runtime::Instance {
 
-class ArrayInstance : public CompositeBase {
+class ArrayInstance : public GCInstance {
 public:
   ArrayInstance() = delete;
-  ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                const uint32_t Size, const ValVariant &Init) noexcept
-      : CompositeBase(Mod, Idx), Data(Size, Init) {
-    assuming(ModInst);
-  }
-  ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                std::vector<ValVariant> &&Init) noexcept
-      : CompositeBase(Mod, Idx), Data(std::move(Init)) {
-    assuming(ModInst);
-  }
+  ArrayInstance(GC::Allocator &Allocator, const ModuleInstance *ModInst,
+                uint32_t TypeIdx, const uint32_t Size,
+                const ValVariant &Init) noexcept;
+  ArrayInstance(GC::Allocator &Allocator, const ModuleInstance *ModInst,
+                uint32_t TypeIdx, std::vector<ValVariant> &&Init) noexcept;
+  ArrayInstance(RawData *Raw) noexcept : GCInstance(Raw) {}
 
   /// Get field data in array instance.
-  ValVariant &getData(uint32_t Idx) noexcept { return Data[Idx]; }
-  const ValVariant &getData(uint32_t Idx) const noexcept { return Data[Idx]; }
+  ValVariant &getData(uint32_t Idx) noexcept { return Data->Data[Idx]; }
+  const ValVariant &getData(uint32_t Idx) const noexcept {
+    return Data->Data[Idx];
+  }
 
   /// Get full array.
-  Span<ValVariant> getArray() noexcept { return Data; }
-  Span<const ValVariant> getArray() const noexcept { return Data; }
+  Span<ValVariant> getArray() noexcept { return {Data->Data, Data->Length}; }
+  Span<const ValVariant> getArray() const noexcept {
+    return {Data->Data, Data->Length};
+  }
 
   /// Get array length.
-  uint32_t getLength() const noexcept {
-    return static_cast<uint32_t>(Data.size());
-  }
+  uint32_t getLength() const noexcept { return Data->Length; }
 
   /// Get boundary index.
   uint32_t getBoundIdx() const noexcept {
-    return std::max(static_cast<uint32_t>(Data.size()), UINT32_C(1)) -
-           UINT32_C(1);
+    return std::max(Data->Length, UINT32_C(1)) - UINT32_C(1);
   }
-
-private:
-  /// \name Data of array instance.
-  /// @{
-  std::vector<ValVariant> Data;
-  /// @}
 };
 
-} // namespace Instance
-} // namespace Runtime
-} // namespace WasmEdge
+} // namespace WasmEdge::Runtime::Instance

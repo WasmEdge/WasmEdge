@@ -26,7 +26,7 @@ Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
                       const AST::Module &Mod) {
   // Create the stack manager.
-  Runtime::StackManager StackMgr;
+  Runtime::StackManager StackMgr(Allocator);
 
   // Create the module instance.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst =

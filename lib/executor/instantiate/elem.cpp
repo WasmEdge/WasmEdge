@@ -30,7 +30,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
             return E;
           }));
       // Pop result from stack.
-      InitVals.push_back(StackMgr.pop().get<RefVariant>());
+      InitVals.push_back(StackMgr.pop<RefVariant>());
     }
 
     uint32_t Offset = 0;
@@ -43,7 +43,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
                 return E;
               }));
-      Offset = StackMgr.pop().get<uint32_t>();
+      Offset = StackMgr.pop<uint32_t>();
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       // enabled.
@@ -84,13 +84,10 @@ Expect<void> Executor::initTable(Runtime::StackManager &StackMgr,
 
       // Replace table[Off : Off + n] with elem[0 : n].
       EXPECTED_TRY(
-          TabInst
-              ->setRefs(ElemInst->getRefs(), Off, 0,
-                        static_cast<uint32_t>(ElemInst->getRefs().size()))
-              .map_error([](auto E) {
-                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-                return E;
-              }));
+          TabInst->setRefs(ElemInst->getRefs(), Off).map_error([](auto E) {
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
+            return E;
+          }));
 
       // Drop the element instance.
       ElemInst->clear();

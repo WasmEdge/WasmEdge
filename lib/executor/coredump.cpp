@@ -33,8 +33,11 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
   Version.insert(Version.begin(), {0x01, 0x00, 0x00, 0x00});
 
   Module.getCustomSections().emplace_back(createCore());
-  Module.getCustomSections().emplace_back(createCorestack(
-      Ser, StackMgr.getFramesSpan(), StackMgr.getValueSpan(), ForWasmgdb));
+  StackMgr.getValueSpan(
+      [&](Span<const Runtime::StackManager::Value> ValueSpan) {
+        Module.getCustomSections().emplace_back(createCorestack(
+            Ser, StackMgr.getFramesSpan(), ValueSpan, ForWasmgdb));
+      });
   // TODO: reconstruct data instances
   // Module.getDataSection() =
   //     createData(CurrentInstance->getOwnedDataInstances());

@@ -16,34 +16,25 @@
 #include "ast/type.h"
 #include "common/span.h"
 #include "common/types.h"
-#include "runtime/instance/composite.h"
+#include "gc/allocator.h"
+#include "runtime/instance/gc.h"
 
 #include <vector>
 
-namespace WasmEdge {
-namespace Runtime {
-namespace Instance {
+namespace WasmEdge::Runtime::Instance {
 
-class StructInstance : public CompositeBase {
+class StructInstance : public GCInstance {
 public:
   StructInstance() = delete;
-  StructInstance(const ModuleInstance *Mod, const uint32_t Idx,
-                 std::vector<ValVariant> &&Init) noexcept
-      : CompositeBase(Mod, Idx), Data(std::move(Init)) {
-    assuming(ModInst);
-  }
+  StructInstance(GC::Allocator &Allocator, const ModuleInstance *ModInst,
+                 uint32_t TypeIdx, std::vector<ValVariant> &&Init) noexcept;
+  StructInstance(RawData *Raw) noexcept : GCInstance(Raw) {}
 
   /// Get field data in struct instance.
-  ValVariant &getField(uint32_t Idx) noexcept { return Data[Idx]; }
-  const ValVariant &getField(uint32_t Idx) const noexcept { return Data[Idx]; }
-
-private:
-  /// \name Data of struct instance.
-  /// @{
-  std::vector<ValVariant> Data;
-  /// @}
+  ValVariant &getField(uint32_t Idx) noexcept { return Data->Data[Idx]; }
+  const ValVariant &getField(uint32_t Idx) const noexcept {
+    return Data->Data[Idx];
+  }
 };
 
-} // namespace Instance
-} // namespace Runtime
-} // namespace WasmEdge
+} // namespace WasmEdge::Runtime::Instance

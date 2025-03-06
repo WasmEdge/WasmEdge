@@ -26,6 +26,7 @@
 #define WASMEDGE_WINAPI_DETAIL_EXTENSION
 #define WASMEDGE_WINAPI_FORCEINLINE __forceinline
 #define WASMEDGE_WINAPI_SYMBOL_IMPORT __declspec(dllimport)
+#include <intrin.h>
 #endif
 
 #if defined(_M_IX86) || defined(__i386__)
@@ -1894,4 +1895,67 @@ static inline constexpr const DWORD_ GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS_ =
     0x00000004L;
 } // namespace WasmEdge::winapi
 
+extern "C" {
+void *_AddressOfReturnAddress(void);
+#if defined(_M_ARM64)
+WASMEDGE_WINAPI_SYMBOL_IMPORT
+WasmEdge::winapi::VOID_ WASMEDGE_WINAPI_WINAPI_CC
+GetCurrentThreadStackLimits(WasmEdge::winapi::ULONG_PTR_ *LowLimit,
+                            WasmEdge::winapi::ULONG_PTR_ *HighLimit);
+#endif
+}
+
+namespace WasmEdge::winapi {
+using TEB_ = struct _TEB {};
+using PTEB_ = TEB_ *;
+
+using NT_TIB = struct _NT_TIB {
+  PVOID_ ExceptionList;
+  PVOID_ StackBase;
+  PVOID_ StackLimit;
+  PVOID_ SubSystemTib;
+  WASMEDGE_WINAPI_DETAIL_EXTENSION union {
+    PVOID_ FiberData;
+    ULONG_ Version;
+  };
+  PVOID_ ArbitraryUserPointer;
+  struct _NT_TIB *Self;
+};
+using PNT_TIB_ = NT_TIB *;
+
+#if defined(_M_X64)
+#if defined(__GNUC__) || defined(__clang__)
+[[gnu::always_inline]] static inline int64_t
+__readgsqword(uint32_t Offset) noexcept {
+  int64_t Ret;
+  __asm__("mov{q %%gs:(%[offset]), %[ret] | %[ret], gs:[%[offset]]}"
+          : [ret] "=r"(Ret)
+          : [offset] "r"(Offset)
+          : "memory");
+  return Ret;
+}
+#endif
+static inline PTEB_ NtCurrentTeb(void) noexcept {
+  return reinterpret_cast<PTEB_>(__readgsqword(offsetof(_NT_TIB, Self)));
+}
+#elif defined(_M_IX86)
+#if defined(__GNUC__) || defined(__clang__)
+[[gnu::always_inline]] static inline int32_t
+__readfsdword(uint32_t Offset) noexcept {
+  int32_t Ret;
+  __asm__("mov{l %%fs:(%[offset]), %[ret] | %[ret], fs:[%[offset]]}"
+          : [ret] "=r"(Ret)
+          : [offset] "r"(Offset)
+          : "memory");
+  return Ret;
+}
+#endif
+static inline PTEB_ NtCurrentTeb(void) noexcept {
+  return reinterpret_cast<PTEB_>(__readfsdword(0x18));
+}
+#elif defined(_M_ARM64)
+using ::GetCurrentThreadStackLimits;
+#endif
+using ::_AddressOfReturnAddress;
+} // namespace WasmEdge::winapi
 #endif

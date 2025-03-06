@@ -153,7 +153,19 @@ AST::Component::ResourceType ast() noexcept {
       new Runtime::Instance::ComponentInstance("response-outparam"));
 }
 
-Expect<void> Set::body() { return {}; }
+/// Set the value of the `response-outparam` to either send a response,
+/// or indicate an error.
+///
+/// This method consumes the `response-outparam` to ensure that it is
+/// called at most once. If it is never called, the implementation
+/// will respond with an error.
+///
+/// The user may provide an `error` to `response` to allow the
+/// implementation determine how to respond with an HTTP error response.
+Expect<void> Set::body(T Param,
+                       Result<OutgoingResponse::T, ErrorCode::T> Response) {
+  return {};
+}
 
 } // namespace ResponseOutparam
 namespace IncomingResponse {

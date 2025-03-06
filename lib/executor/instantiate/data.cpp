@@ -30,7 +30,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
                          return E;
                        }));
-      Offset = StackMgr.pop().get<uint32_t>();
+      Offset = StackMgr.pop<uint32_t>();
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       // enabled.

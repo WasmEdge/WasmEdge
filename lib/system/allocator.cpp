@@ -9,8 +9,9 @@
 
 #if WASMEDGE_OS_WINDOWS
 #include "system/winapi.h"
-#elif defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||     \
-    defined(__arm__) || (defined(__riscv) && __riscv_xlen == 64)
+#elif defined(HAVE_MMAP) &&                                                    \
+    (defined(__x86_64__) || defined(__aarch64__) || defined(__arm__) ||        \
+     (defined(__riscv) && __riscv_xlen == 64))
 #include <sys/mman.h>
 #else
 #include <cctype>

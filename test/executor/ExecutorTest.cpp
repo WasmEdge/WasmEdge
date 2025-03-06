@@ -228,10 +228,6 @@ TEST(VM, MultipleVM) {
 }
 
 TEST(Coredump, generateCoredump) {
-  WasmEdge::Configure Conf;
-  Conf.getRuntimeConfigure().setEnableCoredump(true);
-  Conf.getRuntimeConfigure().setCoredumpWasmgdb(false);
-  WasmEdge::VM::VM VM(Conf);
   std::array<WasmEdge::Byte, 70> Wasm{
       0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
       0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07,
@@ -239,6 +235,10 @@ TEST(Coredump, generateCoredump) {
       0x65, 0x73, 0x73, 0x5f, 0x6f, 0x75, 0x74, 0x5f, 0x6f, 0x66, 0x5f, 0x62,
       0x6f, 0x75, 0x6e, 0x64, 0x73, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00,
       0x41, 0xf0, 0xa2, 0x04, 0x41, 0x00, 0x36, 0x02, 0x00, 0x0b};
+  WasmEdge::Configure Conf;
+  Conf.getRuntimeConfigure().setEnableCoredump(true);
+  Conf.getRuntimeConfigure().setCoredumpWasmgdb(false);
+  WasmEdge::VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(Wasm));
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
@@ -251,6 +251,137 @@ TEST(Coredump, generateCoredump) {
     }
   }
   EXPECT_TRUE(FindCoredump);
+}
+
+class Collect : public WasmEdge::Runtime::HostFunction<Collect> {
+public:
+  Expect<void> body(const WasmEdge::Runtime::CallingFrame &CF) {
+    CF.getExecutor()->getAllocator().manualCollect();
+    return {};
+  }
+};
+
+class Record : public WasmEdge::Runtime::HostFunction<Record> {
+public:
+  Expect<void> body(const WasmEdge::Runtime::CallingFrame &CF) {
+    MemoryUsageLog.push_back(CF.getExecutor()->getAllocator().getMemoryUsage());
+    return {};
+  }
+  Span<const uint64_t> getLog() const noexcept { return MemoryUsageLog; }
+
+private:
+  std::vector<uint64_t> MemoryUsageLog;
+};
+
+class GCModule : public WasmEdge::Runtime::Instance::ModuleInstance {
+public:
+  GCModule() : ModuleInstance("gc") {
+    addHostFunc("coll", std::make_unique<Collect>());
+    auto RP = std::make_unique<Record>();
+    R = RP.get();
+    addHostFunc("rec", std::move(RP));
+  }
+  Span<const uint64_t> getLog() const noexcept { return R->getLog(); }
+
+private:
+  Record *R = nullptr;
+};
+
+TEST(GC, gc) {
+  std::array<WasmEdge::Byte, 117> Wasm{
+      0x00, 0x61, 0x73, 0x6d,       // wasm magic
+      0x01, 0x00, 0x00, 0x00,       // module version
+      0x01,                         // type section
+      0x07,                         // section size
+      0x02,                         // type count
+      0x5e,                         // array type
+      0x7f, 0x01,                   // i32 mutable
+      0x60,                         // function type
+      0x00, 0x00,                   // 0 arguments 0 results
+      0x02,                         // import section
+      0x14,                         // section size
+      0x02,                         // import count
+      0x02, 0x67, 0x63,             // "gc"
+      0x04, 0x63, 0x6f, 0x6c, 0x6c, // "coll"
+      0x00,                         // import kind: function
+      0x01,                         // import type index: 1
+      0x02, 0x67, 0x63,             // "gc"
+      0x03, 0x72, 0x65, 0x63,       // "rec"
+      0x00,                         // import kind: function
+      0x01,                         // import type index: 0
+      0x03,                         // function section
+      0x02,                         // section size
+      0x01,                         // function count
+      0x01,                         // function type index: 1
+      0x07,                         // export section
+      0x06,                         // section size
+      0x01,                         // export count
+      0x02, 0x67, 0x63,             // export name "gc"
+      0x00,                         // export kind: function
+      0x02,                         // export index
+      0x0a,                         // code section
+      0x40,                         // section size
+      0x01,                         // function count
+      0x3e,                         // function size
+      0x00,                         // local size
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x41, 0x04,                   // i32.const 4
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x10, 0x01,                   // call 1 (gc.rec) 96
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 96
+      0x1a,                         // drop
+      0x10, 0x01,                   // call 1 (gc.rec) 96
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x41, 0x08,                   // i32.const 8
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x1a,                         // drop
+      0x10, 0x01,                   // call 1 (gc.rec) 160
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 160
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x41, 0x0c,                   // i32.const 12
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x10, 0x01,                   // call 1 (gc.rec) 224
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 224
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 224
+      0x1a,                         // drop
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x0b,                         // end
+  };
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  WasmEdge::VM::VM VM(Conf);
+  GCModule GCMod;
+  VM.registerModule(GCMod);
+  ASSERT_TRUE(VM.loadWasm(Wasm));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  VM.execute("gc");
+  auto Result = GCMod.getLog();
+
+  EXPECT_EQ(Result.size(), 13);
+  EXPECT_EQ(Result[0], 0);
+  EXPECT_EQ(Result[1], 0);
+  EXPECT_EQ(Result[2], 96);
+  EXPECT_EQ(Result[3], 96);
+  EXPECT_EQ(Result[4], 96);
+  EXPECT_EQ(Result[5], 0);
+  EXPECT_EQ(Result[6], 160);
+  EXPECT_EQ(Result[7], 160);
+  EXPECT_EQ(Result[8], 0);
+  EXPECT_EQ(Result[9], 224);
+  EXPECT_EQ(Result[10], 224);
+  EXPECT_EQ(Result[11], 224);
+  EXPECT_EQ(Result[12], 0);
 }
 
 } // namespace

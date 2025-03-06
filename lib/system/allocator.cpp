@@ -86,8 +86,8 @@ WASMEDGE_EXPORT uint8_t *Allocator::resize(uint8_t *Pointer,
     return nullptr;
   }
   return Pointer;
-#elif defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||     \
-    (defined(__riscv) && __riscv_xlen == 64)
+#elif defined(HAVE_MMAP) && (defined(__x86_64__) || defined(__aarch64__) ||    \
+                             (defined(__riscv) && __riscv_xlen == 64))
   if (mmap(Pointer + OldPageCount * kPageSize,
            (NewPageCount - OldPageCount) * kPageSize, PROT_READ | PROT_WRITE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0) == MAP_FAILED) {
@@ -109,8 +109,8 @@ WASMEDGE_EXPORT uint8_t *Allocator::resize(uint8_t *Pointer,
 WASMEDGE_EXPORT void Allocator::release(uint8_t *Pointer, uint32_t) noexcept {
 #if WASMEDGE_OS_WINDOWS
   winapi::VirtualFree(Pointer - k4G, 0, winapi::MEM_RELEASE_);
-#elif defined(HAVE_MMAP) && defined(__x86_64__) || defined(__aarch64__) ||     \
-    (defined(__riscv) && __riscv_xlen == 64)
+#elif defined(HAVE_MMAP) && (defined(__x86_64__) || defined(__aarch64__) ||    \
+                             (defined(__riscv) && __riscv_xlen == 64))
   if (Pointer == nullptr) {
     return;
   }

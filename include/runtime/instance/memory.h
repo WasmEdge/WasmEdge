@@ -332,7 +332,8 @@ public:
     return {};
   }
 
-  uint8_t *getDataPtr() const noexcept { return DataPtr; }
+  uint8_t *const &getDataPtr() const noexcept { return DataPtr; }
+  uint8_t *&getDataPtr() noexcept { return DataPtr; }
 
 private:
   /// \name Data of memory instance.

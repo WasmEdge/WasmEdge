@@ -563,6 +563,7 @@ public:
   void compile(AST::InstrView Instrs) noexcept {
     auto Dispatch = [this](const AST::Instruction &Instr) -> void {
       switch (Instr.getOpCode()) {
+      // Control instructions (for blocks)
       case OpCode::Block: {
         auto Block = LLVM::BasicBlock::create(LLContext, F.Fn, "block");
         auto EndBlock = LLVM::BasicBlock::create(LLContext, F.Fn, "block.end");
@@ -678,6 +679,7 @@ public:
       }
 
       switch (Instr.getOpCode()) {
+      // Control instructions
       case OpCode::Unreachable:
         Builder.createBr(getTrapBB(ErrCode::Value::Unreachable));
         setUnreachable();
@@ -686,12 +688,10 @@ public:
         break;
       case OpCode::Nop:
         break;
-      case OpCode::Return:
-        compileReturn();
-        setUnreachable();
-        Builder.positionAtEnd(
-            LLVM::BasicBlock::create(LLContext, F.Fn, "ret.end"));
-        break;
+      // LEGACY-EH: remove the `Try` cases after deprecating legacy EH.
+      // case OpCode::Try:
+      // case OpCode::Throw:
+      // case OpCode::Throw_ref:
       case OpCode::Br: {
         const auto Label = Instr.getJump().TargetIndex;
         setLableJumpPHI(Label);
@@ -758,6 +758,14 @@ public:
         stackPop();
         break;
       }
+      // case OpCode::Br_on_cast:
+      // case OpCode::Br_on_cast_fail:
+      case OpCode::Return:
+        compileReturn();
+        setUnreachable();
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(LLContext, F.Fn, "ret.end"));
+        break;
       case OpCode::Call:
         updateInstrCount();
         updateGas();
@@ -798,6 +806,12 @@ public:
         Builder.positionAtEnd(
             LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call_ref.end"));
         break;
+        // LEGACY-EH: remove the `Catch` cases after deprecating legacy EH.
+        // case OpCode::Catch:
+        // case OpCode::Catch_all:
+        // case OpCode::Try_table:
+
+      // Reference Instructions
       case OpCode::Ref__null: {
         std::array<uint8_t, 16> Val = {0};
         // For null references, the dynamic type down scaling is needed.
@@ -849,6 +863,7 @@ public:
                                                              false)),
             {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
+      // case OpCode::Ref__eq:
       case OpCode::Ref__as_non_null: {
         auto Next =
             LLVM::BasicBlock::create(LLContext, F.Fn, "ref_as_non_null.ok");
@@ -861,6 +876,39 @@ public:
         Builder.positionAtEnd(Next);
         break;
       }
+
+      // Reference Instructions (GC proposal)
+      // case OpCode::Struct__new:
+      // case OpCode::Struct__new_default:
+      // case OpCode::Struct__get:
+      // case OpCode::Struct__get_u:
+      // case OpCode::Struct__get_s:
+      // case OpCode::Struct__set:
+      // case OpCode::Array__new:
+      // case OpCode::Array__new_default:
+      // case OpCode::Array__new_fixed:
+      // case OpCode::Array__new_data:
+      // case OpCode::Array__new_elem:
+      // case OpCode::Array__get:
+      // case OpCode::Array__get_u:
+      // case OpCode::Array__get_s:
+      // case OpCode::Array__set:
+      // case OpCode::Array__len:
+      // case OpCode::Array__fill:
+      // case OpCode::Array__copy:
+      // case OpCode::Array__init_data:
+      // case OpCode::Array__init_elem:
+      // case OpCode::Ref__test:
+      // case OpCode::Ref__test_null:
+      // case OpCode::Ref__cast:
+      // case OpCode::Ref__cast_null:
+      // case OpCode::Any__convert_extern:
+      // case OpCode::Extern__convert_any:
+      // case OpCode::Ref__i31:
+      // case OpCode::I31__get_s:
+      // case OpCode::I31__get_u:
+
+      // Parametric Instructions
       case OpCode::Drop:
         stackPop();
         break;
@@ -872,6 +920,8 @@ public:
         stackPush(Builder.createSelect(Cond, True, False));
         break;
       }
+
+      // Variable Instructions
       case OpCode::Local__get: {
         const auto &L = Local[Instr.getTargetIndex()];
         stackPush(Builder.createLoad(L.first, L.second));
@@ -894,6 +944,8 @@ public:
             stackPop(),
             Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex()).second);
         break;
+
+      // Table Instructions
       case OpCode::Table__get: {
         auto Idx = stackPop();
         stackPush(Builder.createCall(
@@ -994,6 +1046,8 @@ public:
             {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
         break;
       }
+
+      // Memory Instructions
       case OpCode::I32__load:
         compileLoadOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                       Instr.getMemoryAlign(), Context.Int32Ty);
@@ -1060,7 +1114,6 @@ public:
                       Instr.getMemoryAlign(), Context.Int32Ty, Context.Int64Ty,
                       false);
         break;
-
       case OpCode::I32__store:
         compileStoreOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                        Instr.getMemoryAlign(), Context.Int32Ty);
@@ -1164,6 +1217,8 @@ public:
             {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
         break;
       }
+
+      // Const Numeric Instructions
       case OpCode::I32__const:
         stackPush(LLContext.getInt32(Instr.getNum().get<uint32_t>()));
         break;
@@ -1176,6 +1231,8 @@ public:
       case OpCode::F64__const:
         stackPush(LLContext.getDouble(Instr.getNum().get<double>()));
         break;
+
+      // Unary Numeric Instructions
       case OpCode::I32__eqz:
         stackPush(Builder.createZExt(
             Builder.createICmpEQ(stackPop(), LLContext.getInt32(0)),
@@ -1384,30 +1441,8 @@ public:
         stackPush(Builder.createSExt(
             Builder.createTrunc(stackPop(), Context.Int32Ty), Context.Int64Ty));
         break;
-      case OpCode::I32__trunc_sat_f32_s:
-        compileSignedTruncSat(Context.Int32Ty);
-        break;
-      case OpCode::I32__trunc_sat_f32_u:
-        compileUnsignedTruncSat(Context.Int32Ty);
-        break;
-      case OpCode::I32__trunc_sat_f64_s:
-        compileSignedTruncSat(Context.Int32Ty);
-        break;
-      case OpCode::I32__trunc_sat_f64_u:
-        compileUnsignedTruncSat(Context.Int32Ty);
-        break;
-      case OpCode::I64__trunc_sat_f32_s:
-        compileSignedTruncSat(Context.Int64Ty);
-        break;
-      case OpCode::I64__trunc_sat_f32_u:
-        compileUnsignedTruncSat(Context.Int64Ty);
-        break;
-      case OpCode::I64__trunc_sat_f64_s:
-        compileSignedTruncSat(Context.Int64Ty);
-        break;
-      case OpCode::I64__trunc_sat_f64_u:
-        compileUnsignedTruncSat(Context.Int64Ty);
-        break;
+
+      // Binary Numeric Instructions
       case OpCode::I32__eq:
       case OpCode::I64__eq: {
         LLVM::Value RHS = stackPop();
@@ -1858,6 +1893,34 @@ public:
                                           {LHS, RHS}));
         break;
       }
+
+      // Saturating Truncation Numeric Instructions
+      case OpCode::I32__trunc_sat_f32_s:
+        compileSignedTruncSat(Context.Int32Ty);
+        break;
+      case OpCode::I32__trunc_sat_f32_u:
+        compileUnsignedTruncSat(Context.Int32Ty);
+        break;
+      case OpCode::I32__trunc_sat_f64_s:
+        compileSignedTruncSat(Context.Int32Ty);
+        break;
+      case OpCode::I32__trunc_sat_f64_u:
+        compileUnsignedTruncSat(Context.Int32Ty);
+        break;
+      case OpCode::I64__trunc_sat_f32_s:
+        compileSignedTruncSat(Context.Int64Ty);
+        break;
+      case OpCode::I64__trunc_sat_f32_u:
+        compileUnsignedTruncSat(Context.Int64Ty);
+        break;
+      case OpCode::I64__trunc_sat_f64_s:
+        compileSignedTruncSat(Context.Int64Ty);
+        break;
+      case OpCode::I64__trunc_sat_f64_u:
+        compileUnsignedTruncSat(Context.Int64Ty);
+        break;
+
+      // SIMD Memory Instructions
       case OpCode::V128__load:
         compileVectorLoadOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                             Instr.getMemoryAlign(), Context.Int128x1Ty);
@@ -1972,6 +2035,8 @@ public:
                            Instr.getMemoryAlign(), Instr.getMemoryLane(),
                            Context.Int64Ty, Context.Int64x2Ty);
         break;
+
+      // SIMD Const Instructions
       case OpCode::V128__const: {
         const auto Value = Instr.getNum().get<uint64x2_t>();
         auto Vector =
@@ -1979,6 +2044,8 @@ public:
         stackPush(Builder.createBitCast(Vector, Context.Int64x2Ty));
         break;
       }
+
+      // SIMD Shuffle Instructions
       case OpCode::I8x16__shuffle: {
         auto V2 = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
         auto V1 = Builder.createBitCast(stackPop(), Context.Int8x16Ty);
@@ -1993,6 +2060,8 @@ public:
             Context.Int64x2Ty));
         break;
       }
+
+      // SIMD Lane Instructions
       case OpCode::I8x16__extract_lane_s:
         compileExtractLaneOp(Context.Int8x16Ty, Instr.getMemoryLane(),
                              Context.Int32Ty, true);
@@ -2039,6 +2108,8 @@ public:
       case OpCode::F64x2__replace_lane:
         compileReplaceLaneOp(Context.Doublex2Ty, Instr.getMemoryLane());
         break;
+
+      // SIMD Numeric Instructions
       case OpCode::I8x16__swizzle:
         compileVectorSwizzle();
         break;
@@ -2677,6 +2748,8 @@ public:
       case OpCode::F64x2__promote_low_f32x4:
         compileVectorPromote();
         break;
+
+      // Relaxed SIMD Instructions
       case OpCode::I8x16__relaxed_swizzle:
         compileVectorSwizzle();
         break;
@@ -2736,6 +2809,8 @@ public:
       case OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s:
         compileVectorRelaxedIntegerDotProductAdd();
         break;
+
+      // Atomic Instructions
       case OpCode::Atomic__fence:
         return compileMemoryFence();
       case OpCode::Memory__atomic__notify:
@@ -2747,7 +2822,6 @@ public:
       case OpCode::Memory__atomic__wait64:
         return compileAtomicWait(Instr.getTargetIndex(),
                                  Instr.getMemoryOffset(), Context.Int64Ty, 64);
-
       case OpCode::I32__atomic__load:
         return compileAtomicLoad(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
@@ -3311,7 +3385,7 @@ public:
 
     stackPush(Builder.createCall(
         Context.getIntrinsic(
-            Builder, Executable::Intrinsics::kMemoryAtomicNotify,
+            Builder, Executable::Intrinsics::kMemAtomicNotify,
             LLVM::Type::getFunctionType(
                 Context.Int32Ty,
                 {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
@@ -3330,7 +3404,7 @@ public:
 
     stackPush(Builder.createCall(
         Context.getIntrinsic(
-            Builder, Executable::Intrinsics::kMemoryAtomicWait,
+            Builder, Executable::Intrinsics::kMemAtomicWait,
             LLVM::Type::getFunctionType(Context.Int32Ty,
                                         {Context.Int32Ty, Context.Int32Ty,
                                          Context.Int64Ty, Context.Int64Ty,

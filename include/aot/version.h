@@ -18,7 +18,7 @@
 namespace WasmEdge {
 namespace AOT {
 
-static inline constexpr const uint32_t kBinaryVersion [[maybe_unused]] = 1;
+static inline constexpr const uint32_t kBinaryVersion [[maybe_unused]] = 2;
 
 } // namespace AOT
 } // namespace WasmEdge

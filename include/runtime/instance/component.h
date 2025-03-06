@@ -45,9 +45,13 @@ using namespace AST::Component;
 class ComponentInstance {
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {
-    // magic number 2 ^ 28 - 1 refers to
+    // FIXME:
+    // magic number should be 2 ^ 28 - 1 by
     // https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#table-state
-    for (int32_t I = 0; I < (2 << 28) - 1; ++I) {
+    //
+    // but I use 1000 here because this value is small enough, will not block
+    // execution for now.
+    for (int32_t I = 0; I < 1000; ++I) {
       FreeResources.insert(FreeResources.end(), I);
     }
   }

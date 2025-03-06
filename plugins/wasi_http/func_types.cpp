@@ -162,8 +162,11 @@ AST::Component::ResourceType ast() noexcept {
 ///
 /// The user may provide an `error` to `response` to allow the
 /// implementation determine how to respond with an HTTP error response.
-Expect<void> Set::body(T Param,
-                       Result<OutgoingResponse::T, ErrorCode::T> Response) {
+Expect<void> Set::body(T Param, Result<OutgoingResponse::T, ErrorCode::T>) {
+  auto Inst = Env.getComponentInstance();
+  /* auto ParamHandle = */ Inst->getResource(Param);
+  // TODO:
+  // 1. set `Response` as its value
   return {};
 }
 

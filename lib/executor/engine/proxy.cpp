@@ -9,6 +9,53 @@
 namespace WasmEdge {
 namespace Executor {
 
+namespace {
+Span<uint8_t *const> getStack() noexcept {
+#if WASMEDGE_OS_LINUX
+    pthread_attr_t Attr;
+    int Error = pthread_getattr_np(pthread_self(), &Attr);
+    if (likely(!Error)) {
+      void *StackBegin;
+      size_t StackSize;
+      Error = pthread_attr_getstack(&Attr, &StackBegin, &StackSize);
+      pthread_attr_destroy(&Attr);
+      if (likely(Error == 0)) {
+        return Span<uint8_t *const>{
+            reinterpret_cast<uint8_t *const *>(StackBegin),
+            StackSize / sizeof(uint8_t *)};
+      }
+    }
+#elif WASMEDGE_OS_MACOS
+  void *StackBegin = __builtin_frame_address(0);
+  void *StackEnd = pthread_get_stackaddr_np(pthread_self());
+  return Span<uint8_t *const>{
+      reinterpret_cast<uint8_t *const *>(StackBegin),
+      reinterpret_cast<uintptr_t>(StackEnd - StackBegin) / sizeof(uint8_t *)};
+#elif WASMEDGE_OS_WINDOWS
+#if defined(_M_X64)
+    void *StackBegin = reinterpret_cast<void *>(
+        reinterpret_cast<NT_TIB64 *>(NtCurrentTeb())->StackBase);
+#elif defined(_M_IX86)
+    void *StackBegin = reinterpret_cast<void *>(
+        reinterpret_cast<NT_TIB *>(NtCurrentTeb())->StackBase);
+#elif defined(_M_ARM64)
+    ULONG_PTR LowLimit, HighLimit;
+    GetCurrentThreadStackLimits(&LowLimit, &HighLimit);
+    void *StackBegin = reinterpret_cast<void *>(HighLimit);
+#else
+#error Unsupported architecture for Windows
+#endif
+    void *StackEnd = _AddressOfReturnAddress();
+    return Span<uint8_t *const>{
+        reinterpret_cast<uint8_t *const *>(StackBegin),
+        reinterpret_cast<uintptr_t>(StackEnd - StackBegin) / sizeof(uint8_t *)};
+#else
+#error Unsupported architecture
+#endif
+    return {};
+}
+}
+
 thread_local Executor *Executor::This = nullptr;
 thread_local Runtime::StackManager *Executor::CurrentStack = nullptr;
 thread_local Executor::ExecutionContextStruct Executor::ExecutionContext;
@@ -122,9 +169,7 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
   EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
+  StackMgr.popSpan(Span<ValVariant>{Rets, ReturnsSize});
   return {};
 }
 
@@ -182,9 +227,7 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
+  StackMgr.popSpan(Span<ValVariant>{Rets, ReturnsSize});
   return {};
 }
 
@@ -207,10 +250,7 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
   EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
-
+  StackMgr.popSpan(Span<ValVariant>{Rets, ReturnsSize});
   return {};
 }
 
@@ -224,6 +264,7 @@ Expect<RefVariant> Executor::proxyRefFunc(Runtime::StackManager &StackMgr,
 Expect<RefVariant> Executor::proxyStructNew(Runtime::StackManager &StackMgr,
                                             const uint32_t TypeIdx,
                                             const ValVariant *Args) noexcept {
+  Allocator.collect(getStack());
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
@@ -240,10 +281,9 @@ Expect<RefVariant> Executor::proxyStructNew(Runtime::StackManager &StackMgr,
                     : ValVariant(static_cast<uint128_t>(0U));
     }
   }
-  auto *Inst =
-      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
-          ->newStruct(TypeIdx, std::move(Vals));
-  return RefVariant(Inst->getDefType(), Inst);
+  Runtime::Instance::StructInstance Inst(Allocator, StackMgr.getModule(),
+                                         TypeIdx, std::move(Vals));
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
 Expect<void> Executor::proxyStructGet(Runtime::StackManager &StackMgr,
@@ -251,16 +291,17 @@ Expect<void> Executor::proxyStructGet(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const uint32_t Off, const bool IsSigned,
                                       ValVariant *Ret) noexcept {
-  const auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullStruct);
   }
+  const Runtime::Instance::StructInstance Inst{Raw};
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
   assuming(!CompType.isFunc());
   const auto &VType = CompType.getFieldTypes()[Off].getStorageType();
-  *Ret = unpackVal(VType, Inst->getField(Off), IsSigned);
+  *Ret = unpackVal(VType, Inst.getField(Off), IsSigned);
   return {};
 }
 
@@ -269,16 +310,18 @@ Expect<void> Executor::proxyStructSet(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const uint32_t Off,
                                       const ValVariant *Val) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullStruct);
   }
+  Runtime::Instance::StructInstance Inst{Raw};
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
   assuming(!CompType.isFunc());
   const auto &VType = CompType.getFieldTypes()[Off].getStorageType();
-  Inst->getField(Off) = packVal(VType, *Val);
+  Inst.getField(Off) = packVal(VType, *Val);
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
@@ -287,6 +330,7 @@ Expect<RefVariant> Executor::proxyArrayNew(Runtime::StackManager &StackMgr,
                                            const uint32_t Length,
                                            const ValVariant *Args,
                                            const uint32_t ArgSize) noexcept {
+  Allocator.collect(getStack());
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
@@ -294,22 +338,29 @@ Expect<RefVariant> Executor::proxyArrayNew(Runtime::StackManager &StackMgr,
   assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
   const auto &VType = CompType.getFieldTypes()[0].getStorageType();
   assuming(ArgSize == 0 || ArgSize == 1 || ArgSize == Length);
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
-  Runtime::Instance::ModuleInstance *ModInst =
-      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
+  Runtime::Instance::GCInstance::RawData *Raw = nullptr;
   if (ArgSize == 0) {
     auto InitVal = VType.isRefType()
                        ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
                        : ValVariant(static_cast<uint128_t>(0U));
-    Inst = ModInst->newArray(TypeIdx, Length, InitVal);
+    Runtime::Instance::ArrayInstance Inst(Allocator, StackMgr.getModule(),
+                                          TypeIdx, Length, InitVal);
+    Raw = Inst.getRaw();
   } else if (ArgSize == 1) {
-    Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
+    Runtime::Instance::ArrayInstance Inst(Allocator, StackMgr.getModule(),
+                                          TypeIdx, Length,
+                                          packVal(VType, Args[0]));
+    Raw = Inst.getRaw();
   } else {
-    Inst = ModInst->newArray(
-        TypeIdx,
+    Runtime::Instance::ArrayInstance Inst(
+        Allocator, StackMgr.getModule(), TypeIdx,
         packVals(VType, std::vector<ValVariant>(Args, Args + ArgSize)));
+    Raw = Inst.getRaw();
   }
-  return RefVariant(Inst->getDefType(), Inst);
+  if (Raw == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Raw);
 }
 
 Expect<RefVariant> Executor::proxyArrayNewData(Runtime::StackManager &StackMgr,
@@ -317,6 +368,7 @@ Expect<RefVariant> Executor::proxyArrayNewData(Runtime::StackManager &StackMgr,
                                                const uint32_t DataIdx,
                                                const uint32_t Start,
                                                const uint32_t Length) noexcept {
+  Allocator.collect(getStack());
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
@@ -331,14 +383,16 @@ Expect<RefVariant> Executor::proxyArrayNewData(Runtime::StackManager &StackMgr,
       DataInst->getData().size()) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  auto *Inst =
-      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
-          ->newArray(TypeIdx, Length, 0U);
+  Runtime::Instance::ArrayInstance Inst(Allocator, StackMgr.getModule(),
+                                        TypeIdx, Length, 0U);
+  if (Inst.getRaw() == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
   for (uint32_t Idx = 0; Idx < Length; Idx++) {
     // The value has been packed.
-    Inst->getData(Idx) = DataInst->loadValue(Start + Idx * BSize, BSize);
+    Inst.getData(Idx) = DataInst->loadValue(Start + Idx * BSize, BSize);
   }
-  return RefVariant(Inst->getDefType(), Inst);
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
 Expect<RefVariant> Executor::proxyArrayNewElem(Runtime::StackManager &StackMgr,
@@ -346,6 +400,7 @@ Expect<RefVariant> Executor::proxyArrayNewElem(Runtime::StackManager &StackMgr,
                                                const uint32_t ElemIdx,
                                                const uint32_t Start,
                                                const uint32_t Length) noexcept {
+  Allocator.collect(getStack());
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
@@ -362,10 +417,10 @@ Expect<RefVariant> Executor::proxyArrayNewElem(Runtime::StackManager &StackMgr,
   }
   std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
                                ElemSrc.begin() + Start + Length);
-  auto *Inst =
-      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
-          ->newArray(TypeIdx, packVals(VType, std::move(Refs)));
-  return RefVariant(Inst->getDefType(), Inst);
+  Runtime::Instance::ArrayInstance Inst(Allocator, StackMgr.getModule(),
+                                        TypeIdx,
+                                        packVals(VType, std::move(Refs)));
+  return RefVariant(ValType(TypeCode::Ref, TypeIdx), Inst.getRaw());
 }
 
 Expect<void> Executor::proxyArrayGet(Runtime::StackManager &StackMgr,
@@ -373,20 +428,21 @@ Expect<void> Executor::proxyArrayGet(Runtime::StackManager &StackMgr,
                                      const uint32_t TypeIdx,
                                      const uint32_t Index, const bool IsSigned,
                                      ValVariant *Ret) noexcept {
-  const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  const Runtime::Instance::ArrayInstance Inst{Raw};
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
   assuming(!CompType.isFunc());
   assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
   const auto &VType = CompType.getFieldTypes()[0].getStorageType();
-  if (Index >= Inst->getLength()) {
+  if (Index >= Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
-  *Ret = unpackVal(VType, Inst->getData(Index), IsSigned);
+  *Ret = unpackVal(VType, Inst.getData(Index), IsSigned);
   return {};
 }
 
@@ -395,30 +451,33 @@ Expect<void> Executor::proxyArraySet(Runtime::StackManager &StackMgr,
                                      const uint32_t TypeIdx,
                                      const uint32_t Index,
                                      const ValVariant *Val) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
   assuming(!CompType.isFunc());
   assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
   const auto &VType = CompType.getFieldTypes()[0].getStorageType();
-  if (Index >= Inst->getLength()) {
+  if (Index >= Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
-  Inst->getData(Index) = packVal(VType, *Val);
+  Inst.getData(Index) = packVal(VType, *Val);
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
 Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
                                          const RefVariant Ref) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  return Inst->getLength();
+  const Runtime::Instance::ArrayInstance Inst{Raw};
+  return Inst.getLength();
 }
 
 Expect<void> Executor::proxyArrayFill(Runtime::StackManager &StackMgr,
@@ -426,10 +485,11 @@ Expect<void> Executor::proxyArrayFill(Runtime::StackManager &StackMgr,
                                       const uint32_t TypeIdx,
                                       const uint32_t Off, const uint32_t Cnt,
                                       const ValVariant *Val) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   const auto &CompType = DefType->getCompositeType();
@@ -438,11 +498,12 @@ Expect<void> Executor::proxyArrayFill(Runtime::StackManager &StackMgr,
   const auto &VType = CompType.getFieldTypes()[0].getStorageType();
 
   if (static_cast<uint64_t>(Off) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
-  auto Arr = Inst->getArray();
+  auto Arr = Inst.getArray();
   std::fill(Arr.begin() + Off, Arr.begin() + Off + Cnt, packVal(VType, *Val));
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
@@ -452,10 +513,11 @@ Executor::proxyArrayCopy(Runtime::StackManager &StackMgr,
                          const uint32_t DstOff, const RefVariant SrcRef,
                          const uint32_t SrcTypeIdx, const uint32_t SrcOff,
                          const uint32_t Cnt) noexcept {
-  auto *SrcInst = SrcRef.getPtr<Runtime::Instance::ArrayInstance>();
-  if (SrcInst == nullptr) {
+  auto *SrcRaw = SrcRef.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (SrcRaw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  const Runtime::Instance::ArrayInstance SrcInst{SrcRaw};
   auto *SrcDefType = getDefTypeByIdx(StackMgr, SrcTypeIdx);
   assuming(SrcDefType);
   const auto &SrcCompType = SrcDefType->getCompositeType();
@@ -463,10 +525,11 @@ Executor::proxyArrayCopy(Runtime::StackManager &StackMgr,
   assuming(static_cast<uint32_t>(SrcCompType.getFieldTypes().size()) == 1);
   const auto &SrcVType = SrcCompType.getFieldTypes()[0].getStorageType();
 
-  auto *DstInst = DstRef.getPtr<Runtime::Instance::ArrayInstance>();
-  if (DstInst == nullptr) {
+  auto *DstRaw = DstRef.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (DstRaw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance DstInst{DstRaw};
   auto *DstDefType = getDefTypeByIdx(StackMgr, DstTypeIdx);
   assuming(DstDefType);
   const auto &DstCompType = DstDefType->getCompositeType();
@@ -475,16 +538,16 @@ Executor::proxyArrayCopy(Runtime::StackManager &StackMgr,
   const auto &DstVType = DstCompType.getFieldTypes()[0].getStorageType();
 
   if (static_cast<uint64_t>(SrcOff) + static_cast<uint64_t>(Cnt) >
-      SrcInst->getLength()) {
+      SrcInst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   if (static_cast<uint64_t>(DstOff) + static_cast<uint64_t>(Cnt) >
-      DstInst->getLength()) {
+      DstInst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
 
-  auto SrcArr = SrcInst->getArray();
-  auto DstArr = DstInst->getArray();
+  auto SrcArr = SrcInst.getArray();
+  auto DstArr = DstInst.getArray();
   if (DstOff <= SrcOff) {
     std::transform(SrcArr.begin() + SrcOff, SrcArr.begin() + SrcOff + Cnt,
                    DstArr.begin() + DstOff, [&](const ValVariant &V) {
@@ -498,6 +561,7 @@ Executor::proxyArrayCopy(Runtime::StackManager &StackMgr,
                      return packVal(DstVType, unpackVal(SrcVType, V));
                    });
   }
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(DstRaw));
   return {};
 }
 
@@ -505,10 +569,11 @@ Expect<void> Executor::proxyArrayInitData(
     Runtime::StackManager &StackMgr, const RefVariant Ref,
     const uint32_t TypeIdx, const uint32_t DataIdx, const uint32_t DstOff,
     const uint32_t SrcOff, const uint32_t Cnt) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
@@ -520,7 +585,7 @@ Expect<void> Executor::proxyArrayInitData(
       CompType.getFieldTypes()[0].getStorageType().getBitWidth() / 8;
 
   if (static_cast<uint64_t>(DstOff) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   if (static_cast<uint64_t>(SrcOff) + static_cast<uint64_t>(Cnt) * BSize >
@@ -530,9 +595,10 @@ Expect<void> Executor::proxyArrayInitData(
 
   for (uint32_t Idx = 0; Idx < Cnt; Idx++) {
     // The value has been packed.
-    Inst->getData(DstOff + Idx) =
+    Inst.getData(DstOff + Idx) =
         DataInst->loadValue(SrcOff + Idx * BSize, BSize);
   }
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
@@ -540,10 +606,11 @@ Expect<void> Executor::proxyArrayInitElem(
     Runtime::StackManager &StackMgr, const RefVariant Ref,
     const uint32_t TypeIdx, const uint32_t ElemIdx, const uint32_t DstOff,
     const uint32_t SrcOff, const uint32_t Cnt) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
+  Runtime::Instance::ArrayInstance Inst{Raw};
   auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
   assuming(DefType);
   auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
@@ -555,7 +622,7 @@ Expect<void> Executor::proxyArrayInitElem(
 
   auto ElemSrc = ElemInst->getRefs();
   if (static_cast<uint64_t>(DstOff) + static_cast<uint64_t>(Cnt) >
-      Inst->getLength()) {
+      Inst.getLength()) {
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   if (static_cast<uint64_t>(SrcOff) + static_cast<uint64_t>(Cnt) >
@@ -563,11 +630,12 @@ Expect<void> Executor::proxyArrayInitElem(
     return Unexpect(ErrCode::Value::TableOutOfBounds);
   }
 
-  auto Arr = Inst->getArray();
+  auto Arr = Inst.getArray();
   // The value has been packed.
   std::transform(ElemSrc.begin() + SrcOff, ElemSrc.begin() + SrcOff + Cnt,
                  Arr.begin() + DstOff,
                  [&](const RefVariant &V) { return packVal(VType, V); });
+  Allocator.writeBarrier(reinterpret_cast<uint8_t *>(Raw));
   return {};
 }
 
@@ -583,11 +651,11 @@ Expect<uint32_t> Executor::proxyRefTest(Runtime::StackManager &StackMgr,
   assuming(ModInst);
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
+    auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
     // Reference must not be nullptr here because the null references are typed
     // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    if (Raw->ModInst) {
+      GotTypeList = Raw->ModInst->getTypeList();
     }
   }
 
@@ -611,11 +679,11 @@ Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
   assuming(ModInst);
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
+    auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
     // Reference must not be nullptr here because the null references are typed
     // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    if (Raw->ModInst) {
+      GotTypeList = Raw->ModInst->getTypeList();
     }
   }
 
@@ -653,7 +721,9 @@ Expect<void> Executor::proxyTableInit(Runtime::StackManager &StackMgr,
   assuming(TabInst);
   auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
   assuming(ElemInst);
-  return TabInst->setRefs(ElemInst->getRefs(), DstOff, SrcOff, Len);
+
+  EXPECTED_TRY(auto Refs, ElemInst->getRefs(SrcOff, Len));
+  return TabInst->setRefs(Refs, DstOff);
 }
 
 Expect<void> Executor::proxyElemDrop(Runtime::StackManager &StackMgr,
@@ -675,8 +745,8 @@ Expect<void> Executor::proxyTableCopy(Runtime::StackManager &StackMgr,
   auto *TabInstSrc = getTabInstByIdx(StackMgr, TableIdxSrc);
   assuming(TabInstSrc);
 
-  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(0, SrcOff + Len));
-  return TabInstDst->setRefs(Refs, DstOff, SrcOff, Len);
+  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(SrcOff, Len));
+  return TabInstDst->setRefs(Refs, DstOff);
 }
 
 Expect<uint32_t> Executor::proxyTableGrow(Runtime::StackManager &StackMgr,

@@ -26,12 +26,12 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                          return E;
                        }));
       // Pop result from stack.
-      RefVariant InitTabValue = StackMgr.pop().get<RefVariant>();
+      RefVariant InitTabValue = StackMgr.pop<RefVariant>();
       // Create and add the table instance into the module instance.
-      ModInst.addTable(TabSeg.getTableType(), InitTabValue);
+      ModInst.addTable(Allocator, TabSeg.getTableType(), InitTabValue);
     } else {
       // No init expression case. Use the null reference to initialize.
-      ModInst.addTable(TabSeg.getTableType());
+      ModInst.addTable(Allocator, TabSeg.getTableType());
     }
   }
   return {};

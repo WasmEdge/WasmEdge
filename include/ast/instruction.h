@@ -376,6 +376,7 @@ private:
 // Type aliasing
 using InstrVec = std::vector<Instruction>;
 using InstrView = Span<const Instruction>;
+using InstrMutableView = Span<Instruction>;
 
 } // namespace AST
 } // namespace WasmEdge

@@ -20,7 +20,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
 
   // Set the global pointers of imported globals.
   for (uint32_t I = 0; I < ModInst.getGlobalNum(); ++I) {
-    ModInst.GlobalPtrs[I] = &((*ModInst.getGlobal(I))->getValue());
+    ModInst.GlobalPtrs[I] = (*ModInst.getGlobal(I))->getAddress();
   }
 
   // Iterate through the global segments to instantiate and initialize global
@@ -33,16 +33,16 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                        return E;
                      }));
 
-    // Pop result from the stack.
-    ValVariant InitValue = StackMgr.pop();
+    // Pop result from stack.
+    ValVariant InitValue = StackMgr.pop<ValVariant>();
 
-    // Create and add the global instance to the module instance.
-    ModInst.addGlobal(GlobSeg.getGlobalType(), InitValue);
+    // Create and add the global instance into the module instance.
+    ModInst.addGlobal(Allocator, GlobSeg.getGlobalType(), InitValue);
     const auto Index = ModInst.getGlobalNum() - 1;
     Runtime::Instance::GlobalInstance *GlobInst = *ModInst.getGlobal(Index);
 
     // Set the global pointers of instantiated globals.
-    ModInst.GlobalPtrs[Index] = &(GlobInst->getValue());
+    ModInst.GlobalPtrs[Index] = GlobInst->getAddress();
   }
   return {};
 }

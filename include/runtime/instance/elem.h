@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/errinfo.h"
 #include "common/span.h"
 #include "common/types.h"
 
@@ -39,6 +40,21 @@ public:
 
   /// Get reference lists in element instance.
   Span<const RefVariant> getRefs() const noexcept { return Refs; }
+
+  /// Get reference lists in element instance.
+  /// Get slice of Refs[Offset : Offset + Length - 1]
+  Expect<Span<const RefVariant>> getRefs(uint32_t Offset,
+                                         uint32_t Length) const noexcept {
+    // Check the accessing boundary.
+    if (Offset + Length > Refs.size()) {
+      spdlog::error(ErrCode::Value::TableOutOfBounds);
+      spdlog::error(ErrInfo::InfoBoundary(
+          Offset, Length,
+          std::max(static_cast<uint32_t>(Refs.size()), 1U) - 1U));
+      return Unexpect(ErrCode::Value::TableOutOfBounds);
+    }
+    return Span<const RefVariant>(Refs).subspan(Offset, Length);
+  }
 
   /// Clear references in element instance.
   void clear() { Refs.clear(); }

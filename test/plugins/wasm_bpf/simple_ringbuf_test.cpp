@@ -195,8 +195,7 @@ TEST(WasmBpfTest, SimpleRingbuf) {
       std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
           WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1));
   ASSERT_TRUE(funcTableInst->setRefs(
-      std::initializer_list<const WasmEdge::RefVariant>{callbackFuncInst}, 0, 0,
-      1));
+      std::initializer_list<const WasmEdge::RefVariant>{callbackFuncInst}, 0));
   // Add the table to the main module
   moduleInst.addHostTable("__indirect_function_table"sv,
                           std::move(funcTableInst));

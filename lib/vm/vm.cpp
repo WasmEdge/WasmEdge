@@ -475,7 +475,6 @@ Expect<void> VM::unsafeInstantiate() {
                    "falling back to interpreter."sv);
 #endif
     }
-
     EXPECTED_TRY(ActiveModInst,
                  ExecutorEngine.instantiateModule(StoreRef, *Mod));
     Stage = VMStage::Instantiated;

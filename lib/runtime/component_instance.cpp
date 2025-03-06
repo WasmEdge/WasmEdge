@@ -395,11 +395,21 @@ TypeIndex ComponentInstance::typeToIndex(DefType Ty) noexcept {
 }
 
 std::shared_ptr<ResourceHandle>
-ComponentInstance::removeResource(uint32_t ResourceTypeIndex,
-                                  uint32_t HandleIndex) noexcept {
-  auto ResourceMap = Resources[ResourceTypeIndex];
-  auto Handle = std::move(ResourceMap[HandleIndex]);
-  ResourceMap.erase(HandleIndex);
+ComponentInstance::getResource(int32_t Index) noexcept {
+  return Resources[Index];
+}
+
+int32_t ComponentInstance::addResource(
+    std::shared_ptr<ResourceHandle> Handle) noexcept {
+  int32_t Idx = FreeResources.extract(1).value();
+  Resources[Idx] = Handle;
+  return Idx;
+}
+
+std::shared_ptr<ResourceHandle>
+ComponentInstance::removeResource(int32_t HandleIndex) noexcept {
+  auto Handle = std::move(Resources[HandleIndex]);
+  Resources.erase(HandleIndex);
   return Handle;
 }
 

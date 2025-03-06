@@ -10,6 +10,8 @@ namespace WasmEdge {
 namespace Host {
 
 WasiHttp_Types::WasiHttp_Types() : ComponentInstance("wasi:http/types@0.2.0") {
+  Env.setComponentInstance(this);
+
   using namespace Types;
   using namespace AST::Component;
   addHostType("method", Method::ast());

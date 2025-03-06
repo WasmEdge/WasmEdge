@@ -212,7 +212,7 @@ public:
            Runtime::Instance::FunctionInstance *Realloc);
 
   std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
-  resourceDrop(uint32_t TypIdx, AST::Component::ResourceType &RTyp,
+  resourceDrop(AST::Component::ResourceType &RTyp,
                Runtime::Instance::ComponentInstance &CompInst);
   /// @}
 

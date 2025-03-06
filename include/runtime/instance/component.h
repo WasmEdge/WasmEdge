@@ -44,7 +44,13 @@ using namespace AST::Component;
 
 class ComponentInstance {
 public:
-  ComponentInstance(std::string_view Name) : CompName(Name) {}
+  ComponentInstance(std::string_view Name) : CompName(Name) {
+    // magic number 2 ^ 28 - 1 refers to
+    // https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#table-state
+    for (int32_t I = 0; I < (2 << 28) - 1; ++I) {
+      FreeResources.insert(FreeResources.end(), I);
+    }
+  }
 
   std::string_view getComponentName() const noexcept;
 
@@ -130,8 +136,9 @@ public:
   TypeIndex typeToIndex(DefType Ty) noexcept;
   TypeIndex getLastTypeIndex() noexcept;
 
-  std::shared_ptr<ResourceHandle> removeResource(uint32_t ResourceTypeIndex,
-                                                 uint32_t HandleIndex) noexcept;
+  std::shared_ptr<ResourceHandle> getResource(int32_t Index) noexcept;
+  int32_t addResource(std::shared_ptr<ResourceHandle> Handle) noexcept;
+  std::shared_ptr<ResourceHandle> removeResource(int32_t Index) noexcept;
 
 private:
   void unsafeAddHostFunc(
@@ -173,8 +180,8 @@ private:
   std::map<std::string, AST::Component::DefType, std::less<>> ExportTypesMap;
   std::vector<AST::Component::DefType> Types;
 
-  std::map<uint32_t, std::map<uint32_t, std::shared_ptr<ResourceHandle>>>
-      Resources;
+  std::map<int32_t, std::shared_ptr<ResourceHandle>> Resources;
+  std::set<int32_t> FreeResources;
 
   // core memory, this is prepared for canonical ABI
   //

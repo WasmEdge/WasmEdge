@@ -430,10 +430,9 @@ Executor::lowering(Instance::Component::FunctionInstance *Func,
 class ResourceDropHostFunction
     : public WasmEdge::Runtime::Component::HostFunctionBase {
 public:
-  ResourceDropHostFunction(Executor *E, uint32_t Idx,
-                           AST::Component::ResourceType &RT,
+  ResourceDropHostFunction(Executor *E, AST::Component::ResourceType &RT,
                            Runtime::Instance::ComponentInstance &C)
-      : Exec{E}, TypIdx{Idx}, RTyp{RT}, Comp{C} {
+      : Exec{E}, RTyp{RT}, Comp{C} {
     std::vector<InterfaceType> ParamTypes{InterfaceType(TypeCode::I32)};
     // NOTE: resource destructor only use type `i32`
     // 1. at sync mode: [i32] -> []
@@ -454,7 +453,7 @@ public:
     auto ResourceIdx = std::get<ValVariant>(Args[0]).get<uint32_t>();
 
     std::shared_ptr<Runtime::Instance::ResourceHandle> Handle =
-        Comp.removeResource(TypIdx, ResourceIdx);
+        Comp.removeResource(ResourceIdx);
     if (Handle->isOwn()) {
       // TODO: assert borrowScope is None
       // TODO: trap lendCount != 0
@@ -490,16 +489,15 @@ public:
 
 private:
   Executor *Exec;
-  uint32_t TypIdx;
   AST::Component::ResourceType &RTyp;
   Runtime::Instance::ComponentInstance &Comp;
 };
 
 std::unique_ptr<Instance::Component::FunctionInstance>
-Executor::resourceDrop(uint32_t TypIdx, AST::Component::ResourceType &RTyp,
+Executor::resourceDrop(AST::Component::ResourceType &RTyp,
                        Runtime::Instance::ComponentInstance &CompInst) {
   return std::make_unique<Instance::Component::FunctionInstance>(
-      std::make_unique<ResourceDropHostFunction>(this, TypIdx, RTyp, CompInst));
+      std::make_unique<ResourceDropHostFunction>(this, RTyp, CompInst));
 }
 
 class CanonOptionVisitor {
@@ -646,7 +644,7 @@ public:
     }
 
     auto ResourceTyp = std::get<ResourceType>(*RTyp);
-    auto Drop = ThisExecutor.resourceDrop(TypIdx, ResourceTyp, CompInst);
+    auto Drop = ThisExecutor.resourceDrop(ResourceTyp, CompInst);
     Instance::Component::FunctionInstance *F = Drop.get();
     CompInst.addCoreFunctionInstance(
         ThisExecutor.lowering(F, nullptr, nullptr));

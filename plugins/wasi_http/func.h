@@ -220,7 +220,8 @@ public:
 class Finish : public WasiHttp<Finish> {
 public:
   Finish(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
-  Expect<void> body();
+  Expect<Result<Tuple<>, ErrorCode::T>> body(T This,
+                                             Option<Trailers::T> Trailers);
 };
 
 } // namespace OutgoingBody

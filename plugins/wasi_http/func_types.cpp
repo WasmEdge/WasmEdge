@@ -221,7 +221,9 @@ AST::Component::ResourceType ast() noexcept {
 
 Expect<Result<OutputStream::T, Tuple<>>> Write::body(T) { return 0; }
 
-Expect<void> Finish::body() { return {}; }
+Expect<Result<Tuple<>, ErrorCode::T>> Finish::body(T, Option<Trailers::T>) {
+  return Tuple();
+}
 
 } // namespace OutgoingBody
 

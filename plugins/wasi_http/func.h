@@ -23,6 +23,12 @@ public:
 
 namespace Types {
 
+namespace OutputStream {
+
+using T = int32_t;
+
+}
+
 namespace Method {
 using T = Component::Variant<Tuple<>,    // get
                              Tuple<>,    // head
@@ -208,7 +214,7 @@ AST::Component::ResourceType ast() noexcept;
 class Write : public WasiHttp<Write> {
 public:
   Write(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
-  Expect<void> body();
+  Expect<Result<OutputStream::T, Tuple<>>> body(T Self);
 };
 
 class Finish : public WasiHttp<Finish> {

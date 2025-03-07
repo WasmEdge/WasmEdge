@@ -219,7 +219,8 @@ AST::Component::ResourceType ast() noexcept {
       new Runtime::Instance::ComponentInstance("outgoing-body"));
 }
 
-Expect<void> Write::body() { return {}; }
+Expect<Result<OutputStream::T, Tuple<>>> Write::body(T) { return 0; }
+
 Expect<void> Finish::body() { return {}; }
 
 } // namespace OutgoingBody

@@ -208,7 +208,7 @@ AST::Component::ResourceType ast() noexcept {
 
 Expect<T> Constructor::body(int32_t) { return 0; }
 
-Expect<void> Body::body() { return {}; }
+Expect<Result<OutgoingBody::T, Tuple<>>> Body::body(T) { return 0; }
 
 } // namespace OutgoingResponse
 

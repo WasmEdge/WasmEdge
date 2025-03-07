@@ -201,37 +201,6 @@ using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
 } // namespace FutureTrailers
 
-namespace OutgoingResponse {
-using T = int32_t;
-AST::Component::ResourceType ast() noexcept;
-
-class Constructor : public WasiHttp<Constructor> {
-public:
-  Constructor(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
-  Expect<T> body(int32_t);
-};
-
-class Body : public WasiHttp<Body> {
-public:
-  Body(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
-  Expect<void> body();
-};
-
-} // namespace OutgoingResponse
-
-namespace ResponseOutparam {
-using T = int32_t;
-AST::Component::ResourceType ast() noexcept;
-
-class Set : public WasiHttp<Set> {
-public:
-  Set(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
-  Expect<void> body(T Param,
-                    Result<OutgoingResponse::T, ErrorCode::T> Response);
-};
-
-} // namespace ResponseOutparam
-
 namespace OutgoingBody {
 using T = int32_t;
 AST::Component::ResourceType ast() noexcept;
@@ -249,6 +218,37 @@ public:
 };
 
 } // namespace OutgoingBody
+
+namespace OutgoingResponse {
+using T = int32_t;
+AST::Component::ResourceType ast() noexcept;
+
+class Constructor : public WasiHttp<Constructor> {
+public:
+  Constructor(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<T> body(int32_t);
+};
+
+class Body : public WasiHttp<Body> {
+public:
+  Body(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<Result<OutgoingBody::T, Tuple<>>> body(T Self);
+};
+
+} // namespace OutgoingResponse
+
+namespace ResponseOutparam {
+using T = int32_t;
+AST::Component::ResourceType ast() noexcept;
+
+class Set : public WasiHttp<Set> {
+public:
+  Set(WasiHttpEnvironment &HostEnv) : WasiHttp(HostEnv) {}
+  Expect<void> body(T Param,
+                    Result<OutgoingResponse::T, ErrorCode::T> Response);
+};
+
+} // namespace ResponseOutparam
 
 namespace FutureIncomingResponse {
 using T = int32_t;

@@ -20,14 +20,6 @@ Executor::SavedThreadLocal::SavedThreadLocal(
   // Prepare the execution context.
   auto *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(Func.getModule());
-  for (uint32_t I = 0; I < ModInst->getMemoryNum(); ++I) {
-    // Update the memory pointers to prevent from the address change due to
-    // the page growing.
-    auto MemoryPtr =
-        reinterpret_cast<std::atomic<uint8_t *> *>(&(ModInst->MemoryPtrs[I]));
-    uint8_t *const DataPtr = (*(ModInst->getMemory(I)))->getDataPtr();
-    std::atomic_store_explicit(MemoryPtr, DataPtr, std::memory_order_relaxed);
-  }
   SavedThis = This;
   This = &Ex;
 

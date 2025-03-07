@@ -890,7 +890,11 @@ public:
 private:
   /// Execution context for compiled functions.
   struct ExecutionContextStruct {
+#if WASMEDGE_ALLOCATOR_IS_STABLE
     uint8_t *const *Memories;
+#else
+    uint8_t **const *Memories;
+#endif
     ValVariant *const *Globals;
     std::atomic_uint64_t *InstrCount;
     uint64_t *CostTable;

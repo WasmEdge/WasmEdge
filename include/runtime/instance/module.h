@@ -535,7 +535,11 @@ protected:
 
   /// \name Data for compiled functions.
   /// @{
+#if WASMEDGE_ALLOCATOR_IS_STABLE
   std::vector<uint8_t *> MemoryPtrs;
+#else
+  std::vector<uint8_t **> MemoryPtrs;
+#endif
   std::vector<ValVariant *> GlobalPtrs;
   /// @}
 

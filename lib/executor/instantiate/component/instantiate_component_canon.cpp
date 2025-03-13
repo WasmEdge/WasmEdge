@@ -20,6 +20,58 @@ using namespace AST::Component;
 using namespace Runtime;
 
 namespace {
+
+Expect<void> pushDefValType(Runtime::Instance::ComponentInstance &,
+                            std::vector<InterfaceType> &,
+                            const DefValType &DT) {
+  if (std::holds_alternative<PrimValType>(DT)) {
+    spdlog::warn("primitive value type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<RecordTy>(DT)) {
+    spdlog::warn("record type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<VariantTy>(DT)) {
+    spdlog::warn("variant type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<ListTy>(DT)) {
+    spdlog::warn("list type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<TupleTy>(DT)) {
+    spdlog::warn("tuple type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<Flags>(DT)) {
+    spdlog::warn("flags type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<EnumTy>(DT)) {
+    spdlog::warn("enum type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<OptionTy>(DT)) {
+    spdlog::warn("option type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<ResultTy>(DT)) {
+    spdlog::warn("result type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<Own>(DT)) {
+    spdlog::warn("own type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<Borrow>(DT)) {
+    spdlog::warn("borrow type is not handled yet"sv, DT);
+  } else {
+    assumingUnreachable();
+  }
+
+  return {};
+}
+
+Expect<void> pushDefType(Runtime::Instance::ComponentInstance &Comp,
+                         std::vector<InterfaceType> &Types, const DefType &DT) {
+  if (std::holds_alternative<DefValType>(DT)) {
+    pushDefValType(Comp, Types, std::get<DefValType>(DT));
+  } else if (std::holds_alternative<FuncType>(DT)) {
+    spdlog::warn("function type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<ComponentType>(DT)) {
+    spdlog::warn("component type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<InstanceType>(DT)) {
+    spdlog::warn("instance type is not handled yet"sv, DT);
+  } else if (std::holds_alternative<ResourceType>(DT)) {
+    spdlog::warn("resource type is not handled yet"sv, DT);
+  } else {
+    assumingUnreachable();
+  }
+
+  return {};
+}
+
 Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
                       std::vector<InterfaceType> &Types, const ValueType &VT) {
   // notice that we might need to convert one type to multiple types, and hence,
@@ -55,11 +107,8 @@ Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
       break;
     }
   } else if (std::holds_alternative<TypeIndex>(VT)) {
-    auto RTy = Comp.getType(std::get<TypeIndex>(VT));
-    if (!RTy) {
-      return Unexpect(RTy);
-    }
-    spdlog::warn("Type {} is not handled yet"sv, *RTy);
+    EXPECTED_TRY(auto Ty, Comp.getType(std::get<TypeIndex>(VT)));
+    pushDefType(Comp, Types, Ty);
   }
 
   return {};

@@ -165,42 +165,37 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
     }
   }
 
-  // Validate subtype depth when GC proposal is enabled
-  if (Conf.hasProposal(Proposal::GC) && !Type.getSuperTypeIndices().empty()) {
-    std::set<uint32_t> Visited;
+// Validate subtype depth when GC proposal is enabled
+if (Conf.hasProposal(Proposal::GC) && !Type.getSuperTypeIndices().empty()) {
+  std::set<uint32_t> Visited;
 
-    for (const auto &Index : Type.getSuperTypeIndices()) {
-      if (unlikely(Index >= TypeVec.size())) {
-        spdlog::error(ErrCode::Value::InvalidSubType);
-        spdlog::error("    Super type not found."sv);
-        return Unexpect(ErrCode::Value::InvalidSubType);
-      }
+  for (const auto &Index : Type.getSuperTypeIndices()) {
+    if (unlikely(Index >= TypeVec.size())) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error("    Super type not found."sv);
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
 
-      // Calculate and check subtype depth
-      uint32_t Depth = calculateSubtypeDepth(Index, Visited);
-      if (Depth >= MAX_SUBTYPE_DEPTH) {
-        spdlog::error(ErrCode::Value::InvalidSubType);
-        spdlog::error(
-            "subtype depth for Type section's {} signature exceeded the limits of {}"sv,
-            Depth + 1, MAX_SUBTYPE_DEPTH);
-        return Unexpect(ErrCode::Value::InvalidSubType);
-      }
+    // Calculate and check subtype depth
+    if (auto Res = calculateSubtypeDepth(0, Index, Visited); !Res) {
+      return Unexpect(Res.error());
+    }
 
-      // Continue with existing validation
-      if (TypeVec[Index]->isFinal()) {
-        spdlog::error(ErrCode::Value::InvalidSubType);
-        spdlog::error("    Super type should not be final."sv);
-        return Unexpect(ErrCode::Value::InvalidSubType);
-      }
+    // Continue with existing validation
+    if (TypeVec[Index]->isFinal()) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error("    Super type should not be final."sv);
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
 
-      auto &SuperType = TypeVec[Index]->getCompositeType();
-      if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType, CompType)) {
-        spdlog::error(ErrCode::Value::InvalidSubType);
-        spdlog::error("    Super type not matched."sv);
-        return Unexpect(ErrCode::Value::InvalidSubType);
-      }
+    auto &SuperType = TypeVec[Index]->getCompositeType();
+    if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType, CompType)) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error("    Super type not matched."sv);
+      return Unexpect(ErrCode::Value::InvalidSubType);
     }
   }
+}
 
   return {};
 }
@@ -861,26 +856,36 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
   return Checker.validate(Instrs, Returns);
 }
 
-uint32_t Validator::calculateSubtypeDepth(uint32_t TypeIdx, std::set<uint32_t>& Visited) const {
+Expect<void> Validator::calculateSubtypeDepth(uint32_t Depth, uint32_t TypeIdx, std::set<uint32_t>& Visited) const {
   if (Visited.find(TypeIdx) != Visited.end()) {
     return 0;
   }
 
+  if (Depth >= MAX_SUBTYPE_DEPTH) {
+    spdlog::error(ErrCode::Value::InvalidSubType);
+    spdlog::error(
+        "subtype depth for Type section's {} signature exceeded the limits of {}"sv,
+        Depth + 1, MAX_SUBTYPE_DEPTH);
+    return Unexpect(ErrCode::Value::InvalidSubType);
+  }
+
   Visited.insert(TypeIdx);
-  uint32_t MaxDepth = 0;
 
   const auto &TypeVec = Checker.getTypes();
   const auto &Type = *TypeVec[TypeIdx];
 
   for (auto SuperIdx : Type.getSuperTypeIndices()) {
-    if (SuperIdx < TypeVec.size()) {
-      uint32_t Depth = calculateSubtypeDepth(SuperIdx, Visited);
-      MaxDepth = std::max(MaxDepth, Depth);
+    if (SuperIdx >= TypeVec.size()) {
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+
+    if (auto Res = calculateSubtypeDepth(Depth + 1, SuperIdx, Visited); !Res) {
+      return Unexpect(Res.error());
     }
   }
 
   Visited.erase(TypeIdx);
-  return MaxDepth + 1;
+  return {};
 }
 
 } // namespace Validator

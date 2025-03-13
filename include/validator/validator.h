@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <set>
 
 namespace WasmEdge {
 namespace Validator {
@@ -75,9 +76,13 @@ private:
 
   static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
   /// Proposal configure
-  const Configure Conf;
+  const Configure &Conf;
   /// Formal checker
   FormChecker Checker;
+
+  static constexpr uint32_t MAX_SUBTYPE_DEPTH = 63;
+
+  uint32_t calculateSubtypeDepth(uint32_t TypeIdx, std::set<uint32_t>& Visited) const;
 };
 
 } // namespace Validator

@@ -165,25 +165,29 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
     }
   }
 
-  // In current version, the length of type index vector will be <= 1.
-  if (Type.getSuperTypeIndices().size() > 1) {
-    spdlog::error(ErrCode::Value::InvalidSubType);
-    spdlog::error("    Accepts 1 super type currently."sv);
-    return Unexpect(ErrCode::Value::InvalidSubType);
-  }
-  for (auto Index : Type.getSuperTypeIndices()) {
-    if (Index >= TypeVec.size()) {
+// Validate subtype depth when GC proposal is enabled
+if (Conf.hasProposal(Proposal::GC) && !Type.getSuperTypeIndices().empty()) {
+  std::set<uint32_t> Visited;
+
+  for (const auto &Index : Type.getSuperTypeIndices()) {
+    if (unlikely(Index >= TypeVec.size())) {
       spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::DefinedType, Index,
-                                   static_cast<uint32_t>(TypeVec.size())));
+      spdlog::error("    Super type not found."sv);
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
+
+    // Calculate and check subtype depth
+    if (auto Res = calculateSubtypeDepth(0, Index, Visited); !Res) {
+      return Unexpect(Res.error());
+    }
+
+    // Continue with existing validation
     if (TypeVec[Index]->isFinal()) {
       spdlog::error(ErrCode::Value::InvalidSubType);
       spdlog::error("    Super type should not be final."sv);
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
+
     auto &SuperType = TypeVec[Index]->getCompositeType();
     if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType, CompType)) {
       spdlog::error(ErrCode::Value::InvalidSubType);
@@ -191,6 +195,8 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
   }
+}
+
   return {};
 }
 
@@ -848,6 +854,38 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
   // Validate expression with result types.
   Checker.reset();
   return Checker.validate(Instrs, Returns);
+}
+
+Expect<void> Validator::calculateSubtypeDepth(uint32_t Depth, uint32_t TypeIdx, std::set<uint32_t>& Visited) const {
+  if (Visited.find(TypeIdx) != Visited.end()) {
+    return 0;
+  }
+
+  if (Depth >= MAX_SUBTYPE_DEPTH) {
+    spdlog::error(ErrCode::Value::InvalidSubType);
+    spdlog::error(
+        "subtype depth for Type section's {} signature exceeded the limits of {}"sv,
+        Depth + 1, MAX_SUBTYPE_DEPTH);
+    return Unexpect(ErrCode::Value::InvalidSubType);
+  }
+
+  Visited.insert(TypeIdx);
+
+  const auto &TypeVec = Checker.getTypes();
+  const auto &Type = *TypeVec[TypeIdx];
+
+  for (auto SuperIdx : Type.getSuperTypeIndices()) {
+    if (SuperIdx >= TypeVec.size()) {
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+
+    if (auto Res = calculateSubtypeDepth(Depth + 1, SuperIdx, Visited); !Res) {
+      return Unexpect(Res.error());
+    }
+  }
+
+  Visited.erase(TypeIdx);
+  return {};
 }
 
 } // namespace Validator

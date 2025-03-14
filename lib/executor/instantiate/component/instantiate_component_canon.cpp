@@ -21,11 +21,61 @@ using namespace Runtime;
 
 namespace {
 
-Expect<void> pushDefValType(Runtime::Instance::ComponentInstance &,
-                            std::vector<InterfaceType> &,
+Expect<void> pushPrimValType(Runtime::Instance::ComponentInstance &,
+                             std::vector<InterfaceType> &Types,
+                             const PrimValType &PT) {
+  switch (PT) {
+  case PrimValType::Bool:
+    Types.push_back(InterfaceType(TypeCode::Bool));
+    break;
+  case PrimValType::S8:
+    Types.push_back(InterfaceType(TypeCode::I8));
+    break;
+  case PrimValType::U8:
+    Types.push_back(InterfaceType(TypeCode::U8));
+    break;
+  case PrimValType::S16:
+    Types.push_back(InterfaceType(TypeCode::I16));
+    break;
+  case PrimValType::U16:
+    Types.push_back(InterfaceType(TypeCode::U16));
+    break;
+  case PrimValType::S32:
+    Types.push_back(InterfaceType(TypeCode::I32));
+    break;
+  case PrimValType::U32:
+    Types.push_back(InterfaceType(TypeCode::U32));
+    break;
+  case PrimValType::S64:
+    Types.push_back(InterfaceType(TypeCode::I64));
+    break;
+  case PrimValType::U64:
+    Types.push_back(InterfaceType(TypeCode::U64));
+    break;
+  case PrimValType::Float32:
+
+    Types.push_back(InterfaceType(TypeCode::F32));
+    break;
+  case PrimValType::Float64:
+    Types.push_back(InterfaceType(TypeCode::F64));
+    break;
+  case PrimValType::Char:
+    Types.push_back(InterfaceType(TypeCode::U32));
+    break;
+  case PrimValType::String:
+    Types.push_back(InterfaceType(TypeCode::String));
+    break;
+  default:
+    assumingUnreachable();
+  }
+  return {};
+}
+
+Expect<void> pushDefValType(Runtime::Instance::ComponentInstance &Comp,
+                            std::vector<InterfaceType> &Types,
                             const DefValType &DT) {
   if (std::holds_alternative<PrimValType>(DT)) {
-    spdlog::warn("primitive value type is not handled yet"sv, DT);
+    pushPrimValType(Comp, Types, std::get<PrimValType>(DT));
   } else if (std::holds_alternative<RecordTy>(DT)) {
     spdlog::warn("record type is not handled yet"sv, DT);
   } else if (std::holds_alternative<VariantTy>(DT)) {

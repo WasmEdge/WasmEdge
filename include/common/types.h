@@ -182,6 +182,10 @@ public:
       Inner.Data.Code = TypeCode::Variant;
       Inner.Data.HTCode = C;
       break;
+    case TypeCode::Own:
+      Inner.Data.Code = TypeCode::Own;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::Ref:
     case TypeCode::RefNull:
       // Reference type with heap immediates should use the constructors below.
@@ -362,6 +366,8 @@ public:
   InterfaceType(TypeCode C) : VTyp{C}, CaseName{std::nullopt} {}
   InterfaceType(TypeCode C, std::string_view Name) : VTyp{C}, CaseName{Name} {}
   InterfaceType(TypeCode C, std::initializer_list<InterfaceType> Args)
+      : VTyp{C}, TyArgs{Args}, CaseName{std::nullopt} {}
+  InterfaceType(TypeCode C, std::vector<InterfaceType> Args)
       : VTyp{C}, TyArgs{Args}, CaseName{std::nullopt} {}
 
   TypeCode getCode() const noexcept { return VTyp.getCode(); }

@@ -1194,6 +1194,7 @@ T(Enum, 0x89, "enum")       // enum type
 T(Result, 0x8A, "result")   // result type
 T(Record, 0x8B, "record")   // record type
 T(Variant, 0x8C, "variant") // variant type
+T(Own, 0x8D, "own")         // own type
 
 #undef T
 #endif // UseTypeCode

@@ -21,6 +21,9 @@ using namespace Runtime;
 
 namespace {
 
+Expect<void> pushDefType(Runtime::Instance::ComponentInstance &Comp,
+                         std::vector<InterfaceType> &Types, const DefType &DT);
+
 Expect<void> pushPrimValType(Runtime::Instance::ComponentInstance &,
                              std::vector<InterfaceType> &Types,
                              const PrimValType &PT) {
@@ -53,7 +56,6 @@ Expect<void> pushPrimValType(Runtime::Instance::ComponentInstance &,
     Types.push_back(InterfaceType(TypeCode::U64));
     break;
   case PrimValType::Float32:
-
     Types.push_back(InterfaceType(TypeCode::F32));
     break;
   case PrimValType::Float64:
@@ -93,7 +95,11 @@ Expect<void> pushDefValType(Runtime::Instance::ComponentInstance &Comp,
   } else if (std::holds_alternative<ResultTy>(DT)) {
     spdlog::warn("result type is not handled yet"sv, DT);
   } else if (std::holds_alternative<Own>(DT)) {
-    spdlog::warn("own type is not handled yet"sv, DT);
+    auto O = std::get<Own>(DT);
+    EXPECTED_TRY(auto T, Comp.getType(O.getIndex()));
+    std::vector<InterfaceType> TyArgs{};
+    pushDefType(Comp, TyArgs, T);
+    Types.push_back(InterfaceType(TypeCode::Own, TyArgs));
   } else if (std::holds_alternative<Borrow>(DT)) {
     spdlog::warn("borrow type is not handled yet"sv, DT);
   } else {

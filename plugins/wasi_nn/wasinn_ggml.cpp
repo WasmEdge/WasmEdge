@@ -2294,7 +2294,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
             "{}: clear the previous output and tokens...Done"sv, LogPrefix)
 
   // Clear the llama context.
-  llama_kv_cache_clear(GraphRef.LlamaContext.get());
+  llama_kv_self_clear(GraphRef.LlamaContext.get());
 
   // Prepare variables;
   CxtRef.NPos = 0;
@@ -3068,7 +3068,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   // Clear the llama context.
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context"sv)
-  llama_kv_cache_clear(GraphRef.LlamaContext.get());
+  llama_kv_self_clear(GraphRef.LlamaContext.get());
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context...Done"sv)
 
   // Set the input.

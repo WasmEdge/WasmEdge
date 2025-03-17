@@ -363,25 +363,25 @@ private:
 /// wasm interface type
 class InterfaceType {
 public:
-  InterfaceType(TypeCode C) : VTyp{C}, CaseName{std::nullopt} {}
-  InterfaceType(TypeCode C, std::string_view Name) : VTyp{C}, CaseName{Name} {}
+  InterfaceType(TypeCode C) : VTyp{C}, TyArgs{}, CaseName{std::nullopt} {}
+  /// Create a type with type arguments.
   InterfaceType(TypeCode C, std::initializer_list<InterfaceType> Args)
       : VTyp{C}, TyArgs{Args}, CaseName{std::nullopt} {}
   InterfaceType(TypeCode C, std::vector<InterfaceType> Args)
       : VTyp{C}, TyArgs{Args}, CaseName{std::nullopt} {}
+  /// Construct a label type, which is prepared for variant type, each case has
+  /// a name and a real type.
+  InterfaceType(TypeCode C, std::string_view Name) : VTyp{C}, CaseName{Name} {}
 
   TypeCode getCode() const noexcept { return VTyp.getCode(); }
   Span<const InterfaceType> getArgs() const noexcept { return TyArgs; }
   ValType getValType() const noexcept { return VTyp; }
 
+  /// Internal type system treats an empty tuple `()` as `None` type.
   bool isNone() const noexcept {
     auto Code = getCode();
     return Code == TypeCode::Tuple && getArgs().empty();
   }
-
-  // case name exists to be the type arguments of variant type
-  std::optional<std::string> getCaseName() const noexcept { return CaseName; }
-  void setCaseName(std::string &&N) noexcept { CaseName.emplace(N); }
 
   friend bool operator==(const InterfaceType &LHS,
                          const InterfaceType &RHS) noexcept {
@@ -401,6 +401,10 @@ public:
                          const InterfaceType &RHS) noexcept {
     return !(LHS == RHS);
   }
+
+  // case name exists to be the type arguments of variant type
+  std::optional<std::string> getCaseName() const noexcept { return CaseName; }
+  void setCaseName(std::string &&N) noexcept { CaseName.emplace(N); }
 
 private:
   ValType VTyp;

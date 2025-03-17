@@ -366,6 +366,11 @@ void ComponentInstance::addHostType(std::string_view Name,
   addType(Type);
   ExportTypesMap.emplace(std::string(Name), std::move(Type));
 }
+void ComponentInstance::addHostType(std::string_view Name,
+                                    DefType Type) noexcept {
+  addType(Type);
+  ExportTypesMap.emplace(std::string(Name), Type);
+}
 
 const AST::Component::DefType
 ComponentInstance::getType(std::string_view Name) const noexcept {

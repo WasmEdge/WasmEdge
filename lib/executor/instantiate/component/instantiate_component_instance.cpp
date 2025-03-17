@@ -138,15 +138,19 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           }
         } else if (std::holds_alternative<SortCase>(S)) {
           switch (std::get<SortCase>(S)) {
-          case SortCase::Func: // TODO: figure out how to do this registry
-            spdlog::warn("incomplete (with {}) function"sv, Arg.getName());
+          case SortCase::Func: {
+            auto FuncInst = CompInst.getFunctionInstance(Idx.getSortIdx());
+            CompInst.addExport(Arg.getName(), FuncInst);
             break;
+          }
           case SortCase::Value: // TODO: figure out how to do this registry
             spdlog::warn("incomplete (with {}) value"sv, Arg.getName());
             break;
-          case SortCase::Type: // TODO: figure out how to do this registry
-            spdlog::warn("incomplete (with {}) type"sv, Arg.getName());
+          case SortCase::Type: {
+            EXPECTED_TRY(auto TypeInst, CompInst.getType(Idx.getSortIdx()));
+            CompInst.addHostType(Arg.getName(), TypeInst);
             break;
+          }
           case SortCase::Component: {
             auto RComp = CompInst.getComponentInstance(Idx.getSortIdx());
             if (!RComp) {

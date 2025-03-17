@@ -132,6 +132,7 @@ public:
   void addHostType(std::string_view Name, ResourceType &&Type) noexcept;
   void addHostType(std::string_view Name, ComponentType &&Type) noexcept;
   void addHostType(std::string_view Name, InstanceType &&Type) noexcept;
+  void addHostType(std::string_view Name, DefType Type) noexcept;
 
   const AST::Component::DefType getType(std::string_view Name) const noexcept;
   void addCoreFuncType(const AST::FunctionType &Ty) noexcept;

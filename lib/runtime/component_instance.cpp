@@ -226,7 +226,6 @@ void ComponentInstance::addExport(std::string_view Name,
 }
 Component::FunctionInstance *
 ComponentInstance::findFuncExports(std::string_view Name) const noexcept {
-  spdlog::warn("lookp name {}", Name);
   return ExportFuncMap.at(std::string(Name));
 }
 std::vector<std::pair<std::string, const AST::Component::FunctionType &>>

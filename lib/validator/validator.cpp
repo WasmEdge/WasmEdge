@@ -177,7 +177,7 @@ if (Conf.hasProposal(Proposal::GC) && !Type.getSuperTypeIndices().empty()) {
     }
 
     // Calculate and check subtype depth
-    if (auto Res = calculateSubtypeDepth(0, Index, Visited); !Res) {
+    if (auto Res = calculateSubtypeDepth(Index, Visited); !Res) {
       return Unexpect(Res.error());
     }
 
@@ -856,7 +856,7 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
   return Checker.validate(Instrs, Returns);
 }
 
-Expect<void> Validator::calculateSubtypeDepth(uint32_t Depth, uint32_t TypeIdx, std::set<uint32_t>& Visited) const {
+Expect<void> Validator::calculateSubtypeDepth(uint32_t TypeIdx, std::set<uint32_t>& Visited, uint32_t Depth) const {
   if (Visited.find(TypeIdx) != Visited.end()) {
     return 0;
   }
@@ -879,7 +879,7 @@ Expect<void> Validator::calculateSubtypeDepth(uint32_t Depth, uint32_t TypeIdx, 
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
 
-    if (auto Res = calculateSubtypeDepth(Depth + 1, SuperIdx, Visited); !Res) {
+    if (auto Res = calculateSubtypeDepth(SuperIdx, Visited, Depth + 1); !Res) {
       return Unexpect(Res.error());
     }
   }

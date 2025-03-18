@@ -266,8 +266,30 @@ public:
   IndexKind &getKind() noexcept { return Kind; }
   IndexKind getKind() const noexcept { return Kind; }
 };
-// use optional none as SubResource case
+
+/// FROM:
+/// https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md#type-checking
+///
+/// When we next consider type imports and exports, there are two distinct
+/// subcases of typebound to consider: eq and sub.
+///
+/// The eq bound adds a type equality rule (extending the built-in set of
+/// subtyping rules) saying that the imported type is structurally equivalent to
+/// the type referenced in the bound.
+///
+/// In contrast, the sub bound introduces a new abstract type which the rest of
+/// the component must conservatively assume can be any type that is a subtype
+/// of the bound. What this means for type-checking is that each subtype-bound
+/// type import/export introduces a fresh abstract type that is unequal to every
+/// preceding type definition.
+///
+/// NOTE:
+/// One just need to consider Java's `? extends T` in mind.
+///
+/// 1. optional `some i` as `(eq i)`
+/// 2. optional `none` as `sub`, i.e. Subresource
 using TypeBound = std::optional<TypeIndex>;
+
 using ExternDesc = std::variant<DescTypeIndex, TypeBound, ValueType>;
 class ExportDecl {
 public:

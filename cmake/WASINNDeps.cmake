@@ -23,6 +23,18 @@ function(wasmedge_setup_wasinn_target target)
         openvino::runtime
         openvino::runtime::c
       )
+    elseif(BACKEND STREQUAL "openvinogenai")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build OpenVINO GenAI backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINOGENAI)
+      find_package(OpenVINO REQUIRED)
+      find_package(OpenVINOGenAI REQUIRED)
+      target_link_libraries(${target}
+        PRIVATE
+        openvino::runtime
+        openvino::runtime::c
+      )
     elseif(BACKEND STREQUAL "pytorch")
       if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
         message(STATUS "WASI-NN: Build PyTorch backend for WASI-NN")
@@ -326,7 +338,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b4818
+      GIT_TAG        b4897
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)

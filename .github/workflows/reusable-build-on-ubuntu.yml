@@ -1,4 +1,7 @@
 name: Build on Ubuntu
+defaults:
+  run:
+    shell: bash -leo pipefail {0}
 
 on:
   workflow_call:

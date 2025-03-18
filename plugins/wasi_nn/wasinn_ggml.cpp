@@ -1739,14 +1739,14 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the spm-infill option."sv)
     }
   }
-  if (Doc.at_key("lora-outfile").error() == simdjson::SUCCESS) {
-    std::string_view LoraOutfile;
-    auto Err = Doc["lora-outfile"].get<std::string_view>().get(LoraOutfile);
+  if (Doc.at_key("out-file").error() == simdjson::SUCCESS) {
+    std::string_view Outfile;
+    auto Err = Doc["out-file"].get<std::string_view>().get(Outfile);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the lora-outfile option."sv)
+                "Unable to retrieve the outfile option."sv)
     }
-    GraphRef.Params.lora_outfile = LoraOutfile;
+    GraphRef.Params.out_file = Outfile;
   }
   if (Doc.at_key("batched-bench-output-jsonl").error() == simdjson::SUCCESS) {
     auto Err = Doc["batched-bench-output-jsonl"].get<bool>().get(
@@ -2294,7 +2294,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
             "{}: clear the previous output and tokens...Done"sv, LogPrefix)
 
   // Clear the llama context.
-  llama_kv_cache_clear(GraphRef.LlamaContext.get());
+  llama_kv_self_clear(GraphRef.LlamaContext.get());
 
   // Prepare variables;
   CxtRef.NPos = 0;
@@ -3068,7 +3068,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   // Clear the llama context.
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context"sv)
-  llama_kv_cache_clear(GraphRef.LlamaContext.get());
+  llama_kv_self_clear(GraphRef.LlamaContext.get());
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context...Done"sv)
 
   // Set the input.

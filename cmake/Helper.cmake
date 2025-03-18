@@ -410,7 +410,7 @@ function(wasmedge_setup_stb_image)
   FetchContent_Declare(
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG        5c205738c191bcb0abc65c4febfa9bd25ff35234
+    GIT_TAG        f0569113c93ad095470c54bf34a17b36646bbbb5
     GIT_SHALLOW    TRUE
   )
   FetchContent_MakeAvailable(stb)

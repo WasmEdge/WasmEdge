@@ -78,11 +78,11 @@ private:
   const Configure Conf;
   /// Formal checker
   FormChecker Checker;
-
-  static constexpr uint32_t MAX_SUBTYPE_DEPTH = 63;
-
-  Expect<void> calculateSubtypeDepth(uint32_t TypeIdx, std::set<uint32_t>& Visited, uint32_t Depth = 0) const;
 };
+
+namespace details {
+Expect<void> calculateSubtypeDepth(uint32_t TypeIdx, FormChecker &Checker);
+} // namespace details
 
 } // namespace Validator
 } // namespace WasmEdge

@@ -54,7 +54,7 @@ public:
   void addTag(const uint32_t TypeIdx);
 
   std::vector<VType> result() { return ValStack; }
-  auto &getTypes() const { return Types; }
+  auto &getTypes() { return Types; }
   auto &getFunctions() { return Funcs; }
   auto &getTables() { return Tables; }
   auto &getMemories() { return Mems; }

@@ -96,7 +96,7 @@ Expect<void> pushDefValType(Runtime::Instance::ComponentInstance &Comp,
     spdlog::warn("result type is not handled yet"sv, DT);
   } else if (std::holds_alternative<Own>(DT)) {
     auto O = std::get<Own>(DT);
-    EXPECTED_TRY(auto T, Comp.getType(O.getIndex()));
+    EXPECTED_TRY(auto const T, Comp.getType(O.getIndex()));
     std::vector<InterfaceType> TyArgs{};
     pushDefType(Comp, TyArgs, T);
     Types.push_back(InterfaceType(TypeCode::Own, TyArgs));
@@ -163,7 +163,7 @@ Expect<void> pushType(Runtime::Instance::ComponentInstance &Comp,
       break;
     }
   } else if (std::holds_alternative<TypeIndex>(VT)) {
-    EXPECTED_TRY(auto Ty, Comp.getType(std::get<TypeIndex>(VT)));
+    EXPECTED_TRY(auto const Ty, Comp.getType(std::get<TypeIndex>(VT)));
     pushDefType(Comp, Types, Ty);
   }
 

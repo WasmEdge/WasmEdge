@@ -149,7 +149,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
             break;
           }
           case SortCase::Type: {
-            EXPECTED_TRY(auto TypeInst, CompInst.getType(Idx.getSortIdx()));
+            EXPECTED_TRY(auto const TypeInst,
+                         CompInst.getType(Idx.getSortIdx()));
             CompInst.addHostType(Arg.getName(), TypeInst);
             break;
           }

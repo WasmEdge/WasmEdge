@@ -656,7 +656,8 @@ public:
       }
     }
 
-    EXPECTED_TRY(auto AstFuncType, CompInst.getType(L.getFuncTypeIndex()));
+    EXPECTED_TRY(auto const AstFuncType,
+                 CompInst.getType(L.getFuncTypeIndex()));
     if (unlikely(!std::holds_alternative<FuncType>(AstFuncType))) {
       // It doesn't make sense if one tries to lift an instance not a
       // function, so unlikely happen.

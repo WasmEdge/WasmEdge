@@ -720,17 +720,13 @@ public:
 
   Expect<void> operator()(const ResourceNew &RNew) {
     auto TypIdx = RNew.getTypeIndex();
-    auto RTyp = CompInst.getType(TypIdx);
-    if (!RTyp) {
-      return Unexpect(RTyp);
-    }
-    if (!std::holds_alternative<ResourceType>(*RTyp)) {
+    EXPECTED_TRY(auto const Typ, CompInst.getType(TypIdx));
+    if (!std::holds_alternative<ResourceType>(Typ)) {
       spdlog::error(
           "resource.new cannot instantiate a deftype that's not a resource.");
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     }
-
-    auto ResourceTyp = std::get<ResourceType>(*RTyp);
+    auto ResourceTyp = std::get<ResourceType>(Typ);
     spdlog::info("get {}", ResourceTyp);
     spdlog::warn("resource.new is not supported yet"sv);
 
@@ -739,17 +735,13 @@ public:
 
   Expect<void> operator()(const ResourceDrop &RDrop) {
     auto TypIdx = RDrop.getTypeIndex();
-    auto RTyp = CompInst.getType(TypIdx);
-    if (!RTyp) {
-      return Unexpect(RTyp);
-    }
-    if (!std::holds_alternative<ResourceType>(*RTyp)) {
+    EXPECTED_TRY(auto const Typ, CompInst.getType(TypIdx));
+    if (!std::holds_alternative<ResourceType>(Typ)) {
       spdlog::error("resource.drop cannot instantiate a deftype that's not a "
                     "resource.");
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     }
-
-    auto ResourceTyp = std::get<ResourceType>(*RTyp);
+    auto ResourceTyp = std::get<ResourceType>(Typ);
     auto Drop = ThisExecutor.resourceDrop(ResourceTyp, CompInst);
     Instance::Component::FunctionInstance *F = Drop.get();
     CompInst.addCoreFunctionInstance(

@@ -1,11 +1,27 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #include "validator/validator.h"
+#include "common/errinfo.h"
+
 
 namespace WasmEdge {
 namespace Validator {
 
 using namespace AST::Component;
+
+class Context {
+public:
+  void addComponent(const Component &C) noexcept { CompList.emplace_back(C); }
+
+  const Component &getComponent(uint32_t Index) const noexcept {
+    return CompList[Index];
+  }
+
+  size_t getComponentCount() const noexcept { return CompList.size(); }
+
+private:
+  std::vector<Component> CompList;
+};
 
 struct ExternDescVisitor {
   Expect<void> operator()(const DescTypeIndex &) { return {}; }
@@ -17,10 +33,34 @@ struct ExternDescVisitor {
 };
 
 struct InstanceExprVisitor {
-  Expect<void> operator()(const Instantiate &) {
-    // TODO: Validation of instantiate requires each <importname> in c to
-    // match a name in a with argument (compared as strings) and for the
-    // types to match.
+  InstanceExprVisitor(Context &Ctx) : Ctx(Ctx) {}
+
+  Expect<void> operator()(const Instantiate &Inst) {
+    auto Args = Inst.getArgs();
+    auto ImportMap = getImports(Inst.getComponentIdx());
+
+    for (const auto &Arg : Args) {
+      const auto &ArgName = Arg.getName();
+      auto it = ImportMap.find(std::string(ArgName));
+
+      if (it == ImportMap.end()) {
+        spdlog::error(ErrCode::Value::UnknownArgument);
+        spdlog::error(
+            WasmEdge::ErrInfo::InfoRegistering(std::to_string(Inst.getComponentIdx())));
+        spdlog::error("Component[{}]: Unknown argument '{}'",
+                      Inst.getComponentIdx(), ArgName);
+        return Unexpect(ErrCode::Value::UnknownArgument);
+      }
+
+      if (!matchImportAndArgTypes(it->second, Arg.getIndex().getSort())) {
+        spdlog::error(ErrCode::Value::ArgTypeMismatch);
+        spdlog::error("Component[{}]: Argument '{}' type mismatch",
+                      Inst.getComponentIdx(), ArgName);
+        return Unexpect(ErrCode::Value::ArgTypeMismatch);
+    }
+
+      ImportMap.erase(it);
+    }
 
     // TODO: The indices in sortidx are validated according to their sort's
     // index spaces, which are built incrementally as each definition is
@@ -33,6 +73,51 @@ struct InstanceExprVisitor {
     // substituted for all uses of the import, so that subsequent imports
     // and all exports are now specialized to the actual type.
     return {};
+  }
+
+private:
+  Context &Ctx;
+
+  std::unordered_map<std::string, ExternDesc> getImports(uint32_t Index) {
+    std::unordered_map<std::string, ExternDesc> ImportMap;
+
+    if (Index >= Ctx.getComponentCount()) {
+      spdlog::error("Unreachable State: Index {} exceeds Component Count {}",
+                    Index, Ctx.getComponentCount());
+      spdlog::error(
+          WasmEdge::ErrInfo::InfoBoundary(Index, 0, Ctx.getComponentCount()));
+
+      return ImportMap;
+    }
+
+    auto &Comp = Ctx.getComponent(Index);
+
+    for (const auto &Sec : Comp.getSections()) {
+      if (std::holds_alternative<ImportSection>(Sec)) {
+        const auto &ImportSec = std::get<ImportSection>(Sec);
+
+        for (const auto &Import : ImportSec.getContent()) {
+          ImportMap[std::string(Import.getName())] = Import.getDesc();
+        }
+      }
+    }
+
+    return ImportMap;
+  }
+
+  bool matchImportAndArgTypes(const ExternDesc &ImportType,
+                              const Sort &ArgSort) {
+    SortCase ArgSortCase = std::get<SortCase>(ArgSort);
+
+    if (std::holds_alternative<TypeBound>(ImportType)) {
+      return ArgSortCase == SortCase::Instance;
+    } else if (std::holds_alternative<ValueType>(ImportType)) {
+      return ArgSortCase == SortCase::Value;
+    } else if (std::holds_alternative<DescTypeIndex>(ImportType)) {
+      return ArgSortCase == SortCase::Type;
+    }
+
+    return false;
   }
 };
 
@@ -184,7 +269,7 @@ struct CanonVisitor {
 };
 
 struct SectionVisitor {
-  SectionVisitor(Validator &V) : V(V) {}
+  SectionVisitor(Validator &V, Context &Ctx) : V(V), Ctx(Ctx) {}
 
   Expect<void> operator()(const AST::CustomSection &) { return {}; }
   Expect<void> operator()(const AST::CoreModuleSection &Sec) {
@@ -194,6 +279,7 @@ struct SectionVisitor {
   }
   Expect<void> operator()(const ComponentSection &Sec) {
     auto &C = Sec.getContent();
+    Ctx.addComponent(C);
     V.validate(C);
     return {};
   }
@@ -207,7 +293,8 @@ struct SectionVisitor {
   }
   Expect<void> operator()(const InstanceSection &Sec) {
     for (const InstanceExpr &E : Sec.getContent()) {
-      EXPECTED_TRY(std::visit(InstanceExprVisitor{}, E));
+      InstanceExprVisitor Visitor(Ctx);
+      EXPECTED_TRY(std::visit(Visitor, E));
     }
     return {};
   }
@@ -314,6 +401,7 @@ struct SectionVisitor {
 
 private:
   Validator &V;
+  Context &Ctx;
 };
 
 } // namespace Validator

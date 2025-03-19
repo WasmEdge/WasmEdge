@@ -99,11 +99,14 @@ TEST(ErrInfoTest, Info__Mismatch) {
                                         WasmEdge::ExternalType::Global);
   fmt::print("{}\n"sv, Info5);
   WasmEdge::ErrInfo::InfoMismatch Info6(
-      {WasmEdge::TypeCode::I32, WasmEdge::TypeCode::FuncRef},
-      {WasmEdge::TypeCode::I64, WasmEdge::TypeCode::F64},
-      {WasmEdge::TypeCode::F64, WasmEdge::TypeCode::ExternRef,
-       WasmEdge::TypeCode::V128},
-      {WasmEdge::TypeCode::V128});
+      {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+       WasmEdge::ValType(WasmEdge::TypeCode::FuncRef)},
+      {WasmEdge::ValType(WasmEdge::TypeCode::I64),
+       WasmEdge::ValType(WasmEdge::TypeCode::F64)},
+      {WasmEdge::ValType(WasmEdge::TypeCode::F64),
+       WasmEdge::ValType(WasmEdge::TypeCode::ExternRef),
+       WasmEdge::ValType(WasmEdge::TypeCode::V128)},
+      {WasmEdge::ValType(WasmEdge::TypeCode::V128)});
   fmt::print("{}\n"sv, Info6);
   WasmEdge::ErrInfo::InfoMismatch Info7(WasmEdge::TypeCode::ExternRef, true, 10,
                                         20, WasmEdge::TypeCode::FuncRef, true,
@@ -118,8 +121,8 @@ TEST(ErrInfoTest, Info__Mismatch) {
   WasmEdge::ErrInfo::InfoMismatch Info10(false, 10, 10, false, 20, 20);
   fmt::print("{}\n"sv, Info10);
   WasmEdge::ErrInfo::InfoMismatch Info11(
-      WasmEdge::TypeCode::I32, WasmEdge::ValMut::Var, WasmEdge::TypeCode::I64,
-      WasmEdge::ValMut::Const);
+      WasmEdge::ValType(WasmEdge::TypeCode::I32), WasmEdge::ValMut::Var,
+      WasmEdge::ValType(WasmEdge::TypeCode::I64), WasmEdge::ValMut::Const);
   fmt::print("{}\n"sv, Info11);
   WasmEdge::ErrInfo::InfoMismatch Info12(12345678U, 98765432U);
   fmt::print("{}\n"sv, Info12);

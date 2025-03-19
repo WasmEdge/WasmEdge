@@ -47,8 +47,33 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         break;
       }
     } else if (std::holds_alternative<TypeBound>(Desc)) {
-      // TODO: import a type or resource
-      spdlog::warn("incomplete import type bound"sv);
+      auto CompName = ImportStatement.getName();
+      // FIXME: import statement can be found before instantiation, which means
+      // StoreMgr not yet have the component with import name, we need to figure
+      // out a solution to delay the lookup.
+      const auto *ImportedCompInst = StoreMgr.findComponent(CompName);
+      if (unlikely(ImportedCompInst == nullptr)) {
+        spdlog::error(ErrCode::Value::UnknownImport);
+        spdlog::error("component name: {}"sv, CompName);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
+        return Unexpect(ErrCode::Value::UnknownImport);
+      }
+
+      auto TyBound = std::get<TypeBound>(Desc);
+
+      if (TyBound.has_value()) {
+        // `TyBound` == `(eq i)` here
+
+        // TODO: check the type of the imported component
+        // EXPECTED_TRY(auto Ty, CompInst.getType(TyBound.value()));
+        CompInst.addComponentInstance(ImportedCompInst);
+      } else {
+        // sub resource: The type can be *any* resource.
+
+        // TODO: check the type of the imported component
+        CompInst.addComponentInstance(ImportedCompInst);
+      }
+
     } else if (std::holds_alternative<ValueType>(Desc)) {
       // TODO: import a value and check its type, this is a new concept, so a
       // plugin of component should allow this

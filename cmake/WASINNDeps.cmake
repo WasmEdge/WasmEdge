@@ -338,7 +338,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b4897
+      GIT_TAG        b4915
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)

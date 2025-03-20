@@ -36,6 +36,7 @@ enum class EmbdNormalizeType : int32_t {
 enum class VisionModel : uint8_t {
   Llava = 0,
   Qwen2VL = 1,
+  Gemma3 = 2,
 };
 
 struct TTSSpeakerProfile {

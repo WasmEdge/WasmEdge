@@ -340,6 +340,8 @@ function(wasmedge_setup_llama_target target)
       GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
       GIT_TAG        b4915
       GIT_SHALLOW    FALSE
+      UPDATE_DISCONNECTED TRUE
+      PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/ggml.patch"
     )
     FetchContent_MakeAvailable(llama)
     message(STATUS "Downloading llama.cpp source -- done")

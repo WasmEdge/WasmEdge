@@ -23,14 +23,17 @@ namespace Validator {
 namespace details {
 static constexpr uint32_t MAX_SUBTYPE_DEPTH = 64;
 
-Expect<void> calculateSubtypeDepth(uint32_t TypeIdx, FormChecker &Checker) {
-  std::set<uint32_t> Visited;
+static Expect<void> calculateSubtypeDepth(uint32_t TypeIdx,
+                                          FormChecker &Checker) {
+  std::set<uint32_t> VisitedNodes;
 
   std::function<Expect<void>(uint32_t, uint32_t, std::set<uint32_t> &)>
       calculate = [&](uint32_t Index, uint32_t Depth,
-                      std::set<uint32_t> &Visited) -> Expect<void> {
-    if (Visited.count(Index)) {
-      return {};
+                      std::set<uint32_t> &VisitedSet) -> Expect<void> {
+    if (VisitedSet.count(Index)) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error("Cycle detected in subtype hierarchy for type {}.", Index);
+      return Unexpect(ErrCode::Value::InvalidSubType);
     }
 
     if (Depth >= MAX_SUBTYPE_DEPTH) {
@@ -41,7 +44,7 @@ Expect<void> calculateSubtypeDepth(uint32_t TypeIdx, FormChecker &Checker) {
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
 
-    Visited.insert(Index);
+    VisitedSet.insert(Index);
     const auto &TypeVec = Checker.getTypes();
 
     if (Index >= TypeVec.size()) {
@@ -55,7 +58,7 @@ Expect<void> calculateSubtypeDepth(uint32_t TypeIdx, FormChecker &Checker) {
         return Unexpect(ErrCode::Value::InvalidSubType);
       }
 
-      if (auto Res = calculate(SuperIdx, Depth + 1, Visited); !Res) {
+      if (auto Res = calculate(SuperIdx, Depth + 1, VisitedSet); !Res) {
         return Unexpect(Res.error());
       }
     }
@@ -63,7 +66,7 @@ Expect<void> calculateSubtypeDepth(uint32_t TypeIdx, FormChecker &Checker) {
     return {};
   };
 
-  return calculate(TypeIdx, 0, Visited);
+  return calculate(TypeIdx, 0, VisitedNodes);
 }
 } // namespace details
 

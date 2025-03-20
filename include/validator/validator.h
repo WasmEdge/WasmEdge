@@ -80,9 +80,5 @@ private:
   FormChecker Checker;
 };
 
-namespace details {
-Expect<void> calculateSubtypeDepth(uint32_t TypeIdx, FormChecker &Checker);
-} // namespace details
-
 } // namespace Validator
 } // namespace WasmEdge

@@ -77,19 +77,21 @@ struct InstanceExprVisitor {
     auto Args = Inst.getArgs();
     auto ImportMap = getImports(Inst.getComponentIdx());
 
-    for (const auto &[ImportName, ImportDesc] : ImportMap) {
-      auto it = std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+    for (auto it = ImportMap.begin(); it != ImportMap.end(); ++it) {
+      const auto &ImportName = it->first;
+      const auto &ImportDesc = it->second;
+      auto argIt = std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
         return Arg.getName() == ImportName;
       });
 
-      if (it == Args.end()) {
+      if (argIt == Args.end()) {
         spdlog::error(ErrCode::Value::MissingArgument);
         spdlog::error("Component[{}]: Missing argument for import '{}'",
                       Inst.getComponentIdx(), ImportName);
         return Unexpect(ErrCode::Value::MissingArgument);
       }
 
-      if (!matchImportAndArgTypes(ImportDesc, it->getIndex().getSort())) {
+      if (!matchImportAndArgTypes(ImportDesc, argIt->getIndex().getSort())) {
         spdlog::error(ErrCode::Value::ArgTypeMismatch);
         spdlog::error("Component[{}]: Argument '{}' type mismatch",
                       Inst.getComponentIdx(), ImportName);
@@ -120,7 +122,7 @@ private:
       spdlog::error("Unreachable State: Index {} exceeds Component Count {}",
                     Index, Ctx.getComponentCount());
       spdlog::error(
-          WasmEdge::ErrInfo::InfoBoundary(Index, 0, Ctx.getComponentCount()));
+          WasmEdge::ErrInfo::InfoBoundary(Index, 0, static_cast<uint32_t>(Ctx.getComponentCount())));
 
       return ImportMap;
     }

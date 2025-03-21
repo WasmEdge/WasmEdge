@@ -1076,10 +1076,14 @@ E(MalformedName, 0x050B, "malformed name")
 
 // Component model validation phase
 // @{
-// Unknown Argument
-E(UnknownArgument, 0x050C, "unknown argument")
+// Missing Argument
+E(MissingArgument, 0x050C, "missing argument")
 // Argument Type Mismatch with Import Type
 E(ArgTypeMismatch, 0x050D, "type mismatch")
+// Extra Import(s)
+E(UnexpectedImport, 0x050E, "unexpected import")
+// Extra Argument(s)
+E(UnexpectedArgument, 0x050F, "unexpected argument")
 // @}
 
 // Component model instantiation phase

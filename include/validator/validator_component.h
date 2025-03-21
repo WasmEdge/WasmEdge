@@ -1,13 +1,51 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
-#include "validator/validator.h"
 #include "common/errinfo.h"
-
+#include "validator/validator.h"
 
 namespace WasmEdge {
 namespace Validator {
 
 using namespace AST::Component;
+
+// Helper func for better logging
+inline std::string toString(SortCase SC) {
+  switch (SC) {
+  case SortCase::Func:
+    return "Func";
+  case SortCase::Value:
+    return "Value";
+  case SortCase::Type:
+    return "Type";
+  case SortCase::Component:
+    return "Component";
+  case SortCase::Instance:
+    return "Instance";
+  default:
+    return "Unknown SortCase";
+  }
+}
+
+inline std::string toString(CoreSort CS) {
+  switch (CS) {
+  case CoreSort::Func:
+    return "Func";
+  case CoreSort::Table:
+    return "Table";
+  case CoreSort::Memory:
+    return "Memory";
+  case CoreSort::Global:
+    return "Global";
+  case CoreSort::Type:
+    return "Type";
+  case CoreSort::Module:
+    return "Module";
+  case CoreSort::Instance:
+    return "Instance";
+  default:
+    return "Unknown CoreSort";
+  }
+}
 
 class Context {
 public:
@@ -39,27 +77,24 @@ struct InstanceExprVisitor {
     auto Args = Inst.getArgs();
     auto ImportMap = getImports(Inst.getComponentIdx());
 
-    for (const auto &Arg : Args) {
-      const auto &ArgName = Arg.getName();
-      auto it = ImportMap.find(std::string(ArgName));
+    for (const auto &[ImportName, ImportDesc] : ImportMap) {
+      auto it = std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+        return Arg.getName() == ImportName;
+      });
 
-      if (it == ImportMap.end()) {
-        spdlog::error(ErrCode::Value::UnknownArgument);
-        spdlog::error(
-            WasmEdge::ErrInfo::InfoRegistering(std::to_string(Inst.getComponentIdx())));
-        spdlog::error("Component[{}]: Unknown argument '{}'",
-                      Inst.getComponentIdx(), ArgName);
-        return Unexpect(ErrCode::Value::UnknownArgument);
+      if (it == Args.end()) {
+        spdlog::error(ErrCode::Value::MissingArgument);
+        spdlog::error("Component[{}]: Missing argument for import '{}'",
+                      Inst.getComponentIdx(), ImportName);
+        return Unexpect(ErrCode::Value::MissingArgument);
       }
 
-      if (!matchImportAndArgTypes(it->second, Arg.getIndex().getSort())) {
+      if (!matchImportAndArgTypes(ImportDesc, it->getIndex().getSort())) {
         spdlog::error(ErrCode::Value::ArgTypeMismatch);
         spdlog::error("Component[{}]: Argument '{}' type mismatch",
-                      Inst.getComponentIdx(), ArgName);
+                      Inst.getComponentIdx(), ImportName);
         return Unexpect(ErrCode::Value::ArgTypeMismatch);
-    }
-
-      ImportMap.erase(it);
+      }
     }
 
     // TODO: The indices in sortidx are validated according to their sort's
@@ -105,18 +140,74 @@ private:
     return ImportMap;
   }
 
+  // https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md
   bool matchImportAndArgTypes(const ExternDesc &ImportType,
                               const Sort &ArgSort) {
-    SortCase ArgSortCase = std::get<SortCase>(ArgSort);
+    if (std::holds_alternative<CoreSort>(ArgSort)) {
+      CoreSort ArgCoreSort = std::get<CoreSort>(ArgSort);
 
-    if (std::holds_alternative<TypeBound>(ImportType)) {
-      return ArgSortCase == SortCase::Instance;
-    } else if (std::holds_alternative<ValueType>(ImportType)) {
-      return ArgSortCase == SortCase::Value;
-    } else if (std::holds_alternative<DescTypeIndex>(ImportType)) {
-      return ArgSortCase == SortCase::Type;
+      if (std::holds_alternative<DescTypeIndex>(ImportType) &&
+          ArgCoreSort == CoreSort::Type) {
+        return true;
+      }
+
+      if (std::holds_alternative<ValueType>(ImportType)) {
+        if (ArgCoreSort == CoreSort::Func || ArgCoreSort == CoreSort::Table ||
+            ArgCoreSort == CoreSort::Memory ||
+            ArgCoreSort == CoreSort::Global) {
+          return true;
+        }
+        spdlog::error("Type mismatch: Expected 'Func', 'Table', 'Memory', or "
+                      "'Global' but got '{}'",
+                      WasmEdge::Validator::toString(ArgCoreSort));
+        return false;
+      }
+
+      if (std::holds_alternative<TypeBound>(ImportType)) {
+        if (ArgCoreSort == CoreSort::Module ||
+            ArgCoreSort == CoreSort::Instance) {
+          return true;
+        }
+        spdlog::error(
+            "Type mismatch: Expected 'Module' or 'Instance' but got '{}'",
+            WasmEdge::Validator::toString(ArgCoreSort));
+        return false;
+      }
     }
 
+    if (std::holds_alternative<SortCase>(ArgSort)) {
+      SortCase ArgSortCase = std::get<SortCase>(ArgSort);
+
+      if (std::holds_alternative<TypeBound>(ImportType)) {
+        if (ArgSortCase == SortCase::Instance) {
+          return true;
+        }
+        spdlog::error("Type mismatch: Expected 'Instance' but got '{}'",
+                      WasmEdge::Validator::toString(ArgSortCase));
+        return false;
+      }
+
+      if (std::holds_alternative<ValueType>(ImportType)) {
+        if (ArgSortCase == SortCase::Value) {
+          return true;
+        }
+        spdlog::error("Type mismatch: Expected 'Value' but got '{}'",
+                      WasmEdge::Validator::toString(ArgSortCase));
+        return false;
+      }
+
+      if (std::holds_alternative<DescTypeIndex>(ImportType)) {
+        if (ArgSortCase == SortCase::Type) {
+          return true;
+        }
+        spdlog::error("Type mismatch: Expected 'Type' but got '{}'",
+                      WasmEdge::Validator::toString(ArgSortCase));
+        return false;
+      }
+    }
+
+    spdlog::error("Unhandled type comparison: ImportType and ArgSort do not "
+                  "match any known case.");
     return false;
   }
 };
@@ -279,8 +370,8 @@ struct SectionVisitor {
   }
   Expect<void> operator()(const ComponentSection &Sec) {
     auto &C = Sec.getContent();
-    Ctx.addComponent(C);
     V.validate(C);
+    Ctx.addComponent(C);
     return {};
   }
   Expect<void> operator()(const CoreInstanceSection &) {

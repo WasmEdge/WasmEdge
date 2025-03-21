@@ -121,8 +121,8 @@ private:
     if (Index >= Ctx.getComponentCount()) {
       spdlog::error("Unreachable State: Index {} exceeds Component Count {}",
                     Index, Ctx.getComponentCount());
-      spdlog::error(
-          WasmEdge::ErrInfo::InfoBoundary(Index, 0, static_cast<uint32_t>(Ctx.getComponentCount())));
+      spdlog::error(WasmEdge::ErrInfo::InfoBoundary(
+          Index, 0, static_cast<uint32_t>(Ctx.getComponentCount())));
 
       return ImportMap;
     }

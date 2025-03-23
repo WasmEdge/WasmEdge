@@ -34,6 +34,7 @@ function(wasmedge_setup_wasinn_target target)
         PRIVATE
         openvino::runtime
         openvino::runtime::c
+        openvino::genai
       )
     elseif(BACKEND STREQUAL "pytorch")
       if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)

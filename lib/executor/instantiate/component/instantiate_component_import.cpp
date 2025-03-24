@@ -54,7 +54,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       const auto *ImportedCompInst = StoreMgr.findComponent(CompName);
       if (unlikely(ImportedCompInst == nullptr)) {
         spdlog::error(ErrCode::Value::UnknownImport);
-        spdlog::error("component name: {}"sv, CompName);
+        spdlog::error("tries to import component named `{}`, but not found"sv,
+                      CompName);
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
         return Unexpect(ErrCode::Value::UnknownImport);
       }

@@ -56,6 +56,25 @@ public:
     }
   }
 
+  // Explaination:
+  // In a component we can have several imports, e.g.
+  //
+  //     (import "xxx" type)
+  //
+  // the type is not important here, the point is such thing with name "xxx" is
+  // not existed at all, until the instantiation of the component. e.g.
+  //
+  //     (instantiate (component 1)
+  //       (with "xxx" (instance 0)))
+  //
+  // However, our component instance, is created before instantiation (this is
+  // internal flow). Therefore, a component instance should record two things:
+  // 1. the name of the import
+  // 2. the StoreManager
+  // and execute the import until instantiate statement is executed.
+  void addImport(Runtime::StoreManager &Mgr, std::string_view Name) noexcept;
+  Expect<void> executeImports();
+
   std::string_view getComponentName() const noexcept;
 
   void addModule(const AST::Module &M) noexcept;
@@ -156,6 +175,8 @@ private:
 
 private:
   std::string CompName;
+
+  std::vector<std::tuple<Runtime::StoreManager &, std::string_view>> ImportList;
 
   std::vector<AST::Module> ModList;
   std::vector<AST::Component::Component> CompList;

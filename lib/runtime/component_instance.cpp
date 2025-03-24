@@ -1,9 +1,12 @@
 #include "runtime/instance/component.h"
 
+#include "executor/executor.h"
+
 namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
 
+using namespace std::literals;
 using namespace AST::Component;
 
 namespace {
@@ -92,6 +95,31 @@ void typeConvert(FuncType &FT, const AST::FunctionType &Ty) noexcept {
   }
 }
 } // namespace
+
+void ComponentInstance::addImport(Runtime::StoreManager &Mgr,
+                                  std::string_view Name) noexcept {
+  ImportList.push_back({Mgr, Name});
+}
+
+Expect<void> ComponentInstance::executeImports() {
+  for (auto Import : ImportList) {
+    Runtime::StoreManager &StoreMgr = std::get<0>(Import);
+    std::string_view Name = std::get<1>(Import);
+
+    auto *ImportedCompInst = StoreMgr.findComponent(Name);
+    if (unlikely(ImportedCompInst == nullptr)) {
+      spdlog::error(ErrCode::Value::UnknownImport);
+      spdlog::error("tries to import component named `{}`, but not found"sv,
+                    Name);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
+      return Unexpect(ErrCode::Value::UnknownImport);
+    }
+
+    addComponentInstance(ImportedCompInst);
+  }
+
+  return {};
+}
 
 std::string_view ComponentInstance::getComponentName() const noexcept {
   return CompName;

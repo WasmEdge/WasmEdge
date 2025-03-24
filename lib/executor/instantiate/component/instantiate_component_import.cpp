@@ -48,17 +48,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       }
     } else if (std::holds_alternative<TypeBound>(Desc)) {
       auto CompName = ImportStatement.getName();
-      // FIXME: import statement can be found before instantiation, which means
-      // StoreMgr not yet have the component with import name, we need to figure
-      // out a solution to delay the lookup.
-      const auto *ImportedCompInst = StoreMgr.findComponent(CompName);
-      if (unlikely(ImportedCompInst == nullptr)) {
-        spdlog::error(ErrCode::Value::UnknownImport);
-        spdlog::error("tries to import component named `{}`, but not found"sv,
-                      CompName);
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
-        return Unexpect(ErrCode::Value::UnknownImport);
-      }
 
       auto TyBound = std::get<TypeBound>(Desc);
 
@@ -67,12 +56,14 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
 
         // TODO: check the type of the imported component
         // EXPECTED_TRY(auto Ty, CompInst.getType(TyBound.value()));
-        CompInst.addComponentInstance(ImportedCompInst);
+
+        CompInst.addImport(StoreMgr, CompName);
       } else {
         // sub resource: The type can be *any* resource.
 
         // TODO: check the type of the imported component
-        CompInst.addComponentInstance(ImportedCompInst);
+
+        CompInst.addImport(StoreMgr, CompName);
       }
 
     } else if (std::holds_alternative<ValueType>(Desc)) {

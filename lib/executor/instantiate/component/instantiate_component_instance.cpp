@@ -186,7 +186,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
       spdlog::warn("incomplete component inline exports"sv);
     }
   }
-  return {};
+
+  return CompInst.executeImports();
 }
 
 } // namespace Executor

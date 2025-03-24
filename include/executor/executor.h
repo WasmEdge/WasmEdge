@@ -391,6 +391,17 @@ private:
 
   /// Helper function for clean the unused bits of numeric values in ValVariant.
   void cleanNumericVal(ValVariant &Val, const ValType &Type) const noexcept;
+
+  /// Helper function for packing ValVariant for packed type.
+  ValVariant packVal(const ValType &Type, const ValVariant &Val) const noexcept;
+
+  /// Helper function for packing ValVariant vector for packed type.
+  std::vector<ValVariant>
+  packVals(const ValType &Type, std::vector<ValVariant> &&Vals) const noexcept;
+
+  /// Helper function for unpacking ValVariant for packed type.
+  ValVariant unpackVal(const ValType &Type, const ValVariant &Val,
+                       bool IsSigned = false) const noexcept;
   /// @}
 
   /// \name Run instructions functions

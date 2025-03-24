@@ -6,54 +6,6 @@
 namespace WasmEdge {
 namespace Executor {
 
-namespace {
-ValVariant packVal(const ValType &Type, const ValVariant &Val) {
-  if (Type.isPackType()) {
-    switch (Type.getCode()) {
-    case TypeCode::I8:
-      return ValVariant(Val.get<uint32_t>() & 0xFFU);
-    case TypeCode::I16:
-      return ValVariant(Val.get<uint32_t>() & 0xFFFFU);
-    default:
-      assumingUnreachable();
-    }
-  }
-  return Val;
-}
-
-ValVariant unpackVal(const ValType &Type, const ValVariant &Val,
-                     bool IsSigned = false) {
-  if (Type.isPackType()) {
-    uint32_t Num = Val.get<uint32_t>();
-    switch (Type.getCode()) {
-    case TypeCode::I8:
-      if (IsSigned) {
-        return static_cast<uint32_t>(static_cast<int8_t>(Num));
-      } else {
-        return static_cast<uint32_t>(static_cast<uint8_t>(Num));
-      }
-    case TypeCode::I16:
-      if (IsSigned) {
-        return static_cast<uint32_t>(static_cast<int16_t>(Num));
-      } else {
-        return static_cast<uint32_t>(static_cast<uint16_t>(Num));
-      }
-    default:
-      assumingUnreachable();
-    }
-  }
-  return Val;
-}
-
-std::vector<ValVariant> packVals(const ValType &Type,
-                                 std::vector<ValVariant> &&Vals) {
-  for (uint32_t I = 0; I < Vals.size(); I++) {
-    Vals[I] = packVal(Type, Vals[I]);
-  }
-  return std::move(Vals);
-}
-} // namespace
-
 Expect<void> Executor::runRefNullOp(Runtime::StackManager &StackMgr,
                                     const ValType &Type) const noexcept {
   // A null reference is typed with the least type in its respective hierarchy.
@@ -104,7 +56,7 @@ Expect<void> Executor::runStructNewOp(Runtime::StackManager &StackMgr,
   const auto &CompType =
       getDefTypeByIdx(StackMgr, DefIndex)->getCompositeType();
   uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
-  std::vector<WasmEdge::ValVariant> Vals;
+  std::vector<ValVariant> Vals;
   if (IsDefault) {
     Vals.resize(N);
     for (uint32_t I = 0; I < N; I++) {

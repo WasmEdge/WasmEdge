@@ -108,7 +108,7 @@ public:
   void addFunctionInstance(
       std::unique_ptr<Component::FunctionInstance> Inst) noexcept;
   void addFunctionInstance(Component::FunctionInstance *Inst) noexcept;
-  Component::FunctionInstance *
+  Expect<Component::FunctionInstance *>
   getFunctionInstance(uint32_t Index) const noexcept;
 
   // values stored in component instance

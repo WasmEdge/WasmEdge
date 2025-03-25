@@ -567,7 +567,7 @@ public:
       if (true) {
         if (*RTyp.getDestructor()) {
           auto Idx = *RTyp.getDestructor();
-          auto F = Comp.getFunctionInstance(Idx);
+          EXPECTED_TRY(auto *F, Comp.getFunctionInstance(Idx));
           auto Arg = ValInterface(ValVariant(Handle->getRep()));
           Exec->invoke(F, {Arg}, {InterfaceType(TypeCode::I32)});
         }
@@ -711,7 +711,8 @@ public:
 
     // lower sends a component function to a core wasm function, with proper
     // modification about canonical ABI.
-    auto *FuncInst = CompInst.getFunctionInstance(L.getFuncIndex());
+    EXPECTED_TRY(auto *FuncInst,
+                 CompInst.getFunctionInstance(L.getFuncIndex()));
     CompInst.addCoreFunctionInstance(
         ThisExecutor.lowering(FuncInst, Mem, ReallocFunc));
 

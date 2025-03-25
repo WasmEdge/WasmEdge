@@ -28,7 +28,7 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &,
     Args.push_back(*Res);
   }
 
-  auto Fn = Comp.getFunctionInstance(Start.getFunctionIndex());
+  EXPECTED_TRY(auto *Fn, Comp.getFunctionInstance(Start.getFunctionIndex()));
   auto FnType = Fn->getFuncType();
   EXPECTED_TRY(auto ResultList, invoke(Fn, Args, FnType.getParamTypes()));
   auto Result = ResultList[0].first;

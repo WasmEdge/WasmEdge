@@ -46,7 +46,13 @@ Executor::instantiate(Runtime::StoreManager &,
     } else {
       switch (std::get<SortCase>(S)) {
       case SortCase::Func: {
-        auto *Func = CompInst.getFunctionInstance(Index);
+        auto RFunc = CompInst.getFunctionInstance(Index);
+        if (!RFunc) {
+          spdlog::error("while exporting component function `{}`."sv,
+                        ExportName);
+          return Unexpect(RFunc);
+        }
+        auto *Func = *RFunc;
         CompInst.addExport(ExportName, Func);
         break;
       }

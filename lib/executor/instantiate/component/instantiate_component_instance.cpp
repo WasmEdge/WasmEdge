@@ -139,7 +139,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         } else if (std::holds_alternative<SortCase>(S)) {
           switch (std::get<SortCase>(S)) {
           case SortCase::Func: {
-            auto *FuncInst = CompInst.getFunctionInstance(Idx.getSortIdx());
+            EXPECTED_TRY(auto *FuncInst,
+                         CompInst.getFunctionInstance(Idx.getSortIdx()));
             CompInst.addExport(Arg.getName(), FuncInst);
             break;
           }
@@ -155,11 +156,11 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
             break;
           }
           case SortCase::Component: {
-            auto RComp = CompInst.getComponentInstance(Idx.getSortIdx());
-            if (!RComp) {
-              return Unexpect(RComp);
-            }
-            if (auto Res = StoreMgr.registerComponent(Arg.getName(), *RComp);
+            // with a component instance
+            EXPECTED_TRY(auto GotCompInst,
+                         CompInst.getComponentInstance(Idx.getSortIdx()));
+            if (auto Res =
+                    StoreMgr.registerComponent(Arg.getName(), GotCompInst);
                 !Res) {
               spdlog::error("failed to register component instance"sv);
               return Unexpect(Res);

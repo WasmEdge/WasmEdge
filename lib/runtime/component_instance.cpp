@@ -222,8 +222,13 @@ void ComponentInstance::addFunctionInstance(
     Component::FunctionInstance *Inst) noexcept {
   FuncInstList.push_back(Inst);
 }
-Component::FunctionInstance *
+Expect<Component::FunctionInstance *>
 ComponentInstance::getFunctionInstance(uint32_t Index) const noexcept {
+  if (FuncInstList.size() <= Index) {
+    spdlog::error("component: `{}`, access function instance: {}/{}",
+                  this->CompName, Index, FuncInstList.size());
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
   return FuncInstList[Index];
 }
 

@@ -103,6 +103,14 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
     if (std::holds_alternative<AST::Component::Instantiate>(InstExpr)) {
       auto &Instantiate = std::get<AST::Component::Instantiate>(InstExpr);
 
+      auto &TemplateComponent =
+          CompInst.getComponent(Instantiate.getComponentIdx());
+      auto Res = instantiate(StoreMgr, TemplateComponent);
+      if (!Res) {
+        return Unexpect(Res);
+      }
+      auto Inst = std::move(*Res);
+
       for (auto &Arg : Instantiate.getArgs()) {
         const auto &Idx = Arg.getIndex();
         const auto &S = Idx.getSort();
@@ -141,7 +149,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           case SortCase::Func: {
             EXPECTED_TRY(auto *FuncInst,
                          CompInst.getFunctionInstance(Idx.getSortIdx()));
-            CompInst.addExport(Arg.getName(), FuncInst);
+            spdlog::info("with (func: `{}`)", Arg.getName());
+            Inst->addExport(Arg.getName(), FuncInst);
             break;
           }
           case SortCase::Value: {
@@ -152,7 +161,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           case SortCase::Type: {
             EXPECTED_TRY(auto const TypeInst,
                          CompInst.getType(Idx.getSortIdx()));
-            CompInst.addHostType(Arg.getName(), TypeInst);
+            Inst->addHostType(Arg.getName(), TypeInst);
             break;
           }
           case SortCase::Component: {
@@ -174,12 +183,8 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           }
         }
       }
-      auto &C = CompInst.getComponent(Instantiate.getComponentIdx());
-      auto Res = instantiate(StoreMgr, C);
-      if (!Res) {
-        return Unexpect(Res);
-      }
-      auto Inst = std::move(*Res);
+
+      Inst->executeImports();
       CompInst.addComponentInstance(std::move(Inst));
     } else {
       std::get<CompInlineExports>(InstExpr).getExports();

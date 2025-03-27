@@ -46,24 +46,17 @@ Executor::instantiate(Runtime::StoreManager &,
     } else {
       switch (std::get<SortCase>(S)) {
       case SortCase::Func: {
-        auto RFunc = CompInst.getFunctionInstance(Index);
-        if (!RFunc) {
-          spdlog::error("while exporting component function `{}`."sv,
-                        ExportName);
-          return Unexpect(RFunc);
-        }
-        auto *Func = *RFunc;
-        CompInst.addExport(ExportName, Func);
+        CompInst.recordFunctionExport(ExportName, Index);
         break;
       }
       case SortCase::Value: {
         auto Value = CompInst.getValue(Index);
-        // TODO: CompInst.addExport(ExportName, Func);
+        spdlog::warn("incomplete value export"sv);
+        // TODO: record value export
         break;
       }
       case SortCase::Type: {
-        auto Ty = CompInst.getType(Index);
-        // TODO: CompInst.addExport(ExportName, Ty);
+        CompInst.recordTypeExport(ExportName, Index);
         break;
       }
       case SortCase::Component: {

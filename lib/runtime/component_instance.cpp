@@ -101,6 +101,12 @@ void ComponentInstance::addImport(Runtime::StoreManager &Mgr,
   ImportList.push_back({Mgr, Name});
 }
 
+Expect<void> ComponentInstance::instantiate() {
+  EXPECTED_TRY(executeImports());
+  EXPECTED_TRY(executeExports());
+  return {};
+}
+
 Expect<void> ComponentInstance::executeImports() {
   for (auto Import : ImportList) {
     Runtime::StoreManager &StoreMgr = std::get<0>(Import);
@@ -116,6 +122,35 @@ Expect<void> ComponentInstance::executeImports() {
     }
 
     addComponentInstance(ImportedCompInst);
+  }
+
+  return {};
+}
+
+Expect<void> ComponentInstance::executeExports() {
+  for (auto RecordedExport : RecordedExportList) {
+    auto ExportName = RecordedExport.getName();
+    auto Index = RecordedExport.getIndex();
+
+    switch (RecordedExport.getKind()) {
+    case ExportKind::FUNC: {
+      auto RFunc = getFunctionInstance(Index);
+      if (!RFunc) {
+        spdlog::error("while exporting component function `{}`."sv, ExportName);
+        return Unexpect(RFunc);
+      }
+      ExportFuncMap.insert_or_assign(std::string(ExportName), *RFunc);
+      break;
+    }
+    case ExportKind::TYPE: {
+      EXPECTED_TRY(auto Ty, getType(Index));
+      ExportTypesMap.insert_or_assign(std::string(ExportName), Ty);
+      break;
+    }
+    default: {
+      assumingUnreachable();
+    }
+    }
   }
 
   return {};
@@ -255,6 +290,7 @@ ComponentInstance::findModuleExports(std::string_view Name) const noexcept {
 }
 void ComponentInstance::addExport(std::string_view Name,
                                   Component::FunctionInstance *Inst) noexcept {
+  FuncInstList.push_back(Inst);
   ExportFuncMap.insert_or_assign(std::string(Name), Inst);
 }
 Component::FunctionInstance *

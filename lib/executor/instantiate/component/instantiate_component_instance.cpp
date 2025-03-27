@@ -149,19 +149,23 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
           case SortCase::Func: {
             EXPECTED_TRY(auto *FuncInst,
                          CompInst.getFunctionInstance(Idx.getSortIdx()));
-            spdlog::info("with (func: `{}`)", Arg.getName());
             Inst->addExport(Arg.getName(), FuncInst);
             break;
           }
           case SortCase::Value: {
-            // TODO: figure out how to do this registry
+            // TODO: where to register value argument?
             spdlog::warn("incomplete (with {}) value"sv, Arg.getName());
             break;
           }
           case SortCase::Type: {
-            EXPECTED_TRY(auto const TypeInst,
-                         CompInst.getType(Idx.getSortIdx()));
-            Inst->addHostType(Arg.getName(), TypeInst);
+            EXPECTED_TRY(auto const GotCompInst,
+                         CompInst.getComponentInstance(Idx.getSortIdx()));
+            if (auto Res =
+                    StoreMgr.registerComponent(Arg.getName(), GotCompInst);
+                !Res) {
+              spdlog::error("failed to register component instance"sv);
+              return Unexpect(Res);
+            }
             break;
           }
           case SortCase::Component: {
@@ -184,7 +188,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         }
       }
 
-      Inst->executeImports();
+      EXPECTED_TRY(Inst->instantiate());
       CompInst.addComponentInstance(std::move(Inst));
     } else {
       std::get<CompInlineExports>(InstExpr).getExports();
@@ -193,7 +197,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
     }
   }
 
-  return CompInst.executeImports();
+  return CompInst.instantiate();
 }
 
 } // namespace Executor

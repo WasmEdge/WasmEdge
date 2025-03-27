@@ -42,6 +42,26 @@ namespace Instance {
 
 using namespace AST::Component;
 
+enum class ExportKind {
+  TYPE,
+  FUNC,
+};
+
+class RecordedExport {
+public:
+  RecordedExport(std::string_view Name, int32_t Index, ExportKind Kind)
+      : Name(Name), Index(Index), Kind(Kind) {}
+
+  std::string_view getName() const noexcept { return Name; }
+  uint32_t getIndex() const noexcept { return Index; }
+  ExportKind getKind() const noexcept { return Kind; }
+
+private:
+  std::string Name;
+  int32_t Index;
+  ExportKind Kind;
+};
+
 class ComponentInstance {
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {
@@ -73,7 +93,13 @@ public:
   // 2. the StoreManager
   // and execute the import until instantiate statement is executed.
   void addImport(Runtime::StoreManager &Mgr, std::string_view Name) noexcept;
-  Expect<void> executeImports();
+  void recordFunctionExport(std::string_view Name, int32_t Index) noexcept {
+    RecordedExportList.push_back(RecordedExport(Name, Index, ExportKind::FUNC));
+  }
+  void recordTypeExport(std::string_view Name, int32_t Index) noexcept {
+    RecordedExportList.push_back(RecordedExport(Name, Index, ExportKind::TYPE));
+  }
+  Expect<void> instantiate();
 
   std::string_view getComponentName() const noexcept;
 
@@ -174,9 +200,13 @@ private:
   }
 
 private:
+  Expect<void> executeImports();
+  Expect<void> executeExports();
+
   std::string CompName;
 
   std::vector<std::tuple<Runtime::StoreManager &, std::string_view>> ImportList;
+  std::vector<RecordedExport> RecordedExportList;
 
   std::vector<AST::Module> ModList;
   std::vector<AST::Component::Component> CompList;

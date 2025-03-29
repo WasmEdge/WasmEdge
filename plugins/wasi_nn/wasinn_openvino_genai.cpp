@@ -29,10 +29,11 @@ Expect<WASINN::ErrNo> GetDeviceString(WASINN::Device TargetDevice,
 
 Expect<WASINN::ErrNo> isStringTensor(const TensorData &Tensor) noexcept {
   if (Tensor.RType != WASINN::TensorType::U8) {
-    spdlog::error(
+    spdlog::warn(
         "[WASI-NN] Only STRING (u8) inputs and outputs are supported for "
-        "now."sv);
-    return WASINN::ErrNo::InvalidArgument;
+        "now. Input Type: {}"sv,
+        Tensor.RType);
+    // return WASINN::ErrNo::InvalidArgument;
   }
   if (Tensor.Dimension.size() != 1) {
     spdlog::error("[WASI-NN] Tensor dimension is out of range, expect it under "
@@ -69,7 +70,12 @@ LLMPipelineBackend::SetContextInput(Context &CxtRef, uint32_t Index,
 
 Expect<WASINN::ErrNo> LLMPipelineBackend::Generate(Context &CxtRef) {
   try {
-    CxtRef.StringOutput = Model->generate(CxtRef.StringInput);
+    // TODO: let the user to set the generation config.
+    spdlog::warn("[WASI-NN] The generation config is not supported for now."sv);
+    spdlog::warn("[WASI-NN] Maximum token limit is set to 100."sv);
+    ov::genai::GenerationConfig config;
+    config.max_new_tokens = 100;
+    CxtRef.StringOutput = Model->generate(CxtRef.StringInput, config);
   } catch (const std::exception &EX) {
     spdlog::error("[WASI-NN] Generate Exception: {}"sv, EX.what());
     return WASINN::ErrNo::RuntimeError;

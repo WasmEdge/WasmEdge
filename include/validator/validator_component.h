@@ -47,18 +47,35 @@ inline std::string toString(CoreSort CS) {
   }
 }
 
+inline std::string toString(IndexKind IK) {
+  switch (IK) {
+  case IndexKind::CoreType:
+    return "CoreType";
+  case IndexKind::FuncType:
+    return "FuncType";
+  case IndexKind::ComponentType:
+    return "ComponentType";
+  case IndexKind::InstanceType:
+    return "InstanceType";
+  default:
+    return "Unknown IndexKind (" + std::to_string(static_cast<int>(IK)) + ")";
+  }
+}
+
 class Context {
 public:
-  void addComponent(const Component &C) noexcept { CompList.emplace_back(C); }
+  void addComponent(const AST::Component::Component &C) noexcept {
+    CompList.emplace_back(C);
+  }
 
-  const Component &getComponent(uint32_t Index) const noexcept {
+  const AST::Component::Component &getComponent(uint32_t Index) const noexcept {
     return CompList[Index];
   }
 
   size_t getComponentCount() const noexcept { return CompList.size(); }
 
 private:
-  std::vector<Component> CompList;
+  std::vector<AST::Component::Component> CompList;
 };
 
 struct ExternDescVisitor {
@@ -148,9 +165,23 @@ private:
     if (std::holds_alternative<CoreSort>(ArgSort)) {
       CoreSort ArgCoreSort = std::get<CoreSort>(ArgSort);
 
-      if (std::holds_alternative<DescTypeIndex>(ImportType) &&
-          ArgCoreSort == CoreSort::Type) {
-        return true;
+      if (std::holds_alternative<DescTypeIndex>(ImportType)) {
+        const auto &Desc = std::get<DescTypeIndex>(ImportType);
+        IndexKind Kind = Desc.getKind();
+
+        if ((Kind == IndexKind::CoreType && ArgCoreSort == CoreSort::Type) ||
+            (Kind == IndexKind::FuncType && ArgCoreSort == CoreSort::Func) ||
+            (Kind == IndexKind::ComponentType &&
+             ArgCoreSort == CoreSort::Module) ||
+            (Kind == IndexKind::InstanceType &&
+             ArgCoreSort == CoreSort::Instance)) {
+          return true;
+        }
+        spdlog::error("[Core Sort] Type mismatch: Expected '{}' but got '{}'",
+                      WasmEdge::Validator::toString(Kind),
+                      WasmEdge::Validator::toString(ArgCoreSort));
+
+        return false;
       }
 
       if (std::holds_alternative<ValueType>(ImportType)) {
@@ -159,7 +190,7 @@ private:
             ArgCoreSort == CoreSort::Global) {
           return true;
         }
-        spdlog::error("Type mismatch: Expected 'Func', 'Table', 'Memory', or "
+        spdlog::error("[Core Sort] Type mismatch: Expected 'Func', 'Table', 'Memory', or "
                       "'Global' but got '{}'",
                       WasmEdge::Validator::toString(ArgCoreSort));
         return false;
@@ -171,7 +202,7 @@ private:
           return true;
         }
         spdlog::error(
-            "Type mismatch: Expected 'Module' or 'Instance' but got '{}'",
+            "[Core Sort] Type mismatch: Expected 'Module' or 'Instance' but got '{}'",
             WasmEdge::Validator::toString(ArgCoreSort));
         return false;
       }
@@ -181,10 +212,10 @@ private:
       SortCase ArgSortCase = std::get<SortCase>(ArgSort);
 
       if (std::holds_alternative<TypeBound>(ImportType)) {
-        if (ArgSortCase == SortCase::Instance) {
+        if (ArgSortCase == SortCase::Type) {
           return true;
         }
-        spdlog::error("Type mismatch: Expected 'Instance' but got '{}'",
+        spdlog::error("[Sort Case] Type mismatch: Expected 'Type' but got '{}'",
                       WasmEdge::Validator::toString(ArgSortCase));
         return false;
       }
@@ -193,16 +224,27 @@ private:
         if (ArgSortCase == SortCase::Value) {
           return true;
         }
-        spdlog::error("Type mismatch: Expected 'Value' but got '{}'",
+        spdlog::error("[Sort Case] Type mismatch: Expected 'Value' but got '{}'",
                       WasmEdge::Validator::toString(ArgSortCase));
         return false;
       }
 
       if (std::holds_alternative<DescTypeIndex>(ImportType)) {
-        if (ArgSortCase == SortCase::Type) {
+        const auto &Desc = std::get<DescTypeIndex>(ImportType);
+        IndexKind Kind = Desc.getKind();
+
+        if ((Kind == IndexKind::ComponentType &&
+             ArgSortCase == SortCase::Component) ||
+            (Kind == IndexKind::InstanceType &&
+             ArgSortCase == SortCase::Instance) ||
+            (Kind == IndexKind::FuncType && ArgSortCase == SortCase::Func) ||
+            (Kind == IndexKind::CoreType && ArgSortCase == SortCase::Type)) {
           return true;
         }
-        spdlog::error("Type mismatch: Expected 'Type' but got '{}'",
+
+
+        spdlog::error("[Sort Case] Type mismatch: Expected '{}' but got '{}'",
+                      WasmEdge::Validator::toString(Kind),
                       WasmEdge::Validator::toString(ArgSortCase));
         return false;
       }

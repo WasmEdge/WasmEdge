@@ -186,7 +186,7 @@ private:
 
 enum class IndexKind : Byte {
   CoreType = 0x00,
-  FuncType = 0x02,
+  FuncType = 0x01,
   ComponentType = 0x04,
   InstanceType = 0x05,
 };

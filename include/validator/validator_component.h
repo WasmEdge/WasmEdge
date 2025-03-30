@@ -190,9 +190,10 @@ private:
             ArgCoreSort == CoreSort::Global) {
           return true;
         }
-        spdlog::error("[Core Sort] Type mismatch: Expected 'Func', 'Table', 'Memory', or "
-                      "'Global' but got '{}'",
-                      WasmEdge::Validator::toString(ArgCoreSort));
+        spdlog::error(
+            "[Core Sort] Type mismatch: Expected 'Func', 'Table', 'Memory', or "
+            "'Global' but got '{}'",
+            WasmEdge::Validator::toString(ArgCoreSort));
         return false;
       }
 
@@ -201,9 +202,9 @@ private:
             ArgCoreSort == CoreSort::Instance) {
           return true;
         }
-        spdlog::error(
-            "[Core Sort] Type mismatch: Expected 'Module' or 'Instance' but got '{}'",
-            WasmEdge::Validator::toString(ArgCoreSort));
+        spdlog::error("[Core Sort] Type mismatch: Expected 'Module' or "
+                      "'Instance' but got '{}'",
+                      WasmEdge::Validator::toString(ArgCoreSort));
         return false;
       }
     }
@@ -224,8 +225,9 @@ private:
         if (ArgSortCase == SortCase::Value) {
           return true;
         }
-        spdlog::error("[Sort Case] Type mismatch: Expected 'Value' but got '{}'",
-                      WasmEdge::Validator::toString(ArgSortCase));
+        spdlog::error(
+            "[Sort Case] Type mismatch: Expected 'Value' but got '{}'",
+            WasmEdge::Validator::toString(ArgSortCase));
         return false;
       }
 
@@ -241,7 +243,6 @@ private:
             (Kind == IndexKind::CoreType && ArgSortCase == SortCase::Type)) {
           return true;
         }
-
 
         spdlog::error("[Sort Case] Type mismatch: Expected '{}' but got '{}'",
                       WasmEdge::Validator::toString(Kind),

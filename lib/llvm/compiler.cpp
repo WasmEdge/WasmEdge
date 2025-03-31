@@ -196,7 +196,7 @@ struct LLVM::Compiler::CompileContext {
 #endif
 #endif
 
-  std::vector<const AST::FunctionType *> FunctionTypes;
+  std::vector<const AST::CompositeType *> CompositeTypes;
   std::vector<LLVM::Value> FunctionWrappers;
   std::vector<std::tuple<uint32_t, LLVM::FunctionCallee,
                          const WasmEdge::AST::CodeSegment *>>
@@ -403,7 +403,7 @@ struct LLVM::Compiler::CompileContext {
     } else {
       // Type index case. t2* = type[index].returns
       const uint32_t TypeIdx = BType.getTypeIndex();
-      const auto &FType = *FunctionTypes[TypeIdx];
+      const auto &FType = CompositeTypes[TypeIdx]->getFuncType();
       return RetT{
           VecT(FType.getParamTypes().begin(), FType.getParamTypes().end()),
           VecT(FType.getReturnTypes().begin(), FType.getReturnTypes().end())};
@@ -3623,7 +3623,8 @@ public:
 private:
   void compileCallOp(const unsigned int FuncIndex) noexcept {
     const auto &FuncType =
-        *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
+        Context.CompositeTypes[std::get<0>(Context.Functions[FuncIndex])]
+            ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
 
@@ -3654,7 +3655,7 @@ private:
     auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
 
     LLVM::Value FuncIndex = stackPop();
-    const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
+    const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
 
@@ -3770,7 +3771,8 @@ private:
 
   void compileReturnCallOp(const unsigned int FuncIndex) noexcept {
     const auto &FuncType =
-        *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
+        Context.CompositeTypes[std::get<0>(Context.Functions[FuncIndex])]
+            ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
 
@@ -3796,7 +3798,7 @@ private:
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
 
     LLVM::Value FuncIndex = stackPop();
-    const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
+    const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
 
@@ -3909,7 +3911,7 @@ private:
                          getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
 
-    const auto &FuncType = *Context.FunctionTypes[TypeIndex];
+    const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
 
@@ -4032,7 +4034,7 @@ private:
                          getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
 
-    const auto &FuncType = *Context.FunctionTypes[TypeIndex];
+    const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
 
@@ -5280,11 +5282,6 @@ namespace WasmEdge {
 namespace LLVM {
 
 Expect<void> Compiler::checkConfigure() noexcept {
-  if (Conf.hasProposal(Proposal::GC)) {
-    spdlog::error(ErrCode::Value::InvalidConfigure);
-    spdlog::error("    Proposal GC is not yet supported in LLVM backend");
-    return Unexpect(ErrCode::Value::InvalidConfigure);
-  }
   if (Conf.hasProposal(Proposal::ExceptionHandling)) {
     spdlog::error(ErrCode::Value::InvalidConfigure);
     spdlog::error(
@@ -5441,23 +5438,24 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
   if (Size == 0) {
     return;
   }
-  Context->FunctionTypes.reserve(Size);
+  Context->CompositeTypes.reserve(Size);
   Context->FunctionWrappers.reserve(Size);
 
   // Iterate and compile types.
   for (size_t I = 0; I < Size; ++I) {
-    if (SubTypes[I].getCompositeType().isFunc()) {
-      const auto &FuncType = SubTypes[I].getCompositeType().getFuncType();
-      const auto Name = fmt::format("t{}"sv, Context->FunctionTypes.size());
-
+    const auto &CompType = SubTypes[I].getCompositeType();
+    const auto Name = fmt::format("t{}"sv, Context->CompositeTypes.size());
+    if (CompType.isFunc()) {
       // Check function type is unique
       {
         bool Unique = true;
         for (size_t J = 0; J < I; ++J) {
-          if (const auto OldFuncType = Context->FunctionTypes[J]) {
-            if (*OldFuncType == FuncType) {
+          if (Context->CompositeTypes[J] &&
+              Context->CompositeTypes[J]->isFunc()) {
+            const auto &OldFuncType = Context->CompositeTypes[J]->getFuncType();
+            if (OldFuncType == CompType.getFuncType()) {
               Unique = false;
-              Context->FunctionTypes.push_back(OldFuncType);
+              Context->CompositeTypes.push_back(Context->CompositeTypes[J]);
               auto F = Context->FunctionWrappers[J];
               Context->FunctionWrappers.push_back(F);
               auto A = Context->LLModule.addAlias(WrapperTy, F, Name.c_str());
@@ -5494,8 +5492,8 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         Builder.positionAtEnd(
             LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
 
-        auto FTy =
-            toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+        auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy,
+                              CompType.getFuncType());
         auto RTy = FTy.getReturnType();
         std::vector<LLVM::Type> FPTy(FTy.getNumParams());
         FTy.getParamTypes(FPTy);
@@ -5544,12 +5542,32 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         Builder.createRetVoid();
       }
       // Copy wrapper, param and return lists to module instance.
-      Context->FunctionTypes.push_back(&FuncType);
       Context->FunctionWrappers.push_back(F);
     } else {
-      Context->FunctionTypes.push_back(nullptr);
-      Context->FunctionWrappers.push_back(LLVM::Value());
+      // Non function type case. Create empty wrapper.
+      auto F = Context->LLModule.addFunction(WrapperTy, LLVMExternalLinkage,
+                                             Name.c_str());
+      {
+        F.setVisibility(LLVMProtectedVisibility);
+        F.setDSOLocal(true);
+        F.setDLLStorageClass(LLVMDLLExportStorageClass);
+        F.addFnAttr(Context->NoStackArgProbe);
+        F.addFnAttr(Context->StrictFP);
+        F.addFnAttr(Context->UWTable);
+        F.addParamAttr(0, Context->ReadOnly);
+        F.addParamAttr(0, Context->NoAlias);
+        F.addParamAttr(1, Context->NoAlias);
+        F.addParamAttr(2, Context->NoAlias);
+        F.addParamAttr(3, Context->NoAlias);
+
+        LLVM::Builder Builder(Context->LLContext);
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+        Builder.createRetVoid();
+      }
+      Context->FunctionWrappers.push_back(F);
     }
+    Context->CompositeTypes.push_back(&CompType);
   }
 }
 
@@ -5566,8 +5584,9 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto FuncID = static_cast<uint32_t>(Context->Functions.size());
       // Get the function type index in module.
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
-      assuming(TypeIdx < Context->FunctionTypes.size());
-      const auto &FuncType = *Context->FunctionTypes[TypeIdx];
+      assuming(TypeIdx < Context->CompositeTypes.size());
+      assuming(Context->CompositeTypes[TypeIdx]->isFunc());
+      const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
       auto FTy =
           toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
@@ -5703,8 +5722,9 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
   for (size_t I = 0; I < TypeIdxs.size() && I < CodeSegs.size(); ++I) {
     const auto &TypeIdx = TypeIdxs[I];
     const auto &Code = CodeSegs[I];
-    assuming(TypeIdx < Context->FunctionTypes.size());
-    const auto &FuncType = *Context->FunctionTypes[TypeIdx];
+    assuming(TypeIdx < Context->CompositeTypes.size());
+    assuming(Context->CompositeTypes[TypeIdx]->isFunc());
+    const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
     const auto FuncID = Context->Functions.size();
     auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
     LLVM::FunctionCallee F = {FTy, Context->LLModule.addFunction(

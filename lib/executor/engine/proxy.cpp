@@ -59,6 +59,9 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kCallIndirect, proxyCallIndirect),
     ENTRY(kCallRef, proxyCallRef),
     ENTRY(kRefFunc, proxyRefFunc),
+    ENTRY(kStructNew, proxyStructNew),
+    ENTRY(kStructGet, proxyStructGet),
+    ENTRY(kStructSet, proxyStructSet),
     ENTRY(kTableGet, proxyTableGet),
     ENTRY(kTableSet, proxyTableSet),
     ENTRY(kTableInit, proxyTableInit),
@@ -204,6 +207,67 @@ Expect<RefVariant> Executor::proxyRefFunc(Runtime::StackManager &StackMgr,
   auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   assuming(FuncInst);
   return RefVariant(FuncInst);
+}
+
+Expect<RefVariant> Executor::proxyStructNew(Runtime::StackManager &StackMgr,
+                                            const uint32_t TypeIdx,
+                                            const ValVariant *Args) noexcept {
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
+  std::vector<ValVariant> Vals(N);
+  for (uint32_t I = 0; I < N; I++) {
+    const auto &VType = CompType.getFieldTypes()[I].getStorageType();
+    if (Args != nullptr) {
+      Vals[I] = packVal(VType, Args[I]);
+    } else {
+      Vals[I] = VType.isRefType()
+                    ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
+                    : ValVariant(static_cast<uint128_t>(0U));
+    }
+  }
+  auto *Inst =
+      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
+          ->newStruct(TypeIdx, std::move(Vals));
+  return RefVariant(Inst->getDefType(), Inst);
+}
+
+Expect<void> Executor::proxyStructGet(Runtime::StackManager &StackMgr,
+                                      const RefVariant Ref,
+                                      const uint32_t TypeIdx,
+                                      const uint32_t Off, const bool IsSigned,
+                                      ValVariant *Ret) noexcept {
+  const auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullStruct);
+  }
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  const auto &VType = CompType.getFieldTypes()[Off].getStorageType();
+  *Ret = unpackVal(VType, Inst->getField(Off), IsSigned);
+  return {};
+}
+
+Expect<void> Executor::proxyStructSet(Runtime::StackManager &StackMgr,
+                                      const RefVariant Ref,
+                                      const uint32_t TypeIdx,
+                                      const uint32_t Off,
+                                      const ValVariant *Val) noexcept {
+  auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullStruct);
+  }
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  const auto &VType = CompType.getFieldTypes()[Off].getStorageType();
+  Inst->getField(Off) = packVal(VType, *Val);
+  return {};
 }
 
 Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,

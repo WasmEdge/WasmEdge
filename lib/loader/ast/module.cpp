@@ -197,16 +197,6 @@ Expect<void> Loader::loadModule(AST::Module &Mod) {
 Expect<void> Loader::loadExecutable(AST::Module &Mod,
                                     std::shared_ptr<Executable> Exec) {
   auto &SubTypes = Mod.getTypeSection().getContent();
-  for (auto &SubType : SubTypes) {
-    if (unlikely(!SubType.getCompositeType().isFunc())) {
-      // TODO: GC - AOT: implement other composite types.
-      spdlog::error(ErrCode::Value::MalformedSection);
-      spdlog::error("    Currently AOT not support GC proposal yet."sv);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      return Unexpect(ErrCode::Value::MalformedSection);
-    }
-  }
-
   size_t Offset = 0;
   for (const auto &ImpDesc : Mod.getImportSection().getContent()) {
     if (ImpDesc.getExternalType() == ExternalType::Function) {
@@ -238,9 +228,13 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
   }
 
   // Set the symbols into the module.
-  for (size_t I = 0; I < SubTypes.size(); ++I) {
-    SubTypes[I].getCompositeType().getFuncType().setSymbol(
-        std::move(FuncTypeSymbols[I]));
+  uint32_t FuncTypeIdx = 0;
+  for (auto &SubType : SubTypes) {
+    if (SubType.getCompositeType().isFunc()) {
+      SubType.getCompositeType().getFuncType().setSymbol(
+          std::move(FuncTypeSymbols[FuncTypeIdx]));
+    }
+    FuncTypeIdx++;
   }
   for (size_t I = 0; I < CodeSegs.size(); ++I) {
     CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));

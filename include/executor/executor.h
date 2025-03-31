@@ -844,6 +844,31 @@ public:
                               const RefVariant Ref, const uint32_t TypeIdx,
                               const uint32_t Off,
                               const ValVariant *Val) noexcept;
+  Expect<RefVariant> proxyArrayNew(Runtime::StackManager &StackMgr,
+                                   const uint32_t TypeIdx,
+                                   const uint32_t Length,
+                                   const ValVariant *Args,
+                                   const uint32_t ArgSize) noexcept;
+  Expect<RefVariant> proxyArrayNewData(Runtime::StackManager &StackMgr,
+                                       const uint32_t TypeIdx,
+                                       const uint32_t DataIdx,
+                                       const uint32_t Start,
+                                       const uint32_t Length) noexcept;
+  Expect<RefVariant> proxyArrayNewElem(Runtime::StackManager &StackMgr,
+                                       const uint32_t TypeIdx,
+                                       const uint32_t ElemIdx,
+                                       const uint32_t Start,
+                                       const uint32_t Length) noexcept;
+  Expect<void> proxyArrayGet(Runtime::StackManager &StackMgr,
+                             const RefVariant Ref, const uint32_t TypeIdx,
+                             const uint32_t Index, const bool IsSigned,
+                             ValVariant *Ret) noexcept;
+  Expect<void> proxyArraySet(Runtime::StackManager &StackMgr,
+                             const RefVariant Ref, const uint32_t TypeIdx,
+                             const uint32_t Index,
+                             const ValVariant *Val) noexcept;
+  Expect<uint32_t> proxyArrayLen(Runtime::StackManager &StackMgr,
+                                 const RefVariant Ref) noexcept;
   Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
                                    const uint32_t TableIdx,
                                    const uint32_t Off) noexcept;

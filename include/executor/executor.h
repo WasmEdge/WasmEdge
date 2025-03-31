@@ -833,6 +833,17 @@ public:
                             ValVariant *Rets) noexcept;
   Expect<RefVariant> proxyRefFunc(Runtime::StackManager &StackMgr,
                                   const uint32_t FuncIdx) noexcept;
+  Expect<RefVariant> proxyStructNew(Runtime::StackManager &StackMgr,
+                                    const uint32_t TypeIdx,
+                                    const ValVariant *Args) noexcept;
+  Expect<void> proxyStructGet(Runtime::StackManager &StackMgr,
+                              const RefVariant Ref, const uint32_t TypeIdx,
+                              const uint32_t Off, const bool IsSigned,
+                              ValVariant *Ret) noexcept;
+  Expect<void> proxyStructSet(Runtime::StackManager &StackMgr,
+                              const RefVariant Ref, const uint32_t TypeIdx,
+                              const uint32_t Off,
+                              const ValVariant *Val) noexcept;
   Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
                                    const uint32_t TableIdx,
                                    const uint32_t Off) noexcept;

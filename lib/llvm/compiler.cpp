@@ -892,12 +892,135 @@ public:
       }
 
       // Reference Instructions (GC proposal)
-      // case OpCode::Struct__new:
-      // case OpCode::Struct__new_default:
-      // case OpCode::Struct__get:
-      // case OpCode::Struct__get_u:
-      // case OpCode::Struct__get_s:
-      // case OpCode::Struct__set:
+      case OpCode::Struct__new:
+      case OpCode::Struct__new_default: {
+        LLVM::Value Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+        if (Instr.getOpCode() == OpCode::Struct__new) {
+          assuming(Instr.getTargetIndex() < Context.CompositeTypes.size());
+          const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
+          assuming(CompType != nullptr && !CompType->isFunc());
+          const auto ArgSize = CompType->getFieldTypes().size();
+          std::vector<LLVM::Value> ArgsVec(ArgSize, nullptr);
+          for (size_t I = 0; I < ArgSize; ++I) {
+            ArgsVec[ArgSize - I - 1] = stackPop();
+          }
+          if (ArgSize > 0) {
+            auto Alloca = Builder.createArrayAlloca(
+                Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
+            Alloca.setAlignment(kValSize);
+            Args = Alloca;
+          }
+          for (size_t I = 0; I < ArgSize; ++I) {
+            auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                          I * kValSize);
+            auto Arg = ArgsVec[I];
+            Builder.createStore(
+                Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
+          }
+        }
+
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kStructNew,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int32Ty, Context.Int8PtrTy},
+                                     false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Args}));
+        break;
+      }
+      case OpCode::Struct__get:
+      case OpCode::Struct__get_u:
+      case OpCode::Struct__get_s: {
+        assuming(static_cast<size_t>(Instr.getTargetIndex()) <
+                 Context.CompositeTypes.size());
+        const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
+        assuming(CompType != nullptr && !CompType->isFunc());
+        assuming(static_cast<size_t>(Instr.getSourceIndex()) <
+                 CompType->getFieldTypes().size());
+        const auto &StorageType =
+            CompType->getFieldTypes()[Instr.getSourceIndex()].getStorageType();
+        auto Ref = stackPop();
+        auto IsSigned = (Instr.getOpCode() == OpCode::Struct__get_s)
+                            ? LLContext.getInt8(1)
+                            : LLContext.getInt8(0);
+        LLVM::Value Ret = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Ret.setAlignment(kValSize);
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kStructGet,
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int8Ty,
+                                             Context.Int8PtrTy},
+                                            false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), IsSigned, Ret});
+
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Ret, 0);
+        switch (StorageType.getCode()) {
+        case TypeCode::I8:
+        case TypeCode::I16:
+        case TypeCode::I32: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int32Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int32Ty, Ptr));
+          break;
+        }
+        case TypeCode::I64: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int64Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int64Ty, Ptr));
+          break;
+        }
+        case TypeCode::F32: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.FloatTy.getPointerTo());
+          stackPush(Builder.createLoad(Context.FloatTy, Ptr));
+          break;
+        }
+        case TypeCode::F64: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.DoubleTy.getPointerTo());
+          stackPush(Builder.createLoad(Context.DoubleTy, Ptr));
+          break;
+        }
+        case TypeCode::V128:
+        case TypeCode::Ref:
+        case TypeCode::RefNull: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int64x2Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int64x2Ty, Ptr));
+          break;
+        }
+        default:
+          assumingUnreachable();
+        }
+        break;
+      }
+      case OpCode::Struct__set: {
+        auto Val = stackPop();
+        auto Ref = stackPop();
+
+        LLVM::Value Arg = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Arg.setAlignment(kValSize);
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
+        Builder.createStore(
+            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
+
+        Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kStructSet,
+                                 LLVM::Type::getFunctionType(
+                                     Context.VoidTy,
+                                     {Context.Int64x2Ty, Context.Int32Ty,
+                                      Context.Int32Ty, Context.Int8PtrTy},
+                                     false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), Arg});
+        break;
+      }
       // case OpCode::Array__new:
       // case OpCode::Array__new_default:
       // case OpCode::Array__new_fixed:

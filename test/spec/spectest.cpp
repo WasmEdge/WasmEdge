@@ -291,7 +291,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"threads"sv, {Proposal::Threads}},
     {"function-references"sv,
      {Proposal::FunctionReferences, Proposal::TailCall}},
-    {"gc"sv, {Proposal::GC}, {}, WasmEdge::SpecTest::TestMode::Interpreter},
+    {"gc"sv, {Proposal::GC}},
     {"exception-handling"sv,
      {Proposal::ExceptionHandling, Proposal::TailCall},
      {},

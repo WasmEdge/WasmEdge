@@ -184,7 +184,7 @@ private:
         return false;
       }
 
-      if (std::holds_alternative<ValueType>(ImportType)) {
+      else if (std::holds_alternative<ValueType>(ImportType)) {
         if (ArgCoreSort == CoreSort::Func || ArgCoreSort == CoreSort::Table ||
             ArgCoreSort == CoreSort::Memory ||
             ArgCoreSort == CoreSort::Global) {
@@ -197,7 +197,7 @@ private:
         return false;
       }
 
-      if (std::holds_alternative<TypeBound>(ImportType)) {
+      else if (std::holds_alternative<TypeBound>(ImportType)) {
         if (ArgCoreSort == CoreSort::Module ||
             ArgCoreSort == CoreSort::Instance) {
           return true;
@@ -209,7 +209,7 @@ private:
       }
     }
 
-    if (std::holds_alternative<SortCase>(ArgSort)) {
+    else if (std::holds_alternative<SortCase>(ArgSort)) {
       SortCase ArgSortCase = std::get<SortCase>(ArgSort);
 
       if (std::holds_alternative<TypeBound>(ImportType)) {
@@ -221,7 +221,7 @@ private:
         return false;
       }
 
-      if (std::holds_alternative<ValueType>(ImportType)) {
+      else if (std::holds_alternative<ValueType>(ImportType)) {
         if (ArgSortCase == SortCase::Value) {
           return true;
         }
@@ -231,7 +231,7 @@ private:
         return false;
       }
 
-      if (std::holds_alternative<DescTypeIndex>(ImportType)) {
+      else if (std::holds_alternative<DescTypeIndex>(ImportType)) {
         const auto &Desc = std::get<DescTypeIndex>(ImportType);
         IndexKind Kind = Desc.getKind();
 

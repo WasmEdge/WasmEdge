@@ -26,7 +26,14 @@ enum class ErrNo : uint32_t {
   ModelNotFound = 103,      // Model Not Found.
 };
 
-enum class TensorType : uint8_t { F16 = 0, F32 = 1, U8 = 2, I32 = 3 };
+enum class TensorType : uint8_t {
+  F16 = 0,
+  F32 = 1,
+  F64 = 2,
+  U8 = 3,
+  I32 = 4,
+  I64 = 5
+};
 
 enum class Device : uint32_t { CPU = 0, GPU = 1, TPU = 2, AUTO = 3 };
 
@@ -82,11 +89,17 @@ struct fmt::formatter<WasmEdge::Host::WASINN::TensorType>
     case WasmEdge::Host::WASINN::TensorType::F32:
       Name = "F32"sv;
       break;
+    case WasmEdge::Host::WASINN::TensorType::F64:
+      Name = "F64"sv;
+      break;
     case WasmEdge::Host::WASINN::TensorType::U8:
       Name = "U8"sv;
       break;
     case WasmEdge::Host::WASINN::TensorType::I32:
       Name = "I32"sv;
+      break;
+    case WasmEdge::Host::WASINN::TensorType::I64:
+      Name = "I64"sv;
       break;
     default:
       Name = "Unknown"sv;

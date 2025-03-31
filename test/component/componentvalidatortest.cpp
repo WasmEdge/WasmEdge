@@ -5,6 +5,12 @@
 namespace WasmEdge {
 namespace Validator {
 
+static AST::Component::ImportSection
+createImportSection(const std::vector<AST::Component::Import> &imports);
+
+static std::shared_ptr<AST::Component::Component>
+createComponent(const AST::Component::ComponentSection &CompSec);
+
 template <typename T> void assertOk(Expect<T> Res, const char *Message) {
   if (!Res) {
     EXPECT_TRUE(false) << Message;
@@ -17,7 +23,7 @@ template <typename T> void assertFail(Expect<T> Res, const char *Message) {
   }
 }
 
-AST::Component::ImportSection
+static AST::Component::ImportSection
 createImportSection(const std::vector<AST::Component::Import> &imports) {
   AST::Component::ImportSection ImportSec;
   ImportSec.getContent().insert(ImportSec.getContent().end(), imports.begin(),
@@ -25,7 +31,7 @@ createImportSection(const std::vector<AST::Component::Import> &imports) {
   return ImportSec;
 }
 
-std::shared_ptr<AST::Component::Component>
+static std::shared_ptr<AST::Component::Component>
 createComponent(const AST::Component::ComponentSection &CompSec) {
   return std::make_shared<AST::Component::Component>(CompSec.getContent());
 }

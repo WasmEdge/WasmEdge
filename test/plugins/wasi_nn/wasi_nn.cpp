@@ -1173,7 +1173,7 @@ TEST(WasiNNTest, TFLiteBackend) {
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(TensorDim.size()),
                   BuilderPtr);
   // Tensor type U8
-  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
+  writeUInt32(MemInst, UINT32_C(3), BuilderPtr);
   writeFatPointer(MemInst,
                   StorePtr + static_cast<uint32_t>(TensorDim.size()) * 4,
                   static_cast<uint32_t>(TensorData.size()), BuilderPtr);
@@ -2375,7 +2375,7 @@ TEST(WasiNNTest, PiperBackend) {
   // Piper WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, 2, BuilderPtr);
+  writeUInt32(MemInst, 3, BuilderPtr);
   writeFatPointer(MemInst,
                   StorePtr + TensorDim.size() *
                                  sizeof(decltype(TensorDim)::value_type),
@@ -2499,7 +2499,7 @@ TEST(WasiNNTest, PiperBackend) {
   TensorData = {Text.begin(), Text.end()};
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, 2, BuilderPtr);
+  writeUInt32(MemInst, 3, BuilderPtr);
   writeFatPointer(MemInst,
                   StorePtr + TensorDim.size() *
                                  sizeof(decltype(TensorDim)::value_type),
@@ -2548,7 +2548,7 @@ TEST(WasiNNTest, PiperBackend) {
   TensorData = {Text.begin(), Text.end()};
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, 2, BuilderPtr);
+  writeUInt32(MemInst, 3, BuilderPtr);
   writeFatPointer(MemInst,
                   StorePtr + TensorDim.size() *
                                  sizeof(decltype(TensorDim)::value_type),

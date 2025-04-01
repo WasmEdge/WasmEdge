@@ -8,9 +8,9 @@
   
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
-# [🤩 WasmEdge is the easiest and fastest way to run LLMs on your own devices. 🤩](https://www.secondstate.io/articles/wasm-runtime-agi/)
+# [🤩 WasmEdge is the easiest and fastest way to run LLMs on your own devices. 🤩](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge)
 
-WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403) today. WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). Its [use cases](https://wasmedge.org/book/en/use_cases.html) include modern web application architectures (Isomorphic & Jamstack applications), microservices on the edge cloud, serverless SaaS APIs, embedded functions, smart contracts, and smart devices.
+WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403). WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). [LlamaEdge](https://github.com/LlamaEdge/LlamaEdge) is an application framework built on top of WasmEdge to run GenAI models (e.g., [LLM](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge), [speech-to-text](https://llamaedge.com/docs/user-guide/speech-to-text/quick-start-whisper), [text-to-image](https://llamaedge.com/docs/user-guide/text-to-image/quick-start-sd), and [TTS](https://github.com/LlamaEdge/whisper-api-server)) across GPUs on servers, personal computers, and edge devices. Additional [use cases](https://wasmedge.org/docs/start/usage/use-cases/) include microservices on the edge cloud, serverless SaaS APIs, embedded functions, smart contracts, and smart devices.
 
 ![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
@@ -23,8 +23,9 @@ WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime.
 # Quick start guides
 
 🚀 [Install](https://wasmedge.org/docs/start/install) WasmEdge \
-🤖 [Build](https://wasmedge.org/docs/category/build-wasmedge-from-source) and [contribute to](https://wasmedge.org/docs/contribute/) WasmEdge \
+👷🏻‍♂️ [Build](https://wasmedge.org/docs/category/build-wasmedge-from-source) and [contribute to](https://wasmedge.org/docs/contribute/) WasmEdge \
 ⌨️ [Run](https://wasmedge.org/docs/category/running-with-wasmedge) a standalone Wasm program or a [JavaScript program](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript) from CLI or [Docker](https://wasmedge.org/docs/start/getting-started/quick_start_docker) \
+🤖 [Chat](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge) with an open source LLM via [LlamaEdge](https://github.com/LlamaEdge/LlamaEdge) \
 🔌 Embed a Wasm function in your [Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge), [Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge), or [C](https://wasmedge.org/docs/category/c-sdk-for-embedding-wasmedge) app \
 🛠 Manage and orchestrate Wasm runtimes using [Kubernetes](https://wasmedge.org/docs/category/deploy-wasmedge-apps-in-kubernetes), [data streaming frameworks](https://wasmedge.org/docs/embed/use-case/yomo), and [blockchains](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a) \
 📚 **[Check out our official documentation](https://wasmedge.org/docs/)**

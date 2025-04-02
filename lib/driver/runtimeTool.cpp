@@ -117,9 +117,9 @@ static int
 ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
                 std::optional<std::chrono::system_clock::time_point> Timeout,
                 struct DriverToolOptions &Opt,
-                const AST::FunctionType &FuncType) noexcept {
+                const AST::Component::FunctionType &FuncType) noexcept {
   std::vector<ValInterface> FuncArgs;
-  std::vector<ValType> FuncArgTypes;
+  std::vector<InterfaceType> FuncArgTypes;
 
   for (size_t I = 0;
        I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
@@ -412,35 +412,43 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     }
     const auto &FuncName = Opt.Args.value().front();
 
-    const auto InitFunc = "_initialize"s;
+    using namespace std::literals::string_literals;
+    if (VM.holdsModule()) {
+      const auto InitFunc = "_initialize"s;
 
-    bool HasInit = false;
-    AST::FunctionType FuncType;
+      bool HasInit = false;
+      AST::FunctionType FuncType;
 
-    for (const auto &Func : VM.getFunctionList()) {
-      if (Func.first == InitFunc) {
-        HasInit = true;
-      } else if (Func.first == FuncName) {
-        FuncType = Func.second;
-      }
-    }
-
-    if (HasInit) {
-      auto AsyncResult = VM.asyncExecute(InitFunc);
-      if (Timeout.has_value()) {
-        if (!AsyncResult.waitUntil(*Timeout)) {
-          AsyncResult.cancel();
+      for (const auto &Func : VM.getFunctionList()) {
+        if (Func.first == InitFunc) {
+          HasInit = true;
+        } else if (Func.first == FuncName) {
+          FuncType = Func.second;
         }
       }
-      if (auto Result = AsyncResult.get(); unlikely(!Result)) {
-        // It indicates that the execution of wasm has been aborted
-        return 128 + SIGABRT;
-      }
-    }
 
-    if (VM.holdsModule()) {
+      if (HasInit) {
+        auto AsyncResult = VM.asyncExecute(InitFunc);
+        if (Timeout.has_value()) {
+          if (!AsyncResult.waitUntil(*Timeout)) {
+            AsyncResult.cancel();
+          }
+        }
+        if (auto Result = AsyncResult.get(); unlikely(!Result)) {
+          // It indicates that the execution of wasm has been aborted
+          return 128 + SIGABRT;
+        }
+      }
+
       return ToolOnModule(VM, FuncName, Timeout, Opt, FuncType);
     } else if (VM.holdsComponent()) {
+      AST::Component::FunctionType FuncType;
+      // TODO: implements this getter
+      for (const auto &Func : VM.getCompFunctionList()) {
+        if (Func.first == FuncName) {
+          FuncType = Func.second;
+        }
+      }
       return ToolOnComponent(VM, FuncName, Timeout, Opt, FuncType);
     } else {
       // which means VM has neither instantiated module nor instantiated

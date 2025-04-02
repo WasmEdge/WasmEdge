@@ -2071,6 +2071,122 @@ std::vector<llama_token> processTTSPrompt(Graph &GraphRef,
   return Result;
 }
 
+llava_image_embed *loadImageFromBytes(VisionModel VisionModelType,
+                                      clip_ctx *ClipContext,
+                                      std::vector<uint8_t> &Payload,
+                                      common_params Params,
+                                      int32_t NEmbd) noexcept {
+  llava_image_embed *ImageEmbed = nullptr;
+  switch (VisionModelType) {
+  case VisionModel::Llava:
+  case VisionModel::Qwen2VL: {
+    ImageEmbed = llava_image_embed_make_with_bytes(
+        ClipContext, static_cast<int>(Params.cpuparams.n_threads),
+        Payload.data(), static_cast<int>(Payload.size()));
+    break;
+  }
+  case VisionModel::Gemma3: {
+    int Gemma3NTokens = 256;
+    ImageEmbed =
+        static_cast<llava_image_embed *>(malloc(sizeof(llava_image_embed)));
+    ImageEmbed->embed =
+        static_cast<float *>(malloc(sizeof(float) * Gemma3NTokens * NEmbd));
+    clip_image_u8 *ImageBytes = clip_image_u8_init();
+    clip_image_f32_batch ImageBatch;
+
+    bool Res;
+    Res =
+        clip_image_load_from_bytes(Payload.data(), Payload.size(), ImageBytes);
+    if (!Res) {
+      clip_image_f32_batch_free(&ImageBatch);
+      clip_image_u8_free(ImageBytes);
+      llava_image_embed_free(ImageEmbed);
+      RET_ERROR(nullptr,
+                "loadImageFromBytes: Failed to load image from file"sv);
+    }
+    Res = clip_image_preprocess(ClipContext, ImageBytes, &ImageBatch);
+    if (!Res) {
+      clip_image_f32_batch_free(&ImageBatch);
+      clip_image_u8_free(ImageBytes);
+      llava_image_embed_free(ImageEmbed);
+      RET_ERROR(nullptr, "loadImageFromBytes: Failed to preprocess image"sv);
+    }
+    Res = clip_image_batch_encode(ClipContext, Params.cpuparams.n_threads,
+                                  &ImageBatch, ImageEmbed->embed);
+    if (!Res) {
+      clip_image_f32_batch_free(&ImageBatch);
+      clip_image_u8_free(ImageBytes);
+      llava_image_embed_free(ImageEmbed);
+      RET_ERROR(nullptr, "loadImageFromBytes: Failed to encode image"sv);
+    }
+
+    clip_image_f32_batch_free(&ImageBatch);
+    clip_image_u8_free(ImageBytes);
+    break;
+  }
+  }
+  return ImageEmbed;
+}
+
+llava_image_embed *loadImageFromFile(VisionModel VisionModelType,
+                                     clip_ctx *ClipContext,
+                                     const std::string &ImagePath,
+                                     common_params Params,
+                                     int32_t NEmbd) noexcept {
+  llava_image_embed *ImageEmbed = nullptr;
+  switch (VisionModelType) {
+  case VisionModel::Llava:
+  case VisionModel::Qwen2VL: {
+    ImageEmbed = llava_image_embed_make_with_filename(
+        ClipContext, static_cast<int>(Params.cpuparams.n_threads),
+        ImagePath.c_str());
+    break;
+  }
+  case VisionModel::Gemma3: {
+    int Gemma3NTokens = 256;
+    ImageEmbed =
+        static_cast<llava_image_embed *>(malloc(sizeof(llava_image_embed)));
+    ImageEmbed->embed =
+        static_cast<float *>(malloc(sizeof(float) * Gemma3NTokens * NEmbd));
+    clip_image_u8 *ImageBytes = clip_image_u8_init();
+    clip_image_f32_batch ImageBatch;
+
+    bool Res;
+    Res = clip_image_load_from_file(ImagePath.c_str(), ImageBytes);
+    if (!Res) {
+      clip_image_f32_batch_free(&ImageBatch);
+      clip_image_u8_free(ImageBytes);
+      llava_image_embed_free(ImageEmbed);
+      RET_ERROR(nullptr,
+                "loadImageFromFile: Failed to load image from file: {}"sv,
+                ImagePath);
+    }
+    Res = clip_image_preprocess(ClipContext, ImageBytes, &ImageBatch);
+    if (!Res) {
+      clip_image_f32_batch_free(&ImageBatch);
+      clip_image_u8_free(ImageBytes);
+      llava_image_embed_free(ImageEmbed);
+      RET_ERROR(nullptr, "loadImageFromFile: Failed to preprocess image: {}"sv,
+                ImagePath);
+    }
+    Res = clip_image_batch_encode(ClipContext, Params.cpuparams.n_threads,
+                                  &ImageBatch, ImageEmbed->embed);
+    if (!Res) {
+      clip_image_f32_batch_free(&ImageBatch);
+      clip_image_u8_free(ImageBytes);
+      llava_image_embed_free(ImageEmbed);
+      RET_ERROR(nullptr, "loadImageFromFile: Failed to encode image: {}"sv,
+                ImagePath);
+    }
+
+    clip_image_f32_batch_free(&ImageBatch);
+    clip_image_u8_free(ImageBytes);
+    break;
+  }
+  }
+  return ImageEmbed;
+}
+
 // <<<<<<<< Input related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> Output related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -2108,6 +2224,39 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
 // <<<<<<<< Output related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> Compute related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+struct Gemma3ImageEmbdBatch {
+  std::vector<llama_pos> Pos;
+  std::vector<int32_t> NSeqId;
+  std::vector<llama_seq_id> SeqId0;
+  std::vector<llama_seq_id *> SeqIds;
+  std::vector<int8_t> Logits;
+  llama_batch Batch;
+  Gemma3ImageEmbdBatch(float *Embd, int32_t NTokens, llama_pos Pos0) {
+    Pos.resize(NTokens);
+    NSeqId.resize(NTokens);
+    SeqIds.resize(NTokens + 1);
+    Logits.resize(NTokens);
+    SeqId0.resize(1);
+    SeqId0[0] = 0;
+    SeqIds[NTokens] = nullptr;
+    Batch = {
+        /*n_tokens       =*/NTokens,
+        /*tokens         =*/nullptr,
+        /*embd           =*/Embd,
+        /*pos            =*/Pos.data(),
+        /*n_seq_id       =*/NSeqId.data(),
+        /*seq_id         =*/SeqIds.data(),
+        /*logits         =*/Logits.data(),
+    };
+    for (int I = 0; I < NTokens; I++) {
+      Batch.pos[I] = Pos0 + I;
+      Batch.n_seq_id[I] = 1;
+      Batch.seq_id[I] = SeqId0.data();
+      Batch.logits[I] = false;
+    }
+  }
+};
 
 // Helper to init a llama batch.
 struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
@@ -2328,7 +2477,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
 
     bool EvalImageStatus = false;
     switch (GraphRef.VisionModelType) {
-    case VisionModel::Llava:
+    case VisionModel::Llava: {
       LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd"sv,
                 LogPrefix)
       EvalImageStatus = llava_eval_image_embed(
@@ -2337,7 +2486,8 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
       LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd...done"sv,
                 LogPrefix)
       break;
-    case VisionModel::Qwen2VL:
+    }
+    case VisionModel::Qwen2VL: {
       LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd"sv,
                 LogPrefix)
       auto *ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
@@ -2347,6 +2497,20 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
       LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd...done"sv,
                 LogPrefix)
       break;
+    }
+    case VisionModel::Gemma3: {
+      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Gemma-3 image embd"sv,
+                LogPrefix)
+      int Gemma3NTokens = 256;
+      Gemma3ImageEmbdBatch Gemma3Batch(CxtRef.LlavaImageEmbd->embed,
+                                       Gemma3NTokens, CxtRef.NPos);
+      int DecodeStatus =
+          llama_decode(GraphRef.LlamaContext.get(), Gemma3Batch.Batch);
+      EvalImageStatus = DecodeStatus == 0;
+      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Gemma-3 image embd...done"sv,
+                LogPrefix)
+      break;
+    }
     }
 
     if (!EvalImageStatus) {
@@ -3098,8 +3262,9 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           "for CLIP, the step of loading images in CLIP can only use the "sv
           "CPU, which may result in reduced efficiency. (You can refer to "sv
           "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
+      // NOTICE: the verbosity should be 0 for the gemma-3 model
       GraphRef.ClipContext = clip_model_load(GraphRef.Params.mmproj.c_str(),
-                                             GraphRef.EnableLog ? 1 : 0);
+                                             /* verbosity */ 0);
       if (GraphRef.ClipContext == nullptr) {
         RET_ERROR(ErrNo::InvalidArgument,
                   "setInput: unable to load the clip model."sv)
@@ -3107,9 +3272,15 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       if (clip_is_qwen2vl(GraphRef.ClipContext)) {
         GraphRef.VisionModelType = VisionModel::Qwen2VL;
         LOG_INFO(true, "setInput: Qwen2vl model loaded."sv)
-      } else {
+      } else if (clip_is_llava(GraphRef.ClipContext)) {
         GraphRef.VisionModelType = VisionModel::Llava;
         LOG_INFO(true, "setInput: Llava model loaded."sv)
+      } else if (clip_is_gemma3(GraphRef.ClipContext)) {
+        GraphRef.VisionModelType = VisionModel::Gemma3;
+        LOG_INFO(true, "setInput: Gemma-3 model loaded."sv)
+      } else {
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "setInput: unsupported vision model type."sv)
       }
     }
 
@@ -3151,10 +3322,9 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
             }
 
             // Create a new image embedding
-            CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
-                GraphRef.ClipContext,
-                static_cast<int>(GraphRef.Params.cpuparams.n_threads),
-                Payload->first.data(), static_cast<int>(Payload->first.size()));
+            CxtRef.LlavaImageEmbd = loadImageFromBytes(
+                GraphRef.VisionModelType, GraphRef.ClipContext, Payload->first,
+                GraphRef.Params, llama_model_n_embd(GraphRef.LlamaModel.get()));
           } else {
             LOG_DEBUG(
                 GraphRef.EnableDebugLog,
@@ -3179,10 +3349,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                     "setInput: Compute image embd from file: {}"sv,
                     CxtRef.Conf.ImagePath)
           // Load the image from the file.
-          CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
-              GraphRef.ClipContext,
-              static_cast<int>(GraphRef.Params.cpuparams.n_threads),
-              CxtRef.Conf.ImagePath.c_str());
+          CxtRef.LlavaImageEmbd =
+              loadImageFromFile(GraphRef.VisionModelType, GraphRef.ClipContext,
+                                CxtRef.Conf.ImagePath, GraphRef.Params,
+                                llama_model_n_embd(GraphRef.LlamaModel.get()));
           LOG_DEBUG(GraphRef.EnableDebugLog,
                     "setInput: Compute image embd from file: {}...Done"sv,
                     CxtRef.Conf.ImagePath)

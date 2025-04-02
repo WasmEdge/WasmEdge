@@ -1,0 +1,46 @@
+diff --git a/examples/llava/clip.cpp b/examples/llava/clip.cpp
+index a1f050e3..c9f4114e 100644
+--- a/examples/llava/clip.cpp
++++ b/examples/llava/clip.cpp
+@@ -1414,6 +1414,7 @@ struct clip_ctx * clip_init(const char * fname, struct clip_context_params ctx_p
+     const int n_tensors = gguf_get_n_tensors(ctx);
+ 
+     // kv
++    if (verbosity >= 1) {
+     const int n_kv = gguf_get_n_kv(ctx);
+     LOG_INF("%s: loaded meta data with %d key-value pairs and %d tensors from %s\n",
+         __func__, n_kv, n_tensors, fname);
+@@ -1454,6 +1455,7 @@ struct clip_ctx * clip_init(const char * fname, struct clip_context_params ctx_p
+             LOG_INF("%s: - type %4s: %4d tensors\n", __func__, ggml_type_name(kv.first), kv.second);
+         }
+     }
++    }
+ 
+     // data
+     size_t model_size = 0;
+@@ -3168,6 +3170,12 @@ bool clip_is_glm(const struct clip_ctx * ctx) {
+ bool clip_is_qwen2vl(const struct clip_ctx * ctx) {
+     return ctx->has_qwen2vl_merger;
+ }
++bool clip_is_llava(const struct clip_ctx * ctx) {
++    return ctx->has_llava_projector;
++}
++bool clip_is_gemma3(const struct clip_ctx * ctx) {
++    return ctx->proj_type == PROJECTOR_TYPE_GEMMA3;
++}
+ 
+ // Determine the number of encoder layers to iterate over
+ int get_deepest_feature_layer(const struct clip_ctx * ctx) {
+diff --git a/examples/llava/clip.h b/examples/llava/clip.h
+index 47059ca1..3dd1d2f1 100644
+--- a/examples/llava/clip.h
++++ b/examples/llava/clip.h
+@@ -105,6 +105,8 @@ CLIP_API bool clip_model_quantize(const char * fname_inp, const char * fname_out
+ CLIP_API int clip_is_minicpmv(const struct clip_ctx * ctx);
+ CLIP_API bool clip_is_glm(const struct clip_ctx * ctx);
+ CLIP_API bool clip_is_qwen2vl(const struct clip_ctx * ctx);
++CLIP_API bool clip_is_llava(const struct clip_ctx * ctx);
++CLIP_API bool clip_is_gemma3(const struct clip_ctx * ctx);
+ 
+ CLIP_API int get_deepest_feature_layer(const struct clip_ctx * ctx);
+ 

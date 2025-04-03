@@ -59,6 +59,15 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kCallIndirect, proxyCallIndirect),
     ENTRY(kCallRef, proxyCallRef),
     ENTRY(kRefFunc, proxyRefFunc),
+    ENTRY(kStructNew, proxyStructNew),
+    ENTRY(kStructGet, proxyStructGet),
+    ENTRY(kStructSet, proxyStructSet),
+    ENTRY(kArrayNew, proxyArrayNew),
+    ENTRY(kArrayNewData, proxyArrayNewData),
+    ENTRY(kArrayNewElem, proxyArrayNewElem),
+    ENTRY(kArrayGet, proxyArrayGet),
+    ENTRY(kArraySet, proxyArraySet),
+    ENTRY(kArrayLen, proxyArrayLen),
     ENTRY(kTableGet, proxyTableGet),
     ENTRY(kTableSet, proxyTableSet),
     ENTRY(kTableInit, proxyTableInit),
@@ -204,6 +213,206 @@ Expect<RefVariant> Executor::proxyRefFunc(Runtime::StackManager &StackMgr,
   auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   assuming(FuncInst);
   return RefVariant(FuncInst);
+}
+
+Expect<RefVariant> Executor::proxyStructNew(Runtime::StackManager &StackMgr,
+                                            const uint32_t TypeIdx,
+                                            const ValVariant *Args) noexcept {
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
+  std::vector<ValVariant> Vals(N);
+  for (uint32_t I = 0; I < N; I++) {
+    const auto &VType = CompType.getFieldTypes()[I].getStorageType();
+    if (Args != nullptr) {
+      Vals[I] = packVal(VType, Args[I]);
+    } else {
+      Vals[I] = VType.isRefType()
+                    ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
+                    : ValVariant(static_cast<uint128_t>(0U));
+    }
+  }
+  auto *Inst =
+      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
+          ->newStruct(TypeIdx, std::move(Vals));
+  return RefVariant(Inst->getDefType(), Inst);
+}
+
+Expect<void> Executor::proxyStructGet(Runtime::StackManager &StackMgr,
+                                      const RefVariant Ref,
+                                      const uint32_t TypeIdx,
+                                      const uint32_t Off, const bool IsSigned,
+                                      ValVariant *Ret) noexcept {
+  const auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullStruct);
+  }
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  const auto &VType = CompType.getFieldTypes()[Off].getStorageType();
+  *Ret = unpackVal(VType, Inst->getField(Off), IsSigned);
+  return {};
+}
+
+Expect<void> Executor::proxyStructSet(Runtime::StackManager &StackMgr,
+                                      const RefVariant Ref,
+                                      const uint32_t TypeIdx,
+                                      const uint32_t Off,
+                                      const ValVariant *Val) noexcept {
+  auto *Inst = Ref.getPtr<Runtime::Instance::StructInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullStruct);
+  }
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  const auto &VType = CompType.getFieldTypes()[Off].getStorageType();
+  Inst->getField(Off) = packVal(VType, *Val);
+  return {};
+}
+
+Expect<RefVariant> Executor::proxyArrayNew(Runtime::StackManager &StackMgr,
+                                           const uint32_t TypeIdx,
+                                           const uint32_t Length,
+                                           const ValVariant *Args,
+                                           const uint32_t ArgSize) noexcept {
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
+  const auto &VType = CompType.getFieldTypes()[0].getStorageType();
+  assuming(ArgSize == 0 || ArgSize == 1 || ArgSize == Length);
+  WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
+  Runtime::Instance::ModuleInstance *ModInst =
+      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
+  if (ArgSize == 0) {
+    auto InitVal = VType.isRefType()
+                       ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
+                       : ValVariant(static_cast<uint128_t>(0U));
+    Inst = ModInst->newArray(TypeIdx, Length, InitVal);
+  } else if (ArgSize == 1) {
+    Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
+  } else {
+    Inst = ModInst->newArray(
+        TypeIdx,
+        packVals(VType, std::vector<ValVariant>(Args, Args + ArgSize)));
+  }
+  return RefVariant(Inst->getDefType(), Inst);
+}
+
+Expect<RefVariant> Executor::proxyArrayNewData(Runtime::StackManager &StackMgr,
+                                               const uint32_t TypeIdx,
+                                               const uint32_t DataIdx,
+                                               const uint32_t Start,
+                                               const uint32_t Length) noexcept {
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
+  assuming(DataInst);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
+  const uint32_t BSize =
+      CompType.getFieldTypes()[0].getStorageType().getBitWidth() / 8;
+
+  if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) * BSize >
+      DataInst->getData().size()) {
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+  auto *Inst =
+      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
+          ->newArray(TypeIdx, Length, 0U);
+  for (uint32_t Idx = 0; Idx < Length; Idx++) {
+    // The value has been packed.
+    Inst->getData(Idx) = DataInst->loadValue(Start + Idx * BSize, BSize);
+  }
+  return RefVariant(Inst->getDefType(), Inst);
+}
+
+Expect<RefVariant> Executor::proxyArrayNewElem(Runtime::StackManager &StackMgr,
+                                               const uint32_t TypeIdx,
+                                               const uint32_t ElemIdx,
+                                               const uint32_t Start,
+                                               const uint32_t Length) noexcept {
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
+  assuming(ElemInst);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
+  const auto &VType = CompType.getFieldTypes()[0].getStorageType();
+
+  auto ElemSrc = ElemInst->getRefs();
+  if (static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
+      ElemSrc.size()) {
+    return Unexpect(ErrCode::Value::TableOutOfBounds);
+  }
+  std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
+                               ElemSrc.begin() + Start + Length);
+  auto *Inst =
+      const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule())
+          ->newArray(TypeIdx, packVals(VType, std::move(Refs)));
+  return RefVariant(Inst->getDefType(), Inst);
+}
+
+Expect<void> Executor::proxyArrayGet(Runtime::StackManager &StackMgr,
+                                     const RefVariant Ref,
+                                     const uint32_t TypeIdx,
+                                     const uint32_t Index, const bool IsSigned,
+                                     ValVariant *Ret) noexcept {
+  const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
+  const auto &VType = CompType.getFieldTypes()[0].getStorageType();
+  if (Index >= Inst->getLength()) {
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
+  *Ret = unpackVal(VType, Inst->getData(Index), IsSigned);
+  return {};
+}
+
+Expect<void> Executor::proxyArraySet(Runtime::StackManager &StackMgr,
+                                     const RefVariant Ref,
+                                     const uint32_t TypeIdx,
+                                     const uint32_t Index,
+                                     const ValVariant *Val) noexcept {
+  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  auto *DefType = getDefTypeByIdx(StackMgr, TypeIdx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
+  const auto &VType = CompType.getFieldTypes()[0].getStorageType();
+  if (Index >= Inst->getLength()) {
+    return Unexpect(ErrCode::Value::ArrayOutOfBounds);
+  }
+  Inst->getData(Index) = packVal(VType, *Val);
+  return {};
+}
+
+Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
+                                         const RefVariant Ref) noexcept {
+  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  return Inst->getLength();
 }
 
 Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,

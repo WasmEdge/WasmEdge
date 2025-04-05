@@ -15,6 +15,7 @@ Expect<void> Validator::validate(const AST::Component::Component &Comp) {
   spdlog::warn("component validation is not done yet."sv);
 
   Context Ctx;
+  Ctx.addComponent(Comp);
 
   for (auto &Sec : Comp.getSections()) {
     EXPECTED_TRY(std::visit(SectionVisitor{*this, Ctx}, Sec));

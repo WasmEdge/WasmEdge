@@ -47,11 +47,52 @@ TEST(ComponentValidatorTest, CorrectMatching) {
 
   auto ImportSec = createImportSection({ImportF});
 
+  AST::Component::SortIndex<AST::Component::Sort> SortIdx;
+  SortIdx.getSort() = AST::Component::SortCase::Func;
+  SortIdx.getSortIdx() = 0;
+
+  AST::Component::InstantiateArg<
+      AST::Component::SortIndex<AST::Component::Sort>>
+      InstArg;
+  InstArg.getName() = "f";
+  InstArg.getIndex() = SortIdx;
+
+  std::vector<AST::Component::InstantiateArg<
+      AST::Component::SortIndex<AST::Component::Sort>>>
+      Args = {InstArg};
+  AST::Component::Instantiate Inst(0, std::move(Args));
+
+  AST::Component::InstanceSection InstSec;
+  InstSec.getContent().push_back(Inst);
+
+  AST::Component::ComponentSection OuterCompSec;
+  OuterCompSec.getContent() = std::make_shared<AST::Component::Component>();
+  OuterCompSec.getContent()->getSections().push_back(ImportSec);
+  OuterCompSec.getContent()->getSections().push_back(InstSec);
+
+  auto C0 = createComponent(OuterCompSec);
+
+  WasmEdge::Configure Conf;
+  WasmEdge::Validator::Validator Validator(Conf);
+
+  assertOk(Validator.validate(*C0),
+           "Validation should pass for correct matching");
+}
+
+TEST(ComponentValidatorTest, NestedCorrectMatching) {
+  AST::Component::DescTypeIndex Desc;
+  Desc.getIndex() = 0;
+  Desc.getKind() = AST::Component::IndexKind::FuncType;
+
+  AST::Component::Import ImportF;
+  ImportF.getName() = "f";
+  ImportF.getDesc() = Desc;
+
+  auto ImportSec = createImportSection({ImportF});
+
   AST::Component::ComponentSection CompSec;
   CompSec.getContent() = std::make_shared<AST::Component::Component>();
   CompSec.getContent()->getSections().push_back(ImportSec);
-
-  auto C1 = createComponent(CompSec);
 
   AST::Component::SortIndex<AST::Component::Sort> SortIdx;
   SortIdx.getSort() = AST::Component::SortCase::Func;
@@ -78,15 +119,11 @@ TEST(ComponentValidatorTest, CorrectMatching) {
 
   auto C0 = createComponent(OuterCompSec);
 
-  WasmEdge::Validator::Context Ctx;
   WasmEdge::Configure Conf;
   WasmEdge::Validator::Validator Validator(Conf);
 
-  Ctx.addComponent(*C1);
-
-  WasmEdge::Validator::SectionVisitor Visitor(Validator, Ctx);
-  auto Result = Visitor(InstSec);
-  assertOk(Result, "Validation should pass for correct matching");
+  assertOk(Validator.validate(*C0),
+           "Validation should pass for correct matching");
 }
 
 TEST(ComponentValidatorTest, MissingArgument) {

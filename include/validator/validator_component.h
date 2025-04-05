@@ -64,6 +64,16 @@ inline std::string toString(IndexKind IK) {
 
 class Context {
 public:
+  void addCoreModule(const AST::Module &M) noexcept {
+    CoreModList.emplace_back(M);
+  }
+
+  const AST::Module &getCoreModule(uint32_t Index) const noexcept {
+    return CoreModList[Index];
+  }
+
+  size_t getCoreModuleCount() const noexcept { return CoreModList.size(); }
+
   void addComponent(const AST::Component::Component &C) noexcept {
     CompList.emplace_back(C);
   }
@@ -75,6 +85,7 @@ public:
   size_t getComponentCount() const noexcept { return CompList.size(); }
 
 private:
+  std::vector<AST::Module> CoreModList;
   std::vector<AST::Component::Component> CompList;
 };
 
@@ -85,6 +96,28 @@ struct ExternDescVisitor {
     return {};
   }
   Expect<void> operator()(const ValueType &) { return {}; }
+};
+
+struct CoreInstanceExprVisitor {
+  CoreInstanceExprVisitor(Context &Ctx) : Ctx(Ctx) {}
+
+  Expect<void> operator()(const CoreInstantiate &Inst) {
+    const uint32_t ModuleIdx = Inst.getModuleIdx();
+    if (ModuleIdx >= Ctx.getCoreModuleCount()) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("CoreInstanceSection: Module index {} exceeds available "
+                    "core modules {}",
+                    ModuleIdx, Ctx.getCoreModuleCount());
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    // Test Instance sort
+    return {};
+  }
+
+  Expect<void> operator()(const CoreInlineExports &) { return {}; }
+
+private:
+  Context &Ctx;
 };
 
 struct InstanceExprVisitor {
@@ -397,19 +430,30 @@ struct CanonVisitor {
 struct SectionVisitor {
   SectionVisitor(Validator &V, Context &Ctx) : V(V), Ctx(Ctx) {}
 
-  Expect<void> operator()(const AST::CustomSection &) { return {}; }
+  Expect<void> operator()(const AST::CustomSection &) {
+    spdlog::info("Custom Section");
+    return {};
+  }
   Expect<void> operator()(const AST::CoreModuleSection &Sec) {
+    spdlog::info("CoreModule Section");
     auto &Mod = Sec.getContent();
     V.validate(Mod);
+    Ctx.addCoreModule(Mod);
     return {};
   }
   Expect<void> operator()(const ComponentSection &Sec) {
+    spdlog::info("Component Section");
     auto &C = Sec.getContent();
     V.validate(C);
     Ctx.addComponent(C);
     return {};
   }
-  Expect<void> operator()(const CoreInstanceSection &) {
+  Expect<void> operator()(const CoreInstanceSection &Sec) {
+    spdlog::info("CoreInstance Section");
+    for (const CoreInstanceExpr &E : Sec.getContent()) {
+      CoreInstanceExprVisitor Visitor(Ctx);
+      EXPECTED_TRY(std::visit(Visitor, E));
+    }
     // NOTE: refers below InstanceSection, and copy the similar structure
 
     // TODO: Validation of core:instantiatearg initially only allows the
@@ -418,6 +462,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const InstanceSection &Sec) {
+    spdlog::info("Instance Section");
     for (const InstanceExpr &E : Sec.getContent()) {
       InstanceExprVisitor Visitor(Ctx);
       EXPECTED_TRY(std::visit(Visitor, E));
@@ -425,12 +470,14 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const AliasSection &Sec) {
+    spdlog::info("Alias Section");
     for (const Alias &A : Sec.getContent()) {
       EXPECTED_TRY(std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget()));
     }
     return {};
   }
   Expect<void> operator()(const CoreTypeSection &Sec) {
+    spdlog::info("CoreType Section");
     // TODO: As described in the explainer, each module type is validated with
     // an initially-empty type index space.
     for (const CoreDefType &T : Sec.getContent()) {
@@ -439,6 +486,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const TypeSection &Sec) {
+    spdlog::info("Type Section");
     for (const DefType &T : Sec.getContent()) {
       EXPECTED_TRY(std::visit(DefTypeVisitor{}, T));
     }
@@ -448,6 +496,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const CanonSection &Sec) {
+    spdlog::info("Canon Section");
     // TODO: Validation prevents duplicate or conflicting canonopt.
     for (const Canon &C : Sec.getContent()) {
       EXPECTED_TRY(std::visit(CanonVisitor{}, C));
@@ -456,6 +505,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const StartSection &) {
+    spdlog::info("Start Section");
     // API:
     // const Start &S = Sec.getContent();
     // S.getFunctionIndex();
@@ -480,6 +530,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const ImportSection &Sec) {
+    spdlog::info("Import Section");
     // NOTE: This section share the validation rules with export section, one
     // must share the implementation as much as possible.
     for (const Import &I : Sec.getContent()) {
@@ -509,6 +560,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const ExportSection &Sec) {
+    spdlog::info("Export Section");
     for (const Export &E : Sec.getContent()) {
       if (E.getDesc().has_value()) {
         // TODO: Validation requires any exported sortidx to have a valid

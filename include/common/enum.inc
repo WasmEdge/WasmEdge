@@ -1080,6 +1080,8 @@ E(MalformedName, 0x050B, "malformed name")
 E(MissingArgument, 0x050C, "missing argument")
 // Argument Type Mismatch with Import Type
 E(ArgTypeMismatch, 0x050D, "type mismatch")
+// Invalid Index
+E(InvalidIndex, 0x050E, "invalid index")
 // @}
 
 // Component model instantiation phase

@@ -294,6 +294,8 @@ function(wasmedge_setup_llama_target target)
     # llama.cpp options
     # Disable warnings and debug messages
     set(LLAMA_ALL_WARNINGS OFF)
+    # Disable curl dependency
+    set(LLAMA_CURL OFF)
     set(LLAMA_METAL_NDEBUG ON)
     set(LLAMA_BUILD_COMMON ON)
     set(GGML_ACCELERATE OFF)
@@ -338,8 +340,8 @@ function(wasmedge_setup_llama_target target)
     include(FetchContent)
     FetchContent_Declare(
       llama
-      GIT_REPOSITORY https://github.com/ggerganov/llama.cpp.git
-      GIT_TAG        b4915
+      GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
+      GIT_TAG        b5074
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)

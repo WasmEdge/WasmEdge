@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #include "common/errinfo.h"
+#include "validator/context.h"
 #include "validator/validator.h"
 
 namespace WasmEdge {
 namespace Validator {
 
+using namespace std::literals;
 using namespace AST::Component;
 
 // Helper func for better logging
@@ -62,22 +64,6 @@ inline std::string toString(IndexKind IK) {
   }
 }
 
-class Context {
-public:
-  void addComponent(const AST::Component::Component &C) noexcept {
-    CompList.emplace_back(C);
-  }
-
-  const AST::Component::Component &getComponent(uint32_t Index) const noexcept {
-    return CompList[Index];
-  }
-
-  size_t getComponentCount() const noexcept { return CompList.size(); }
-
-private:
-  std::vector<AST::Component::Component> CompList;
-};
-
 struct ExternDescVisitor {
   Expect<void> operator()(const DescTypeIndex &) { return {}; }
   Expect<void> operator()(const TypeBound &) {
@@ -87,6 +73,54 @@ struct ExternDescVisitor {
   Expect<void> operator()(const ValueType &) { return {}; }
 };
 
+struct CoreInstanceExprVisitor {
+  CoreInstanceExprVisitor(Context &Ctx) : Ctx(Ctx) {}
+
+  Expect<void> operator()(const CoreInstantiate &Inst) {
+    const uint32_t ModuleIdx = Inst.getModuleIdx();
+    if (ModuleIdx >= Ctx.getCoreModuleCount()) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "CoreInstanceSection: Module index {} exceeds available core modules {}"sv,
+          ModuleIdx, Ctx.getCoreModuleCount());
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    auto Args = Inst.getArgs();
+    auto ImportsList = getImports(Inst);
+    for (auto Import : ImportsList) {
+      auto ArgIt = std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+        return Arg.getName() == Import;
+      });
+
+      if (ArgIt == Args.end()) {
+        spdlog::error(ErrCode::Value::MissingArgument);
+        spdlog::error("Module[{}]: Missing argument for import '{}'"sv,
+                      Inst.getModuleIdx(), Import);
+        return Unexpect(ErrCode::Value::MissingArgument);
+      }
+    }
+    return {};
+  }
+
+  Expect<void> operator()(const CoreInlineExports &) { return {}; }
+
+private:
+  Context &Ctx;
+
+  std::vector<std::string> getImports(const CoreInstantiate &Inst) {
+    const uint32_t Index = Inst.getModuleIdx();
+    std::vector<std::string> ImportsList;
+
+    const auto &Mod = Ctx.getCoreModule(Index);
+    const auto &ImportDesc = Mod.getImportSection().getContent();
+
+    for (const auto &Import : ImportDesc) {
+      ImportsList.emplace_back(std::string(Import.getModuleName()));
+    }
+    return ImportsList;
+  }
+};
+
 struct InstanceExprVisitor {
   InstanceExprVisitor(Context &Ctx) : Ctx(Ctx) {}
 
@@ -94,23 +128,23 @@ struct InstanceExprVisitor {
     auto Args = Inst.getArgs();
     auto ImportMap = getImports(Inst.getComponentIdx());
 
-    for (auto it = ImportMap.begin(); it != ImportMap.end(); ++it) {
-      const auto &ImportName = it->first;
-      const auto &ImportDesc = it->second;
-      auto argIt = std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+    for (auto It = ImportMap.begin(); It != ImportMap.end(); ++It) {
+      const auto &ImportName = It->first;
+      const auto &ImportDesc = It->second;
+      auto ArgIt = std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
         return Arg.getName() == ImportName;
       });
 
-      if (argIt == Args.end()) {
+      if (ArgIt == Args.end()) {
         spdlog::error(ErrCode::Value::MissingArgument);
-        spdlog::error("Component[{}]: Missing argument for import '{}'",
+        spdlog::error("Component[{}]: Missing argument for import '{}'"sv,
                       Inst.getComponentIdx(), ImportName);
         return Unexpect(ErrCode::Value::MissingArgument);
       }
 
-      if (!matchImportAndArgTypes(ImportDesc, argIt->getIndex().getSort())) {
+      if (!matchImportAndArgTypes(ImportDesc, ArgIt->getIndex().getSort())) {
         spdlog::error(ErrCode::Value::ArgTypeMismatch);
-        spdlog::error("Component[{}]: Argument '{}' type mismatch",
+        spdlog::error("Component[{}]: Argument '{}' type mismatch"sv,
                       Inst.getComponentIdx(), ImportName);
         return Unexpect(ErrCode::Value::ArgTypeMismatch);
       }
@@ -136,7 +170,7 @@ private:
     std::unordered_map<std::string, ExternDesc> ImportMap;
 
     if (Index >= Ctx.getComponentCount()) {
-      spdlog::error("Unreachable State: Index {} exceeds Component Count {}",
+      spdlog::error("Unreachable State: Index {} exceeds Component Count {}"sv,
                     Index, Ctx.getComponentCount());
       spdlog::error(WasmEdge::ErrInfo::InfoBoundary(
           Index, 0, static_cast<uint32_t>(Ctx.getComponentCount())));
@@ -177,7 +211,7 @@ private:
              ArgCoreSort == CoreSort::Instance)) {
           return true;
         }
-        spdlog::error("[Core Sort] Type mismatch: Expected '{}' but got '{}'",
+        spdlog::error("[Core Sort] Type mismatch: Expected '{}' but got '{}'"sv,
                       WasmEdge::Validator::toString(Kind),
                       WasmEdge::Validator::toString(ArgCoreSort));
 
@@ -189,8 +223,7 @@ private:
           return true;
         }
         spdlog::error(
-            "[Core Sort] Type mismatch: Expected 'Func', 'Table', 'Memory', or "
-            "'Global' but got '{}'",
+            "[Core Sort] Type mismatch: Expected 'Func', 'Table', 'Memory', or 'Global' but got '{}'"sv,
             WasmEdge::Validator::toString(ArgCoreSort));
         return false;
       } else if (std::holds_alternative<TypeBound>(ImportType)) {
@@ -198,9 +231,9 @@ private:
             ArgCoreSort == CoreSort::Instance) {
           return true;
         }
-        spdlog::error("[Core Sort] Type mismatch: Expected 'Module' or "
-                      "'Instance' but got '{}'",
-                      WasmEdge::Validator::toString(ArgCoreSort));
+        spdlog::error(
+            "[Core Sort] Type mismatch: Expected 'Module' or 'Instance' but got '{}'"sv,
+            WasmEdge::Validator::toString(ArgCoreSort));
         return false;
       }
     } else if (std::holds_alternative<SortCase>(ArgSort)) {
@@ -210,15 +243,16 @@ private:
         if (ArgSortCase == SortCase::Type) {
           return true;
         }
-        spdlog::error("[Sort Case] Type mismatch: Expected 'Type' but got '{}'",
-                      WasmEdge::Validator::toString(ArgSortCase));
+        spdlog::error(
+            "[Sort Case] Type mismatch: Expected 'Type' but got '{}'"sv,
+            WasmEdge::Validator::toString(ArgSortCase));
         return false;
       } else if (std::holds_alternative<ValueType>(ImportType)) {
         if (ArgSortCase == SortCase::Value) {
           return true;
         }
         spdlog::error(
-            "[Sort Case] Type mismatch: Expected 'Value' but got '{}'",
+            "[Sort Case] Type mismatch: Expected 'Value' but got '{}'"sv,
             WasmEdge::Validator::toString(ArgSortCase));
         return false;
       } else if (std::holds_alternative<DescTypeIndex>(ImportType)) {
@@ -234,15 +268,15 @@ private:
           return true;
         }
 
-        spdlog::error("[Sort Case] Type mismatch: Expected '{}' but got '{}'",
+        spdlog::error("[Sort Case] Type mismatch: Expected '{}' but got '{}'"sv,
                       WasmEdge::Validator::toString(Kind),
                       WasmEdge::Validator::toString(ArgSortCase));
         return false;
       }
     }
 
-    spdlog::error("Unhandled type comparison: ImportType and ArgSort do not "
-                  "match any known case.");
+    spdlog::error(
+        "Unhandled type comparison: ImportType and ArgSort do not match any known case."sv);
     return false;
   }
 };
@@ -397,19 +431,30 @@ struct CanonVisitor {
 struct SectionVisitor {
   SectionVisitor(Validator &V, Context &Ctx) : V(V), Ctx(Ctx) {}
 
-  Expect<void> operator()(const AST::CustomSection &) { return {}; }
+  Expect<void> operator()(const AST::CustomSection &) {
+    spdlog::debug("Custom Section"sv);
+    return {};
+  }
   Expect<void> operator()(const AST::CoreModuleSection &Sec) {
+    spdlog::debug("CoreModule Section"sv);
     auto &Mod = Sec.getContent();
     V.validate(Mod);
+    Ctx.addCoreModule(Mod);
     return {};
   }
   Expect<void> operator()(const ComponentSection &Sec) {
+    spdlog::debug("Component Section"sv);
     auto &C = Sec.getContent();
+    ComponentContextGuard guard(C, Ctx);
     V.validate(C);
-    Ctx.addComponent(C);
     return {};
   }
-  Expect<void> operator()(const CoreInstanceSection &) {
+  Expect<void> operator()(const CoreInstanceSection &Sec) {
+    spdlog::debug("CoreInstance Section"sv);
+    for (const CoreInstanceExpr &E : Sec.getContent()) {
+      CoreInstanceExprVisitor Visitor(Ctx);
+      EXPECTED_TRY(std::visit(Visitor, E));
+    }
     // NOTE: refers below InstanceSection, and copy the similar structure
 
     // TODO: Validation of core:instantiatearg initially only allows the
@@ -418,6 +463,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const InstanceSection &Sec) {
+    spdlog::debug("Instance Section"sv);
     for (const InstanceExpr &E : Sec.getContent()) {
       InstanceExprVisitor Visitor(Ctx);
       EXPECTED_TRY(std::visit(Visitor, E));
@@ -425,12 +471,14 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const AliasSection &Sec) {
+    spdlog::debug("Alias Section"sv);
     for (const Alias &A : Sec.getContent()) {
       EXPECTED_TRY(std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget()));
     }
     return {};
   }
   Expect<void> operator()(const CoreTypeSection &Sec) {
+    spdlog::debug("CoreType Section"sv);
     // TODO: As described in the explainer, each module type is validated with
     // an initially-empty type index space.
     for (const CoreDefType &T : Sec.getContent()) {
@@ -439,6 +487,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const TypeSection &Sec) {
+    spdlog::debug("Type Section"sv);
     for (const DefType &T : Sec.getContent()) {
       EXPECTED_TRY(std::visit(DefTypeVisitor{}, T));
     }
@@ -448,6 +497,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const CanonSection &Sec) {
+    spdlog::debug("Canon Section"sv);
     // TODO: Validation prevents duplicate or conflicting canonopt.
     for (const Canon &C : Sec.getContent()) {
       EXPECTED_TRY(std::visit(CanonVisitor{}, C));
@@ -456,6 +506,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const StartSection &) {
+    spdlog::debug("Start Section"sv);
     // API:
     // const Start &S = Sec.getContent();
     // S.getFunctionIndex();
@@ -480,6 +531,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const ImportSection &Sec) {
+    spdlog::debug("Import Section"sv);
     // NOTE: This section share the validation rules with export section, one
     // must share the implementation as much as possible.
     for (const Import &I : Sec.getContent()) {
@@ -509,6 +561,7 @@ struct SectionVisitor {
     return {};
   }
   Expect<void> operator()(const ExportSection &Sec) {
+    spdlog::debug("Export Section"sv);
     for (const Export &E : Sec.getContent()) {
       if (E.getDesc().has_value()) {
         // TODO: Validation requires any exported sortidx to have a valid

@@ -10,7 +10,7 @@ updates:
       interval: "weekly"
     commit-message:
       # Prefix for PR title and commit messages
-      prefix: "[CI] dependabot"
+      prefix: "ci(dependabot):"
     groups:
       # Group updates, actions that match are grouped into a single PR;
       # dependabot should still raise a PR for each of the remaining actions

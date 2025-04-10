@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(componentTests
   spectest.cpp
+  componentvalidatortest.cpp
 )
 
 add_test(componentTests componentTests)

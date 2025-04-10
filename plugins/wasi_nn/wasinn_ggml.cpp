@@ -206,7 +206,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the mmproj option."sv)
     }
-    GraphRef.Params.mmproj = MMProjModelPath;
+    GraphRef.Params.mmproj.path = MMProjModelPath;
   }
 
   // The TTS parameters.
@@ -224,7 +224,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the model-vocoder option."sv)
     }
-    GraphRef.Params.vocoder.model = VocoderModelPath;
+    GraphRef.Params.vocoder.model.path = VocoderModelPath;
   }
   if (Doc.at_key("tts-output-file").error() == simdjson::SUCCESS) {
     std::string_view TTSOutputFilePath;
@@ -888,7 +888,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the hf-repo-vocoder option."sv)
     }
-    GraphRef.Params.vocoder.hf_repo = HfRepo;
+    GraphRef.Params.vocoder.model.hf_repo = HfRepo;
   }
   if (Doc.at_key("hf-file-vocoder").error() == simdjson::SUCCESS) {
     std::string_view HfFile;
@@ -897,7 +897,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the hf-file-vocoder option."sv)
     }
-    GraphRef.Params.vocoder.hf_file = HfFile;
+    GraphRef.Params.vocoder.model.hf_file = HfFile;
   }
   if (Doc.at_key("model-url-vocoder").error() == simdjson::SUCCESS) {
     std::string_view ModelUrlVocoder;
@@ -907,7 +907,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the model-url-vocoder option."sv)
     }
-    GraphRef.Params.vocoder.model_url = ModelUrlVocoder;
+    GraphRef.Params.vocoder.model.url = ModelUrlVocoder;
   }
   // The config parameters.
   if (Doc.at_key("stream-stdout").error() == simdjson::SUCCESS) {
@@ -966,7 +966,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the model-url option."sv)
     }
-    GraphRef.Params.model_url = ModelUrl;
+    GraphRef.Params.model.url = ModelUrl;
   }
   if (Doc.at_key("hf-token").error() == simdjson::SUCCESS) {
     std::string_view HfToken;
@@ -984,7 +984,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the hf-repo option."sv)
     }
-    GraphRef.Params.hf_repo = HfRepo;
+    GraphRef.Params.model.hf_repo = HfRepo;
   }
   if (Doc.at_key("hf-file").error() == simdjson::SUCCESS) {
     std::string_view HfFile;
@@ -993,7 +993,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the hf-file option."sv)
     }
-    GraphRef.Params.hf_file = HfFile;
+    GraphRef.Params.model.hf_file = HfFile;
   }
   if (Doc.at_key("prompt-file").error() == simdjson::SUCCESS) {
     std::string_view PromptFile;
@@ -2777,7 +2777,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the model parameters.
   llama_model_params ModelParamsDefault = llama_model_default_params();
   GraphRef.Params.n_gpu_layers = ModelParamsDefault.n_gpu_layers;
-  GraphRef.Params.mmproj = ""sv;
+  GraphRef.Params.mmproj.path = ""sv;
   GraphRef.Params.warmup = false;
   // Initialize the context parameters.
   llama_context_params ContextParamsDefault = llama_context_default_params();
@@ -2846,15 +2846,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   const std::string_view BinModel(reinterpret_cast<char *>(Weight.data()),
                                   Weight.size());
   if (BinModel.substr(0, 8) == "preload:"sv) {
-    GraphRef.Params.model = BinModel.substr(8);
+    GraphRef.Params.model.path = BinModel.substr(8);
   } else {
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "load: Model path not found in nn-preload, write model into "sv
               "a tmpfile."sv)
     // TODO: pass the model directly to ggml.
     // Write ggml model to file.
-    GraphRef.Params.model = "ggml-model.bin"sv;
-    std::ofstream TempFile(GraphRef.Params.model,
+    GraphRef.Params.model.path = "ggml-model.bin"sv;
+    std::ofstream TempFile(GraphRef.Params.model.path,
                            std::ios::out | std::ios::binary);
     if (!TempFile) {
       Env.deleteGraph(GId);
@@ -2873,7 +2873,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Check if the model exists.
   if (!std::filesystem::exists(
-          std::filesystem::u8path(GraphRef.Params.model))) {
+          std::filesystem::u8path(GraphRef.Params.model.path))) {
     Env.deleteGraph(GId);
     RET_ERROR(ErrNo::ModelNotFound, "load: model file not found."sv)
   }
@@ -3005,7 +3005,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           CxtRef.LlamaSampler = nullptr;
         }
         GraphRef.LlamaModel = llama_model_ptr(llama_model_load_from_file(
-            GraphRef.Params.model.c_str(), ModelParams));
+            GraphRef.Params.model.path.c_str(), ModelParams));
         if (GraphRef.LlamaModel == nullptr) {
           Env.NNGraph[CxtRef.GraphId].setInvalid();
           RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init model."sv)
@@ -3084,7 +3084,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     // Prompt with image input. Check is llava or mllama case.
 
     // First check the projection model is loaded.
-    if (GraphRef.Params.mmproj == ""sv) {
+    if (GraphRef.Params.mmproj.path == ""sv) {
       RET_ERROR(
           ErrNo::InvalidArgument,
           "setInput: the given model does not support image input, so a projection model is required."sv)
@@ -3098,8 +3098,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           "for CLIP, the step of loading images in CLIP can only use the "sv
           "CPU, which may result in reduced efficiency. (You can refer to "sv
           "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
-      GraphRef.ClipContext = clip_model_load(GraphRef.Params.mmproj.c_str(),
-                                             GraphRef.EnableLog ? 1 : 0);
+      GraphRef.ClipContext = clip_model_load(
+          GraphRef.Params.mmproj.path.c_str(), GraphRef.EnableLog ? 1 : 0);
       if (GraphRef.ClipContext == nullptr) {
         RET_ERROR(ErrNo::InvalidArgument,
                   "setInput: unable to load the clip model."sv)

@@ -556,8 +556,10 @@ public:
       return 128;
     case LLVMPPC_FP128TypeKind:
       return 128;
+#if LLVM_VERSION_MAJOR < 20
     case LLVMX86_MMXTypeKind:
       return 64;
+#endif
     case LLVMIntegerTypeKind:
       return getIntegerBitWidth();
     case LLVMVectorTypeKind:

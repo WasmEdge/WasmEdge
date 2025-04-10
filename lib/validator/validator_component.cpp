@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #include "validator/validator_component.h"
+#include "common/spdlog.h"
 
 #include <variant>
-
-using namespace std::literals;
 
 namespace WasmEdge {
 namespace Validator {
 
+using namespace std::literals;
 using namespace AST::Component;
 
 Expect<void> Validator::validate(const AST::Component::Component &Comp) {
-  spdlog::warn("component validation is not done yet."sv);
+  spdlog::warn("Component Model Validation is in active development."sv);
 
+  Context Ctx;
+  ComponentContextGuard guard(Comp, Ctx);
   for (auto &Sec : Comp.getSections()) {
-    EXPECTED_TRY(std::visit(SectionVisitor{*this}, Sec));
+    EXPECTED_TRY(std::visit(SectionVisitor{*this, Ctx}, Sec));
   }
 
   return {};

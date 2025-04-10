@@ -37,7 +37,8 @@ std::map<std::string_view, Backend> BackendMap = {
     {"whisper"sv, Backend::Whisper},
     {"mlx"sv, Backend::MLX},
     {"piper"sv, Backend::Piper},
-    {"chattts"sv, Backend::ChatTTS}};
+    {"chattts"sv, Backend::ChatTTS},
+    {"openvinogenai"sv, Backend::OpenVINOGenAI}};
 
 std::map<std::string_view, Device> DeviceMap = {{"cpu"sv, Device::CPU},
                                                 {"gpu"sv, Device::GPU},

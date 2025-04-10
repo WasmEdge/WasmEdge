@@ -1074,6 +1074,16 @@ E(UnknownCanonicalOption, 0x050A, "unknown canonical option")
 E(MalformedName, 0x050B, "malformed name")
 // @}
 
+// Component model validation phase
+// @{
+// Missing Argument
+E(MissingArgument, 0x050C, "missing argument")
+// Argument Type Mismatch with Import Type
+E(ArgTypeMismatch, 0x050D, "type mismatch")
+// Invalid Index
+E(InvalidIndex, 0x050E, "invalid index")
+// @}
+
 // Component model instantiation phase
 // @{
 E(CoreInvalidExport, 0x0600, "invalid export in core module")

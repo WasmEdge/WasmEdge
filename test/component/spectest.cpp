@@ -41,9 +41,9 @@ TEST(Component, LoadAndRun_SimpleBinary) {
 
   uint64_t V = 100;
   auto Res = VM.execute("mdup", {ValInterface(ValVariant(V))},
-                        {ValType(TypeCode::I64)});
+                        {InterfaceType(TypeCode::I64)});
   assertOk(Res, "failed to execute");
-  std::vector<std::pair<ValInterface, ValType>> Result = *Res;
+  std::vector<std::pair<ValInterface, InterfaceType>> Result = *Res;
   auto Ret = std::get<ValVariant>(Result[0].first).get<uint64_t>();
   EXPECT_EQ(Ret, 200);
 }

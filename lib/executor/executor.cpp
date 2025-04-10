@@ -201,10 +201,10 @@ Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
 // NOTE: due to internal reason, we model the return values can still be
 // multiple, but in fact a component function will only return at most one.
 // This concept mismatching should be fix in the future.
-Expect<std::vector<std::pair<ValInterface, ValType>>>
+Expect<std::vector<std::pair<ValInterface, InterfaceType>>>
 Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
                  Span<const ValInterface> Params,
-                 Span<const ValType> ParamTypes) {
+                 Span<const InterfaceType> ParamTypes) {
   if (unlikely(FuncInst == nullptr)) {
     spdlog::error(ErrCode::Value::FuncNotFound);
     return Unexpect(ErrCode::Value::FuncNotFound);
@@ -229,7 +229,7 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
 
   EXPECTED_TRY(HostFunc.run(std::move(Params), Rets));
 
-  std::vector<std::pair<ValInterface, ValType>> R;
+  std::vector<std::pair<ValInterface, InterfaceType>> R;
   auto RType = RTypes.begin();
   for (auto &&V : Rets) {
     R.push_back(std::pair(V, *RType));

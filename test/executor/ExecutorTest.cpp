@@ -253,6 +253,149 @@ TEST(Coredump, generateCoredump) {
   EXPECT_TRUE(FindCoredump);
 }
 
+class ValidatorSubtypeTest : public testing::Test {
+protected:
+  void SetUp() override {
+    Conf = std::make_unique<WasmEdge::Configure>();
+    Conf->addProposal(WasmEdge::Proposal::GC);
+    LoadEngine = std::make_unique<WasmEdge::Loader::Loader>(*Conf);
+    ValidEngine = std::make_unique<WasmEdge::Validator::Validator>(*Conf);
+  }
+
+  std::unique_ptr<WasmEdge::Configure> Conf;
+  std::unique_ptr<WasmEdge::Loader::Loader> LoadEngine;
+  std::unique_ptr<WasmEdge::Validator::Validator> ValidEngine;
+};
+
+uint32_t calculateSectionSize(const std::vector<uint8_t> &Wasm, size_t offset) {
+  return Wasm.size() - offset;
+}
+
+TEST_F(ValidatorSubtypeTest, MaxSubtypeDepthExceeded) {
+  std::vector<uint8_t> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+  };
+
+  Wasm.push_back(65);
+  Wasm.push_back(0x60);
+  Wasm.push_back(0x00);
+  Wasm.push_back(0x00);
+
+  for (int i = 1; i < 65; i++) {
+    Wasm.push_back(0x63);
+    Wasm.push_back(0x01);
+    Wasm.push_back(i - 1);
+    Wasm.push_back(0x50);
+    Wasm.push_back(0x00);
+    Wasm.push_back(0x00);
+  }
+
+  Wasm[9] = calculateSectionSize(Wasm, 10);
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorSubtypeTest, InvalidTypeIndex) {
+  std::vector<uint8_t> Wasm = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
+                               0x00, 0x01, 0x0C, 0x02, 0x60, 0x00, 0x00,
+                               0x63, 0x01, 0xFF, 0x50, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorSubtypeTest, InvalidSupertypeIndex) {
+  std::vector<uint8_t> Wasm = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
+                               0x00, 0x01, 0x0C, 0x02, 0x60, 0x00, 0x00,
+                               0x63, 0x01, 0x02, 0x50, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorSubtypeTest, ErrorPropagationRecursive) {
+  std::vector<uint8_t> Wasm = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
+                               0x00, 0x01, 0x15, 0x03, 0x60, 0x00, 0x00,
+                               0x63, 0x01, 0x02, 0x50, 0x00, 0x00, 0x63,
+                               0x01, 0x01, 0x50, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorSubtypeTest, ErrorPropagationInTypeHierarchy) {
+  std::vector<uint8_t> Wasm = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+                               0x01, 0x1E, 0x04, 0x60, 0x00, 0x00, 0x63, 0x01,
+                               0x00, 0x50, 0x00, 0x00, 0x63, 0x01, 0x01, 0x50,
+                               0x00, 0x00, 0x63, 0x01, 0x05, 0x50, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorSubtypeTest, SubtypeDepthCalculationError) {
+  std::vector<uint8_t> Wasm = {0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00,
+                               0x00, 0x01, 0x0C, 0x02, 0x60, 0x00, 0x00,
+                               0x63, 0x01, 0x01, 0x50, 0x00, 0x00};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
+}
+
+TEST_F(ValidatorSubtypeTest, ExactMaxSubtypeDepth) {
+  std::vector<uint8_t> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00,
+  };
+
+  Wasm.push_back(64);
+
+  Wasm.push_back(0x60);
+  Wasm.push_back(0x00);
+  Wasm.push_back(0x00);
+
+  for (int i = 1; i < 64; i++) {
+    Wasm.push_back(0x63);
+    Wasm.push_back(0x01);
+    Wasm.push_back(i - 1);
+    Wasm.push_back(0x50);
+    Wasm.push_back(0x00);
+    Wasm.push_back(0x00);
+  }
+
+  Wasm[9] = calculateSectionSize(Wasm, 10);
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_TRUE(ValidationResult);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

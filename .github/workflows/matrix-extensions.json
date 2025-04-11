@@ -125,6 +125,17 @@
             ]
         },
         {
+            "plugin": "wasi_nn-chattts",
+            "bin": "libwasmedgePluginWasiNN",
+            "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=ChatTTS",
+            "platforms": [
+                "ubuntu_latest"
+            ]
+        },
+        {
             "plugin": "wasm_bpf",
             "bin": "libwasmedgePluginWasmBpf",
             "dir": "wasm_bpf",

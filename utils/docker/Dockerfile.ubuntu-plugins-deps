@@ -75,6 +75,9 @@ RUN [ "/bin/bash", "-c", "echo \"source ./openvino_genai/setupvars.sh\" >> .bash
 COPY wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
 
+COPY wasi-nn/install-chattts.sh .
+RUN [ "/bin/bash", "install-chattts.sh" ]
+
 ### cleanup
 FROM deps-all AS clean-apt
 
@@ -84,6 +87,7 @@ RUN rm -f \
     install-pytorch.sh \
     install-openvino.sh \
     install-onnxruntime.sh \
-    install-openvino-genai.sh
+    install-openvino-genai.sh \
+    install-chattts.sh
 
 RUN rm -rf /var/lib/apt/lists/*

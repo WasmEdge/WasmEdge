@@ -20,6 +20,7 @@ using namespace std::literals;
 using WasmEdge::Host::WASINN::Backend;
 using WasmEdge::Host::WASINN::Device;
 using WasmEdge::Host::WASINN::ErrNo;
+using WasmEdge::Host::WASINN::TensorType;
 
 #if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO) ||                       \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH) ||                          \
@@ -2730,7 +2731,7 @@ TEST(WasiNNTest, ChatTTSBackend) {
   // ChatTTS WASI-NN set_input tests.
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
+  writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, TensorData.size(),
                   BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);
@@ -2777,7 +2778,7 @@ TEST(WasiNNTest, ChatTTSBackend) {
   // Test: setInput -- set metadata successfully.
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
-  writeUInt32(MemInst, UINT32_C(2), BuilderPtr);
+  writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), BuilderPtr);
   writeFatPointer(MemInst, StorePtr + TensorDim.size() * 4, ConfigData.size(),
                   BuilderPtr);
   writeBinaries<uint32_t>(MemInst, TensorDim, StorePtr);

@@ -16,7 +16,7 @@
 | dm4             | @dm4       | Second State                  | <dm4@secondstate.io>          |
 | yi              | @0yi0      | Second State                  | <yi@secondstate.io>           |
 | Sam             | @apepkuss  | Second State                  | <sam@secondstate.io>          |
-| danny           | @dannypsnl | Second State                  | <dannypsnl@secondstate.io>    |
+| Lîm Tsú-thuàn   | @dannypsnl |                               | <inbox@dannypsnl.me>          |
 | Shreyas Atre    | @SAtacker  | SRA VJTI                      | <shreyasatre16@gmail.com>     |
 | csh             | @L-jasmine | Second State                  | <458761603@qq.com>            |
 | Vivian Hu       | @alabulei1 | Second State                  | <vivian@secondstate.io>       |

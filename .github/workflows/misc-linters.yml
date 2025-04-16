@@ -28,3 +28,26 @@ jobs:
           pip install codespell
           # exclude files which may be synchronized from other places
           git ls-files | grep -v "^thirdparty" | grep -v "/thirdparty/" | grep -v "/dist/" | xargs -t codespell --ignore-words .github/workflows/ignore_words 2>/dev/null
+
+  linelint:
+    runs-on: ubuntu-latest
+    name: Check for missing EOF newlines
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get changed files
+        id: changed-files
+        run: |
+          BASE_REF=${{ github.base_ref }}
+          if git rev-parse --verify origin/$BASE_REF >/dev/null 2>&1; then
+            FILES=$(git diff --name-only --diff-filter=d origin/$BASE_REF...HEAD | tr '\n' ' ')
+          else
+            FILES=$(git diff --name-only --diff-filter=d HEAD~1...HEAD | tr '\n' ' ')
+          fi
+          echo "files=${FILES}" >> $GITHUB_OUTPUT
+      - name: Check for EOF newlines
+        uses: fernandrone/linelint@master
+        with:
+          args: ${{ steps.changed-files.outputs.files }}

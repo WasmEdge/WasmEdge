@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #if WASMEDGE_OS_LINUX
 
-#include "../../../lib/host/wasi/linux.h"
+#include "../../../lib/host/wasi/unix.h"
 
 using namespace WasmEdge::Host::WASI::detail;
 

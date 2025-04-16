@@ -24,7 +24,7 @@
 #endif
 
 // macOS including Apple silicon and Intel-based are always little-endian
-#if WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 #undef WASMEDGE_ENDIAN_LITTLE_BYTE
 #define WASMEDGE_ENDIAN_LITTLE_BYTE 1
 #endif

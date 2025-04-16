@@ -21,14 +21,14 @@
 #if LLVM_VERSION_MAJOR >= 17
 #if WASMEDGE_OS_MACOS
 LLD_HAS_DRIVER(macho)
-#elif WASMEDGE_OS_LINUX
+#elif WASMEDGE_OS_LINUX || WASMEDGE_OS_FREEBSD
 LLD_HAS_DRIVER(elf)
 #elif WASMEDGE_OS_WINDOWS
 LLD_HAS_DRIVER(coff)
 #endif
 #endif
 
-#if WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 #include <sys/utsname.h>
 #include <unistd.h>
 #endif
@@ -36,7 +36,7 @@ LLD_HAS_DRIVER(coff)
 #include <llvm/Object/COFF.h>
 #endif
 
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_FREEBSD
 #define SYMBOL(X) X
 #elif WASMEDGE_OS_MACOS
 #define SYMBOL(X) "_" X
@@ -232,7 +232,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
           "-dylib", "-demangle", "-macosx_version_min", OSVersion.c_str(),
           "-syslibroot", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk",
           ObjectName.u8string().c_str(), "-o", OutputPath.u8string().c_str()},
-#elif WASMEDGE_OS_LINUX
+#elif WASMEDGE_OS_LINUX || WASMEDGE_OS_FREEBSD
   LinkResult = lld::elf::link(
       std::initializer_list<const char *>{"ld.lld", "--eh-frame-hdr",
                                           "--shared", "--gc-sections",
@@ -349,6 +349,8 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     WriteByte(OS, UINT8_C(2));
 #elif WASMEDGE_OS_WINDOWS
     WriteByte(OS, UINT8_C(3));
+#elif WASMEDGE_OS_FREEBSD
+    WriteByte(OS, UINT8_C(4));
 #else
 #error Unsupported operating system!
 #endif

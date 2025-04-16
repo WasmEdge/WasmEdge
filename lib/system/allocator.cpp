@@ -18,6 +18,13 @@
 #include <cstring>
 #endif
 
+/*
+ * FreeBSD doesn't define MAP_NORESERVE any long.
+ */
+#if WASMEDGE_OS_FREEBSD
+#define MAP_NORESERVE MAP_RESERVED0040
+#endif
+
 namespace WasmEdge {
 
 namespace {

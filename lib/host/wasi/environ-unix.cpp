@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_FREEBSD
 
 #include "common/errcode.h"
 #include "host/wasi/environ.h"
-#include "linux.h"
+#include "unix.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -99,12 +99,14 @@ WasiExpect<void> Environ::procRaise(__wasi_signal_t Signal) const noexcept {
   case __WASI_SIGNAL_WINCH:
     SysSignal = SIGWINCH;
     break;
+#if WASMEDGE_OS_LINUX
   case __WASI_SIGNAL_POLL:
     SysSignal = SIGPOLL;
     break;
   case __WASI_SIGNAL_PWR:
     SysSignal = SIGPWR;
     break;
+#endif
   case __WASI_SIGNAL_SYS:
     SysSignal = SIGSYS;
     break;

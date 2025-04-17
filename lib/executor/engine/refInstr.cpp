@@ -437,7 +437,7 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
                        ValVariant &Val, const AST::Instruction &Instr,
                        bool IsCast) const noexcept {
   // Copy the value type here due to handling the externalized case.
-  auto &VT = Val.get<RefVariant>().getType();
+  auto VT = Val.get<RefVariant>().getType();
   if (VT.isExternalized()) {
     VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
   }

@@ -852,8 +852,16 @@ public:
             assumingUnreachable();
           }
         } else {
-          // TODO: GC - AOT: support other composite here.
-          VType = TypeCode::NullFuncRef;
+          assuming(Instr.getValType().getTypeIndex() <
+                   Context.CompositeTypes.size());
+          const auto *CompType =
+              Context.CompositeTypes[Instr.getValType().getTypeIndex()];
+          assuming(CompType != nullptr);
+          if (CompType->isFunc()) {
+            VType = TypeCode::NullFuncRef;
+          } else {
+            VType = TypeCode::NullRef;
+          }
         }
         std::copy_n(VType.getRawData().cbegin(), 8, Val.begin());
         auto Vector = LLVM::Value::getConstVector8(LLContext, Val);
@@ -877,7 +885,16 @@ public:
                                                              false)),
             {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
-      // case OpCode::Ref__eq:
+      case OpCode::Ref__eq: {
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(
+            Builder.createICmpEQ(
+                Builder.createExtractElement(LHS, LLContext.getInt64(1)),
+                Builder.createExtractElement(RHS, LLContext.getInt64(1))),
+            Context.Int32Ty));
+        break;
+      }
       case OpCode::Ref__as_non_null: {
         auto Next =
             LLVM::BasicBlock::create(LLContext, F.Fn, "ref_as_non_null.ok");
@@ -1277,15 +1294,180 @@ public:
              LLContext.getInt32(Instr.getSourceIndex()), DstOff, SrcOff, Cnt});
         break;
       }
-      // case OpCode::Ref__test:
-      // case OpCode::Ref__test_null:
-      // case OpCode::Ref__cast:
-      // case OpCode::Ref__cast_null:
-      // case OpCode::Any__convert_extern:
-      // case OpCode::Extern__convert_any:
-      // case OpCode::Ref__i31:
-      // case OpCode::I31__get_s:
-      // case OpCode::I31__get_u:
+      case OpCode::Ref__test:
+      case OpCode::Ref__test_null: {
+        auto Ref = stackPop();
+        std::array<uint8_t, 16> Val = {0};
+        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
+        auto Vector = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kRefTest,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int32Ty,
+                                     {Context.Int64x2Ty, Context.Int64Ty},
+                                     false)),
+            {Ref,
+             Builder.createExtractElement(Vector, LLContext.getInt64(0))}));
+        break;
+      }
+      case OpCode::Ref__cast:
+      case OpCode::Ref__cast_null: {
+        auto Ref = stackPop();
+        std::array<uint8_t, 16> Val = {0};
+        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
+        auto Vector = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kRefCast,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int64x2Ty, Context.Int64Ty},
+                                     false)),
+            {Ref,
+             Builder.createExtractElement(Vector, LLContext.getInt64(0))}));
+        break;
+      }
+      case OpCode::Any__convert_extern: {
+        std::array<uint8_t, 16> RawRef = {0};
+        auto Ref = stackPop();
+        auto PtrVal = Builder.createExtractElement(Ref, LLContext.getInt64(1));
+        auto IsNullBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "any_conv_extern.null");
+        auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn,
+                                                  "any_conv_extern.not_null");
+        auto IsExtrefBB = LLVM::BasicBlock::create(LLContext, F.Fn,
+                                                   "any_conv_extern.is_extref");
+        auto EndBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "any_conv_extern.end");
+        auto CondIsNull = Builder.createICmpEQ(PtrVal, LLContext.getInt64(0));
+        Builder.createCondBr(CondIsNull, IsNullBB, NotNullBB);
+
+        Builder.positionAtEnd(IsNullBB);
+        auto VT = ValType(TypeCode::RefNull, TypeCode::NullRef);
+        std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
+        auto Ret1 = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
+        Builder.createBr(EndBB);
+
+        Builder.positionAtEnd(NotNullBB);
+        auto Ret2 = Builder.createBitCast(
+            Builder.createInsertElement(
+                Builder.createBitCast(Ref, Context.Int8x16Ty),
+                LLContext.getInt8(0), LLContext.getInt64(1)),
+            Context.Int64x2Ty);
+        auto HType = Builder.createExtractElement(
+            Builder.createBitCast(Ret2, Context.Int8x16Ty),
+            LLContext.getInt64(3));
+        auto CondIsExtref = Builder.createOr(
+            Builder.createICmpEQ(HType, LLContext.getInt8(static_cast<uint8_t>(
+                                            TypeCode::ExternRef))),
+            Builder.createICmpEQ(HType, LLContext.getInt8(static_cast<uint8_t>(
+                                            TypeCode::NullExternRef))));
+        Builder.createCondBr(CondIsExtref, IsExtrefBB, EndBB);
+
+        Builder.positionAtEnd(IsExtrefBB);
+        VT = ValType(TypeCode::Ref, TypeCode::AnyRef);
+        std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
+        auto Ret3 = Builder.createInsertElement(
+            Builder.createBitCast(
+                LLVM::Value::getConstVector8(LLContext, RawRef),
+                Context.Int64x2Ty),
+            PtrVal, LLContext.getInt64(1));
+        Builder.createBr(EndBB);
+
+        Builder.positionAtEnd(EndBB);
+        auto Ret = Builder.createPHI(Context.Int64x2Ty);
+        Ret.addIncoming(Ret1, IsNullBB);
+        Ret.addIncoming(Ret2, NotNullBB);
+        Ret.addIncoming(Ret3, IsExtrefBB);
+        stackPush(Ret);
+        break;
+      }
+      case OpCode::Extern__convert_any: {
+        std::array<uint8_t, 16> RawRef = {0};
+        auto Ref = stackPop();
+        auto IsNullBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "extern_conv_any.null");
+        auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn,
+                                                  "extern_conv_any.not_null");
+        auto EndBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "extern_conv_any.end");
+        auto CondIsNull = Builder.createICmpEQ(
+            Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+            LLContext.getInt64(0));
+        Builder.createCondBr(CondIsNull, IsNullBB, NotNullBB);
+
+        Builder.positionAtEnd(IsNullBB);
+        auto VT = ValType(TypeCode::RefNull, TypeCode::NullExternRef);
+        std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
+        auto Ret1 = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
+        Builder.createBr(EndBB);
+
+        Builder.positionAtEnd(NotNullBB);
+        auto Ret2 = Builder.createBitCast(
+            Builder.createInsertElement(
+                Builder.createBitCast(Ref, Context.Int8x16Ty),
+                LLContext.getInt8(1), LLContext.getInt64(1)),
+            Context.Int64x2Ty);
+        Builder.createBr(EndBB);
+
+        Builder.positionAtEnd(EndBB);
+        auto Ret = Builder.createPHI(Context.Int64x2Ty);
+        Ret.addIncoming(Ret1, IsNullBB);
+        Ret.addIncoming(Ret2, NotNullBB);
+        stackPush(Ret);
+        break;
+      }
+      case OpCode::Ref__i31: {
+        std::array<uint8_t, 16> RawRef = {0};
+        auto VT = ValType(TypeCode::Ref, TypeCode::I31Ref);
+        std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
+        auto Ref = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
+        auto Val = Builder.createZExt(
+            Builder.createOr(
+                Builder.createAnd(stackPop(), LLContext.getInt32(0x7FFFFFFFU)),
+                LLContext.getInt32(0x80000000U)),
+            Context.Int64Ty);
+        stackPush(Builder.createInsertElement(Ref, Val, LLContext.getInt64(1)));
+        break;
+      }
+      case OpCode::I31__get_s: {
+        auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "i31.get.ok");
+        auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
+        auto Val = Builder.createTrunc(
+            Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+            Context.Int32Ty);
+        auto IsNotNull = Builder.createLikely(Builder.createICmpNE(
+            Builder.createAnd(Val, LLContext.getInt32(0x80000000U)),
+            LLContext.getInt32(0)));
+        Builder.createCondBr(IsNotNull, Next,
+                             getTrapBB(ErrCode::Value::AccessNullI31));
+        Builder.positionAtEnd(Next);
+        Val = Builder.createAnd(Val, LLContext.getInt32(0x7FFFFFFFU));
+        stackPush(Builder.createOr(
+            Val, Builder.createShl(
+                     Builder.createAnd(Val, LLContext.getInt32(0x40000000U)),
+                     LLContext.getInt32(1))));
+        break;
+      }
+      case OpCode::I31__get_u: {
+        auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "i31.get.ok");
+        auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
+        auto Val = Builder.createTrunc(
+            Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+            Context.Int32Ty);
+        auto IsNotNull = Builder.createLikely(Builder.createICmpNE(
+            Builder.createAnd(Val, LLContext.getInt32(0x80000000U)),
+            LLContext.getInt32(0)));
+        Builder.createCondBr(IsNotNull, Next,
+                             getTrapBB(ErrCode::Value::AccessNullI31));
+        Builder.positionAtEnd(Next);
+        stackPush(Builder.createAnd(Val, LLContext.getInt32(0x7FFFFFFFU)));
+        break;
+      }
 
       // Parametric Instructions
       case OpCode::Drop:

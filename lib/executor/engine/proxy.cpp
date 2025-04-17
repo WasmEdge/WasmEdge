@@ -72,6 +72,8 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kArrayCopy, proxyArrayCopy),
     ENTRY(kArrayInitData, proxyArrayInitData),
     ENTRY(kArrayInitElem, proxyArrayInitElem),
+    ENTRY(kRefTest, proxyRefTest),
+    ENTRY(kRefCast, proxyRefCast),
     ENTRY(kTableGet, proxyTableGet),
     ENTRY(kTableSet, proxyTableSet),
     ENTRY(kTableInit, proxyTableInit),
@@ -216,7 +218,7 @@ Expect<RefVariant> Executor::proxyRefFunc(Runtime::StackManager &StackMgr,
                                           const uint32_t FuncIdx) noexcept {
   auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   assuming(FuncInst);
-  return RefVariant(FuncInst);
+  return RefVariant(FuncInst->getDefType(), FuncInst);
 }
 
 Expect<RefVariant> Executor::proxyStructNew(Runtime::StackManager &StackMgr,
@@ -567,6 +569,61 @@ Expect<void> Executor::proxyArrayInitElem(
                  Arr.begin() + DstOff,
                  [&](const RefVariant &V) { return packVal(VType, V); });
   return {};
+}
+
+Expect<uint32_t> Executor::proxyRefTest(Runtime::StackManager &StackMgr,
+                                        const RefVariant Ref,
+                                        ValType VTTest) noexcept {
+  // Copy the value type here due to handling the externalized case.
+  auto VT = Ref.getType();
+  if (VT.isExternalized()) {
+    VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
+  }
+  const auto *ModInst = StackMgr.getModule();
+  assuming(ModInst);
+  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
+  if (!VT.isAbsHeapType()) {
+    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
+    // Reference must not be nullptr here because the null references are typed
+    // with the least abstract heap type.
+    if (Inst->getModule()) {
+      GotTypeList = Inst->getModule()->getTypeList();
+    }
+  }
+
+  if (AST::TypeMatcher::matchType(ModInst->getTypeList(), VTTest, GotTypeList,
+                                  VT)) {
+    return static_cast<uint32_t>(1);
+  } else {
+    return static_cast<uint32_t>(0);
+  }
+}
+
+Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
+                                          const RefVariant Ref,
+                                          ValType VTCast) noexcept {
+  // Copy the value type here due to handling the externalized case.
+  auto VT = Ref.getType();
+  if (VT.isExternalized()) {
+    VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
+  }
+  const auto *ModInst = StackMgr.getModule();
+  assuming(ModInst);
+  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
+  if (!VT.isAbsHeapType()) {
+    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
+    // Reference must not be nullptr here because the null references are typed
+    // with the least abstract heap type.
+    if (Inst->getModule()) {
+      GotTypeList = Inst->getModule()->getTypeList();
+    }
+  }
+
+  if (!AST::TypeMatcher::matchType(ModInst->getTypeList(), VTCast, GotTypeList,
+                                   VT)) {
+    return Unexpect(ErrCode::Value::CastFailed);
+  }
+  return Ref;
 }
 
 Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,

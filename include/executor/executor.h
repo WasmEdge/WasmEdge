@@ -889,6 +889,11 @@ public:
                                   const uint32_t ElemIdx, const uint32_t DstOff,
                                   const uint32_t SrcOff,
                                   const uint32_t Cnt) noexcept;
+  Expect<uint32_t> proxyRefTest(Runtime::StackManager &StackMgr,
+                                const RefVariant Ref, ValType VTTest) noexcept;
+  Expect<RefVariant> proxyRefCast(Runtime::StackManager &StackMgr,
+                                  const RefVariant Ref,
+                                  ValType VTCast) noexcept;
   Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
                                    const uint32_t TableIdx,
                                    const uint32_t Off) noexcept;

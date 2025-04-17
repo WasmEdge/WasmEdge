@@ -10,8 +10,9 @@
 #include <memory>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
+#include "MLX/mlx/base.h"
 #include "MLX/mlx/transformer.h"
-#include "MLX/model/transformer.h"
+#include "MLX/model/llm/transformer.h"
 #include "MLX/prompt/prompt.h"
 
 #include <mlx/mlx.h>
@@ -26,8 +27,9 @@ namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 struct Graph {
   std::string ModelType;
+  std::string ModelArch;
   std::unique_ptr<tokenizers::Tokenizer> Tok = nullptr;
-  std::shared_ptr<Transformer> Model;
+  std::shared_ptr<nn::Module> Model;
   double Temp = 0.0;
   bool EnableDebugLog = false;
   bool IsQuantized = false;

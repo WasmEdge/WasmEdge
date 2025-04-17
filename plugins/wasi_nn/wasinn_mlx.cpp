@@ -3,12 +3,18 @@
 
 #include "wasinn_mlx.h"
 #include "wasinnenv.h"
+#include <memory>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
+
+#include "MLX/mlx/base.h"
 #include "MLX/model/converter.h"
-#include "MLX/model/registry.h"
+#include "MLX/model/gemma3/gemma3.h"
+#include "MLX/model/llm/registry.h"
+#include "MLX/model/llm/transformer.h"
 #include "MLX/model/utils.h"
 #include "MLX/prompt/prompt.h"
+#include <mlx/array.h>
 
 #include <simdjson.h>
 #endif
@@ -164,31 +170,16 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return ErrNo::InvalidArgument;
   }
 
-  // Create Model.
-  if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
-    GraphRef.Model = tinyLlama11BChatV10();
-    GraphRef.Prmopt = TinyLLaMAPrompt();
-  } else if (GraphRef.ModelType == "llama_3_8b") {
-    GraphRef.Model = llama38b();
-    GraphRef.Prmopt = LLaMA3Prompt();
-  } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
-    GraphRef.Model = llama27bChat();
-    GraphRef.Prmopt = LLaMA2Prompt();
-  } else {
-    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
-    Env.deleteGraph(GId);
-    return ErrNo::InvalidArgument;
-  }
-
   if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && GraphRef.IsQuantized) {
     GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }
 
+  std::unordered_map<std::string, mx::array> Weights;
   // Handle the model path.
   for (size_t Idx = 0; Idx < Builders.size() - 1; Idx++) {
-    auto Weight = Builders[Idx];
-    const std::string BinModel(reinterpret_cast<char *>(Weight.data()),
-                               Weight.size());
+    auto WeightData = Builders[Idx];
+    const std::string BinModel(reinterpret_cast<char *>(WeightData.data()),
+                               WeightData.size());
     spdlog::info("[WASI-NN] MLX BinModel: {}"sv, BinModel.size());
     if (BinModel.size() == 0) {
       Env.deleteGraph(GId);
@@ -220,13 +211,16 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
             "[WASI-NN][Debug] MLX backend: Write model into a tmpfile...Done"sv);
       }
     }
-    // Load weight.
+
     if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
-      GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
+      auto Weight = llamaToMlxllm(ModelFilePath);
+      Weights.insert(Weight.begin(), Weight.end());
     } else if (GraphRef.ModelType == "llama_3_8b") {
-      GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
+      auto Weight = llamaToMlxllm(ModelFilePath);
+      Weights.insert(Weight.begin(), Weight.end());
     } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
-      GraphRef.Model->update(llamaToMlxllm(ModelFilePath));
+      auto Weight = llamaToMlxllm(ModelFilePath);
+      Weights.insert(Weight.begin(), Weight.end());
     } else {
       spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
       Env.deleteGraph(GId);
@@ -234,8 +228,51 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     }
   }
 
+  // Create Model.
+  if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
+    GraphRef.Model = llm::tinyLlama11BChatV10();
+    GraphRef.Prmopt = TinyLLaMAPrompt();
+    GraphRef.ModelArch = "llm";
+  } else if (GraphRef.ModelType == "llama_3_8b") {
+    GraphRef.Model = llm::llama38b();
+    GraphRef.Prmopt = LLaMA3Prompt();
+    GraphRef.ModelArch = "llm";
+  } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
+    GraphRef.Model = llm::llama27bChat();
+    GraphRef.Prmopt = LLaMA2Prompt();
+    GraphRef.ModelArch = "llm";
+  } else if (GraphRef.ModelType == "gemma_3") {
+    auto Obj = Doc.get_object();
+    gemma3::ModelConfig ModelConfigObj =
+        gemma3::ModelConfig::fromDict(Obj.value());
+    ModelConfigObj.VisionConfig = gemma3::VisionConfig::fromDict(
+        Obj["vision_config"].get_object().value());
+    ModelConfigObj.TextConfig =
+        gemma3::TextConfig::fromDict(Obj["text_config"].get_object().value());
+    GraphRef.Model = std::dynamic_pointer_cast<nn::Module>(
+        std::make_shared<gemma3::Model>(gemma3::Model(ModelConfigObj)));
+    GraphRef.ModelArch = "vlm";
+  } else {
+    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    Env.deleteGraph(GId);
+    return ErrNo::InvalidArgument;
+  }
+
   if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && !GraphRef.IsQuantized) {
     GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
+  }
+
+  // Load weight.
+  if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
+    GraphRef.Model->update(Weights);
+  } else if (GraphRef.ModelType == "llama_3_8b") {
+    GraphRef.Model->update(Weights);
+  } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
+    GraphRef.Model->update(Weights);
+  } else {
+    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    Env.deleteGraph(GId);
+    return ErrNo::InvalidArgument;
   }
 
   GraphId = GId;
@@ -289,40 +326,10 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: compute"sv);
   }
-  const std::vector<int32_t> Ids = GraphRef.Tok->Encode(CxtRef.Inputs);
-  auto Token =
-      mx::array(Ids.data(), {static_cast<int32_t>(Ids.size())}, mx::int32);
-  std::vector<int32_t> TokenList;
-  std::string Answer;
-  int32_t Skip = 0;
-  uint64_t TokenCount = 0;
-  auto [Y, KVCache] = GraphRef.Model->generate(Token, 0.1);
-  while (true) {
-    TokenCount++;
-    if (TokenCount > GraphRef.MaxToken) {
-      break;
-    }
-    eval(Y);
-    std::vector<int32_t> Tokens;
-    auto *Data = Y.data<int32_t>();
-    for (int Idx = 0; Idx < static_cast<int>(Y.size()); Idx++) {
-      Tokens.emplace_back(Data[Idx]);
-    }
-    // TODO: break when the token is the eos_token_id
-    TokenList.insert(TokenList.end(), Tokens.begin(), Tokens.end());
-    Answer = GraphRef.Tok->Decode(TokenList);
-    const AnswerSataus Status = answerSataus(Answer, GraphRef.Prmopt.TextEnd);
-    if (Status == STOP) {
-      break;
-    }
-    if (Status == GO) {
-      CxtRef.Outputs += Answer.substr(Skip);
-      Skip = Answer.size();
-    }
-    auto [NY, NKVCache] =
-        GraphRef.Model->nextGenerate(Y, GraphRef.Temp, KVCache);
-    Y = NY, KVCache = NKVCache;
-  }
+  CxtRef.Outputs = std::dynamic_pointer_cast<llm::Transformer>(GraphRef.Model)
+                       ->generate(CxtRef.Inputs, GraphRef.Prmopt,
+                                  GraphRef.MaxToken, false, GraphRef.Tok)
+                       .Answer;
   return WASINN::ErrNo::Success;
 }
 #else

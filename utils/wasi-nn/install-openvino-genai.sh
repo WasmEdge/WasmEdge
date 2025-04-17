@@ -33,4 +33,3 @@ rm ${OPENVINOGEN_TGZ_NAME}.tgz
 echo "OpenVINO GenAI installed at `pwd`/$OPENVINOGEN_DIRNAME"
 echo "Please source the setupvars.sh script in the OpenVINO GenAI directory to use the OpenVINO GenAI tools."
 echo "# source $PWD/$OPENVINOGEN_DIRNAME/setupvars.sh"
-

@@ -261,17 +261,14 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
     }
     // TODO: break when the token is the eos_token_id
     TokenList.insert(TokenList.end(), Tokens.begin(), Tokens.end());
-    if (Verbose) {
-
-      Answer = Tok->Decode(TokenList);
-    }
+    Answer = Tok->Decode(TokenList);
     const AnserSataus Status = answerSataus(Answer, ModelPrompt.TextEnd);
     if (Status == STOP) {
       break;
     }
     if (Status == GO) {
       if (Verbose) {
-        std::cout << Answer.substr(Skip) << std::flush;
+        spdlog::info("[WASI-NN] MLX backend: {}"sv, Answer.substr(Skip));
       }
       Skip = Answer.size();
     }

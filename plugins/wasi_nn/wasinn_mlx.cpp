@@ -170,10 +170,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return ErrNo::InvalidArgument;
   }
 
-  if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && GraphRef.IsQuantized) {
-    GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
-  }
-
   std::unordered_map<std::string, mx::array> Weights;
   // Handle the model path.
   for (size_t Idx = 0; Idx < Builders.size() - 1; Idx++) {
@@ -258,7 +254,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     return ErrNo::InvalidArgument;
   }
 
-  if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && !GraphRef.IsQuantized) {
+  if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && GraphRef.IsQuantized) {
     GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }
 
@@ -273,6 +269,10 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
     Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
+  }
+
+  if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && !GraphRef.IsQuantized) {
+    GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }
 
   GraphId = GId;

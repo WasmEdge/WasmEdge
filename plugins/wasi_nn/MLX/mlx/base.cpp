@@ -23,6 +23,11 @@ void Module::update(std::unordered_map<std::string, mx::array> Parameters) {
 std::shared_ptr<nn::Module> Module::toQuantized(int GroupSize, int Bits) {
   for (auto &[K, V] : Submodules) {
     const auto OldModule = V;
+    auto Weights = V->Parameters.find("weight");
+    if (Weights != V->Parameters.end() &&
+        Weights->second.shape().back() % GroupSize != 0) {
+      continue;
+    }
     V = V->toQuantized(GroupSize, Bits);
   }
   return shared_from_this();

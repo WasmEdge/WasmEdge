@@ -2,27 +2,24 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #pragma once
-
 #include "mlx/activations.h"
 #include "mlx/base.h"
 #include "mlx/embedding.h"
 #include "mlx/linear.h"
 #include "mlx/normalization.h"
 #include "mlx/positional_encoding.h"
-namespace WasmEdge::Host::WASINN::MLX {
-
+#include "prompt/prompt.h"
 #include <mlx/array.h>
 #include <mlx/fast.h>
 #include <mlx/ops.h>
-
 #include <optional>
+#include <tokenizers_cpp.h>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
-
 namespace WasmEdge::Host::WASINN::MLX {
-
 namespace nn = mlx::core::nn;
+namespace llm {
 
 class RMSNorm : public nn::Module {
   float Eps;
@@ -31,11 +28,10 @@ public:
   RMSNorm(int Dims, float Eps = 1e-5) : Eps(Eps) {
     registerParameter("weight", mx::ones({Dims}));
   }
-
   mx::array forward(mx::array Input);
 };
-
 class Attention : public nn::Module {
+
   int NHeads;
   int NKVHeads;
   bool NormQKProj;
@@ -82,12 +78,10 @@ public:
                    std::make_shared<nn::RoPE>(nn::RoPE(HeadDim, RopeTraditional,
                                                        RopeTheta, RopeScale)));
   }
-
   std::tuple<mx::array, std::tuple<mx::array, mx::array>>
   forward(mx::array Input, std::optional<mx::array> Mask = {},
           std::optional<std::tuple<mx::array, mx::array>> KVCache = {});
 };
-
 class MLP : public nn::Module {
   bool Gemma;
 
@@ -100,10 +94,8 @@ public:
     registerModule("up_proj", std::make_shared<nn::Linear>(
                                   nn::Linear(Dim, HiddenDim, false)));
   }
-
   mx::array forward(mx::array Input);
 };
-
 class TransformerBlock : public nn::Module {
   bool Gemma;
 
@@ -133,18 +125,16 @@ public:
                      std::make_shared<RMSNorm>(RMSNorm(Dim, NormEps)));
     }
   }
-
   std::tuple<mx::array, std::tuple<mx::array, mx::array>>
   forward(mx::array Input, std::optional<mx::array> Mask = {},
           std::optional<std::tuple<mx::array, mx::array>> KVCachePar = {});
 };
-
 class Transformer : public nn::Module {
   int Dim;
   std::optional<std::vector<int>> HiddenDim;
   bool Gemma;
   bool EmbedAsHead;
-  std::vector<std::shared_ptr<TransformerBlock>> Layers;
+  std::vector<std::shared_ptr<TransformerBlock>> Layers{};
 
 public:
   Transformer(
@@ -160,8 +150,7 @@ public:
       : Dim(Dim), HiddenDim(HiddenDim), Gemma(Gemma),
         EmbedAsHead(EmbedAsHeadPar) {
     if (VocabSize <= 0) {
-      spdlog::error(
-          "[WASI-NN] MLX backend: VocabSize must be greater than 0."sv);
+      spdlog::error("VocabSize must be greater than 0.");
       assumingUnreachable();
     }
     EmbedAsHead = Gemma ? true : EmbedAsHead;
@@ -211,31 +200,32 @@ public:
                                  nn::Linear(Dim, VocabSize, false)));
     }
   }
-
+  struct LLMOutput {
+    std::string Answer;
+    std::vector<int32_t> TokenList;
+  };
   std::tuple<mx::array,
              std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
   embed(mx::array Input,
         std::optional<std::vector<std::tuple<mx::array, mx::array>>>
             KVCachePar = {},
         bool Norm = false);
-
   std::tuple<mx::array,
              std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
   forward(mx::array Input,
           std::optional<std::vector<std::tuple<mx::array, mx::array>>>
               KVCachePar = {});
-
   std::tuple<mx::array,
              std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
-  generate(mx::array Input, std::optional<float> Temp = 0.0);
-
+  stepGenerate(mx::array Input, std::optional<float> Temp = 0.0);
   std::tuple<mx::array,
              std::optional<std::vector<std::tuple<mx::array, mx::array>>>>
-  nextGenerate(mx::array Y, std::optional<float> Temp = 0.0,
-               std::optional<std::vector<std::tuple<mx::array, mx::array>>>
-                   KVCachePar = {});
+  nextStepGenerate(mx::array Y, std::optional<float> Temp = 0.0,
+                   std::optional<std::vector<std::tuple<mx::array, mx::array>>>
+                       KVCachePar = {});
+  LLMOutput generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
+                     const int MaxToken, const bool Verbose,
+                     const std::unique_ptr<tokenizers::Tokenizer> &Tok);
 };
-
-} // namespace WasmEdge::Host::WASINN::MLX
-
+} // namespace llm
 } // namespace WasmEdge::Host::WASINN::MLX

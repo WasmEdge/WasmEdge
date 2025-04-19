@@ -43,17 +43,24 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     target_sources(wasmedgePluginWasiNN
       PRIVATE
       MLX/prompt/prompt.cpp
-      MLX/model/transformer.cpp
+      MLX/model/llm/transformer.cpp
+      MLX/model/llm/registry.cpp
+      MLX/model/gemma3/language.cpp
+      MLX/model/gemma3/vision.cpp
+      MLX/model/gemma3/gemma3.cpp
       MLX/model/converter.cpp
       MLX/model/utils.cpp
-      MLX/model/registry.cpp
+      MLX/model/vlm_base.cpp
+      MLX/model/vlm_sampling.cpp
       MLX/mlx/base.cpp
       MLX/mlx/linear.cpp
+      MLX/mlx/convolution.cpp
       MLX/mlx/positional_encoding.cpp
       MLX/mlx/activations.cpp
       MLX/mlx/embedding.cpp
       MLX/mlx/normalization.cpp
       MLX/mlx/transformer.cpp
+      MLX/mlx/pooling.cpp
       MLX/mlx/quantized.cpp
     )
   endif()

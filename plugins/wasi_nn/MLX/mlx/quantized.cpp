@@ -19,8 +19,7 @@ mx::array QuantizedEmbedding::forward(mx::array Input) {
       mx::dequantize(take(Parameters.at("weight"), Input, 0),
                      take(Parameters.at("scales"), Input, 0),
                      take(Parameters.at("biases"), Input, 0), GroupSize, Bits);
-  S.emplace_back(-1);
-  return reshape(Out, {S});
+  return Out;
 }
 
 mx::array QuantizedLinear::forward(mx::array Input) {
@@ -53,10 +52,12 @@ std::shared_ptr<QuantizedLinear>
 QuantizedLinear::fromLinear(std::shared_ptr<Linear> LinearModule, int GroupSize,
                             int Bits) {
   auto LinearShape = LinearModule->Parameters.at("weight").shape();
+  auto OutputDims = LinearShape[0];
+  auto InputDims = LinearShape[1];
   const bool EnableBias =
       LinearModule->Parameters.find("bias") != LinearModule->Parameters.end();
-  auto QuantizedModel = std::make_shared<QuantizedLinear>(QuantizedLinear(
-      LinearShape[0], LinearShape[1], EnableBias, GroupSize, Bits));
+  auto QuantizedModel = std::make_shared<QuantizedLinear>(
+      QuantizedLinear(InputDims, OutputDims, EnableBias, GroupSize, Bits));
   auto Quantized =
       mx::quantize(LinearModule->Parameters.at("weight"), GroupSize, Bits);
   QuantizedModel->Parameters.insert_or_assign("weight", std::get<0>(Quantized));

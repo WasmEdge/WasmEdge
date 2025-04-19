@@ -29,7 +29,7 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 ## Current Roadmap
 
-Last Updated: Q1 / 2025
+Last Updated: Q2 / 2025
 
 | Theme            | Description | Timeline | Assignee |
 | ---              | ----------- | -------- | -------- |
@@ -41,19 +41,13 @@ Last Updated: Q1 / 2025
 | Feature          | Wasm coredump | Q2 / 2025 | |
 | Feature          | DWARF symbol | Q2 / 2025 | |
 | Language Binding | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) | Q2 / 2025 | |
-| Proposal         | WASI-NN GGML plugin with latest llama.cpp integration | Q1 / 2025 | [@dm4](https://github.com/dm4) |
-| Proposal         | [WASI-NN GGML plugin: support mllama for llama 3.2](https://github.com/WasmEdge/WasmEdge/pull/3929) | Q1 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal         | [WASI-NN TensorRT plugin initial support](https://github.com/WasmEdge/WasmEdge/pull/3878) | Q1 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) |
-| Proposal         | WASI-NN ChatTTS plugin with llama.cpp integration | Q1 / 2025 | [@dm4](https://github.com/dm4) |
-| Proposal         | [WASI preview2 partial as plugins](https://github.com/WasmEdge/WasmEdge/pull/3753) | Q1 / 2025 | [@dannypsnl](https://github.com/dannypsnl) |
-| Proposal         | [Component model proposal: validator (LFX 2025/term1)](https://github.com/WasmEdge/WasmEdge/issues/3966) | Q1 / 2025 | [@dannypsnl](https://github.com/dannypsnl) |
-| Feature          | [Setup workflows for](https://github.com/WasmEdge/WasmEdge/issues/3840) [cpp-plugins repo](https://github.com/WasmEdge/cpp-plugins) | Q1 / 2025 | [@0yi0](https://github.com/0yi0) |
-| Feature          | [Apply `-Wshadow` and `-Wshadow-field` to enhance the codebase](https://github.com/WasmEdge/WasmEdge/pull/3055) | Q1 / 2025 | [@hydai](https://github.com/hydai) |
-| Feature          | Fix the IWYU reported errors | Q1 / 2025 | [@hydai](https://github.com/hydai) |
+| Proposal         | WASI-NN GGML plugin with latest llama.cpp integration | Q2 / 2025 | [@dm4](https://github.com/dm4) |
+| Proposal         | [Component model proposal: validator (LFX 2025/term1)](https://github.com/WasmEdge/WasmEdge/issues/3966) | Q2 / 2025 | [@dannypsnl](https://github.com/dannypsnl) |
 | Feature          | A new WasmEdge installer and plugin manager | Q2 / 2025 | [@hydai](https://github.com/hydai) |
 | Feature          | Support stack tracing in the JIT and AOT modes | Q2 / 2025 | [@hydai](https://github.com/hydai) |
-| Feature          | Upgrade WasmEdge version in Runwasi | Q1 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) |
-| Feature          | Add support for WasmEdge plugins in Runwasi | Q1 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) |
+| Feature | [Setup workflows for](https://github.com/WasmEdge/WasmEdge/issues/3840) [cpp-plugins repo](https://github.com/WasmEdge/cpp-plugins) | Q2 / 2025 | @0yi0 |
+| Proposal         | WASI-NN GGML plugin: support Mllama | Q2 / 2025 | [@dm4](https://github.com/dm4) |
+| Proposal         | WASI-NN GGML plugin: support Gemma-3 | Q2 / 2025 | [@dm4](https://github.com/dm4) |
 
 ## Inactive Roadmap
 
@@ -65,8 +59,29 @@ Last Updated: Q1 / 2025
 | Language Binding | Move Go binding back into WasmEdge org |
 | Feature | [Redirection of stdin, stdout, and stderr in C SDK](https://github.com/WasmEdge/WasmEdge/issues/2936) |
 | Proposal | [WASI-NN GGML plugin with CANN support](https://github.com/WasmEdge/WasmEdge/issues/3768) |
+| Proposal | [WASI-NN TensorRT plugin initial support](https://github.com/WasmEdge/WasmEdge/pull/3878) |
+| Feature | Update installer to use manylinux_2_28 from 0.15.0 |
+| Proposal | Support TensorRT in wasi_nn plugin |
+| Proposal | WASI: partial preview2 as plugins |
+| Feature | Apply `-Wshadow` and `-Wshadow-field` to enhance the codebase |
+| Feature | Fix the IWYU reported errors |
 
 ## Previous Roadmap
+
+### Q1/2025
+
+| Theme | Description | Timeline | Assignee | Status |
+| --- | --- | --- | --- | --- |
+| Proposal | [WASI-NN GGML plugin: support mllama for llama 3.2](https://github.com/WasmEdge/WasmEdge/pull/3929) | Q1 / 2025 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | WASI-NN ChatTTS plugin with llama.cpp integration | Q1 / 2025 | [@dm4](https://github.com/dm4) | Completed |
+| Proposal | WASI-NN GGML plugin: support Qwen2VL | Q1 / 2025 | @dm4 | Completed |
+| Feature | Update installer to use manylinux_2_28 from 0.15.0 | Q1 / 2025 | [@0yi0](https://github.com/0yi0) | Staled |
+| Proposal | [WASI-NN TensorRT plugin initial support](https://github.com/WasmEdge/WasmEdge/pull/3878) | Q1 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) | Staled |
+| Proposal | [WASI preview2 partial as plugins](https://github.com/WasmEdge/WasmEdge/pull/3753) | Q1 / 2025 | [@dannypsnl](https://github.com/dannypsnl) | Staled |
+| Feature | [Apply `-Wshadow` and `-Wshadow-field` to enhance the codebase](https://github.com/WasmEdge/WasmEdge/pull/3055) | Q1 / 2025 | [@hydai](https://github.com/hydai) | Staled |
+| Feature | Fix the IWYU reported errors | Q1 / 2025 | [@hydai](https://github.com/hydai) | Staled |
+| Feature | Upgrade WasmEdge version in Runwasi | Q1 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) | Completed |
+| Feature | Add support for WasmEdge plugins in Runwasi | Q1 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) | Completed |
 
 ### Q4/2024
 

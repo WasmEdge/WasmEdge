@@ -1082,6 +1082,8 @@ E(MissingArgument, 0x050C, "missing argument")
 E(ArgTypeMismatch, 0x050D, "type mismatch")
 // Invalid Index
 E(InvalidIndex, 0x050E, "invalid index")
+// Invalid Type Reference
+E(InvalidTypeReference, 0x050F, "invalid type reference")
 // @}
 
 // Component model instantiation phase

@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <numeric>
+#include <set>
 #include <string>
 #include <unordered_set>
 #include <variant>
@@ -18,6 +19,56 @@ using namespace std::literals;
 
 namespace WasmEdge {
 namespace Validator {
+
+namespace details {
+static constexpr uint32_t MAX_SUBTYPE_DEPTH = 64;
+
+static Expect<void> calculateSubtypeDepth(uint32_t TypeIdx,
+                                          FormChecker &Checker) {
+  std::set<uint32_t> VisitedNodes;
+
+  std::function<Expect<void>(uint32_t, uint32_t, std::set<uint32_t> &)>
+      calculate = [&](uint32_t Index, uint32_t Depth,
+                      std::set<uint32_t> &VisitedSet) -> Expect<void> {
+    if (VisitedSet.count(Index)) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error("Cycle detected in subtype hierarchy for type {}.", Index);
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+
+    if (Depth >= MAX_SUBTYPE_DEPTH) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error("subtype depth for Type section's {}th signature exceeded "
+                    "the limits of {}",
+                    TypeIdx, MAX_SUBTYPE_DEPTH - 1);
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+
+    VisitedSet.insert(Index);
+    const auto &TypeVec = Checker.getTypes();
+
+    if (Index >= TypeVec.size()) {
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+
+    const auto &Type = *TypeVec[Index];
+
+    for (const auto SuperIdx : Type.getSuperTypeIndices()) {
+      if (SuperIdx >= TypeVec.size()) {
+        return Unexpect(ErrCode::Value::InvalidSubType);
+      }
+
+      if (auto Res = calculate(SuperIdx, Depth + 1, VisitedSet); !Res) {
+        return Unexpect(Res.error());
+      }
+    }
+
+    return {};
+  };
+
+  return calculate(TypeIdx, 0, VisitedNodes);
+}
+} // namespace details
 
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {
@@ -165,32 +216,44 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
     }
   }
 
-  // In current version, the length of type index vector will be <= 1.
-  if (Type.getSuperTypeIndices().size() > 1) {
+  // Enforce constraint when the GC proposal is disabled.
+  if (!Conf.hasProposal(Proposal::GC) &&
+      Type.getSuperTypeIndices().size() > 1) {
     spdlog::error(ErrCode::Value::InvalidSubType);
     spdlog::error("    Accepts 1 super type currently."sv);
     return Unexpect(ErrCode::Value::InvalidSubType);
   }
-  for (auto Index : Type.getSuperTypeIndices()) {
-    if (Index >= TypeVec.size()) {
-      spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error(
-          ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::DefinedType, Index,
-                                   static_cast<uint32_t>(TypeVec.size())));
-      return Unexpect(ErrCode::Value::InvalidSubType);
-    }
-    if (TypeVec[Index]->isFinal()) {
-      spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error("    Super type should not be final."sv);
-      return Unexpect(ErrCode::Value::InvalidSubType);
-    }
-    auto &SuperType = TypeVec[Index]->getCompositeType();
-    if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType, CompType)) {
-      spdlog::error(ErrCode::Value::InvalidSubType);
-      spdlog::error("    Super type not matched."sv);
-      return Unexpect(ErrCode::Value::InvalidSubType);
+
+  // Validate subtype depth when GC proposal is enabled
+  if (Conf.hasProposal(Proposal::GC) && !Type.getSuperTypeIndices().empty()) {
+    for (const auto &Index : Type.getSuperTypeIndices()) {
+      if (unlikely(Index >= TypeVec.size())) {
+        spdlog::error(ErrCode::Value::InvalidSubType);
+        spdlog::error("    Super type not found."sv);
+        return Unexpect(ErrCode::Value::InvalidSubType);
+      }
+
+      // Calculate and check subtype depth
+      if (auto Res = details::calculateSubtypeDepth(Index, Checker); !Res) {
+        return Unexpect(Res.error());
+      }
+
+      if (TypeVec[Index]->isFinal()) {
+        spdlog::error(ErrCode::Value::InvalidSubType);
+        spdlog::error("    Super type should not be final."sv);
+        return Unexpect(ErrCode::Value::InvalidSubType);
+      }
+
+      auto &SuperType = TypeVec[Index]->getCompositeType();
+      if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType,
+                                       CompType)) {
+        spdlog::error(ErrCode::Value::InvalidSubType);
+        spdlog::error("    Super type not matched."sv);
+        return Unexpect(ErrCode::Value::InvalidSubType);
+      }
     }
   }
+
   return {};
 }
 

@@ -25,6 +25,20 @@ struct WasiNNEnvironment;
 
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
+struct LLMInput {
+  std::string Prompt = {};
+};
+struct LLMOutput {
+  std::string Answer = {};
+};
+struct VLMInput {
+  mx::array Prompt = mx::array({});
+  mx::array Pixel = mx::array({});
+  mx::array Mask = mx::array({});
+};
+struct VLMOutput {
+  mx::array Answer = mx::array({});
+};
 struct Graph {
   std::string ModelType;
   std::string ModelArch;
@@ -41,8 +55,8 @@ struct Graph {
 struct Context {
   Context(uint32_t Gid, Graph &) noexcept : GraphId(Gid) {}
   uint32_t GraphId;
-  std::string Inputs;
-  std::string Outputs;
+  std::variant<LLMInput, VLMInput> Inputs;
+  std::variant<LLMOutput, VLMOutput> Outputs;
 };
 #else
 struct Graph {};

@@ -217,6 +217,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
       auto Weight = llamaToMlxllm(ModelFilePath);
       Weights.insert(Weight.begin(), Weight.end());
+    } else if (GraphRef.ModelType == "gemma_3") {
+      auto Weight = mx::load_safetensors(ModelFilePath);
+      Weights.insert(Weight.first.begin(), Weight.first.end());
     } else {
       spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
       Env.deleteGraph(GId);
@@ -247,6 +250,10 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
         gemma3::TextConfig::fromDict(Obj["text_config"].get_object().value());
     GraphRef.Model = std::dynamic_pointer_cast<nn::Module>(
         std::make_shared<gemma3::Model>(gemma3::Model(ModelConfigObj)));
+    Weights = std::dynamic_pointer_cast<gemma3::Model>(GraphRef.Model)
+                  ->sanitize(Weights);
+    Weights =
+        gemma3::VisionModel(ModelConfigObj.VisionConfig).sanitize(Weights);
     GraphRef.ModelArch = "vlm";
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
@@ -264,6 +271,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   } else if (GraphRef.ModelType == "llama_3_8b") {
     GraphRef.Model->update(Weights);
   } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
+    GraphRef.Model->update(Weights);
+  } else if (GraphRef.ModelType == "gemma_3") {
     GraphRef.Model->update(Weights);
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
@@ -284,19 +293,51 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
                                   uint32_t &ContextId) noexcept {
   ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
   Env.NNContext[ContextId].setReady();
+  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  if (GraphRef.ModelArch == "llm") {
+    CxtRef.Inputs = LLMInput();
+  } else if (GraphRef.ModelArch == "vlm") {
+    CxtRef.Inputs = VLMInput();
+  } else {
+    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    Env.deleteContext(ContextId);
+    return ErrNo::InvalidArgument;
+  }
   return ErrNo::Success;
 }
 
 Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
-                               uint32_t, const TensorData &Tensor) noexcept {
+                               uint32_t Index,
+                               const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: setInput"sv);
   }
-  CxtRef.Inputs =
-      std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
-                  Tensor.Tensor.size());
+
+  if (GraphRef.ModelArch == "llm") {
+    std::get<LLMInput>(CxtRef.Inputs).Prompt =
+        std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
+                    Tensor.Tensor.size());
+  } else if (GraphRef.ModelArch == "vlm") {
+    auto TensorPath =
+        std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
+                    Tensor.Tensor.size());
+    if (Index == 0) {
+      std::get<VLMInput>(CxtRef.Inputs).Prompt = mx::load(TensorPath);
+    } else if (Index == 1) {
+      std::get<VLMInput>(CxtRef.Inputs).Pixel = mx::load(TensorPath);
+    } else if (Index == 2) {
+      std::get<VLMInput>(CxtRef.Inputs).Mask = mx::load(TensorPath);
+    } else {
+      spdlog::error("[WASI-NN] MLX backend: Index out of range."sv);
+      return ErrNo::InvalidArgument;
+    }
+  } else {
+    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    return ErrNo::InvalidArgument;
+  }
   return WASINN::ErrNo::Success;
 }
 
@@ -308,10 +349,32 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: getOutput"sv);
   }
-  std::string StringTmp(reinterpret_cast<const char *>(CxtRef.Outputs.data()),
-                        CxtRef.Outputs.size());
-  std::copy_n(StringTmp.data(), StringTmp.length(), OutBuffer.data());
-  BytesWritten = StringTmp.length();
+  if (GraphRef.ModelArch == "llm") {
+    auto *Output = std::get_if<LLMOutput>(&CxtRef.Outputs);
+    if (Output != nullptr) {
+      std::copy_n(Output->Answer.data(), Output->Answer.length(),
+                  OutBuffer.data());
+      BytesWritten = Output->Answer.length();
+    } else {
+      spdlog::error("[WASI-NN] MLX backend: No output found."sv);
+      return ErrNo::InvalidArgument;
+    }
+  } else if (GraphRef.ModelArch == "vlm") {
+    auto *Output = std::get_if<VLMOutput>(&CxtRef.Outputs);
+    if (Output != nullptr) {
+      auto Answer = Output->Answer;
+      std::string OutputPath = "Answer.npy";
+      mx::save(OutputPath, Answer);
+      std::copy_n(OutputPath.data(), OutputPath.size(), OutBuffer.data());
+      BytesWritten = OutputPath.size();
+    } else {
+      spdlog::error("[WASI-NN] MLX backend: No output found."sv);
+      return ErrNo::InvalidArgument;
+    }
+  } else {
+    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    return ErrNo::InvalidArgument;
+  }
   return WASINN::ErrNo::Success;
 }
 
@@ -326,10 +389,30 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   if (GraphRef.EnableDebugLog) {
     spdlog::info("[WASI-NN] MLX backend: compute"sv);
   }
-  CxtRef.Outputs = std::dynamic_pointer_cast<llm::Transformer>(GraphRef.Model)
-                       ->generate(CxtRef.Inputs, GraphRef.Prmopt,
-                                  GraphRef.MaxToken, false, GraphRef.Tok)
-                       .Answer;
+  if (GraphRef.ModelArch == "llm") {
+
+    CxtRef.Outputs = LLMOutput(
+        {std::dynamic_pointer_cast<llm::Transformer>(GraphRef.Model)
+             ->generate(std::get<LLMInput>(CxtRef.Inputs).Prompt,
+                        GraphRef.Prmopt, GraphRef.MaxToken, false, GraphRef.Tok)
+             .Answer});
+  } else if (GraphRef.ModelArch == "vlm") {
+    auto &Input = std::get<VLMInput>(CxtRef.Inputs);
+    std::map<std::string, std::variant<mx::array, int, float, std::string>>
+        Kwargs;
+    Kwargs.insert({"image_token_index", 262144});
+    Kwargs.insert({"input_ids", Input.Prompt});
+    Kwargs.insert({"pixel_values", Input.Pixel});
+    Kwargs.insert({"mask", Input.Mask});
+    auto TokenList = std::dynamic_pointer_cast<gemma3::Model>(GraphRef.Model)
+                         ->generate({}, std::nullopt, true, Kwargs);
+    auto TokenArray =
+        mx::array(TokenList.data(), {static_cast<int>(TokenList.size())});
+    CxtRef.Outputs = VLMOutput({TokenArray});
+  } else {
+    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    return ErrNo::InvalidArgument;
+  }
   return WASINN::ErrNo::Success;
 }
 #else

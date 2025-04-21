@@ -346,13 +346,13 @@ std::vector<int> Module::generate(
         Kwargs) {
 
   if (Verbose) {
-    spdlog::info("==========");
+    spdlog::info("=========="sv);
     if (Image.has_value()) {
-      spdlog::info("Files: {}\n", Image.value());
+      spdlog::info("Files: {}\n"sv, Image.value());
     } else if (Kwargs.count("Video") > 0) {
       /* Print video path */
     }
-    spdlog::info("Prompt: {}", Prompt);
+    spdlog::info("Prompt: {}"sv, Prompt);
   }
 
   std::string Text = "";
@@ -506,19 +506,20 @@ std::vector<int> Module::generate(
   }
   return TokenList;
   // end stream generate
+  // TODO: waiting for processor
   if (Verbose) {
-    spdlog::info("\n==========");
+    spdlog::info("\n=========="sv);
     if (Text.empty()) {
-      spdlog::info("No text generated for this prompt");
+      spdlog::info("No text generated for this prompt"sv);
       return {};
       // return Text;
     }
 
-    spdlog::info("Prompt: {} tokends, {} tokens-per-sec",
+    spdlog::info("Prompt: {} tokends, {} tokens-per-sec"sv,
                  LastResponse.PromptTokens, LastResponse.PromptTps);
-    spdlog::info("Generation: {} tokens {} tokens-per-sec",
+    spdlog::info("Generation: {} tokens {} tokens-per-sec"sv,
                  LastResponse.GenerationTokens, LastResponse.GenerationTps);
-    spdlog::info("Peak memory: {} GB");
+    spdlog::info("Peak memory: {} GB"sv);
   }
 
   // return Text;

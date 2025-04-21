@@ -772,8 +772,32 @@ public:
         stackPop();
         break;
       }
-      // case OpCode::Br_on_cast:
-      // case OpCode::Br_on_cast_fail:
+      case OpCode::Br_on_cast:
+      case OpCode::Br_on_cast_fail: {
+        auto Ref = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
+        const auto Label = Instr.getBrCast().Jump.TargetIndex;
+        std::array<uint8_t, 16> Val = {0};
+        std::copy_n(Instr.getBrCast().RType2.getRawData().cbegin(), 8,
+                    Val.begin());
+        auto VType = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+        auto IsRefTest = Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kRefTest,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int32Ty,
+                                     {Context.Int64x2Ty, Context.Int64Ty},
+                                     false)),
+            {Ref, Builder.createExtractElement(VType, LLContext.getInt64(0))});
+        auto Cond =
+            (Instr.getOpCode() == OpCode::Br_on_cast)
+                ? Builder.createICmpNE(IsRefTest, LLContext.getInt32(0))
+                : Builder.createICmpEQ(IsRefTest, LLContext.getInt32(0));
+        setLableJumpPHI(Label);
+        auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "br_on_cast.end");
+        Builder.createCondBr(Cond, getLabel(Label), Next);
+        Builder.positionAtEnd(Next);
+        break;
+      }
       case OpCode::Return:
         compileReturn();
         setUnreachable();

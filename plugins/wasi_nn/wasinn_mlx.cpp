@@ -67,7 +67,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   // Parse metadata.
   if (Builders.size() <= 1) {
     spdlog::error(
-        "[WASI-NN] MLX backend: Lack model weight or required metadata (tokenizer, model_type)."sv);
+        "[WASI-NN] MLX backend: Lack model weight or required metadata (model_type)."sv);
     Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
@@ -118,11 +118,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       return ErrNo::InvalidArgument;
     }
     TokenizerPath = TokenizerPathView;
-  } else {
-    spdlog::error(
-        "[WASI-NN] MLX backend: Unable to retrieve the tokenizer option."sv);
-    Env.deleteGraph(GId);
-    return ErrNo::InvalidArgument;
   }
   if (Doc.at_key("max_token").error() == simdjson::SUCCESS) {
     uint64_t MaxToken;
@@ -153,21 +148,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.IsQuantized = IsQuantized;
     GraphRef.QBits = QBits;
     GraphRef.GroupSize = GroupSize;
-  }
-
-  // Load tokenizer.
-  if (!TokenizerPath.empty()) {
-    auto Bytes = loadBytesFromFile(TokenizerPath);
-    if (Bytes.empty()) {
-      spdlog::error("[WASI-NN] MLX backend: Load tokenizer failed."sv);
-      Env.deleteGraph(GId);
-      return ErrNo::InvalidArgument;
-    }
-    GraphRef.Tok = tokenizers::Tokenizer::FromBlobJSON(Bytes);
-  } else {
-    spdlog::error("[WASI-NN] MLX backend: Tokenizer path not found."sv);
-    Env.deleteGraph(GId);
-    return ErrNo::InvalidArgument;
   }
 
   std::unordered_map<std::string, mx::array> Weights;
@@ -217,7 +197,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
       auto Weight = llamaToMlxllm(ModelFilePath);
       Weights.insert(Weight.begin(), Weight.end());
-    } else if (GraphRef.ModelType == "gemma_3") {
+    } else if (GraphRef.ModelType == "gemma3") {
       auto Weight = mx::load_safetensors(ModelFilePath);
       Weights.insert(Weight.first.begin(), Weight.first.end());
     } else {
@@ -226,7 +206,6 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       return ErrNo::InvalidArgument;
     }
   }
-
   // Create Model.
   if (GraphRef.ModelType == "tiny_llama_1.1B_chat_v1.0") {
     GraphRef.Model = llm::tinyLlama11BChatV10();
@@ -240,14 +219,20 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.Model = llm::llama27bChat();
     GraphRef.Prmopt = LLaMA2Prompt();
     GraphRef.ModelArch = "llm";
-  } else if (GraphRef.ModelType == "gemma_3") {
+  } else if (GraphRef.ModelType == "gemma3") {
     auto Obj = Doc.get_object();
     gemma3::ModelConfig ModelConfigObj =
         gemma3::ModelConfig::fromDict(Obj.value());
-    ModelConfigObj.VisionConfig = gemma3::VisionConfig::fromDict(
-        Obj["vision_config"].get_object().value());
+    ModelConfigObj.VisionConfig =
+        (Obj.at_key("vision_config").error() == simdjson::SUCCESS)
+            ? gemma3::VisionConfig::fromDict(
+                  Obj["vision_config"].get_object().value())
+            : gemma3::VisionConfig();
     ModelConfigObj.TextConfig =
-        gemma3::TextConfig::fromDict(Obj["text_config"].get_object().value());
+        (Obj.at_key("text_config").error() == simdjson::SUCCESS)
+            ? gemma3::TextConfig::fromDict(
+                  Obj["text_config"].get_object().value())
+            : gemma3::TextConfig();
     GraphRef.Model = std::dynamic_pointer_cast<nn::Module>(
         std::make_shared<gemma3::Model>(gemma3::Model(ModelConfigObj)));
     Weights = std::dynamic_pointer_cast<gemma3::Model>(GraphRef.Model)
@@ -257,6 +242,21 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.ModelArch = "vlm";
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    Env.deleteGraph(GId);
+    return ErrNo::InvalidArgument;
+  }
+
+  // Load tokenizer.
+  if (!TokenizerPath.empty()) {
+    auto Bytes = loadBytesFromFile(TokenizerPath);
+    if (Bytes.empty()) {
+      spdlog::error("[WASI-NN] MLX backend: Load tokenizer failed."sv);
+      Env.deleteGraph(GId);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.Tok = tokenizers::Tokenizer::FromBlobJSON(Bytes);
+  } else if (GraphRef.ModelArch == "llm") {
+    spdlog::error("[WASI-NN] MLX backend: Tokenizer path not found."sv);
     Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
@@ -272,7 +272,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.Model->update(Weights);
   } else if (GraphRef.ModelType == "llama_2_7b_chat_hf") {
     GraphRef.Model->update(Weights);
-  } else if (GraphRef.ModelType == "gemma_3") {
+  } else if (GraphRef.ModelType == "gemma3") {
     GraphRef.Model->update(Weights);
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
@@ -382,7 +382,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  if (GraphRef.Tok == nullptr) {
+  if (GraphRef.ModelArch == "llm" && GraphRef.Tok == nullptr) {
     spdlog::error("[WASI-NN] MLX backend: Tokenizer not loaded."sv);
     return ErrNo::InvalidArgument;
   }
@@ -400,12 +400,12 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     auto &Input = std::get<VLMInput>(CxtRef.Inputs);
     std::map<std::string, std::variant<mx::array, int, float, std::string>>
         Kwargs;
-    Kwargs.insert({"image_token_index", 262144});
+    // Kwargs.insert({"image_token_index", 262144});
     Kwargs.insert({"input_ids", Input.Prompt});
     Kwargs.insert({"pixel_values", Input.Pixel});
     Kwargs.insert({"mask", Input.Mask});
     auto TokenList = std::dynamic_pointer_cast<gemma3::Model>(GraphRef.Model)
-                         ->generate({}, std::nullopt, true, Kwargs);
+                         ->generate({}, std::nullopt, false, Kwargs);
     auto TokenArray =
         mx::array(TokenList.data(), {static_cast<int>(TokenList.size())});
     CxtRef.Outputs = VLMOutput({TokenArray});

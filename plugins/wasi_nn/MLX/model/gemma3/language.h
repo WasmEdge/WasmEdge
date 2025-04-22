@@ -15,10 +15,10 @@ namespace nn = mlx::core::nn;
 namespace gemma3 {
 
 struct TextConfig {
-  std::string ModelType;
-  int HiddenSize;
-  int NumHiddenLayers;
-  int IntermediateSize;
+  std::string ModelType = "gemma3_text";
+  int HiddenSize = 2560;
+  int NumHiddenLayers = 34;
+  int IntermediateSize = 10240;
   int NumAttentionHeads = 8;
   int HeadDim = 256;
   float RmsNormEps = 1.0e-6;

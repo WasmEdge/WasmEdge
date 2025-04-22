@@ -208,8 +208,11 @@ std::shared_ptr<Model> Model::fromPretrained(const std::string &ModelPath) {
     if (P.path().extension() == ".safetensors")
       WeightFiles.push_back(P.path());
   }
-  if (WeightFiles.empty())
-    throw std::runtime_error("No safetensors found in " + Path.string());
+  if (WeightFiles.empty()) {
+    spdlog::error("[WASI-NN] MLX backend: No safetensors found in {}."sv,
+                  Path.string());
+    assumingUnreachable();
+  }
   std::unordered_map<std::string, mx::array> Weights;
   for (auto &Wf : WeightFiles) {
     auto W = mx::load_safetensors(Wf.string());

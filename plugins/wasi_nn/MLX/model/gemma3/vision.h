@@ -16,13 +16,13 @@ namespace nn = mlx::core::nn;
 namespace gemma3 {
 
 struct VisionConfig {
-  std::string ModelType;
-  int NumHiddenLayers;
-  int HiddenSize;
-  int IntermediateSize;
-  int NumAttentionHeads;
-  int PatchSize;
-  int ImageSize = 224;
+  std::string ModelType = "siglip_vision_model";
+  int NumHiddenLayers = 27;
+  int HiddenSize = 1152;
+  int IntermediateSize = 4304;
+  int NumAttentionHeads = 16;
+  int PatchSize = 14;
+  int ImageSize = 896;
   int NumChannels = 3;
   float LayerNormEps = 1e-6f;
   static VisionConfig fromDict(const simdjson::dom::object &Obj);

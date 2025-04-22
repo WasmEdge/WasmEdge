@@ -72,8 +72,11 @@ VisionAttention::VisionAttention(int Dims, int NumHeads,
                                  std::optional<int> ValueDims,
                                  std::optional<int> ValueOutputDims, bool Bias)
     : NumHeads(NumHeads) {
-  if (Dims % NumHeads != 0)
-    throw std::invalid_argument("Invalid dims");
+  if (Dims % NumHeads != 0) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Dims must be divisible by NumHeads"sv);
+    assumingUnreachable();
+  }
   int QInput = QueryInputDims.value_or(Dims);
   int KInput = KeyInputDims.value_or(Dims);
   int VInput = ValueInputDims.value_or(KInput);
@@ -237,8 +240,11 @@ SigLipVisionModel::forward(const mx::array &X,
 VisionModel::VisionModel(const VisionConfig &Config) {
   ModelType = Config.ModelType;
   if (ModelType != "siglip_vision_model" && ModelType != "gemma3" &&
-      ModelType != "gemma3_vision")
-    throw std::invalid_argument("Unsupported model type: " + ModelType);
+      ModelType != "gemma3_vision") {
+    spdlog::error("[WASI-NN] MLX backend: Unsupported model type: {}"sv,
+                  ModelType);
+    assumingUnreachable();
+  }
   registerModule("vision_model", std::make_shared<SigLipVisionModel>(Config));
 }
 

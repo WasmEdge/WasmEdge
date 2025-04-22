@@ -20,10 +20,10 @@ namespace gemma3 {
 struct ModelConfig {
   TextConfig TextConfig;
   VisionConfig VisionConfig;
-  std::string ModelType;
-  int VocabSize = 257152;
+  std::string ModelType = "gemma3";
+  int VocabSize = 262208;
   int IgnoreIndex = -100;
-  int ImageTokenIndex = 257152;
+  int ImageTokenIndex = 262144;
   int HiddenSize = 2048;
   int PadTokenId = 0;
   static ModelConfig fromDict(const simdjson::dom::object &Obj);

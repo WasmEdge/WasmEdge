@@ -1021,20 +1021,262 @@ public:
              LLContext.getInt32(Instr.getSourceIndex()), Arg});
         break;
       }
-      // case OpCode::Array__new:
-      // case OpCode::Array__new_default:
-      // case OpCode::Array__new_fixed:
-      // case OpCode::Array__new_data:
-      // case OpCode::Array__new_elem:
-      // case OpCode::Array__get:
-      // case OpCode::Array__get_u:
-      // case OpCode::Array__get_s:
-      // case OpCode::Array__set:
-      // case OpCode::Array__len:
-      // case OpCode::Array__fill:
-      // case OpCode::Array__copy:
-      // case OpCode::Array__init_data:
-      // case OpCode::Array__init_elem:
+      case OpCode::Array__new: {
+        auto Length = stackPop();
+        auto Val = stackPop();
+
+        LLVM::Value Arg = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Arg.setAlignment(kValSize);
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
+        Builder.createStore(
+            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
+
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int32Ty, Context.Int32Ty,
+                                      Context.Int8PtrTy, Context.Int32Ty},
+                                     false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Length, Arg,
+             LLContext.getInt32(1)}));
+        break;
+      }
+      case OpCode::Array__new_default: {
+        auto Length = stackPop();
+
+        LLVM::Value Arg = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int32Ty, Context.Int32Ty,
+                                      Context.Int8PtrTy, Context.Int32Ty},
+                                     false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Length, Arg,
+             LLContext.getInt32(0)}));
+        break;
+      }
+      case OpCode::Array__new_fixed: {
+        LLVM::Value Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+        const auto ArgSize = Instr.getSourceIndex();
+        std::vector<LLVM::Value> ArgsVec(ArgSize, nullptr);
+        for (size_t I = 0; I < ArgSize; ++I) {
+          ArgsVec[ArgSize - I - 1] = stackPop();
+        }
+        if (ArgSize > 0) {
+          auto Alloca = Builder.createArrayAlloca(
+              Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
+          Alloca.setAlignment(kValSize);
+          Args = Alloca;
+        }
+        for (size_t I = 0; I < ArgSize; ++I) {
+          auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                        I * kValSize);
+          auto Arg = ArgsVec[I];
+          Builder.createStore(
+              Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
+        }
+
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int32Ty, Context.Int32Ty,
+                                      Context.Int8PtrTy, Context.Int32Ty},
+                                     false)),
+            {LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(ArgSize), Args, LLContext.getInt32(ArgSize)}));
+        break;
+      }
+      case OpCode::Array__new_data:
+      case OpCode::Array__new_elem: {
+        auto Length = stackPop();
+        auto Start = stackPop();
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(
+                Builder,
+                ((Instr.getOpCode() == OpCode::Array__new_data)
+                     ? Executable::Intrinsics::kArrayNewData
+                     : Executable::Intrinsics::kArrayNewElem),
+                LLVM::Type::getFunctionType(Context.Int64x2Ty,
+                                            {Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), Start, Length}));
+        break;
+      }
+      case OpCode::Array__get:
+      case OpCode::Array__get_u:
+      case OpCode::Array__get_s: {
+        assuming(static_cast<size_t>(Instr.getTargetIndex()) <
+                 Context.CompositeTypes.size());
+        const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
+        assuming(CompType != nullptr && !CompType->isFunc());
+        assuming(static_cast<size_t>(1) == CompType->getFieldTypes().size());
+        const auto &StorageType = CompType->getFieldTypes()[0].getStorageType();
+        auto Idx = stackPop();
+        auto Ref = stackPop();
+        auto IsSigned = (Instr.getOpCode() == OpCode::Array__get_s)
+                            ? LLContext.getInt8(1)
+                            : LLContext.getInt8(0);
+        LLVM::Value Ret = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Ret.setAlignment(kValSize);
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kArrayGet,
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int8Ty,
+                                             Context.Int8PtrTy},
+                                            false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()), Idx, IsSigned,
+             Ret});
+
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Ret, 0);
+        switch (StorageType.getCode()) {
+        case TypeCode::I8:
+        case TypeCode::I16:
+        case TypeCode::I32: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int32Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int32Ty, Ptr));
+          break;
+        }
+        case TypeCode::I64: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int64Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int64Ty, Ptr));
+          break;
+        }
+        case TypeCode::F32: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.FloatTy.getPointerTo());
+          stackPush(Builder.createLoad(Context.FloatTy, Ptr));
+          break;
+        }
+        case TypeCode::F64: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.DoubleTy.getPointerTo());
+          stackPush(Builder.createLoad(Context.DoubleTy, Ptr));
+          break;
+        }
+        case TypeCode::V128:
+        case TypeCode::Ref:
+        case TypeCode::RefNull: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int64x2Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int64x2Ty, Ptr));
+          break;
+        }
+        default:
+          assumingUnreachable();
+        }
+        break;
+      }
+      case OpCode::Array__set: {
+        auto Val = stackPop();
+        auto Idx = stackPop();
+        auto Ref = stackPop();
+
+        LLVM::Value Arg = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Arg.setAlignment(kValSize);
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
+        Builder.createStore(
+            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
+
+        Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kArraySet,
+                                 LLVM::Type::getFunctionType(
+                                     Context.VoidTy,
+                                     {Context.Int64x2Ty, Context.Int32Ty,
+                                      Context.Int32Ty, Context.Int8PtrTy},
+                                     false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()), Idx, Arg});
+        break;
+      }
+      case OpCode::Array__len: {
+        auto Ref = stackPop();
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kArrayLen,
+                LLVM::Type::getFunctionType(Context.Int32Ty,
+                                            {Context.Int64x2Ty}, false)),
+            {Ref}));
+        break;
+      }
+      case OpCode::Array__fill: {
+        auto Cnt = stackPop();
+        auto Val = stackPop();
+        auto Off = stackPop();
+        auto Ref = stackPop();
+
+        LLVM::Value Arg = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Arg.setAlignment(kValSize);
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
+        Builder.createStore(
+            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kArrayFill,
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int8PtrTy},
+                                            false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()), Off, Cnt, Arg});
+        break;
+      }
+      case OpCode::Array__copy: {
+        auto Cnt = stackPop();
+        auto SrcOff = stackPop();
+        auto SrcRef = stackPop();
+        auto DstOff = stackPop();
+        auto DstRef = stackPop();
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kArrayCopy,
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int64x2Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty},
+                                            false)),
+            {DstRef, LLContext.getInt32(Instr.getTargetIndex()), DstOff, SrcRef,
+             LLContext.getInt32(Instr.getSourceIndex()), SrcOff, Cnt});
+        break;
+      }
+      case OpCode::Array__init_data:
+      case OpCode::Array__init_elem: {
+        auto Cnt = stackPop();
+        auto SrcOff = stackPop();
+        auto DstOff = stackPop();
+        auto Ref = stackPop();
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder,
+                ((Instr.getOpCode() == OpCode::Array__init_data)
+                     ? Executable::Intrinsics::kArrayInitData
+                     : Executable::Intrinsics::kArrayInitElem),
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty},
+                                            false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), DstOff, SrcOff, Cnt});
+        break;
+      }
       // case OpCode::Ref__test:
       // case OpCode::Ref__test_null:
       // case OpCode::Ref__cast:

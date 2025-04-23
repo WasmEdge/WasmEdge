@@ -341,7 +341,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b5074
+      GIT_TAG        b5166
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -373,6 +373,7 @@ function(wasmedge_setup_llama_target target)
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4297> # 'function' : function assumed not to throw an exception but does
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4456> # declaration of 'identifier' hides previous local declaration
         $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # 'function' : unreferenced local function has been removed
+        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4701> # potentially uninitialized local variable used
       )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
       target_compile_options(llava

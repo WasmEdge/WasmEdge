@@ -506,6 +506,9 @@ std::vector<int> Module::generate(
     mx::async_eval(NextY);
     // TODO: handle decoder_input_ids
     auto Token = Y.item<int>();
+    if (Token == 1 || Token == 106) {
+      break;
+    }
     TokenList.emplace_back(Token);
     Y = NextY;
     LogProbs = NextLogProbs;

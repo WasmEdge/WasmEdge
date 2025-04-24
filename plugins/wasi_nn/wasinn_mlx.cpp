@@ -3,7 +3,6 @@
 
 #include "wasinn_mlx.h"
 #include "wasinnenv.h"
-#include <memory>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 
@@ -14,6 +13,7 @@
 #include "MLX/model/llm/transformer.h"
 #include "MLX/model/utils.h"
 #include "MLX/prompt/prompt.h"
+#include <memory>
 #include <mlx/array.h>
 
 #include <simdjson.h>
@@ -201,7 +201,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       auto Weight = mx::load_safetensors(ModelFilePath);
       Weights.insert(Weight.first.begin(), Weight.first.end());
     } else {
-      spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+      spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
+                    GraphRef.ModelType);
       Env.deleteGraph(GId);
       return ErrNo::InvalidArgument;
     }
@@ -241,7 +242,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
         gemma3::VisionModel(ModelConfigObj.VisionConfig).sanitize(Weights);
     GraphRef.ModelArch = "vlm";
   } else {
-    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    spdlog::error(
+        "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
+        GraphRef.ModelArch);
     Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
@@ -275,7 +278,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   } else if (GraphRef.ModelType == "gemma3") {
     GraphRef.Model->update(Weights);
   } else {
-    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
+                  GraphRef.ModelType);
     Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
@@ -300,7 +304,9 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   } else if (GraphRef.ModelArch == "vlm") {
     CxtRef.Inputs = VLMInput();
   } else {
-    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    spdlog::error(
+        "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
+        GraphRef.ModelArch);
     Env.deleteContext(ContextId);
     return ErrNo::InvalidArgument;
   }
@@ -335,7 +341,9 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       return ErrNo::InvalidArgument;
     }
   } else {
-    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    spdlog::error(
+        "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
+        GraphRef.ModelArch);
     return ErrNo::InvalidArgument;
   }
   return WASINN::ErrNo::Success;
@@ -372,7 +380,9 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
       return ErrNo::InvalidArgument;
     }
   } else {
-    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    spdlog::error(
+        "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
+        GraphRef.ModelArch);
     return ErrNo::InvalidArgument;
   }
   return WASINN::ErrNo::Success;
@@ -400,7 +410,6 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     auto &Input = std::get<VLMInput>(CxtRef.Inputs);
     std::map<std::string, std::variant<mx::array, int, float, std::string>>
         Kwargs;
-    // Kwargs.insert({"image_token_index", 262144});
     Kwargs.insert({"input_ids", Input.Prompt});
     Kwargs.insert({"pixel_values", Input.Pixel});
     Kwargs.insert({"mask", Input.Mask});
@@ -410,7 +419,9 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
         mx::array(TokenList.data(), {static_cast<int>(TokenList.size())});
     CxtRef.Outputs = VLMOutput({TokenArray});
   } else {
-    spdlog::error("[WASI-NN] MLX backend: Model type not supported."sv);
+    spdlog::error(
+        "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
+        GraphRef.ModelArch);
     return ErrNo::InvalidArgument;
   }
   return WASINN::ErrNo::Success;

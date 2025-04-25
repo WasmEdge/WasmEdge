@@ -1600,6 +1600,53 @@ public:
     return LLVMMetadataAsValue(Ctx, ExceptMDS);
   }
 
+  Value createArray(size_t Num, uint32_t Align) noexcept {
+    Value Size = Value::getConstInt(LLVMInt64TypeInContext(getCtx()),
+                                    static_cast<uint64_t>(Num) * Align);
+    Type Int8Ty = LLVMInt8TypeInContext(getCtx());
+    if (Num > 0) {
+      auto Arr = createArrayAlloca(Int8Ty, Size);
+      Arr.setAlignment(Align);
+      return Arr;
+    }
+    return Value::getConstPointerNull(Int8Ty.getPointerTo());
+  }
+
+  Value createValuePtrLoad(Type Ty, Value Ptr, Type PtrTy, uint64_t Idx0 = 0,
+                           const char *Name = "") noexcept {
+    auto VPtr = createConstInBoundsGEP1_64(PtrTy, Ptr, Idx0, Name);
+    return createLoad(Ty, createBitCast(VPtr, Ty.getPointerTo()));
+  }
+
+  void createValuePtrStore(Value V, Value Ptr, Type PtrTy, uint64_t Idx0 = 0,
+                           const char *Name = "") noexcept {
+    auto VPtr = createConstInBoundsGEP1_64(PtrTy, Ptr, Idx0, Name);
+    createStore(V, createBitCast(VPtr, V.getType().getPointerTo(), Name));
+  }
+
+  std::vector<Value> createArrayPtrLoad(size_t RetSize, Type Ty, Value Ptr,
+                                        Type PtrTy, uint32_t Align = 1,
+                                        const char *Name = "") noexcept {
+    std::vector<Value> ValVec;
+    ValVec.reserve(RetSize);
+    for (size_t I = 0; I < RetSize; ++I) {
+      auto VPtr = createConstInBoundsGEP1_64(PtrTy, Ptr, I * Align, Name);
+      auto TargetTy = Ty.getStructElementType(static_cast<unsigned int>(I));
+      ValVec.push_back(
+          createLoad(TargetTy, createBitCast(VPtr, TargetTy.getPointerTo())));
+    }
+    return ValVec;
+  }
+
+  void createArrayPtrStore(Span<const Value> Vals, Value Ptr, Type PtrTy,
+                           uint32_t Align = 1, const char *Name = "") noexcept {
+    for (size_t I = 0; I < Vals.size(); ++I) {
+      auto VPtr = createConstInBoundsGEP1_64(PtrTy, Ptr, I * Align, Name);
+      auto Val = Vals[I];
+      createStore(Val, createBitCast(VPtr, Val.getType().getPointerTo()), Name);
+    }
+  }
+
 private:
   LLVMBuilderRef Ref = nullptr;
 };

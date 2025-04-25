@@ -27,7 +27,7 @@ struct TextConfig {
   float RopeGlobalBaseFreq = 1000000.0f;
   float RopeLocalBaseFreq = 10000.0f;
   bool RopeTraditional = false;
-  float QueryPreAttnScalar = 0.0625;
+  float QueryPreAttnScalar = 256;
   int SlidingWindow = 1024;
   std::optional<
       std::unordered_map<std::string, std::variant<float, std::vector<float>>>>

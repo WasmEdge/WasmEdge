@@ -392,6 +392,10 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+
+  const auto Start{std::chrono::steady_clock::now()};
+  size_t TokenListSize = 0;
+
   if (GraphRef.ModelArch == "llm" && GraphRef.Tok == nullptr) {
     spdlog::error("[WASI-NN] MLX backend: Tokenizer not loaded."sv);
     return ErrNo::InvalidArgument;
@@ -400,12 +404,12 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     spdlog::info("[WASI-NN] MLX backend: compute"sv);
   }
   if (GraphRef.ModelArch == "llm") {
-
-    CxtRef.Outputs = LLMOutput(
-        {std::dynamic_pointer_cast<llm::Transformer>(GraphRef.Model)
-             ->generate(std::get<LLMInput>(CxtRef.Inputs).Prompt,
-                        GraphRef.Prmopt, GraphRef.MaxToken, false, GraphRef.Tok)
-             .Answer});
+    auto Result =
+        std::dynamic_pointer_cast<llm::Transformer>(GraphRef.Model)
+            ->generate(std::get<LLMInput>(CxtRef.Inputs).Prompt,
+                       GraphRef.Prmopt, GraphRef.MaxToken, false, GraphRef.Tok);
+    CxtRef.Outputs = LLMOutput({Result.Answer});
+    TokenListSize = Result.TokenList.size();
   } else if (GraphRef.ModelArch == "vlm") {
     auto &Input = std::get<VLMInput>(CxtRef.Inputs);
     std::map<std::string, std::variant<mx::array, int, float, std::string>>
@@ -418,11 +422,18 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
     auto TokenArray =
         mx::array(TokenList.data(), {static_cast<int>(TokenList.size())});
     CxtRef.Outputs = VLMOutput({TokenArray});
+    TokenListSize = TokenList.size();
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
         GraphRef.ModelArch);
     return ErrNo::InvalidArgument;
+  }
+  const auto End{std::chrono::steady_clock::now()};
+  const std::chrono::duration<double> ElapsedSeconds{End - Start};
+  if (GraphRef.EnableDebugLog) {
+    spdlog::info("Elapsed time: {} s. TPS: {}.", ElapsedSeconds.count(),
+                 TokenListSize / ElapsedSeconds.count());
   }
   return WASINN::ErrNo::Success;
 }

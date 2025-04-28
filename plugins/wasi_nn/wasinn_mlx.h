@@ -10,8 +10,9 @@
 #include <memory>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
+#include "MLX/mlx/base.h"
 #include "MLX/mlx/transformer.h"
-#include "MLX/model/transformer.h"
+#include "MLX/model/llm/transformer.h"
 #include "MLX/prompt/prompt.h"
 
 #include <mlx/mlx.h>
@@ -24,10 +25,25 @@ struct WasiNNEnvironment;
 
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
+struct LLMInput {
+  std::string Prompt = {};
+};
+struct LLMOutput {
+  std::string Answer = {};
+};
+struct VLMInput {
+  mx::array Prompt = mx::array({});
+  mx::array Pixel = mx::array({});
+  mx::array Mask = mx::array({});
+};
+struct VLMOutput {
+  mx::array Answer = mx::array({});
+};
 struct Graph {
   std::string ModelType;
+  std::string ModelArch;
   std::unique_ptr<tokenizers::Tokenizer> Tok = nullptr;
-  std::shared_ptr<Transformer> Model;
+  std::shared_ptr<nn::Module> Model;
   double Temp = 0.0;
   bool EnableDebugLog = false;
   bool IsQuantized = false;
@@ -39,8 +55,8 @@ struct Graph {
 struct Context {
   Context(uint32_t Gid, Graph &) noexcept : GraphId(Gid) {}
   uint32_t GraphId;
-  std::string Inputs;
-  std::string Outputs;
+  std::variant<LLMInput, VLMInput> Inputs;
+  std::variant<LLMOutput, VLMOutput> Outputs;
 };
 #else
 struct Graph {};

@@ -2,17 +2,12 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #pragma once
-
 #include "mlx/base.h"
-
-#include <mlx/array.h>
-
+#include <mlx/mlx.h>
 namespace WasmEdge::Host::WASINN::MLX {
-namespace mlx::core {
+namespace vlm {
 
-mx::array gelu(mx::array X);
+mx::array topPSampling(const mx::array &Logits, float TopP, float Temperature);
 
-mx::array silu(mx::array X);
-mx::array geluApprox(mx::array X);
-} // namespace mlx::core
+} // namespace vlm
 } // namespace WasmEdge::Host::WASINN::MLX

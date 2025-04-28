@@ -91,6 +91,7 @@ function(wasmedge_setup_wasinn_target target)
         simdjson::simdjson
       )
     elseif(BACKEND STREQUAL "mlx")
+      wasmedge_setup_simdjson()
       if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
         message(STATUS "WASI-NN: Build MLX backend for WASI-NN")
       endif()
@@ -533,7 +534,7 @@ function(wasmedge_setup_mlx_target target)
       FetchContent_Declare(
         mlx
         GIT_REPOSITORY https://github.com/ml-explore/mlx.git
-        GIT_TAG        v0.16.0
+        GIT_TAG        v0.24.1
         GIT_SHALLOW    FALSE
       )
       set(MLX_BUILD_GGUF OFF)

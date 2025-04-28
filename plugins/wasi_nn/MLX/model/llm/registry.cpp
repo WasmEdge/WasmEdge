@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "model/registry.h"
-#include "model/transformer.h"
-
+#include "registry.h"
+#include "transformer.h"
 namespace WasmEdge::Host::WASINN::MLX {
-
+namespace llm {
 std::shared_ptr<Transformer> llama38b(int VocabSize, float NormEps,
                                       float RopeTheta, bool RopeTraditional) {
   return std::make_shared<Transformer>(Transformer(
@@ -29,4 +28,5 @@ std::shared_ptr<Transformer> tinyLlama11BChatV10(int VocabSize, float NormEps,
       std::vector<int>{4}, NormEps, {}, RopeTraditional, RopeTheta));
 }
 
+} // namespace llm
 } // namespace WasmEdge::Host::WASINN::MLX

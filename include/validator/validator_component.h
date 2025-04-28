@@ -65,12 +65,37 @@ inline std::string toString(IndexKind IK) {
 }
 
 struct ExternDescVisitor {
-  Expect<void> operator()(const DescTypeIndex &) { return {}; }
-  Expect<void> operator()(const TypeBound &) {
-    // TypeBound == std::optional<TypeIndex>
+  ExternDescVisitor(Context &Ctx) : Ctx(Ctx) {}
+
+  Expect<void> operator()(const DescTypeIndex &DTI) {
+    switch (DTI.getKind()) {
+    case IndexKind::CoreType:
+      Ctx.incCoreIndexSize(CoreSort::Type);
+      break;
+    case IndexKind::FuncType:
+      Ctx.incComponentIndexSize(SortCase::Func);
+      break;
+    case IndexKind::ComponentType:
+      Ctx.incComponentIndexSize(SortCase::Component);
+      break;
+    case IndexKind::InstanceType:
+      Ctx.incComponentIndexSize(SortCase::Instance);
+      break;
+    }
     return {};
   }
-  Expect<void> operator()(const ValueType &) { return {}; }
+  Expect<void> operator()(const TypeBound &) {
+    // TypeBound == std::optional<TypeIndex>
+    Ctx.incComponentIndexSize(SortCase::Type);
+    return {};
+  }
+  Expect<void> operator()(const ValueType &) {
+    Ctx.incComponentIndexSize(SortCase::Type);
+    return {};
+  }
+
+private:
+  Context &Ctx;
 };
 
 struct CoreInstanceExprVisitor {
@@ -142,20 +167,61 @@ struct InstanceExprVisitor {
         return Unexpect(ErrCode::Value::MissingArgument);
       }
 
-      if (!matchImportAndArgTypes(ImportDesc, ArgIt->getIndex().getSort())) {
+      const auto &ArgSortIndex = ArgIt->getIndex();
+      const auto &ArgSort = ArgSortIndex.getSort();
+      const uint32_t ArgIdx = ArgSortIndex.getSortIdx();
+
+      if (!matchImportAndArgTypes(ImportDesc, ArgSort)) {
         spdlog::error(ErrCode::Value::ArgTypeMismatch);
         spdlog::error("Component[{}]: Argument '{}' type mismatch"sv,
                       Inst.getComponentIdx(), ImportName);
         return Unexpect(ErrCode::Value::ArgTypeMismatch);
       }
+
+      if (!isValidArgumentIndex(ArgSort, ArgIdx)) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(
+            "Component[{}]: Argument '{}' refers to invalid index {}"sv,
+            Inst.getComponentIdx(), ArgIt->getName(), ArgIdx);
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+
+      if (std::holds_alternative<SortCase>(ArgSort) &&
+          std::get<SortCase>(ArgSort) == SortCase::Type &&
+          std::holds_alternative<TypeBound>(ImportDesc)) {
+        Ctx.substituteTypeImport(ImportName, ArgIdx);
+      }
     }
 
-    // TODO: The indices in sortidx are validated according to their sort's
-    // index spaces, which are built incrementally as each definition is
-    // validated.
     return {};
   }
-  Expect<void> operator()(const CompInlineExports &) {
+  Expect<void> operator()(const CompInlineExports &Exports) {
+    for (const auto &Export : Exports.getExports()) {
+      auto ExportName = Export.getName();
+      auto SortIdx = Export.getSortIdx();
+      auto Sort = SortIdx.getSort();
+      uint32_t Idx = SortIdx.getSortIdx();
+
+      if (!isValidArgumentIndex(Sort, Idx)) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(
+            "Component: Inline export '{}' refers to invalid index {}"sv,
+            ExportName, Idx);
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+
+      if (std::holds_alternative<SortCase>(Sort) &&
+          std::get<SortCase>(Sort) == SortCase::Type) {
+        auto SubstitutedIdx = Ctx.getSubstitutedType(std::string(ExportName));
+        if (SubstitutedIdx.has_value() && Idx != SubstitutedIdx.value()) {
+          spdlog::error(ErrCode::Value::InvalidTypeReference);
+          spdlog::error(
+              "Component: Inline export '{}' type index {} does not match substituted type index {}"sv,
+              ExportName, Idx, SubstitutedIdx.value());
+          return Unexpect(ErrCode::Value::InvalidTypeReference);
+        }
+      }
+    }
     // TODO: When validating instantiate, after each individual type-import
     // is supplied via with, the actual type supplied is immediately
     // substituted for all uses of the import, so that subsequent imports
@@ -279,6 +345,23 @@ private:
         "Unhandled type comparison: ImportType and ArgSort do not match any known case."sv);
     return false;
   }
+
+  bool isValidArgumentIndex(const Sort &ArgSort, const uint32_t Idx) {
+    if (std::holds_alternative<SortCase>(ArgSort)) {
+      auto ArgSortCase = std::get<SortCase>(ArgSort);
+      if (Ctx.getComponentIndexSize(ArgSortCase) > Idx) {
+        spdlog::debug("{} >= {}", Ctx.getComponentIndexSize(ArgSortCase), Idx);
+        return true;
+      }
+    } else {
+      auto ArgSortCase = std::get<CoreSort>(ArgSort);
+      if (Ctx.getCoreIndexSize(ArgSortCase) > Idx) {
+        spdlog::debug("{} >= {}", Ctx.getCoreIndexSize(ArgSortCase), Idx);
+        return true;
+      }
+    }
+    return false;
+  }
 };
 
 struct AliasTargetVisitor {
@@ -317,28 +400,40 @@ struct ModuleDeclVisitor {
   Expect<void> operator()(const CoreExportDecl &) { return {}; }
 };
 struct CoreDefTypeVisitor {
-  Expect<void> operator()(const AST::FunctionType &) { return {}; }
+  CoreDefTypeVisitor(Context &Ctx) : Ctx(Ctx) {}
+
+  Expect<void> operator()(const AST::FunctionType &) {
+    Ctx.incCoreIndexSize(CoreSort::Type);
+    return {};
+  }
   Expect<void> operator()(const ModuleType &Mod) {
     for (const ModuleDecl &D : Mod.getContent()) {
       EXPECTED_TRY(std::visit(ModuleDeclVisitor{}, D));
     }
     return {};
   }
+
+private:
+  Context &Ctx;
 };
 
 struct DefTypeVisitor {
+  DefTypeVisitor(Context &Ctx) : Ctx(Ctx) {}
+
   Expect<void> operator()(const DefValType &) {
     // TODO: Validation of valtype requires the typeidx to refer to a
     // defvaltype.
 
     // TODO: Validation of own and borrow requires the typeidx to refer to a
     // resource type.
+    Ctx.incComponentIndexSize(SortCase::Type);
     return {};
   }
   Expect<void> operator()(const FuncType &) {
     // TODO: Validation of functype rejects any transitive use of borrow in
     // a result type. Similarly, validation of components and component
     // types rejects any transitive use of borrow in an exported value type.
+    Ctx.incComponentIndexSize(SortCase::Type);
     return {};
   }
   Expect<void> operator()(const ComponentType &CT) {
@@ -349,6 +444,7 @@ struct DefTypeVisitor {
       } else if (std::holds_alternative<InstanceDecl>(Decl)) {
         check(std::get<InstanceDecl>(Decl));
       }
+      Ctx.incComponentIndexSize(SortCase::Type);
     }
     // TODO: Validation rejects resourcetype type definitions inside
     // componenttype and instancettype. Thus, handle types inside a
@@ -361,8 +457,14 @@ struct DefTypeVisitor {
 
     return {};
   }
-  Expect<void> operator()(const InstanceType &) { return {}; }
-  Expect<void> operator()(const ResourceType &) { return {}; }
+  Expect<void> operator()(const InstanceType &) {
+    Ctx.incComponentIndexSize(SortCase::Type);
+    return {};
+  }
+  Expect<void> operator()(const ResourceType &) {
+    Ctx.incComponentIndexSize(SortCase::Type);
+    return {};
+  }
 
   void check(const InstanceDecl &) {
     // TODO: Validation of instancedecl (currently) only allows the type and
@@ -373,8 +475,13 @@ struct DefTypeVisitor {
     // TODO: Validation of externdesc requires the various typeidx type
     // constructors to match the preceding sort.
   }
+
+private:
+  Context &Ctx;
 };
 struct CanonVisitor {
+  CanonVisitor(Context &Ctx) : Ctx(Ctx) {}
+
   Expect<void> operator()(const Lift &) {
     // TODO: validation specifies
     // = $callee must have type flatten_functype($opts, $ft, 'lift')
@@ -385,6 +492,7 @@ struct CanonVisitor {
     //       (func (param i32 i32 i32 i32) (result i32))
     // = if a post-return is present, it has type
     //       (func (param flatten_functype({}, $ft, 'lift').results))
+    Ctx.incComponentIndexSize(SortCase::Func);
     return {};
   }
   Expect<void> operator()(const Lower &) {
@@ -395,6 +503,7 @@ struct CanonVisitor {
     // = a realloc is present if required by lifting and has type
     //     (func (param i32 i32 i32 i32) (result i32))
     // = there is no post-return in $opts
+    Ctx.incCoreIndexSize(CoreSort::Func);
     return {};
   }
   Expect<void> operator()(const ResourceNew &) {
@@ -402,12 +511,14 @@ struct CanonVisitor {
     // = $rt must refer to locally-defined (not imported) resource type
     // = $f is given type (func (param $rt.rep) (result i32)), where $rt.rep is
     // currently fixed to be i32.
+    Ctx.incCoreIndexSize(CoreSort::Func);
     return {};
   }
   Expect<void> operator()(const ResourceDrop &) {
     // TODO: validation specifies
     // = $rt must refer to resource type
     // = $f is given type (func (param i32))
+    Ctx.incCoreIndexSize(CoreSort::Func);
     return {};
   }
   Expect<void> operator()(const ResourceRep &) {
@@ -415,6 +526,7 @@ struct CanonVisitor {
     // = $rt must refer to a locally-defined (not imported) resource type
     // = $f is given type (func (param i32) (result $rt.rep)), where $rt.rep is
     // currently fixed to be i32.
+    Ctx.incCoreIndexSize(CoreSort::Func);
     return {};
   }
   // TODO: The following are not yet exists in WasmEdge, so just list entries
@@ -426,6 +538,8 @@ struct CanonVisitor {
   // 6. canon task.yield
   // 7. canon thread.spawn
   // 8. canon thread.hw_concurrency
+private:
+  Context &Ctx;
 };
 
 struct SectionVisitor {
@@ -440,6 +554,7 @@ struct SectionVisitor {
     auto &Mod = Sec.getContent();
     V.validate(Mod);
     Ctx.addCoreModule(Mod);
+    Ctx.incCoreIndexSize(CoreSort::Module);
     return {};
   }
   Expect<void> operator()(const ComponentSection &Sec) {
@@ -447,13 +562,15 @@ struct SectionVisitor {
     auto &C = Sec.getContent();
     ComponentContextGuard guard(C, Ctx);
     V.validate(C);
+    Ctx.incComponentIndexSize(SortCase::Component);
     return {};
   }
   Expect<void> operator()(const CoreInstanceSection &Sec) {
     spdlog::debug("CoreInstance Section"sv);
     for (const CoreInstanceExpr &E : Sec.getContent()) {
-      CoreInstanceExprVisitor Visitor(Ctx);
+      CoreInstanceExprVisitor Visitor{Ctx};
       EXPECTED_TRY(std::visit(Visitor, E));
+      Ctx.incCoreIndexSize(CoreSort::Instance);
     }
     // NOTE: refers below InstanceSection, and copy the similar structure
 
@@ -465,8 +582,9 @@ struct SectionVisitor {
   Expect<void> operator()(const InstanceSection &Sec) {
     spdlog::debug("Instance Section"sv);
     for (const InstanceExpr &E : Sec.getContent()) {
-      InstanceExprVisitor Visitor(Ctx);
+      InstanceExprVisitor Visitor{Ctx};
       EXPECTED_TRY(std::visit(Visitor, E));
+      Ctx.incComponentIndexSize(SortCase::Instance);
     }
     return {};
   }
@@ -474,6 +592,12 @@ struct SectionVisitor {
     spdlog::debug("Alias Section"sv);
     for (const Alias &A : Sec.getContent()) {
       EXPECTED_TRY(std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget()));
+      auto Sort = A.getSort();
+      if (std::holds_alternative<SortCase>(Sort)) {
+        Ctx.incComponentIndexSize(std::get<SortCase>(Sort));
+      } else if (std::holds_alternative<CoreSort>(Sort)) {
+        Ctx.incCoreIndexSize(std::get<CoreSort>(Sort));
+      }
     }
     return {};
   }
@@ -482,14 +606,16 @@ struct SectionVisitor {
     // TODO: As described in the explainer, each module type is validated with
     // an initially-empty type index space.
     for (const CoreDefType &T : Sec.getContent()) {
-      EXPECTED_TRY(std::visit(CoreDefTypeVisitor{}, T));
+      CoreDefTypeVisitor Visitor{Ctx};
+      EXPECTED_TRY(std::visit(Visitor, T));
     }
     return {};
   }
   Expect<void> operator()(const TypeSection &Sec) {
     spdlog::debug("Type Section"sv);
     for (const DefType &T : Sec.getContent()) {
-      EXPECTED_TRY(std::visit(DefTypeVisitor{}, T));
+      DefTypeVisitor Visitor{Ctx};
+      EXPECTED_TRY(std::visit(Visitor, T));
     }
     // TODO: Validation of resourcetype requires the destructor (if present) to
     // have type [i32] -> [].
@@ -500,7 +626,8 @@ struct SectionVisitor {
     spdlog::debug("Canon Section"sv);
     // TODO: Validation prevents duplicate or conflicting canonopt.
     for (const Canon &C : Sec.getContent()) {
-      EXPECTED_TRY(std::visit(CanonVisitor{}, C));
+      CanonVisitor Visitor{Ctx};
+      EXPECTED_TRY(std::visit(Visitor, C));
     }
 
     return {};
@@ -552,7 +679,8 @@ struct SectionVisitor {
       // names are disjoint.
       I.getName();
 
-      EXPECTED_TRY(std::visit(ExternDescVisitor{}, I.getDesc()));
+      ExternDescVisitor Visitor{Ctx};
+      EXPECTED_TRY(std::visit(Visitor, I.getDesc()));
     }
     // TODO: Validation requires that all resource types transitively used in
     // the type of an export are introduced by a preceding importdecl or
@@ -563,15 +691,19 @@ struct SectionVisitor {
   Expect<void> operator()(const ExportSection &Sec) {
     spdlog::debug("Export Section"sv);
     for (const Export &E : Sec.getContent()) {
+      auto SI = E.getSortIndex();
+      auto Sort = SI.getSort();
+      SI.getSortIdx();
       if (E.getDesc().has_value()) {
         // TODO: Validation requires any exported sortidx to have a valid
         // externdesc (which disallows core sorts other than core module). When
         // the optional externdesc immediate is present, validation requires it
         // to be a supertype of the inferred externdesc of the sortidx.
-        auto SI = E.getSortIndex();
-        SI.getSort();
-        SI.getSortIdx();
-        EXPECTED_TRY(std::visit(ExternDescVisitor{}, *E.getDesc()));
+        ExternDescVisitor Visitor{Ctx};
+        EXPECTED_TRY(std::visit(Visitor, *E.getDesc()));
+      } else if (std::holds_alternative<SortCase>(Sort)) {
+        auto SC = std::get<SortCase>(Sort);
+        Ctx.incComponentIndexSize(SC);
       }
     }
 

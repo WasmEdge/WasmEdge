@@ -4983,15 +4983,18 @@ private:
     auto C = Builder.createBitCast(stackPop(), VectorTy);
     auto RHS = Builder.createBitCast(stackPop(), VectorTy);
     auto LHS = Builder.createBitCast(stackPop(), VectorTy);
-    stackPush(Builder.createFAdd(Builder.createFMul(LHS, RHS), C));
+    stackPush(Builder.createBitCast(
+        Builder.createFAdd(Builder.createFMul(LHS, RHS), C),
+        Context.Int64x2Ty));
   }
 
   void compileVectorVectorNMAdd(LLVM::Type VectorTy) noexcept {
     auto C = Builder.createBitCast(stackPop(), VectorTy);
     auto RHS = Builder.createBitCast(stackPop(), VectorTy);
     auto LHS = Builder.createBitCast(stackPop(), VectorTy);
-    stackPush(Builder.createFAdd(
-        Builder.createFMul(Builder.createFNeg(LHS), RHS), C));
+    stackPush(Builder.createBitCast(
+        Builder.createFAdd(Builder.createFMul(Builder.createFNeg(LHS), RHS), C),
+        Context.Int64x2Ty));
   }
 
   void compileVectorRelaxedIntegerDotProduct() noexcept {
@@ -5005,8 +5008,10 @@ private:
       // WebAssembly Relaxed SIMD spec: signed(LHS) * unsigned/signed(RHS)
       // But PMAddUbSw128 is unsigned(LHS) * signed(RHS). Therefore swap both
       // side to match the WebAssembly spec
-      return stackPush(Builder.createIntrinsic(LLVM::Core::X86SSSE3PMAddUbSw128,
-                                               {}, {RHS, LHS}));
+      return stackPush(Builder.createBitCast(
+          Builder.createIntrinsic(LLVM::Core::X86SSSE3PMAddUbSw128, {},
+                                  {RHS, LHS}),
+          Context.Int64x2Ty));
     }
 #endif
     auto Width = LLVM::Value::getConstInt(
@@ -5021,8 +5026,9 @@ private:
     BL = Builder.createAShr(EB, Width);
     BR = Builder.createAShr(Builder.createShl(EB, Width), Width);
 
-    return stackPush(Builder.createAdd(Builder.createMul(AL, BL),
-                                       Builder.createMul(AR, BR)));
+    return stackPush(Builder.createBitCast(
+        Builder.createAdd(Builder.createMul(AL, BL), Builder.createMul(AR, BR)),
+        Context.Int64x2Ty));
   }
 
   void compileVectorRelaxedIntegerDotProductAdd() noexcept {
@@ -5066,7 +5072,8 @@ private:
     auto L = Builder.createAShr(IME, Width);
     auto R = Builder.createAShr(Builder.createShl(IME, Width), Width);
 
-    return stackPush(Builder.createAdd(Builder.createAdd(L, R), VC));
+    return stackPush(Builder.createBitCast(
+        Builder.createAdd(Builder.createAdd(L, R), VC), Context.Int64x2Ty));
   }
 
   void

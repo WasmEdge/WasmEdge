@@ -938,26 +938,29 @@ public:
       case OpCode::Struct__new:
       case OpCode::Struct__new_default: {
         LLVM::Value Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+        assuming(Instr.getTargetIndex() < Context.CompositeTypes.size());
+        const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
+        assuming(CompType != nullptr && !CompType->isFunc());
+        auto ArgSize = CompType->getFieldTypes().size();
         if (Instr.getOpCode() == OpCode::Struct__new) {
-          assuming(Instr.getTargetIndex() < Context.CompositeTypes.size());
-          const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
-          assuming(CompType != nullptr && !CompType->isFunc());
-          const auto ArgSize = CompType->getFieldTypes().size();
           std::vector<LLVM::Value> ArgsVec(ArgSize, nullptr);
           for (size_t I = 0; I < ArgSize; ++I) {
             ArgsVec[ArgSize - I - 1] = stackPop();
           }
           Args = Builder.createArray(ArgSize, kValSize);
           Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, kValSize);
+        } else {
+          ArgSize = 0;
         }
-
         stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, Executable::Intrinsics::kStructNew,
-                                 LLVM::Type::getFunctionType(
-                                     Context.Int64x2Ty,
-                                     {Context.Int32Ty, Context.Int8PtrTy},
-                                     false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Args}));
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kStructNew,
+                LLVM::Type::getFunctionType(
+                    Context.Int64x2Ty,
+                    {Context.Int32Ty, Context.Int8PtrTy, Context.Int32Ty},
+                    false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Args,
+             LLContext.getInt32(static_cast<uint32_t>(ArgSize))}));
         break;
       }
       case OpCode::Struct__get:
@@ -976,7 +979,6 @@ public:
                             ? LLContext.getInt8(1)
                             : LLContext.getInt8(0);
         LLVM::Value Ret = Builder.createAlloca(Context.Int64x2Ty);
-
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kStructGet,
@@ -1028,7 +1030,6 @@ public:
         auto Ref = stackPop();
         LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
         Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
-
         Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kStructSet,
                                  LLVM::Type::getFunctionType(
@@ -1045,7 +1046,6 @@ public:
         auto Val = stackPop();
         LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
         Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
-
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
                                  LLVM::Type::getFunctionType(
@@ -1059,9 +1059,7 @@ public:
       }
       case OpCode::Array__new_default: {
         auto Length = stackPop();
-
         LLVM::Value Arg = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
                                  LLVM::Type::getFunctionType(
@@ -1081,7 +1079,6 @@ public:
         }
         LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
         Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, kValSize);
-
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
                                  LLVM::Type::getFunctionType(
@@ -1126,7 +1123,6 @@ public:
                             ? LLContext.getInt8(1)
                             : LLContext.getInt8(0);
         LLVM::Value Ret = Builder.createAlloca(Context.Int64x2Ty);
-
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kArrayGet,
@@ -1179,7 +1175,6 @@ public:
         auto Ref = stackPop();
         LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
         Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
-
         Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArraySet,
                                  LLVM::Type::getFunctionType(
@@ -1207,7 +1202,6 @@ public:
         auto Ref = stackPop();
         LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
         Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
-
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kArrayFill,
@@ -1225,7 +1219,6 @@ public:
         auto SrcRef = stackPop();
         auto DstOff = stackPop();
         auto DstRef = stackPop();
-
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kArrayCopy,
@@ -1245,7 +1238,6 @@ public:
         auto SrcOff = stackPop();
         auto DstOff = stackPop();
         auto Ref = stackPop();
-
         Builder.createCall(
             Context.getIntrinsic(
                 Builder,

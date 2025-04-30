@@ -87,16 +87,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
 
   auto Dispatch = [this, &PC, &StackMgr]() -> Expect<void> {
     const AST::Instruction &Instr = *PC;
-
-    auto GetDstCompType = [&StackMgr, &Instr, this]() {
-      return getDefTypeByIdx(StackMgr, Instr.getTargetIndex())
-          ->getCompositeType();
-    };
-    auto GetSrcCompType = [&StackMgr, &Instr, this]() {
-      return getDefTypeByIdx(StackMgr, Instr.getSourceIndex())
-          ->getCompositeType();
-    };
-
     switch (Instr.getOpCode()) {
     // Control instructions
     case OpCode::Unreachable:
@@ -198,17 +188,14 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runStructNewOp(StackMgr, Instr.getTargetIndex(), true);
     case OpCode::Struct__get:
     case OpCode::Struct__get_u:
-      return runStructGetOp(StackMgr.getTop(), Instr.getSourceIndex(),
-                            GetDstCompType(), Instr);
-    case OpCode::Struct__get_s:
-      return runStructGetOp(StackMgr.getTop(), Instr.getSourceIndex(),
-                            GetDstCompType(), Instr, true);
-    case OpCode::Struct__set: {
-      const ValVariant Val = StackMgr.pop();
-      RefVariant StructRef = StackMgr.pop().get<RefVariant>();
-      return runStructSetOp(Val, StructRef, GetDstCompType(),
+      return runStructGetOp(StackMgr, Instr.getTargetIndex(),
                             Instr.getSourceIndex(), Instr);
-    }
+    case OpCode::Struct__get_s:
+      return runStructGetOp(StackMgr, Instr.getTargetIndex(),
+                            Instr.getSourceIndex(), Instr, true);
+    case OpCode::Struct__set:
+      return runStructSetOp(StackMgr, StackMgr.pop(), Instr.getTargetIndex(),
+                            Instr.getSourceIndex(), Instr);
     case OpCode::Array__new:
       return runArrayNewOp(StackMgr, Instr.getTargetIndex(), 1,
                            StackMgr.pop().get<uint32_t>());
@@ -219,63 +206,38 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runArrayNewOp(StackMgr, Instr.getTargetIndex(),
                            Instr.getSourceIndex(), Instr.getSourceIndex());
     case OpCode::Array__new_data:
-      return runArrayNewDataOp(
-          StackMgr, *getDataInstByIdx(StackMgr, Instr.getSourceIndex()), Instr);
+      return runArrayNewDataOp(StackMgr, Instr.getTargetIndex(),
+                               Instr.getSourceIndex(), Instr);
     case OpCode::Array__new_elem:
-      return runArrayNewElemOp(
-          StackMgr, *getElemInstByIdx(StackMgr, Instr.getSourceIndex()), Instr);
+      return runArrayNewElemOp(StackMgr, Instr.getTargetIndex(),
+                               Instr.getSourceIndex(), Instr);
     case OpCode::Array__get:
-    case OpCode::Array__get_u: {
-      const uint32_t Idx = StackMgr.pop().get<uint32_t>();
-      return runArrayGetOp(StackMgr.getTop(), Idx, GetDstCompType(), Instr);
-    }
-    case OpCode::Array__get_s: {
-      const uint32_t Idx = StackMgr.pop().get<uint32_t>();
-      return runArrayGetOp(StackMgr.getTop(), Idx, GetDstCompType(), Instr,
-                           true);
-    }
-    case OpCode::Array__set: {
-      ValVariant Val = StackMgr.pop();
-      const uint32_t Idx = StackMgr.pop().get<uint32_t>();
-      RefVariant ArrayRef = StackMgr.pop().get<RefVariant>();
-      return runArraySetOp(Val, Idx, ArrayRef, GetDstCompType(), Instr);
-    }
+    case OpCode::Array__get_u:
+      return runArrayGetOp(StackMgr, Instr.getTargetIndex(), Instr);
+    case OpCode::Array__get_s:
+      return runArrayGetOp(StackMgr, Instr.getTargetIndex(), Instr, true);
+    case OpCode::Array__set:
+      return runArraySetOp(StackMgr, StackMgr.pop(), Instr.getTargetIndex(),
+                           Instr);
     case OpCode::Array__len:
       return runArrayLenOp(StackMgr.getTop(), Instr);
     case OpCode::Array__fill: {
-      const uint32_t N = StackMgr.pop().get<uint32_t>();
-      const ValVariant Val = StackMgr.pop();
-      const uint32_t D = StackMgr.pop().get<uint32_t>();
-      RefVariant ArrayRef = StackMgr.pop().get<RefVariant>();
-      return runArrayFillOp(N, Val, D, ArrayRef, GetDstCompType(), Instr);
+      const uint32_t Cnt = StackMgr.pop().get<uint32_t>();
+      return runArrayFillOp(StackMgr, Cnt, StackMgr.pop(),
+                            Instr.getTargetIndex(), Instr);
     }
-    case OpCode::Array__copy: {
-      const uint32_t N = StackMgr.pop().get<uint32_t>();
-      const uint32_t S = StackMgr.pop().get<uint32_t>();
-      RefVariant SrcArrayRef = StackMgr.pop().get<RefVariant>();
-      const uint32_t D = StackMgr.pop().get<uint32_t>();
-      RefVariant DstArrayRef = StackMgr.pop().get<RefVariant>();
-      return runArrayCopyOp(N, S, SrcArrayRef, D, DstArrayRef, GetSrcCompType(),
-                            GetDstCompType(), Instr);
-    }
-    case OpCode::Array__init_data: {
-      const uint32_t N = StackMgr.pop().get<uint32_t>();
-      const uint32_t S = StackMgr.pop().get<uint32_t>();
-      const uint32_t D = StackMgr.pop().get<uint32_t>();
-      RefVariant ArrayRef = StackMgr.pop().get<RefVariant>();
-      return runArrayInitDataOp(
-          N, S, D, ArrayRef, GetDstCompType(),
-          *getDataInstByIdx(StackMgr, Instr.getSourceIndex()), Instr);
-    }
-    case OpCode::Array__init_elem: {
-      const uint32_t N = StackMgr.pop().get<uint32_t>();
-      const uint32_t S = StackMgr.pop().get<uint32_t>();
-      const uint32_t D = StackMgr.pop().get<uint32_t>();
-      RefVariant ArrayRef = StackMgr.pop().get<RefVariant>();
-      return runArrayInitElemOp(
-          N, S, D, ArrayRef, GetDstCompType(),
-          *getElemInstByIdx(StackMgr, Instr.getSourceIndex()), Instr);
-    }
+    case OpCode::Array__copy:
+      return runArrayCopyOp(StackMgr, StackMgr.pop().get<uint32_t>(),
+                            Instr.getTargetIndex(), Instr.getSourceIndex(),
+                            Instr);
+    case OpCode::Array__init_data:
+      return runArrayInitDataOp(StackMgr, StackMgr.pop().get<uint32_t>(),
+                                Instr.getTargetIndex(), Instr.getSourceIndex(),
+                                Instr);
+    case OpCode::Array__init_elem:
+      return runArrayInitElemOp(StackMgr, StackMgr.pop().get<uint32_t>(),
+                                Instr.getTargetIndex(), Instr.getSourceIndex(),
+                                Instr);
     case OpCode::Ref__test:
     case OpCode::Ref__test_null:
       return runRefTestOp(StackMgr.getModule(), StackMgr.getTop(), Instr);

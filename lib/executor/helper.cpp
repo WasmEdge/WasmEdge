@@ -290,6 +290,33 @@ const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetType(Idx);
 }
 
+const WasmEdge::AST::CompositeType &
+Executor::getCompositeTypeByIdx(Runtime::StackManager &StackMgr,
+                                const uint32_t Idx) const noexcept {
+  auto *DefType = getDefTypeByIdx(StackMgr, Idx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  return CompType;
+}
+
+const ValType &
+Executor::getStructStorageTypeByIdx(Runtime::StackManager &StackMgr,
+                                    const uint32_t Idx,
+                                    const uint32_t Off) const noexcept {
+  const auto &CompType = getCompositeTypeByIdx(StackMgr, Idx);
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) > Off);
+  return CompType.getFieldTypes()[Off].getStorageType();
+}
+
+const ValType &
+Executor::getArrayStorageTypeByIdx(Runtime::StackManager &StackMgr,
+                                   const uint32_t Idx) const noexcept {
+  const auto &CompType = getCompositeTypeByIdx(StackMgr, Idx);
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
+  return CompType.getFieldTypes()[0].getStorageType();
+}
+
 Runtime::Instance::FunctionInstance *
 Executor::getFuncInstByIdx(Runtime::StackManager &StackMgr,
                            const uint32_t Idx) const {

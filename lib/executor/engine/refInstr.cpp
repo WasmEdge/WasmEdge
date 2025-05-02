@@ -6,6 +6,76 @@
 namespace WasmEdge {
 namespace Executor {
 
+namespace {
+
+template <typename... T>
+ErrCode logError(const ErrCode &Code, const AST::Instruction &Instr,
+                 T &&...F) noexcept {
+  spdlog::error(Code);
+  (F(), ...);
+  spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+  return Code;
+}
+
+ErrCode logError(const ErrCode &Code, const AST::Instruction &Instr) noexcept {
+  spdlog::error(Code);
+  spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+  return Code;
+}
+
+void logArrayOOB(const ErrCode &Code, const uint32_t Idx, const uint32_t Cnt,
+                 const RefVariant &Ref) noexcept {
+  if (Code == ErrCode::Value::ArrayOutOfBounds) {
+    const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+    spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Cnt,
+                                        Inst->getBoundIdx()));
+  }
+}
+
+void logDoubleArrayOOB(const ErrCode &Code, const uint32_t Idx1,
+                       const uint32_t Cnt1, const RefVariant &Ref1,
+                       const uint32_t Idx2, const uint32_t Cnt2,
+                       const RefVariant &Ref2) noexcept {
+  if (Code == ErrCode::Value::ArrayOutOfBounds) {
+    const auto *Inst1 = Ref1.getPtr<Runtime::Instance::ArrayInstance>();
+    const auto *Inst2 = Ref2.getPtr<Runtime::Instance::ArrayInstance>();
+    if (static_cast<uint64_t>(Idx1) + static_cast<uint64_t>(Cnt1) >
+        Inst1->getLength()) {
+      spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx1), Cnt1,
+                                          Inst1->getBoundIdx()));
+    } else if (static_cast<uint64_t>(Idx2) + static_cast<uint64_t>(Cnt2) >
+               Inst2->getLength()) {
+      spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx2), Cnt2,
+                                          Inst2->getBoundIdx()));
+    }
+  }
+}
+
+void logMemoryOOB(const ErrCode &Code,
+                  const Runtime::Instance::DataInstance &DataInst,
+                  const uint32_t Idx, const uint32_t Length) noexcept {
+  if (Code == ErrCode::Value::MemoryOutOfBounds) {
+    spdlog::error(ErrInfo::InfoBoundary(
+        static_cast<uint64_t>(Idx), Length,
+        DataInst.getData().size() > 0
+            ? static_cast<uint32_t>(DataInst.getData().size() - 1)
+            : 0U));
+  }
+}
+
+void logTableOOB(const ErrCode &Code,
+                 const Runtime::Instance::ElementInstance &ElemInst,
+                 const uint32_t Idx, const uint32_t Length) noexcept {
+  if (Code == ErrCode::Value::TableOutOfBounds) {
+    auto ElemSrc = ElemInst.getRefs();
+    spdlog::error(ErrInfo::InfoBoundary(
+        static_cast<uint64_t>(Idx), Length,
+        ElemSrc.size() > 0 ? static_cast<uint32_t>(ElemSrc.size() - 1) : 0U));
+  }
+}
+
+} // namespace
+
 Expect<void> Executor::runRefNullOp(Runtime::StackManager &StackMgr,
                                     const ValType &Type) const noexcept {
   // A null reference is typed with the least type in its respective hierarchy.
@@ -38,10 +108,7 @@ Expect<void>
 Executor::runRefAsNonNullOp(RefVariant &Ref,
                             const AST::Instruction &Instr) const noexcept {
   if (Ref.isNull()) {
-    spdlog::error(ErrCode::Value::CastNullToNonNull);
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::CastNullToNonNull);
+    return Unexpect(logError(ErrCode::Value::CastNullToNonNull, Instr));
   }
   Ref.getType().toNonNullableRef();
   return {};
@@ -70,10 +137,7 @@ Expect<void> Executor::runStructGetOp(Runtime::StackManager &StackMgr,
   EXPECTED_TRY(
       auto Val,
       structGet(StackMgr, Ref, TypeIdx, Off, IsSigned).map_error([&](auto E) {
-        spdlog::error(E);
-        spdlog::error(
-            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return E;
+        return logError(E, Instr);
       }));
   StackMgr.getTop() = Val;
   return {};
@@ -86,10 +150,7 @@ Executor::runStructSetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
   const RefVariant Ref = StackMgr.pop().get<RefVariant>();
   EXPECTED_TRY(
       structSet(StackMgr, Ref, Val, TypeIdx, Off).map_error([&](auto E) {
-        spdlog::error(E);
-        spdlog::error(
-            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return E;
+        return logError(E, Instr);
       }));
   return {};
 }
@@ -121,17 +182,11 @@ Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
       arrayNewData(StackMgr, TypeIdx, DataIdx, Start, Length)
           .map_error([&](auto E) {
             auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
-            const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
-            const uint32_t BSize = VType.getBitWidth() / 8;
-            spdlog::error(E);
-            spdlog::error(ErrInfo::InfoBoundary(
-                static_cast<uint64_t>(Start), Length * BSize,
-                DataInst->getData().size() > 0
-                    ? static_cast<uint32_t>(DataInst->getData().size() - 1)
-                    : 0U));
-            spdlog::error(
-                ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-            return E;
+            const uint32_t BSize =
+                getArrayStorageTypeByIdx(StackMgr, TypeIdx).getBitWidth() / 8;
+            return logError(E, Instr, [&]() {
+              return logMemoryOOB(E, *DataInst, Start, BSize * Length);
+            });
           }));
   StackMgr.getTop().emplace<RefVariant>(InstRef);
   return {};
@@ -147,16 +202,9 @@ Executor::runArrayNewElemOp(Runtime::StackManager &StackMgr,
                arrayNewElem(StackMgr, TypeIdx, ElemIdx, Start, Length)
                    .map_error([&](auto E) {
                      auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
-                     auto ElemSrc = ElemInst->getRefs();
-                     spdlog::error(E);
-                     spdlog::error(ErrInfo::InfoBoundary(
-                         static_cast<uint64_t>(Start), Length,
-                         ElemSrc.size() > 0
-                             ? static_cast<uint32_t>(ElemSrc.size() - 1)
-                             : 0U));
-                     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                                            Instr.getOffset()));
-                     return E;
+                     return logError(E, Instr, [&]() {
+                       return logTableOOB(E, *ElemInst, Start, Length);
+                     });
                    }));
   StackMgr.getTop().emplace<RefVariant>(InstRef);
   return {};
@@ -171,15 +219,8 @@ Expect<void> Executor::runArrayGetOp(Runtime::StackManager &StackMgr,
   EXPECTED_TRY(
       auto Val,
       arrayGet(StackMgr, Ref, TypeIdx, Idx, IsSigned).map_error([&](auto E) {
-        spdlog::error(E);
-        if (E == ErrCode::Value::ArrayOutOfBounds) {
-          const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-          spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), 1,
-                                              Inst->getBoundIdx()));
-        }
-        spdlog::error(
-            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return E;
+        return logError(E, Instr,
+                        [&]() { return logArrayOOB(E, Idx, 1, Ref); });
       }));
   StackMgr.getTop() = Val;
   return {};
@@ -193,15 +234,8 @@ Executor::runArraySetOp(Runtime::StackManager &StackMgr, const ValVariant &Val,
   const RefVariant Ref = StackMgr.pop().get<RefVariant>();
   EXPECTED_TRY(
       arraySet(StackMgr, Ref, Val, TypeIdx, Idx).map_error([&](auto E) {
-        spdlog::error(E);
-        if (E == ErrCode::Value::ArrayOutOfBounds) {
-          const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-          spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), 1,
-                                              Inst->getBoundIdx()));
-        }
-        spdlog::error(
-            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return E;
+        return logError(E, Instr,
+                        [&]() { return logArrayOOB(E, Idx, 1, Ref); });
       }));
   return {};
 }
@@ -212,10 +246,7 @@ Executor::runArrayLenOp(ValVariant &Val,
   const auto *Inst =
       Val.get<RefVariant>().getPtr<Runtime::Instance::ArrayInstance>();
   if (Inst == nullptr) {
-    spdlog::error(ErrCode::Value::AccessNullArray);
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::AccessNullArray);
+    return Unexpect(logError(ErrCode::Value::AccessNullArray, Instr));
   }
   Val.emplace<uint32_t>(Inst->getLength());
   return {};
@@ -229,15 +260,8 @@ Executor::runArrayFillOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
   const RefVariant Ref = StackMgr.pop().get<RefVariant>();
   EXPECTED_TRY(
       arrayFill(StackMgr, Ref, Val, TypeIdx, Idx, Cnt).map_error([&](auto E) {
-        spdlog::error(E);
-        if (E == ErrCode::Value::ArrayOutOfBounds) {
-          const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-          spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Cnt,
-                                              Inst->getBoundIdx()));
-        }
-        spdlog::error(
-            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return E;
+        return logError(E, Instr,
+                        [&]() { return logArrayOOB(E, Idx, Cnt, Ref); });
       }));
   return {};
 }
@@ -250,31 +274,14 @@ Executor::runArrayCopyOp(Runtime::StackManager &StackMgr, const uint32_t Cnt,
   const RefVariant SrcRef = StackMgr.pop().get<RefVariant>();
   const uint32_t DstIdx = StackMgr.pop().get<uint32_t>();
   const RefVariant DstRef = StackMgr.pop().get<RefVariant>();
-  EXPECTED_TRY(
-      arrayCopy(StackMgr, DstRef, DstTypeIdx, DstIdx, SrcRef, SrcTypeIdx,
-                SrcIdx, Cnt)
-          .map_error([&](auto E) {
-            spdlog::error(E);
-            if (E == ErrCode::Value::ArrayOutOfBounds) {
-              auto *SrcInst = SrcRef.getPtr<Runtime::Instance::ArrayInstance>();
-              auto *DstInst = DstRef.getPtr<Runtime::Instance::ArrayInstance>();
-              if (static_cast<uint64_t>(SrcIdx) + static_cast<uint64_t>(Cnt) >
-                  SrcInst->getLength()) {
-                spdlog::error(
-                    ErrInfo::InfoBoundary(static_cast<uint64_t>(SrcIdx), Cnt,
-                                          SrcInst->getBoundIdx()));
-              } else if (static_cast<uint64_t>(DstIdx) +
-                             static_cast<uint64_t>(Cnt) >
-                         DstInst->getLength()) {
-                spdlog::error(
-                    ErrInfo::InfoBoundary(static_cast<uint64_t>(DstIdx), Cnt,
-                                          DstInst->getBoundIdx()));
-              }
-            }
-            spdlog::error(
-                ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-            return E;
-          }));
+  EXPECTED_TRY(arrayCopy(StackMgr, DstRef, DstTypeIdx, DstIdx, SrcRef,
+                         SrcTypeIdx, SrcIdx, Cnt)
+                   .map_error([&](auto E) {
+                     return logError(E, Instr, [&]() {
+                       return logDoubleArrayOOB(E, SrcIdx, Cnt, SrcRef, DstIdx,
+                                                Cnt, DstRef);
+                     });
+                   }));
   return {};
 }
 
@@ -287,24 +294,14 @@ Expect<void> Executor::runArrayInitDataOp(
   EXPECTED_TRY(
       arrayInitData(StackMgr, Ref, TypeIdx, DataIdx, DstIdx, SrcIdx, Cnt)
           .map_error([&](auto E) {
-            spdlog::error(E);
-            if (E == ErrCode::Value::ArrayOutOfBounds) {
-              const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-              spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(DstIdx),
-                                                  Cnt, Inst->getBoundIdx()));
-            } else if (E == ErrCode::Value::MemoryOutOfBounds) {
-              auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
-              const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
-              const uint32_t BSize = VType.getBitWidth() / 8;
-              spdlog::error(ErrInfo::InfoBoundary(
-                  static_cast<uint64_t>(SrcIdx), Cnt * BSize,
-                  DataInst->getData().size() > 0
-                      ? static_cast<uint32_t>(DataInst->getData().size() - 1)
-                      : 0U));
-            }
-            spdlog::error(
-                ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-            return E;
+            auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
+            const uint32_t BSize =
+                getArrayStorageTypeByIdx(StackMgr, TypeIdx).getBitWidth() / 8;
+            return logError(
+                E, Instr, [&]() { return logArrayOOB(E, DstIdx, Cnt, Ref); },
+                [&]() {
+                  return logMemoryOOB(E, *DataInst, SrcIdx, Cnt * BSize);
+                });
           }));
   return {};
 }
@@ -318,22 +315,10 @@ Expect<void> Executor::runArrayInitElemOp(
   EXPECTED_TRY(
       arrayInitElem(StackMgr, Ref, TypeIdx, ElemIdx, DstIdx, SrcIdx, Cnt)
           .map_error([&](auto E) {
-            spdlog::error(E);
-            if (E == ErrCode::Value::ArrayOutOfBounds) {
-              const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-              spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(DstIdx),
-                                                  Cnt, Inst->getBoundIdx()));
-            } else if (E == ErrCode::Value::TableOutOfBounds) {
-              auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
-              auto ElemSrc = ElemInst->getRefs();
-              spdlog::error(ErrInfo::InfoBoundary(
-                  static_cast<uint64_t>(SrcIdx), Cnt,
-                  ElemSrc.size() > 0 ? static_cast<uint32_t>(ElemSrc.size() - 1)
-                                     : 0U));
-            }
-            spdlog::error(
-                ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-            return E;
+            auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
+            return logError(
+                E, Instr, [&]() { return logArrayOOB(E, DstIdx, Cnt, Ref); },
+                [&]() { return logTableOOB(E, *ElemInst, SrcIdx, Cnt); });
           }));
   return {};
 }
@@ -415,10 +400,7 @@ Expect<void> Executor::runI31GetOp(ValVariant &Val,
   uint32_t RefNum = static_cast<uint32_t>(
       reinterpret_cast<uintptr_t>(Val.get<RefVariant>().getPtr<void>()));
   if ((RefNum & 0x80000000U) == 0) {
-    spdlog::error(ErrCode::Value::AccessNullI31);
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::AccessNullI31);
+    return Unexpect(logError(ErrCode::Value::AccessNullI31, Instr));
   }
   RefNum &= 0x7FFFFFFFU;
   if (IsSigned) {

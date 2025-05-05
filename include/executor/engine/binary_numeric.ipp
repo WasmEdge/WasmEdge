@@ -188,10 +188,14 @@ TypeF<T> Executor::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
   T &Z1 = Val1.get<T>();
   const T &Z2 = Val2.get<T>();
   const T kZero = 0.0;
+  if (std::isnan(Z1) && std::isnan(Z2)) {
+  } else if (std::isnan(Z1)) {
+    Z1 = Z2;
+    return {};
+  } else if (std::isnan(Z2)) {
+    return {};
+  }
   if (std::isnan(Z1) || std::isnan(Z2)) {
-    if (std::isnan(Z2)) {
-      Z1 = Z2;
-    }
     // Set the most significant bit of the payload to 1.
     if constexpr (sizeof(T) == sizeof(uint32_t)) {
       uint32_t I32;

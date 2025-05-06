@@ -12,7 +12,7 @@
 
 WasmEdge は軽量、高性能、拡張可能な WebAssembly ランタイムです。現在、[最速の Wasm VM](https://ieeexplore.ieee.org/document/9214403) になります。WasmEdge は、[CNCF](https://www.cncf.io/) が主催する公式サンドボックスプロジェクトでです。その[ユースケース](https://wasmedge.org/book/en/use_cases.html)には、モダンなウェブアプリケーションアーキテクチャ(Isomorphic & Jamstack　アプリケーション)、エッジクラウド上のマイクロサービス、サーバーレス　SaaS API、組み込み機能、スマートコントラクト、スマートデバイスなどが含まれます。
 
-![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
+[![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
 [![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)

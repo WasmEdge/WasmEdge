@@ -196,7 +196,7 @@ struct LLVM::Compiler::CompileContext {
 #endif
 #endif
 
-  std::vector<const AST::FunctionType *> FunctionTypes;
+  std::vector<const AST::CompositeType *> CompositeTypes;
   std::vector<LLVM::Value> FunctionWrappers;
   std::vector<std::tuple<uint32_t, LLVM::FunctionCallee,
                          const WasmEdge::AST::CodeSegment *>>
@@ -403,7 +403,7 @@ struct LLVM::Compiler::CompileContext {
     } else {
       // Type index case. t2* = type[index].returns
       const uint32_t TypeIdx = BType.getTypeIndex();
-      const auto &FType = *FunctionTypes[TypeIdx];
+      const auto &FType = CompositeTypes[TypeIdx]->getFuncType();
       return RetT{
           VecT(FType.getParamTypes().begin(), FType.getParamTypes().end()),
           VecT(FType.getReturnTypes().begin(), FType.getReturnTypes().end())};
@@ -772,8 +772,32 @@ public:
         stackPop();
         break;
       }
-      // case OpCode::Br_on_cast:
-      // case OpCode::Br_on_cast_fail:
+      case OpCode::Br_on_cast:
+      case OpCode::Br_on_cast_fail: {
+        auto Ref = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
+        const auto Label = Instr.getBrCast().Jump.TargetIndex;
+        std::array<uint8_t, 16> Val = {0};
+        std::copy_n(Instr.getBrCast().RType2.getRawData().cbegin(), 8,
+                    Val.begin());
+        auto VType = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+        auto IsRefTest = Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kRefTest,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int32Ty,
+                                     {Context.Int64x2Ty, Context.Int64Ty},
+                                     false)),
+            {Ref, Builder.createExtractElement(VType, LLContext.getInt64(0))});
+        auto Cond =
+            (Instr.getOpCode() == OpCode::Br_on_cast)
+                ? Builder.createICmpNE(IsRefTest, LLContext.getInt32(0))
+                : Builder.createICmpEQ(IsRefTest, LLContext.getInt32(0));
+        setLableJumpPHI(Label);
+        auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "br_on_cast.end");
+        Builder.createCondBr(Cond, getLabel(Label), Next);
+        Builder.positionAtEnd(Next);
+        break;
+      }
       case OpCode::Return:
         compileReturn();
         setUnreachable();
@@ -852,8 +876,16 @@ public:
             assumingUnreachable();
           }
         } else {
-          // TODO: GC - AOT: support other composite here.
-          VType = TypeCode::NullFuncRef;
+          assuming(Instr.getValType().getTypeIndex() <
+                   Context.CompositeTypes.size());
+          const auto *CompType =
+              Context.CompositeTypes[Instr.getValType().getTypeIndex()];
+          assuming(CompType != nullptr);
+          if (CompType->isFunc()) {
+            VType = TypeCode::NullFuncRef;
+          } else {
+            VType = TypeCode::NullRef;
+          }
         }
         std::copy_n(VType.getRawData().cbegin(), 8, Val.begin());
         auto Vector = LLVM::Value::getConstVector8(LLContext, Val);
@@ -877,7 +909,16 @@ public:
                                                              false)),
             {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
-      // case OpCode::Ref__eq:
+      case OpCode::Ref__eq: {
+        LLVM::Value RHS = stackPop();
+        LLVM::Value LHS = stackPop();
+        stackPush(Builder.createZExt(
+            Builder.createICmpEQ(
+                Builder.createExtractElement(LHS, LLContext.getInt64(1)),
+                Builder.createExtractElement(RHS, LLContext.getInt64(1))),
+            Context.Int32Ty));
+        break;
+      }
       case OpCode::Ref__as_non_null: {
         auto Next =
             LLVM::BasicBlock::create(LLContext, F.Fn, "ref_as_non_null.ok");
@@ -892,35 +933,565 @@ public:
       }
 
       // Reference Instructions (GC proposal)
-      // case OpCode::Struct__new:
-      // case OpCode::Struct__new_default:
-      // case OpCode::Struct__get:
-      // case OpCode::Struct__get_u:
-      // case OpCode::Struct__get_s:
-      // case OpCode::Struct__set:
-      // case OpCode::Array__new:
-      // case OpCode::Array__new_default:
-      // case OpCode::Array__new_fixed:
-      // case OpCode::Array__new_data:
-      // case OpCode::Array__new_elem:
-      // case OpCode::Array__get:
-      // case OpCode::Array__get_u:
-      // case OpCode::Array__get_s:
-      // case OpCode::Array__set:
-      // case OpCode::Array__len:
-      // case OpCode::Array__fill:
-      // case OpCode::Array__copy:
-      // case OpCode::Array__init_data:
-      // case OpCode::Array__init_elem:
-      // case OpCode::Ref__test:
-      // case OpCode::Ref__test_null:
-      // case OpCode::Ref__cast:
-      // case OpCode::Ref__cast_null:
-      // case OpCode::Any__convert_extern:
-      // case OpCode::Extern__convert_any:
-      // case OpCode::Ref__i31:
-      // case OpCode::I31__get_s:
-      // case OpCode::I31__get_u:
+      case OpCode::Struct__new:
+      case OpCode::Struct__new_default: {
+        LLVM::Value Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+        if (Instr.getOpCode() == OpCode::Struct__new) {
+          assuming(Instr.getTargetIndex() < Context.CompositeTypes.size());
+          const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
+          assuming(CompType != nullptr && !CompType->isFunc());
+          const auto ArgSize = CompType->getFieldTypes().size();
+          std::vector<LLVM::Value> ArgsVec(ArgSize, nullptr);
+          for (size_t I = 0; I < ArgSize; ++I) {
+            ArgsVec[ArgSize - I - 1] = stackPop();
+          }
+          if (ArgSize > 0) {
+            auto Alloca = Builder.createArrayAlloca(
+                Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
+            Alloca.setAlignment(kValSize);
+            Args = Alloca;
+          }
+          for (size_t I = 0; I < ArgSize; ++I) {
+            auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                          I * kValSize);
+            auto Arg = ArgsVec[I];
+            Builder.createStore(
+                Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
+          }
+        }
+
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kStructNew,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int32Ty, Context.Int8PtrTy},
+                                     false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Args}));
+        break;
+      }
+      case OpCode::Struct__get:
+      case OpCode::Struct__get_u:
+      case OpCode::Struct__get_s: {
+        assuming(static_cast<size_t>(Instr.getTargetIndex()) <
+                 Context.CompositeTypes.size());
+        const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
+        assuming(CompType != nullptr && !CompType->isFunc());
+        assuming(static_cast<size_t>(Instr.getSourceIndex()) <
+                 CompType->getFieldTypes().size());
+        const auto &StorageType =
+            CompType->getFieldTypes()[Instr.getSourceIndex()].getStorageType();
+        auto Ref = stackPop();
+        auto IsSigned = (Instr.getOpCode() == OpCode::Struct__get_s)
+                            ? LLContext.getInt8(1)
+                            : LLContext.getInt8(0);
+        LLVM::Value Ret = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Ret.setAlignment(kValSize);
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kStructGet,
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int8Ty,
+                                             Context.Int8PtrTy},
+                                            false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), IsSigned, Ret});
+
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Ret, 0);
+        switch (StorageType.getCode()) {
+        case TypeCode::I8:
+        case TypeCode::I16:
+        case TypeCode::I32: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int32Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int32Ty, Ptr));
+          break;
+        }
+        case TypeCode::I64: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int64Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int64Ty, Ptr));
+          break;
+        }
+        case TypeCode::F32: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.FloatTy.getPointerTo());
+          stackPush(Builder.createLoad(Context.FloatTy, Ptr));
+          break;
+        }
+        case TypeCode::F64: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.DoubleTy.getPointerTo());
+          stackPush(Builder.createLoad(Context.DoubleTy, Ptr));
+          break;
+        }
+        case TypeCode::V128:
+        case TypeCode::Ref:
+        case TypeCode::RefNull: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int64x2Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int64x2Ty, Ptr));
+          break;
+        }
+        default:
+          assumingUnreachable();
+        }
+        break;
+      }
+      case OpCode::Struct__set: {
+        auto Val = stackPop();
+        auto Ref = stackPop();
+
+        LLVM::Value Arg = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Arg.setAlignment(kValSize);
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
+        Builder.createStore(
+            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
+
+        Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kStructSet,
+                                 LLVM::Type::getFunctionType(
+                                     Context.VoidTy,
+                                     {Context.Int64x2Ty, Context.Int32Ty,
+                                      Context.Int32Ty, Context.Int8PtrTy},
+                                     false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), Arg});
+        break;
+      }
+      case OpCode::Array__new: {
+        auto Length = stackPop();
+        auto Val = stackPop();
+
+        LLVM::Value Arg = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Arg.setAlignment(kValSize);
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
+        Builder.createStore(
+            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
+
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int32Ty, Context.Int32Ty,
+                                      Context.Int8PtrTy, Context.Int32Ty},
+                                     false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Length, Arg,
+             LLContext.getInt32(1)}));
+        break;
+      }
+      case OpCode::Array__new_default: {
+        auto Length = stackPop();
+
+        LLVM::Value Arg = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int32Ty, Context.Int32Ty,
+                                      Context.Int8PtrTy, Context.Int32Ty},
+                                     false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Length, Arg,
+             LLContext.getInt32(0)}));
+        break;
+      }
+      case OpCode::Array__new_fixed: {
+        LLVM::Value Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+        const auto ArgSize = Instr.getSourceIndex();
+        std::vector<LLVM::Value> ArgsVec(ArgSize, nullptr);
+        for (size_t I = 0; I < ArgSize; ++I) {
+          ArgsVec[ArgSize - I - 1] = stackPop();
+        }
+        if (ArgSize > 0) {
+          auto Alloca = Builder.createArrayAlloca(
+              Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
+          Alloca.setAlignment(kValSize);
+          Args = Alloca;
+        }
+        for (size_t I = 0; I < ArgSize; ++I) {
+          auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
+                                                        I * kValSize);
+          auto Arg = ArgsVec[I];
+          Builder.createStore(
+              Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
+        }
+
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int32Ty, Context.Int32Ty,
+                                      Context.Int8PtrTy, Context.Int32Ty},
+                                     false)),
+            {LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(ArgSize), Args, LLContext.getInt32(ArgSize)}));
+        break;
+      }
+      case OpCode::Array__new_data:
+      case OpCode::Array__new_elem: {
+        auto Length = stackPop();
+        auto Start = stackPop();
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(
+                Builder,
+                ((Instr.getOpCode() == OpCode::Array__new_data)
+                     ? Executable::Intrinsics::kArrayNewData
+                     : Executable::Intrinsics::kArrayNewElem),
+                LLVM::Type::getFunctionType(Context.Int64x2Ty,
+                                            {Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty},
+                                            false)),
+            {LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), Start, Length}));
+        break;
+      }
+      case OpCode::Array__get:
+      case OpCode::Array__get_u:
+      case OpCode::Array__get_s: {
+        assuming(static_cast<size_t>(Instr.getTargetIndex()) <
+                 Context.CompositeTypes.size());
+        const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
+        assuming(CompType != nullptr && !CompType->isFunc());
+        assuming(static_cast<size_t>(1) == CompType->getFieldTypes().size());
+        const auto &StorageType = CompType->getFieldTypes()[0].getStorageType();
+        auto Idx = stackPop();
+        auto Ref = stackPop();
+        auto IsSigned = (Instr.getOpCode() == OpCode::Array__get_s)
+                            ? LLContext.getInt8(1)
+                            : LLContext.getInt8(0);
+        LLVM::Value Ret = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Ret.setAlignment(kValSize);
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kArrayGet,
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int8Ty,
+                                             Context.Int8PtrTy},
+                                            false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()), Idx, IsSigned,
+             Ret});
+
+        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Ret, 0);
+        switch (StorageType.getCode()) {
+        case TypeCode::I8:
+        case TypeCode::I16:
+        case TypeCode::I32: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int32Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int32Ty, Ptr));
+          break;
+        }
+        case TypeCode::I64: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int64Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int64Ty, Ptr));
+          break;
+        }
+        case TypeCode::F32: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.FloatTy.getPointerTo());
+          stackPush(Builder.createLoad(Context.FloatTy, Ptr));
+          break;
+        }
+        case TypeCode::F64: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.DoubleTy.getPointerTo());
+          stackPush(Builder.createLoad(Context.DoubleTy, Ptr));
+          break;
+        }
+        case TypeCode::V128:
+        case TypeCode::Ref:
+        case TypeCode::RefNull: {
+          auto Ptr =
+              Builder.createBitCast(VPtr, Context.Int64x2Ty.getPointerTo());
+          stackPush(Builder.createLoad(Context.Int64x2Ty, Ptr));
+          break;
+        }
+        default:
+          assumingUnreachable();
+        }
+        break;
+      }
+      case OpCode::Array__set: {
+        auto Val = stackPop();
+        auto Idx = stackPop();
+        auto Ref = stackPop();
+
+        LLVM::Value Arg = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Arg.setAlignment(kValSize);
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
+        Builder.createStore(
+            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
+
+        Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kArraySet,
+                                 LLVM::Type::getFunctionType(
+                                     Context.VoidTy,
+                                     {Context.Int64x2Ty, Context.Int32Ty,
+                                      Context.Int32Ty, Context.Int8PtrTy},
+                                     false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()), Idx, Arg});
+        break;
+      }
+      case OpCode::Array__len: {
+        auto Ref = stackPop();
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kArrayLen,
+                LLVM::Type::getFunctionType(Context.Int32Ty,
+                                            {Context.Int64x2Ty}, false)),
+            {Ref}));
+        break;
+      }
+      case OpCode::Array__fill: {
+        auto Cnt = stackPop();
+        auto Val = stackPop();
+        auto Off = stackPop();
+        auto Ref = stackPop();
+
+        LLVM::Value Arg = Builder.createArrayAlloca(
+            Context.Int8Ty, LLContext.getInt64(kValSize));
+        Arg.setAlignment(kValSize);
+        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
+        Builder.createStore(
+            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kArrayFill,
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int8PtrTy},
+                                            false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()), Off, Cnt, Arg});
+        break;
+      }
+      case OpCode::Array__copy: {
+        auto Cnt = stackPop();
+        auto SrcOff = stackPop();
+        auto SrcRef = stackPop();
+        auto DstOff = stackPop();
+        auto DstRef = stackPop();
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kArrayCopy,
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int64x2Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty},
+                                            false)),
+            {DstRef, LLContext.getInt32(Instr.getTargetIndex()), DstOff, SrcRef,
+             LLContext.getInt32(Instr.getSourceIndex()), SrcOff, Cnt});
+        break;
+      }
+      case OpCode::Array__init_data:
+      case OpCode::Array__init_elem: {
+        auto Cnt = stackPop();
+        auto SrcOff = stackPop();
+        auto DstOff = stackPop();
+        auto Ref = stackPop();
+
+        Builder.createCall(
+            Context.getIntrinsic(
+                Builder,
+                ((Instr.getOpCode() == OpCode::Array__init_data)
+                     ? Executable::Intrinsics::kArrayInitData
+                     : Executable::Intrinsics::kArrayInitElem),
+                LLVM::Type::getFunctionType(Context.VoidTy,
+                                            {Context.Int64x2Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int32Ty, Context.Int32Ty},
+                                            false)),
+            {Ref, LLContext.getInt32(Instr.getTargetIndex()),
+             LLContext.getInt32(Instr.getSourceIndex()), DstOff, SrcOff, Cnt});
+        break;
+      }
+      case OpCode::Ref__test:
+      case OpCode::Ref__test_null: {
+        auto Ref = stackPop();
+        std::array<uint8_t, 16> Val = {0};
+        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
+        auto Vector = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kRefTest,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int32Ty,
+                                     {Context.Int64x2Ty, Context.Int64Ty},
+                                     false)),
+            {Ref,
+             Builder.createExtractElement(Vector, LLContext.getInt64(0))}));
+        break;
+      }
+      case OpCode::Ref__cast:
+      case OpCode::Ref__cast_null: {
+        auto Ref = stackPop();
+        std::array<uint8_t, 16> Val = {0};
+        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
+        auto Vector = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+        stackPush(Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kRefCast,
+                                 LLVM::Type::getFunctionType(
+                                     Context.Int64x2Ty,
+                                     {Context.Int64x2Ty, Context.Int64Ty},
+                                     false)),
+            {Ref,
+             Builder.createExtractElement(Vector, LLContext.getInt64(0))}));
+        break;
+      }
+      case OpCode::Any__convert_extern: {
+        std::array<uint8_t, 16> RawRef = {0};
+        auto Ref = stackPop();
+        auto PtrVal = Builder.createExtractElement(Ref, LLContext.getInt64(1));
+        auto IsNullBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "any_conv_extern.null");
+        auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn,
+                                                  "any_conv_extern.not_null");
+        auto IsExtrefBB = LLVM::BasicBlock::create(LLContext, F.Fn,
+                                                   "any_conv_extern.is_extref");
+        auto EndBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "any_conv_extern.end");
+        auto CondIsNull = Builder.createICmpEQ(PtrVal, LLContext.getInt64(0));
+        Builder.createCondBr(CondIsNull, IsNullBB, NotNullBB);
+
+        Builder.positionAtEnd(IsNullBB);
+        auto VT = ValType(TypeCode::RefNull, TypeCode::NullRef);
+        std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
+        auto Ret1 = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
+        Builder.createBr(EndBB);
+
+        Builder.positionAtEnd(NotNullBB);
+        auto Ret2 = Builder.createBitCast(
+            Builder.createInsertElement(
+                Builder.createBitCast(Ref, Context.Int8x16Ty),
+                LLContext.getInt8(0), LLContext.getInt64(1)),
+            Context.Int64x2Ty);
+        auto HType = Builder.createExtractElement(
+            Builder.createBitCast(Ret2, Context.Int8x16Ty),
+            LLContext.getInt64(3));
+        auto CondIsExtref = Builder.createOr(
+            Builder.createICmpEQ(HType, LLContext.getInt8(static_cast<uint8_t>(
+                                            TypeCode::ExternRef))),
+            Builder.createICmpEQ(HType, LLContext.getInt8(static_cast<uint8_t>(
+                                            TypeCode::NullExternRef))));
+        Builder.createCondBr(CondIsExtref, IsExtrefBB, EndBB);
+
+        Builder.positionAtEnd(IsExtrefBB);
+        VT = ValType(TypeCode::Ref, TypeCode::AnyRef);
+        std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
+        auto Ret3 = Builder.createInsertElement(
+            Builder.createBitCast(
+                LLVM::Value::getConstVector8(LLContext, RawRef),
+                Context.Int64x2Ty),
+            PtrVal, LLContext.getInt64(1));
+        Builder.createBr(EndBB);
+
+        Builder.positionAtEnd(EndBB);
+        auto Ret = Builder.createPHI(Context.Int64x2Ty);
+        Ret.addIncoming(Ret1, IsNullBB);
+        Ret.addIncoming(Ret2, NotNullBB);
+        Ret.addIncoming(Ret3, IsExtrefBB);
+        stackPush(Ret);
+        break;
+      }
+      case OpCode::Extern__convert_any: {
+        std::array<uint8_t, 16> RawRef = {0};
+        auto Ref = stackPop();
+        auto IsNullBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "extern_conv_any.null");
+        auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn,
+                                                  "extern_conv_any.not_null");
+        auto EndBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "extern_conv_any.end");
+        auto CondIsNull = Builder.createICmpEQ(
+            Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+            LLContext.getInt64(0));
+        Builder.createCondBr(CondIsNull, IsNullBB, NotNullBB);
+
+        Builder.positionAtEnd(IsNullBB);
+        auto VT = ValType(TypeCode::RefNull, TypeCode::NullExternRef);
+        std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
+        auto Ret1 = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
+        Builder.createBr(EndBB);
+
+        Builder.positionAtEnd(NotNullBB);
+        auto Ret2 = Builder.createBitCast(
+            Builder.createInsertElement(
+                Builder.createBitCast(Ref, Context.Int8x16Ty),
+                LLContext.getInt8(1), LLContext.getInt64(1)),
+            Context.Int64x2Ty);
+        Builder.createBr(EndBB);
+
+        Builder.positionAtEnd(EndBB);
+        auto Ret = Builder.createPHI(Context.Int64x2Ty);
+        Ret.addIncoming(Ret1, IsNullBB);
+        Ret.addIncoming(Ret2, NotNullBB);
+        stackPush(Ret);
+        break;
+      }
+      case OpCode::Ref__i31: {
+        std::array<uint8_t, 16> RawRef = {0};
+        auto VT = ValType(TypeCode::Ref, TypeCode::I31Ref);
+        std::copy_n(VT.getRawData().cbegin(), 8, RawRef.begin());
+        auto Ref = Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, RawRef), Context.Int64x2Ty);
+        auto Val = Builder.createZExt(
+            Builder.createOr(
+                Builder.createAnd(stackPop(), LLContext.getInt32(0x7FFFFFFFU)),
+                LLContext.getInt32(0x80000000U)),
+            Context.Int64Ty);
+        stackPush(Builder.createInsertElement(Ref, Val, LLContext.getInt64(1)));
+        break;
+      }
+      case OpCode::I31__get_s: {
+        auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "i31.get.ok");
+        auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
+        auto Val = Builder.createTrunc(
+            Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+            Context.Int32Ty);
+        auto IsNotNull = Builder.createLikely(Builder.createICmpNE(
+            Builder.createAnd(Val, LLContext.getInt32(0x80000000U)),
+            LLContext.getInt32(0)));
+        Builder.createCondBr(IsNotNull, Next,
+                             getTrapBB(ErrCode::Value::AccessNullI31));
+        Builder.positionAtEnd(Next);
+        Val = Builder.createAnd(Val, LLContext.getInt32(0x7FFFFFFFU));
+        stackPush(Builder.createOr(
+            Val, Builder.createShl(
+                     Builder.createAnd(Val, LLContext.getInt32(0x40000000U)),
+                     LLContext.getInt32(1))));
+        break;
+      }
+      case OpCode::I31__get_u: {
+        auto Next = LLVM::BasicBlock::create(LLContext, F.Fn, "i31.get.ok");
+        auto Ref = Builder.createBitCast(stackPop(), Context.Int64x2Ty);
+        auto Val = Builder.createTrunc(
+            Builder.createExtractElement(Ref, LLContext.getInt64(1)),
+            Context.Int32Ty);
+        auto IsNotNull = Builder.createLikely(Builder.createICmpNE(
+            Builder.createAnd(Val, LLContext.getInt32(0x80000000U)),
+            LLContext.getInt32(0)));
+        Builder.createCondBr(IsNotNull, Next,
+                             getTrapBB(ErrCode::Value::AccessNullI31));
+        Builder.positionAtEnd(Next);
+        stackPush(Builder.createAnd(Val, LLContext.getInt32(0x7FFFFFFFU)));
+        break;
+      }
 
       // Parametric Instructions
       case OpCode::Drop:
@@ -3623,7 +4194,8 @@ public:
 private:
   void compileCallOp(const unsigned int FuncIndex) noexcept {
     const auto &FuncType =
-        *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
+        Context.CompositeTypes[std::get<0>(Context.Functions[FuncIndex])]
+            ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
 
@@ -3654,7 +4226,7 @@ private:
     auto EndBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.end");
 
     LLVM::Value FuncIndex = stackPop();
-    const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
+    const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
 
@@ -3770,7 +4342,8 @@ private:
 
   void compileReturnCallOp(const unsigned int FuncIndex) noexcept {
     const auto &FuncType =
-        *Context.FunctionTypes[std::get<0>(Context.Functions[FuncIndex])];
+        Context.CompositeTypes[std::get<0>(Context.Functions[FuncIndex])]
+            ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
 
@@ -3796,7 +4369,7 @@ private:
     auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "c_i.is_null");
 
     LLVM::Value FuncIndex = stackPop();
-    const auto &FuncType = *Context.FunctionTypes[FuncTypeIndex];
+    const auto &FuncType = Context.CompositeTypes[FuncTypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
 
@@ -3909,7 +4482,7 @@ private:
                          getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
 
-    const auto &FuncType = *Context.FunctionTypes[TypeIndex];
+    const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
 
@@ -4032,7 +4605,7 @@ private:
                          getTrapBB(ErrCode::Value::AccessNullFunc));
     Builder.positionAtEnd(OkBB);
 
-    const auto &FuncType = *Context.FunctionTypes[TypeIndex];
+    const auto &FuncType = Context.CompositeTypes[TypeIndex]->getFuncType();
     auto FTy = toLLVMType(Context.LLContext, Context.ExecCtxPtrTy, FuncType);
     auto RTy = FTy.getReturnType();
 
@@ -5280,11 +5853,6 @@ namespace WasmEdge {
 namespace LLVM {
 
 Expect<void> Compiler::checkConfigure() noexcept {
-  if (Conf.hasProposal(Proposal::GC)) {
-    spdlog::error(ErrCode::Value::InvalidConfigure);
-    spdlog::error("    Proposal GC is not yet supported in LLVM backend");
-    return Unexpect(ErrCode::Value::InvalidConfigure);
-  }
   if (Conf.hasProposal(Proposal::ExceptionHandling)) {
     spdlog::error(ErrCode::Value::InvalidConfigure);
     spdlog::error(
@@ -5441,23 +6009,24 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
   if (Size == 0) {
     return;
   }
-  Context->FunctionTypes.reserve(Size);
+  Context->CompositeTypes.reserve(Size);
   Context->FunctionWrappers.reserve(Size);
 
   // Iterate and compile types.
   for (size_t I = 0; I < Size; ++I) {
-    if (SubTypes[I].getCompositeType().isFunc()) {
-      const auto &FuncType = SubTypes[I].getCompositeType().getFuncType();
-      const auto Name = fmt::format("t{}"sv, Context->FunctionTypes.size());
-
+    const auto &CompType = SubTypes[I].getCompositeType();
+    const auto Name = fmt::format("t{}"sv, Context->CompositeTypes.size());
+    if (CompType.isFunc()) {
       // Check function type is unique
       {
         bool Unique = true;
         for (size_t J = 0; J < I; ++J) {
-          if (const auto OldFuncType = Context->FunctionTypes[J]) {
-            if (*OldFuncType == FuncType) {
+          if (Context->CompositeTypes[J] &&
+              Context->CompositeTypes[J]->isFunc()) {
+            const auto &OldFuncType = Context->CompositeTypes[J]->getFuncType();
+            if (OldFuncType == CompType.getFuncType()) {
               Unique = false;
-              Context->FunctionTypes.push_back(OldFuncType);
+              Context->CompositeTypes.push_back(Context->CompositeTypes[J]);
               auto F = Context->FunctionWrappers[J];
               Context->FunctionWrappers.push_back(F);
               auto A = Context->LLModule.addAlias(WrapperTy, F, Name.c_str());
@@ -5494,8 +6063,8 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         Builder.positionAtEnd(
             LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
 
-        auto FTy =
-            toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+        auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy,
+                              CompType.getFuncType());
         auto RTy = FTy.getReturnType();
         std::vector<LLVM::Type> FPTy(FTy.getNumParams());
         FTy.getParamTypes(FPTy);
@@ -5544,12 +6113,32 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         Builder.createRetVoid();
       }
       // Copy wrapper, param and return lists to module instance.
-      Context->FunctionTypes.push_back(&FuncType);
       Context->FunctionWrappers.push_back(F);
     } else {
-      Context->FunctionTypes.push_back(nullptr);
-      Context->FunctionWrappers.push_back(LLVM::Value());
+      // Non function type case. Create empty wrapper.
+      auto F = Context->LLModule.addFunction(WrapperTy, LLVMExternalLinkage,
+                                             Name.c_str());
+      {
+        F.setVisibility(LLVMProtectedVisibility);
+        F.setDSOLocal(true);
+        F.setDLLStorageClass(LLVMDLLExportStorageClass);
+        F.addFnAttr(Context->NoStackArgProbe);
+        F.addFnAttr(Context->StrictFP);
+        F.addFnAttr(Context->UWTable);
+        F.addParamAttr(0, Context->ReadOnly);
+        F.addParamAttr(0, Context->NoAlias);
+        F.addParamAttr(1, Context->NoAlias);
+        F.addParamAttr(2, Context->NoAlias);
+        F.addParamAttr(3, Context->NoAlias);
+
+        LLVM::Builder Builder(Context->LLContext);
+        Builder.positionAtEnd(
+            LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+        Builder.createRetVoid();
+      }
+      Context->FunctionWrappers.push_back(F);
     }
+    Context->CompositeTypes.push_back(&CompType);
   }
 }
 
@@ -5566,8 +6155,9 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto FuncID = static_cast<uint32_t>(Context->Functions.size());
       // Get the function type index in module.
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
-      assuming(TypeIdx < Context->FunctionTypes.size());
-      const auto &FuncType = *Context->FunctionTypes[TypeIdx];
+      assuming(TypeIdx < Context->CompositeTypes.size());
+      assuming(Context->CompositeTypes[TypeIdx]->isFunc());
+      const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
       auto FTy =
           toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
@@ -5703,8 +6293,9 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
   for (size_t I = 0; I < TypeIdxs.size() && I < CodeSegs.size(); ++I) {
     const auto &TypeIdx = TypeIdxs[I];
     const auto &Code = CodeSegs[I];
-    assuming(TypeIdx < Context->FunctionTypes.size());
-    const auto &FuncType = *Context->FunctionTypes[TypeIdx];
+    assuming(TypeIdx < Context->CompositeTypes.size());
+    assuming(Context->CompositeTypes[TypeIdx]->isFunc());
+    const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
     const auto FuncID = Context->Functions.size();
     auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
     LLVM::FunctionCallee F = {FTy, Context->LLModule.addFunction(

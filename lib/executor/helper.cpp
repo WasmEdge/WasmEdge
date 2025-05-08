@@ -290,6 +290,33 @@ const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
   return ModInst->unsafeGetType(Idx);
 }
 
+const WasmEdge::AST::CompositeType &
+Executor::getCompositeTypeByIdx(Runtime::StackManager &StackMgr,
+                                const uint32_t Idx) const noexcept {
+  auto *DefType = getDefTypeByIdx(StackMgr, Idx);
+  assuming(DefType);
+  const auto &CompType = DefType->getCompositeType();
+  assuming(!CompType.isFunc());
+  return CompType;
+}
+
+const ValType &
+Executor::getStructStorageTypeByIdx(Runtime::StackManager &StackMgr,
+                                    const uint32_t Idx,
+                                    const uint32_t Off) const noexcept {
+  const auto &CompType = getCompositeTypeByIdx(StackMgr, Idx);
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) > Off);
+  return CompType.getFieldTypes()[Off].getStorageType();
+}
+
+const ValType &
+Executor::getArrayStorageTypeByIdx(Runtime::StackManager &StackMgr,
+                                   const uint32_t Idx) const noexcept {
+  const auto &CompType = getCompositeTypeByIdx(StackMgr, Idx);
+  assuming(static_cast<uint32_t>(CompType.getFieldTypes().size()) == 1);
+  return CompType.getFieldTypes()[0].getStorageType();
+}
+
 Runtime::Instance::FunctionInstance *
 Executor::getFuncInstByIdx(Runtime::StackManager &StackMgr,
                            const uint32_t Idx) const {
@@ -439,5 +466,52 @@ void Executor::cleanNumericVal(ValVariant &Val,
   }
 }
 
+ValVariant Executor::packVal(const ValType &Type,
+                             const ValVariant &Val) const noexcept {
+  if (Type.isPackType()) {
+    switch (Type.getCode()) {
+    case TypeCode::I8:
+      return ValVariant(Val.get<uint32_t>() & 0xFFU);
+    case TypeCode::I16:
+      return ValVariant(Val.get<uint32_t>() & 0xFFFFU);
+    default:
+      assumingUnreachable();
+    }
+  }
+  return Val;
+}
+
+std::vector<ValVariant>
+Executor::packVals(const ValType &Type,
+                   std::vector<ValVariant> &&Vals) const noexcept {
+  for (uint32_t I = 0; I < Vals.size(); I++) {
+    Vals[I] = packVal(Type, Vals[I]);
+  }
+  return std::move(Vals);
+}
+
+ValVariant Executor::unpackVal(const ValType &Type, const ValVariant &Val,
+                               bool IsSigned) const noexcept {
+  if (Type.isPackType()) {
+    uint32_t Num = Val.get<uint32_t>();
+    switch (Type.getCode()) {
+    case TypeCode::I8:
+      if (IsSigned) {
+        return static_cast<uint32_t>(static_cast<int8_t>(Num));
+      } else {
+        return static_cast<uint32_t>(static_cast<uint8_t>(Num));
+      }
+    case TypeCode::I16:
+      if (IsSigned) {
+        return static_cast<uint32_t>(static_cast<int16_t>(Num));
+      } else {
+        return static_cast<uint32_t>(static_cast<uint16_t>(Num));
+      }
+    default:
+      assumingUnreachable();
+    }
+  }
+  return Val;
+}
 } // namespace Executor
 } // namespace WasmEdge

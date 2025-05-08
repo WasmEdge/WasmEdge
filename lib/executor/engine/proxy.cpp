@@ -59,6 +59,21 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kCallIndirect, proxyCallIndirect),
     ENTRY(kCallRef, proxyCallRef),
     ENTRY(kRefFunc, proxyRefFunc),
+    ENTRY(kStructNew, proxyStructNew),
+    ENTRY(kStructGet, proxyStructGet),
+    ENTRY(kStructSet, proxyStructSet),
+    ENTRY(kArrayNew, proxyArrayNew),
+    ENTRY(kArrayNewData, proxyArrayNewData),
+    ENTRY(kArrayNewElem, proxyArrayNewElem),
+    ENTRY(kArrayGet, proxyArrayGet),
+    ENTRY(kArraySet, proxyArraySet),
+    ENTRY(kArrayLen, proxyArrayLen),
+    ENTRY(kArrayFill, proxyArrayFill),
+    ENTRY(kArrayCopy, proxyArrayCopy),
+    ENTRY(kArrayInitData, proxyArrayInitData),
+    ENTRY(kArrayInitElem, proxyArrayInitElem),
+    ENTRY(kRefTest, proxyRefTest),
+    ENTRY(kRefCast, proxyRefCast),
     ENTRY(kTableGet, proxyTableGet),
     ENTRY(kTableSet, proxyTableSet),
     ENTRY(kTableInit, proxyTableInit),
@@ -203,7 +218,181 @@ Expect<RefVariant> Executor::proxyRefFunc(Runtime::StackManager &StackMgr,
                                           const uint32_t FuncIdx) noexcept {
   auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   assuming(FuncInst);
-  return RefVariant(FuncInst);
+  return RefVariant(FuncInst->getDefType(), FuncInst);
+}
+
+Expect<RefVariant> Executor::proxyStructNew(Runtime::StackManager &StackMgr,
+                                            const uint32_t TypeIdx,
+                                            const ValVariant *Args,
+                                            const uint32_t ArgSize) noexcept {
+  if (Args == nullptr) {
+    return structNew(StackMgr, TypeIdx);
+  } else {
+    return structNew(StackMgr, TypeIdx, Span<const ValVariant>(Args, ArgSize));
+  }
+}
+
+Expect<void> Executor::proxyStructGet(Runtime::StackManager &StackMgr,
+                                      const RefVariant Ref,
+                                      const uint32_t TypeIdx,
+                                      const uint32_t Off, const bool IsSigned,
+                                      ValVariant *Ret) noexcept {
+  EXPECTED_TRY(auto Val, structGet(StackMgr, Ref, TypeIdx, Off, IsSigned));
+  *Ret = Val;
+  return {};
+}
+
+Expect<void> Executor::proxyStructSet(Runtime::StackManager &StackMgr,
+                                      const RefVariant Ref,
+                                      const uint32_t TypeIdx,
+                                      const uint32_t Off,
+                                      const ValVariant *Val) noexcept {
+  return structSet(StackMgr, Ref, *Val, TypeIdx, Off);
+}
+
+Expect<RefVariant> Executor::proxyArrayNew(Runtime::StackManager &StackMgr,
+                                           const uint32_t TypeIdx,
+                                           const uint32_t Length,
+                                           const ValVariant *Args,
+                                           const uint32_t ArgSize) noexcept {
+  assuming(ArgSize == 0 || ArgSize == 1 || ArgSize == Length);
+  if (ArgSize == 0) {
+    return arrayNew(StackMgr, TypeIdx, Length);
+  } else if (ArgSize == 1) {
+    return arrayNew(StackMgr, TypeIdx, Length, {Args[0]});
+  } else {
+    return arrayNew(StackMgr, TypeIdx, Length,
+                    Span<const ValVariant>(Args, ArgSize));
+  }
+}
+
+Expect<RefVariant> Executor::proxyArrayNewData(Runtime::StackManager &StackMgr,
+                                               const uint32_t TypeIdx,
+                                               const uint32_t DataIdx,
+                                               const uint32_t Start,
+                                               const uint32_t Length) noexcept {
+  return arrayNewData(StackMgr, TypeIdx, DataIdx, Start, Length);
+}
+
+Expect<RefVariant> Executor::proxyArrayNewElem(Runtime::StackManager &StackMgr,
+                                               const uint32_t TypeIdx,
+                                               const uint32_t ElemIdx,
+                                               const uint32_t Start,
+                                               const uint32_t Length) noexcept {
+  return arrayNewElem(StackMgr, TypeIdx, ElemIdx, Start, Length);
+}
+
+Expect<void> Executor::proxyArrayGet(Runtime::StackManager &StackMgr,
+                                     const RefVariant Ref,
+                                     const uint32_t TypeIdx, const uint32_t Idx,
+                                     const bool IsSigned,
+                                     ValVariant *Ret) noexcept {
+  EXPECTED_TRY(auto Val, arrayGet(StackMgr, Ref, TypeIdx, Idx, IsSigned));
+  *Ret = Val;
+  return {};
+}
+
+Expect<void> Executor::proxyArraySet(Runtime::StackManager &StackMgr,
+                                     const RefVariant Ref,
+                                     const uint32_t TypeIdx, const uint32_t Idx,
+                                     const ValVariant *Val) noexcept {
+  return arraySet(StackMgr, Ref, *Val, TypeIdx, Idx);
+}
+
+Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
+                                         const RefVariant Ref) noexcept {
+  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
+  if (Inst == nullptr) {
+    return Unexpect(ErrCode::Value::AccessNullArray);
+  }
+  return Inst->getLength();
+}
+
+Expect<void> Executor::proxyArrayFill(Runtime::StackManager &StackMgr,
+                                      const RefVariant Ref,
+                                      const uint32_t TypeIdx,
+                                      const uint32_t Idx, const uint32_t Cnt,
+                                      const ValVariant *Val) noexcept {
+  return arrayFill(StackMgr, Ref, *Val, TypeIdx, Idx, Cnt);
+}
+
+Expect<void>
+Executor::proxyArrayCopy(Runtime::StackManager &StackMgr,
+                         const RefVariant DstRef, const uint32_t DstTypeIdx,
+                         const uint32_t DstIdx, const RefVariant SrcRef,
+                         const uint32_t SrcTypeIdx, const uint32_t SrcIdx,
+                         const uint32_t Cnt) noexcept {
+  return arrayCopy(StackMgr, DstRef, DstTypeIdx, DstIdx, SrcRef, SrcTypeIdx,
+                   SrcIdx, Cnt);
+}
+
+Expect<void> Executor::proxyArrayInitData(
+    Runtime::StackManager &StackMgr, const RefVariant Ref,
+    const uint32_t TypeIdx, const uint32_t DataIdx, const uint32_t DstIdx,
+    const uint32_t SrcIdx, const uint32_t Cnt) noexcept {
+  return arrayInitData(StackMgr, Ref, TypeIdx, DataIdx, DstIdx, SrcIdx, Cnt);
+}
+
+Expect<void> Executor::proxyArrayInitElem(
+    Runtime::StackManager &StackMgr, const RefVariant Ref,
+    const uint32_t TypeIdx, const uint32_t ElemIdx, const uint32_t DstIdx,
+    const uint32_t SrcIdx, const uint32_t Cnt) noexcept {
+  return arrayInitElem(StackMgr, Ref, TypeIdx, ElemIdx, DstIdx, SrcIdx, Cnt);
+}
+
+Expect<uint32_t> Executor::proxyRefTest(Runtime::StackManager &StackMgr,
+                                        const RefVariant Ref,
+                                        ValType VTTest) noexcept {
+  // Copy the value type here due to handling the externalized case.
+  auto VT = Ref.getType();
+  if (VT.isExternalized()) {
+    VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
+  }
+  const auto *ModInst = StackMgr.getModule();
+  assuming(ModInst);
+  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
+  if (!VT.isAbsHeapType()) {
+    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
+    // Reference must not be nullptr here because the null references are typed
+    // with the least abstract heap type.
+    if (Inst->getModule()) {
+      GotTypeList = Inst->getModule()->getTypeList();
+    }
+  }
+
+  if (AST::TypeMatcher::matchType(ModInst->getTypeList(), VTTest, GotTypeList,
+                                  VT)) {
+    return static_cast<uint32_t>(1);
+  } else {
+    return static_cast<uint32_t>(0);
+  }
+}
+
+Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
+                                          const RefVariant Ref,
+                                          ValType VTCast) noexcept {
+  // Copy the value type here due to handling the externalized case.
+  auto VT = Ref.getType();
+  if (VT.isExternalized()) {
+    VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
+  }
+  const auto *ModInst = StackMgr.getModule();
+  assuming(ModInst);
+  Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
+  if (!VT.isAbsHeapType()) {
+    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
+    // Reference must not be nullptr here because the null references are typed
+    // with the least abstract heap type.
+    if (Inst->getModule()) {
+      GotTypeList = Inst->getModule()->getTypeList();
+    }
+  }
+
+  if (!AST::TypeMatcher::matchType(ModInst->getTypeList(), VTCast, GotTypeList,
+                                   VT)) {
+    return Unexpect(ErrCode::Value::CastFailed);
+  }
+  return Ref;
 }
 
 Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,

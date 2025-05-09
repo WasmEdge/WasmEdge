@@ -746,6 +746,8 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     if (auto Res = onLoad(Filename)) {
       EXPECT_TRUE(false);
     } else {
+      EXPECT_TRUE(Res.error().getErrCodePhase() ==
+                  WasmEdge::WasmPhase::Loading);
       EXPECT_TRUE(
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }
@@ -761,7 +763,8 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
                             Params.second)) {
       EXPECT_NE(LineNumber, LineNumber);
     } else {
-      // Check value.
+      EXPECT_TRUE(Res.error().getErrCodePhase() ==
+                  WasmEdge::WasmPhase::Execution);
       EXPECT_TRUE(
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }
@@ -771,6 +774,8 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     if (auto Res = onValidate(Filename); Res) {
       EXPECT_TRUE(false);
     } else {
+      EXPECT_TRUE(Res.error().getErrCodePhase() ==
+                  WasmEdge::WasmPhase::Validation);
       EXPECT_TRUE(
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }
@@ -780,6 +785,9 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     if (auto Res = onInstantiate(Filename); Res) {
       EXPECT_TRUE(false);
     } else {
+      EXPECT_TRUE(
+          Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Instantiation ||
+          Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Execution);
       EXPECT_TRUE(
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }

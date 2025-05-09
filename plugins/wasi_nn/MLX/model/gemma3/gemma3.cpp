@@ -199,7 +199,8 @@ std::shared_ptr<Model> Model::fromPretrained(const std::string &ModelPath) {
       WeightFiles.push_back(P.path());
   }
   if (WeightFiles.empty()) {
-    spdlog::error("No safetensors found in {}.", Path.string());
+    spdlog::error("[WASI-NN] MLX backend: No safetensors found in {}."sv,
+                  Path.string());
     assumingUnreachable();
   }
   std::unordered_map<std::string, mx::array> Weights;
@@ -214,8 +215,9 @@ std::shared_ptr<Model> Model::fromPretrained(const std::string &ModelPath) {
     auto GroupSize =
         static_cast<int>(QuantResult.value()["group_size"].get_int64());
     auto Bits = static_cast<int>(QuantResult.value()["bits"].get_int64());
-    spdlog::info("Quantizing model to {} bits, {} group size.", Bits,
-                 GroupSize);
+    spdlog::info(
+        "[WASI-NN] MLX backend: Quantizing model to {} bits, {} group size."sv,
+        Bits, GroupSize);
     Model = std::dynamic_pointer_cast<gemma3::Model>(
         Model->toQuantized(GroupSize, Bits, "", Weights));
   }

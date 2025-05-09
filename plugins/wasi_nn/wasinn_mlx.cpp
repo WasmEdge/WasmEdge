@@ -309,7 +309,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
 
   if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && !GraphRef.IsQuantized) {
     spdlog::info(
-        "[WASI-NN] MLX backend: Quantiz model with q_bits: {} and group_size: {}"sv,
+        "[WASI-NN] MLX backend: Quantize model with q_bits: {} and group_size: {}"sv,
         GraphRef.QBits, GraphRef.GroupSize);
     GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }

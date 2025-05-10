@@ -284,7 +284,7 @@ Expect<void> Loader::loadType(FuncType &Ty) {
 Expect<void> Loader::loadType(InstanceType &Ty) {
   // instancetype  ::= 0x42 id*:vec(<instancedecl>)
   // => (instance id*)
-  return loadVec<TypeSection>(Ty.getContent(), [this](InstanceDecl Decl) {
+  return loadVec<TypeSection>(Ty.getContent(), [this](InstanceDecl &Decl) {
     return loadInstanceDecl(Decl);
   });
 }

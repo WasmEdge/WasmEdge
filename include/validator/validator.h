@@ -16,6 +16,7 @@
 
 #include "ast/module.h"
 #include "common/configure.h"
+#include "validator/context.h"
 #include "validator/formchecker.h"
 
 #include <cstdint>
@@ -78,6 +79,8 @@ private:
   const Configure Conf;
   /// Formal checker
   FormChecker Checker;
+  /// Context for Component validation
+  Context Ctx;
 };
 
 } // namespace Validator

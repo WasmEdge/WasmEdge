@@ -1341,7 +1341,7 @@ struct __wasi_event_t {
   __wasi_errno_t error;
 
   /**
-   * The type of event that occured
+   * The type of event that occurred
    */
   __wasi_eventtype_t type;
 

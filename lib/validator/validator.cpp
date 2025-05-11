@@ -201,6 +201,10 @@ Expect<void> Validator::validate(const AST::Limit &Lim) {
     spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
     return Unexpect(ErrCode::Value::InvalidLimit);
   }
+  if (Lim.isShared() && unlikely(!Lim.hasMax())) {
+    spdlog::error(ErrCode::Value::SharedMemoryNoMax);
+    return Unexpect(ErrCode::Value::SharedMemoryNoMax);
+  }
   return {};
 }
 

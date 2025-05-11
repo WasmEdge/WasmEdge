@@ -133,23 +133,26 @@ Serializer::serializeLimit(const AST::Limit &Lim,
                            std::vector<uint8_t> &OutVec) const noexcept {
   // Limit: 0x00 + min:u32
   //       |0x01 + min:u32 + max:u32
-  //       |0x02 + min:u32 (shared)
+  //       |0x02 + min:u32 (shared, invalid)
   //       |0x03 + min:u32 + max:u32 (shared)
   uint8_t Flag = 0;
   if (Lim.isShared()) {
-    Flag = 0x02U;
+    Flag |= 0x02U;
   }
   if (Lim.hasMax()) {
     Flag |= 0x01U;
   }
-  if (unlikely(static_cast<AST::Limit::LimitType>(Flag) ==
-               AST::Limit::LimitType::SharedNoMax)) {
+  if (static_cast<AST::Limit::LimitType>(Flag) >=
+      AST::Limit::LimitType::SharedNoMax) {
     if (Conf.hasProposal(Proposal::Threads)) {
-      return logSerializeError(ErrCode::Value::SharedMemoryNoMax,
+      if (unlikely(!Lim.hasMax())) {
+        return logSerializeError(ErrCode::Value::SharedMemoryNoMax,
+                                 ASTNodeAttr::Type_Limit);
+      }
+    } else {
+      return logSerializeError(ErrCode::Value::IntegerTooLarge,
                                ASTNodeAttr::Type_Limit);
     }
-    return logSerializeError(ErrCode::Value::IntegerTooLarge,
-                             ASTNodeAttr::Type_Limit);
   }
   OutVec.push_back(Flag);
   serializeU32(Lim.getMin(), OutVec);

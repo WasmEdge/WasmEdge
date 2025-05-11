@@ -32,8 +32,8 @@ public:
   enum class LimitType : uint8_t {
     HasMin = 0x00,
     HasMinMax = 0x01,
-    SharedNoMax = 0x02,
-    Shared = 0x03
+    SharedNoMax = 0x02, // For threads proposal, invalid
+    Shared = 0x03       // For threads proposal
   };
 
   /// Constructors.
@@ -50,10 +50,8 @@ public:
   }
 
   /// Getter and setter of limit mode.
-  bool hasMax() const noexcept {
-    return Type == LimitType::HasMinMax || Type == LimitType::Shared;
-  }
-  bool isShared() const noexcept { return Type == LimitType::Shared; }
+  bool hasMax() const noexcept { return static_cast<uint8_t>(Type) & 0x01U; }
+  bool isShared() const noexcept { return static_cast<uint8_t>(Type) & 0x02U; }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.

@@ -300,7 +300,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoBoundary>::format(
                  "boundary: 0x{:08x}"sv,
                  Info.Offset,
                  Info.Offset + (Info.Size > 0U ? Info.Size - 1U : 0U),
-                 Info.Limit);
+                 (Info.Limit > 0U ? Info.Limit - 1U : 0U));
   return formatter<std::string_view>::format(
       std::string_view(Buffer.data(), Buffer.size()), Ctx);
 }

@@ -66,13 +66,12 @@ struct InfoInstanceBound {
 
 struct InfoForbidIndex {
   InfoForbidIndex() = delete;
-  InfoForbidIndex(const IndexCategory Cate, const uint64_t Idx,
-                  const uint64_t Bound) noexcept
+  InfoForbidIndex(const IndexCategory Cate, const uint32_t Idx,
+                  const uint32_t Bound) noexcept
       : Category(Cate), Index(Idx), Boundary(Bound) {}
 
   IndexCategory Category;
-  uint64_t Index;
-  uint64_t Boundary;
+  uint32_t Index, Boundary;
 };
 
 struct InfoExporting {

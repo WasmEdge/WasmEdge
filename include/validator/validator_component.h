@@ -11,7 +11,7 @@ using namespace std::literals;
 using namespace AST::Component;
 
 // Helper func for better logging
-inline std::string toString(SortCase SC) {
+inline std::string toString(const SortCase &SC) {
   switch (SC) {
   case SortCase::Func:
     return "Func";
@@ -28,7 +28,7 @@ inline std::string toString(SortCase SC) {
   }
 }
 
-inline std::string toString(CoreSort CS) {
+inline std::string toString(const CoreSort &CS) {
   switch (CS) {
   case CoreSort::Func:
     return "Func";
@@ -49,7 +49,12 @@ inline std::string toString(CoreSort CS) {
   }
 }
 
-inline std::string toString(IndexKind IK) {
+inline std::string toString(const Sort &S) {
+  return std::visit(
+      [](const auto &value) -> std::string { return toString(value); }, S);
+}
+
+inline std::string toString(const IndexKind &IK) {
   switch (IK) {
   case IndexKind::CoreType:
     return "CoreType";
@@ -68,6 +73,7 @@ struct ExternDescVisitor {
   ExternDescVisitor(Context &Ctx) : Ctx(Ctx) {}
 
   Expect<void> operator()(const DescTypeIndex &DTI) {
+    auto Idx = DTI.getIndex();
     switch (DTI.getKind()) {
     case IndexKind::CoreType:
       Ctx.incCoreIndexSize(CoreSort::Type);
@@ -80,6 +86,31 @@ struct ExternDescVisitor {
       break;
     case IndexKind::InstanceType:
       Ctx.incComponentIndexSize(SortCase::Instance);
+      const auto *IT = Ctx.getComponentInstanceType(Idx);
+      if (IT != nullptr) {
+        const auto &InstanceDecls = IT->getContent();
+        for (auto &InstanceDecl : InstanceDecls) {
+          if (std::holds_alternative<CoreType>(InstanceDecl)) {
+            spdlog::debug("Core Type found"sv);
+          } else if (std::holds_alternative<std::shared_ptr<Type>>(
+                         InstanceDecl)) {
+            spdlog::debug("Def Type found"sv);
+          } else if (std::holds_alternative<Alias>(InstanceDecl)) {
+            spdlog::debug("Alias found"sv);
+          } else if (std::holds_alternative<ExportDecl>(InstanceDecl)) {
+            auto &ED = std::get<ExportDecl>(InstanceDecl);
+            uint32_t InstanceIdx = static_cast<uint32_t>(
+                Ctx.getComponentIndexSize(SortCase::Instance) - 1);
+            Ctx.addComponentInstanceExport(InstanceIdx, ED.getExportName(),
+                                           ED.getExternDesc());
+            spdlog::debug("Export Decl found"sv);
+          } else {
+            assumingUnreachable();
+          }
+        }
+      } else {
+        assumingUnreachable();
+      }
       break;
     }
     return {};
@@ -124,10 +155,35 @@ struct CoreInstanceExprVisitor {
         return Unexpect(ErrCode::Value::MissingArgument);
       }
     }
+    Ctx.incCoreIndexSize(CoreSort::Instance);
+    const auto &Mod = Ctx.getCoreModule(ModuleIdx);
+    const auto &ExportDescs = Mod.getExportSection().getContent();
+    uint32_t InstanceIdx =
+        static_cast<uint32_t>(Ctx.getCoreIndexSize(CoreSort::Instance) - 1);
+    for (const auto &ExportDesc : ExportDescs) {
+      Ctx.addCoreInstanceExport(InstanceIdx, ExportDesc.getExternalName(),
+                                ExportDesc.getExternalType());
+    }
     return {};
   }
 
-  Expect<void> operator()(const CoreInlineExports &) { return {}; }
+  Expect<void> operator()(const CoreInlineExports &Exports) {
+    for (const auto &Export : Exports.getExports()) {
+      auto ExportName = Export.getName();
+      auto SortIdx = Export.getSortIdx();
+      auto Sort = SortIdx.getSort();
+      uint32_t Idx = SortIdx.getSortIdx();
+
+      if (!isValidArgumentIndex(Sort, Idx)) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error("Core: Inline export '{}' refers to invalid index {}"sv,
+                      ExportName, Idx);
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+    }
+    Ctx.incCoreIndexSize(CoreSort::Instance);
+    return {};
+  }
 
 private:
   Context &Ctx;
@@ -143,6 +199,13 @@ private:
       ImportsList.emplace_back(std::string(Import.getModuleName()));
     }
     return ImportsList;
+  }
+
+  bool isValidArgumentIndex(const CoreSort &ArgSort, const uint32_t Idx) {
+    if (Ctx.getCoreIndexSize(ArgSort) > Idx) {
+      return true;
+    }
+    return false;
   }
 };
 
@@ -192,7 +255,7 @@ struct InstanceExprVisitor {
         Ctx.substituteTypeImport(ImportName, ArgIdx);
       }
     }
-
+    Ctx.incComponentIndexSize(SortCase::Instance);
     return {};
   }
   Expect<void> operator()(const CompInlineExports &Exports) {
@@ -222,10 +285,7 @@ struct InstanceExprVisitor {
         }
       }
     }
-    // TODO: When validating instantiate, after each individual type-import
-    // is supplied via with, the actual type supplied is immediately
-    // substituted for all uses of the import, so that subsequent imports
-    // and all exports are now specialized to the actual type.
+    Ctx.incComponentIndexSize(SortCase::Instance);
     return {};
   }
 
@@ -350,13 +410,11 @@ private:
     if (std::holds_alternative<SortCase>(ArgSort)) {
       auto ArgSortCase = std::get<SortCase>(ArgSort);
       if (Ctx.getComponentIndexSize(ArgSortCase) > Idx) {
-        spdlog::debug("{} >= {}", Ctx.getComponentIndexSize(ArgSortCase), Idx);
         return true;
       }
     } else {
       auto ArgSortCase = std::get<CoreSort>(ArgSort);
       if (Ctx.getCoreIndexSize(ArgSortCase) > Idx) {
-        spdlog::debug("{} >= {}", Ctx.getCoreIndexSize(ArgSortCase), Idx);
         return true;
       }
     }
@@ -365,27 +423,218 @@ private:
 };
 
 struct AliasTargetVisitor {
-  AliasTargetVisitor(const Sort &S) : S{S} {}
+  AliasTargetVisitor(const Sort &S, Context &Ctx) : S{S}, Ctx(Ctx) {}
 
-  Expect<void> operator()(const AliasTargetExport &) {
-    // TODO: For export aliases, i is validated to refer to an instance in
-    // the instance index space that exports n with the specified sort.
+  Expect<void> operator()(const AliasTargetExport &ATE) {
+    auto Idx = ATE.getInstanceIdx();
+    auto Name = ATE.getName();
+
+    if (std::holds_alternative<CoreSort>(S)) {
+      if (Idx >= Ctx.getCoreInstanceExportsSize()) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(
+            "AliasTargetExport: Export index {} exceeds available core instance index {}"sv,
+            Idx, Ctx.getCoreInstanceExportsSize() - 1);
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+      const auto &CoreExports = Ctx.getCoreInstanceExports(Idx);
+      auto CoreS = std::get<CoreSort>(S);
+
+      auto It = CoreExports.find(Name);
+      if (It == CoreExports.end()) {
+        spdlog::error(ErrCode::Value::ExportNotFound);
+        spdlog::error(
+            "AliasTargetExport: No matching export '{}' found in core instance index {}"sv,
+            Name, Idx);
+        return Unexpect(ErrCode::Value::ExportNotFound);
+      }
+
+      const auto &ExternTy = It->second;
+      std::optional<CoreSort> MappedSort = mapExternalTypeToCoreSort(ExternTy);
+
+      if (MappedSort && *MappedSort == CoreS) {
+        return {};
+      } else {
+        spdlog::error(ErrCode::Value::InvalidTypeReference);
+        spdlog::error(
+            "AliasTargetExport: Type mapping mismatch for export '{}': expected {}, got {}"sv,
+            Name, toString(CoreS),
+            MappedSort ? toString(*MappedSort) : "none"sv);
+        return Unexpect(ErrCode::Value::InvalidTypeReference);
+      }
+    } else if (std::holds_alternative<SortCase>(S)) {
+      if (Idx >= Ctx.getComponentInstanceExportsSize()) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(
+            "AliasTargetExport: Export index {} exceeds available component instance index {}"sv,
+            Idx, Ctx.getComponentInstanceExportsSize() - 1);
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+      const auto &ComponentExports = Ctx.getComponentInstanceExports(Idx);
+      auto SortC = std::get<SortCase>(S);
+
+      auto It = ComponentExports.find(Name);
+      if (It == ComponentExports.end()) {
+        spdlog::error(ErrCode::Value::ExportNotFound);
+        spdlog::error(
+            "AliasTargetExport: No matching export '{}' found in component instance index {}"sv,
+            Name, Idx);
+        return Unexpect(ErrCode::Value::ExportNotFound);
+      }
+
+      const auto &ExternDesc = It->second;
+      std::optional<SortCase> MappedSort = mapExternDescToSortCase(ExternDesc);
+
+      if (MappedSort && *MappedSort == SortC) {
+        return {};
+      } else {
+        spdlog::error(ErrCode::Value::InvalidTypeReference);
+        spdlog::error(
+            "AliasTargetExport: Type mapping mismatch for export '{}': expected {}, got {}"sv,
+            Name, toString(SortC),
+            MappedSort ? toString(*MappedSort) : "none"sv);
+        return Unexpect(ErrCode::Value::InvalidTypeReference);
+      }
+    } else {
+      assumingUnreachable();
+    }
     return {};
   }
-  Expect<void> operator()(const AliasTargetOuter &) {
-    // TODO: For outer aliases, ct is validated to be less or equal than the
-    // number of enclosing components and i is validated to be a valid index
-    // in the sort index space of the ith enclosing component (counting
-    // outward, starting with 0 referring to the current component).
 
-    // TODO: For outer aliases, validation restricts the sort to one of
-    // type, module or component and additionally requires that the
-    // outer-aliased type is not a resource type (which is generative).
+  Expect<void> operator()(const AliasTargetOuter &ATO) {
+    const auto &ComponentIdx = ATO.getComponent();
+    const auto &Idx = ATO.getIndex();
+
+    uint32_t EnclosingComponentCount = 0;
+    const auto *CurrentContext = &Ctx.getCurrentContext();
+    while (CurrentContext->Parent.has_value()) {
+      EnclosingComponentCount++;
+      CurrentContext = CurrentContext->Parent.value();
+    }
+
+    if (ComponentIdx > EnclosingComponentCount) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "AliasTargetOuter: ComponentIdx {} is exceeding the enclosing component count {}"sv,
+          ComponentIdx, EnclosingComponentCount);
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+
+    const Context::ComponentContext *TargetContext = &Ctx.getCurrentContext();
+    uint32_t Steps = ComponentIdx;
+    while (Steps > 0 && TargetContext != nullptr) {
+      if (TargetContext->Parent.has_value()) {
+        TargetContext = TargetContext->Parent.value();
+        --Steps;
+      } else {
+        assumingUnreachable();
+      }
+    }
+
+    if (std::holds_alternative<SortCase>(S)) {
+      auto &Sort = std::get<SortCase>(S);
+      auto It = TargetContext->getComponentIndexSize(Sort);
+      spdlog::debug("{}", toString(Sort));
+      if (Idx >= It) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(
+            "AliasTargetOuter: Index {} invalid for SortCase in component context"sv,
+            ATO.getIndex());
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+    } else if (std::holds_alternative<CoreSort>(S)) {
+      auto &Sort = std::get<CoreSort>(S);
+      auto It = TargetContext->getCoreIndexSize(Sort);
+      if (Idx >= It) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(
+            "AliasTargetOuter: Index {} invalid for CoreSort in component context"sv,
+            Idx);
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+    } else {
+      assumingUnreachable();
+    }
+
+    if (std::holds_alternative<SortCase>(S)) {
+      auto Sort = std::get<SortCase>(S);
+
+      if (Sort != SortCase::Type && Sort != SortCase::Component) {
+        spdlog::error(ErrCode::Value::InvalidTypeReference);
+        spdlog::error(
+            "AliasTargetOuter: Invalid sort for outer alias: {}. Only type, module, or component are allowed."sv,
+            toString(Sort));
+        return Unexpect(ErrCode::Value::InvalidTypeReference);
+      }
+
+      if (Sort == SortCase::Type) {
+        if (TargetContext->ComponentResourceTypes.find(Idx) !=
+            TargetContext->ComponentResourceTypes.end()) {
+          spdlog::error(ErrCode::Value::InvalidTypeReference);
+          spdlog::error(
+              "AliasTargetOuter: Cannot outer-alias a resource type at index {}. Resource types are generative."sv,
+              Idx);
+          return Unexpect(ErrCode::Value::InvalidTypeReference);
+        }
+      }
+
+    } else if (std::holds_alternative<CoreSort>(S)) {
+      auto Sort = std::get<CoreSort>(S);
+
+      if (Sort != CoreSort::Module && Sort != CoreSort::Type) {
+        spdlog::error(ErrCode::Value::InvalidTypeReference);
+        spdlog::error(
+            "AliasTargetOuter: Invalid sort for outer alias: {}. Only type, module, or component are allowed."sv,
+            toString(Sort));
+        return Unexpect(ErrCode::Value::InvalidTypeReference);
+      }
+    }
 
     return {};
   }
 
+private:
   const Sort &S;
+  Context &Ctx;
+
+  static inline std::optional<CoreSort>
+  mapExternalTypeToCoreSort(WasmEdge::ExternalType ExtType) {
+    using WasmEdge::ExternalType;
+    switch (ExtType) {
+    case ExternalType::Function:
+      return CoreSort::Func;
+    case ExternalType::Table:
+      return CoreSort::Table;
+    case ExternalType::Memory:
+      return CoreSort::Memory;
+    case ExternalType::Global:
+      return CoreSort::Global;
+    default:
+      return std::nullopt;
+    }
+  }
+
+  static inline std::optional<SortCase>
+  mapExternDescToSortCase(const ExternDesc &Desc) {
+    if (std::holds_alternative<DescTypeIndex>(Desc)) {
+      const auto &DTI = std::get<DescTypeIndex>(Desc);
+      switch (DTI.getKind()) {
+      case IndexKind::FuncType:
+        return SortCase::Func;
+      case IndexKind::ComponentType:
+        return SortCase::Component;
+      case IndexKind::InstanceType:
+        return SortCase::Instance;
+      default:
+        return std::nullopt;
+      }
+    } else if (std::holds_alternative<TypeBound>(Desc)) {
+      return SortCase::Type;
+    } else if (std::holds_alternative<ValueType>(Desc)) {
+      return SortCase::Type;
+    }
+    return std::nullopt;
+  }
 };
 
 struct ModuleDeclVisitor {
@@ -457,12 +706,18 @@ struct DefTypeVisitor {
 
     return {};
   }
-  Expect<void> operator()(const InstanceType &) {
+  Expect<void> operator()(const InstanceType &IT) {
     Ctx.incComponentIndexSize(SortCase::Type);
+    Ctx.addComponentInstanceType(
+        static_cast<uint32_t>(Ctx.getComponentIndexSize(SortCase::Type) - 1),
+        IT);
     return {};
   }
-  Expect<void> operator()(const ResourceType &) {
+  Expect<void> operator()(const ResourceType &RT) {
     Ctx.incComponentIndexSize(SortCase::Type);
+    Ctx.addComponentResourceType(
+        static_cast<uint32_t>(Ctx.getComponentIndexSize(SortCase::Type) - 1),
+        RT);
     return {};
   }
 
@@ -560,7 +815,6 @@ struct SectionVisitor {
   Expect<void> operator()(const ComponentSection &Sec) {
     spdlog::debug("Component Section"sv);
     auto &C = Sec.getContent();
-    ComponentContextGuard guard(C, Ctx);
     V.validate(C);
     Ctx.incComponentIndexSize(SortCase::Component);
     return {};
@@ -570,7 +824,6 @@ struct SectionVisitor {
     for (const CoreInstanceExpr &E : Sec.getContent()) {
       CoreInstanceExprVisitor Visitor{Ctx};
       EXPECTED_TRY(std::visit(Visitor, E));
-      Ctx.incCoreIndexSize(CoreSort::Instance);
     }
     // NOTE: refers below InstanceSection, and copy the similar structure
 
@@ -584,14 +837,14 @@ struct SectionVisitor {
     for (const InstanceExpr &E : Sec.getContent()) {
       InstanceExprVisitor Visitor{Ctx};
       EXPECTED_TRY(std::visit(Visitor, E));
-      Ctx.incComponentIndexSize(SortCase::Instance);
     }
     return {};
   }
   Expect<void> operator()(const AliasSection &Sec) {
     spdlog::debug("Alias Section"sv);
     for (const Alias &A : Sec.getContent()) {
-      EXPECTED_TRY(std::visit(AliasTargetVisitor{A.getSort()}, A.getTarget()));
+      EXPECTED_TRY(
+          std::visit(AliasTargetVisitor{A.getSort(), Ctx}, A.getTarget()));
       auto Sort = A.getSort();
       if (std::holds_alternative<SortCase>(Sort)) {
         Ctx.incComponentIndexSize(std::get<SortCase>(Sort));

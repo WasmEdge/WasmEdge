@@ -314,7 +314,7 @@ Executor::getTabInstByIdx(Runtime::StackManager &StackMgr,
 
 Runtime::Instance::MemoryInstance *
 Executor::getMemInstByIdx(Runtime::StackManager &StackMgr,
-                          const uint64_t Idx) const {
+                          const uint32_t Idx) const {
   const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
   if (unlikely(ModInst == nullptr)) {
@@ -358,7 +358,7 @@ Executor::getElemInstByIdx(Runtime::StackManager &StackMgr,
 
 Runtime::Instance::DataInstance *
 Executor::getDataInstByIdx(Runtime::StackManager &StackMgr,
-                           const uint64_t Idx) const {
+                           const uint32_t Idx) const {
   const auto *ModInst = StackMgr.getModule();
   // When top frame is dummy frame, cannot find instance.
   if (unlikely(ModInst == nullptr)) {

@@ -489,7 +489,7 @@ private:
 
   /// Helper function for getting memory instance by index.
   Runtime::Instance::MemoryInstance *
-  getMemInstByIdx(Runtime::StackManager &StackMgr, const uint64_t Idx) const;
+  getMemInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
 
   /// Helper function for getting tag instance by index.
   Runtime::Instance::TagInstance *
@@ -505,7 +505,7 @@ private:
 
   /// Helper function for getting data instance by index.
   Runtime::Instance::DataInstance *
-  getDataInstByIdx(Runtime::StackManager &StackMgr, const uint64_t Idx) const;
+  getDataInstByIdx(Runtime::StackManager &StackMgr, const uint32_t Idx) const;
 
   /// Helper function for converting into bottom abstract heap type.
   TypeCode toBottomType(Runtime::StackManager &StackMgr,
@@ -1036,29 +1036,29 @@ public:
                               const RefVariant Ref,
                               const uint32_t Len) noexcept;
   Expect<uint64_t> proxyMemGrow(Runtime::StackManager &StackMgr,
-                                const uint64_t MemIdx,
+                                const uint32_t MemIdx,
                                 const uint64_t NewSize) noexcept;
   Expect<uint64_t> proxyMemSize(Runtime::StackManager &StackMgr,
-                                const uint64_t MemIdx) noexcept;
+                                const uint32_t MemIdx) noexcept;
   Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
-                            const uint64_t MemIdx, const uint64_t DataIdx,
+                            const uint32_t MemIdx, const uint32_t DataIdx,
                             const uint64_t DstOff, const uint64_t SrcOff,
                             const uint64_t Len) noexcept;
   Expect<void> proxyDataDrop(Runtime::StackManager &StackMgr,
-                             const uint64_t DataIdx) noexcept;
+                             const uint32_t DataIdx) noexcept;
   Expect<void> proxyMemCopy(Runtime::StackManager &StackMgr,
-                            const uint64_t DstMemIdx, const uint64_t SrcMemIdx,
+                            const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
                             const uint64_t DstOff, const uint64_t SrcOff,
                             const uint64_t Len) noexcept;
   Expect<void> proxyMemFill(Runtime::StackManager &StackMgr,
-                            const uint64_t MemIdx, const uint64_t Off,
+                            const uint32_t MemIdx, const uint64_t Off,
                             const uint8_t Val, const uint64_t Len) noexcept;
   Expect<uint64_t> proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
-                                        const uint64_t MemIdx,
+                                        const uint32_t MemIdx,
                                         const uint64_t Offset,
                                         const uint64_t Count) noexcept;
   Expect<uint64_t>
-  proxyMemAtomicWait(Runtime::StackManager &StackMgr, const uint64_t MemIdx,
+  proxyMemAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
                      const uint64_t Offset, const uint64_t Expected,
                      const int64_t Timeout, const uint32_t BitWidth) noexcept;
   Expect<void *> proxyTableGetFuncSymbol(Runtime::StackManager &StackMgr,

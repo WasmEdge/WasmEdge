@@ -136,8 +136,8 @@ public:
   void setMode(DataMode DMode) noexcept { Mode = DMode; }
 
   /// Getter and setter of memory index.
-  uint64_t getIdx() const noexcept { return MemoryIdx; }
-  void setIdx(uint64_t Idx) noexcept { MemoryIdx = Idx; }
+  uint32_t getIdx() const noexcept { return MemoryIdx; }
+  void setIdx(uint32_t Idx) noexcept { MemoryIdx = Idx; }
 
   /// Getter of data.
   Span<const Byte> getData() const noexcept { return Data; }
@@ -147,7 +147,7 @@ private:
   /// \name Data of DataSegment node.
   /// @{
   DataMode Mode = DataMode::Active;
-  uint64_t MemoryIdx = 0;
+  uint32_t MemoryIdx = 0;
   std::vector<Byte> Data;
   /// @}
 };

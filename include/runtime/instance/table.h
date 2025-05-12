@@ -60,12 +60,6 @@ public:
     return AccessLen <= Refs.size();
   }
 
-  /// Get boundary index.
-  uint32_t getBoundIdx() const noexcept {
-    return std::max(static_cast<uint32_t>(Refs.size()), UINT32_C(1)) -
-           UINT32_C(1);
-  }
-
   /// Grow table with initialization value.
   bool growTable(uint32_t Count, const RefVariant &Val) noexcept {
     uint32_t MaxSizeCaped = std::numeric_limits<uint32_t>::max();
@@ -92,7 +86,7 @@ public:
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
     return Span<const RefVariant>(Refs.begin() + Offset, Length);
@@ -104,7 +98,7 @@ public:
     // Check the accessing boundary.
     if (!checkAccessBound(Dst, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Dst, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Dst, Length, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
@@ -112,8 +106,8 @@ public:
     if (static_cast<uint64_t>(Src) + static_cast<uint64_t>(Length) >
         Slice.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(
-          Src, Length, std::max(static_cast<uint32_t>(Slice.size()), 1U) - 1U));
+      spdlog::error(ErrInfo::InfoBoundary(Src, Length,
+                                          static_cast<uint32_t>(Slice.size())));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
@@ -135,7 +129,7 @@ public:
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
@@ -148,7 +142,7 @@ public:
   Expect<RefVariant> getRefAddr(uint32_t Idx) const noexcept {
     if (Idx >= Refs.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
     return Refs[Idx];
@@ -158,7 +152,7 @@ public:
   Expect<void> setRefAddr(uint32_t Idx, const RefVariant &Val) {
     if (Idx >= Refs.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
     Refs[Idx] = Val;

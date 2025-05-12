@@ -206,9 +206,7 @@ Executor::runArrayNewDataOp(Runtime::StackManager &StackMgr,
     spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         static_cast<uint64_t>(S), N * BSize,
-        DataInst.getData().size() > 0
-            ? static_cast<uint32_t>(DataInst.getData().size() - 1)
-            : 0U));
+        static_cast<uint32_t>(DataInst.getData().size())));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
@@ -239,9 +237,8 @@ Executor::runArrayNewElemOp(Runtime::StackManager &StackMgr,
   auto ElemSrc = ElemInst.getRefs();
   if (static_cast<uint64_t>(S) + static_cast<uint64_t>(N) > ElemSrc.size()) {
     spdlog::error(ErrCode::Value::TableOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        static_cast<uint64_t>(S), N,
-        ElemSrc.size() > 0 ? static_cast<uint32_t>(ElemSrc.size() - 1) : 0U));
+    spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(S), N,
+                                        static_cast<uint32_t>(ElemSrc.size())));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::TableOutOfBounds);
@@ -271,7 +268,7 @@ Executor::runArraySetOp(const ValVariant &Val, const uint32_t Idx,
   }
   if (Idx >= Inst->getLength()) {
     spdlog::error(ErrCode::Value::ArrayOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(Idx, 1, Inst->getBoundIdx()));
+    spdlog::error(ErrInfo::InfoBoundary(Idx, 1, Inst->getLength()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
@@ -295,7 +292,7 @@ Expect<void> Executor::runArrayGetOp(ValVariant &Val, const uint32_t Idx,
   }
   if (Idx >= Inst->getLength()) {
     spdlog::error(ErrCode::Value::ArrayOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(Idx, 1, Inst->getBoundIdx()));
+    spdlog::error(ErrInfo::InfoBoundary(Idx, 1, Inst->getLength()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
@@ -334,8 +331,8 @@ Executor::runArrayFillOp(uint32_t N, const ValVariant &Val, uint32_t D,
   }
   if (static_cast<uint64_t>(D) + static_cast<uint64_t>(N) > Inst->getLength()) {
     spdlog::error(ErrCode::Value::ArrayOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(D), N,
-                                        Inst->getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoBoundary(static_cast<uint64_t>(D), N, Inst->getLength()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
@@ -364,7 +361,7 @@ Executor::runArrayCopyOp(uint32_t N, uint32_t S, const RefVariant &SrcInstRef,
       SrcInst->getLength()) {
     spdlog::error(ErrCode::Value::ArrayOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(S), N,
-                                        SrcInst->getBoundIdx()));
+                                        SrcInst->getLength()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
@@ -373,7 +370,7 @@ Executor::runArrayCopyOp(uint32_t N, uint32_t S, const RefVariant &SrcInstRef,
       DstInst->getLength()) {
     spdlog::error(ErrCode::Value::ArrayOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(D), N,
-                                        DstInst->getBoundIdx()));
+                                        DstInst->getLength()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
@@ -415,8 +412,8 @@ Executor::runArrayInitDataOp(uint32_t N, uint32_t S, uint32_t D,
   }
   if (static_cast<uint64_t>(D) + static_cast<uint64_t>(N) > Inst->getLength()) {
     spdlog::error(ErrCode::Value::ArrayOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(D), N,
-                                        Inst->getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoBoundary(static_cast<uint64_t>(D), N, Inst->getLength()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
@@ -426,9 +423,7 @@ Executor::runArrayInitDataOp(uint32_t N, uint32_t S, uint32_t D,
     spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error(ErrInfo::InfoBoundary(
         static_cast<uint64_t>(S), N * BSize,
-        DataInst.getData().size() > 0
-            ? static_cast<uint32_t>(DataInst.getData().size() - 1)
-            : 0U));
+        static_cast<uint32_t>(DataInst.getData().size())));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
@@ -456,17 +451,16 @@ Executor::runArrayInitElemOp(uint32_t N, uint32_t S, uint32_t D,
   }
   if (static_cast<uint64_t>(D) + static_cast<uint64_t>(N) > Inst->getLength()) {
     spdlog::error(ErrCode::Value::ArrayOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(D), N,
-                                        Inst->getBoundIdx()));
+    spdlog::error(
+        ErrInfo::InfoBoundary(static_cast<uint64_t>(D), N, Inst->getLength()));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::ArrayOutOfBounds);
   }
   if (static_cast<uint64_t>(S) + static_cast<uint64_t>(N) > ElemSrc.size()) {
     spdlog::error(ErrCode::Value::TableOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        static_cast<uint64_t>(S), N,
-        ElemSrc.size() > 0 ? static_cast<uint32_t>(ElemSrc.size() - 1) : 0U));
+    spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(S), N,
+                                        static_cast<uint32_t>(ElemSrc.size())));
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::TableOutOfBounds);

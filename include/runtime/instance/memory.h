@@ -68,6 +68,12 @@ public:
     return MemType.getLimit().getMin();
   }
 
+  /// Get memory size of memory.data
+  uint64_t getSize() const noexcept {
+    // The memory page size is binded with the limit in memory type.
+    return MemType.getLimit().getMin() * kPageSize;
+  }
+
   /// Getter of memory type.
   const AST::MemoryType &getMemoryType() const noexcept { return MemType; }
 
@@ -81,13 +87,6 @@ public:
     uint64_t Limit = MemType.getLimit().getMin() * kPageSize;
     return std::numeric_limits<uint64_t>::max() - Offset >= Length &&
            Offset + Length <= Limit;
-  }
-
-  /// Get boundary index.
-  uint64_t getBoundIdx() const noexcept {
-    return MemType.getLimit().getMin() > 0
-               ? MemType.getLimit().getMin() * kPageSize - 1
-               : 0;
   }
 
   /// Grow page
@@ -128,7 +127,7 @@ public:
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     return Span<Byte>(&DataPtr[Offset], Length);
@@ -140,14 +139,14 @@ public:
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
 
     // Check the input data validation.
     if (unlikely(static_cast<uint64_t>(Start) + Length > Slice.size())) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
 
@@ -165,7 +164,7 @@ public:
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
 
@@ -182,7 +181,7 @@ public:
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     if (likely(Length > 0)) {
@@ -202,7 +201,7 @@ public:
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     if (likely(Length > 0)) {
@@ -276,7 +275,7 @@ public:
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     // Load the data to the value.
@@ -323,7 +322,7 @@ public:
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     // Copy the stored data to the value.

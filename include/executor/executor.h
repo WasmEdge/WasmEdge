@@ -960,7 +960,7 @@ Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
     if (Val > std::numeric_limits<uint64_t>::max() - Instr.getMemoryOffset()) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Val + Instr.getMemoryOffset(),
-                                          BitWidth / 8, MemInst.getBoundIdx()));
+                                          BitWidth / 8, MemInst.getSize()));
       spdlog::error(
           ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
@@ -975,7 +975,7 @@ Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(
           Val + static_cast<uint32_t>(Instr.getMemoryOffset()), BitWidth / 8,
-          MemInst.getBoundIdx()));
+          MemInst.getSize()));
       spdlog::error(
           ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);

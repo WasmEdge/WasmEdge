@@ -12,6 +12,7 @@
 #include <llama-cpp.h>
 #include <llama.h>
 #include <llava.h>
+#include <mtmd.h>
 #include <sampling.h>
 #endif
 
@@ -31,11 +32,6 @@ enum class EmbdNormalizeType : int32_t {
   Taxicab = 1,
   Euclidean = 2,
   PNorm = 3,
-};
-
-enum class VisionModel : uint8_t {
-  Llava = 0,
-  Qwen2VL = 1,
 };
 
 struct TTSSpeakerProfile {
@@ -64,9 +60,9 @@ struct Graph {
   // Model context:
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;
-  // Clip context (for llava):
-  struct clip_ctx *ClipContext = nullptr;
-  VisionModel VisionModelType = VisionModel::Llava;
+  // Multimodal context:
+  mtmd::context_ptr VisionContext = nullptr;
+  mtmd::input_chunks_ptr VisionInputChunks = nullptr;
   // Text-to-speech:
   bool TextToSpeech = false;
   std::string TTSOutputFilePath = "output.wav";
@@ -87,8 +83,6 @@ public:
   // Llama outputs:
   std::vector<uint8_t> LlamaOutputs;
   std::vector<llama_token> LlamaOutputTokens;
-  // Preserve for llava
-  struct llava_image_embed *LlavaImageEmbd = nullptr;
   // Data for computing:
   bool ComputeSingleStarted = false;
   struct common_sampler *LlamaSampler = nullptr;

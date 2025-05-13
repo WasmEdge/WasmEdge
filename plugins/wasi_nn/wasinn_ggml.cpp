@@ -16,6 +16,7 @@
 #include <json.hpp>
 #include <llama.h>
 #include <llava.h>
+#include <mtmd.h>
 #include <sampling.h>
 
 #include <algorithm>
@@ -1287,13 +1288,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unable to retrieve the input-prefix-bos option."sv)
     }
   }
-  if (Doc.at_key("logits-all").error() == simdjson::SUCCESS) {
-    auto Err = Doc["logits-all"].get<bool>().get(GraphRef.Params.logits_all);
-    if (Err) {
-      RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the logits-all option."sv)
-    }
-  }
   if (Doc.at_key("use-mlock").error() == simdjson::SUCCESS) {
     auto Err = Doc["use-mlock"].get<bool>().get(GraphRef.Params.use_mlock);
     if (Err) {
@@ -1795,7 +1789,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 const std::string_view Base64ImageTagPrefix = "<img src=\"data:image/"sv;
 const std::string_view Base64ImageBytesPrefix = ";base64,"sv;
 const std::string_view Base64ImageTagSuffix = "\">"sv;
-const std::string_view LlavaPromptImagePlaceholder = "<image>"sv;
+const std::string_view VisionPromptImagePlaceholder = "<image>"sv;
 
 // Get base64 image position if found in prompt.
 std::optional<std::tuple<size_t, size_t, size_t>>
@@ -2149,69 +2143,6 @@ void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
   NPos += static_cast<int>(Tokens.size());
 }
 
-// Evaluate Qwen2vl image embedding.
-bool evaluateQwen2vlImageEmbed(llama_context *LlamaCxt,
-                               const struct llava_image_embed *ImageEmbed,
-                               int64_t NBatch, int32_t &NPos,
-                               struct clip_image_size *ImageSize) {
-  int NEmbd = llama_model_n_embd(llama_get_model(LlamaCxt));
-  const int PatchSize = 14 * 2;
-  const int Ph =
-      ImageSize->height / PatchSize + (ImageSize->height % PatchSize > 0);
-  const int Pw =
-      ImageSize->width / PatchSize + (ImageSize->width % PatchSize > 0);
-  const int ImgTokens = ImageEmbed->n_image_pos;
-  std::vector<llama_pos> MRopePos;
-  MRopePos.resize(ImgTokens * 4);
-
-  int32_t StPosId = NPos;
-  for (int Y = 0; Y < Ph; Y++) {
-    for (int X = 0; X < Pw; X++) {
-      int I = Y * Pw + X;
-      MRopePos[I] = StPosId;
-      MRopePos[I + ImgTokens] = StPosId + Y;
-      MRopePos[I + ImgTokens * 2] = StPosId + X;
-      MRopePos[I + ImgTokens * 3] = 0;
-    }
-  }
-
-  int32_t Processed = 0;
-  std::vector<llama_pos> BatchMRopePos;
-  BatchMRopePos.resize(ImgTokens * 4);
-
-  for (int64_t I = 0; I < ImgTokens; I += NBatch) {
-    int64_t NEval = ImgTokens - I;
-    if (NEval > NBatch) {
-      NEval = NBatch;
-    }
-
-    std::fill(BatchMRopePos.begin(), BatchMRopePos.end(), 0);
-    std::copy_n(&MRopePos[Processed], NEval, BatchMRopePos.data());
-    std::copy_n(&MRopePos[ImgTokens * 1 + Processed], NEval,
-                &BatchMRopePos[NEval * 1]);
-    std::copy_n(&MRopePos[ImgTokens * 2 + Processed], NEval,
-                &BatchMRopePos[NEval * 2]);
-    std::copy_n(&MRopePos[ImgTokens * 3 + Processed], NEval,
-                &BatchMRopePos[NEval * 3]);
-
-    llama_batch Batch = {
-        static_cast<int32_t>(NEval),     // n_tokens
-        nullptr,                         // token
-        (ImageEmbed->embed + I * NEmbd), // embed
-        BatchMRopePos.data(),            // pos
-        nullptr,                         // n_seq_id
-        nullptr,                         // seq_id
-        nullptr,                         // logits
-    };
-    if (llama_decode(LlamaCxt, Batch)) {
-      RET_ERROR(false, "evaluateQwen2vlImageEmbed: fail to eval."sv)
-    }
-    NPos += static_cast<int32_t>(NEval);
-    Processed += static_cast<int32_t>(NEval);
-  }
-  return true;
-}
-
 // Evaluate tokens. Construct the tokens into batch and decode.
 ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
                      llama_batch &Batch, int &NPos,
@@ -2235,30 +2166,13 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
       NEval = static_cast<int>(GraphRef.Params.n_batch);
     }
 
-    // LlamaPos for Qwen2VL.
-    static std::vector<llama_pos> LlamaPos;
-    if (GraphRef.VisionModelType == VisionModel::Qwen2VL) {
-      LlamaPos.resize(NEval * 4);
-      std::fill(LlamaPos.begin(), LlamaPos.end(), 0);
-      for (int J = 0; J < NEval * 3; J++) {
-        LlamaPos[J] = NPos + (J % NEval);
-      }
-    }
-
     // Fill the batch with pos information.
     fillBatch(Span<const llama_token>(Tokens.begin() + I, NEval), GraphRef,
               Batch, NPos,
               IsLogits && I + NEval >= static_cast<int>(Tokens.size()));
 
-    // Set the LlamaPos for Qwen2VL.
-    llama_pos *OriginBatchPos = Batch.pos;
-    if (GraphRef.VisionModelType == VisionModel::Qwen2VL) {
-      Batch.pos = LlamaPos.data();
-    }
-
     // Decode the batch.
     auto Status = llama_decode(GraphRef.LlamaContext.get(), Batch);
-    Batch.pos = OriginBatchPos;
     if (Status == 1) {
       RET_ERROR(
           ErrNo::RuntimeError,
@@ -2314,71 +2228,14 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
   }
 
   // Evaluate input tokens.
-  if (CxtRef.LlavaImageEmbd != nullptr) {
-    // Llava format prompt with image data.
-    ReturnCode =
-        evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
-                                               CxtRef.ImagePosition),
-                       GraphRef, CxtRef.LlamaBatch, CxtRef.NPos);
-    if (ReturnCode != ErrNo::Success) {
-      RET_ERROR(ReturnCode,
-                "{}: failed to evaluate input tokens before image."sv,
-                LogPrefix)
-    }
-
-    bool EvalImageStatus = false;
-    switch (GraphRef.VisionModelType) {
-    case VisionModel::Llava:
-      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd"sv,
-                LogPrefix)
-      EvalImageStatus = llava_eval_image_embed(
-          GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
-          static_cast<int>(GraphRef.Params.n_batch), &CxtRef.NPos);
-      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval llava image embd...done"sv,
-                LogPrefix)
-      break;
-    case VisionModel::Qwen2VL:
-      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd"sv,
-                LogPrefix)
-      auto *ImageSize = clip_get_load_image_size(GraphRef.ClipContext);
-      EvalImageStatus = evaluateQwen2vlImageEmbed(
-          GraphRef.LlamaContext.get(), CxtRef.LlavaImageEmbd,
-          static_cast<int>(GraphRef.Params.n_batch), CxtRef.NPos, ImageSize);
-      LOG_DEBUG(GraphRef.EnableDebugLog, "{}: Eval Qwen2VL image embd...done"sv,
-                LogPrefix)
-      break;
-    }
-
-    if (!EvalImageStatus) {
-      RET_ERROR(ErrNo::RuntimeError,
-                "{}: failed to evaluate embed image tokens."sv, LogPrefix)
-    }
-    ReturnCode =
-        evaluateTokens(Span<const llama_token>(
-                           CxtRef.LlamaInputs.begin() + CxtRef.ImagePosition,
-                           CxtRef.LlamaInputs.size() - CxtRef.ImagePosition),
-                       GraphRef, CxtRef.LlamaBatch, CxtRef.NPos, true);
-    if (ReturnCode != ErrNo::Success) {
-      RET_ERROR(ReturnCode,
-                "{}: failed to evaluate input tokens after image."sv, LogPrefix)
-    }
-  } else {
-    // Text only prompt.
-    ReturnCode =
-        evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
-                                               CxtRef.LlamaInputs.size()),
-                       GraphRef, CxtRef.LlamaBatch, CxtRef.NPos, true);
-    if (ReturnCode != ErrNo::Success) {
-      RET_ERROR(ReturnCode, "{}: failed to evaluate input tokens."sv, LogPrefix)
-    }
+  ReturnCode =
+      evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
+                                             CxtRef.LlamaInputs.size()),
+                     GraphRef, CxtRef.LlamaBatch, CxtRef.NPos, true);
+  if (ReturnCode != ErrNo::Success) {
+    RET_ERROR(ReturnCode, "{}: failed to evaluate input tokens."sv, LogPrefix)
   }
 
-  CxtRef.Conf.ImagePath = ""sv;
-  if (CxtRef.LlavaImageEmbd != nullptr) {
-    LOG_DEBUG(GraphRef.EnableDebugLog, "{}: ImageEmbd consumed"sv, LogPrefix)
-    llava_image_embed_free(CxtRef.LlavaImageEmbd);
-    CxtRef.LlavaImageEmbd = nullptr;
-  }
   return ErrNo::Success;
 }
 
@@ -2803,7 +2660,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Params.cb_eval_user_data = ContextParamsDefault.cb_eval_user_data;
   GraphRef.Params.cache_type_k = ContextParamsDefault.type_k;
   GraphRef.Params.cache_type_v = ContextParamsDefault.type_v;
-  GraphRef.Params.logits_all = ContextParamsDefault.logits_all;
   GraphRef.Params.embedding = ContextParamsDefault.embeddings;
   GraphRef.Params.no_kv_offload = !ContextParamsDefault.offload_kqv;
   GraphRef.Params.flash_attn = ContextParamsDefault.flash_attn;
@@ -3081,9 +2937,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto Base64ImagePos = findBase64ImagePayload(Prompt);
 
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
-    // Prompt with image input. Check is llava or mllama case.
-
-    // First check the projection model is loaded.
+    // First check the projection model is given.
     if (GraphRef.Params.mmproj.path == ""sv) {
       RET_ERROR(
           ErrNo::InvalidArgument,
@@ -3091,140 +2945,117 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
 
     // Make sure the projection model is loaded.
-    if (GraphRef.ClipContext == nullptr) {
-      LOG_INFO(
-          true,
-          "setInput: Load the clip model. Because llama.cpp disabled the GPU support "sv
-          "for CLIP, the step of loading images in CLIP can only use the "sv
-          "CPU, which may result in reduced efficiency. (You can refer to "sv
-          "PR https://github.com/ggerganov/llama.cpp/pull/10896)"sv)
-      GraphRef.ClipContext = clip_model_load(
-          GraphRef.Params.mmproj.path.c_str(), GraphRef.EnableLog ? 1 : 0);
-      if (GraphRef.ClipContext == nullptr) {
-        RET_ERROR(ErrNo::InvalidArgument,
-                  "setInput: unable to load the clip model."sv)
-      }
-      if (clip_is_qwen2vl(GraphRef.ClipContext)) {
-        GraphRef.VisionModelType = VisionModel::Qwen2VL;
-        LOG_INFO(true, "setInput: Qwen2vl model loaded."sv)
+    if (GraphRef.VisionContext == nullptr) {
+      LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: initialize mtmd context."sv)
+      // Initialize the mtmd context.
+      mtmd_context_params VisionContextParams = mtmd_context_params_default();
+      std::string VisionPromptImagePlaceholderStr(VisionPromptImagePlaceholder);
+      VisionContextParams.image_marker =
+          VisionPromptImagePlaceholderStr.c_str();
+      VisionContextParams.use_gpu = GraphRef.Params.mmproj_use_gpu;
+      VisionContextParams.n_threads = GraphRef.Params.cpuparams.n_threads;
+      VisionContextParams.print_timings =
+          GraphRef.EnableLog || GraphRef.EnableDebugLog;
+      if (GraphRef.EnableDebugLog) {
+        VisionContextParams.verbosity = GGML_LOG_LEVEL_DEBUG;
+      } else if (GraphRef.EnableLog) {
+        VisionContextParams.verbosity = GGML_LOG_LEVEL_INFO;
       } else {
-        GraphRef.VisionModelType = VisionModel::Llava;
-        LOG_INFO(true, "setInput: Llava model loaded."sv)
+        VisionContextParams.verbosity = GGML_LOG_LEVEL_NONE;
       }
+      GraphRef.VisionContext.reset(
+          mtmd_init_from_file(GraphRef.Params.mmproj.path.c_str(),
+                              GraphRef.LlamaModel.get(), VisionContextParams));
+      if (GraphRef.VisionContext == nullptr) {
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "setInput: unable to load the mmproj model."sv)
+      }
+      LOG_DEBUG(GraphRef.EnableDebugLog,
+                "setInput: initialize mtmd context...Done"sv)
     }
 
-    // Prompt with image.
-    if (GraphRef.ClipContext != nullptr) {
-      // Llava case.
-      LOG_DEBUG(GraphRef.EnableDebugLog,
-                "setInput: handle llava format prompt."sv)
+    // Show some warnings for context size.
+    if (GraphRef.Params.n_ctx < 4096) {
+      LOG_INFO(
+          GraphRef.EnableLog,
+          "setInput: Context size is {}, we recommend context size >= 4096 when using multimodal models for better results"sv,
+          GraphRef.Params.n_ctx)
+    }
 
-      // Show some warnings.
-      if (GraphRef.Params.n_ctx < 4096) {
-        LOG_INFO(
-            GraphRef.EnableLog,
-            "setInput: Context size is {}, we recommend context size >= 2048 when "sv
-            "using llava-v1.5 and context size >= 4096 when using llava-v1.6 "sv
-            "for better results."sv,
-            GraphRef.Params.n_ctx)
-      }
-
-      // Get image embed.
-      // Follow this link for the supported image formats:
-      // https://github.com/ggerganov/llama.cpp/blob/master/common/stb_image.h
+    // Get the image bitmaps.
+    // Follow this link for the supported image formats:
+    // https://github.com/ggml-org/llama.cpp/blob/master/common/stb_image.h
+    mtmd::bitmaps Bitmaps;
+    if (GraphRef.VisionContext != nullptr) {
       if (Base64ImagePos.has_value()) {
+        // Load the image bitmap from the base64 image.
         LOG_DEBUG(GraphRef.EnableDebugLog,
-                  "setInput: Compute image embd from the base64 image."sv)
+                  "setInput: load the image bitmap from the base64 image."sv)
         // Extract the payload and image type from the prompt.
-        auto Payload = extractBase64ImagePayload(Prompt, *Base64ImagePos,
-                                                 LlavaPromptImagePlaceholder);
+        std::optional<std::pair<std::vector<uint8_t>, std::string>> Payload =
+            extractBase64ImagePayload(Prompt, *Base64ImagePos,
+                                      VisionPromptImagePlaceholder);
         if (Payload.has_value()) {
-          // Only regenerate the image embedding if the
-          // always-regenerate-image-embd is on or the image embedding is not
-          // yet computed.
-          if (CxtRef.LlavaImageEmbd == nullptr ||
-              CxtRef.Conf.AlwaysRegenerateImageEmbd) {
-            // Free existing image embedding if regeneration is needed
-            if (CxtRef.LlavaImageEmbd != nullptr) {
-              llava_image_embed_free(CxtRef.LlavaImageEmbd);
-              CxtRef.LlavaImageEmbd = nullptr;
-            }
-
-            // Create a new image embedding
-            CxtRef.LlavaImageEmbd = llava_image_embed_make_with_bytes(
-                GraphRef.ClipContext,
-                static_cast<int>(GraphRef.Params.cpuparams.n_threads),
-                Payload->first.data(), static_cast<int>(Payload->first.size()));
-          } else {
-            LOG_DEBUG(
-                GraphRef.EnableDebugLog,
-                "setInput: Previous image embd is not yet consumed. Use the cached base64 image embd instead of computing a new one"sv)
+          // Create the new image bitmap.
+          mtmd::bitmap Bitmap(mtmd_helper_bitmap_init_from_buf(
+              Payload->first.data(), Payload->first.size()));
+          if (Bitmap.ptr == nullptr) {
+            RET_ERROR(
+                ErrNo::InvalidArgument,
+                "setInput: unable to load the image from base64 paylaod."sv)
           }
+          Bitmaps.entries.push_back(std::move(Bitmap));
         }
         LOG_DEBUG(GraphRef.EnableDebugLog,
                   "setInput: Compute image embd from the base64 image...Done"sv)
       } else {
-        // Only regenerate the image embedding if the
-        // always-regenerate-image-embd is on or the image embedding is not yet
-        // computed.
-        if (CxtRef.LlavaImageEmbd == nullptr ||
-            CxtRef.Conf.AlwaysRegenerateImageEmbd) {
-          // Free existing image embedding if regeneration is needed
-          if (CxtRef.LlavaImageEmbd != nullptr) {
-            llava_image_embed_free(CxtRef.LlavaImageEmbd);
-            CxtRef.LlavaImageEmbd = nullptr;
-          }
-
-          LOG_DEBUG(GraphRef.EnableDebugLog,
-                    "setInput: Compute image embd from file: {}"sv,
-                    CxtRef.Conf.ImagePath)
-          // Load the image from the file.
-          CxtRef.LlavaImageEmbd = llava_image_embed_make_with_filename(
-              GraphRef.ClipContext,
-              static_cast<int>(GraphRef.Params.cpuparams.n_threads),
-              CxtRef.Conf.ImagePath.c_str());
-          LOG_DEBUG(GraphRef.EnableDebugLog,
-                    "setInput: Compute image embd from file: {}...Done"sv,
-                    CxtRef.Conf.ImagePath)
-        } else {
-          LOG_DEBUG(
-              GraphRef.EnableDebugLog,
-              "setInput: Previous image embd is not yet consumed. Use the cached image embd instead of computing a new one"sv)
+        // Load the image from the file.
+        LOG_DEBUG(GraphRef.EnableDebugLog,
+                  "setInput: load the image bitmap from file: {}"sv,
+                  CxtRef.Conf.ImagePath)
+        mtmd::bitmap Bitmap(
+            mtmd_helper_bitmap_init_from_file(CxtRef.Conf.ImagePath.c_str()));
+        if (Bitmap.ptr == nullptr) {
+          RET_ERROR(
+              ErrNo::InvalidArgument,
+              "setInput: unable to load the image bitmap from file: {}."sv,
+              CxtRef.Conf.ImagePath)
         }
+        Bitmaps.entries.push_back(std::move(Bitmap));
+        LOG_DEBUG(GraphRef.EnableDebugLog,
+                  "setInput: load the image bitmap from file: {}...Done"sv,
+                  CxtRef.Conf.ImagePath)
       }
-      if (CxtRef.LlavaImageEmbd == nullptr) {
-        RET_ERROR(ErrNo::InvalidArgument,
-                  "setInput: llava unable to load the image."sv)
-      }
+    }
 
-      // We split prompt by <image> as placeholder and save the position.
-      auto PlaceholderPosition = Prompt.find(LlavaPromptImagePlaceholder);
-      if (PlaceholderPosition == std::string::npos) {
-        RET_ERROR(
-            ErrNo::InvalidArgument,
-            "setInput: unable to find the placeholder in the llava prompt."sv)
-      }
-      std::string PromptBeforeImage = Prompt.substr(0, PlaceholderPosition);
-      std::string PromptAfterImage = Prompt.substr(
-          PlaceholderPosition + LlavaPromptImagePlaceholder.length());
-      std::vector<llama_token> EmbdInputBeforeImage =
-          common_tokenize(GraphRef.LlamaContext.get(), PromptBeforeImage,
-                          AddSpecial, ParseSpecial);
-      // Do not add special token (such as <BOS>, <EOS>, ... tokens.) to the
-      // tokens after the image.
-      std::vector<llama_token> EmbdInputAfterImage = common_tokenize(
-          GraphRef.LlamaContext.get(), PromptAfterImage, false, ParseSpecial);
-      CxtRef.ImagePosition = EmbdInputBeforeImage.size();
-      CxtRef.LlamaInputs.reserve(EmbdInputBeforeImage.size() +
-                                 EmbdInputAfterImage.size());
-      CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
-                                EmbdInputBeforeImage.begin(),
-                                EmbdInputBeforeImage.end());
-      CxtRef.LlamaInputs.insert(CxtRef.LlamaInputs.end(),
-                                EmbdInputAfterImage.begin(),
-                                EmbdInputAfterImage.end());
-      LOG_DEBUG(GraphRef.EnableDebugLog,
-                "setInput: handle llava format prompt...Done"sv)
+    // Tokenize the prompt.
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize the mtmd prompt"sv)
+    GraphRef.VisionInputChunks.reset(mtmd_input_chunks_init());
+    mtmd_input_text MtmdText;
+    MtmdText.text = Prompt.c_str();
+    MtmdText.add_special = AddSpecial;
+    MtmdText.parse_special = ParseSpecial;
+    std::vector<const mtmd_bitmap *> BitmapsPtr = Bitmaps.c_ptr();
+    int32_t Res = mtmd_tokenize(GraphRef.VisionContext.get(),
+                                GraphRef.VisionInputChunks.get(), &MtmdText,
+                                BitmapsPtr.data(), BitmapsPtr.size());
+    if (Res != 0) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "setInput: unable to tokenize the mtmd prompt."sv)
+    }
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "setInput: tokenize the mtmd prompt...Done"sv)
+
+    // Get the number of input tokens (for the metadata).
+    CxtRef.LlamaNInputs = 0;
+    for (size_t ChunkIndex = 0;
+         ChunkIndex < mtmd_input_chunks_size(GraphRef.VisionInputChunks.get());
+         ++ChunkIndex) {
+      size_t NTokens = 0;
+      const mtmd_input_chunk *Chunk =
+          mtmd_input_chunks_get(GraphRef.VisionInputChunks.get(), ChunkIndex);
+      mtmd_input_chunk_get_tokens_text(Chunk, &NTokens);
+      CxtRef.LlamaNInputs += NTokens;
     }
   } else if (GraphRef.TextToSpeech == true) {
     // TTS prompt.
@@ -3235,6 +3066,9 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                 "setInput: failed to tokenize tts prompt."sv)
     }
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize tts prompt...Done"sv)
+
+    // Get the number of input tokens (for the metadata).
+    CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   } else {
     // Text only prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
@@ -3242,8 +3076,10 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                                          AddSpecial, ParseSpecial);
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: tokenize text prompt...Done"sv)
+
+    // Get the number of input tokens (for the metadata).
+    CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   }
-  CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
 
   // Maybe currently in the compute_single mode. Reset the computing.
   CxtRef.ComputeSingleStarted = false;
@@ -3289,9 +3125,26 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   common_sampler_reset(CxtRef.LlamaSampler);
 
   // Evaluate the input tokens.
-  auto ReturnCode = evaluateInput(GraphRef, CxtRef, "compute"sv);
-  if (ReturnCode != ErrNo::Success) {
-    return ReturnCode;
+  ErrNo ReturnCode = ErrNo::Success;
+  if (GraphRef.VisionContext == nullptr) {
+    // Text only prompt.
+    ReturnCode = evaluateInput(GraphRef, CxtRef, "compute"sv);
+    if (ReturnCode != ErrNo::Success) {
+      return ReturnCode;
+    }
+  } else {
+    // Multimodal prompt.
+    llama_pos NewNPos;
+    int32_t Res = mtmd_helper_eval_chunks(
+        GraphRef.VisionContext.get(), GraphRef.LlamaContext.get(),
+        GraphRef.VisionInputChunks.get(), CxtRef.NPos,
+        /* seq_id */ 0, static_cast<int32_t>(CxtRef.CurrentBatchSize),
+        /* logits_last */ true, &NewNPos);
+    CxtRef.NPos = NewNPos;
+    if (Res != 0) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "compute: unable to eval the mtmd prompt."sv)
+    }
   }
 
   // Main prediction loop.
@@ -3373,9 +3226,25 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
     common_sampler_reset(CxtRef.LlamaSampler);
 
     // Evaluate the input tokens.
-    ReturnCode = evaluateInput(GraphRef, CxtRef, "computeSingle"sv);
-    if (ReturnCode != ErrNo::Success) {
-      return ReturnCode;
+    if (GraphRef.VisionContext == nullptr) {
+      // Text only prompt.
+      ReturnCode = evaluateInput(GraphRef, CxtRef, "compute"sv);
+      if (ReturnCode != ErrNo::Success) {
+        return ReturnCode;
+      }
+    } else {
+      // Multimodal prompt.
+      llama_pos NewNPos;
+      int32_t Res = mtmd_helper_eval_chunks(
+          GraphRef.VisionContext.get(), GraphRef.LlamaContext.get(),
+          GraphRef.VisionInputChunks.get(), CxtRef.NPos,
+          /* seq_id */ 0, static_cast<int32_t>(CxtRef.CurrentBatchSize),
+          /* logits_last */ true, &NewNPos);
+      CxtRef.NPos = NewNPos;
+      if (Res != 0) {
+        RET_ERROR(ErrNo::InvalidArgument,
+                  "compute: unable to eval the mtmd prompt."sv)
+      }
     }
   }
 
@@ -3437,11 +3306,15 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
     GraphRef.LlamaContext.reset();
     LOG_DEBUG(IsDebugLog, "unload: free llama context...Done"sv)
   }
-  if (GraphRef.ClipContext != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free clip context"sv)
-    clip_free(GraphRef.ClipContext);
-    GraphRef.ClipContext = nullptr;
-    LOG_DEBUG(IsDebugLog, "unload: free clip context...Done"sv)
+  if (GraphRef.VisionContext != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free mtmd context"sv)
+    GraphRef.VisionContext.reset();
+    LOG_DEBUG(IsDebugLog, "unload: free mtmd context...Done"sv)
+  }
+  if (GraphRef.VisionInputChunks != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free mtmd chunks"sv)
+    GraphRef.VisionInputChunks.reset();
+    LOG_DEBUG(IsDebugLog, "unload: free mtmd chunks...Done"sv)
   }
   if (GraphRef.TTSModel != nullptr) {
     LOG_DEBUG(IsDebugLog, "unload: free TTS model"sv)
@@ -3466,15 +3339,6 @@ Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "finalize_execution_context"sv)
 
-  // TODO: Move the resource deallocation into the destructor.
-  if (CxtRef.LlavaImageEmbd != nullptr) {
-    LOG_DEBUG(GraphRef.EnableDebugLog,
-              "finalize_execution_context: free llava image embed"sv)
-    llava_image_embed_free(CxtRef.LlavaImageEmbd);
-    CxtRef.LlavaImageEmbd = nullptr;
-    LOG_DEBUG(GraphRef.EnableDebugLog,
-              "finalize_execution_context: free llava image embed...Done"sv)
-  }
   if (CxtRef.LlamaSampler != nullptr) {
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "finalize_execution_context: free compute_single sampler"sv)

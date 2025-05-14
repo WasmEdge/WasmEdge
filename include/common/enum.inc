@@ -1084,6 +1084,8 @@ E(ArgTypeMismatch, 0x050D, "type mismatch")
 E(InvalidIndex, 0x050E, "invalid index")
 // Invalid Type Reference
 E(InvalidTypeReference, 0x050F, "invalid type reference")
+// Export Not Found
+E(ExportNotFound, 0x0510, "export not found")
 // @}
 
 // Component model instantiation phase

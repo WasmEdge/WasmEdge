@@ -14,7 +14,6 @@ using namespace AST::Component;
 Expect<void> Validator::validate(const AST::Component::Component &Comp) {
   spdlog::warn("Component Model Validation is in active development."sv);
 
-  Context Ctx;
   ComponentContextGuard guard(Comp, Ctx);
   for (auto &Sec : Comp.getSections()) {
     EXPECTED_TRY(std::visit(SectionVisitor{*this, Ctx}, Sec));

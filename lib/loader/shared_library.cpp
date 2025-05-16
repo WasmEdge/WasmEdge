@@ -13,7 +13,7 @@
 
 #if WASMEDGE_OS_WINDOWS
 #include "system/winapi.h"
-#elif WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#elif WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 #include <dlfcn.h>
 #else
 #error Unsupported os!

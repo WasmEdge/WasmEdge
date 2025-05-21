@@ -149,6 +149,25 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.QBits = QBits;
     GraphRef.GroupSize = GroupSize;
   }
+  if (Doc.at_key("quantization").error() == simdjson::SUCCESS) {
+    auto QuantResult = Doc["quantization"].get_object();
+    auto Err = QuantResult.value()["group_size"].get<uint64_t>().get(
+        GraphRef.GroupSize);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Unable to retrieve the group size from quantization option."sv);
+      Env.deleteGraph(GId);
+      return ErrNo::InvalidArgument;
+    }
+    Err = QuantResult.value()["bits"].get<uint64_t>().get(GraphRef.QBits);
+    if (Err) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Unable to retrieve the group size from quantization option."sv);
+      Env.deleteGraph(GId);
+      return ErrNo::InvalidArgument;
+    }
+    GraphRef.IsQuantized = true;
+  }
 
   std::unordered_map<std::string, mx::array> Weights;
   // Handle the model path.
@@ -265,7 +284,11 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   }
 
   if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && GraphRef.IsQuantized) {
-    GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
+    spdlog::info(
+        "[WASI-NN] MLX backend: load Quantized model with q_bits: {} and group_size: {}"sv,
+        GraphRef.QBits, GraphRef.GroupSize);
+    GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits, "",
+                                Weights);
   }
 
   // Load weight.
@@ -285,6 +308,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   }
 
   if (GraphRef.QBits != 0 && GraphRef.GroupSize != 0 && !GraphRef.IsQuantized) {
+    spdlog::info(
+        "[WASI-NN] MLX backend: Quantize model with q_bits: {} and group_size: {}"sv,
+        GraphRef.QBits, GraphRef.GroupSize);
     GraphRef.Model->toQuantized(GraphRef.GroupSize, GraphRef.QBits);
   }
 
@@ -432,6 +458,7 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
   const auto End{std::chrono::steady_clock::now()};
   const std::chrono::duration<double> ElapsedSeconds{End - Start};
   if (GraphRef.EnableDebugLog) {
+    spdlog::info("[WASI-NN] MLX backend: Generate {} tokens."sv, TokenListSize);
     spdlog::info("Elapsed time: {} s. TPS: {}.", ElapsedSeconds.count(),
                  TokenListSize / ElapsedSeconds.count());
   }

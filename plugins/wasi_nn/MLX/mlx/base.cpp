@@ -20,15 +20,25 @@ void Module::update(std::unordered_map<std::string, mx::array> Parameters) {
   }
 }
 
-std::shared_ptr<nn::Module> Module::toQuantized(int GroupSize, int Bits) {
+std::shared_ptr<nn::Module> Module::toQuantized(
+    int GroupSize, int Bits, const std::string &Prefix,
+    const std::unordered_map<std::string, mx::array> &Parameters) {
+  auto NewPrefix = Prefix + Name + (Prefix.empty() && Name.empty() ? "" : ".");
   for (auto &[K, V] : Submodules) {
-    const auto OldModule = V;
-    auto Weights = V->Parameters.find("weight");
-    if (Weights != V->Parameters.end() &&
-        Weights->second.shape().back() % GroupSize != 0) {
-      continue;
+    if (V->hasQuantize()) {
+      auto Weights = V->Parameters.find("weight");
+      if (Weights != V->Parameters.end() && !Parameters.empty()) {
+        if (Parameters.count(NewPrefix + V->Name + ".scales") == 0) {
+          continue;
+        }
+      }
+      if (Weights != V->Parameters.end() &&
+          Weights->second.shape().back() % GroupSize != 0) {
+        continue;
+      }
     }
-    V = V->toQuantized(GroupSize, Bits);
+    V = V->toQuantized(GroupSize, Bits,
+                       Prefix + Name + (Name.empty() ? "" : "."), Parameters);
   }
   return shared_from_this();
 }
@@ -60,12 +70,13 @@ void Module::apply(std::string Key, mx::array Value) {
 std::unordered_map<std::string, mx::array>
 Module::getWeigts(const std::string &Prefix) {
   std::unordered_map<std::string, mx::array> Weights;
+  auto NewPrefix = Prefix + Name;
   for (auto &[K, V] : Submodules) {
-    auto Subweights = V->getWeigts(Prefix + Name + ".");
+    auto Subweights = V->getWeigts(NewPrefix + (NewPrefix.empty() ? "" : "."));
     Weights.insert(Subweights.begin(), Subweights.end());
   }
   for (auto &[K, V] : Parameters) {
-    Weights.insert({Prefix + Name + "." + K, V});
+    Weights.insert({NewPrefix + (NewPrefix.empty() ? "" : ".") + K, V});
   }
   return Weights;
 }

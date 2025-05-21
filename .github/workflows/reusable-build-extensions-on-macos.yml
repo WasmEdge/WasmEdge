@@ -73,7 +73,14 @@ jobs:
         shell: bash
         run: |
           cp -f ${output_dir}/${bin_name} ${bin_name}
-          tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+          if [[ "${{ matrix.plugin }}" == *mlx* ]]; then
+            cp -f build/_deps/mlx-build/mlx/backend/metal/kernels/mlx.metallib .
+            tar -zcvf ${{ steps.var.outputs.artifact }} \
+              ${bin_name} \
+              mlx.metallib
+          else
+            tar -zcvf ${{ steps.var.outputs.artifact }} ${bin_name}
+          fi
       - if: ${{ !inputs.release && contains(matrix.plugin, 'stablediffusion') && contains(inputs.asset_tag, 'arm64') }}
         name: Rebuild with METAL=OFF for testing
         run: |

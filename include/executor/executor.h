@@ -391,6 +391,17 @@ private:
 
   /// Helper function for clean the unused bits of numeric values in ValVariant.
   void cleanNumericVal(ValVariant &Val, const ValType &Type) const noexcept;
+
+  /// Helper function for packing ValVariant for packed type.
+  ValVariant packVal(const ValType &Type, const ValVariant &Val) const noexcept;
+
+  /// Helper function for packing ValVariant vector for packed type.
+  std::vector<ValVariant>
+  packVals(const ValType &Type, std::vector<ValVariant> &&Vals) const noexcept;
+
+  /// Helper function for unpacking ValVariant for packed type.
+  ValVariant unpackVal(const ValType &Type, const ValVariant &Val,
+                       bool IsSigned = false) const noexcept;
   /// @}
 
   /// \name Run instructions functions
@@ -822,6 +833,67 @@ public:
                             ValVariant *Rets) noexcept;
   Expect<RefVariant> proxyRefFunc(Runtime::StackManager &StackMgr,
                                   const uint32_t FuncIdx) noexcept;
+  Expect<RefVariant> proxyStructNew(Runtime::StackManager &StackMgr,
+                                    const uint32_t TypeIdx,
+                                    const ValVariant *Args) noexcept;
+  Expect<void> proxyStructGet(Runtime::StackManager &StackMgr,
+                              const RefVariant Ref, const uint32_t TypeIdx,
+                              const uint32_t Off, const bool IsSigned,
+                              ValVariant *Ret) noexcept;
+  Expect<void> proxyStructSet(Runtime::StackManager &StackMgr,
+                              const RefVariant Ref, const uint32_t TypeIdx,
+                              const uint32_t Off,
+                              const ValVariant *Val) noexcept;
+  Expect<RefVariant> proxyArrayNew(Runtime::StackManager &StackMgr,
+                                   const uint32_t TypeIdx,
+                                   const uint32_t Length,
+                                   const ValVariant *Args,
+                                   const uint32_t ArgSize) noexcept;
+  Expect<RefVariant> proxyArrayNewData(Runtime::StackManager &StackMgr,
+                                       const uint32_t TypeIdx,
+                                       const uint32_t DataIdx,
+                                       const uint32_t Start,
+                                       const uint32_t Length) noexcept;
+  Expect<RefVariant> proxyArrayNewElem(Runtime::StackManager &StackMgr,
+                                       const uint32_t TypeIdx,
+                                       const uint32_t ElemIdx,
+                                       const uint32_t Start,
+                                       const uint32_t Length) noexcept;
+  Expect<void> proxyArrayGet(Runtime::StackManager &StackMgr,
+                             const RefVariant Ref, const uint32_t TypeIdx,
+                             const uint32_t Index, const bool IsSigned,
+                             ValVariant *Ret) noexcept;
+  Expect<void> proxyArraySet(Runtime::StackManager &StackMgr,
+                             const RefVariant Ref, const uint32_t TypeIdx,
+                             const uint32_t Index,
+                             const ValVariant *Val) noexcept;
+  Expect<uint32_t> proxyArrayLen(Runtime::StackManager &StackMgr,
+                                 const RefVariant Ref) noexcept;
+  Expect<void> proxyArrayFill(Runtime::StackManager &StackMgr,
+                              const RefVariant Ref, const uint32_t TypeIdx,
+                              const uint32_t Off, const uint32_t Cnt,
+                              const ValVariant *Val) noexcept;
+  Expect<void> proxyArrayCopy(Runtime::StackManager &StackMgr,
+                              const RefVariant DstRef,
+                              const uint32_t DstTypeIdx, const uint32_t DstOff,
+                              const RefVariant SrcRef,
+                              const uint32_t SrcTypeIdx, const uint32_t SrcOff,
+                              const uint32_t Cnt) noexcept;
+  Expect<void> proxyArrayInitData(Runtime::StackManager &StackMgr,
+                                  const RefVariant Ref, const uint32_t TypeIdx,
+                                  const uint32_t DataIdx, const uint32_t DstOff,
+                                  const uint32_t SrcOff,
+                                  const uint32_t Cnt) noexcept;
+  Expect<void> proxyArrayInitElem(Runtime::StackManager &StackMgr,
+                                  const RefVariant Ref, const uint32_t TypeIdx,
+                                  const uint32_t ElemIdx, const uint32_t DstOff,
+                                  const uint32_t SrcOff,
+                                  const uint32_t Cnt) noexcept;
+  Expect<uint32_t> proxyRefTest(Runtime::StackManager &StackMgr,
+                                const RefVariant Ref, ValType VTTest) noexcept;
+  Expect<RefVariant> proxyRefCast(Runtime::StackManager &StackMgr,
+                                  const RefVariant Ref,
+                                  ValType VTCast) noexcept;
   Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
                                    const uint32_t TableIdx,
                                    const uint32_t Off) noexcept;

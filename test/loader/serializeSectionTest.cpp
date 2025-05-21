@@ -159,6 +159,7 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
   MemSec.getContent().push_back(MT3);
 
   std::vector<uint8_t> Output;
+  Conf.addProposal(WasmEdge::Proposal::Threads);
   EXPECT_TRUE(Ser.serializeSection(MemSec, Output));
   std::vector<uint8_t> Expected = {
       0x05U,               // section ID
@@ -168,6 +169,7 @@ TEST(SerializeSectionTest, SerializeMemorySection) {
       0x01U, 0x00U, 0x0EU, // vec[1]
       0x03U, 0x00U, 0x0DU  // vec[2]
   };
+  Conf.removeProposal(WasmEdge::Proposal::Threads);
   EXPECT_EQ(Output, Expected);
 }
 

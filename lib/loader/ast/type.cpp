@@ -263,22 +263,16 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   // Read limit.
   if (auto Res = FMgr.readByte()) {
     switch (static_cast<AST::Limit::LimitType>(*Res)) {
-    case AST::Limit::LimitType::HasMin:
-      Lim.setType(AST::Limit::LimitType::HasMin);
-      break;
-    case AST::Limit::LimitType::HasMinMax:
-      Lim.setType(AST::Limit::LimitType::HasMinMax);
-      break;
     case AST::Limit::LimitType::SharedNoMax:
-      if (Conf.hasProposal(Proposal::Threads)) {
-        return logLoadError(ErrCode::Value::SharedMemoryNoMax,
-                            FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
-      } else {
+    case AST::Limit::LimitType::Shared:
+      if (!Conf.hasProposal(Proposal::Threads)) {
         return logLoadError(ErrCode::Value::IntegerTooLarge,
                             FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       }
-    case AST::Limit::LimitType::Shared:
-      Lim.setType(AST::Limit::LimitType::Shared);
+      [[fallthrough]];
+    case AST::Limit::LimitType::HasMin:
+    case AST::Limit::LimitType::HasMinMax:
+      Lim.setType(static_cast<AST::Limit::LimitType>(*Res));
       break;
     default:
       if (*Res == 0x80 || *Res == 0x81) {

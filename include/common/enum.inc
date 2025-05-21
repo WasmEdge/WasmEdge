@@ -881,14 +881,12 @@ E(IllegalOpCode, 0x0117, "illegal opcode")
 E(ENDCodeExpected, 0x0118, "END opcode expected")
 // Parsing error
 E(IllegalGrammar, 0x0119, "invalid wasm grammar")
-// Shared memory must have max
-E(SharedMemoryNoMax, 0x011A, "shared memory must have maximum")
 // Intrinsics table not found
-E(IntrinsicsTableNotFound, 0x011B, "intrinsics table not found")
+E(IntrinsicsTableNotFound, 0x011A, "intrinsics table not found")
 // Malformed table (Ref-types proposal)
-E(MalformedTable, 0x011C, "malformed table")
+E(MalformedTable, 0x011B, "malformed table")
 // Alignment must < 64 without and < 128 with multi-memory proposal.
-E(MalformedMemoryOpFlags, 0x011D, "malformed memop flags")
+E(MalformedMemoryOpFlags, 0x011C, "malformed memop flags")
 // @}
 
 // Validation phase
@@ -971,6 +969,8 @@ E(ArrayTypesNumtypeRequired, 0x0224, "array type is not numeric or vector")
 E(InvalidSubType, 0x0225, "sub type")
 // Invalid Tag type
 E(InvalidTagResultType, 0x0226, "non-empty tag result type")
+// Shared memory must have max
+E(SharedMemoryNoMax, 0x0227, "shared memory must have maximum")
 // @}
 
 // Instantiation phase
@@ -1084,6 +1084,8 @@ E(ArgTypeMismatch, 0x050D, "type mismatch")
 E(InvalidIndex, 0x050E, "invalid index")
 // Invalid Type Reference
 E(InvalidTypeReference, 0x050F, "invalid type reference")
+// Export Not Found
+E(ExportNotFound, 0x0510, "export not found")
 // @}
 
 // Component model instantiation phase

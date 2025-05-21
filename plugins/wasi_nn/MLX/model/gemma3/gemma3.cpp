@@ -193,16 +193,6 @@ std::shared_ptr<Model> Model::fromPretrained(const std::string &ModelPath) {
   ModelConfigObj.TextConfig =
       TextConfig::fromDict(Obj["text_config"].get_object().value());
   auto Model = std::make_shared<gemma3::Model>(gemma3::Model(ModelConfigObj));
-  auto QuantResult = Obj["quantization"].get_object();
-  if (!QuantResult.error()) {
-    auto GroupSize =
-        static_cast<int>(QuantResult.value()["group_size"].get_int64());
-    auto Bits = static_cast<int>(QuantResult.value()["bits"].get_int64());
-    spdlog::info("Quantizing model to {} bits, {} group size.", Bits,
-                 GroupSize);
-    Model = std::dynamic_pointer_cast<gemma3::Model>(
-        Model->toQuantized(GroupSize, Bits));
-  }
   std::vector<std::filesystem::path> WeightFiles;
   for (auto &P : std::filesystem::directory_iterator(Path)) {
     if (P.path().extension() == ".safetensors")
@@ -220,6 +210,17 @@ std::shared_ptr<Model> Model::fromPretrained(const std::string &ModelPath) {
   }
   Weights = Model->sanitize(Weights);
   Weights = gemma3::VisionModel(ModelConfigObj.VisionConfig).sanitize(Weights);
+  auto QuantResult = Obj["quantization"].get_object();
+  if (!QuantResult.error()) {
+    auto GroupSize =
+        static_cast<int>(QuantResult.value()["group_size"].get_int64());
+    auto Bits = static_cast<int>(QuantResult.value()["bits"].get_int64());
+    spdlog::info(
+        "[WASI-NN] MLX backend: Quantizing model to {} bits, {} group size."sv,
+        Bits, GroupSize);
+    Model = std::dynamic_pointer_cast<gemma3::Model>(
+        Model->toQuantized(GroupSize, Bits, "", Weights));
+  }
   Model->update(Weights);
   return Model;
 }
@@ -233,6 +234,9 @@ Model::sanitize(const std::unordered_map<std::string, mx::array> &Weights) {
       size_t Pos = Key.find("vision_model");
       if (Pos != std::string::npos)
         Key.replace(Pos, std::string("vision_model").length(), "vision_tower");
+    }
+    if (Key.find("model") == 0) {
+      Key.replace(0, std::string("model").length(), "");
     }
     Sanitized.insert({Key, Pair.second});
   }

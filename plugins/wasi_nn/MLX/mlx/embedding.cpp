@@ -18,7 +18,9 @@ mx::array Embedding::asLinear(mx::array Input) {
   return matmul(Input, transpose(Parameters.at("weight")));
 }
 
-std::shared_ptr<nn::Module> Embedding::toQuantized(int GroupSize, int Bits) {
+std::shared_ptr<nn::Module>
+Embedding::toQuantized(int GroupSize, int Bits, const std::string &,
+                       const std::unordered_map<std::string, mx::array> &) {
   auto QuantModel = QuantizedEmbedding::fromEmbedding(
       std::dynamic_pointer_cast<Embedding>(shared_from_this()), GroupSize,
       Bits);

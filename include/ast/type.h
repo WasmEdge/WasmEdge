@@ -42,54 +42,55 @@ public:
 
   /// Constructors.
   Limit() noexcept : Type(LimitType::HasMin), Min(0U), Max(0U) {}
-  Limit(uint64_t MinVal) noexcept
-      : Type(LimitType::HasMin), Min(MinVal), Max(MinVal) {}
-  Limit(uint64_t MinVal, uint64_t MaxVal, bool Shared = false) noexcept
+  Limit(addr_t MinVal, bool Is64 = false) noexcept : Min(MinVal), Max(MinVal) {
+    if (Is64) {
+      Type = LimitType::I64HasMin;
+    } else {
+      Type = LimitType::HasMin;
+    }
+  }
+  Limit(addr_t MinVal, addr_t MaxVal, bool Is64 = false,
+        bool Shared = false) noexcept
       : Min(MinVal), Max(MaxVal) {
     if (Shared) {
-      Type = LimitType::Shared;
+      if (Is64) {
+        Type = LimitType::I64Shared;
+      } else {
+        Type = LimitType::Shared;
+      }
     } else {
-      Type = LimitType::HasMinMax;
+      if (Is64) {
+        Type = LimitType::I64HasMinMax;
+      } else {
+        Type = LimitType::HasMinMax;
+      }
     }
   }
 
   /// Getter and setter of limit mode.
   bool hasMax() const noexcept { return static_cast<uint8_t>(Type) & 0x01U; }
   bool isShared() const noexcept { return static_cast<uint8_t>(Type) & 0x02U; }
-  bool is64() const noexcept {
-    switch (Type) {
-    case LimitType::I64HasMin:
-    case LimitType::I64HasMinMax:
-    case LimitType::I64SharedNoMax:
-    case LimitType::I64Shared:
-      return true;
-    case LimitType::HasMin:
-    case LimitType::HasMinMax:
-    case LimitType::SharedNoMax:
-    case LimitType::Shared:
-    default:
-      return false;
-    }
+  bool is32() const noexcept { return static_cast<uint8_t>(Type) < 0x04U; }
+  bool is64() const noexcept { return !is32(); }
+  AddressType getAddrType() const noexcept {
+    return is32() ? AddressType::I32 : AddressType::I64;
   }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.
-  uint64_t getMin() const noexcept {
-    // Hint: if one ensure it, is not 64-bit, do static_cast<uint32_t>(getMin())
-    return Min;
-  }
-  void setMin(uint64_t Val) noexcept { Min = Val; }
+  addr_t getMin() const noexcept { return Min; }
+  void setMin(addr_t Val) noexcept { Min = Val; }
 
   /// Getter and setter of max value.
-  uint64_t getMax() const noexcept { return Max; }
-  void setMax(uint64_t Val) noexcept { Max = Val; }
+  addr_t getMax() const noexcept { return Max; }
+  void setMax(addr_t Val) noexcept { Max = Val; }
 
 private:
   /// \name Data of Limit.
   /// @{
   LimitType Type;
-  uint64_t Min;
-  uint64_t Max;
+  addr_t Min;
+  addr_t Max;
   /// @}
 };
 
@@ -678,37 +679,20 @@ private:
 /// AST MemoryType node.
 class MemoryType {
 public:
-  enum class IndexType { I32, I64 };
-
   /// Constructors.
   MemoryType() noexcept = default;
-  MemoryType(uint64_t MinVal) noexcept : Lim(MinVal) {}
-  MemoryType(uint64_t MinVal, uint64_t MaxVal, bool Shared = false) noexcept
-      : Lim(MinVal, MaxVal, Shared) {}
+  MemoryType(addr_t MinVal) noexcept : Lim(MinVal) {}
+  MemoryType(addr_t MinVal, addr_t MaxVal, bool Shared = false) noexcept
+      : Lim(MinVal, MaxVal, false, Shared) {}
   MemoryType(const Limit &L) noexcept : Lim(L) {}
 
   /// Getter of limit.
   const Limit &getLimit() const noexcept { return Lim; }
   Limit &getLimit() noexcept { return Lim; }
-  IndexType getIdxType() const noexcept { return IdxType; }
-  IndexType &getIdxType() noexcept { return IdxType; }
-  uint64_t getPageLimit() const noexcept {
-    // Maximum pages count
-    switch (IdxType) {
-    // 64 mode: 2^48
-    case IndexType::I64:
-      return UINT64_C(281474976710656);
-    // 32 mode: 2^16
-    case IndexType::I32:
-    default:
-      return UINT32_C(65536);
-    }
-  }
 
 private:
   /// \name Data of MemoryType.
   /// @{
-  IndexType IdxType;
   Limit Lim;
   /// @}
 };
@@ -720,11 +704,11 @@ public:
   TableType() noexcept : Type(TypeCode::FuncRef), Lim() {
     assuming(Type.isRefType());
   }
-  TableType(const ValType &RType, uint32_t MinVal) noexcept
+  TableType(const ValType &RType, addr_t MinVal) noexcept
       : Type(RType), Lim(MinVal) {
     assuming(Type.isRefType());
   }
-  TableType(const ValType &RType, uint32_t MinVal, uint32_t MaxVal) noexcept
+  TableType(const ValType &RType, addr_t MinVal, addr_t MaxVal) noexcept
       : Type(RType), Lim(MinVal, MaxVal) {
     assuming(Type.isRefType());
   }

@@ -391,6 +391,14 @@ private:
                               AST::InstrView::iterator &PC) noexcept;
   /// @}
 
+  /// \name Helper Function for checking memory offset boundary.
+  /// @{
+  Expect<void>
+  checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
+                      const AST::Instruction &Instr, const addr_t Val,
+                      const addr_t Size) const noexcept;
+  /// @}
+
   /// \name Helper Functions for GC instructions.
   /// @{
   Expect<RefVariant> structNew(Runtime::StackManager &StackMgr,
@@ -444,11 +452,11 @@ private:
   /// \name Helper Functions for atomic operations.
   /// @{
   template <typename T>
-  Expect<uint64_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                              uint64_t Address, EndianValue<T> Expected,
-                              int64_t Timeout) noexcept;
-  Expect<uint64_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                                uint64_t Address, uint64_t Count) noexcept;
+  Expect<addr_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                            addr_t Address, EndianValue<T> Expected,
+                            int64_t Timeout) noexcept;
+  Expect<addr_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                              addr_t Address, addr_t Count) noexcept;
   void atomicNotifyAll() noexcept;
   /// @}
 
@@ -1004,55 +1012,53 @@ public:
                                   ValType VTCast) noexcept;
   Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
                                    const uint32_t TableIdx,
-                                   const uint32_t Off) noexcept;
+                                   const addr_t Off) noexcept;
   Expect<void> proxyTableSet(Runtime::StackManager &StackMgr,
-                             const uint32_t TableIdx, const uint32_t Off,
+                             const uint32_t TableIdx, const addr_t Off,
                              const RefVariant Ref) noexcept;
   Expect<void> proxyTableInit(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint32_t ElemIdx,
-                              const uint32_t DstOff, const uint32_t SrcOff,
+                              const addr_t DstOff, const uint32_t SrcOff,
                               const uint32_t Len) noexcept;
   Expect<void> proxyElemDrop(Runtime::StackManager &StackMgr,
                              const uint32_t ElemIdx) noexcept;
   Expect<void> proxyTableCopy(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdxDst,
-                              const uint32_t TableIdxSrc, const uint32_t DstOff,
-                              const uint32_t SrcOff,
-                              const uint32_t Len) noexcept;
-  Expect<uint32_t> proxyTableGrow(Runtime::StackManager &StackMgr,
-                                  const uint32_t TableIdx, const RefVariant Val,
-                                  const uint32_t NewSize) noexcept;
-  Expect<uint32_t> proxyTableSize(Runtime::StackManager &StackMgr,
-                                  const uint32_t TableIdx) noexcept;
+                              const uint32_t TableIdxSrc, const addr_t DstOff,
+                              const addr_t SrcOff, const addr_t Len) noexcept;
+  Expect<addr_t> proxyTableGrow(Runtime::StackManager &StackMgr,
+                                const uint32_t TableIdx, const RefVariant Val,
+                                const addr_t NewSize) noexcept;
+  Expect<addr_t> proxyTableSize(Runtime::StackManager &StackMgr,
+                                const uint32_t TableIdx) noexcept;
   Expect<void> proxyTableFill(Runtime::StackManager &StackMgr,
-                              const uint32_t TableIdx, const uint32_t Off,
-                              const RefVariant Ref,
-                              const uint32_t Len) noexcept;
-  Expect<uint64_t> proxyMemGrow(Runtime::StackManager &StackMgr,
-                                const uint32_t MemIdx,
-                                const uint64_t NewSize) noexcept;
-  Expect<uint64_t> proxyMemSize(Runtime::StackManager &StackMgr,
-                                const uint32_t MemIdx) noexcept;
+                              const uint32_t TableIdx, const addr_t Off,
+                              const RefVariant Ref, const addr_t Len) noexcept;
+  Expect<addr_t> proxyMemGrow(Runtime::StackManager &StackMgr,
+                              const uint32_t MemIdx,
+                              const addr_t NewSize) noexcept;
+  Expect<addr_t> proxyMemSize(Runtime::StackManager &StackMgr,
+                              const uint32_t MemIdx) noexcept;
   Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
                             const uint32_t MemIdx, const uint32_t DataIdx,
-                            const uint64_t DstOff, const uint64_t SrcOff,
-                            const uint64_t Len) noexcept;
+                            const addr_t DstOff, const uint32_t SrcOff,
+                            const uint32_t Len) noexcept;
   Expect<void> proxyDataDrop(Runtime::StackManager &StackMgr,
                              const uint32_t DataIdx) noexcept;
   Expect<void> proxyMemCopy(Runtime::StackManager &StackMgr,
                             const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
-                            const uint64_t DstOff, const uint64_t SrcOff,
-                            const uint64_t Len) noexcept;
+                            const addr_t DstOff, const addr_t SrcOff,
+                            const addr_t Len) noexcept;
   Expect<void> proxyMemFill(Runtime::StackManager &StackMgr,
-                            const uint32_t MemIdx, const uint64_t Off,
-                            const uint8_t Val, const uint64_t Len) noexcept;
+                            const uint32_t MemIdx, const addr_t Off,
+                            const uint8_t Val, const addr_t Len) noexcept;
   Expect<uint64_t> proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
                                         const uint32_t MemIdx,
-                                        const uint64_t Offset,
-                                        const uint64_t Count) noexcept;
+                                        const addr_t Offset,
+                                        const addr_t Count) noexcept;
   Expect<uint64_t>
   proxyMemAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                     const uint64_t Offset, const uint64_t Expected,
+                     const addr_t Offset, const uint64_t Expected,
                      const int64_t Timeout, const uint32_t BitWidth) noexcept;
   Expect<void *> proxyTableGetFuncSymbol(Runtime::StackManager &StackMgr,
                                          const uint32_t TableIdx,
@@ -1118,7 +1124,7 @@ private:
   /// Waiter map mutex
   std::mutex WaiterMapMutex;
   /// Waiter multimap
-  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
+  std::unordered_multimap<addr_t, Waiter> WaiterMap;
 
   /// WasmEdge configuration
   const Configure Conf;
@@ -1129,45 +1135,6 @@ private:
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
 };
-
-// If `memoryOffset + instruction Value` is overflow, it's an out of bound
-// access, trap.
-template <uint32_t BitWidth>
-Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
-                             const AST::Instruction &Instr, uint64_t Val) {
-  switch (MemInst.getMemoryType().getIdxType()) {
-  case AST::MemoryType::IndexType::I64: {
-    if (Val > std::numeric_limits<uint64_t>::max() - Instr.getMemoryOffset()) {
-      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Val + Instr.getMemoryOffset(),
-                                          BitWidth / 8, MemInst.getSize()));
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-    }
-    break;
-  }
-  case AST::MemoryType::IndexType::I32:
-  default: {
-    if (static_cast<uint32_t>(Val) >
-        std::numeric_limits<uint32_t>::max() -
-            static_cast<uint32_t>(Instr.getMemoryOffset())) {
-      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(
-          Val + static_cast<uint32_t>(Instr.getMemoryOffset()), BitWidth / 8,
-          MemInst.getSize()));
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-    }
-    break;
-  }
-  }
-  return {};
-}
-
-uint64_t valToIndex(WasmEdge::ValVariant &Val,
-                    AST::MemoryType::IndexType IdxType);
 
 } // namespace Executor
 } // namespace WasmEdge

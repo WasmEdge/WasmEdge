@@ -265,12 +265,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
     if (Conf.hasProposal(Proposal::Memory64)) {
-      // TODO: MEMORY64 - fully support implementation.
-      uint64_t Offset;
-      EXPECTED_TRY(readU64(Offset));
-      Instr.getMemoryOffset() = static_cast<uint32_t>(Offset);
+      EXPECTED_TRY(readU64(Instr.getMemoryOffset()));
     } else {
-      EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
+      uint32_t Offset;
+      EXPECTED_TRY(readU32(Offset));
+      Instr.getMemoryOffset() = static_cast<addr_t>(Offset);
     }
     return {};
   };
@@ -563,12 +562,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // Const Instructions.
   case OpCode::I32__const:
     EXPECTED_TRY(FMgr.readS32().map_error(ReportError).map([&](int32_t Num) {
-      Instr.setNum(static_cast<uint32_t>(Num));
+      Instr.setNum(static_cast<int64_t>(Num));
     }));
     return {};
   case OpCode::I64__const:
     EXPECTED_TRY(FMgr.readS64().map_error(ReportError).map([&](int64_t Num) {
-      Instr.setNum(static_cast<uint64_t>(Num));
+      Instr.setNum(static_cast<int64_t>(Num));
     }));
     return {};
   case OpCode::F32__const:

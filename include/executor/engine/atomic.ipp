@@ -360,17 +360,17 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
 }
 
 template <typename T>
-Expect<uint64_t>
-Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                     uint64_t Address, T Expected, int64_t Timeout) noexcept {
+Expect<addr_t> Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                                    addr_t Address, T Expected,
+                                    int64_t Timeout) noexcept {
   // The error message should be handled by the caller, or the AOT mode will
   // produce the duplicated messages.
   if (!MemInst.isShared()) {
     return Unexpect(ErrCode::Value::ExpectSharedMemory);
   }
 
-  if (auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
-      !AtomicObj) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
+  if (!AtomicObj) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
@@ -379,9 +379,6 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     Until.emplace(std::chrono::steady_clock::now() +
                   std::chrono::nanoseconds(Timeout));
   }
-
-  auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
-  assuming(AtomicObj);
 
   if (AtomicObj->load() != Expected) {
     return UINT64_C(1); // NotEqual

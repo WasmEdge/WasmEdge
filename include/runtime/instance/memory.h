@@ -34,16 +34,22 @@ namespace Instance {
 class MemoryInstance {
 
 public:
-  static inline constexpr const uint64_t kPageSize = UINT64_C(65536);
+  static inline constexpr const addr_t kPageSize = UINT64_C(65536);
+  static inline constexpr const addr_t kPageLimit32 = UINT64_C(0x10000);
+  static inline constexpr const addr_t kPageLimit64 = UINT64_C(0x1000000000000);
   MemoryInstance() = delete;
   MemoryInstance(MemoryInstance &&Inst) noexcept
       : MemType(Inst.MemType), DataPtr(Inst.DataPtr),
         PageLimit(Inst.PageLimit) {
     Inst.DataPtr = nullptr;
   }
-  MemoryInstance(const AST::MemoryType &MType, uint64_t PageLim = 0) noexcept
-      : MemType(MType), PageLimit(PageLim ? PageLim : MType.getPageLimit()) {
+  MemoryInstance(const AST::MemoryType &MType,
+                 addr_t PageLim = kPageLimit64) noexcept
+      : MemType(MType), PageLimit(PageLim) {
     using namespace std::literals;
+    if (MemType.getLimit().is32() && PageLimit > kPageLimit32) {
+      PageLimit = kPageLimit32;
+    }
     if (MemType.getLimit().getMin() > PageLimit) {
       spdlog::error("Memory Instance: Limited {} page in configuration."sv,
                     PageLimit);
@@ -63,13 +69,13 @@ public:
   bool isShared() const noexcept { return MemType.getLimit().isShared(); }
 
   /// Get page size of memory.data
-  uint64_t getPageSize() const noexcept {
+  addr_t getPageSize() const noexcept {
     // The memory page size is binded with the limit in memory type.
     return MemType.getLimit().getMin();
   }
 
   /// Get memory size of memory.data
-  uint64_t getSize() const noexcept {
+  addr_t getSize() const noexcept {
     // The memory page size is binded with the limit in memory type.
     return MemType.getLimit().getMin() * kPageSize;
   }
@@ -78,28 +84,27 @@ public:
   const AST::MemoryType &getMemoryType() const noexcept { return MemType; }
 
   /// Check access size is valid.
-  bool checkAccessBound(uint64_t Offset, uint64_t Length) const noexcept {
-    // The purpose of this condition is to complete below, but avoid the
-    // overflow problem
-    //
-    // const uint64_t AccessLen = Offset + Length;
-    // return AccessLen <= Limit;
-    uint64_t Limit = MemType.getLimit().getMin() * kPageSize;
-    return std::numeric_limits<uint64_t>::max() - Offset >= Length &&
+  bool checkAccessBound(const addr_t Offset,
+                        const addr_t Length) const noexcept {
+    // Due to applying the Memory64 proposal, we should avoid the overflow issue
+    // of the following code:
+    //   return Offset + Length <= Limit;
+    const addr_t Limit = MemType.getLimit().getMin() * kPageSize;
+    return std::numeric_limits<addr_t>::max() - Offset >= Length &&
            Offset + Length <= Limit;
   }
 
   /// Grow page
-  bool growPage(const uint64_t Count) {
+  bool growPage(const addr_t Count) noexcept {
     if (Count == 0) {
       return true;
     }
-    uint64_t MaxPageCaped = MemType.getPageLimit();
-    uint64_t Min = MemType.getLimit().getMin();
-    uint64_t Max = MemType.getLimit().getMax();
+    addr_t MaxPageCaped =
+        MemType.getLimit().is32() ? kPageLimit32 : kPageLimit64;
+    const addr_t Min = MemType.getLimit().getMin();
+    assuming(MaxPageCaped >= Min);
     if (MemType.getLimit().hasMax()) {
-      Max = MemType.getLimit().getMax();
-      assuming(Max >= Min);
+      const addr_t Max = MemType.getLimit().getMax();
       MaxPageCaped = std::min(Max, MaxPageCaped);
     }
     if (Count > MaxPageCaped - Min) {
@@ -123,7 +128,8 @@ public:
   }
 
   /// Get slice of Data[Offset : Offset + Length - 1]
-  Expect<Span<Byte>> getBytes(uint64_t Offset, uint64_t Length) const noexcept {
+  Expect<Span<Byte>> getBytes(const addr_t Offset,
+                              const addr_t Length) const noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
@@ -134,8 +140,8 @@ public:
   }
 
   /// Replace the bytes of Data[Offset :] by Slice[Start : Start + Length - 1]
-  Expect<void> setBytes(Span<const Byte> Slice, uint64_t Offset, uint64_t Start,
-                        uint64_t Length) noexcept {
+  Expect<void> setBytes(Span<const Byte> Slice, const addr_t Offset,
+                        const addr_t Start, const addr_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
@@ -144,7 +150,7 @@ public:
     }
 
     // Check the input data validation.
-    if (unlikely(static_cast<uint64_t>(Start) + Length > Slice.size())) {
+    if (unlikely(Start + Length > Slice.size())) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
@@ -159,8 +165,8 @@ public:
   }
 
   /// Fill the bytes of Data[Offset : Offset + Length - 1] by Val.
-  Expect<void> fillBytes(uint8_t Val, uint64_t Offset,
-                         uint64_t Length) noexcept {
+  Expect<void> fillBytes(const uint8_t Val, const addr_t Offset,
+                         const addr_t Length) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
@@ -176,8 +182,8 @@ public:
   }
 
   /// Get an uint8 array from Data[Offset : Offset + Length - 1]
-  Expect<void> getArray(uint8_t *Arr, uint64_t Offset, uint64_t Length,
-                        bool IsReverse = false) const noexcept {
+  Expect<void> getArray(uint8_t *Arr, const addr_t Offset, const addr_t Length,
+                        const bool IsReverse = false) const noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
@@ -196,8 +202,9 @@ public:
   }
 
   /// Replace Data[Offset : Offset + Length - 1] to an uint8 array
-  Expect<void> setArray(const uint8_t *Arr, uint64_t Offset, uint64_t Length,
-                        bool IsReverse = false) noexcept {
+  Expect<void> setArray(const uint8_t *Arr, const addr_t Offset,
+                        const addr_t Length,
+                        const bool IsReverse = false) noexcept {
     // Check the memory boundary.
     if (unlikely(!checkAccessBound(Offset, Length))) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
@@ -218,9 +225,9 @@ public:
   /// Get pointer to specific offset of memory or null.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
-  getPointerOrNull(uint64_t Offset) const noexcept {
-    if (Offset == 0 ||
-        unlikely(!checkAccessBound(Offset, sizeof(std::remove_pointer_t<T>)))) {
+  getPointerOrNull(const addr_t Offset) const noexcept {
+    using Type = std::remove_pointer_t<T>;
+    if (Offset == 0 || unlikely(!checkAccessBound(Offset, sizeof(Type)))) {
       return nullptr;
     }
     return reinterpret_cast<T>(&DataPtr[Offset]);
@@ -229,10 +236,9 @@ public:
   /// Get pointer to specific offset of memory.
   template <typename T>
   typename std::enable_if_t<std::is_pointer_v<T>, T>
-  getPointer(uint64_t Offset) const noexcept {
+  getPointer(const addr_t Offset) const noexcept {
     using Type = std::remove_pointer_t<T>;
-    uint32_t ByteSize = static_cast<uint32_t>(sizeof(Type));
-    if (unlikely(!checkAccessBound(Offset, ByteSize))) {
+    if (unlikely(!checkAccessBound(Offset, sizeof(Type)))) {
       return nullptr;
     }
     return reinterpret_cast<T>(&DataPtr[Offset]);
@@ -240,17 +246,17 @@ public:
 
   /// Get array of object at specific offset of memory.
   template <typename T>
-  Span<T> getSpan(uint64_t Offset, uint64_t Size) const noexcept {
-    uint64_t ByteSize = sizeof(T) * Size;
-    if (unlikely(!checkAccessBound(Offset, ByteSize))) {
+  Span<T> getSpan(const addr_t Offset, const addr_t Count) const noexcept {
+    addr_t Size = sizeof(T) * Count;
+    if (unlikely(!checkAccessBound(Offset, Size))) {
       return Span<T>();
     }
-    return Span<T>(reinterpret_cast<T *>(&DataPtr[Offset]), Size);
+    return Span<T>(reinterpret_cast<T *>(&DataPtr[Offset]), Count);
   }
 
   /// Get array of object at specific offset of memory.
-  std::string_view getStringView(uint64_t Offset,
-                                 uint32_t Size) const noexcept {
+  std::string_view getStringView(const addr_t Offset,
+                                 const addr_t Size) const noexcept {
     if (unlikely(!checkAccessBound(Offset, Size))) {
       return {};
     }
@@ -269,7 +275,7 @@ public:
   /// \returns void when success, ErrCode when failed.
   template <typename T, uint32_t Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
-  loadValue(T &Value, uint64_t Offset) const noexcept {
+  loadValue(T &Value, const addr_t Offset) const noexcept {
     // Check the data boundary.
     static_assert(Length <= sizeof(T));
     // Check the memory boundary.
@@ -316,7 +322,7 @@ public:
   /// \returns void when success, ErrCode when failed.
   template <typename T, uint32_t Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
-  storeValue(const T &Value, uint64_t Offset) noexcept {
+  storeValue(const T &Value, const addr_t Offset) noexcept {
     // Check the data boundary.
     static_assert(Length <= sizeof(T));
     // Check the memory boundary.
@@ -340,7 +346,7 @@ private:
   /// @{
   AST::MemoryType MemType;
   uint8_t *DataPtr = nullptr;
-  const uint64_t PageLimit;
+  addr_t PageLimit;
   /// @}
 };
 

@@ -366,20 +366,10 @@ Expect<void> Loader::loadType(AST::FunctionType &FuncType) {
 // Load binary to construct MemoryType node. See "include/loader/loader.h".
 Expect<void> Loader::loadType(AST::MemoryType &MemType) {
   // Read limit.
-  return loadLimit(MemType.getLimit())
-      .and_then([&]() -> Expect<void> {
-        auto &IdxType = MemType.getIdxType();
-        if (MemType.getLimit().is64()) {
-          IdxType = AST::MemoryType::IndexType::I64;
-        } else {
-          IdxType = AST::MemoryType::IndexType::I32;
-        }
-        return {};
-      })
-      .map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
-        return E;
-      });
+  return loadLimit(MemType.getLimit()).map_error([](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Memory));
+    return E;
+  });
 }
 
 // Load binary to construct TableType node. See "include/loader/loader.h".

@@ -346,8 +346,8 @@ private:
   Expect<uint64_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
                               uint64_t Address, T Expected,
                               int64_t Timeout) noexcept;
-  Expect<uint64_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                                uint64_t Address, uint64_t Count) noexcept;
+  Expect<addr_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                              addr_t Address, addr_t Count) noexcept;
   void atomicNotifyAll() noexcept;
   /// @}
 
@@ -1010,7 +1010,7 @@ private:
   /// Waiter map mutex
   std::mutex WaiterMapMutex;
   /// Waiter multimap
-  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
+  std::unordered_multimap<addr_t, Waiter> WaiterMap;
 
   /// WasmEdge configuration
   const Configure Conf;
@@ -1027,8 +1027,8 @@ private:
 template <uint32_t BitWidth>
 Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr, uint64_t Val) {
-  switch (MemInst.getMemoryType().getIdxType()) {
-  case AST::MemoryType::IndexType::I64: {
+  switch (MemInst.getMemoryType().getLimit().getAddrType()) {
+  case AST::Limit::AddressType::I64: {
     if (Val > std::numeric_limits<uint64_t>::max() - Instr.getMemoryOffset()) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Val + Instr.getMemoryOffset(),
@@ -1039,7 +1039,7 @@ Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
     }
     break;
   }
-  case AST::MemoryType::IndexType::I32:
+  case AST::Limit::AddressType::I32:
   default: {
     if (static_cast<uint32_t>(Val) >
         std::numeric_limits<uint32_t>::max() -
@@ -1057,9 +1057,6 @@ Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
   }
   return {};
 }
-
-uint64_t valToIndex(WasmEdge::ValVariant &Val,
-                    AST::MemoryType::IndexType IdxType);
 
 } // namespace Executor
 } // namespace WasmEdge

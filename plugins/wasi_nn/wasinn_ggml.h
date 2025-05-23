@@ -11,7 +11,6 @@
 #include <common.h>
 #include <llama-cpp.h>
 #include <llama.h>
-#include <llava.h>
 #include <mtmd.h>
 #include <sampling.h>
 #endif

@@ -330,7 +330,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b5361
+      GIT_TAG        b5463
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -341,6 +341,7 @@ function(wasmedge_setup_llama_target target)
     set_property(TARGET ggml-cpu PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET mtmd PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET mtmd_audio PROPERTY POSITION_INDEPENDENT_CODE ON)
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()

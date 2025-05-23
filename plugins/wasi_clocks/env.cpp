@@ -2,45 +2,32 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "env.h"
-#include "interface.h"
 #include "module.h"
 
 namespace WasmEdge {
 namespace Host {
 
-WasiHttpEnvironment::WasiHttpEnvironment() noexcept {}
-
 namespace {
 
 Runtime::Instance::ComponentInstance *
-create(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
-  return new WasiHttpModule();
-}
-
-Runtime::Instance::ComponentInstance *
-createTypes(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
-  return new WasiHttp_Types();
+createWallClock(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
+  return new WallClockModule();
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasi_http",
+    .Name = "wasi_clocks",
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 1, 0, 0},
     .ModuleCount = 0,
     .ModuleDescriptions = {},
-    .ComponentCount = 2,
+    .ComponentCount = 1,
     .ComponentDescriptions =
         (Plugin::PluginComponent::ComponentDescriptor[]){
             {
-                .Name = "wasi:http/test",
+                .Name = "wasi:clocks/wall-clock@0.2.0",
                 .Description = "",
-                .Create = create,
-            },
-            {
-                .Name = "wasi:http/types@0.2.0",
-                .Description = "",
-                .Create = createTypes,
+                .Create = createWallClock,
             },
         },
     .AddOptions = nullptr,

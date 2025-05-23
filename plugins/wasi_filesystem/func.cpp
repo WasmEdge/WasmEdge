@@ -8,12 +8,11 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<List<bool>> PollOneoff::body(List<Pollable> In) {
-  std::vector<bool> Res;
-  for (auto P : In.collection()) {
-    Res.push_back(Env.isPollable(P));
-  }
-  return List<bool>(std::move(Res));
+Expect<List<Tuple<GetDirectories::Descriptor, std::string>>>
+GetDirectories::body() {
+  List<Tuple<Descriptor, std::string>> L{};
+
+  return L;
 }
 
 } // namespace Host

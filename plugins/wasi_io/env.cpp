@@ -2,28 +2,25 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "env.h"
-#include "interface.h"
 #include "module.h"
 
 namespace WasmEdge {
 namespace Host {
 
-WasiHttpEnvironment::WasiHttpEnvironment() noexcept {}
-
 namespace {
 
 Runtime::Instance::ComponentInstance *
-create(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
-  return new WasiHttpModule();
+createError(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
+  return new WasiIOErrorModule();
 }
 
 Runtime::Instance::ComponentInstance *
-createTypes(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
-  return new WasiHttp_Types();
+createStreams(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
+  return new WasiIOStreamsModule();
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasi_http",
+    .Name = "wasi_io",
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 1, 0, 0},
@@ -33,14 +30,14 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .ComponentDescriptions =
         (Plugin::PluginComponent::ComponentDescriptor[]){
             {
-                .Name = "wasi:http/test",
+                .Name = "wasi:io/error@0.2.0",
                 .Description = "",
-                .Create = create,
+                .Create = createError,
             },
             {
-                .Name = "wasi:http/types@0.2.0",
+                .Name = "wasi:io/streams@0.2.0",
                 .Description = "",
-                .Create = createTypes,
+                .Create = createStreams,
             },
         },
     .AddOptions = nullptr,

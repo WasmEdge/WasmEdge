@@ -8,12 +8,10 @@
 namespace WasmEdge {
 namespace Host {
 
-Expect<List<bool>> PollOneoff::body(List<Pollable> In) {
-  std::vector<bool> Res;
-  for (auto P : In.collection()) {
-    Res.push_back(Env.isPollable(P));
-  }
-  return List<bool>(std::move(Res));
+Expect<Result<Tuple<>, StreamError::T>>
+OutputStream_BlockingWriteAndFlush::body(int32_t /* Self */,
+                                         List<uint8_t> /* Contents */) {
+  return Result<Tuple<>, StreamError::T>(StreamError::closed());
 }
 
 } // namespace Host

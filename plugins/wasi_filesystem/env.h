@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
+#pragma once
 
-#include "module.h"
-#include "func.h"
+#include "plugin/plugin.h"
 
-#include <memory>
+#include <cstdint>
+#include <vector>
 
 namespace WasmEdge {
 namespace Host {
 
-WasiPollModule::WasiPollModule() : ComponentInstance("wasi:poll/poll") {}
+class WasiFilesystemEnvironment {};
 
 } // namespace Host
 } // namespace WasmEdge

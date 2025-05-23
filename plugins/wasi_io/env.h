@@ -10,14 +10,11 @@
 namespace WasmEdge {
 namespace Host {
 
-using Pollable = uint32_t;
+class OutputStream;
 
-class WasiPollEnvironment {
+class WasiIOEnvironment {
 public:
-  bool isPollable(Pollable P) noexcept;
-
-private:
-  std::unordered_map<Pollable, bool> PollableMap;
+  std::vector<OutputStream> OutputStreamList;
 };
 
 } // namespace Host

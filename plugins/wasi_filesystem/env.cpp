@@ -2,28 +2,25 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "env.h"
-#include "interface.h"
 #include "module.h"
 
 namespace WasmEdge {
 namespace Host {
 
-WasiHttpEnvironment::WasiHttpEnvironment() noexcept {}
-
 namespace {
 
 Runtime::Instance::ComponentInstance *
-create(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
-  return new WasiHttpModule();
+createTypes(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
+  return new TypesModule();
 }
 
 Runtime::Instance::ComponentInstance *
-createTypes(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
-  return new WasiHttp_Types();
+createPreopens(const Plugin::PluginComponent::ComponentDescriptor *) noexcept {
+  return new PreopensModule();
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
-    .Name = "wasi_http",
+    .Name = "wasi_filesystem",
     .Description = "",
     .APIVersion = Plugin::Plugin::CurrentAPIVersion,
     .Version = {0, 1, 0, 0},
@@ -33,14 +30,14 @@ Plugin::Plugin::PluginDescriptor Descriptor{
     .ComponentDescriptions =
         (Plugin::PluginComponent::ComponentDescriptor[]){
             {
-                .Name = "wasi:http/test",
-                .Description = "",
-                .Create = create,
-            },
-            {
-                .Name = "wasi:http/types@0.2.0",
+                .Name = "wasi:filesystem/types@0.2.0",
                 .Description = "",
                 .Create = createTypes,
+            },
+            {
+                .Name = "wasi:filesystem/preopens@0.2.0",
+                .Description = "",
+                .Create = createPreopens,
             },
         },
     .AddOptions = nullptr,

@@ -935,11 +935,11 @@ E(ImmutableArray, 0x0213, "array is immutable")
 E(InvalidResultArity, 0x0214, "invalid result arity")
 // #Tables > 1 (without Ref-types proposal)
 E(MultiTables, 0x0215, "multiple tables")
-// #Memories > 1
+// #Memories > 1 (without multi-memory proposal)
 E(MultiMemories, 0x0216, "multiple memories")
 // Invalid Limit grammar
 E(InvalidLimit, 0x0217, "size minimum must not be greater than maximum")
-// Memory pages > 65536
+// Memory pages > 65536 (without memory64 proposal)
 E(InvalidMemPages, 0x0218, "memory size must be at most 65536 pages (4GiB)")
 // Invalid start function signature
 E(InvalidStartFunc, 0x0219, "start function")
@@ -971,6 +971,12 @@ E(InvalidSubType, 0x0225, "sub type")
 E(InvalidTagResultType, 0x0226, "non-empty tag result type")
 // Shared memory must have max
 E(SharedMemoryNoMax, 0x0227, "shared memory must have maximum")
+// Invalid memory offset
+E(InvalidMemoryOffset, 0x0228, "memory offset exceeds limit")
+// Invalid table size (memory64 proposal)
+E(InvalidTableSize, 0x0229, "table size")
+// Invalid memory size (memory64 proposal)
+E(InvalidMemorySize, 0x022A, "memory size")
 // @}
 
 // Instantiation phase

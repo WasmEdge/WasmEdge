@@ -171,6 +171,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   // Add host table "table"
   TabLimit.HasMax = true;
   TabLimit.Shared = false;
+  TabLimit.Is64 = false;
   TabLimit.Min = 10;
   TabLimit.Max = 20;
   HostTType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), TabLimit);
@@ -183,6 +184,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   // Add host memory "memory"
   MemLimit.HasMax = true;
   MemLimit.Shared = false;
+  MemLimit.Is64 = false;
   MemLimit.Min = 1;
   MemLimit.Max = 2;
   HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
@@ -195,6 +197,7 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   // Add host memory "memory"
   SharedMemLimit.HasMax = true;
   SharedMemLimit.Shared = true;
+  SharedMemLimit.Is64 = true;
   SharedMemLimit.Min = 1;
   SharedMemLimit.Max = 2;
   HostMType = WasmEdge_MemoryTypeCreate(SharedMemLimit);

@@ -258,7 +258,7 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
 // Helper function for making a Span to a uint8_t array.
 template <typename T>
 inline constexpr Span<const T> genSpan(const T *Buf,
-                                       const uint32_t Len) noexcept {
+                                       const uint64_t Len) noexcept {
   if (Buf && Len > 0) {
     return Span<const T>(Buf, Len);
   }
@@ -911,13 +911,14 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureHasHostRegistration(
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
-                                   const uint32_t Page) {
+                                   const WasmEdge_Addr_t Page) {
   if (Cxt) {
-    Cxt->Conf.getRuntimeConfigure().setMaxMemoryPage(Page);
+    Cxt->Conf.getRuntimeConfigure().setMaxMemoryPage(
+        static_cast<uint32_t>(Page));
   }
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
+WASMEDGE_CAPI_EXPORT WasmEdge_Addr_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
     return Cxt->Conf.getRuntimeConfigure().getMaxMemoryPage();
@@ -1295,9 +1296,12 @@ WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
     return nullptr;
   }
   if (Limit.HasMax) {
-    return toTabTypeCxt(new WasmEdge::AST::TableType(RT, Limit.Min, Limit.Max));
+    return toTabTypeCxt(
+        new WasmEdge::AST::TableType(RT, static_cast<uint32_t>(Limit.Min),
+                                     static_cast<uint32_t>(Limit.Max)));
   } else {
-    return toTabTypeCxt(new WasmEdge::AST::TableType(RT, Limit.Min));
+    return toTabTypeCxt(
+        new WasmEdge::AST::TableType(RT, static_cast<uint32_t>(Limit.Min)));
   }
 }
 
@@ -1315,10 +1319,12 @@ WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt) {
     const auto &Lim = fromTabTypeCxt(Cxt)->getLimit();
     return WasmEdge_Limit{/* HasMax */ Lim.hasMax(),
                           /* Shared */ Lim.isShared(),
-                          /* Min */ Lim.getMin(),
-                          /* Max */ Lim.getMax()};
+                          /* Is64 */ false,
+                          /* Min */ static_cast<WasmEdge_Addr_t>(Lim.getMin()),
+                          /* Max */ static_cast<WasmEdge_Addr_t>(Lim.getMax())};
   }
-  return WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Min */ 0,
+  return WasmEdge_Limit{/* HasMax */ false, /* Shared */ false,
+                        /* Is64 */ false, /* Min */ 0,
                         /* Max */ 0};
 }
 
@@ -1335,11 +1341,14 @@ WASMEDGE_CAPI_EXPORT WasmEdge_MemoryTypeContext *
 WasmEdge_MemoryTypeCreate(const WasmEdge_Limit Limit) {
   if (Limit.Shared) {
     return toMemTypeCxt(
-        new WasmEdge::AST::MemoryType(Limit.Min, Limit.Max, true));
+        new WasmEdge::AST::MemoryType(static_cast<uint32_t>(Limit.Min),
+                                      static_cast<uint32_t>(Limit.Max), true));
   } else if (Limit.HasMax) {
-    return toMemTypeCxt(new WasmEdge::AST::MemoryType(Limit.Min, Limit.Max));
+    return toMemTypeCxt(new WasmEdge::AST::MemoryType(
+        static_cast<uint32_t>(Limit.Min), static_cast<uint32_t>(Limit.Max)));
   } else {
-    return toMemTypeCxt(new WasmEdge::AST::MemoryType(Limit.Min));
+    return toMemTypeCxt(
+        new WasmEdge::AST::MemoryType(static_cast<uint32_t>(Limit.Min)));
   }
 }
 
@@ -1349,10 +1358,12 @@ WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt) {
     const auto &Lim = fromMemTypeCxt(Cxt)->getLimit();
     return WasmEdge_Limit{/* HasMax */ Lim.hasMax(),
                           /* Shared */ Lim.isShared(),
-                          /* Min */ Lim.getMin(),
-                          /* Max */ Lim.getMax()};
+                          /* Is64 */ false,
+                          /* Min */ static_cast<WasmEdge_Addr_t>(Lim.getMin()),
+                          /* Max */ static_cast<WasmEdge_Addr_t>(Lim.getMax())};
   }
-  return WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Min */ 0,
+  return WasmEdge_Limit{/* HasMax */ false, /* Shared */ false,
+                        /* Is64 */ false, /* Min */ 0,
                         /* Max */ 0};
 }
 
@@ -2439,20 +2450,23 @@ WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt) {
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value *Data, const uint32_t Offset) {
-  return wrap([&]() { return fromTabCxt(Cxt)->getRefAddr(Offset); },
-              [&Data, &Cxt](auto &&Res) {
-                *Data = genWasmEdge_Value(
-                    *Res, fromTabCxt(Cxt)->getTableType().getRefType());
-              },
-              Cxt, Data);
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceGetData(
+    const WasmEdge_TableInstanceContext *Cxt, WasmEdge_Value *Data,
+    const WasmEdge_Addr_t Offset) {
+  return wrap(
+      [&]() {
+        return fromTabCxt(Cxt)->getRefAddr(static_cast<uint32_t>(Offset));
+      },
+      [&Data, &Cxt](auto &&Res) {
+        *Data = genWasmEdge_Value(*Res,
+                                  fromTabCxt(Cxt)->getTableType().getRefType());
+      },
+      Cxt, Data);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value Data, const uint32_t Offset) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceSetData(
+    WasmEdge_TableInstanceContext *Cxt, WasmEdge_Value Data,
+    const WasmEdge_Addr_t Offset) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         // Comparison of the value types needs the module instance to retrieve
@@ -2477,12 +2491,12 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
           spdlog::error(WasmEdge::ErrCode::Value::NonNullRequired);
           return Unexpect(WasmEdge::ErrCode::Value::NonNullRequired);
         }
-        return fromTabCxt(Cxt)->setRefAddr(Offset, Val);
+        return fromTabCxt(Cxt)->setRefAddr(static_cast<uint32_t>(Offset), Val);
       },
       EmptyThen, Cxt);
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
+WASMEDGE_CAPI_EXPORT WasmEdge_Addr_t
 WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt) {
   if (Cxt) {
     return fromTabCxt(Cxt)->getSize();
@@ -2491,10 +2505,10 @@ WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceGrow(
-    WasmEdge_TableInstanceContext *Cxt, const uint32_t Size) {
+    WasmEdge_TableInstanceContext *Cxt, const WasmEdge_Addr_t Size) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        if (fromTabCxt(Cxt)->growTable(Size)) {
+        if (fromTabCxt(Cxt)->growTable(static_cast<uint32_t>(Size))) {
           return {};
         } else {
           spdlog::error(WasmEdge::ErrCode::Value::TableOutOfBounds);
@@ -2533,29 +2547,37 @@ WasmEdge_MemoryInstanceGetMemoryType(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
     const WasmEdge_MemoryInstanceContext *Cxt, uint8_t *Data,
-    const uint32_t Offset, const uint32_t Length) {
-  return wrap([&]() { return fromMemCxt(Cxt)->getBytes(Offset, Length); },
-              [&](auto &&Res) { std::copy_n((*Res).begin(), Length, Data); },
-              Cxt, Data);
+    const WasmEdge_Addr_t Offset, const WasmEdge_Addr_t Length) {
+  return wrap(
+      [&]() {
+        return fromMemCxt(Cxt)->getBytes(static_cast<uint32_t>(Offset),
+                                         static_cast<uint32_t>(Length));
+      },
+      [&](auto &&Res) {
+        std::copy_n((*Res).begin(), static_cast<uint32_t>(Length), Data);
+      },
+      Cxt, Data);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
     WasmEdge_MemoryInstanceContext *Cxt, const uint8_t *Data,
-    const uint32_t Offset, const uint32_t Length) {
+    const WasmEdge_Addr_t Offset, const WasmEdge_Addr_t Length) {
   return wrap(
       [&]() {
-        return fromMemCxt(Cxt)->setBytes(genSpan(Data, Length), Offset, 0,
-                                         Length);
+        return fromMemCxt(Cxt)->setBytes(
+            genSpan(Data, static_cast<uint32_t>(Length)),
+            static_cast<uint32_t>(Offset), 0, static_cast<uint32_t>(Length));
       },
       EmptyThen, Cxt, Data);
 }
 
 WASMEDGE_CAPI_EXPORT uint8_t *
 WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
-                                  const uint32_t Offset,
-                                  const uint32_t Length) {
+                                  const WasmEdge_Addr_t Offset,
+                                  const WasmEdge_Addr_t Length) {
   if (Cxt) {
-    const auto S = fromMemCxt(Cxt)->getSpan<uint8_t>(Offset, Length);
+    const auto S = fromMemCxt(Cxt)->getSpan<uint8_t>(
+        static_cast<uint32_t>(Offset), static_cast<uint32_t>(Length));
     if (S.size() == Length) {
       return S.data();
     }
@@ -2564,10 +2586,11 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
-    const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
-    const uint32_t Length) {
+    const WasmEdge_MemoryInstanceContext *Cxt, const WasmEdge_Addr_t Offset,
+    const WasmEdge_Addr_t Length) {
   if (Cxt) {
-    const auto S = fromMemCxt(Cxt)->getSpan<const uint8_t>(Offset, Length);
+    const auto S = fromMemCxt(Cxt)->getSpan<const uint8_t>(
+        static_cast<uint32_t>(Offset), static_cast<uint32_t>(Length));
     if (S.size() == Length) {
       return S.data();
     }
@@ -2575,7 +2598,7 @@ WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
+WASMEDGE_CAPI_EXPORT WasmEdge_Addr_t
 WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
   if (Cxt) {
     return fromMemCxt(Cxt)->getPageSize();
@@ -2584,10 +2607,10 @@ WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGrowPage(
-    WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Page) {
+    WasmEdge_MemoryInstanceContext *Cxt, const WasmEdge_Addr_t Page) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        if (fromMemCxt(Cxt)->growPage(Page)) {
+        if (fromMemCxt(Cxt)->growPage(static_cast<uint32_t>(Page))) {
           return {};
         } else {
           spdlog::error(WasmEdge::ErrCode::Value::MemoryOutOfBounds);

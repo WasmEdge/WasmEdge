@@ -361,16 +361,55 @@ private:
 };
 
 /// wasm interface type
-class InterfaceType : public ValType {
+class InterfaceType {
 public:
-  InterfaceType(TypeCode C) : ValType(C) {}
-  InterfaceType(TypeCode C, std::initializer_list<ValType> Args)
-      : ValType(C), TyArgs(Args) {}
+  InterfaceType(TypeCode C) : VTyp{C}, TyArgs{}, CaseName{std::nullopt} {}
+  /// Create a type with type arguments.
+  InterfaceType(TypeCode C, std::initializer_list<InterfaceType> Args)
+      : VTyp{C}, TyArgs{Args}, CaseName{std::nullopt} {}
+  InterfaceType(TypeCode C, std::vector<InterfaceType> Args)
+      : VTyp{C}, TyArgs{Args}, CaseName{std::nullopt} {}
+  /// Construct a label type, which is prepared for variant type, each case has
+  /// a name and a real type.
+  InterfaceType(TypeCode C, std::string_view Name) : VTyp{C}, CaseName{Name} {}
 
-  Span<const ValType> getArgs() const noexcept { return TyArgs; }
+  TypeCode getCode() const noexcept { return VTyp.getCode(); }
+  Span<const InterfaceType> getArgs() const noexcept { return TyArgs; }
+  ValType getValType() const noexcept { return VTyp; }
+
+  /// Internal type system treats an empty tuple `()` as `None` type.
+  bool isNone() const noexcept {
+    auto Code = getCode();
+    return Code == TypeCode::Tuple && getArgs().empty();
+  }
+
+  friend bool operator==(const InterfaceType &LHS,
+                         const InterfaceType &RHS) noexcept {
+    auto LAs = LHS.getArgs();
+    auto RAs = RHS.getArgs();
+    if (LAs.size() != RAs.size()) {
+      return false;
+    }
+    for (size_t I = 0; I < LAs.size(); ++I) {
+      if (LAs[I] != RAs[I]) {
+        return false;
+      }
+    }
+    return LHS.VTyp == RHS.VTyp;
+  }
+  friend bool operator!=(const InterfaceType &LHS,
+                         const InterfaceType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
+
+  // case name exists to be the type arguments of variant type
+  std::optional<std::string> getCaseName() const noexcept { return CaseName; }
+  void setCaseName(std::string &&N) noexcept { CaseName.emplace(N); }
 
 private:
-  std::vector<ValType> TyArgs;
+  ValType VTyp;
+  std::vector<InterfaceType> TyArgs;
+  std::optional<std::string> CaseName;
 };
 
 /// BlockType definition.

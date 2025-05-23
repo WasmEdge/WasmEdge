@@ -24,10 +24,11 @@ Expect<void> Executor::instantiate(Runtime::StoreManager &,
 
   std::vector<ValInterface> Args{};
   for (auto Idx : Start.getArguments()) {
-    Args.push_back(Comp.getValue(Idx));
+    EXPECTED_TRY(auto Arg, Comp.getValue(Idx));
+    Args.push_back(Arg);
   }
 
-  auto Fn = Comp.getFunctionInstance(Start.getFunctionIndex());
+  EXPECTED_TRY(auto *Fn, Comp.getFunctionInstance(Start.getFunctionIndex()));
   auto FnType = Fn->getFuncType();
   EXPECTED_TRY(auto ResultList, invoke(Fn, Args, FnType.getParamTypes()));
   auto Result = ResultList[0].first;

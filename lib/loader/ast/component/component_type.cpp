@@ -295,18 +295,18 @@ Expect<void> Loader::loadType(ResourceType &Ty) {
                         ASTNodeAttr::DefType);
   }
 
-  if (Ty.IsAsync()) {
+  if (Ty.IsSync()) {
+    EXPECTED_TRY(loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
+      EXPECTED_TRY(auto RDestructor, FMgr.readU32());
+      Ty.getDestructor().emplace(RDestructor);
+      return {};
+    }));
+  } else {
     EXPECTED_TRY(auto Idx, FMgr.readU32());
     Ty.getDestructor().emplace(Idx);
     EXPECTED_TRY(loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
       EXPECTED_TRY(auto RCallback, FMgr.readU32());
       Ty.getCallback().emplace(RCallback);
-      return {};
-    }));
-  } else {
-    EXPECTED_TRY(loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
-      EXPECTED_TRY(auto RDestructor, FMgr.readU32());
-      Ty.getDestructor().emplace(RDestructor);
       return {};
     }));
   }

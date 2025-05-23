@@ -8,14 +8,12 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include "simdjson.h"
 #include <base64.hpp>
-#include <clip.h>
 #include <common.h>
 #include <cstdlib>
 #include <fmt/ranges.h>
 #include <json-schema-to-grammar.h>
 #include <json.hpp>
 #include <llama.h>
-#include <llava.h>
 #include <mtmd.h>
 #include <sampling.h>
 
@@ -1316,14 +1314,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the display-prompt option."sv)
-    }
-  }
-  if (Doc.at_key("dump-kv-cache").error() == simdjson::SUCCESS) {
-    auto Err =
-        Doc["dump-kv-cache"].get<bool>().get(GraphRef.Params.dump_kv_cache);
-    if (Err) {
-      RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the dump-kv-cache option."sv)
     }
   }
   if (Doc.at_key("no-kv-offload").error() == simdjson::SUCCESS) {
@@ -2950,7 +2940,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       // Initialize the mtmd context.
       mtmd_context_params VisionContextParams = mtmd_context_params_default();
       std::string VisionPromptImagePlaceholderStr(VisionPromptImagePlaceholder);
-      VisionContextParams.image_marker =
+      VisionContextParams.media_marker =
           VisionPromptImagePlaceholderStr.c_str();
       VisionContextParams.use_gpu = GraphRef.Params.mmproj_use_gpu;
       VisionContextParams.n_threads = GraphRef.Params.cpuparams.n_threads;
@@ -2968,7 +2958,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                               GraphRef.LlamaModel.get(), VisionContextParams));
       if (GraphRef.VisionContext == nullptr) {
         RET_ERROR(ErrNo::InvalidArgument,
-                  "setInput: unable to load the mmproj model."sv)
+                  "setInput: unable to load the mmproj model {}."sv,
+                  GraphRef.Params.mmproj.path)
       }
       LOG_DEBUG(GraphRef.EnableDebugLog,
                 "setInput: initialize mtmd context...Done"sv)

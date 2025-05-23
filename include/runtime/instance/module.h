@@ -249,12 +249,21 @@ public:
   /// )
   void exportFunction(std::string_view Name, FunctionInstance *Func) {
     std::unique_lock Lock(Mutex);
-    assuming(Func->isHostFunction());
-    unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+    if (Func->isHostFunction()) {
+      unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+    } else {
+      AST::SubType SType{Func->getFuncType()};
+
+      // NOTE: addDefinedType invoke the lock again, so I just repeat it's job.
+      OwnedTypes.push_back(std::make_unique<AST::SubType>(SType));
+      Types.push_back(OwnedTypes.back().get());
+      // NOTE: addDefinedType end
+    }
     Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
     FuncInsts.push_back(Func);
     ExpFuncs.insert_or_assign(std::string(Name), FuncInsts.back());
   }
+
   void exportTable(std::string_view Name, TableInstance *Tab) {
     std::unique_lock Lock(Mutex);
     TabInsts.push_back(Tab);

@@ -182,9 +182,9 @@ public:
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
 
   /// Invoke a Component function by function instance.
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  Expect<std::vector<std::pair<ValInterface, InterfaceType>>>
   invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
-         Span<const ValInterface> Params, Span<const ValType> ParamTypes);
+         Span<const ValInterface> Params, Span<const InterfaceType> ParamTypes);
 
   /// Asynchronous invoke a WASM function by function instance.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
@@ -196,6 +196,25 @@ public:
     StopToken.store(1, std::memory_order_relaxed);
     atomicNotifyAll();
   }
+
+  /// \name Helper Functions for canonical ABI
+  /// @{
+  std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
+  lifting(Runtime::Instance::ComponentInstance &Comp,
+          const WasmEdge::AST::Component::FuncType &FuncType,
+          Runtime::Instance::FunctionInstance *F,
+          Runtime::Instance::MemoryInstance *Memory,
+          Runtime::Instance::FunctionInstance *Realloc);
+
+  std::unique_ptr<Runtime::Instance::FunctionInstance>
+  lowering(Runtime::Instance::Component::FunctionInstance *F,
+           Runtime::Instance::MemoryInstance *Memory,
+           Runtime::Instance::FunctionInstance *Realloc);
+
+  std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
+  resourceDrop(AST::Component::ResourceType &RTyp,
+               Runtime::Instance::ComponentInstance &CompInst);
+  /// @}
 
 private:
   /// Run Wasm bytecode expression for initialization.
@@ -304,21 +323,6 @@ private:
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::ExportSection &);
-  /// @}
-
-  /// \name Helper Functions for canonical ABI
-  /// @{
-  std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
-  lifting(Runtime::Instance::ComponentInstance &Comp,
-          const WasmEdge::AST::Component::FuncType &FuncType,
-          Runtime::Instance::FunctionInstance *F,
-          Runtime::Instance::MemoryInstance *Memory,
-          Runtime::Instance::FunctionInstance *Realloc);
-
-  std::unique_ptr<Runtime::Instance::FunctionInstance>
-  lowering(Runtime::Instance::Component::FunctionInstance *F,
-           Runtime::Instance::MemoryInstance *Memory,
-           Runtime::Instance::FunctionInstance *Realloc);
   /// @}
 
   /// \name Helper Functions for block controls.

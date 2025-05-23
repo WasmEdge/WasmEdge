@@ -20,6 +20,11 @@
 #include <vector>
 
 namespace WasmEdge {
+
+namespace Runtime::Instance {
+class ComponentInstance;
+}
+
 namespace AST {
 namespace Component {
 
@@ -539,22 +544,42 @@ private:
 //                => (resource (rep i32) (dtor async f (callback cb)?))
 
 /// AST Component::ResourceType node.
+
+// Pseudo Python code
+//
+// class ResourceType(Type):
+//   impl: ComponentInstance
+//   dtor: Optional[Callable] = None
+//   dtor_sync: bool = True
+//   dtor_callback: Optional[Callable] = None
 class ResourceType {
 public:
-  ResourceType() noexcept : Async(false) {}
-  ResourceType(bool A) noexcept : Async(A) {}
+  ResourceType() noexcept : DtorSync(true) {}
+  ResourceType(bool Sync) noexcept : DtorSync(Sync) {}
+  ResourceType(Runtime::Instance::ComponentInstance *I) noexcept
+      : Impl(I), DtorSync(true) {}
+  ResourceType(Runtime::Instance::ComponentInstance *I, bool Sync) noexcept
+      : Impl(I), DtorSync(Sync) {}
 
-  std::optional<uint32_t> getDestructor() const noexcept { return Destructor; }
-  std::optional<uint32_t> getCallback() const noexcept { return Callback; }
+  const Runtime::Instance::ComponentInstance *getImpl() const noexcept {
+    return Impl;
+  }
+  std::optional<uint32_t> getDestructor() const noexcept { return Dtor; }
+  std::optional<uint32_t> getCallback() const noexcept { return DtorCallback; }
 
-  bool IsAsync() noexcept { return Async; }
-  std::optional<uint32_t> &getDestructor() noexcept { return Destructor; }
-  std::optional<uint32_t> &getCallback() noexcept { return Callback; }
+  bool IsSync() noexcept { return DtorSync; }
+  std::optional<uint32_t> &getDestructor() noexcept { return Dtor; }
+  std::optional<uint32_t> &getCallback() noexcept { return DtorCallback; }
 
-private:
-  bool Async;
-  std::optional<uint32_t> Destructor;
-  std::optional<uint32_t> Callback;
+  // real implementation
+  Runtime::Instance::ComponentInstance *Impl;
+
+  // destructor is sync or not, true is sync, false is not sync
+  bool DtorSync;
+  // destructor
+  std::optional<uint32_t> Dtor;
+  // destructor callback
+  std::optional<uint32_t> DtorCallback;
 };
 
 // =============================================================================

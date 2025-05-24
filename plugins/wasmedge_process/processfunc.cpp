@@ -5,7 +5,7 @@
 
 #include "common/defines.h"
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
@@ -94,7 +94,7 @@ Expect<void> WasmEdgeProcessSetTimeOut::body(const Runtime::CallingFrame &,
 }
 
 Expect<uint32_t> WasmEdgeProcessRun::body(const Runtime::CallingFrame &) {
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
   // Clear outputs.
   Env.StdOut.clear();
   Env.StdErr.clear();

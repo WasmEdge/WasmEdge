@@ -17,7 +17,9 @@ mx::array Linear::forward(mx::array Input) {
   return matmul(Input, transpose(Parameters.at("weight")));
 }
 
-std::shared_ptr<nn::Module> Linear::toQuantized(int GroupSize, int Bits) {
+std::shared_ptr<nn::Module>
+Linear::toQuantized(int GroupSize, int Bits, const std::string &,
+                    const std::unordered_map<std::string, mx::array> &) {
   auto QuantModel = QuantizedLinear::fromLinear(
       std::dynamic_pointer_cast<Linear>(shared_from_this()), GroupSize, Bits);
   QuantModel->Name = Name;

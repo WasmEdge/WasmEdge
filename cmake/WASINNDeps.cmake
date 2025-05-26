@@ -299,6 +299,7 @@ function(wasmedge_setup_llama_target target)
     set(LLAMA_CURL OFF)
     set(LLAMA_METAL_NDEBUG ON)
     set(LLAMA_BUILD_COMMON ON)
+    set(LLAMA_BUILD_TOOLS ON)
     set(GGML_ACCELERATE OFF)
     set(GGML_AMX OFF)
     set(GGML_BLAS OFF)
@@ -342,7 +343,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b5201
+      GIT_TAG        b5463
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -352,82 +353,18 @@ function(wasmedge_setup_llama_target target)
     set_property(TARGET ggml-base PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET ggml-cpu PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET mtmd PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET mtmd_audio PROPERTY POSITION_INDEPENDENT_CODE ON)
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
-
-    # Setup llava from llama.cpp
-    wasmedge_add_library(llava OBJECT
-      ${llama_SOURCE_DIR}/examples/llava/clip.cpp
-      ${llama_SOURCE_DIR}/examples/llava/llava.cpp
-    )
-    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      target_compile_options(llava
-        PRIVATE
-        $<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>
-        $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/utf-8>
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4067> # unexpected tokens following preprocessor directive - expected a newline
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4101> # 'identifier' : unreferenced local variable
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4189> # 'identifier' : local variable is initialized but not referenced
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4244> # 'argument' : conversion from 'type1' to 'type2', possible loss of data
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4267> # 'var' : conversion from 'size_t' to 'type', possible loss of data
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4305> # 'initializing' : truncation from 'double' to 'float'
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4297> # 'function' : function assumed not to throw an exception but does
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4456> # declaration of 'identifier' hides previous local declaration
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4505> # 'function' : unreferenced local function has been removed
-        $<$<COMPILE_LANGUAGE:C,CXX>:/wd4701> # potentially uninitialized local variable used
-      )
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-      target_compile_options(llava
-        PRIVATE
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-exceptions>
-        -Wno-cast-align
-        -Wno-cast-qual
-        -Wno-float-conversion
-        -Wno-implicit-fallthrough
-        -Wno-unused-macros
-        -Wno-unused-function
-        -Wno-unused-variable
-      )
-      # string_split<std::string> in common.h unused
-      target_compile_options(${target}
-        PRIVATE
-        -Wno-unused-function
-      )
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-      target_compile_options(llava
-        PRIVATE
-        $<$<COMPILE_LANGUAGE:CXX>:-Wno-exceptions>
-        -Wno-cast-align
-        -Wno-cast-qual
-        -Wno-disabled-macro-expansion
-        -Wno-float-conversion
-        -Wno-implicit-fallthrough
-        -Wno-implicit-float-conversion
-        -Wno-unused-macros
-        -Wno-unused-function
-        -Wno-unused-variable
-        -Wno-sign-conversion
-        -Wno-shorten-64-to-32
-        -Wno-implicit-int-conversion
-        -Wno-old-style-cast
-        -Wno-extra-semi-stmt
-        -Wno-format-nonliteral
-        -Wno-documentation
-        -Wno-unused-template
-      )
-      # string_split<std::string> in common.h unused
+    # Ignore unused function warnings at common.h in llama.cpp.
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
       target_compile_options(${target}
         PRIVATE
         -Wno-unused-function
       )
     endif()
-    target_link_libraries(llava PRIVATE ggml llama)
-    target_include_directories(llava PUBLIC
-      ${llama_SOURCE_DIR}
-      ${llama_SOURCE_DIR}/common
-      ${llama_SOURCE_DIR}/examples/llava
-    )
   endif()
   # Only the plugin library needs to fully linking the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
@@ -436,7 +373,7 @@ function(wasmedge_setup_llama_target target)
       PRIVATE
       common
       simdjson::simdjson
-      llava
+      mtmd
     )
   endif()
 endfunction()
@@ -553,6 +490,7 @@ function(wasmedge_setup_mlx_target target)
       set(MLX_BUILD_GGUF OFF)
       set(MLX_BUILD_TESTS OFF)
       set(MLX_BUILD_EXAMPLES OFF)
+      set(BUILD_SHARED_LIBS OFF)
       FetchContent_MakeAvailable(mlx)
       message(STATUS "Downloading MLX source -- done")
       set_property(TARGET mlx PROPERTY POSITION_INDEPENDENT_CODE ON)

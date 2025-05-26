@@ -21,6 +21,7 @@
 #include "runtime/component/hostfunc.h"
 #include "runtime/instance/component/function.h"
 #include "runtime/instance/module.h"
+#include "runtime/instance/resource.h"
 
 #include <atomic>
 #include <functional>
@@ -41,199 +42,153 @@ namespace Instance {
 
 using namespace AST::Component;
 
-namespace {
-void typeConvert(ValueType &VT, const ValType &Ty) noexcept {
-  switch (Ty.getCode()) {
-  case TypeCode::I8:
-    VT.emplace<PrimValType>(PrimValType::S8);
-    break;
-  case TypeCode::I16:
-    VT.emplace<PrimValType>(PrimValType::S16);
-    break;
-  case TypeCode::I32:
-    VT.emplace<PrimValType>(PrimValType::S32);
-    break;
-  case TypeCode::I64:
-    VT.emplace<PrimValType>(PrimValType::S64);
-    break;
-  case TypeCode::F32:
-    VT.emplace<PrimValType>(PrimValType::Float32);
-    break;
-  case TypeCode::F64:
-    VT.emplace<PrimValType>(PrimValType::Float64);
-    break;
+enum class ExportKind {
+  TYPE,
+  FUNC,
+};
 
-  default:
-    break;
-  }
-}
+class RecordedExport {
+public:
+  RecordedExport(std::string_view Name, int32_t Index, ExportKind Kind)
+      : Name(Name), Index(Index), Kind(Kind) {}
 
-void typeConvert(FuncType &FT, const AST::FunctionType &Ty) noexcept {
-  auto &PL = FT.getParamList();
-  for (auto const &PT : Ty.getParamTypes()) {
-    LabelValType L{};
-    typeConvert(L.getValType(), PT);
-    PL.emplace_back(L);
-  }
-  auto &RL = FT.getResultList();
-  if (Ty.getReturnTypes().size() == 1) {
-    typeConvert(RL.emplace<ValueType>(), Ty.getReturnTypes()[0]);
-  } else {
-    auto &LL = RL.emplace<std::vector<LabelValType>>();
-    for (auto const &RT : Ty.getReturnTypes()) {
-      LabelValType L{};
-      typeConvert(L.getValType(), RT);
-      LL.emplace_back(L);
-    }
-  }
-}
-} // namespace
+  std::string_view getName() const noexcept { return Name; }
+  uint32_t getIndex() const noexcept { return Index; }
+  ExportKind getKind() const noexcept { return Kind; }
+
+private:
+  std::string Name;
+  int32_t Index;
+  ExportKind Kind;
+};
 
 class ComponentInstance {
 public:
-  ComponentInstance(std::string_view Name) : CompName(Name) {}
-
-  std::string_view getComponentName() const noexcept { return CompName; }
-
-  void addModule(const AST::Module &M) noexcept { ModList.emplace_back(M); }
-  const AST::Module &getModule(uint32_t Index) const noexcept {
-    return ModList[Index];
+  ComponentInstance(std::string_view Name) : CompName(Name) {
+    // FIXME:
+    // magic number should be 2 ^ 28 - 1 by
+    // https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#table-state
+    //
+    // but I use 1000 here because this value is small enough, will not block
+    // execution for now.
+    for (int32_t I = 0; I < 1000; ++I) {
+      FreeResources.insert(FreeResources.end(), I);
+    }
   }
 
-  void addComponent(const AST::Component::Component &C) noexcept {
-    CompList.emplace_back(C);
+  // Explaination:
+  // In a component we can have several imports, e.g.
+  //
+  //     (import "xxx" type)
+  //
+  // the type is not important here, the point is such thing with name "xxx" is
+  // not existed at all, until the instantiation of the component. e.g.
+  //
+  //     (instantiate (component 1)
+  //       (with "xxx" (instance 0)))
+  //
+  // However, our component instance, is created before instantiation (this is
+  // internal flow). Therefore, a component instance should record two things:
+  // 1. the name of the import
+  // 2. the StoreManager
+  // and execute the import until instantiate statement is executed.
+  void addImport(Runtime::StoreManager &Mgr, std::string_view Name) noexcept;
+  void recordFunctionExport(std::string_view Name, int32_t Index) noexcept {
+    RecordedExportList.push_back(RecordedExport(Name, Index, ExportKind::FUNC));
   }
-  const AST::Component::Component &getComponent(uint32_t Index) const noexcept {
-    return CompList[Index];
+  void recordTypeExport(std::string_view Name, int32_t Index) noexcept {
+    RecordedExportList.push_back(RecordedExport(Name, Index, ExportKind::TYPE));
   }
+  Expect<void> instantiate();
 
-  void addModuleInstance(ModuleInstance *Inst) noexcept {
-    ModInstList.push_back(std::move(Inst));
-  }
-  void addModuleInstance(std::unique_ptr<ModuleInstance> Inst) noexcept {
-    ModInstList.push_back(Inst.get());
-    OwnedModInstList.push_back(std::move(Inst));
-  }
-  const ModuleInstance *getModuleInstance(uint32_t Index) const noexcept {
-    return ModInstList[Index];
-  }
+  std::string_view getComponentName() const noexcept;
 
-  void addComponentInstance(const ComponentInstance *Inst) noexcept {
-    CompInstList.push_back(Inst);
-  }
-  void addComponentInstance(std::unique_ptr<ComponentInstance> Inst) noexcept {
-    CompInstList.push_back(Inst.get());
-    OwnedCompInstList.push_back(std::move(Inst));
-  }
-  const ComponentInstance *getComponentInstance(uint32_t Index) const noexcept {
-    return CompInstList[Index];
-  }
+  void addModule(const AST::Module &M) noexcept;
+  const AST::Module &getModule(uint32_t Index) const noexcept;
+
+  void addComponent(const AST::Component::Component &C) noexcept;
+  const AST::Component::Component &getComponent(uint32_t Index) const noexcept;
+
+  void addModuleInstance(ModuleInstance *Inst) noexcept;
+  void addModuleInstance(std::unique_ptr<ModuleInstance> Inst) noexcept;
+  Expect<const ModuleInstance *>
+  getModuleInstance(uint32_t Index) const noexcept;
+
+  void addComponentInstance(const ComponentInstance *Inst) noexcept;
+  void addComponentInstance(std::unique_ptr<ComponentInstance> Inst) noexcept;
+  Expect<const ComponentInstance *>
+  getComponentInstance(uint32_t Index) const noexcept;
 
   void addHostFunc(
       std::string_view Name,
-      std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> &&Func) {
-    addType(Func->getFuncType());
-    auto FuncInst = std::make_unique<Instance::Component::FunctionInstance>(
-        std::move(Func));
-    unsafeAddHostFunc(Name, std::move(FuncInst));
-  }
+      std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> &&Func);
   void addHostFunc(std::string_view Name,
-                   std::unique_ptr<Component::FunctionInstance> &&Func) {
-    addType(Func->getFuncType());
-    unsafeAddHostFunc(Name, std::move(Func));
-  }
+                   std::unique_ptr<Component::FunctionInstance> &&Func);
 
   void
-  addCoreFunctionInstance(std::unique_ptr<FunctionInstance> &&Inst) noexcept {
-    addCoreFunctionInstance(Inst.get());
-    OwnedCoreFuncInstList.emplace_back(std::move(Inst));
-  }
-  void addCoreFunctionInstance(FunctionInstance *Inst) noexcept {
-    CoreFuncInstList.push_back(Inst);
-  }
-  FunctionInstance *getCoreFunctionInstance(uint32_t Index) const noexcept {
-    return CoreFuncInstList[Index];
-  }
+  addCoreFunctionInstance(std::unique_ptr<FunctionInstance> &&Inst) noexcept;
+  void addCoreFunctionInstance(FunctionInstance *Inst) noexcept;
+  Expect<FunctionInstance *>
+  getCoreFunctionInstance(uint32_t Index) const noexcept;
 
   void addFunctionInstance(
-      std::unique_ptr<Component::FunctionInstance> Inst) noexcept {
-    addFunctionInstance(Inst.get());
-    OwnedFuncInstList.emplace_back(std::move(Inst));
-  }
-  void addFunctionInstance(Component::FunctionInstance *Inst) noexcept {
-    FuncInstList.push_back(Inst);
-  }
-  Component::FunctionInstance *
-  getFunctionInstance(uint32_t Index) const noexcept {
-    return FuncInstList[Index];
-  }
+      std::unique_ptr<Component::FunctionInstance> Inst) noexcept;
+  void addFunctionInstance(Component::FunctionInstance *Inst) noexcept;
+  Expect<Component::FunctionInstance *>
+  getFunctionInstance(uint32_t Index) const noexcept;
 
   // values stored in component instance
-  ValInterface getValue(uint32_t Index) const noexcept {
-    return ValueList[Index];
-  }
-  void setValue(uint32_t Index, ValInterface V) noexcept {
-    ValueList[Index] = V;
-  }
+  Expect<ValInterface> getValue(uint32_t Index) const noexcept;
+  void setValue(uint32_t Index, ValInterface V) noexcept;
 
-  void addExport(std::string_view Name, const ModuleInstance *Inst) {
-    ExportModuleMap.emplace(Name, Inst);
-  }
-  const ModuleInstance *
-  findModuleExports(std::string_view Name) const noexcept {
-    return ExportModuleMap.at(std::string(Name));
-  }
-  void addExport(std::string_view Name, Component::FunctionInstance *Inst) {
-    ExportFuncMap.insert_or_assign(std::string(Name), Inst);
-  }
+  void addExport(std::string_view Name, const ModuleInstance *Inst) noexcept;
+  const ModuleInstance *findModuleExports(std::string_view Name) const noexcept;
+  void addExport(std::string_view Name,
+                 Component::FunctionInstance *Inst) noexcept;
   Component::FunctionInstance *
-  findFuncExports(std::string_view Name) const noexcept {
-    return ExportFuncMap.at(std::string(Name));
-  }
-  std::vector<std::pair<std::string, const AST::FunctionType &>>
-  getFuncExports() {
-    std::vector<std::pair<std::string, const AST::FunctionType &>> R;
-    R.reserve(ExportFuncMap.size());
-    for (auto &&[Name, Func] : ExportFuncMap) {
-      const auto &FuncType = Func->getFuncType();
-      R.emplace_back(Name, FuncType);
-    }
-    return R;
-  }
+  findFuncExports(std::string_view Name) const noexcept;
+  std::vector<std::pair<std::string, const AST::Component::FunctionType &>>
+  getFuncExports() const noexcept;
 
-  void addCoreTableInstance(TableInstance *Inst) noexcept {
-    CoreTabInstList.push_back(Inst);
-  }
-  TableInstance *getCoreTableInstance(uint32_t Index) const noexcept {
-    return CoreTabInstList[Index];
-  }
-  void addCoreMemoryInstance(MemoryInstance *Inst) noexcept {
-    CoreMemInstList.push_back(Inst);
-  }
-  MemoryInstance *getCoreMemoryInstance(uint32_t Index) const noexcept {
-    return CoreMemInstList[Index];
-  }
-  void addCoreGlobalInstance(GlobalInstance *Inst) noexcept {
-    CoreGlobInstList.push_back(Inst);
-  }
-  GlobalInstance *getCoreGlobalInstance(uint32_t Index) const noexcept {
-    return CoreGlobInstList[Index];
-  }
+  void addCoreTableInstance(TableInstance *Inst) noexcept;
+  Expect<TableInstance *> getCoreTableInstance(uint32_t Index) const noexcept;
 
-  void addCoreType(const CoreDefType &Ty) noexcept {
-    CoreTypes.emplace_back(Ty);
-  }
-  const CoreDefType &getCoreType(uint32_t Idx) const noexcept {
-    return CoreTypes[Idx];
-  }
+  void addCoreMemoryInstance(MemoryInstance *Inst) noexcept;
+  Expect<MemoryInstance *> getCoreMemoryInstance(uint32_t Index) const noexcept;
 
-  void addType(const AST::FunctionType &Ty) noexcept {
-    FuncType FT{};
-    typeConvert(FT, Ty);
-    addType(FT);
-  }
-  void addType(const DefType &Ty) noexcept { Types.emplace_back(Ty); }
-  const DefType &getType(uint32_t Idx) const noexcept { return Types[Idx]; }
+  void addCoreGlobalInstance(GlobalInstance *Inst) noexcept;
+  Expect<GlobalInstance *> getCoreGlobalInstance(uint32_t Index) const noexcept;
+
+  void addCoreType(const CoreDefType &Ty) noexcept;
+  Expect<const CoreDefType> getCoreType(uint32_t Idx) const noexcept;
+
+  void addHostType(std::string_view Name, PrimValType &&Type) noexcept;
+  void addHostType(std::string_view Name, RecordTy &&Type) noexcept;
+  void addHostType(std::string_view Name, VariantTy &&Type) noexcept;
+  void addHostType(std::string_view Name, ListTy &&Type) noexcept;
+  void addHostType(std::string_view Name, TupleTy &&Type) noexcept;
+  void addHostType(std::string_view Name, Flags &&Type) noexcept;
+  void addHostType(std::string_view Name, EnumTy &&Type) noexcept;
+  void addHostType(std::string_view Name, OptionTy &&Type) noexcept;
+  void addHostType(std::string_view Name, ResultTy &&Type) noexcept;
+  void addHostType(std::string_view Name, Own &&Type) noexcept;
+  void addHostType(std::string_view Name, Borrow &&Type) noexcept;
+  void addHostType(std::string_view Name, FuncType &&Type) noexcept;
+  void addHostType(std::string_view Name, ResourceType &&Type) noexcept;
+  void addHostType(std::string_view Name, ComponentType &&Type) noexcept;
+  void addHostType(std::string_view Name, InstanceType &&Type) noexcept;
+  void addHostType(std::string_view Name, DefType Type) noexcept;
+
+  const AST::Component::DefType getType(std::string_view Name) const noexcept;
+  void addCoreFuncType(const AST::FunctionType &Ty) noexcept;
+  void addType(DefType Ty) noexcept;
+  Expect<const DefType> getType(uint32_t Idx) const noexcept;
+  TypeIndex typeToIndex(DefType Ty) noexcept;
+  TypeIndex getLastTypeIndex() noexcept;
+
+  std::shared_ptr<ResourceHandle> getResource(int32_t Index) noexcept;
+  int32_t addResource(std::shared_ptr<ResourceHandle> Handle) noexcept;
+  std::shared_ptr<ResourceHandle> removeResource(int32_t Index) noexcept;
 
 private:
   void unsafeAddHostFunc(
@@ -245,7 +200,13 @@ private:
   }
 
 private:
+  Expect<void> executeImports();
+  Expect<void> executeExports();
+
   std::string CompName;
+
+  std::vector<std::tuple<Runtime::StoreManager &, std::string_view>> ImportList;
+  std::vector<RecordedExport> RecordedExportList;
 
   std::vector<AST::Module> ModList;
   std::vector<AST::Component::Component> CompList;
@@ -272,6 +233,12 @@ private:
 
   std::map<std::string, const ModuleInstance *, std::less<>> ExportModuleMap;
 
+  std::map<std::string, AST::Component::DefType, std::less<>> ExportTypesMap;
+  std::vector<AST::Component::DefType> Types;
+
+  std::map<int32_t, std::shared_ptr<ResourceHandle>> Resources;
+  std::set<int32_t> FreeResources;
+
   // core memory, this is prepared for canonical ABI
   //
   // when a function is lowering or lifting, it can have options
@@ -286,7 +253,6 @@ private:
   std::vector<GlobalInstance *> CoreGlobInstList;
 
   std::vector<AST::Component::CoreDefType> CoreTypes;
-  std::vector<AST::Component::DefType> Types;
 };
 
 } // namespace Instance

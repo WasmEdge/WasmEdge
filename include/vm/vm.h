@@ -155,9 +155,9 @@ public:
     return unsafeExecute(Func, Params, ParamTypes);
   }
 
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  Expect<std::vector<std::pair<ValInterface, InterfaceType>>>
   execute(std::string_view Func, Span<const ValInterface> Params,
-          Span<const ValType> ParamTypes) {
+          Span<const InterfaceType> ParamTypes) {
     std::shared_lock Lock(Mutex);
     return unsafeExecute(Func, Params, ParamTypes);
   }
@@ -172,9 +172,10 @@ public:
   }
 
   /// Execute function of registered component with given input.
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
-  execute(std::string_view CompName, std::string_view Func,
-          Span<const ValInterface> Params, Span<const ValType> ParamTypes) {
+  Expect<std::vector<std::pair<ValInterface, InterfaceType>>>
+  executeComponent(std::string_view CompName, std::string_view Func,
+                   Span<const ValInterface> Params,
+                   Span<const InterfaceType> ParamTypes) {
     std::shared_lock Lock(Mutex);
     return unsafeExecute(CompName, Func, Params, ParamTypes);
   }
@@ -191,14 +192,15 @@ public:
                Span<const ValType> ParamTypes = {});
 
   /// Asynchronous execute wasm with given input.
-  Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
+  Async<Expect<std::vector<std::pair<ValInterface, InterfaceType>>>>
   asyncExecute(std::string_view Func, Span<const ValInterface> Params,
-               Span<const ValType> ParamTypes);
+               Span<const InterfaceType> ParamTypes);
 
   /// Asynchronous execute function of registered component with given input.
-  Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
+  Async<Expect<std::vector<std::pair<ValInterface, InterfaceType>>>>
   asyncExecute(std::string_view ModName, std::string_view Func,
-               Span<const ValInterface> Params, Span<const ValType> ParamTypes);
+               Span<const ValInterface> Params,
+               Span<const InterfaceType> ParamTypes);
 
   /// Stop execution
   void stop() noexcept { ExecutorEngine.stop(); }
@@ -215,6 +217,11 @@ public:
   getFunctionList() const {
     std::shared_lock Lock(Mutex);
     return unsafeGetFunctionList();
+  }
+  std::vector<std::pair<std::string, const AST::Component::FunctionType &>>
+  getCompFunctionList() const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetCompFunctionList();
   }
 
   /// Get pre-registered module instance by configuration.
@@ -292,19 +299,21 @@ private:
                 Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
 
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
-  unsafeExecute(std::string_view Func, Span<const ValInterface> Params = {},
-                Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ValInterface, InterfaceType>>>
+  unsafeExecute(std::string_view Func, Span<const ValInterface> Params,
+                Span<const InterfaceType> ParamTypes);
 
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  Expect<std::vector<std::pair<ValInterface, InterfaceType>>>
   unsafeExecute(std::string_view Comp, std::string_view Func,
-                Span<const ValInterface> Params = {},
-                Span<const ValType> ParamTypes = {});
+                Span<const ValInterface> Params,
+                Span<const InterfaceType> ParamTypes);
 
   void unsafeCleanup();
 
   std::vector<std::pair<std::string, const AST::FunctionType &>>
   unsafeGetFunctionList() const;
+  std::vector<std::pair<std::string, const AST::Component::FunctionType &>>
+  unsafeGetCompFunctionList() const;
 
   Runtime::Instance::ModuleInstance *
   unsafeGetImportModule(const HostRegistration Type) const;
@@ -325,10 +334,10 @@ private:
                 std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
 
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  Expect<std::vector<std::pair<ValInterface, InterfaceType>>>
   unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
-                std::string_view Func, Span<const ValInterface> Params = {},
-                Span<const ValType> ParamTypes = {});
+                std::string_view Func, Span<const ValInterface> Params,
+                Span<const InterfaceType> ParamTypes);
 
   /// \name VM environment.
   /// @{

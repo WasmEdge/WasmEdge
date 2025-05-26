@@ -31,7 +31,11 @@ Executor::instantiate(Runtime::StoreManager &,
     if (std::holds_alternative<CoreSort>(S)) {
       switch (std::get<CoreSort>(S)) {
       case CoreSort::Module: {
-        auto const *Mod = CompInst.getModuleInstance(Index);
+        auto Res = CompInst.getModuleInstance(Index);
+        if (!Res) {
+          return Unexpect(Res);
+        }
+        auto const *Mod = *Res;
         CompInst.addExport(ExportName, Mod);
         break;
       }
@@ -45,18 +49,31 @@ Executor::instantiate(Runtime::StoreManager &,
     } else {
       switch (std::get<SortCase>(S)) {
       case SortCase::Func: {
-        auto *Func = CompInst.getFunctionInstance(Index);
-        CompInst.addExport(ExportName, Func);
+        CompInst.recordFunctionExport(ExportName, Index);
         break;
       }
-      default: // TODO: There are four sorts haven't get handled
-               // 1. Value
-               // 2. Type
-               // 3. Component
-               // 4. Instance
+      case SortCase::Value: {
+        auto Value = CompInst.getValue(Index);
+        spdlog::warn("incomplete value export"sv);
+        // TODO: record value export
+        break;
+      }
+      case SortCase::Type: {
+        CompInst.recordTypeExport(ExportName, Index);
+        break;
+      }
+      case SortCase::Component: {
+        // TODO: export component
         spdlog::warn("incomplete sort {}"sv,
                      static_cast<Byte>(std::get<SortCase>(S)));
         break;
+      }
+      case SortCase::Instance: {
+        // TODO: export instance
+        spdlog::warn("incomplete sort {}"sv,
+                     static_cast<Byte>(std::get<SortCase>(S)));
+        break;
+      }
       }
     }
   }

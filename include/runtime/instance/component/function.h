@@ -28,14 +28,16 @@ public:
           &&Func) noexcept
       : FuncType(Func->getFuncType()), Data(std::move(Func)) {}
 
-  const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
+  const AST::Component::FunctionType &getFuncType() const noexcept {
+    return FuncType;
+  }
 
   WasmEdge::Runtime::Component::HostFunctionBase &getHostFunc() const noexcept {
     return *Data;
   }
 
 private:
-  AST::FunctionType FuncType;
+  AST::Component::FunctionType FuncType;
   std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> Data;
 };
 

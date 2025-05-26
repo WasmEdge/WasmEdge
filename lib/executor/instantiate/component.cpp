@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #include "ast/component/instance.h"
 #include "ast/module.h"
 #include "common/errcode.h"
@@ -27,7 +30,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
     auto Func = [&](auto &&Sec) -> Expect<void> {
       using T = std::decay_t<decltype(Sec)>;
       if constexpr (std::is_same_v<T, AST::CustomSection>) {
-      } else if constexpr (std::is_same_v<T, AST::CoreModuleSection>) {
+      } else if constexpr (std::is_same_v<T, CoreModuleSection>) {
         CompInst->addModule(Sec.getContent());
       } else if constexpr (std::is_same_v<T, ComponentSection>) {
         CompInst->addComponent(Sec.getContent());

@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "common/errcode.h"
 #include "loader/loader.h"
-#include "spdlog/common.h"
-#include "spdlog/spdlog.h"
-
-#include <cstdint>
-#include <memory>
-#include <utility>
-#include <vector>
 
 using namespace std::literals;
 
@@ -49,55 +41,12 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   return std::make_pair(*Magic, *Ver);
 }
 
-Expect<std::variant<std::unique_ptr<AST::Component::Component>,
-                    std::unique_ptr<AST::Module>>>
-Loader::loadUnit() {
-  EXPECTED_TRY(auto Preamble, Loader::loadPreamble());
-  auto &[WasmMagic, Ver] = Preamble;
-  if (Ver == ModuleVersion) {
-    auto Mod = std::make_unique<AST::Module>();
-    Mod->getMagic() = WasmMagic;
-    Mod->getVersion() = Ver;
-    if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-      EXPECTED_TRY(loadModuleAOT(Mod->getAOTSection()));
-    }
-    // Seek to the position after the binary header.
-    FMgr.seek(8);
-    EXPECTED_TRY(loadModule(*Mod));
-
-    // Load library from AOT Section for the universal WASM case.
-    // For the force interpreter mode, skip this.
-    if (!Conf.getRuntimeConfigure().isForceInterpreter() &&
-        WASMType == InputType::UniversalWASM) {
-      EXPECTED_TRY(loadUniversalWASM(*Mod));
-    }
-    return Mod;
-  } else if (Ver == ComponentVersion) {
-    if (!Conf.hasProposal(Proposal::Component)) {
-      return logNeedProposal(ErrCode::Value::IllegalOpCode, Proposal::Component,
-                             FMgr.getLastOffset(), ASTNodeAttr::Component);
-    }
-    spdlog::warn("component model is an experimental proposal"sv);
-    auto Comp = std::make_unique<AST::Component::Component>();
-    Comp->getMagic() = WasmMagic;
-    Comp->getVersion() = {Ver[0], Ver[1]};
-    Comp->getLayer() = {Ver[2], Ver[3]};
-    EXPECTED_TRY(loadComponent(*Comp));
-    return Comp;
-  } else {
-    return logLoadError(ErrCode::Value::MalformedVersion, FMgr.getLastOffset(),
-                        ASTNodeAttr::Component);
-  }
-}
-
 Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
                                    std::optional<uint64_t> Bound) {
   using namespace AST::Component;
 
   uint64_t StartOffset = FMgr.getOffset();
-
   uint64_t Offset = FMgr.getOffset();
-
   Expect<Byte> ResSecId;
 
   auto ReportError = [](auto E) {
@@ -124,8 +73,7 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
     case 0x01:
       Comp.getSections().emplace_back();
       EXPECTED_TRY(
-          loadSection(
-              Comp.getSections().back().emplace<AST::CoreModuleSection>())
+          loadSection(Comp.getSections().back().emplace<CoreModuleSection>())
               .map_error(ReportError));
       break;
     case 0x02:
@@ -191,7 +139,6 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
       return logLoadError(ErrCode::Value::MalformedSection,
                           FMgr.getLastOffset(), ASTNodeAttr::Component);
     }
-
     Offset = FMgr.getOffset();
   }
 

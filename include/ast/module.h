@@ -115,53 +115,5 @@ private:
   /// @}
 };
 
-class CoreModuleSection : public Section {
-public:
-  /// Getter of content.
-  const Module &getContent() const noexcept { return Content; }
-  Module &getContent() noexcept { return Content; }
-
-private:
-  Module Content;
-};
-
-namespace Component {
-
-class Component {
-  using Section =
-      std::variant<CustomSection, CoreModuleSection, CoreInstanceSection,
-                   CoreTypeSection, ComponentSection, InstanceSection,
-                   AliasSection, TypeSection, CanonSection, StartSection,
-                   ImportSection, ExportSection>;
-
-public:
-  /// Getter of magic vector.
-  const std::vector<Byte> &getMagic() const noexcept { return Magic; }
-  std::vector<Byte> &getMagic() noexcept { return Magic; }
-
-  /// Getter of version vector.
-  const std::vector<Byte> &getVersion() const noexcept { return Version; }
-  std::vector<Byte> &getVersion() noexcept { return Version; }
-
-  /// Getter of layer vector.
-  const std::vector<Byte> &getLayer() const noexcept { return Layer; }
-  std::vector<Byte> &getLayer() noexcept { return Layer; }
-
-  std::vector<Section> &getSections() noexcept { return Secs; }
-  Span<const Section> getSections() const noexcept { return Secs; }
-
-private:
-  /// \name Data of Module node.
-  /// @{
-  std::vector<Byte> Magic;
-  std::vector<Byte> Version;
-  std::vector<Byte> Layer;
-
-  std::vector<Section> Secs;
-  /// @}
-};
-
-} // namespace Component
-
 } // namespace AST
 } // namespace WasmEdge

@@ -23,7 +23,6 @@
 
 namespace WasmEdge {
 namespace AST {
-
 namespace Component {
 
 enum class PrimValType : Byte {

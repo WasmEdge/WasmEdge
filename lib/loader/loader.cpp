@@ -63,6 +63,7 @@ Loader::loadFile(const std::filesystem::path &FilePath) {
   return Buf;
 }
 
+// Parse module or component from file path. See "include/loader/loader.h".
 Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
@@ -79,6 +80,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     spdlog::error(ErrInfo::InfoFile(FilePath));
     return E;
   };
+
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
@@ -136,6 +138,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   }
 }
 
+// Parse module or component from byte code. See "include/loader/loader.h".
 Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
@@ -181,6 +184,49 @@ Loader::parseModule(Span<const uint8_t> Code) {
     return std::move(*M);
   }
   return Unexpect(ErrCode::Value::MalformedVersion);
+}
+
+// Load module or component unit. See "include/loader/loader.h".
+Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                    std::unique_ptr<AST::Module>>>
+Loader::loadUnit() {
+  EXPECTED_TRY(auto Preamble, loadPreamble());
+  auto &[WasmMagic, Ver] = Preamble;
+  if (Ver == ModuleVersion) {
+    auto Mod = std::make_unique<AST::Module>();
+    Mod->getMagic() = WasmMagic;
+    Mod->getVersion() = Ver;
+    if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+      EXPECTED_TRY(loadModuleAOT(Mod->getAOTSection()));
+    }
+    // Seek to the position after the binary header.
+    FMgr.seek(8);
+    EXPECTED_TRY(loadModule(*Mod));
+
+    // Load library from AOT Section for the universal WASM case.
+    // For the force interpreter mode, skip this.
+    if (!Conf.getRuntimeConfigure().isForceInterpreter() &&
+        WASMType == InputType::UniversalWASM) {
+      EXPECTED_TRY(loadUniversalWASM(*Mod));
+    }
+    return Mod;
+  } else if (Ver == ComponentVersion) {
+    if (!Conf.hasProposal(Proposal::Component)) {
+      return logNeedProposal(ErrCode::Value::MalformedVersion,
+                             Proposal::Component, FMgr.getLastOffset(),
+                             ASTNodeAttr::Component);
+    }
+    spdlog::warn("component model is an experimental proposal"sv);
+    auto Comp = std::make_unique<AST::Component::Component>();
+    Comp->getMagic() = WasmMagic;
+    Comp->getVersion() = {Ver[0], Ver[1]};
+    Comp->getLayer() = {Ver[2], Ver[3]};
+    EXPECTED_TRY(loadComponent(*Comp));
+    return Comp;
+  } else {
+    return logLoadError(ErrCode::Value::MalformedVersion, FMgr.getLastOffset(),
+                        ASTNodeAttr::Component);
+  }
 }
 
 // Serialize module into byte code. See "include/loader/loader.h".

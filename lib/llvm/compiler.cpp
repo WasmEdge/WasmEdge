@@ -776,18 +776,20 @@ public:
       case OpCode::Br_on_cast_fail: {
         auto Ref = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
         const auto Label = Instr.getBrCast().Jump.TargetIndex;
-        std::array<uint8_t, 16> Val = {0};
+        std::array<uint8_t, 16> Buf = {0};
         std::copy_n(Instr.getBrCast().RType2.getRawData().cbegin(), 8,
-                    Val.begin());
-        auto VType = Builder.createBitCast(
-            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+                    Buf.begin());
+        auto VType = Builder.createExtractElement(
+            Builder.createBitCast(LLVM::Value::getConstVector8(LLContext, Buf),
+                                  Context.Int64x2Ty),
+            LLContext.getInt64(0));
         auto IsRefTest = Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kRefTest,
                                  LLVM::Type::getFunctionType(
                                      Context.Int32Ty,
                                      {Context.Int64x2Ty, Context.Int64Ty},
                                      false)),
-            {Ref, Builder.createExtractElement(VType, LLContext.getInt64(0))});
+            {Ref, VType});
         auto Cond =
             (Instr.getOpCode() == OpCode::Br_on_cast)
                 ? Builder.createICmpNE(IsRefTest, LLContext.getInt32(0))
@@ -851,7 +853,7 @@ public:
 
       // Reference Instructions
       case OpCode::Ref__null: {
-        std::array<uint8_t, 16> Val = {0};
+        std::array<uint8_t, 16> Buf = {0};
         // For null references, the dynamic type down scaling is needed.
         ValType VType;
         if (Instr.getValType().isAbsHeapType()) {
@@ -887,9 +889,9 @@ public:
             VType = TypeCode::NullRef;
           }
         }
-        std::copy_n(VType.getRawData().cbegin(), 8, Val.begin());
-        auto Vector = LLVM::Value::getConstVector8(LLContext, Val);
-        stackPush(Builder.createBitCast(Vector, Context.Int64x2Ty));
+        std::copy_n(VType.getRawData().cbegin(), 8, Buf.begin());
+        stackPush(Builder.createBitCast(
+            LLVM::Value::getConstVector8(LLContext, Buf), Context.Int64x2Ty));
         break;
       }
       case OpCode::Ref__is_null:
@@ -936,37 +938,29 @@ public:
       case OpCode::Struct__new:
       case OpCode::Struct__new_default: {
         LLVM::Value Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
+        assuming(Instr.getTargetIndex() < Context.CompositeTypes.size());
+        const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
+        assuming(CompType != nullptr && !CompType->isFunc());
+        auto ArgSize = CompType->getFieldTypes().size();
         if (Instr.getOpCode() == OpCode::Struct__new) {
-          assuming(Instr.getTargetIndex() < Context.CompositeTypes.size());
-          const auto *CompType = Context.CompositeTypes[Instr.getTargetIndex()];
-          assuming(CompType != nullptr && !CompType->isFunc());
-          const auto ArgSize = CompType->getFieldTypes().size();
           std::vector<LLVM::Value> ArgsVec(ArgSize, nullptr);
           for (size_t I = 0; I < ArgSize; ++I) {
             ArgsVec[ArgSize - I - 1] = stackPop();
           }
-          if (ArgSize > 0) {
-            auto Alloca = Builder.createArrayAlloca(
-                Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
-            Alloca.setAlignment(kValSize);
-            Args = Alloca;
-          }
-          for (size_t I = 0; I < ArgSize; ++I) {
-            auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                          I * kValSize);
-            auto Arg = ArgsVec[I];
-            Builder.createStore(
-                Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
-          }
+          Args = Builder.createArray(ArgSize, kValSize);
+          Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, kValSize);
+        } else {
+          ArgSize = 0;
         }
-
         stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, Executable::Intrinsics::kStructNew,
-                                 LLVM::Type::getFunctionType(
-                                     Context.Int64x2Ty,
-                                     {Context.Int32Ty, Context.Int8PtrTy},
-                                     false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Args}));
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kStructNew,
+                LLVM::Type::getFunctionType(
+                    Context.Int64x2Ty,
+                    {Context.Int32Ty, Context.Int8PtrTy, Context.Int32Ty},
+                    false)),
+            {LLContext.getInt32(Instr.getTargetIndex()), Args,
+             LLContext.getInt32(static_cast<uint32_t>(ArgSize))}));
         break;
       }
       case OpCode::Struct__get:
@@ -984,10 +978,7 @@ public:
         auto IsSigned = (Instr.getOpCode() == OpCode::Struct__get_s)
                             ? LLContext.getInt8(1)
                             : LLContext.getInt8(0);
-        LLVM::Value Ret = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(kValSize));
-        Ret.setAlignment(kValSize);
-
+        LLVM::Value Ret = Builder.createAlloca(Context.Int64x2Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kStructGet,
@@ -999,40 +990,34 @@ public:
             {Ref, LLContext.getInt32(Instr.getTargetIndex()),
              LLContext.getInt32(Instr.getSourceIndex()), IsSigned, Ret});
 
-        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Ret, 0);
         switch (StorageType.getCode()) {
         case TypeCode::I8:
         case TypeCode::I16:
         case TypeCode::I32: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.Int32Ty.getPointerTo());
-          stackPush(Builder.createLoad(Context.Int32Ty, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.Int32Ty, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         case TypeCode::I64: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.Int64Ty.getPointerTo());
-          stackPush(Builder.createLoad(Context.Int64Ty, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.Int64Ty, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         case TypeCode::F32: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.FloatTy.getPointerTo());
-          stackPush(Builder.createLoad(Context.FloatTy, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.FloatTy, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         case TypeCode::F64: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.DoubleTy.getPointerTo());
-          stackPush(Builder.createLoad(Context.DoubleTy, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.DoubleTy, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         case TypeCode::V128:
         case TypeCode::Ref:
         case TypeCode::RefNull: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.Int64x2Ty.getPointerTo());
-          stackPush(Builder.createLoad(Context.Int64x2Ty, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.Int64x2Ty, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         default:
@@ -1043,14 +1028,8 @@ public:
       case OpCode::Struct__set: {
         auto Val = stackPop();
         auto Ref = stackPop();
-
-        LLVM::Value Arg = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(kValSize));
-        Arg.setAlignment(kValSize);
-        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
-        Builder.createStore(
-            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
-
+        LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+        Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
         Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kStructSet,
                                  LLVM::Type::getFunctionType(
@@ -1065,14 +1044,8 @@ public:
       case OpCode::Array__new: {
         auto Length = stackPop();
         auto Val = stackPop();
-
-        LLVM::Value Arg = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(kValSize));
-        Arg.setAlignment(kValSize);
-        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
-        Builder.createStore(
-            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
-
+        LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+        Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
                                  LLVM::Type::getFunctionType(
@@ -1086,9 +1059,7 @@ public:
       }
       case OpCode::Array__new_default: {
         auto Length = stackPop();
-
         LLVM::Value Arg = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
                                  LLVM::Type::getFunctionType(
@@ -1101,26 +1072,13 @@ public:
         break;
       }
       case OpCode::Array__new_fixed: {
-        LLVM::Value Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
         const auto ArgSize = Instr.getSourceIndex();
         std::vector<LLVM::Value> ArgsVec(ArgSize, nullptr);
         for (size_t I = 0; I < ArgSize; ++I) {
           ArgsVec[ArgSize - I - 1] = stackPop();
         }
-        if (ArgSize > 0) {
-          auto Alloca = Builder.createArrayAlloca(
-              Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
-          Alloca.setAlignment(kValSize);
-          Args = Alloca;
-        }
-        for (size_t I = 0; I < ArgSize; ++I) {
-          auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                        I * kValSize);
-          auto Arg = ArgsVec[I];
-          Builder.createStore(
-              Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
-        }
-
+        LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+        Builder.createArrayPtrStore(ArgsVec, Args, Context.Int8Ty, kValSize);
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArrayNew,
                                  LLVM::Type::getFunctionType(
@@ -1164,10 +1122,7 @@ public:
         auto IsSigned = (Instr.getOpCode() == OpCode::Array__get_s)
                             ? LLContext.getInt8(1)
                             : LLContext.getInt8(0);
-        LLVM::Value Ret = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(kValSize));
-        Ret.setAlignment(kValSize);
-
+        LLVM::Value Ret = Builder.createAlloca(Context.Int64x2Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kArrayGet,
@@ -1179,40 +1134,34 @@ public:
             {Ref, LLContext.getInt32(Instr.getTargetIndex()), Idx, IsSigned,
              Ret});
 
-        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Ret, 0);
         switch (StorageType.getCode()) {
         case TypeCode::I8:
         case TypeCode::I16:
         case TypeCode::I32: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.Int32Ty.getPointerTo());
-          stackPush(Builder.createLoad(Context.Int32Ty, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.Int32Ty, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         case TypeCode::I64: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.Int64Ty.getPointerTo());
-          stackPush(Builder.createLoad(Context.Int64Ty, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.Int64Ty, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         case TypeCode::F32: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.FloatTy.getPointerTo());
-          stackPush(Builder.createLoad(Context.FloatTy, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.FloatTy, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         case TypeCode::F64: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.DoubleTy.getPointerTo());
-          stackPush(Builder.createLoad(Context.DoubleTy, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.DoubleTy, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         case TypeCode::V128:
         case TypeCode::Ref:
         case TypeCode::RefNull: {
-          auto Ptr =
-              Builder.createBitCast(VPtr, Context.Int64x2Ty.getPointerTo());
-          stackPush(Builder.createLoad(Context.Int64x2Ty, Ptr));
+          stackPush(Builder.createValuePtrLoad(Context.Int64x2Ty, Ret,
+                                               Context.Int64x2Ty));
           break;
         }
         default:
@@ -1224,14 +1173,8 @@ public:
         auto Val = stackPop();
         auto Idx = stackPop();
         auto Ref = stackPop();
-
-        LLVM::Value Arg = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(kValSize));
-        Arg.setAlignment(kValSize);
-        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
-        Builder.createStore(
-            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
-
+        LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+        Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
         Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kArraySet,
                                  LLVM::Type::getFunctionType(
@@ -1257,14 +1200,8 @@ public:
         auto Val = stackPop();
         auto Off = stackPop();
         auto Ref = stackPop();
-
-        LLVM::Value Arg = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(kValSize));
-        Arg.setAlignment(kValSize);
-        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Arg, 0);
-        Builder.createStore(
-            Val, Builder.createBitCast(Ptr, Val.getType().getPointerTo()));
-
+        LLVM::Value Arg = Builder.createAlloca(Context.Int64x2Ty);
+        Builder.createValuePtrStore(Val, Arg, Context.Int64x2Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kArrayFill,
@@ -1282,7 +1219,6 @@ public:
         auto SrcRef = stackPop();
         auto DstOff = stackPop();
         auto DstRef = stackPop();
-
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kArrayCopy,
@@ -1302,7 +1238,6 @@ public:
         auto SrcOff = stackPop();
         auto DstOff = stackPop();
         auto Ref = stackPop();
-
         Builder.createCall(
             Context.getIntrinsic(
                 Builder,
@@ -1321,35 +1256,37 @@ public:
       case OpCode::Ref__test:
       case OpCode::Ref__test_null: {
         auto Ref = stackPop();
-        std::array<uint8_t, 16> Val = {0};
-        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
-        auto Vector = Builder.createBitCast(
-            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+        std::array<uint8_t, 16> Buf = {0};
+        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Buf.begin());
+        auto VType = Builder.createExtractElement(
+            Builder.createBitCast(LLVM::Value::getConstVector8(LLContext, Buf),
+                                  Context.Int64x2Ty),
+            LLContext.getInt64(0));
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kRefTest,
                                  LLVM::Type::getFunctionType(
                                      Context.Int32Ty,
                                      {Context.Int64x2Ty, Context.Int64Ty},
                                      false)),
-            {Ref,
-             Builder.createExtractElement(Vector, LLContext.getInt64(0))}));
+            {Ref, VType}));
         break;
       }
       case OpCode::Ref__cast:
       case OpCode::Ref__cast_null: {
         auto Ref = stackPop();
-        std::array<uint8_t, 16> Val = {0};
-        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Val.begin());
-        auto Vector = Builder.createBitCast(
-            LLVM::Value::getConstVector8(LLContext, Val), Context.Int64x2Ty);
+        std::array<uint8_t, 16> Buf = {0};
+        std::copy_n(Instr.getValType().getRawData().cbegin(), 8, Buf.begin());
+        auto VType = Builder.createExtractElement(
+            Builder.createBitCast(LLVM::Value::getConstVector8(LLContext, Buf),
+                                  Context.Int64x2Ty),
+            LLContext.getInt64(0));
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kRefCast,
                                  LLVM::Type::getFunctionType(
                                      Context.Int64x2Ty,
                                      {Context.Int64x2Ty, Context.Int64Ty},
                                      false)),
-            {Ref,
-             Builder.createExtractElement(Vector, LLContext.getInt64(0))}));
+            {Ref, VType}));
         break;
       }
       case OpCode::Any__convert_extern: {
@@ -4272,35 +4209,13 @@ private:
     Builder.createBr(EndBB);
     Builder.positionAtEnd(IsNullBB);
 
-    std::vector<LLVM::Value> RetsVec(RetSize);
+    std::vector<LLVM::Value> RetsVec;
     {
-      LLVM::Value Args;
-      if (ArgSize == 0) {
-        Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Args = Alloca;
-      }
-
-      LLVM::Value Rets;
-      if (RetSize == 0) {
-        Rets = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(RetSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Rets = Alloca;
-      }
-
-      for (size_t I = 0; I < ArgSize; ++I) {
-        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                      I * kValSize);
-        auto Arg = ArgsVec[I + 1];
-        Builder.createStore(
-            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
-      }
+      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      Builder.createArrayPtrStore(
+          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          kValSize);
 
       Builder.createCall(
           Context.getIntrinsic(
@@ -4316,17 +4231,11 @@ private:
       if (RetSize == 0) {
         // nothing to do
       } else if (RetSize == 1) {
-        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-        auto Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
-        RetsVec[0] = Builder.createLoad(RTy, Ptr);
+        RetsVec.push_back(
+            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
       } else {
-        for (unsigned I = 0; I < RetSize; ++I) {
-          auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                         I * kValSize);
-          auto Ptr = Builder.createBitCast(
-              VPtr, RTy.getStructElementType(I).getPointerTo());
-          RetsVec[I] = Builder.createLoad(RTy.getStructElementType(I), Ptr);
-        }
+        RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
+                                             kValSize);
       }
       Builder.createBr(EndBB);
       Builder.positionAtEnd(EndBB);
@@ -4409,33 +4318,11 @@ private:
     Builder.positionAtEnd(IsNullBB);
 
     {
-      LLVM::Value Args;
-      if (ArgSize == 0) {
-        Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Args = Alloca;
-      }
-
-      LLVM::Value Rets;
-      if (RetSize == 0) {
-        Rets = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(RetSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Rets = Alloca;
-      }
-
-      for (size_t I = 0; I < ArgSize; ++I) {
-        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                      I * kValSize);
-        auto Arg = ArgsVec[I + 1];
-        Builder.createStore(
-            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
-      }
+      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      Builder.createArrayPtrStore(
+          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          kValSize);
 
       Builder.createCall(
           Context.getIntrinsic(
@@ -4451,19 +4338,11 @@ private:
       if (RetSize == 0) {
         Builder.createRetVoid();
       } else if (RetSize == 1) {
-        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-        auto Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
-        Builder.createRet(Builder.createLoad(RTy, Ptr));
+        Builder.createRet(
+            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
       } else {
-        std::vector<LLVM::Value> Ret(RetSize);
-        for (unsigned I = 0; I < RetSize; ++I) {
-          auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                         I * kValSize);
-          auto Ptr = Builder.createBitCast(
-              VPtr, RTy.getStructElementType(I).getPointerTo());
-          Ret[I] = Builder.createLoad(RTy.getStructElementType(I), Ptr);
-        }
-        Builder.createAggregateRet(Ret);
+        Builder.createAggregateRet(Builder.createArrayPtrLoad(
+            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
       }
     }
   }
@@ -4526,35 +4405,13 @@ private:
     Builder.createBr(EndBB);
     Builder.positionAtEnd(IsNullBB);
 
-    std::vector<LLVM::Value> RetsVec(RetSize);
+    std::vector<LLVM::Value> RetsVec;
     {
-      LLVM::Value Args;
-      if (ArgSize == 0) {
-        Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Args = Alloca;
-      }
-
-      LLVM::Value Rets;
-      if (RetSize == 0) {
-        Rets = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(RetSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Rets = Alloca;
-      }
-
-      for (size_t I = 0; I < ArgSize; ++I) {
-        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                      I * kValSize);
-        auto Arg = ArgsVec[I + 1];
-        Builder.createStore(
-            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
-      }
+      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      Builder.createArrayPtrStore(
+          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          kValSize);
 
       Builder.createCall(
           Context.getIntrinsic(
@@ -4568,17 +4425,11 @@ private:
       if (RetSize == 0) {
         // nothing to do
       } else if (RetSize == 1) {
-        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-        auto Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
-        RetsVec[0] = Builder.createLoad(RTy, Ptr);
+        RetsVec.push_back(
+            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
       } else {
-        for (unsigned I = 0; I < RetSize; ++I) {
-          auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                         I * kValSize);
-          auto Ptr = Builder.createBitCast(
-              VPtr, RTy.getStructElementType(I).getPointerTo());
-          RetsVec[I] = Builder.createLoad(RTy.getStructElementType(I), Ptr);
-        }
+        RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, Rets, Context.Int8Ty,
+                                             kValSize);
       }
       Builder.createBr(EndBB);
       Builder.positionAtEnd(EndBB);
@@ -4643,33 +4494,11 @@ private:
     Builder.positionAtEnd(IsNullBB);
 
     {
-      LLVM::Value Args;
-      if (ArgSize == 0) {
-        Args = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(ArgSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Args = Alloca;
-      }
-
-      LLVM::Value Rets;
-      if (RetSize == 0) {
-        Rets = LLVM::Value::getConstPointerNull(Context.Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context.Int8Ty, LLContext.getInt64(RetSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Rets = Alloca;
-      }
-
-      for (size_t I = 0; I < ArgSize; ++I) {
-        auto Ptr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Args,
-                                                      I * kValSize);
-        auto Arg = ArgsVec[I + 1];
-        Builder.createStore(
-            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
-      }
+      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      Builder.createArrayPtrStore(
+          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          kValSize);
 
       Builder.createCall(
           Context.getIntrinsic(
@@ -4683,19 +4512,11 @@ private:
       if (RetSize == 0) {
         Builder.createRetVoid();
       } else if (RetSize == 1) {
-        auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets, 0);
-        auto Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
-        Builder.createRet(Builder.createLoad(RTy, Ptr));
+        Builder.createRet(
+            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
       } else {
-        std::vector<LLVM::Value> Ret(RetSize);
-        for (unsigned I = 0; I < RetSize; ++I) {
-          auto VPtr = Builder.createConstInBoundsGEP1_64(Context.Int8Ty, Rets,
-                                                         I * kValSize);
-          auto Ptr = Builder.createBitCast(
-              VPtr, RTy.getStructElementType(I).getPointerTo());
-          Ret[I] = Builder.createLoad(RTy.getStructElementType(I), Ptr);
-        }
-        Builder.createAggregateRet(Ret);
+        Builder.createAggregateRet(Builder.createArrayPtrLoad(
+            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
       }
     }
   }
@@ -4995,8 +4816,7 @@ private:
     auto Zero = Builder.createVectorSplat(16, LLContext.getInt8(0));
     auto IsOver = Builder.createICmpUGT(Index, Mask);
     auto InboundIndex = Builder.createAnd(Index, Mask);
-    auto Array =
-        Builder.createArrayAlloca(Context.Int8Ty, LLContext.getInt64(16));
+    auto Array = Builder.createArray(16, 1);
     for (size_t I = 0; I < 16; ++I) {
       Builder.createStore(
           Builder.createExtractElement(Vector, LLContext.getInt64(I)),
@@ -6070,10 +5890,6 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         FTy.getParamTypes(FPTy);
 
         const size_t ArgCount = FPTy.size() - 1;
-        const size_t RetCount =
-            RTy.isVoidTy()
-                ? 0
-                : (RTy.isStructTy() ? RTy.getStructNumElements() : 1);
         auto ExecCtxPtr = F.getFirstParam();
         auto RawFunc = LLVM::FunctionCallee{
             FTy, Builder.createBitCast(ExecCtxPtr.getNextParam(),
@@ -6085,11 +5901,8 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         Args.reserve(FTy.getNumParams());
         Args.push_back(ExecCtxPtr);
         for (size_t J = 0; J < ArgCount; ++J) {
-          auto ArgTy = FPTy[J + 1];
-          auto VPtr = Builder.createConstInBoundsGEP1_64(Context->Int8Ty,
-                                                         RawArgs, J * kValSize);
-          auto Ptr = Builder.createBitCast(VPtr, ArgTy.getPointerTo());
-          Args.push_back(Builder.createLoad(ArgTy, Ptr));
+          Args.push_back(Builder.createValuePtrLoad(
+              FPTy[J + 1], RawArgs, Context->Int8Ty, J * kValSize));
         }
 
         auto Ret = Builder.createCall(RawFunc, Args);
@@ -6097,18 +5910,9 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
           // nothing to do
         } else if (RTy.isStructTy()) {
           auto Rets = unpackStruct(Builder, Ret);
-          for (size_t J = 0; J < RetCount; ++J) {
-            auto VPtr = Builder.createConstInBoundsGEP1_64(
-                Context->Int8Ty, RawRets, J * kValSize);
-            auto Ptr =
-                Builder.createBitCast(VPtr, Rets[J].getType().getPointerTo());
-            Builder.createStore(Rets[J], Ptr);
-          }
+          Builder.createArrayPtrStore(Rets, RawRets, Context->Int8Ty, kValSize);
         } else {
-          auto VPtr =
-              Builder.createConstInBoundsGEP1_64(Context->Int8Ty, RawRets, 0);
-          auto Ptr = Builder.createBitCast(VPtr, Ret.getType().getPointerTo());
-          Builder.createStore(Ret, Ptr);
+          Builder.createValuePtrStore(Ret, RawRets, Context->Int8Ty);
         }
         Builder.createRetVoid();
       }
@@ -6180,33 +5984,13 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto RetSize =
           RTy.isVoidTy() ? 0 : FuncType.getReturnTypes().size();
 
-      LLVM::Value Args;
-      if (ArgSize == 0) {
-        Args = LLVM::Value::getConstNull(Context->Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context->Int8Ty, Context->LLContext.getInt64(ArgSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Args = Alloca;
-      }
-
-      LLVM::Value Rets;
-      if (RetSize == 0) {
-        Rets = LLVM::Value::getConstNull(Context->Int8PtrTy);
-      } else {
-        auto Alloca = Builder.createArrayAlloca(
-            Context->Int8Ty, Context->LLContext.getInt64(RetSize * kValSize));
-        Alloca.setAlignment(kValSize);
-        Rets = Alloca;
-      }
+      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
 
       auto Arg = F.Fn.getFirstParam();
       for (unsigned I = 0; I < ArgSize; ++I) {
         Arg = Arg.getNextParam();
-        LLVM::Value Ptr = Builder.createConstInBoundsGEP1_64(
-            Context->Int8Ty, Args, I * kValSize);
-        Builder.createStore(
-            Arg, Builder.createBitCast(Ptr, Arg.getType().getPointerTo()));
+        Builder.createValuePtrStore(Arg, Args, Context->Int8Ty, I * kValSize);
       }
 
       Builder.createCall(
@@ -6221,21 +6005,11 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       if (RetSize == 0) {
         Builder.createRetVoid();
       } else if (RetSize == 1) {
-        LLVM::Value VPtr =
-            Builder.createConstInBoundsGEP1_64(Context->Int8Ty, Rets, 0);
-        LLVM::Value Ptr = Builder.createBitCast(VPtr, RTy.getPointerTo());
-        Builder.createRet(Builder.createLoad(RTy, Ptr));
+        Builder.createRet(
+            Builder.createValuePtrLoad(RTy, Rets, Context->Int8Ty));
       } else {
-        std::vector<LLVM::Value> Ret;
-        Ret.reserve(RetSize);
-        for (unsigned I = 0; I < RetSize; ++I) {
-          LLVM::Value VPtr = Builder.createConstInBoundsGEP1_64(
-              Context->Int8Ty, Rets, I * kValSize);
-          LLVM::Value Ptr = Builder.createBitCast(
-              VPtr, RTy.getStructElementType(I).getPointerTo());
-          Ret.push_back(Builder.createLoad(RTy.getStructElementType(I), Ptr));
-        }
-        Builder.createAggregateRet(Ret);
+        Builder.createAggregateRet(Builder.createArrayPtrLoad(
+            RetSize, RTy, Rets, Context->Int8Ty, kValSize));
       }
 
       Context->Functions.emplace_back(TypeIdx, F, nullptr);

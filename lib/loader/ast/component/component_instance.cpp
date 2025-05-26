@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #include "loader/loader.h"
 
-#include <cstdint>
-
 namespace WasmEdge {
 namespace Loader {
 

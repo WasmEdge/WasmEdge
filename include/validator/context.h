@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #pragma once
 
+#include "ast/component/component.h"
 #include "ast/module.h"
 #include "common/errinfo.h"
 

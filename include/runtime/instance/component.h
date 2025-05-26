@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/component/type.h"
+#include "ast/component/component.h"
 #include "ast/module.h"
 #include "ast/type.h"
 #include "common/errcode.h"

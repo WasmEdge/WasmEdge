@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/component.h"
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
@@ -123,7 +124,8 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Sec_CompExport;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::CoreModuleSection>() noexcept {
+inline ASTNodeAttr
+NodeAttrFromAST<AST::Component::CoreModuleSection>() noexcept {
   return ASTNodeAttr::Sec_CoreMod;
 }
 template <>
@@ -146,20 +148,15 @@ public:
   static Expect<std::vector<Byte>>
   loadFile(const std::filesystem::path &FilePath);
 
+  /// Parse module or component from file path.
   Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                       std::unique_ptr<AST::Module>>>
   parseWasmUnit(const std::filesystem::path &FilePath);
+
+  /// Parse module or component from byte code.
   Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                       std::unique_ptr<AST::Module>>>
   parseWasmUnit(Span<const uint8_t> Code);
-
-  /// Parse component from file path.
-  Expect<std::unique_ptr<AST::Component::Component>>
-  parseComponent(const std::filesystem::path &FilePath);
-
-  /// Parse component from byte code.
-  Expect<std::unique_ptr<AST::Component::Component>>
-  parseComponent(Span<const uint8_t> Code);
 
   /// Parse module from file path.
   Expect<std::unique_ptr<AST::Module>>
@@ -201,15 +198,24 @@ private:
 
   /// \name Load AST Module functions
   /// @{
+  // Load component or module unit.
   Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                       std::unique_ptr<AST::Module>>>
   loadUnit();
+
+  // Load magic header or preamble.
   Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> loadPreamble();
+
+  // Load WASM module.
   Expect<void> loadModule(AST::Module &Mod);
   Expect<void> loadModuleInBound(AST::Module &Mod,
                                  std::optional<uint64_t> Bound);
+
+  // Load WASM for AOT.
   Expect<void> loadUniversalWASM(AST::Module &Mod);
   Expect<void> loadModuleAOT(AST::AOTSection &AOTSection);
+
+  // Load component.
   Expect<void> loadComponent(AST::Component::Component &Comp,
                              std::optional<uint64_t> Bound = std::nullopt);
   /// @}
@@ -273,6 +279,11 @@ private:
     }
     return {};
   }
+
+  template <typename T, typename ElemLoader>
+  Expect<void> loadSectionContentVec(T &Sec, ElemLoader &&Func) {
+    return loadVec<T>(Sec.getContent(), std::move(Func));
+  }
   /// @}
 
   /// \name Helper function to set the function type for tag
@@ -280,12 +291,6 @@ private:
   void setTagFunctionType(AST::TagSection &TagSec,
                           AST::ImportSection &ImportSec,
                           AST::TypeSection &TypeSec);
-  /// @}
-
-  template <typename T, typename ElemLoader>
-  Expect<void> loadSectionContentVec(T &Sec, ElemLoader &&Func) {
-    return loadVec<T>(Sec.getContent(), std::move(Func));
-  }
   /// @}
 
   /// \name Load AST nodes functions
@@ -305,7 +310,7 @@ private:
   Expect<void> loadSection(AST::DataCountSection &Sec);
   Expect<void> loadSection(AST::TagSection &Sec);
   Expect<void> loadSection(AST::Component::ComponentSection &Sec);
-  Expect<void> loadSection(AST::CoreModuleSection &Sec);
+  Expect<void> loadSection(AST::Component::CoreModuleSection &Sec);
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);

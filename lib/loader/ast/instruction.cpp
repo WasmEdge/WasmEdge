@@ -3,9 +3,7 @@
 
 #include "loader/loader.h"
 
-#include <cstdint>
 #include <utility>
-#include <vector>
 
 using namespace std::literals;
 

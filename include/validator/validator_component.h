@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
+#pragma once
+
 #include "common/errinfo.h"
 #include "validator/context.h"
 #include "validator/validator.h"
@@ -804,7 +806,7 @@ struct SectionVisitor {
     spdlog::debug("Custom Section"sv);
     return {};
   }
-  Expect<void> operator()(const AST::CoreModuleSection &Sec) {
+  Expect<void> operator()(const CoreModuleSection &Sec) {
     spdlog::debug("CoreModule Section"sv);
     auto &Mod = Sec.getContent();
     V.validate(Mod);

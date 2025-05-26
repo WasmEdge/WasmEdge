@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "ast/component/type.h"
-#include "common/errcode.h"
 #include "loader/loader.h"
-#include "spdlog/spdlog.h"
 
 #include <optional>
 

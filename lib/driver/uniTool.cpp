@@ -28,6 +28,7 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   struct DriverCompilerOptions CompilerOptions;
 
   // Construct Parser Subcommands and Options
+  ToolOptions.add_option(Parser);
   if (ToolSelect == ToolType::All) {
     ToolOptions.add_option(Parser);
 

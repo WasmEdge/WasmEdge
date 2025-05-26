@@ -1,0 +1,49 @@
+/// WASI Zlib provides compression and decompression functionality using the zlib algorithm
+interface zlib {
+    /// Compression level for deflate operations
+    enum compression-level {
+        /// Let zlib choose the default compression level
+        default,
+        /// No compression
+        no-compression,
+        /// Best speed
+        best-speed,
+        /// Best compression
+        best-compression,
+    }
+
+    /// Error codes that can be returned by zlib operations
+    enum error {
+        /// Operation completed successfully
+        ok,
+        /// End of stream reached
+        stream-end,
+        /// Stream error occurred
+        stream-error,
+        /// Memory error occurred
+        memory-error,
+        /// Data error occurred
+        data-error,
+    }
+
+    /// A record containing compression/decompression results
+    record compressresult {
+        /// The error code of the operation
+        error: error,
+        /// The output data buffer
+        data: list<u8>,
+    }
+
+    /// Compress data using deflate
+    /// 
+    /// # Parameters
+    /// * `input`: The input data to compress
+    /// * `level`: The compression level to use
+    deflate: func(input: list<u8>, level: compression-level) -> result;
+
+    /// Decompress data using inflate
+    /// 
+    /// # Parameters
+    /// * `input`: The compressed input data to decompress
+    inflate: func(input: list<u8>) -> result;
+}

@@ -1091,6 +1091,8 @@ E(ExportNotFound, 0x0510, "export not found")
 // Component model instantiation phase
 // @{
 E(CoreInvalidExport, 0x0600, "invalid export in core module")
+E(ResourceDropArgument, 0x0601,
+  "invalid argument been used to invoke resource.drop")
 // @}
 
 #undef E
@@ -1133,6 +1135,7 @@ M(Table, "table")                // Table instance
 M(Memory, "memory")              // Memory instance
 M(Global, "global")              // Global instance
 M(Version, "version")            // Versions
+M(CompFunctionType, "component function type") // (Component) Function type
 
 #undef M
 #endif // UseMismatchCategory
@@ -1192,9 +1195,20 @@ T(SubFinal, 0x4F, "sub_final")     // -0x31 for sub type
 T(Rec, 0x4E, "rec")                // -0x32 for recursive type
 T(Epsilon, 0x40, "-")              // -0x40 for result type
 // component model: wasm interface types
-T(String, 0x80, "string") // string type
-T(List, 0x81, "list")     // list type
-T(Bool, 0x82, "bool")     // bool type
+T(U8, 0x80, "u8")           // uint8
+T(U16, 0x81, "u16")         // uint16
+T(U32, 0x82, "u32")         // uint32
+T(U64, 0x83, "u64")         // uint64
+T(String, 0x84, "string")   // string type
+T(List, 0x85, "list")       // list type
+T(Bool, 0x86, "bool")       // bool type
+T(Tuple, 0x87, "tuple")     // tuple type
+T(Option, 0x88, "option")   // option type
+T(Enum, 0x89, "enum")       // enum type
+T(Result, 0x8A, "result")   // result type
+T(Record, 0x8B, "record")   // record type
+T(Variant, 0x8C, "variant") // variant type
+T(Own, 0x8D, "own")         // own type
 
 #undef T
 #endif // UseTypeCode

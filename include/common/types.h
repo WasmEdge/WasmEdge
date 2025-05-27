@@ -21,6 +21,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <type_traits>
 #include <variant>
 
@@ -132,13 +133,57 @@ public:
       Inner.Data.Code = TypeCode::RefNull;
       Inner.Data.HTCode = C;
       break;
-      // Component Type
+    // Component Type
+    case TypeCode::U8:
+      Inner.Data.Code = TypeCode::U8;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::U16:
+      Inner.Data.Code = TypeCode::U16;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::U32:
+      Inner.Data.Code = TypeCode::U32;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::U64:
+      Inner.Data.Code = TypeCode::U64;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::String:
       Inner.Data.Code = TypeCode::String;
       Inner.Data.HTCode = C;
       break;
+    case TypeCode::Record:
+      Inner.Data.Code = TypeCode::Record;
+      Inner.Data.HTCode = C;
+      break;
     case TypeCode::List:
       Inner.Data.Code = TypeCode::List;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::Tuple:
+      Inner.Data.Code = TypeCode::Tuple;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::Option:
+      Inner.Data.Code = TypeCode::Option;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::Enum:
+      Inner.Data.Code = TypeCode::Enum;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::Result:
+      Inner.Data.Code = TypeCode::Result;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::Variant:
+      Inner.Data.Code = TypeCode::Variant;
+      Inner.Data.HTCode = C;
+      break;
+    case TypeCode::Own:
+      Inner.Data.Code = TypeCode::Own;
       Inner.Data.HTCode = C;
       break;
     case TypeCode::Ref:
@@ -458,8 +503,9 @@ using ValVariant =
 
 // Here are some high-level composited type, provided by component model
 struct ValComp {
-  virtual ~ValComp() {}
+  virtual ~ValComp() = default;
 };
+
 template <typename T> struct List : public ValComp {
   List(std::initializer_list<T> As) : Content(As) {}
   List(std::vector<T> &&As) : Content(As) {}
@@ -470,9 +516,63 @@ private:
   std::vector<T> Content;
 };
 
+template <typename... Types> struct Record : public ValComp {
+  Record(Types &&...Args) : Content(std::forward<Types>(Args)...) {}
+
+private:
+  std::tuple<Types...> Content;
+};
+
+template <typename... Types> struct Tuple : public ValComp {
+  Tuple(Types &&...Args)
+      : Content(std::make_tuple(std::forward<Types>(Args)...)) {}
+
+private:
+  std::tuple<Types...> Content;
+};
+
+template <typename T> struct Option : public ValComp {
+  Option() : Content{std::nullopt} {}
+  Option(T &&Arg) : Content(Arg) {}
+
+private:
+  std::optional<T> Content;
+};
+
+struct Enum : public ValComp {
+  Enum() {}
+
+private:
+  std::vector<std::string> Labels;
+};
+
+template <typename V, typename E> struct Result : public ValComp {
+  Result(V Val) : Content{Val} {}
+  Result(E Error) : Content{Error} {}
+  bool isOk() { return std::holds_alternative<V>(Content); }
+  bool isErr() { return std::holds_alternative<E>(Content); }
+
+private:
+  std::variant<V, E> Content;
+};
+
+namespace Component {
+
+template <typename... Types> struct Variant : public ValComp {
+  Variant() : Content{} {}
+  Variant(std::variant<Types...> V) : Content{V} {}
+
+private:
+  std::variant<Types...> Content;
+};
+
+} // namespace Component
+// TODO: add Record<Ts ...> : public ValComp
+
 using ValInterface = std::variant<
     // constant types in component types
-    bool, std::string,
+    uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
+    float, double, bool, std::string,
     // composition type like List, Record, Variant
     //
     // we need to copy them at many place, so we just use shared_ptr
@@ -608,21 +708,84 @@ template <> inline ValType ValTypeFromType<double>() noexcept {
 }
 
 template <typename T> struct Wit {
-  static inline ValType type() noexcept { return ValTypeFromType<T>(); }
+  static inline InterfaceType type() noexcept {
+    auto VT = ValTypeFromType<T>();
+    return InterfaceType(VT.getCode());
+  }
 };
 template <> struct Wit<bool> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::Bool);
   }
 };
+template <> struct Wit<uint8_t> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::U8);
+  }
+};
+template <> struct Wit<uint16_t> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::U16);
+  }
+};
+template <> struct Wit<uint32_t> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::U32);
+  }
+};
+template <> struct Wit<uint64_t> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::U64);
+  }
+};
+template <> struct Wit<int8_t> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::I8);
+  }
+};
+template <> struct Wit<int16_t> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::I16);
+  }
+};
 template <> struct Wit<std::string> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::String);
   }
 };
+template <typename... Types> struct Wit<Record<Types...>> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::Record, {Wit<Types>::type()...});
+  }
+};
 template <typename T> struct Wit<List<T>> {
-  static inline ValType type() noexcept {
+  static inline InterfaceType type() noexcept {
     return InterfaceType(TypeCode::List, {Wit<T>::type()});
+  }
+};
+template <typename... Types> struct Wit<Tuple<Types...>> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::Tuple, {Wit<Types>::type()...});
+  }
+};
+template <typename T> struct Wit<Option<T>> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::Option, {Wit<T>::type()});
+  }
+};
+template <> struct Wit<Enum> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::Enum, {});
+  }
+};
+template <typename V, typename E> struct Wit<Result<V, E>> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::Result, {Wit<V>::type(), Wit<E>::type()});
+  }
+};
+template <typename... Types> struct Wit<Component::Variant<Types...>> {
+  static inline InterfaceType type() noexcept {
+    return InterfaceType(TypeCode::Variant, {Wit<Types>::type()...});
   }
 };
 
@@ -698,15 +861,13 @@ struct fmt::formatter<WasmEdge::InterfaceType>
   format(const WasmEdge::InterfaceType &Type,
          fmt::format_context &Ctx) const noexcept {
     using namespace std::literals;
-    WasmEdge::ValType VType(Type);
 
     fmt::memory_buffer Buffer;
-
-    fmt::format_to(std::back_inserter(Buffer), "{}"sv, VType);
+    fmt::format_to(std::back_inserter(Buffer), "{} "sv,
+                   WasmEdge::TypeCodeStr[Type.getCode()]);
     for (auto T : Type.getArgs()) {
       fmt::format_to(std::back_inserter(Buffer), "{}"sv, T);
     }
-
     return formatter<std::string_view>::format(
         std::string_view(Buffer.data(), Buffer.size()), Ctx);
   }

@@ -46,6 +46,7 @@ enum class Backend : uint8_t {
   Autodetect = 5,
   GGML = 6,
   NeuralSpeed = 7,
+  BitNet = 8,
   Whisper = 9,
   MLX = 10,
   Piper = 11,
@@ -61,6 +62,7 @@ enum class Backend : uint8_t {
   F(TensorflowLite)                                                            \
   F(GGML)                                                                      \
   F(NeuralSpeed)                                                               \
+  F(BitNet)                                                                    \
   F(Whisper)                                                                   \
   F(Piper)                                                                     \
   F(ChatTTS)                                                                   \

@@ -15,6 +15,7 @@
 #include "wasinn_tfl.h"
 #include "wasinn_torch.h"
 #include "wasinn_whisper.h"
+#include "wasinn_bitnet.h"
 #include "wasinntypes.h"
 
 #include "common/spdlog.h"

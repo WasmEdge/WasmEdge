@@ -33,6 +33,7 @@ std::map<std::string_view, Backend> BackendMap = {
     {"tensorflowlite"sv, Backend::TensorflowLite},
     {"autodetect"sv, Backend::Autodetect},
     {"ggml"sv, Backend::GGML},
+    {"bitnet"sv, Backend::BitNet},
     {"neuralspeed"sv, Backend::NeuralSpeed},
     {"whisper"sv, Backend::Whisper},
     {"mlx"sv, Backend::MLX},

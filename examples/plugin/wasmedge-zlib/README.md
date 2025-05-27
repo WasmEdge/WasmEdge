@@ -4,6 +4,22 @@ This is an example to demonstrate how to use the `wasmedge-zlib` plugin of WasmE
 
 ## Prerequisites
 
+You need three main components:
+
+1. Emscripten SDK (for compiling to WebAssembly)
+
+2. WasmEdge Runtime
+
+3. wasmedge-zlib plugin
+
+### Check missing
+
+
+The project includes a Makefile that can check for dependencies
+```bash
+make all # Check what's missing
+```
+
 ### Install Emscripten SDK (C++ Compiler Toolkit for wasm targets)
 
 ```bash
@@ -18,7 +34,7 @@ source ./emsdk_env.sh # Only this shell will be able to use emscripten.
 
 ### Install WasmEdge and WASMEDGE-zlib plugin
 
-Note that if you install WasmEdge using the install script, you need to download `wasmedge-zlib` plugin from the [release page](https://github.com/WasmEdge/WasmEdge/releases/) and put it into `$HOME/.wasmedge/plugin/`.
+**Note**: if you install WasmEdge using the install script, you need to download `wasmedge-zlib` plugin from the [release page](https://github.com/WasmEdge/WasmEdge/releases/) and put it into `$HOME/.wasmedge/plugin/`.
 
 Or you can build Wasmedge from scratch with `wasmedge-zlib` plugin enabled.
 
@@ -36,7 +52,20 @@ cmake --build . -j
 # Compiled Wasmedge is located in ./tools/wasmedge/wasmedge
 ```
 
-## Build and Run the example as a WASM Module
+## Build and Run the example using Make
+
+```bash
+cd ./examples/plugin/wasmedge-zlib/
+make all # Build both native and WebAssembly versions
+make clean # Clean the build directory
+make native # Build the native version
+make wasm # Build WebAssembly version
+make run-native # Run the native version
+make run-wasm # Run the WebAssembly version
+make help # Show all available targets
+```
+
+## Manually Build and Run the example as a WASM Module
 
 ```bash
 cd ../examples/plugin/wasmedge-zlib/
@@ -52,10 +81,10 @@ We can run this example with `Wasmedge` with the following command
 ../../../build/tools/wasmedge/wasmedge build/main.wasm
 ```
 
-## Build and Run the example as a Native executable
+## Manually Build and Run the example as a Native executable
 
 ```bash
-apt install zlib1g-dev # For Ubuntu / Debian distros | Try zlib-devel for fedora
+apt install zlib1g-dev # For Ubuntu / Debian distros | Try zlib-devel for fedora | Try `brew install zlib` for macOS
 cd ../examples/plugin/wasmedge-zlib/
 mkdir build
 g++ main.cpp -o build/main -lz

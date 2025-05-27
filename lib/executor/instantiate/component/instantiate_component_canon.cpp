@@ -57,7 +57,7 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
         Types.push_back(InterfaceType(TypeCode::String));
         break;
       }
-    } else if constexpr (std::is_same_v<T, TypeIndex>) {
+    } else if constexpr (std::is_same_v<T, uint32_t>) {
       const auto &Ty = Comp.getType(Type);
       spdlog::warn("Type {} is not handled yet"sv, Ty);
     }

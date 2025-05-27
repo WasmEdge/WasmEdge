@@ -1,28 +1,33 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/ast/component/alias.h - alias class definitions ----------===//
+//===-- wasmedge/ast/component/alias.h - Alias class definitions ----------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Alias node class
+/// This file contains the declaration of the Alias node related classes.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
 #include "ast/component/sort.h"
-#include "ast/expression.h"
-#include "ast/type.h"
 
+#include <string>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
 namespace AST {
 namespace Component {
 
+// aliastarget ::= 0x00 i:<instanceidx> n:<name>           => export i n
+//               | 0x01 i:<core:instanceidx> n:<core:name> => core export i n
+//               | 0x02 ct:<u32> idx:<u32>                 => outer ct idx
+
+/// AST Component::AliasTargetExport class.
 class AliasTargetExport {
 public:
   uint32_t getInstanceIdx() const noexcept { return InstanceIndex; }
@@ -34,6 +39,8 @@ private:
   uint32_t InstanceIndex;
   std::string Name;
 };
+
+/// AST Component::AliasTargetOuter class.
 class AliasTargetOuter {
 public:
   uint32_t getComponent() const noexcept { return ComponentIndex; }
@@ -46,9 +53,14 @@ private:
   uint32_t Index;
 };
 
+/// AST Component::AliasTarget aliasing.
 using AliasTarget = std::variant<AliasTargetExport, AliasTargetOuter>;
 
-/// Alias
+// TODO: COMPONENT - Combine the AliasTarget variant into the Alias class.
+
+// alias ::= s:<sort> t:<aliastarget> => (alias t (s))
+
+/// AST Component::Alias node.
 class Alias {
 public:
   Sort &getSort() noexcept { return S; }

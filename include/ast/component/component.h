@@ -15,16 +15,37 @@
 #pragma once
 
 #include "ast/component/section.h"
+#include "common/span.h"
 
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
 namespace AST {
 namespace Component {
 
+// component ::= <preamble> s*:<section>*            => (component flatten(s*))
+// preamble  ::= <magic> <version> <layer>
+// magic     ::= 0x00 0x61 0x73 0x6D
+// version   ::= 0x0d 0x00
+// layer     ::= 0x01 0x00
+// section   ::=    section_0(<core:custom>)         => ϵ
+//             | m: section_1(<core:module>)         => [core-prefix(m)]
+//             | i*:section_2(vec(<core:instance>))  => core-prefix(i)*
+//             | t*:section_3(vec(<core:type>))      => core-prefix(t)*
+//             | c: section_4(<component>)           => [c]
+//             | i*:section_5(vec(<instance>))       => i*
+//             | a*:section_6(vec(<alias>))          => a*
+//             | t*:section_7(vec(<type>))           => t*
+//             | c*:section_8(vec(<canon>))          => c*
+//             | s: section_9(<start>)               => [s]
+//             | i*:section_10(vec(<import>))        => i*
+//             | e*:section_11(vec(<export>))        => e*
+//             | v*:section_12(vec(<value>))         => v* 🪙
+
 /// AST Component::Component node.
 class Component {
-  // TODO: ValueSection
+  // TODO: COMPONENT - ValueSection
   using Section =
       std::variant<CustomSection, CoreModuleSection, CoreInstanceSection,
                    CoreTypeSection, ComponentSection, InstanceSection,

@@ -432,7 +432,7 @@ class StructInstance;
 class ArrayInstance;
 } // namespace Runtime::Instance
 
-/// NumType and RefType variant definitions.
+/// RefType variant definition.
 struct RefVariant {
   // Constructors.
   RefVariant() noexcept { setData<void>(TypeCode::ExternRef); }
@@ -495,11 +495,17 @@ private:
   // Member data.
   uint64x2_t Data;
 };
+
+/// ValVariant for all value types.
 using ValVariant =
     Variant<uint32_t, int32_t, uint64_t, int64_t, float, double, uint128_t,
             int128_t, uint64x2_t, int64x2_t, uint32x4_t, int32x4_t, uint16x8_t,
             int16x8_t, uint8x16_t, int8x16_t, floatx4_t, doublex2_t,
             RefVariant>;
+
+// <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> Component Model Value definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 // Here are some high-level composited type, provided by component model
 struct ValComp {
@@ -507,8 +513,8 @@ struct ValComp {
 };
 
 template <typename T> struct List : public ValComp {
-  List(std::initializer_list<T> As) : Content(As) {}
-  List(std::vector<T> &&As) : Content(As) {}
+  List(std::initializer_list<T> As) noexcept : Content(As) {}
+  List(std::vector<T> &&As) noexcept : Content(std::move(As)) {}
 
   Span<const T> collection() const noexcept { return Content; }
 
@@ -517,14 +523,14 @@ private:
 };
 
 template <typename... Types> struct Record : public ValComp {
-  Record(Types &&...Args) : Content(std::forward<Types>(Args)...) {}
+  Record(Types &&...Args) noexcept : Content(std::forward<Types>(Args)...) {}
 
 private:
   std::tuple<Types...> Content;
 };
 
 template <typename... Types> struct Tuple : public ValComp {
-  Tuple(Types &&...Args)
+  Tuple(Types &&...Args) noexcept
       : Content(std::make_tuple(std::forward<Types>(Args)...)) {}
 
 private:
@@ -532,23 +538,24 @@ private:
 };
 
 template <typename T> struct Option : public ValComp {
-  Option() : Content{std::nullopt} {}
-  Option(T &&Arg) : Content(Arg) {}
+  Option() noexcept : Content(std::nullopt) {}
+  Option(const T &Arg) noexcept : Content(Arg) {}
+  Option(T &&Arg) noexcept : Content(std::move(Arg)) {}
 
 private:
   std::optional<T> Content;
 };
 
 struct Enum : public ValComp {
-  Enum() {}
+  Enum() noexcept = default;
 
 private:
   std::vector<std::string> Labels;
 };
 
 template <typename V, typename E> struct Result : public ValComp {
-  Result(V Val) : Content{Val} {}
-  Result(E Error) : Content{Error} {}
+  Result(const V &Val) noexcept : Content(Val) {}
+  Result(const E &Error) noexcept : Content(Error) {}
   bool isOk() { return std::holds_alternative<V>(Content); }
   bool isErr() { return std::holds_alternative<E>(Content); }
 
@@ -559,14 +566,15 @@ private:
 namespace Component {
 
 template <typename... Types> struct Variant : public ValComp {
-  Variant() : Content{} {}
-  Variant(std::variant<Types...> V) : Content{V} {}
+  Variant() noexcept = default;
+  Variant(std::variant<Types...> V) noexcept : Content(V) {}
 
 private:
   std::variant<Types...> Content;
 };
 
 } // namespace Component
+
 // TODO: add Record<Ts ...> : public ValComp
 
 using ValInterface = std::variant<
@@ -580,7 +588,7 @@ using ValInterface = std::variant<
     // wasm values
     ValVariant>;
 
-// <<<<<<<< Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< Component Model Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> Const expressions to checking value types >>>>>>>>>>>>>>>>>>>>>>>>>>
 

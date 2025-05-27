@@ -357,12 +357,12 @@ private:
   Expect<void> loadType(AST::Component::VariantTy &Ty);
   Expect<void> loadType(AST::Component::ListTy &Ty);
   Expect<void> loadType(AST::Component::TupleTy &Ty);
-  Expect<void> loadType(AST::Component::Flags &Ty);
+  Expect<void> loadType(AST::Component::FlagsTy &Ty);
   Expect<void> loadType(AST::Component::EnumTy &Ty);
   Expect<void> loadType(AST::Component::OptionTy &Ty);
   Expect<void> loadType(AST::Component::ResultTy &Ty);
-  Expect<void> loadType(AST::Component::Own &Ty);
-  Expect<void> loadType(AST::Component::Borrow &Ty);
+  Expect<void> loadType(AST::Component::OwnTy &Ty);
+  Expect<void> loadType(AST::Component::BorrowTy &Ty);
   Expect<void> loadType(AST::Component::LabelValType &Ty);
   Expect<void> loadType(AST::Component::ValueType &Ty);
   Expect<void> loadType(AST::Component::CoreType &Ty);
@@ -399,13 +399,11 @@ private:
   Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);
   Expect<void> loadInstantiateArg(AST::Component::CoreInstantiateArg &Arg);
+  Expect<void> loadInstantiateArg(AST::Component::InstantiateArg &Arg);
+  Expect<void> loadInlineExport(
+      AST::Component::InlineExportImpl<AST::Component::CoreSort> &Exp);
   Expect<void>
-  loadInstantiateArg(AST::Component::InstantiateArg<
-                     AST::Component::SortIndex<AST::Component::Sort>> &Arg);
-  Expect<void>
-  loadInlineExport(AST::Component::InlineExport<AST::Component::CoreSort> &Exp);
-  Expect<void>
-  loadInlineExport(AST::Component::InlineExport<AST::Component::Sort> &Exp);
+  loadInlineExport(AST::Component::InlineExportImpl<AST::Component::Sort> &Exp);
   Expect<void> loadAlias(AST::Component::Alias &Alias);
   Expect<void> loadSort(AST::Component::Sort &Sort);
   Expect<void> loadAliasTarget(AST::Component::AliasTarget &AliasTarget);

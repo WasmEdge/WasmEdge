@@ -15,7 +15,8 @@
 
 #include "ast/component/alias.h"
 #include "ast/component/canonical.h"
-#include "ast/component/import_export.h"
+#include "ast/component/export.h"
+#include "ast/component/import.h"
 #include "ast/component/instance.h"
 #include "ast/component/start.h"
 #include "ast/component/type.h"
@@ -182,7 +183,7 @@ private:
   /// @}
 };
 
-// TODO: AST Component::ValueSection node.
+// TODO: COMPONENT - AST Component::ValueSection node.
 
 } // namespace Component
 } // namespace AST

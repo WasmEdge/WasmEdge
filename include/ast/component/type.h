@@ -1,22 +1,20 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/ast/component/type.h - type class definitions ----===//
+//===-- wasmedge/ast/component/type.h - Type class definitions ------------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Type node class
+/// This file contains the declaration of the Type node related classes.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
 
 #include "ast/component/alias.h"
 #include "ast/description.h"
-#include "ast/expression.h"
-#include "ast/type.h"
 
 #include <optional>
 #include <vector>
@@ -25,6 +23,39 @@ namespace WasmEdge {
 namespace AST {
 namespace Component {
 
+// For easily understanding the type definitions in component model proposal,
+// this header file defines the classes in bottom-up and simply separates the
+// types into several parts.
+//   1. DefValType: one of DefType.
+//   2. FuncType: one of DefType.
+//   3. Core::Type: all definitions of core::type.
+//   4. InstanceType: one of DefType.
+//   5. ComponentType: one of DefType.
+//   6. ResourceType: one of DefType.
+//   7. Type: union of DefType.
+// However, this header should be refactored for preventing from recursively
+// referring in the future.
+
+// =============================================================================
+// Part 1: DefValType and the child types definitions.
+// =============================================================================
+
+// primvaltype ::= 0x7f => bool
+//               | 0x7e => s8
+//               | 0x7d => u8
+//               | 0x7c => s16
+//               | 0x7b => u16
+//               | 0x7a => s32
+//               | 0x79 => u32
+//               | 0x78 => s64
+//               | 0x77 => u64
+//               | 0x76 => f32
+//               | 0x75 => f64
+//               | 0x74 => char
+//               | 0x73 => string
+//               | 0x64 => error-context 📝
+
+/// AST Component::PrimValType enum. (One type of DefValType)
 enum class PrimValType : Byte {
   Bool = 0x7f,
   S8 = 0x7e,
@@ -41,13 +72,21 @@ enum class PrimValType : Byte {
   String = 0x73
 };
 
-using TypeIndex = uint32_t;
-using ValueType = std::variant<TypeIndex, PrimValType>;
+// valtype ::= i:<typeidx>       => i
+//           | pvt:<primvaltype> => pvt
 
+/// AST Component::ValueType aliasing.
+using ValueType = std::variant<uint32_t, PrimValType>;
+
+// labelvaltype ::= l:<label'> t:<valtype> => l t
+// label'       ::= len:<u32> l:<label>    => l    (if len = |l|)
+
+/// AST Component::LabelValType node.
 class LabelValType {
 public:
-  LabelValType() {}
-  LabelValType(std::string L, ValueType VT) : Label{L}, ValTy{VT} {}
+  LabelValType() noexcept = default;
+  LabelValType(const std::string &L, ValueType VT) noexcept
+      : Label(L), ValTy(VT) {}
 
   std::string_view getLabel() const noexcept { return Label; }
   std::string &getLabel() noexcept { return Label; }
@@ -59,11 +98,31 @@ private:
   ValueType ValTy;
 };
 
+// record ::= lt*:vec(<labelvaltype>) => (record (field lt)*) (if |lt*| > 0)
+
+/// AST Component::RecordTy node. (One type of DefValType)
+class RecordTy {
+public:
+  RecordTy() noexcept = default;
+  RecordTy(std::initializer_list<LabelValType> I) noexcept : LabelTypes(I) {}
+
+  Span<const LabelValType> getLabelTypes() const noexcept { return LabelTypes; }
+  std::vector<LabelValType> &getLabelTypes() noexcept { return LabelTypes; }
+
+private:
+  std::vector<LabelValType> LabelTypes;
+};
+
+// case ::= l:<label'> t?:<valtype>? 0x00 => (case l t?)
+// <T>? ::= 0x00                          => ϵ
+//        | 0x01 t:<T>                    => t
+
+/// AST Component::Case node.
 class Case {
 public:
-  Case() : Label{}, ValTy{std::nullopt} {}
-  Case(std::string &&L) : Label{L}, ValTy{std::nullopt} {}
-  Case(std::string &&L, ValueType &&VT) : Label{L}, ValTy{VT} {}
+  Case() noexcept = default;
+  Case(const std::string &L) noexcept : Label(L), ValTy(std::nullopt) {}
+  Case(const std::string &L, ValueType VT) noexcept : Label(L), ValTy(VT) {}
 
   std::string_view getLabel() const noexcept { return Label; }
   std::string &getLabel() noexcept { return Label; }
@@ -75,22 +134,13 @@ private:
   std::optional<ValueType> ValTy;
 };
 
-class RecordTy {
-public:
-  RecordTy() {}
-  RecordTy(std::initializer_list<LabelValType> I) : LabelTypes{I} {}
+// variant ::= case*:vec(<case>) => (variant case+) (if |case*| > 0)
 
-  Span<const LabelValType> getLabelTypes() const noexcept { return LabelTypes; }
-  std::vector<LabelValType> &getLabelTypes() noexcept { return LabelTypes; }
-
-private:
-  std::vector<LabelValType> LabelTypes;
-};
-
+/// AST Component::VariantTy node. (One type of DefValType)
 class VariantTy {
 public:
-  VariantTy() : Cases{} {}
-  VariantTy(std::initializer_list<Case> Cs) : Cases{Cs} {}
+  VariantTy() noexcept = default;
+  VariantTy(std::initializer_list<Case> Cs) noexcept : Cases(Cs) {}
 
   Span<const Case> getCases() const noexcept { return Cases; }
   std::vector<Case> &getCases() noexcept { return Cases; }
@@ -99,21 +149,30 @@ private:
   std::vector<Case> Cases;
 };
 
+// list ::= t:<valtype> => (list t)
+
+// TODO: COMPONENT - lack of fixed length list type:
+// list ::= t:<valtype> len:<u32> => (list t len) (if len > 0) 🔧
+
+/// AST Component::ListTy node. (One type of DefValType)
 class ListTy {
 public:
-  ListTy() : ValTy{} {}
-  ListTy(ValueType &&T) : ValTy{T} {}
+  ListTy() noexcept = default;
+  ListTy(const ValueType &T) : ValTy(T) {}
 
-  const ValueType getValType() const noexcept { return ValTy; }
+  const ValueType &getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
 
 private:
   ValueType ValTy;
 };
 
-// A tuple is the product of given non-empty type list
-// e.g. given [A, B, C], the tuple is a product A x B x C
+// tuple ::= t*:vec(<valtype>) => (tuple t+) (if |t*| > 0)
+
+/// AST Component::TupleTy node. (One type of DefValType)
 class TupleTy {
+  // A tuple is the product of given non-empty type list
+  // e.g. given [A, B, C], the tuple is a product A x B x C
 public:
   Span<const ValueType> getTypes() const noexcept { return Types; }
   std::vector<ValueType> &getTypes() noexcept { return Types; }
@@ -122,7 +181,10 @@ private:
   std::vector<ValueType> Types;
 };
 
-class Flags {
+// flags ::= l*:vec(<label'>) => (flags l+) (if 0 < |l*| <= 32)
+
+/// AST Component::FlagsTy node. (One type of DefValType)
+class FlagsTy {
 public:
   Span<const std::string> getLabels() const noexcept { return Labels; }
   std::vector<std::string> &getLabels() noexcept { return Labels; }
@@ -131,6 +193,9 @@ private:
   std::vector<std::string> Labels;
 };
 
+// enum ::= l*:vec(<label'>) => (enum l+) (if |l*| > 0)
+
+/// AST Component::EnumTy node. (One type of DefValType)
 class EnumTy {
 public:
   Span<const std::string> getLabels() const noexcept { return Labels; }
@@ -140,18 +205,24 @@ private:
   std::vector<std::string> Labels;
 };
 
+// option ::= t:<valtype> => (option t)
+
+/// AST Component::OptionTy node. (One type of DefValType)
 class OptionTy {
 public:
-  OptionTy() {}
-  OptionTy(ValueType T) : ValTy{T} {}
+  OptionTy() noexcept = default;
+  OptionTy(const ValueType &T) noexcept : ValTy(T) {}
 
-  const ValueType getValType() const noexcept { return ValTy; }
+  const ValueType &getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
 
 private:
   ValueType ValTy;
 };
 
+// result ::= t?:<valtype>? u?:<valtype>? => (result t? (error u)?)
+
+/// AST Component::ResultTy node. (One type of DefValType)
 class ResultTy {
 public:
   const std::optional<ValueType> getValType() const noexcept { return ValTy; }
@@ -165,34 +236,57 @@ private:
   std::optional<ValueType> ErrTy;
 };
 
-class Own {
+// own ::= i:<typeidx> => (own i)
+
+/// AST Component::OwnTy node. (One type of DefValType)
+class OwnTy {
 public:
-  TypeIndex getIndex() const noexcept { return Idx; }
-  TypeIndex &getIndex() noexcept { return Idx; }
+  uint32_t getIndex() const noexcept { return Idx; }
+  uint32_t &getIndex() noexcept { return Idx; }
 
 private:
-  TypeIndex Idx;
+  uint32_t Idx;
 };
 
-class Borrow {
+// borrow ::= i:<typeidx> => (borrow i)
+
+/// AST Component::BorrowTy node. (One type of DefValType)
+class BorrowTy {
 public:
-  TypeIndex getIndex() const noexcept { return Idx; }
-  TypeIndex &getIndex() noexcept { return Idx; }
+  uint32_t getIndex() const noexcept { return Idx; }
+  uint32_t &getIndex() noexcept { return Idx; }
 
 private:
-  TypeIndex Idx;
+  uint32_t Idx;
 };
 
+// TODO: COMPONENT - StreamTy and FutureTy
+// TODO: COMPONENT - Refactor the DefValType into a class
+
+/// AST Component::DefValType aliasing.
 using DefValType =
-    std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, Flags,
-                 EnumTy, OptionTy, ResultTy, Own, Borrow>;
+    std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, FlagsTy,
+                 EnumTy, OptionTy, ResultTy, OwnTy, BorrowTy>;
+
+// =============================================================================
+// Part 2: FuncType and the child types definitions.
+// =============================================================================
+
+// resultlist ::= 0x00 t:<valtype> => (result t)
+//              | 0x01 0x00        => ϵ
+
+// AST Component::ResultList aliasing.
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 
+// functype  ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
+// paramlist ::= lt*:vec(<labelvaltype>)             => (param lt)*
+
+/// AST Component::FuncType node.
 class FuncType {
 public:
-  FuncType() : ParamList{}, ResList{} {}
-  FuncType(std::vector<LabelValType> P, ResultList R)
-      : ParamList{P}, ResList{R} {}
+  FuncType() noexcept = default;
+  FuncType(const std::vector<LabelValType> &P, ResultList R) noexcept
+      : ParamList(P), ResList(R) {}
 
   Span<const LabelValType> getParamList() const noexcept { return ParamList; }
   std::vector<LabelValType> &getParamList() noexcept { return ParamList; }
@@ -204,6 +298,7 @@ private:
   ResultList ResList;
 };
 
+/// AST Component::FunctionType node. (For interface types)
 class FunctionType {
 public:
   FunctionType() noexcept = default;
@@ -236,21 +331,100 @@ private:
   std::vector<InterfaceType> ReturnTypes;
 };
 
+// =============================================================================
+// Part 3: Core::Type and the child types definitions.
+// =============================================================================
+
+// core:exportdecl ::= n:<core:name> d:<core:importdesc> => (export n d)
+
+/// AST Component::CoreExportDecl node.
+class CoreExportDecl {
+public:
+  std::string_view getName() const noexcept { return Name; }
+  std::string &getName() noexcept { return Name; }
+  ImportDesc getImportDesc() const noexcept { return Desc; }
+  ImportDesc &getImportDesc() noexcept { return Desc; }
+
+private:
+  std::string Name;
+  ImportDesc Desc;
+};
+
+// core:moduledecl ::= 0x00 i:<core:import>     => i
+//                   | 0x01 t:<core:type>       => t
+//                   | 0x02 a:<core:alias>      => a
+//                   | 0x03 e:<core:exportdecl> => e
+
+class CoreType;
+/// AST Component::ModuleDecl aliasing.
+using ModuleDecl =
+    std::variant<ImportDesc, std::shared_ptr<CoreType>, Alias, CoreExportDecl>;
+
+// core:moduletype ::= 0x50 md*:vec(<core:moduledecl>) => (module md*)
+
+/// AST Component::ModuleType node.
+class ModuleType {
+public:
+  Span<const ModuleDecl> getContent() const noexcept { return Decls; }
+  std::vector<ModuleDecl> &getContent() noexcept { return Decls; }
+
+private:
+  std::vector<ModuleDecl> Decls;
+};
+
+// core:deftype ::= rt:<core:rectype>
+//                => rt (WebAssembly 3.0)
+//                | 0x00 0x50 x*:vec(<core:typeidx>) ct:<core:comptype>
+//                => sub x* ct (WebAssembly 3.0)
+//                | mt:<core:moduletype>
+//                => mt
+
+// TODO: COMPONENT - Apply the GC proposal: use AST::SubType instead.
+/// AST Component::CoreDefType aliasing.
+using CoreDefType = std::variant<WasmEdge::AST::FunctionType, ModuleType>;
+
+// core:type ::= dt:<core:deftype> => (type dt)
+
+/// AST Component::CoreType node.
+class CoreType {
+public:
+  CoreDefType getType() const noexcept { return T; }
+  CoreDefType &getType() noexcept { return T; }
+
+private:
+  CoreDefType T;
+};
+
+// =============================================================================
+// Part 4: InstanceType and the child types definitions.
+// =============================================================================
+
+// externdesc ::= 0x00 0x11 i:<core:typeidx> => (core module (type i))
+//              | 0x01 i:<typeidx>           => (func (type i))
+//              | 0x02 b:<valuebound>        => (value b) 🪙
+//              | 0x03 b:<typebound>         => (type b)
+//              | 0x04 i:<typeidx>           => (component (type i))
+//              | 0x05 i:<typeidx>           => (instance (type i))
+
+/// AST Component::IndexKind enum. (For DescTypeIndex using)
 enum class IndexKind : Byte {
   CoreType = 0x00,
   FuncType = 0x01,
   ComponentType = 0x04,
   InstanceType = 0x05,
 };
-class DescTypeIndex {
-  TypeIndex TyIdx;
-  IndexKind Kind;
 
+/// AST Component::DescTypeIndex node. (For ExternDesc using)
+class DescTypeIndex {
 public:
-  TypeIndex &getIndex() noexcept { return TyIdx; }
-  TypeIndex getIndex() const noexcept { return TyIdx; }
+  uint32_t &getIndex() noexcept { return TyIdx; }
+  uint32_t getIndex() const noexcept { return TyIdx; }
   IndexKind &getKind() noexcept { return Kind; }
   IndexKind getKind() const noexcept { return Kind; }
+
+private:
+  uint32_t TyIdx;
+  IndexKind Kind;
 };
 
 /// FROM:
@@ -274,9 +448,17 @@ public:
 ///
 /// 1. optional `some i` as `(eq i)`
 /// 2. optional `none` as `sub`, i.e. Subresource
-using TypeBound = std::optional<TypeIndex>;
+
+/// AST Component::TypeBound aliasing.
+using TypeBound = std::optional<uint32_t>;
+/// AST Component::ExternDesc aliasing.
 using ExternDesc = std::variant<DescTypeIndex, TypeBound, ValueType>;
 
+// TODO: COMPONENT - Refactor the entire ExportDesc structure.
+
+// exportdecl ::= en:<exportname'> ed:<externdesc> => (export en ed)
+
+/// AST Component::ExportDecl node.
 class ExportDecl {
 public:
   std::string_view getExportName() const noexcept { return ExportName; }
@@ -289,44 +471,19 @@ private:
   ExternDesc Desc;
 };
 
-class CoreExportDecl {
-  std::string Name;
-  ImportDesc Desc;
-
-public:
-  std::string_view getName() const noexcept { return Name; }
-  std::string &getName() noexcept { return Name; }
-  ImportDesc getImportDesc() const noexcept { return Desc; }
-  ImportDesc &getImportDesc() noexcept { return Desc; }
-};
-class CoreType;
-using ModuleDecl =
-    std::variant<ImportDesc, std::shared_ptr<CoreType>, Alias, CoreExportDecl>;
-class ModuleType {
-  std::vector<ModuleDecl> Decls;
-
-public:
-  Span<const ModuleDecl> getContent() const noexcept { return Decls; }
-  std::vector<ModuleDecl> &getContent() noexcept { return Decls; }
-};
-
-// TODO: wait GC proposal
-// st:<core:structtype>     => st   (GC proposal)
-// at:<core:arraytype>      => at   (GC proposal)
-using CoreDefType = std::variant<WasmEdge::AST::FunctionType, ModuleType>;
-
-class CoreType {
-public:
-  CoreDefType getType() const noexcept { return T; }
-  CoreDefType &getType() noexcept { return T; }
-
-private:
-  CoreDefType T;
-};
+// instancedecl ::= 0x00 t:<core:type>   => t
+//                | 0x01 t:<type>        => t
+//                | 0x02 a:<alias>       => a
+//                | 0x04 ed:<exportdecl> => ed
 
 class Type;
+/// AST Component::InstanceDecl aliasing.
 using InstanceDecl =
     std::variant<CoreType, Alias, std::shared_ptr<Type>, ExportDecl>;
+
+// instancetype ::= 0x42 id*:vec(<instancedecl>) => (instance id*)
+
+/// AST Component::InstanceType node.
 class InstanceType {
   std::vector<InstanceDecl> IdList;
 
@@ -335,49 +492,91 @@ public:
   std::vector<InstanceDecl> &getContent() noexcept { return IdList; }
 };
 
-using FuncIdx = uint32_t;
-class ResourceType {
-public:
-  ResourceType() : Async{false} {}
-  ResourceType(bool A) : Async{A} {}
+// =============================================================================
+// Part 5: ComponentType and the child types definitions.
+// =============================================================================
 
-  std::optional<FuncIdx> getDestructor() const noexcept { return Destructor; }
-  std::optional<FuncIdx> getCallback() const noexcept { return Callback; }
+// importdecl ::= in:<importname'> ed:<externdesc> => (import in ed)
 
-  bool IsAsync() noexcept { return Async; }
-  std::optional<FuncIdx> &getDestructor() noexcept { return Destructor; }
-  std::optional<FuncIdx> &getCallback() noexcept { return Callback; }
-
-private:
-  bool Async;
-  std::optional<FuncIdx> Destructor;
-  std::optional<FuncIdx> Callback;
-};
-
+/// AST Component::ImportDecl node.
 class ImportDecl {
-  std::string ImportName;
-  ExternDesc Desc;
-
 public:
   std::string_view getImportName() const noexcept { return ImportName; }
   std::string &getImportName() noexcept { return ImportName; }
   ExternDesc getExternDesc() const noexcept { return Desc; }
   ExternDesc &getExternDesc() noexcept { return Desc; }
-};
-using ComponentDecl = std::variant<ImportDecl, InstanceDecl>;
-class ComponentType {
-  std::vector<ComponentDecl> CdList;
 
+private:
+  std::string ImportName;
+  ExternDesc Desc;
+};
+
+// componentdecl ::= 0x03 id:<importdecl> => id
+//                 | id:<instancedecl>    => id
+
+/// AST Component::ComponentDecl aliasing.
+using ComponentDecl = std::variant<ImportDecl, InstanceDecl>;
+
+// componenttype ::= 0x41 cd*:vec(<componentdecl>) => (component cd*)
+
+/// AST Component::ComponentType node.
+class ComponentType {
 public:
   Span<const ComponentDecl> getContent() const noexcept { return CdList; }
   std::vector<ComponentDecl> &getContent() noexcept { return CdList; }
+
+private:
+  std::vector<ComponentDecl> CdList;
 };
 
+// =============================================================================
+// Part 6: ResourceType and the child types definitions.
+// =============================================================================
+
+// resourcetype ::= 0x3f 0x7f f?:<funcidx>?
+//                => (resource (rep i32) (dtor f)?)
+//                | 0x3e 0x7f f:<funcidx> cb?:<funcidx>?
+//                => (resource (rep i32) (dtor async f (callback cb)?))
+
+/// AST Component::ResourceType node.
+class ResourceType {
+public:
+  ResourceType() noexcept : Async(false) {}
+  ResourceType(bool A) noexcept : Async(A) {}
+
+  std::optional<uint32_t> getDestructor() const noexcept { return Destructor; }
+  std::optional<uint32_t> getCallback() const noexcept { return Callback; }
+
+  bool IsAsync() noexcept { return Async; }
+  std::optional<uint32_t> &getDestructor() noexcept { return Destructor; }
+  std::optional<uint32_t> &getCallback() noexcept { return Callback; }
+
+private:
+  bool Async;
+  std::optional<uint32_t> Destructor;
+  std::optional<uint32_t> Callback;
+};
+
+// =============================================================================
+// Part 7: Type definition.
+// =============================================================================
+
+// deftype ::= dvt:<defvaltype>   => dvt
+//           | ft:<functype>      => ft
+//           | ct:<componenttype> => ct
+//           | it:<instancetype>  => it
+//           | rt:<resourcetype>  => rt
+
+/// AST Component::DefType aliasing.
 using DefType = std::variant<DefValType, FuncType, ComponentType, InstanceType,
                              ResourceType>;
+
+// type ::= dt:<deftype> => (type dt)
+
+/// AST Component::Type node.
 class Type {
 public:
-  Type(DefType V) : T{V} {}
+  Type(const DefType &V) : T(V) {}
   DefType getType() const noexcept { return T; }
   DefType &getType() noexcept { return T; }
 
@@ -449,7 +648,7 @@ struct fmt::formatter<WasmEdge::AST::Component::ValueType>
           fmt::format("{}", std::get<PrimValType>(Type)), Ctx);
     }
     // or it's an type index
-    const auto Idx = std::get<TypeIndex>(Type);
+    const auto Idx = std::get<uint32_t>(Type);
     return formatter<std::string_view>::format(fmt::format("!({})", Idx), Ctx);
   }
 };
@@ -616,7 +815,7 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Flags &) {
+                [](const FlagsTy &) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "flags"sv);
                   return std::string_view(Buffer.data(), Buffer.size());
@@ -636,13 +835,13 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Own &Arg) {
+                [](const OwnTy &Arg) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "own<!({})>"sv,
                                  Arg.getIndex());
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Borrow &Arg) {
+                [](const BorrowTy &Arg) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "borrow<!({})>"sv,
                                  Arg.getIndex());

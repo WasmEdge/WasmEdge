@@ -23,6 +23,7 @@ Expect<void> Loader::loadLabel(std::string &Label) {
 }
 
 Expect<void> Loader::loadType(ValueType &Ty) {
+  // TODO: This should not be byte, but be u32, as the same as ValType.
   EXPECTED_TRY(auto Tag, FMgr.readByte().map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::DefType));
     return E;
@@ -45,7 +46,7 @@ Expect<void> Loader::loadType(ValueType &Ty) {
     Ty.emplace<PrimValType>(static_cast<PrimValType>(Tag));
     break;
   default:
-    Ty.emplace<TypeIndex>(Tag);
+    Ty.emplace<uint32_t>(static_cast<uint32_t>(Tag));
     break;
   }
 
@@ -103,7 +104,7 @@ Expect<void> Loader::loadType(TupleTy &Ty) {
   }
   return {};
 }
-Expect<void> Loader::loadType(Flags &Ty) {
+Expect<void> Loader::loadType(FlagsTy &Ty) {
   EXPECTED_TRY(loadVec<TypeSection>(
       Ty.getLabels(), [this](std::string Label) { return loadLabel(Label); }));
   if (unlikely(Ty.getLabels().size() == 0)) {
@@ -132,12 +133,12 @@ Expect<void> Loader::loadType(ResultTy &Ty) {
   return {};
 }
 
-Expect<void> Loader::loadType(Own &Ty) {
+Expect<void> Loader::loadType(OwnTy &Ty) {
   EXPECTED_TRY(Ty.getIndex(), FMgr.readU32());
   return {};
 }
 
-Expect<void> Loader::loadType(Borrow &Ty) {
+Expect<void> Loader::loadType(BorrowTy &Ty) {
   EXPECTED_TRY(Ty.getIndex(), FMgr.readU32());
   return {};
 }
@@ -183,7 +184,7 @@ Expect<void> Loader::loadType(DefType &Ty) {
                      .map_error(ReportError));
     break;
   case 0x6e:
-    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<Flags>())
+    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<FlagsTy>())
                      .map_error(ReportError));
     break;
   case 0x6d:
@@ -199,11 +200,11 @@ Expect<void> Loader::loadType(DefType &Ty) {
                      .map_error(ReportError));
     break;
   case 0x69:
-    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<Own>())
+    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<OwnTy>())
                      .map_error(ReportError));
     break;
   case 0x68:
-    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<Borrow>())
+    EXPECTED_TRY(loadType(Ty.emplace<DefValType>().emplace<BorrowTy>())
                      .map_error(ReportError));
     break;
   case 0x40:
@@ -298,13 +299,13 @@ Expect<void> Loader::loadType(ResourceType &Ty) {
   if (Ty.IsAsync()) {
     EXPECTED_TRY(auto Idx, FMgr.readU32());
     Ty.getDestructor().emplace(Idx);
-    EXPECTED_TRY(loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
+    EXPECTED_TRY(loadOption<uint32_t>([&](uint32_t &) -> Expect<void> {
       EXPECTED_TRY(auto RCallback, FMgr.readU32());
       Ty.getCallback().emplace(RCallback);
       return {};
     }));
   } else {
-    EXPECTED_TRY(loadOption<FuncIdx>([&](FuncIdx &) -> Expect<void> {
+    EXPECTED_TRY(loadOption<uint32_t>([&](uint32_t &) -> Expect<void> {
       EXPECTED_TRY(auto RDestructor, FMgr.readU32());
       Ty.getDestructor().emplace(RDestructor);
       return {};

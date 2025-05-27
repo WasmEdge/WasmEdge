@@ -400,7 +400,7 @@ public:
   static bool matchType(Span<const SubType *const>, const InterfaceType &Exp,
                         Span<const SubType *const>,
                         const InterfaceType &Got) noexcept {
-    // TODO: implement the same implementation as the ValType.
+    // TODO: COMPONENT - implement the same implementation as the ValType.
     return Exp == Got;
   }
 

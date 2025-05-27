@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/ast/component/type.h - type class definitions ----===//
+//===-- wasmedge/ast/component/type.h - Type class definitions ------------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Type node class
+/// This file contains the declaration of the Type node related classes.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

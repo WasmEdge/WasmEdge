@@ -399,13 +399,11 @@ private:
   Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
   Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);
   Expect<void> loadInstantiateArg(AST::Component::CoreInstantiateArg &Arg);
+  Expect<void> loadInstantiateArg(AST::Component::InstantiateArg &Arg);
+  Expect<void> loadInlineExport(
+      AST::Component::InlineExportImpl<AST::Component::CoreSort> &Exp);
   Expect<void>
-  loadInstantiateArg(AST::Component::InstantiateArg<
-                     AST::Component::SortIndex<AST::Component::Sort>> &Arg);
-  Expect<void>
-  loadInlineExport(AST::Component::InlineExport<AST::Component::CoreSort> &Exp);
-  Expect<void>
-  loadInlineExport(AST::Component::InlineExport<AST::Component::Sort> &Exp);
+  loadInlineExport(AST::Component::InlineExportImpl<AST::Component::Sort> &Exp);
   Expect<void> loadAlias(AST::Component::Alias &Alias);
   Expect<void> loadSort(AST::Component::Sort &Sort);
   Expect<void> loadAliasTarget(AST::Component::AliasTarget &AliasTarget);

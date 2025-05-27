@@ -260,7 +260,7 @@ struct InstanceExprVisitor {
     Ctx.incComponentIndexSize(SortCase::Instance);
     return {};
   }
-  Expect<void> operator()(const CompInlineExports &Exports) {
+  Expect<void> operator()(const InlineExports &Exports) {
     for (const auto &Export : Exports.getExports()) {
       auto ExportName = Export.getName();
       auto SortIdx = Export.getSortIdx();

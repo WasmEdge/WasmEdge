@@ -166,8 +166,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
                      this->instantiate(StoreMgr, CompInst.getComponent(
                                                      Expr.getComponentIdx())));
         CompInst.addComponentInstance(std::move(Inst));
-      } else if constexpr (std::is_same_v<T,
-                                          AST::Component::CompInlineExports>) {
+      } else if constexpr (std::is_same_v<T, AST::Component::InlineExports>) {
         Expr.getExports();
         // TODO: complete inline exports
         spdlog::warn("incomplete component inline exports"sv);

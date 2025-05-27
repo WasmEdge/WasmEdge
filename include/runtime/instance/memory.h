@@ -145,9 +145,19 @@ public:
     // Check the input data validation.
     if (unlikely(static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
                  Slice.size())) {
+      if (Slice.size() == 0) {
+        // Data segment invalid
+        spdlog::error(ErrCode::Value::DataOutOfBounds);
+        spdlog::error(ErrInfo::InfoBoundary(
+        Start, Length,
+        std::max(static_cast<uint32_t>(Slice.size()), UINT32_C(1)) - UINT32_C(1)));
+        return Unexpect(ErrCode::Value::DataOutOfBounds);
+      } else {
+      // Other memory out of bound errors
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+      }
     }
 
     // Copy the data.

@@ -1044,6 +1044,8 @@ E(AccessNullException, 0x0417, "null exception reference")
 E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
 E(UncaughtException, 0x0419, "uncaught exception")
+// Out of bounds data segment access
+E(DataOutOfBounds, 0x041A, "out of bounds data access")
 // @}
 
 // Component model load phase

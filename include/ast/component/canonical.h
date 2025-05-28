@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/ast/component/type.h - type class definitions ----===//
+//===-- wasmedge/ast/component/canonical.h - Canon class definitions ------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Type node class
+/// This file contains the declaration of the Canon node related classes.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -108,3 +108,35 @@ using Canon = std::variant<Lift, Lower, ResourceNew, ResourceDrop, ResourceRep>;
 } // namespace Component
 } // namespace AST
 } // namespace WasmEdge
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::Canon>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::Canon &Opt,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    if (std::holds_alternative<WasmEdge::AST::Component::Lift>(Opt)) {
+      fmt::format_to(std::back_inserter(Buffer), "lift"sv);
+    } else if (std::holds_alternative<WasmEdge::AST::Component::Lower>(Opt)) {
+      fmt::format_to(std::back_inserter(Buffer), "lower"sv);
+    } else if (std::holds_alternative<WasmEdge::AST::Component::ResourceNew>(
+                   Opt)) {
+      fmt::format_to(std::back_inserter(Buffer), "resource-new"sv);
+    } else if (std::holds_alternative<WasmEdge::AST::Component::ResourceDrop>(
+                   Opt)) {
+      fmt::format_to(std::back_inserter(Buffer), "resource-drop"sv);
+    } else if (std::holds_alternative<WasmEdge::AST::Component::ResourceRep>(
+                   Opt)) {
+      fmt::format_to(std::back_inserter(Buffer), "resource-rep"sv);
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), "!!!unknown"sv);
+    }
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};

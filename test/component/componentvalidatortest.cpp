@@ -91,15 +91,11 @@ TEST(ComponentValidatorTest, MissingArgument) {
   SortIdx.getSort() = AST::Component::SortCase::Func;
   SortIdx.getSortIdx() = 0;
 
-  AST::Component::InstantiateArg<
-      AST::Component::SortIndex<AST::Component::Sort>>
-      InstArg;
+  AST::Component::InstantiateArg InstArg;
   InstArg.getName() = "g";
   InstArg.getIndex() = SortIdx;
 
-  std::vector<AST::Component::InstantiateArg<
-      AST::Component::SortIndex<AST::Component::Sort>>>
-      Args = {InstArg};
+  std::vector<AST::Component::InstantiateArg> Args = {InstArg};
   AST::Component::Instantiate Inst(0, std::move(Args));
 
   AST::Component::InstanceSection InstSec;
@@ -140,15 +136,11 @@ TEST(ComponentValidatorTest, TypeMismatch) {
   SortIdx.getSort() = AST::Component::SortCase::Component;
   SortIdx.getSortIdx() = 0;
 
-  AST::Component::InstantiateArg<
-      AST::Component::SortIndex<AST::Component::Sort>>
-      InstArg;
+  AST::Component::InstantiateArg InstArg;
   InstArg.getName() = "f";
   InstArg.getIndex() = SortIdx;
 
-  std::vector<AST::Component::InstantiateArg<
-      AST::Component::SortIndex<AST::Component::Sort>>>
-      Args = {InstArg};
+  std::vector<AST::Component::InstantiateArg> Args = {InstArg};
   AST::Component::Instantiate Inst(0, std::move(Args));
 
   AST::Component::InstanceSection InstSec;

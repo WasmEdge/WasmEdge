@@ -7,7 +7,7 @@ namespace Loader {
 
 using namespace AST::Component;
 
-Expect<void> Loader::loadInstantiateArg(InstantiateArg<SortIndex<Sort>> &Arg) {
+Expect<void> Loader::loadInstantiateArg(InstantiateArg &Arg) {
   // syntax `(with n si)`
   //
   // instantiatearg ::= n:<string>  si:<sortidx>
@@ -15,7 +15,7 @@ Expect<void> Loader::loadInstantiateArg(InstantiateArg<SortIndex<Sort>> &Arg) {
   return loadSortIndex(Arg.getIndex());
 }
 
-Expect<void> Loader::loadInlineExport(InlineExport<Sort> &Exp) {
+Expect<void> Loader::loadInlineExport(InlineExportImpl<Sort> &Exp) {
   EXPECTED_TRY(Exp.getName(), FMgr.readName());
   return loadSortIndex(Exp.getSortIdx());
 }
@@ -39,7 +39,7 @@ Expect<void> Loader::loadInstantiateArg(CoreInstantiateArg &Arg) {
   return {};
 }
 
-Expect<void> Loader::loadInlineExport(InlineExport<CoreSort> &Exp) {
+Expect<void> Loader::loadInlineExport(InlineExportImpl<CoreSort> &Exp) {
   EXPECTED_TRY(Exp.getName(), FMgr.readName());
   return loadCoreSortIndex(Exp.getSortIdx());
 }
@@ -53,9 +53,9 @@ Expect<void> Loader::loadInstance(InstanceExpr &InstanceExpr) {
   switch (Tag) {
   case 0x00: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
-    std::vector<InstantiateArg<SortIndex<Sort>>> Args{};
+    std::vector<InstantiateArg> Args{};
     EXPECTED_TRY(loadVec<InstanceSection>(
-        Args, [this](InstantiateArg<SortIndex<Sort>> &Arg) -> Expect<void> {
+        Args, [this](InstantiateArg &Arg) -> Expect<void> {
           return loadInstantiateArg(Arg);
         }));
 
@@ -63,13 +63,13 @@ Expect<void> Loader::loadInstance(InstanceExpr &InstanceExpr) {
     break;
   }
   case 0x01: {
-    std::vector<InlineExport<Sort>> Exports{};
+    std::vector<InlineExportImpl<Sort>> Exports{};
     EXPECTED_TRY(
-        loadVec<InstanceSection>(Exports, [this](InlineExport<Sort> &Arg) {
+        loadVec<InstanceSection>(Exports, [this](InlineExportImpl<Sort> &Arg) {
           return loadInlineExport(Arg);
         }));
 
-    InstanceExpr.emplace<CompInlineExports>(InlineExports(Exports));
+    InstanceExpr.emplace<InlineExports>(std::move(Exports));
     break;
   }
   default:
@@ -100,12 +100,13 @@ Expect<void> Loader::loadCoreInstance(CoreInstanceExpr &InstanceExpr) {
     break;
   }
   case 0x01: {
-    std::vector<InlineExport<CoreSort>> Exports{};
+    std::vector<InlineExportImpl<CoreSort>> Exports{};
     EXPECTED_TRY(loadVec<CoreInstanceSection>(
-        Exports,
-        [this](InlineExport<CoreSort> &Arg) { return loadInlineExport(Arg); }));
+        Exports, [this](InlineExportImpl<CoreSort> &Arg) {
+          return loadInlineExport(Arg);
+        }));
 
-    InstanceExpr.emplace<CoreInlineExports>(CoreInlineExports(Exports));
+    InstanceExpr.emplace<CoreInlineExports>(std::move(Exports));
 
     break;
   }

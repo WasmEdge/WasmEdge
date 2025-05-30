@@ -4,7 +4,7 @@ This is an example to demonstrate how to use the `wasmedge-zlib` plugin of WasmE
 
 ## Prerequisites
 
-You need three main components:
+You need four main components:
 
 1. Emscripten SDK (for compiling to WebAssembly)
 
@@ -12,12 +12,14 @@ You need three main components:
 
 3. wasmedge-zlib plugin
 
+4. wit-bindgen (for generating bindings on the fly)
+
 ### Check missing
 
 
 The project includes a Makefile that can check for dependencies
 ```bash
-make all # Check what's missing
+make check-all-tools
 ```
 
 ### Install Emscripten SDK (C++ Compiler Toolkit for wasm targets)
@@ -34,7 +36,7 @@ source ./emsdk_env.sh # Only this shell will be able to use emscripten.
 
 ### Install WasmEdge and WASMEDGE-zlib plugin
 
-**Note**: if you install WasmEdge using the install script, you need to download `wasmedge-zlib` plugin from the [release page](https://github.com/WasmEdge/WasmEdge/releases/) and put it into `$HOME/.wasmedge/plugin/`.
+**Note**: If you install WasmEdge using the installation script, you need to download `wasmedge-zlib` plugin from the [release page](https://github.com/WasmEdge/WasmEdge/releases/) and put it into `$HOME/.wasmedge/plugin/`.
 
 Or you can build Wasmedge from scratch with `wasmedge-zlib` plugin enabled.
 
@@ -67,18 +69,72 @@ make help # Show all available targets
 
 ## Manually Build and Run the example as a WASM Module
 
+#### First generate the bindings
+
 ```bash
 cd ../examples/plugin/wasmedge-zlib/
-mkdir build
-em++ main.cpp -O2 -o build/main.wasm -sSTANDALONE_WASM -sWARN_ON_UNDEFINED_SYMBOLS=0
+mkdir -p bindings
+wit-bindgen c wit --out-dir bindings
 ```
 
-Then we get `build/main.wasm`.
+#### Sanitize the .c file
+
+```bash
+awk -v sanitize_chars_regex='[:/@#%.]' '
+{
+  line = $0; processed_line = 0;
+  prefix_end_marker = "__export_name__(\"";
+  start_pos = index(line, prefix_end_marker);
+  if (start_pos > 0) {
+    name_start_pos = start_pos + length(prefix_end_marker);
+    name_and_suffix_part = substr(line, name_start_pos);
+    closing_quote_pos_in_suffix = index(name_and_suffix_part, "\"");
+    if (closing_quote_pos_in_suffix > 0) {
+      name_to_sanitize = substr(name_and_suffix_part, 1, closing_quote_pos_in_suffix - 1);
+      prefix = substr(line, 1, name_start_pos - 1);
+      suffix = substr(name_and_suffix_part, closing_quote_pos_in_suffix);
+      sanitized_name = name_to_sanitize;
+      gsub(sanitize_chars_regex, "_", sanitized_name);
+      print prefix sanitized_name suffix;
+      processed_line = 1;
+    }
+  }
+  if (processed_line == 0) print line;
+}' bindings/zlib_component.c > bindings/zlib_component.c.tmp && mv bindings/zlib_component.c.tmp bindings/zlib_component.c
+```
+
+#### Build and Link the wasm
+
+```bash
+mkdir -p build/wasm
+
+# Compile C++ source
+em++ -O2 -std=c++17 -Wall -Wextra \
+  -sWARN_ON_UNDEFINED_SYMBOLS=0 \
+  -Ibindings \
+  -c main.cpp -o build/wasm/main.o
+
+# Compile generated bindings
+emcc -O2 -Wall -Wextra \
+  -sWARN_ON_UNDEFINED_SYMBOLS=0 \
+  -Ibindings \
+  -c bindings/zlib_component.c -o build/wasm/zlib_component_bindings.o
+
+# Link with bindings component_type.o
+em++ -O2 -sSTANDALONE_WASM -sWARN_ON_UNDEFINED_SYMBOLS=0 \
+  build/wasm/main.o \
+  build/wasm/zlib_component_bindings.o \
+  bindings/zlib_component_component_type.o \
+  -o build/wasm/main.wasm
+```
+
+Then we get `build/wasm/main.wasm`.
 
 We can run this example with `Wasmedge` with the following command
 
 ```bash
-../../../build/tools/wasmedge/wasmedge build/main.wasm
+../../../build/tools/wasmedge/wasmedge build/wasm/main.wasm # wasmedge built from this repo
+wasmedge build/wasm/main.wasm # wasmedge from path(global)
 ```
 
 ## Manually Build and Run the example as a Native executable
@@ -86,9 +142,10 @@ We can run this example with `Wasmedge` with the following command
 ```bash
 apt install zlib1g-dev # For Ubuntu / Debian distros | Try zlib-devel for fedora | Try `brew install zlib` for macOS
 cd ../examples/plugin/wasmedge-zlib/
-mkdir build
-g++ main.cpp -o build/main -lz
-./build/main
+mkdir -p build/native
+g++ -O2 -std=c++17 -Wall -Wextra \
+main.cpp -o build/native/zlib_test_native -lz
+./build/native/zlib_test_native
 ```
 
 ## Expected Output

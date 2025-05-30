@@ -1,5 +1,5 @@
-package wasmedge:zlib;
+package example:zlib@0.1.0;
 
-world compression {
-    import zlib;
+world zlib-component {
+    export compressor;
 }

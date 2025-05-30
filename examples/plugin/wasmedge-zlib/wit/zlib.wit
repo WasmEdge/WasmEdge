@@ -1,49 +1,18 @@
-/// WASI Zlib provides compression and decompression functionality using the zlib algorithm
-interface zlib {
-    /// Compression level for deflate operations
-    enum compression-level {
-        /// Let zlib choose the default compression level
-        default,
-        /// No compression
-        no-compression,
-        /// Best speed
-        best-speed,
-        /// Best compression
-        best-compression,
-    }
+// Define the interface that our Wasm module will export.
+interface compressor {
+    /// Compresses a list of bytes using a deflate-like algorithm.
+    ///
+    /// Takes a list of bytes as input.
+    /// Returns a result:
+    /// - Ok: a list of compressed bytes.
+    /// - Err: a string describing the error.
+    deflate: func(input: list<u8>) -> result<list<u8>, string>;
 
-    /// Error codes that can be returned by zlib operations
-    enum error {
-        /// Operation completed successfully
-        ok,
-        /// End of stream reached
-        stream-end,
-        /// Stream error occurred
-        stream-error,
-        /// Memory error occurred
-        memory-error,
-        /// Data error occurred
-        data-error,
-    }
-
-    /// A record containing compression/decompression results
-    record compressresult {
-        /// The error code of the operation
-        error: error,
-        /// The output data buffer
-        data: list<u8>,
-    }
-
-    /// Compress data using deflate
-    /// 
-    /// # Parameters
-    /// * `input`: The input data to compress
-    /// * `level`: The compression level to use
-    deflate: func(input: list<u8>, level: compression-level) -> result;
-
-    /// Decompress data using inflate
-    /// 
-    /// # Parameters
-    /// * `input`: The compressed input data to decompress
-    inflate: func(input: list<u8>) -> result;
+    /// Decompresses a list of bytes using an inflate-like algorithm.
+    ///
+    /// Takes a list of (presumably) compressed bytes as input.
+    /// Returns a result:
+    /// - Ok: a list of decompressed bytes.
+    /// - Err: a string describing the error.
+    inflate: func(input: list<u8>) -> result<list<u8>, string>;
 }

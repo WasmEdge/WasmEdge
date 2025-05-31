@@ -14,8 +14,8 @@
 #include "bindings/zlib_component.h"
 #endif
 
-// NOTE: Some function signatures, structs etc need to be same as the ones in zlib_component.h
-// example: `bool exports_example_zlib_compressor_deflate(...)`
+// NOTE: Some function signatures, structs etc need to be same as the ones in
+// zlib_component.h example: `bool exports_example_zlib_compressor_deflate(...)`
 // This is to ensure that the C ABI layer can call these functions correctly.
 // This is also true for some extern "C" functions.
 
@@ -26,26 +26,28 @@
 extern "C" {
 #ifdef __EMSCRIPTEN__
 // Wasm imports for Emscripten builds
-__attribute__((import_module("wasmedge_zlib"))) int32_t compress(
-    uint8_t *dest, size_t *destLen, const uint8_t *source, size_t sourceLen);
+__attribute__((import_module("wasmedge_zlib"))) int32_t
+compress(uint8_t *dest, size_t *destLen, const uint8_t *source,
+         size_t sourceLen);
 
-__attribute__((import_module("wasmedge_zlib"))) int32_t uncompress(
-    uint8_t *dest, size_t *destLen, const uint8_t *source, size_t sourceLen);
+__attribute__((import_module("wasmedge_zlib"))) int32_t
+uncompress(uint8_t *dest, size_t *destLen, const uint8_t *source,
+           size_t sourceLen);
 
 // Define our internal compress/uncompress to call the Wasm imports
 int32_t zlibCustomCompress(uint8_t *Dest, size_t *DestLen,
-                             const uint8_t *Source, size_t SourceLen) {
+                           const uint8_t *Source, size_t SourceLen) {
   return compress(Dest, DestLen, Source, SourceLen);
 }
 int32_t zlibCustomUncompress(uint8_t *Dest, size_t *DestLen,
-                               const uint8_t *Source, size_t SourceLen) {
+                             const uint8_t *Source, size_t SourceLen) {
   return uncompress(Dest, DestLen, Source, SourceLen);
 }
 
 #else
 // Native zlib wrapper functions
 int32_t zlibCustomCompress(uint8_t *Dest, size_t *DestLen,
-                             const uint8_t *Source, size_t SourceLen) {
+                           const uint8_t *Source, size_t SourceLen) {
   uLongf ZDestLen = *DestLen;
   int Ret = ::compress(Dest, &ZDestLen, Source, (uLong)SourceLen);
   if (Ret == Z_OK) {
@@ -56,7 +58,7 @@ int32_t zlibCustomCompress(uint8_t *Dest, size_t *DestLen,
 }
 
 int32_t zlibCustomUncompress(uint8_t *Dest, size_t *DestLen,
-                               const uint8_t *Source, size_t SourceLen) {
+                             const uint8_t *Source, size_t SourceLen) {
   uLongf ZDestLen = *DestLen;
   int Ret = ::uncompress(Dest, &ZDestLen, Source, (uLong)SourceLen);
   if (Ret == Z_OK) {
@@ -182,9 +184,8 @@ bool exports_example_zlib_compressor_deflate(zlib_component_list_u8_t *input,
   std::vector<uint8_t> CompressedData(DestLenEstimate);
   size_t ActualDestLen = DestLenEstimate;
 
-  int32_t ResultCode =
-      zlibCustomCompress(CompressedData.data(), &ActualDestLen,
-                           SourceData.data(), SourceData.size());
+  int32_t ResultCode = zlibCustomCompress(CompressedData.data(), &ActualDestLen,
+                                          SourceData.data(), SourceData.size());
 
   if (ResultCode == 0) { // Success
     CompressedData.resize(ActualDestLen);
@@ -199,8 +200,7 @@ bool exports_example_zlib_compressor_deflate(zlib_component_list_u8_t *input,
     return true;
   } else {
     strToComponentString(
-        formatErrorHelper("Compression failed with error code: ",
-                          ResultCode),
+        formatErrorHelper("Compression failed with error code: ", ResultCode),
         ret_err);
     ret_ok->ptr = nullptr;
     ret_ok->len = 0;
@@ -245,10 +245,9 @@ bool exports_example_zlib_compressor_inflate(zlib_component_list_u8_t *input,
 
   int32_t ResultCode =
       zlibCustomUncompress(DecompressedData.data(), &ActualDestLen,
-                             SourceData.data(), SourceData.size());
+                           SourceData.data(), SourceData.size());
 
-  if (ResultCode == -5 /* Z_BUF_ERROR */ &&
-      ActualDestLen == DestLenEstimate) {
+  if (ResultCode == -5 /* Z_BUF_ERROR */ && ActualDestLen == DestLenEstimate) {
     size_t LargerDestLenEstimate = DestLenEstimate;
     if (SourceData.size() * 10 > LargerDestLenEstimate) {
       LargerDestLenEstimate = SourceData.size() * 10;
@@ -267,9 +266,8 @@ bool exports_example_zlib_compressor_inflate(zlib_component_list_u8_t *input,
               LargerDestLenEstimate, DestLenEstimate);
       DecompressedData.resize(LargerDestLenEstimate);
       ActualDestLen = LargerDestLenEstimate;
-      ResultCode =
-          zlibCustomUncompress(DecompressedData.data(), &ActualDestLen,
-                                 SourceData.data(), SourceData.size());
+      ResultCode = zlibCustomUncompress(DecompressedData.data(), &ActualDestLen,
+                                        SourceData.data(), SourceData.size());
     }
   }
 
@@ -286,8 +284,7 @@ bool exports_example_zlib_compressor_inflate(zlib_component_list_u8_t *input,
     return true;
   } else {
     strToComponentString(
-        formatErrorHelper("Decompression failed with error code: ",
-                          ResultCode),
+        formatErrorHelper("Decompression failed with error code: ", ResultCode),
         ret_err);
     ret_ok->ptr = nullptr;
     ret_ok->len = 0;
@@ -319,7 +316,7 @@ int test() {
   std::vector<uint8_t> Compressed(CompressedSize);
   // Use zlibCustomCompress
   int32_t Result = zlibCustomCompress(Compressed.data(), &CompressedSize,
-                                        Data.data(), Data.size());
+                                      Data.data(), Data.size());
   if (Result != 0) {
     std::cerr << "Compression failed with error code: " << Result << std::endl;
     return 1;
@@ -335,7 +332,7 @@ int test() {
 
   // Use zlibCustomUncompress
   Result = zlibCustomUncompress(Decompressed.data(), &DecompressedSize,
-                                  Compressed.data(), Compressed.size());
+                                Compressed.data(), Compressed.size());
   if (Result != 0) {
     std::cerr << "Decompression failed with error code: " << Result
               << std::endl;

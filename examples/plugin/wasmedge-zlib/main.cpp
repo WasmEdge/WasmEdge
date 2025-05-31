@@ -26,13 +26,11 @@
 extern "C" {
 #ifdef __EMSCRIPTEN__
 // Wasm imports for Emscripten builds
-__attribute__((import_module("wasmedge_zlib"))) int32_t
-compress(uint8_t *dest, size_t *destLen, const uint8_t *source,
-         size_t sourceLen);
+__attribute__((import_module("wasmedge_zlib"))) int32_t compress(
+    uint8_t *dest, size_t *destLen, const uint8_t *source, size_t sourceLen);
 
-__attribute__((import_module("wasmedge_zlib"))) int32_t
-uncompress(uint8_t *dest, size_t *destLen, const uint8_t *source,
-           size_t sourceLen);
+__attribute__((import_module("wasmedge_zlib"))) int32_t uncompress(
+    uint8_t *dest, size_t *destLen, const uint8_t *source, size_t sourceLen);
 
 // Define our internal compress/uncompress to call the Wasm imports
 int32_t zlibCustomCompress(uint8_t *Dest, size_t *DestLen,

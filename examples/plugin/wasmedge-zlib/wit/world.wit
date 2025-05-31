@@ -1,0 +1,5 @@
+package example:zlib@0.1.0;
+
+world zlib-component {
+    export compressor;
+}

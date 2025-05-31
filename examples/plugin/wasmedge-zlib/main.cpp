@@ -14,6 +14,11 @@
 #include "bindings/zlib_component.h"
 #endif
 
+// NOTE: Some function signatures, structs etc need to be same as the ones in zlib_component.h
+// example: `bool exports_example_zlib_compressor_deflate(...)`
+// This is to ensure that the C ABI layer can call these functions correctly.
+// This is also true for some extern "C" functions.
+
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // ZLIB Function Implementations
 // These are used by the test() function directly.
@@ -28,37 +33,37 @@ __attribute__((import_module("wasmedge_zlib"))) int32_t uncompress(
     uint8_t *dest, size_t *destLen, const uint8_t *source, size_t sourceLen);
 
 // Define our internal compress/uncompress to call the Wasm imports
-int32_t zlib_custom_compress(uint8_t *dest, size_t *destLen,
-                             const uint8_t *source, size_t sourceLen) {
-  return compress(dest, destLen, source, sourceLen);
+int32_t zlibCustomCompress(uint8_t *Dest, size_t *DestLen,
+                             const uint8_t *Source, size_t SourceLen) {
+  return compress(Dest, DestLen, Source, SourceLen);
 }
-int32_t zlib_custom_uncompress(uint8_t *dest, size_t *destLen,
-                               const uint8_t *source, size_t sourceLen) {
-  return uncompress(dest, destLen, source, sourceLen);
+int32_t zlibCustomUncompress(uint8_t *Dest, size_t *DestLen,
+                               const uint8_t *Source, size_t SourceLen) {
+  return uncompress(Dest, DestLen, Source, SourceLen);
 }
 
 #else
 // Native zlib wrapper functions
-int32_t zlib_custom_compress(uint8_t *dest, size_t *destLen,
-                             const uint8_t *source, size_t sourceLen) {
-  uLongf z_destLen = *destLen;
-  int ret = ::compress(dest, &z_destLen, source, (uLong)sourceLen);
-  if (ret == Z_OK) {
-    *destLen = (size_t)z_destLen;
+int32_t zlibCustomCompress(uint8_t *Dest, size_t *DestLen,
+                             const uint8_t *Source, size_t SourceLen) {
+  uLongf ZDestLen = *DestLen;
+  int Ret = ::compress(Dest, &ZDestLen, Source, (uLong)SourceLen);
+  if (Ret == Z_OK) {
+    *DestLen = (size_t)ZDestLen;
     return 0;
   }
-  return ret;
+  return Ret;
 }
 
-int32_t zlib_custom_uncompress(uint8_t *dest, size_t *destLen,
-                               const uint8_t *source, size_t sourceLen) {
-  uLongf z_destLen = *destLen;
-  int ret = ::uncompress(dest, &z_destLen, source, (uLong)sourceLen);
-  if (ret == Z_OK) {
-    *destLen = (size_t)z_destLen;
+int32_t zlibCustomUncompress(uint8_t *Dest, size_t *DestLen,
+                               const uint8_t *Source, size_t SourceLen) {
+  uLongf ZDestLen = *DestLen;
+  int Ret = ::uncompress(Dest, &ZDestLen, Source, (uLong)SourceLen);
+  if (Ret == Z_OK) {
+    *DestLen = (size_t)ZDestLen;
     return 0;
   }
-  return ret;
+  return Ret;
 }
 #endif
 } // extern "C"
@@ -68,8 +73,8 @@ int32_t zlib_custom_uncompress(uint8_t *dest, size_t *destLen,
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 #ifdef __EMSCRIPTEN__
 
-static std::string format_error_helper(const char *prefix, int32_t code) {
-  return std::string(prefix) + std::to_string(code);
+static std::string formatErrorHelper(const char *Prefix, int32_t Code) {
+  return std::string(Prefix) + std::to_string(Code);
 }
 
 extern "C" {
@@ -106,40 +111,40 @@ canonical_abi_free(void *ptr, size_t size, size_t align) {
 }
 
 // Helper function to convert std::vector<uint8_t> to zlib_component_list_u8_t
-static void vec_to_list_u8(const std::vector<uint8_t> &vec,
-                           zlib_component_list_u8_t *list) {
-  if (vec.empty()) {
-    list->ptr = nullptr;
-    list->len = 0;
+static void vecToListU8(const std::vector<uint8_t> &Vec,
+                        zlib_component_list_u8_t *List) {
+  if (Vec.empty()) {
+    List->ptr = nullptr;
+    List->len = 0;
     return;
   }
-  list->ptr =
-      static_cast<uint8_t *>(canonical_abi_realloc(nullptr, 0, 1, vec.size()));
-  if (list->ptr) {
-    memcpy(list->ptr, vec.data(), vec.size());
-    list->len = vec.size();
+  List->ptr =
+      static_cast<uint8_t *>(canonical_abi_realloc(nullptr, 0, 1, Vec.size()));
+  if (List->ptr) {
+    memcpy(List->ptr, Vec.data(), Vec.size());
+    List->len = Vec.size();
   } else {
-    list->len = 0; // Allocation failed
+    List->len = 0; // Allocation failed
     fprintf(stderr, "ABI Layer Error: Memory allocation failed for list_u8_t "
                     "conversion.\n");
   }
 }
 
 // Helper function to convert std::string to zlib_component_string_t
-static void str_to_component_string(const std::string &str,
-                                    zlib_component_string_t *comp_str) {
-  if (str.empty()) {
-    comp_str->ptr = nullptr;
-    comp_str->len = 0;
+static void strToComponentString(const std::string &Str,
+                                 zlib_component_string_t *CompStr) {
+  if (Str.empty()) {
+    CompStr->ptr = nullptr;
+    CompStr->len = 0;
     return;
   }
-  comp_str->ptr = static_cast<uint8_t *>(
-      canonical_abi_realloc(nullptr, 0, 1, str.length()));
-  if (comp_str->ptr) {
-    memcpy(comp_str->ptr, str.data(), str.length());
-    comp_str->len = str.length();
+  CompStr->ptr = static_cast<uint8_t *>(
+      canonical_abi_realloc(nullptr, 0, 1, Str.length()));
+  if (CompStr->ptr) {
+    memcpy(CompStr->ptr, Str.data(), Str.length());
+    CompStr->len = Str.length();
   } else {
-    comp_str->len = 0; // Allocation failed
+    CompStr->len = 0; // Allocation failed
     fprintf(
         stderr,
         "ABI Layer Error: Memory allocation failed for string conversion.\n");
@@ -149,20 +154,20 @@ static void str_to_component_string(const std::string &str,
 bool exports_example_zlib_compressor_deflate(zlib_component_list_u8_t *input,
                                              zlib_component_list_u8_t *ret_ok,
                                              zlib_component_string_t *ret_err) {
-  std::vector<uint8_t> source_data;
+  std::vector<uint8_t> SourceData;
   if (input->len > 0) {
     if (input->ptr == nullptr) {
-      std::string err_msg =
+      std::string ErrMsg =
           "Invalid input to deflate: non-zero length with null pointer.";
-      str_to_component_string(err_msg, ret_err);
+      strToComponentString(ErrMsg, ret_err);
       ret_ok->ptr = nullptr;
       ret_ok->len = 0;
       return false;
     }
-    source_data.assign(input->ptr, input->ptr + input->len);
+    SourceData.assign(input->ptr, input->ptr + input->len);
   }
 
-  if (source_data.empty()) {
+  if (SourceData.empty()) {
     ret_ok->ptr = nullptr;
     ret_ok->len = 0;
     ret_err->ptr = nullptr;
@@ -170,32 +175,32 @@ bool exports_example_zlib_compressor_deflate(zlib_component_list_u8_t *input,
     return true;
   }
 
-  size_t dest_len_estimate = source_data.size() * 2;
-  if (dest_len_estimate < 128)
-    dest_len_estimate = 128;
+  size_t DestLenEstimate = SourceData.size() * 2;
+  if (DestLenEstimate < 128)
+    DestLenEstimate = 128;
 
-  std::vector<uint8_t> compressed_data(dest_len_estimate);
-  size_t actual_dest_len = dest_len_estimate;
+  std::vector<uint8_t> CompressedData(DestLenEstimate);
+  size_t ActualDestLen = DestLenEstimate;
 
-  int32_t result_code =
-      zlib_custom_compress(compressed_data.data(), &actual_dest_len,
-                           source_data.data(), source_data.size());
+  int32_t ResultCode =
+      zlibCustomCompress(CompressedData.data(), &ActualDestLen,
+                           SourceData.data(), SourceData.size());
 
-  if (result_code == 0) { // Success
-    compressed_data.resize(actual_dest_len);
-    vec_to_list_u8(compressed_data, ret_ok);
-    if (actual_dest_len > 0 && ret_ok->ptr == nullptr && ret_ok->len == 0) {
-      str_to_component_string("Memory allocation failed for deflate Ok value.",
-                              ret_err);
+  if (ResultCode == 0) { // Success
+    CompressedData.resize(ActualDestLen);
+    vecToListU8(CompressedData, ret_ok);
+    if (ActualDestLen > 0 && ret_ok->ptr == nullptr && ret_ok->len == 0) {
+      strToComponentString("Memory allocation failed for deflate Ok value.",
+                           ret_err);
       return false;
     }
     ret_err->ptr = nullptr;
     ret_err->len = 0;
     return true;
   } else {
-    str_to_component_string(
-        format_error_helper("Compression failed with error code: ",
-                            result_code),
+    strToComponentString(
+        formatErrorHelper("Compression failed with error code: ",
+                          ResultCode),
         ret_err);
     ret_ok->ptr = nullptr;
     ret_ok->len = 0;
@@ -206,20 +211,20 @@ bool exports_example_zlib_compressor_deflate(zlib_component_list_u8_t *input,
 bool exports_example_zlib_compressor_inflate(zlib_component_list_u8_t *input,
                                              zlib_component_list_u8_t *ret_ok,
                                              zlib_component_string_t *ret_err) {
-  std::vector<uint8_t> source_data;
+  std::vector<uint8_t> SourceData;
   if (input->len > 0) {
     if (input->ptr == nullptr) {
-      std::string err_msg =
+      std::string ErrMsg =
           "Invalid input to inflate: non-zero length with null pointer.";
-      str_to_component_string(err_msg, ret_err);
+      strToComponentString(ErrMsg, ret_err);
       ret_ok->ptr = nullptr;
       ret_ok->len = 0;
       return false;
     }
-    source_data.assign(input->ptr, input->ptr + input->len);
+    SourceData.assign(input->ptr, input->ptr + input->len);
   }
 
-  if (source_data.empty()) {
+  if (SourceData.empty()) {
     ret_ok->ptr = nullptr;
     ret_ok->len = 0;
     ret_err->ptr = nullptr;
@@ -227,62 +232,62 @@ bool exports_example_zlib_compressor_inflate(zlib_component_list_u8_t *input,
     return true;
   }
 
-  size_t dest_len_estimate = source_data.size() * 4;
-  if (dest_len_estimate < 1024)
-    dest_len_estimate = 1024;
-  if (source_data.size() > (512 * 1024) &&
-      dest_len_estimate < source_data.size() * 8) {
-    dest_len_estimate = source_data.size() * 8;
+  size_t DestLenEstimate = SourceData.size() * 4;
+  if (DestLenEstimate < 1024)
+    DestLenEstimate = 1024;
+  if (SourceData.size() > (512 * 1024) &&
+      DestLenEstimate < SourceData.size() * 8) {
+    DestLenEstimate = SourceData.size() * 8;
   }
 
-  std::vector<uint8_t> decompressed_data(dest_len_estimate);
-  size_t actual_dest_len = dest_len_estimate;
+  std::vector<uint8_t> DecompressedData(DestLenEstimate);
+  size_t ActualDestLen = DestLenEstimate;
 
-  int32_t result_code =
-      zlib_custom_uncompress(decompressed_data.data(), &actual_dest_len,
-                             source_data.data(), source_data.size());
+  int32_t ResultCode =
+      zlibCustomUncompress(DecompressedData.data(), &ActualDestLen,
+                             SourceData.data(), SourceData.size());
 
-  if (result_code == -5 /* Z_BUF_ERROR */ &&
-      actual_dest_len == dest_len_estimate) {
-    size_t larger_dest_len_estimate = dest_len_estimate;
-    if (source_data.size() * 10 > larger_dest_len_estimate) {
-      larger_dest_len_estimate = source_data.size() * 10;
+  if (ResultCode == -5 /* Z_BUF_ERROR */ &&
+      ActualDestLen == DestLenEstimate) {
+    size_t LargerDestLenEstimate = DestLenEstimate;
+    if (SourceData.size() * 10 > LargerDestLenEstimate) {
+      LargerDestLenEstimate = SourceData.size() * 10;
     } else {
-      larger_dest_len_estimate *= 2;
+      LargerDestLenEstimate *= 2;
     }
-    const size_t MAX_DECOMPRESSION_BUFFER = 256 * 1024 * 1024;
-    if (larger_dest_len_estimate > MAX_DECOMPRESSION_BUFFER) {
-      larger_dest_len_estimate = MAX_DECOMPRESSION_BUFFER;
+    const size_t MaxDecompressionBuffer = 256 * 1024 * 1024;
+    if (LargerDestLenEstimate > MaxDecompressionBuffer) {
+      LargerDestLenEstimate = MaxDecompressionBuffer;
     }
 
-    if (larger_dest_len_estimate > dest_len_estimate) {
+    if (LargerDestLenEstimate > DestLenEstimate) {
       fprintf(stderr,
               "Decompression: Z_BUF_ERROR, retrying with larger buffer: %zu "
               "bytes (previous: %zu)\n",
-              larger_dest_len_estimate, dest_len_estimate);
-      decompressed_data.resize(larger_dest_len_estimate);
-      actual_dest_len = larger_dest_len_estimate;
-      result_code =
-          zlib_custom_uncompress(decompressed_data.data(), &actual_dest_len,
-                                 source_data.data(), source_data.size());
+              LargerDestLenEstimate, DestLenEstimate);
+      DecompressedData.resize(LargerDestLenEstimate);
+      ActualDestLen = LargerDestLenEstimate;
+      ResultCode =
+          zlibCustomUncompress(DecompressedData.data(), &ActualDestLen,
+                                 SourceData.data(), SourceData.size());
     }
   }
 
-  if (result_code == 0) { // Success
-    decompressed_data.resize(actual_dest_len);
-    vec_to_list_u8(decompressed_data, ret_ok);
-    if (actual_dest_len > 0 && ret_ok->ptr == nullptr && ret_ok->len == 0) {
-      str_to_component_string("Memory allocation failed for inflate Ok value.",
-                              ret_err);
+  if (ResultCode == 0) { // Success
+    DecompressedData.resize(ActualDestLen);
+    vecToListU8(DecompressedData, ret_ok);
+    if (ActualDestLen > 0 && ret_ok->ptr == nullptr && ret_ok->len == 0) {
+      strToComponentString("Memory allocation failed for inflate Ok value.",
+                           ret_err);
       return false;
     }
     ret_err->ptr = nullptr;
     ret_err->len = 0;
     return true;
   } else {
-    str_to_component_string(
-        format_error_helper("Decompression failed with error code: ",
-                            result_code),
+    strToComponentString(
+        formatErrorHelper("Decompression failed with error code: ",
+                          ResultCode),
         ret_err);
     ret_ok->ptr = nullptr;
     ret_ok->len = 0;
@@ -310,37 +315,37 @@ int test() {
   std::cout << "Compressing Buffer of size : " << DataSize << "B" << std::endl;
 
   // Test compression
-  size_t compressedSize = DataSize * 2;
-  std::vector<uint8_t> compressed(compressedSize);
-  // Use zlib_custom_compress
-  int32_t result = zlib_custom_compress(compressed.data(), &compressedSize,
+  size_t CompressedSize = DataSize * 2;
+  std::vector<uint8_t> Compressed(CompressedSize);
+  // Use zlibCustomCompress
+  int32_t Result = zlibCustomCompress(Compressed.data(), &CompressedSize,
                                         Data.data(), Data.size());
-  if (result != 0) {
-    std::cerr << "Compression failed with error code: " << result << std::endl;
+  if (Result != 0) {
+    std::cerr << "Compression failed with error code: " << Result << std::endl;
     return 1;
   }
-  compressed.resize(compressedSize);
+  Compressed.resize(CompressedSize);
 
-  std::cout << "Decompressing Buffer of size : " << compressed.size() << "B"
+  std::cout << "Decompressing Buffer of size : " << Compressed.size() << "B"
             << std::endl;
 
   // Test decompression
-  size_t decompressedSize = DataSize;
-  std::vector<uint8_t> decompressed(decompressedSize);
+  size_t DecompressedSize = DataSize;
+  std::vector<uint8_t> Decompressed(DecompressedSize);
 
-  // Use zlib_custom_uncompress
-  result = zlib_custom_uncompress(decompressed.data(), &decompressedSize,
-                                  compressed.data(), compressed.size());
-  if (result != 0) {
-    std::cerr << "Decompression failed with error code: " << result
+  // Use zlibCustomUncompress
+  Result = zlibCustomUncompress(Decompressed.data(), &DecompressedSize,
+                                  Compressed.data(), Compressed.size());
+  if (Result != 0) {
+    std::cerr << "Decompression failed with error code: " << Result
               << std::endl;
     return 1;
   }
-  decompressed.resize(decompressedSize);
+  Decompressed.resize(DecompressedSize);
 
-  bool const success = (Data == decompressed);
-  std::cout << (success ? "Success" : "Fail") << std::endl;
-  return success ? 0 : 1;
+  bool const Success = (Data == Decompressed);
+  std::cout << (Success ? "Success" : "Fail") << std::endl;
+  return Success ? 0 : 1;
 }
 
 int main() { return test(); }

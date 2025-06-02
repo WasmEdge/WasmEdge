@@ -11,9 +11,10 @@
 #include <common.h>
 #include <cstdlib>
 #include <fmt/ranges.h>
+#include <json-partial.h>
 #include <json-schema-to-grammar.h>
-#include <json.hpp>
 #include <llama.h>
+#include <mtmd-helper.h>
 #include <mtmd.h>
 #include <sampling.h>
 
@@ -2989,7 +2990,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         if (Payload.has_value()) {
           // Create the new image bitmap.
           mtmd::bitmap Bitmap(mtmd_helper_bitmap_init_from_buf(
-              Payload->first.data(), Payload->first.size()));
+              GraphRef.VisionContext.get(), Payload->first.data(),
+              Payload->first.size()));
           if (Bitmap.ptr == nullptr) {
             RET_ERROR(
                 ErrNo::InvalidArgument,
@@ -3004,8 +3006,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         LOG_DEBUG(GraphRef.EnableDebugLog,
                   "setInput: load the image bitmap from file: {}"sv,
                   CxtRef.Conf.ImagePath)
-        mtmd::bitmap Bitmap(
-            mtmd_helper_bitmap_init_from_file(CxtRef.Conf.ImagePath.c_str()));
+        mtmd::bitmap Bitmap(mtmd_helper_bitmap_init_from_file(
+            GraphRef.VisionContext.get(), CxtRef.Conf.ImagePath.c_str()));
         if (Bitmap.ptr == nullptr) {
           RET_ERROR(
               ErrNo::InvalidArgument,

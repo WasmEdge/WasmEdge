@@ -26,7 +26,7 @@ Expect<void> Loader::loadCanonicalOption(AST::Component::CanonOpt &C) {
   } break;
   default:
     return logLoadError(ErrCode::Value::UnknownCanonicalOption,
-                        FMgr.getLastOffset(), ASTNodeAttr::Canonical);
+                        FMgr.getLastOffset(), ASTNodeAttr::Comp_Canonical);
   }
 
   return {};
@@ -53,56 +53,56 @@ Expect<void> Loader::loadCanonical(AST::Component::Lower &C) {
 
 Expect<void> Loader::loadCanonical(AST::Component::Canon &C) {
   EXPECTED_TRY(auto Tag, FMgr.readByte().map_error([](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Canonical));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return E;
   }));
   switch (Tag) {
   case 0x00: {
     EXPECTED_TRY(auto B, FMgr.readByte().map_error([](auto E) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Canonical));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
       return E;
     }));
     if (unlikely(B != 0x00)) {
       return logLoadError(ErrCode::Value::MalformedCanonical,
-                          FMgr.getLastOffset(), ASTNodeAttr::Canonical);
+                          FMgr.getLastOffset(), ASTNodeAttr::Comp_Canonical);
     }
     EXPECTED_TRY(loadCanonical(C.emplace<Lift>()));
   } break;
   case 0x01: {
     EXPECTED_TRY(auto B, FMgr.readByte().map_error([](auto E) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Canonical));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
       return E;
     }));
     if (unlikely(B != 0x00)) {
       return logLoadError(ErrCode::Value::MalformedCanonical,
-                          FMgr.getLastOffset(), ASTNodeAttr::Canonical);
+                          FMgr.getLastOffset(), ASTNodeAttr::Comp_Canonical);
     }
     EXPECTED_TRY(loadCanonical(C.emplace<Lower>()));
   } break;
   case 0x02: {
     EXPECTED_TRY(auto Idx, FMgr.readU32().map_error([](auto E) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Canonical));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
       return E;
     }));
     C.emplace<ResourceNew>().getTypeIndex() = Idx;
   } break;
   case 0x03: {
     EXPECTED_TRY(auto Idx, FMgr.readU32().map_error([](auto E) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Canonical));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
       return E;
     }));
     C.emplace<ResourceDrop>().getTypeIndex() = Idx;
   } break;
   case 0x04: {
     EXPECTED_TRY(auto Idx, FMgr.readU32().map_error([](auto E) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Canonical));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
       return E;
     }));
     C.emplace<ResourceRep>().getTypeIndex() = Idx;
   } break;
   default:
     return logLoadError(ErrCode::Value::MalformedCanonical,
-                        FMgr.getLastOffset(), ASTNodeAttr::Canonical);
+                        FMgr.getLastOffset(), ASTNodeAttr::Comp_Canonical);
   }
 
   return {};

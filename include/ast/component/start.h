@@ -27,10 +27,6 @@ namespace Component {
 
 /// AST Component::Start node.
 class Start {
-  uint32_t FuncIdx;
-  std::vector<uint32_t> Args;
-  uint32_t Result;
-
 public:
   uint32_t getFunctionIndex() const noexcept { return FuncIdx; }
   uint32_t &getFunctionIndex() noexcept { return FuncIdx; }
@@ -38,6 +34,11 @@ public:
   std::vector<uint32_t> &getArguments() noexcept { return Args; }
   uint32_t getResult() const noexcept { return Result; }
   uint32_t &getResult() noexcept { return Result; }
+
+private:
+  uint32_t FuncIdx;
+  std::vector<uint32_t> Args;
+  uint32_t Result;
 };
 
 } // namespace Component

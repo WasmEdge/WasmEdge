@@ -107,9 +107,9 @@ using InlineExports = InlineExportImplVec<Sort>;
 /// AST Component::CoreInstantiate class.
 class CoreInstantiate {
 public:
-  CoreInstantiate() noexcept : ModuleIdx{0}, Args{} {}
-  CoreInstantiate(uint32_t Idx, std::vector<CoreInstantiateArg> Args) noexcept
-      : ModuleIdx{Idx}, Args{Args} {}
+  CoreInstantiate() noexcept : ModuleIdx(0) {}
+  CoreInstantiate(uint32_t Idx, std::vector<CoreInstantiateArg> &&Args) noexcept
+      : ModuleIdx(Idx), Args(std::move(Args)) {}
 
   uint32_t getModuleIdx() const noexcept { return ModuleIdx; }
   Span<const CoreInstantiateArg> getArgs() const noexcept { return Args; }
@@ -122,15 +122,15 @@ private:
 /// AST Component::Instantiate class.
 class Instantiate {
 public:
-  Instantiate() noexcept : ComponentIndex{0}, Args{} {}
+  Instantiate() noexcept : ComponentIdx(0) {}
   Instantiate(uint32_t Idx, std::vector<InstantiateArg> &&Args) noexcept
-      : ComponentIndex{Idx}, Args{std::move(Args)} {}
+      : ComponentIdx(Idx), Args{std::move(Args)} {}
 
-  uint32_t getComponentIdx() const noexcept { return ComponentIndex; }
+  uint32_t getComponentIdx() const noexcept { return ComponentIdx; }
   Span<const InstantiateArg> getArgs() const noexcept { return Args; }
 
 private:
-  uint32_t ComponentIndex;
+  uint32_t ComponentIdx;
   std::vector<InstantiateArg> Args;
 };
 

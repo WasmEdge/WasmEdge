@@ -6,17 +6,20 @@
 namespace WasmEdge {
 namespace Loader {
 
-using namespace AST::Component;
+Expect<void> Loader::loadStart(AST::Component::Start &S) {
+  auto ReportError = [this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Start);
+  };
+  // start ::= f:<funcidx> arg*:vec(<valueidx>) r:<u32>
+  //         => (start f (value arg)* (result (value))ʳ)
 
-Expect<void> Loader::loadStart(Start &S) {
-  EXPECTED_TRY(S.getFunctionIndex(), FMgr.readU32());
-
-  auto F = [this](uint32_t &V) -> Expect<void> {
-    EXPECTED_TRY(V, FMgr.readU32());
+  EXPECTED_TRY(S.getFunctionIndex(), FMgr.readU32().map_error(ReportError));
+  auto F = [this, ReportError](uint32_t &V) -> Expect<void> {
+    EXPECTED_TRY(V, FMgr.readU32().map_error(ReportError));
     return {};
   };
-  EXPECTED_TRY(loadVec<StartSection>(S.getArguments(), F));
-  EXPECTED_TRY(S.getResult(), FMgr.readU32());
+  EXPECTED_TRY(loadVec<AST::Component::Start>(S.getArguments(), F));
+  EXPECTED_TRY(S.getResult(), FMgr.readU32().map_error(ReportError));
   return {};
 }
 

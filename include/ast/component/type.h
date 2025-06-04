@@ -66,10 +66,11 @@ enum class PrimValType : Byte {
   U32 = 0x79,
   S64 = 0x78,
   U64 = 0x77,
-  Float32 = 0x76,
-  Float64 = 0x75,
+  F32 = 0x76,
+  F64 = 0x75,
   Char = 0x74,
-  String = 0x73
+  String = 0x73,
+  ErrorContext = 0x64,
 };
 
 // valtype ::= i:<typeidx>       => i
@@ -263,6 +264,22 @@ private:
 // TODO: COMPONENT - StreamTy and FutureTy
 // TODO: COMPONENT - Refactor the DefValType into a class
 
+// defvaltype ::= pvt:<primvaltype>          => pvt
+//              | 0x72 lt*:vec(<labelvaltype>)
+//                => (record (field lt)*) (if |lt*| > 0)
+//              | 0x71 case*:vec(<case>) => (variant case+) (if |case*| > 0)/
+//              | 0x70 t:<valtype>           => (list t)
+//              | 0x67 t:<valtype> len:<u32> => (list t len) (if len > 0) 🔧
+//              | 0x6f t*:vec(<valtype>)     => (tuple t+) (if |t*| > 0)
+//              | 0x6e l*:vec(<label'>)      => (flags l+) (if 0 < |l*| <= 32)
+//              | 0x6d l*:vec(<label'>)      => (enum l+) (if |l*| > 0)
+//              | 0x6b t:<valtype>           => (option t)
+//              | 0x6a t?:<valtype>? u?:<valtype>? => (result t? (error u)?)
+//              | 0x69 i:<typeidx>           => (own i)
+//              | 0x68 i:<typeidx>           => (borrow i)
+//              | 0x66 t?:<valtype>?         => (stream t?) 🔀
+//              | 0x65 t?:<valtype>?         => (future t?) 🔀
+
 /// AST Component::DefValType aliasing.
 using DefValType =
     std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, FlagsTy,
@@ -274,6 +291,20 @@ using DefValType =
 
 // resultlist ::= 0x00 t:<valtype> => (result t)
 //              | 0x01 0x00        => ϵ
+
+/// FROM:
+/// https://github.com/WebAssembly/component-model/blob/main/design/mvp/CanonicalABI.md#flattening
+///
+/// The number of flattened results is currently limited to 1 due to various
+/// parts of the toolchain (notably the C ABI) not yet being able to express
+/// multi-value returns. Hopefully this limitation is temporary and can be
+/// lifted before the Component Model is fully standardized.
+///
+/// NOTE:
+/// The original resultlist grammar:
+///
+/// resultlist ::= 0x00 t:<valtype>             => (result t)
+///              | 0x01 lt*:vec(<labelvaltype>) => (result lt)*
 
 // AST Component::ResultList aliasing.
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
@@ -357,20 +388,33 @@ private:
 
 class CoreType;
 /// AST Component::ModuleDecl aliasing.
-using ModuleDecl =
+using CoreModuleDecl =
     std::variant<ImportDesc, std::shared_ptr<CoreType>, Alias, CoreExportDecl>;
 
 // core:moduletype ::= 0x50 md*:vec(<core:moduledecl>) => (module md*)
 
-/// AST Component::ModuleType node.
-class ModuleType {
+/// AST Component::CoreModuleType node.
+class CoreModuleType {
 public:
-  Span<const ModuleDecl> getContent() const noexcept { return Decls; }
-  std::vector<ModuleDecl> &getContent() noexcept { return Decls; }
+  Span<const CoreModuleDecl> getContent() const noexcept { return Decls; }
+  std::vector<CoreModuleDecl> &getContent() noexcept { return Decls; }
 
 private:
-  std::vector<ModuleDecl> Decls;
+  std::vector<CoreModuleDecl> Decls;
 };
+
+/// FROM:
+/// https://github.com/WebAssembly/component-model/blob/main/design/mvp/Binary.md#type-definitions
+///
+/// Unfortunately, the `core:deftype` rule results in an encoding ambiguity: the
+/// `0x50` opcode is used by both `core:moduletype` and a non-final
+/// `core:subtype`, which can be decoded as a top-level form of `core:rectype`.
+///
+/// To resolve this, prior to v1.0 of this specification, we require
+/// `core:subtype` to be prefixed by `0x00` in this context (i.e., a non-final
+/// sub as a component core type is `0x00 0x50`; elsewhere, `0x50`). By the v1.0
+/// release of this specification, `core:moduletype` will receive a new,
+/// non-overlapping opcode.
 
 // core:deftype ::= rt:<core:rectype>
 //                => rt (WebAssembly 3.0)
@@ -381,7 +425,7 @@ private:
 
 // TODO: COMPONENT - Apply the GC proposal: use AST::SubType instead.
 /// AST Component::CoreDefType aliasing.
-using CoreDefType = std::variant<WasmEdge::AST::FunctionType, ModuleType>;
+using CoreDefType = std::variant<WasmEdge::AST::FunctionType, CoreModuleType>;
 
 // core:type ::= dt:<core:deftype> => (type dt)
 
@@ -405,6 +449,10 @@ private:
 //              | 0x03 b:<typebound>         => (type b)
 //              | 0x04 i:<typeidx>           => (component (type i))
 //              | 0x05 i:<typeidx>           => (instance (type i))
+// valuebound ::= 0x00 i:<valueidx>          => (eq i) 🪙
+//              | 0x01 t:<valtype>           => t 🪙
+// typebound  ::= 0x00 i:<typeidx>           => (eq i)
+//              | 0x01                       => (sub resource)
 
 /// AST Component::IndexKind enum. (For DescTypeIndex using)
 enum class IndexKind : Byte {
@@ -456,7 +504,8 @@ using ExternDesc = std::variant<DescTypeIndex, TypeBound, ValueType>;
 
 // TODO: COMPONENT - Refactor the entire ExportDesc structure.
 
-// exportdecl ::= en:<exportname'> ed:<externdesc> => (export en ed)
+// exportdecl  ::= en:<exportname'> ed:<externdesc> => (export en ed)
+// exportname' ::= 0x00 len:<u32> en:<exportname>   => en (if len = |en|)
 
 /// AST Component::ExportDecl node.
 class ExportDecl {
@@ -496,7 +545,8 @@ public:
 // Part 5: ComponentType and the child types definitions.
 // =============================================================================
 
-// importdecl ::= in:<importname'> ed:<externdesc> => (import in ed)
+// importdecl  ::= in:<importname'> ed:<externdesc> => (import in ed)
+// importname' ::= 0x00 len:<u32> in:<importname>   => in (if len = |in|)
 
 /// AST Component::ImportDecl node.
 class ImportDecl {
@@ -620,9 +670,9 @@ struct fmt::formatter<WasmEdge::AST::Component::PrimValType>
       return formatter<std::string_view>::format("s64"sv, Ctx);
     case PrimValType::U64:
       return formatter<std::string_view>::format("u64"sv, Ctx);
-    case PrimValType::Float32:
+    case PrimValType::F32:
       return formatter<std::string_view>::format("float32"sv, Ctx);
-    case PrimValType::Float64:
+    case PrimValType::F64:
       return formatter<std::string_view>::format("float64"sv, Ctx);
     case PrimValType::Char:
       return formatter<std::string_view>::format("char"sv, Ctx);
@@ -912,7 +962,7 @@ struct fmt::formatter<WasmEdge::AST::Component::CoreType>
                      fmt::format_to(std::back_inserter(Buffer),
                                     "core:function type"sv);
                    },
-                   [&](const AST::Component::ModuleType &) {
+                   [&](const AST::Component::CoreModuleType &) {
                      fmt::format_to(std::back_inserter(Buffer),
                                     "core:module type"sv);
                    },

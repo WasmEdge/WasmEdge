@@ -39,7 +39,7 @@ Executor::instantiate(Runtime::StoreManager &,
         // Any exported sortidx, which disallows core sorts other than core
         // module.
         spdlog::error("export core sort other than core module is invalid."sv);
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompExport));
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Export));
         return Unexpect(ErrCode::Value::InvalidCoreSort);
       }
     } else {

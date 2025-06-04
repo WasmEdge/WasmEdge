@@ -57,33 +57,60 @@ A(Instruction, "instruction")
 // AOT section is not in spec, only for WasmEdge use for AOT/JIT.
 A(Sec_AOT, "aot section")
 // Component model AST
-A(Component, "component")
-A(Sec_CoreMod, "component core:module section")
-A(Sec_CoreInstance, "component core:instance section")
-A(Sec_Alias, "component alias section")
-A(Sec_Comp, "nested component section")
-A(Sec_Instance, "component instance section")
-A(Sec_CompType, "component type section")
-A(Sec_Canon, "component canonical section")
-A(Sec_CompStart, "component start section")
-A(Sec_CompImport, "component import section")
-A(Sec_CompExport, "component export section")
-A(Type_Module, "module type")
-A(Type_Instance, "instance type")
-A(Type_Component, "component type")
-A(ImportExportName, "import/export name")
-A(Import, "import")
-A(Export, "export")
-A(Canonical, "canonical")
-A(Alias, "alias")
-A(DefType, "component defined type")
-A(InstanceDecl, "instance decl")
-A(ExternDesc, "extern desc")
-A(Name, "import/export name")
-A(AliasTarget, "alias target")
-A(Sort, "sort")
-A(Instance, "instance expr")
-A(CoreInstance, "core:instance expr")
+A(Component, "component model module")
+A(Comp_Sec_CoreMod, "component core:module section")
+A(Comp_Sec_CoreInstance, "component core:instance section")
+A(Comp_Sec_CoreType, "component core:type section")
+A(Comp_Sec_Component, "component nested-component section")
+A(Comp_Sec_Instance, "component instance section")
+A(Comp_Sec_Alias, "component alias section")
+A(Comp_Sec_Type, "component type section")
+A(Comp_Sec_Canon, "component canonical section")
+A(Comp_Sec_Start, "component start section")
+A(Comp_Sec_Import, "component import section")
+A(Comp_Sec_Export, "component export section")
+A(Comp_CoreInstance, "component core:instance expr")
+A(Comp_CoreInstanceArg, "component core:instance arg")
+A(Comp_CoreInlineExport, "component core:inlineexport")
+A(Comp_Instance, "component instance expr")
+A(Comp_InstanceArg, "component instance arg")
+A(Comp_InlineExport, "component inlineexport")
+A(Comp_Sort, "component sort")
+A(Comp_Alias, "component alias")
+A(Comp_AliasTarget, "component alias target")
+A(Comp_CoreDefType, "component core:deftype")
+A(Comp_CoreModuleType, "component core:moduletype")
+A(Comp_CoreModuleDecl, "component core:moduledecl")
+A(Comp_CoreExportDecl, "component core:exportdecl")
+A(Comp_DefType, "component deftype")
+A(Comp_DefValType, "component defvaltype")
+A(Comp_Type_Record, "component record type")
+A(Comp_Type_Variant, "component variant")
+A(Comp_Type_List, "component list type")
+A(Comp_Type_Tuple, "component tuple type")
+A(Comp_Type_Flags, "component flags type")
+A(Comp_Type_Enum, "component enum type")
+A(Comp_Type_Option, "component option type")
+A(Comp_Type_Result, "component result type")
+A(Comp_Type_Own, "component own type")
+A(Comp_Type_Borrow, "component borrow type")
+A(Comp_LabelValType, "component labelvaltype")
+A(Comp_ValueType, "component valuetype")
+A(Comp_Case, "component case")
+A(Comp_FuncType, "component functype")
+A(Comp_ResultList, "component resultlist")
+A(Comp_ComponentType, "component componenttype")
+A(Comp_ComponentDecl, "component componentdecl")
+A(Comp_ImportDecl, "component importdecl")
+A(Comp_InstanceType, "component instancetype")
+A(Comp_InstanceDecl, "component instancedecl")
+A(Comp_ExportDecl, "component exportdecl")
+A(Comp_ResourceType, "component resourcetype")
+A(Comp_ExternDesc, "component extern desc")
+A(Comp_Start, "component start")
+A(Comp_Canonical, "component canonical")
+A(Comp_Import, "component import")
+A(Comp_Export, "component export")
 
 #undef A
 #endif // UseASTNodeAttr
@@ -893,6 +920,38 @@ E(MalformedTable, 0x011B, "malformed table")
 E(MalformedMemoryOpFlags, 0x011C, "malformed memop flags")
 // @}
 
+// Component model load phase
+// @{
+// Malformed sort
+E(MalformedSort, 0x01A0, "malformed sort")
+// Malformed alias target
+E(MalformedAliasTarget, 0x01A1, "malformed alias target")
+// Malformed core instance
+E(MalformedCoreInstance, 0x01A2, "malformed core instance")
+// Malformed instance
+E(MalformedInstance, 0x01A3, "malformed instance")
+// Malformed defType
+E(MalformedDefType, 0x01A4, "malformed defined type")
+// Malformed module type
+E(MalformedModuleType, 0x01A5, "malformed module type")
+// Malformed record type
+E(MalformedRecordType, 0x01A6, "malformed record type")
+// Malformed variant type
+E(MalformedVariantType, 0x01A7, "malformed variant type")
+// Malformed tuple type
+E(MalformedTupleType, 0x01A8, "malformed tuple type")
+// Malformed flags type
+E(MalformedFlagsType, 0x01A9, "malformed flags type")
+// Malformed canonical
+E(MalformedCanonical, 0x01AA, "malformed canonical")
+// Unknown canonical option
+E(UnknownCanonicalOption, 0x01AB, "unknown canonical option")
+// Malformed name
+E(MalformedName, 0x01AC, "malformed name")
+// Component model not implemented
+E(ComponentNotImplLoader, 0x01AD, "component model (loader) not implemented")
+// @}
+
 // Validation phase
 // @{
 // Alignment != natural
@@ -977,6 +1036,23 @@ E(InvalidTagResultType, 0x0226, "non-empty tag result type")
 E(SharedMemoryNoMax, 0x0227, "shared memory must have maximum")
 // @}
 
+// Component model validation phase
+// @{
+// Missing Argument
+E(MissingArgument, 0x02A0, "missing argument")
+// Argument Type Mismatch with Import Type
+E(ArgTypeMismatch, 0x02A1, "type mismatch")
+// Invalid Index
+E(InvalidIndex, 0x02A2, "invalid index")
+// Invalid Type Reference
+E(InvalidTypeReference, 0x02A3, "invalid type reference")
+// Export Not Found
+E(ExportNotFound, 0x02A4, "export not found")
+// Component model not implemented
+E(ComponentNotImplValidator, 0x02A5,
+  "component model (validator) not implemented")
+// @}
+
 // Instantiation phase
 // @{
 // Module name conflicted when importing.
@@ -989,9 +1065,22 @@ E(UnknownImport, 0x0302, "unknown import")
 E(DataSegDoesNotFit, 0x0303, "data segment does not fit")
 // Init failed when instantiating element segment
 E(ElemSegDoesNotFit, 0x0304, "elements segment does not fit")
+// @}
+
+// Component model instantiation phase
+// @{
 // Invalid core sort for component export
-E(InvalidCoreSort, 0x0305, "invalid core sort")
-E(InvalidCanonOption, 0x0306, "invalid canonical option")
+E(InvalidCoreSort, 0x03A0, "invalid core sort")
+// Canonical option lifting failed
+E(InvalidCanonOption, 0x03A1, "invalid canonical option")
+// Invalid export core exports
+E(CoreInvalidExport, 0x03A2, "invalid export in core module")
+// Invalid resource.drop args
+E(ResourceDropArgument, 0x03A3,
+  "invalid argument been used to invoke resource.drop")
+// Component model not implemented
+E(ComponentNotImplInstantiate, 0x03A4,
+  "component model (instantiation) not implemented")
 // @}
 
 // Execution phase
@@ -1048,55 +1137,6 @@ E(AccessNullException, 0x0417, "null exception reference")
 E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
 E(UncaughtException, 0x0419, "uncaught exception")
-// @}
-
-// Component model load phase
-// @{
-// Malformed sort
-E(MalformedSort, 0x0500, "malformed sort")
-// Malformed alias target
-E(MalformedAliasTarget, 0x0501, "malformed alias target")
-// Malformed core instance
-E(MalformedCoreInstance, 0x0502, "malformed core instance")
-// Malformed instance
-E(MalformedInstance, 0x0503, "malformed instance")
-// Malformed defType
-E(MalformedDefType, 0x0504, "malformed defined type")
-// Malformed record type
-E(MalformedRecordType, 0x0505, "malformed record type")
-// Malformed variant type
-E(MalformedVariantType, 0x0506, "malformed variant type")
-// Malformed tuple type
-E(MalformedTupleType, 0x0507, "malformed tuple type")
-// Malformed flags type
-E(MalformedFlagsType, 0x0508, "malformed flags type")
-// Malformed canonical
-E(MalformedCanonical, 0x0509, "malformed canonical")
-// Unknown canonical option
-E(UnknownCanonicalOption, 0x050A, "unknown canonical option")
-// Malformed name
-E(MalformedName, 0x050B, "malformed name")
-// @}
-
-// Component model validation phase
-// @{
-// Missing Argument
-E(MissingArgument, 0x050C, "missing argument")
-// Argument Type Mismatch with Import Type
-E(ArgTypeMismatch, 0x050D, "type mismatch")
-// Invalid Index
-E(InvalidIndex, 0x050E, "invalid index")
-// Invalid Type Reference
-E(InvalidTypeReference, 0x050F, "invalid type reference")
-// Export Not Found
-E(ExportNotFound, 0x0510, "export not found")
-// @}
-
-// Component model instantiation phase
-// @{
-E(CoreInvalidExport, 0x0600, "invalid export in core module")
-E(ResourceDropArgument, 0x0601,
-  "invalid argument been used to invoke resource.drop")
 // @}
 
 #undef E

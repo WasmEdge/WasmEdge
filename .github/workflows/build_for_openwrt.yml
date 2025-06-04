@@ -50,6 +50,10 @@ jobs:
     - name: Ensure git safe directory
       run: |
         git config --global --add safe.directory $(pwd)
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
     - name: Restore OpenWrt
       id: restore-openwrt
       uses: actions/cache/restore@v4

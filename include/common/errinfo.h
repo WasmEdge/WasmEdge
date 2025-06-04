@@ -196,6 +196,14 @@ struct InfoMismatch {
       : Category(MismatchCategory::Version), ExpVersion(ExpV),
         GotVersion(GotV) {}
 
+  /// Case 11: unexpected (component) function types
+  InfoMismatch(const std::vector<InterfaceType> &ExpP,
+               const std::vector<InterfaceType> &ExpR,
+               const std::vector<InterfaceType> &GotP,
+               const std::vector<InterfaceType> &GotR) noexcept
+      : Category(MismatchCategory::CompFunctionType), CompExpParams(ExpP),
+        CompGotParams(GotP), CompExpReturns(ExpR), CompGotReturns(GotR) {}
+
   /// Mismatched category
   MismatchCategory Category;
 
@@ -210,6 +218,10 @@ struct InfoMismatch {
   /// Case 3: unexpected value type list
   std::vector<ValType> ExpParams, GotParams;
   std::vector<ValType> ExpReturns, GotReturns;
+
+  /// Case 11: unexpected function type
+  std::vector<InterfaceType> CompExpParams, CompGotParams;
+  std::vector<InterfaceType> CompExpReturns, CompGotReturns;
 
   /// Case 2: unexpected value type
   /// Case 7: unexpected table type: reference type

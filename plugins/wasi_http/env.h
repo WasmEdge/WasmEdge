@@ -13,6 +13,15 @@ namespace Host {
 class WasiHttpEnvironment {
 public:
   WasiHttpEnvironment() noexcept;
+  Runtime::Instance::ComponentInstance *getComponentInstance() {
+    return Instance;
+  }
+  void setComponentInstance(Runtime::Instance::ComponentInstance *I) {
+    Instance = I;
+  }
+
+private:
+  Runtime::Instance::ComponentInstance *Instance;
 };
 
 } // namespace Host

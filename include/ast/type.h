@@ -340,10 +340,30 @@ public:
     return matchType(TypeList, Exp, TypeList, Got);
   }
 
+  static bool matchType(Span<const SubType *const> TypeList,
+                        const InterfaceType &Exp,
+                        const InterfaceType &Got) noexcept {
+    return matchType(TypeList, Exp, TypeList, Got);
+  }
+
   /// Validator: Match 2 type lists in the same module.
   static bool matchTypes(Span<const SubType *const> TypeList,
                          Span<const ValType> Exp,
                          Span<const ValType> Got) noexcept {
+    if (Exp.size() != Got.size()) {
+      return false;
+    }
+    for (uint32_t I = 0; I < Exp.size(); I++) {
+      if (!matchType(TypeList, Exp[I], Got[I])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static bool matchTypes(Span<const SubType *const> TypeList,
+                         Span<const InterfaceType> Exp,
+                         Span<const InterfaceType> Got) noexcept {
     if (Exp.size() != Got.size()) {
       return false;
     }
@@ -372,6 +392,14 @@ public:
       }
     }
     return false;
+  }
+
+  static bool matchType(Span<const SubType *const>, const InterfaceType &Exp,
+                        Span<const SubType *const>,
+                        const InterfaceType &Got) noexcept {
+    // TODO: here the ValType implementation lookup in type list, may need to do
+    // the same here.
+    return Exp == Got;
   }
 
   /// Matcher: Match 2 value types.

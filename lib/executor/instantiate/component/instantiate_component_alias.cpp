@@ -26,7 +26,11 @@ Executor::instantiate(Runtime::StoreManager &,
       if (std::holds_alternative<AliasTargetExport>(T)) {
         // This means instance exports a function
         auto &Exp = std::get<AliasTargetExport>(T);
-        const auto *ModInst = CompInst.getModuleInstance(Exp.getInstanceIdx());
+        auto RModInst = CompInst.getModuleInstance(Exp.getInstanceIdx());
+        if (!RModInst) {
+          return Unexpect(RModInst);
+        }
+        const auto *ModInst = *RModInst;
 
         switch (std::get<CoreSort>(S)) {
         case CoreSort::Func: {
@@ -39,9 +43,16 @@ Executor::instantiate(Runtime::StoreManager &,
           CompInst.addCoreFunctionInstance(FuncInst);
           break;
         }
-        case CoreSort::Table:
-          spdlog::warn("incomplete core alias sort: table"sv);
+        case CoreSort::Table: {
+          auto *TableInst = ModInst->getTableExports(
+              [&](const std::map<std::string,
+                                 Runtime::Instance::TableInstance *,
+                                 std::less<>> &Map) {
+                return ModInst->unsafeFindExports(Map, Exp.getName());
+              });
+          CompInst.addCoreTableInstance(TableInst);
           break;
+        }
         case CoreSort::Memory: {
           auto *MemInst = ModInst->getMemoryExports(
               [&](const std::map<std::string,
@@ -71,10 +82,14 @@ Executor::instantiate(Runtime::StoreManager &,
     } else if (std::holds_alternative<SortCase>(S)) {
       if (std::holds_alternative<AliasTargetExport>(T)) {
         auto &Exp = std::get<AliasTargetExport>(T);
+        auto RComp = CompInst.getComponentInstance(Exp.getInstanceIdx());
+        if (!RComp) {
+          return Unexpect(RComp);
+        }
+        auto *CInst = *RComp;
 
         switch (std::get<SortCase>(S)) {
         case SortCase::Func: {
-          auto *CInst = CompInst.getComponentInstance(Exp.getInstanceIdx());
           auto *FuncInst = CInst->findFuncExports(Exp.getName());
           CompInst.addFunctionInstance(FuncInst);
           break;
@@ -83,9 +98,11 @@ Executor::instantiate(Runtime::StoreManager &,
                               // implement these cases
           spdlog::warn("incomplete alias sort target export: value"sv);
           break;
-        case SortCase::Type:
-          spdlog::warn("incomplete alias sort target export: type"sv);
+        case SortCase::Type: {
+          auto Ty = CInst->getType(Exp.getName());
+          CompInst.addType(Ty);
           break;
+        }
         case SortCase::Component:
           spdlog::warn("incomplete alias sort target export: component"sv);
           break;
@@ -98,9 +115,15 @@ Executor::instantiate(Runtime::StoreManager &,
 
         switch (std::get<SortCase>(S)) {
         case SortCase::Func: {
-          auto *FuncInst = CompInst.getComponentInstance(Out.getComponent())
-                               ->getCoreFunctionInstance(Out.getIndex());
-          CompInst.addCoreFunctionInstance(FuncInst);
+          auto Res = CompInst.getComponentInstance(Out.getComponent());
+          if (!Res) {
+            return Unexpect(Res);
+          }
+          auto RFuncInst = (*Res)->getCoreFunctionInstance(Out.getIndex());
+          if (!RFuncInst) {
+            return Unexpect(RFuncInst);
+          }
+          CompInst.addCoreFunctionInstance(*RFuncInst);
           break;
         }
         case SortCase::Value: // TODO: need real use cases to analysis how to

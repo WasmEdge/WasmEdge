@@ -22,6 +22,11 @@
 #include <vector>
 
 namespace WasmEdge {
+
+namespace Runtime::Instance {
+class ComponentInstance;
+}
+
 namespace AST {
 namespace Component {
 
@@ -46,6 +51,9 @@ using ValueType = std::variant<TypeIndex, PrimValType>;
 
 class LabelValType {
 public:
+  LabelValType() {}
+  LabelValType(std::string L, ValueType VT) : Label{L}, ValTy{VT} {}
+
   std::string_view getLabel() const noexcept { return Label; }
   std::string &getLabel() noexcept { return Label; }
   const ValueType getValType() const noexcept { return ValTy; }
@@ -58,6 +66,10 @@ private:
 
 class Case {
 public:
+  Case() : Label{}, ValTy{std::nullopt} {}
+  Case(std::string &&L) : Label{L}, ValTy{std::nullopt} {}
+  Case(std::string &&L, ValueType &&VT) : Label{L}, ValTy{VT} {}
+
   std::string_view getLabel() const noexcept { return Label; }
   std::string &getLabel() noexcept { return Label; }
   const std::optional<ValueType> getValType() const noexcept { return ValTy; }
@@ -68,8 +80,11 @@ private:
   std::optional<ValueType> ValTy;
 };
 
-class Record {
+class RecordTy {
 public:
+  RecordTy() {}
+  RecordTy(std::initializer_list<LabelValType> I) : LabelTypes{I} {}
+
   Span<const LabelValType> getLabelTypes() const noexcept { return LabelTypes; }
   std::vector<LabelValType> &getLabelTypes() noexcept { return LabelTypes; }
 
@@ -79,6 +94,9 @@ private:
 
 class VariantTy {
 public:
+  VariantTy() : Cases{} {}
+  VariantTy(std::initializer_list<Case> Cs) : Cases{Cs} {}
+
   Span<const Case> getCases() const noexcept { return Cases; }
   std::vector<Case> &getCases() noexcept { return Cases; }
 
@@ -88,6 +106,9 @@ private:
 
 class ListTy {
 public:
+  ListTy() : ValTy{} {}
+  ListTy(ValueType &&T) : ValTy{T} {}
+
   const ValueType getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
 
@@ -95,9 +116,9 @@ private:
   ValueType ValTy;
 };
 
-// Tuple is the product of given non-empty type list
+// A tuple is the product of given non-empty type list
 // e.g. given [A, B, C], the tuple is a product A x B x C
-class Tuple {
+class TupleTy {
 public:
   Span<const ValueType> getTypes() const noexcept { return Types; }
   std::vector<ValueType> &getTypes() noexcept { return Types; }
@@ -115,7 +136,7 @@ private:
   std::vector<std::string> Labels;
 };
 
-class Enum {
+class EnumTy {
 public:
   Span<const std::string> getLabels() const noexcept { return Labels; }
   std::vector<std::string> &getLabels() noexcept { return Labels; }
@@ -124,8 +145,11 @@ private:
   std::vector<std::string> Labels;
 };
 
-class Option {
+class OptionTy {
 public:
+  OptionTy() {}
+  OptionTy(ValueType T) : ValTy{T} {}
+
   const ValueType getValType() const noexcept { return ValTy; }
   ValueType &getValType() noexcept { return ValTy; }
 
@@ -133,7 +157,7 @@ private:
   ValueType ValTy;
 };
 
-class Result {
+class ResultTy {
 public:
   const std::optional<ValueType> getValType() const noexcept { return ValTy; }
   std::optional<ValueType> &getValType() noexcept { return ValTy; }
@@ -164,8 +188,9 @@ private:
   TypeIndex Idx;
 };
 
-using DefValType = std::variant<PrimValType, Record, VariantTy, ListTy, Tuple,
-                                Flags, Enum, Option, Result, Own, Borrow>;
+using DefValType =
+    std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, Flags,
+                 EnumTy, OptionTy, ResultTy, Own, Borrow>;
 using ResultList = std::variant<ValueType, std::vector<LabelValType>>;
 class FuncType {
 public:
@@ -181,6 +206,47 @@ public:
 private:
   std::vector<LabelValType> ParamList;
   ResultList ResList;
+};
+
+/// AST FunctionType node.
+class FunctionType {
+public:
+  /// Constructors.
+  FunctionType() noexcept = default;
+  FunctionType(Span<const InterfaceType> P,
+               Span<const InterfaceType> R) noexcept
+      : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
+
+  /// `==` and `!=` operator overloadings.
+  friend bool operator==(const FunctionType &LHS,
+                         const FunctionType &RHS) noexcept {
+    return LHS.ParamTypes == RHS.ParamTypes &&
+           LHS.ReturnTypes == RHS.ReturnTypes;
+  }
+
+  friend bool operator!=(const FunctionType &LHS,
+                         const FunctionType &RHS) noexcept {
+    return !(LHS == RHS);
+  }
+
+  /// Getter of param types.
+  const std::vector<InterfaceType> &getParamTypes() const noexcept {
+    return ParamTypes;
+  }
+  std::vector<InterfaceType> &getParamTypes() noexcept { return ParamTypes; }
+
+  /// Getter of return types.
+  const std::vector<InterfaceType> &getReturnTypes() const noexcept {
+    return ReturnTypes;
+  }
+  std::vector<InterfaceType> &getReturnTypes() noexcept { return ReturnTypes; }
+
+private:
+  /// \name Data of FunctionType.
+  /// @{
+  std::vector<InterfaceType> ParamTypes;
+  std::vector<InterfaceType> ReturnTypes;
+  /// @}
 };
 
 enum class IndexKind : Byte {
@@ -199,8 +265,30 @@ public:
   IndexKind &getKind() noexcept { return Kind; }
   IndexKind getKind() const noexcept { return Kind; }
 };
-// use optional none as SubResource case
+
+/// FROM:
+/// https://github.com/WebAssembly/component-model/blob/main/design/mvp/Explainer.md#type-checking
+///
+/// When we next consider type imports and exports, there are two distinct
+/// subcases of typebound to consider: eq and sub.
+///
+/// The eq bound adds a type equality rule (extending the built-in set of
+/// subtyping rules) saying that the imported type is structurally equivalent to
+/// the type referenced in the bound.
+///
+/// In contrast, the sub bound introduces a new abstract type which the rest of
+/// the component must conservatively assume can be any type that is a subtype
+/// of the bound. What this means for type-checking is that each subtype-bound
+/// type import/export introduces a fresh abstract type that is unequal to every
+/// preceding type definition.
+///
+/// NOTE:
+/// One just need to consider Java's `? extends T` in mind.
+///
+/// 1. optional `some i` as `(eq i)`
+/// 2. optional `none` as `sub`, i.e. Subresource
 using TypeBound = std::optional<TypeIndex>;
+
 using ExternDesc = std::variant<DescTypeIndex, TypeBound, ValueType>;
 class ExportDecl {
 public:
@@ -238,7 +326,7 @@ public:
 // TODO: wait GC proposal
 // st:<core:structtype>     => st   (GC proposal)
 // at:<core:arraytype>      => at   (GC proposal)
-using CoreDefType = std::variant<FunctionType, ModuleType>;
+using CoreDefType = std::variant<WasmEdge::AST::FunctionType, ModuleType>;
 class CoreType {
 public:
   CoreDefType getType() const noexcept { return T; }
@@ -259,23 +347,43 @@ public:
   std::vector<InstanceDecl> &getContent() noexcept { return IdList; }
 };
 
+// Pseudo Python code
+//
+// class ResourceType(Type):
+//   impl: ComponentInstance
+//   dtor: Optional[Callable] = None
+//   dtor_sync: bool = True
+//   dtor_callback: Optional[Callable] = None
 using FuncIdx = uint32_t;
 class ResourceType {
 public:
-  ResourceType() : Async{false} {}
-  ResourceType(bool A) : Async{A} {}
+  ResourceType() : DtorSync{true} {}
+  ResourceType(bool Sync) : DtorSync{Sync} {}
+  ResourceType(Runtime::Instance::ComponentInstance *I)
+      : Impl{I}, DtorSync{true} {}
+  ResourceType(Runtime::Instance::ComponentInstance *I, bool Sync)
+      : Impl{I}, DtorSync{Sync} {}
 
-  std::optional<FuncIdx> getDestructor() const noexcept { return Destructor; }
-  std::optional<FuncIdx> getCallback() const noexcept { return Callback; }
+  const Runtime::Instance::ComponentInstance *getImpl() const noexcept {
+    return Impl;
+  }
 
-  bool IsAsync() noexcept { return Async; }
-  std::optional<FuncIdx> &getDestructor() noexcept { return Destructor; }
-  std::optional<FuncIdx> &getCallback() noexcept { return Callback; }
+  std::optional<FuncIdx> getDestructor() const noexcept { return Dtor; }
+  std::optional<FuncIdx> getCallback() const noexcept { return DtorCallback; }
 
-private:
-  bool Async;
-  std::optional<FuncIdx> Destructor;
-  std::optional<FuncIdx> Callback;
+  bool IsSync() noexcept { return DtorSync; }
+  std::optional<FuncIdx> &getDestructor() noexcept { return Dtor; }
+  std::optional<FuncIdx> &getCallback() noexcept { return DtorCallback; }
+
+  // real implementation
+  Runtime::Instance::ComponentInstance *Impl;
+
+  // destructor is sync or not, true is sync, false is not sync
+  bool DtorSync;
+  // destructor
+  std::optional<FuncIdx> Dtor;
+  // destructor callback
+  std::optional<FuncIdx> DtorCallback;
 };
 
 class ImportDecl {
@@ -379,6 +487,145 @@ struct fmt::formatter<WasmEdge::AST::Component::ValueType>
 };
 
 template <>
+struct fmt::formatter<WasmEdge::AST::Component::RecordTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::RecordTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "record <"sv);
+    for (const auto &LabelTyp : Type.getLabelTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
+                     LabelTyp.getLabel(), LabelTyp.getValType());
+    }
+    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::VariantTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::VariantTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "variant <"sv);
+    for (const auto &Case : Type.getCases()) {
+      if (Case.getValType().has_value()) {
+        fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
+                       Case.getLabel(), Case.getValType().value());
+      } else {
+        fmt::format_to(std::back_inserter(Buffer), "| {} "sv, Case.getLabel());
+      }
+    }
+    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::ListTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ListTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "list<{}>"sv, Type.getValType());
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::TupleTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::TupleTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "tuple <"sv);
+    for (const auto &Ty : Type.getTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "| {} "sv, Ty);
+    }
+    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::OptionTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::OptionTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "option<{}>"sv,
+                   Type.getValType());
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::ResultTy>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ResultTy &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    if (Type.getValType().has_value()) {
+      fmt::format_to(std::back_inserter(Buffer), "result<{}"sv,
+                     Type.getValType().value());
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), "result<"sv);
+    }
+
+    if (Type.getErrorType().has_value()) {
+      auto E = Type.getErrorType().value();
+      fmt::format_to(std::back_inserter(Buffer), ", {}>"sv, E);
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), ">"sv);
+    }
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
 struct fmt::formatter<WasmEdge::AST::Component::DefValType>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
@@ -394,45 +641,24 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Record &Arg) {
+                [](const RecordTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "record <"sv);
-                  for (const auto &LabelTyp : Arg.getLabelTypes()) {
-                    fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
-                                   LabelTyp.getLabel(), LabelTyp.getValType());
-                  }
-                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const VariantTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "variant <"sv);
-                  for (const auto &Case : Arg.getCases()) {
-                    if (Case.getValType().has_value()) {
-                      fmt::format_to(std::back_inserter(Buffer), "| {} : {} "sv,
-                                     Case.getLabel(),
-                                     Case.getValType().value());
-                    } else {
-                      fmt::format_to(std::back_inserter(Buffer), "| {} "sv,
-                                     Case.getLabel());
-                    }
-                  }
-                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const ListTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "list<{}>"sv,
-                                 Arg.getValType());
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Tuple &Arg) {
+                [](const TupleTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "tuple <"sv);
-                  for (const auto &Ty : Arg.getTypes()) {
-                    fmt::format_to(std::back_inserter(Buffer), "| {} "sv, Ty);
-                  }
-                  fmt::format_to(std::back_inserter(Buffer), ">"sv);
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const Flags &) {
@@ -440,25 +666,19 @@ struct fmt::formatter<WasmEdge::AST::Component::DefValType>
                   fmt::format_to(std::back_inserter(Buffer), "flags"sv);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Enum &) {
+                [](const EnumTy &) {
                   fmt::memory_buffer Buffer;
                   fmt::format_to(std::back_inserter(Buffer), "enum"sv);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Option &Arg) {
+                [](const OptionTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  fmt::format_to(std::back_inserter(Buffer), "option<{}>"sv,
-                                 Arg.getValType());
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
-                [](const Result &Arg) {
+                [](const ResultTy &Arg) {
                   fmt::memory_buffer Buffer;
-                  if (Arg.getValType().has_value()) {
-                    fmt::format_to(std::back_inserter(Buffer), "result<{}>"sv,
-                                   Arg.getValType().value());
-                  } else {
-                    fmt::format_to(std::back_inserter(Buffer), "result<>"sv);
-                  }
+                  fmt::format_to(std::back_inserter(Buffer), "{}"sv, Arg);
                   return std::string_view(Buffer.data(), Buffer.size());
                 },
                 [](const Own &Arg) {
@@ -527,6 +747,34 @@ struct fmt::formatter<WasmEdge::AST::Component::ComponentType>
 };
 
 template <>
+struct fmt::formatter<WasmEdge::AST::Component::CoreType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::CoreType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    std::visit(Overloaded{
+                   [&](const AST::FunctionType &) {
+                     fmt::format_to(std::back_inserter(Buffer),
+                                    "core:function type"sv);
+                   },
+                   [&](const AST::Component::ModuleType &) {
+                     fmt::format_to(std::back_inserter(Buffer),
+                                    "core:module type"sv);
+                   },
+               },
+               Type.getType());
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
 struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
@@ -537,27 +785,64 @@ struct fmt::formatter<WasmEdge::AST::Component::InstanceType>
 
     fmt::memory_buffer Buffer;
 
-    fmt::format_to(std::back_inserter(Buffer), "instance <"sv);
-    for (const auto &T : Type.getContent()) {
-      fmt::format_to(std::back_inserter(Buffer), "|"sv);
+    fmt::format_to(std::back_inserter(Buffer), "instance {{\n"sv);
+    for (const auto &Ty : Type.getContent()) {
+      fmt::format_to(std::back_inserter(Buffer), "  "sv);
       std::visit(
           Overloaded{
-              [&](const CoreType &) {
-                fmt::format_to(std::back_inserter(Buffer), "core type"sv);
+              [&](const CoreType &T) {
+                fmt::format_to(std::back_inserter(Buffer), "{}"sv, T);
               },
               [&](const Alias &) {
                 fmt::format_to(std::back_inserter(Buffer), "alias type"sv);
               },
-              [&](const std::shared_ptr<WasmEdge::AST::Component::Type> &) {
-                fmt::format_to(std::back_inserter(Buffer), "type"sv);
+              [&](const std::shared_ptr<WasmEdge::AST::Component::Type> &T) {
+                fmt::format_to(std::back_inserter(Buffer), "{}"sv,
+                               (*T.get()).getType());
               },
               [&](const ExportDecl &) {
                 fmt::format_to(std::back_inserter(Buffer),
                                "export decl type"sv);
               }},
-          T);
+          Ty);
+      fmt::format_to(std::back_inserter(Buffer), "\n"sv);
     }
-    fmt::format_to(std::back_inserter(Buffer), ">"sv);
+
+    fmt::format_to(std::back_inserter(Buffer), "}}"sv);
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::ResourceType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::ResourceType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace WasmEdge::AST::Component;
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "resource-type {{\n"sv);
+
+    if (Type.getDestructor().has_value()) {
+      fmt::format_to(std::back_inserter(Buffer), "  destructor-index = {}\n"sv,
+                     Type.getDestructor().value());
+    } else {
+      fmt::format_to(std::back_inserter(Buffer),
+                     "  destructor-index = none\n"sv);
+    }
+
+    if (Type.getCallback().has_value()) {
+      fmt::format_to(std::back_inserter(Buffer), "  callback-index = {}\n"sv,
+                     Type.getCallback().value());
+    } else {
+      fmt::format_to(std::back_inserter(Buffer), "  callback-index = none\n"sv);
+    }
+
+    fmt::format_to(std::back_inserter(Buffer), "}}"sv);
     return formatter<std::string_view>::format(
         std::string_view(Buffer.data(), Buffer.size()), Ctx);
   }
@@ -583,10 +868,35 @@ struct fmt::formatter<WasmEdge::AST::Component::DefType>
                 [](const InstanceType &Arg) {
                   return fmt::format("{}"sv, Arg);
                 },
-                [](const ResourceType &) {
-                  return fmt::format("<resource type>"sv);
+                [](const ResourceType &Arg) {
+                  return fmt::format("{}"sv, Arg);
                 }},
             Type),
         Ctx);
+  }
+};
+
+template <>
+struct fmt::formatter<WasmEdge::AST::Component::FunctionType>
+    : fmt::formatter<std::string_view> {
+  fmt::format_context::iterator
+  format(const WasmEdge::AST::Component::FunctionType &Type,
+         fmt::format_context &Ctx) const noexcept {
+    using namespace std::literals;
+
+    fmt::memory_buffer Buffer;
+
+    fmt::format_to(std::back_inserter(Buffer), "[ "sv);
+    for (auto &P : Type.getParamTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "{} "sv, P);
+    }
+    fmt::format_to(std::back_inserter(Buffer), "] -> [ "sv);
+    for (auto &R : Type.getReturnTypes()) {
+      fmt::format_to(std::back_inserter(Buffer), "{} "sv, R);
+    }
+    fmt::format_to(std::back_inserter(Buffer), "]"sv);
+
+    return formatter<std::string_view>::format(
+        std::string_view(Buffer.data(), Buffer.size()), Ctx);
   }
 };

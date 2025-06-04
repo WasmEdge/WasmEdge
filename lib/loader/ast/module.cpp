@@ -18,8 +18,9 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
-                                       std::optional<uint64_t> Bound) {
+// Load binary to construct Module node. See "include/loader/loader.h".
+Expect<void> Loader::loadModule(AST::Module &Mod,
+                                std::optional<uint64_t> Bound) {
   uint64_t StartOffset = FMgr.getOffset();
   auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -150,11 +151,6 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
   }
 
   return {};
-}
-
-// Load binary to construct Module node. See "include/loader/loader.h".
-Expect<void> Loader::loadModule(AST::Module &Mod) {
-  return loadModuleInBound(Mod, std::nullopt);
 }
 
 // Setup symbols from loaded binary. See "include/loader/loader.h".

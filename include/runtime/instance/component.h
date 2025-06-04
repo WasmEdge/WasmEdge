@@ -57,10 +57,10 @@ void typeConvert(ValueType &VT, const ValType &Ty) noexcept {
     VT.emplace<PrimValType>(PrimValType::S64);
     break;
   case TypeCode::F32:
-    VT.emplace<PrimValType>(PrimValType::Float32);
+    VT.emplace<PrimValType>(PrimValType::F32);
     break;
   case TypeCode::F64:
-    VT.emplace<PrimValType>(PrimValType::Float64);
+    VT.emplace<PrimValType>(PrimValType::F64);
     break;
 
   default:

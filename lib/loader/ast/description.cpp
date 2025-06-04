@@ -8,41 +8,33 @@ namespace Loader {
 
 // Load binary of Import description. See "include/loader/loader.h".
 Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
+  auto ReportError = [this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Desc_Import);
+  };
+
   // Read the module name.
-  if (auto Res = FMgr.readName()) {
-    ImpDesc.setModuleName(*Res);
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Desc_Import);
-  }
+  EXPECTED_TRY(FMgr.readName().map_error(ReportError).map([&](std::string S) {
+    ImpDesc.setModuleName(S);
+  }));
 
   // Read the external name.
-  if (auto Res = FMgr.readName()) {
-    ImpDesc.setExternalName(*Res);
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Desc_Import);
-  }
+  EXPECTED_TRY(FMgr.readName().map_error(ReportError).map([&](std::string S) {
+    ImpDesc.setExternalName(S);
+  }));
 
   // Read the external type.
-  if (auto Res = FMgr.readByte()) {
-    ImpDesc.setExternalType(static_cast<ExternalType>(*Res));
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Desc_Import);
-  }
+  EXPECTED_TRY(FMgr.readByte().map_error(ReportError).map([&](uint8_t B) {
+    ImpDesc.setExternalType(static_cast<ExternalType>(B));
+  }));
 
   // Make content node according to external type.
   switch (ImpDesc.getExternalType()) {
   case ExternalType::Function: {
     // Read the function type index.
-    if (auto Res = FMgr.readU32()) {
-      ImpDesc.setExternalFuncTypeIdx(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Desc_Import);
-    }
-    break;
+    EXPECTED_TRY(FMgr.readU32().map_error(ReportError).map([&](uint32_t Idx) {
+      ImpDesc.setExternalFuncTypeIdx(Idx);
+    }));
+    return {};
   }
   case ExternalType::Table: {
     // Read the table type node.
@@ -77,26 +69,23 @@ Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
     return logLoadError(ErrCode::Value::MalformedImportKind,
                         FMgr.getLastOffset(), ASTNodeAttr::Desc_Import);
   }
-  return {};
 }
 
 // Load binary of Export description. See "include/loader/loader.h".
 Expect<void> Loader::loadDesc(AST::ExportDesc &ExpDesc) {
+  auto ReportError = [this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Desc_Export);
+  };
+
   // Read external name to export.
-  if (auto Res = FMgr.readName()) {
-    ExpDesc.setExternalName(*Res);
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Desc_Export);
-  }
+  EXPECTED_TRY(FMgr.readName().map_error(ReportError).map([&](std::string S) {
+    ExpDesc.setExternalName(S);
+  }));
 
   // Read external type.
-  if (auto Res = FMgr.readByte()) {
-    ExpDesc.setExternalType(static_cast<ExternalType>(*Res));
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Desc_Export);
-  }
+  EXPECTED_TRY(FMgr.readByte().map_error(ReportError).map([&](uint8_t B) {
+    ExpDesc.setExternalType(static_cast<ExternalType>(B));
+  }));
   switch (ExpDesc.getExternalType()) {
   case ExternalType::Function:
   case ExternalType::Table:
@@ -116,12 +105,9 @@ Expect<void> Loader::loadDesc(AST::ExportDesc &ExpDesc) {
   }
 
   // Read external index to export.
-  if (auto Res = FMgr.readU32()) {
-    ExpDesc.setExternalIndex(*Res);
-  } else {
-    return logLoadError(Res.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Desc_Export);
-  }
+  EXPECTED_TRY(FMgr.readU32().map_error(ReportError).map([&](uint32_t Idx) {
+    ExpDesc.setExternalIndex(Idx);
+  }));
   return {};
 }
 

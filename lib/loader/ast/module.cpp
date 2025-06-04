@@ -21,6 +21,10 @@ namespace Loader {
 Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
                                        std::optional<uint64_t> Bound) {
   uint64_t StartOffset = FMgr.getOffset();
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return E;
+  };
 
   // Variables to record the loaded section types.
   HasDataSection = false;
@@ -59,76 +63,41 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
     case 0x00:
       Mod.getCustomSections().emplace_back();
       EXPECTED_TRY(
-          loadSection(Mod.getCustomSections().back()).map_error([](auto E) {
-            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-            return E;
-          }));
+          loadSection(Mod.getCustomSections().back()).map_error(ReportError));
       break;
     case 0x01:
-      EXPECTED_TRY(loadSection(Mod.getTypeSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getTypeSection()).map_error(ReportError));
       break;
     case 0x02:
-      EXPECTED_TRY(loadSection(Mod.getImportSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getImportSection()).map_error(ReportError));
       break;
     case 0x03:
-      EXPECTED_TRY(loadSection(Mod.getFunctionSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(
+          loadSection(Mod.getFunctionSection()).map_error(ReportError));
       break;
     case 0x04:
-      EXPECTED_TRY(loadSection(Mod.getTableSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getTableSection()).map_error(ReportError));
       break;
     case 0x05:
-      EXPECTED_TRY(loadSection(Mod.getMemorySection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getMemorySection()).map_error(ReportError));
       break;
     case 0x06:
-      EXPECTED_TRY(loadSection(Mod.getGlobalSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getGlobalSection()).map_error(ReportError));
       break;
     case 0x07:
-      EXPECTED_TRY(loadSection(Mod.getExportSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getExportSection()).map_error(ReportError));
       break;
     case 0x08:
-      EXPECTED_TRY(loadSection(Mod.getStartSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getStartSection()).map_error(ReportError));
       break;
     case 0x09:
-      EXPECTED_TRY(loadSection(Mod.getElementSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getElementSection()).map_error(ReportError));
       break;
     case 0x0A:
-      EXPECTED_TRY(loadSection(Mod.getCodeSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getCodeSection()).map_error(ReportError));
       break;
     case 0x0B:
-      EXPECTED_TRY(loadSection(Mod.getDataSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getDataSection()).map_error(ReportError));
       break;
     case 0x0C:
       // This section is for BulkMemoryOperations or ReferenceTypes proposal.
@@ -138,10 +107,8 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
                                Proposal::BulkMemoryOperations,
                                FMgr.getLastOffset(), ASTNodeAttr::Module);
       }
-      EXPECTED_TRY(loadSection(Mod.getDataCountSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(
+          loadSection(Mod.getDataCountSection()).map_error(ReportError));
       HasDataSection = true;
       break;
     case 0x0D:
@@ -151,10 +118,7 @@ Expect<void> Loader::loadModuleInBound(AST::Module &Mod,
                                Proposal::ExceptionHandling,
                                FMgr.getLastOffset(), ASTNodeAttr::Module);
       }
-      EXPECTED_TRY(loadSection(Mod.getTagSection()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-        return E;
-      }));
+      EXPECTED_TRY(loadSection(Mod.getTagSection()).map_error(ReportError));
       break;
     default:
       return logLoadError(ErrCode::Value::MalformedSection,

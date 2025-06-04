@@ -315,7 +315,7 @@ Executor::instantiate(Runtime::StoreManager &,
             } else if constexpr (std::is_same_v<U, Realloc>) {
               ReallocFunc = CompInst.getCoreFunctionInstance(O.getFuncIndex());
             } else if constexpr (std::is_same_v<U, PostReturn>) {
-              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Canon));
               return Unexpect(ErrCode::Value::InvalidCanonOption);
             }
             return {};
@@ -328,7 +328,7 @@ Executor::instantiate(Runtime::StoreManager &,
           // It doesn't make sense if one tries to lift an instance not a
           // function, so unlikely happen.
           spdlog::error("cannot lift a non-function"sv);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Canon));
           return Unexpect(ErrCode::Value::InvalidCanonOption);
         }
 
@@ -354,7 +354,7 @@ Executor::instantiate(Runtime::StoreManager &,
             } else if constexpr (std::is_same_v<U, Realloc>) {
               ReallocFunc = CompInst.getCoreFunctionInstance(O.getFuncIndex());
             } else if constexpr (std::is_same_v<U, PostReturn>) {
-              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Canon));
               return Unexpect(ErrCode::Value::InvalidCanonOption);
             }
             return {};

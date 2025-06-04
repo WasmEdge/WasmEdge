@@ -43,7 +43,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
         if (unlikely(ImportedCompInst == nullptr)) {
           spdlog::error(ErrCode::Value::UnknownImport);
           spdlog::error("component name: {}"sv, CompName);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_CompImport));
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Import));
           return Unexpect(ErrCode::Value::UnknownImport);
         }
         CompInst.addComponentInstance(ImportedCompInst);

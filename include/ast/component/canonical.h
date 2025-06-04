@@ -16,7 +16,6 @@
 #include "ast/expression.h"
 #include "ast/type.h"
 
-#include <optional>
 #include <vector>
 
 namespace WasmEdge {
@@ -30,6 +29,7 @@ public:
   uint32_t getMemIndex() const noexcept { return MemIdx; }
   uint32_t &getMemIndex() noexcept { return MemIdx; }
 };
+
 class Realloc {
   uint32_t FnIdx;
 
@@ -37,6 +37,7 @@ public:
   uint32_t getFuncIndex() const noexcept { return FnIdx; }
   uint32_t &getFuncIndex() noexcept { return FnIdx; }
 };
+
 class PostReturn {
   uint32_t FnIdx;
 
@@ -44,11 +45,13 @@ public:
   uint32_t getFuncIndex() const noexcept { return FnIdx; }
   uint32_t &getFuncIndex() noexcept { return FnIdx; }
 };
+
 enum class StringEncoding : Byte {
   UTF8 = 0x00,
   UTF16 = 0x01,
   Latin1 = 0x02,
 };
+
 using CanonOpt = std::variant<StringEncoding, Memory, Realloc, PostReturn>;
 
 class Lift {
@@ -64,6 +67,7 @@ public:
   uint32_t getFuncTypeIndex() const noexcept { return FnTyIdx; }
   uint32_t &getFuncTypeIndex() noexcept { return FnTyIdx; }
 };
+
 class Lower {
   uint32_t FnIdx;
   std::vector<CanonOpt> Opts;
@@ -82,6 +86,7 @@ public:
   uint32_t getTypeIndex() const noexcept { return TyIdx; }
   uint32_t &getTypeIndex() noexcept { return TyIdx; }
 };
+
 class ResourceDrop {
   uint32_t TyIdx;
 
@@ -89,6 +94,7 @@ public:
   uint32_t getTypeIndex() const noexcept { return TyIdx; }
   uint32_t &getTypeIndex() noexcept { return TyIdx; }
 };
+
 class ResourceRep {
   uint32_t TyIdx;
 
@@ -118,7 +124,6 @@ struct fmt::formatter<WasmEdge::AST::Component::Canon>
     using namespace std::literals;
 
     fmt::memory_buffer Buffer;
-
     if (std::holds_alternative<WasmEdge::AST::Component::Lift>(Opt)) {
       fmt::format_to(std::back_inserter(Buffer), "lift"sv);
     } else if (std::holds_alternative<WasmEdge::AST::Component::Lower>(Opt)) {

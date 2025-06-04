@@ -124,7 +124,6 @@ Expect<OpCode> Loader::loadOpCode() {
 
 // Load instruction sequence. See "include/loader/loader.h".
 Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
-  OpCode Code;
   AST::InstrVec Instrs;
   std::vector<std::pair<OpCode, uint32_t>> BlockStack;
   uint32_t Cnt = 0;
@@ -133,12 +132,9 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
   do {
     // Read the opcode and check if error.
     uint64_t Offset = FMgr.getOffset();
-    if (auto Res = loadOpCode()) {
-      Code = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+    EXPECTED_TRY(OpCode Code, loadOpCode().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+    }));
 
     // Check with proposals.
     if (auto Res = Conf.isInstrNeedProposal(Code); unlikely(!!Res)) {
@@ -276,23 +272,19 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // Node: The instruction has checked for the proposals. Need to check their
   // immediates.
 
-  auto readU8 = [this](uint8_t &Dst) -> Expect<void> {
-    if (auto Res = FMgr.readByte()) {
-      Dst = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+  auto ReportError = [this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+  };
+
+  auto readU8 = [this, ReportError](uint8_t &Dst) -> Expect<void> {
+    EXPECTED_TRY(uint8_t U8, FMgr.readByte().map_error(ReportError));
+    Dst = U8;
     return {};
   };
 
-  auto readU32 = [this](uint32_t &Dst) -> Expect<void> {
-    if (auto Res = FMgr.readU32()) {
-      Dst = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+  auto readU32 = [this, ReportError](uint32_t &Dst) -> Expect<void> {
+    EXPECTED_TRY(uint32_t U32, FMgr.readU32().map_error(ReportError));
+    Dst = U32;
     return {};
   };
 
@@ -324,35 +316,31 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  auto readBlockType = [this](BlockType &Dst) -> Expect<void> {
+  auto readBlockType = [this, ReportError](BlockType &Dst) -> Expect<void> {
     auto StartOffset = FMgr.getOffset();
     // Read the block return type.
-    if (auto Res = FMgr.readS33()) {
-      if (*Res < 0) {
-        TypeCode TypeByte = static_cast<TypeCode>((*Res) & INT64_C(0x7F));
-        if (TypeByte == TypeCode::Epsilon) {
-          // Empty case.
-          Dst.setEmpty();
-        } else {
-          // Value type case. Seek back to the origin offset and read the
-          // valtype.
-          FMgr.seek(StartOffset);
-          // The AST node information is handled.
-          EXPECTED_TRY(auto Type, loadValType(ASTNodeAttr::Instruction));
-          Dst.setData(Type);
-        }
+    EXPECTED_TRY(int64_t Code, FMgr.readS33().map_error(ReportError));
+    if (Code < 0) {
+      TypeCode TypeByte = static_cast<TypeCode>(Code & INT64_C(0x7F));
+      if (TypeByte == TypeCode::Epsilon) {
+        // Empty case.
+        Dst.setEmpty();
       } else {
-        // Type index case.
-        if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
-          return logNeedProposal(ErrCode::Value::MalformedValType,
-                                 Proposal::MultiValue, FMgr.getLastOffset(),
-                                 ASTNodeAttr::Instruction);
-        }
-        Dst.setData(static_cast<uint32_t>(*Res));
+        // Value type case. Seek back to the origin offset and read the
+        // valtype.
+        FMgr.seek(StartOffset);
+        // The AST node information is handled.
+        EXPECTED_TRY(auto Type, loadValType(ASTNodeAttr::Instruction));
+        Dst.setData(Type);
       }
     } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
+      // Type index case.
+      if (unlikely(!Conf.hasProposal(Proposal::MultiValue))) {
+        return logNeedProposal(ErrCode::Value::MalformedValType,
+                               Proposal::MultiValue, FMgr.getLastOffset(),
+                               ASTNodeAttr::Instruction);
+      }
+      Dst.setData(static_cast<uint32_t>(Code));
     }
     return {};
   };
@@ -378,27 +366,16 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     Instr.setTryCatch();
     // Read the result type.
     EXPECTED_TRY(readBlockType(Instr.getTryCatch().ResType));
-    uint32_t VecCnt = 0;
-    // Read the vector of catch.
-    if (auto Res = loadVecCnt()) {
-      VecCnt = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+    EXPECTED_TRY(uint32_t VecCnt, loadVecCnt().map_error(ReportError));
     Instr.getTryCatch().Catch.resize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       auto &Desc = Instr.getTryCatch().Catch[I];
       // Read the catch flag.
-      if (auto Res = FMgr.readByte()) {
-        // LEGACY-EH: remove this flag after deprecating legacy EH.
-        Desc.IsLegacy = false;
-        Desc.IsRef = (*Res & 0x01U) ? true : false;
-        Desc.IsAll = (*Res & 0x02U) ? true : false;
-      } else {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Instruction);
-      }
+      EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
+      // LEGACY-EH: remove this `IsLegacy` flag after deprecating legacy EH.
+      Desc.IsLegacy = false;
+      Desc.IsRef = (Flag & 0x01U) ? true : false;
+      Desc.IsAll = (Flag & 0x02U) ? true : false;
       if (!Desc.IsAll) {
         // Read the tag index.
         EXPECTED_TRY(readU32(Desc.TagIndex));
@@ -440,14 +417,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return Unexpect(ErrCode::Value::IllegalOpCode);
 
   case OpCode::Br_table: {
-    uint32_t VecCnt = 0;
     // Read the vector of labels.
-    if (auto Res = loadVecCnt()) {
-      VecCnt = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+    EXPECTED_TRY(uint32_t VecCnt, loadVecCnt().map_error(ReportError));
     Instr.setLabelListSize(VecCnt + 1);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       EXPECTED_TRY(readU32(Instr.getLabelList()[I].TargetIndex));
@@ -527,34 +498,22 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Br_on_cast_fail: {
     // Read the flag.
     uint8_t Flag = 0U;
-    if (auto Res = readU8(Flag); !Res) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+    EXPECTED_TRY(readU8(Flag).map_error(ReportError));
     // Read the label index.
     uint32_t LabelIdx = 0U;
-    if (auto Res = readU32(LabelIdx); !Res) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+    EXPECTED_TRY(readU32(LabelIdx).map_error(ReportError));
     // Read the heap types.
     Instr.setBrCast(LabelIdx);
-    if (auto Res =
-            loadHeapType(((Flag & 0x01U) ? TypeCode::RefNull : TypeCode::Ref),
-                         ASTNodeAttr::Instruction)) {
-      Instr.getBrCast().RType1 = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
-    if (auto Res =
-            loadHeapType(((Flag & 0x02U) ? TypeCode::RefNull : TypeCode::Ref),
-                         ASTNodeAttr::Instruction)) {
-      Instr.getBrCast().RType2 = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+    TypeCode TC = ((Flag & 0x01U) ? TypeCode::RefNull : TypeCode::Ref);
+    EXPECTED_TRY(
+        ValType VT1,
+        loadHeapType(TC, ASTNodeAttr::Instruction).map_error(ReportError));
+    Instr.getBrCast().RType1 = VT1;
+    TC = ((Flag & 0x02U) ? TypeCode::RefNull : TypeCode::Ref);
+    EXPECTED_TRY(
+        ValType VT2,
+        loadHeapType(TC, ASTNodeAttr::Instruction).map_error(ReportError));
+    Instr.getBrCast().RType2 = VT2;
     return {};
   }
   case OpCode::Array__len:
@@ -571,17 +530,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   case OpCode::Select_t: {
     // Read the vector of value types.
-    uint32_t VecCnt = 0;
-    if (auto Res = loadVecCnt()) {
-      VecCnt = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    }
+    EXPECTED_TRY(uint32_t VecCnt, loadVecCnt().map_error(ReportError));
     Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       // The AST node information is handled.
-      EXPECTED_TRY(auto Type, loadValType(ASTNodeAttr::Instruction));
+      EXPECTED_TRY(ValType Type, loadValType(ASTNodeAttr::Instruction));
       Instr.getValTypeList()[I] = Type;
     }
     return {};
@@ -666,36 +619,24 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   // Const Instructions.
   case OpCode::I32__const:
-    if (auto Res = FMgr.readS32(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setNum(static_cast<uint128_t>(static_cast<uint32_t>(*Res)));
-    }
+    EXPECTED_TRY(FMgr.readS32().map_error(ReportError).map([&](int32_t Num) {
+      Instr.setNum(static_cast<uint128_t>(static_cast<uint32_t>(Num)));
+    }));
     return {};
   case OpCode::I64__const:
-    if (auto Res = FMgr.readS64(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setNum(static_cast<uint128_t>(static_cast<uint64_t>(*Res)));
-    }
+    EXPECTED_TRY(FMgr.readS64().map_error(ReportError).map([&](int64_t Num) {
+      Instr.setNum(static_cast<uint128_t>(static_cast<uint64_t>(Num)));
+    }));
     return {};
   case OpCode::F32__const:
-    if (auto Res = FMgr.readF32(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setNum(*Res);
-    }
+    EXPECTED_TRY(FMgr.readF32().map_error(ReportError).map([&](float Num) {
+      Instr.setNum(Num);
+    }));
     return {};
   case OpCode::F64__const:
-    if (auto Res = FMgr.readF64(); unlikely(!Res)) {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Instruction);
-    } else {
-      Instr.setNum(*Res);
-    }
+    EXPECTED_TRY(FMgr.readF64().map_error(ReportError).map([&](double Num) {
+      Instr.setNum(Num);
+    }));
     return {};
 
   // Unary Numeric Instructions.
@@ -876,13 +817,9 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     // Read value.
     uint128_t Value = 0U;
     for (uint32_t I = 0U; I < 16U; ++I) {
-      if (auto Res = FMgr.readByte(); unlikely(!Res)) {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Instruction);
-      } else {
-        Value |= static_cast<uint128_t>(static_cast<uint32_t>(*Res))
-                 << (I * 8U);
-      }
+      EXPECTED_TRY(FMgr.readByte().map_error(ReportError).map([&](uint8_t B) {
+        Value |= static_cast<uint128_t>(static_cast<uint32_t>(B)) << (I * 8U);
+      }));
     }
     Instr.setNum(Value);
     return {};

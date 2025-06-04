@@ -74,6 +74,9 @@ template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::DataCountSection>() noexcept {
   return ASTNodeAttr::Sec_DataCount;
 }
+template <> inline ASTNodeAttr NodeAttrFromAST<AST::TagSection>() noexcept {
+  return ASTNodeAttr::Sec_Tag;
+}
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::SubType>() noexcept {
   return ASTNodeAttr::Type_Rec;
 }
@@ -82,9 +85,6 @@ template <> inline ASTNodeAttr NodeAttrFromAST<AST::FunctionType>() noexcept {
 }
 template <> inline ASTNodeAttr NodeAttrFromAST<AST::ElementSegment>() noexcept {
   return ASTNodeAttr::Seg_Element;
-}
-template <> inline ASTNodeAttr NodeAttrFromAST<AST::TagSection>() noexcept {
-  return ASTNodeAttr::Sec_Tag;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::AliasSection>() noexcept {

@@ -16,27 +16,25 @@ namespace Loader {
 // Load content of custom section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    auto ReportError = [this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Sec_Custom);
+    };
+
     // Read name.
     auto StartOffset = FMgr.getOffset();
-    if (auto Res = FMgr.readName()) {
-      Sec.setName(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Sec_Custom);
-    }
+    EXPECTED_TRY(std::string Name, FMgr.readName().map_error(ReportError));
+    Sec.setName(Name);
     auto ReadSize = FMgr.getOffset() - StartOffset;
+
     // Read remain bytes. Check is overread or not first.
-    if (Sec.getContentSize() < ReadSize) {
+    if (unlikely(Sec.getContentSize() < ReadSize)) {
       return logLoadError(ErrCode::Value::UnexpectedEnd, FMgr.getLastOffset(),
                           ASTNodeAttr::Sec_Custom);
     }
-    if (auto Res = FMgr.readBytes(Sec.getContentSize() - ReadSize)) {
-      Sec.getContent().insert(Sec.getContent().end(), (*Res).begin(),
-                              (*Res).end());
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Sec_Custom);
-    }
+    EXPECTED_TRY(
+        std::vector<uint8_t> Bytes,
+        FMgr.readBytes(Sec.getContentSize() - ReadSize).map_error(ReportError));
+    Sec.getContent().insert(Sec.getContent().end(), Bytes.begin(), Bytes.end());
     return {};
   });
 }
@@ -44,54 +42,42 @@ Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
 // Load vector of type section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::TypeSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+    auto ReportError = [this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Sec_Type);
+    };
+
     // Read the recursive type vector size.
-    uint32_t VecCnt = 0;
-    if (auto Res = loadVecCnt()) {
-      VecCnt = *Res;
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Sec_Type);
-    }
+    EXPECTED_TRY(uint32_t VecCnt, loadVecCnt().map_error(ReportError));
     // Read the recursive types.
     Sec.getContent().clear();
     uint32_t SubTypeCnt = 0;
     for (uint32_t I = 0; I < VecCnt; I++) {
-      if (auto CodeByte = FMgr.peekByte()) {
-        TypeCode Code = static_cast<TypeCode>(*CodeByte);
-        if (Code == TypeCode::Rec) {
-          // Case: 0x4E vec(subtype).
-          FMgr.readByte();
-          uint32_t RecVecCnt = 0;
-          if (auto Res = loadVecCnt()) {
-            RecVecCnt = *Res;
-          } else {
-            return logLoadError(Res.error(), FMgr.getLastOffset(),
-                                ASTNodeAttr::Sec_Type);
-          }
-          for (uint32_t J = 0; J < RecVecCnt; ++J) {
-            Sec.getContent().emplace_back();
-            EXPECTED_TRY(
-                loadType(Sec.getContent().back()).map_error([](auto E) {
-                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
-                  return E;
-                }));
-            Sec.getContent().back().setRecursiveInfo(J, RecVecCnt);
-            Sec.getContent().back().setTypeIndex(SubTypeCnt);
-            SubTypeCnt++;
-          }
-        } else {
-          // Case: subtype.
+      EXPECTED_TRY(uint8_t CodeByte, FMgr.peekByte().map_error(ReportError));
+
+      TypeCode Code = static_cast<TypeCode>(CodeByte);
+      if (Code == TypeCode::Rec) {
+        // Case: 0x4E vec(subtype).
+        FMgr.readByte();
+        EXPECTED_TRY(uint32_t RecVecCnt, loadVecCnt().map_error(ReportError));
+        for (uint32_t J = 0; J < RecVecCnt; ++J) {
           Sec.getContent().emplace_back();
-          Sec.getContent().back().setTypeIndex(SubTypeCnt);
-          SubTypeCnt++;
           EXPECTED_TRY(loadType(Sec.getContent().back()).map_error([](auto E) {
             spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
             return E;
           }));
+          Sec.getContent().back().setRecursiveInfo(J, RecVecCnt);
+          Sec.getContent().back().setTypeIndex(SubTypeCnt);
+          SubTypeCnt++;
         }
       } else {
-        return logLoadError(CodeByte.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Sec_Type);
+        // Case: subtype.
+        Sec.getContent().emplace_back();
+        Sec.getContent().back().setTypeIndex(SubTypeCnt);
+        SubTypeCnt++;
+        EXPECTED_TRY(loadType(Sec.getContent().back()).map_error([](auto E) {
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
+          return E;
+        }));
       }
     }
     return {};
@@ -109,18 +95,15 @@ Expect<void> Loader::loadSection(AST::ImportSection &Sec) {
 // Load vector of function section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::FunctionSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
-    return loadSectionContentVec(Sec, [this](uint32_t &FuncIdx) {
-      return FMgr.readU32()
-          .map_error([this](auto E) {
-            spdlog::error(E);
-            spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
-            return E;
-          })
-          .and_then([&FuncIdx](auto Idx) {
-            FuncIdx = Idx;
-            return Expect<void>{};
-          });
-    });
+    return loadSectionContentVec(
+        Sec, [this](uint32_t &FuncIdx) -> Expect<void> {
+          EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error([this](auto E) {
+            return logLoadError(E, FMgr.getLastOffset(),
+                                ASTNodeAttr::Sec_Function);
+          }));
+          FuncIdx = Idx;
+          return {};
+        });
   });
 }
 
@@ -161,12 +144,10 @@ Expect<void> Loader::loadSection(AST::ExportSection &Sec) {
 Expect<void> Loader::loadSection(AST::StartSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
     // Read u32 of start function index.
-    if (auto Res = FMgr.readU32()) {
-      Sec.setContent(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Sec_Start);
-    }
+    EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Sec_Start);
+    }));
+    Sec.setContent(Idx);
     return {};
   });
 }
@@ -202,12 +183,10 @@ Expect<void> Loader::loadSection(AST::DataSection &Sec) {
 Expect<void> Loader::loadSection(AST::DataCountSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
     // Read u32 of data count.
-    if (auto Res = FMgr.readU32()) {
-      Sec.setContent(*Res);
-    } else {
-      return logLoadError(Res.error(), FMgr.getLastOffset(),
-                          ASTNodeAttr::Sec_DataCount);
-    }
+    EXPECTED_TRY(uint32_t Cnt, FMgr.readU32().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Sec_DataCount);
+    }));
+    Sec.setContent(Cnt);
     return {};
   });
 }

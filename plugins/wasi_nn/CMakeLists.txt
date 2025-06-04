@@ -22,6 +22,9 @@ wasmedge_add_library(wasmedgePluginWasiNN
 include(WASINNDeps)
 wasmedge_setup_wasinn_target(wasmedgePluginWasiNN PLUGINLIB)
 
+set(WASMEDGE_WASI_NN_VERSION "0.1.23" CACHE STRING "WasmEdge WASI-NN library version")
+set(WASMEDGE_WASI_NN_SOVERSION "0" CACHE STRING "WasmEdge WASI-NN library soversion")
+
 # Handle the version of the WASI-NN plugin
 string(REPLACE "." ";" WASI_NN_VERSION_LIST ${WASMEDGE_WASI_NN_VERSION})
 list(GET WASI_NN_VERSION_LIST 0 WASI_NN_VERSION_MAJOR)

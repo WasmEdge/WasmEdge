@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
   WasmEdge_ModuleInstanceContext *HostModCxt =
       WasmEdge_ModuleInstanceCreate(ExportName);
   WasmEdge_Limit MemLimit = {
-      .HasMax = true, .Shared = true, .Min = 60, .Max = 60};
+      .HasMax = true, .Shared = true, .Is64 = false, .Min = 60, .Max = 60};
   WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(MemLimit);
   WasmEdge_MemoryInstanceContext *HostMemory =
       WasmEdge_MemoryInstanceCreate(MemTypeCxt);

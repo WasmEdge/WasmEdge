@@ -93,6 +93,10 @@ jobs:
         cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Debug -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use .
         cmake --build build > iwyu_fedora.log
 
+    - name: Dump the result
+      if: always()
+      run: cat iwyu_fedora.log
+
     - uses: actions/upload-artifact@v4
       with:
         name: iwyu_fedora.log
@@ -150,6 +154,10 @@ jobs:
 
         cmake -Bbuild -GNinja -DWASMEDGE_BUILD_TESTS=ON -DCMAKE_CXX_INCLUDE_WHAT_YOU_USE="xcrun;$IWYU_PREFIX/bin/include-what-you-use" -DWASMEDGE_BUILD_PACKAGE="TGZ" .
         cmake --build build > iwyu_macOS.log
+
+    - name: Dump the result
+      if: always()
+      run: cat iwyu_macOS.log
 
     - uses: actions/upload-artifact@v4
       with:

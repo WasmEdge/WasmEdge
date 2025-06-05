@@ -217,41 +217,45 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
     }
   }
 
-  // In current version when GC proposal is not enabled, the length of type
-  // index vector will be <= 1.
-  if (!Conf.hasProposal(Proposal::GC) &&
-      Type.getSuperTypeIndices().size() > 1) {
-    spdlog::error(ErrCode::Value::InvalidSubType);
-    spdlog::error("    Accepts 1 super type currently."sv);
-    return Unexpect(ErrCode::Value::InvalidSubType);
-  }
+  if (!Conf.hasProposal(Proposal::GC)) {
+    // When GC proposal is not enabled, the length of type
+    // index vector must be <= 1.
+    if (Type.getSuperTypeIndices().size() > 1) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error(
+          "    Accepts 1 super type currently when GC proposal is disabled."sv);
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+  } else {
+    // Validate subtype depth when GC proposal is enabled
+    if (!Type.getSuperTypeIndices().empty()) {
+      for (const auto &Index : Type.getSuperTypeIndices()) {
+        if (unlikely(Index >= TypeVec.size())) {
+          spdlog::error(ErrCode::Value::InvalidSubType);
+          spdlog::error(
+              "    Super type not found. Index {} is out of bounds for defined types (size: {})."sv,
+              Index, TypeVec.size());
+          return Unexpect(ErrCode::Value::InvalidSubType);
+        }
 
-  // Validate subtype depth when GC proposal is enabled
-  if (Conf.hasProposal(Proposal::GC) && !Type.getSuperTypeIndices().empty()) {
-    for (const auto &Index : Type.getSuperTypeIndices()) {
-      if (unlikely(Index >= TypeVec.size())) {
-        spdlog::error(ErrCode::Value::InvalidSubType);
-        spdlog::error("    Super type not found."sv);
-        return Unexpect(ErrCode::Value::InvalidSubType);
-      }
+        // Calculate and check subtype depth
+        if (auto Res = details::calculateSubtypeDepth(Index, Checker); !Res) {
+          return Unexpect(Res.error());
+        }
 
-      // Calculate and check subtype depth
-      if (auto Res = details::calculateSubtypeDepth(Index, Checker); !Res) {
-        return Unexpect(Res.error());
-      }
+        if (TypeVec[Index]->isFinal()) {
+          spdlog::error(ErrCode::Value::InvalidSubType);
+          spdlog::error("    Super type should not be final."sv);
+          return Unexpect(ErrCode::Value::InvalidSubType);
+        }
 
-      if (TypeVec[Index]->isFinal()) {
-        spdlog::error(ErrCode::Value::InvalidSubType);
-        spdlog::error("    Super type should not be final."sv);
-        return Unexpect(ErrCode::Value::InvalidSubType);
-      }
-
-      auto &SuperType = TypeVec[Index]->getCompositeType();
-      if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType,
-                                       CompType)) {
-        spdlog::error(ErrCode::Value::InvalidSubType);
-        spdlog::error("    Super type not matched."sv);
-        return Unexpect(ErrCode::Value::InvalidSubType);
+        auto &SuperType = TypeVec[Index]->getCompositeType();
+        if (!AST::TypeMatcher::matchType(Checker.getTypes(), SuperType,
+                                         CompType)) {
+          spdlog::error(ErrCode::Value::InvalidSubType);
+          spdlog::error("    Super type not matched."sv);
+          return Unexpect(ErrCode::Value::InvalidSubType);
+        }
       }
     }
   }

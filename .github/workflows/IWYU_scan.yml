@@ -70,6 +70,23 @@ jobs:
         dnf install -y cmake ninja-build llvm18 llvm18-devel lld18-devel clang18 git file rpm-build dpkg-dev clang18-devel spdlog-devel
         curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.22.zip
         unzip 0.22.zip
+        patch -p1 -d include-what-you-use-0.22 <<EOF
+        diff --git a/iwyu.cc b/iwyu.cc
+        --- a/iwyu.cc
+        +++ b/iwyu.cc
+        @@ -1889,8 +1889,9 @@ class IwyuBaseAstVisitor : public BaseAstVisitor<Derived> {
+               case clang::CK_CPointerToObjCPointerCast:
+               case clang::CK_ObjCObjectLValueCast:
+               case clang::CK_VectorSplat:
+        -        CHECK_UNREACHABLE_(
+        -            "TODO(csilvers): for objc and clang lang extensions");
+        +        // Disable this unreachable asset to avoid the CI failure
+        +        //CHECK_UNREACHABLE_(
+        +        //    "TODO(csilvers): for objc and clang lang extensions");
+                 break;
+
+               // Kinds for reinterpret_cast and const_cast, which need no full types.
+        EOF
         export LLVM_DIR="/usr/lib64/llvm18/lib/cmake"
         export Clang_DIR="/usr/lib64/llvm18/lib/cmake/clang"
         export CC=clang-18

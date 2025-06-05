@@ -2181,6 +2181,17 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
   return ErrNo::Success;
 }
 
+// Clear the context and reset the sampler.
+void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
+  LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext"sv)
+  llama_kv_self_clear(GraphRef.LlamaContext.get());
+  common_sampler_reset(CxtRef.LlamaSampler);
+  CxtRef.NPos = 0;
+  CxtRef.LlamaOutputs.clear();
+  CxtRef.LlamaOutputTokens.clear();
+  LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext...Done"sv)
+}
+
 // Evaluate the input tokens. Clean all inputs if succeeded.
 ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                     std::string_view LogPrefix) noexcept {
@@ -2190,19 +2201,6 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
               LogPrefix)
   }
 
-  // Clear the outputs.
-  LOG_DEBUG(GraphRef.EnableDebugLog,
-            "{}: clear the previous output and tokens"sv, LogPrefix)
-  CxtRef.LlamaOutputs.clear();
-  CxtRef.LlamaOutputTokens.clear();
-  LOG_DEBUG(GraphRef.EnableDebugLog,
-            "{}: clear the previous output and tokens...Done"sv, LogPrefix)
-
-  // Clear the llama context.
-  llama_kv_self_clear(GraphRef.LlamaContext.get());
-
-  // Prepare variables;
-  CxtRef.NPos = 0;
   // Get the context size.
   const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
@@ -3110,12 +3108,12 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute")
 
+  // Clear the context and reset the sampler.
+  clearContext(GraphRef, CxtRef);
+
   if (GraphRef.Params.embedding) {
     return getEmbedding(GraphRef, CxtRef);
   }
-
-  // Reset the sampler for a new computation.
-  common_sampler_reset(CxtRef.LlamaSampler);
 
   // Evaluate the input tokens.
   ErrNo ReturnCode = ErrNo::Success;
@@ -3215,8 +3213,8 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
   if (!CxtRef.ComputeSingleStarted) {
     CxtRef.ComputeSingleStarted = true;
 
-    // Reset the sampler for a new computation.
-    common_sampler_reset(CxtRef.LlamaSampler);
+    // Clear the context and reset the sampler.
+    clearContext(GraphRef, CxtRef);
 
     // Evaluate the input tokens.
     if (GraphRef.VisionContext == nullptr) {

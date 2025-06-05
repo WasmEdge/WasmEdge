@@ -9,7 +9,7 @@
 #include "system/winapi.h"
 #elif WASMEDGE_OS_LINUX
 #include <unwind.h>
-#elif WASMEDGE_OS_MACOS
+#elif WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 #include <execinfo.h>
 #endif
 
@@ -68,7 +68,7 @@ Span<void *const> stackTrace(Span<void *> Buffer) noexcept {
       },
       &State);
   return Buffer.first(State.Index);
-#elif WASMEDGE_OS_MACOS
+#elif WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
   const auto Depth = backtrace(Buffer.data(), Buffer.size());
   return Buffer.first(Depth);
 #endif

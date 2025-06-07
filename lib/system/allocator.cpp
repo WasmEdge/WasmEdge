@@ -6,6 +6,8 @@
 #include "common/config.h"
 #include "common/defines.h"
 #include "common/errcode.h"
+#include "common/spdlog.h"
+#include <errno.h>
 
 #if WASMEDGE_OS_WINDOWS
 #include "system/winapi.h"
@@ -54,6 +56,7 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
       mmap(nullptr, k12G, PROT_NONE,
            MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0));
   if (Reserved == MAP_FAILED) {
+    spdlog::error("mmap failed to reserve memory for allocator {}", errno);
     return nullptr;
   }
   if (PageCount == 0) {
@@ -61,6 +64,7 @@ WASMEDGE_EXPORT uint8_t *Allocator::allocate(uint32_t PageCount) noexcept {
   }
   auto Pointer = resize(Reserved + k4G, 0, PageCount);
   if (Pointer == nullptr) {
+    spdlog::error("mmap failed to resize memory for allocator {}", errno);
     return nullptr;
   }
   return Pointer;

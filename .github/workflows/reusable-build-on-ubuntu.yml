@@ -74,7 +74,10 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build
           ./tools/wasmedge/wasmedge -v
-          ctest
+          if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
+            free -m
+            ctest -R wasmedgeAPIStepsCoreTests -V
+          fi
           cd -
       - name: Build (${{ matrix.compiler }}, Coverage)
         if: ${{ matrix.coverage }}

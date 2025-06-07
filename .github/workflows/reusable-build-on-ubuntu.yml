@@ -75,6 +75,9 @@ jobs:
           cd build
           ./tools/wasmedge/wasmedge -v
           ctest
+          if [[ "${{ matrix.arch }}" == "aarch64" ]]; then
+            ctest -R wasmedgeAPIStepsCoreTests -V
+          fi
           cd -
       - name: Build (${{ matrix.compiler }}, Coverage)
         if: ${{ matrix.coverage }}

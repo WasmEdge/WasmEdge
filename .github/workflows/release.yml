@@ -64,7 +64,7 @@ jobs:
     with:
       version: ${{ needs.create_release.outputs.version }}
       matrix: "[{'name':'ubuntu-20.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang'},
-                {'name':'ubuntu-20.04','arch':'aarch64','runner':'linux-arm64-v2','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang-aarch64'}]"
+                {'name':'ubuntu-20.04','arch':'aarch64','runner':'ubuntu-24.04-arm','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang-aarch64'}]"
       release: true
     secrets: inherit
 
@@ -75,7 +75,7 @@ jobs:
       version: ${{ needs.create_release.outputs.version }}
       matrix:
         "[{'name':'manylinux_2_28 x86_64','runner':'ubuntu-latest','docker_tag':'manylinux_2_28_x86_64','asset_tag':'manylinux_2_28_x86_64'},
-          {'name':'manylinux_2_28 aarch64','runner':'linux-arm64-v2','docker_tag':'manylinux_2_28_aarch64','asset_tag':'manylinux_2_28_aarch64'}]"
+          {'name':'manylinux_2_28 aarch64','runner':'ubuntu-24.04-arm','docker_tag':'manylinux_2_28_aarch64','asset_tag':'manylinux_2_28_aarch64'}]"
       release: true
     secrets: inherit
 

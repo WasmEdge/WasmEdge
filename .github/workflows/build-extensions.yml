@@ -1,4 +1,4 @@
-name: Test WasmEdge extensions
+name: Extensions
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -189,7 +189,7 @@ jobs:
   build_plugins:
     permissions:
       contents: write
-    name: Build and Test
+    name: Plugins
     needs: get_version
     uses: ./.github/workflows/reusable-build-extensions.yml
     with:

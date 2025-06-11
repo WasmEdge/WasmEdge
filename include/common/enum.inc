@@ -109,6 +109,7 @@ A(Comp_ResourceType, "component resourcetype")
 A(Comp_ExternDesc, "component extern desc")
 A(Comp_Start, "component start")
 A(Comp_Canonical, "component canonical")
+A(Comp_CanonOpt, "component canonical option")
 A(Comp_Import, "component import")
 A(Comp_Export, "component export")
 

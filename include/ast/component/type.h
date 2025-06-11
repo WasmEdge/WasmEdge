@@ -591,20 +591,23 @@ private:
 /// AST Component::ResourceType node.
 class ResourceType {
 public:
-  ResourceType() noexcept : Async(false) {}
-  ResourceType(bool A) noexcept : Async(A) {}
+  ResourceType() noexcept : DtorSync(true) {}
+  ResourceType(bool Sync) noexcept : DtorSync(Sync) {}
 
-  std::optional<uint32_t> getDestructor() const noexcept { return Destructor; }
-  std::optional<uint32_t> getCallback() const noexcept { return Callback; }
+  std::optional<uint32_t> getDestructor() const noexcept { return Dtor; }
+  std::optional<uint32_t> getCallback() const noexcept { return DtorCallback; }
 
-  bool IsAsync() noexcept { return Async; }
-  std::optional<uint32_t> &getDestructor() noexcept { return Destructor; }
-  std::optional<uint32_t> &getCallback() noexcept { return Callback; }
+  bool IsSync() noexcept { return DtorSync; }
+  std::optional<uint32_t> &getDestructor() noexcept { return Dtor; }
+  std::optional<uint32_t> &getCallback() noexcept { return DtorCallback; }
 
 private:
-  bool Async;
-  std::optional<uint32_t> Destructor;
-  std::optional<uint32_t> Callback;
+  // Destructor is sync or not. True for sync, false for async.
+  bool DtorSync;
+  // Destructor function index.
+  std::optional<uint32_t> Dtor;
+  // Destructor callback function index.
+  std::optional<uint32_t> DtorCallback;
 };
 
 // =============================================================================

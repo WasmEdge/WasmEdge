@@ -638,13 +638,13 @@ Expect<void> Loader::loadType(AST::Component::ResourceType &Ty) {
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
                         ASTNodeAttr::Comp_ResourceType);
   }
-  if (Ty.IsAsync()) {
+  if (Ty.IsSync()) {
+    EXPECTED_TRY(Ty.getDestructor(),
+                 loadOption<AST::Component::ResourceType, uint32_t>(LoadIdx));
+  } else {
     EXPECTED_TRY(uint32_t FIdx, FMgr.readU32().map_error(ReportError));
     Ty.getDestructor().emplace(FIdx);
     EXPECTED_TRY(Ty.getCallback(),
-                 loadOption<AST::Component::ResourceType, uint32_t>(LoadIdx));
-  } else {
-    EXPECTED_TRY(Ty.getDestructor(),
                  loadOption<AST::Component::ResourceType, uint32_t>(LoadIdx));
   }
   return {};

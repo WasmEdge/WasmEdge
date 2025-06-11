@@ -200,6 +200,10 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::Case>() noexcept {
   return ASTNodeAttr::Comp_Case;
 }
 template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::Canon>() noexcept {
+  return ASTNodeAttr::Comp_Canonical;
+}
+template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::Start>() noexcept {
   return ASTNodeAttr::Comp_Start;
 }

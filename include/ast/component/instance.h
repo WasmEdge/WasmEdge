@@ -124,7 +124,7 @@ class Instantiate {
 public:
   Instantiate() noexcept : ComponentIdx(0) {}
   Instantiate(uint32_t Idx, std::vector<InstantiateArg> &&Args) noexcept
-      : ComponentIdx(Idx), Args{std::move(Args)} {}
+      : ComponentIdx(Idx), Args(std::move(Args)) {}
 
   uint32_t getComponentIdx() const noexcept { return ComponentIdx; }
   Span<const InstantiateArg> getArgs() const noexcept { return Args; }

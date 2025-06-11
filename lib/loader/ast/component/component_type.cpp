@@ -8,8 +8,6 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Loader {
 
-using namespace WasmEdge::AST::Component;
-
 Expect<void> Loader::loadType(AST::Component::CoreType &Ty) {
   // TODO: COMPONENT - combine the CoreType and CoreDefType.
 
@@ -79,8 +77,9 @@ Expect<void> Loader::loadType(AST::Component::CoreModuleType &Ty) {
                         FMgr.getLastOffset(), ASTNodeAttr::Comp_CoreModuleType);
   }
   return loadVec<AST::Component::CoreModuleType>(
-      Ty.getContent(),
-      [this](CoreModuleDecl &Decl) { return loadModuleDecl(Decl); });
+      Ty.getContent(), [this](AST::Component::CoreModuleDecl &Decl) {
+        return loadModuleDecl(Decl);
+      });
 }
 
 Expect<void> Loader::loadModuleDecl(AST::Component::CoreModuleDecl &Decl) {
@@ -101,12 +100,14 @@ Expect<void> Loader::loadModuleDecl(AST::Component::CoreModuleDecl &Decl) {
   case 0x00:
     return loadDesc(Decl.emplace<AST::ImportDesc>()).map_error(ReportError);
   case 0x01:
-    return loadType(Decl.emplace<std::shared_ptr<CoreType>>()->getType())
+    return loadType(Decl.emplace<std::shared_ptr<AST::Component::CoreType>>()
+                        ->getType())
         .map_error(ReportError);
   case 0x02:
-    return loadAlias(Decl.emplace<Alias>()).map_error(ReportError);
+    return loadAlias(Decl.emplace<AST::Component::Alias>())
+        .map_error(ReportError);
   case 0x03:
-    return loadExportDecl(Decl.emplace<CoreExportDecl>())
+    return loadExportDecl(Decl.emplace<AST::Component::CoreExportDecl>())
         .map_error(ReportError);
   default:
     return logLoadError(ErrCode::Value::IllegalGrammar, FMgr.getLastOffset(),
@@ -285,7 +286,7 @@ Expect<void> Loader::loadType(AST::Component::VariantTy &Ty) {
   // variant ::= case*:vec(<case>) => (variant case+) (if |case*| > 0)
 
   return loadVec<AST::Component::VariantTy>(
-      Ty.getCases(), [this](Case &C) { return loadCase(C); });
+      Ty.getCases(), [this](AST::Component::Case &C) { return loadCase(C); });
 }
 
 Expect<void> Loader::loadType(AST::Component::ListTy &Ty) {
@@ -476,7 +477,8 @@ Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
 
   // The prefix `0x40` has been loaded in the parent scope.
   EXPECTED_TRY(loadVec<AST::Component::FuncType>(
-      Ty.getParamList(), [this](LabelValType &LV) { return loadType(LV); }));
+      Ty.getParamList(),
+      [this](AST::Component::LabelValType &LV) { return loadType(LV); }));
   return loadType(Ty.getResultList());
 }
 
@@ -504,7 +506,7 @@ Expect<void> Loader::loadType(AST::Component::ResultList &Ty) {
   case 0x01:
     EXPECTED_TRY(loadVec<AST::Component::ResultList>(
         Ty.emplace<std::vector<AST::Component::LabelValType>>(),
-        [this](LabelValType &LV) { return loadType(LV); }));
+        [this](AST::Component::LabelValType &LV) { return loadType(LV); }));
     break;
   default:
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
@@ -518,8 +520,9 @@ Expect<void> Loader::loadType(AST::Component::ComponentType &Ty) {
 
   // The prefix `0x41` has been loaded in the parent scope.
   return loadVec<AST::Component::ComponentType>(
-      Ty.getContent(),
-      [this](ComponentDecl &Decl) { return loadComponentDecl(Decl); });
+      Ty.getContent(), [this](AST::Component::ComponentDecl &Decl) {
+        return loadComponentDecl(Decl);
+      });
 }
 
 Expect<void> Loader::loadComponentDecl(AST::Component::ComponentDecl &Decl) {
@@ -562,8 +565,9 @@ Expect<void> Loader::loadType(AST::Component::InstanceType &Ty) {
 
   // The prefix `0x42` has been loaded in the parent scope.
   return loadVec<AST::Component::InstanceType>(
-      Ty.getContent(),
-      [this](InstanceDecl &Decl) { return loadInstanceDecl(Decl); });
+      Ty.getContent(), [this](AST::Component::InstanceDecl &Decl) {
+        return loadInstanceDecl(Decl);
+      });
 }
 
 Expect<void> Loader::loadInstanceDecl(AST::Component::InstanceDecl &Decl) {
@@ -582,15 +586,18 @@ Expect<void> Loader::loadInstanceDecl(AST::Component::InstanceDecl &Decl) {
   }));
   switch (Flag) {
   case 0x00:
-    return loadType(Decl.emplace<CoreType>()).map_error(ReportError);
+    return loadType(Decl.emplace<AST::Component::CoreType>())
+        .map_error(ReportError);
   case 0x01: {
-    DefType Ty;
+    AST::Component::DefType Ty;
     EXPECTED_TRY(loadType(Ty).map_error(ReportError));
-    Decl.emplace<std::shared_ptr<Type>>(std::make_shared<Type>(Ty));
+    Decl.emplace<std::shared_ptr<AST::Component::Type>>(
+        std::make_shared<AST::Component::Type>(Ty));
     return {};
   }
   case 0x02:
-    return loadAlias(Decl.emplace<Alias>()).map_error(ReportError);
+    return loadAlias(Decl.emplace<AST::Component::Alias>())
+        .map_error(ReportError);
   case 0x04: {
     return loadExportDecl(Decl.emplace<AST::Component::ExportDecl>())
         .map_error(ReportError);
@@ -687,8 +694,9 @@ Expect<void> Loader::loadExternDesc(AST::Component::ExternDesc &Desc) {
                           ASTNodeAttr::Comp_ExternDesc);
     }
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
-    DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
-    T.getKind() = static_cast<IndexKind>(Flag);
+    AST::Component::DescTypeIndex &T =
+        Desc.emplace<AST::Component::DescTypeIndex>();
+    T.getKind() = static_cast<AST::Component::IndexKind>(Flag);
     T.getIndex() = Idx;
     return {};
   }
@@ -696,22 +704,24 @@ Expect<void> Loader::loadExternDesc(AST::Component::ExternDesc &Desc) {
   case 0x04:
   case 0x05: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
-    DescTypeIndex &T = Desc.emplace<DescTypeIndex>();
-    T.getKind() = static_cast<IndexKind>(Flag);
+    AST::Component::DescTypeIndex &T =
+        Desc.emplace<AST::Component::DescTypeIndex>();
+    T.getKind() = static_cast<AST::Component::IndexKind>(Flag);
     T.getIndex() = Idx;
     return {};
   }
   case 0x02:
     // TODO: COMPONENT - ValueType is the old spec, should modify to ValueBound.
-    EXPECTED_TRY(loadType(Desc.emplace<ValueType>()).map_error(ReportError));
+    EXPECTED_TRY(loadType(Desc.emplace<AST::Component::ValueType>())
+                     .map_error(ReportError));
     return {};
   case 0x03: {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (B == 0x00) {
-      EXPECTED_TRY(Desc.emplace<TypeBound>(),
+      EXPECTED_TRY(Desc.emplace<AST::Component::TypeBound>(),
                    FMgr.readU32().map_error(ReportError));
     } else if (B == 0x01) {
-      Desc.emplace<TypeBound>() = std::nullopt;
+      Desc.emplace<AST::Component::TypeBound>() = std::nullopt;
     } else {
       return ReportError(ErrCode::Value::IllegalGrammar);
     }

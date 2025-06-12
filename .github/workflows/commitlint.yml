@@ -2,8 +2,13 @@ name: Commit Lint
 
 on: [pull_request]
 
+permissions:
+  contents: read
 jobs:
   commitlint:
+    permissions:
+      contents: read
+      pull-requests: write
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -55,65 +60,80 @@ jobs:
             } catch (error) {
               console.log('commitlint-fail label not found or already removed');
             }
-      - name: Remove previous commitlint comments
-        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+      - name: Add success label and comment
+        if: ${{ !cancelled() && steps.commitlint.outcome == 'success' }}
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            // Add label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['commitlint-pass']
+            });
+
+            // Find existing commitlint comment
             const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
 
-            for (const comment of comments.data) {
-              if (comment.user.type === 'Bot' && comment.body.includes('<!-- commitlint-status -->')) {
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: comment.id,
-                });
-              }
-            }
-      - name: Add success label
-        if: ${{ !cancelled() && steps.commitlint.outcome == 'success' }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['commitlint-pass']
-            })
-            // Add comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `<!-- commitlint-status -->
+            const existingComment = comments.data.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('<!-- commitlint-status -->')
+            );
+
+            const successBody = `<!-- commitlint-status -->
             ## ✅ Commitlint Check Passed
 
             All commit messages follow the conventional commit format. Great job! 🎉`
-            });
 
-      - name: Add failure label
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: successBody
+              });
+            } else {
+              // Create new comment if none exists
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: successBody
+              });
+            }
+
+      - name: Add failure label and comment
         if: ${{ !cancelled() && steps.commitlint.outcome == 'failure' }}
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            github.rest.issues.addLabels({
+            // Add label
+            await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               labels: ['commitlint-fail']
-            })
-            // Add comment
-            await github.rest.issues.createComment({
+            });
+
+            // Find existing commitlint comment
+            const comments = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `<!-- commitlint-status -->
+            });
+
+            const existingComment = comments.data.find(comment =>
+              comment.user.type === 'Bot' && comment.body.includes('<!-- commitlint-status -->')
+            );
+
+            const failureBody = `<!-- commitlint-status -->
             ## ❌ Commitlint Check Failed
 
             Some commit messages don't follow the [conventional commit format](https://www.conventionalcommits.org/en/v1.0.0/#summary).
@@ -130,10 +150,27 @@ jobs:
                - \`test(validator): add new test\`
 
             ### Valid types:
-            \`feat\`, \`fix\`, \`docs\`, \`style\`, \`refactor\`, \`test\`, \`chore\`
+            \`feat\`, \`fix\`, \`docs\`, \`refactor\`, \`test\`, \`chore\`, \`build\`, \`ci\`
 
             Please fix the commit messages and push again. 🔧`
-            });
+
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: failureBody
+              });
+            } else {
+              // Create new comment if none exists
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: failureBody
+              });
+            }
 
       - name: Fail job if commitlint failed
         if: ${{ !cancelled() && steps.commitlint.outcome == 'failure' }}

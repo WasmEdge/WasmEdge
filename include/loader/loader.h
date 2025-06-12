@@ -135,21 +135,48 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Comp_Sec_Export;
 }
 template <>
-inline ASTNodeAttr
-NodeAttrFromAST<AST::Component::CoreInstanceExpr>() noexcept {
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreInstance>() noexcept {
   return ASTNodeAttr::Comp_CoreInstance;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceExpr>() noexcept {
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::Instance>() noexcept {
   return ASTNodeAttr::Comp_Instance;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreModuleType>() noexcept {
-  return ASTNodeAttr::Comp_CoreModuleType;
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreDefType>() noexcept {
+  return ASTNodeAttr::Comp_CoreDefType;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::DefType>() noexcept {
   return ASTNodeAttr::Comp_DefType;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::FuncType>() noexcept {
+  return ASTNodeAttr::Comp_FuncType;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::ComponentType>() noexcept {
+  return ASTNodeAttr::Comp_ComponentType;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceType>() noexcept {
+  return ASTNodeAttr::Comp_InstanceType;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::ResourceType>() noexcept {
+  return ASTNodeAttr::Comp_ResourceType;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::Canonical>() noexcept {
+  return ASTNodeAttr::Comp_Canonical;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::Start>() noexcept {
+  return ASTNodeAttr::Comp_Start;
+}
+template <>
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::Export>() noexcept {
+  return ASTNodeAttr::Comp_Export;
 }
 template <>
 inline ASTNodeAttr NodeAttrFromAST<AST::Component::RecordTy>() noexcept {
@@ -176,40 +203,12 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ResultTy>() noexcept {
   return ASTNodeAttr::Comp_Type_Result;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::FuncType>() noexcept {
-  return ASTNodeAttr::Comp_FuncType;
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::StreamTy>() noexcept {
+  return ASTNodeAttr::Comp_Type_Stream;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::ResultList>() noexcept {
-  return ASTNodeAttr::Comp_ResultList;
-}
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::ComponentType>() noexcept {
-  return ASTNodeAttr::Comp_ComponentType;
-}
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceType>() noexcept {
-  return ASTNodeAttr::Comp_InstanceType;
-}
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::ResourceType>() noexcept {
-  return ASTNodeAttr::Comp_ResourceType;
-}
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::Case>() noexcept {
-  return ASTNodeAttr::Comp_Case;
-}
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::Canon>() noexcept {
-  return ASTNodeAttr::Comp_Canonical;
-}
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::Start>() noexcept {
-  return ASTNodeAttr::Comp_Start;
-}
-template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::Export>() noexcept {
-  return ASTNodeAttr::Comp_Export;
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::FutureTy>() noexcept {
+  return ASTNodeAttr::Comp_Type_Future;
 }
 
 } // namespace
@@ -416,51 +415,60 @@ private:
   /// \name Load AST nodes functions for component model
   /// @{
   // Sections
-  Expect<void> loadSection(AST::Component::ComponentSection &Sec);
   Expect<void> loadSection(AST::Component::CoreModuleSection &Sec);
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
+  Expect<void> loadSection(AST::Component::CoreTypeSection &Sec);
+  Expect<void> loadSection(AST::Component::ComponentSection &Sec);
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
-  Expect<void> loadSection(AST::Component::CoreTypeSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
-  Expect<void> loadSection(AST::Component::StartSection &Sec);
   Expect<void> loadSection(AST::Component::CanonSection &Sec);
+  Expect<void> loadSection(AST::Component::StartSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);
   Expect<void> loadSection(AST::Component::ExportSection &Sec);
-  // core:instance
-  Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
-  Expect<void> loadCoreInstantiateArg(AST::Component::CoreInstantiateArg &Arg);
-  Expect<void> loadCoreInlineExport(
-      AST::Component::InlineExportImpl<AST::Component::CoreSort> &Exp);
-  // instance
-  Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);
-  Expect<void> loadInstantiateArg(AST::Component::InstantiateArg &Arg);
-  Expect<void>
-  loadInlineExport(AST::Component::InlineExportImpl<AST::Component::Sort> &Exp);
-  // core:sort
-  Expect<void> loadCoreSort(AST::Component::CoreSort &Sort);
-  Expect<void> loadCoreSortIndex(
-      AST::Component::SortIndex<AST::Component::CoreSort> &SortIdx);
-  // sort
+  // core:instance and instance
+  Expect<void> loadCoreInstance(AST::Component::CoreInstance &Instance);
+  Expect<void> loadInstance(AST::Component::Instance &Instance);
+  // core:sort and sort
+  Expect<void> loadCoreSort(AST::Component::Sort &Sort);
   Expect<void> loadSort(AST::Component::Sort &Sort);
-  Expect<void>
-  loadSortIndex(AST::Component::SortIndex<AST::Component::Sort> &SortIdx);
-  // alias
+  Expect<void> loadSortIndex(AST::Component::SortIndex &SortIdx,
+                             const bool IsCore = false);
+  // core:alias and alias
+  Expect<void> loadCoreAlias(AST::Component::CoreAlias &Alias);
   Expect<void> loadAlias(AST::Component::Alias &Alias);
-  Expect<void> loadAliasTarget(AST::Component::AliasTarget &AliasTarget);
-  // core:type
-  Expect<void> loadType(AST::Component::CoreType &Ty);
+  // core:deftype and deftype
   Expect<void> loadType(AST::Component::CoreDefType &Ty);
-  Expect<void> loadType(AST::Component::CoreModuleType &Ty);
-  Expect<void> loadModuleDecl(AST::Component::CoreModuleDecl &Decl);
-  Expect<void> loadExportDecl(AST::Component::CoreExportDecl &Decl);
-  // type
   Expect<void> loadType(AST::Component::DefType &Ty);
-  // type - defvaltype
   Expect<void> loadType(AST::Component::DefValType &Ty, uint8_t Code);
+  Expect<void> loadType(AST::Component::FuncType &Ty);
+  Expect<void> loadType(AST::Component::ComponentType &Ty);
+  Expect<void> loadType(AST::Component::InstanceType &Ty);
+  Expect<void> loadType(AST::Component::ResourceType &Ty);
+  // start
+  Expect<void> loadStart(AST::Component::Start &S);
+  // canonical
+  Expect<void> loadCanonical(AST::Component::Canonical &C);
+  Expect<void> loadCanonicalOption(AST::Component::CanonOpt &Opt);
+  // import
+  Expect<void> loadImport(AST::Component::Import &Im);
+  // export
+  Expect<void> loadExport(AST::Component::Export &Ex);
+  // descs
+  Expect<void> loadDesc(AST::Component::CoreImportDesc &Desc);
+  Expect<void> loadDesc(AST::Component::ExternDesc &Desc);
+  // decls
+  Expect<void> loadDecl(AST::Component::CoreImportDecl &Decl);
+  Expect<void> loadDecl(AST::Component::CoreExportDecl &Decl);
+  Expect<void> loadDecl(AST::Component::CoreModuleDecl &Decl);
+  Expect<void> loadDecl(AST::Component::ImportDecl &Decl);
+  Expect<void> loadDecl(AST::Component::ExportDecl &Decl);
+  Expect<void> loadDecl(AST::Component::InstanceDecl &Decl);
+  Expect<void> loadDecl(AST::Component::ComponentDecl &Decl);
+  // types
   Expect<void> loadType(AST::Component::RecordTy &RecTy);
   Expect<void> loadType(AST::Component::VariantTy &Ty);
-  Expect<void> loadType(AST::Component::ListTy &Ty);
+  Expect<void> loadType(AST::Component::ListTy &Ty, bool IsFixedLen = false);
   Expect<void> loadType(AST::Component::TupleTy &Ty);
   Expect<void> loadType(AST::Component::FlagsTy &Ty);
   Expect<void> loadType(AST::Component::EnumTy &Ty);
@@ -468,36 +476,12 @@ private:
   Expect<void> loadType(AST::Component::ResultTy &Ty);
   Expect<void> loadType(AST::Component::OwnTy &Ty);
   Expect<void> loadType(AST::Component::BorrowTy &Ty);
-  Expect<void> loadType(AST::Component::LabelValType &Ty);
-  Expect<void> loadType(AST::Component::ValueType &Ty);
-  Expect<void> loadCase(AST::Component::Case &C);
-  // type - functype
-  Expect<void> loadType(AST::Component::FuncType &Ty);
-  Expect<void> loadType(AST::Component::ResultList &Ty);
-  // type - componenttype
-  Expect<void> loadType(AST::Component::ComponentType &Ty);
-  Expect<void> loadComponentDecl(AST::Component::ComponentDecl &Decl);
-  Expect<void> loadImportDecl(AST::Component::ImportDecl &Decl);
-  // type - instancetype
-  Expect<void> loadType(AST::Component::InstanceType &Ty);
-  Expect<void> loadInstanceDecl(AST::Component::InstanceDecl &Decl);
-  Expect<void> loadExportDecl(AST::Component::ExportDecl &Decl);
-  // type - resourcetype
-  Expect<void> loadType(AST::Component::ResourceType &Ty);
-  // start
-  Expect<void> loadStart(AST::Component::Start &S);
-  // cannon
-  Expect<void> loadCanonical(AST::Component::Canon &C);
-  Expect<void> loadCanonical(AST::Component::Lift &C);
-  Expect<void> loadCanonical(AST::Component::Lower &C);
-  Expect<void> loadCanonicalOption(AST::Component::CanonOpt &C);
-  // import
-  Expect<void> loadImport(AST::Component::Import &Im);
-  // export
-  Expect<void> loadExport(AST::Component::Export &Ex);
+  Expect<void> loadType(AST::Component::StreamTy &Ty);
+  Expect<void> loadType(AST::Component::FutureTy &Ty);
   // helpers
   Expect<void> loadExternName(std::string &Name);
-  Expect<void> loadExternDesc(AST::Component::ExternDesc &Desc);
+  Expect<void> loadType(AST::Component::ValueType &Ty);
+  Expect<void> loadType(AST::Component::LabelValType &Ty);
   template <typename ASTType, typename T>
   Expect<std::optional<T>> loadOption(std::function<Expect<void>(T &)> F) {
     EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error([this](auto E) {

@@ -42,8 +42,8 @@ Expect<void> Loader::loadSection(AST::Component::CoreModuleSection &Sec) {
 Expect<void> Loader::loadSection(AST::Component::CoreInstanceSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
-        Sec, [this](AST::Component::CoreInstanceExpr &InstanceExpr) {
-          return loadCoreInstance(InstanceExpr);
+        Sec, [this](AST::Component::CoreInstance &Instance) {
+          return loadCoreInstance(Instance);
         });
   });
 }
@@ -73,7 +73,7 @@ Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
                           FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_Sec_Component);
     }
-    auto NestedComp = std::make_shared<AST::Component::Component>();
+    auto NestedComp = std::make_unique<AST::Component::Component>();
     NestedComp->getMagic() = WasmMagic;
     NestedComp->getVersion() = {Ver[0], Ver[1]};
     NestedComp->getLayer() = {Ver[2], Ver[3]};
@@ -95,10 +95,10 @@ Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
 // Load component instance section. See "include/loader/loader.h".
 Expect<void> Loader::loadSection(AST::Component::InstanceSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
-    return loadSectionContentVec(
-        Sec, [this](AST::Component::InstanceExpr &InstanceExpr) {
-          return loadInstance(InstanceExpr);
-        });
+    return loadSectionContentVec(Sec,
+                                 [this](AST::Component::Instance &Instance) {
+                                   return loadInstance(Instance);
+                                 });
   });
 }
 
@@ -122,7 +122,7 @@ Expect<void> Loader::loadSection(AST::Component::TypeSection &Sec) {
 Expect<void> Loader::loadSection(AST::Component::CanonSection &Sec) {
   return loadSectionContent(Sec, [this, &Sec]() {
     return loadSectionContentVec(
-        Sec, [this](AST::Component::Canon &C) { return loadCanonical(C); });
+        Sec, [this](AST::Component::Canonical &C) { return loadCanonical(C); });
   });
 }
 

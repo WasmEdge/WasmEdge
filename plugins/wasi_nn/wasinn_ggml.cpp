@@ -2184,7 +2184,7 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
 // Clear the context and reset the sampler.
 void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext"sv)
-  llama_kv_self_clear(GraphRef.LlamaContext.get());
+  llama_memory_clear(llama_get_memory(GraphRef.LlamaContext.get()), true);
   common_sampler_reset(CxtRef.LlamaSampler);
   CxtRef.NPos = 0;
   CxtRef.LlamaOutputs.clear();
@@ -2913,7 +2913,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   // Clear the llama context.
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context"sv)
-  llama_kv_self_clear(GraphRef.LlamaContext.get());
+  llama_memory_clear(llama_get_memory(GraphRef.LlamaContext.get()), true);
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context...Done"sv)
 
   // Set the input.

@@ -32,6 +32,9 @@ wasmedge_add_library(wasmedgeLoader
   ast/component/component_type.cpp
   ast/component/component_import.cpp
   ast/component/component_export.cpp
+  ast/component/component_declarator.cpp
+  ast/component/component_descriptor.cpp
+  ast/component/component_valtype.cpp
   ast/module.cpp
   ast/section.cpp
   ast/description.cpp

@@ -32,43 +32,32 @@ namespace Component {
 //            | 0x07 f:<core:funcidx> => (callback f) 🔀
 //            | 0x08                  => always-task-return 🔀
 
-// TODO: COMPONENT - collect the canonopt into a class.
-
-class Memory {
+/// AST Component::CanonOpt definition.
+class CanonOpt {
 public:
-  uint32_t getMemIndex() const noexcept { return MemIdx; }
-  uint32_t &getMemIndex() noexcept { return MemIdx; }
+  enum class OptCode : Byte {
+    Encode_UTF8 = 0x00,
+    Encode_UTF16 = 0x01,
+    Encode_Latin1 = 0x02,
+    Memory = 0x03,
+    Realloc = 0x04,
+    PostReturn = 0x05,
+    Async = 0x06,
+    Callback = 0x07,
+  };
+
+  CanonOpt() noexcept : Code(OptCode::Encode_UTF8), Idx(0) {}
+
+  OptCode getCode() const noexcept { return Code; }
+  void setCode(const OptCode C) noexcept { Code = C; }
+
+  uint32_t getIndex() const noexcept { return Idx; }
+  void setIndex(const uint32_t I) noexcept { Idx = I; }
 
 private:
-  uint32_t MemIdx;
+  OptCode Code;
+  uint32_t Idx;
 };
-
-class Realloc {
-public:
-  uint32_t getFuncIndex() const noexcept { return FnIdx; }
-  uint32_t &getFuncIndex() noexcept { return FnIdx; }
-
-private:
-  uint32_t FnIdx;
-};
-
-class PostReturn {
-public:
-  uint32_t getFuncIndex() const noexcept { return FnIdx; }
-  uint32_t &getFuncIndex() noexcept { return FnIdx; }
-
-private:
-  uint32_t FnIdx;
-};
-
-enum class StringEncoding : Byte {
-  UTF8 = 0x00,
-  UTF16 = 0x01,
-  Latin1 = 0x02,
-};
-
-/// AST Component::CanonOpt aliasing.
-using CanonOpt = std::variant<StringEncoding, Memory, Realloc, PostReturn>;
 
 // canon ::= 0x00 0x00 f:<core:funcidx> opts:<opts> ft:<typeidx>
 //           => (canon lift f opts type-index-space[ft])
@@ -85,7 +74,7 @@ using CanonOpt = std::variant<StringEncoding, Memory, Realloc, PostReturn>;
 //         | 0x05                 => (canon task.cancel (core func)) 🔀
 //         | 0x0a 0x7f i:<u32>    => (canon context.get i32 i (core func)) 🔀
 //         | 0x0b 0x7f i:<u32>    => (canon context.set i32 i (core func)) 🔀
-//         | 0x0c async?:<async>? => (canon yield async? (core func)) 🔀
+//         | 0x0c async?:<async?> => (canon yield async? (core func)) 🔀
 //         | 0x06 async?:<async?>
 //           => (canon subtask.cancel async? (core func)) 🔀
 //         | 0x0d                 => (canon subtask.drop (core func)) 🔀
@@ -130,8 +119,6 @@ using CanonOpt = std::variant<StringEncoding, Memory, Realloc, PostReturn>;
 // async? ::= 0x00 => ϵ
 //          | 0x01 => async
 
-// TODO: COMPONENT - collect the canon into a class.
-
 // Currently implementing:
 //   0x00 0x00 (canon lift f opts type-index-space[ft])
 //   0x01 0x00 (canon lower f opts (core func))
@@ -139,93 +126,81 @@ using CanonOpt = std::variant<StringEncoding, Memory, Realloc, PostReturn>;
 //   0x03      (canon resource.drop rt (core func))
 //   0x04      (canon resource.rep rt (core func))
 
-class Lift {
+class Canonical {
 public:
-  uint32_t getCoreFuncIndex() const noexcept { return CoreFnIdx; }
-  uint32_t &getCoreFuncIndex() noexcept { return CoreFnIdx; }
+  // TODO: COMPONENT - move to enum.inc.
+  enum class OpCode : Byte {
+    Lift = 0x00,
+    Lower = 0x01,
+    Resource__new = 0x02,
+    Resource__drop = 0x03,
+    Resource__drop_async = 0x07,
+    Resource__rep = 0x04,
+    Backpressure__set = 0x08,
+    Task__return = 0x09,
+    Task__cancel = 0x05,
+    Context__get = 0x0A,
+    Context__set = 0x0B,
+    Yield = 0x0C,
+    Subtask__cancel = 0x06,
+    Subtask__drop = 0x0D,
+    Stream__new = 0x0E,
+    Stream__read = 0x0F,
+    Stream__write = 0x10,
+    Stream__cancel_read = 0x11,
+    Stream__cancel_write = 0x12,
+    Stream__close_readable = 0x13,
+    Stream__close_writable = 0x14,
+    Future__new = 0x15,
+    Future__read = 0x16,
+    Future__write = 0x17,
+    Future__cancel_read = 0x18,
+    Future__cancel_write = 0x19,
+    Future__close_readable = 0x1A,
+    Future__close_writable = 0x1B,
+    Error_context__new = 0x1C,
+    Error_context__debug_message = 0x1D,
+    Error_context__drop = 0x1E,
+    Waitable_set__new = 0x1F,
+    Waitable_set__wait = 0x20,
+    Waitable_set__poll = 0x21,
+    Waitable_set__drop = 0x22,
+    Waitable__join = 0x23,
+    Thread__spawn_ref = 0x40,
+    Thread__spawn_indirect = 0x41,
+    Thread__available_parallelism = 0x42,
+  };
+
+  Canonical() noexcept = default;
+
+  OpCode getOpCode() const noexcept { return Code; }
+  void setOpCode(const OpCode C) noexcept { Code = C; }
+
+  bool isAsync() const noexcept { return IsAsync; }
+  void setAsync(const bool A) noexcept { IsAsync = A; }
+
+  uint32_t getIndex() const noexcept { return Idx; }
+  void setIndex(const uint32_t I) noexcept { Idx = I; }
+
+  uint32_t getTargetIndex() const noexcept { return TargetIdx; }
+  void setTargetIndex(const uint32_t I) noexcept { TargetIdx = I; }
+
+  uint32_t getConstVal() const noexcept { return I32; }
+  void setConstVal(const uint32_t V) noexcept { I32 = V; }
+
   Span<const CanonOpt> getOptions() const noexcept { return Opts; }
-  std::vector<CanonOpt> &getOptions() noexcept { return Opts; }
-  uint32_t getFuncTypeIndex() const noexcept { return FnTyIdx; }
-  uint32_t &getFuncTypeIndex() noexcept { return FnTyIdx; }
+  void setOptions(std::vector<CanonOpt> &&List) noexcept {
+    Opts = std::move(List);
+  }
 
 private:
-  uint32_t CoreFnIdx;
-  std::vector<CanonOpt> Opts;
-  uint32_t FnTyIdx;
-};
-
-class Lower {
-public:
-  uint32_t getFuncIndex() const noexcept { return FnIdx; }
-  uint32_t &getFuncIndex() noexcept { return FnIdx; }
-  Span<const CanonOpt> getOptions() const noexcept { return Opts; }
-  std::vector<CanonOpt> &getOptions() noexcept { return Opts; }
-
-private:
-  uint32_t FnIdx;
+  OpCode Code;
+  bool IsAsync;
+  uint32_t Idx, TargetIdx;
+  uint32_t I32;
   std::vector<CanonOpt> Opts;
 };
-
-class ResourceNew {
-public:
-  uint32_t getTypeIndex() const noexcept { return TyIdx; }
-  uint32_t &getTypeIndex() noexcept { return TyIdx; }
-
-private:
-  uint32_t TyIdx;
-};
-
-class ResourceDrop {
-public:
-  uint32_t getTypeIndex() const noexcept { return TyIdx; }
-  uint32_t &getTypeIndex() noexcept { return TyIdx; }
-
-private:
-  uint32_t TyIdx;
-};
-
-class ResourceRep {
-public:
-  uint32_t getTypeIndex() const noexcept { return TyIdx; }
-  uint32_t &getTypeIndex() noexcept { return TyIdx; }
-
-private:
-  uint32_t TyIdx;
-};
-
-using Canon = std::variant<Lift, Lower, ResourceNew, ResourceDrop, ResourceRep>;
 
 } // namespace Component
 } // namespace AST
 } // namespace WasmEdge
-
-template <>
-struct fmt::formatter<WasmEdge::AST::Component::Canon>
-    : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::AST::Component::Canon &Opt,
-         fmt::format_context &Ctx) const noexcept {
-    using namespace std::literals;
-
-    fmt::memory_buffer Buffer;
-    if (std::holds_alternative<WasmEdge::AST::Component::Lift>(Opt)) {
-      fmt::format_to(std::back_inserter(Buffer), "lift"sv);
-    } else if (std::holds_alternative<WasmEdge::AST::Component::Lower>(Opt)) {
-      fmt::format_to(std::back_inserter(Buffer), "lower"sv);
-    } else if (std::holds_alternative<WasmEdge::AST::Component::ResourceNew>(
-                   Opt)) {
-      fmt::format_to(std::back_inserter(Buffer), "resource-new"sv);
-    } else if (std::holds_alternative<WasmEdge::AST::Component::ResourceDrop>(
-                   Opt)) {
-      fmt::format_to(std::back_inserter(Buffer), "resource-drop"sv);
-    } else if (std::holds_alternative<WasmEdge::AST::Component::ResourceRep>(
-                   Opt)) {
-      fmt::format_to(std::back_inserter(Buffer), "resource-rep"sv);
-    } else {
-      fmt::format_to(std::back_inserter(Buffer), "!!!unknown"sv);
-    }
-
-    return formatter<std::string_view>::format(
-        std::string_view(Buffer.data(), Buffer.size()), Ctx);
-  }
-};

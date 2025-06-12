@@ -104,7 +104,7 @@ Expect<void> Loader::loadModuleDecl(AST::Component::CoreModuleDecl &Decl) {
                         ->getType())
         .map_error(ReportError);
   case 0x02:
-    return loadAlias(Decl.emplace<AST::Component::Alias>())
+    return loadCoreAlias(Decl.emplace<AST::Component::CoreAlias>())
         .map_error(ReportError);
   case 0x03:
     return loadExportDecl(Decl.emplace<AST::Component::CoreExportDecl>())

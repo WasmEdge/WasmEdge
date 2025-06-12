@@ -388,8 +388,8 @@ private:
 
 class CoreType;
 /// AST Component::ModuleDecl aliasing.
-using CoreModuleDecl =
-    std::variant<ImportDesc, std::shared_ptr<CoreType>, Alias, CoreExportDecl>;
+using CoreModuleDecl = std::variant<ImportDesc, std::shared_ptr<CoreType>,
+                                    CoreAlias, CoreExportDecl>;
 
 // core:moduletype ::= 0x50 md*:vec(<core:moduledecl>) => (module md*)
 

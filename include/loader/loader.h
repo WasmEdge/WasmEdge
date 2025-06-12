@@ -135,12 +135,11 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::ExportSection>() noexcept {
   return ASTNodeAttr::Comp_Sec_Export;
 }
 template <>
-inline ASTNodeAttr
-NodeAttrFromAST<AST::Component::CoreInstanceExpr>() noexcept {
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::CoreInstance>() noexcept {
   return ASTNodeAttr::Comp_CoreInstance;
 }
 template <>
-inline ASTNodeAttr NodeAttrFromAST<AST::Component::InstanceExpr>() noexcept {
+inline ASTNodeAttr NodeAttrFromAST<AST::Component::Instance>() noexcept {
   return ASTNodeAttr::Comp_Instance;
 }
 template <>
@@ -427,27 +426,17 @@ private:
   Expect<void> loadSection(AST::Component::CanonSection &Sec);
   Expect<void> loadSection(AST::Component::ImportSection &Sec);
   Expect<void> loadSection(AST::Component::ExportSection &Sec);
-  // core:instance
-  Expect<void> loadCoreInstance(AST::Component::CoreInstanceExpr &InstanceExpr);
-  Expect<void> loadCoreInstantiateArg(AST::Component::CoreInstantiateArg &Arg);
-  Expect<void> loadCoreInlineExport(
-      AST::Component::InlineExportImpl<AST::Component::CoreSort> &Exp);
-  // instance
-  Expect<void> loadInstance(AST::Component::InstanceExpr &InstanceExpr);
-  Expect<void> loadInstantiateArg(AST::Component::InstantiateArg &Arg);
-  Expect<void>
-  loadInlineExport(AST::Component::InlineExportImpl<AST::Component::Sort> &Exp);
-  // core:sort
-  Expect<void> loadCoreSort(AST::Component::CoreSort &Sort);
-  Expect<void> loadCoreSortIndex(
-      AST::Component::SortIndex<AST::Component::CoreSort> &SortIdx);
-  // sort
+  // core:instance and instance
+  Expect<void> loadCoreInstance(AST::Component::CoreInstance &Instance);
+  Expect<void> loadInstance(AST::Component::Instance &Instance);
+  // core:sort and sort
+  Expect<void> loadCoreSort(AST::Component::Sort &Sort);
   Expect<void> loadSort(AST::Component::Sort &Sort);
-  Expect<void>
-  loadSortIndex(AST::Component::SortIndex<AST::Component::Sort> &SortIdx);
-  // alias
+  Expect<void> loadSortIndex(AST::Component::SortIndex &SortIdx,
+                             const bool IsCore = false);
+  // core:alias and alias
+  Expect<void> loadCoreAlias(AST::Component::CoreAlias &Alias);
   Expect<void> loadAlias(AST::Component::Alias &Alias);
-  Expect<void> loadAliasTarget(AST::Component::AliasTarget &AliasTarget);
   // core:type
   Expect<void> loadType(AST::Component::CoreType &Ty);
   Expect<void> loadType(AST::Component::CoreDefType &Ty);

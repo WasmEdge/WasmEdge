@@ -273,7 +273,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the ubatch-size option."sv)
     }
-    GraphRef.Params.n_batch = static_cast<int32_t>(UBatchSize);
+    GraphRef.Params.n_ubatch = static_cast<int32_t>(UBatchSize);
   }
   if (Doc.at_key("n-keep").error() == simdjson::SUCCESS) {
     int64_t NKeep;

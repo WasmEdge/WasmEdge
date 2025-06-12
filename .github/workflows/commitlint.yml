@@ -37,11 +37,11 @@ jobs:
           npm install commitlint@latest @commitlint/config-conventional
       - name: Validate PR commits with commitlint
         id: commitlint
-        if: github.event_name == 'pull_request'
-        run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
+        if: github.event_name == 'pull_request_target'
+        run: npx commitlint --from ${{ github.event.pull_request_target.head.sha }}~${{ github.event.pull_request_target.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
         continue-on-error: true
       - name: Remove existing commitlint labels
-        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        if: ${{ !cancelled() && github.event_name == 'pull_request_target' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}

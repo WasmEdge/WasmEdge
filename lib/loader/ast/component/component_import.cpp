@@ -13,7 +13,7 @@ Expect<void> Loader::loadImport(AST::Component::Import &Im) {
   EXPECTED_TRY(loadExternName(Im.getName()).map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Import);
   }));
-  EXPECTED_TRY(loadExternDesc(Im.getDesc()).map_error([](auto E) {
+  EXPECTED_TRY(loadDesc(Im.getDesc()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
     return E;
   }));

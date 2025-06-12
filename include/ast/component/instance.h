@@ -30,11 +30,11 @@ namespace Component {
 //                       => (with n si)
 
 /// AST Component::InstantiateArg class template.
-template <typename IndexType> class InstantiateArgImpl {
+template <typename IndexType> class InstantiateArg {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  IndexType getIndex() const noexcept { return Idx; }
+  const IndexType &getIndex() const noexcept { return Idx; }
   IndexType &getIndex() noexcept { return Idx; }
 
 private:
@@ -42,54 +42,23 @@ private:
   IndexType Idx;
 };
 
-/// AST Component::CoreInstantiateArg aliasing.
-using CoreInstantiateArg = InstantiateArgImpl<uint32_t>;
-/// AST Component::InstantiateArg aliasing.
-using InstantiateArg = InstantiateArgImpl<SortIndex<Sort>>;
-
 // core:inlineexport   ::= n:<core:name> si:<core:sortidx>
 //                       => (export n si)
 // inlineexport        ::= n:<exportname> si:<sortidx>
 //                       => (export n si)
 
-/// AST Component::InlineExport class template.
-template <typename SortType> class InlineExportImpl {
+/// AST Component::InlineExport class.
+class InlineExport {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  SortIndex<SortType> getSortIdx() const noexcept { return SortIdx; }
-  SortIndex<SortType> &getSortIdx() noexcept { return SortIdx; }
+  const SortIndex &getSortIdx() const noexcept { return SortIdx; }
+  SortIndex &getSortIdx() noexcept { return SortIdx; }
 
 private:
   std::string Name;
-  SortIndex<SortType> SortIdx;
+  SortIndex SortIdx;
 };
-
-/// AST Component::InlineExportVec class template. For InlineExportImpl vector.
-template <typename SortType> class InlineExportImplVec {
-public:
-  InlineExportImplVec() noexcept = default;
-  InlineExportImplVec(std::vector<InlineExportImpl<SortType>> &&Es) noexcept
-      : Exports(std::move(Es)) {}
-  InlineExportImplVec(
-      const std::vector<InlineExportImpl<SortType>> &Es) noexcept
-      : Exports(Es) {}
-
-  Span<const InlineExportImpl<SortType>> getExports() const noexcept {
-    return Exports;
-  }
-
-private:
-  std::vector<InlineExportImpl<SortType>> Exports;
-};
-
-// TODO: COMPONENT - The InlineExportImplVec is only the vector of InlineExport.
-// This class can be removed in the future.
-
-/// AST Component::CoreInlineExports aliasing.
-using CoreInlineExports = InlineExportImplVec<CoreSort>;
-/// AST Component::InlineExports aliasing.
-using InlineExports = InlineExportImplVec<Sort>;
 
 // core:instance       ::= ie:<core:instanceexpr>
 //                       => (instance ie)
@@ -97,6 +66,43 @@ using InlineExports = InlineExportImplVec<Sort>;
 //                       => (instantiate m arg*)
 //                       | 0x01 e*:vec(<core:inlineexport>)
 //                       => e*
+
+/// AST Component::CoreInstance node.
+class CoreInstance {
+public:
+  using InstantiateArgs = std::vector<InstantiateArg<uint32_t>>;
+  using InlineExports = std::vector<InlineExport>;
+
+  void setInstantiateArgs(const uint32_t ModIdx,
+                          InstantiateArgs &&Args) noexcept {
+    Expr.emplace<std::pair<uint32_t, InstantiateArgs>>(ModIdx, std::move(Args));
+  }
+  uint32_t getModuleIndex() const noexcept {
+    return std::get_if<std::pair<uint32_t, InstantiateArgs>>(&Expr)->first;
+  }
+  Span<const InstantiateArg<uint32_t>> getInstantiateArgs() const noexcept {
+    return std::get_if<std::pair<uint32_t, InstantiateArgs>>(&Expr)->second;
+  }
+
+  void setInlineExports(InlineExports &&Exports) noexcept {
+    Expr.emplace<InlineExports>(std::move(Exports));
+  }
+  Span<const InlineExport> getInlineExports() const noexcept {
+    return *std::get_if<InlineExports>(&Expr);
+  }
+
+  bool isInstantiateModule() const noexcept {
+    return std::holds_alternative<std::pair<uint32_t, InstantiateArgs>>(Expr);
+  }
+
+  bool isInlineExport() const noexcept {
+    return std::holds_alternative<InlineExports>(Expr);
+  }
+
+private:
+  std::variant<std::pair<uint32_t, InstantiateArgs>, InlineExports> Expr;
+};
+
 // instance            ::= ie:<instanceexpr>
 //                       => (instance ie)
 // instanceexpr        ::= 0x00 c:<componentidx> arg*:vec(<instantiatearg>)
@@ -104,43 +110,42 @@ using InlineExports = InlineExportImplVec<Sort>;
 //                       | 0x01 e*:vec(<inlineexport>)
 //                       => e*
 
-/// AST Component::CoreInstantiate class.
-class CoreInstantiate {
+/// AST Component::Instance node.
+class Instance {
 public:
-  CoreInstantiate() noexcept : ModuleIdx(0) {}
-  CoreInstantiate(uint32_t Idx, std::vector<CoreInstantiateArg> &&Args) noexcept
-      : ModuleIdx(Idx), Args(std::move(Args)) {}
+  using InstantiateArgs = std::vector<InstantiateArg<SortIndex>>;
+  using InlineExports = std::vector<InlineExport>;
 
-  uint32_t getModuleIdx() const noexcept { return ModuleIdx; }
-  Span<const CoreInstantiateArg> getArgs() const noexcept { return Args; }
+  void setInstantiateArgs(const uint32_t CompIdx,
+                          InstantiateArgs &&Args) noexcept {
+    Expr.emplace<std::pair<uint32_t, InstantiateArgs>>(CompIdx,
+                                                       std::move(Args));
+  }
+  uint32_t getComponentIndex() const noexcept {
+    return std::get_if<std::pair<uint32_t, InstantiateArgs>>(&Expr)->first;
+  }
+  Span<const InstantiateArg<SortIndex>> getInstantiateArgs() const noexcept {
+    return std::get_if<std::pair<uint32_t, InstantiateArgs>>(&Expr)->second;
+  }
+
+  void setInlineExports(InlineExports &&Exports) noexcept {
+    Expr.emplace<InlineExports>(std::move(Exports));
+  }
+  Span<const InlineExport> getInlineExports() const noexcept {
+    return *std::get_if<InlineExports>(&Expr);
+  }
+
+  bool isInstantiateModule() const noexcept {
+    return std::holds_alternative<std::pair<uint32_t, InstantiateArgs>>(Expr);
+  }
+
+  bool isInlineExport() const noexcept {
+    return std::holds_alternative<InlineExports>(Expr);
+  }
 
 private:
-  uint32_t ModuleIdx;
-  std::vector<CoreInstantiateArg> Args;
+  std::variant<std::pair<uint32_t, InstantiateArgs>, InlineExports> Expr;
 };
-
-/// AST Component::Instantiate class.
-class Instantiate {
-public:
-  Instantiate() noexcept : ComponentIdx(0) {}
-  Instantiate(uint32_t Idx, std::vector<InstantiateArg> &&Args) noexcept
-      : ComponentIdx(Idx), Args(std::move(Args)) {}
-
-  uint32_t getComponentIdx() const noexcept { return ComponentIdx; }
-  Span<const InstantiateArg> getArgs() const noexcept { return Args; }
-
-private:
-  uint32_t ComponentIdx;
-  std::vector<InstantiateArg> Args;
-};
-
-// TODO: COMPONENT - Re-construct the Expr variant into a class and rename in
-// the future.
-
-/// AST Component::CoreInstanceExpr aliasing. (For AST Component::CoreInstance)
-using CoreInstanceExpr = std::variant<CoreInstantiate, CoreInlineExports>;
-/// AST Component::InstanceExpr aliasing. (For AST Component::Instance)
-using InstanceExpr = std::variant<Instantiate, InlineExports>;
 
 } // namespace Component
 } // namespace AST

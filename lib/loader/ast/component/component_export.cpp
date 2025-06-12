@@ -19,11 +19,10 @@ Expect<void> Loader::loadExport(AST::Component::Export &Ex) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
     return E;
   }));
-  EXPECTED_TRY(Ex.getDesc(),
-               loadOption<AST::Component::Export, AST::Component::ExternDesc>(
-                   [this](AST::Component::ExternDesc &Desc) {
-                     return loadExternDesc(Desc);
-                   }));
+  EXPECTED_TRY(
+      Ex.getDesc(),
+      loadOption<AST::Component::Export, AST::Component::ExternDesc>(
+          [this](AST::Component::ExternDesc &Desc) { return loadDesc(Desc); }));
   return {};
 }
 

@@ -1,6 +1,7 @@
 name: "Commit Lint"
 
 on:
+  pull_request:
   pull_request_target:
     types:
       - opened
@@ -9,6 +10,7 @@ on:
 
 permissions:
   contents: read
+
 jobs:
   commitlint:
     permissions:
@@ -20,64 +22,137 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Install required dependencies
         run: |
           sudo apt update && sudo apt install -y git curl
-          curl -fsSL https://deb.nodesource.com/setup_18.x  | sudo -E bash -
+          curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
           sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
+
       - name: Print versions
         run: |
           git --version
           node --version
           npm --version
+
       - name: Install commitlint
         run: |
           npm install conventional-changelog-conventionalcommits
           npm install commitlint@latest @commitlint/config-conventional
           npx commitlint --version
+
+      - name: Calculate commit range for validation
+        id: commit-range
+        run: |
+          # The following logic is referenced from:
+          # https://github.com/super-linter/super-linter/blob/597b1952cdc4e9e89fe3093e782a8596935a22a2/lib/functions/validation.sh#L326
+          set -euo pipefail
+
+          # Get current commit SHA (HEAD of the PR)
+          GITHUB_SHA=$(git -C "${GITHUB_WORKSPACE}" rev-parse HEAD)
+          echo "GITHUB_SHA: ${GITHUB_SHA}"
+
+          # Get commit count from PR event
+          GITHUB_EVENT_COMMIT_COUNT=${{ github.event.pull_request.commits }}
+          echo "GITHUB_EVENT_COMMIT_COUNT: ${GITHUB_EVENT_COMMIT_COUNT}"
+
+          # Get number of parents for the current commit
+          GIT_COMMIT_PARENTS_COUNT=$(git -C "${GITHUB_WORKSPACE}" rev-list --parents -n 1 "${GITHUB_SHA}" | wc -w)
+          GIT_COMMIT_PARENTS_COUNT=$((GIT_COMMIT_PARENTS_COUNT - 1))
+          echo "GIT_COMMIT_PARENTS_COUNT: ${GIT_COMMIT_PARENTS_COUNT}"
+
+          # Calculate the base commit SHA
+          GIT_BEFORE_SHA_HEAD="${GITHUB_SHA}"
+
+          if [ ${GIT_COMMIT_PARENTS_COUNT} -gt 1 ]; then
+            echo "${GITHUB_SHA} is a merge commit"
+            # For merge commits, use the second parent (the target branch)
+            GIT_BEFORE_SHA_HEAD="${GIT_BEFORE_SHA_HEAD}^2"
+
+            # Adjust commit count for merge commit
+            if [ ${GITHUB_EVENT_COMMIT_COUNT} -gt 0 ]; then
+              GITHUB_EVENT_COMMIT_COUNT=$((GITHUB_EVENT_COMMIT_COUNT - 1))
+              echo "Adjusted GITHUB_EVENT_COMMIT_COUNT for merge commit: ${GITHUB_EVENT_COMMIT_COUNT}"
+            fi
+          else
+            echo "${GITHUB_SHA} is not a merge commit"
+          fi
+
+          # Calculate the base SHA by going back the specified number of commits
+          if [ ${GITHUB_EVENT_COMMIT_COUNT} -gt 0 ]; then
+            GIT_BEFORE_SHA_HEAD="${GIT_BEFORE_SHA_HEAD}~${GITHUB_EVENT_COMMIT_COUNT}"
+          fi
+
+          echo "GIT_BEFORE_SHA_HEAD: ${GIT_BEFORE_SHA_HEAD}"
+
+          # Resolve the base SHA
+          GITHUB_BEFORE_SHA=$(git -C "${GITHUB_WORKSPACE}" rev-parse "${GIT_BEFORE_SHA_HEAD}")
+          echo "GITHUB_BEFORE_SHA: ${GITHUB_BEFORE_SHA}"
+
+          # Validate the base SHA exists
+          if [ -z "${GITHUB_BEFORE_SHA}" ] || [ "${GITHUB_BEFORE_SHA}" == "null" ] || [ "${GITHUB_BEFORE_SHA}" == "0000000000000000000000000000000000000000" ]; then
+            echo "Error: Failed to get valid GITHUB_BEFORE_SHA: ${GITHUB_BEFORE_SHA}"
+            exit 1
+          fi
+
+          # Check if the base SHA exists in the repository
+          if ! git cat-file -e "${GITHUB_BEFORE_SHA}" 2>/dev/null; then
+            echo "Error: The GITHUB_BEFORE_SHA reference (${GITHUB_BEFORE_SHA}) doesn't exist in this repository"
+            exit 1
+          fi
+
+          echo "Successfully calculated commit range:"
+          echo "  From (base): ${GITHUB_BEFORE_SHA}"
+          echo "  To (head):   ${GITHUB_SHA}"
+
+          # Export values for next steps
+          echo "GITHUB_BEFORE_SHA=${GITHUB_BEFORE_SHA}" >> $GITHUB_OUTPUT
+          echo "GITHUB_SHA=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "COMMIT_COUNT=${GITHUB_EVENT_COMMIT_COUNT}" >> $GITHUB_OUTPUT
+
       - name: Validate PR commits with commitlint
         id: commitlint
         run: |
-          CURRENT_COMMIT_SHA=$(git -C "${GITHUB_WORKSPACE}" rev-parse HEAD)
-          CURRENT_COMMIT_COUNT=${{ github.event.pull_request.commits }}
-          echo "Current commit SHA: ${CURRENT_COMMIT_SHA}"
-          echo "Current commit count: ${CURRENT_COMMIT_COUNT}"
-          npx commitlint --from "${CURRENT_COMMIT_SHA}"~"${CURRENT_COMMIT_COUNT}" --to "${CURRENT_COMMIT_SHA}" --verbose
+          echo "Validating commits from ${{ steps.commit-range.outputs.GITHUB_BEFORE_SHA }} to ${{ steps.commit-range.outputs.GITHUB_SHA }}"
+          echo "Total commits to validate: ${{ steps.commit-range.outputs.COMMIT_COUNT }}"
+
+          # Show the commits that will be validated
+          echo "Commits to be validated:"
+          git log --oneline "${{ steps.commit-range.outputs.GITHUB_BEFORE_SHA }}".."${{ steps.commit-range.outputs.GITHUB_SHA }}"
+
+          # Run commitlint validation
+          npx commitlint --from "${{ steps.commit-range.outputs.GITHUB_BEFORE_SHA }}" --to "${{ steps.commit-range.outputs.GITHUB_SHA }}" --verbose
         continue-on-error: true
+
       - name: Remove existing commitlint labels
         if: ${{ !cancelled() }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                name: 'commitlint-pass'
-              });
-            } catch (error) {
-              console.log('commitlint-pass label not found or already removed');
+            const labelsToRemove = ['commitlint-pass', 'commitlint-fail'];
+
+            for (const labelName of labelsToRemove) {
+              try {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  name: labelName
+                });
+                console.log(`Removed label: ${labelName}`);
+              } catch (error) {
+                console.log(`Label ${labelName} not found or already removed`);
+              }
             }
 
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                name: 'commitlint-fail'
-              });
-            } catch (error) {
-              console.log('commitlint-fail label not found or already removed');
-            }
       - name: Add success label and comment
         if: ${{ !cancelled() && steps.commitlint.outcome == 'success' }}
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Add label
+            // Add success label
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -99,10 +174,11 @@ jobs:
             const successBody = `<!-- commitlint-status -->
             ## ✅ Commitlint Check Passed
 
-            All commit messages follow the conventional commit format. Great job! 🎉`
+            All **${{ steps.commit-range.outputs.COMMIT_COUNT }}** commit messages in this PR follow the conventional commit format. Great job! 🎉
+
+            **Validated range:** \`${{ steps.commit-range.outputs.GITHUB_BEFORE_SHA }}\` → \`${{ steps.commit-range.outputs.GITHUB_SHA }}\``;
 
             if (existingComment) {
-              // Update existing comment
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -110,7 +186,6 @@ jobs:
                 body: successBody
               });
             } else {
-              // Create new comment if none exists
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -125,7 +200,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Add label
+            // Add failure label
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -147,26 +222,28 @@ jobs:
             const failureBody = `<!-- commitlint-status -->
             ## ❌ Commitlint Check Failed
 
-            Some commit messages don't follow the [conventional commit format](https://www.conventionalcommits.org/en/v1.0.0/#summary).
+            Some commit messages in this PR don't follow the [conventional commit format](https://www.conventionalcommits.org/en/v1.0.0/#summary).
+
+            **Validated range:** \`${{ steps.commit-range.outputs.GITHUB_BEFORE_SHA }}\` → \`${{ steps.commit-range.outputs.GITHUB_SHA }}\`
+            **Failed commits:** ${{ steps.commit-range.outputs.COMMIT_COUNT }} commit(s) checked
 
             ### How to fix:
-            1. Check the commitlint output in the workflow logs \`step: Validate PR commits with commitlint\`
-            2. Use format: \`type(scope): description\`
-            3. Examples:
-               - \`feat: add new feature\`
-               - \`fix: resolve bug in login\`
-               - \`docs: update README\`
-               - \`chore(ci): update workflow\`
-               - \`refactor(loader): adjest something\`
-               - \`test(validator): add new test\`
+            1. Check the commitlint output in the workflow logs for step **"Validate PR commits with commitlint"**
+            2. Use the format: \`type(scope): description\`
+            3. **Examples:**
+               - \`feat: add new user authentication\`
+               - \`fix: resolve login redirect issue\`
+               - \`docs: update API documentation\`
+               - \`chore(ci): update workflow configuration\`
+               - \`refactor(loader): optimize loading mechanism\`
+               - \`test(validator): add email validation tests\`
 
             ### Valid types:
-            \`feat\`, \`fix\`, \`docs\`, \`refactor\`, \`test\`, \`chore\`, \`build\`, \`ci\`
+            \`feat\`, \`fix\`, \`docs\`, \`refactor\`, \`test\`, \`chore\`, \`build\`, \`ci\`, \`perf\`
 
-            Please fix the commit messages and push again. 🔧`
+            Please fix the commit messages and push again. 🔧`;
 
             if (existingComment) {
-              // Update existing comment
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -174,7 +251,6 @@ jobs:
                 body: failureBody
               });
             } else {
-              // Create new comment if none exists
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -186,5 +262,7 @@ jobs:
       - name: Fail job if commitlint failed
         if: ${{ !cancelled() && steps.commitlint.outcome == 'failure' }}
         run: |
-          echo "Commitlint validation failed. Please check Validate PR commits with commitlint step for details."
+          echo "❌ Commitlint validation failed for ${{ steps.commit-range.outputs.COMMIT_COUNT }} commit(s)"
+          echo "📋 Check the 'Validate PR commits with commitlint' step above for detailed error messages"
+          echo "🔧 Please fix the commit messages and push again"
           exit 1

@@ -39,9 +39,10 @@ jobs:
         id: commitlint
         run: |
           CURRENT_COMMIT_SHA=$(git -C "${GITHUB_WORKSPACE}" rev-parse HEAD)
-          echo "Base commit SHA: ${{ github.event.pull_request.base.sha }}"
+          CURRENT_COMMIT_COUNT=${{ github.event.pull_request.commits }}
           echo "Current commit SHA: ${CURRENT_COMMIT_SHA}"
-          npx commitlint --from ${{ github.event.pull_request.base.sha }} --to "${CURRENT_COMMIT_SHA}" --verbose
+          echo "Current commit count: ${CURRENT_COMMIT_COUNT}"
+          npx commitlint --from "${CURRENT_COMMIT_SHA}"~"${CURRENT_COMMIT_COUNT}" --to "${CURRENT_COMMIT_SHA}" --verbose
         continue-on-error: true
       - name: Remove existing commitlint labels
         if: ${{ !cancelled() }}

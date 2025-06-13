@@ -9,140 +9,169 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
+  statuses: write
+
 jobs:
   commitlint:
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
+    name: Validate Commit Messages
     runs-on: ubuntu-24.04
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Install required dependencies
-        run: |
-          sudo apt update && sudo apt install -y git curl
-          curl -fsSL https://deb.nodesource.com/setup_18.x  | sudo -E bash -
-          sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
-      - name: Print versions
-        run: |
-          git --version
-          node --version
-          npm --version
-      - name: Install commitlint
-        run: |
-          npm install conventional-changelog-conventionalcommits
-          npm install commitlint@latest @commitlint/config-conventional
-          npx commitlint --version
-      - name: Validate PR commits with commitlint
+
+      - name: Run Super-Linter (Commitlint only)
         id: commitlint
-        run: |
-          CURRENT_COMMIT_SHA=$(git -C "${GITHUB_WORKSPACE}" rev-parse HEAD)
-          CURRENT_COMMIT_COUNT=${{ github.event.pull_request.commits }}
-          echo "Current commit SHA: ${CURRENT_COMMIT_SHA}"
-          echo "Current commit count: ${CURRENT_COMMIT_COUNT}"
-          npx commitlint --from "${CURRENT_COMMIT_SHA}"~"${CURRENT_COMMIT_COUNT}" --to "${CURRENT_COMMIT_SHA}" --verbose
+        uses: super-linter/super-linter@v7.4.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Enable only commitlint validation
+          VALIDATE_GIT_COMMITLINT: true
+          # Disable all other linters
+          VALIDATE_ANSIBLE: false
+          VALIDATE_ARM: false
+          VALIDATE_BASH: false
+          VALIDATE_BASH_EXEC: false
+          VALIDATE_CPP: false
+          VALIDATE_CHECKOV: false
+          VALIDATE_CLANG_FORMAT: false
+          VALIDATE_CLOJURE: false
+          VALIDATE_CLOUDFORMATION: false
+          VALIDATE_COFFEESCRIPT: false
+          VALIDATE_CSHARP: false
+          VALIDATE_CSS: false
+          VALIDATE_CSS_PRETTIER: false
+          VALIDATE_DART: false
+          VALIDATE_DOCKERFILE_HADOLINT: false
+          VALIDATE_DOTNET_SLN_FORMAT_ANALYZERS: false
+          VALIDATE_DOTNET_SLN_FORMAT_STYLE: false
+          VALIDATE_DOTNET_SLN_FORMAT_WHITESPACE: false
+          VALIDATE_EDITORCONFIG: false
+          VALIDATE_ENV: false
+          VALIDATE_GIT_MERGE_CONFLICT_MARKERS: false
+          VALIDATE_GITHUB_ACTIONS: false
+          VALIDATE_GITLEAKS: false
+          VALIDATE_GO: false
+          VALIDATE_GO_MODULES: false
+          VALIDATE_GO_RELEASER: false
+          VALIDATE_GRAPHQL_PRETTIER: false
+          VALIDATE_GOOGLE_JAVA_FORMAT: false
+          VALIDATE_GROOVY: false
+          VALIDATE_HTML: false
+          VALIDATE_HTML_PRETTIER: false
+          VALIDATE_JAVA: false
+          VALIDATE_JAVASCRIPT_ES: false
+          VALIDATE_JAVASCRIPT_PRETTIER: false
+          VALIDATE_JSCPD: false
+          VALIDATE_JSON: false
+          VALIDATE_JSON_PRETTIER: false
+          VALIDATE_JSONC: false
+          VALIDATE_JSONC_PRETTIER: false
+          VALIDATE_JSX: false
+          VALIDATE_JSX_PRETTIER: false
+          VALIDATE_JUPYTER_NBQA_BLACK: false
+          VALIDATE_JUPYTER_NBQA_FLAKE8: false
+          VALIDATE_JUPYTER_NBQA_ISORT: false
+          VALIDATE_JUPYTER_NBQA_MYPY: false
+          VALIDATE_JUPYTER_NBQA_PYLINT: false
+          VALIDATE_JUPYTER_NBQA_RUFF: false
+          VALIDATE_KOTLIN: false
+          VALIDATE_LATEX: false
+          VALIDATE_LUA: false
+          VALIDATE_MARKDOWN: false
+          VALIDATE_MARKDOWN_PRETTIER: false
+          VALIDATE_NATURAL_LANGUAGE: false
+          VALIDATE_OPENAPI: false
+          VALIDATE_PERL: false
+          VALIDATE_PHP: false
+          VALIDATE_PHP_BUILTIN: false
+          VALIDATE_PHP_PHPCS: false
+          VALIDATE_PHP_PHPSTAN: false
+          VALIDATE_PHP_PSALM: false
+          VALIDATE_POWERSHELL: false
+          VALIDATE_PROTOBUF: false
+          VALIDATE_PYTHON: false
+          VALIDATE_PYTHON_BLACK: false
+          VALIDATE_PYTHON_FLAKE8: false
+          VALIDATE_PYTHON_ISORT: false
+          VALIDATE_PYTHON_MYPY: false
+          VALIDATE_PYTHON_PYLINT: false
+          VALIDATE_PYTHON_RUFF: false
+          VALIDATE_R: false
+          VALIDATE_RENOVATE: false
+          VALIDATE_RUBY: false
+          VALIDATE_RUST_2015: false
+          VALIDATE_RUST_2018: false
+          VALIDATE_RUST_2021: false
+          VALIDATE_RUST_CLIPPY: false
+          VALIDATE_SCALAFMT: false
+          VALIDATE_SHELL_SHFMT: false
+          VALIDATE_SNAKEMAKE_LINT: false
+          VALIDATE_SNAKEMAKE_SNAKEFMT: false
+          VALIDATE_STATES: false
+          VALIDATE_SQLFLUFF: false
+          VALIDATE_TERRAFORM_FMT: false
+          VALIDATE_TERRAFORM_TERRASCAN: false
+          VALIDATE_TERRAFORM_TFLINT: false
+          VALIDATE_TERRAGRUNT: false
+          VALIDATE_TSX: false
+          VALIDATE_TYPESCRIPT_ES: false
+          VALIDATE_TYPESCRIPT_PRETTIER: false
+          VALIDATE_VUE: false
+          VALIDATE_VUE_PRETTIER: false
+          VALIDATE_XML: false
+          VALIDATE_YAML: false
+          VALIDATE_YAML_PRETTIER: false
+          # Commitlint configuration
+          ENFORCE_COMMITLINT_CONFIGURATION_CHECK: true
+          # Save output for processing
+          SAVE_SUPER_LINTER_OUTPUT: true
         continue-on-error: true
+
       - name: Remove existing commitlint labels
         if: ${{ !cancelled() }}
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                name: 'commitlint-pass'
-              });
-            } catch (error) {
-              console.log('commitlint-pass label not found or already removed');
+            const labelsToRemove = ['commitlint-pass', 'commitlint-fail'];
+
+            // Get current labels
+            const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            // Remove old status labels if they exist
+            for (const labelToRemove of labelsToRemove) {
+              const existingLabel = currentLabels.find(label => label.name === labelToRemove);
+              if (existingLabel) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    issue_number: context.issue.number,
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: labelToRemove
+                  });
+                  console.log(`Removed label: ${labelToRemove}`);
+                } catch (error) {
+                  console.log(`Label ${labelToRemove} not found or already removed`);
+                }
+              }
             }
 
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                name: 'commitlint-fail'
-              });
-            } catch (error) {
-              console.log('commitlint-fail label not found or already removed');
-            }
-      - name: Add success label and comment
-        if: ${{ !cancelled() && steps.commitlint.outcome == 'success' }}
+      - name: Update or create commitlint status comment
+        if: ${{ !cancelled() }}
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // Add label
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['commitlint-pass']
-            });
-
-            // Find existing commitlint comment
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const existingComment = comments.data.find(comment =>
-              comment.user.type === 'Bot' && comment.body.includes('<!-- commitlint-status -->')
-            );
-
             const successBody = `<!-- commitlint-status -->
             ## ✅ Commitlint Check Passed
 
-            All commit messages follow the conventional commit format. Great job! 🎉`
-
-            if (existingComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: successBody
-              });
-            } else {
-              // Create new comment if none exists
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: successBody
-              });
-            }
-
-      - name: Add failure label and comment
-        if: ${{ !cancelled() && steps.commitlint.outcome == 'failure' }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Add label
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['commitlint-fail']
-            });
-
-            // Find existing commitlint comment
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const existingComment = comments.data.find(comment =>
-              comment.user.type === 'Bot' && comment.body.includes('<!-- commitlint-status -->')
-            );
+            All commit messages follow the conventional commit format. Great job! 🎉`;
 
             const failureBody = `<!-- commitlint-status -->
             ## ❌ Commitlint Check Failed
@@ -156,14 +185,33 @@ jobs:
                - \`feat: add new feature\`
                - \`fix: resolve bug in login\`
                - \`docs: update README\`
-               - \`chore(ci): update workflow\`
+               - \`chore: update ooxx\`
+               - \`ci(commitlint): update workflow\`
                - \`refactor(loader): adjest something\`
                - \`test(validator): add new test\`
 
             ### Valid types:
             \`feat\`, \`fix\`, \`docs\`, \`refactor\`, \`test\`, \`chore\`, \`build\`, \`ci\`
 
-            Please fix the commit messages and push again. 🔧`
+            Please fix the commit messages and push again. 🔧`;
+
+            const isSuccess = '${{ steps.commitlint.outcome }}' === 'success';
+            const commentBody = isSuccess ? successBody : failureBody;
+            const labelToAdd = isSuccess ? 'commitlint-pass' : 'commitlint-fail';
+
+            // Get all comments on the PR
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            // Find existing commitlint comment
+            const existingComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.user.login === 'github-actions[bot]' &&
+              comment.body.includes('<!-- commitlint-status -->')
+            );
 
             if (existingComment) {
               // Update existing comment
@@ -171,20 +219,36 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 comment_id: existingComment.id,
-                body: failureBody
+                body: commentBody
               });
+              console.log(`Updated existing commitlint comment: ${existingComment.id}`);
             } else {
               // Create new comment if none exists
               await github.rest.issues.createComment({
+                issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: failureBody
+                body: commentBody
               });
+              console.log('Created new commitlint status comment');
             }
 
+            // Add appropriate status label
+            await github.rest.issues.addLabels({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: [labelToAdd]
+            });
+            console.log(`Added label: ${labelToAdd}`);
+
       - name: Fail job if commitlint failed
-        if: ${{ !cancelled() && steps.commitlint.outcome == 'failure' }}
+        if: ${{ !cancelled() }}
         run: |
-          echo "Commitlint validation failed. Please check Validate PR commits with commitlint step for details."
-          exit 1
+          if [ "${{ steps.commitlint.outcome }}" = "success" ]; then
+            echo "✅ Commitlint validation passed"
+            exit 0
+          else
+            echo "❌ Commitlint validation failed"
+            exit 1
+          fi

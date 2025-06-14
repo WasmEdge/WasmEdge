@@ -47,14 +47,17 @@ void pushType(Runtime::Instance::ComponentInstance &Comp,
       case PrimValType::U64:
         Types.push_back(ValType(TypeCode::I64));
         break;
-      case PrimValType::Float32:
+      case PrimValType::F32:
         Types.push_back(ValType(TypeCode::F32));
         break;
-      case PrimValType::Float64:
+      case PrimValType::F64:
         Types.push_back(ValType(TypeCode::F64));
         break;
       case PrimValType::String:
         Types.push_back(InterfaceType(TypeCode::String));
+        break;
+      case PrimValType::ErrorContext:
+        spdlog::warn("Type error-context is not handled yet"sv);
         break;
       }
     } else if constexpr (std::is_same_v<T, uint32_t>) {
@@ -315,7 +318,7 @@ Executor::instantiate(Runtime::StoreManager &,
             } else if constexpr (std::is_same_v<U, Realloc>) {
               ReallocFunc = CompInst.getCoreFunctionInstance(O.getFuncIndex());
             } else if constexpr (std::is_same_v<U, PostReturn>) {
-              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Canon));
               return Unexpect(ErrCode::Value::InvalidCanonOption);
             }
             return {};
@@ -328,7 +331,7 @@ Executor::instantiate(Runtime::StoreManager &,
           // It doesn't make sense if one tries to lift an instance not a
           // function, so unlikely happen.
           spdlog::error("cannot lift a non-function"sv);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Canon));
           return Unexpect(ErrCode::Value::InvalidCanonOption);
         }
 
@@ -354,7 +357,7 @@ Executor::instantiate(Runtime::StoreManager &,
             } else if constexpr (std::is_same_v<U, Realloc>) {
               ReallocFunc = CompInst.getCoreFunctionInstance(O.getFuncIndex());
             } else if constexpr (std::is_same_v<U, PostReturn>) {
-              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Canon));
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Canon));
               return Unexpect(ErrCode::Value::InvalidCanonOption);
             }
             return {};

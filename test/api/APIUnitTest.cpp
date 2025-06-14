@@ -777,8 +777,10 @@ TEST(APICoreTest, FunctionType) {
 
 TEST(APICoreTest, TableType) {
   const WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false,
+                               /* Is64 */ false,
                                /* Min */ 10, /* Max */ 20};
   const WasmEdge_Limit Lim2 = {/* HasMax */ false, /* Shared */ false,
+                               /* Is64 */ false,
                                /* Min */ 30, /* Max */ 30};
   WasmEdge_TableTypeContext *TType =
       WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenExternRef(), Lim1);
@@ -798,8 +800,10 @@ TEST(APICoreTest, TableType) {
 
 TEST(APICoreTest, MemoryType) {
   const WasmEdge_Limit Lim1 = {/* HasMax */ true, /* Shared */ false,
+                               /* Is64 */ false,
                                /* Min */ 10, /* Max */ 20};
   const WasmEdge_Limit Lim2 = {/* HasMax */ false, /* Shared */ false,
+                               /* Is64 */ false,
                                /* Min */ 30, /* Max */ 30};
   WasmEdge_MemoryTypeContext *MType = WasmEdge_MemoryTypeCreate(Lim1);
   EXPECT_TRUE(WasmEdge_LimitIsEqual(WasmEdge_MemoryTypeGetLimit(MType), Lim1));
@@ -994,7 +998,8 @@ TEST(APICoreTest, ImportType) {
   EXPECT_NE(WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11]), nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(WasmEdge_TableTypeGetRefType(
       WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11]))));
-  Lim = {/* HasMax */ true, /* Shared */ false, /* Min */ 10, /* Max */ 30};
+  Lim = {/* HasMax */ true, /* Shared */ false, /* Is64 */ false, /* Min */ 10,
+         /* Max */ 30};
   EXPECT_TRUE(WasmEdge_LimitIsEqual(
       WasmEdge_TableTypeGetLimit(
           WasmEdge_ImportTypeGetTableType(Mod, ImpTypes[11])),
@@ -1006,7 +1011,8 @@ TEST(APICoreTest, ImportType) {
   EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(nullptr, ImpTypes[13]), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[0]), nullptr);
   EXPECT_NE(WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13]), nullptr);
-  Lim = {/* HasMax */ false, /* Shared */ false, /* Min */ 2, /* Max */ 2};
+  Lim = {/* HasMax */ false, /* Shared */ false, /* Is64 */ false, /* Min */ 2,
+         /* Max */ 2};
   EXPECT_TRUE(WasmEdge_LimitIsEqual(
       WasmEdge_MemoryTypeGetLimit(
           WasmEdge_ImportTypeGetMemoryType(Mod, ImpTypes[13])),
@@ -1183,7 +1189,8 @@ TEST(APICoreTest, ExportType) {
   EXPECT_NE(WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12]), nullptr);
   EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(WasmEdge_TableTypeGetRefType(
       WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12]))));
-  Lim = {/* HasMax */ false, /* Shared */ false, /* Min */ 10, /* Max */ 10};
+  Lim = {/* HasMax */ false, /* Shared */ false, /* Is64 */ false, /* Min */ 10,
+         /* Max */ 10};
   EXPECT_TRUE(WasmEdge_LimitIsEqual(
       WasmEdge_TableTypeGetLimit(
           WasmEdge_ExportTypeGetTableType(Mod, ExpTypes[12])),
@@ -1195,7 +1202,8 @@ TEST(APICoreTest, ExportType) {
   EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(nullptr, ExpTypes[13]), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[0]), nullptr);
   EXPECT_NE(WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13]), nullptr);
-  Lim = {/* HasMax */ true, /* Shared */ false, /* Min */ 1, /* Max */ 3};
+  Lim = {/* HasMax */ true, /* Shared */ false, /* Is64 */ false, /* Min */ 1,
+         /* Max */ 3};
   EXPECT_TRUE(WasmEdge_LimitIsEqual(
       WasmEdge_MemoryTypeGetLimit(
           WasmEdge_ExportTypeGetMemoryType(Mod, ExpTypes[13])),
@@ -2056,7 +2064,8 @@ TEST(APICoreTest, Instance) {
   EXPECT_EQ(TabCxt, nullptr);
   TabType = WasmEdge_TableTypeCreate(
       WasmEdge_ValTypeGenExternRef(),
-      WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Min */ 10,
+      WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Is64 */ false,
+                     /* Min */ 10,
                      /* Max */ 10});
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
   WasmEdge_TableTypeDelete(TabType);
@@ -2065,7 +2074,8 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(true);
   TabType = WasmEdge_TableTypeCreate(
       WasmEdge_ValTypeGenExternRef(),
-      WasmEdge_Limit{/* HasMax */ true, /* Shared */ false, /* Min */ 10,
+      WasmEdge_Limit{/* HasMax */ true, /* Shared */ false, /* Is64 */ false,
+                     /* Min */ 10,
                      /* Max */ 20});
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
   WasmEdge_TableTypeDelete(TabType);
@@ -2134,7 +2144,8 @@ TEST(APICoreTest, Instance) {
   // corresponding API.
   VType.Data[2] = WasmEdge_TypeCode_Ref;
   TabType = WasmEdge_TableTypeCreate(
-      VType, WasmEdge_Limit{/* HasMax */ true, /* Shared */ false, /* Min */ 10,
+      VType, WasmEdge_Limit{/* HasMax */ true, /* Shared */ false,
+                            /* Is64 */ false, /* Min */ 10,
                             /* Max */ 10});
   TabCxt = WasmEdge_TableInstanceCreate(TabType);
   EXPECT_EQ(TabCxt, nullptr);
@@ -2165,15 +2176,17 @@ TEST(APICoreTest, Instance) {
   // Memory instance creation
   MemCxt = WasmEdge_MemoryInstanceCreate(nullptr);
   EXPECT_EQ(MemCxt, nullptr);
-  MemType = WasmEdge_MemoryTypeCreate(WasmEdge_Limit{
-      /* HasMax */ false, /* Shared */ false, /* Min */ 1, /* Max */ 1});
+  MemType = WasmEdge_MemoryTypeCreate(
+      WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Is64 */ false,
+                     /* Min */ 1, /* Max */ 1});
   MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
   WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
   WasmEdge_MemoryInstanceDelete(MemCxt);
   EXPECT_TRUE(true);
-  MemType = WasmEdge_MemoryTypeCreate(WasmEdge_Limit{
-      /* HasMax */ true, /* Shared */ false, /* Min */ 1, /* Max */ 3});
+  MemType = WasmEdge_MemoryTypeCreate(
+      WasmEdge_Limit{/* HasMax */ true, /* Shared */ false, /* Is64 */ false,
+                     /* Min */ 1, /* Max */ 3});
   MemCxt = WasmEdge_MemoryInstanceCreate(MemType);
   WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
@@ -2446,6 +2459,7 @@ TEST(APICoreTest, ModuleInstance) {
 
   // Add host table "table"
   const WasmEdge_Limit TabLimit = {/* HasMax */ true, /* Shared */ false,
+                                   /* Is64 */ false,
                                    /* Min */ 10, /* Max */ 20};
   HostTType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), TabLimit);
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
@@ -2462,6 +2476,7 @@ TEST(APICoreTest, ModuleInstance) {
 
   // Add host memory "memory"
   const WasmEdge_Limit MemLimit = {/* HasMax */ true, /* Shared */ false,
+                                   /* Is64 */ false,
                                    /* Min */ 1,
                                    /* Max */ 2};
   HostMType = WasmEdge_MemoryTypeCreate(MemLimit);

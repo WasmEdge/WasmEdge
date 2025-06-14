@@ -1,190 +1,37 @@
-name: "Commit Lint"
+name: Commit Lint
 
-on:
-  pull_request_target:
-    types:
-      - opened
-      - synchronize
-      - reopened
+on: [pull_request]
 
 permissions:
   contents: read
+
 jobs:
   commitlint:
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Install required dependencies
         run: |
           sudo apt update && sudo apt install -y git curl
           curl -fsSL https://deb.nodesource.com/setup_18.x  | sudo -E bash -
           sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
+
       - name: Print versions
         run: |
           git --version
           node --version
           npm --version
+
       - name: Install commitlint
         run: |
           npm install conventional-changelog-conventionalcommits
           npm install commitlint@latest @commitlint/config-conventional
           npx commitlint --version
+
       - name: Validate PR commits with commitlint
-        id: commitlint
-        run: |
-          CURRENT_COMMIT_SHA=$(git -C "${GITHUB_WORKSPACE}" rev-parse HEAD)
-          CURRENT_COMMIT_COUNT=${{ github.event.pull_request.commits }}
-          echo "Current commit SHA: ${CURRENT_COMMIT_SHA}"
-          echo "Current commit count: ${CURRENT_COMMIT_COUNT}"
-          npx commitlint --from "${CURRENT_COMMIT_SHA}"~"${CURRENT_COMMIT_COUNT}" --to "${CURRENT_COMMIT_SHA}" --verbose
-        continue-on-error: true
-      - name: Remove existing commitlint labels
-        if: ${{ !cancelled() }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                name: 'commitlint-pass'
-              });
-            } catch (error) {
-              console.log('commitlint-pass label not found or already removed');
-            }
+        if: github.event_name == 'pull_request'
+        run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
 
-            try {
-              await github.rest.issues.removeLabel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                name: 'commitlint-fail'
-              });
-            } catch (error) {
-              console.log('commitlint-fail label not found or already removed');
-            }
-      - name: Add success label and comment
-        if: ${{ !cancelled() && steps.commitlint.outcome == 'success' }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Add label
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['commitlint-pass']
-            });
-
-            // Find existing commitlint comment
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const existingComment = comments.data.find(comment =>
-              comment.user.type === 'Bot' && comment.body.includes('<!-- commitlint-status -->')
-            );
-
-            const successBody = `<!-- commitlint-status -->
-            ## ✅ Commitlint Check Passed
-
-            All commit messages follow the conventional commit format. Great job! 🎉`
-
-            if (existingComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: successBody
-              });
-            } else {
-              // Create new comment if none exists
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: successBody
-              });
-            }
-
-      - name: Add failure label and comment
-        if: ${{ !cancelled() && steps.commitlint.outcome == 'failure' }}
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            // Add label
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['commitlint-fail']
-            });
-
-            // Find existing commitlint comment
-            const comments = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const existingComment = comments.data.find(comment =>
-              comment.user.type === 'Bot' && comment.body.includes('<!-- commitlint-status -->')
-            );
-
-            const failureBody = `<!-- commitlint-status -->
-            ## ❌ Commitlint Check Failed
-
-            Some commit messages don't follow the [conventional commit format](https://www.conventionalcommits.org/en/v1.0.0/#summary).
-
-            ### How to fix:
-            1. Check the commitlint output in the workflow logs \`step: Validate PR commits with commitlint\`
-            2. Use format: \`type(scope): description\`
-            3. Examples:
-               - \`feat: add new feature\`
-               - \`fix: resolve bug in login\`
-               - \`docs: update README\`
-               - \`chore(ci): update workflow\`
-               - \`refactor(loader): adjest something\`
-               - \`test(validator): add new test\`
-
-            ### Valid types:
-            \`feat\`, \`fix\`, \`docs\`, \`refactor\`, \`test\`, \`chore\`, \`build\`, \`ci\`
-
-            Please fix the commit messages and push again. 🔧`
-
-            if (existingComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: failureBody
-              });
-            } else {
-              // Create new comment if none exists
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: failureBody
-              });
-            }
-
-      - name: Fail job if commitlint failed
-        if: ${{ !cancelled() && steps.commitlint.outcome == 'failure' }}
-        run: |
-          echo "Commitlint validation failed. Please check Validate PR commits with commitlint step for details."
-          exit 1

@@ -22,6 +22,7 @@ endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   list(APPEND WASMEDGE_CFLAGS
     /utf-8
+    /bigobj
     /WX
     /W4
     /we5030 # treat unknown attribute as error
@@ -117,7 +118,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 endif()
 
 if(WIN32)
-  add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX -D_ITERATOR_DEBUG_LEVEL=0)
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_ENABLE_EXTENDED_ALIGNED_STORAGE -DNOMINMAX)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     list(APPEND WASMEDGE_CFLAGS
       -Wno-c++98-compat

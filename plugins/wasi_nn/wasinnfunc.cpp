@@ -5,6 +5,7 @@
 #include "wasinnenv.h"
 
 #include "common/spdlog.h"
+#include "host/wasi/wasimodule.h"
 
 #include <string>
 #include <string_view>
@@ -53,6 +54,7 @@ Expect<WASINN::ErrNo>
 WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
                      uint32_t BuilderLen, uint32_t RawEncoding, uint32_t Target,
                      uint32_t GraphIdPtr) {
+  Env.setEnv(static_cast<const WasmEdge::Host::WasiModule *>(Frame.getWASIModule())->getEnv());
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     // TODO: implement RPC for Load

@@ -51,7 +51,7 @@ void setJavaDoubleValue(JNIEnv *env, WasmEdge_Value val, jobject jobj);
 
 void setJavaStringValue(JNIEnv *env, char *val, jobject jobj);
 
-WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes);
+enum WasmEdge_ValType *parseValueTypes(JNIEnv *env, jintArray jValueTypes);
 
 bool checkAndHandleException(JNIEnv *env, const char *msg);
 

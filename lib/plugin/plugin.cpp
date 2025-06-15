@@ -177,7 +177,6 @@ public:
 private:
   static Runtime::Instance::ModuleInstance *
   createWrapper(const PluginModule::ModuleDescriptor *Descriptor) noexcept {
-    static_assert(std::is_standard_layout_v<CAPIPluginRegister>);
     if (auto Iter = DescriptionLookup.find(Descriptor);
         unlikely(Iter == DescriptionLookup.end())) {
       return nullptr;

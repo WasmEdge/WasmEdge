@@ -55,6 +55,10 @@ Expect<void> Loader::loadSection(AST::TypeSection &Sec) {
       EXPECTED_TRY(uint8_t CodeByte, FMgr.peekByte().map_error(ReportError));
 
       TypeCode Code = static_cast<TypeCode>(CodeByte);
+      if (!Conf.hasProposal(Proposal::GC) && Code != TypeCode::Func) {
+        return logNeedProposal(ErrCode::Value::IntegerTooLong, Proposal::GC,
+                               FMgr.getOffset(), ASTNodeAttr::Sec_Type);
+      }
       if (Code == TypeCode::Rec) {
         // Case: 0x4E vec(subtype).
         FMgr.readByte();

@@ -45,8 +45,6 @@ TEST_P(CoreCompileTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   WasmEdge_ConfigureContext *ConfCxt = createConf(Conf);
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(ConfCxt, nullptr);
-  WasmEdge_ConfigureCompilerSetOptimizationLevel(
-      ConfCxt, WasmEdge_CompilerOptimizationLevel_O0);
   WasmEdge_ConfigureCompilerSetOutputFormat(
       ConfCxt, WasmEdge_CompilerOutputFormat_Native);
   WasmEdge_CompilerContext *CompilerCxt = WasmEdge_CompilerCreate(ConfCxt);

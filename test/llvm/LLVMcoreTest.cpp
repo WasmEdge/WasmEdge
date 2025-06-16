@@ -59,8 +59,6 @@ TEST_P(NativeCoreTest, TestSuites) {
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
     CopyConf.getCompilerConfigure().setOutputFormat(
         CompilerConfigure::OutputFormat::Native);
-    CopyConf.getCompilerConfigure().setOptimizationLevel(
-        WasmEdge::CompilerConfigure::OptimizationLevel::O0);
     CopyConf.getCompilerConfigure().setDumpIR(true);
     WasmEdge::LLVM::Compiler Compiler(CopyConf);
     WasmEdge::LLVM::CodeGen CodeGen(CopyConf);
@@ -168,8 +166,6 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
     WasmEdge::Configure CopyConf = Conf.get();
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
-    CopyConf.getCompilerConfigure().setOptimizationLevel(
-        WasmEdge::CompilerConfigure::OptimizationLevel::O0);
     CopyConf.getCompilerConfigure().setDumpIR(true);
     WasmEdge::LLVM::Compiler Compiler(CopyConf);
     WasmEdge::LLVM::CodeGen CodeGen(CopyConf);
@@ -271,8 +267,6 @@ TEST_P(JITCoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   WasmEdge::Configure CopyConf = Conf;
   CopyConf.getRuntimeConfigure().setEnableJIT(true);
-  CopyConf.getCompilerConfigure().setOptimizationLevel(
-      WasmEdge::CompilerConfigure::OptimizationLevel::O0);
   CopyConf.getCompilerConfigure().setDumpIR(true);
   WasmEdge::VM::VM VM(CopyConf);
   WasmEdge::SpecTestModule SpecTestMod;

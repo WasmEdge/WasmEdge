@@ -1328,8 +1328,6 @@ TEST(APICoreTest, Compiler) {
 
   // Compile file for universal WASM output format repeatedly
   WasmEdge_CompilerDelete(Compiler);
-  WasmEdge_ConfigureCompilerSetOptimizationLevel(
-      Conf, WasmEdge_CompilerOptimizationLevel_O0);
   WasmEdge_ConfigureCompilerSetOutputFormat(Conf,
                                             WasmEdge_CompilerOutputFormat_Wasm);
   Compiler = WasmEdge_CompilerCreate(Conf);

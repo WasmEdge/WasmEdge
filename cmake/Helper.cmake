@@ -411,7 +411,7 @@ function(wasmedge_setup_stb_image)
     stb
     GIT_REPOSITORY https://github.com/nothings/stb.git
     GIT_TAG        2dfbe86bef853be33cbbda07abcb4db58c7f817d
-    GIT_SHALLOW    TRUE
+    GIT_SHALLOW    FALSE
   )
   FetchContent_MakeAvailable(stb)
   message(STATUS "Downloading stb_image source -- done")

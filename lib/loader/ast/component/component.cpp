@@ -22,37 +22,47 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   auto Magic = FMgr.readBytes(4);
   if (!Magic) {
     return logLoadError(Magic.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Component);
+                        ASTNodeAttr::Module);
   }
   std::vector<Byte> WasmMagic = {0x00, 0x61, 0x73, 0x6D};
   if (*Magic != WasmMagic) {
     auto M = *Magic;
     spdlog::error("Might an invalid wasm file, magic expected, but got 0x{:X} "
-                  "0x{:X} 0x{:X} 0x{:X}",
+                  "0x{:X} 0x{:X} 0x{:X}"sv,
                   M[0], M[1], M[2], M[3]);
     return logLoadError(ErrCode::Value::MalformedMagic, FMgr.getLastOffset(),
-                        ASTNodeAttr::Component);
+                        ASTNodeAttr::Module);
   }
   auto Ver = FMgr.readBytes(4);
   if (!Ver) {
-    return logLoadError(Ver.error(), FMgr.getLastOffset(),
-                        ASTNodeAttr::Component);
+    return logLoadError(Ver.error(), FMgr.getLastOffset(), ASTNodeAttr::Module);
   }
   return std::make_pair(*Magic, *Ver);
 }
 
 Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
                                    std::optional<uint64_t> Bound) {
-  using namespace AST::Component;
-
-  uint64_t StartOffset = FMgr.getOffset();
-  uint64_t Offset = FMgr.getOffset();
-  Expect<Byte> ResSecId;
-
   auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return E;
   };
+  // component ::= <preamble> s*:<section>*           => (component flatten(s*))
+  // section   ::=    section_0(<core:custom>)        => ϵ
+  //             | m: section_1(<core:module>)        => [core-prefix(m)]
+  //             | i*:section_2(vec(<core:instance>)) => core-prefix(i)*
+  //             | t*:section_3(vec(<core:type>))     => core-prefix(t)*
+  //             | c: section_4(<component>)          => [c]
+  //             | i*:section_5(vec(<instance>))      => i*
+  //             | a*:section_6(vec(<alias>))         => a*
+  //             | t*:section_7(vec(<type>))          => t*
+  //             | c*:section_8(vec(<canon>))         => c*
+  //             | s: section_9(<start>)              => [s]
+  //             | i*:section_10(vec(<import>))       => i*
+  //             | e*:section_11(vec(<export>))       => e*
+  //             | v*:section_12(vec(<value>))        => v* 🪙
+  uint64_t StartOffset = FMgr.getOffset();
+  uint64_t Offset = FMgr.getOffset();
+  Expect<Byte> ResSecId;
 
   while ((!Bound.has_value() || *Bound > Offset - StartOffset) &&
          (ResSecId = FMgr.readByte())) {
@@ -62,78 +72,58 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
     }
     // keep going only if we have new section ID
     uint8_t NewSectionId = *ResSecId;
+    Comp.getSections().emplace_back();
+    auto &Sec = Comp.getSections().back();
 
     switch (NewSectionId) {
     case 0x00:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<AST::CustomSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::CustomSection>())
+                       .map_error(ReportError));
       break;
     case 0x01:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<CoreModuleSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::CoreModuleSection>())
+                       .map_error(ReportError));
       break;
     case 0x02:
-      Comp.getSections().emplace_back();
       EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<CoreInstanceSection>())
+          loadSection(Sec.emplace<AST::Component::CoreInstanceSection>())
               .map_error(ReportError));
       break;
     case 0x03:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<CoreTypeSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::CoreTypeSection>())
+                       .map_error(ReportError));
       break;
     case 0x04:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<ComponentSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::ComponentSection>())
+                       .map_error(ReportError));
       break;
     case 0x05:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<InstanceSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::InstanceSection>())
+                       .map_error(ReportError));
       break;
     case 0x06:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<AliasSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::AliasSection>())
+                       .map_error(ReportError));
       break;
     case 0x07:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(loadSection(Comp.getSections().back().emplace<TypeSection>())
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::TypeSection>())
                        .map_error(ReportError));
       break;
     case 0x08:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<CanonSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::CanonSection>())
+                       .map_error(ReportError));
       break;
     case 0x09:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<StartSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::StartSection>())
+                       .map_error(ReportError));
       break;
     case 0x0A:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<ImportSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::ImportSection>())
+                       .map_error(ReportError));
       break;
     case 0x0B:
-      Comp.getSections().emplace_back();
-      EXPECTED_TRY(
-          loadSection(Comp.getSections().back().emplace<ExportSection>())
-              .map_error(ReportError));
+      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::ExportSection>())
+                       .map_error(ReportError));
       break;
     default:
       return logLoadError(ErrCode::Value::MalformedSection,
@@ -141,7 +131,6 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
     }
     Offset = FMgr.getOffset();
   }
-
   return {};
 }
 

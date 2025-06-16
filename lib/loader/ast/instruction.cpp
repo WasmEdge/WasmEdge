@@ -277,14 +277,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   };
 
   auto readU8 = [this, ReportError](uint8_t &Dst) -> Expect<void> {
-    EXPECTED_TRY(uint8_t U8, FMgr.readByte().map_error(ReportError));
-    Dst = U8;
+    EXPECTED_TRY(Dst, FMgr.readByte().map_error(ReportError));
     return {};
   };
 
   auto readU32 = [this, ReportError](uint32_t &Dst) -> Expect<void> {
-    EXPECTED_TRY(uint32_t U32, FMgr.readU32().map_error(ReportError));
-    Dst = U32;
+    EXPECTED_TRY(Dst, FMgr.readU32().map_error(ReportError));
     return {};
   };
 
@@ -506,14 +504,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     Instr.setBrCast(LabelIdx);
     TypeCode TC = ((Flag & 0x01U) ? TypeCode::RefNull : TypeCode::Ref);
     EXPECTED_TRY(
-        ValType VT1,
+        Instr.getBrCast().RType1,
         loadHeapType(TC, ASTNodeAttr::Instruction).map_error(ReportError));
-    Instr.getBrCast().RType1 = VT1;
     TC = ((Flag & 0x02U) ? TypeCode::RefNull : TypeCode::Ref);
     EXPECTED_TRY(
-        ValType VT2,
+        Instr.getBrCast().RType2,
         loadHeapType(TC, ASTNodeAttr::Instruction).map_error(ReportError));
-    Instr.getBrCast().RType2 = VT2;
     return {};
   }
   case OpCode::Array__len:
@@ -534,8 +530,8 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     Instr.setValTypeListSize(VecCnt);
     for (uint32_t I = 0; I < VecCnt; ++I) {
       // The AST node information is handled.
-      EXPECTED_TRY(ValType Type, loadValType(ASTNodeAttr::Instruction));
-      Instr.getValTypeList()[I] = Type;
+      EXPECTED_TRY(Instr.getValTypeList()[I],
+                   loadValType(ASTNodeAttr::Instruction));
     }
     return {};
   }

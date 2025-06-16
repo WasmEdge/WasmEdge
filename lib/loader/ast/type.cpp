@@ -14,11 +14,15 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
     return logLoadError(Val.error(), FMgr.getLastOffset(), From);
   }
 
+  // The error code is different when the reference-types proposal turned off.
+  ErrCode::Value FailCode = Conf.hasProposal(Proposal::ReferenceTypes)
+                                ? ErrCode::Value::MalformedRefType
+                                : ErrCode::Value::MalformedElemType;
+
   if (*Val < 0) {
     if (*Val < -64) {
       // For checking the invalid s33 value which is larger than 1 byte.
-      return logLoadError(ErrCode::Value::MalformedRefType,
-                          FMgr.getLastOffset(), From);
+      return logLoadError(FailCode, FMgr.getLastOffset(), From);
     }
     TypeCode HTCode =
         static_cast<TypeCode>(static_cast<uint8_t>((*Val) & INT64_C(0x7F)));
@@ -29,12 +33,16 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
       // typed function reference proposal. Therefore the reference-types
       // proposal should be checked here.
       if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-        return logNeedProposal(ErrCode::Value::MalformedElemType,
-                               Proposal::ReferenceTypes, FMgr.getLastOffset(),
-                               From);
+        return logNeedProposal(FailCode, Proposal::ReferenceTypes,
+                               FMgr.getLastOffset(), From);
       }
       [[fallthrough]];
     case TypeCode::FuncRef:
+      if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
+          !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
+        return logNeedProposal(FailCode, Proposal::ReferenceTypes,
+                               FMgr.getLastOffset(), From);
+      }
       return ValType(TC, HTCode);
     case TypeCode::NullFuncRef:
     case TypeCode::NullExternRef:
@@ -45,8 +53,8 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
     case TypeCode::StructRef:
     case TypeCode::ArrayRef:
       if (!Conf.hasProposal(Proposal::GC)) {
-        return logNeedProposal(ErrCode::Value::MalformedRefType, Proposal::GC,
-                               FMgr.getLastOffset(), From);
+        return logNeedProposal(FailCode, Proposal::GC, FMgr.getLastOffset(),
+                               From);
       }
       return ValType(TC, HTCode);
     case TypeCode::ExnRef:
@@ -57,15 +65,13 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
       }
       return ValType(TC, HTCode);
     default:
-      return logLoadError(ErrCode::Value::MalformedRefType,
-                          FMgr.getLastOffset(), From);
+      return logLoadError(FailCode, FMgr.getLastOffset(), From);
     }
   } else {
     // Type index case. Legal if the function reference proposal is enabled.
     if (!Conf.hasProposal(Proposal::FunctionReferences)) {
-      return logNeedProposal(ErrCode::Value::MalformedRefType,
-                             Proposal::FunctionReferences, FMgr.getLastOffset(),
-                             From);
+      return logNeedProposal(FailCode, Proposal::FunctionReferences,
+                             FMgr.getLastOffset(), From);
     }
     return ValType(TC, static_cast<uint32_t>(*Val));
   }
@@ -73,8 +79,8 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
 
 // Load binary and decode RefType. See "include/loader/loader.h".
 Expect<ValType> Loader::loadRefType(ASTNodeAttr From) {
-  // Read the reftype code.
-  auto B = FMgr.readByte();
+  // Peek the reftype code.
+  auto B = FMgr.peekByte();
   if (unlikely(!B)) {
     return logLoadError(B.error(), FMgr.getLastOffset(), From);
   }
@@ -83,52 +89,44 @@ Expect<ValType> Loader::loadRefType(ASTNodeAttr From) {
   ErrCode::Value FailCode = Conf.hasProposal(Proposal::ReferenceTypes)
                                 ? ErrCode::Value::MalformedRefType
                                 : ErrCode::Value::MalformedElemType;
+
+  // Check the first byte for reference type cases.
   TypeCode Code = static_cast<TypeCode>(*B);
   switch (Code) {
   case TypeCode::ExternRef:
     if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
       return logNeedProposal(FailCode, Proposal::ReferenceTypes,
-                             FMgr.getLastOffset(), From);
+                             FMgr.getOffset(), From);
     }
     [[fallthrough]];
   case TypeCode::FuncRef:
     // The FuncRef (0x70) is always allowed in the RefType even if the
     // reference-types proposal not enabled.
-    return ValType(Code);
-  case TypeCode::NullFuncRef:
-  case TypeCode::NullExternRef:
-  case TypeCode::NullRef:
-  case TypeCode::AnyRef:
-  case TypeCode::EqRef:
-  case TypeCode::I31Ref:
-  case TypeCode::StructRef:
-  case TypeCode::ArrayRef:
-    if (!Conf.hasProposal(Proposal::GC)) {
-      return logNeedProposal(FailCode, Proposal::GC, FMgr.getLastOffset(),
-                             From);
-    }
+    FMgr.readByte();
     return ValType(Code);
   case TypeCode::Ref:
   case TypeCode::RefNull: {
     if (!Conf.hasProposal(Proposal::FunctionReferences)) {
       return logNeedProposal(FailCode, Proposal::FunctionReferences,
-                             FMgr.getLastOffset(), From);
+                             FMgr.getOffset(), From);
     }
+    FMgr.readByte();
     return loadHeapType(Code, From);
   }
   default:
-    return logLoadError(FailCode, FMgr.getLastOffset(), From);
+    return loadHeapType(TypeCode::RefNull, From);
   }
 }
 
 // Load binary and decode ValType. See "include/loader/loader.h".
 Expect<ValType> Loader::loadValType(ASTNodeAttr From, bool IsStorageType) {
-  // Read the valtype code.
-  auto B = FMgr.readByte();
+  // Peek the valtype code.
+  auto B = FMgr.peekByte();
   if (unlikely(!B)) {
     return logLoadError(B.error(), FMgr.getLastOffset(), From);
   }
 
+  // Check the first byte for value type cases.
   TypeCode Code = static_cast<TypeCode>(*B);
   switch (Code) {
   case TypeCode::V128:
@@ -141,65 +139,21 @@ Expect<ValType> Loader::loadValType(ASTNodeAttr From, bool IsStorageType) {
   case TypeCode::I64:
   case TypeCode::F32:
   case TypeCode::F64:
+    FMgr.readByte();
     return ValType(Code);
   case TypeCode::I8:
   case TypeCode::I16:
+    // Packed types are for GC proposal. The proposal checking should be handled
+    // in the parent scope.
     if (!IsStorageType) {
-      break;
+      return logLoadError(ErrCode::Value::MalformedValType, FMgr.getOffset(),
+                          From);
     }
-    if (!Conf.hasProposal(Proposal::GC)) {
-      return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
-                             FMgr.getLastOffset(), From);
-    }
+    FMgr.readByte();
     return ValType(Code);
-  case TypeCode::FuncRef:
-    if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
-        !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
-      return logNeedProposal(ErrCode::Value::MalformedElemType,
-                             Proposal::ReferenceTypes, FMgr.getLastOffset(),
-                             From);
-    }
-    return ValType(Code);
-  case TypeCode::ExternRef:
-    if (!Conf.hasProposal(Proposal::ReferenceTypes)) {
-      return logNeedProposal(ErrCode::Value::MalformedElemType,
-                             Proposal::ReferenceTypes, FMgr.getLastOffset(),
-                             From);
-    }
-    return ValType(Code);
-  case TypeCode::NullFuncRef:
-  case TypeCode::NullExternRef:
-  case TypeCode::NullRef:
-  case TypeCode::AnyRef:
-  case TypeCode::EqRef:
-  case TypeCode::I31Ref:
-  case TypeCode::StructRef:
-  case TypeCode::ArrayRef:
-    if (!Conf.hasProposal(Proposal::GC)) {
-      return logNeedProposal(ErrCode::Value::MalformedValType, Proposal::GC,
-                             FMgr.getLastOffset(), From);
-    }
-    return ValType(Code);
-  case TypeCode::ExnRef:
-    if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
-      return logNeedProposal(ErrCode::Value::MalformedValType,
-                             Proposal::ExceptionHandling, FMgr.getLastOffset(),
-                             From);
-    }
-    return ValType(Code);
-  case TypeCode::Ref:
-  case TypeCode::RefNull:
-    if (!Conf.hasProposal(Proposal::FunctionReferences)) {
-      return logNeedProposal(ErrCode::Value::MalformedValType,
-                             Proposal::FunctionReferences, FMgr.getLastOffset(),
-                             From);
-    }
-    return loadHeapType(Code, From);
   default:
-    break;
+    return loadRefType(From);
   }
-  return logLoadError(ErrCode::Value::MalformedValType, FMgr.getLastOffset(),
-                      From);
 }
 
 Expect<ValMut> Loader::loadMutability(ASTNodeAttr From) {

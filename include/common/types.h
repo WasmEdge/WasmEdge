@@ -509,6 +509,9 @@ using ValVariant =
 
 // Here are some high-level composited type, provided by component model
 struct ValComp {
+  ValComp() = default;
+  ValComp(const ValComp &) = default;
+  ValComp(ValComp &&) = default;
   virtual ~ValComp() = default;
 };
 
@@ -547,7 +550,8 @@ private:
 };
 
 struct Enum : public ValComp {
-  Enum() noexcept = default;
+  Enum(std::initializer_list<std::string> L) noexcept : Labels(L) {}
+  Enum(std::vector<std::string> &&L) noexcept : Labels(std::move(L)) {}
 
 private:
   std::vector<std::string> Labels;

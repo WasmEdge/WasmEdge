@@ -639,7 +639,7 @@ private:
   }
 };
 
-struct ModuleDeclVisitor {
+struct CoreModuleDeclVisitor {
   // TODO: Validation of core:moduledecl rejects core:moduletype
   // definitions and outer aliases of core:moduletype definitions inside
   // type declarators. Thus, as an invariant, when validating a
@@ -657,9 +657,9 @@ struct CoreDefTypeVisitor {
     Ctx.incCoreIndexSize(CoreSort::Type);
     return {};
   }
-  Expect<void> operator()(const ModuleType &Mod) {
-    for (const ModuleDecl &D : Mod.getContent()) {
-      EXPECTED_TRY(std::visit(ModuleDeclVisitor{}, D));
+  Expect<void> operator()(const CoreModuleType &Mod) {
+    for (const CoreModuleDecl &D : Mod.getContent()) {
+      EXPECTED_TRY(std::visit(CoreModuleDeclVisitor{}, D));
     }
     return {};
   }

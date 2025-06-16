@@ -54,7 +54,7 @@ jobs:
             python3_ex: python3
             extra_setup_command: apt update && apt install -y lsb-release
           - name: manylinux_2_28 aarch64
-            host_runner: linux-arm64-v2
+            host_runner: ubuntu-24.04-arm
             package_manager: yum
             docker_image: wasmedge/wasmedge:manylinux_2_28_aarch64
             python_package: python2 python3

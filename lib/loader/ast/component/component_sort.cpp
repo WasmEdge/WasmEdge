@@ -6,46 +6,28 @@
 namespace WasmEdge {
 namespace Loader {
 
-using namespace AST::Component;
-
-Expect<void> Loader::loadSort(Sort &Sort) {
-  // sort ::= 0x00 cs:<core:sort>   => core cs
-  //        | 0x01                  => func
-  //        | 0x02                  => value 🪙
-  //        | 0x03                  => type
-  //        | 0x04                  => component
-  //        | 0x05                  => instance
-  auto ReportError = [](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sort));
-    return E;
-  };
-  EXPECTED_TRY(auto Tag, FMgr.readByte().map_error(ReportError));
-  switch (Tag) {
-  case 0x00:
-    return loadCoreSort(Sort.emplace<CoreSort>()).map_error(ReportError);
-  case 0x01:
-  case 0x02:
-  case 0x03:
-  case 0x04:
-  case 0x05:
-    Sort = static_cast<SortCase>(Tag);
-    return {};
-  default:
-    return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
-                        ASTNodeAttr::Sort);
-  }
+Expect<void> Loader::loadCoreSortIndex(
+    AST::Component::SortIndex<AST::Component::CoreSort> &SortIdx) {
+  // core:sortidx ::= sort:<core:sort> idx:<u32> => (sort idx)
+  EXPECTED_TRY(loadCoreSort(SortIdx.getSort()));
+  EXPECTED_TRY(SortIdx.getSortIdx(), FMgr.readU32().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
+  }));
+  return {};
 }
 
-Expect<void> Loader::loadCoreSort(CoreSort &Sort) {
-  // core:sort ::= 0x00     => func
-  //           | 0x01       => table
-  //           | 0x02       => memory
-  //           | 0x03       => global
-  //           | 0x10       => type
-  //           | 0x11       => module
-  //           | 0x12       => instance
-  EXPECTED_TRY(auto B, FMgr.readByte());
-  switch (B) {
+Expect<void> Loader::loadCoreSort(AST::Component::CoreSort &Sort) {
+  // core:sort ::= 0x00 => func
+  //             | 0x01 => table
+  //             | 0x02 => memory
+  //             | 0x03 => global
+  //             | 0x10 => type
+  //             | 0x11 => module
+  //             | 0x12 => instance
+  EXPECTED_TRY(auto Flag, FMgr.readByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
+  }));
+  switch (Flag) {
   case 0x00:
   case 0x01:
   case 0x02:
@@ -53,25 +35,48 @@ Expect<void> Loader::loadCoreSort(CoreSort &Sort) {
   case 0x10:
   case 0x11:
   case 0x12:
-    Sort = static_cast<CoreSort>(B);
+    Sort = static_cast<AST::Component::CoreSort>(Flag);
     return {};
   default:
     return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
-                        ASTNodeAttr::Sort);
+                        ASTNodeAttr::Comp_Sort);
   }
 }
 
-Expect<void> Loader::loadSortIndex(SortIndex<Sort> &SortIdx) {
+Expect<void> Loader::loadSortIndex(
+    AST::Component::SortIndex<AST::Component::Sort> &SortIdx) {
+  // sortidx ::= sort:<sort> idx:<u32> => (sort idx)
   EXPECTED_TRY(loadSort(SortIdx.getSort()));
-  EXPECTED_TRY(SortIdx.getSortIdx(), FMgr.readU32());
-
+  EXPECTED_TRY(SortIdx.getSortIdx(), FMgr.readU32().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
+  }));
   return {};
 }
-Expect<void> Loader::loadCoreSortIndex(SortIndex<CoreSort> &SortIdx) {
-  EXPECTED_TRY(loadCoreSort(SortIdx.getSort()));
-  EXPECTED_TRY(SortIdx.getSortIdx(), FMgr.readU32());
 
-  return {};
+Expect<void> Loader::loadSort(AST::Component::Sort &Sort) {
+  // sort ::= 0x00 cs:<core:sort> => core cs
+  //        | 0x01                => func
+  //        | 0x02                => value 🪙
+  //        | 0x03                => type
+  //        | 0x04                => component
+  //        | 0x05                => instance
+  EXPECTED_TRY(auto Flag, FMgr.readByte().map_error([this](auto E) {
+    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Sort);
+  }));
+  switch (Flag) {
+  case 0x00:
+    return loadCoreSort(Sort.emplace<AST::Component::CoreSort>());
+  case 0x01:
+  case 0x02:
+  case 0x03:
+  case 0x04:
+  case 0x05:
+    Sort = static_cast<AST::Component::SortCase>(Flag);
+    return {};
+  default:
+    return logLoadError(ErrCode::Value::MalformedSort, FMgr.getLastOffset(),
+                        ASTNodeAttr::Comp_Sort);
+  }
 }
 
 } // namespace Loader

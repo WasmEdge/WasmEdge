@@ -99,23 +99,11 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
 
   try {
     ov::element::Type InputType = ov::element::f32;
-    ov::Shape InputShape = {1, 224, 224, 3};
+    ov::Shape InputShape = {1, 3, 224, 224};
     ov::Tensor InputTensor =
         ov::Tensor(InputType, InputShape, Tensor.Tensor.data());
-    const ov::Layout InputLayout{"NHWC"};
-    ov::preprocess::PrePostProcessor PPP(GraphRef.OpenVINOModel);
-    PPP.input()
-        .tensor()
-        .set_shape(InputShape)
-        .set_element_type(InputType)
-        .set_layout(InputLayout);
-    PPP.input().preprocess().resize(
-        ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
-    PPP.input().model().set_layout("NCHW");
-    PPP.output().tensor().set_element_type(ov::element::f32);
-    auto model = PPP.build();
     ov::CompiledModel CompiledModel =
-        Env.OpenVINOCore.compile_model(model, "CPU");
+        Env.OpenVINOCore.compile_model(GraphRef.OpenVINOModel, "CPU");
     CxtRef.OpenVINOInferRequest = CompiledModel.create_infer_request();
     CxtRef.OpenVINOInferRequest.set_input_tensor(Index, InputTensor);
   } catch (const std::exception &EX) {

@@ -130,12 +130,32 @@ TEST(WasiNNTest, OpenVINOBackend) {
   WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
   // Load the files.
-  std::vector<uint8_t> TensorData =
+  std::vector<uint8_t> TensorDataLegecy =
       readEntireFile("./wasinn_openvino_fixtures/tensor-1x224x224x3-f32.bgr");
   std::vector<uint8_t> XmlRead =
       readEntireFile("./wasinn_openvino_fixtures/mobilenet.xml");
   std::vector<uint8_t> WeightRead =
       readEntireFile("./wasinn_openvino_fixtures/mobilenet.bin");
+
+  // Convert the NHWC to NCHW format.
+  // For historical reasons, the OpenVINO model expects the input tensor in
+  // NCHW format, while the input tensor is in NHWC format.
+  // https://github.com/intel/openvino-rs/blob/v0.3.3/crates/openvino/tests/fixtures/mobilenet/build.sh#L39
+  // https://github.com/intel/openvino-rs/blob/v0.8.0/crates/openvino/tests/classify-mobilenet.rs#L34
+  ASSERT_EQ(TensorDataLegecy.size(), 3 * 224 * 224 * 4);
+  std::vector<uint8_t> TensorData(TensorDataLegecy.size());
+
+  for (size_t C = 0; C < 3; ++C) {
+    for (size_t H = 0; H < 224; ++H) {
+      for (size_t W = 0; W < 224; ++W) {
+        size_t Loc = H * 224 + W;
+        for (size_t B = 0; B < 4; ++B) {
+          TensorData[(C * 224 * 224 + Loc) * 4 + B] =
+              TensorDataLegecy[(3 * Loc + C) * 4 + B];
+        }
+      }
+    }
+  }
 
   std::vector<uint32_t> TensorDim{1, 3, 224, 224};
   uint32_t BuilderPtr = UINT32_C(0);

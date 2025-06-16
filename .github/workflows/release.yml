@@ -24,7 +24,7 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
@@ -134,13 +134,13 @@ jobs:
     needs: create_release
     steps:
       - name: checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Grant the safe directory for git
         run: |
           git config --global --add safe.directory $(pwd)
       - name: generate sbom
-        uses: advanced-security/sbom-generator-action@v0.0.2
+        uses: advanced-security/sbom-generator-action@6fe43abf522b2e7a19bc769aec1e6c848614b517 # v0.0.2
         id: sbom
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}

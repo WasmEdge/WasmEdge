@@ -39,7 +39,7 @@ jobs:
           dnf update -y
           dnf install -y cmake ninja-build llvm llvm-devel lld-devel clang git file rpm-build dpkg-dev spdlog-devel \
             pkgconf-pkg-config protobuf-c-compiler grpc-cpp grpc-plugins grpc-devel
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
       - name: Grant the safe directory for git
@@ -61,7 +61,7 @@ jobs:
           cmake --build build --target package
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: WasmEdge-${{ inputs.version }}-${{ matrix.asset_postfix }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

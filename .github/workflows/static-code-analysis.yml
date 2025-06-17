@@ -52,7 +52,7 @@ jobs:
       image: wasmedge/wasmedge:ubuntu-24.04-build-clang
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
     - name: Ensure git safe directory
       run: |
         git config --global --add safe.directory $(pwd)
@@ -75,7 +75,7 @@ jobs:
         cd build
         infer run --keep-going -- make -j 4
 
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: report
         path: |

@@ -10,7 +10,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Submit WasmEdge MSI package with Winget-Releaser
-        uses: vedantmgoyal9/winget-releaser@main
+        uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f # main
         with:
           identifier: WasmEdge.WasmEdge
           installers-regex: 'windows\.msi$'

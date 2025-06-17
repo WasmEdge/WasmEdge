@@ -20,3 +20,8 @@ updates:
       docker:
         patterns:
           - "docker/*"
+
+  - package-ecosystem: docker
+    directory: /.devcontainer
+    schedule:
+      interval: daily

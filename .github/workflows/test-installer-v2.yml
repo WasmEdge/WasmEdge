@@ -20,6 +20,9 @@ on:
       - 'utils/install_v2.sh'
       - 'utils/uninstall.sh'
 
+permissions:
+  contents: read
+
 jobs:
   verify-installer-v2:
     strategy:

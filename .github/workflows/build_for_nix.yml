@@ -29,6 +29,9 @@ on:
       - "CMakeLists.txt"
       - "cmake/**"
 
+permissions:
+  contents: read
+
 jobs:
   build_nix:
     runs-on: ubuntu-latest

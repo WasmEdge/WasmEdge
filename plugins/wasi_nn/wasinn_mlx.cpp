@@ -36,6 +36,164 @@ std::string loadBytesFromFile(const std::string &Path) {
   return Data;
 }
 
+mx::array fromBytes(const Span<uint8_t> &Bytes) {
+  if (Bytes.size() < 9) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Insufficient bytes for tensor header");
+    return mx::array({0.0f});
+  }
+
+  size_t Offset = 0;
+
+  uint8_t RtypeValue = Bytes[Offset];
+  Offset += 1;
+
+  uint32_t DimBufLen;
+  std::memcpy(&DimBufLen, &Bytes[Offset], 4);
+  Offset += 4;
+
+  std::vector<int> Shape;
+  for (size_t I = 0; I < DimBufLen; I += 4) {
+    uint32_t Dim;
+    std::memcpy(&Dim, &Bytes[Offset + I], 4);
+    Shape.push_back(static_cast<int>(Dim));
+  }
+  Offset += DimBufLen;
+
+  uint32_t DataBufLen;
+  std::memcpy(&DataBufLen, &Bytes[Offset], 4);
+  Offset += 4;
+
+  const void *DataPtr = &Bytes[Offset];
+  switch (RtypeValue) {
+  case 0: { // F16
+    return mx::array(static_cast<const uint16_t *>(DataPtr), Shape,
+                     mx::float16);
+  }
+  case 1: { // F32
+    return mx::array(static_cast<const float *>(DataPtr), Shape, mx::float32);
+  }
+  case 2: { // F64
+    return mx::array(static_cast<const double *>(DataPtr), Shape, mx::float64);
+  }
+  case 3: { // U8
+    return mx::array(static_cast<const uint8_t *>(DataPtr), Shape, mx::uint8);
+  }
+  case 4: { // I32
+    return mx::array(static_cast<const int32_t *>(DataPtr), Shape, mx::int32);
+  }
+  case 5: { // I64
+    return mx::array(static_cast<const int64_t *>(DataPtr), Shape, mx::int64);
+  }
+  default:
+    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}", RtypeValue);
+    return mx::array({0.0f});
+  }
+}
+
+std::vector<uint8_t> toBytes(const mx::array &Arr) {
+  std::vector<uint8_t> Result;
+
+  uint8_t RtypeValue;
+  switch (Arr.dtype()) {
+  case mx::float16:
+    RtypeValue = 0;
+    break;
+  case mx::float32:
+    RtypeValue = 1;
+    break;
+  case mx::float64:
+    RtypeValue = 2;
+    break;
+  case mx::uint8:
+    RtypeValue = 3;
+    break;
+  case mx::int32:
+    RtypeValue = 4;
+    break;
+  case mx::int64:
+    RtypeValue = 5;
+    break;
+  default:
+    spdlog::error(
+        "[WASI-NN] MLX backend: Unsupported dtype to convert to Rust Tensor"sv);
+    return Result;
+  }
+  Result.push_back(RtypeValue);
+
+  std::vector<uint8_t> DimBuf;
+  auto Shape = Arr.shape();
+  for (int Dim : Shape) {
+    uint32_t DimData = static_cast<uint32_t>(Dim);
+    const uint8_t *DimBytes = reinterpret_cast<const uint8_t *>(&DimData);
+    DimBuf.insert(DimBuf.end(), DimBytes, DimBytes + 4);
+  }
+
+  uint32_t DimBufLen = static_cast<uint32_t>(DimBuf.size());
+  const uint8_t *DimLenBytes = reinterpret_cast<const uint8_t *>(&DimBufLen);
+  Result.insert(Result.end(), DimLenBytes, DimLenBytes + 4);
+
+  Result.insert(Result.end(), DimBuf.begin(), DimBuf.end());
+
+  std::vector<uint8_t> DataBuf;
+  mx::eval(Arr);
+
+  switch (Arr.dtype()) {
+  case mx::float16: {
+    auto *Data = Arr.data<uint16_t>();
+    size_t ByteSize = Arr.nbytes();
+    const uint8_t *DataBytes = reinterpret_cast<const uint8_t *>(Data);
+    DataBuf.insert(DataBuf.end(), DataBytes, DataBytes + ByteSize);
+    break;
+  }
+  case mx::float32: {
+    auto *Data = Arr.data<float>();
+    size_t ByteSize = Arr.nbytes();
+    const uint8_t *DataBytes = reinterpret_cast<const uint8_t *>(Data);
+    DataBuf.insert(DataBuf.end(), DataBytes, DataBytes + ByteSize);
+    break;
+  }
+  case mx::float64: {
+    auto *Data = Arr.data<double>();
+    size_t ByteSize = Arr.nbytes();
+    const uint8_t *DataBytes = reinterpret_cast<const uint8_t *>(Data);
+    DataBuf.insert(DataBuf.end(), DataBytes, DataBytes + ByteSize);
+    break;
+  }
+  case mx::uint8: {
+    auto *Data = Arr.data<uint8_t>();
+    size_t ByteSize = Arr.nbytes();
+    DataBuf.insert(DataBuf.end(), Data, Data + ByteSize);
+    break;
+  }
+  case mx::int32: {
+    auto *Data = Arr.data<int32_t>();
+    size_t ByteSize = Arr.nbytes();
+    const uint8_t *DataBytes = reinterpret_cast<const uint8_t *>(Data);
+    DataBuf.insert(DataBuf.end(), DataBytes, DataBytes + ByteSize);
+    break;
+  }
+  case mx::int64: {
+    auto *Data = Arr.data<int64_t>();
+    size_t ByteSize = Arr.nbytes();
+    const uint8_t *DataBytes = reinterpret_cast<const uint8_t *>(Data);
+    DataBuf.insert(DataBuf.end(), DataBytes, DataBytes + ByteSize);
+    break;
+  }
+  default:
+    spdlog::error("[WASI-NN] MLX backend: Unsupported MLX dtype for conversion "
+                  "to Rust Tensor"sv);
+    break;
+  }
+
+  uint32_t DataBufLen = static_cast<uint32_t>(DataBuf.size());
+  const uint8_t *DataLenBytes = reinterpret_cast<const uint8_t *>(&DataBufLen);
+  Result.insert(Result.end(), DataLenBytes, DataLenBytes + 4);
+  Result.insert(Result.end(), DataBuf.begin(), DataBuf.end());
+
+  return Result;
+}
+
 enum AnswerSataus {
   STOP,
   WAIT,
@@ -353,15 +511,12 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
                     Tensor.Tensor.size());
   } else if (GraphRef.ModelArch == "vlm") {
-    auto TensorPath =
-        std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
-                    Tensor.Tensor.size());
     if (Index == 0) {
-      std::get<VLMInput>(CxtRef.Inputs).Prompt = mx::load(TensorPath);
+      std::get<VLMInput>(CxtRef.Inputs).Prompt = fromBytes(Tensor.Tensor);
     } else if (Index == 1) {
-      std::get<VLMInput>(CxtRef.Inputs).Pixel = mx::load(TensorPath);
+      std::get<VLMInput>(CxtRef.Inputs).Pixel = fromBytes(Tensor.Tensor);
     } else if (Index == 2) {
-      std::get<VLMInput>(CxtRef.Inputs).Mask = mx::load(TensorPath);
+      std::get<VLMInput>(CxtRef.Inputs).Mask = fromBytes(Tensor.Tensor);
     } else {
       spdlog::error("[WASI-NN] MLX backend: Index out of range."sv);
       return ErrNo::InvalidArgument;
@@ -396,11 +551,9 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   } else if (GraphRef.ModelArch == "vlm") {
     auto *Output = std::get_if<VLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
-      auto Answer = Output->Answer;
-      std::string OutputPath = "Answer.npy";
-      mx::save(OutputPath, Answer);
-      std::copy_n(OutputPath.data(), OutputPath.size(), OutBuffer.data());
-      BytesWritten = OutputPath.size();
+      auto OutputBytes = toBytes(Output->Answer);
+      std::copy_n(OutputBytes.data(), OutputBytes.size(), OutBuffer.data());
+      BytesWritten = OutputBytes.size();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;

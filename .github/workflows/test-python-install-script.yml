@@ -22,6 +22,9 @@ on:
       - 'utils/uninstall.sh'
       - 'utils/install.py'
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest

@@ -9,6 +9,9 @@ on:
       release:
         type: boolean
 
+permissions:
+  contents: read
+
 jobs:
   build_on_windows:
     permissions:

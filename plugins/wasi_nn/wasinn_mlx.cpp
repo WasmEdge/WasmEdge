@@ -39,7 +39,8 @@ std::string loadBytesFromFile(const std::string &Path) {
 mx::array fromBytes(const Span<uint8_t> &Bytes) {
   if (Bytes.size() < 9) {
     spdlog::error(
-        "[WASI-NN] MLX backend: Insufficient bytes for tensor header");
+        "[WASI-NN] MLX backend: Tensor data must be at least 9 bytes long, current size: {}."sv,
+        Bytes.size());
     return mx::array({0.0f});
   }
 
@@ -116,7 +117,7 @@ std::vector<uint8_t> toBytes(const mx::array &Arr) {
     break;
   default:
     spdlog::error(
-        "[WASI-NN] MLX backend: Unsupported dtype to convert to Rust Tensor"sv);
+        "[WASI-NN] MLX backend: Unsupported dtype to convert to Processor Tensor"sv);
     return Result;
   }
   Result.push_back(RtypeValue);

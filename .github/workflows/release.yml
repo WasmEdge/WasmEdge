@@ -149,16 +149,45 @@ jobs:
       - name: Grant the safe directory for git
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: generate sbom
-        uses: advanced-security/sbom-generator-action@6fe43abf522b2e7a19bc769aec1e6c848614b517 # v0.0.2
-        id: sbom
+
+      - name: Generate SBOM
+        id: generate_sbom
+        run: |
+          echo "Generating SBOM for repository: $GITHUB_REPOSITORY"
+
+          curl --retry 5 \
+            --retry-delay 2 \
+            --retry-connrefused \
+            -L \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/dependency-graph/sbom" \
+            -o sbom.json
+
+          if [ ! -s sbom.json ]; then
+            echo "Error: Failed to generate SBOM or received empty response"
+            exit 1
+          fi
+
+          if ! jq empty sbom.json 2>/dev/null; then
+            echo "Error: Generated SBOM is not valid JSON"
+            cat sbom.json
+            exit 1
+          fi
+
+          echo "SBOM generated successfully"
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
-      - name: Generate tar.gz file and upload release
+      - name: Create SBOM tarball and upload to release
         shell: bash
         run: |
-          tar -zcvf sbom.tar.gz ${{steps.sbom.outputs.fileName}}
-          gh release upload ${{needs.create_release.outputs.version}} sbom.tar.gz --clobber
+          SBOM_FILENAME="sbom_${VERSION}.json"
+          mv sbom.json "$SBOM_FILENAME"
+          tar -zcvf sbom.tar.gz "$SBOM_FILENAME"
+          gh release upload $VERSION sbom.tar.gz --clobber
+          echo "SBOM uploaded to release as sbom.tar.gz"
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          VERSION: ${{needs.create_release.outputs.version}}

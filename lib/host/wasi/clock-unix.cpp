@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
-#if WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_FREEBSD
 
 #include "host/wasi/clock.h"
-#include "linux.h"
+#include "unix.h"
 
 namespace WasmEdge {
 namespace Host {

@@ -6,7 +6,7 @@ if(APPLE)
 elseif(WIN32)
   set(WASMEDGE_WASI_SRCS clock-win.cpp environ-win.cpp inode-win.cpp)
 else()
-  set(WASMEDGE_WASI_SRCS clock-linux.cpp environ-linux.cpp inode-linux.cpp)
+  set(WASMEDGE_WASI_SRCS clock-unix.cpp environ-unix.cpp inode-unix.cpp)
 endif()
 
 wasmedge_add_library(wasmedgeHostModuleWasi

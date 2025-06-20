@@ -16,6 +16,8 @@
 #include <string>
 #include <string_view>
 
+#include <sys/socket.h>
+
 #if !WASMEDGE_OS_WINDOWS
 #include <netinet/in.h>
 #else
@@ -1330,7 +1332,7 @@ GTEST_API_ int main(int argc, char **argv) {
 }
 
 // TODO: add af_unix for windows
-#if WASMEDGE_OS_MACOS || WASMEDGE_OS_LINUX
+#if WASMEDGE_OS_MACOS || WASMEDGE_OS_LINUX || WASMEDGE_OS_FREEBSD
 TEST(WasiTest, UNIX_Socket) {
   WasmEdge::Configure Configure;
   Configure.getRuntimeConfigure().setAllowAFUNIX(true);

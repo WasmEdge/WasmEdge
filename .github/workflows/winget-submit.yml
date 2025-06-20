@@ -9,8 +9,13 @@ jobs:
   publish:
     runs-on: windows-latest
     steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
+        with:
+          egress-policy: audit
+
       - name: Submit WasmEdge MSI package with Winget-Releaser
-        uses: vedantmgoyal9/winget-releaser@main
+        uses: vedantmgoyal9/winget-releaser@19e706d4c9121098010096f9c495a70a7518b30f # main
         with:
           identifier: WasmEdge.WasmEdge
           installers-regex: 'windows\.msi$'

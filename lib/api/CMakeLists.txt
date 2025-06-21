@@ -74,6 +74,7 @@ set(WASMEDGE_CAPI_HEADERS
 # Object library of the C API wrapper.
 wasmedge_add_library(wasmedgeCAPI OBJECT
   wasmedge.cpp
+  vfs_io.cpp
 )
 
 target_link_libraries(wasmedgeCAPI

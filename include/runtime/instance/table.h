@@ -18,6 +18,7 @@
 #include "common/errcode.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "gc/allocator.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -31,17 +32,28 @@ class TableInstance {
 public:
   TableInstance() = delete;
   TableInstance(const AST::TableType &TType) noexcept
-      : TabType(TType),
-        Refs(TType.getLimit().getMin(), RefVariant(TType.getRefType())),
-        InitValue(RefVariant(TType.getRefType())) {
+      : TabType(TType), InitValue(RefVariant(TType.getRefType())),
+        Refs(TType.getLimit().getMin(), RefVariant(TType.getRefType())) {
     // The reftype should a nullable reference because of no init ref.
     assuming(TType.getRefType().isNullableRefType());
   }
   TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
-      : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),
-        InitValue(InitVal) {
+      : TabType(TType), InitValue(InitVal),
+        Refs(TType.getLimit().getMin(), InitVal) {
     // If the reftype is not a nullable reference, the init ref is required.
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
+  }
+
+  ~TableInstance() noexcept {
+    if (Allocator) {
+      Allocator->removeTable(*this);
+    }
+  }
+
+  void setAllocator(GC::Allocator &A) noexcept {
+    assuming(Allocator == nullptr);
+    Allocator = &A;
+    Allocator->addTable(*this);
   }
 
   /// Get size of table.refs
@@ -95,12 +107,12 @@ public:
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
-    return Span<const RefVariant>(Refs.begin() + Offset, Length);
+    return Span<const RefVariant>(Refs).subspan(Offset, Length);
   }
 
-  /// Replace the Refs[Dst :] by Slice[Src : Src + Length)
-  Expect<void> setRefs(Span<const RefVariant> Slice, uint32_t Dst, uint32_t Src,
-                       uint32_t Length) noexcept {
+  /// Replace the Refs[Dst : Dst + Slice.size()] by Slice
+  Expect<void> setRefs(Span<const RefVariant> Slice, uint32_t Dst) noexcept {
+    const uint32_t Length = static_cast<uint32_t>(Slice.size());
     // Check the accessing boundary.
     if (!checkAccessBound(Dst, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
@@ -108,23 +120,13 @@ public:
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
-    // Check the input data validation.
-    if (static_cast<uint64_t>(Src) + static_cast<uint64_t>(Length) >
-        Slice.size()) {
-      spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(
-          Src, Length, std::max(static_cast<uint32_t>(Slice.size()), 1U) - 1U));
-      return Unexpect(ErrCode::Value::TableOutOfBounds);
-    }
+    auto Write = Span<RefVariant>(Refs).subspan(Dst, Slice.size());
 
     // Copy the references.
-    if (Dst <= Src) {
-      std::copy(Slice.begin() + Src, Slice.begin() + Src + Length,
-                Refs.begin() + Dst);
+    if (Write.begin() <= Slice.begin() || Write.begin() >= Slice.end()) {
+      std::copy(Slice.begin(), Slice.end(), Write.begin());
     } else {
-      std::copy(std::make_reverse_iterator(Slice.begin() + Src + Length),
-                std::make_reverse_iterator(Slice.begin() + Src),
-                std::make_reverse_iterator(Refs.begin() + Dst + Length));
+      std::copy_backward(Slice.begin(), Slice.end(), Write.end());
     }
     return {};
   }
@@ -166,11 +168,19 @@ public:
   }
 
 private:
+  friend class GC::Allocator;
+  void clearAllocator(GC::Allocator &A) noexcept {
+    if (Allocator == &A) {
+      Allocator = nullptr;
+    }
+  }
+
   /// \name Data of table instance.
   /// @{
+  GC::Allocator *Allocator = nullptr;
   AST::TableType TabType;
-  std::vector<RefVariant> Refs;
   RefVariant InitValue;
+  std::vector<RefVariant> Refs;
   /// @}
 };
 

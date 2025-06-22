@@ -10,6 +10,25 @@ using namespace std::literals;
 
 namespace WasmEdge::Host::WASINN::OpenVINO {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO
+
+static Expect<WASINN::ErrNo>
+GetDeviceString(WASINN::Device TargetDevice,
+                std::string &DeviceString) noexcept {
+  switch (TargetDevice) {
+  case Device::AUTO:
+  case Device::CPU:
+    DeviceString = "CPU";
+    break;
+  case Device::GPU:
+    DeviceString = "GPU";
+    break;
+  default:
+    spdlog::error("[WASI-NN] Unsupported device type"sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  return WASINN::ErrNo::Success;
+}
+
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders,
                            WASINN::Device Device, uint32_t &GraphId) noexcept {
@@ -101,11 +120,18 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
 
   try {
     ov::element::Type InputType = ov::element::f32;
-    ov::Shape InputShape = {1, 3, 224, 224};
+    ov::Shape InputShape(Tensor.Dimension.data(),
+                         Tensor.Dimension.data() + Tensor.Dimension.size());
     ov::Tensor InputTensor =
         ov::Tensor(InputType, InputShape, Tensor.Tensor.data());
+    std::string Device;
+    if (!GetDeviceString(GraphRef.TargetDevice, Device)) {
+      spdlog::error("[WASI-NN] Failed to get device string for OpenVINO."sv);
+      return WASINN::ErrNo::InvalidArgument;
+    }
+
     ov::CompiledModel CompiledModel =
-        Env.OpenVINOCore.compile_model(GraphRef.OpenVINOModel, "CPU");
+        Env.OpenVINOCore.compile_model(GraphRef.OpenVINOModel, Device);
     CxtRef.OpenVINOInferRequest = CompiledModel.create_infer_request();
     CxtRef.OpenVINOInferRequest.set_input_tensor(Index, InputTensor);
   } catch (const std::exception &EX) {

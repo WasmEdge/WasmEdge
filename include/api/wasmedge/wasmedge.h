@@ -46,8 +46,8 @@
 #include "wasmedge/int128.h"
 #include "wasmedge/version.h"
 
-    /// WasmEdge WASM value type struct.
-    typedef struct WasmEdge_ValType {
+/// WasmEdge WASM value type struct.
+typedef struct WasmEdge_ValType {
   // This struct contains the raw data which describes the value type in WASM.
   // Developers should use the corresponding `WasmEdge_ValueTypeGen` functions
   // to generate this struct.

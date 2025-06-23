@@ -32,7 +32,11 @@
 #define WASMEDGE_CAPI_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
+#if !defined(__cplusplus) &&                                                   
+    (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L)
 #include <stdbool.h>
+#endif
+
 #include <stdint.h>
 #include <time.h>
 

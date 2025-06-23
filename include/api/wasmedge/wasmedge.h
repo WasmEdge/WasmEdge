@@ -32,8 +32,8 @@
 #define WASMEDGE_CAPI_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
-#if !defined(__cplusplus) &&                                                   
-    (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L)
+#if !defined(__cplusplus) &&
+(!defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L)
 #include <stdbool.h>
 #endif
 
@@ -46,8 +46,8 @@
 #include "wasmedge/int128.h"
 #include "wasmedge/version.h"
 
-/// WasmEdge WASM value type struct.
-typedef struct WasmEdge_ValType {
+    /// WasmEdge WASM value type struct.
+    typedef struct WasmEdge_ValType {
   // This struct contains the raw data which describes the value type in WASM.
   // Developers should use the corresponding `WasmEdge_ValueTypeGen` functions
   // to generate this struct.

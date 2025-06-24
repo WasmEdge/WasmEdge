@@ -71,6 +71,10 @@ jobs:
           tools\wasmedge\wasmedge -v
           ctest --output-on-failure
           cd -
+      - name: Check symbol exposure
+        shell: bash
+        run: |
+          bash .github/scripts/check_symbols.sh
       - name: Create WasmEdge package
         run: |
           cmake --build build --target package

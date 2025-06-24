@@ -142,26 +142,20 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     echo "Debug: Attempting to extract symbols from macOS dylib..."
     echo "Debug: Library info: $(file "$LIB_PATH" 2>/dev/null || echo "file command not available")"
     
-    # Try different nm approaches for macOS with detailed debugging
-    if nm -g "$LIB_PATH" 2>/dev/null | head -5 | while read line; do echo "nm -g sample: $line"; done && \
-       nm -g "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"; then
-        echo "Successfully extracted symbols using nm -g"
-    elif nm -D "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"; then
-        echo "Successfully extracted symbols using nm -D"
-    elif nm -u "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"; then
-        echo "Successfully extracted symbols using nm -u"
-    elif nm "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"; then
-        echo "Successfully extracted symbols using nm (no flags)"
-    elif nm "$LIB_PATH" 2>/dev/null | grep -E "WasmEdge" | awk '{print $NF}' | sort > "$TEMP_DIR/extracted.symbols"; then
-        echo "Successfully extracted symbols using simplified nm parsing"
+    # Try different nm approaches for macOS - NOTE: macOS symbols have underscore prefix
+    if nm -g "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] _WasmEdge/ {print substr($3,2)}' | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using nm -g (removed underscore prefix)"
+    elif nm -D "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] _WasmEdge/ {print substr($3,2)}' | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using nm -D (removed underscore prefix)"
+    elif nm "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] _WasmEdge/ {print substr($3,2)}' | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using nm (removed underscore prefix)"
+    elif nm "$LIB_PATH" 2>/dev/null | grep "_WasmEdge" | awk '{print substr($NF,2)}' | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using simplified parsing (removed underscore prefix)"
     else
-        echo "Error: Failed to extract symbols with nm."
-        echo "Debug: Trying to show raw nm output for troubleshooting..."
-        echo "nm -g output (first 10 lines):"
-        nm -g "$LIB_PATH" 2>&1 | head -10 || echo "nm -g failed"
-        echo "nm output (first 10 lines):"
-        nm "$LIB_PATH" 2>&1 | head -10 || echo "nm failed"
-        echo "Library might be static, stripped, or incompatible format."
+        echo "Error: Failed to extract WasmEdge symbols with nm."
+        echo "Debug: Trying to show WasmEdge-related nm output for troubleshooting..."
+        echo "nm -g output (WasmEdge symbols only, first 10):"
+        nm -g "$LIB_PATH" 2>&1 | grep "_WasmEdge" | head -10 || echo "No WasmEdge symbols found with nm -g"
         exit 1
     fi
 else

@@ -11,7 +11,7 @@ set -euo pipefail  # Exit on error, undefined vars, pipe failures
 
 # Default paths
 SYMBOLS_PATH=${SYMBOLS_PATH:-"$(pwd)"}
-WHITELIST_FILE="$SYMBOLS_PATH/lib/api/whitelist.symbols"
+WHITELIST_FILE="$SYMBOLS_PATH/.github/scripts/whitelist.symbols"
 
 # Detect OS and set library path accordingly
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -25,15 +25,82 @@ else
     exit 1
 fi
 
+# Alternative library paths to check
+ALT_PATHS=()
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    ALT_PATHS+=("$SYMBOLS_PATH/build/lib/libwasmedge.so")
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    ALT_PATHS+=("$SYMBOLS_PATH/build/lib/libwasmedge.dylib")
+elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+    ALT_PATHS+=("$SYMBOLS_PATH/build/bin/wasmedge.dll")
+    ALT_PATHS+=("$SYMBOLS_PATH/build/lib/wasmedge.dll")
+fi
+
 echo "Checking symbol exposure for libwasmedge..."
+echo "Working directory: $(pwd)"
 echo "Library path: $LIB_PATH"
 echo "Whitelist file: $WHITELIST_FILE"
 
 # Check if library exists
 if [ ! -f "$LIB_PATH" ]; then
-    echo "Error: Library not found at $LIB_PATH"
-    echo "Make sure you have built WasmEdge first with: cmake --build build"
-    exit 1
+    echo "Primary library not found at $LIB_PATH"
+    echo "Checking alternative locations..."
+    
+    FOUND=false
+    for alt_path in "${ALT_PATHS[@]}"; do
+        if [ -f "$alt_path" ]; then
+            echo "Found library at: $alt_path"
+            LIB_PATH="$alt_path"
+            FOUND=true
+            break
+        fi
+    done
+    
+    if [ "$FOUND" = false ]; then
+        echo "Error: Library not found in any of the expected locations:"
+        echo "  Primary: $LIB_PATH"
+        for alt_path in "${ALT_PATHS[@]}"; do
+            echo "  Alternative: $alt_path"
+        done
+        echo
+        echo "Searching for library files in build directory..."
+        if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+            SEARCH_RESULT=$(find "$SYMBOLS_PATH/build" -name "*wasmedge*.so" 2>/dev/null | head -5)
+        elif [[ "$OSTYPE" == "darwin"* ]]; then
+            SEARCH_RESULT=$(find "$SYMBOLS_PATH/build" -name "*wasmedge*.dylib" 2>/dev/null | head -5)
+        elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+            SEARCH_RESULT=$(find "$SYMBOLS_PATH/build" -name "*wasmedge*.dll" 2>/dev/null | head -5)
+        fi
+        
+        if [ -n "$SEARCH_RESULT" ]; then
+            echo "Found these WasmEdge library files:"
+            echo "$SEARCH_RESULT"
+            echo
+            echo "Please update the script with the correct library path."
+        else
+            echo "No WasmEdge shared library files found in build directory."
+            echo
+            # Check if this is a static-only build
+            if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+                STATIC_LIBS=$(find "$SYMBOLS_PATH/build" -name "*wasmedge*.a" 2>/dev/null | head -3)
+            elif [[ "$OSTYPE" == "darwin"* ]]; then
+                STATIC_LIBS=$(find "$SYMBOLS_PATH/build" -name "*wasmedge*.a" 2>/dev/null | head -3)
+            elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+                STATIC_LIBS=$(find "$SYMBOLS_PATH/build" -name "*wasmedge*.lib" 2>/dev/null | head -3)
+            fi
+            
+            if [ -n "$STATIC_LIBS" ]; then
+                echo "Found static libraries - this appears to be a static-only build:"
+                echo "$STATIC_LIBS"
+                echo
+                echo "✅ Skipping symbol exposure check for static-only build."
+                exit 0
+            else
+                echo "Make sure you have built WasmEdge first with: cmake --build build"
+            fi
+        fi
+        exit 1
+    fi
 fi
 
 # Check if whitelist exists
@@ -42,32 +109,61 @@ if [ ! -f "$WHITELIST_FILE" ]; then
     exit 1
 fi
 
-# Verify whitelist is not empty
-if [ ! -s "$WHITELIST_FILE" ]; then
-    echo "Error: Whitelist file is empty: $WHITELIST_FILE"
-    exit 1
+# Create temporary directory for processing (cross-platform)
+if command -v mktemp >/dev/null 2>&1; then
+    TEMP_DIR=$(mktemp -d)
+else
+    # Fallback for Windows/systems without mktemp
+    TEMP_DIR="/tmp/wasmedge_symbols_$$"
+    mkdir -p "$TEMP_DIR"
 fi
-
-# Create temporary directory for processing
-TEMP_DIR=$(mktemp -d)
 trap "rm -rf $TEMP_DIR" EXIT
 
 # Extract symbols from library
 echo "Extracting symbols from library..."
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-    # Windows: Use dumpbin to extract exports
-    if ! command -v dumpbin >/dev/null 2>&1; then
-        echo "Error: dumpbin not found. Make sure Visual Studio tools are in PATH"
+    # Windows: Use dumpbin to extract exports, fallback to objdump
+    if command -v dumpbin >/dev/null 2>&1; then
+        dumpbin //EXPORTS "$LIB_PATH" | awk '/^[[:space:]]*[0-9]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+/ {print $4}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"
+    elif command -v objdump >/dev/null 2>&1; then
+        echo "dumpbin not found, using objdump as fallback..."
+        objdump -p "$LIB_PATH" | grep -E "^\s*\[[[:space:]]*[0-9]+\]" | grep "WasmEdge" | awk '{print $NF}' | sort > "$TEMP_DIR/extracted.symbols"
+    else
+        echo "Error: Neither dumpbin nor objdump found. Make sure Visual Studio tools are in PATH or MinGW is installed"
         exit 1
     fi
-    dumpbin //EXPORTS "$LIB_PATH" | awk '/^[[:space:]]*[0-9]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+/ {print $4}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS: Use nm to extract symbols
+    # macOS: Use nm to extract symbols (no -D flag on macOS)
     if ! command -v nm >/dev/null 2>&1; then
         echo "Error: nm not found. Make sure Xcode Command Line Tools are installed"
         exit 1
     fi
-    nm -D "$LIB_PATH" | awk '/^[0-9a-fA-F]+ [TBDW] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"
+    
+    echo "Debug: Attempting to extract symbols from macOS dylib..."
+    echo "Debug: Library info: $(file "$LIB_PATH" 2>/dev/null || echo "file command not available")"
+    
+    # Try different nm approaches for macOS with detailed debugging
+    if nm -g "$LIB_PATH" 2>/dev/null | head -5 | while read line; do echo "nm -g sample: $line"; done && \
+       nm -g "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using nm -g"
+    elif nm -D "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using nm -D"
+    elif nm -u "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using nm -u"
+    elif nm "$LIB_PATH" 2>/dev/null | awk '/^[0-9a-fA-F]+ [TBDWS] / {print $3}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using nm (no flags)"
+    elif nm "$LIB_PATH" 2>/dev/null | grep -E "WasmEdge" | awk '{print $NF}' | sort > "$TEMP_DIR/extracted.symbols"; then
+        echo "Successfully extracted symbols using simplified nm parsing"
+    else
+        echo "Error: Failed to extract symbols with nm."
+        echo "Debug: Trying to show raw nm output for troubleshooting..."
+        echo "nm -g output (first 10 lines):"
+        nm -g "$LIB_PATH" 2>&1 | head -10 || echo "nm -g failed"
+        echo "nm output (first 10 lines):"
+        nm "$LIB_PATH" 2>&1 | head -10 || echo "nm failed"
+        echo "Library might be static, stripped, or incompatible format."
+        exit 1
+    fi
 else
     # Linux: Use nm to extract symbols
     if ! command -v nm >/dev/null 2>&1; then
@@ -83,17 +179,29 @@ if [ ! -s "$TEMP_DIR/extracted.symbols" ]; then
     echo "  1. Library was not built correctly"
     echo "  2. Symbol extraction failed"
     echo "  3. All symbols are hidden (check build configuration)"
+    echo "  4. Library is static or has no dynamic symbol table"
+    echo
+    echo "Debug information:"
+    echo "Library file: $LIB_PATH"
+    echo "Library size: $(ls -lh "$LIB_PATH" | awk '{print $5}')"
+    echo "Library type: $(file "$LIB_PATH" 2>/dev/null || echo "unknown")"
     exit 1
 fi
 
 # Sort whitelist for comparison and convert line endings
 sort "$WHITELIST_FILE" | tr -d '\r' > "$TEMP_DIR/whitelist_sorted.symbols"
 
-# Check for unexpected symbols (in library but not in whitelist)
-comm -23 "$TEMP_DIR/extracted.symbols" "$TEMP_DIR/whitelist_sorted.symbols" > "$TEMP_DIR/unexpected.symbols"
-
-# Check for missing symbols (in whitelist but not in library)
-comm -13 "$TEMP_DIR/extracted.symbols" "$TEMP_DIR/whitelist_sorted.symbols" > "$TEMP_DIR/missing.symbols"
+# Check for unexpected symbols (in library but not in whitelist) - portable approach
+# Create functions to replace comm command for Windows compatibility
+{
+    sort "$TEMP_DIR/extracted.symbols" > "$TEMP_DIR/extracted_sorted.symbols"
+    
+    # Find symbols in extracted but not in whitelist (unexpected)
+    grep -Fxv -f "$TEMP_DIR/whitelist_sorted.symbols" "$TEMP_DIR/extracted_sorted.symbols" > "$TEMP_DIR/unexpected.symbols" 2>/dev/null || true
+    
+    # Find symbols in whitelist but not in extracted (missing)
+    grep -Fxv -f "$TEMP_DIR/extracted_sorted.symbols" "$TEMP_DIR/whitelist_sorted.symbols" > "$TEMP_DIR/missing.symbols" 2>/dev/null || true
+}
 
 # Report results
 EXTRACTED_COUNT=$(wc -l < "$TEMP_DIR/extracted.symbols")

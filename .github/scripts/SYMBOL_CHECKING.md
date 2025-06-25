@@ -37,6 +37,8 @@ Add new symbols alphabetically when adding public API functions:
 feat(api): add new validation function
 
 - Add WasmEdge_ValidatorCreateWithConfig to whitelist
+
+Signed-off-by: Your Name <your.email@example.com>
 ```
 
 Remove symbols when deprecating API functions:
@@ -45,6 +47,8 @@ Remove symbols when deprecating API functions:
 feat(api): remove deprecated function
 
 - Remove WasmEdge_OldFunction from whitelist
+
+Signed-off-by: Your Name <your.email@example.com>
 ```
 
 ## Troubleshooting

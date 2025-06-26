@@ -2021,16 +2021,27 @@ WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWASIExtended(
+    const char *const *Args, const uint32_t ArgLen, const char *const *Envs,
+    const uint32_t EnvLen, const char *const *Preopens,
+    const uint32_t PreopenLen, const uint32_t StdInFd, const uint32_t StdOutFd,
+    const uint32_t StdErrFd) {
+  auto *WasiMod = new WasmEdge::Host::WasiModule();
+  WasmEdge_ModuleInstanceInitWASIExtended(toModCxt(WasiMod), Args, ArgLen, Envs,
+                                          EnvLen, Preopens, PreopenLen, StdInFd,
+                                          StdOutFd, StdErrFd);
+  return toModCxt(WasiMod);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
                                   const uint32_t ArgLen,
                                   const char *const *Envs,
                                   const uint32_t EnvLen,
                                   const char *const *Preopens,
                                   const uint32_t PreopenLen) {
-  auto *WasiMod = new WasmEdge::Host::WasiModule();
-  WasmEdge_ModuleInstanceInitWASI(toModCxt(WasiMod), Args, ArgLen, Envs, EnvLen,
-                                  Preopens, PreopenLen);
-  return toModCxt(WasiMod);
+  return WasmEdge_ModuleInstanceCreateWASIExtended(
+      Args, ArgLen, Envs, EnvLen, Preopens, PreopenLen, 0, 1, 2);
 }
 
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
@@ -2041,10 +2052,11 @@ WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
       genStrView(ModuleName), HostData, Finalizer));
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
+WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASIExtended(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
-    const char *const *Preopens, const uint32_t PreopenLen) {
+    const char *const *Preopens, const uint32_t PreopenLen,
+    const uint32_t StdInFd, const uint32_t StdOutFd, const uint32_t StdErrFd) {
   if (!Cxt) {
     return;
   }
@@ -2073,7 +2085,15 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
     }
   }
   auto &WasiEnv = WasiMod->getEnv();
-  WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec);
+  WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec, StdInFd, StdOutFd, StdErrFd);
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
+    WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
+    const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
+    const char *const *Preopens, const uint32_t PreopenLen) {
+  WasmEdge_ModuleInstanceInitWASIExtended(Cxt, Args, ArgLen, Envs, EnvLen,
+                                          Preopens, PreopenLen, 0, 1, 2);
 }
 
 WASMEDGE_CAPI_EXPORT extern uint32_t

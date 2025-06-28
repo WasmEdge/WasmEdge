@@ -25,6 +25,8 @@ public:
     return Env.getNativeHandler(Fd);
   }
 
+  const WASI::Environ *getEnv() const noexcept { return &Env; }
+
 private:
   WASI::Environ Env;
 };

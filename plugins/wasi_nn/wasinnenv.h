@@ -17,6 +17,8 @@
 #include "wasinn_whisper.h"
 #include "wasinntypes.h"
 
+#include "host/wasi/environ.h"
+
 #include "common/spdlog.h"
 #include "plugin/plugin.h"
 
@@ -369,6 +371,11 @@ struct WasiNNEnvironment :
   static PO::Option<std::string> NNRPCURI; // For RPC client mode
   std::shared_ptr<grpc::Channel> NNRPCChannel;
 #endif
+
+  void setEnv(const Host::WASI::Environ *CurrEnv) noexcept { Env = CurrEnv; }
+  const Host::WASI::Environ *getEnv() const noexcept { return Env; }
+private:
+  const Host::WASI::Environ *Env;
 };
 
 } // namespace WASINN

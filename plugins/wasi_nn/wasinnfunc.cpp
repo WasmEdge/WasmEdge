@@ -54,7 +54,9 @@ Expect<WASINN::ErrNo>
 WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
                      uint32_t BuilderLen, uint32_t RawEncoding, uint32_t Target,
                      uint32_t GraphIdPtr) {
-  Env.setEnv(static_cast<const WasmEdge::Host::WasiModule *>(Frame.getWASIModule())->getEnv());
+  Env.setEnv(
+      static_cast<const WasmEdge::Host::WasiModule *>(Frame.getWASIModule())
+          ->getEnv());
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     // TODO: implement RPC for Load
@@ -120,6 +122,9 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
 Expect<WASINN::ErrNo>
 WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
                            uint32_t NameLen, uint32_t GraphIdPtr) {
+  Env.setEnv(
+      static_cast<const WasmEdge::Host::WasiModule *>(Frame.getWASIModule())
+          ->getEnv());
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -169,6 +174,9 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
 Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
     const Runtime::CallingFrame &Frame, uint32_t NamePtr, uint32_t NameLen,
     uint32_t ConfigPtr, uint32_t ConfigLen, uint32_t GraphIdPtr) {
+  Env.setEnv(
+      static_cast<const WasmEdge::Host::WasiModule *>(Frame.getWASIModule())
+          ->getEnv());
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);

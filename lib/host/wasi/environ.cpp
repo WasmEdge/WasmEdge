@@ -7,11 +7,6 @@
 #include "host/wasi/vfs.h"
 #include "host/wasi/vinode.h"
 
-#if WASMEDGE_OS_WINDOWS
-#include <fcntl.h>
-#include <io.h>
-#endif
-
 using namespace std::literals;
 
 namespace WasmEdge {
@@ -60,74 +55,14 @@ static inline constexpr const __wasi_rights_t kPreOpenInheritingRights =
     __WASI_RIGHTS_PATH_SYMLINK | __WASI_RIGHTS_PATH_REMOVE_DIRECTORY |
     __WASI_RIGHTS_PATH_UNLINK_FILE | __WASI_RIGHTS_POLL_FD_READWRITE |
     __WASI_RIGHTS_SOCK_SHUTDOWN;
-static inline constexpr const __wasi_rights_t kStdInDefaultRights =
-    __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_FD_FILESTAT_GET |
-    __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_POLL_FD_READWRITE;
-static inline constexpr const __wasi_rights_t kStdOutDefaultRights =
-    __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_FD_DATASYNC |
-    __WASI_RIGHTS_FD_FILESTAT_GET | __WASI_RIGHTS_FD_SYNC |
-    __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_POLL_FD_READWRITE;
-static inline constexpr const __wasi_rights_t kStdErrDefaultRights =
-    kStdOutDefaultRights;
-static inline constexpr const __wasi_rights_t kNoInheritingRights =
-    static_cast<__wasi_rights_t>(0);
 static inline constexpr const auto kReadOnly = "readonly"sv;
 
 } // namespace
 
-#if WASMEDGE_OS_WINDOWS
-static winapi::HANDLE_ getWindowsHandle(uint32_t Fd, winapi::DWORD_ StdHandleId,
-                                        std::string_view Name) {
-  auto raw = _get_osfhandle(static_cast<int>(Fd));
-  auto Handle = reinterpret_cast<winapi::HANDLE_>(raw);
-
-  if (Handle != winapi::INVALID_HANDLE_VALUE_ && Handle != nullptr) {
-    return Handle;
-  }
-  spdlog::error("    Failed to get OS handle for custom {} FD: {}. "
-                "Falling back to default.",
-                Name, Fd);
-  return winapi::GetStdHandle(StdHandleId);
-}
-#endif
-
 void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
                    Span<const std::string> Args, Span<const std::string> Envs,
                    uint32_t stdInFd, uint32_t stdOutFd, uint32_t stdErrFd) {
-#if WASMEDGE_OS_WINDOWS
-  const bool doNotClose = true;
-  winapi::HANDLE_ hOsStdIn =
-      getWindowsHandle(stdInFd, winapi::STD_INPUT_HANDLE_, "STDIN");
-  winapi::HANDLE_ hOsStdOut =
-      getWindowsHandle(stdOutFd, winapi::STD_OUTPUT_HANDLE_, "STDOUT");
-  winapi::HANDLE_ hOsStdErr =
-      getWindowsHandle(stdErrFd, winapi::STD_ERROR_HANDLE_, "STDERR");
-
-  FdMap.emplace(0, std::make_shared<VINode>(INode(hOsStdIn, doNotClose),
-                                            kStdInDefaultRights,
-                                            kNoInheritingRights));
-  FdMap.emplace(1, std::make_shared<VINode>(INode(hOsStdOut, doNotClose),
-                                            kStdOutDefaultRights,
-                                            kNoInheritingRights));
-  FdMap.emplace(2, std::make_shared<VINode>(INode(hOsStdErr, doNotClose),
-                                            kStdErrDefaultRights,
-                                            kNoInheritingRights));
-
-#else // POSIX systems
-  // The user is responsible for the lifetime of the provided file descriptors.
-  // The `cleanup` flag (2nd argument to INode) is set to false to prevent
-  // FdHolder from trying to close them.
-  const bool cleanup = false;
-  FdMap.emplace(0, std::make_shared<VINode>(INode(stdInFd, cleanup, false),
-                                            kStdInDefaultRights,
-                                            kNoInheritingRights));
-  FdMap.emplace(1, std::make_shared<VINode>(INode(stdOutFd, cleanup, false),
-                                            kStdOutDefaultRights,
-                                            kNoInheritingRights));
-  FdMap.emplace(2, std::make_shared<VINode>(INode(stdErrFd, cleanup, false),
-                                            kStdErrDefaultRights,
-                                            kNoInheritingRights));
-#endif
+  initStdFds(stdInFd, stdOutFd, stdErrFd);
 
   {
     // Open dir for WASI environment.

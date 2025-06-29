@@ -1167,6 +1167,13 @@ private:
   std::vector<std::string> EnvironVariables;
   __wasi_exitcode_t ExitCode = 0;
 
+  /// @brief Initializes standard file descriptors (stdin, stdout, stderr).
+  ///
+  /// @param[in] StdIn The host file descriptor for standard input.
+  /// @param[in] StdOut The host file descriptor for standard output.
+  /// @param[in] StdErr The host file descriptor for standard error.
+  void initStdFds(uint32_t StdIn, uint32_t StdOut, uint32_t StdErr);
+
   mutable std::shared_mutex PollerMutex; ///< Protect PollerPool
   std::vector<EVPoller> PollerPool;
   friend class EVPoller;

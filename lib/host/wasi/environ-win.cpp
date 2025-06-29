@@ -6,6 +6,7 @@
 
 #include "common/errcode.h"
 #include "host/wasi/environ.h"
+#include "host/wasi/rights.h"
 #include "win.h"
 #include <csignal>
 
@@ -14,6 +15,23 @@ using namespace WasmEdge::winapi;
 namespace WasmEdge {
 namespace Host {
 namespace WASI {
+namespace {
+
+static winapi::HANDLE_ getWindowsHandle(uint32_t Fd, winapi::DWORD_ StdHandleId,
+                                        std::string_view Name) {
+  auto raw = _get_osfhandle(static_cast<int>(Fd));
+  auto Handle = reinterpret_cast<winapi::HANDLE_>(raw);
+
+  if (Handle != winapi::INVALID_HANDLE_VALUE_ && Handle != nullptr) {
+    return Handle;
+  }
+
+  spdlog::error("    Failed to get OS handle for custom {} FD: {}. "
+                "Falling back to default.",
+                Name, Fd);
+  return winapi::GetStdHandle(StdHandleId);
+}
+} // namespace
 
 WasiExpect<void> Environ::procRaise(__wasi_signal_t Signal) const noexcept {
   int SysSignal;
@@ -75,6 +93,26 @@ WasiExpect<void> Environ::procRaise(__wasi_signal_t Signal) const noexcept {
 WasiExpect<void> Environ::schedYield() const noexcept {
   SwitchToThread();
   return {};
+}
+
+void Environ::initStdFds(uint32_t StdIn, uint32_t StdOut, uint32_t StdErr) {
+  const bool DoNotClose = true;
+  winapi::HANDLE_ hOsStdIn =
+      getWindowsHandle(StdIn, winapi::STD_INPUT_HANDLE_, "STDIN");
+  winapi::HANDLE_ hOsStdOut =
+      getWindowsHandle(StdOut, winapi::STD_OUTPUT_HANDLE_, "STDOUT");
+  winapi::HANDLE_ hOsStdErr =
+      getWindowsHandle(StdErr, winapi::STD_ERROR_HANDLE_, "STDERR");
+
+  FdMap.emplace(0, std::make_shared<VINode>(INode(hOsStdIn, DoNotClose),
+                                            kStdInDefaultRights,
+                                            kNoInheritingRights));
+  FdMap.emplace(1, std::make_shared<VINode>(INode(hOsStdOut, DoNotClose),
+                                            kStdOutDefaultRights,
+                                            kNoInheritingRights));
+  FdMap.emplace(2, std::make_shared<VINode>(INode(hOsStdErr, DoNotClose),
+                                            kStdErrDefaultRights,
+                                            kNoInheritingRights));
 }
 
 } // namespace WASI

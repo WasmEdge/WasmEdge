@@ -108,7 +108,9 @@ Any Maintainer may suggest a request for CNCF resources, either in the [mailing 
 ## Code of Conduct
 
 * Code of Conduct violations by community members will be discussed and resolved on the private Maintainer mailing list. 
-* If a Maintainer is directly involved in the report, the Maintainers will instead designate two Maintainers to work with the CNCF Code of Conduct Committee in resolving it.
+* If a Maintainer is directly involved in the report, the Maintainers will instead designate two Maintainers to work with the CNCF Code of Conduct Committee <conduct@cncf.io> in resolving it.
+
+See more details in [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
 ## Security Response Team
 

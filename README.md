@@ -12,9 +12,9 @@
 
 WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403). WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). [LlamaEdge](https://github.com/LlamaEdge/LlamaEdge) is an application framework built on top of WasmEdge to run GenAI models (e.g., [LLM](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge), [speech-to-text](https://llamaedge.com/docs/user-guide/speech-to-text/quick-start-whisper), [text-to-image](https://llamaedge.com/docs/user-guide/text-to-image/quick-start-sd), and [TTS](https://github.com/LlamaEdge/whisper-api-server)) across GPUs on servers, personal computers, and edge devices. Additional [use cases](https://wasmedge.org/docs/start/usage/use-cases/) include microservices on the edge cloud, serverless SaaS APIs, embedded functions, smart contracts, and smart devices.
 
-[![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml)
+[![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml?query=event%3Apush++branch%3Amaster)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
-[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml)
+[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml?query=event%3Apush++branch%3Amaster)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5059/badge)](https://bestpractices.coreinfrastructure.org/projects/5059)
 

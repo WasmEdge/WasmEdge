@@ -413,7 +413,7 @@ function(wasmedge_setup_whisper_target target)
     FetchContent_Declare(
       whisper
       GIT_REPOSITORY https://github.com/ggerganov/whisper.cpp.git
-      GIT_TAG        69339af2d104802f3f201fd419163defba52890e
+      GIT_TAG        v1.7.4
       GIT_SHALLOW    FALSE
     )
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Whisper not build shared")

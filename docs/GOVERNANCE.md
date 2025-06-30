@@ -80,7 +80,7 @@ Periodically, the existing maintainers curate a list of contributors who have sh
 
 After a candidate has been informally proposed in the maintainers' channel, the existing maintainers are given seven days to discuss the candidate, raise objections, and show their support. Formal voting takes place on a pull request that adds the contributor to the MAINTAINERS file. Candidates must be approved by 2/3 of the current maintainers by adding their approval or LGTM to the pull request. The reviewer role has the same process but only requires 1/2 of current maintainers.
 
-If a candidate is approved, they will be invited to add their own LGTM or approval to the pull request to acknowledge their agreement. A maintainer will verify the number of votes that have been received and the allotted seven days have passed, then merge the pull request and invite the contributor to the organization and the [mailto:private maintainer mailing list](mailto:cncf-wasmedge-runtime-maintainers@lists.cncf.io)).
+If a candidate is approved, they will be invited to add their own LGTM or approval to the pull request to acknowledge their agreement. A maintainer will verify the number of votes that have been received and the allotted seven days have passed, then merge the pull request and invite the contributor to the organization and the [private maintainer mailing list](mailto:cncf-wasmedge-runtime-maintainers@lists.cncf.io)).
 
 ### When does a maintainer lose maintainer status
 

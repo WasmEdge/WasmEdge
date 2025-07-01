@@ -20,11 +20,3 @@ Examples of unacceptable behavior by participants include:
 Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct. By adopting this Code of Conduct, project maintainers commit themselves to fairly and consistently applying these principles to every aspect of managing this project. Project maintainers who do not follow or enforce the Code of Conduct may be permanently removed from the project team.
 
 This code of conduct applies both within project spaces and in public spaces when an individual is representing the project or its community.
-
-In addition to the CNCF code of conduct, we would like to introduce a new code of conduct that demonstrates respect for open-source contributors. If you plan to use other developers' open-source work in your code, please make sure that the license of the original repository allows this. For instance, the Apache 2.0 license allows for free use of the code, provided that authors receive proper credit for their contributions. In order to appropriately recognize and acknowledge others' work, we kindly request that you add the following messages before you raise a PR or show your work in public:
-
-1. At the top of any files you use, please include: "This file is licensed under Apache 2.0 and was originally developed by [the author name]."
-
-2. Include a statement in the README like "This work was made possible by [the author name]."
-
-See a best practice [here](https://github.com/WasmEdge/mediapipe-rs/pull/1#issuecomment-1580763759).

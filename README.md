@@ -62,7 +62,12 @@ WasmEdge and its contained wasm program can be started from the [CLI](https://wa
 
 ## Contributing
 
-If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](https://wasmedge.org/docs/contribute/overview) document for details. If you are looking for ideas, checkout our ["help wanted" issues](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)!
+We welcome contributions from the community! Please check out our:
+- [Contributing Guide](./docs/CONTRIBUTING.md) for how to get started
+- [Governance documentation](./docs/GOVERNANCE.md) for project decision-making processes
+- [Code of Conduct](./docs/CODE_OF_CONDUCT.md) for community standards
+
+Want to become a maintainer? See our [Contributor Ladder](./CONTRIBUTION_LADDER.md).
 
 ## Roadmap
 

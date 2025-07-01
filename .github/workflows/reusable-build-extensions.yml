@@ -10,6 +10,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   # ------------------------------------------------------------------#
   # The list of build targets is in the file:
@@ -101,6 +104,8 @@ jobs:
 
   build_on_ubuntu:
     needs: prepare
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
       matrix:
@@ -131,6 +136,8 @@ jobs:
   build_on_ubuntu_latest:
     if: ${{ !inputs.release }}
     needs: prepare
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
       matrix:
@@ -156,6 +163,8 @@ jobs:
 
   build_on_macos:
     needs: prepare
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-macos.yml
     strategy:
       fail-fast: false
       matrix:
@@ -178,6 +187,8 @@ jobs:
 
   build_on_manylinux:
     needs: prepare
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
       matrix:

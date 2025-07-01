@@ -29,7 +29,7 @@ jobs:
     env:
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -40,7 +40,7 @@ jobs:
           bash utils/docker/build-manylinux.sh -DWASMEDGE_USE_CXX11_ABI=OFF
           ./build/tools/wasmedge/wasmedge -v
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
           name: WasmEdge-${{ inputs.version }}-${{ matrix.asset_tag }}.tar.gz

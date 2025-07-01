@@ -42,7 +42,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y pkg-config
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
       - name: Ensure git safe directory

@@ -744,7 +744,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     GraphRef.Params.sampling.dry_allowed_length =
         static_cast<int32_t>(DryAllowedLength);
   }
-  if (Doc.at_key("dry-penalty-last-n").error() == simdjson::SUCCESS) {
+  if (Doc.at_key("dry-last-n-penalty").error() == simdjson::SUCCESS) {
     int64_t DryLastNPenalty;
     auto Err = Doc["dry-last-n-penalty"].get<int64_t>().get(DryLastNPenalty);
     if (Err) {
@@ -2260,7 +2260,9 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
   }
   // Deal with end of text token.
   const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
-  if (llama_vocab_is_eog(Vocab, common_sampler_last(CxtRef.LlamaSampler))) {
+  // Only stop on EOS if GraphRef.Params.sampling.ignore_eos is false.
+  if (!GraphRef.Params.sampling.ignore_eos &&
+      llama_vocab_is_eog(Vocab, common_sampler_last(CxtRef.LlamaSampler))) {
     LOG_INFO(GraphRef.EnableLog, "sampleOutput: EOS token found."sv)
     return ErrNo::EndOfSequence;
   }
@@ -3140,8 +3142,10 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Main prediction loop.
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute: enter main prediction loop"sv)
-  int64_t NRemain = CxtRef.Conf.NPredict;
-  while (NRemain-- > 0) {
+  int64_t NPredict =
+      CxtRef.Conf.NPredict < 0 ? INT32_MAX : CxtRef.Conf.NPredict;
+
+  while (NPredict-- > 0) {
     ReturnCode = sampleOutput(GraphRef, CxtRef);
     if (ReturnCode != ErrNo::Success) {
       break;

@@ -6,6 +6,7 @@
 
 #include "common/errcode.h"
 #include "host/wasi/environ.h"
+#include "host/wasi/rights.h"
 #include "linux.h"
 
 namespace WasmEdge {
@@ -122,6 +123,21 @@ WasiExpect<void> Environ::schedYield() const noexcept {
   return {};
 }
 
+void Environ::initStdFds(uint32_t StdIn, uint32_t StdOut, uint32_t StdErr) {
+  // The user is responsible for the lifetime of the provided file descriptors.
+  // The `cleanup` flag (2nd argument to INode) is set to false to prevent
+  // FdHolder from trying to close them.
+  const bool Cleanup = false;
+  FdMap.emplace(0, std::make_shared<VINode>(INode(StdIn, Cleanup, false),
+                                            kStdInDefaultRights,
+                                            kNoInheritingRights));
+  FdMap.emplace(1, std::make_shared<VINode>(INode(StdOut, Cleanup, false),
+                                            kStdOutDefaultRights,
+                                            kNoInheritingRights));
+  FdMap.emplace(2, std::make_shared<VINode>(INode(StdErr, Cleanup, false),
+                                            kStdErrDefaultRights,
+                                            kNoInheritingRights));
+}
 } // namespace WASI
 } // namespace Host
 } // namespace WasmEdge

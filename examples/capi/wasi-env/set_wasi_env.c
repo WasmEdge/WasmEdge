@@ -1,4 +1,6 @@
+#include <fcntl.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <wasmedge/wasmedge.h>
 
 int main(int argc, const char *const argv[]) {
@@ -22,10 +24,24 @@ int main(int argc, const char *const argv[]) {
   };
   const char *const Envs[] = {&EnvStrs[0], &EnvStrs[10], &EnvStrs[20]};
 
+  /* Redirect stdout to a file */
+  int out_fd = open("stdout.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (out_fd < 0) {
+    perror("Failed to open stdout.txt");
+    return 1;
+  }
+
   /* Set the envs and args. */
   WasmEdge_ModuleInstanceContext *WasiCxt =
       WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_Wasi);
-  WasmEdge_ModuleInstanceInitWASI(WasiCxt, argv, argc, Envs, 3, NULL, 0);
+
+  /* Init WASI with env, args, preopens, and fd redirection */
+  WasmEdge_ModuleInstanceInitWASIExtended(WasiCxt, argv, argc, Envs, 3, NULL,
+                                          0,            // No preopens
+                                          STDIN_FILENO, // fd_in = 0 (stdin)
+                                          out_fd, // fd_out = redirect to file
+                                          STDERR_FILENO // fd_err = stderr
+  );
 
   /* Instantiate the WASM file. */
   WasmEdge_Result Res;
@@ -55,6 +71,7 @@ int main(int argc, const char *const argv[]) {
   }
 
   /* Resources deallocations. */
+  close(out_fd);
   WasmEdge_VMDelete(VMCxt);
   return 0;
 }

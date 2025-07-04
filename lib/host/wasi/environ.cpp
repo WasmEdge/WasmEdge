@@ -55,23 +55,15 @@ static inline constexpr const __wasi_rights_t kPreOpenInheritingRights =
     __WASI_RIGHTS_PATH_SYMLINK | __WASI_RIGHTS_PATH_REMOVE_DIRECTORY |
     __WASI_RIGHTS_PATH_UNLINK_FILE | __WASI_RIGHTS_POLL_FD_READWRITE |
     __WASI_RIGHTS_SOCK_SHUTDOWN;
-static inline constexpr const __wasi_rights_t kStdInDefaultRights =
-    __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_FD_FILESTAT_GET |
-    __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_POLL_FD_READWRITE;
-static inline constexpr const __wasi_rights_t kStdOutDefaultRights =
-    __WASI_RIGHTS_FD_ADVISE | __WASI_RIGHTS_FD_DATASYNC |
-    __WASI_RIGHTS_FD_FILESTAT_GET | __WASI_RIGHTS_FD_SYNC |
-    __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_POLL_FD_READWRITE;
-static inline constexpr const __wasi_rights_t kStdErrDefaultRights =
-    kStdOutDefaultRights;
-static inline constexpr const __wasi_rights_t kNoInheritingRights =
-    static_cast<__wasi_rights_t>(0);
 static inline constexpr const auto kReadOnly = "readonly"sv;
 
 } // namespace
 
 void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
-                   Span<const std::string> Args, Span<const std::string> Envs) {
+                   Span<const std::string> Args, Span<const std::string> Envs,
+                   uint32_t stdInFd, uint32_t stdOutFd, uint32_t stdErrFd) {
+  initStdFds(stdInFd, stdOutFd, stdErrFd);
+
   {
     // Open dir for WASI environment.
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
@@ -110,10 +102,6 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
     }
 
     std::sort(PreopenedDirs.begin(), PreopenedDirs.end());
-
-    FdMap.emplace(0, VINode::stdIn(kStdInDefaultRights, kNoInheritingRights));
-    FdMap.emplace(1, VINode::stdOut(kStdOutDefaultRights, kNoInheritingRights));
-    FdMap.emplace(2, VINode::stdErr(kStdErrDefaultRights, kNoInheritingRights));
 
     int NewFd = 3;
     for (auto &PreopenedDir : PreopenedDirs) {

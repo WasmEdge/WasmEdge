@@ -57,7 +57,8 @@ public:
   ~Environ() noexcept;
 
   void init(Span<const std::string> Dirs, std::string ProgramName,
-            Span<const std::string> Args, Span<const std::string> Envs);
+            Span<const std::string> Args, Span<const std::string> Envs,
+            uint32_t stdInFd = 0, uint32_t stdOutFd = 1, uint32_t stdErrFd = 2);
 
   void fini() noexcept;
 
@@ -1165,6 +1166,13 @@ private:
   std::vector<std::string> Arguments;
   std::vector<std::string> EnvironVariables;
   __wasi_exitcode_t ExitCode = 0;
+
+  /// @brief Initializes standard file descriptors (stdin, stdout, stderr).
+  ///
+  /// @param[in] StdIn The host file descriptor for standard input.
+  /// @param[in] StdOut The host file descriptor for standard output.
+  /// @param[in] StdErr The host file descriptor for standard error.
+  void initStdFds(uint32_t StdIn, uint32_t StdOut, uint32_t StdErr);
 
   mutable std::shared_mutex PollerMutex; ///< Protect PollerPool
   std::vector<EVPoller> PollerPool;

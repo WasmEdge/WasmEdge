@@ -2149,6 +2149,18 @@ WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
                                   const char *const *Preopens,
                                   const uint32_t PreopenLen);
 
+/// Same as WasmEdge_ModuleInstanceCreateWASI but with extended support for
+/// support for File Descriptors
+///
+/// \param StdInFd the file descriptor for standard input.
+/// \param StdOutFd the file descriptor for standard output.
+/// \param StdErrFd the file descriptor for standard error.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWASIExtended(
+    const char *const *Args, const uint32_t ArgLen, const char *const *Envs,
+    const uint32_t EnvLen, const char *const *Preopens,
+    const uint32_t PreopenLen, const uint32_t StdInFd, const uint32_t StdOutFd,
+    const uint32_t StdErrFd);
 /// Initialize the WasmEdge_ModuleInstanceContext for the WASI specification.
 ///
 /// This function will initialize the WASI host module with the parameters.
@@ -2168,6 +2180,18 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASI(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
     const char *const *Preopens, const uint32_t PreopenLen);
+
+/// Same as WasmEdge_ModuleInstanceInitWASI but with extended support for File
+/// Descriptors
+///
+/// \param StdInFd the file descriptor for standard input.
+/// \param StdOutFd the file descriptor for standard output.
+/// \param StdErrFd the file descriptor for standard error.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ModuleInstanceInitWASIExtended(
+    WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
+    const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
+    const char *const *Preopens, const uint32_t PreopenLen,
+    const uint32_t StdInFd, const uint32_t StdOutFd, const uint32_t StdErrFd);
 
 /// Get the WASI exit code.
 ///

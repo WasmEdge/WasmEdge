@@ -33,14 +33,14 @@ class Export {
 public:
   std::string &getName() noexcept { return Name; }
   std::string_view getName() const noexcept { return Name; }
-  SortIndex<Sort> &getSortIndex() noexcept { return Idx; }
-  const SortIndex<Sort> &getSortIndex() const noexcept { return Idx; }
+  SortIndex &getSortIndex() noexcept { return SortIdx; }
+  const SortIndex &getSortIndex() const noexcept { return SortIdx; }
   std::optional<ExternDesc> &getDesc() noexcept { return Desc; }
   const std::optional<ExternDesc> getDesc() const noexcept { return Desc; }
 
 private:
   std::string Name;
-  SortIndex<Sort> Idx;
+  SortIndex SortIdx;
   std::optional<ExternDesc> Desc;
 };
 

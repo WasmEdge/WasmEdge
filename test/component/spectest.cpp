@@ -1,25 +1,28 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/configure.h"
+#include "vm/vm.h"
+
 #include <gtest/gtest.h>
 
-#include "common/types.h"
-#include "vm/vm.h"
+#include <vector>
 
 namespace {
 
 using namespace WasmEdge;
 
-template <typename T> void assertOk(Expect<T> Res, const char *Message) {
+template <typename T>
+void assertOk(WasmEdge::Expect<T> Res, const char *Message) {
   if (!Res) {
     EXPECT_TRUE(false) << Message;
   }
 }
 
 TEST(Component, LoadAndRun_SimpleBinary) {
-  Configure Conf{};
-  Conf.addProposal(Proposal::Component);
-  VM::VM VM{Conf};
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::VM::VM VM(Conf);
 
   // clang-format off
   std::vector<uint8_t> Vec = {
@@ -34,7 +37,6 @@ TEST(Component, LoadAndRun_SimpleBinary) {
     0x11, 0x01, 0x00, 0x01, 0x4d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01, 0x6d, 0x01 ,0x07, 0x01,
     0x01, 0x00, 0x03, 0x72, 0x75, 0x6e
   };
-  // clang-format on
   assertOk(VM.loadWasm(Vec), "failed to load component binary");
   assertOk(VM.validate(), "failed to validate");
   assertOk(VM.instantiate(), "failed to instantiate");
@@ -49,9 +51,9 @@ TEST(Component, LoadAndRun_SimpleBinary) {
 }
 
 TEST(Component, Load_HttpBinary) {
-  Configure Conf{};
-  Conf.addProposal(Proposal::Component);
-  VM::VM VM{Conf};
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::VM::VM VM(Conf);
 
   // clang-format off
   std::vector<uint8_t> Vec = {
@@ -105,7 +107,6 @@ TEST(Component, Load_HttpBinary) {
     0x6d, 0x61, 0x69, 0x6e, 0x01, 0x07, 0x01, 0x01, 0x02, 0x03, 0x72, 0x75, 0x6e, 0x01, 0x08, 0x05,
     0x01, 0x00, 0x04, 0x68, 0x74, 0x74, 0x70
   };
-  // clang-format on
   assertOk(VM.loadWasm(Vec), "failed to load component binary");
   assertOk(VM.validate(), "failed to validate");
 }

@@ -1372,6 +1372,7 @@ TEST(WasiTest, UNIX_Socket) {
     uint32_t MsgOutPackPtr = 1900;
     uint32_t MsgOutPtr = 2000;
 
+    spdlog::error("server sock open");
     writeDummyMemoryContent(MemInst);
     WasiSockOpen.run(CallFrame,
                      std::array<WasmEdge::ValVariant, 3>{AddressFamily,
@@ -1381,6 +1382,7 @@ TEST(WasiTest, UNIX_Socket) {
     EXPECT_NE(*MemInst.getPointer<const uint32_t *>(FdServerPtr), UINT32_C(-1));
     int32_t FdServer = *MemInst.getPointer<const int32_t *>(FdServerPtr);
 
+    spdlog::error("client sock open");
     WasiSockOpen.run(CallFrame,
                      std::array<WasmEdge::ValVariant, 3>{AddressFamily,
                                                          SockType, FdClientPtr},
@@ -1393,9 +1395,11 @@ TEST(WasiTest, UNIX_Socket) {
     auto AddrBuf = MemInst.getSpan<uint8_t>(AddrBufPtr, AddrBuflen);
     auto *Addr = MemInst.getPointer<__wasi_address_t *>(AddrPtr);
 
+    spdlog::error("fill address");
     std::fill_n(AddrBuf.data(), AddrBuf.size(), 0x00);
     *MemInst.getPointer<uint16_t *>(AddrBufPtr) = __WASI_ADDRESS_FAMILY_AF_UNIX;
 
+    spdlog::error("fill path");
     const std::string Path = "wasmedge_unix_socket_test.sock";
     writeString(MemInst, Path, AddrBufPtr + 2);
     Addr->buf = AddrBufPtr;
@@ -1407,11 +1411,13 @@ TEST(WasiTest, UNIX_Socket) {
     unlink(Path.c_str());
 #endif
 
+    spdlog::error("server sock bind");
     WasiSockBind.run(
         CallFrame, std::array<WasmEdge::ValVariant, 3>{FdServer, AddrPtr, Port},
         Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
 
+    spdlog::error("fill message");
     const auto Msg1 = "hello, wasmedge in unix domain socket."sv;
     uint32_t Msg1Len = Msg1.size();
     writeString(MemInst, Msg1, MsgInPtr);
@@ -1420,6 +1426,7 @@ TEST(WasiTest, UNIX_Socket) {
     MsgInPack->buf = MsgInPtr;
     MsgInPack->buf_len = Msg1Len;
 
+    spdlog::error("client sock sendto");
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
                            FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
@@ -1438,6 +1445,7 @@ TEST(WasiTest, UNIX_Socket) {
 
     Addr->buf_len = 128;
 
+    spdlog::error("server sock recvfrom");
     WasiSockRecvFrom.run(CallFrame,
                          std::array<WasmEdge::ValVariant, 8>{
                              FdServer, MsgOutPackPtr, UINT32_C(1), AddrPtr,
@@ -1448,9 +1456,11 @@ TEST(WasiTest, UNIX_Socket) {
     std::string_view MsgRecv{MsgBuf.data(), Msg1.size()};
     EXPECT_EQ(MsgRecv, Msg1);
 
+    spdlog::error("server sock close");
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdServer},
                     Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    spdlog::error("client sock close");
     WasiFdClose.run(CallFrame, std::array<WasmEdge::ValVariant, 1>{FdClient},
                     Errno);
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);

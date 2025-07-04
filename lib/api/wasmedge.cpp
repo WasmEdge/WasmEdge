@@ -3105,16 +3105,23 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) {
 }
 
 void WasmEdge_VMDeleteRegisteredModule(const WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName) {
+  // Validate input: both VM context and module name must be valid
   if (!Cxt || !ModuleName.Buf) {
-    return; // Invalid input
+    return;
   }
-  // Find the module in the store
-  WasmEdge_ModuleInstanceContext *ModInst = 
-      toModCxt(fromStoreCxt(Cxt->Store)->findModule(genStrView(ModuleName)));
+
+  // Access the associated store from the VM context
+  WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(Cxt);
+  if (!StoreCxt) {
+    return; // The VM has no active store context
+  }
+
+  WasmEdge_ModuleInstanceContext *ModInst =
+      WasmEdge_StoreFindModule(StoreCxt, ModuleName);
+
   if (ModInst) {
-    // Unregister the module from the store
-    fromStoreCxt(Cxt->Store)->unregisterModule(genStrView(ModuleName));
-    // Delete the module instance
+    fromStoreCxt(StoreCxt)->unregisterModule(genStrView(ModuleName));
+
     WasmEdge_ModuleInstanceDelete(ModInst);
   }
 }

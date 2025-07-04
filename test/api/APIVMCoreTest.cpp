@@ -230,8 +230,7 @@ TEST(WasmEdgeVM, DeleteRegisteredModule) {
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
   WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
   // Create a test module instance
-  WasmEdge_ModuleInstanceContext *ModInst = WasmEdge_ModuleInstanceCreate(
-      WasmEdge_StringCreateByCString("test_module"), nullptr, nullptr);
+  WasmEdge_ModuleInstanceContext *ModInst = WasmEdge_ModuleInstanceCreate(ModuleName);
   // Register the module
   WasmEdge_Result Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, ModInst);
   EXPECT_TRUE(WasmEdge_ResultOK(Res));

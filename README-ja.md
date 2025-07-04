@@ -1,16 +1,18 @@
 <div align="right">
 
-  [Readme in English](README.md) | [中文](README-zh.md) | [正體中文](README-zh-TW.md)
+  [中文](README-zh.md) | [正體中文](README-zh-TW.md) | [日本語で読む](README-ja.md)
 
 </div>
 
 <div align="center">
-
+  
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
-# [🤩 WasmEdge は、ご自身のデバイスで LLM を実行する最も簡単で早い方法です。 🤩](https://www.secondstate.io/articles/wasm-runtime-agi/)
+# [🤩 WasmEdgeは、あなた自身のデバイスでLLMを実行する最も簡単で最速の方法です。🤩](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge)
 
-WasmEdge は軽量、高性能、拡張可能な WebAssembly ランタイムです。現在、[最速の Wasm VM](https://ieeexplore.ieee.org/document/9214403) になります。WasmEdge は、[CNCF](https://www.cncf.io/) が主催する公式サンドボックスプロジェクトでです。その[ユースケース](https://wasmedge.org/book/en/use_cases.html)には、モダンなウェブアプリケーションアーキテクチャ(Isomorphic & Jamstack　アプリケーション)、エッジクラウド上のマイクロサービス、サーバーレス　SaaS API、組み込み機能、スマートコントラクト、スマートデバイスなどが含まれます。
+<a href="https://trendshift.io/repositories/2481" target="_blank"><img src="https://trendshift.io/api/badge/repositories/2481" alt="WasmEdge%2FWasmEdge | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
+WasmEdgeは、軽量で高性能、そして拡張可能なWebAssemblyランタイムです。これは[最速のWasm VM](https://ieeexplore.ieee.org/document/9214403)です。WasmEdgeは、[CNCF](https://www.cncf.io/)によってホストされている公式のサンドボックスプロジェクトです。[LlamaEdge](https://github.com/LlamaEdge/LlamaEdge)は、WasmEdge上に構築されたアプリケーションフレームワークであり、サーバー、パーソナルコンピュータ、およびエッジデバイスのGPU全体でGenAIモデル（例：[LLM](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge)、[音声からテキストへ](https://llamaedge.com/docs/user-guide/speech-to-text/quick-start-whisper)、[テキストから画像へ](https://llamaedge.com/docs/user-guide/text-to-image/quick-start-sd)、および[TTS](https://github.com/LlamaEdge/whisper-api-server)）を実行します。追加の[ユースケース](https://wasmedge.org/docs/start/usage/use-cases/)には、エッジクラウド上のマイクロサービス、サーバーレスSaaS API、組み込み関数、スマートコントラクト、およびスマートデバイスが含まれます。
 
 [![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml?query=event%3Apush++branch%3Amaster)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
@@ -22,69 +24,75 @@ WasmEdge は軽量、高性能、拡張可能な WebAssembly ランタイムで�
 
 # クイックスタートガイド
 
-🚀 WasmEdge の[インストール](https://wasmedge.org/docs/start/install) \
-🤖 WasmEdge への[ビルド](https://wasmedge.org/docs/category/build-wasmedge-from-source)と[コントリビュート](https://wasmedge.org/docs/contribute/) \
-⌨️ CLIまたは[Docker](https://wasmedge.org/docs/start/getting-started/quick_start_docker)からスタンドアロンのWasmプログラムまたは[JavaScriptプログラム](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript)を[実行](https://wasmedge.org/docs/category/running-with-wasmedge) \
-🔌 [Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge)、[Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge)、[C](https://wasmedge.org/docs/category/c-sdk-for-embedding-wasmedge)アプリにWasm関数を組み込みます \
-🛠 [Kubernetes](https://wasmedge.org/docs/category/deploy-wasmedge-apps-in-kubernetes)、[データストリーミングフレームワーク](https://wasmedge.org/docs/embed/use-case/yomo)、[ブロックチェーン](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)を使用してWasmランタイムを管理し、オーケストレーションする \
-📚 **[公式ドキュメントをチェック](https://wasmedge.org/docs/)**
+🚀 WasmEdgeを[インストール](https://wasmedge.org/docs/start/install)する \
+👷🏻‍♂️ WasmEdgeを[ビルド](https://wasmedge.org/docs/category/build-wasmedge-from-source)し、[貢献](https://wasmedge.org/docs/contribute/)する \
+⌨️ CLIまたは[Docker](https://wasmedge.org/docs/start/getting-started/quick_start_docker)からスタンドアロンのWasmプログラムまたは[JavaScriptプログラム](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript)を[実行](https://wasmedge.org/docs/category/running-with-wasmedge)する \
+🤖 [LlamaEdge](https://github.com/LlamaEdge/LlamaEdge)を介してオープンソースのLLMと[チャット](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge)する \
+🔌 [Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge)、[Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge)、または[C](https://wasmedge.org/docs/category/c-sdk-for-embedding-wasmedge)アプリにWasm関数を埋め込む \
+🛠 [Kubernetes](https://wasmedge.org/docs/category/deploy-wasmedge-apps-in-kubernetes)、[データストリーミングフレームワーク](https://wasmedge.org/docs/embed/use-case/yomo)、および[ブロックチェーン](https://medium.com/ethereum-on-steroids/running-ethereum-smart-contracts-in-a-substrate-blockchain-56fbc27fc95a)を使用してWasmランタイムを管理およびオーケストレーションする \
+📚 **[公式ドキュメントをチェックしてください](https://wasmedge.org/docs/)**
 
-# イントロ
+# はじめに
 
-WasmEdge ランタイムは、含まれる WebAssembly バイトコードプログラムに対して、明確に定義された実行サンドボックスを提供します。ランタイムは、オペレーティングシステムリソース（ファイルシステム、ソケット、環境変数、プロセスなど）とメモリ空間の分離と保護を提供します。WasmEdge の最も重要なユースケースは、ソフトウェア製品（SaaS、Software-Defined Vehicle、エッジノード、あるいはブロックチェーンノードなど）のプラグインとして、ユーザー定義コードやコミュニティ貢献コードを安全に実行することになります。これにより、サードパーティの開発者、ベンダー、サプライヤー、コミュニティメンバーがソフトウェア製品を拡張し、カスタマイズすることが可能になります。**[詳細はこちら](https://wasmedge.org/docs/contribute/users)**
+WasmEdgeランタイムは、それに含まれるWebAssemblyバイトコードプログラムに対して、明確に定義された実行サンドボックスを提供します。ランタイムは、オペレーティングシステムリソース（ファイルシステム、ソケット、環境変数、プロセスなど）およびメモリ空間の分離と保護を提供します。WasmEdgeの最も重要なユースケースは、ソフトウェア製品（SaaS、ソフトウェア定義車両、エッジノード、さらにはブロックチェーンノードなど）のプラグインとして、ユーザー定義またはコミュニティ提供のコードを安全に実行することです。これにより、サードパーティの開発者、ベンダー、サプライヤー、およびコミュニティメンバーがソフトウェア製品を拡張およびカスタマイズできます。**[詳細はこちら](https://wasmedge.org/docs/contribute/users)**
 
 ## パフォーマンス
 
-* [A Lightweight Design for Highperformance Serverless Computing](https://arxiv.org/abs/2010.07115)、IEEE Software に掲載、Jan 2021。[https://arxiv.org/abs/2010.07115](https://arxiv.org/abs/2010.07115)
-* [Performance Analysis for Arm vs. x86 CPUs in the Cloud](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)、infoQ.com に掲載、2021年1月。[https://www.infoq.com/articles/arm-vs-x86-cloud-performance/](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)
-* [WasmEdge is the fastest WebAssembly Runtime in Suborbital Reactr test suite](https://blog.suborbital.dev/suborbital-wasmedge)、2021年12月
+* [高性能サーバーレスコンピューティングのための軽量設計](https://arxiv.org/abs/2010.07115)、IEEE Softwareに掲載、2021年1月。[https://arxiv.org/abs/2010.07115](https://arxiv.org/abs/2010.07115)
+* [クラウドにおけるArm対x86 CPUのパフォーマンス分析](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)、infoQ.comに掲載、2021年1月。[https://www.infoq.com/articles/arm-vs-x86-cloud-performance/](https://www.infoq.com/articles/arm-vs-x86-cloud-performance/)
+* [WasmEdgeはSuborbital Reactrテストスイートで最速のWebAssemblyランタイムです](https://blog.suborbital.dev/suborbital-wasmedge)、2021年12月
 
-## 機能
+## 特徴
 
-WasmEdge は、C/C++、Rust、Swift、AssemblyScript、または Kotlin のソースコードからコンパイルされた標準的な WebAssembly バイトコードプログラムを実行できます。サードパーティの ES6、CJS、NPM モジュールを含む [JavaScript](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript) を、安全、高速、軽量、ポータブル、コンテナ化されたサンドボックスで実行します。また、これらの言語の混合（例えば、[JavaScript API を実装するために Rust を使用する](https://wasmedge.org/docs/develop/javascript/rust)）、[Fetch](https://wasmedge.org/docs/develop/javascript/networking#fetch-client)API、エッジサーバー上の[サーバーサイドレンダリング(SSR)](https://wasmedge.org/docs/develop/javascript/ssr)機能もサポートしています。
+WasmEdgeは、C/C++、Rust、Swift、AssemblyScript、またはKotlinのソースコードからコンパイルされた標準のWebAssemblyバイトコードプログラムを実行できます。安全で高速、軽量、ポータブル、そしてコンテナ化されたサンドボックスで、サードパーティのES6、CJS、NPMモジュールを含む[JavaScriptを実行](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript)します。また、これらの言語の混合（例：[JavaScript APIを実装するためにRustを使用する](https://wasmedge.org/docs/develop/javascript/rust)）、[Fetch API](https://wasmedge.org/docs/develop/javascript/networking#fetch-client)、およびエッジサーバーでの[サーバーサイドレンダリング（SSR）](https://wasmedge.org/docs/develop/javascript/ssr)機能もサポートしています。
 
-WasmEdge は、[すべての標準的な WebAssembly 機能と多くの提案されている拡張機能](https://wasmedge.org/docs/start/wasmedge/extensions/proposals)をサポートしています。また、クラウドネイティブやエッジコンピューティングの用途に合わせた拡張機能も多数サポートしています（[WasmEdge ネットワークソケット](https://wasmedge.org/docs/category/socket-networking)、[Postgres および MySQL ベースのデータベースドライバ](https://wasmedge.org/docs/category/database-drivers)、[WasmEdge AI 拡張機能](https://wasmedge.org/docs/category/ai-inference)など）。
+WasmEdgeは、[すべての標準的なWebAssembly機能と多くの提案されている拡張機能](https://wasmedge.org/docs/start/wasmedge/extensions/proposals)をサポートしています。また、クラウドネイティブおよびエッジコンピューティング用途に合わせた多くの拡張機能（例：[WasmEdgeネットワークソケット](https://wasmedge.org/docs/category/socket-networking)、[PostgresおよびMySQLベースのデータベースドライバ](https://wasmedge.org/docs/category/database-drivers)、および[WasmEdge AI拡張機能](https://wasmedge.org/docs/category/ai-inference)）もサポートしています。
 
- **WasmEdge の[テクニカルハイライト](https://wasmedge.org/docs/start/wasmedge/features)についてはこちらをご覧ください。**
+**[WasmEdgeの技術的なハイライト](https://wasmedge.org/docs/start/wasmedge/features)について詳しくはこちら。**
 
-## インテグレーションと管理
+## 統合と管理
 
-WasmEdge とそれに含まれる wasm プログラムは、新規プロセスとして [CLI](https://wasmedge.org/docs/category/running-with-wasmedge) から起動することも、既存プロセスから起動することもできます。既存のプロセス（例えば、実行中の [Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge) や [Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge) プログラムから起動した場合、WasmEdge は単に関数としてプロセス内で実行されます。現在のところ、WasmEdge はまだスレッドセーフではありません。独自のアプリケーションやクラウドネイティブフレームワークで WasmEdge を使用するには、以下のガイドを参照してください。
+WasmEdgeおよびそれに含まれるwasmプログラムは、新しいプロセスとして[CLI](https://wasmedge.org/docs/category/running-with-wasmedge)から、または既存のプロセスから開始できます。既存のプロセス（実行中の[Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge)または[Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge)プログラムなど）から開始した場合、WasmEdgeはプロセス内で関数として単純に実行されます。現在、WasmEdgeはまだスレッドセーフではありません。独自のアプリケーションまたはクラウドネイティブフレームワークでWasmEdgeを使用するには、以下のガイドを参照してください。
 
-* [WasmEdge をホストアプリケーションに組み込む](https://wasmedge.org/docs/embed/overview)
-* [コンテナツールを使用した WasmEdge インスタンスのオーケストレーションと管理](https://wasmedge.org/docs/category/deploy-wasmedge-apps-in-kubernetes)
-* [WasmEdge アプリを Dapr マイクロサービスとして実行する](https://wasmedge.org/docs/develop/rust/dapr)
+* [ホストアプリケーションにWasmEdgeを埋め込む](https://wasmedge.org/docs/embed/overview)
+* [コンテナツールを使用してWasmEdgeインスタンスをオーケストレーションおよび管理する](https://wasmedge.org/docs/category/deploy-wasmedge-apps-in-kubernetes)
+* [WasmEdgeアプリをDaprマイクロサービスとして実行する](https://wasmedge.org/docs/develop/rust/dapr)
 
 # コミュニティ
 
-## コントリビュート
+## 貢献
 
-WasmEdge プロジェクトにコントリビュートしたい場合は、[CONTRIBUTING](https://wasmedge.org/docs/contribute/overview) ドキュメントを参照してください。アイデアをお探しなら、["help wanted" issues](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)をチェックしてください！
+コミュニティからの貢献を歓迎します！以下をご確認ください：
+- [貢献ガイド](./docs/CONTRIBUTING.md)で開始方法を確認
+- [ガバナンスドキュメント](./docs/GOVERNANCE.md)でプロジェクトの意思決定プロセスを確認
+- [行動規範](./docs/CODE_OF_CONDUCT.md)でコミュニティの基準を確認
+
+メンテナーになりたいですか？[貢献者ラダー](./CONTRIBUTION_LADDER.md)をご覧ください。
 
 ## ロードマップ
 
-[プロジェクトロードマップ](https://github.com/WasmEdge/WasmEdge/blob/master/docs/ROADMAP.md)で、WasmEdge の今後の機能と計画をご確認ください。
+[プロジェクトロードマップ](https://github.com/WasmEdge/WasmEdge/blob/master/docs/ROADMAP.md)をチェックして、WasmEdgeの今後の機能と計画を確認してください。
 
-## コンタクト
+## 連絡先
 
-ご質問がある場合は、関連プロジェクトの GitHub issue を開くか、以下のチャンネルにご参加ください:
+ご不明な点がございましたら、関連プロジェクトでGitHubの問題を開くか、次のチャネルにご参加ください。
 
-* メーリングリスト: [WasmEdge@googlegroups.com](https://groups.google.com/g/wasmedge/) にメールを送信
-* Discord: [WasmEdge Discord サーバー](https://discord.gg/h4KDyB8XTt)に参加してください！
-* Slack: [CNCF Slack](https://slack.cncf.io/) の #WasmEdge チャンネルに参加する。
-* Twitter: [Twitter](https://twitter.com/realwasmedge) で @realwasmedge をフォローする。
+* メーリングリスト：[WasmEdge@googlegroups.com](https://groups.google.com/g/wasmedge/)にメールを送信
+* Discord：[WasmEdge Discordサーバー](https://discord.gg/h4KDyB8XTt)に参加してください！
+* Slack：[CNCF Slack](https://slack.cncf.io/)の#WasmEdgeチャンネルに参加
+* X（旧Twitter）：[X](https://x.com/realwasmedge)で@realwasmedgeをフォロー
 
 ## 採用者
 
-プロジェクトで WasmEdge を使用している[採用者リスト](https://wasmedge.org/docs/contribute/users/)をご覧ください。
+[採用者リスト](https://wasmedge.org/docs/contribute/users/)をチェックして、プロジェクトでWasmEdgeを使用しているユーザーを確認してください。
 
 ## コミュニティミーティング
 
-月に一度、コミュニティミーティングを開催し、新機能の紹介や新しいユースケースのデモ、質疑応答などを行います。どなたでもご参加いただけます！
+私たちは毎月コミュニティミーティングを開催し、新機能の紹介、新しいユースケースのデモ、Q&Aセッションを行っています。どなたでも大歓迎です！
 
-時間: 毎月第1火曜日午後11時（香港時間）／午前7時（太平洋標準時）。
+時間：毎月第1火曜日、香港時間午後11時/太平洋標準時午前7時。
 
-[パブリックミーティングのアジェンダ／ノート](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom リンク](https://us06web.zoom.us/j/89156807241?pwd=VHl5VW5BbmY2eUtTYkY0Zm9yUHRRdz09)
+[公開会議の議題/議事録](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoomリンク](https://us06web.zoom.us/j/82221747919?pwd=3MORhaxDk15rACk7mNDvyz9KtaEbWy.1)
 
 # ライセンス
 

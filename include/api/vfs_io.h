@@ -1,9 +1,9 @@
-
 #pragma once
 
 #include "host/wasi/environ.h"
 #include "wasi/api.hpp"
 #include <cctype>
+#include <fstream>
 #include <ios>
 #include <string>
 #include <type_traits>
@@ -31,10 +31,10 @@ public:
   WasmEdgeIfstream(const WasmEdgeIfstream &) = delete;
   WasmEdgeIfstream &operator=(const WasmEdgeIfstream &) = delete;
 
-  bool is_open() const noexcept { return IsOpen; }
-  bool good() const noexcept { return !HasError; }
-  bool eof() const noexcept { return IsEof; }
-  bool fail() const noexcept { return HasError; }
+  bool is_open() const noexcept;
+  bool good() const noexcept;
+  bool eof() const noexcept;
+  bool fail() const noexcept;
   explicit operator bool() const noexcept { return good(); }
 
   WasmEdgeIfstream &read(char *Buffer, std::streamsize Count);
@@ -55,21 +55,23 @@ private:
   bool IsOpen;
   bool HasError;
   bool IsEof;
+  bool UseWASI;
+  std::ifstream StdStream;
 
   void setError() { HasError = true; }
 };
 
 class WASMEDGE_VFS_EXPORT WasmEdgeOfstream {
 public:
-  WasmEdgeOfstream(const Host::WASI::Environ *Env,
+  WasmEdgeOfstream(const Host::WASI::Environ *WASIEnv,
                    const std::string_view &FileName) noexcept;
   ~WasmEdgeOfstream();
   WasmEdgeOfstream(const WasmEdgeOfstream &) = delete;
   WasmEdgeOfstream &operator=(const WasmEdgeOfstream &) = delete;
 
-  bool is_open() const noexcept { return IsOpen; }
-  bool good() const noexcept { return !HasError; }
-  bool fail() const noexcept { return HasError; }
+  bool is_open() const noexcept;
+  bool good() const noexcept;
+  bool fail() const noexcept;
   explicit operator bool() const noexcept { return good(); }
 
   WasmEdgeOfstream &write(const char *Buffer, std::streamsize Count);
@@ -91,6 +93,8 @@ private:
   bool IsOpen;
   bool HasError;
   std::streamsize ChunkSize;
+  bool UseWASI;
+  std::ofstream StdStream;
 
   void setError() { HasError = true; }
 };
@@ -100,36 +104,43 @@ template <typename T> WasmEdgeIfstream &WasmEdgeIfstream::operator>>(T &Value) {
     return *this;
   }
 
-  std::string Str;
-  char C;
+  if (UseWASI) {
+    std::string Str;
+    char C;
 
-  while ((C = get()) != EOF && std::isspace(C)) {
-  }
-
-  if (C == EOF) {
-    setError();
-    return *this;
-  }
-
-  do {
-    Str += C;
-    C = get();
-  } while (C != EOF && !std::isspace(C));
-
-  try {
-    if constexpr (std::is_same_v<T, std::string>) {
-      Value = Str;
-    } else if constexpr (std::is_same_v<T, int>) {
-      Value = std::stoi(Str);
-    } else if constexpr (std::is_same_v<T, double>) {
-      Value = std::stod(Str);
-    } else if constexpr (std::is_same_v<T, float>) {
-      Value = std::stof(Str);
-    } else if constexpr (std::is_same_v<T, long>) {
-      Value = std::stol(Str);
+    while ((C = get()) != EOF && std::isspace(C)) {
     }
-  } catch (...) {
-    setError();
+
+    if (C == EOF) {
+      setError();
+      return *this;
+    }
+
+    do {
+      Str += C;
+      C = get();
+    } while (C != EOF && !std::isspace(C));
+
+    try {
+      if constexpr (std::is_same_v<T, std::string>) {
+        Value = Str;
+      } else if constexpr (std::is_same_v<T, int>) {
+        Value = std::stoi(Str);
+      } else if constexpr (std::is_same_v<T, double>) {
+        Value = std::stod(Str);
+      } else if constexpr (std::is_same_v<T, float>) {
+        Value = std::stof(Str);
+      } else if constexpr (std::is_same_v<T, long>) {
+        Value = std::stol(Str);
+      }
+    } catch (...) {
+      setError();
+    }
+  } else {
+    StdStream >> Value;
+    if (StdStream.fail()) {
+      setError();
+    }
   }
 
   return *this;
@@ -141,18 +152,26 @@ WasmEdgeOfstream &WasmEdgeOfstream::operator<<(const T &Value) {
     return *this;
   }
 
-  std::string Str;
-  if constexpr (std::is_same_v<T, std::string>) {
-    Str = Value;
-  } else if constexpr (std::is_same_v<T, const char *>) {
-    Str = Value;
-  } else if constexpr (std::is_arithmetic_v<T>) {
-    Str = std::to_string(Value);
-  } else {
-    Str = std::to_string(Value);
-  }
+  if (UseWASI) {
+    std::string Str;
+    if constexpr (std::is_same_v<T, std::string>) {
+      Str = Value;
+    } else if constexpr (std::is_same_v<T, const char *>) {
+      Str = Value;
+    } else if constexpr (std::is_arithmetic_v<T>) {
+      Str = std::to_string(Value);
+    } else {
+      Str = std::to_string(Value);
+    }
 
-  return write(Str.c_str(), Str.length());
+    return write(Str.c_str(), Str.length());
+  } else {
+    StdStream << Value;
+    if (StdStream.fail()) {
+      setError();
+    }
+    return *this;
+  }
 }
 
 } // namespace API

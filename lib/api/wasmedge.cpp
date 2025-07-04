@@ -3104,6 +3104,21 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) {
   }
 }
 
+void WasmEdge_VMDeleteRegisteredModule(const WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName) {
+  if (!Cxt || !ModuleName.Buf) {
+    return; // Invalid input
+  }
+  // Find the module in the store
+  WasmEdge_ModuleInstanceContext *ModInst = 
+      toModCxt(fromStoreCxt(Cxt->Store)->findModule(genStrView(ModuleName)));
+  if (ModInst) {
+    // Unregister the module from the store
+    fromStoreCxt(Cxt->Store)->unregisterModule(genStrView(ModuleName));
+    // Delete the module instance
+    WasmEdge_ModuleInstanceDelete(ModInst);
+  }
+}
+
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt) {
   if (Cxt) {

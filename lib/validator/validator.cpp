@@ -7,13 +7,9 @@
 #include "common/errinfo.h"
 #include "common/hash.h"
 
-#include <cstdint>
 #include <numeric>
-#include <set>
 #include <string>
 #include <unordered_set>
-#include <variant>
-#include <vector>
 
 using namespace std::literals;
 
@@ -21,10 +17,11 @@ namespace WasmEdge {
 namespace Validator {
 
 namespace {
+
 static constexpr uint32_t MaxSubtypeDepth = 63;
 
 Expect<void> calculateSubtypeDepthRecursiveHelper(
-    uint32_t Index, uint32_t Depth, std::set<uint32_t> &VisitedSet,
+    uint32_t Index, uint32_t Depth, std::unordered_set<uint32_t> &VisitedSet,
     const FormChecker &Checker, uint32_t TypeIdx) {
   if (VisitedSet.count(Index)) {
     spdlog::error(ErrCode::Value::InvalidSubType);
@@ -44,27 +41,26 @@ Expect<void> calculateSubtypeDepthRecursiveHelper(
 
   VisitedSet.insert(Index);
   const auto &TypeVec = Checker.getTypes();
-
   const auto &Type = *TypeVec[Index];
-
   for (const auto SuperIdx : Type.getSuperTypeIndices()) {
-    if (auto Res = calculateSubtypeDepthRecursiveHelper(
-            SuperIdx, Depth + 1, VisitedSet, Checker, TypeIdx);
-        !Res) {
-      spdlog::error("    When checking super type index {}."sv, SuperIdx);
-      return Unexpect(Res.error());
-    }
+    EXPECTED_TRY(calculateSubtypeDepthRecursiveHelper(
+                     SuperIdx, Depth + 1, VisitedSet, Checker, TypeIdx)
+                     .map_error([&](auto E) {
+                       spdlog::error("    When checking super type index {}."sv,
+                                     SuperIdx);
+                       return E;
+                     }));
   }
-
   return {};
 }
+
 Expect<void> calculateSubtypeDepth(uint32_t TypeIdx,
                                    const FormChecker &Checker) {
-  std::set<uint32_t> VisitedNodes;
-
+  std::unordered_set<uint32_t> VisitedNodes;
   return calculateSubtypeDepthRecursiveHelper(TypeIdx, 0, VisitedNodes, Checker,
                                               TypeIdx);
 }
+
 } // namespace
 
 // Validate Module. See "include/validator/validator.h".

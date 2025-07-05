@@ -374,6 +374,7 @@ struct WasiNNEnvironment :
 
   void setEnv(const Host::WASI::Environ *CurrEnv) noexcept { Env = CurrEnv; }
   const Host::WASI::Environ *getEnv() const noexcept { return Env; }
+
 private:
   const Host::WASI::Environ *Env;
 };

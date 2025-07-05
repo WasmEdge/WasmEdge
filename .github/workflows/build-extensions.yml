@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - master
+      - dev/wasi_vfs
     paths:
       - ".github/extensions.paths-filter.yml"
       - ".github/workflows/build-extensions.yml"
@@ -23,6 +24,7 @@ on:
   pull_request:
     branches:
       - master
+      - dev/wasi_vfs
       - "proposal/**"
     paths:
       - ".github/extensions.paths-filter.yml"

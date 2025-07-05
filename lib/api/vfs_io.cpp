@@ -294,6 +294,17 @@ WasmEdgeIfstream &WasmEdgeIfstream::seekg(std::streamoff Off,
   return *this;
 }
 
+void WasmEdgeIfstream::close() {
+  if (IsOpen) {
+    if (UseWASI) {
+      Env->fdClose(Fd);
+    } else {
+      StdStream.close();
+    }
+    IsOpen = false;
+  }
+}
+
 WasmEdgeOfstream::WasmEdgeOfstream(const Host::WASI::Environ *WASIEnv,
                                    const std::string_view &FileName) noexcept
     : Fd(0), IsOpen(false), HasError(false), ChunkSize(64 * 1024),
@@ -410,9 +421,7 @@ WasmEdgeOfstream &WasmEdgeOfstream::write(const char *Buffer,
 WasmEdgeOfstream &WasmEdgeOfstream::put(char C) { return write(&C, 1); }
 
 WasmEdgeOfstream &WasmEdgeOfstream::flush() {
-  if (UseWASI) {
-    // WASI 直接写入文件，无需缓冲区刷新
-  } else {
+  if (!UseWASI) {
     StdStream.flush();
     if (StdStream.fail()) {
       setError();
@@ -507,6 +516,17 @@ WasmEdgeOfstream &WasmEdgeOfstream::seekp(std::streamoff Off,
   }
 
   return *this;
+}
+
+void WasmEdgeOfstream::close() {
+  if (IsOpen) {
+    if (UseWASI) {
+      Env->fdClose(Fd);
+    } else {
+      StdStream.close();
+    }
+    IsOpen = false;
+  }
 }
 
 } // namespace API

@@ -294,6 +294,17 @@ WasmEdgeIfstream &WasmEdgeIfstream::seekg(std::streamoff Off,
   return *this;
 }
 
+void WasmEdgeIfstream::close() {
+  if (IsOpen) {
+    if (UseWASI) {
+      Env->fdClose(Fd);
+    } else {
+      StdStream.close();
+    }
+    IsOpen = false;
+  }
+}
+
 WasmEdgeOfstream::WasmEdgeOfstream(const Host::WASI::Environ *WASIEnv,
                                    const std::string_view &FileName) noexcept
     : Fd(0), IsOpen(false), HasError(false), ChunkSize(64 * 1024),
@@ -507,6 +518,17 @@ WasmEdgeOfstream &WasmEdgeOfstream::seekp(std::streamoff Off,
   }
 
   return *this;
+}
+
+void WasmEdgeOfstream::close() {
+  if (IsOpen) {
+    if (UseWASI) {
+      Env->fdClose(Fd);
+    } else {
+      StdStream.close();
+    }
+    IsOpen = false;
+  }
 }
 
 } // namespace API

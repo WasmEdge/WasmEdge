@@ -5,8 +5,8 @@
 #include <cctype>
 #include <fstream>
 #include <ios>
+#include <sstream>
 #include <string>
-#include <type_traits>
 
 #if defined(_WIN32)
 #ifdef WASMEDGE_COMPILE_LIBRARY
@@ -49,6 +49,8 @@ public:
   WasmEdgeIfstream &seekg(std::streampos Pos);
   WasmEdgeIfstream &seekg(std::streamoff Off, std::ios_base::seekdir Way);
 
+  void close();
+
 private:
   Host::WASI::Environ *Env;
   __wasi_fd_t Fd;
@@ -87,6 +89,8 @@ public:
   void setChunkSize(std::streamsize Size) noexcept { ChunkSize = Size; }
   std::streamsize getChunkSize() const noexcept { return ChunkSize; }
 
+  void close();
+
 private:
   Host::WASI::Environ *Env;
   __wasi_fd_t Fd;
@@ -108,18 +112,9 @@ template <typename T> WasmEdgeIfstream &WasmEdgeIfstream::operator>>(T &Value) {
     std::string Str;
     char C;
 
-    while ((C = get()) != EOF && std::isspace(C)) {
-    }
-
-    if (C == EOF) {
-      setError();
-      return *this;
-    }
-
-    do {
+    while ((C = get()) != EOF && !std::isspace(C)) {
       Str += C;
-      C = get();
-    } while (C != EOF && !std::isspace(C));
+    }
 
     try {
       if constexpr (std::is_same_v<T, std::string>) {
@@ -153,17 +148,9 @@ WasmEdgeOfstream &WasmEdgeOfstream::operator<<(const T &Value) {
   }
 
   if (UseWASI) {
-    std::string Str;
-    if constexpr (std::is_same_v<T, std::string>) {
-      Str = Value;
-    } else if constexpr (std::is_same_v<T, const char *>) {
-      Str = Value;
-    } else if constexpr (std::is_arithmetic_v<T>) {
-      Str = std::to_string(Value);
-    } else {
-      Str = std::to_string(Value);
-    }
-
+    std::ostringstream Oss;
+    Oss << Value;
+    std::string Str = Oss.str();
     return write(Str.c_str(), Str.length());
   } else {
     StdStream << Value;

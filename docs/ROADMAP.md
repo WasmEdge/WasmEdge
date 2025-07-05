@@ -29,25 +29,22 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 ## Current Roadmap
 
-Last Updated: Q2 / 2025
+Last Updated: Q3 / 2025
 
-| Theme            | Description | Timeline | Assignee |
-| ---              | ----------- | -------- | -------- |
-| Proposal         | GC proposal for AOT/JIT     | Q3 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal         | Exception-Handling proposal for AOT/JIT | Q3 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal         | Typed continuation proposal | Q3 / 2025 | |
-| Proposal         | Stack-switch proposal       | Q3 / 2025 | |
-| Proposal         | [WASI signature proposal](https://github.com/WasmEdge/WasmEdge/pull/517) | Q2 / 2025 | |
-| Feature          | Wasm coredump | Q2 / 2025 | |
-| Feature          | DWARF symbol | Q2 / 2025 | |
-| Language Binding | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) | Q2 / 2025 | |
-| Proposal         | WASI-NN GGML plugin with latest llama.cpp integration | Q2 / 2025 | [@dm4](https://github.com/dm4) |
-| Proposal         | [Component model proposal: validator (LFX 2025/term1)](https://github.com/WasmEdge/WasmEdge/issues/3966) | Q2 / 2025 | [@dannypsnl](https://github.com/dannypsnl) |
-| Feature          | A new WasmEdge installer and plugin manager | Q2 / 2025 | [@hydai](https://github.com/hydai) |
-| Feature          | Support stack tracing in the JIT and AOT modes | Q2 / 2025 | [@hydai](https://github.com/hydai) |
-| Feature | [Setup workflows for](https://github.com/WasmEdge/WasmEdge/issues/3840) [cpp-plugins repo](https://github.com/WasmEdge/cpp-plugins) | Q2 / 2025 | @0yi0 |
-| Proposal         | WASI-NN GGML plugin: support Mllama | Q2 / 2025 | [@dm4](https://github.com/dm4) |
-| Proposal         | WASI-NN GGML plugin: support Gemma-3 | Q2 / 2025 | [@dm4](https://github.com/dm4) |
+| Theme    | Description | Timeline | Assignee |
+| ---      | ----------- | -------- | -------- |
+| Feature  | A new WasmEdge installer and plugin manager | Q3 / 2025 | [@hydai](https://github.com/hydai) |
+| Proposal | Exception-Handling proposal for AOT/JIT | Q3 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Proposal | Typed continuation proposal | Q3 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | Stack-switch proposal | Q3 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/pull/2964) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) | Q3 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Proposal | Component Model completion | Q4 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | WASI preview2 as plugins | Q4 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | WASI-NN GGML plugin with latest llama.cpp integration | Q3 / 2025 | [@dm4](https://github.com/dm4) |
+| Proposal | WASI-NN Whisper.cpp plugin: update for supporting the greedy sampling | Q3 / 2025 | [@hydai](https://github.com/hydai) |
+| Proposal | [LFX (2025/term2) runwasi multi-node stability testing](https://github.com/WasmEdge/WasmEdge/issues/4155) | Q3 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) |
+| Proposal | Update the Android NDK build examples | Q3 / 2025 | [@dm4](https://github.com/dm4) |
 
 ## Inactive Roadmap
 
@@ -55,18 +52,37 @@ Last Updated: Q2 / 2025
 | ----- | ----------- |
 | Language Binding | [Update Java binding with 0.14](https://github.com/WasmEdge/WasmEdge/pull/3663) |
 | Proposal | [WASM C API proposal](https://github.com/WasmEdge/WasmEdge/pull/346) |
-| Proposal | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/pull/2964) |
 | Language Binding | Move Go binding back into WasmEdge org |
 | Feature | [Redirection of stdin, stdout, and stderr in C SDK](https://github.com/WasmEdge/WasmEdge/issues/2936) |
 | Proposal | [WASI-NN GGML plugin with CANN support](https://github.com/WasmEdge/WasmEdge/issues/3768) |
 | Proposal | [WASI-NN TensorRT plugin initial support](https://github.com/WasmEdge/WasmEdge/pull/3878) |
 | Feature | Update installer to use manylinux_2_28 from 0.15.0 |
 | Proposal | Support TensorRT in wasi_nn plugin |
-| Proposal | WASI: partial preview2 as plugins |
 | Feature | Apply `-Wshadow` and `-Wshadow-field` to enhance the codebase |
-| Feature | Fix the IWYU reported errors |
+| Proposal | [WASI signature proposal](https://github.com/WasmEdge/WasmEdge/pull/517) |
+| Feature | Wasm coredump |
+| Feature | DWARF symbol |
+| Languages Bindings | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) |
+| Feature | Support stack tracing in the JIT and AOT modes |
+| Feature | [Setup workflows for](https://github.com/WasmEdge/WasmEdge/issues/3840) [cpp-plugins repo](https://github.com/WasmEdge/cpp-plugins) |
 
 ## Previous Roadmap
+
+### Q2/2025
+
+| Theme | Description | Timeline | Assignee | Status |
+| --- | --- | --- | --- | --- |
+| Proposal | [WASI signature proposal](https://github.com/WasmEdge/WasmEdge/pull/517) | Q2 / 2025 | | Staled |
+| Feature | Wasm coredump | Q2 / 2025 | | Staled |
+| Feature | DWARF symbol | Q2 / 2025 | | Staled |
+| Languages Bindings | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) | Q2 / 2025 | | Staled |
+| Feature | Support stack tracing in the JIT and AOT modes | Q2 / 2025 | [@hydai](https://github.com/hydai) | Staled |
+| Feature | [Setup workflows for](https://github.com/WasmEdge/WasmEdge/issues/3840) [cpp-plugins repo](https://github.com/WasmEdge/cpp-plugins) | Q2 / 2025 | [@0yi0](https://github.com/0yi0) | Staled |
+| Proposal | [LFX (2025/term1) component model validator](https://github.com/WasmEdge/WasmEdge/issues/3966) | Q2 / 2025 | [@dannypsnl](https://github.com/dannypsnl) | Completed |
+| Feature | Fix the IWYU reported errors | Q1 / 2025 | [@hydai](https://github.com/hydai) | Completed |
+| Proposal | GC proposal for AOT/JIT | Q3 / 2025 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | WASI-NN GGML plugin with latest llama.cpp integration | Q2 / 2025 | [@dm4](https://github.com/dm4) | Completed |
+| Proposal | WASI-NN GGML plugin: support libmtmd | Q2 / 2025 | [@dm4](https://github.com/dm4) | Completed |
 
 ### Q1/2025
 

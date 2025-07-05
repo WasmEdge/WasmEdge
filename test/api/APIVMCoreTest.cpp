@@ -232,7 +232,8 @@ TEST(WasmEdgeVM, DeleteRegisteredModule) {
   uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
 
   WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
-  WasmEdge_ModuleInstanceContext *ModInst = WasmEdge_ModuleInstanceCreate(ModuleName);
+  WasmEdge_ModuleInstanceContext *ModInst =
+      WasmEdge_ModuleInstanceCreate(ModuleName);
 
   WasmEdge_Result Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, ModInst);
   EXPECT_TRUE(WasmEdge_ResultOK(Res));
@@ -247,11 +248,11 @@ TEST(WasmEdgeVM, DeleteRegisteredModule) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
-
 TEST(WasmEdgeVM, DeleteNonExistentModule) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
-  WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("nonexistent_module");
+  WasmEdge_String ModuleName =
+      WasmEdge_StringCreateByCString("nonexistent_module");
   // Delete a module that doesn't exist
   WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), 12); // Still 12

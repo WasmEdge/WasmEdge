@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "wasinn_whisper.h"
+#include "api/vfs_io.h"
 #include "wasinnenv.h"
 #include <cstdint>
 #include <vector>
@@ -74,10 +75,10 @@ estimateDiarizationSpeaker(const std::vector<std::vector<float>> PCMF32s,
   return Speaker;
 }
 
-bool outputSrt(whisper_context *Ctx, const std::string &Fname,
-               const Config &Params,
+bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
+               const std::string &Fname, const Config &Params,
                const std::vector<std::vector<float>> &PCMF32s) {
-  std::ofstream Fout(Fname);
+  WasmEdge::Host::API::WasmEdgeOfstream Fout(Env.getEnv(), Fname);
   if (!Fout.is_open()) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
@@ -103,10 +104,10 @@ bool outputSrt(whisper_context *Ctx, const std::string &Fname,
   return true;
 }
 
-static bool outputLrc(whisper_context *Ctx, const std::string &Fname,
-                      const Config &Params,
+static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
+                      const std::string &Fname, const Config &Params,
                       const std::vector<std::vector<float>> &PCMF32s) {
-  std::ofstream Fout(Fname);
+  WasmEdge::Host::API::WasmEdgeOfstream Fout(Env.getEnv(), Fname);
   if (!Fout.is_open()) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
@@ -157,10 +158,10 @@ std::string escapeDoubleQuotesAndBackslashes(const std::string &Str) {
   return Escaped;
 }
 
-bool outputJson(whisper_context *Ctx, const std::string &Fname,
-                const Config &Params,
+bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
+                const std::string &Fname, const Config &Params,
                 const std::vector<std::vector<float>> &PCMF32s, bool Full) {
-  std::ofstream Fout(Fname);
+  WasmEdge::Host::API::WasmEdgeOfstream Fout(Env.getEnv(), Fname);
   int Indent = 0;
 
   auto Doindent = [&]() {
@@ -1037,19 +1038,19 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   if (CxtRef.WhisperConfig.OutputSrt) {
     const auto Fname = CxtRef.WhisperConfig.FileName + ".srt";
-    outputSrt(GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
+    outputSrt(Env, GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
               CxtRef.InputPCMs);
   }
 
   if (CxtRef.WhisperConfig.OutputLrc) {
     const auto Fname = CxtRef.WhisperConfig.FileName + ".lrc";
-    outputLrc(GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
+    outputLrc(Env, GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
               CxtRef.InputPCMs);
   }
 
   if (CxtRef.WhisperConfig.OutputJson) {
     const auto Fname = CxtRef.WhisperConfig.FileName + ".json";
-    outputJson(GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
+    outputJson(Env, GraphRef.WhisperCtx, Fname, CxtRef.WhisperConfig,
                CxtRef.InputPCMs, CxtRef.WhisperConfig.OutputJsonFull);
   }
 

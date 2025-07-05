@@ -3791,14 +3791,15 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VMGetFunctionList(
 /// Delete a registered module from the VM context.
 ///
 /// \warning Developers must ensure the module is not depended by other modules.
-/// Deleting a module that is still in use may cause undefined behavior or segmentation faults.
+/// Deleting a module that is still in use may cause undefined behavior or
+/// segmentation faults.
 ///
 /// \param Cxt the WasmEdge_VMContext to delete the module from.
 /// \param ModuleName the name of the module to delete.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_VMDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
-                                 const WasmEdge_String ModuleName);
-                                 
+                                  const WasmEdge_String ModuleName);
+
 /// Get the module instance corresponding to the WasmEdge_HostRegistration
 /// settings.
 ///

@@ -225,6 +225,43 @@ TEST(AsyncExecute, InterruptTest) {
   WasmEdge_VMDelete(VM);
 }
 
+TEST(WasmEdgeVM, DeleteRegisteredModule) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+
+  uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+
+  WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
+  WasmEdge_ModuleInstanceContext *ModInst =
+      WasmEdge_ModuleInstanceCreate(ModuleName);
+
+  WasmEdge_Result Res = WasmEdge_VMRegisterModuleFromImport(VMCxt, ModInst);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount + 1);
+
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
+
+  // Cleanup
+  WasmEdge_StringDelete(ModuleName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, DeleteNonExistentModule) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_String ModuleName =
+      WasmEdge_StringCreateByCString("nonexistent_module");
+  // Delete a module that doesn't exist
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), 12); // Still 12
+  // Cleanup
+  WasmEdge_StringDelete(ModuleName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

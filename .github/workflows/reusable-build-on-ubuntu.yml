@@ -42,7 +42,7 @@ jobs:
         run: |
           apt-get update
           apt-get install -y pkg-config
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -90,7 +90,7 @@ jobs:
           LD_LIBRARY_PATH=$(pwd)/build/lib/api cmake --build build --target codecov
       - name: Upload artifact
         if: ${{ !inputs.release && !matrix.coverage }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: WasmEdge-${{ inputs.version }}-${{ matrix.name }}-${{ matrix.compiler }}-${{ matrix.build_type }}-${{ matrix.arch }}.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
@@ -109,7 +109,7 @@ jobs:
           gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-ubuntu20.04_${{ matrix.arch }}.tar.gz --clobber
       - name: Create and upload coverage report to Codecov
         if: ${{ matrix.coverage }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./build/codecov.xml

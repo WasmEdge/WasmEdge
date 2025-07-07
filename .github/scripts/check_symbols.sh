@@ -175,7 +175,7 @@ info "Extracting symbols from library..."
 if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
     # Windows: Use dumpbin to extract exports, fallback to objdump
     if command -v dumpbin >/dev/null 2>&1; then
-        dumpbin //EXPORTS "$LIB_PATH" | awk '/^[[:space:]]*[0-9]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+/ {print $4}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"
+        dumpbin /EXPORTS "$LIB_PATH" | awk '/^[[:space:]]*[0-9]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+[0-9A-Fa-f]+[[:space:]]+/ {print $4}' | grep -E "^WasmEdge" | sort > "$TEMP_DIR/extracted.symbols"
     elif command -v objdump >/dev/null 2>&1; then
         info "dumpbin not found, using objdump as fallback..."
         objdump -p "$LIB_PATH" | grep -E "^\s*\[[[:space:]]*[0-9]+\]" | grep "WasmEdge" | awk '{print $NF}' | sort > "$TEMP_DIR/extracted.symbols"

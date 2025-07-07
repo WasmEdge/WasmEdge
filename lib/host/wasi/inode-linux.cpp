@@ -155,12 +155,27 @@ void DirHolder::reset() noexcept {
     Cookie = 0;
   }
 }
+namespace {
+inline int getValidFd(int32_t Fd, int DefaultFd) {
+  if (Fd < 0) {
+    spdlog::warn("Invalid file descriptor {} falling back to default", Fd);
+    return DefaultFd;
+  }
+  return Fd;
+}
+} // namespace
 
-INode INode::stdIn() noexcept { return INode(STDIN_FILENO); }
+INode INode::stdIn(int32_t Fd) noexcept {
+  return INode(getValidFd(Fd, STDIN_FILENO), false, false);
+}
 
-INode INode::stdOut() noexcept { return INode(STDOUT_FILENO); }
+INode INode::stdOut(int32_t Fd) noexcept {
+  return INode(getValidFd(Fd, STDOUT_FILENO), false, false);
+}
 
-INode INode::stdErr() noexcept { return INode(STDERR_FILENO); }
+INode INode::stdErr(int32_t Fd) noexcept {
+  return INode(getValidFd(Fd, STDERR_FILENO), false, false);
+}
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,

@@ -46,11 +46,11 @@ public:
     return Path.find('\0') == std::string_view::npos;
   }
 
-  static std::shared_ptr<VINode> stdIn(__wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdIn(int32_t Fd, __wasi_rights_t FRB,
                                        __wasi_rights_t FRI);
-  static std::shared_ptr<VINode> stdOut(__wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdOut(int32_t Fd, __wasi_rights_t FRB,
                                         __wasi_rights_t FRI);
-  static std::shared_ptr<VINode> stdErr(__wasi_rights_t FRB,
+  static std::shared_ptr<VINode> stdErr(int32_t Fd, __wasi_rights_t FRB,
                                         __wasi_rights_t FRI);
 
   static std::string canonicalGuest(std::string_view Path);

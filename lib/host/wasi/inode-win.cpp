@@ -330,6 +330,26 @@ SymlinkPriviledgeHolder SymlinkPriviledgeHolder::Holder;
 
 } // namespace
 
+namespace {
+static winapi::HANDLE_ getWindowsHandle(int32_t Fd, winapi::DWORD_ StdHandleId,
+                                        std::string_view Name) {
+  if (Fd < 0) {
+    return winapi::GetStdHandle(StdHandleId);
+  }
+
+  auto raw = _get_osfhandle(Fd);
+  auto Handle = reinterpret_cast<winapi::HANDLE_>(raw);
+
+  if (Handle != winapi::INVALID_HANDLE_VALUE_ && Handle != nullptr) {
+    return Handle;
+  }
+  spdlog::warn("    Failed to get OS handle for custom {} FD: {}. "
+               "Falling back to default.",
+               Name, Fd);
+  return winapi::GetStdHandle(StdHandleId);
+}
+} // namespace
+
 HandleHolder::HandleHolder(const std::filesystem::path &Path,
                            const DWORD_ AccessFlags, const DWORD_ ShareFlags,
                            const DWORD_ CreationDisposition,
@@ -642,16 +662,16 @@ WasiExpect<void> FindHolder::doLoadDirent() noexcept {
 }
 #endif
 
-INode INode::stdIn() noexcept {
-  return INode(GetStdHandle(STD_INPUT_HANDLE_), true);
+INode INode::stdIn(int32_t Fd) noexcept {
+  return INode(getWindowsHandle(Fd, STD_INPUT_HANDLE_, "STDIN"), true);
 }
 
-INode INode::stdOut() noexcept {
-  return INode(GetStdHandle(STD_OUTPUT_HANDLE_), true);
+INode INode::stdOut(int32_t Fd) noexcept {
+  return INode(getWindowsHandle(Fd, STD_OUTPUT_HANDLE_, "STDOUT"), true);
 }
 
-INode INode::stdErr() noexcept {
-  return INode(GetStdHandle(STD_ERROR_HANDLE_), true);
+INode INode::stdErr(int32_t Fd) noexcept {
+  return INode(getWindowsHandle(Fd, STD_ERROR_HANDLE_, "STDERR"), true);
 }
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,

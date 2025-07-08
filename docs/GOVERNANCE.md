@@ -96,7 +96,7 @@ Generally, a vote can be taken on the developer mailing list (wasmedge@googlegro
 Any Maintainer may demand a vote be taken.
 
 ### Voting Process
-- **Timeline**: Votes remain open for minimum 7 days for two-thirds majority votes, 3 days for simple majority votes
+- **Timeline**: Votes remain open for minimum 5 days for two-thirds majority votes, 3 days for simple majority votes
 - **Quorum**: No minimum required; based on all existing Maintainers
 - **Documentation**: All votes and outcomes must be recorded
 - **Tie-breaking**: Tied votes fail

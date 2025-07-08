@@ -1386,7 +1386,10 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     GraphRef.Params.embd_sep = EmbdSep;
   }
   if (Doc.at_key("reranking").error() == simdjson::SUCCESS) {
-    auto Err = Doc["reranking"].get<bool>().get(GraphRef.Params.reranking);
+    bool Reranking = false;
+    auto Err = Doc["reranking"].get<bool>().get(Reranking);
+    GraphRef.Params.embedding = true;
+    GraphRef.Params.pooling_type = LLAMA_POOLING_TYPE_RANK;
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the reranking option."sv)

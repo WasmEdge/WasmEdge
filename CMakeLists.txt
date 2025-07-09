@@ -121,7 +121,8 @@ option(WASMEDGE_PLUGIN_TENSORFLOW "Enable and build WasmEdge TensorFlow plugin."
 option(WASMEDGE_PLUGIN_TENSORFLOWLITE "Enable and build WasmEdge TensorFlow-Lite plugin." OFF)
 #   WasmEdge plug-in: zlib.
 option(WASMEDGE_PLUGIN_ZLIB "Enable and build WasmEdge zlib plugin." OFF)
-
+option(WASMEDGE_PLUGIN_WASI_NN_BITNET_ARM_TL1 "Enable BitNet.cpp ARM_TL1 optimization" OFF)
+option(WASMEDGE_PLUGIN_WASI_NN_BITNET_X86_TL2 "Enable BitNet.cpp X86_TL2 optimization" OFF)
 # Fuzzing and tools and tests are exclusive.
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")

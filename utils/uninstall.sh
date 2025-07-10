@@ -247,12 +247,34 @@ main() {
     _shell_="${SHELL#${SHELL%/*}/}"
     _shell_rc=".""$_shell_""rc"
 
-    [[ -f "${__HOME__}/${_shell_rc}" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/${_shell_rc}" | cut -d : -f 1)" &&
-        [ "$line_num" != "" ] && sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/${_shell_rc}"
-    [[ -f "${__HOME__}/.profile" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.profile" | cut -d : -f 1)" &&
-        [[ "$line_num" != "" ]] && sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.profile"
-    [[ -f "${__HOME__}/.bash_profile" ]] && line_num="$(grep -n ". \"${IPATH}/env\"" "${__HOME__}/.bash_profile" | cut -d : -f 1)" &&
-        [[ "$line_num" != "" ]] && sed -i.wasmedge_backup -e "${line_num}"'d' "${__HOME__}/.bash_profile"
+    resolve_path() {
+      local file="$1"
+      if command -v realpath >/dev/null 2>&1; then
+        realpath "$file"
+      elif command -v readlink >/dev/null 2>&1; then
+        readlink "$file"
+      elif command -v python3 >/dev/null 2>&1; then
+        python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$file"
+      else
+        echo "Could not resolve config path"
+      fi
+    }
+
+    for file in "${__HOME__}/${_shell_rc}" "${__HOME__}/.profile" "${__HOME__}/.bash_profile"; do
+      [[ -f "$file" ]] || continue
+      line_num="$(grep -n ". \"${IPATH}/env\"" "$file" | cut -d : -f 1)"
+      [[ -n "$line_num" ]] || continue
+      real_file="$(resolve_path "$file")"
+      cp "$real_file" "$real_file.bak"
+      sed "${line_num}d" "$real_file.bak" > "$real_file"
+      rm -f "$real_file.bak"
+    done
+
+    exit 0
+
+
+
+
 
     exit 0
 }

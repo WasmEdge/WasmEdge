@@ -253,8 +253,6 @@ main() {
         realpath "$file"
       elif command -v readlink >/dev/null 2>&1; then
         readlink "$file"
-      elif command -v python3 >/dev/null 2>&1; then
-        python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$file"
       else
         echo "Could not resolve config path"
       fi
@@ -269,13 +267,7 @@ main() {
       sed "${line_num}d" "$real_file.bak" > "$real_file"
       rm -f "$real_file.bak"
     done
-
-    exit 0
-
-
-
-
-
+    
     exit 0
 }
 

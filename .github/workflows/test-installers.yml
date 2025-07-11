@@ -181,6 +181,9 @@ jobs:
         # Source helper functions
         . ./.github/scripts/installer-test-helpers.sh
 
+        # dummy .bashprofile creation to check uninstallation
+        [ -f ~/.bash_profile ] || echo > ~/.bash_profile
+
         # Use latest release version from previous job
         LATEST_VERSION="${{ needs.get-latest-version.outputs.version }}"
         echo "Latest WasmEdge release: ${LATEST_VERSION}"
@@ -191,6 +194,16 @@ jobs:
         source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
         verify_version "${LATEST_VERSION}"
         bash utils/uninstall.sh -q -V
+        # Test if the environment variable was removed
+        IPATH="$HOME/.wasmedge"
+        for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+        [ -f "$file" ] || continue
+        if grep -q ". \"$IPATH/env\"" "$file"; then
+          echo "✗ Found WasmEdge source line in: $file"
+          echo "✗ Uninstallation failed"
+          exit 1
+        fi
+        done
 
   # Test install_v2.sh
   test-install-v2:
@@ -274,7 +287,7 @@ jobs:
         bash utils/uninstall.sh -q -V
 
   # Test install_v2.sh on macOS
-  test-install-v2-macos:
+  test-install-v2-sh-macos:
     needs: get-latest-version
     strategy:
       fail-fast: false
@@ -309,7 +322,8 @@ jobs:
       run: |
         # Source helper functions
         . ./.github/scripts/installer-test-helpers.sh
-
+        # dummy .bashprofile creation to check uninstallation
+        [ -f ~/.bash_profile ] || echo > ~/.bash_profile
         # Basic installation with GGML plugin (install_v2.sh defaults to ${TEST_VERSION})
         echo "=== Test: Basic installation ==="
         bash utils/install_v2.sh -V
@@ -329,6 +343,16 @@ jobs:
         fi
 
         bash utils/uninstall.sh -q -V
+        # Test if the environment variable was removed
+        IPATH="$HOME/.wasmedge"
+        for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
+          [ -f "$file" ] || continue
+          if grep -q ". \"$IPATH/env\"" "$file"; then
+            echo "✗ Found WasmEdge source line in: $file"
+            echo "✗ Uninstallation failed"
+            exit 1
+          fi
+        done
 
   # Test install.py with comprehensive features
   test-install-py:

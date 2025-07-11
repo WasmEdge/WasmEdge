@@ -2,14 +2,12 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #pragma once
 
-#include "ast/instruction.h"
+#include "runtime/instance/component/hostfunc.h"
+
+#include "ast/type.h"
 #include "common/symbol.h"
-#include "runtime/component/hostfunc.h"
 
 #include <memory>
-#include <numeric>
-#include <string>
-#include <vector>
 
 namespace WasmEdge {
 namespace Runtime {
@@ -23,20 +21,16 @@ public:
   FunctionInstance(FunctionInstance &&Inst) noexcept
       : FuncType(Inst.FuncType), Data(std::move(Inst.Data)) {}
 
-  FunctionInstance(
-      std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase>
-          &&Func) noexcept
+  FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
       : FuncType(Func->getFuncType()), Data(std::move(Func)) {}
 
   const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
 
-  WasmEdge::Runtime::Component::HostFunctionBase &getHostFunc() const noexcept {
-    return *Data;
-  }
+  HostFunctionBase &getHostFunc() const noexcept { return *Data; }
 
 private:
   AST::FunctionType FuncType;
-  std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> Data;
+  std::unique_ptr<HostFunctionBase> Data;
 };
 
 } // namespace Component

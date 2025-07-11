@@ -12,18 +12,6 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Executor {
 
-Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
-                               const AST::Component::Component &Comp) {
-  return instantiate(StoreMgr, Comp);
-}
-Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
-Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
-                               const AST::Component::Component &Comp,
-                               std::string_view Name) {
-  return instantiate(StoreMgr, Comp, Name);
-}
-
 /// Instantiate a WASM Module. See "include/executor/executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
@@ -65,6 +53,23 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
     return E;
   });
 }
+
+/// Instantiate a Component. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
+                               const AST::Component::Component &Comp) {
+  return instantiate(StoreMgr, Comp);
+}
+
+/// Register a named Component. See "include/executor/executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::registerComponent(Runtime::StoreManager &StoreMgr,
+                            const AST::Component::Component &Comp,
+                            std::string_view Name) {
+  return instantiate(StoreMgr, Comp, Name);
+}
+
+/// Register an instantiated Component. See "include/executor/executor.h".
 Expect<void> Executor::registerComponent(
     Runtime::StoreManager &StoreMgr,
     const Runtime::Instance::ComponentInstance &CompInst) {
@@ -92,7 +97,7 @@ Expect<void> Executor::registerPostHostFunction(
   return {};
 }
 
-// Invoke function. See "include/executor/executor.h".
+/// Invoke function. See "include/executor/executor.h".
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
                  Span<const ValVariant> Params,
@@ -187,6 +192,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   return Returns;
 }
 
+/// Async invoke function. See "include/executor/executor.h".
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
                       Span<const ValVariant> Params,
@@ -198,13 +204,14 @@ Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-// NOTE: due to internal reason, we model the return values can still be
-// multiple, but in fact a component function will only return at most one.
-// This concept mismatching should be fix in the future.
+/// Invoke component function. See "include/executor/executor.h".
 Expect<std::vector<std::pair<ValInterface, ValType>>>
 Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
                  Span<const ValInterface> Params,
                  Span<const ValType> ParamTypes) {
+  // NOTE: due to internal reason, we accept the multi-return values, but in
+  // fact a component function will only return at most one. This concept
+  // mismatching should be fix in the future.
   if (unlikely(FuncInst == nullptr)) {
     spdlog::error(ErrCode::Value::FuncNotFound);
     return Unexpect(ErrCode::Value::FuncNotFound);

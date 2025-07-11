@@ -18,73 +18,70 @@
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "common/types.h"
-#include "runtime/component/hostfunc.h"
 #include "runtime/instance/component/function.h"
+#include "runtime/instance/component/hostfunc.h"
 #include "runtime/instance/module.h"
 
 #include <atomic>
 #include <functional>
 #include <map>
 #include <memory>
-#include <mutex>
-#include <set>
-#include <shared_mutex>
 #include <string>
 #include <type_traits>
 #include <vector>
 
 namespace WasmEdge {
-
 namespace Runtime {
-
 namespace Instance {
 
-using namespace AST::Component;
-
 namespace {
-void typeConvert(ValueType &VT, const ValType &Ty) noexcept {
+void typeConvert(AST::Component::ValueType &VT, const ValType &Ty) noexcept {
   switch (Ty.getCode()) {
   case TypeCode::I8:
-    VT.emplace<PrimValType>(PrimValType::S8);
+    VT.setCode(AST::Component::PrimValType::S8);
     break;
   case TypeCode::I16:
-    VT.emplace<PrimValType>(PrimValType::S16);
+    VT.setCode(AST::Component::PrimValType::S16);
     break;
   case TypeCode::I32:
-    VT.emplace<PrimValType>(PrimValType::S32);
+    VT.setCode(AST::Component::PrimValType::S32);
     break;
   case TypeCode::I64:
-    VT.emplace<PrimValType>(PrimValType::S64);
+    VT.setCode(AST::Component::PrimValType::S64);
     break;
   case TypeCode::F32:
-    VT.emplace<PrimValType>(PrimValType::F32);
+    VT.setCode(AST::Component::PrimValType::F32);
     break;
   case TypeCode::F64:
-    VT.emplace<PrimValType>(PrimValType::F64);
+    VT.setCode(AST::Component::PrimValType::F64);
     break;
-
   default:
     break;
   }
 }
 
-void typeConvert(FuncType &FT, const AST::FunctionType &Ty) noexcept {
-  auto &PL = FT.getParamList();
-  for (auto const &PT : Ty.getParamTypes()) {
-    LabelValType L{};
-    typeConvert(L.getValType(), PT);
-    PL.emplace_back(L);
+void typeConvert(AST::Component::FuncType &FT,
+                 const AST::FunctionType &Ty) noexcept {
+  std::vector<AST::Component::LabelValType> PList;
+  for (const auto &PT : Ty.getParamTypes()) {
+    AST::Component::ValueType VT;
+    typeConvert(VT, PT);
+    PList.emplace_back("", VT);
   }
-  auto &RL = FT.getResultList();
+  FT.setParamList(std::move(PList));
+
   if (Ty.getReturnTypes().size() == 1) {
-    typeConvert(RL.emplace<ValueType>(), Ty.getReturnTypes()[0]);
+    AST::Component::ValueType VT;
+    typeConvert(VT, Ty.getReturnTypes()[0]);
+    FT.setResultType(VT);
   } else {
-    auto &LL = RL.emplace<std::vector<LabelValType>>();
-    for (auto const &RT : Ty.getReturnTypes()) {
-      LabelValType L{};
-      typeConvert(L.getValType(), RT);
-      LL.emplace_back(L);
+    std::vector<AST::Component::LabelValType> RList;
+    for (const auto &RT : Ty.getReturnTypes()) {
+      AST::Component::ValueType VT;
+      typeConvert(VT, RT);
+      PList.emplace_back("", VT);
     }
+    FT.setResultList(std::move(RList));
   }
 }
 } // namespace
@@ -95,22 +92,22 @@ public:
 
   std::string_view getComponentName() const noexcept { return CompName; }
 
-  void addModule(const AST::Module &M) noexcept { ModList.emplace_back(M); }
+  void addModule(const AST::Module &M) noexcept { ModList.emplace_back(&M); }
   const AST::Module &getModule(uint32_t Index) const noexcept {
-    return ModList[Index];
+    return *ModList[Index];
   }
 
   void addComponent(const AST::Component::Component &C) noexcept {
-    CompList.emplace_back(C);
+    CompList.emplace_back(&C);
   }
   const AST::Component::Component &getComponent(uint32_t Index) const noexcept {
-    return CompList[Index];
+    return *CompList[Index];
   }
 
   void addModuleInstance(ModuleInstance *Inst) noexcept {
     ModInstList.push_back(std::move(Inst));
   }
-  void addModuleInstance(std::unique_ptr<ModuleInstance> Inst) noexcept {
+  void addModuleInstance(std::unique_ptr<ModuleInstance> &&Inst) noexcept {
     ModInstList.push_back(Inst.get());
     OwnedModInstList.push_back(std::move(Inst));
   }
@@ -121,7 +118,8 @@ public:
   void addComponentInstance(const ComponentInstance *Inst) noexcept {
     CompInstList.push_back(Inst);
   }
-  void addComponentInstance(std::unique_ptr<ComponentInstance> Inst) noexcept {
+  void
+  addComponentInstance(std::unique_ptr<ComponentInstance> &&Inst) noexcept {
     CompInstList.push_back(Inst.get());
     OwnedCompInstList.push_back(std::move(Inst));
   }
@@ -129,12 +127,11 @@ public:
     return CompInstList[Index];
   }
 
-  void addHostFunc(
-      std::string_view Name,
-      std::unique_ptr<WasmEdge::Runtime::Component::HostFunctionBase> &&Func) {
+  void addHostFunc(std::string_view Name,
+                   std::unique_ptr<Component::HostFunctionBase> &&Func) {
     addType(Func->getFuncType());
-    auto FuncInst = std::make_unique<Instance::Component::FunctionInstance>(
-        std::move(Func));
+    auto FuncInst =
+        std::make_unique<Component::FunctionInstance>(std::move(Func));
     unsafeAddHostFunc(Name, std::move(FuncInst));
   }
   void addHostFunc(std::string_view Name,
@@ -154,9 +151,27 @@ public:
   FunctionInstance *getCoreFunctionInstance(uint32_t Index) const noexcept {
     return CoreFuncInstList[Index];
   }
+  void addCoreTableInstance(TableInstance *Inst) noexcept {
+    CoreTabInstList.push_back(Inst);
+  }
+  TableInstance *getCoreTableInstance(uint32_t Index) const noexcept {
+    return CoreTabInstList[Index];
+  }
+  void addCoreMemoryInstance(MemoryInstance *Inst) noexcept {
+    CoreMemInstList.push_back(Inst);
+  }
+  MemoryInstance *getCoreMemoryInstance(uint32_t Index) const noexcept {
+    return CoreMemInstList[Index];
+  }
+  void addCoreGlobalInstance(GlobalInstance *Inst) noexcept {
+    CoreGlobInstList.push_back(Inst);
+  }
+  GlobalInstance *getCoreGlobalInstance(uint32_t Index) const noexcept {
+    return CoreGlobInstList[Index];
+  }
 
   void addFunctionInstance(
-      std::unique_ptr<Component::FunctionInstance> Inst) noexcept {
+      std::unique_ptr<Component::FunctionInstance> &&Inst) noexcept {
     addFunctionInstance(Inst.get());
     OwnedFuncInstList.emplace_back(std::move(Inst));
   }
@@ -201,44 +216,31 @@ public:
     return R;
   }
 
-  void addCoreTableInstance(TableInstance *Inst) noexcept {
-    CoreTabInstList.push_back(Inst);
+  void addCoreType(const AST::Component::CoreDefType &Ty) noexcept {
+    CoreTypes.emplace_back(&Ty);
   }
-  TableInstance *getCoreTableInstance(uint32_t Index) const noexcept {
-    return CoreTabInstList[Index];
-  }
-  void addCoreMemoryInstance(MemoryInstance *Inst) noexcept {
-    CoreMemInstList.push_back(Inst);
-  }
-  MemoryInstance *getCoreMemoryInstance(uint32_t Index) const noexcept {
-    return CoreMemInstList[Index];
-  }
-  void addCoreGlobalInstance(GlobalInstance *Inst) noexcept {
-    CoreGlobInstList.push_back(Inst);
-  }
-  GlobalInstance *getCoreGlobalInstance(uint32_t Index) const noexcept {
-    return CoreGlobInstList[Index];
-  }
-
-  void addCoreType(const CoreDefType &Ty) noexcept {
-    CoreTypes.emplace_back(Ty);
-  }
-  const CoreDefType &getCoreType(uint32_t Idx) const noexcept {
-    return CoreTypes[Idx];
+  const AST::Component::CoreDefType &getCoreType(uint32_t Idx) const noexcept {
+    return *CoreTypes[Idx];
   }
 
   void addType(const AST::FunctionType &Ty) noexcept {
-    FuncType FT{};
+    AST::Component::FuncType FT;
     typeConvert(FT, Ty);
-    addType(FT);
+    OwnedTypes.push_back(std::make_unique<AST::Component::DefType>());
+    OwnedTypes.back()->setFuncType(std::move(FT));
+    Types.push_back(OwnedTypes.back().get());
   }
-  void addType(const DefType &Ty) noexcept { Types.emplace_back(Ty); }
-  const DefType &getType(uint32_t Idx) const noexcept { return Types[Idx]; }
+  void addType(const AST::Component::DefType &Ty) noexcept {
+    Types.emplace_back(&Ty);
+  }
+  const AST::Component::DefType &getType(uint32_t Idx) const noexcept {
+    return *Types[Idx];
+  }
 
 private:
   void unsafeAddHostFunc(
       std::string_view Name,
-      std::unique_ptr<Component::FunctionInstance> Inst) noexcept {
+      std::unique_ptr<Component::FunctionInstance> &&Inst) noexcept {
     addFunctionInstance(Inst.get());
     ExportFuncMap.insert_or_assign(std::string(Name), FuncInstList.back());
     OwnedFuncInstList.push_back(std::move(Inst));
@@ -247,8 +249,8 @@ private:
 private:
   std::string CompName;
 
-  std::vector<AST::Module> ModList;
-  std::vector<AST::Component::Component> CompList;
+  std::vector<const AST::Module *> ModList;
+  std::vector<const AST::Component::Component *> CompList;
 
   std::vector<std::unique_ptr<ModuleInstance>> OwnedModInstList;
   std::vector<const ModuleInstance *> ModInstList;
@@ -285,8 +287,9 @@ private:
   std::vector<MemoryInstance *> CoreMemInstList;
   std::vector<GlobalInstance *> CoreGlobInstList;
 
-  std::vector<AST::Component::CoreDefType> CoreTypes;
-  std::vector<AST::Component::DefType> Types;
+  std::vector<const AST::Component::CoreDefType *> CoreTypes;
+  std::vector<const AST::Component::DefType *> Types;
+  std::vector<std::unique_ptr<AST::Component::DefType>> OwnedTypes;
 };
 
 } // namespace Instance

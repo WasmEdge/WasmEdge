@@ -19,7 +19,7 @@
 #include "common/version.h"
 #include "loader/shared_library.h"
 #include "po/argument_parser.h"
-#include "runtime/instance/component.h"
+#include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
 
 #include <cstdint>

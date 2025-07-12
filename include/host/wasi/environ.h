@@ -7,6 +7,7 @@
 #include "common/errcode.h"
 #include "common/hash.h"
 #include "common/span.h"
+#include "common/types.h"
 #include "host/wasi/clock.h"
 #include "host/wasi/error.h"
 #include "host/wasi/vfs.h"
@@ -41,10 +42,11 @@ struct WasiAddrStorage {
   uint16_t AddressFamily;
   uint8_t Address[128 - sizeof(uint16_t)];
   __wasi_address_family_t getAddressFamily() const noexcept {
-    return static_cast<__wasi_address_family_t>(AddressFamily);
+    return static_cast<__wasi_address_family_t>(
+        EndianValue(AddressFamily).le());
   }
   void setAddressFamily(__wasi_address_family_t AddrFamily) noexcept {
-    AddressFamily = static_cast<uint16_t>(AddrFamily);
+    AddressFamily = EndianValue(static_cast<uint16_t>(AddrFamily)).le();
   }
   Span<uint8_t> getAddress() noexcept { return Address; }
   Span<const uint8_t> getAddress() const noexcept { return Address; }
@@ -104,6 +106,7 @@ public:
       if (Argv.size() > 1) {
         Argv[1] = Argv[0] + Size + UINT32_C(1);
       }
+      Argv[0] = EndianValue(Argv[0]).le();
       Argv = Argv.subspan(1);
     }
     assert(ArgvBuffer.empty());
@@ -119,11 +122,12 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> argsSizesGet(__wasi_size_t &Argc,
                                 __wasi_size_t &ArgvSize) const noexcept {
-    Argc = static_cast<__wasi_size_t>(Arguments.size());
+    Argc = EndianValue(static_cast<__wasi_size_t>(Arguments.size())).le();
     ArgvSize = 0;
     for (const auto &Argument : Arguments) {
       ArgvSize += static_cast<__wasi_size_t>(Argument.size()) + UINT32_C(1);
     }
+    ArgvSize = EndianValue(ArgvSize).le();
 
     return {};
   }
@@ -150,6 +154,7 @@ public:
       if (Env.size() > 1) {
         Env[1] = Env[0] + Size + UINT32_C(1);
       }
+      Env[0] = EndianValue(Env[0]).le();
       Env = Env.subspan(1);
     }
     assert(EnvBuffer.empty());
@@ -165,12 +170,14 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> environSizesGet(__wasi_size_t &Envc,
                                    __wasi_size_t &EnvSize) const noexcept {
-    Envc = static_cast<__wasi_size_t>(EnvironVariables.size());
+    Envc =
+        EndianValue(static_cast<__wasi_size_t>(EnvironVariables.size())).le();
     EnvSize = 0;
     for (const auto &EnvironVariable : EnvironVariables) {
       EnvSize +=
           static_cast<__wasi_size_t>(EnvironVariable.size()) + UINT32_C(1);
     }
+    EnvSize = EndianValue(EnvSize).le();
 
     return {};
   }
@@ -398,7 +405,8 @@ public:
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     } else {
       PreStat.tag = __WASI_PREOPENTYPE_DIR;
-      PreStat.u.dir.pr_name_len = static_cast<__wasi_size_t>(Path.size());
+      PreStat.u.dir.pr_name_len =
+          EndianValue(static_cast<__wasi_size_t>(Path.size())).le();
     }
     return {};
   }
@@ -929,8 +937,9 @@ public:
     return {};
   }
 
-  WasiExpect<__wasi_fd_t> sockOpen(__wasi_address_family_t AddressFamily,
-                                   __wasi_sock_type_t SockType) noexcept {
+  WasiExpect<__wasi_fd_t>
+  sockOpen(__wasi_address_family_t AddressFamily,
+           __wasi_sock_type_t SockType) noexcept {
 
     std::shared_ptr<VINode> Node;
     if (auto Res = VINode::sockOpen(AddressFamily, SockType); unlikely(!Res)) {

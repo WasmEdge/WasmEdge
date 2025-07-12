@@ -616,12 +616,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // Const Instructions.
   case OpCode::I32__const:
     EXPECTED_TRY(FMgr.readS32().map_error(ReportError).map([&](int32_t Num) {
-      Instr.setNum(static_cast<uint128_t>(static_cast<uint32_t>(Num)));
+      Instr.setNum(static_cast<uint32_t>(Num));
     }));
     return {};
   case OpCode::I64__const:
     EXPECTED_TRY(FMgr.readS64().map_error(ReportError).map([&](int64_t Num) {
-      Instr.setNum(static_cast<uint128_t>(static_cast<uint64_t>(Num)));
+      Instr.setNum(static_cast<uint64_t>(Num));
     }));
     return {};
   case OpCode::F32__const:

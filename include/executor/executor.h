@@ -21,6 +21,7 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/statistics.h"
+#include "common/types.h"
 #include "runtime/callingframe.h"
 #include "runtime/instance/component/component.h"
 #include "runtime/instance/module.h"
@@ -401,7 +402,7 @@ private:
   /// @{
   template <typename T>
   Expect<uint32_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                              uint32_t Address, T Expected,
+                              uint32_t Address, EndianValue<T> Expected,
                               int64_t Timeout) noexcept;
   Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
                                 uint32_t Address, uint32_t Count) noexcept;

@@ -18,6 +18,7 @@
 #include "common/errcode.h"
 #include "common/int128.h"
 #include "common/variant.h"
+#include "endian.h"
 
 #include <array>
 #include <cstdint>
@@ -839,6 +840,53 @@ template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
 }
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+/// EndianValue definition.
+template <typename T> class EndianValue {
+public:
+  constexpr EndianValue() noexcept = default;
+  constexpr EndianValue(T Val) noexcept : Native(Val) {}
+  constexpr EndianValue(T Val, Endian Endian) noexcept {
+    if (Endian != Endian::little) {
+      Native = Val;
+    } else {
+      Native = switchEndian(Val);
+    }
+  }
+  constexpr EndianValue &operator=(T Val) noexcept {
+    Native = Val;
+    return *this;
+  }
+
+  constexpr const T le() const noexcept { return switchEndian(Native); }
+
+  constexpr const T &raw() const noexcept { return Native; }
+  constexpr T &raw() noexcept { return Native; }
+
+private:
+  T Native;
+
+  constexpr T switchEndian(T Value) const noexcept {
+    if constexpr (Endian::native == Endian::little) {
+      return Value;
+    } else if constexpr (sizeof(T) == 1) {
+      return Value;
+    } else if constexpr (std::is_integral_v<T>) {
+      return WasmEdge::byteswap(Value);
+    } else if constexpr (std::is_floating_point_v<T>) {
+      uint64_t Tmp = 0U;
+      std::memcpy(&Tmp, &Value, sizeof(T));
+      Tmp = WasmEdge::byteswap(Tmp) << (64 - sizeof(T) * 8);
+      std::memcpy(&Value, &Tmp, sizeof(T));
+      return Value;
+    } else if constexpr (std::is_enum_v<T>) {
+      using UnderlyingType = std::underlying_type_t<T>;
+      return static_cast<T>(
+          WasmEdge::byteswap(static_cast<UnderlyingType>(Value)));
+    }
+    assumingUnreachable();
+  }
+};
 
 } // namespace WasmEdge
 

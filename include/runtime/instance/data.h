@@ -45,7 +45,10 @@ public:
     // Load the data to the value.
     uint128_t Value;
     std::memcpy(&Value, &Data[Offset], N);
-    return Value;
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+    Value >>= (128 - N * 8);
+#endif
+    return getLittleEndian(Value);
   }
 
   /// Clear data in data instance.

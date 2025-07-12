@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "common/types.h"
 #if WASMEDGE_OS_LINUX
 
 #include "common/errcode.h"
@@ -217,7 +218,7 @@ WasiExpect<void> INode::fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept {
   if (int FdFlags = ::fcntl(Fd, F_GETFL); unlikely(FdFlags < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    FdStat.fs_filetype = unsafeFiletype();
+    FdStat.fs_filetype = getLittleEndian(unsafeFiletype());
 
     FdStat.fs_flags = static_cast<__wasi_fdflags_t>(0);
     if (Append) {
@@ -233,6 +234,7 @@ WasiExpect<void> INode::fdFdstatGet(__wasi_fdstat_t &FdStat) const noexcept {
       FdStat.fs_flags |= __WASI_FDFLAGS_RSYNC | __WASI_FDFLAGS_SYNC;
     }
   }
+  FdStat.fs_flags = getLittleEndian(FdStat.fs_flags);
 
   return {};
 }
@@ -267,14 +269,17 @@ INode::fdFilestatGet(__wasi_filestat_t &Filestat) const noexcept {
 
   // Zeroing out these values to prevent leaking information about the host
   // environment from special fd such as stdin, stdout and stderr.
-  Filestat.dev = isSpecialFd(Fd) ? 0 : Stat->st_dev;
-  Filestat.ino = isSpecialFd(Fd) ? 0 : Stat->st_ino;
-  Filestat.filetype = unsafeFiletype();
-  Filestat.nlink = isSpecialFd(Fd) ? 0 : Stat->st_nlink;
-  Filestat.size = isSpecialFd(Fd) ? 0 : Stat->st_size;
-  Filestat.atim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_atim);
-  Filestat.mtim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_mtim);
-  Filestat.ctim = isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_ctim);
+  Filestat.dev = getLittleEndian(isSpecialFd(Fd) ? 0 : Stat->st_dev);
+  Filestat.ino = getLittleEndian(isSpecialFd(Fd) ? 0 : Stat->st_ino);
+  Filestat.filetype = getLittleEndian(unsafeFiletype());
+  Filestat.nlink = getLittleEndian(isSpecialFd(Fd) ? 0 : Stat->st_nlink);
+  Filestat.size = getLittleEndian(isSpecialFd(Fd) ? 0 : Stat->st_size);
+  Filestat.atim =
+      getLittleEndian(isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_atim));
+  Filestat.mtim =
+      getLittleEndian(isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_mtim));
+  Filestat.ctim =
+      getLittleEndian(isSpecialFd(Fd) ? 0 : fromTimespec(Stat->st_ctim));
 
   return {};
 }
@@ -381,7 +386,7 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    NRead = Res;
+    NRead = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 #else
   const auto OldOffset = ::lseek(Fd, 0, SEEK_CUR);
@@ -399,7 +404,7 @@ WasiExpect<void> INode::fdPread(Span<Span<uint8_t>> IOVs,
     if (::lseek(Fd, OldOffset, SEEK_SET) < 0) {
       return WasiUnexpect(fromErrNo(errno));
     }
-    NRead = Res;
+    NRead = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 #endif
 
@@ -422,7 +427,7 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    NWritten = Res;
+    NWritten = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 #else
   const auto OldOffset = ::lseek(Fd, 0, SEEK_CUR);
@@ -440,7 +445,7 @@ WasiExpect<void> INode::fdPwrite(Span<Span<const uint8_t>> IOVs,
     if (::lseek(Fd, OldOffset, SEEK_SET) < 0) {
       return WasiUnexpect(fromErrNo(errno));
     }
-    NWritten = Res;
+    NRead = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 #endif
 
@@ -460,7 +465,7 @@ WasiExpect<void> INode::fdRead(Span<Span<uint8_t>> IOVs,
   if (auto Res = ::readv(Fd, SysIOVs, SysIOVsSize); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    NRead = Res;
+    NRead = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 
   return {};
@@ -528,7 +533,7 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
     std::copy(Name.cbegin(), Name.cend(),
               Dir.Buffer.begin() + sizeof(__wasi_dirent_t));
   } while (!Buffer.empty());
-
+  Size = getLittleEndian(Size);
   return {};
 }
 
@@ -538,7 +543,7 @@ WasiExpect<void> INode::fdSeek(__wasi_filedelta_t Offset,
   if (auto Res = ::lseek(Fd, Offset, toWhence(Whence)); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    Size = Res;
+    Size = getLittleEndian(static_cast<__wasi_filesize_t>(Res));
   }
 
   return {};
@@ -556,7 +561,7 @@ WasiExpect<void> INode::fdTell(__wasi_filesize_t &Size) const noexcept {
   if (auto Res = ::lseek(Fd, 0, SEEK_CUR); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    Size = Res;
+    Size = getLittleEndian(static_cast<__wasi_filesize_t>(Res));
   }
 
   return {};
@@ -579,7 +584,7 @@ WasiExpect<void> INode::fdWrite(Span<Span<const uint8_t>> IOVs,
   if (auto Res = ::writev(Fd, SysIOVs, SysIOVsSize); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    NWritten = Res;
+    NWritten = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 
   return {};
@@ -606,14 +611,14 @@ INode::pathFilestatGet(std::string Path,
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  Filestat.dev = SysFStat.st_dev;
-  Filestat.ino = SysFStat.st_ino;
-  Filestat.filetype = fromFileType(static_cast<mode_t>(SysFStat.st_mode));
-  Filestat.nlink = SysFStat.st_nlink;
-  Filestat.size = SysFStat.st_size;
-  Filestat.atim = fromTimespec(SysFStat.st_atim);
-  Filestat.mtim = fromTimespec(SysFStat.st_mtim);
-  Filestat.ctim = fromTimespec(SysFStat.st_ctim);
+  Filestat.dev = getLittleEndian(SysFStat.st_dev);
+  Filestat.ino = getLittleEndian(SysFStat.st_ino);
+  Filestat.filetype = fromFileType(SysFStat.st_mode);
+  Filestat.nlink = getLittleEndian(SysFStat.st_nlink);
+  Filestat.size = getLittleEndian(SysFStat.st_size);
+  Filestat.atim = getLittleEndian(fromTimespec(SysFStat.st_atim));
+  Filestat.mtim = getLittleEndian(fromTimespec(SysFStat.st_mtim));
+  Filestat.ctim = getLittleEndian(fromTimespec(SysFStat.st_ctim));
 
   return {};
 }
@@ -748,7 +753,7 @@ WasiExpect<void> INode::pathReadlink(std::string Path, Span<char> Buffer,
       unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    NRead = Res;
+    NRead = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 
   return {};
@@ -1070,7 +1075,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
   if (auto Res = ::recvmsg(Fd, &SysMsgHdr, SysRiFlags); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    NRead = Res;
+    NRead = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 
   if (NeedAddress) {
@@ -1129,6 +1134,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
   if (SysMsgHdr.msg_flags & MSG_TRUNC) {
     RoFlags |= __WASI_ROFLAGS_RECV_DATA_TRUNCATED;
   }
+  RoFlags = getLittleEndian(RoFlags);
 
   return {};
 }
@@ -1176,7 +1182,7 @@ WasiExpect<void> INode::sockSendTo(Span<Span<const uint8_t>> SiData,
   if (auto Res = ::sendmsg(Fd, &SysMsgHdr, SysSiFlags); unlikely(Res < 0)) {
     return WasiUnexpect(fromErrNo(errno));
   } else {
-    NWritten = Res;
+    NWritten = getLittleEndian(static_cast<__wasi_size_t>(Res));
   }
 
   return {};

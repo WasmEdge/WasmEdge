@@ -160,6 +160,11 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
                                      const AST::Instruction &Instr) {
   using VT = SIMDArray<T, 16>;
   VT Result = StackMgr.pop().get<VT>();
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
+  const uint32_t Lane = Instr.getMemoryLane();
+#else
+  const uint32_t Lane = (16 / sizeof(T)) - 1 - Instr.getMemoryLane();
+#endif
 
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
@@ -184,7 +189,7 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
         return E;
       })
       .map([&]() {
-        Result[Instr.getMemoryLane()] = static_cast<T>(Buffer);
+        Result[Lane] = static_cast<T>(Buffer);
         Val.emplace<VT>(Result);
       });
 }
@@ -196,7 +201,12 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr) {
   using VT = SIMDArray<T, 16>;
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;
-  const TBuf C = StackMgr.pop().get<VT>()[Instr.getMemoryLane()];
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
+  const uint32_t Lane = Instr.getMemoryLane();
+#else
+  const uint32_t Lane = (16 / sizeof(T)) - 1 - Instr.getMemoryLane();
+#endif
+  const TBuf C = StackMgr.pop().get<VT>()[Lane];
 
   // Calculate EA = i + offset
   uint32_t I = StackMgr.pop().get<uint32_t>();

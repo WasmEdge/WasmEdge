@@ -26,11 +26,6 @@
 #include <limits>
 #include <stdexcept>
 
-// Currently, only byte-swapped little endian is handled.
-#if !WASMEDGE_ENDIAN_LITTLE_BYTE
-#error unsupported endian!
-#endif
-
 namespace WasmEdge {
 
 inline constexpr int clz(uint32_t V) noexcept {
@@ -137,7 +132,7 @@ public:
       : Low(L), High(H){}
 
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
         constexpr uint128(unsigned __int128 V) noexcept
       : Low(static_cast<uint64_t>(V)), High(static_cast<uint64_t>(V >> 64)) {
   }
@@ -403,7 +398,7 @@ public:
   constexpr int128(int64_t H, uint64_t L) noexcept
       : Low(L), High(H){}
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
         constexpr int128(__int128 V) noexcept
       : Low(static_cast<uint64_t>(V)), High(V >> 64) {
   }
@@ -553,7 +548,7 @@ template <> struct is_class<WasmEdge::uint128> : std::true_type {};
 namespace WasmEdge {
 // If there is a built-in type __int128, then use it directly
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
 using int128_t = __int128;
 using uint128_t = unsigned __int128;
 #else

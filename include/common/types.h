@@ -840,6 +840,32 @@ template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> Function to convert from host endian to little endian >>>>>>>>>>>>>>
+
+template <typename T> inline T getLittleEndian(T Val) noexcept {
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
+  return Val;
+#else
+  if constexpr (sizeof(T) == 1) {
+    return Val;
+  } else if constexpr (sizeof(T) == 2) {
+    return static_cast<T>(__builtin_bswap16(static_cast<uint16_t>(Val)));
+  } else if constexpr (sizeof(T) == 4) {
+    return static_cast<T>(__builtin_bswap32(static_cast<uint32_t>(Val)));
+  } else if constexpr (sizeof(T) == 8) {
+    return static_cast<T>(__builtin_bswap64(static_cast<uint64_t>(Val)));
+  } else if constexpr (sizeof(T) == 16) {
+    return (static_cast<uint128_t>(
+                __builtin_bswap64(static_cast<uint64_t>(Val)))
+            << 64) |
+           static_cast<uint128_t>(
+               __builtin_bswap64(static_cast<uint64_t>(Val >> 64)));
+  }
+#endif
+}
+
+// <<<<<<<< Function to convert from host endian to little endian <<<<<<<<<<<<<<
+
 } // namespace WasmEdge
 
 template <>

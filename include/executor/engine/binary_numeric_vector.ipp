@@ -14,7 +14,11 @@ Expect<void> Executor::runReplaceLaneOp(ValVariant &Val1,
                                         const uint8_t Index) const {
   using VTOut [[gnu::vector_size(16)]] = TOut;
   VTOut &Result = Val1.get<VTOut>();
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
   Result[Index] = static_cast<TOut>(Val2.get<TIn>());
+#else
+  Result[(16 / sizeof(TOut)) - 1 - Index] = static_cast<TOut>(Val2.get<TIn>());
+#endif
   return {};
 }
 
@@ -109,6 +113,7 @@ Expect<void> Executor::runVectorNarrowOp(ValVariant &Val1,
   V2 = detail::vectorSelect(V2 > Max, Max, V2);
   const HVTOut HV1 = __builtin_convertvector(V1, HVTOut);
   const HVTOut HV2 = __builtin_convertvector(V2, HVTOut);
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
   if constexpr (sizeof(TOut) == 1) {
     Val1.emplace<VTOut>(VTOut{HV1[0], HV1[1], HV1[2], HV1[3], HV1[4], HV1[5],
                               HV1[6], HV1[7], HV2[0], HV2[1], HV2[2], HV2[3],
@@ -117,6 +122,16 @@ Expect<void> Executor::runVectorNarrowOp(ValVariant &Val1,
     Val1.emplace<VTOut>(
         VTOut{HV1[0], HV1[1], HV1[2], HV1[3], HV2[0], HV2[1], HV2[2], HV2[3]});
   }
+#else
+  if constexpr (sizeof(TOut) == 1) {
+    Val1.emplace<VTOut>(VTOut{HV2[0], HV2[1], HV2[2], HV2[3], HV2[4], HV2[5],
+                              HV2[6], HV2[7], HV1[0], HV1[1], HV1[2], HV1[3],
+                              HV1[4], HV1[5], HV1[6], HV1[7]});
+  } else if constexpr (sizeof(TOut) == 2) {
+    Val1.emplace<VTOut>(
+        VTOut{HV2[0], HV2[1], HV2[2], HV2[3], HV1[0], HV1[1], HV1[2], HV1[3]});
+  }
+#endif
 
   return {};
 }

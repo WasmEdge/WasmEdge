@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "common/types.h"
 #if !WASMEDGE_OS_LINUX
 #error
 #endif
@@ -273,7 +274,7 @@ inline constexpr timespec toTimespec(__wasi_timestamp_t Timestamp) noexcept {
   return Result;
 }
 
-inline constexpr __wasi_timestamp_t
+inline constexpr EndianValue<__wasi_timestamp_t>
 fromTimespec(const timespec &Time) noexcept {
   using namespace std::chrono;
   const auto Result = seconds(Time.tv_sec) + nanoseconds(Time.tv_nsec);

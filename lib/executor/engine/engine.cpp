@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/endian.h"
 #include "executor/coredump.h"
 #include "executor/executor.h"
 #include "system/stacktrace.h"
@@ -928,7 +929,11 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       const auto V3 = Instr.getNum().get<uint128_t>();
       for (size_t I = 0; I < 16; ++I) {
         const uint8_t Index = static_cast<uint8_t>(V3 >> (I * 8));
-        Result[I] = Data[Index];
+        if constexpr (Endian::native == Endian::little) {
+          Result[I] = Data[Index];
+        } else {
+          Result[15 - I] = Index < 16 ? Data[15 - Index] : Data[47 - Index];
+        }
       }
       std::memcpy(&Val1, &Result[0], 16);
       return {};
@@ -1011,20 +1016,16 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::I8x16__swizzle: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      const uint8x16_t &Index = Val2.get<uint8x16_t>();
+      uint8x16_t Index = Val2.get<uint8x16_t>();
+      if constexpr (Endian::native == Endian::big) {
+        Index = 15 - Index;
+      }
       uint8x16_t &Vector = Val1.get<uint8x16_t>();
       const uint8x16_t Limit = uint8x16_t{} + 16;
       const uint8x16_t Zero = uint8x16_t{};
       const uint8x16_t Exceed = (Index >= Limit);
 #ifdef __clang__
-      uint8x16_t Result = {Vector[Index[0] & 0xF],  Vector[Index[1] & 0xF],
-                           Vector[Index[2] & 0xF],  Vector[Index[3] & 0xF],
-                           Vector[Index[4] & 0xF],  Vector[Index[5] & 0xF],
-                           Vector[Index[6] & 0xF],  Vector[Index[7] & 0xF],
-                           Vector[Index[8] & 0xF],  Vector[Index[9] & 0xF],
-                           Vector[Index[10] & 0xF], Vector[Index[11] & 0xF],
-                           Vector[Index[12] & 0xF], Vector[Index[13] & 0xF],
-                           Vector[Index[14] & 0xF], Vector[Index[15] & 0xF]};
+      uint8x16_t Result = __builtin_shufflevector(Vector, Index);
 #else
       uint8x16_t Result = __builtin_shuffle(Vector, Index);
 #endif
@@ -1777,7 +1778,14 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::I8x16__relaxed_swizzle: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      const uint8x16_t &Index = Val2.get<uint8x16_t>();
+      uint8x16_t Index = Val2.get<uint8x16_t>();
+      if constexpr (Endian::native == Endian::big) {
+#if defined(_MSC_VER) && !defined(__clang__)
+        std::for_each(Index.begin(), Index.end(), [](auto &I) { I = 15 - I; });
+#else
+        Index = 15 - Index;
+#endif
+      }
       uint8x16_t &Vector = Val1.get<uint8x16_t>();
       uint8x16_t Result{};
       for (size_t I = 0; I < 16; ++I) {

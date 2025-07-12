@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "spectest.h"
+#include "common/errcode.h"
 #include "common/hash.h"
 #include "common/spdlog.h"
 
@@ -95,6 +96,22 @@ SpecTest::CommandID resolveCommand(std::string_view Name) {
   return SpecTest::CommandID::Unknown;
 }
 
+template <typename T, size_t N = sizeof(T)>
+static void parseSIMDLanes(WasmEdge::uint128_t &V128,
+                           const simdjson::dom::array &ValueNodeArray) {
+  assuming(16 / N == ValueNodeArray.size());
+  T V[16 / N];
+  size_t I = 0;
+  for (std::string_view X : ValueNodeArray) {
+    V[I] = static_cast<T>(std::stoull(std::string(X)));
+    I++;
+  }
+  if constexpr (Endian::native == Endian::big) {
+    std::reverse(V, V + 16 / N);
+  }
+  std::memcpy(&V128, &V, 16);
+}
+
 // Helper function to parse parameters from json to vector of value.
 std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::ValType>>
 parseValueList(const simdjson::dom::array &Args) {
@@ -107,58 +124,20 @@ parseValueList(const simdjson::dom::array &Args) {
     simdjson::dom::element Value = Element["value"];
     if (Value.type() == simdjson::dom::element_type::ARRAY) {
       simdjson::dom::array ValueNodeArray = Value;
-      WasmEdge::uint64x2_t I64x2;
+      WasmEdge::uint128_t V128;
       std::string_view LaneType = Element["lane_type"];
       if (LaneType == "i64"sv || LaneType == "f64"sv) {
-        size_t I = 0;
-        for (std::string_view X : ValueNodeArray) {
-          I64x2[I] = std::stoull(std::string(X));
-          I++;
-        }
+        parseSIMDLanes<uint64_t>(V128, ValueNodeArray);
       } else if (LaneType == "i32"sv || LaneType == "f32"sv) {
-        using uint32x4_t = SIMDArray<uint32_t, 16>;
-        uint32x4_t I32x4 = {0};
-        size_t I = 0;
-        for (std::string_view X : ValueNodeArray) {
-          I32x4[I] = static_cast<uint32_t>(std::stoull(std::string(X)));
-          I++;
-        }
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I32x4);
-#else
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I32x4);
-#endif
-
+        parseSIMDLanes<uint32_t>(V128, ValueNodeArray);
       } else if (LaneType == "i16"sv) {
-        using uint16x8_t = SIMDArray<uint16_t, 16>;
-        uint16x8_t I16x8 = {0};
-        size_t I = 0;
-        for (std::string_view X : ValueNodeArray) {
-          I16x8[I] = static_cast<uint16_t>(std::stoull(std::string(X)));
-          I++;
-        }
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I16x8);
-#else
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I16x8);
-#endif
+        parseSIMDLanes<uint16_t>(V128, ValueNodeArray);
       } else if (LaneType == "i8"sv) {
-        using uint8x16_t = SIMDArray<uint8_t, 16>;
-        uint8x16_t I8x16 = {0};
-        size_t I = 0;
-        for (std::string_view X : ValueNodeArray) {
-          I8x16[I] = static_cast<uint8_t>(std::stoull(std::string(X)));
-          I++;
-        }
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t &>(I8x16);
-#else
-        I64x2 = reinterpret_cast<WasmEdge::uint64x2_t>(I8x16);
-#endif
+        parseSIMDLanes<uint8_t>(V128, ValueNodeArray);
       } else {
         assumingUnreachable();
       }
-      Result.emplace_back(I64x2);
+      Result.emplace_back(V128);
       ResultTypes.emplace_back(WasmEdge::TypeCode::V128);
     } else if (Value.type() == simdjson::dom::element_type::STRING) {
       std::string_view ValueStr = Value;
@@ -518,16 +497,14 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     }
     std::string_view LaneType = std::string_view(TypeStr).substr(4);
     if (LaneType == "f32") {
-      const uint64x2_t V64 = {
-          static_cast<uint64_t>(Got.first.get<uint128_t>()),
-          static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto VF = reinterpret_cast<const floatx4_t &>(V64);
-      const auto VI = reinterpret_cast<const uint32x4_t &>(V64);
-#else
-      const auto VF = reinterpret_cast<floatx4_t>(V64);
-      const auto VI = reinterpret_cast<uint32x4_t>(V64);
-#endif
+      float VF[4];
+      uint32_t VI[4];
+      std::memcpy(VF, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(VI, &Got.first.get<uint128_t>(), 16);
+      if constexpr (Endian::native == Endian::big) {
+        std::reverse(VI, VI + 4);
+        std::reverse(VF, VF + 4);
+      }
       for (size_t I = 0; I < 4; ++I) {
         if (Parts[I].substr(0, 4) == "nan:"sv) {
           if (!std::isnan(VF[I])) {
@@ -542,16 +519,14 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "f64") {
-      const uint64x2_t V64 = {
-          static_cast<uint64_t>(Got.first.get<uint128_t>()),
-          static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto VF = reinterpret_cast<const doublex2_t &>(V64);
-      const auto VI = reinterpret_cast<const uint64x2_t &>(V64);
-#else
-      const auto VF = reinterpret_cast<doublex2_t>(V64);
-      const auto VI = reinterpret_cast<uint64x2_t>(V64);
-#endif
+      double VF[2];
+      uint64_t VI[2];
+      std::memcpy(VF, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(VI, &Got.first.get<uint128_t>(), 16);
+      if constexpr (Endian::native == Endian::big) {
+        std::reverse(VI, VI + 2);
+        std::reverse(VF, VF + 2);
+      }
       for (size_t I = 0; I < 2; ++I) {
         if (Parts[I].substr(0, 4) == "nan:"sv) {
           if (!std::isnan(VF[I])) {
@@ -566,14 +541,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "i8") {
-      const uint64x2_t V64 = {
-          static_cast<uint64_t>(Got.first.get<uint128_t>()),
-          static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint8x16_t &>(V64);
-#else
-      const auto V = reinterpret_cast<uint8x16_t>(V64);
-#endif
+      uint8_t V[16];
+      std::memcpy(V, &Got.first.get<uint128_t>(), 16);
+      if constexpr (Endian::native == Endian::big) {
+        std::reverse(V, V + 16);
+      }
       for (size_t I = 0; I < 16; ++I) {
         const uint8_t V1 = V[I];
         const uint8_t V2 =
@@ -583,14 +555,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "i16") {
-      const uint64x2_t V64 = {
-          static_cast<uint64_t>(Got.first.get<uint128_t>()),
-          static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint16x8_t &>(V64);
-#else
-      const auto V = reinterpret_cast<uint16x8_t>(V64);
-#endif
+      uint16_t V[8];
+      std::memcpy(V, &Got.first.get<uint128_t>(), 16);
+      if constexpr (Endian::native == Endian::big) {
+        std::reverse(V, V + 8);
+      }
       for (size_t I = 0; I < 8; ++I) {
         const uint16_t V1 = V[I];
         const uint16_t V2 =
@@ -600,14 +569,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "i32") {
-      const uint64x2_t V64 = {
-          static_cast<uint64_t>(Got.first.get<uint128_t>()),
-          static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
-#if defined(_MSC_VER) && !defined(__clang__) // MSVC
-      const auto V = reinterpret_cast<const uint32x4_t &>(V64);
-#else
-      const auto V = reinterpret_cast<uint32x4_t>(V64);
-#endif
+      uint32_t V[4];
+      std::memcpy(V, &Got.first.get<uint128_t>(), 16);
+      if constexpr (Endian::native == Endian::big) {
+        std::reverse(V, V + 4);
+      }
       for (size_t I = 0; I < 4; ++I) {
         const uint32_t V1 = V[I];
         const uint32_t V2 = std::stoul(std::string(Parts[I]));
@@ -616,9 +582,11 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
         }
       }
     } else if (LaneType == "i64") {
-      const uint64x2_t V = {
-          static_cast<uint64_t>(Got.first.get<uint128_t>()),
-          static_cast<uint64_t>(Got.first.get<uint128_t>() >> 64U)};
+      uint64_t V[2];
+      std::memcpy(V, &Got.first.get<uint128_t>(), 16);
+      if constexpr (Endian::native == Endian::big) {
+        std::reverse(V, V + 2);
+      }
       for (size_t I = 0; I < 2; ++I) {
         const uint64_t V1 = V[I];
         const uint64_t V2 = std::stoull(std::string(Parts[I]));

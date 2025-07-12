@@ -473,9 +473,17 @@ ValVariant Executor::packVal(const ValType &Type,
   if (Type.isPackType()) {
     switch (Type.getCode()) {
     case TypeCode::I8:
-      return ValVariant(Val.get<uint32_t>() & 0xFFU);
+      if constexpr (Endian::native == Endian::little) {
+        return ValVariant(Val.get<uint32_t>() & 0xFFU);
+      } else {
+        return ValVariant(Val.get<uint32_t>() << 24);
+      }
     case TypeCode::I16:
-      return ValVariant(Val.get<uint32_t>() & 0xFFFFU);
+      if constexpr (Endian::native == Endian::little) {
+        return ValVariant(Val.get<uint32_t>() & 0xFFFFU);
+      } else {
+        return ValVariant(Val.get<uint32_t>() << 16);
+      }
     default:
       assumingUnreachable();
     }
@@ -498,12 +506,18 @@ ValVariant Executor::unpackVal(const ValType &Type, const ValVariant &Val,
     uint32_t Num = Val.get<uint32_t>();
     switch (Type.getCode()) {
     case TypeCode::I8:
+      if constexpr (Endian::native == Endian::big) {
+        Num >>= 24;
+      }
       if (IsSigned) {
         return static_cast<uint32_t>(static_cast<int8_t>(Num));
       } else {
         return static_cast<uint32_t>(static_cast<uint8_t>(Num));
       }
     case TypeCode::I16:
+      if constexpr (Endian::native == Endian::big) {
+        Num >>= 16;
+      }
       if (IsSigned) {
         return static_cast<uint32_t>(static_cast<int16_t>(Num));
       } else {

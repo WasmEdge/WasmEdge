@@ -62,7 +62,7 @@ ErrCode convResult(WasmEdge_Result Res) {
 std::pair<ValVariant, ValType> convToVal(const WasmEdge_Value &CVal) {
   std::array<uint8_t, 8> R;
   std::copy_n(CVal.Type.Data, 8, R.begin());
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__)
   return std::make_pair(ValVariant(CVal.Value), ValType(R));
 #else
   return std::make_pair(
@@ -74,7 +74,7 @@ std::pair<ValVariant, ValType> convToVal(const WasmEdge_Value &CVal) {
 WasmEdge_Value convFromVal(const ValVariant &Val, const ValType &Type) {
   WasmEdge_Value CVal;
   std::copy_n(Type.getRawData().cbegin(), 8, CVal.Type.Data);
-#if defined(__x86_64__) || defined(__aarch64__)
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__)
   CVal.Value = Val.get<WasmEdge::uint128_t>();
 #else
   WasmEdge::uint128_t U128 = Val.get<WasmEdge::uint128_t>();

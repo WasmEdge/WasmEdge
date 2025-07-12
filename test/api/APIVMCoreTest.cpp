@@ -225,7 +225,7 @@ TEST(AsyncExecute, InterruptTest) {
   WasmEdge_VMDelete(VM);
 }
 
-TEST(WasmEdgeVM, DeleteRegisteredModule) {
+TEST(WasmEdgeVM, UnsafeDeleteRegisteredModule) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
 
@@ -239,7 +239,8 @@ TEST(WasmEdgeVM, DeleteRegisteredModule) {
   EXPECT_TRUE(WasmEdge_ResultOK(Res));
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount + 1);
 
-  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
+  // Unsafe delete
+  WasmEdge_VMUnsafeDeleteRegisteredModule(VMCxt, ModuleName);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
 
   // Cleanup
@@ -248,17 +249,57 @@ TEST(WasmEdgeVM, DeleteRegisteredModule) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
-TEST(WasmEdgeVM, DeleteNonExistentModule) {
+TEST(WasmEdgeVM, UnsafeDeleteNonExistentModule) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
   WasmEdge_String ModuleName =
       WasmEdge_StringCreateByCString("nonexistent_module");
-  // Delete a module that doesn't exist
-  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), 12); // Still 12
+
+  // Try deleting a module that doesn’t exist — should not crash
+  WasmEdge_VMUnsafeDeleteRegisteredModule(VMCxt, ModuleName);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt),
+            originalCount); // No change
+
   // Cleanup
   WasmEdge_StringDelete(ModuleName);
   WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, UnsafeDeleteInvalidInput) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
+  WasmEdge_String EmptyName = WasmEdge_StringCreateByCString("");
+
+  // Test null VM context — should not crash
+  WasmEdge_VMUnsafeDeleteRegisteredModule(nullptr, ModuleName);
+
+  // Test empty module name — should not crash
+  WasmEdge_VMUnsafeDeleteRegisteredModule(VMCxt, EmptyName);
+  uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt),
+            originalCount); // No change
+
+  // Cleanup
+  WasmEdge_StringDelete(ModuleName);
+  WasmEdge_StringDelete(EmptyName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, UnsafeDeleteInvalidStoreContext) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
+
+  // Simulate an invalid store context by deleting the VM
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_VMUnsafeDeleteRegisteredModule(VMCxt, ModuleName); // Should not crash
+
+  // Cleanup
+  WasmEdge_StringDelete(ModuleName);
   WasmEdge_ConfigureDelete(Conf);
 }
 

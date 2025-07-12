@@ -3104,22 +3104,23 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) {
   }
 }
 
-void WasmEdge_VMDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
-                                       const WasmEdge_String ModuleName) {
+void WasmEdge_VMUnsafeDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
+                                             const WasmEdge_String ModuleName) {
   if (!Cxt || !ModuleName.Buf) {
     return; // Invalid input
   }
+
   // Cast away const to match WasmEdge_VMGetStoreContext signature
   WasmEdge_StoreContext *StoreCxt =
       WasmEdge_VMGetStoreContext(const_cast<WasmEdge_VMContext *>(Cxt));
   if (!StoreCxt) {
     return; // Invalid store context
   }
+
   const WasmEdge_ModuleInstanceContext *ModInst =
       WasmEdge_StoreFindModule(StoreCxt, ModuleName);
   if (ModInst) {
     fromStoreCxt(StoreCxt)->unregisterModule(genStrView(ModuleName));
-    // Cast away const for WasmEdge_ModuleInstanceDelete
     WasmEdge_ModuleInstanceDelete(
         const_cast<WasmEdge_ModuleInstanceContext *>(ModInst));
   }

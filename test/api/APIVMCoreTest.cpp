@@ -243,6 +243,12 @@ TEST(WasmEdgeVM, UnsafeDeleteRegisteredModule) {
   WasmEdge_VMUnsafeDeleteRegisteredModule(VMCxt, ModuleName);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
 
+  // Added check to ensure module is no longer accessible
+  WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
+  const WasmEdge_ModuleInstanceContext *FindResult =
+      WasmEdge_StoreFindModule(StoreCxt, ModuleName);
+  EXPECT_EQ(FindResult, nullptr);
+  
   // Cleanup
   WasmEdge_StringDelete(ModuleName);
   WasmEdge_VMDelete(VMCxt);
@@ -273,14 +279,14 @@ TEST(WasmEdgeVM, UnsafeDeleteInvalidInput) {
   WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
   WasmEdge_String EmptyName = WasmEdge_StringCreateByCString("");
 
-  // Test null VM context — should not crash
+  // Test null VM context, should not crash
   WasmEdge_VMUnsafeDeleteRegisteredModule(nullptr, ModuleName);
 
-  // Test empty module name — should not crash
+  // Test empty module name, should not crash
   WasmEdge_VMUnsafeDeleteRegisteredModule(VMCxt, EmptyName);
   uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt),
-            originalCount); // No change
+            originalCount); 
 
   // Cleanup
   WasmEdge_StringDelete(ModuleName);

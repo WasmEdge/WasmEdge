@@ -103,8 +103,9 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
   Builders.reserve(BuilderLen);
   for (size_t I = 0; I < WasiBuilders.size(); ++I) {
     const auto &WasiBuilder = WasiBuilders[I];
-    auto Builder = MemInst->getSpan<uint8_t>(WasiBuilder.Ptr, WasiBuilder.Len);
-    if (unlikely(Builder.size() != WasiBuilder.Len)) {
+    auto Builder = MemInst->getSpan<uint8_t>(EndianValue(WasiBuilder.Ptr).le(),
+                                             EndianValue(WasiBuilder.Len).le());
+    if (unlikely(Builder.size() != EndianValue(WasiBuilder.Len).le())) {
       spdlog::error("[WASI-NN] Failed when accessing the Builder[{}] memory."sv,
                     I);
       return WASINN::ErrNo::InvalidArgument;
@@ -308,20 +309,24 @@ WasiNNSetInput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t ContextId,
   }
 
   WASINN::TensorData Tensor;
-  Tensor.Dimension = MemInst->getSpan<uint32_t>(WasiTensor->DimensionPtr,
-                                                WasiTensor->DimensionLen);
-  if (unlikely(Tensor.Dimension.size() != WasiTensor->DimensionLen)) {
+  Tensor.Dimension =
+      MemInst->getSpan<uint32_t>(EndianValue(WasiTensor->DimensionPtr).le(),
+                                 EndianValue(WasiTensor->DimensionLen).le());
+  if (unlikely(Tensor.Dimension.size() !=
+               EndianValue(WasiTensor->DimensionLen).le())) {
     spdlog::error("[WASI-NN] Failed when accessing the Dimension memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
   Tensor.Tensor =
-      MemInst->getSpan<uint8_t>(WasiTensor->TensorPtr, WasiTensor->TensorLen);
-  if (unlikely(Tensor.Tensor.size() != WasiTensor->TensorLen)) {
+      MemInst->getSpan<uint8_t>(EndianValue(WasiTensor->TensorPtr).le(),
+                                EndianValue(WasiTensor->TensorLen).le());
+  if (unlikely(Tensor.Tensor.size() !=
+               EndianValue(WasiTensor->TensorLen).le())) {
     spdlog::error("[WASI-NN] Failed when accessing the TensorData memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
-  switch (const auto RType =
-              static_cast<WASINN::TensorType>(WasiTensor->RType)) {
+  switch (const auto RType = static_cast<WASINN::TensorType>(
+              EndianValue(WasiTensor->RType).le())) {
   case WASINN::TensorType::F16:
   case WASINN::TensorType::F32:
   case WASINN::TensorType::U8:

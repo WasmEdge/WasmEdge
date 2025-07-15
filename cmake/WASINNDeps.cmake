@@ -315,6 +315,15 @@ function(wasmedge_setup_llama_target target)
       set(GGML_CUDA OFF)
     endif()
 
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
+	    message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_HIP")
+	    set(GGML_HIP ON)
+	    add_compile_definitions(GGML_USE_HIP)
+    else()
+	    message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_HIP")
+	    set(GGML_HIP OFF)
+    endif()
+
     if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
       message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_METAL")
       set(GGML_METAL ON)
@@ -329,8 +338,8 @@ function(wasmedge_setup_llama_target target)
     include(FetchContent)
     FetchContent_Declare(
       llama
-      GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b5896
+      GIT_REPOSITORY https://github.com/hydai/llama.cpp.git
+      GIT_TAG        rocm
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -343,6 +352,9 @@ function(wasmedge_setup_llama_target target)
     set_property(TARGET mtmd PROPERTY POSITION_INDEPENDENT_CODE ON)
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
+    endif()
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
+      set_property(TARGET ggml-hip PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
     # Ignore unused function warnings at common.h in llama.cpp.
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

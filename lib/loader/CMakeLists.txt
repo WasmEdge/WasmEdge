@@ -11,7 +11,8 @@ target_link_libraries(wasmedgeLoaderFileMgr
   PUBLIC
   wasmedgeCommon
   wasmedgeSystem
-  std::filesystem
+  stdc++fs
+  #std::filesystem
 )
 
 if(NOT WIN32)
@@ -51,5 +52,6 @@ target_link_libraries(wasmedgeLoader
   PUBLIC
   wasmedgeCommon
   wasmedgeLoaderFileMgr
-  std::filesystem
+  #std::filesystem
+  stdc++fs
 )

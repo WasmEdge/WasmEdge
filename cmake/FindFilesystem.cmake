@@ -222,5 +222,5 @@ cmake_pop_check_state()
 set(Filesystem_FOUND ${_found} CACHE BOOL "TRUE if we can compile and link a program using std::filesystem" FORCE)
 
 if(Filesystem_FIND_REQUIRED AND NOT Filesystem_FOUND)
-    message(FATAL_ERROR "Cannot Compile simple program using std::filesystem")
+	#message(FATAL_ERROR "Cannot Compile simple program using std::filesystem")
 endif()

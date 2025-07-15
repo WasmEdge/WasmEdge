@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.18)
 cmake_policy(SET CMP0091 NEW)
 if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
   cmake_policy(SET CMP0135 NEW)
 endif()
 project(WasmEdge LANGUAGES CXX C)
+set (CMAKE_CXX_STANDARD 17)
 
 # CMake build type.
 if(NOT CMAKE_BUILD_TYPE)
@@ -92,6 +93,7 @@ option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE "Enable LLAMA_NATIVE(AVX/AVX2/F
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS "Enable LLAMA_BLAS in the WASI-NN GGML backend." OFF)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS "Enable LLAMA_CUBLAS in the WASI-NN GGML backend." OFF)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-NN GGML backend. Available on MacOS arm64 only." ON)
+option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP "Enable GGML_HIP in the WASI-NN GGML backend." OFF)
 option(WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL "Enable GGML_METAL in the WASI-NN WHISPER backend. Available on MacOS arm64 only." ON)
 option(WASMEDGE_PLUGIN_WASI_NN_WHISPER_CUDA "Enable GGML_CUDA in the WASI-NN WHISPER backend." OFF)
 #   WASI plug-in: WASI-Poll proposal.

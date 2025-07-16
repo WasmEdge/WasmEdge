@@ -1,4 +1,7 @@
-#include "api/vfs_io.h"
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2025 Second State INC
+
+#include "host/wasi/vfs_io.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -7,11 +10,10 @@
 #include <iostream>
 
 namespace WasmEdge {
-namespace Host {
-namespace API {
+namespace FStream {
 
-WasmEdgeIfstream::WasmEdgeIfstream(const Host::WASI::Environ *WASIEnv,
-                                   const std::string_view &FileName) noexcept
+IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
+                   const std::string_view &FileName) noexcept
     : Fd(0), IsOpen(false), HasError(false), IsEof(false),
       UseWASI(WASIEnv != nullptr) {
 
@@ -42,7 +44,7 @@ WasmEdgeIfstream::WasmEdgeIfstream(const Host::WASI::Environ *WASIEnv,
   }
 }
 
-WasmEdgeIfstream::~WasmEdgeIfstream() {
+IFStream::~IFStream() {
   if (IsOpen) {
     if (UseWASI) {
       Env->fdClose(Fd);
@@ -52,7 +54,7 @@ WasmEdgeIfstream::~WasmEdgeIfstream() {
   }
 }
 
-bool WasmEdgeIfstream::is_open() const noexcept {
+bool IFStream::is_open() const noexcept {
   if (UseWASI) {
     return IsOpen;
   } else {
@@ -60,7 +62,7 @@ bool WasmEdgeIfstream::is_open() const noexcept {
   }
 }
 
-bool WasmEdgeIfstream::good() const noexcept {
+bool IFStream::good() const noexcept {
   if (UseWASI) {
     return !HasError;
   } else {
@@ -68,7 +70,7 @@ bool WasmEdgeIfstream::good() const noexcept {
   }
 }
 
-bool WasmEdgeIfstream::eof() const noexcept {
+bool IFStream::eof() const noexcept {
   if (UseWASI) {
     return IsEof;
   } else {
@@ -76,7 +78,7 @@ bool WasmEdgeIfstream::eof() const noexcept {
   }
 }
 
-bool WasmEdgeIfstream::fail() const noexcept {
+bool IFStream::fail() const noexcept {
   if (UseWASI) {
     return HasError;
   } else {
@@ -84,7 +86,7 @@ bool WasmEdgeIfstream::fail() const noexcept {
   }
 }
 
-WasmEdgeIfstream &WasmEdgeIfstream::read(char *Buffer, std::streamsize Count) {
+IFStream &IFStream::read(char *Buffer, std::streamsize Count) {
   if (!good() || Count <= 0) {
     return *this;
   }
@@ -110,8 +112,7 @@ WasmEdgeIfstream &WasmEdgeIfstream::read(char *Buffer, std::streamsize Count) {
   return *this;
 }
 
-std::streamsize WasmEdgeIfstream::readsome(char *Buffer,
-                                           std::streamsize Count) {
+std::streamsize IFStream::readsome(char *Buffer, std::streamsize Count) {
   if (!good() || Count <= 0) {
     return 0;
   }
@@ -142,7 +143,7 @@ std::streamsize WasmEdgeIfstream::readsome(char *Buffer,
   }
 }
 
-int WasmEdgeIfstream::get() {
+int IFStream::get() {
   if (!good()) {
     return EOF;
   }
@@ -174,7 +175,7 @@ int WasmEdgeIfstream::get() {
   }
 }
 
-WasmEdgeIfstream &WasmEdgeIfstream::getline(std::string &Line, char Delim) {
+IFStream &IFStream::getline(std::string &Line, char Delim) {
   Line.clear();
 
   if (UseWASI) {
@@ -196,13 +197,13 @@ WasmEdgeIfstream &WasmEdgeIfstream::getline(std::string &Line, char Delim) {
   return *this;
 }
 
-std::string WasmEdgeIfstream::getline(char Delim) {
+std::string IFStream::getline(char Delim) {
   std::string Line;
   getline(Line, Delim);
   return Line;
 }
 
-std::streampos WasmEdgeIfstream::tellg() {
+std::streampos IFStream::tellg() {
   if (!is_open()) {
     setError();
     return -1;
@@ -227,7 +228,7 @@ std::streampos WasmEdgeIfstream::tellg() {
   }
 }
 
-WasmEdgeIfstream &WasmEdgeIfstream::seekg(std::streampos Pos) {
+IFStream &IFStream::seekg(std::streampos Pos) {
   if (!is_open()) {
     setError();
     return *this;
@@ -252,8 +253,7 @@ WasmEdgeIfstream &WasmEdgeIfstream::seekg(std::streampos Pos) {
   return *this;
 }
 
-WasmEdgeIfstream &WasmEdgeIfstream::seekg(std::streamoff Off,
-                                          std::ios_base::seekdir Way) {
+IFStream &IFStream::seekg(std::streamoff Off, std::ios_base::seekdir Way) {
   if (!is_open()) {
     setError();
     return *this;
@@ -294,7 +294,7 @@ WasmEdgeIfstream &WasmEdgeIfstream::seekg(std::streamoff Off,
   return *this;
 }
 
-void WasmEdgeIfstream::close() {
+void IFStream::close() {
   if (IsOpen) {
     if (UseWASI) {
       Env->fdClose(Fd);
@@ -305,8 +305,8 @@ void WasmEdgeIfstream::close() {
   }
 }
 
-WasmEdgeOfstream::WasmEdgeOfstream(const Host::WASI::Environ *WASIEnv,
-                                   const std::string_view &FileName) noexcept
+OFStream::OFStream(const Host::WASI::Environ *WASIEnv,
+                   const std::string_view &FileName) noexcept
     : Fd(0), IsOpen(false), HasError(false), ChunkSize(64 * 1024),
       UseWASI(WASIEnv != nullptr) {
 
@@ -337,7 +337,7 @@ WasmEdgeOfstream::WasmEdgeOfstream(const Host::WASI::Environ *WASIEnv,
   }
 }
 
-WasmEdgeOfstream::~WasmEdgeOfstream() {
+OFStream::~OFStream() {
   if (IsOpen) {
     if (UseWASI) {
       Env->fdClose(Fd);
@@ -347,7 +347,7 @@ WasmEdgeOfstream::~WasmEdgeOfstream() {
   }
 }
 
-bool WasmEdgeOfstream::is_open() const noexcept {
+bool OFStream::is_open() const noexcept {
   if (UseWASI) {
     return IsOpen;
   } else {
@@ -355,7 +355,7 @@ bool WasmEdgeOfstream::is_open() const noexcept {
   }
 }
 
-bool WasmEdgeOfstream::good() const noexcept {
+bool OFStream::good() const noexcept {
   if (UseWASI) {
     return !HasError;
   } else {
@@ -363,7 +363,7 @@ bool WasmEdgeOfstream::good() const noexcept {
   }
 }
 
-bool WasmEdgeOfstream::fail() const noexcept {
+bool OFStream::fail() const noexcept {
   if (UseWASI) {
     return HasError;
   } else {
@@ -371,8 +371,7 @@ bool WasmEdgeOfstream::fail() const noexcept {
   }
 }
 
-WasmEdgeOfstream &WasmEdgeOfstream::write(const char *Buffer,
-                                          std::streamsize Count) {
+OFStream &OFStream::write(const char *Buffer, std::streamsize Count) {
   if (!good() || Count <= 0) {
     return *this;
   }
@@ -418,9 +417,9 @@ WasmEdgeOfstream &WasmEdgeOfstream::write(const char *Buffer,
   return *this;
 }
 
-WasmEdgeOfstream &WasmEdgeOfstream::put(char C) { return write(&C, 1); }
+OFStream &OFStream::put(char C) { return write(&C, 1); }
 
-WasmEdgeOfstream &WasmEdgeOfstream::flush() {
+OFStream &OFStream::flush() {
   if (!UseWASI) {
     StdStream.flush();
     if (StdStream.fail()) {
@@ -430,7 +429,7 @@ WasmEdgeOfstream &WasmEdgeOfstream::flush() {
   return *this;
 }
 
-std::streampos WasmEdgeOfstream::tellp() {
+std::streampos OFStream::tellp() {
   if (!is_open()) {
     setError();
     return -1;
@@ -455,7 +454,7 @@ std::streampos WasmEdgeOfstream::tellp() {
   }
 }
 
-WasmEdgeOfstream &WasmEdgeOfstream::seekp(std::streampos Pos) {
+OFStream &OFStream::seekp(std::streampos Pos) {
   if (!is_open()) {
     setError();
     return *this;
@@ -478,8 +477,7 @@ WasmEdgeOfstream &WasmEdgeOfstream::seekp(std::streampos Pos) {
   return *this;
 }
 
-WasmEdgeOfstream &WasmEdgeOfstream::seekp(std::streamoff Off,
-                                          std::ios_base::seekdir Way) {
+OFStream &OFStream::seekp(std::streamoff Off, std::ios_base::seekdir Way) {
   if (!is_open()) {
     setError();
     return *this;
@@ -518,7 +516,7 @@ WasmEdgeOfstream &WasmEdgeOfstream::seekp(std::streamoff Off,
   return *this;
 }
 
-void WasmEdgeOfstream::close() {
+void OFStream::close() {
   if (IsOpen) {
     if (UseWASI) {
       Env->fdClose(Fd);
@@ -529,6 +527,5 @@ void WasmEdgeOfstream::close() {
   }
 }
 
-} // namespace API
-} // namespace Host
+} // namespace FStream
 } // namespace WasmEdge

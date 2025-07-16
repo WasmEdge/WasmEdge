@@ -18,14 +18,14 @@
 
 #include <simdjson.h>
 
-#include "api/vfs_io.h"
+#include "host/wasi/vfs_io.h"
 #endif
 
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
 std::string loadBytesFromFile(const std::string &Path,
                               const WasmEdge::Host::WASI::Environ *Env) {
-  WasmEdge::Host::API::WasmEdgeIfstream Fs(Env, Path);
+  WasmEdge::FStream::IFStream Fs(Env, Path);
   if (Fs.fail()) {
     spdlog::error("[WASI-NN] MLX backend: Cannot open {}."sv, Path);
     return "";
@@ -195,8 +195,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       // Write model to file.
       // TODO: handle different model format.
       ModelFilePath = "MLX" + std::to_string(Idx) + ".safetensors";
-      WasmEdge::Host::API::WasmEdgeOfstream TempFile(Env.getEnv(),
-                                                     ModelFilePath);
+      WasmEdge::FStream::OFStream TempFile(Env.getEnv(), ModelFilePath);
       if (!TempFile) {
         spdlog::error(
             "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);

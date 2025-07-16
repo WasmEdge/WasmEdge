@@ -1,7 +1,10 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2025 Second State INC
+
 #pragma once
 
 #include "host/wasi/environ.h"
-#include "wasi/api.hpp"
+// #include "wasi/api.hpp"
 #include <cctype>
 #include <fstream>
 #include <ios>
@@ -19,17 +22,15 @@
 #endif
 
 namespace WasmEdge {
-namespace Host {
+namespace FStream {
 
-namespace API {
-
-class WASMEDGE_VFS_EXPORT WasmEdgeIfstream {
+class WASMEDGE_VFS_EXPORT IFStream {
 public:
-  WasmEdgeIfstream(const Host::WASI::Environ *WASIEnv,
-                   const std::string_view &FileName) noexcept;
-  ~WasmEdgeIfstream();
-  WasmEdgeIfstream(const WasmEdgeIfstream &) = delete;
-  WasmEdgeIfstream &operator=(const WasmEdgeIfstream &) = delete;
+  IFStream(const Host::WASI::Environ *WASIEnv,
+           const std::string_view &FileName) noexcept;
+  ~IFStream();
+  IFStream(const IFStream &) = delete;
+  IFStream &operator=(const IFStream &) = delete;
 
   bool is_open() const noexcept;
   bool good() const noexcept;
@@ -37,17 +38,17 @@ public:
   bool fail() const noexcept;
   explicit operator bool() const noexcept { return good(); }
 
-  WasmEdgeIfstream &read(char *Buffer, std::streamsize Count);
+  IFStream &read(char *Buffer, std::streamsize Count);
   std::streamsize readsome(char *Buffer, std::streamsize Count);
   int get();
-  WasmEdgeIfstream &getline(std::string &Line, char Delim = '\n');
+  IFStream &getline(std::string &Line, char Delim = '\n');
   std::string getline(char Delim = '\n');
 
-  template <typename T> WasmEdgeIfstream &operator>>(T &Value);
+  template <typename T> IFStream &operator>>(T &Value);
 
   std::streampos tellg();
-  WasmEdgeIfstream &seekg(std::streampos Pos);
-  WasmEdgeIfstream &seekg(std::streamoff Off, std::ios_base::seekdir Way);
+  IFStream &seekg(std::streampos Pos);
+  IFStream &seekg(std::streamoff Off, std::ios_base::seekdir Way);
 
   void close();
 
@@ -63,28 +64,28 @@ private:
   void setError() { HasError = true; }
 };
 
-class WASMEDGE_VFS_EXPORT WasmEdgeOfstream {
+class WASMEDGE_VFS_EXPORT OFStream {
 public:
-  WasmEdgeOfstream(const Host::WASI::Environ *WASIEnv,
-                   const std::string_view &FileName) noexcept;
-  ~WasmEdgeOfstream();
-  WasmEdgeOfstream(const WasmEdgeOfstream &) = delete;
-  WasmEdgeOfstream &operator=(const WasmEdgeOfstream &) = delete;
+  OFStream(const Host::WASI::Environ *WASIEnv,
+           const std::string_view &FileName) noexcept;
+  ~OFStream();
+  OFStream(const OFStream &) = delete;
+  OFStream &operator=(const OFStream &) = delete;
 
   bool is_open() const noexcept;
   bool good() const noexcept;
   bool fail() const noexcept;
   explicit operator bool() const noexcept { return good(); }
 
-  WasmEdgeOfstream &write(const char *Buffer, std::streamsize Count);
-  WasmEdgeOfstream &put(char C);
-  WasmEdgeOfstream &flush();
+  OFStream &write(const char *Buffer, std::streamsize Count);
+  OFStream &put(char C);
+  OFStream &flush();
 
-  template <typename T> WasmEdgeOfstream &operator<<(const T &Value);
+  template <typename T> OFStream &operator<<(const T &Value);
 
   std::streampos tellp();
-  WasmEdgeOfstream &seekp(std::streampos Pos);
-  WasmEdgeOfstream &seekp(std::streamoff Off, std::ios_base::seekdir Way);
+  OFStream &seekp(std::streampos Pos);
+  OFStream &seekp(std::streamoff Off, std::ios_base::seekdir Way);
 
   void setChunkSize(std::streamsize Size) noexcept { ChunkSize = Size; }
   std::streamsize getChunkSize() const noexcept { return ChunkSize; }
@@ -103,7 +104,7 @@ private:
   void setError() { HasError = true; }
 };
 
-template <typename T> WasmEdgeIfstream &WasmEdgeIfstream::operator>>(T &Value) {
+template <typename T> IFStream &IFStream::operator>>(T &Value) {
   if (!good()) {
     return *this;
   }
@@ -141,8 +142,7 @@ template <typename T> WasmEdgeIfstream &WasmEdgeIfstream::operator>>(T &Value) {
   return *this;
 }
 
-template <typename T>
-WasmEdgeOfstream &WasmEdgeOfstream::operator<<(const T &Value) {
+template <typename T> OFStream &OFStream::operator<<(const T &Value) {
   if (!good()) {
     return *this;
   }
@@ -161,6 +161,5 @@ WasmEdgeOfstream &WasmEdgeOfstream::operator<<(const T &Value) {
   }
 }
 
-} // namespace API
-} // namespace Host
+} // namespace FStream
 } // namespace WasmEdge

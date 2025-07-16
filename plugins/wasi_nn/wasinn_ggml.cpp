@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "wasinn_ggml.h"
-#include "api/vfs_io.h"
+#include "host/wasi/vfs_io.h"
 #include "wasinnenv.h"
 #include <cstdint>
 
@@ -1980,7 +1980,7 @@ std::string processTTSPromptText(const std::string &Text) {
 
 std::optional<TTSSpeakerProfile>
 getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
-  WasmEdge::Host::API::WasmEdgeIfstream JsonFile(Env.getEnv(), FilePath);
+  WasmEdge::FStream::IFStream JsonFile(Env.getEnv(), FilePath);
   if (!JsonFile.is_open()) {
     return std::nullopt;
   }
@@ -2587,8 +2587,7 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
 
   // Save .wav file if path is provided.
   if (!GraphRef.TTSOutputFilePath.empty()) {
-    WasmEdge::Host::API::WasmEdgeOfstream File(Env.getEnv(),
-                                               GraphRef.TTSOutputFilePath);
+    WasmEdge::FStream::OFStream File(Env.getEnv(), GraphRef.TTSOutputFilePath);
     if (!File) {
       RET_ERROR(ErrNo::RuntimeError,
                 "codesToSpeech: Failed to open file '{}' for writing"sv,
@@ -2703,8 +2702,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // TODO: pass the model directly to ggml.
     // Write ggml model to file.
     GraphRef.Params.model.path = "ggml-model.bin"sv;
-    WasmEdge::Host::API::WasmEdgeOfstream TempFile(Env.getEnv(),
-                                                   GraphRef.Params.model.path);
+    WasmEdge::FStream::OFStream TempFile(Env.getEnv(),
+                                         GraphRef.Params.model.path);
     if (!TempFile) {
       Env.deleteGraph(GId);
       RET_ERROR(ErrNo::InvalidArgument,

@@ -1,96 +1,107 @@
 # syntax=docker/dockerfile:1.5-labs
 
-ARG XX_VERSION=1.2.1
-ARG ALPINE_VERSION=3.16
-# alpine 3.16 ships with llvm 13.
-# alpine 3.17 and 3.18 do not ship lld-static.
+ARG ALPINE_VERSION=3.22
 
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
-FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS base
+########################################
+# Stage 1: xx (cross-compilation tool)
+########################################
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.2.1 AS xx
+
+########################################
+# Stage 2: Build LLD from LLVM source
+########################################
+FROM alpine:${ALPINE_VERSION} AS lld-builder
+
+RUN apk add --no-cache \
+    bash \
+    cmake \
+    ninja \
+    clang \
+    llvm-dev \
+    llvm-static \
+    lld-dev \
+    git \
+    musl-dev \
+    zlib-dev \
+    zlib-static \
+    libc-dev \
+    libffi-dev \
+    curl \
+    tar \
+    xz
+
+WORKDIR /lld-build
+
+RUN git clone --depth=1 --branch=release/18.x https://github.com/llvm/llvm-project.git
+
+WORKDIR /lld-build/llvm-project
+
+RUN cmake -B build \
+    -G Ninja \
+    -DLLVM_ENABLE_PROJECTS="lld" \
+    -DLLVM_TARGETS_TO_BUILD="X86;WebAssembly" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/lld-install \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DLLVM_ENABLE_ASSERTIONS=OFF \
+    llvm
+
+RUN cmake --build build --target install
+
+########################################
+# Stage 3: Alpine Static Image with LLD
+########################################
+FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS alpine-static
+
+LABEL maintainer="you@example.com"
+LABEL description="Alpine ${ALPINE_VERSION} with LLD and static toolchain"
+
 COPY --from=xx / /
 
-# Install host dependencies
-RUN apk add bash cmake samurai g++ clang
-SHELL [ "bash", "-c" ]
+# Install bash so we can use SHELL
+RUN apk add --no-cache bash
 
-# Make a cmake toolchain file
-RUN cat <<'EOT' > /usr/bin/xx-toolchain && chmod a+x /usr/bin/xx-toolchain
+# Set bash for all future RUN commands
+SHELL ["bash", "-c"]
+
+# Install static toolchain and build dependencies
+RUN apk add --no-cache \
+    cmake \
+    samurai \
+    g++ \
+    clang \
+    llvm-static \
+    lld-dev \
+    zlib-static \
+    zlib-dev \
+    git \
+    musl-dev \
+    libc-dev \
+    libffi-dev
+
+# Ensure destination lib dir exists
+RUN mkdir -p /usr/lib/llvm/lib
+
+# Copy LLD static libraries and binaries from builder
+COPY --from=lld-builder /lld-install/lib/liblld*.a /usr/lib/llvm/lib/
+COPY --from=lld-builder /lld-install/bin/lld* /usr/bin/
+
+# Patch LLVMConfig for proper sysroot awareness
+RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake || true
+
+# Add xx-toolchain shortcut script
+RUN cat <<'EOT' > /usr/bin/xx-toolchain && chmod +x /usr/bin/xx-toolchain
 #!/bin/bash
 mkdir -p /etc/xx-toolchains/
-TOOLCHAIN_FILE="/etc/xx-toolchains/$(xx-clang --print-target-triple).cmake"
-[ -f "$TOOLCHAIN_FILE" ] || cat <<EOF > "$TOOLCHAIN_FILE"
-set(CMAKE_CROSSCOMPILING ON)
-set(CMAKE_SYSROOT "$(xx-info sysroot)")
-set(CMAKE_SYSTEM_NAME "Linux")
-set(CMAKE_SYSTEM_VERSION 1)
-set(CMAKE_SYSTEM_PROCESSOR "$(xx-info march)")
-set(CMAKE_C_COMPILER "$(which clang)")
-set(CMAKE_CXX_COMPILER "$(which clang++)")
-set(CMAKE_ASM_COMPILER "$(which clang)")
-set(CMAKE_AR "$(which ar)")
-set(CMAKE_RANLIB "$(which ranlib)")
-set(PKG_CONFIG_EXECUTABLE "$(xx-clang --print-prog-name=pkg-config)")
-set(CMAKE_C_COMPILER_TARGET "$(xx-clang --print-target-triple)")
-set(CMAKE_CXX_COMPILER_TARGET "$(xx-clang --print-target-triple)")
-set(CMAKE_ASM_COMPILER_TARGET "$(xx-clang --print-target-triple)")
-EOF
+TOOLCHAIN_FILE="/etc/xx-toolchains/$(xx-info triple).cmake"
+if [ ! -f "$TOOLCHAIN_FILE" ]; then
+  xx-clang --cmake-toolchain "$TOOLCHAIN_FILE"
+fi
 echo "$TOOLCHAIN_FILE"
 EOT
 
-FROM base AS config
-ARG TARGETPLATFORM
+# Optional: Working directory if you plan to mount source code
+WORKDIR /src
 
-RUN apk add git llvm-dev
-RUN xx-apk add \
-    g++ \
-    llvm-dev llvm-static \
-    lld lld-dev lld-static \
-    zlib-dev zlib-static
-
-# Fix LLVMConfig.cmake to account for the sysroot
-RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake
-# In cmake/Helper.cmake we assume that lld is installed alongside llvm, so copy files over
-RUN cp $(xx-info sysroot)usr/lib/liblld*.a $(xx-info sysroot)usr/lib/llvm*/lib/
-# Use the native version of llvm-config
-RUN ! xx-info is-cross || cp -f /usr/lib/llvm*/bin/llvm-config $(xx-info sysroot)usr/lib/llvm*/bin/llvm-config
-
-RUN --mount=type=bind,target=/src,source=. \
-    cmake -S /src -B /build -G Ninja \
-        -DCMAKE_BUILD_TYPE=MinSizeRel \
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-        -DCMAKE_INSTALL_PREFIX="/install" \
-        # For cross compiling
-        -DCMAKE_TOOLCHAIN_FILE="$(xx-toolchain)" \
-        -DWASMEDGE_BUILD_PACKAGE="TGZ" \
-        -DWASMEDGE_USE_LLVM=ON \
-        # Build just what we need
-        -DWASMEDGE_BUILD_STATIC_LIB=ON \
-        -DWASMEDGE_BUILD_TESTS=OFF \
-        -DWASMEDGE_BUILD_SHARED_LIB=OFF \
-        -DWASMEDGE_BUILD_TOOLS=OFF \
-        -DWASMEDGE_BUILD_PLUGINS=OFF \
-        -DWASMEDGE_BUILD_EXAMPLE=OFF \
-        # Link llvm statically
-        -DWASMEDGE_LINK_LLVM_STATIC=ON \
-        -DWASMEDGE_LINK_TOOLS_STATIC=ON \
-        # Disable extra dependencies
-        -DWASMEDGE_DISABLE_LIBTINFO=ON
-
-FROM  config AS build
-RUN --mount=type=bind,target=/src,source=. \
-    cmake --build /build -- install package
-
-ARG ALPINE_VERSION
-RUN --mount=type=bind,target=/src,source=. <<EOT
-    set -ex
-    WASMEDGE_VERSION="$(cd /src && git describe --match '[0-9].[0-9]*' --tag)"
-    ARCH="$(xx-info march)"
-    ARCHIVE_TAG=${WASMEDGE_VERSION%%-*}-alpine${ALPINE_VERSION}_$(xx-info march)
-    mv /build/WasmEdge-*-Linux.tar.gz /build/WasmEdge-${ARCHIVE_TAG}_static.tar.gz
-EOT
-
-FROM scratch AS install
-COPY --from=build /install /
-
-FROM scratch AS tar
-COPY --from=build /build/WasmEdge-*.tar.gz /
+# Optional: Default command
+CMD ["/bin/bash"]

@@ -1,0 +1,8 @@
+file_extensions = ["rs", "toml", "md", "yml", "yaml", "cpp", "hpp", "c", "h", "sh", "ipp", "cmake", "txt", "py", "wxs", "spdx"]
+ignore_patterns = [
+    "**/.git/**",
+    "thirdparty/",
+]
+[checks]
+newline_ending = true
+trailing_spaces = true

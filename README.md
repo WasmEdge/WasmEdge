@@ -5,7 +5,7 @@
 </div>
 
 <div align="center">
-  
+
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
 # [🤩 WasmEdge is the easiest and fastest way to run LLMs on your own devices. 🤩](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge)

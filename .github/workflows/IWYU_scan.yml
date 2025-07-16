@@ -173,7 +173,7 @@ jobs:
         @@ -3476,6 +3476,12 @@ class InstantiatedTemplateVisitor
              if (ReplayClassMemberUsesFromPrecomputedList(type))
                return true;
-        
+
         +    // Sometimes, an implicit specialization occurs to be not instantiated.
         +    // TODO(bolshakov): don't report them at all as full uses or figure out
         +    // how to scan them.

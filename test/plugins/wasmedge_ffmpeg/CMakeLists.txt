@@ -28,7 +28,7 @@ wasmedge_add_executable(wasmedgeFFmpegTests
   avutil/avPixfmt.cpp
 
   swresample/swresample_func.cpp
-  
+
   swscale/swscale_func.cpp
 
   utils.cpp

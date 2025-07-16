@@ -56,7 +56,7 @@ processes) and memory space. The most important use case for WasmEdge is to
 safely execute user-defined or community-contributed code as plug-ins in a
 software product (e.g., SaaS, software-defined vehicles, edge nodes, or even
 blockchain nodes). It enables third-party developers, vendors, suppliers, and
-community members to extend and customize the software product. 
+community members to extend and customize the software product.
 
 #### Actors
 

@@ -3104,8 +3104,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) {
   }
 }
 
-void WasmEdge_VMUnsafeDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
-                                             const WasmEdge_String ModuleName) {
+void WasmEdge_VMForceDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
+                                            const WasmEdge_String ModuleName) {
   if (!Cxt || !ModuleName.Buf) {
     return; // Invalid input
   }

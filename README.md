@@ -86,6 +86,15 @@ If you have any questions, feel free to open a GitHub issue on a related project
 
 Check out our [list of Adopters](https://wasmedge.org/docs/contribute/users/) who are using WasmEdge in their projects.
 
+
+## Use Case
+[ EchoKit –Fully Open Source AI Voice Agent Hardware and Server entire run on WasmEdge](https://echokit.dev/)
+
+Check the [source code](https://github.com/second-state/echokit_server)!
+
+It is powered by Rust most “open” AI devices are actually closed on the backend, limiting customization and privacy. EchoKit is fully open—from ESP32-S3 hardware to the Rust-based server. You can customize ASR, TTS (including voice cloning), LLM prompts, and even add your own MCP actions. We’d love your feedback, ideas, and contributions. Try it out, check the code, and let us know what you think!
+
+
 ## Community Meeting
 
 We host a monthly community meeting to showcase new features, demo new use cases, and a Q&A part. Everyone is welcome!

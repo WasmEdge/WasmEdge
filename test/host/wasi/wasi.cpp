@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstring>
 #include <ctime>
+#include <fcntl.h>
 #include <gtest/gtest.h>
 #include <mutex>
 #include <string>
@@ -2997,6 +2998,295 @@ TEST(WasiTest, SymbolicLink) {
   }
 }
 #endif
+
+namespace {
+int openFileForWrite(const char *Filename) {
+  int Fd = -1;
+#if WASMEDGE_OS_WINDOWS
+  if (_sopen_s(&Fd, Filename, _O_WRONLY | _O_CREAT | _O_TRUNC | _O_BINARY,
+               _SH_DENYNO, _S_IREAD | _S_IWRITE) != 0) {
+    return -1;
+  }
+#else
+  Fd = open(Filename, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+#endif
+  return Fd;
+}
+
+int openFileForRead(const char *Filename) {
+  int Fd = -1;
+#if WASMEDGE_OS_WINDOWS
+  if (_sopen_s(&Fd, Filename, _O_RDONLY | _O_BINARY, _SH_DENYNO, 0) != 0) {
+    return -1;
+  }
+#else
+  Fd = open(Filename, O_RDONLY);
+#endif
+  return Fd;
+}
+
+void closeFd(int Fd) {
+#if WASMEDGE_OS_WINDOWS
+  _close(Fd);
+#else
+  close(Fd);
+#endif
+}
+
+void flushFd(int Fd) {
+#if WASMEDGE_OS_WINDOWS
+  _commit(Fd);
+#else
+  fsync(Fd);
+#endif
+}
+
+bool isValidFd(int Fd) {
+#if WASMEDGE_OS_WINDOWS
+  return _get_osfhandle(Fd) != -1;
+#else
+  return fcntl(Fd, F_GETFD) != -1;
+#endif
+}
+} // namespace
+
+TEST(WasiTest, CustomFds) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  const char TempFilename[] = "wasi_custom_fd_test.tmp";
+
+  auto SetupTestFile = [&](const std::string_view &TestString,
+                           bool ForRead) -> int {
+    if (ForRead) {
+      std::ofstream Out(TempFilename, std::ios::binary);
+      Out << TestString;
+      Out.close();
+      return openFileForRead(TempFilename);
+    }
+    return openFileForWrite(TempFilename);
+  };
+
+  auto VerifyFileContent = [&](const std::string_view &Expected) {
+    std::ifstream File(TempFilename, std::ios::binary);
+    std::string Content((std::istreambuf_iterator<char>(File)),
+                        std::istreambuf_iterator<char>());
+    EXPECT_EQ(Content, Expected);
+    std::remove(TempFilename);
+  };
+
+  // Test custom stdout
+  {
+    const std::string_view TestString = "hello from wasi stdout";
+    int TestFd = SetupTestFile("", false);
+    ASSERT_NE(TestFd, -1);
+    ASSERT_TRUE(isValidFd(TestFd));
+
+    Env.init({}, "test"s, {}, {}, 0, TestFd, 2);
+
+    WasmEdge::Host::WasiFdWrite WasiFdWrite(Env);
+    const uint32_t IOVecPtr = 0;
+    const uint32_t StrPtr = 16;
+    const uint32_t NWrittenPtr = 8;
+    writeString(MemInst, TestString, StrPtr);
+    auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(IOVecPtr);
+    IOVec->buf = StrPtr;
+    IOVec->buf_len = static_cast<__wasi_size_t>(TestString.length());
+
+    EXPECT_TRUE(
+        WasiFdWrite.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            UINT32_C(1), IOVecPtr, UINT32_C(1), NWrittenPtr},
+                        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(NWrittenPtr),
+              TestString.length());
+
+    flushFd(TestFd);
+    closeFd(TestFd);
+    VerifyFileContent(TestString);
+    Env.fini();
+  }
+
+  // Test custom stdin
+  {
+    const std::string_view TestString = "hello to wasi stdin";
+    int TestFd = SetupTestFile(TestString, true);
+    ASSERT_NE(TestFd, -1);
+    ASSERT_TRUE(isValidFd(TestFd));
+
+    Env.init({}, "test"s, {}, {}, TestFd, 1, 2);
+
+    WasmEdge::Host::WasiFdRead WasiFdRead(Env);
+    const uint32_t IOVecPtr = 0;
+    const uint32_t BufPtr = 16;
+    const uint32_t NReadPtr = 8;
+    auto *IOVec = MemInst.getPointer<__wasi_iovec_t *>(IOVecPtr);
+    IOVec->buf = BufPtr;
+    IOVec->buf_len = static_cast<__wasi_size_t>(TestString.length());
+
+    EXPECT_TRUE(
+        WasiFdRead.run(CallFrame,
+                       std::initializer_list<WasmEdge::ValVariant>{
+                           UINT32_C(0), IOVecPtr, UINT32_C(1), NReadPtr},
+                       Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(NReadPtr),
+              TestString.length());
+
+    std::string_view ReadString(MemInst.getPointer<const char *>(BufPtr),
+                                TestString.length());
+    EXPECT_EQ(ReadString, TestString);
+
+    closeFd(TestFd);
+    Env.fini();
+    std::remove(TempFilename);
+  }
+
+  // Test custom stderr
+  {
+    const std::string_view TestString = "hello from wasi stderr";
+
+    int TestFd = SetupTestFile("", false);
+    ASSERT_NE(TestFd, -1);
+    ASSERT_TRUE(isValidFd(TestFd));
+
+    Env.init({}, "test"s, {}, {}, 0, 1, TestFd);
+
+    WasmEdge::Host::WasiFdWrite WasiFdWrite(Env);
+    const uint32_t IOVecPtr = 0;
+    const uint32_t StrPtr = 16;
+    const uint32_t NWrittenPtr = 8;
+    writeString(MemInst, TestString, StrPtr);
+    auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(IOVecPtr);
+    IOVec->buf = StrPtr;
+    IOVec->buf_len = static_cast<__wasi_size_t>(TestString.length());
+
+    EXPECT_TRUE(
+        WasiFdWrite.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            UINT32_C(2), IOVecPtr, UINT32_C(1), NWrittenPtr},
+                        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(NWrittenPtr),
+              TestString.length());
+
+    flushFd(TestFd);
+    closeFd(TestFd);
+    VerifyFileContent(TestString);
+    Env.fini();
+  }
+
+  // Test invalid custom stdout
+  {
+    const std::string_view TestString = "hello from wasi stdout";
+    const int32_t InvalidFd = -1;
+
+    Env.init({}, "test"s, {}, {}, 0, InvalidFd, 2);
+
+    WasmEdge::Host::WasiFdWrite WasiFdWrite(Env);
+    const uint32_t IOVecPtr = 0;
+    const uint32_t StrPtr = 16;
+    const uint32_t NWrittenPtr = 8;
+    writeString(MemInst, TestString, StrPtr);
+    auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(IOVecPtr);
+    IOVec->buf = StrPtr;
+    IOVec->buf_len = static_cast<__wasi_size_t>(TestString.length());
+
+    EXPECT_TRUE(
+        WasiFdWrite.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            UINT32_C(1), IOVecPtr, UINT32_C(1), NWrittenPtr},
+                        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(NWrittenPtr),
+              TestString.length());
+    Env.fini();
+  }
+
+  // Test invalid custom stdin
+#if WASMEDGE_OS_WINDOWS
+  {
+    // On Windows CI, reading from the default stdin can may
+    // hang. Instead of fd_read, we use fd_fdstat_get to verify that the
+    // invalid FD correctly falls back to the default stdin handle, which is
+    // a safer in this environment.
+    const int32_t InvalidFd = -1;
+    Env.init({}, "test"s, {}, {}, InvalidFd, 1, 2);
+
+    WasmEdge::Host::WasiFdFdstatGet WasiFdFdstatGet(Env);
+    const uint32_t FdstatPtr = 0;
+
+    EXPECT_TRUE(WasiFdFdstatGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), FdstatPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    const auto *Fdstat = MemInst.getPointer<const __wasi_fdstat_t *>(FdstatPtr);
+    EXPECT_EQ(Fdstat->fs_filetype, __WASI_FILETYPE_CHARACTER_DEVICE);
+    EXPECT_NE((Fdstat->fs_rights_base & __WASI_RIGHTS_FD_READ), 0);
+    Env.fini();
+  }
+#else
+  {
+    // On unix-like platforms, we can test fd_read with a 0-byte length
+    const int32_t InvalidFd = -1;
+    Env.init({}, "test"s, {}, {}, InvalidFd, 1, 2);
+
+    WasmEdge::Host::WasiFdRead WasiFdRead(Env);
+    const uint32_t IOVecPtr = 0;
+    const uint32_t BufPtr = 16;
+    const uint32_t NReadPtr = 8;
+    auto *IOVec = MemInst.getPointer<__wasi_iovec_t *>(IOVecPtr);
+    IOVec->buf = BufPtr;
+    IOVec->buf_len = 0;
+
+    EXPECT_TRUE(
+        WasiFdRead.run(CallFrame,
+                       std::initializer_list<WasmEdge::ValVariant>{
+                           UINT32_C(0), IOVecPtr, UINT32_C(1), NReadPtr},
+                       Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(NReadPtr), 0);
+    Env.fini();
+  }
+#endif
+
+  // Test invalid custom stderr
+  {
+    const std::string_view TestString = "hello from wasi stderr";
+    const int32_t InvalidFd = -1;
+
+    Env.init({}, "test"s, {}, {}, 0, 1, InvalidFd);
+
+    WasmEdge::Host::WasiFdWrite WasiFdWrite(Env);
+    const uint32_t IOVecPtr = 0;
+    const uint32_t StrPtr = 16;
+    const uint32_t NWrittenPtr = 8;
+    writeString(MemInst, TestString, StrPtr);
+    auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(IOVecPtr);
+    IOVec->buf = StrPtr;
+    IOVec->buf_len = static_cast<__wasi_size_t>(TestString.length());
+
+    EXPECT_TRUE(
+        WasiFdWrite.run(CallFrame,
+                        std::initializer_list<WasmEdge::ValVariant>{
+                            UINT32_C(2), IOVecPtr, UINT32_C(1), NWrittenPtr},
+                        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(NWrittenPtr),
+              TestString.length());
+    Env.fini();
+  }
+}
 
 GTEST_API_ int main(int argc, char **argv) {
   testing::InitGoogleTest(&argc, argv);

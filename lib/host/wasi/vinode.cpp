@@ -28,19 +28,19 @@ VINode::VINode(INode Node, __wasi_rights_t FRB, __wasi_rights_t FRI,
     : Node(std::move(Node)), FsRightsBase(FRB), FsRightsInheriting(FRI),
       Name(std::move(N)) {}
 
-std::shared_ptr<VINode> VINode::stdIn(__wasi_rights_t FRB,
+std::shared_ptr<VINode> VINode::stdIn(int32_t Fd, __wasi_rights_t FRB,
                                       __wasi_rights_t FRI) {
-  return std::make_shared<VINode>(INode::stdIn(), FRB, FRI);
+  return std::make_shared<VINode>(INode::stdIn(Fd), FRB, FRI);
 }
 
-std::shared_ptr<VINode> VINode::stdOut(__wasi_rights_t FRB,
+std::shared_ptr<VINode> VINode::stdOut(int32_t Fd, __wasi_rights_t FRB,
                                        __wasi_rights_t FRI) {
-  return std::make_shared<VINode>(INode::stdOut(), FRB, FRI);
+  return std::make_shared<VINode>(INode::stdOut(Fd), FRB, FRI);
 }
 
-std::shared_ptr<VINode> VINode::stdErr(__wasi_rights_t FRB,
+std::shared_ptr<VINode> VINode::stdErr(int32_t Fd, __wasi_rights_t FRB,
                                        __wasi_rights_t FRI) {
-  return std::make_shared<VINode>(INode::stdErr(), FRB, FRI);
+  return std::make_shared<VINode>(INode::stdErr(Fd), FRB, FRI);
 }
 
 std::string VINode::canonicalGuest(std::string_view Path) {

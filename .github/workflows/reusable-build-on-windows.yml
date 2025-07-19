@@ -62,7 +62,7 @@ jobs:
           $Env:CXX = "$pwd\LLVM-19.1.6-win64-MultiThreadedDLL\LLVM-19.1.6-win64\bin\clang-cl.exe"
           $llvm_mt = "mt"
           $cmake_sys_version = "10.0.26100.0"
-          cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS="$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE=ZIP .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS="$Env:build_tests" -DWASMEDGE_BUILD_PACKAGE=ZIP .
           cmake --build build
       - name: Test WasmEdge
         run: |

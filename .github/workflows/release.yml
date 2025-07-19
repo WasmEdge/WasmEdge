@@ -15,16 +15,21 @@ on:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+*"
 
+permissions:
+  contents: read
+
 jobs:
   create_release:
     name: Create Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.prep.outputs.version }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
         with:
           egress-policy: audit
 
@@ -46,6 +51,8 @@ jobs:
 
   create_source_tarball:
     needs: create_release
+    permissions:
+      contents: write
     uses: ./.github/workflows/reusable-create-source-tarball.yml
     with:
       version: ${{ needs.create_release.outputs.version }}
@@ -55,6 +62,8 @@ jobs:
   build_on_macos:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-macos.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       matrix:
@@ -66,6 +75,8 @@ jobs:
   build_on_ubuntu_20_04:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-ubuntu.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       matrix: "[{'name':'ubuntu-20.04','arch':'x86_64','runner':'ubuntu-latest','compiler':'clang++','build_type':'Release','docker_tag':'ubuntu-20.04-build-clang'},
@@ -76,6 +87,8 @@ jobs:
   build_on_manylinux_2_28:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-manylinux.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       matrix:
@@ -87,6 +100,8 @@ jobs:
   build_on_debian_static:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-debian-static.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       release: true
@@ -95,6 +110,8 @@ jobs:
   build_on_alpine_static:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-alpine-static.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       release: true
@@ -103,6 +120,8 @@ jobs:
   build_on_windows:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-windows.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       release: true
@@ -111,6 +130,8 @@ jobs:
   build_on_windows_msvc:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-windows-msvc.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       release: true
@@ -119,6 +140,8 @@ jobs:
   build_on_android:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-android.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       release: true
@@ -128,6 +151,8 @@ jobs:
     name: Build and Upload
     needs: create_release
     uses: ./.github/workflows/reusable-build-extensions.yml
+    permissions:
+      contents: write
     with:
       version: ${{ needs.create_release.outputs.version }}
       release: true
@@ -137,9 +162,11 @@ jobs:
     name: Generate SBOM
     runs-on: ubuntu-latest
     needs: create_release
+    permissions:
+      contents: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
         with:
           egress-policy: audit
 

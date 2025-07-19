@@ -12,9 +12,9 @@
 
 WasmEdge は軽量、高性能、拡張可能な WebAssembly ランタイムです。現在、[最速の Wasm VM](https://ieeexplore.ieee.org/document/9214403) になります。WasmEdge は、[CNCF](https://www.cncf.io/) が主催する公式サンドボックスプロジェクトでです。その[ユースケース](https://wasmedge.org/book/en/use_cases.html)には、モダンなウェブアプリケーションアーキテクチャ(Isomorphic & Jamstack　アプリケーション)、エッジクラウド上のマイクロサービス、サーバーレス　SaaS API、組み込み機能、スマートコントラクト、スマートデバイスなどが含まれます。
 
-![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
+[![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml?query=event%3Apush++branch%3Amaster)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
-[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml)
+[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml?query=event%3Apush++branch%3Amaster)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5059/badge)](https://bestpractices.coreinfrastructure.org/projects/5059)
 
@@ -84,7 +84,7 @@ WasmEdge プロジェクトにコントリビュートしたい場合は、[CONT
 
 時間: 毎月第1火曜日午後11時（香港時間）／午前7時（太平洋標準時）。
 
-[パブリックミーティングのアジェンダ／ノート](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom リンク](https://us06web.zoom.us/j/89156807241?pwd=VHl5VW5BbmY2eUtTYkY0Zm9yUHRRdz09)
+[パブリックミーティングのアジェンダ／ノート](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom リンク](https://us06web.zoom.us/j/82221747919?pwd=3MORhaxDk15rACk7mNDvyz9KtaEbWy.1)
 
 # ライセンス
 

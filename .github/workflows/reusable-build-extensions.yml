@@ -10,6 +10,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   # ------------------------------------------------------------------#
   # The list of build targets is in the file:
@@ -40,7 +43,7 @@ jobs:
       ubuntu_latest: ${{ steps.readfile.outputs.ubuntu_latest }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@002fdce3c6a235733a90a27c80493a3241e56863 # v2.12.1
+        uses: step-security/harden-runner@6c439dc8bdf85cadbbce9ed30d1c7b959517bc49 # v2.12.2
         with:
           egress-policy: audit
 
@@ -101,6 +104,8 @@ jobs:
 
   build_on_ubuntu:
     needs: prepare
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
       matrix:
@@ -131,6 +136,8 @@ jobs:
   build_on_ubuntu_latest:
     if: ${{ !inputs.release }}
     needs: prepare
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
       matrix:
@@ -156,6 +163,8 @@ jobs:
 
   build_on_macos:
     needs: prepare
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-macos.yml
     strategy:
       fail-fast: false
       matrix:
@@ -178,6 +187,8 @@ jobs:
 
   build_on_manylinux:
     needs: prepare
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
       matrix:

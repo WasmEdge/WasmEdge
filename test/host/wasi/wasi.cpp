@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "common/types.h"
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
 #include "runtime/instance/module.h"
@@ -18,6 +19,8 @@
 #include <string>
 #include <string_view>
 #include <thread>
+
+#define SWAP_E(val) WasmEdge::getLittleEndian(val)
 
 using namespace std::literals;
 
@@ -40,11 +43,18 @@ void writeAddress(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
             MemInst.getPointer<uint8_t *>(BufPtr));
 
   __wasi_address_t WasiAddress;
-  WasiAddress.buf = BufPtr;
-  WasiAddress.buf_len = static_cast<__wasi_size_t>(Address.size());
+  WasiAddress.buf = SWAP_E(BufPtr);
+  WasiAddress.buf_len = SWAP_E(static_cast<__wasi_size_t>(Address.size()));
 
   std::memcpy(MemInst.getPointer<__wasi_address_t *>(Ptr), &WasiAddress,
               sizeof(__wasi_address_t));
+}
+
+template <typename T>
+T getValue(WasmEdge::Runtime::Instance::MemoryInstance &MemInst, uint32_t Ptr) {
+  T Value;
+  MemInst.loadValue(Value, Ptr);
+  return Value;
 }
 
 #if !WASMEDGE_OS_WINDOWS
@@ -268,15 +278,15 @@ TEST(WasiTest, Args) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(1));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(1));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(5));
 
   EXPECT_TRUE(WasiArgsGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(4));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(4));
   EXPECT_STREQ(MemInst.getPointer<const char *>(4), "test");
   Env.fini();
 
@@ -288,16 +298,16 @@ TEST(WasiTest, Args) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(9));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(2));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(9));
 
   EXPECT_TRUE(WasiArgsGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(8)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(13));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(8));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(13));
   EXPECT_STREQ(MemInst.getPointer<const char *>(8), "test");
   EXPECT_STREQ(MemInst.getPointer<const char *>(13), "abc");
   Env.fini();
@@ -310,16 +320,16 @@ TEST(WasiTest, Args) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(6));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(2));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(6));
 
   EXPECT_TRUE(WasiArgsGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(8)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(8));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(13));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(8));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(13));
   EXPECT_STREQ(MemInst.getPointer<const char *>(8), "test");
   EXPECT_STREQ(MemInst.getPointer<const char *>(13), "");
   Env.fini();
@@ -332,26 +342,26 @@ TEST(WasiTest, Args) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(65536), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiArgsSizesGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiArgsGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(65536), UINT32_C(8)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiArgsGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 }
 
@@ -378,16 +388,16 @@ TEST(WasiTest, Envs) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(0));
 
-  *MemInst.getPointer<uint32_t *>(0) = UINT32_C(0xdeadbeef);
+  MemInst.storeValue(UINT32_C(0xdeadbeef), 0);
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xdeadbeef));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0xdeadbeef));
   Env.fini();
 
   // envs: a=b\0
@@ -398,15 +408,15 @@ TEST(WasiTest, Envs) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(1));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(4));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(1));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(4));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(4));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(4));
   EXPECT_STREQ(MemInst.getPointer<const char *>(4), "a=b");
   Env.fini();
 
@@ -418,16 +428,16 @@ TEST(WasiTest, Envs) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(2));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(19));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(2));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(19));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(12)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(12));
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(16));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(12));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(16));
   EXPECT_STREQ(MemInst.getPointer<const char *>(12), "a=b");
   EXPECT_STREQ(MemInst.getPointer<const char *>(16), "TEST=TEST=TEST");
   Env.fini();
@@ -440,13 +450,13 @@ TEST(WasiTest, Envs) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(65536), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
@@ -454,14 +464,14 @@ TEST(WasiTest, Envs) {
       Errno));
   // success on zero-size write
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   // success on zero-size write
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 
   Env.init({}, "test"s, {}, {"a=b"s});
@@ -471,26 +481,26 @@ TEST(WasiTest, Envs) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(65536), UINT32_C(4)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(4), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 4), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironSizesGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0xa5a5a5a5));
 
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(65536), UINT32_C(8)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 8), UINT32_C(0xa5a5a5a5));
   EXPECT_TRUE(WasiEnvironGet.run(
       CallFrame,
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(65536)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 }
 
@@ -527,7 +537,7 @@ TEST(WasiTest, ClockRes) {
     EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
-      EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
+      EXPECT_EQ(getValue<uint64_t>(MemInst, 0), Res);
     }
   }
 
@@ -548,7 +558,7 @@ TEST(WasiTest, ClockRes) {
     EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
-      EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
+      EXPECT_EQ(getValue<uint64_t>(MemInst, 0), Res);
     }
   }
 
@@ -570,7 +580,7 @@ TEST(WasiTest, ClockRes) {
     EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
-      EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
+      EXPECT_EQ(getValue<uint64_t>(MemInst, 0), Res);
     }
   }
 
@@ -592,7 +602,7 @@ TEST(WasiTest, ClockRes) {
     EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Res = convertTimespec(Timespec);
-      EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(0), Res);
+      EXPECT_EQ(getValue<uint64_t>(MemInst, 0), Res);
     }
   }
 #else
@@ -811,8 +821,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
         auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-        IOVec[0].buf = DataPtr;
-        IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
+        IOVec[0].buf = SWAP_E(DataPtr);
+        IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
         EXPECT_TRUE(WasiSockSend.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{
@@ -838,8 +848,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
           auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-          IOVec[0].buf = DataPtr;
-          IOVec[0].buf_len = 32768;
+          IOVec[0].buf = SWAP_E(DataPtr);
+          IOVec[0].buf_len = SWAP_E(32768);
           EXPECT_TRUE(
               WasiSockRecv.run(CallFrame,
                                std::initializer_list<WasmEdge::ValVariant>{
@@ -916,16 +926,17 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
       Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -937,7 +948,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
       EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollRead = [&]() {
       const uint32_t Count = 2;
@@ -945,16 +956,17 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
       Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -965,8 +977,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_READ);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_READ));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
       EXPECT_EQ(Events[0].fd_readwrite.flags, 0);
     };
     auto PollWriteTimeout = [&]() {
@@ -975,16 +987,17 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
       Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[0].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -995,8 +1008,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_CLOCK));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollWrite = [&]() {
       const uint32_t Count = 2;
@@ -1004,16 +1017,17 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[0].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[0].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1024,8 +1038,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
     };
     auto PollReadWriteTimeout = [&]() {
       const uint32_t Count = 3;
@@ -1033,19 +1047,20 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1056,8 +1071,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x3030303030303030);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_CLOCK));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x3030303030303030));
     };
     auto PollReadWriteWrite = [&]() {
       const uint32_t Count = 3;
@@ -1065,19 +1080,20 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1088,8 +1104,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollReadWriteReadWrite = [&]() {
       const uint32_t Count = 3;
@@ -1097,19 +1113,20 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1120,10 +1137,10 @@ TEST(WasiTest, PollOneoffSocketV1) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 2);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_READ);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
-      EXPECT_EQ(Events[1].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[1].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_READ));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
+      EXPECT_EQ(Events[1].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[1].userdata, SWAP_E(0x2020202020202020));
     };
 
     // poll read and 100 milliseconds, expect timeout
@@ -1149,8 +1166,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = 256;
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(256);
       EXPECT_TRUE(WasiSockRecv.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
@@ -1184,8 +1201,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1222,8 +1239,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1417,8 +1434,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
         auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-        IOVec[0].buf = DataPtr;
-        IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
+        IOVec[0].buf = SWAP_E(DataPtr);
+        IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
         EXPECT_TRUE(WasiSockSend.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{
@@ -1444,8 +1461,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
           auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-          IOVec[0].buf = DataPtr;
-          IOVec[0].buf_len = 32768;
+          IOVec[0].buf = SWAP_E(DataPtr);
+          IOVec[0].buf_len = SWAP_E(32768);
           EXPECT_TRUE(
               WasiSockRecv.run(CallFrame,
                                std::initializer_list<WasmEdge::ValVariant>{
@@ -1522,16 +1539,17 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1542,8 +1560,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_CLOCK));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollRead = [&]() {
       const uint32_t Count = 2;
@@ -1551,16 +1569,17 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1571,9 +1590,9 @@ TEST(WasiTest, PollOneoffSocketV2) {
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_READ);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
-      EXPECT_EQ(Events[0].fd_readwrite.flags, 0);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_READ));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
+      EXPECT_EQ(Events[0].fd_readwrite.flags, SWAP_E(0));
     };
     auto PollWriteTimeout = [&]() {
       const uint32_t Count = 2;
@@ -1581,16 +1600,17 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[0].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[0].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1601,8 +1621,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_CLOCK));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollWrite = [&]() {
       const uint32_t Count = 2;
@@ -1610,16 +1630,17 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[0].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[0].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1630,8 +1651,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
     };
     auto PollReadWriteTimeout = [&]() {
       const uint32_t Count = 3;
@@ -1639,19 +1660,20 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1662,8 +1684,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x3030303030303030);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_CLOCK));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x3030303030303030));
     };
     auto PollReadWriteWrite = [&]() {
       const uint32_t Count = 3;
@@ -1671,19 +1693,20 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1694,8 +1717,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollReadWriteReadWrite = [&]() {
       const uint32_t Count = 3;
@@ -1703,19 +1726,20 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -1726,10 +1750,10 @@ TEST(WasiTest, PollOneoffSocketV2) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 2);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_READ);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
-      EXPECT_EQ(Events[1].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[1].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_READ));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
+      EXPECT_EQ(Events[1].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[1].userdata, SWAP_E(0x2020202020202020));
     };
 
     // poll read and 100 milliseconds, expect timeout
@@ -1755,8 +1779,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = 256;
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(256);
       EXPECT_TRUE(WasiSockRecv.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
@@ -1790,8 +1814,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -1828,8 +1852,8 @@ TEST(WasiTest, PollOneoffSocketV2) {
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = static_cast<__wasi_size_t>(Data.size());
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -2023,8 +2047,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
         const auto Data = "server"sv;
         writeString(MemInst, Data, DataPtr);
         auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-        IOVec[0].buf = DataPtr;
-        IOVec[0].buf_len = Data.size();
+        IOVec[0].buf = SWAP_E(DataPtr);
+        IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
         EXPECT_TRUE(WasiSockSend.run(
             CallFrame,
             std::initializer_list<WasmEdge::ValVariant>{
@@ -2050,8 +2074,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
               IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
           const uint32_t RiFlags = 0;
           auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-          IOVec[0].buf = DataPtr;
-          IOVec[0].buf_len = 32768;
+          IOVec[0].buf = SWAP_E(DataPtr);
+          IOVec[0].buf_len = SWAP_E(32768);
           EXPECT_TRUE(
               WasiSockRecv.run(CallFrame,
                                std::initializer_list<WasmEdge::ValVariant>{
@@ -2128,16 +2152,17 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -2148,8 +2173,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_CLOCK));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollRead = [&]() {
       const uint32_t Count = 2;
@@ -2157,16 +2182,17 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -2177,9 +2203,9 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_READ);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
-      EXPECT_EQ(Events[0].fd_readwrite.flags, 0);
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_READ));
+      EXPECT_EQ(Events[0].fd_readwrite.flags, SWAP_E(0));
     };
     auto PollWriteTimeout = [&]() {
       const uint32_t Count = 2;
@@ -2187,16 +2213,17 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[0].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[0].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -2207,8 +2234,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       EXPECT_TRUE((MemInst.loadValue(NEvents, NEventsPtr)));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_CLOCK));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollWrite = [&]() {
       const uint32_t Count = 2;
@@ -2216,16 +2243,17 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[0].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[1].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[1].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[1].u.u.clock.precision = 1;
-      Subscriptions[1].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[0].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[1].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[1].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[1].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[1].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -2236,8 +2264,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
     };
     auto PollReadWriteTimeout = [&]() {
       const uint32_t Count = 3;
@@ -2245,19 +2273,20 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -2268,8 +2297,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_CLOCK);
-      EXPECT_EQ(Events[0].userdata, 0x3030303030303030);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_CLOCK));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x3030303030303030));
     };
     auto PollReadWriteWrite = [&]() {
       const uint32_t Count = 3;
@@ -2277,19 +2306,20 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -2300,8 +2330,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 1);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[0].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x2020202020202020));
     };
     auto PollReadWriteReadWrite = [&]() {
       const uint32_t Count = 3;
@@ -2309,19 +2339,20 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
-      Subscriptions[0].userdata = 0x1010101010101010;
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
-      Subscriptions[0].u.u.fd_read.file_descriptor = Fd;
-      Subscriptions[1].userdata = 0x2020202020202020;
-      Subscriptions[1].u.tag = __WASI_EVENTTYPE_FD_WRITE;
-      Subscriptions[1].u.u.fd_write.file_descriptor = Fd;
-      Subscriptions[2].userdata = 0x3030303030303030;
-      Subscriptions[2].u.tag = __WASI_EVENTTYPE_CLOCK;
-      Subscriptions[2].u.u.clock.id = __WASI_CLOCKID_MONOTONIC;
-      Subscriptions[2].u.u.clock.timeout =
-          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count();
-      Subscriptions[2].u.u.clock.precision = 1;
-      Subscriptions[2].u.u.clock.flags = static_cast<__wasi_subclockflags_t>(0);
+      Subscriptions[0].userdata = SWAP_E(0x1010101010101010);
+      Subscriptions[0].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_READ);
+      Subscriptions[0].u.u.fd_read.file_descriptor = SWAP_E(Fd);
+      Subscriptions[1].userdata = SWAP_E(0x2020202020202020);
+      Subscriptions[1].u.tag = SWAP_E(__WASI_EVENTTYPE_FD_WRITE);
+      Subscriptions[1].u.u.fd_write.file_descriptor = SWAP_E(Fd);
+      Subscriptions[2].userdata = SWAP_E(0x3030303030303030);
+      Subscriptions[2].u.tag = SWAP_E(__WASI_EVENTTYPE_CLOCK);
+      Subscriptions[2].u.u.clock.id = SWAP_E(__WASI_CLOCKID_MONOTONIC);
+      Subscriptions[2].u.u.clock.timeout = SWAP_E(
+          std::chrono::nanoseconds(std::chrono::milliseconds(100)).count());
+      Subscriptions[2].u.u.clock.precision = SWAP_E(1);
+      Subscriptions[2].u.u.clock.flags =
+          SWAP_E(static_cast<__wasi_subclockflags_t>(0));
       EXPECT_TRUE(
           WasiPollOneoff.run(CallFrame,
                              std::initializer_list<WasmEdge::ValVariant>{
@@ -2332,10 +2363,10 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       EXPECT_TRUE(MemInst.loadValue(NEvents, NEventsPtr));
       EXPECT_EQ(NEvents, 2);
       auto Events = MemInst.getPointer<__wasi_event_t *>(OutPtr);
-      EXPECT_EQ(Events[0].type, __WASI_EVENTTYPE_FD_READ);
-      EXPECT_EQ(Events[0].userdata, 0x1010101010101010);
-      EXPECT_EQ(Events[1].type, __WASI_EVENTTYPE_FD_WRITE);
-      EXPECT_EQ(Events[1].userdata, 0x2020202020202020);
+      EXPECT_EQ(Events[0].type, SWAP_E(__WASI_EVENTTYPE_FD_READ));
+      EXPECT_EQ(Events[0].userdata, SWAP_E(0x1010101010101010));
+      EXPECT_EQ(Events[1].type, SWAP_E(__WASI_EVENTTYPE_FD_WRITE));
+      EXPECT_EQ(Events[1].userdata, SWAP_E(0x2020202020202020));
     };
 
     // poll read and 100 milliseconds, expect timeout
@@ -2361,8 +2392,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const uint32_t DataPtr = IOVecPtr + sizeof(__wasi_iovec_t) * IOVecSize;
       const uint32_t RiFlags = 0;
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = 256;
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(256);
       EXPECT_TRUE(WasiSockRecv.run(
           CallFrame,
           std::initializer_list<WasmEdge::ValVariant>{
@@ -2396,8 +2427,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -2434,8 +2465,8 @@ TEST(WasiTest, EpollOneoffSocketV1) {
       const auto Data = "somedata"sv;
       writeString(MemInst, Data, DataPtr);
       auto IOVec = MemInst.getSpan<__wasi_ciovec_t>(IOVecPtr, IOVecSize);
-      IOVec[0].buf = DataPtr;
-      IOVec[0].buf_len = Data.size();
+      IOVec[0].buf = SWAP_E(DataPtr);
+      IOVec[0].buf_len = SWAP_E(static_cast<__wasi_size_t>(Data.size()));
       EXPECT_TRUE(
           WasiSockSend.run(CallFrame,
                            std::initializer_list<WasmEdge::ValVariant>{
@@ -2521,7 +2552,7 @@ TEST(WasiTest, ClockTimeGet) {
     EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
-      EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
+      EXPECT_NEAR(getValue<uint64_t>(MemInst, 0), Time, 1000000);
     }
   }
 #else
@@ -2566,7 +2597,7 @@ TEST(WasiTest, ClockTimeGet) {
     EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
-      EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
+      EXPECT_NEAR(getValue<uint64_t>(MemInst, 0), Time, 1000000);
     }
   }
 #else
@@ -2592,7 +2623,7 @@ TEST(WasiTest, ClockTimeGet) {
     EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
-      EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
+      EXPECT_NEAR(getValue<uint64_t>(MemInst, 0), Time, 1000000);
     }
   }
 #else
@@ -2618,7 +2649,7 @@ TEST(WasiTest, ClockTimeGet) {
     EXPECT_EQ(Errno[0].get<int32_t>(), convertErrno(SysErrno));
     if (SysErrno == 0) {
       const uint64_t Time = convertTimespec(Timespec);
-      EXPECT_NEAR(*MemInst.getPointer<const uint64_t *>(0), Time, 1000000);
+      EXPECT_NEAR(getValue<uint64_t>(MemInst, 0), Time, 1000000);
     }
   }
 #else
@@ -2699,7 +2730,7 @@ TEST(WasiTest, Random) {
       std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(0)},
       Errno));
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  EXPECT_EQ(getValue<uint32_t>(MemInst, 0), UINT32_C(0xa5a5a5a5));
   Env.fini();
 
   // valid pointer, size 1
@@ -2726,9 +2757,9 @@ TEST(WasiTest, Random) {
         std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(8)},
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    EXPECT_NE(*MemInst.getPointer<const uint64_t *>(0),
+    EXPECT_NE(getValue<uint64_t>(MemInst, 0),
               UINT64_C(0xa5a5a5a5a5a5a5a5));
-    EXPECT_EQ(*MemInst.getPointer<const uint64_t *>(8),
+    EXPECT_EQ(getValue<uint64_t>(MemInst, 8),
               UINT64_C(0xa5a5a5a5a5a5a5a5));
     Env.fini();
   }

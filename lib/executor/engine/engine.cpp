@@ -925,11 +925,18 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       std::array<uint8_t, 16> Result;
       std::memcpy(&Data[0], &Val1, 16);
       std::memcpy(&Data[16], &Val2, 16);
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+      std::reverse(Data.begin(), Data.begin() + 16);
+      std::reverse(Data.begin() + 16, Data.end());
+#endif
       const auto V3 = Instr.getNum().get<uint128_t>();
       for (size_t I = 0; I < 16; ++I) {
         const uint8_t Index = static_cast<uint8_t>(V3 >> (I * 8));
         Result[I] = Data[Index];
       }
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+      std::reverse(Result.begin(), Result.end());
+#endif
       std::memcpy(&Val1, &Result[0], 16);
       return {};
     }
@@ -1011,20 +1018,16 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::I8x16__swizzle: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      const uint8x16_t &Index = Val2.get<uint8x16_t>();
+      uint8x16_t Index = Val2.get<uint8x16_t>();
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+      Index = 15 - Index;
+#endif
       uint8x16_t &Vector = Val1.get<uint8x16_t>();
       const uint8x16_t Limit = uint8x16_t{} + 16;
       const uint8x16_t Zero = uint8x16_t{};
       const uint8x16_t Exceed = (Index >= Limit);
 #ifdef __clang__
-      uint8x16_t Result = {Vector[Index[0] & 0xF],  Vector[Index[1] & 0xF],
-                           Vector[Index[2] & 0xF],  Vector[Index[3] & 0xF],
-                           Vector[Index[4] & 0xF],  Vector[Index[5] & 0xF],
-                           Vector[Index[6] & 0xF],  Vector[Index[7] & 0xF],
-                           Vector[Index[8] & 0xF],  Vector[Index[9] & 0xF],
-                           Vector[Index[10] & 0xF], Vector[Index[11] & 0xF],
-                           Vector[Index[12] & 0xF], Vector[Index[13] & 0xF],
-                           Vector[Index[14] & 0xF], Vector[Index[15] & 0xF]};
+      uint8x16_t Result = __builtin_shufflevector(Vector, Index);
 #else
       uint8x16_t Result = __builtin_shuffle(Vector, Index);
 #endif
@@ -1777,7 +1780,10 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::I8x16__relaxed_swizzle: {
       const ValVariant Val2 = StackMgr.pop();
       ValVariant &Val1 = StackMgr.getTop();
-      const uint8x16_t &Index = Val2.get<uint8x16_t>();
+      uint8x16_t Index = Val2.get<uint8x16_t>();
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+      Index = 15 - Index;
+#endif
       uint8x16_t &Vector = Val1.get<uint8x16_t>();
       uint8x16_t Result{};
       for (size_t I = 0; I < 16; ++I) {

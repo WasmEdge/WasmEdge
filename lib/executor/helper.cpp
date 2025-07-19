@@ -471,9 +471,17 @@ ValVariant Executor::packVal(const ValType &Type,
   if (Type.isPackType()) {
     switch (Type.getCode()) {
     case TypeCode::I8:
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
       return ValVariant(Val.get<uint32_t>() & 0xFFU);
+#else
+      return ValVariant(Val.get<uint32_t>() << 24);
+#endif
     case TypeCode::I16:
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
       return ValVariant(Val.get<uint32_t>() & 0xFFFFU);
+#else
+      return ValVariant(Val.get<uint32_t>() << 16);
+#endif
     default:
       assumingUnreachable();
     }
@@ -496,12 +504,18 @@ ValVariant Executor::unpackVal(const ValType &Type, const ValVariant &Val,
     uint32_t Num = Val.get<uint32_t>();
     switch (Type.getCode()) {
     case TypeCode::I8:
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+      Num >>= 24;
+#endif
       if (IsSigned) {
         return static_cast<uint32_t>(static_cast<int8_t>(Num));
       } else {
         return static_cast<uint32_t>(static_cast<uint8_t>(Num));
       }
     case TypeCode::I16:
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+      Num >>= 16;
+#endif
       if (IsSigned) {
         return static_cast<uint32_t>(static_cast<int16_t>(Num));
       } else {

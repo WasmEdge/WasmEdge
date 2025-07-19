@@ -76,7 +76,11 @@ function "tags-backports" {
 
 function "tags-simplified" {
   params = [target, ubuntu, toolchain]
-  result = target == "base" && toolchain == "clang" ? "ubuntu-${ubuntu}" : ""
+  result = toolchain == "clang" ? join("-", compact([
+    "ubuntu",
+    ubuntu,
+    target == "plugins" ? "plugins" : "",
+  ])) : ""
 }
 
 function "tags" {

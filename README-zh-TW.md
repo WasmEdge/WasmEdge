@@ -10,14 +10,12 @@
 
 WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性能、可擴充的 WebAssembly (Wasm) 虛擬機器，可運用在雲端原生、邊緣運算、去中心化的應用程式。 WasmEdge 現今是目前市面上 [最快的 Wasm 虛擬機器之一](https://ieeexplore.ieee.org/document/9214403)。 WasmEdge 是由 [CNCF](https://www.cncf.io/) （Cloud Native Computing Foundation ，雲端原生運算基金會）託管的官方沙箱項目之一。其[使用情境](https://wasmedge.org/docs/zh-tw/start/usage/use-cases)包含 serverless apps 、嵌入式函數、微型服務、智慧合約和 IoT 裝置。
 
-![build](https://github.com/WasmEdge/WasmEdge/workflows/build/badge.svg)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/alerts/)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/WasmEdge/WasmEdge.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/WasmEdge/WasmEdge/context:cpp)
+[![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml?query=event%3Apush++branch%3Amaster)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
-[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml)
+[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml?query=event%3Apush++branch%3Amaster)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5059/badge)](https://bestpractices.coreinfrastructure.org/projects/5059)
-  
+
 </div>
 
 # 快速開始指引

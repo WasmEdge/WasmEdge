@@ -10,11 +10,13 @@
 
 # [🤩 WasmEdge is the easiest and fastest way to run LLMs on your own devices. 🤩](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge)
 
+<a href="https://trendshift.io/repositories/2481" target="_blank"><img src="https://trendshift.io/api/badge/repositories/2481" alt="WasmEdge%2FWasmEdge | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+
 WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403). WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). [LlamaEdge](https://github.com/LlamaEdge/LlamaEdge) is an application framework built on top of WasmEdge to run GenAI models (e.g., [LLM](https://llamaedge.com/docs/user-guide/llm/get-started-with-llamaedge), [speech-to-text](https://llamaedge.com/docs/user-guide/speech-to-text/quick-start-whisper), [text-to-image](https://llamaedge.com/docs/user-guide/text-to-image/quick-start-sd), and [TTS](https://github.com/LlamaEdge/whisper-api-server)) across GPUs on servers, personal computers, and edge devices. Additional [use cases](https://wasmedge.org/docs/start/usage/use-cases/) include microservices on the edge cloud, serverless SaaS APIs, embedded functions, smart contracts, and smart devices.
 
-[![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml)
+[![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml?query=event%3Apush++branch%3Amaster)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
-[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml)
+[![CodeQL](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/codeql-analysis.yml?query=event%3Apush++branch%3Amaster)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FWasmEdge%2FWasmEdge?ref=badge_shield)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/5059/badge)](https://bestpractices.coreinfrastructure.org/projects/5059)
 
@@ -60,7 +62,12 @@ WasmEdge and its contained wasm program can be started from the [CLI](https://wa
 
 ## Contributing
 
-If you would like to contribute to the WasmEdge project, please refer to our [CONTRIBUTING](https://wasmedge.org/docs/contribute/overview) document for details. If you are looking for ideas, checkout our ["help wanted" issues](https://github.com/WasmEdge/WasmEdge/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)!
+We welcome contributions from the community! Please check out our:
+- [Contributing Guide](./docs/CONTRIBUTING.md) for how to get started
+- [Governance documentation](./docs/GOVERNANCE.md) for project decision-making processes
+- [Code of Conduct](./docs/CODE_OF_CONDUCT.md) for community standards
+
+Want to become a maintainer? See our [Contributor Ladder](./CONTRIBUTION_LADDER.md).
 
 ## Roadmap
 
@@ -85,7 +92,7 @@ We host a monthly community meeting to showcase new features, demo new use cases
 
 Time: The first Tuesday of each month at 11PM Hong Kong Time/ 7AM PST.
 
-[Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/89156807241?pwd=VHl5VW5BbmY2eUtTYkY0Zm9yUHRRdz09)
+[Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/82221747919?pwd=3MORhaxDk15rACk7mNDvyz9KtaEbWy.1)
 
 # License
 

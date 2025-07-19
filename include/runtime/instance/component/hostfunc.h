@@ -2,22 +2,22 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #pragma once
 
-#include "ast/instruction.h"
+#include "ast/type.h"
 #include "common/symbol.h"
 #include "common/types.h"
 
 #include <memory>
 #include <numeric>
 #include <string>
-#include <vector>
 
 namespace WasmEdge {
 namespace Runtime {
+namespace Instance {
 namespace Component {
 
 class HostFunctionBase {
 public:
-  HostFunctionBase() : FuncType{AST::FunctionType()} {}
+  HostFunctionBase() = default;
   virtual ~HostFunctionBase() = default;
 
   /// Run host function body.
@@ -278,5 +278,6 @@ private:
 };
 
 } // namespace Component
+} // namespace Instance
 } // namespace Runtime
 } // namespace WasmEdge

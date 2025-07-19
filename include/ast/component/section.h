@@ -45,13 +45,13 @@ private:
 class CoreInstanceSection : public Section {
 public:
   /// Getter of content module.
-  Span<const CoreInstanceExpr> getContent() const noexcept { return Content; }
-  std::vector<CoreInstanceExpr> &getContent() noexcept { return Content; }
+  Span<const CoreInstance> getContent() const noexcept { return Content; }
+  std::vector<CoreInstance> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of CoreInstanceSection.
   /// @{
-  std::vector<CoreInstanceExpr> Content;
+  std::vector<CoreInstance> Content;
   /// @}
 };
 
@@ -76,12 +76,12 @@ class ComponentSection : public Section {
 public:
   /// Getter of content.
   const Component &getContent() const noexcept { return *Content; }
-  std::shared_ptr<Component> &getContent() noexcept { return Content; }
+  std::unique_ptr<Component> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of ComponentSection.
   /// @{
-  std::shared_ptr<Component> Content;
+  std::unique_ptr<Component> Content;
   /// @}
 };
 
@@ -89,13 +89,13 @@ private:
 class InstanceSection : public Section {
 public:
   /// Getter of content module.
-  Span<const InstanceExpr> getContent() const noexcept { return Content; }
-  std::vector<InstanceExpr> &getContent() noexcept { return Content; }
+  Span<const Instance> getContent() const noexcept { return Content; }
+  std::vector<Instance> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of InstanceSection.
   /// @{
-  std::vector<InstanceExpr> Content;
+  std::vector<Instance> Content;
   /// @}
 };
 
@@ -131,13 +131,13 @@ private:
 class CanonSection : public Section {
 public:
   /// Getter of content module.
-  Span<const Canon> getContent() const noexcept { return Content; }
-  std::vector<Canon> &getContent() noexcept { return Content; }
+  Span<const Canonical> getContent() const noexcept { return Content; }
+  std::vector<Canonical> &getContent() noexcept { return Content; }
 
 private:
   /// \name Data of CanonicalSection.
   /// @{
-  std::vector<Canon> Content;
+  std::vector<Canonical> Content;
   /// @}
 };
 

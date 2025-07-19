@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "ast/component/instance.h"
-#include "ast/module.h"
-#include "common/errcode.h"
 #include "executor/executor.h"
-
-#include "runtime/instance/module.h"
-
-#include <string_view>
-#include <variant>
 
 namespace WasmEdge {
 namespace Executor {
@@ -27,8 +19,8 @@ Executor::instantiate(Runtime::StoreManager &,
 Expect<void>
 Executor::instantiate(Runtime::StoreManager &,
                       Runtime::Instance::ComponentInstance &CompInst,
-                      const AST::Component::TypeSection &TySec) {
-  for (auto &Ty : TySec.getContent()) {
+                      const AST::Component::TypeSection &TypeSec) {
+  for (auto &Ty : TypeSec.getContent()) {
     CompInst.addType(Ty);
   }
   return {};

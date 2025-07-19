@@ -10,16 +10,16 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/elem.cpp
   instantiate/data.cpp
   instantiate/export.cpp
-  instantiate/module.cpp
-  instantiate/component.cpp
-  instantiate/component/instantiate_component_alias.cpp
-  instantiate/component/instantiate_component_canon.cpp
-  instantiate/component/instantiate_component_export.cpp
-  instantiate/component/instantiate_component_import.cpp
-  instantiate/component/instantiate_component_instance.cpp
-  instantiate/component/instantiate_component_start.cpp
-  instantiate/component/instantiate_component_type.cpp
   instantiate/tag.cpp
+  instantiate/module.cpp
+  instantiate/component/component.cpp
+  instantiate/component/component_alias.cpp
+  instantiate/component/component_canon.cpp
+  instantiate/component/component_export.cpp
+  instantiate/component/component_import.cpp
+  instantiate/component/component_instance.cpp
+  instantiate/component/component_start.cpp
+  instantiate/component/component_type.cpp
   engine/proxy.cpp
   engine/controlInstr.cpp
   engine/tableInstr.cpp

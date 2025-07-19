@@ -14,6 +14,7 @@ wasmedge_add_library(wasmedgeHostModuleWasi
   vinode.cpp
   wasifunc.cpp
   wasimodule.cpp
+  vfs_io.cpp
   ${WASMEDGE_WASI_SRCS}
 )
 

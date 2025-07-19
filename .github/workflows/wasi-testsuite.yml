@@ -24,7 +24,7 @@ on:
 
 permissions:
   contents: read
-  
+
 jobs:
   test:
     permissions:

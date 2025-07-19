@@ -10,10 +10,10 @@ on:
         type: boolean
       upload_asset_url:
         type: string
-        
+
 permissions:
   contents: read
-  
+
 jobs:
   build_on_android:
     permissions:

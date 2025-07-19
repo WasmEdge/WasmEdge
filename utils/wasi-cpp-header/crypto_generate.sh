@@ -6,7 +6,7 @@ ROOT="$(realpath $(dirname "${BASH_SOURCE[0]}")/../../)"
 cargo build --release
 
 for name in "asymmetric_common" "common" "external_secrets" "kx" "signatures" "symmetric" ;
-    do 
+    do
         curl -s -L --remote-name-all https://raw.githubusercontent.com/WebAssembly/wasi-crypto/main/witx/proposal_${name}.witx
     done
 

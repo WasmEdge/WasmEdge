@@ -17,8 +17,8 @@ define Package/$(PKG_NAME)
 endef
 
 define Package/$(PKG_NAME)/description
-	WasmEdge is a lightweight, high-performance, and extensible 
-	WebAssembly runtime. It is the fastest Wasm VM today. 
+	WasmEdge is a lightweight, high-performance, and extensible
+	WebAssembly runtime. It is the fastest Wasm VM today.
 endef
 
 define Build/Prepare

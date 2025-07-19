@@ -35,7 +35,7 @@ $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 (root@xxxxxx:/home/openharmony)$ cd third_party
 (root@xxxxxx:/home/openharmony/third_party)$ git clone https://github.com/WasmEdge/WasmEdge.git
 (root@xxxxxx:/home/openharmony/third_party)$ cd WasmEdge
-(root@xxxxxx:/home/openharmony/third_party/WasmEdge)$ 
+(root@xxxxxx:/home/openharmony/third_party/WasmEdge)$
 ```
 
 ### 修改 OpenHarmony 标准系统配置文件
@@ -47,12 +47,12 @@ $ docker run -it -v $(pwd):/home/openharmony openharmony-docker-standard:0.0.5
 ```json
 {
   ...
-  
+
   "wasmedge": {
     "path": "third_party/WasmEdge",
     "name": "wasmedge"
   },
-  
+
   ...
 }
 ```
@@ -110,7 +110,7 @@ post_process
 
 ```bash
 (root@xxxxxx:/home/openharmony/third_party/WasmEdge/utils/ohos)$ cd /home/openharmony/out/ohos-arm-release/packages/phone/system/bin
-(root@xxxxxx:/home/openharmony/out/ohos-arm-release/packages/phone/system/bin)$ ls 
+(root@xxxxxx:/home/openharmony/out/ohos-arm-release/packages/phone/system/bin)$ ls
 ```
 
 当输出的文件名中存在 `wasmedge` ，表明成功加入 OpenHarmony OS。

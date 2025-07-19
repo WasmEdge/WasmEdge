@@ -10,7 +10,7 @@ You need four main components:
 
 2. WasmEdge Runtime
 
-3. wasmedge-zlib plugin 
+3. wasmedge-zlib plugin
 
 4. wit-bindgen(v0.42.x) (for generating bindings on the fly)
 

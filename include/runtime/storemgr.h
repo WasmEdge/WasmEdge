@@ -98,6 +98,18 @@ public:
     return {};
   }
 
+  /// Unregister a named module from this store.
+  Expect<void> unregisterModule(std::string_view Name) {
+    std::unique_lock Lock(Mutex);
+    auto Iter = NamedMod.find(Name);
+    if (Iter == NamedMod.cend()) {
+      return Unexpect(ErrCode::Value::UnknownImport);
+    }
+    (const_cast<Instance::ModuleInstance *>(Iter->second))->unlinkStore(this);
+    NamedMod.erase(Iter);
+    return {};
+  }
+
   void addNamedModule(std::string_view Name,
                       const Instance::ModuleInstance *Inst) {
     std::unique_lock Lock(Mutex);

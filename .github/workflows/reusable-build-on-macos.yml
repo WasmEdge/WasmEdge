@@ -76,7 +76,7 @@ jobs:
           eval $(/opt/homebrew/bin/brew shellenv)
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
-          ctest
+          ctest --output-on-failure
       - name: Create package tarball
         run: |
           eval $(/opt/homebrew/bin/brew shellenv)

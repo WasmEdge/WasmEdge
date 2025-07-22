@@ -32,7 +32,7 @@ Description: A Community Participant engages with the project and its community,
     * Commenting on issues
     * Trying out new releases
     * Attending community events, like community meetings
-  
+
 
 ### Contributor
 
@@ -62,7 +62,7 @@ Description: A Reviewer is an established contributor who regularly participates
 A Reviewer must meet the responsibilities and has the requirements of a Contributor, plus:
 
 * Responsibilities include:
-    * Continues to contribute regularly, as demonstrated by having at least 30 GitHub contributions per year, as shown by Devstats. 
+    * Continues to contribute regularly, as demonstrated by having at least 30 GitHub contributions per year, as shown by Devstats.
 * Requirements:
     * Must have successful contributions to the project, including at least one of the following:
         * 2 accepted PRs,
@@ -72,14 +72,14 @@ A Reviewer must meet the responsibilities and has the requirements of a Contribu
         * Or some equivalent combination or contribution
     * Must have been contributing for at least 3 months
     * Must be actively contributing to at least one project area
-   
+
 * Privileges:
     * May be assigned Issues and Reviews
     * May give commands to CI/CD automation
     * Entitled to vote in the Reviewer proposal
     * Can recommend other contributors to become a reviewer
     * Is listed as Reviewer in the [OWNERS file](./OWNER.md) under the WasmEdge/WasmEdge repos.
-      
+
 
 The process for a Contributor to become a Reviewer is as follows:
 
@@ -108,7 +108,7 @@ Committers have all the rights and responsibilities of a reviewer, plus:
     * Has GitHub or CI/CD rights to approve pull requests in specific directories
     * Can recommend and review other contributors to become Committers
     * Is listed as Committers in the [OWNERS file](./OWNER.md) under the WasmEdge/WasmEdge repos.
-  
+
 The process of becoming a Committer is:
 
 1. The contributor is nominated by opening a PR against the appropriate repository by the existing reviewers, committers and maintainers, which adds their GitHub username to the OWNERS file for one or more directories.
@@ -138,7 +138,7 @@ A Maintainer must meet the responsibilities and requirements of a Committer, plu
     * Represent the project in public as a Maintainer
     * Communicate with the CNCF on behalf of the project
     * Have a vote in Maintainer decision-making meetings
-    
+
 
 Process of becoming a maintainer:
 

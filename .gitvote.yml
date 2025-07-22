@@ -66,7 +66,7 @@ profiles:
         - juntao
 
     # Periodic status check
-    # 
+    #
     # GitVote allows checking the status of a vote in progress manually by
     # calling the /check-vote command. The periodic status check option makes
     # it possible to automate the execution of status checks periodically. The
@@ -95,14 +95,14 @@ profiles:
     periodic_status_check: "5 days"
 
     # Close on passing
-    # 
+    #
     # By default, votes remain open for the configured duration. Sometimes,
     # specially on votes that stay open for a long time, it may be preferable
     # to close a vote automatically once the passing threshold has been met.
     # The close on passing feature makes this possible. Open votes where this
     # feature has been enabled will be checked once daily and, if GitVote
     # detects that the vote has passed, it will automatically close it.
-    # 
+    #
     # close_on_passing: true
     #
     close_on_passing: false

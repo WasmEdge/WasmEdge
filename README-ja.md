@@ -84,7 +84,7 @@ WasmEdge プロジェクトにコントリビュートしたい場合は、[CONT
 
 時間: 毎月第1火曜日午後11時（香港時間）／午前7時（太平洋標準時）。
 
-[パブリックミーティングのアジェンダ／ノート](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom リンク](https://us06web.zoom.us/j/89156807241?pwd=VHl5VW5BbmY2eUtTYkY0Zm9yUHRRdz09)
+[パブリックミーティングのアジェンダ／ノート](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom リンク](https://us06web.zoom.us/j/82221747919?pwd=3MORhaxDk15rACk7mNDvyz9KtaEbWy.1)
 
 # ライセンス
 

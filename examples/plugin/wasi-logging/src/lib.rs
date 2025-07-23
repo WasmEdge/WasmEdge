@@ -1,7 +1,7 @@
 wit_bindgen::generate!({ path: "wit" });
 
 use wasi::logging::logging::{
-    Level, 
+    Level,
     log,
 };
 

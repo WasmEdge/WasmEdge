@@ -5,7 +5,7 @@
 </div>
 
 <div align="center">
-  
+
 ![WasmEdge Logo](/docs/wasmedge-runtime-logo.png)
 
 WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性能、可擴充的 WebAssembly (Wasm) 虛擬機器，可運用在雲端原生、邊緣運算、去中心化的應用程式。 WasmEdge 現今是目前市面上 [最快的 Wasm 虛擬機器之一](https://ieeexplore.ieee.org/document/9214403)。 WasmEdge 是由 [CNCF](https://www.cncf.io/) （Cloud Native Computing Foundation ，雲端原生運算基金會）託管的官方沙箱項目之一。其[使用情境](https://wasmedge.org/docs/zh-tw/start/usage/use-cases)包含 serverless apps 、嵌入式函數、微型服務、智慧合約和 IoT 裝置。
@@ -31,7 +31,7 @@ WasmEdge （前名為 SSVM ） 是為邊緣運算最佳化的輕量級、高性�
 WasmEdge 為其執行的 Wasm bytecode 程式提供了一個有良好定義的沙箱。這個專案的 Runtime 為作業系統資源（例如：檔案系統、 Sockets 、環境變數、程序）和記憶體空間提供獨立性與保護。 WasmEdge 的最重要應用領域是在軟體產品（例如：SaaS 、汽車作業系統、邊緣節點，甚至區塊鏈節點）中安全地執行使用者自定義或者經由社群貢獻的程式碼。它使第三方開發者、軟體供應商和社群成員能夠擴充和客製化應用軟體。
 
 <div align="center">
-  
+
 **檢視 WasmEdge 的[使用情境](https://wasmedge.org/docs/zh-tw/contribute/users)。**
 
 </div>

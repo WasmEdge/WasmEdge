@@ -93,18 +93,18 @@ After building, you can find the plug-in `./build/plugins/wasm_bpf/libwasmedgePl
 Set `WASMEDGE_PLUGIN_PATH=./build/plugins/wasm_bpf/` and run wasmedge:
 
 ```console
-# WASMEDGE_PLUGIN_PATH=./build/plugins/wasm_bpf/ ./build/tools/wasmedge/wasmedge execve.wasm 
+# WASMEDGE_PLUGIN_PATH=./build/plugins/wasm_bpf/ ./build/tools/wasmedge/wasmedge execve.wasm
 
-[289150] node -> /bin/sh -c which ps 
-[289151] sh -> which ps 
-[289152] node -> /bin/sh -c /usr/bin/ps -ax -o pid=,ppid=,pcpu=,pmem=,c 
-[289153] sh -> /usr/bin/ps -ax -o pid=,ppid=,pcpu=,pmem=,command= 
-[289154] node -> /bin/sh -c "/root/.vscode-server-insiders/bin/96a795cc 
-[289155] sh -> /root/.vscode-server-insiders/bin/96a795cc0 245632 245678 289148 
-[289156] cpuUsage.sh -> sed -n s/^cpu\s//p /proc/stat 
-[289157] cpuUsage.sh -> cat /proc/245632/stat 
-[289158] cpuUsage.sh -> cat /proc/245678/stat 
-[289159] cpuUsage.sh -> cat /proc/289148/stat 
-[289160] cpuUsage.sh -> sleep 1 
+[289150] node -> /bin/sh -c which ps
+[289151] sh -> which ps
+[289152] node -> /bin/sh -c /usr/bin/ps -ax -o pid=,ppid=,pcpu=,pmem=,c
+[289153] sh -> /usr/bin/ps -ax -o pid=,ppid=,pcpu=,pmem=,command=
+[289154] node -> /bin/sh -c "/root/.vscode-server-insiders/bin/96a795cc
+[289155] sh -> /root/.vscode-server-insiders/bin/96a795cc0 245632 245678 289148
+[289156] cpuUsage.sh -> sed -n s/^cpu\s//p /proc/stat
+[289157] cpuUsage.sh -> cat /proc/245632/stat
+[289158] cpuUsage.sh -> cat /proc/245678/stat
+[289159] cpuUsage.sh -> cat /proc/289148/stat
+[289160] cpuUsage.sh -> sleep 1
 ^C
 ```

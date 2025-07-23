@@ -6,7 +6,7 @@ verify_version() {
   local expected=$1
   local installed=$(~/.wasmedge/bin/wasmedge --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
   echo "Installed version: $installed"
-  
+
   if [ "$installed" = "$expected" ]; then
     echo "✓ Version matches: $installed"
   else

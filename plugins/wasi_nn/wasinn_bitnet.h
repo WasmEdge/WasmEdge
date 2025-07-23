@@ -6,8 +6,7 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
 #include <llama.h>
 #include <common.h>
-#include <string>
-#include <vector>
+#include <sampling.h>
 #include <memory>
 #endif
 
@@ -31,55 +30,43 @@ struct LlamaContextDeleter {
       llama_free(ptr);
   }
 };
-struct LlamaSamplerDeleter {
-  void operator()(llama_sampler *ptr) const {
-    if (ptr)
-      llama_sampler_free(ptr);
-  }
-};
-
-struct LlamaBatchDeleter {
-    void operator()(llama_batch* ptr) const {
-        if (ptr) {
-            llama_batch_free(*ptr);
-            delete ptr;
+struct CommonSamplerDeleter {
+    void operator()(common_sampler *Ptr) const {
+        if (Ptr) {
+            common_sampler_free(Ptr);
         }
     }
 };
 
 using llama_model_ptr = std::unique_ptr<llama_model, LlamaModelDeleter>;
 using llama_context_ptr = std::unique_ptr<llama_context, LlamaContextDeleter>;
-using llama_sampler_ptr = std::unique_ptr<llama_sampler, LlamaSamplerDeleter>;
-using llama_batch_ptr = std::unique_ptr<llama_batch, LlamaBatchDeleter>;
-
+using common_sampler_ptr = std::unique_ptr<common_sampler, CommonSamplerDeleter>;
 
 struct Graph {
-  bool EnableLog = false;
-  llama_model_params MParams;
-  llama_context_params CParams;
+  common_params Params;
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;
 };
 
 
 struct Context {
-  const uint32_t GraphId;
+public:
+  Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), GraphRef(G) {
+    // Correctly copy the sparams member from the graph's common_params
+    SParams = G.Params.sparams;
+    NPredict = G.Params.n_predict;
+  }
+
+  uint32_t GraphId;
   Graph &GraphRef;
 
-
+  common_sampler_params SParams;
+  int32_t NPredict;
   int32_t NPos = 0;
   std::vector<llama_token> LlamaInputs;
   std::vector<llama_token> LlamaOutputTokens;
-  
-  
-  llama_sampler_ptr LlamaSampler = nullptr;
-  llama_batch_ptr LlamaBatch = nullptr;
-
-  
-  uint32_t NPredict = 512;
-
-  Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), GraphRef(G) {
-  }
+  common_sampler_ptr LlamaSampler = nullptr;
+  struct llama_batch LlamaBatch;
 };
 
 #else

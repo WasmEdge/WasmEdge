@@ -14,7 +14,7 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
 
 wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
   SHARED
-  
+
   avcodec/avCodecContext.cpp
   avcodec/avCodec.cpp
   avcodec/avCodecParameters.cpp
@@ -52,7 +52,7 @@ wasmedge_add_library(wasmedgePluginWasmEdgeFFmpeg
 
   swscale/swscale_func.cpp
   swscale/module.cpp
-  
+
   ffmpeg_env.cpp
 )
 

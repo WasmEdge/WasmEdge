@@ -12,6 +12,17 @@
 namespace WasmEdge {
 namespace FStream {
 
+bool fileExists(Host::WASI::Environ *WASIEnv,
+                const std::string_view &FileName) noexcept {
+  __wasi_filestat_t Filestat;
+  auto StatResult = WASIEnv->pathFilestatGet(
+      3, FileName, static_cast<__wasi_lookupflags_t>(0), Filestat);
+  if (!StatResult) {
+    return false;
+  }
+  return true;
+}
+
 IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
                    const std::string_view &FileName) noexcept
     : Fd(0), IsOpen(false), HasError(false), IsEof(false),
@@ -20,6 +31,12 @@ IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
   if (UseWASI) {
     Env = const_cast<Host::WASI::Environ *>(WASIEnv);
     __wasi_fd_t BaseFd = 3;
+
+    if (!fileExists(Env, FileName)) {
+      HasError = true;
+      IsOpen = false;
+      return;
+    }
 
     auto Result = Env->pathOpen(
         BaseFd, FileName, static_cast<__wasi_lookupflags_t>(0),
@@ -32,6 +49,7 @@ IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
       IsOpen = true;
     } else {
       HasError = true;
+      IsOpen = false;
       spdlog::error("Failed to open file for reading: {}",
                     std::string(FileName));
     }

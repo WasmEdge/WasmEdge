@@ -24,6 +24,9 @@
 namespace WasmEdge {
 namespace FStream {
 
+bool fileExists(Host::WASI::Environ *WASIEnv,
+                const std::string_view &FileName) noexcept;
+
 class WASMEDGE_VFS_EXPORT IFStream {
 public:
   IFStream(const Host::WASI::Environ *WASIEnv,

@@ -116,3 +116,8 @@ endif()
 if(WASMEDGE_PLUGIN_ZLIB)
   add_subdirectory(wasmedge_zlib)
 endif()
+
+# WasmEdge plug-in: RWKV
+if(WASMEDGE_PLUGIN_RWKV)
+  add_subdirectory(wasmedge_rwkv)
+endif()

@@ -1,13 +1,27 @@
 # Build the wasmedgePluginRWKV as a shared library
-add_library(wasmedgePluginRWKV SHARED
+cmake_minimum_required(VERSION 3.16)
+project(wasmedgePluginRWKV)
+
+# RWKV core source files
+set(RWKV_SOURCES
   rwkv.cpp           # Core RWKV implementation
   rwkv_plugin.cpp    # WasmEdge plugin wrapper
 )
 
-# Include directories: current source dir and optional thirdparty headers
+# Add all ggml C source files
+file(GLOB GGML_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/ggml/*.c"
+)
+
+add_library(wasmedgePluginRWKV SHARED
+  ${RWKV_SOURCES}
+  ${GGML_SOURCES}
+)
+
+# Include directories: current source dir and ggml headers
 target_include_directories(wasmedgePluginRWKV PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/thirdparty/rwkv     # Optional if using ggml headers
+  ${CMAKE_CURRENT_SOURCE_DIR}/ggml
 )
 
 # Define visibility for Windows/Linux shared builds

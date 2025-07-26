@@ -1,0 +1,75 @@
+# syntax=docker/dockerfile:1.5-labs
+
+ARG ALPINE_VERSION=3.22
+
+FROM alpine:${ALPINE_VERSION} AS base
+
+# Install build dependencies to build lld statically
+RUN apk add --no-cache \
+    bash \
+    cmake \
+    ninja \
+    clang \
+    llvm-dev \
+    llvm-static \
+    lld-dev \
+    git \
+    musl-dev \
+    zlib-dev \
+    zlib-static \
+    libc-dev \
+    libffi-dev
+
+WORKDIR /lld-build
+
+# Clone LLVM project (including lld)
+RUN git clone --depth=1 https://github.com/llvm/llvm-project.git
+
+WORKDIR /lld-build/llvm-project/build
+
+# Set Clang as the compiler
+ENV CC=clang
+ENV CXX=clang++
+
+# Configure LLVM build with lld static libs enabled
+RUN cmake -G Ninja ../llvm \
+  -DLLVM_ENABLE_PROJECTS="lld" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLLVM_ENABLE_RTTI=ON \
+  -DLLVM_ENABLE_EH=ON \
+  -DLLVM_ENABLE_LLD=ON \
+  -DLLVM_ENABLE_LTO=OFF \
+  -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" \
+  -DLLVM_BUILD_LLVM_DYLIB=OFF \
+  -DLLVM_LINK_LLVM_DYLIB=OFF \
+  -DLLVM_INCLUDE_TOOLS=ON \
+  -DLLVM_BUILD_STATIC=ON \
+  -DLLVM_BUILD_SHARED_LIBS=OFF \
+  -DLLVM_ENABLE_THREADS=OFF \
+  -DLLVM_ENABLE_ZLIB=ON \
+  -DLLVM_INCLUDE_TESTS=OFF \
+  -DLLVM_INCLUDE_UTILS=OFF \
+  -DLLVM_INCLUDE_EXAMPLES=OFF \
+  -DLLVM_INCLUDE_DOCS=OFF \
+  -DZLIB_LIBRARY=/lib/libz.a \
+  -DZLIB_INCLUDE_DIR=/usr/include
+
+# Build and install lld
+RUN ninja install-lld
+
+# Copy static libraries to /lld-install
+RUN mkdir -p /lld-install/lib /lld-install/bin && \
+    cp lib/liblld*.a /lld-install/lib/ && \
+    cp bin/lld* /lld-install/bin/
+
+WORKDIR /
+
+# Final image with just the static libs and minimal tools
+FROM alpine:${ALPINE_VERSION} AS lld-static
+
+COPY --from=base /lld-install /lld-install
+
+# Add lld binaries to PATH (optional)
+ENV PATH="/lld-install/bin:${PATH}"
+
+CMD ["/bin/sh"]

@@ -1,0 +1,74 @@
+name: Build and Test WasmEdge Docker Images
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Set up Docker Buildx with container driver for caching support
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver: docker-container
+          buildkitd-flags: --debug
+
+      # Cache Docker layers to speed up builds
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # Build the lld-static image
+      - name: Build lld-static image
+        run: |
+          docker buildx build \
+            --tag wasmedge/lld-static:alpine3.22 \
+            --file utils/docker/Dockerfile.lld-static \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache \
+            --load \
+            .
+
+      # Build the alpine-static image
+      - name: Build alpine-static image
+        run: |
+          docker buildx build \
+            --tag wasmedge/alpine-static:3.22 \
+            --file utils/docker/Dockerfile.alpine-static \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache \
+            --load \
+            .
+
+      # Run WasmEdge tests (placeholder; replace with actual test command)
+      - name: Run WasmEdge tests
+        run: |
+          docker run --rm wasmedge/alpine-static:3.22 /bin/sh -c "cd /src && make test"
+        continue-on-error: true # Adjust based on test reliability
+
+      # Install trivy for vulnerability scanning
+      - name: Install trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+      # Scan lld-static image for vulnerabilities
+      - name: Scan lld-static image for vulnerabilities
+        run: |
+          trivy image --severity HIGH,CRITICAL --exit-code 1 wasmedge/lld-static:alpine3.22
+
+      # Scan alpine-static image for vulnerabilities
+      - name: Scan alpine-static image for vulnerabilities
+        run: |
+          trivy image --severity HIGH,CRITICAL --exit-code 1 wasmedge/alpine-static:3.22

@@ -16,6 +16,7 @@
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "common/errinfo.h"
+#include "common/int128.h"
 #include "common/spdlog.h"
 #include "system/allocator.h"
 
@@ -25,6 +26,7 @@
 #include <fstream>
 #include <memory>
 #include <set>
+#include <type_traits>
 #include <utility>
 
 namespace WasmEdge {
@@ -282,16 +284,29 @@ public:
     if (likely(Length > 0)) {
       if constexpr (std::is_floating_point_v<T>) {
         // Floating case. Do the memory copy.
-        std::memcpy(&Value, &DataPtr[Offset], sizeof(T));
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
+        std::memcpy(&Value, &DataPtr[Offset], Length);
+#else
+        uint64_t LoadVal = 0;
+        std::memcpy(&LoadVal, &DataPtr[Offset], Length);
+        LoadVal = __builtin_bswap64(LoadVal) << (64 - Length * 8);
+        std::memcpy(&Value, &LoadVal, Length);
+#endif
       } else {
         if constexpr (sizeof(T) > 8) {
           assuming(sizeof(T) == 16);
           Value = 0U;
           std::memcpy(&Value, &DataPtr[Offset], Length);
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+          Value = bswap128(Value);
+#endif
         } else {
           uint64_t LoadVal = 0;
           // Integer case. Extends to the result type.
           std::memcpy(&LoadVal, &DataPtr[Offset], Length);
+#if !WASMEDGE_ENDIAN_LITTLE_BYTE
+          LoadVal = __builtin_bswap64(LoadVal);
+#endif
           if (std::is_signed_v<T> && (LoadVal >> (Length * 8 - 1))) {
             // Signed extension.
             for (unsigned int I = Length; I < 8; I++) {
@@ -327,7 +342,28 @@ public:
     }
     // Copy the stored data to the value.
     if (likely(Length > 0)) {
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
       std::memcpy(&DataPtr[Offset], &Value, Length);
+#else
+      if constexpr (Length > 8) {
+        int128_t Val = Value;
+        Val = bswap128(Val);
+        std::memcpy(&DataPtr[Offset], &Val, Length);
+      } else {
+        uint64_t Val = 0;
+        if constexpr (std::is_integral_v<T>) {
+          Val = static_cast<uint64_t>(Value);
+        } else if constexpr (std::is_same_v<T, float>) {
+          Val = static_cast<uint64_t>(
+              *reinterpret_cast<const uint32_t *>(&Value));
+        } else if constexpr (std::is_same_v<T, double>) {
+          Val = static_cast<uint64_t>(
+              *reinterpret_cast<const uint64_t *>(&Value));
+        }
+        Val = __builtin_bswap64(Val);
+        std::memcpy(&DataPtr[Offset], &Val, Length);
+      }
+#endif
     }
     return {};
   }
@@ -342,6 +378,13 @@ private:
   uint8_t *DataPtr = nullptr;
   const uint32_t PageLimit;
   /// @}
+  static inline uint128_t bswap128(uint128_t Val) noexcept {
+    return (static_cast<uint128_t>(
+                __builtin_bswap64(static_cast<uint64_t>(Val)))
+            << 64) |
+           static_cast<uint128_t>(
+               __builtin_bswap64(static_cast<uint64_t>(Val >> 64)));
+  }
 };
 
 } // namespace Instance

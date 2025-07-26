@@ -16,7 +16,7 @@
 #define WASMEDGE_C_API_INT128_H
 
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
 typedef unsigned __int128 uint128_t;
 typedef __int128 int128_t;
 #else

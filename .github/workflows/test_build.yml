@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
+        with:
+          submodules: recursive  
 
       - name: Setup dependencies
         run: |
@@ -25,12 +27,12 @@ jobs:
           cd build
           # Enable your plugin flag, adjust option name as needed
           cmake .. -DWASMEDGE_PLUGIN_RWKV=ON
-          
+
       - name: Build WasmEdge with plugin
         run: |
           cd build
           cmake --build . -- -j$(nproc)
-      
+
       # Optional: run tests
       - name: Run tests (optional)
         run: |

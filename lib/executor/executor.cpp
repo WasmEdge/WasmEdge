@@ -144,7 +144,9 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
 
   // Call runFunction.
   EXPECTED_TRY(runFunction(StackMgr, *FuncInst, Params).map_error([](auto E) {
-    dumpStackTrace(Span<const uint32_t>{StackTrace}.first(StackTraceSize));
+    if (E != ErrCode::Value::Terminated && StackTraceSize > 0) {
+      dumpStackTrace(Span<const uint32_t>{StackTrace}.first(StackTraceSize));
+    }
     return E;
   }));
 

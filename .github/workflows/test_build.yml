@@ -1,0 +1,38 @@
+name: Build WasmEdge with RWKV Plugin
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Setup dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Configure build with RWKV plugin enabled
+        run: |
+          mkdir build
+          cd build
+          # Enable your plugin flag, adjust option name as needed
+          cmake .. -DWASMEDGE_PLUGIN_RWKV=ON
+          
+      - name: Build WasmEdge with plugin
+        run: |
+          cd build
+          cmake --build . -- -j$(nproc)
+      
+      # Optional: run tests
+      - name: Run tests (optional)
+        run: |
+          cd build
+          ctest --output-on-failure

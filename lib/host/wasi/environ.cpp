@@ -71,7 +71,14 @@ static inline constexpr const auto kReadOnly = "readonly"sv;
 } // namespace
 
 void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
-                   Span<const std::string> Args, Span<const std::string> Envs) {
+                   Span<const std::string> Args, Span<const std::string> Envs,
+                   int32_t StdInFd, int32_t StdOutFd, int32_t StdErrFd) {
+  FdMap.emplace(
+      0, VINode::stdIn(StdInFd, kStdInDefaultRights, kNoInheritingRights));
+  FdMap.emplace(
+      1, VINode::stdOut(StdOutFd, kStdOutDefaultRights, kNoInheritingRights));
+  FdMap.emplace(
+      2, VINode::stdErr(StdErrFd, kStdErrDefaultRights, kNoInheritingRights));
   {
     // Open dir for WASI environment.
     std::vector<std::shared_ptr<VINode>> PreopenedDirs;
@@ -110,10 +117,6 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
     }
 
     std::sort(PreopenedDirs.begin(), PreopenedDirs.end());
-
-    FdMap.emplace(0, VINode::stdIn(kStdInDefaultRights, kNoInheritingRights));
-    FdMap.emplace(1, VINode::stdOut(kStdOutDefaultRights, kNoInheritingRights));
-    FdMap.emplace(2, VINode::stdErr(kStdErrDefaultRights, kNoInheritingRights));
 
     int NewFd = 3;
     for (auto &PreopenedDir : PreopenedDirs) {

@@ -1,13 +1,13 @@
 #pragma once
 
-#include "wasinntypes.h"
 #include "plugin/plugin.h"
+#include "wasinntypes.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
-#include <llama.h>
 #include <common.h>
-#include <sampling.h>
+#include <llama.h>
 #include <memory>
+#include <sampling.h>
 #endif
 
 namespace WasmEdge::Host::WASINN {
@@ -31,21 +31,21 @@ struct LlamaContextDeleter {
   }
 };
 struct CommonSamplerDeleter {
-    void operator()(common_sampler *Ptr) const {
-        if (Ptr) {
-            common_sampler_free(Ptr);
-        }
+  void operator()(common_sampler *Ptr) const {
+    if (Ptr) {
+      common_sampler_free(Ptr);
     }
+  }
 };
 
 using llama_model_ptr = std::unique_ptr<llama_model, LlamaModelDeleter>;
 using llama_context_ptr = std::unique_ptr<llama_context, LlamaContextDeleter>;
-using common_sampler_ptr = std::unique_ptr<common_sampler, CommonSamplerDeleter>;
+using common_sampler_ptr =
+    std::unique_ptr<common_sampler, CommonSamplerDeleter>;
 
 struct LocalConfig {
-    int64_t NPredict = -1; 
+  int64_t NPredict = -1;
 };
-
 
 struct Graph {
   common_params Params;
@@ -54,10 +54,10 @@ struct Graph {
   LocalConfig Conf;
 };
 
-
 struct Context {
 public:
-Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), GraphRef(G), Conf(G.Conf) {}
+  Context(uint32_t GId, Graph &G) noexcept
+      : GraphId(GId), GraphRef(G), Conf(G.Conf) {}
 
   uint32_t GraphId;
   Graph &GraphRef;
@@ -80,7 +80,6 @@ struct Context {
 #endif
 
 struct Environ {};
-
 
 Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
                            Span<const Span<uint8_t>> Builders,
@@ -113,12 +112,10 @@ Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
 Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
                                  uint32_t ContextId) noexcept;
 
-
 Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
                                       uint32_t ContextId) noexcept;
 
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t GraphId) noexcept;
-        
+                             uint32_t GraphId) noexcept;
 
 } // namespace WasmEdge::Host::WASINN::BitNet

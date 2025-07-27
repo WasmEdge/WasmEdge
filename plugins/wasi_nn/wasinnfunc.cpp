@@ -499,12 +499,13 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
   case WASINN::Backend::GGML:
     return WASINN::GGML::getOutputSingle(Env, ContextId, Index, OutBuffer,
                                          *BytesWritten);
-   case WASINN::Backend::BitNet:
+  case WASINN::Backend::BitNet:
     return WASINN::BitNet::getOutputSingle(Env, ContextId, Index, OutBuffer,
                                            *BytesWritten);
   default:
-    spdlog::error("[WASI-NN] get_output_single: Only GGML and BitNet backend supports "sv
-                  "get_output_single."sv);
+    spdlog::error(
+        "[WASI-NN] get_output_single: Only GGML and BitNet backend supports "sv
+        "get_output_single."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 }
@@ -607,8 +608,9 @@ WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
   case WASINN::Backend::BitNet:
     return WASINN::BitNet::computeSingle(Env, ContextId);
   default:
-    spdlog::error("[WASI-NN] compute_single: Only GGML and BitNet backend supports "sv
-                  "compute_single."sv);
+    spdlog::error(
+        "[WASI-NN] compute_single: Only GGML and BitNet backend supports "sv
+        "compute_single."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 }
@@ -722,8 +724,9 @@ WasiNNFinalizeExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
   case WASINN::Backend::BitNet:
     return WASINN::BitNet::finalizeExecCtx(Env, ContextId);
   default:
-    spdlog::error("[WASI-NN] finalize_execution_context: Only GGML, BitNet and "sv
-                  "Whisper backends support finalize_execution_context."sv);
+    spdlog::error(
+        "[WASI-NN] finalize_execution_context: Only GGML, BitNet and "sv
+        "Whisper backends support finalize_execution_context."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 }

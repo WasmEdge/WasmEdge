@@ -599,7 +599,6 @@ function(wasmedge_setup_bitnet_target target)
       message(FATAL_ERROR "WASI-NN BitNet backend: Both ARM_TL1 or X86_TL2 optimizations cannot be enabled simultaneously")
     endif()
 
-    
     message(STATUS "Fetching BitNet.cpp source...")
     FetchContent_Declare(
       bitnet
@@ -608,11 +607,9 @@ function(wasmedge_setup_bitnet_target target)
       GIT_SHALLOW    TRUE
     )
     
-    
     # download/checkout and makes the source available but does NOT configure the project.
     FetchContent_Populate(bitnet)
     message(STATUS "Fetching BitNet.cpp source -- done")
-    
    
     if(WASMEDGE_PLUGIN_WASI_NN_BITNET_ARM_TL1 OR WASMEDGE_PLUGIN_WASI_NN_BITNET_X86_TL2)
         message(STATUS "Pre-generating BitNet kernel headers...")
@@ -654,7 +651,6 @@ function(wasmedge_setup_bitnet_target target)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
   endif()
-
 
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
     wasmedge_setup_simdjson()

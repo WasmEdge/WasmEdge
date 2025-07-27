@@ -29,7 +29,7 @@ using WasmEdge::Host::WASINN::TensorType;
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER) ||                          \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER) ||                        \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS) ||                        \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX)  ||                           \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX) ||                            \
     defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET)
 namespace {
 
@@ -3139,8 +3139,8 @@ TEST(WasiNNTest, BitNetBackend) {
   // Get the function "init_execution_context".
   FuncInst = NNMod->findFuncExports("init_execution_context");
   ASSERT_NE(FuncInst, nullptr);
-  auto &HostFuncInit =
-      dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(FuncInst->getHostFunc());
+  auto &HostFuncInit = dynamic_cast<WasmEdge::Host::WasiNNInitExecCtx &>(
+      FuncInst->getHostFunc());
   // Get the function "set_input".
   FuncInst = NNMod->findFuncExports("set_input");
   ASSERT_NE(FuncInst, nullptr);
@@ -3177,12 +3177,10 @@ TEST(WasiNNTest, BitNetBackend) {
   FuncInst = NNMod->findFuncExports("fini_single");
   ASSERT_NE(FuncInst, nullptr);
   auto &HostFuncFiniSingle =
-      dynamic_cast<WasmEdge::Host::WasiNNFiniSingle &>(
-          FuncInst->getHostFunc());
+      dynamic_cast<WasmEdge::Host::WasiNNFiniSingle &>(FuncInst->getHostFunc());
 
   // --- Test Data & Pointer Setup ---
-  const std::string ModelPath =
-      "./wasinn_bitnet_fixtures/ggml-model-i2_s.gguf";
+  const std::string ModelPath = "./wasinn_bitnet_fixtures/ggml-model-i2_s.gguf";
   const std::string ModelPreloadStr = "preload:" + ModelPath;
   const std::string MetadataStr = R"({"n-predict": 128})";
   const std::string Prompt = "Once upon a time, ";
@@ -3275,8 +3273,7 @@ TEST(WasiNNTest, BitNetBackend) {
             static_cast<uint32_t>(Device::CPU), BuilderPtr},
         Errno))
         << "Load failed. Ensure model file exists at: " << ModelPath;
-    ASSERT_EQ(Errno[0].get<int32_t>(),
-              static_cast<uint32_t>(ErrNo::Success));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     GraphId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     BuilderPtr += 4;
   }
@@ -3296,13 +3293,12 @@ TEST(WasiNNTest, BitNetBackend) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{GraphId, BuilderPtr},
         Errno));
-    ASSERT_EQ(Errno[0].get<int32_t>(),
-              static_cast<uint32_t>(ErrNo::Success));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     CtxId = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     BuilderPtr += 4;
   }
 
-  // BitNet WASI-NN set_input tests 
+  // BitNet WASI-NN set_input tests
   SetInputEntryPtr = BuilderPtr;
   {
     std::vector<uint8_t> PromptData(Prompt.begin(), Prompt.end());
@@ -3311,8 +3307,8 @@ TEST(WasiNNTest, BitNetBackend) {
 
     writeFatPointer(MemInst, StorePtr, PromptDim.size(), BuilderPtr);
     writeUInt32(MemInst, static_cast<uint32_t>(TensorType::U8), BuilderPtr);
-    writeFatPointer(MemInst, StorePtr + PromptDim.size() * 4,
-                    PromptData.size(), BuilderPtr);
+    writeFatPointer(MemInst, StorePtr + PromptDim.size() * 4, PromptData.size(),
+                    BuilderPtr);
     writeBinaries<uint32_t>(MemInst, PromptDim, StorePtr);
     writeBinaries<uint8_t>(MemInst, PromptData,
                            StorePtr + PromptDim.size() * 4);
@@ -3341,8 +3337,7 @@ TEST(WasiNNTest, BitNetBackend) {
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{CtxId, 0, SetInputEntryPtr},
         Errno));
-    ASSERT_EQ(Errno[0].get<int32_t>(),
-              static_cast<uint32_t>(ErrNo::Success));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
   // BitNet WASI-NN compute and get_output tests
@@ -3357,39 +3352,37 @@ TEST(WasiNNTest, BitNetBackend) {
   {
     ASSERT_TRUE(HostFuncCompute.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId}, Errno));
-    ASSERT_EQ(Errno[0].get<int32_t>(),
-              static_cast<uint32_t>(ErrNo::Success));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
   // Test: get_output -- output buffer pointer out of bounds.
   {
-    EXPECT_TRUE(HostFuncGetOutput.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{CtxId, 0, OutBoundPtr, 5,
-                                                    BuilderPtr},
-        Errno));
+    EXPECT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  CtxId, 0, OutBoundPtr, 5, BuilderPtr},
+                              Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
   // Test: get_output -- bytes written pointer out of bounds.
   {
-    EXPECT_TRUE(HostFuncGetOutput.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{CtxId, 0, StorePtr, 5,
-                                                    OutBoundPtr},
-        Errno));
+    EXPECT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  CtxId, 0, StorePtr, 5, OutBoundPtr},
+                              Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
   // Test: get_output -- get output successfully.
   {
     uint32_t BytesNeeded = 0;
-    ASSERT_TRUE(HostFuncGetOutput.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{CtxId, 0, StorePtr, 0,
-                                                    BuilderPtr},
-        Errno));
-    ASSERT_EQ(Errno[0].get<int32_t>(),
-              static_cast<uint32_t>(ErrNo::Success));
+    ASSERT_TRUE(
+        HostFuncGetOutput.run(CallFrame,
+                              std::initializer_list<WasmEdge::ValVariant>{
+                                  CtxId, 0, StorePtr, 0, BuilderPtr},
+                              Errno));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     BytesNeeded = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GT(BytesNeeded, 10);
   }
@@ -3401,13 +3394,12 @@ TEST(WasiNNTest, BitNetBackend) {
 
     // Test: set_input -- set prompt to start a new streaming sequence.
     {
-      ASSERT_TRUE(HostFuncSetInput.run(
-          CallFrame,
-          std::initializer_list<WasmEdge::ValVariant>{CtxId, 0,
-                                                      SetInputEntryPtr},
-          Errno));
-      ASSERT_EQ(Errno[0].get<int32_t>(),
-                static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_TRUE(
+          HostFuncSetInput.run(CallFrame,
+                               std::initializer_list<WasmEdge::ValVariant>{
+                                   CtxId, 0, SetInputEntryPtr},
+                               Errno));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     }
 
     // Test: compute_single and get_output_single in a loop.
@@ -3419,8 +3411,7 @@ TEST(WasiNNTest, BitNetBackend) {
           static_cast<uint32_t>(ErrNo::EndOfSequence)) {
         break;
       }
-      ASSERT_EQ(Errno[0].get<int32_t>(),
-                static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
 
       uint32_t SingleTokenBytes = 0;
       ASSERT_TRUE(HostFuncGetOutputSingle.run(
@@ -3428,14 +3419,12 @@ TEST(WasiNNTest, BitNetBackend) {
           std::initializer_list<WasmEdge::ValVariant>{CtxId, 0, StorePtr, 32,
                                                       BuilderPtr},
           Errno));
-      ASSERT_EQ(Errno[0].get<int32_t>(),
-                static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
       SingleTokenBytes = *MemInst.getPointer<uint32_t *>(BuilderPtr);
       if (SingleTokenBytes > 0) {
         auto TokenSpan = *MemInst.getBytes(StorePtr, SingleTokenBytes);
-        FullStreamedOutput +=
-            std::string(reinterpret_cast<const char *>(TokenSpan.data()),
-                        TokenSpan.size());
+        FullStreamedOutput += std::string(
+            reinterpret_cast<const char *>(TokenSpan.data()), TokenSpan.size());
       }
     }
     EXPECT_GT(FullStreamedOutput.length(), 10);
@@ -3445,8 +3434,7 @@ TEST(WasiNNTest, BitNetBackend) {
       ASSERT_TRUE(HostFuncFiniSingle.run(
           CallFrame, std::initializer_list<WasmEdge::ValVariant>{CtxId},
           Errno));
-      ASSERT_EQ(Errno[0].get<int32_t>(),
-                static_cast<uint32_t>(ErrNo::Success));
+      ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     }
   }
 
@@ -3463,8 +3451,7 @@ TEST(WasiNNTest, BitNetBackend) {
     ASSERT_TRUE(HostFuncUnload.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{GraphId},
         Errno));
-    ASSERT_EQ(Errno[0].get<int32_t>(),
-              static_cast<uint32_t>(ErrNo::Success));
+    ASSERT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
 
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,

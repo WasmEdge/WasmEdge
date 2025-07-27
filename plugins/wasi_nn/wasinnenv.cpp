@@ -110,7 +110,8 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
     auto Backend = BackendMap.find(Encode);
     auto Device = DeviceMap.find(Target);
     if (Backend != BackendMap.end() && Device != DeviceMap.end()) {
-      if (Backend->second == Backend::GGML || Backend->second == Backend::BitNet ||
+      if (Backend->second == Backend::GGML ||
+          Backend->second == Backend::BitNet ||
           (Backend->second == Backend::PyTorch && Encode == "pytorchaoti"sv)) {
         // In GGML, we only support loading one model from nn-preload
         // config. To handle paths on Windows that contains `:` in the

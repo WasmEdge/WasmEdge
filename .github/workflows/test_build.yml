@@ -19,7 +19,9 @@ jobs:
       - name: Verify GGML submodule commit
         run: |
           cd plugins/wasmedge_rwkv/ggml
-          git log -1 | grep "commit 0df970a" || (echo "GGML submodule is not at commit 0df970a" && exit 1)
+          git fetch origin --unshallow
+          git checkout c8bd0fee71dc8328d93be301bbee06bc10d30429
+          git log -1 | grep "commit c8bd0fe" || (echo "GGML submodule is not at commit c8bd0fe" && exit 1)
 
       - name: Install dependencies
         run: |

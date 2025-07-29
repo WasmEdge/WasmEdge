@@ -117,7 +117,7 @@ Expect<void> Loader::loadType(AST::Component::DefType &Ty) {
   }
   case 0x3F:
   case 0x3E: {
-    AST::Component::ResourceType RT(Flag == 0x3E);
+    AST::Component::ResourceType RT(Flag == 0x3F);
     EXPECTED_TRY(loadType(RT).map_error(ReportError));
     Ty.setResourceType(std::move(RT));
     return {};

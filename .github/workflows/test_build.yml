@@ -16,6 +16,11 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Verify GGML submodule commit
+        run: |
+          cd plugins/wasmedge_rwkv/ggml
+          git log -1 | grep "commit 0df970a" || (echo "GGML submodule is not at commit 0df970a" && exit 1)
+
       - name: Install dependencies
         run: |
           sudo apt-get update

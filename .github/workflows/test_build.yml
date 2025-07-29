@@ -12,28 +12,34 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          submodules: recursive  
+          submodules: recursive
 
-      - name: Setup dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential
+          sudo apt-get install -y ninja-build build-essential llvm-18-dev liblld-18-dev
+
+      - name: Install CMake 3.27.8
+        run: |
+          wget https://github.com/Kitware/CMake/releases/download/v3.27.8/cmake-3.27.8-linux-x86_64.sh
+          mkdir -p $HOME/cmake
+          sh cmake-3.27.8-linux-x86_64.sh --skip-license --prefix=$HOME/cmake
+          echo "$HOME/cmake/bin" >> $GITHUB_PATH
+          cmake --version
 
       - name: Configure build with RWKV plugin enabled
         run: |
           mkdir build
           cd build
-          # Enable your plugin flag, adjust option name as needed
-          cmake .. -DWASMEDGE_PLUGIN_RWKV=ON
+          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_RWKV=ON -DWASMEDGE_PLUGIN_WASI_NN=OFF -DRWKV_CUBLAS=OFF -DRWKV_HIPBLAS=OFF -DLLVM_DIR=/usr/lib/llvm-18/cmake ..
 
       - name: Build WasmEdge with plugin
         run: |
           cd build
-          cmake --build . -- -j$(nproc)
+          ninja
 
-      # Optional: run tests
       - name: Run tests (optional)
         run: |
           cd build

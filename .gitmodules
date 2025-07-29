@@ -1,3 +1,4 @@
 [submodule "plugins/wasmedge_rwkv/ggml"]
 	path = plugins/wasmedge_rwkv/ggml
 	url = https://github.com/ggerganov/ggml.git
+	branch = master

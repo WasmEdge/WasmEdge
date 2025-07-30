@@ -1,19 +1,70 @@
 # syntax=docker/dockerfile:1.5-labs
 
 ARG XX_VERSION=1.2.1
-ARG ALPINE_VERSION=3.16
-# alpine 3.16 ships with llvm 13.
-# alpine 3.17 and 3.18 do not ship lld-static.
+ARG ALPINE_VERSION=3.22
 
+#### --- Stage: lld (build static LLD locally) --- ####
+FROM alpine:${ALPINE_VERSION} AS lld
+
+RUN apk add --no-cache \
+    bash \
+    cmake \
+    ninja \
+    clang \
+    llvm-dev \
+    llvm-static \
+    lld-dev \
+    git \
+    musl-dev \
+    zlib-dev \
+    zlib-static \
+    libc-dev \
+    libffi-dev
+
+WORKDIR /lld-build
+RUN git clone --depth=1 https://github.com/llvm/llvm-project.git
+WORKDIR /lld-build/llvm-project/build
+
+ENV CC=clang
+ENV CXX=clang++
+
+RUN cmake -G Ninja ../llvm \
+  -DLLVM_ENABLE_PROJECTS="lld" \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DLLVM_ENABLE_RTTI=ON \
+  -DLLVM_ENABLE_EH=ON \
+  -DLLVM_ENABLE_LLD=ON \
+  -DLLVM_ENABLE_LTO=OFF \
+  -DLLVM_TARGETS_TO_BUILD="X86;AArch64;ARM" \
+  -DLLVM_BUILD_LLVM_DYLIB=OFF \
+  -DLLVM_LINK_LLVM_DYLIB=OFF \
+  -DLLVM_INCLUDE_TOOLS=ON \
+  -DLLVM_BUILD_STATIC=ON \
+  -DLLVM_BUILD_SHARED_LIBS=OFF \
+  -DLLVM_ENABLE_THREADS=OFF \
+  -DLLVM_ENABLE_ZLIB=ON \
+  -DLLVM_INCLUDE_TESTS=OFF \
+  -DLLVM_INCLUDE_UTILS=OFF \
+  -DLLVM_INCLUDE_EXAMPLES=OFF \
+  -DLLVM_INCLUDE_DOCS=OFF \
+  -DZLIB_LIBRARY=/lib/libz.a \
+  -DZLIB_INCLUDE_DIR=/usr/include
+
+RUN ninja install-lld
+
+RUN mkdir -p /lld-install/lib /lld-install/bin && \
+    cp lib/liblld*.a /lld-install/lib/ && \
+    cp bin/lld* /lld-install/bin/
+
+#### --- Stage: xx & base setup --- ####
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS base
 COPY --from=xx / /
 
-# Install host dependencies
 RUN apk add bash cmake samurai g++ clang
-SHELL [ "bash", "-c" ]
+SHELL ["bash", "-c"]
 
-# Make a cmake toolchain file
+# Generate CMake toolchain for cross compilation
 RUN cat <<'EOT' > /usr/bin/xx-toolchain && chmod a+x /usr/bin/xx-toolchain
 #!/bin/bash
 mkdir -p /etc/xx-toolchains/
@@ -37,6 +88,7 @@ EOF
 echo "$TOOLCHAIN_FILE"
 EOT
 
+#### --- Stage: config (prepare build) --- ####
 FROM base AS config
 ARG TARGETPLATFORM
 
@@ -44,39 +96,39 @@ RUN apk add git llvm-dev
 RUN xx-apk add \
     g++ \
     llvm-dev llvm-static \
-    lld lld-dev lld-static \
+    lld lld-dev \
     zlib-dev zlib-static
 
-# Fix LLVMConfig.cmake to account for the sysroot
+# Fix sysroot path in LLVM CMake config
 RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake
-# In cmake/Helper.cmake we assume that lld is installed alongside llvm, so copy files over
-RUN cp $(xx-info sysroot)usr/lib/liblld*.a $(xx-info sysroot)usr/lib/llvm*/lib/
-# Use the native version of llvm-config
+
+# Use lld static libraries from local build stage
+COPY --from=lld /lld-install/lib/liblld*.a /usr/lib/llvm/lib/
+
+# Copy native llvm-config into sysroot for cross build
 RUN ! xx-info is-cross || cp -f /usr/lib/llvm*/bin/llvm-config $(xx-info sysroot)usr/lib/llvm*/bin/llvm-config
 
+# Configure WasmEdge build
 RUN --mount=type=bind,target=/src,source=. \
     cmake -S /src -B /build -G Ninja \
         -DCMAKE_BUILD_TYPE=MinSizeRel \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_INSTALL_PREFIX="/install" \
-        # For cross compiling
         -DCMAKE_TOOLCHAIN_FILE="$(xx-toolchain)" \
         -DWASMEDGE_BUILD_PACKAGE="TGZ" \
         -DWASMEDGE_USE_LLVM=ON \
-        # Build just what we need
         -DWASMEDGE_BUILD_STATIC_LIB=ON \
         -DWASMEDGE_BUILD_TESTS=OFF \
         -DWASMEDGE_BUILD_SHARED_LIB=OFF \
         -DWASMEDGE_BUILD_TOOLS=OFF \
         -DWASMEDGE_BUILD_PLUGINS=OFF \
         -DWASMEDGE_BUILD_EXAMPLE=OFF \
-        # Link llvm statically
         -DWASMEDGE_LINK_LLVM_STATIC=ON \
         -DWASMEDGE_LINK_TOOLS_STATIC=ON \
-        # Disable extra dependencies
         -DWASMEDGE_DISABLE_LIBTINFO=ON
 
-FROM  config AS build
+#### --- Stage: build --- ####
+FROM config AS build
 RUN --mount=type=bind,target=/src,source=. \
     cmake --build /build -- install package
 
@@ -89,8 +141,10 @@ RUN --mount=type=bind,target=/src,source=. <<EOT
     mv /build/WasmEdge-*-Linux.tar.gz /build/WasmEdge-${ARCHIVE_TAG}_static.tar.gz
 EOT
 
+#### --- Stage: install --- ####
 FROM scratch AS install
 COPY --from=build /install /
 
+#### --- Stage: tarball output --- ####
 FROM scratch AS tar
 COPY --from=build /build/WasmEdge-*.tar.gz /

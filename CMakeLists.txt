@@ -94,6 +94,8 @@ option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS "Enable LLAMA_CUBLAS in the WAS
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-NN GGML backend. Available on MacOS arm64 only." ON)
 option(WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL "Enable GGML_METAL in the WASI-NN WHISPER backend. Available on MacOS arm64 only." ON)
 option(WASMEDGE_PLUGIN_WASI_NN_WHISPER_CUDA "Enable GGML_CUDA in the WASI-NN WHISPER backend." OFF)
+option(WASMEDGE_PLUGIN_WASI_NN_BITNET_ARM_TL1 "Enable BitNet.cpp ARM_TL1 optimization" OFF)
+option(WASMEDGE_PLUGIN_WASI_NN_BITNET_X86_TL2 "Enable BitNet.cpp X86_TL2 optimization" OFF)
 #   WASI plug-in: WASI-Poll proposal.
 option(WASMEDGE_PLUGIN_WASI_POLL "Enable and build WasmEdge wasi-poll plugin." OFF)
 #   WasmEdge plug-in: wasm-bpf.
@@ -121,7 +123,6 @@ option(WASMEDGE_PLUGIN_TENSORFLOW "Enable and build WasmEdge TensorFlow plugin."
 option(WASMEDGE_PLUGIN_TENSORFLOWLITE "Enable and build WasmEdge TensorFlow-Lite plugin." OFF)
 #   WasmEdge plug-in: zlib.
 option(WASMEDGE_PLUGIN_ZLIB "Enable and build WasmEdge zlib plugin." OFF)
-
 # Fuzzing and tools and tests are exclusive.
 if(WASMEDGE_BUILD_TOOLS AND WASMEDGE_BUILD_FUZZING)
   message(FATAL_ERROR "wasmedge tool and fuzzing tool are exclusive options.")

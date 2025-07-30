@@ -1,4 +1,4 @@
-### 0.15.0-alpha.4 (2025-07-10)
+### 0.15.0-rc.1 (2025-07-29)
 
 Features:
 
@@ -29,6 +29,8 @@ Features:
   * refactor(executor): move the packVal/unpackVal functions
   * refactor(executor): refine the logging codes
   * refactor(executor,compiler): reduce the redundant code between aot proxy and interpreter
+  * fix(executor): add checks before dumpStackTrace (#4274)
+  * refactor(runtime,executor): apply the new component AST structures in the instantiation phase
 * [Runtime]
   * coredump: Implement WASM coredump feature when the trap occurs (#3860)
   * coredump: Fix type conversion issue (#3948)
@@ -56,9 +58,12 @@ Features:
   * Fix nested component load (#3938)
   * unify the coding style of EXPECTED\_TRY (#4136)
   * use error instead of info for error logging
-* [Validator] Add detection of missing atomic instructions for memory alignment. (#3987)
-* [Validator] Non-imported global is valid in const expression validation with function-reference proposal.
-* [Validator] Fix the error code of call\_indirection instruction validation.
+* [Validator]
+  * [Validator] Add detection of missing atomic instructions for memory alignment. (#3987)
+  * [Validator] Non-imported global is valid in const expression validation with function-reference proposal.
+  * [Validator] Fix the error code of call\_indirection instruction validation.
+  * refactor(validator): re-design the validator structures and apply the new component model AST
+  * refactor(ast,loader): re-design the ast structures in component model
 * [Plugin] Image: Use `stb_image` to replace libpng and libjpeg.
   * Bump to f056911 (#4059)
   * chore(plugin): wasmedge-images: bump to stb\_image\_resize2 2.14 (#4141)
@@ -83,7 +88,7 @@ Features:
   * Update PyTorch version (#3818, #3901)
   * Support Torch AOTI
 * [WASI-NN] llama.cpp backend:
-  * Bump llama.cpp to b5835 (#4249)
+  * Bump llama.cpp to b5896
   * Do not append SEP when getting embeddings
   * Fix accessing freed data after unload. (#3785)
   * Fix `fmt::format` error in embedding (#3779)
@@ -123,6 +128,8 @@ Features:
   * Add dependency installer for openvino-genai (#4032)
   * feat(wasi-nn/openvino): add device string retrieval and improve input tensor handling (#4199)
 * [Debug] Add stack trace while an error occurred (#3967)
+* [CAPI]
+  * feat(c-api): add method to delete registered modules from VM (#4233)
 
 Fixed issues:
 
@@ -147,6 +154,8 @@ Fixed issues:
 * fix(wasi\_nn): update input tensor shape and simplify model compilation (#4185)
 * fix(CAPI): no longer include stdbool.h after C23 (#4225)
 * fix(wasi-nn, ggml):  Empty generation returned if n\_predict is -1 or -2 (#4208)
+* fix: the uninstaller can handle the .bash\_profile even if it is not a regular file. (#4261)
+* ci(uninstaller): verify the symlink uninstallation (#4266)
 
 Tests:
 
@@ -183,6 +192,7 @@ Misc:
 * refactor(example): migrate zlib example to use WIT (#4124)
 * feat(examples): wasi-cryptography-signature: add proper error handling (#4117)
 * feat!: deprecate WasmEdge Java Binding (#4195)
+* chore(lineguard): apply lineguard for all files (#4265)
 
 CI:
 
@@ -221,12 +231,13 @@ CI:
 * [macOS] The minimum macOS version is set to macos-13
 * [Misc] Fix build failure in Windows Server 2022 CI (#3899)
 * feat: unified all installer CI workflows (#4201)
+* ci(lineguard): add EOF newline check via lineguard to misc CI workflow (#4256)
 
 Thank all the contributors who made this release possible!
 
-abdelkoddous LHAJOUJI, alabulei1, dependabot[bot], Deveshi Dwivedi, dm4, Dmytrol, elhewaty, Fahd Ashour, fancybody, Gianpaolo Macario, grorge, Han-Wen Tsao, hydai, Jacob, junxiangMu, Karan, Karan Lokchandani, khongtrunght, kilavvy, LFsWang, Lîm Tsú-thuàn, Maxim Evtush, Michael Yuan, Oleg, omahs, operagxsasha, PeterD1524, Ruslan Tushov, Shen-Ta Hsieh, sridamul, Sridhar Sivakumar, StepSecurity Bot, Sylveon, Tenderyi, varunrmallya, vincent, Vladimir Cherkasov, Wang-Yang,  Li, Yi Huang, Yi-Ying He
+0x名無し, abdelkoddous LHAJOUJI, alabulei1, dependabot[bot], Deveshi Dwivedi, dm4, Dmytrol, elhewaty, Fahd Ashour, fancebody, Gianpaolo Macario, grorge, Han-Wen Tsao, hydai, Jacob, junxiangMu, Karan Lokchandani, khongtrunght, kilavvy, LFsWang, Lîm Tsú-thuàn, Maxim Evtush, Michael Yuan, MileyFu, Oleg, omahs, operagxsasha, PeterD1524, Ruslan Tushov, Shen-Ta Hsieh, SHIGRAF SALIK, sridamul, Sridhar Sivakumar, StepSecurity Bot, Sylveon, Tenderyi, varunrmallya, vincent, Vladimir Cherkasov, Wang-Yang, Li, Yi, YiYing He
 
-If you want to build from source, please use WasmEdge-0.15.0-alpha.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.15.0-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.14.1 (2024-09-16)
 

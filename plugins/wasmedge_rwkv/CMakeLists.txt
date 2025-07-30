@@ -1,84 +1,45 @@
 # Minimum CMake version and project name
-cmake_minimum_required(VERSION 3.16)
-project(wasmedgePluginRWKV)
+cmake_minimum_required(VERSION 3.13)
 
-# Ensure 64-bit file offsets for rwkv.cpp
-add_definitions(-D_FILE_OFFSET_BITS=64)
-
-# Debug: Print include paths for verification
-message(STATUS "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}")
-message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
-message(STATUS "WasmEdge include path: ${CMAKE_SOURCE_DIR}/include")
-
-# --------------------------------------
-# RWKV + GGML source files
-# --------------------------------------
-
-# Core RWKV implementation and plugin entry point
-set(RWKV_SOURCES
-  rwkv.cpp
-  rwkv_plugin.cpp
-)
-
-# GGML: all C files in the submodule (using GLOB for CMake 3.16 compatibility)
-file(GLOB GGML_SOURCES
-  "${CMAKE_CURRENT_SOURCE_DIR}/ggml/*.c"
-  "${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/*.c"
-)
-
-# --------------------------------------
-# Create shared library for WasmEdge plugin
-# --------------------------------------
-
+# Define the plugin target
 add_library(wasmedgePluginRWKV SHARED
-  ${RWKV_SOURCES}
-  ${GGML_SOURCES}
+  rwkv.cpp
+  rwkv.h
+  rwkv_plugin.cpp
+  ggml/src/ggml.c
+  ggml/src/ggml-alloc.c
+  ggml/src/ggml-quants.c
 )
 
-# --------------------------------------
-# Include paths
-# --------------------------------------
-
-target_include_directories(wasmedgePluginRWKV PRIVATE
-  ${CMAKE_SOURCE_DIR}/include              # <-- Added: WasmEdge root include (for plugin/plugin.h)
-  ${CMAKE_BINARY_DIR}/include                # Generated WasmEdge headers
-  ${CMAKE_CURRENT_SOURCE_DIR}                # RWKV plugin headers
-  ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include   # GGML headers
-  ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src       # GGML implementation headers
-  ${CMAKE_SOURCE_DIR}/thirdparty/blake3      # BLAKE3 headers (if needed)
+# Set include directories
+target_include_directories(wasmedgePluginRWKV
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src
+    ${WASMEDGE_PROJECT_SOURCE_DIR}/thirdparty/blake3
+    ${WASMEDGE_PROJECT_BINARY_DIR}/include
+    ${WASMEDGE_PROJECT_SOURCE_DIR}/include
 )
 
-# --------------------------------------
-# Compiler definitions for symbol export
-# --------------------------------------
-
-target_compile_definitions(wasmedgePluginRWKV PRIVATE
-  RWKV_SHARED
-  RWKV_BUILD
+# Define the plugin macro
+target_compile_definitions(wasmedgePluginRWKV
+  PRIVATE
+    RWKV_BUILD
+    RWKV_SHARED
 )
 
-# --------------------------------------
-# Compiler flags
-# --------------------------------------
+# Set standard and warning flags
+target_compile_features(wasmedgePluginRWKV PRIVATE cxx_std_17)
+target_compile_options(wasmedgePluginRWKV PRIVATE -Wno-error)
 
-# Disable -Werror for this target
-target_compile_options(wasmedgePluginRWKV PRIVATE
-  -Wno-error
+# Link required WasmEdge libraries and fmt
+target_link_libraries(wasmedgePluginRWKV
+  PRIVATE
+    wasmedgePlugin
+    fmt::fmt            # 👈 Ensures fmt headers are found and linked
 )
 
-# --------------------------------------
-# Link with WasmEdge C API and BLAKE3
-# --------------------------------------
-
-target_link_libraries(wasmedgePluginRWKV PRIVATE
-  wasmedge  # Use wasmedge instead of wasmedge_c
-  utilBlake3
-)
-
-# --------------------------------------
-# Installation path (for WasmEdge to load plugin)
-# --------------------------------------
-
-include(GNUInstallDirs)
-install(TARGETS wasmedgePluginRWKV
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/wasmedge)
+# Install the plugin
+install(TARGETS wasmedgePluginRWKV DESTINATION lib)

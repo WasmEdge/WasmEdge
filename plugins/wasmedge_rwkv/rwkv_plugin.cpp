@@ -1,4 +1,4 @@
-#include "wasmedge/Plugin.h"
+#include "wasmedge/plugin.h"
 #include "rwkv.h"
 
 #include <memory>

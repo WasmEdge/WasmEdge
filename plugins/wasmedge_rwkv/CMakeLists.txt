@@ -8,7 +8,12 @@ add_definitions(-D_FILE_OFFSET_BITS=64)
 # Debug: Print include paths for verification
 message(STATUS "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}")
 message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
-message(STATUS "WasmEdge include path: D:/Programs/wasmedge/WasmEdge/include")
+message(STATUS "WasmEdge include path: ${CMAKE_SOURCE_DIR}/include")
+
+# Check that wasmedge/plugin.h exists to avoid silent include failures
+if(NOT EXISTS "${CMAKE_SOURCE_DIR}/include/wasmedge/plugin.h")
+  message(FATAL_ERROR "Error: plugin.h not found at expected path: ${CMAKE_SOURCE_DIR}/include/wasmedge/plugin.h")
+endif()
 
 # --------------------------------------
 # RWKV + GGML source files
@@ -40,12 +45,12 @@ add_library(wasmedgePluginRWKV SHARED
 # --------------------------------------
 
 target_include_directories(wasmedgePluginRWKV PRIVATE
-  D:/Programs/wasmedge/WasmEdge/include  # Explicit WasmEdge headers path
-  ${CMAKE_BINARY_DIR}/include            # Generated WasmEdge headers
-  ${CMAKE_CURRENT_SOURCE_DIR}            # RWKV plugin headers
-  ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include  # GGML headers
-  ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src      # GGML implementation headers
-  ${CMAKE_SOURCE_DIR}/thirdparty/blake3     # BLAKE3 headers (if needed)
+  ${CMAKE_SOURCE_DIR}/include              # Use project-relative WasmEdge include path
+  ${CMAKE_BINARY_DIR}/include                # Generated WasmEdge headers
+  ${CMAKE_CURRENT_SOURCE_DIR}                # RWKV plugin headers
+  ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include   # GGML headers
+  ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src       # GGML implementation headers
+  ${CMAKE_SOURCE_DIR}/thirdparty/blake3      # BLAKE3 headers (if needed)
 )
 
 # --------------------------------------
@@ -70,7 +75,6 @@ target_compile_options(wasmedgePluginRWKV PRIVATE
 # Link with WasmEdge C API and BLAKE3
 # --------------------------------------
 
-# Link against wasmedge (adjust target name based on WasmEdge project)
 target_link_libraries(wasmedgePluginRWKV PRIVATE
   wasmedge  # Use wasmedge instead of wasmedge_c
   utilBlake3

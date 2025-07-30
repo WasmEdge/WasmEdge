@@ -10,11 +10,6 @@ message(STATUS "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}")
 message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
 message(STATUS "WasmEdge include path: ${CMAKE_SOURCE_DIR}/include")
 
-# Check that wasmedge/plugin.h exists to avoid silent include failures
-if(NOT EXISTS "${CMAKE_SOURCE_DIR}/include/wasmedge/plugin.h")
-  message(FATAL_ERROR "Error: plugin.h not found at expected path: ${CMAKE_SOURCE_DIR}/include/wasmedge/plugin.h")
-endif()
-
 # --------------------------------------
 # RWKV + GGML source files
 # --------------------------------------
@@ -45,7 +40,7 @@ add_library(wasmedgePluginRWKV SHARED
 # --------------------------------------
 
 target_include_directories(wasmedgePluginRWKV PRIVATE
-  ${CMAKE_SOURCE_DIR}/include              # Use project-relative WasmEdge include path
+  ${CMAKE_SOURCE_DIR}/include              # <-- Added: WasmEdge root include (for plugin/plugin.h)
   ${CMAKE_BINARY_DIR}/include                # Generated WasmEdge headers
   ${CMAKE_CURRENT_SOURCE_DIR}                # RWKV plugin headers
   ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include   # GGML headers

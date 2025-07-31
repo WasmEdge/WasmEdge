@@ -8,22 +8,23 @@
 static struct rwkv_context* global_ctx = nullptr;
 
 // RWKV.load_model(path: string, threads: i32, gpu_layers: i32) -> void
-extern "C" WASMEDGE_CAPI_EXPORT WasmEdge_Result LoadModel(WasmEdge_ModuleInstanceContext *, WasmEdge_MemoryInstanceContext *mem, WasmEdge_Value *params, WasmEdge_Value *rets) {
+extern "C" WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_Plugin_LoadModel(WasmEdge_ModuleInstanceContext *, WasmEdge_MemoryInstanceContext *mem, WasmEdge_Value *params, WasmEdge_Value *rets) {
   uint32_t offset = WasmEdge_ValueGetI32(params[0]);
   uint32_t length = WasmEdge_ValueGetI32(params[1]);
   uint32_t threads = WasmEdge_ValueGetI32(params[2]);
   uint32_t gpu_layers = WasmEdge_ValueGetI32(params[3]);
 
-  char *model_path = static_cast<char *>(WasmEdge_MemoryInstanceGetPointer(mem, offset, length));
-  if (!model_path) return WasmEdge_ResultGen(WasmEdge_Result_Fail);
+  // Use reinterpret_cast for uint8_t* to char* conversion
+  char *model_path = reinterpret_cast<char *>(WasmEdge_MemoryInstanceGetPointer(mem, offset, length));
+  if (!model_path) return WasmEdge_Result_Fail;
 
   global_ctx = rwkv_init_from_file(model_path, threads, gpu_layers);
-  return global_ctx ? WasmEdge_Result_Success : WasmEdge_ResultGen(WasmEdge_Result_Fail);
+  return global_ctx ? WasmEdge_Result_Success : WasmEdge_Result_Fail;
 }
 
 // RWKV.eval(token: i32) -> i32
-extern "C" WASMEDGE_CAPI_EXPORT WasmEdge_Result Eval(WasmEdge_ModuleInstanceContext *, WasmEdge_MemoryInstanceContext *, WasmEdge_Value *params, WasmEdge_Value *rets) {
-  if (!global_ctx) return WasmEdge_ResultGen(WasmEdge_Result_Fail);
+extern "C" WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_Plugin_Eval(WasmEdge_ModuleInstanceContext *, WasmEdge_MemoryInstanceContext *, WasmEdge_Value *params, WasmEdge_Value *rets) {
+  if (!global_ctx) return WasmEdge_Result_Fail;
 
   uint32_t token = WasmEdge_ValueGetI32(params[0]);
 
@@ -42,39 +43,19 @@ extern "C" WASMEDGE_CAPI_EXPORT WasmEdge_Result Eval(WasmEdge_ModuleInstanceCont
   return WasmEdge_Result_Success;
 }
 
-// Define function descriptors
-static WasmEdge_FunctionDescriptor Funcs[] = {
-  {
-    .Name = "load_model",
-    .Function = LoadModel,
-    .ParamCount = 3,
-    .ParamTypes = (enum WasmEdge_ValType[]){WasmEdge_ValType_I32, WasmEdge_ValType_I32, WasmEdge_ValType_I32},
-    .ReturnCount = 0,
-    .ReturnTypes = nullptr
-  },
-  {
-    .Name = "eval",
-    .Function = Eval,
-    .ParamCount = 1,
-    .ParamTypes = (enum WasmEdge_ValType[]){WasmEdge_ValType_I32},
-    .ReturnCount = 1,
-    .ReturnTypes = (enum WasmEdge_ValType[]){WasmEdge_ValType_I32}
-  }
-};
-
 // Define plugin descriptor
-static WasmEdge_PluginDescriptor PluginDesc = {
+static const WasmEdge_PluginDescriptor PluginDesc = {
   .Name = "wasmedge_rwkv",
   .Description = "RWKV Inference Plugin for WasmEdge",
-  .APIVersion = 1, // Use explicit version number (check wasmedge.h for exact value)
+  .APIVersion = 2, // Fallback to version 2; check wasmedge.h for exact value
   .Version = {1, 0, 0, 0},
-  .FunctionCount = 2,
-  .FunctionDescriptions = Funcs,
   .ModuleCount = 0,
-  .ModuleDescriptions = nullptr
+  .ModuleDescriptions = nullptr,
+  .Create = nullptr,
+  .Destroy = nullptr
 };
 
 // Export plugin descriptor
-extern "C" WASMEDGE_CAPI_EXPORT WasmEdge_PluginDescriptor* WasmEdge_Plugin_GetDescriptor(void) {
+extern "C" WASMEDGE_CAPI_EXPORT const WasmEdge_PluginDescriptor* WasmEdge_Plugin_GetDescriptor(void) {
   return &PluginDesc;
 }

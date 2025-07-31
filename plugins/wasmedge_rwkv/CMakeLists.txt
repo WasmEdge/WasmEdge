@@ -1,4 +1,4 @@
-# Minimum CMake version and project name
+# Minimum CMake version
 cmake_minimum_required(VERSION 3.13)
 
 # Define the plugin target
@@ -13,7 +13,7 @@ add_library(wasmedgePluginRWKV SHARED
 
 # Set include directories
 target_include_directories(wasmedgePluginRWKV
-  PRIVATE
+  PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include
@@ -21,13 +21,17 @@ target_include_directories(wasmedgePluginRWKV
     ${WASMEDGE_PROJECT_SOURCE_DIR}/thirdparty/blake3
     ${WASMEDGE_PROJECT_BINARY_DIR}/include
     ${WASMEDGE_PROJECT_SOURCE_DIR}/include
+  PRIVATE
+    ${WASMEDGE_PROJECT_BINARY_DIR}/_deps/spdlog-src/include
+    ${WASMEDGE_PROJECT_BINARY_DIR}/_deps/fmt-src/include
 )
 
-# Define the plugin macro
+# Define the plugin macro and enable plugin-specific build flags
 target_compile_definitions(wasmedgePluginRWKV
   PRIVATE
     RWKV_BUILD
     RWKV_SHARED
+    WASMEDGE_PLUGIN
 )
 
 # Set standard and warning flags
@@ -37,8 +41,8 @@ target_compile_options(wasmedgePluginRWKV PRIVATE -Wno-error)
 # Link required WasmEdge libraries and fmt
 target_link_libraries(wasmedgePluginRWKV
   PRIVATE
-    wasmedgePlugin
-    fmt::fmt            # 👈 Ensures fmt headers are found and linked
+    wasmedgeCAPI
+    fmt::fmt
 )
 
 # Install the plugin

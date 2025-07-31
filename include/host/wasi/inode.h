@@ -346,11 +346,9 @@ public:
   INode(INode &&RHS) noexcept = default;
   INode &operator=(INode &&RHS) noexcept = default;
 
-  static INode stdIn() noexcept;
-
-  static INode stdOut() noexcept;
-
-  static INode stdErr() noexcept;
+  static INode stdIn(int32_t Fd) noexcept;
+  static INode stdOut(int32_t Fd) noexcept;
+  static INode stdErr(int32_t Fd) noexcept;
 
   /// Open a file or directory.
   ///

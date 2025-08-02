@@ -109,7 +109,13 @@ static const struct {
     const char *Description;
     WasmEdge_ModuleInstanceContext *(*Create)();
     uint32_t FunctionCount;
-    const decltype(RWKVFunctions) *Functions;
+    const struct {
+        const char *Name;
+        WasmEdge_Result (*Func)(void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *, WasmEdge_Value *);
+        void *FuncData;
+        uint32_t ParamCount;
+        uint32_t ReturnCount;
+    } *Functions;
 } ModuleDesc[] = {
     {
         .Name = "wasmedge_rwkv",

@@ -29,9 +29,10 @@
 #include <utility>
 
 #define _FILE_OFFSET_BITS 64
-// Puts an optional break point, if debug is enabled.
+
 #define RWKV_MAYBE_BREAK
 
+#include <sys/types.h>
 #include <sys/stat.h>
 
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
@@ -50,8 +51,8 @@
 #    endif
 #endif
 
-static_assert(sizeof(stat::st_size) >= 8, "File offsets should be 64-bit or else rwkv.cpp will not be able to load model files over 2 GB");
-static_assert(sizeof(decltype(ftell(NULL))) >= 8, "File offsets should be 64-bit or else rwkv.cpp will not be able to load model files over 2 GB");
+static_assert(sizeof(off_t) >= 8, "off_t must be at least 64-bit for large file support");
+static_assert(sizeof(off_t) >= 8, "File offsets should be 64-bit or else rwkv.cpp will not be able to load model files over 2 GB");
 
 #define RWKV_MAX_NODES 80000
 

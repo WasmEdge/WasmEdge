@@ -95,32 +95,28 @@ extern "C" WasmEdge_ModuleInstanceContext *WasmEdgeRWKVModuleCreate() {
 // Plugin module descriptor
 static const struct {
     const char *Name;
+    WasmEdge_Result (*Func)(void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *, WasmEdge_Value *);
+    void *FuncData;
+    uint32_t ParamCount;
+    uint32_t ReturnCount;
+} RWKVFunctions[] = {
+    {"load_model", RWKV_LoadModel, nullptr, 4, 0},
+    {"eval", RWKV_Eval, nullptr, 1, 1}
+};
+
+static const struct {
+    const char *Name;
     const char *Description;
     WasmEdge_ModuleInstanceContext *(*Create)();
     uint32_t FunctionCount;
-    const struct {
-        const char *Name;
-        WasmEdge_Result (*Func)(void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *, WasmEdge_Value *);
-        void *FuncData;
-        uint32_t ParamCount;
-        uint32_t ReturnCount;
-    } *Functions;
+    const decltype(RWKVFunctions) *Functions;
 } ModuleDesc[] = {
     {
         .Name = "wasmedge_rwkv",
         .Description = "",
         .Create = WasmEdgeRWKVModuleCreate,
-        .FunctionCount = 2,
-        .Functions = (const struct {
-            const char *Name;
-            WasmEdge_Result (*Func)(void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *, WasmEdge_Value *);
-            void *FuncData;
-            uint32_t ParamCount;
-            uint32_t ReturnCount;
-        }[]){
-            {"load_model", RWKV_LoadModel, nullptr, 4, 0},
-            {"eval", RWKV_Eval, nullptr, 1, 1}
-        }
+        .FunctionCount = sizeof(RWKVFunctions) / sizeof(RWKVFunctions[0]),
+        .Functions = RWKVFunctions
     }
 };
 

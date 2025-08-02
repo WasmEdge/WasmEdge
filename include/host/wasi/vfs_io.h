@@ -24,8 +24,26 @@
 namespace WasmEdge {
 namespace FStream {
 
+enum FileFlags : uint16_t {
+  None = 0,
+  Exist = 1ULL << 0,
+  Read = 1ULL << 1,
+  Write = 1ULL << 2,
+};
+
+DEFINE_ENUM_OPERATORS(FileFlags)
+
+FileFlags getFileStats(Host::WASI::Environ *WASIEnv,
+                       const std::string_view &FileName) noexcept;
+
 bool fileExists(Host::WASI::Environ *WASIEnv,
                 const std::string_view &FileName) noexcept;
+
+bool canRead(Host::WASI::Environ *WASIEnv,
+             const std::string_view &FileName) noexcept;
+
+bool canWrite(Host::WASI::Environ *WASIEnv,
+              const std::string_view &FileName) noexcept;
 
 class WASMEDGE_VFS_EXPORT IFStream {
 public:
@@ -71,6 +89,8 @@ class WASMEDGE_VFS_EXPORT OFStream {
 public:
   OFStream(const Host::WASI::Environ *WASIEnv,
            const std::string_view &FileName) noexcept;
+  OFStream(const Host::WASI::Environ *WASIEnv, const std::string_view &FileName,
+           std::ios_base::openmode Mode) noexcept;
   ~OFStream();
   OFStream(const OFStream &) = delete;
   OFStream &operator=(const OFStream &) = delete;

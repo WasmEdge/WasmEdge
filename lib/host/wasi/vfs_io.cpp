@@ -12,6 +12,24 @@
 namespace WasmEdge {
 namespace FStream {
 
+FileFlags getFileStats(Host::WASI::Environ *WASIEnv,
+                       const std::string_view &FileName) noexcept {
+  if (WASIEnv == nullptr) {
+    return FileFlags::None;
+  }
+  FileFlags Flags = FileFlags::None;
+  if (fileExists(WASIEnv, FileName)) {
+    Flags |= FileFlags::Exist;
+  }
+  if (canRead(WASIEnv, FileName)) {
+    Flags |= FileFlags::Read;
+  }
+  if (canWrite(WASIEnv, FileName)) {
+    Flags |= FileFlags::Write;
+  }
+  return static_cast<FileFlags>(Flags);
+}
+
 bool fileExists(Host::WASI::Environ *WASIEnv,
                 const std::string_view &FileName) noexcept {
   __wasi_filestat_t Filestat;
@@ -21,6 +39,41 @@ bool fileExists(Host::WASI::Environ *WASIEnv,
     return false;
   }
   return true;
+}
+
+bool canRead(Host::WASI::Environ *WASIEnv,
+             const std::string_view &FileName) noexcept {
+  if (!WASIEnv) {
+    return false;
+  }
+  __wasi_fd_t BaseFd = 3;
+  auto Result = WASIEnv->pathOpen(
+      BaseFd, FileName, static_cast<__wasi_lookupflags_t>(0),
+      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_READ,
+      __WASI_RIGHTS_FD_READ, static_cast<__wasi_fdflags_t>(0));
+
+  if (Result) {
+    WASIEnv->fdClose(*Result);
+    return true;
+  }
+  return false;
+}
+
+bool canWrite(Host::WASI::Environ *WASIEnv,
+              const std::string_view &FileName) noexcept {
+  if (!WASIEnv) {
+    return false;
+  }
+  __wasi_fd_t BaseFd = 3;
+  auto Result = WASIEnv->pathOpen(
+      BaseFd, FileName, static_cast<__wasi_lookupflags_t>(0),
+      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_WRITE,
+      __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
+  if (Result) {
+    WASIEnv->fdClose(*Result);
+    return true;
+  }
+  return false;
 }
 
 IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
@@ -40,7 +93,7 @@ IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
 
     auto Result = Env->pathOpen(
         BaseFd, FileName, static_cast<__wasi_lookupflags_t>(0),
-        __WASI_OFLAGS_CREAT,
+        static_cast<__wasi_oflags_t>(0),
         __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL,
         __WASI_RIGHTS_FD_READ, static_cast<__wasi_fdflags_t>(0));
 
@@ -325,6 +378,11 @@ void IFStream::close() {
 
 OFStream::OFStream(const Host::WASI::Environ *WASIEnv,
                    const std::string_view &FileName) noexcept
+    : OFStream(WASIEnv, FileName, std::ios::out) {}
+
+OFStream::OFStream(const Host::WASI::Environ *WASIEnv,
+                   const std::string_view &FileName,
+                   std::ios_base::openmode Mode) noexcept
     : Fd(0), IsOpen(false), HasError(false), ChunkSize(64 * 1024),
       UseWASI(WASIEnv != nullptr) {
 
@@ -332,22 +390,31 @@ OFStream::OFStream(const Host::WASI::Environ *WASIEnv,
     Env = const_cast<Host::WASI::Environ *>(WASIEnv);
     __wasi_fd_t BaseFd = 3;
 
+    __wasi_oflags_t OpenFlags = __WASI_OFLAGS_CREAT;
+    __wasi_rights_t Rights =
+        __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL;
+
+    if (Mode & std::ios::trunc) {
+      OpenFlags |= __WASI_OFLAGS_TRUNC;
+    }
     auto Result = Env->pathOpen(
-        BaseFd, FileName, static_cast<__wasi_lookupflags_t>(0),
-        __WASI_OFLAGS_CREAT | __WASI_OFLAGS_TRUNC,
-        __WASI_RIGHTS_FD_WRITE | __WASI_RIGHTS_FD_SEEK | __WASI_RIGHTS_FD_TELL,
-        __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
+        BaseFd, FileName, static_cast<__wasi_lookupflags_t>(0), OpenFlags,
+        Rights, Rights, static_cast<__wasi_fdflags_t>(0));
 
     if (Result) {
       Fd = *Result;
       IsOpen = true;
+      if (Mode & std::ios::ate) {
+        __wasi_filesize_t NewPos;
+        Env->fdSeek(Fd, 0, __WASI_WHENCE_END, NewPos);
+      }
     } else {
       HasError = true;
       spdlog::error("Failed to open file for writing: {}",
                     std::string(FileName));
     }
   } else {
-    StdStream.open(std::string(FileName), std::ios::out | std::ios::trunc);
+    StdStream.open(std::string(FileName), Mode);
     IsOpen = StdStream.is_open();
     if (!IsOpen) {
       HasError = true;

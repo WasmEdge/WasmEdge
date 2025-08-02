@@ -92,31 +92,14 @@ extern "C" WasmEdge_ModuleInstanceContext *WasmEdgeRWKVModuleCreate() {
     return Mod;
 }
 
-// Plugin function descriptors
-static WasmEdge_FunctionDescriptor RWKVFunctions[] = {
-    {"load_model", RWKV_LoadModel, nullptr, 4, 0},
-    {"eval", RWKV_Eval, nullptr, 1, 1}
-};
-
-// Plugin module descriptor
-static WasmEdge_ModuleDescriptor ModuleDesc[] = {
-    {
-        "wasmedge_rwkv",
-        "RWKV Inference Plugin for WasmEdge",
-        WasmEdgeRWKVModuleCreate,
-        sizeof(RWKVFunctions) / sizeof(RWKVFunctions[0]),
-        RWKVFunctions
-    }
-};
-
 // Plugin descriptor
 static const WasmEdge_PluginDescriptor PluginDesc = {
     .Name = "wasmedge_rwkv",
     .Description = "RWKV Inference Plugin for WasmEdge",
     .APIVersion = 2, // Use explicit API version as per WasmEdge plugin API
     .Version = {1, 0, 0, 0},
-    .ModuleCount = 1,
-    .ModuleDescriptions = ModuleDesc
+    .ModuleCount = 0, // No module descriptors, functions registered directly
+    .ModuleDescriptions = nullptr // No module descriptors needed
 };
 
 // Plugin entrypoint

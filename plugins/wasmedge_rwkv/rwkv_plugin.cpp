@@ -92,37 +92,20 @@ extern "C" WasmEdge_ModuleInstanceContext *WasmEdgeRWKVModuleCreate() {
     return Mod;
 }
 
-// Plugin module descriptor
-static const struct {
-    const char *Name;
-    WasmEdge_Result (*Func)(void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *, WasmEdge_Value *);
-    void *FuncData;
-    uint32_t ParamCount;
-    uint32_t ReturnCount;
-} RWKVFunctions[] = {
+// Plugin function descriptors
+static WasmEdge_FunctionDescriptor RWKVFunctions[] = {
     {"load_model", RWKV_LoadModel, nullptr, 4, 0},
     {"eval", RWKV_Eval, nullptr, 1, 1}
 };
 
-static const struct {
-    const char *Name;
-    const char *Description;
-    WasmEdge_ModuleInstanceContext *(*Create)();
-    uint32_t FunctionCount;
-    const struct {
-        const char *Name;
-        WasmEdge_Result (*Func)(void *, const WasmEdge_CallingFrameContext *, const WasmEdge_Value *, WasmEdge_Value *);
-        void *FuncData;
-        uint32_t ParamCount;
-        uint32_t ReturnCount;
-    } *Functions;
-} ModuleDesc[] = {
+// Plugin module descriptor
+static WasmEdge_ModuleDescriptor ModuleDesc[] = {
     {
-        .Name = "wasmedge_rwkv",
-        .Description = "",
-        .Create = WasmEdgeRWKVModuleCreate,
-        .FunctionCount = sizeof(RWKVFunctions) / sizeof(RWKVFunctions[0]),
-        .Functions = RWKVFunctions
+        "wasmedge_rwkv",
+        "RWKV Inference Plugin for WasmEdge",
+        WasmEdgeRWKVModuleCreate,
+        sizeof(RWKVFunctions) / sizeof(RWKVFunctions[0]),
+        RWKVFunctions
     }
 };
 

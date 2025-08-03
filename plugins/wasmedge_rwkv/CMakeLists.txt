@@ -1,23 +1,23 @@
 cmake_minimum_required(VERSION 3.13)
 
 set(GGML_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-alloc.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-quants.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-backend.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-backend-reg.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-opt.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-threading.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/ggml-cpu.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/ggml-cpu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/binary-ops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/unary-ops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/ops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/traits.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/vec.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/hbm.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/repack.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src/ggml-cpu/arch/x86/cpu-feats.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-alloc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-quants.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-backend.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-backend-reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-opt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-threading.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/ggml-cpu.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/ggml-cpu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/binary-ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/unary-ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/traits.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/vec.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/hbm.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/repack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/arch/x86/cpu-feats.cpp
 )
 
 add_library(wasmedgePluginRWKV SHARED

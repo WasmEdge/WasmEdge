@@ -8,6 +8,8 @@ set(GGML_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-backend-reg.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-opt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-threading.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/ggml-cpu.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/ggml-cpu-detection.cpp
 )
 
 add_library(wasmedgePluginRWKV SHARED

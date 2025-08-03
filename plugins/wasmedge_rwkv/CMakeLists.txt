@@ -63,9 +63,6 @@ add_executable(test_rwkv
 target_include_directories(test_rwkv
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src
         ${WASMEDGE_PROJECT_BINARY_DIR}/include
         ${WASMEDGE_PROJECT_SOURCE_DIR}/include
     PRIVATE

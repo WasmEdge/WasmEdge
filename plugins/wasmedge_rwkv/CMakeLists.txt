@@ -51,3 +51,35 @@ install(TARGETS wasmedgePluginRWKV
     LIBRARY DESTINATION lib
     PUBLIC_HEADER DESTINATION include
 )
+
+# -------------------------------------------------------------
+# Test: test_rwkv
+# -------------------------------------------------------------
+enable_testing()
+
+add_executable(test_rwkv
+    test/test_rwkv.cpp
+)
+
+target_include_directories(test_rwkv
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${WASMEDGE_PROJECT_BINARY_DIR}/include
+        ${WASMEDGE_PROJECT_SOURCE_DIR}/include
+    PRIVATE
+        ${WASMEDGE_PROJECT_BINARY_DIR}/_deps/spdlog-src/include
+        ${WASMEDGE_PROJECT_BINARY_DIR}/_deps/fmt-src/include
+)
+
+target_link_libraries(test_rwkv
+    PRIVATE
+        wasmedgePluginRWKV
+        wasmedgeCAPI
+        fmt::fmt
+        spdlog::spdlog
+)
+
+target_compile_features(test_rwkv PRIVATE cxx_std_17)
+
+add_test(NAME RWKVTest COMMAND test_rwkv)

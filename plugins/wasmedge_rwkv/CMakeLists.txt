@@ -7,8 +7,7 @@ add_library(wasmedgePluginRWKV SHARED
     ggml/src/ggml.c
     ggml/src/ggml-alloc.c
     ggml/src/ggml-quants.c
-    ggml/src/ggml-backend.c
-    ggml/src/ggml-cpu.c
+    ggml/src/ggml-impl.c
 )
 
 target_include_directories(wasmedgePluginRWKV

@@ -1,12 +1,20 @@
 cmake_minimum_required(VERSION 3.13)
 
+set(GGML_SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-alloc.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-quants.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-backend.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-backend-reg.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-opt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-threading.cpp
+)
+
 add_library(wasmedgePluginRWKV SHARED
     rwkv.cpp
     rwkv.h
     rwkv_plugin.cpp
-    ggml/src/ggml.c
-    ggml/src/ggml-alloc.c
-    ggml/src/ggml-quants.c
+    ${GGML_SRC}
 )
 
 target_include_directories(wasmedgePluginRWKV
@@ -56,7 +64,6 @@ install(TARGETS wasmedgePluginRWKV
 # Test: test_rwkv
 # -------------------------------------------------------------
 enable_testing()
-
 add_executable(test_rwkv
     test/test_rwkv.cpp
 )
@@ -64,7 +71,6 @@ add_executable(test_rwkv
 target_include_directories(test_rwkv
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${WASMEDGE_PROJECT_BINARY_DIR}/include
         ${WASMEDGE_PROJECT_SOURCE_DIR}/include
     PRIVATE
@@ -81,5 +87,4 @@ target_link_libraries(test_rwkv
 )
 
 target_compile_features(test_rwkv PRIVATE cxx_std_17)
-
 add_test(NAME RWKVTest COMMAND test_rwkv)

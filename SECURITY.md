@@ -47,5 +47,5 @@ Information regarding supported versions of WasmEdge are in the below table:
 
 | Version | Supported |
 | ------- | --------- |
+| 0.15.0  | :white_check_mark: |
 | 0.14.1  | :white_check_mark: |
-| 0.13.5  | :white_check_mark: |

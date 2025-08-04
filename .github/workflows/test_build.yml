@@ -11,17 +11,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
+      - name: Checkout source code with submodules
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: recursive  # Ensure recursive submodule checkout
 
-      - name: Verify GGML submodule commit
+      - name: Update submodules to latest commits
         run: |
-          cd plugins/wasmedge_rwkv/ggml
-          git fetch origin --unshallow
-          git checkout c8bd0fee71dc8328d93be301bbee06bc10d30429
-          git log -1 | grep "commit c8bd0fe" || (echo "GGML submodule is not at commit c8bd0fe" && exit 1)
+          git submodule update --init --recursive --remote
+
+      - name: Verify unary-ops.cpp exists in ggml submodule
+        run: |
+          ls -l plugins/wasmedge_rwkv/ggml/src/ggml-cpu/unary-ops.cpp
 
       - name: Install dependencies
         run: |

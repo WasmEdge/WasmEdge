@@ -72,17 +72,7 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
   static_assert(sizeof(TOut) == sizeof(TIn) * 2);
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (Val.get<uint32_t>() >
-      std::numeric_limits<uint32_t>::max() - Instr.getMemoryOffset()) {
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error(ErrInfo::InfoBoundary(
-        Val.get<uint32_t>() + static_cast<uint64_t>(Instr.getMemoryOffset()), 8,
-        MemInst.getBoundIdx()));
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-  }
-  uint32_t EA = Val.get<uint32_t>() + Instr.getMemoryOffset();
+  uint32_t EA = Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;

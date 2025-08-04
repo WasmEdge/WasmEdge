@@ -40,8 +40,6 @@ TEST(Component, LoadAndRun_SimpleBinary) {
       0x01, 0x00, 0x03, 0x72, 0x75, 0x6e,
   };
   assertOk(VM.loadWasm(Vec), "failed to load component binary");
-  // TODO: Fix this for the validator.
-  /*
   assertOk(VM.validate(), "failed to validate");
   assertOk(VM.instantiate(), "failed to instantiate");
 
@@ -52,7 +50,6 @@ TEST(Component, LoadAndRun_SimpleBinary) {
   std::vector<std::pair<ValInterface, ValType>> Result = *Res;
   auto Ret = std::get<ValVariant>(Result[0].first).get<uint64_t>();
   EXPECT_EQ(Ret, 200);
-  */
 }
 
 TEST(Component, Load_HttpBinary) {

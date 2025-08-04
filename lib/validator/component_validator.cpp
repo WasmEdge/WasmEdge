@@ -73,6 +73,7 @@ Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
     return E;
   }));
   CompCtx.incCoreSortIndexSize(AST::Component::Sort::CoreSortType::Module);
+  CompCtx.addCoreModule(ModSec.getContent());
   return {};
 }
 
@@ -543,10 +544,10 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     const auto &Name = Alias.getExport().second;
     const auto &CoreExports = CompCtx.getCoreInstanceExports(Idx);
 
-    if (Sort.isCore()) {
+    if (!Sort.isCore()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error(
-          "    Alias core:export: Mapping a core:export '{}' to sort"sv, Name);
+      spdlog::error("    Alias core:export: Mapping a export '{}' to sort"sv,
+                    Name);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
 

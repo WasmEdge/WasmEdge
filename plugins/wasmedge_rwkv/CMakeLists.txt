@@ -10,7 +10,6 @@ set(GGML_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-threading.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/ggml-cpu.c
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/ggml-cpu.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/binary-ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/unary-ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/ops.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src/ggml-cpu/traits.cpp

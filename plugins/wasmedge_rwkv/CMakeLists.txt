@@ -30,8 +30,8 @@ target_include_directories(wasmedgePluginRWKV
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/plugins/wasmedge_rwkv/ggml/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/ggml/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/ggml/src
         ${WASMEDGE_PROJECT_BINARY_DIR}/include
         ${WASMEDGE_PROJECT_SOURCE_DIR}/include
     PRIVATE

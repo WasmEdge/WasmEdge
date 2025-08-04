@@ -43,7 +43,7 @@ bool rwkv_eval(struct rwkv_context * ctx, const uint32_t token, const float * st
     RWKV_CTX_ASSERT_FALSE_MSG(ctx, RWKV_ERROR_ARGS, token < n_vocab, "Token (%" PRId32 ") is out of range (0 .. %zu)", token, n_vocab - 1);
 
     if (!ctx->serial_graph.sched) {
-        ctx->serial_graph.sched = ggml_backend_sched_new(ctx->model->backends.data(), NULL, ctx->model->backends.size(), RWKV_MAX_NODES, false);
+        ctx->serial_graph.sched = ggml_backend_sched_new(ctx->model->backends.data(), NULL, ctx->model->backends.size(), RWKV_MAX_NODES, false, false);
 
         auto graph = ctx->serial_graph.cgraph;
         for (int i = 0; i < graph->n_nodes; i++) {
@@ -121,7 +121,7 @@ bool rwkv_eval_sequence(
 
     if (sequence) {
         if (!ctx->sequential_graph.sched) {
-            ctx->sequential_graph.sched = ggml_backend_sched_new(ctx->model->backends.data(), NULL, ctx->model->backends.size(), RWKV_MAX_NODES, false);
+            ctx->sequential_graph.sched = ggml_backend_sched_new(ctx->model->backends.data(), NULL, ctx->model->backends.size(), RWKV_MAX_NODES, false, false);
             auto graph = ctx->sequential_graph.cgraph;
 
             for (int i = 0; i < graph->n_nodes; i++) {

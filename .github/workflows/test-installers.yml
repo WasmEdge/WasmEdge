@@ -31,6 +31,7 @@ env:
   # Common test version constants
   # Please update these versions when necessary
   TEST_VERSION: "0.14.1"
+  TEST_228_VERSION: "0.15.0"
   DEPRECATED_TEST_VERSION: "0.9.0"
 
 jobs:
@@ -126,6 +127,9 @@ jobs:
         # Source helper functions
         . ./.github/scripts/installer-test-helpers.sh
 
+        # Use the local install.py script
+        export INSTALL_PY_PATH="$(pwd)/utils/install.py"
+
         # Use latest release version from previous job
         LATEST_VERSION="${{ needs.get-latest-version.outputs.version }}"
         echo "Latest WasmEdge release: ${LATEST_VERSION}"
@@ -142,6 +146,14 @@ jobs:
         bash utils/install.sh -v ${TEST_VERSION} --plugins wasi_nn-ggml -D
         source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
         verify_version "${TEST_VERSION}"
+        verify_plugin "libwasmedgePluginWasiNN.so"
+        bash utils/uninstall.sh -q -V
+
+        # Test manylinux_2_28 installation
+        printf "\n=== Test 3: Specific version >= ${TEST_228_VERSION} ===\n"
+        bash utils/install.sh -v ${TEST_228_VERSION} --dist manylinux_2_28 --plugins wasi_nn-ggml -D
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        verify_version "${TEST_228_VERSION}"
         verify_plugin "libwasmedgePluginWasiNN.so"
         bash utils/uninstall.sh -q -V
 
@@ -180,6 +192,9 @@ jobs:
       run: |
         # Source helper functions
         . ./.github/scripts/installer-test-helpers.sh
+
+        # Use the local install.py script
+        export INSTALL_PY_PATH="$(pwd)/utils/install.py"
 
         # Backup contents of existing .bash_profile (if any)
         [ -e ~/.bash_profile ] && cp ~/.bash_profile ~/.dummy_bash_source

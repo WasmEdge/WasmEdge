@@ -379,6 +379,14 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
+  if(ArgvPtr % alignof(uint32_t) != 0){
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if(ArgvBufPtr % alignof(uint8_t) != 0){
+    return __WASI_ERRNO_FAULT;
+  }
+
   // Store **Argv.
   const auto &Arguments = Env.getArguments();
   const uint32_t ArgvSize = static_cast<uint32_t>(Arguments.size());
@@ -411,6 +419,15 @@ Expect<uint32_t> WasiArgsSizesGet::body(const Runtime::CallingFrame &Frame,
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  // Alignment check for ArgcPtr and ArgvBufSizePtr.
+  if(ArgcPtr % alignof(__wasi_size_t) != 0){
+    return __WASI_ERRNO_FAULT;
+  } 
+
+  if(ArgvBufSizePtr % alignof(__wasi_size_t) != 0){
     return __WASI_ERRNO_FAULT;
   }
 
@@ -471,6 +488,14 @@ Expect<uint32_t> WasiEnvironSizesGet::body(const Runtime::CallingFrame &Frame,
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if(EnvCntPtr % alignof(__wasi_size_t) != 0){
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if(EnvBufSizePtr % alignof(__wasi_size_t) != 0){
     return __WASI_ERRNO_FAULT;
   }
 
@@ -611,6 +636,10 @@ Expect<uint32_t> WasiFdFdstatGet::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
+  if(FdStatPtr % alignof(__wasi_fdstat_t) != 0){
+    return __WASI_ERRNO_FAULT;
+  }
+
   auto *const FdStat = MemInst->getPointer<__wasi_fdstat_t *>(FdStatPtr);
   if (unlikely(FdStat == nullptr)) {
     return __WASI_ERRNO_FAULT;
@@ -677,6 +706,10 @@ Expect<uint32_t> WasiFdFilestatGet::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
+  if(FilestatPtr % alignof(__wasi_filestat_t) != 0) {
+    return __WASI_ERRNO_FAULT;
+  }
+
   auto *const Filestat = MemInst->getPointer<__wasi_filestat_t *>(FilestatPtr);
   if (unlikely(Filestat == nullptr)) {
     return __WASI_ERRNO_FAULT;
@@ -731,6 +764,10 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if(NReadPtr % alignof(__wasi_size_t) != 0){
     return __WASI_ERRNO_FAULT;
   }
 
@@ -810,6 +847,10 @@ Expect<uint32_t> WasiFdPrestatGet::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
+  if(PreStatPtr % alignof(__wasi_prestat_t) != 0){
+    return __WASI_ERRNO_FAULT;
+  }
+
   __wasi_prestat_t *const PreStat =
       MemInst->getPointer<__wasi_prestat_t *>(PreStatPtr);
   if (unlikely(PreStat == nullptr)) {
@@ -831,6 +872,10 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if(NWrittenPtr % alignof(__wasi_size_t) != 0){
     return __WASI_ERRNO_FAULT;
   }
 
@@ -888,6 +933,10 @@ Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if(NReadPtr % alignof(__wasi_size_t) != 0){
     return __WASI_ERRNO_FAULT;
   }
 
@@ -1049,6 +1098,10 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
+    return __WASI_ERRNO_FAULT;
+  }
+
+  if(NWrittenPtr % alignof(__wasi_size_t) != 0){
     return __WASI_ERRNO_FAULT;
   }
 

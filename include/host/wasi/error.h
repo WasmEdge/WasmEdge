@@ -309,6 +309,9 @@ struct fmt::formatter<__wasi_errno_t> : fmt::formatter<std::string_view> {
     case __WASI_ERRNO_AISYSTEM:
       fmt::format_to(Iter, "Other system error."sv);
       break;
+    case __WASI_ERRNO_MISALIGN:
+      fmt::format_to(Iter, "Misaligned Pointers."sv);
+      break;
     default:
       fmt::format_to(
           Iter, "Unknown error code {}"sv,

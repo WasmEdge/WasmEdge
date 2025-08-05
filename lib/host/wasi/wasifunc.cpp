@@ -380,11 +380,11 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
   }
 
   if(ArgvPtr % alignof(uint32_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   if(ArgvBufPtr % alignof(uint8_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   // Store **Argv.
@@ -424,11 +424,11 @@ Expect<uint32_t> WasiArgsSizesGet::body(const Runtime::CallingFrame &Frame,
 
   // Alignment check for ArgcPtr and ArgvBufSizePtr.
   if(ArgcPtr % alignof(__wasi_size_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   } 
 
   if(ArgvBufSizePtr % alignof(__wasi_size_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   // Check for invalid address.
@@ -492,11 +492,11 @@ Expect<uint32_t> WasiEnvironSizesGet::body(const Runtime::CallingFrame &Frame,
   }
 
   if(EnvCntPtr % alignof(__wasi_size_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   if(EnvBufSizePtr % alignof(__wasi_size_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   // Check for invalid address.
@@ -637,12 +637,12 @@ Expect<uint32_t> WasiFdFdstatGet::body(const Runtime::CallingFrame &Frame,
   }
 
   if(FdStatPtr % alignof(__wasi_fdstat_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   auto *const FdStat = MemInst->getPointer<__wasi_fdstat_t *>(FdStatPtr);
   if (unlikely(FdStat == nullptr)) {
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   const __wasi_fd_t WasiFd = Fd;
@@ -707,7 +707,7 @@ Expect<uint32_t> WasiFdFilestatGet::body(const Runtime::CallingFrame &Frame,
   }
 
   if(FilestatPtr % alignof(__wasi_filestat_t) != 0) {
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   auto *const Filestat = MemInst->getPointer<__wasi_filestat_t *>(FilestatPtr);
@@ -768,7 +768,7 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
   }
 
   if(NReadPtr % alignof(__wasi_size_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   const __wasi_size_t WasiIOVsLen = IOVsLen;
@@ -848,7 +848,7 @@ Expect<uint32_t> WasiFdPrestatGet::body(const Runtime::CallingFrame &Frame,
   }
 
   if(PreStatPtr % alignof(__wasi_prestat_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   __wasi_prestat_t *const PreStat =
@@ -876,7 +876,7 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
   }
 
   if(NWrittenPtr % alignof(__wasi_size_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   const __wasi_size_t WasiIOVsLen = IOVsLen;
@@ -937,7 +937,7 @@ Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
   }
 
   if(NReadPtr % alignof(__wasi_size_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   const __wasi_size_t WasiIOVsLen = IOVsLen;
@@ -1102,7 +1102,7 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
   }
 
   if(NWrittenPtr % alignof(__wasi_size_t) != 0){
-    return __WASI_ERRNO_FAULT;
+    return __WASI_ERRNO_MISALIGN;
   }
 
   const __wasi_size_t WasiIOVsLen = IOVsLen;

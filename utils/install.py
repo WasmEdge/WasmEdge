@@ -338,6 +338,9 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASI_CRYPTO: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASI_CRYPTO: VersionString("0.13.0"),
     "manylinux2014" + "arm64" + WASI_CRYPTO: VersionString("0.13.0"),
+    "manylinux_2_28" + "x86_64" + WASI_CRYPTO: VersionString("0.15.0"),
+    "manylinux_2_28" + "aarch64" + WASI_CRYPTO: VersionString("0.15.0"),
+    "manylinux_2_28" + "arm64" + WASI_CRYPTO: VersionString("0.15.0"),
     "ubuntu20.04" + "x86_64" + WASI_NN_OPENVINO: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.13.0"),
     "ubuntu20.04" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
@@ -350,6 +353,11 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
     "manylinux2014" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASI_NN_GGML: VersionString("0.13.4"),
+    "manylinux_2_28" + "x86_64" + WASI_NN_PYTORCH: VersionString("0.15.0"),
+    "manylinux_2_28" + "x86_64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.15.0"),
+    "manylinux_2_28" + "x86_64" + WASI_NN_GGML: VersionString("0.15.0"),
+    "manylinux_2_28" + "aarch64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.15.0"),
+    "manylinux_2_28" + "aarch64" + WASI_NN_GGML: VersionString("0.15.0"),
     "darwin" + "x86_64" + WASI_NN_GGML: VersionString("0.13.4"),
     "darwin" + "arm64" + WASI_NN_GGML: VersionString("0.13.4"),
     "darwin" + "arm64" + WASI_NN_TENSORFLOW_LITE: VersionString("0.14.1"),
@@ -358,6 +366,8 @@ SUPPORTTED_PLUGINS = {
     "darwin" + "arm64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
+    "manylinux_2_28" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.15.0"),
+    "manylinux_2_28" + "aarch64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.15.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "arm64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
@@ -367,11 +377,19 @@ SUPPORTTED_PLUGINS = {
     "manylinux2014"
     + "aarch64"
     + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
+    "manylinux_2_28"
+    + "x86_64"
+    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.15.0"),
+    "manylinux_2_28"
+    + "aarch64"
+    + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.15.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_TENSORFLOW_LITE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "arm64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "manylinux2014" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
+    "manylinux_2_28" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.15.0"),
+    "manylinux_2_28" + "aarch64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.15.0"),
     "ubuntu20.04" + "x86_64" + WASMEDGE_IMAGE_PLUGIN: VersionString("0.13.0"),
     "darwin" + "x86_64" + WASI_LOGGING: VersionString("0.14.0"),
     "darwin" + "arm64" + WASI_LOGGING: VersionString("0.13.5"),
@@ -387,6 +405,7 @@ SUPPORTTED_PLUGINS = {
     "ubuntu20.04" + "aarch64" + WASMEDGE_RUSTLS: VersionString("0.13.5"),
     "ubuntu20.04" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
     "manylinux2014" + "x86_64" + WASM_BPF: VersionString("0.13.2"),
+    "manylinux_2_28" + "x86_64" + WASM_BPF: VersionString("0.15.0"),
 }
 
 HOME = expanduser("~")
@@ -1179,9 +1198,15 @@ class Compat:
             self.ld_library_path = "LD_LIBRARY_PATH"
 
             if self.machine in ["arm64", "armv8", "aarch64"]:
-                self.release_package = "manylinux2014_aarch64.tar.gz"
+                if self.version.compare("0.15.0") >= 0:
+                    self.release_package = "manylinux_2_28_aarch64.tar.gz"
+                else:
+                    self.release_package = "manylinux2014_aarch64.tar.gz"
             elif self.machine in ["x86_64", "amd64"]:
-                self.release_package = "manylinux2014_x86_64.tar.gz"
+                if self.version.compare("0.15.0") >= 0:
+                    self.release_package = "manylinux_2_28_x86_64.tar.gz"
+                else:
+                    self.release_package = "manylinux2014_x86_64.tar.gz"
             else:
                 reraise(Exception("Unsupported arch: {0}".format(self.machine)))
 
@@ -1206,9 +1231,15 @@ class Compat:
                         ):
                             self.dist = "ubuntu20.04"
                         else:
-                            self.dist = "manylinux2014"
+                            if self.version.compare("0.15.0") >= 0:
+                                self.dist = "manylinux_2_28"
+                            else:
+                                self.dist = "manylinux2014"
                     else:
-                        self.dist = "manylinux2014"
+                        if self.version.compare("0.15.0") >= 0:
+                            self.dist = "manylinux_2_28"
+                        else:
+                            self.dist = "manylinux2014"
                 elif sys.version_info[0] == 3:
                     __lsb_rel = run_shell_command(
                         "cat /etc/lsb-release 2>/dev/null | grep RELEASE"
@@ -1225,10 +1256,16 @@ class Compat:
                         ):
                             self.dist = "ubuntu20.04"
                         else:
-                            self.dist = "manylinux2014"
+                            if self.version.compare("0.15.0") >= 0:
+                                self.dist = "manylinux_2_28"
+                            else:
+                                self.dist = "manylinux2014"
                         self.dist = "ubuntu20.04"
                     else:
-                        self.dist = "manylinux2014"
+                        if self.version.compare("0.15.0") >= 0:
+                            self.dist = "manylinux_2_28"
+                        else:
+                            self.dist = "manylinux2014"
 
             # Below version 0.11.1 different distributions for wasmedge binary do not exist
             if self.version.compare("0.11.1") != -1:
@@ -1383,11 +1420,29 @@ def main(args):
 
         logging.info("Installing WasmEdge")
         # Copy the tree
-        for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
-            if sub_dir == "lib64":
-                copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib"))
-            else:
-                copytree(join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, sub_dir))
+        # Check if the old structure exists (pre-0.15.0 with versioned directory)
+        if exists(join(TEMP_PATH, CONST_ipkg)):
+            # Old structure: WasmEdge-VERSION-DIST/{include,lib,bin}
+            for sub_dir in listdir(join(TEMP_PATH, CONST_ipkg)):
+                if sub_dir == "lib64":
+                    copytree(
+                        join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, "lib")
+                    )
+                else:
+                    copytree(
+                        join(TEMP_PATH, CONST_ipkg, sub_dir), join(args.path, sub_dir)
+                    )
+        else:
+            # New structure (0.15.0+): files extracted directly to TEMP_PATH
+            for sub_dir in listdir(TEMP_PATH):
+                # Skip non-directory files and the uninstall script
+                if not isdir(join(TEMP_PATH, sub_dir)):
+                    continue
+                if sub_dir in ["bin", "include", "lib", "lib64"]:
+                    if sub_dir == "lib64":
+                        copytree(join(TEMP_PATH, sub_dir), join(args.path, "lib"))
+                    else:
+                        copytree(join(TEMP_PATH, sub_dir), join(args.path, sub_dir))
 
         if is_default_path(args):
             # perform actions if default path
@@ -1536,9 +1591,9 @@ if __name__ == "__main__":
         dest="dist",
         required=False,
         default=None,
-        choices=["ubuntu20.04", "manylinux2014"],
+        choices=["ubuntu20.04", "manylinux2014", "manylinux_2_28"],
         type=lambda s: s.lower(),
-        help="Dist ex- ubuntu20.04,manylinux2014",
+        help="Dist ex- ubuntu20.04,manylinux2014,manylinux_2_28",
     )
     args = parser.parse_args()
 

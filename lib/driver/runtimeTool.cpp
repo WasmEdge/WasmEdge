@@ -205,7 +205,15 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
             "{}\n"sv,
             uint128(std::get<ValVariant>((*Result)[I].first).get<uint128_t>()));
         break;
-      /// TODO: FuncRef and ExternRef
+      case TypeCode::FuncRef: {
+        auto Ref = std::get<ValVariant>((*Result)[I].first).get<RefVariant>();
+        if (Ref.isNull()) {
+          fmt::print("<null funcref>\n"sv);
+        } else {
+          fmt::print("<funcref>\n"sv);
+        }
+        break;
+      }
       default:
         break;
       }

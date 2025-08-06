@@ -254,6 +254,18 @@ cast<__wasi_riflags_t>(uint64_t RiFlags) noexcept {
   return WASI::WasiUnexpect(__WASI_ERRNO_INVAL);
 }
 
+template<typename T>
+constexpr bool isPointerAligned(uint32_t addr) noexcept {
+  return (addr % alignof(T)) == 0;
+}
+
+template<typename T>
+__wasi_errno_t validatePointerAlignment(uint32_t addr) noexcept {
+  return unlikely(!isPointerAligned<T>(addr))
+    ? __WASI_ERRNO_INVAL
+    : __WASI_ERRNO_SUCCESS;
+}
+
 template <>
 WASI::WasiExpect<__wasi_siflags_t>
 cast<__wasi_siflags_t>(uint64_t SiFlags) noexcept {
@@ -412,6 +424,17 @@ Expect<uint32_t> WasiArgsSizesGet::body(const Runtime::CallingFrame &Frame,
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
+  }
+
+  // Validate pointer alignment before accessing
+  if (auto Res = validatePointerAlignment<__wasi_size_t>(ArgcPtr); 
+      unlikely(Res != __WASI_ERRNO_SUCCESS)) {
+    return Res;
+  }
+  
+  if (auto Res = validatePointerAlignment<__wasi_size_t>(ArgvBufSizePtr);
+      unlikely(Res != __WASI_ERRNO_SUCCESS)) {
+    return Res;
   }
 
   // Check for invalid address.

@@ -19,6 +19,7 @@
 #define WASMEDGE_OS_LINUX 1
 #define WASMEDGE_OS_MACOS 0
 #define WASMEDGE_OS_WINDOWS 0
+#define WASMEDGE_OS_FREEBSD 0
 #define WASMEDGE_LIB_PREFIX "lib"
 #define WASMEDGE_LIB_EXTENSION ".so"
 
@@ -28,6 +29,7 @@
 #define WASMEDGE_OS_LINUX 0
 #define WASMEDGE_OS_MACOS 1
 #define WASMEDGE_OS_WINDOWS 0
+#define WASMEDGE_OS_FREEBSD 0
 #define WASMEDGE_LIB_PREFIX "lib"
 #define WASMEDGE_LIB_EXTENSION ".dylib"
 
@@ -37,8 +39,18 @@
 #define WASMEDGE_OS_LINUX 0
 #define WASMEDGE_OS_MACOS 0
 #define WASMEDGE_OS_WINDOWS 1
+#define WASMEDGE_OS_FREEBSD 0
 #define WASMEDGE_LIB_PREFIX ""
 #define WASMEDGE_LIB_EXTENSION ".dll"
+
+#elif defined(__FreeBSD__) || defined(_FREEBSD) || defined(__FREEBSD__)
+
+#define WASMEDGE_OS_LINUX 0
+#define WASMEDGE_OS_MACOS 0
+#define WASMEDGE_OS_WINDOWS 0
+#define WASMEDGE_OS_FREEBSD 1
+#define WASMEDGE_LIB_PREFIX "lib"
+#define WASMEDGE_LIB_EXTENSION ".so"
 
 #else
 

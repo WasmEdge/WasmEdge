@@ -133,6 +133,87 @@ void Environ::init(Span<const std::string> Dirs, std::string ProgramName,
   ExitCode = 0;
 }
 
+WasiExpect<void>
+Environ::initWithFds(Span<const std::string> Dirs, std::string ProgramName,
+                     Span<const std::string> Args, Span<const std::string> Envs,
+                     int32_t StdInFd, int32_t StdOutFd, int32_t StdErrFd) {
+  {
+    auto StdInVNode =
+        VINode::fromFd(StdInFd, kStdInDefaultRights, kNoInheritingRights);
+    if (!StdInVNode) {
+      return WasiUnexpect(StdInVNode.error());
+    }
+    FdMap.emplace(0, std::move(*StdInVNode));
+    auto StdOutVNode =
+        VINode::fromFd(StdOutFd, kStdOutDefaultRights, kNoInheritingRights);
+    if (!StdOutVNode) {
+      return WasiUnexpect(StdOutVNode.error());
+    }
+    FdMap.emplace(1, std::move(*StdOutVNode));
+    auto StdErrVNode =
+        VINode::fromFd(StdErrFd, kStdErrDefaultRights, kNoInheritingRights);
+    if (!StdErrVNode) {
+      return WasiUnexpect(StdErrVNode.error());
+    }
+    FdMap.emplace(2, std::move(*StdErrVNode));
+
+    // Open dir for WASI environment.
+    std::vector<std::shared_ptr<VINode>> PreopenedDirs;
+    PreopenedDirs.reserve(Dirs.size());
+    for (const auto &Dir : Dirs) {
+      const auto Pos = Dir.find(':');
+      std::string HostDir =
+          (Pos == std::string::npos) ? Dir : Dir.substr(Pos + 1);
+      // Handle the readonly flag
+      bool ReadOnly = false;
+      if (const auto ROPos = HostDir.find(':'); ROPos != std::string::npos) {
+        const auto Mode = HostDir.substr(ROPos + 1);
+        HostDir = HostDir.substr(0, ROPos);
+        if (kReadOnly == Mode) {
+          ReadOnly = true;
+        }
+      }
+      std::string GuestDir = VINode::canonicalGuest(
+          (Pos == std::string::npos) ? std::string_view(Dir)
+                                     : std::string_view(Dir).substr(0, Pos));
+      if (GuestDir.size() == 0) {
+        GuestDir = '/';
+      }
+      const auto BaseRights =
+          ReadOnly ? kPreOpenBaseRightsReadOnly : kPreOpenBaseRights;
+      const auto InheritingRights = ReadOnly ? kPreOpenInheritingRightsReadOnly
+                                             : kPreOpenInheritingRights;
+      if (auto Res = VINode::bind(BaseRights, InheritingRights,
+                                  std::move(GuestDir), std::move(HostDir));
+          unlikely(!Res)) {
+        spdlog::error("Bind guest directory failed:{}"sv, Res.error());
+        continue;
+      } else {
+        PreopenedDirs.emplace_back(std::move(*Res));
+      }
+    }
+
+    std::sort(PreopenedDirs.begin(), PreopenedDirs.end());
+
+    int NewFd = 3;
+    for (auto &PreopenedDir : PreopenedDirs) {
+      FdMap.emplace(NewFd++, std::move(PreopenedDir));
+    }
+  }
+
+  Arguments.resize(Args.size() + 1);
+  Arguments.front() = std::move(ProgramName);
+  std::copy(Args.begin(), Args.end(), Arguments.begin() + 1);
+  Arguments.shrink_to_fit();
+
+  EnvironVariables.resize(Envs.size());
+  std::copy(Envs.begin(), Envs.end(), EnvironVariables.begin());
+  EnvironVariables.shrink_to_fit();
+
+  ExitCode = 0;
+  return {};
+}
+
 void Environ::fini() noexcept {
   EnvironVariables.clear();
   Arguments.clear();

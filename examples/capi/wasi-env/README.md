@@ -59,7 +59,7 @@ Then you can build this example with linking the WasmEdge shared library.
 
 ```bash
 # In the current directory.
-clang set_wasi_env.c -o set_wasm_env -lwasmedge
+clang set_wasi_env.c -o set_wasi_env.out -lwasmedge
 ```
 
 ## (Optional) Build the example WASM from rust
@@ -81,7 +81,7 @@ cp ./target/wasm32-wasip1/release/wasi_get_env.wasm ../
 
 ```bash
 # Run in interpreter mode
-./set_wasi_env
+./set_wasi_env.out
 ```
 
 The standard output of this example will be the following:
@@ -92,5 +92,5 @@ ENV1: VAL1
 ENV2: VAL2
 ENV3: VAL3
 The args are as follows.
-./set_wasi_env
+./set_wasi_env.out
 ```

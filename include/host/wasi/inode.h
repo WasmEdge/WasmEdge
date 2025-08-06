@@ -352,6 +352,8 @@ public:
 
   static INode stdErr() noexcept;
 
+  static WasiExpect<INode> fromFd(int32_t Fd);
+
   /// Open a file or directory.
   ///
   /// @param[in] Path The absolute path of the file or directory to open.

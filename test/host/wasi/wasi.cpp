@@ -2996,6 +2996,46 @@ TEST(WasiTest, SymbolicLink) {
     Env.fini();
   }
 }
+
+TEST(WasiTest, AlignmentArgsSizesGet) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", 
+    std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+      WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiArgsSizesGet WasiArgsSizesGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  Env.init({}, "test", {}, {});
+
+  // Test misaligned pointers -> should return INVAL after the fix
+  uint32_t mis = 1;  // misaligned
+  uint32_t ok = alignof(__wasi_size_t);  // aligned
+
+  EXPECT_TRUE(WasiArgsSizesGet.run(
+    CallFrame,
+    std::initializer_list<WasmEdge::ValVariant>{mis, ok},
+    Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
+
+  EXPECT_TRUE(WasiArgsSizesGet.run(
+    CallFrame,
+    std::initializer_list<WasmEdge::ValVariant>{ok, mis},
+    Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_INVAL);
+
+  // Test aligned pointers -> should succeed
+  EXPECT_TRUE(WasiArgsSizesGet.run(
+    CallFrame,
+    std::initializer_list<WasmEdge::ValVariant>{ok, ok},
+    Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  Env.fini();
+}
+
 #endif
 
 GTEST_API_ int main(int argc, char **argv) {

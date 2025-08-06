@@ -140,7 +140,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
     }
   }
 
-  Runtime::StackManager StackMgr;
+  Runtime::StackManager StackMgr(Allocator);
 
   // Call runFunction.
   EXPECTED_TRY(runFunction(StackMgr, *FuncInst, Params).map_error([](auto E) {
@@ -153,7 +153,7 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   // Get return values.
   std::vector<std::pair<ValVariant, ValType>> Returns(RTypes.size());
   for (uint32_t I = 0; I < RTypes.size(); ++I) {
-    auto Val = StackMgr.pop();
+    auto Val = StackMgr.pop<ValVariant>();
     const auto &RType = RTypes[RTypes.size() - I - 1];
     if (RType.isRefType()) {
       // For the reference type cases of the return values, they should be
@@ -166,14 +166,14 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
       if (!RefType.isAbsHeapType()) {
         // The instance must not be nullptr because the null references are
         // already dynamic typed into the top abstract heap type.
-        auto *Inst =
-            Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
+        auto *Inst = Val.get<RefVariant>()
+                         .getPtr<Runtime::Instance::GCInstance::RawData>();
         assuming(Inst);
         // The ModInst may be nullptr only in the independent host function
         // instance. Therefore the module instance here must not be nullptr
         // because the independent host function instance cannot be imported and
         // be referred by instructions.
-        const auto *ModInst = Inst->getModule();
+        const auto *ModInst = Inst->ModInst;
         auto *DefType = *ModInst->getType(RefType.getTypeIndex());
         RefType =
             ValType(RefType.getCode(), DefType->getCompositeType().expand());

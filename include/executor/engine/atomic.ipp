@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/types.h"
 #include "executor/executor.h"
 #include "runtime/instance/memory.h"
 #include <experimental/scope.hpp>
@@ -86,7 +87,7 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
   }
 
   I Return = AtomicObj->load();
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  RawAddress.emplace<T>(static_cast<T>(getLittleEndian(Return)));
   return {};
 }
 
@@ -127,7 +128,7 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
-  AtomicObj->store(Value);
+  AtomicObj->store(getLittleEndian(Value));
   return {};
 }
 
@@ -168,7 +169,16 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_add(Value);
+  I Return;
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
+  Return = AtomicObj->fetch_add(Value);
+#else
+  I Result;
+  do {
+    Return = AtomicObj->load();
+    Result = getLittleEndian(Return) + Value;
+  } while (!AtomicObj->compare_exchange_weak(Return, getLittleEndian(Result)));
+#endif
   RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
@@ -210,7 +220,16 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_sub(Value);
+  I Return;
+#if WASMEDGE_ENDIAN_LITTLE_BYTE
+  Return = AtomicObj->fetch_sub(Value);
+#else
+  I Result;
+  do {
+    Return = AtomicObj->load();
+    Result = getLittleEndian(Return) - Value;
+  } while (!AtomicObj->compare_exchange_weak(Return, getLittleEndian(Result)));
+#endif
   RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
@@ -252,8 +271,8 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_or(Value);
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  I Return = AtomicObj->fetch_or(getLittleEndian(Value));
+  RawAddress.emplace<T>(static_cast<T>(getLittleEndian(Return)));
   return {};
 }
 
@@ -293,9 +312,8 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Value = static_cast<I>(RawValue.get<T>());
-
-  I Return = AtomicObj->fetch_and(Value);
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  I Return = AtomicObj->fetch_and(getLittleEndian(Value));
+  RawAddress.emplace<T>(static_cast<T>(getLittleEndian(Return)));
   return {};
 }
 
@@ -336,8 +354,8 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_xor(Value);
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  I Return = AtomicObj->fetch_xor(getLittleEndian(Value));
+  RawAddress.emplace<T>(static_cast<T>(getLittleEndian(Return)));
   return {};
 }
 
@@ -379,8 +397,8 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->exchange(Value);
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  I Return = AtomicObj->exchange(getLittleEndian(Value));
+  RawAddress.emplace<T>(static_cast<T>(getLittleEndian(Return)));
   return {};
 }
 
@@ -422,10 +440,10 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   I Replacement = static_cast<I>(RawReplacement.get<T>());
-  I Expected = static_cast<I>(RawExpected.get<T>());
+  I Expected = getLittleEndian(static_cast<I>(RawExpected.get<T>()));
 
-  AtomicObj->compare_exchange_strong(Expected, Replacement);
-  RawAddress.emplace<T>(static_cast<T>(Expected));
+  AtomicObj->compare_exchange_strong(Expected, getLittleEndian(Replacement));
+  RawAddress.emplace<T>(static_cast<T>(getLittleEndian(Expected)));
   return {};
 }
 
@@ -450,6 +468,7 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
                   std::chrono::nanoseconds(Timeout));
   }
 
+  Expected = getLittleEndian(Expected);
   auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
   assuming(AtomicObj);
 

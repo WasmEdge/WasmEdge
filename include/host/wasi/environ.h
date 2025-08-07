@@ -59,6 +59,12 @@ public:
   void init(Span<const std::string> Dirs, std::string ProgramName,
             Span<const std::string> Args, Span<const std::string> Envs);
 
+  WasiExpect<void> initWithFds(Span<const std::string> Dirs,
+                               std::string ProgramName,
+                               Span<const std::string> Args,
+                               Span<const std::string> Envs, int32_t StdInFd,
+                               int32_t StdOutFd, int32_t StdErrFd);
+
   void fini() noexcept;
 
   WasiExpect<void> getAddrInfo(std::string_view Node, std::string_view Service,

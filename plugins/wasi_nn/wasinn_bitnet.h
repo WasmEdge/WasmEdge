@@ -42,26 +42,28 @@ using llama_model_ptr = std::unique_ptr<llama_model, LlamaModelDeleter>;
 using llama_context_ptr = std::unique_ptr<llama_context, LlamaContextDeleter>;
 using common_sampler_ptr = std::unique_ptr<common_sampler, CommonSamplerDeleter>;
 
+struct LocalConfig {
+    int64_t NPredict = -1; 
+};
+
+
 struct Graph {
   common_params Params;
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;
+  LocalConfig Conf;
 };
 
 
 struct Context {
 public:
-  Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), GraphRef(G) {
-    // Correctly copy the sparams member from the graph's common_params
-    SParams = G.Params.sparams;
-    NPredict = G.Params.n_predict;
-  }
+Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), GraphRef(G), Conf(G.Conf) {}
 
   uint32_t GraphId;
   Graph &GraphRef;
+  LocalConfig Conf;
+  bool ComputeSingleStarted = false;
 
-  common_sampler_params SParams;
-  int32_t NPredict;
   int32_t NPos = 0;
   std::vector<llama_token> LlamaInputs;
   std::vector<llama_token> LlamaOutputTokens;
@@ -99,6 +101,18 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
 
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
                               uint32_t ContextId) noexcept;
+
+Expect<WASINN::ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &Env,
+                                      uint32_t ContextId, uint32_t Index,
+                                      Span<uint8_t> OutBuffer,
+                                      uint32_t &BytesWritten) noexcept;
+
+Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
+                                    uint32_t ContextId) noexcept;
+
+Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
+                                 uint32_t ContextId) noexcept;
+
 
 Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
                                       uint32_t ContextId) noexcept;

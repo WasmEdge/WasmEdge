@@ -21,12 +21,12 @@ namespace WasmEdge::Host::WASINN::BitNet {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
 
 namespace {
-ErrNo parseMetadata(common_params &Params, bool &EnableLog, const std::string &Metadata) noexcept {
+ErrNo parseMetadata(common_params &Params, LocalConfig &Conf, bool &EnableLog, const std::string &Metadata) noexcept {
   simdjson::dom::parser Parser;
   simdjson::dom::element Doc;
   if (Parser.parse(Metadata).get(Doc)) {
     spdlog::error("[WASI-NN] BitNet: Failed to parse metadata JSON.");
-    return WASINN::ErrNo::InvalidArgument;
+    return WASINN::ErrNo::InvalidEncoding;
   }
 
   if (Doc.at_key("enable-log").error() == simdjson::SUCCESS) {
@@ -53,7 +53,10 @@ ErrNo parseMetadata(common_params &Params, bool &EnableLog, const std::string &M
   auto &SParams = Params.sparams;
   if (Doc.at_key("n-predict").error() == simdjson::SUCCESS) {
     int64_t Val;
-    if (Doc["n-predict"].get(Val) == simdjson::SUCCESS) Params.n_predict = Val;
+    if (Doc["n-predict"].get(Val) == simdjson::SUCCESS) {
+        Params.n_predict = Val;
+        Conf.NPredict = Val;
+    }
   }
   if (Doc.at_key("temperature").error() == simdjson::SUCCESS) {
     double Val;
@@ -118,7 +121,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     const std::string Metadata(
         reinterpret_cast<const char *>(Builders[1].data()),
         Builders[1].size());
-    if (auto Res = parseMetadata(GraphRef.Params, EnableLog, Metadata); Res != ErrNo::Success) {
+    if (auto Res = parseMetadata(GraphRef.Params, GraphRef.Conf, EnableLog, Metadata); Res != ErrNo::Success) {
         Env.deleteGraph(GId);
         return Res;
     }
@@ -207,7 +210,7 @@ Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
   ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
 
-  CxtRef.LlamaSampler.reset(common_sampler_init(GraphRef.LlamaModel.get(), CxtRef.SParams));
+  CxtRef.LlamaSampler.reset(common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sparams));
   if (!CxtRef.LlamaSampler) {
     spdlog::error("[WASI-NN] BitNet: Failed to initialize sampler.");
     Env.deleteContext(ContextId);
@@ -230,6 +233,21 @@ Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
                                const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = CxtRef.GraphRef;
+
+  if (Index == 1) {
+    const std::string Metadata(reinterpret_cast<const char *>(Tensor.Tensor.data()), Tensor.Tensor.size());
+    bool DummyEnableLog = false; 
+    if (auto Res = parseMetadata(GraphRef.Params, CxtRef.Conf, DummyEnableLog, Metadata); Res != ErrNo::Success) {
+        spdlog::error("[WASI-NN] BitNet: Failed to parse runtime options JSON.");
+        return Res;
+    }
+    CxtRef.LlamaSampler.reset(common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sparams));
+    if (!CxtRef.LlamaSampler) {
+      spdlog::error("[WASI-NN] BitNet: Failed to re-initialize sampler with runtime options.");
+      return WASINN::ErrNo::RuntimeError;
+    }
+    return WASINN::ErrNo::Success;
+  }
 
   if (Index != 0) {
     spdlog::error("[WASI-NN] BitNet: Only one input tensor (the prompt) is supported at index 0.");
@@ -293,7 +311,7 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
     }
   }
 
-  int n_remain = CxtRef.NPredict;
+  int n_remain = CxtRef.Conf.NPredict;
   if (n_remain < 0) n_remain = INT32_MAX;
 
   while(n_remain > 0) {
@@ -344,6 +362,120 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
   return WASINN::ErrNo::Success;
 }
 
+Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
+                                    uint32_t ContextId) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = CxtRef.GraphRef;
+  const int32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
+
+  // First call in a streaming sequence
+  if (!CxtRef.ComputeSingleStarted) {
+    if (CxtRef.LlamaInputs.empty()) {
+        spdlog::error("[WASI-NN] BitNet: Input prompt not set before computeSingle.");
+        return WASINN::ErrNo::InvalidArgument;
+    }
+
+    
+    llama_kv_cache_clear(GraphRef.LlamaContext.get());
+    common_sampler_reset(CxtRef.LlamaSampler.get());
+    CxtRef.NPos = 0;
+    CxtRef.LlamaOutputTokens.clear();
+    
+    for (size_t i = 0; i < CxtRef.LlamaInputs.size(); i += GraphRef.Params.n_batch) {
+        const size_t n_tokens_to_process = std::min((size_t)GraphRef.Params.n_batch, CxtRef.LlamaInputs.size() - i);
+        
+        common_batch_clear(CxtRef.LlamaBatch);
+        for (size_t j = 0; j < n_tokens_to_process; ++j) {
+            common_batch_add(CxtRef.LlamaBatch, CxtRef.LlamaInputs[i + j], CxtRef.NPos, {0}, false);
+            CxtRef.NPos++;
+        }
+
+        if (i + n_tokens_to_process == CxtRef.LlamaInputs.size()) {
+            CxtRef.LlamaBatch.logits[CxtRef.LlamaBatch.n_tokens - 1] = true;
+        }
+
+        if (llama_decode(GraphRef.LlamaContext.get(), CxtRef.LlamaBatch) != 0) {
+            spdlog::error("[WASI-NN] BitNet: llama_decode failed during prompt processing.");
+            return WASINN::ErrNo::RuntimeError;
+        }
+    }
+    
+    //All subsequent calls will skip this block.
+    CxtRef.ComputeSingleStarted = true;
+  }
+
+  // Generate ONE token 
+  if (CxtRef.NPos >= NCtx) {
+    spdlog::warn("[WASI-NN] BitNet: Context is full (n_pos = {}).", CxtRef.NPos);
+    return WASINN::ErrNo::ContextFull;
+  }
+
+  llama_token new_token_id = common_sampler_sample(CxtRef.LlamaSampler.get(), GraphRef.LlamaContext.get(), -1);
+  common_sampler_accept(CxtRef.LlamaSampler.get(), new_token_id, true);
+
+  if (new_token_id == llama_token_eos(GraphRef.LlamaModel.get())) {
+    return WASINN::ErrNo::EndOfSequence;
+  }
+  
+  CxtRef.LlamaOutputTokens.push_back(new_token_id);
+
+  common_batch_clear(CxtRef.LlamaBatch);
+  common_batch_add(CxtRef.LlamaBatch, new_token_id, CxtRef.NPos, {0}, true); // `logits` is true
+  CxtRef.NPos++;
+
+  if (llama_decode(GraphRef.LlamaContext.get(), CxtRef.LlamaBatch) != 0) {
+    spdlog::error("[WASI-NN] BitNet: llama_decode failed during token generation.");
+    return WASINN::ErrNo::RuntimeError;
+  }
+
+  return WASINN::ErrNo::Success;
+}
+
+Expect<WASINN::ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &Env,
+                                      uint32_t ContextId, uint32_t Index,
+                                      Span<uint8_t> OutBuffer,
+                                      uint32_t &BytesWritten) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = CxtRef.GraphRef;
+
+  if (Index != 0) {
+    spdlog::error("[WASI-NN] BitNet: Only one output tensor (at index 0) is supported.");
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  if (CxtRef.LlamaOutputTokens.empty()) {
+    BytesWritten = 0;
+    return WASINN::ErrNo::Success;
+  }
+
+  llama_token LastTokenId = CxtRef.LlamaOutputTokens.back();
+  std::string LastTokenStr = common_token_to_piece(GraphRef.LlamaContext.get(), LastTokenId);
+
+  const size_t Len = std::min(static_cast<size_t>(OutBuffer.size()), LastTokenStr.length());
+  std::copy_n(LastTokenStr.data(), Len, OutBuffer.data());
+  
+  BytesWritten = LastTokenStr.length();
+
+  return WASINN::ErrNo::Success;
+}
+
+Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
+                                 uint32_t ContextId) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = CxtRef.GraphRef;
+  
+  // Reset the streaming state flag
+  CxtRef.ComputeSingleStarted = false;
+
+  CxtRef.LlamaOutputTokens.clear();
+  
+  llama_kv_cache_clear(GraphRef.LlamaContext.get());
+  common_sampler_reset(CxtRef.LlamaSampler.get());
+  CxtRef.NPos = 0;
+
+  return WASINN::ErrNo::Success;
+}
+
 Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
                                       uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
@@ -355,7 +487,6 @@ Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
 Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   if (GraphId < Env.NNGraph.size()) {
       Env.deleteGraph(GraphId);
-      llama_backend_free();
   }
   return WASINN::ErrNo::Success;
 }
@@ -387,6 +518,18 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
   return reportBackendNotSupported();
 }
 Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+                                Span<uint8_t>, uint32_t &) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> computeSingle(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+  return reportBackendNotSupported();
+}
+Expect<ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
+                                      uint32_t ContextId) noexcept {
+  Env.deleteContext(ContextId);
   return reportBackendNotSupported();
 }
 Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,

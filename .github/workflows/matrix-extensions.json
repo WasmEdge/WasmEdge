@@ -136,6 +136,20 @@
             ]
         },
         {
+            "plugin": "wasi_nn-bitnet",
+            "bin": "libwasmedgePluginWasiNN",
+            "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=BitNet",
+            "platforms": [
+                "manylinux_2_28_x86_64",
+                "manylinux_2_28_aarch64",
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
+            ]
+        },
+        {
             "plugin": "wasm_bpf",
             "bin": "libwasmedgePluginWasmBpf",
             "dir": "wasm_bpf",

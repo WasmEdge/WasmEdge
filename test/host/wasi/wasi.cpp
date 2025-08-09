@@ -2855,6 +2855,44 @@ TEST(WasiTest, Directory) {
   }
 }
 
+TEST(WasiTest, WasiArgsGetTest){
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::Runtime::CallingFrame Frame(nullptr, &Mod);
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Host::WasiArgsGet ArgsGet(Env);
+
+  // Misaligned ArgvPtr
+  uint32_t MisalignedArgvPtr = 1; // Not aligned to 4
+  uint32_t AlignedArgvBufPtr = 0;
+  EXPECT_EQ(ArgsGet.body(Frame, MisalignedArgvPtr, AlignedArgvBufPtr).value(),
+            __WASI_ERRNO_MISALIGN);
+
+  // Misaligned ArgvBufPtr
+  uint32_t AlignedArgvPtr = 0;
+  uint32_t MisalignedArgvBufPtr = 1; // Not aligned to 1 (should be fine, but test anyway)
+  EXPECT_EQ(ArgsGet.body(Frame, AlignedArgvPtr, MisalignedArgvBufPtr).value(),
+            __WASI_ERRNO_MISALIGN);
+}
+
+TEST(WasiEnvironGetTest, WasiEnvironGetTest) {
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  WasmEdge::Runtime::CallingFrame Frame(nullptr, &Mod);
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Host::WasiEnvironGet EnvironGet(Env);
+
+  // Misaligned EnvPtr
+  uint32_t MisalignedEnvPtr = 2; // Not aligned to 4
+  uint32_t AlignedEnvBufPtr = 0;
+  EXPECT_EQ(EnvironGet.body(Frame, MisalignedEnvPtr, AlignedEnvBufPtr).value(),
+            __WASI_ERRNO_MISALIGN);
+
+  // Misaligned EnvBufPtr
+  uint32_t AlignedEnvPtr = 0;
+  uint32_t MisalignedEnvBufPtr = 3; // Not aligned to 1 (should be fine, but test anyway)
+  EXPECT_EQ(EnvironGet.body(Frame, AlignedEnvPtr, MisalignedEnvBufPtr).value(),
+            __WASI_ERRNO_MISALIGN);
+}
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;

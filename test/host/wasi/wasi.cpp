@@ -2855,42 +2855,184 @@ TEST(WasiTest, Directory) {
   }
 }
 
-TEST(WasiTest, WasiArgsGetTest){
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  WasmEdge::Runtime::CallingFrame Frame(nullptr, &Mod);
+TEST(WasiTest, WasiArgsSizesGet_MisalignedPointer) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Host::WasiArgsGet ArgsGet(Env);
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  // Misaligned ArgvPtr
-  uint32_t MisalignedArgvPtr = 1; // Not aligned to 4
-  uint32_t AlignedArgvBufPtr = 0;
-  EXPECT_EQ(ArgsGet.body(Frame, MisalignedArgvPtr, AlignedArgvBufPtr).value(),
-            __WASI_ERRNO_MISALIGN);
+  WasmEdge::Host::WasiArgsSizesGet WasiArgsSizesGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
 
-  // Misaligned ArgvBufPtr
-  uint32_t AlignedArgvPtr = 0;
-  uint32_t MisalignedArgvBufPtr = 1; // Not aligned to 1 (should be fine, but test anyway)
-  EXPECT_EQ(ArgsGet.body(Frame, AlignedArgvPtr, MisalignedArgvBufPtr).value(),
-            __WASI_ERRNO_MISALIGN);
+  // Misaligned ArgcPtr
+  EXPECT_TRUE(WasiArgsSizesGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), UINT32_C(4)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
 }
 
-TEST(WasiEnvironGetTest, WasiEnvironGetTest) {
-  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
-  WasmEdge::Runtime::CallingFrame Frame(nullptr, &Mod);
+TEST(WasiTest, WasiEnvironSizesGet_MisalignedPointer) {
   WasmEdge::Host::WASI::Environ Env;
-  WasmEdge::Host::WasiEnvironGet EnvironGet(Env);
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
 
-  // Misaligned EnvPtr
-  uint32_t MisalignedEnvPtr = 2; // Not aligned to 4
-  uint32_t AlignedEnvBufPtr = 0;
-  EXPECT_EQ(EnvironGet.body(Frame, MisalignedEnvPtr, AlignedEnvBufPtr).value(),
-            __WASI_ERRNO_MISALIGN);
+  WasmEdge::Host::WasiEnvironSizesGet WasiEnvironSizesGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
 
-  // Misaligned EnvBufPtr
-  uint32_t AlignedEnvPtr = 0;
-  uint32_t MisalignedEnvBufPtr = 3; // Not aligned to 1 (should be fine, but test anyway)
-  EXPECT_EQ(EnvironGet.body(Frame, AlignedEnvPtr, MisalignedEnvBufPtr).value(),
-            __WASI_ERRNO_MISALIGN);
+  // Misaligned EnvCntPtr
+  EXPECT_TRUE(WasiEnvironSizesGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(1), UINT32_C(4)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
+}
+
+TEST(WasiTest, WasiFdFdstatGet_MisalignedPointer) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdFdstatGet WasiFdFdstatGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  // Misaligned FdStatPtr
+  EXPECT_TRUE(WasiFdFdstatGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{0, UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
+}
+
+TEST(WasiTest, WasiFdFilestatGet_MisalignedPointer) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdFilestatGet WasiFdFilestatGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  // Misaligned FilestatPtr
+  EXPECT_TRUE(WasiFdFilestatGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{0, UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
+}
+
+TEST(WasiTest, WasiFdPread_MisalignedPointer) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdPread WasiFdPread(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  // Misaligned NReadPtr
+  EXPECT_TRUE(WasiFdPread.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{0, 0, 1, 0, UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
+}
+
+TEST(WasiTest, WasiFdPrestatGet_MisalignedPointer) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdPrestatGet WasiFdPrestatGet(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  // Misaligned PreStatPtr
+  EXPECT_TRUE(WasiFdPrestatGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{0, UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
+}
+
+TEST(WasiTest, WasiFdPwrite_MisalignedPointer) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdPwrite WasiFdPwrite(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  // Misaligned NWrittenPtr
+  EXPECT_TRUE(WasiFdPwrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{0, 0, 1, 0, UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
+}
+
+TEST(WasiTest, WasiFdRead_MisalignedPointer) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdRead WasiFdRead(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  // Misaligned NReadPtr
+  EXPECT_TRUE(WasiFdRead.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{0, 0, 1, UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
+}
+
+TEST(WasiTest, WasiFdWrite_MisalignedPointer) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdWrite WasiFdWrite(Env);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  // Misaligned NWrittenPtr
+  EXPECT_TRUE(WasiFdWrite.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{0, 0, 1, UINT32_C(1)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MISALIGN);
 }
 
 #if !WASMEDGE_OS_WINDOWS

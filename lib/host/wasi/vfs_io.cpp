@@ -12,70 +12,6 @@
 namespace WasmEdge {
 namespace FStream {
 
-FileFlags getFileStats(Host::WASI::Environ *WASIEnv,
-                       const std::string_view &FileName) noexcept {
-  if (WASIEnv == nullptr) {
-    return FileFlags::None;
-  }
-  FileFlags Flags = FileFlags::None;
-  if (fileExists(WASIEnv, FileName)) {
-    Flags |= FileFlags::Exist;
-  }
-  if (canRead(WASIEnv, FileName)) {
-    Flags |= FileFlags::Read;
-  }
-  if (canWrite(WASIEnv, FileName)) {
-    Flags |= FileFlags::Write;
-  }
-  return static_cast<FileFlags>(Flags);
-}
-
-bool fileExists(Host::WASI::Environ *WASIEnv,
-                const std::string_view &FileName) noexcept {
-  __wasi_filestat_t Filestat;
-  auto StatResult = WASIEnv->pathFilestatGet(
-      3, FileName, static_cast<__wasi_lookupflags_t>(0), Filestat);
-  if (!StatResult) {
-    return false;
-  }
-  return true;
-}
-
-bool canRead(Host::WASI::Environ *WASIEnv,
-             const std::string_view &FileName) noexcept {
-  if (!WASIEnv) {
-    return false;
-  }
-  __wasi_fd_t BaseFd = 3;
-  auto Result = WASIEnv->pathOpen(
-      BaseFd, FileName, static_cast<__wasi_lookupflags_t>(0),
-      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_READ,
-      __WASI_RIGHTS_FD_READ, static_cast<__wasi_fdflags_t>(0));
-
-  if (Result) {
-    WASIEnv->fdClose(*Result);
-    return true;
-  }
-  return false;
-}
-
-bool canWrite(Host::WASI::Environ *WASIEnv,
-              const std::string_view &FileName) noexcept {
-  if (!WASIEnv) {
-    return false;
-  }
-  __wasi_fd_t BaseFd = 3;
-  auto Result = WASIEnv->pathOpen(
-      BaseFd, FileName, static_cast<__wasi_lookupflags_t>(0),
-      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_WRITE,
-      __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
-  if (Result) {
-    WASIEnv->fdClose(*Result);
-    return true;
-  }
-  return false;
-}
-
 IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
                    const std::string_view &FileName) noexcept
     : Fd(0), IsOpen(false), HasError(false), IsEof(false),
@@ -85,7 +21,8 @@ IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
     Env = const_cast<Host::WASI::Environ *>(WASIEnv);
     __wasi_fd_t BaseFd = 3;
 
-    if (!fileExists(Env, FileName)) {
+    auto ExistsResult = Env->pathExists(FileName);
+    if (!ExistsResult || !*ExistsResult) {
       HasError = true;
       IsOpen = false;
       return;

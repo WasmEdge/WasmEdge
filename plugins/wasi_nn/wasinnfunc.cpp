@@ -50,20 +50,11 @@ WASINN::ErrNo metadataToErrNo(
 #endif // #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 } // namespace
 
-const Host::WASI::Environ *
-getEnv(const Runtime::Instance::ModuleInstance *WasiModule) {
-  if (WasiModule != nullptr) {
-    return static_cast<const WasmEdge::Host::WasiModule *>(WasiModule)
-        ->getEnv();
-  }
-  return nullptr;
-}
-
 Expect<WASINN::ErrNo>
 WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
                      uint32_t BuilderLen, uint32_t RawEncoding, uint32_t Target,
                      uint32_t GraphIdPtr) {
-  Env.setEnv(getEnv(Frame.getWASIModule()));
+  Env.setCurrentFrame(&Frame);
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     // TODO: implement RPC for Load
@@ -129,7 +120,7 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
 Expect<WASINN::ErrNo>
 WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
                            uint32_t NameLen, uint32_t GraphIdPtr) {
-  Env.setEnv(getEnv(Frame.getWASIModule()));
+  Env.setCurrentFrame(&Frame);
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -179,7 +170,7 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
 Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
     const Runtime::CallingFrame &Frame, uint32_t NamePtr, uint32_t NameLen,
     uint32_t ConfigPtr, uint32_t ConfigLen, uint32_t GraphIdPtr) {
-  Env.setEnv(getEnv(Frame.getWASIModule()));
+  Env.setCurrentFrame(&Frame);
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -242,6 +233,7 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
 Expect<WASINN::ErrNo>
 WasiNNInitExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
                             uint32_t GraphId, uint32_t ContextPtr) {
+  Env.setCurrentFrame(&Frame);
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -299,6 +291,7 @@ WasiNNInitExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
 Expect<WASINN::ErrNo>
 WasiNNSetInput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t ContextId,
                          uint32_t Index, uint32_t TensorPtr) {
+  Env.setCurrentFrame(&Frame);
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -396,6 +389,7 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame,
                           uint32_t ContextId, uint32_t Index,
                           uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
                           uint32_t BytesWrittenPtr) {
+  Env.setCurrentFrame(&Frame);
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -460,6 +454,7 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
     const Runtime::CallingFrame &Frame, uint32_t ContextId, uint32_t Index,
     uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
     uint32_t BytesWrittenPtr) {
+  Env.setCurrentFrame(&Frame);
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -522,6 +517,7 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
 Expect<WASINN::ErrNo>
 WasiNNCompute::bodyImpl(const Runtime::CallingFrame &Frame,
                         uint32_t ContextId) {
+  Env.setCurrentFrame(&Frame);
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
@@ -574,6 +570,7 @@ WasiNNCompute::bodyImpl(const Runtime::CallingFrame &Frame,
 Expect<WASINN::ErrNo>
 WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
                               uint32_t ContextId) {
+  Env.setCurrentFrame(&Frame);
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
@@ -624,6 +621,7 @@ WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
 Expect<WASINN::ErrNo>
 WasiNNFiniSingle::bodyImpl(const Runtime::CallingFrame &Frame,
                            uint32_t ContextId) {
+  Env.setCurrentFrame(&Frame);
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     auto Stub = wasi_ephemeral_nn::GraphExecutionContextResource::NewStub(
@@ -664,6 +662,7 @@ WasiNNFiniSingle::bodyImpl(const Runtime::CallingFrame &Frame,
 
 Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
                                              uint32_t GraphId) {
+  Env.setCurrentFrame(&Frame);
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     // TODO: implement RPC for unload
@@ -698,6 +697,7 @@ Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
 Expect<WASINN::ErrNo>
 WasiNNFinalizeExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
                                 uint32_t ContextId) {
+  Env.setCurrentFrame(&Frame);
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     // TODO: implement RPC for finalize_execution_context

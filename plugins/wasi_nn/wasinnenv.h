@@ -20,7 +20,9 @@
 #include "host/wasi/environ.h"
 
 #include "common/spdlog.h"
+#include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#include "runtime/callingframe.h"
 
 #include <cstdint>
 #include <functional>
@@ -372,11 +374,24 @@ struct WasiNNEnvironment :
   std::shared_ptr<grpc::Channel> NNRPCChannel;
 #endif
 
-  void setEnv(const Host::WASI::Environ *CurrEnv) noexcept { Env = CurrEnv; }
-  const Host::WASI::Environ *getEnv() const noexcept { return Env; }
+  const Host::WASI::Environ *getEnv() const noexcept {
+    auto *WasiModule = CurrentFrame->getWASIModule();
+    if (WasiModule != nullptr) {
+      return static_cast<const WasmEdge::Host::WasiModule *>(WasiModule)
+          ->getEnv();
+    }
+    return nullptr;
+  }
+
+  void setCurrentFrame(const Runtime::CallingFrame *Frame) noexcept {
+    CurrentFrame = Frame;
+  }
+  const Runtime::CallingFrame *getCurrentFrame() const noexcept {
+    return CurrentFrame;
+  }
 
 private:
-  const Host::WASI::Environ *Env;
+  const Runtime::CallingFrame *CurrentFrame = nullptr;
 };
 
 } // namespace WASINN

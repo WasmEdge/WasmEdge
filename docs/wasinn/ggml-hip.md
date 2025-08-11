@@ -30,12 +30,38 @@ sudo apt install -y rocm-dev rocm-utils hipblas hip-dev
 
 ### 2. Setup Environment
 
-Use the provided setup script:
+To set up your environment, you can run the following commands to check for `hipcc` and set the `ROCM_PATH` environment variable.
+
 ```bash
-./scripts/setup_hip_env.sh
+#!/usr/bin/env bash
+# This script is for manual environment setup only. It is not used in CI workflows.
+set -euo pipefail
+
+echo "Checking HIP/ROCm environment..."
+
+if command -v hipcc >/dev/null 2>&1; then
+  echo "hipcc found: $(which hipcc)"
+else
+  echo "hipcc not found."
+  echo "Please install ROCm/HIP from https://rocm.docs.amd.com/"
+  echo "Example (Ubuntu 22.04):"
+  echo "  sudo apt update && sudo apt install -y rocm-dev rocm-utils hipblas"
+  exit 1
+fi
+
+if command -v hipconfig >/dev/null 2>&1; then
+  hipconfig --full || true
+fi
+
+# Set ROCM_PATH if typical location exists
+if [ -d /opt/rocm ]; then
+  export ROCM_PATH=/opt/rocm
+  echo "ROCM_PATH set to /opt/rocm"
+fi
 ```
 
-Or manually set environment variables:
+Alternatively, you can set the environment variables manually:
+
 ```bash
 export ROCM_PATH=/opt/rocm
 export PATH=$ROCM_PATH/bin:$PATH
@@ -44,9 +70,52 @@ export LD_LIBRARY_PATH=$ROCM_PATH/lib:$LD_LIBRARY_PATH
 
 ### 3. Build WasmEdge with HIP Support
 
-Use the build script (optionally pass target architectures):
+You can use the following script to build the WasmEdge plugin with HIP support. This script allows you to pass target architectures to optimize the build.
+
 ```bash
-./scripts/build_wasi_nn_ggml_hip.sh --arch gfx90a;gfx1030
+#!/usr/bin/env bash
+# This script is for manual builds only. It is not used in CI workflows.
+set -euo pipefail
+
+ARCH_ARG=""
+if [[ $# -gt 0 && "$1" == "--arch" ]]; then
+  ARCH_ARG="$2"
+fi
+
+BUILD_DIR=build-wasi-nn-ggml-hip
+mkdir -p "${BUILD_DIR}"
+
+cmake -B "${BUILD_DIR}" -S . \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DWASMEDGE_BUILD_PLUGINS=ON \
+  -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=ggml \
+  -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA=ON \
+  -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP=ON \
+  ${ARCH_ARG:+-DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH="${ARCH_ARG}"} \
+  -DWASMEDGE_BUILD_TESTS=OFF
+
+if ! cmake --build "${BUILD_DIR}" -j "$(nproc)" --target wasmedgePluginWasiNN; then
+  echo "Build failed."
+  exit 1
+fi
+
+# locate built plugin (example path)
+PLUGIN_LIB=$(find "${BUILD_DIR}" -name "libwasmedgePluginWasiNN*.so" | head -n1)
+if [ -z "$PLUGIN_LIB" ]; then
+  echo "Built plugin not found."
+  exit 2
+fi
+
+# package artifact
+ARTIFACTNAME="wasmedge-wasi-nn-ggml-hip-$(date +%Y%m%d).tar.gz"
+tar -czf "${ARTIFACTNAME}" -C "$(dirname "$PLUGIN_LIB")" "$(basename "$PLUGIN_LIB")"
+echo "Built and packed: ${ARTIFACTNAME}"
+```
+
+To run the build, save the script above as `build_hip.sh`, make it executable (`chmod +x build_hip.sh`), and then run it, optionally passing your GPU architecture:
+
+```bash
+./build_hip.sh --arch gfx90a;gfx1030
 ```
 
 Or build manually:

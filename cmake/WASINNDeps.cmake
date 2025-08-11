@@ -329,22 +329,30 @@ function(wasmedge_setup_llama_target target)
     endif()
 
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
-      message(STATUS "WASI-NN ggml: HIP backend enabled")
-      # Use HIP language support and ROCm CMake helpers
-      enable_language(HIP)
-      # If ROCM_PATH is available, make sure CMake module path finds ROCm helpers
+      message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_HIP")
+      # Detect ROCm path from env if not set
       if(NOT DEFINED ROCM_PATH AND DEFINED ENV{ROCM_PATH})
         set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "ROCm path")
       endif()
       if(DEFINED ROCM_PATH)
-        list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake")
+        list(APPEND CMAKE_PREFIX_PATH "${ROCM_PATH}")
+        list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake" "${ROCM_PATH}/lib64/cmake")
       endif()
-      find_package(HIP REQUIRED)         # will error if HIP not installed
-      # Optional: find hipBLAS or rocBLAS if available
-      find_library(HIPBLAS_LIB hipblas HINTS ${ROCM_PATH}/lib /opt/rocm/lib)
-      # define GGML/llama.cpp symbol for HIP compile paths
+      # Try to enable HIP only once (avoid re-calling enable_language if parent already did)
+      if(NOT CMAKE_HIP_COMPILER)
+        enable_language(HIP)
+      endif()
+      # Upstream llama.cpp expects GGML_HIP ON and GGML_USE_HIP define
       set(GGML_HIP ON)
       add_compile_definitions(GGML_USE_HIP)
+      # Optional architecture override
+      if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH)
+        set(CMAKE_HIP_ARCHITECTURES "${WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH}" CACHE STRING "User specified HIP arch" FORCE)
+        message(STATUS "WASI-NN GGML LLAMA backend (HIP): Using specified architectures: ${CMAKE_HIP_ARCHITECTURES}")
+      endif()
+      # Try to locate hip / hipblas
+      find_package(HIP QUIET)
+      find_library(HIPBLAS_LIB hipblas HINTS ${ROCM_PATH}/lib ${ROCM_PATH}/lib64 /opt/rocm/lib /opt/rocm/lib64)
     else()
       message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_HIP")
       set(GGML_HIP OFF)
@@ -380,7 +388,10 @@ function(wasmedge_setup_llama_target target)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
-      set_property(TARGET ggml-hip PROPERTY POSITION_INDEPENDENT_CODE ON)
+      # Some upstream revisions expose ggml-hip; ignore if not present.
+      if(TARGET ggml-hip)
+        set_property(TARGET ggml-hip PROPERTY POSITION_INDEPENDENT_CODE ON)
+      endif()
     endif()
     # Ignore unused function warnings at common.h in llama.cpp.
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -401,13 +412,13 @@ function(wasmedge_setup_llama_target target)
     )
     # Add HIP-specific linking when HIP is enabled
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
-      # Ensure we compile with host compiler or hipcc as needed
-      # Add hip include paths and link libs
-      target_compile_options(${target} PRIVATE $<IF:$<COMPILE_LANGUAGE:HIP>,-fno-exceptions,>)
+      # Add mild HIP specific tuning only if HIP language actually enabled.
+      if(CMAKE_HIP_COMPILER)
+        target_compile_options(${target} PRIVATE $<IF:$<COMPILE_LANGUAGE:HIP>,-fno-exceptions,>)
+      endif()
       if(HIPBLAS_LIB)
         target_link_libraries(${target} PRIVATE ${HIPBLAS_LIB})
       endif()
-      # You may need to link hip runtime
       if(TARGET hip::device)
         target_link_libraries(${target} PRIVATE hip::device)
       endif()

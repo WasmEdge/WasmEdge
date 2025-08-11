@@ -20,54 +20,56 @@ namespace WasmEdge::Host::WASINN::BitNet {
 
 struct LlamaModelDeleter {
   void operator()(llama_model *ptr) const {
-    if (ptr)
+    if (ptr) {
       llama_free_model(ptr);
+    }
   }
 };
 struct LlamaContextDeleter {
   void operator()(llama_context *ptr) const {
-    if (ptr)
+    if (ptr) {
       llama_free(ptr);
+    }
   }
 };
 struct CommonSamplerDeleter {
-  void operator()(common_sampler *Ptr) const {
-    if (Ptr) {
-      common_sampler_free(Ptr);
+  void operator()(common_sampler *ptr) const {
+    if (ptr) {
+      common_sampler_free(ptr);
     }
   }
 };
 
-using llama_model_ptr = std::unique_ptr<llama_model, LlamaModelDeleter>;
-using llama_context_ptr = std::unique_ptr<llama_context, LlamaContextDeleter>;
-using common_sampler_ptr =
-    std::unique_ptr<common_sampler, CommonSamplerDeleter>;
+using LlamaModelPtr = std::unique_ptr<llama_model, LlamaModelDeleter>;
+using LlamaContextPtr = std::unique_ptr<llama_context, LlamaContextDeleter>;
+using CommonSamplerPtr = std::unique_ptr<common_sampler, CommonSamplerDeleter>;
 
 struct LocalConfig {
   int64_t NPredict = -1;
 };
 
 struct Graph {
+  bool EnableLog = false;
+  bool EnableDebugLog = false;
   common_params Params;
-  llama_model_ptr LlamaModel = nullptr;
-  llama_context_ptr LlamaContext = nullptr;
+  LlamaModelPtr LlamaModel = nullptr;
+  LlamaContextPtr LlamaContext = nullptr;
   LocalConfig Conf;
 };
 
 struct Context {
 public:
-  Context(uint32_t GId, Graph &G) noexcept
-      : GraphId(GId), GraphRef(G), Conf(G.Conf) {}
+  Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), Conf(G.Conf) {}
 
   uint32_t GraphId;
-  Graph &GraphRef;
   LocalConfig Conf;
   bool ComputeSingleStarted = false;
 
   int32_t NPos = 0;
   std::vector<llama_token> LlamaInputs;
   std::vector<llama_token> LlamaOutputTokens;
-  common_sampler_ptr LlamaSampler = nullptr;
+  std::vector<uint8_t> LlamaOutputs;
+  CommonSamplerPtr LlamaSampler = nullptr;
   struct llama_batch LlamaBatch;
 };
 

@@ -31,6 +31,18 @@
             ]
         },
         {
+            "plugin": "wasi_nn-ggml-hip",
+            "bin": "libwasmedgePluginWasiNN",
+            "dir": "wasi_nn",
+            "target": "wasmedgePluginWasiNN",
+            "testBin": "wasiNNTests",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP=ON -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH=gfx90a;gfx1030",
+            "platforms": [
+                "ubuntu2004_x86_64",
+                "ubuntu_latest"
+            ]
+        },
+        {
             "plugin": "wasi_nn-openvino",
             "bin": "libwasmedgePluginWasiNN",
             "dir": "wasi_nn",

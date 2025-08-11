@@ -44,9 +44,9 @@ export LD_LIBRARY_PATH=$ROCM_PATH/lib:$LD_LIBRARY_PATH
 
 ### 3. Build WasmEdge with HIP Support
 
-Use the build script:
+Use the build script (optionally pass target architectures):
 ```bash
-./scripts/build_wasi_nn_ggml_hip.sh
+./scripts/build_wasi_nn_ggml_hip.sh --arch gfx90a;gfx1030
 ```
 
 Or build manually:
@@ -54,6 +54,7 @@ Or build manually:
 mkdir build-hip && cd build-hip
 cmake .. \
   -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP=ON \
+  -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH=gfx90a;gfx1030 \
   -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=ggml \
   -DWASMEDGE_BUILD_PLUGINS=ON \
   -DCMAKE_BUILD_TYPE=Release
@@ -63,7 +64,8 @@ cmake --build . --target wasmedgePluginWasiNN -j$(nproc)
 ## Configuration Options
 
 - `WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP`: Enable HIP backend (default: OFF)
-- `CMAKE_HIP_ARCHITECTURES`: Specify target GPU architectures (e.g., "gfx900;gfx906;gfx908")
+- `WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH`: Semicolon separated HIP GPU architectures (e.g., `gfx90a;gfx1030`). When set, forwarded to `CMAKE_HIP_ARCHITECTURES`.
+- `CMAKE_HIP_ARCHITECTURES`: (Advanced) Direct CMake variable; normally you can just use the plugin-specific variable above.
 
 ## Usage
 
@@ -100,7 +102,7 @@ int main() {
 ### Common Issues
 
 1. **hipcc not found**: Ensure ROCm is installed and `ROCM_PATH` is set
-2. **CMake HIP detection fails**: Check that hip-dev package is installed
+2. **CMake HIP detection / arch detection fails**: Provide an explicit architecture list via `-DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH=gfx90a` (replace with your GPU) or ensure ROCm supports your hardware
 3. **No AMD GPU detected**: Verify hardware support with `rocm-smi`
 4. **Out of memory errors**: Reduce model size or use quantized models
 

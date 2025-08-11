@@ -328,6 +328,28 @@ function(wasmedge_setup_llama_target target)
       set(GGML_CUDA OFF)
     endif()
 
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
+      message(STATUS "WASI-NN ggml: HIP backend enabled")
+      # Use HIP language support and ROCm CMake helpers
+      enable_language(HIP)
+      # If ROCM_PATH is available, make sure CMake module path finds ROCm helpers
+      if(NOT DEFINED ROCM_PATH AND DEFINED ENV{ROCM_PATH})
+        set(ROCM_PATH $ENV{ROCM_PATH} CACHE PATH "ROCm path")
+      endif()
+      if(DEFINED ROCM_PATH)
+        list(APPEND CMAKE_MODULE_PATH "${ROCM_PATH}/lib/cmake")
+      endif()
+      find_package(HIP REQUIRED)         # will error if HIP not installed
+      # Optional: find hipBLAS or rocBLAS if available
+      find_library(HIPBLAS_LIB hipblas HINTS ${ROCM_PATH}/lib /opt/rocm/lib)
+      # define GGML/llama.cpp symbol for HIP compile paths
+      set(GGML_HIP ON)
+      add_compile_definitions(GGML_USE_HIP)
+    else()
+      message(STATUS "WASI-NN GGML LLAMA backend: Disable GGML_HIP")
+      set(GGML_HIP OFF)
+    endif()
+
     if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" AND WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL)
       message(STATUS "WASI-NN GGML LLAMA backend: Enable GGML_METAL")
       set(GGML_METAL ON)
@@ -357,6 +379,9 @@ function(wasmedge_setup_llama_target target)
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
+      set_property(TARGET ggml-hip PROPERTY POSITION_INDEPENDENT_CODE ON)
+    endif()
     # Ignore unused function warnings at common.h in llama.cpp.
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
       target_compile_options(${target}
@@ -374,6 +399,19 @@ function(wasmedge_setup_llama_target target)
       simdjson::simdjson
       mtmd
     )
+    # Add HIP-specific linking when HIP is enabled
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
+      # Ensure we compile with host compiler or hipcc as needed
+      # Add hip include paths and link libs
+      target_compile_options(${target} PRIVATE $<IF:$<COMPILE_LANGUAGE:HIP>,-fno-exceptions,>)
+      if(HIPBLAS_LIB)
+        target_link_libraries(${target} PRIVATE ${HIPBLAS_LIB})
+      endif()
+      # You may need to link hip runtime
+      if(TARGET hip::device)
+        target_link_libraries(${target} PRIVATE hip::device)
+      endif()
+    endif()
   endif()
 endfunction()
 

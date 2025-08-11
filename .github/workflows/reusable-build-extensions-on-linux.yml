@@ -66,6 +66,24 @@ jobs:
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
+          # Install ROCm/HIP dependencies for HIP builds
+          if [[ "${{ matrix.plugin }}" == "wasi_nn-ggml-hip" ]]; then
+            if command -v apt-get >/dev/null 2>&1; then
+              # Ubuntu-based
+              wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -
+              echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/5.7/ ubuntu main" | tee /etc/apt/sources.list.d/rocm.list
+              apt-get update -y
+              apt-get install -y rocm-dev hip-dev hipblas-dev || true
+            elif command -v yum >/dev/null 2>&1; then
+              # CentOS/RHEL-based  
+              yum install -y epel-release || true
+              yum install -y rocm-dev hip-dev hipblas-dev || true
+            fi
+            export ROCM_PATH=/opt/rocm
+            export PATH=$ROCM_PATH/bin:$PATH
+            export LD_LIBRARY_PATH=$ROCM_PATH/lib:$LD_LIBRARY_PATH
+          fi
+          
           [ "${{ matrix.plugin }}" == "wasi_nn-openvino-genai" ] && source /root/openvino_genai/setupvars.sh
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \

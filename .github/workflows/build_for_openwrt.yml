@@ -64,7 +64,7 @@ jobs:
         python-version: '3.9'
     - name: Restore OpenWrt
       id: restore-openwrt
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      uses: actions/cache/restore@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
       with:
         path: ./openwrt-x86-64-generic-rootfs.tar.gz
         key: openwrt
@@ -117,7 +117,7 @@ jobs:
         cp -rf $(find ../openwrt/bin/ -type f -name "openwrt-x86-64-generic-rootfs.tar.gz") ./
     - name: Save OpenWrt
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
-      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+      uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
       with:
         path: ./openwrt-x86-64-generic-rootfs.tar.gz
         key: ${{ steps.restore-openwrt.outputs.cache-primary-key }}

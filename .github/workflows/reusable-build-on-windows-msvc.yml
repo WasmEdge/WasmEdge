@@ -16,8 +16,8 @@ jobs:
   build_on_windows:
     permissions:
       contents: write
-    name: Build on Windows Server 2022
-    runs-on: windows-2022
+    name: Build on Windows Server 2025
+    runs-on: windows-2025
     env:
       build_tests: ON
     steps:

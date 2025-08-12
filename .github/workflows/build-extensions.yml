@@ -140,8 +140,8 @@ jobs:
   build_windows_wasi_nn:
     permissions:
       contents: write
-    name: WASI-NN (Windows Server 2022)
-    runs-on: windows-2022
+    name: WASI-NN (Windows Server 2025)
+    runs-on: windows-2025
     env:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn

@@ -2,6 +2,7 @@
 
 #include "plugin/plugin.h"
 #include "wasinntypes.h"
+#include <string>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
 #include <common.h>
@@ -46,6 +47,8 @@ using CommonSamplerPtr = std::unique_ptr<common_sampler, CommonSamplerDeleter>;
 
 struct LocalConfig {
   int64_t NPredict = -1;
+  bool StreamStdout = false;
+  std::string ReversePrompt;
 };
 
 struct Graph {

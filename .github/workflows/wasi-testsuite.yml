@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-2022]
+        os: [ubuntu-latest, macos-latest, windows-2025]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -70,22 +70,22 @@ jobs:
           echo "$GITHUB_WORKSPACE/WasmEdge/build/tools/wasmedge" >> $GITHUB_PATH
 
       - name: Install dependency on Windows
-        if: matrix.os == 'windows-2022'
+        if: matrix.os == 'windows-2025'
         uses: crazy-max/ghaction-chocolatey@2526f467ccbd337d307fe179959cabbeca0bc8c0 # v3.4.0
         with:
           args: install --no-progress ninja vswhere
       - name: Upgrade dependency on Windows
-        if: matrix.os == 'windows-2022'
+        if: matrix.os == 'windows-2025'
         uses: crazy-max/ghaction-chocolatey@2526f467ccbd337d307fe179959cabbeca0bc8c0 # v3.4.0
         with:
           args: upgrade --no-progress llvm
       - name: Install Windows SDK
-        if: matrix.os == 'windows-2022'
+        if: matrix.os == 'windows-2025'
         uses: GuillaumeFalourd/setup-windows10-sdk-action@9979bedbf6ae74f038cc338622ba015942ed2408 # v2.4
         with:
           sdk-version: 26100
       - name: Build WasmEdge on Windows
-        if: matrix.os == 'windows-2022'
+        if: matrix.os == 'windows-2025'
         working-directory: WasmEdge
         run: |
           $vsPath = (vswhere -latest -property installationPath)

@@ -668,6 +668,106 @@ TEST(WasiTest, ClockRes) {
   Env.fini();
 }
 
+// === Alignment errno tests (no trap, expect INVAL) ===
+TEST(WasiTest, FdWrite_MisalignedIovecBaseReturnsINVAL) {
+  using namespace WasmEdge;
+
+  Host::WASI::Environ Env;
+  Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory",
+      std::make_unique<Runtime::Instance::MemoryInstance>(AST::MemoryType(1)));
+  auto *Mem = Mod.findMemoryExports("memory");
+  ASSERT_NE(Mem, nullptr);
+
+  Runtime::CallingFrame CF(nullptr, &Mod);
+
+  // One ciovec at addr = 4  → { buf = 16 , len = 5 }, "hello" at 16.
+  *Mem->getPointer<uint32_t *>(4)  = 16;
+  *Mem->getPointer<uint32_t *>(8)  = 5;
+  std::memcpy(Mem->getPointer<uint8_t *>(16), "hello", 5);
+
+  Host::WasiFdWrite Fn(Env);
+
+  std::array<ValVariant, 4> InArgs = {
+      ValVariant(uint32_t(1)),   // fd = stdout
+      ValVariant(uint32_t(2)),   // IOVsPtr = 2  (MIS-ALIGNED)
+      ValVariant(uint32_t(1)),   // IOVsLen
+      ValVariant(uint32_t(100))  // nwritten out
+  };
+  std::array<ValVariant, 1> Errno{};     // fd_write returns errno (u32)
+
+  auto Res = Fn.run(CF,
+      Span<const ValVariant>(InArgs.data(), InArgs.size()),
+      Span<ValVariant>(Errno.data(), Errno.size()));
+
+  // Function should **not** trap …
+  EXPECT_TRUE(Res.has_value());
+  // … but it must report INVAL because pointer is unaligned.
+  EXPECT_EQ(Errno[0].get<uint32_t>(), __WASI_ERRNO_INVAL);
+}
+
+TEST(WasiTest, ArgsGet_MisalignedArgvBaseReturnsINVAL) {
+  using namespace WasmEdge;
+
+  Host::WASI::Environ Env;
+  Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory",
+      std::make_unique<Runtime::Instance::MemoryInstance>(AST::MemoryType(1)));
+  ASSERT_NE(Mod.findMemoryExports("memory"), nullptr);
+
+  Runtime::CallingFrame CF(nullptr, &Mod);
+  Host::WasiArgsGet Fn(Env);
+
+  std::array<ValVariant, 2> InArgs = {
+      ValVariant(uint32_t(2)),   // argv base  (MIS-ALIGNED)
+      ValVariant(uint32_t(64))   // argv_buf
+  };
+  std::array<ValVariant, 1> Errno{};     // args_get returns errno (u32)
+
+  auto Res = Fn.run(CF,
+      Span<const ValVariant>(InArgs.data(), InArgs.size()),
+      Span<ValVariant>(Errno.data(), Errno.size()));
+
+  EXPECT_TRUE(Res.has_value());
+  EXPECT_EQ(Errno[0].get<uint32_t>(), __WASI_ERRNO_INVAL);
+}
+
+// === Alignment errno tests (read path) ==============================
+TEST(WasiTest, FdRead_MisalignedIovecBaseReturnsINVAL) {
+  using namespace WasmEdge;
+
+  Host::WASI::Environ Env;
+  Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory("memory",
+      std::make_unique<Runtime::Instance::MemoryInstance>(AST::MemoryType(1)));
+  auto *Mem = Mod.findMemoryExports("memory");
+  ASSERT_NE(Mem, nullptr);
+
+  Runtime::CallingFrame CF(nullptr, &Mod);
+
+  // Prepare one iovec at addr = 4 → { buf = 32 , len = 5 }.
+  *Mem->getPointer<uint32_t *>(4)  = 32;     // buf
+  *Mem->getPointer<uint32_t *>(8)  = 5;      // len
+  // No need to fill the buffer for read test.
+
+  Host::WasiFdRead Fn(Env);
+
+  std::array<ValVariant, 4> InArgs = {
+      ValVariant(uint32_t(0)),   // fd = stdin
+      ValVariant(uint32_t(2)),   // IOVsPtr = 2  (MIS-ALIGNED)
+      ValVariant(uint32_t(1)),   // IOVsLen
+      ValVariant(uint32_t(100))  // nread out
+  };
+  std::array<ValVariant, 1> Errno{};         // fd_read returns errno (u32)
+
+  auto Res = Fn.run(CF,
+      Span<const ValVariant>(InArgs.data(), InArgs.size()),
+      Span<ValVariant>(Errno.data(), Errno.size()));
+
+  EXPECT_TRUE(Res.has_value());                          // no trap
+  EXPECT_EQ(Errno[0].get<uint32_t>(), __WASI_ERRNO_INVAL);
+}
+
 TEST(WasiTest, PollOneoffSocketV1) {
   enum class ServerAction {
     None,

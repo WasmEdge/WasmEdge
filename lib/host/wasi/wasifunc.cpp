@@ -378,6 +378,10 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
+  
+  if (unlikely((ArgvPtr & 0x3u) != 0)) {
+    return __WASI_ERRNO_INVAL;          // same style as fd_write
+  }
 
   // Store **Argv.
   const auto &Arguments = Env.getArguments();
@@ -881,6 +885,7 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
   return __WASI_ERRNO_SUCCESS;
 }
 
+
 Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
                                   int32_t Fd, uint32_t IOVsPtr,
                                   uint32_t IOVsLen,
@@ -889,6 +894,14 @@ Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
+  }
+
+  // ─── ABI alignment check (wasm32 ⇒ 4-byte) ──────────────────────────
+  if (unlikely((IOVsPtr & 0x3u) != 0)) {        // iovec array base
+    return __WASI_ERRNO_INVAL;
+  }
+  if (unlikely((NReadPtr & 0x3u) != 0)) {       // size_t* out pointer
+    return __WASI_ERRNO_INVAL;
   }
 
   const __wasi_size_t WasiIOVsLen = IOVsLen;
@@ -1052,10 +1065,19 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  const __wasi_size_t WasiIOVsLen = IOVsLen;
-  if (unlikely(WasiIOVsLen > WASI::kIOVMax)) {
+  // For wasm32 ABI, ciovec array must be 4-byte aligned.
+  if (unlikely((IOVsPtr & 0x3u) != 0)) {
+    return __WASI_ERRNO_INVAL;      // or Unexpect(ErrCode::UnalignedAtomicAccess);
+  }
+  // Out pointer too:
+  if (unlikely((NWrittenPtr & 0x3u) != 0)) {
     return __WASI_ERRNO_INVAL;
   }
+
+    const __wasi_size_t WasiIOVsLen = IOVsLen;
+    if (unlikely(WasiIOVsLen > WASI::kIOVMax)) {
+      return __WASI_ERRNO_INVAL;
+    }
 
   // Check for invalid address.
   const auto IOVsArray =

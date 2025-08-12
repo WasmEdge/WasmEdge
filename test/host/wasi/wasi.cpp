@@ -353,6 +353,31 @@ TEST(WasiTest, Args) {
   EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
   EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
   Env.fini();
+
+  // misaligned pointer
+  Env.init({}, "test"s, {}, {});
+  writeDummyMemoryContent(MemInst);
+  EXPECT_TRUE(WasiArgsGet.run(
+      CallFrame,
+      // ArgvPtr = 2 (not multiple of alignof(uint8_t_ptr) which is >= 4 on wasm32)
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(2), UINT32_C(8)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(8), UINT32_C(0xa5a5a5a5));
+  Env.fini();
+
+  // misaligned ArgvBufPtr
+  Env.init({}, "test"s, {}, {});
+  writeDummyMemoryContent(MemInst);
+  EXPECT_TRUE(WasiArgsGet.run(
+      CallFrame,
+      // ArgvBufPtr = 3 (not multiple of alignof(uint8_t), i.e., 1 — but here
+      // code alignment check might still treat this as misaligned if stricter)
+      std::initializer_list<WasmEdge::ValVariant>{UINT32_C(0), UINT32_C(3)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+  EXPECT_EQ(*MemInst.getPointer<const uint32_t *>(0), UINT32_C(0xa5a5a5a5));
+  Env.fini();
 }
 
 TEST(WasiTest, Envs) {

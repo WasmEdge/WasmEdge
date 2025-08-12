@@ -373,6 +373,15 @@ bool AllowAFUNIX(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ArgvPtr, uint32_t ArgvBufPtr) {
+
+   // Alignment checks.
+  if (ArgvPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_NOTALIGNED;
+  }
+  if (ArgvBufPtr % alignof(__wasi_size_t) != 0) {
+      return __WASI_ERRNO_NOTALIGNED;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {

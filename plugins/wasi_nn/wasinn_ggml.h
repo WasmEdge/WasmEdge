@@ -13,6 +13,8 @@
 #include <llama.h>
 #include <mtmd.h>
 #include <sampling.h>
+
+#include <list>
 #endif
 
 namespace WasmEdge::Host::WASINN {
@@ -56,6 +58,7 @@ struct Graph {
   bool EnableLog = false;
   bool EnableDebugLog = false;
   common_params Params;
+  std::list<std::string> TensorBuftOverrides;
   // Model context:
   llama_model_ptr LlamaModel = nullptr;
   llama_context_ptr LlamaContext = nullptr;

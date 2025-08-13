@@ -330,7 +330,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b6097
+      GIT_TAG        b6191
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -349,6 +349,11 @@ function(wasmedge_setup_llama_target target)
       target_compile_options(${target}
         PRIVATE
         -Wno-unused-function
+      )
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      target_compile_options(${target}
+        /wd4305
+        /wd4244
       )
     endif()
   endif()

@@ -968,6 +968,36 @@ static_assert(offsetof(__wasi_dirent_t, d_type) == 20,
               "witx calculated offset");
 
 /**
+ * File status flags for virtual file system operations.
+ */
+enum __wasi_fileflags_t : uint16_t {
+  /**
+   * No flags set.
+   */
+  __WASI_FILEFLAGS_NONE = 0,
+
+  /**
+   * File exists.
+   */
+  __WASI_FILEFLAGS_EXIST = 1ULL << 0,
+
+  /**
+   * File is readable.
+   */
+  __WASI_FILEFLAGS_READ = 1ULL << 1,
+
+  /**
+   * File is writable.
+   */
+  __WASI_FILEFLAGS_WRITE = 1ULL << 2,
+};
+
+static_assert(sizeof(__wasi_fileflags_t) == 2, "witx calculated size");
+static_assert(alignof(__wasi_fileflags_t) == 2, "witx calculated align");
+
+DEFINE_ENUM_OPERATORS(__wasi_fileflags_t)
+
+/**
  * File or memory access pattern advisory information.
  */
 enum __wasi_advice_t : uint8_t {

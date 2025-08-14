@@ -374,24 +374,17 @@ struct WasiNNEnvironment :
   std::shared_ptr<grpc::Channel> NNRPCChannel;
 #endif
 
-  const Host::WASI::Environ *getEnv() const noexcept {
+  const Host::WASI::Environ *getEnv() const noexcept { return Environ; }
+  void setEnviron(const Runtime::CallingFrame *CurrentFrame) noexcept {
     auto *WasiModule = CurrentFrame->getWASIModule();
     if (WasiModule != nullptr) {
-      return static_cast<const WasmEdge::Host::WasiModule *>(WasiModule)
-          ->getEnv();
+      Environ = dynamic_cast<const WasmEdge::Host::WasiModule *>(WasiModule)
+                    ->getEnv();
     }
-    return nullptr;
-  }
-
-  void setCurrentFrame(const Runtime::CallingFrame *Frame) noexcept {
-    CurrentFrame = Frame;
-  }
-  const Runtime::CallingFrame *getCurrentFrame() const noexcept {
-    return CurrentFrame;
   }
 
 private:
-  const Runtime::CallingFrame *CurrentFrame = nullptr;
+  const Host::WASI::Environ *Environ = nullptr;
 };
 
 } // namespace WASINN

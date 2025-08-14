@@ -67,7 +67,7 @@ jobs:
         shell: bash
         run: |
           # Install ROCm/HIP dependencies for HIP builds
-          if [[ "${{ matrix.plugin }}" == "wasi_nn-ggml-hip" ]]; then
+          if [[ "${{ matrix.plugin }}" == "wasi_nn-hip" ]]; then
             if command -v apt-get >/dev/null 2>&1; then
               # Ubuntu-based
               wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | apt-key add -

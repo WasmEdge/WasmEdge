@@ -31,12 +31,12 @@
             ]
         },
         {
-            "plugin": "wasi_nn-ggml-hip",
+            "plugin": "wasi_nn-hip",
             "bin": "libwasmedgePluginWasiNN",
             "dir": "wasi_nn",
             "target": "wasmedgePluginWasiNN",
             "testBin": "wasiNNTests",
-            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP=ON -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH=gfx90a;gfx1030",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP=ON",
             "platforms": [
                 "ubuntu2004_x86_64",
                 "ubuntu_latest"
@@ -311,7 +311,7 @@
             "bin": "libwasmedgePluginWasmEdgeZlib",
             "dir": "wasmedge_zlib",
             "target": "wasmedgePluginWasmEdgeZlib",
-            "testBin": "wasmedgeZlibTests",
+            "testBin": "wasmedgeZLibTests",
             "options": "-DWASMEDGE_PLUGIN_ZLIB=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",

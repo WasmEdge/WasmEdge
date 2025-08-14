@@ -1,0 +1,54 @@
+name: Build WasmEdge with RWKV Plugin
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive  # Ensure recursive submodule checkout
+
+      - name: Update submodules to latest commits
+        run: |
+          git submodule update --init --recursive --remote
+
+      - name: Verify unary-ops.cpp exists in ggml submodule
+        run: |
+          ls -l plugins/wasmedge_rwkv/ggml/src/ggml-cpu/unary-ops.cpp
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build build-essential llvm-18-dev liblld-18-dev
+
+      - name: Install CMake 3.27.8
+        run: |
+          wget https://github.com/Kitware/CMake/releases/download/v3.27.8/cmake-3.27.8-linux-x86_64.sh
+          mkdir -p $HOME/cmake
+          sh cmake-3.27.8-linux-x86_64.sh --skip-license --prefix=$HOME/cmake
+          echo "$HOME/cmake/bin" >> $GITHUB_PATH
+          cmake --version
+
+      - name: Configure build with RWKV plugin enabled
+        run: |
+          mkdir build
+          cd build
+          cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DWASMEDGE_PLUGIN_RWKV=ON -DWASMEDGE_PLUGIN_WASI_NN=OFF -DRWKV_CUBLAS=OFF -DRWKV_HIPBLAS=OFF -DLLVM_DIR=/usr/lib/llvm-18/cmake ..
+
+      - name: Build WasmEdge with plugin
+        run: |
+          cd build
+          ninja
+
+      - name: Run tests (optional)
+        run: |
+          cd build
+          ctest --output-on-failure

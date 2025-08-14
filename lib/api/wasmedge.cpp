@@ -2021,6 +2021,19 @@ WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
+WasmEdge_ModuleInstanceCreateWASIWithFds(
+    const char *const *Args, const uint32_t ArgLen, const char *const *Envs,
+    const uint32_t EnvLen, const char *const *Preopens,
+    const uint32_t PreopenLen, const int32_t StdInFd, const int32_t StdOutFd,
+    const int32_t StdErrFd) {
+  auto *WasiMod = new WasmEdge::Host::WasiModule();
+  WasmEdge_ModuleInstanceInitWASIWithFds(toModCxt(WasiMod), Args, ArgLen, Envs,
+                                         EnvLen, Preopens, PreopenLen, StdInFd,
+                                         StdOutFd, StdErrFd);
+  return toModCxt(WasiMod);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
                                   const uint32_t ArgLen,
                                   const char *const *Envs,
@@ -2074,6 +2087,47 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
   }
   auto &WasiEnv = WasiMod->getEnv();
   WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec);
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASIWithFds(
+    WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
+    const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
+    const char *const *Preopens, const uint32_t PreopenLen,
+    const int32_t StdInFd, const int32_t StdOutFd, const int32_t StdErrFd) {
+  if (!Cxt) {
+    return;
+  }
+  auto *WasiMod = dynamic_cast<WasmEdge::Host::WasiModule *>(fromModCxt(Cxt));
+  if (!WasiMod) {
+    return;
+  }
+  std::vector<std::string> ArgVec, EnvVec, DirVec;
+  std::string ProgName;
+  if (Args) {
+    if (ArgLen > 0) {
+      ProgName = Args[0];
+    }
+    for (uint32_t I = 1; I < ArgLen; I++) {
+      ArgVec.emplace_back(Args[I]);
+    }
+  }
+  if (Envs) {
+    for (uint32_t I = 0; I < EnvLen; I++) {
+      EnvVec.emplace_back(Envs[I]);
+    }
+  }
+  if (Preopens) {
+    for (uint32_t I = 0; I < PreopenLen; I++) {
+      DirVec.emplace_back(Preopens[I]);
+    }
+  }
+  auto &WasiEnv = WasiMod->getEnv();
+  auto Result = WasiEnv.initWithFds(DirVec, ProgName, ArgVec, EnvVec, StdInFd,
+                                    StdOutFd, StdErrFd);
+  if (!Result) {
+    spdlog::error("    Failed to initialize WASI environment: {}"sv,
+                  Result.error());
+  }
 }
 
 WASMEDGE_CAPI_EXPORT extern uint32_t

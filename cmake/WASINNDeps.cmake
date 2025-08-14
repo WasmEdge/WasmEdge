@@ -388,10 +388,7 @@ function(wasmedge_setup_llama_target target)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
-      # Some upstream revisions expose ggml-hip; ignore if not present.
-      if(TARGET ggml-hip)
-        set_property(TARGET ggml-hip PROPERTY POSITION_INDEPENDENT_CODE ON)
-      endif()
+      set_property(TARGET ggml-hip PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
     # Ignore unused function warnings at common.h in llama.cpp.
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -410,9 +407,7 @@ function(wasmedge_setup_llama_target target)
       simdjson::simdjson
       mtmd
     )
-    # Add HIP-specific linking when HIP is enabled
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
-      # Add mild HIP specific tuning only if HIP language actually enabled.
       if(CMAKE_HIP_COMPILER)
         target_compile_options(${target} PRIVATE $<IF:$<COMPILE_LANGUAGE:HIP>,-fno-exceptions,>)
       endif()

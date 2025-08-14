@@ -6,6 +6,7 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/span.h"
+#include "common/types.h"
 #include "host/wasi/error.h"
 #include "host/wasi/vfs.h"
 #include <functional>
@@ -811,7 +812,7 @@ private:
 
   DirHolder Dir;
 
-  __wasi_filetype_t unsafeFiletype() const noexcept;
+  EndianValue<__wasi_filetype_t> unsafeFiletype() const noexcept;
   WasiExpect<void> updateStat() const noexcept;
 
 #elif WASMEDGE_OS_WINDOWS

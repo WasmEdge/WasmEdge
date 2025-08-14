@@ -1819,7 +1819,7 @@ public:
         const bool IsFloat = Instr.getOpCode() == OpCode::F32__nearest;
         LLVM::Value Value = stackPop();
 
-#if LLVM_VERSION_MAJOR >= 12
+#if LLVM_VERSION_MAJOR >= 12 && !defined(__s390x__)
         assuming(LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic);
         if (LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic) {
           stackPush(Builder.createUnaryIntrinsic(LLVM::Core::Roundeven, Value));
@@ -2574,7 +2574,11 @@ public:
         const auto V3 = Instr.getNum().get<uint128_t>();
         std::array<uint8_t, 16> Mask;
         for (size_t I = 0; I < 16; ++I) {
-          Mask[I] = static_cast<uint8_t>(V3 >> (I * 8));
+          auto Num = static_cast<uint8_t>(V3 >> (I * 8));
+          if constexpr (Endian::native == Endian::little)
+            Mask[I] = Num;
+          else
+            Mask[15 - I] = Num < 16 ? 15 - Num : 47 - Num;
         }
         stackPush(Builder.createBitCast(
             Builder.createShuffleVector(
@@ -3949,7 +3953,7 @@ public:
         Offset);
 
     auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
-    auto Load = Builder.createLoad(TargetType, Ptr, true);
+    auto Load = switchEndian(Builder.createLoad(TargetType, Ptr, true));
     Load.setAlignment(1 << Alignment);
     Load.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
 
@@ -3969,6 +3973,7 @@ public:
     } else {
       V = Builder.createZExtOrTrunc(V, TargetType);
     }
+    V = switchEndian(V);
     auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
     if (MemoryOffset != 0) {
       Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
@@ -3998,8 +4003,44 @@ public:
         Offset);
     auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
 
-    auto Ret = Builder.createAtomicRMW(
-        BinOp, Ptr, Value, LLVMAtomicOrderingSequentiallyConsistent);
+    LLVM::Value Ret;
+    if constexpr (Endian::native == Endian::big) {
+      if (BinOp == LLVMAtomicRMWBinOp::LLVMAtomicRMWBinOpAdd ||
+          BinOp == LLVMAtomicRMWBinOp::LLVMAtomicRMWBinOpSub) {
+        auto AtomicBB = LLVM::BasicBlock::create(LLContext, F.Fn, "atomic.rmw");
+        auto OkBB = LLVM::BasicBlock::create(LLContext, F.Fn, "atomic.rmw.ok");
+        Builder.createBr(AtomicBB);
+        Builder.positionAtEnd(AtomicBB);
+
+        auto Load = Builder.createLoad(TargetType, Ptr, true);
+        Load.setOrdering(LLVMAtomicOrderingMonotonic);
+        Load.setAlignment(1 << Alignment);
+
+        LLVM::Value New;
+        if (BinOp == LLVMAtomicRMWBinOp::LLVMAtomicRMWBinOpAdd)
+          New = Builder.createAdd(switchEndian(Load), Value);
+        else if (BinOp == LLVMAtomicRMWBinOp::LLVMAtomicRMWBinOpSub)
+          New = Builder.createSub(switchEndian(Load), Value);
+        else
+          assumingUnreachable();
+        New = switchEndian(New);
+
+        auto Exchange = Builder.createAtomicCmpXchg(
+            Ptr, Load, New, LLVMAtomicOrderingSequentiallyConsistent,
+            LLVMAtomicOrderingSequentiallyConsistent);
+
+        Ret = Builder.createExtractValue(Exchange, 0);
+        auto Success = Builder.createExtractValue(Exchange, 1);
+        Builder.createCondBr(Success, OkBB, AtomicBB);
+        Builder.positionAtEnd(OkBB);
+      } else {
+      Ret = Builder.createAtomicRMW(BinOp, Ptr, switchEndian(Value),
+                                    LLVMAtomicOrderingSequentiallyConsistent);
+      }
+    } else
+      Ret = Builder.createAtomicRMW(BinOp, Ptr, switchEndian(Value),
+                                    LLVMAtomicOrderingSequentiallyConsistent);
+    Ret = switchEndian(Ret);
 #if LLVM_VERSION_MAJOR >= 13
     Ret.setAlignment(1 << Alignment);
 #endif
@@ -4027,12 +4068,14 @@ public:
     auto Ptr = Builder.createBitCast(VPtr, TargetType.getPointerTo());
 
     auto Ret = Builder.createAtomicCmpXchg(
-        Ptr, Expected, Replacement, LLVMAtomicOrderingSequentiallyConsistent,
+        Ptr, switchEndian(Expected), switchEndian(Replacement),
+        LLVMAtomicOrderingSequentiallyConsistent,
         LLVMAtomicOrderingSequentiallyConsistent);
 #if LLVM_VERSION_MAJOR >= 13
     Ret.setAlignment(1 << Alignment);
 #endif
     auto OldVal = Builder.createExtractValue(Ret, 0);
+    OldVal = switchEndian(OldVal);
     if (Signed) {
       Stack.back() = Builder.createSExt(OldVal, IntType);
     } else {
@@ -4536,7 +4579,7 @@ private:
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
     auto LoadInst = Builder.createLoad(LoadTy, Ptr, true);
     LoadInst.setAlignment(1 << Alignment);
-    stackPush(LoadInst);
+    stackPush(switchEndian(LoadInst));
   }
   void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
                      LLVM::Type LoadTy, LLVM::Type ExtendTy,
@@ -4570,6 +4613,8 @@ private:
                          LLVM::Type VectorTy) noexcept {
     auto Vector = stackPop();
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
+    if constexpr (Endian::native == Endian::big)
+      Index = VectorTy.getVectorSize() - 1 - Index;
     auto Value = Stack.back();
     Stack.back() = Builder.createBitCast(
         Builder.createInsertElement(Builder.createBitCast(Vector, VectorTy),
@@ -4594,6 +4639,7 @@ private:
     if (BitCast) {
       V = Builder.createBitCast(V, LoadTy);
     }
+    V = switchEndian(V);
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
@@ -4604,6 +4650,8 @@ private:
                           unsigned Alignment, unsigned Index, LLVM::Type LoadTy,
                           LLVM::Type VectorTy) noexcept {
     auto Vector = Stack.back();
+    if constexpr (Endian::native == Endian::big)
+      Index = VectorTy.getVectorSize() - Index - 1;
     Stack.back() = Builder.createExtractElement(
         Builder.createBitCast(Vector, VectorTy), LLContext.getInt64(Index));
     compileStoreOp(MemoryIndex, Offset, Alignment, LoadTy);
@@ -4621,6 +4669,8 @@ private:
   }
   void compileExtractLaneOp(LLVM::Type VectorTy, unsigned Index) noexcept {
     auto Vector = Builder.createBitCast(Stack.back(), VectorTy);
+    if constexpr (Endian::native == Endian::big)
+      Index = VectorTy.getVectorSize() - Index - 1;
     Stack.back() =
         Builder.createExtractElement(Vector, LLContext.getInt64(Index));
   }
@@ -4636,6 +4686,8 @@ private:
   void compileReplaceLaneOp(LLVM::Type VectorTy, unsigned Index) noexcept {
     auto Value = Builder.createTrunc(stackPop(), VectorTy.getElementType());
     auto Vector = Stack.back();
+    if constexpr (Endian::native == Endian::big)
+      Index = VectorTy.getVectorSize() - Index - 1;
     Stack.back() = Builder.createBitCast(
         Builder.createInsertElement(Builder.createBitCast(Vector, VectorTy),
                                     Value, LLContext.getInt64(Index)),
@@ -4808,12 +4860,24 @@ private:
     }
 #endif
 
+    auto Mask = Builder.createVectorSplat(16, LLContext.getInt8(15));
+    auto Zero = Builder.createVectorSplat(16, LLContext.getInt8(0));
+
+#if defined(__s390x__)
+    assuming(LLVM::Core::S390VPerm != LLVM::Core::NotIntrinsic);
+    auto Exceed = Builder.createICmpULE(Index, Mask);
+    Index = Builder.createSub(Mask, Index);
+    auto Result = Builder.createIntrinsic(LLVM::Core::S390VPerm, {},
+                                          {Vector, Zero, Index});
+    Result = Builder.createSelect(Exceed, Result, Zero);
+    stackPush(Builder.createBitCast(Result, Context.Int64x2Ty));
+    return;
+#endif
+
     // Fallback case.
     // If the SSSE3 is not supported on the x86_64 platform or
     // the NEON is not supported on the aarch64 platform,
     // then fallback to this.
-    auto Mask = Builder.createVectorSplat(16, LLContext.getInt8(15));
-    auto Zero = Builder.createVectorSplat(16, LLContext.getInt8(0));
     auto IsOver = Builder.createICmpUGT(Index, Mask);
     auto InboundIndex = Builder.createAnd(Index, Mask);
     auto Array = Builder.createArray(16, 1);
@@ -5001,15 +5065,19 @@ private:
 
     std::vector<uint32_t> Mask(Count * 2);
     std::iota(Mask.begin(), Mask.end(), 0);
-    stackPush(Builder.createBitCast(
-        Builder.createShuffleVector(
-            F1, F2, LLVM::Value::getConstVector32(LLContext, Mask)),
-        Context.Int64x2Ty));
+    auto V = Endian::native == Endian::little
+                 ? Builder.createShuffleVector(
+                       F1, F2, LLVM::Value::getConstVector32(LLContext, Mask))
+                 : Builder.createShuffleVector(
+                       F2, F1, LLVM::Value::getConstVector32(LLContext, Mask));
+    stackPush(Builder.createBitCast(V, Context.Int64x2Ty));
   }
   void compileVectorExtend(LLVM::Type FromTy, bool Signed, bool Low) noexcept {
     auto ExtTy = FromTy.getExtendedElementVectorType();
     const auto Count = FromTy.getVectorSize();
     std::vector<uint32_t> Mask(Count / 2);
+    if constexpr (Endian::native == Endian::big)
+      Low = !Low;
     std::iota(Mask.begin(), Mask.end(), Low ? 0 : Count / 2);
     auto R = Builder.createBitCast(Stack.back(), FromTy);
     if (Signed) {
@@ -5162,7 +5230,7 @@ private:
   }
   void compileVectorFNearest(LLVM::Type VectorTy) noexcept {
     compileVectorOp(VectorTy, [&](auto V) noexcept {
-#if LLVM_VERSION_MAJOR >= 12
+#if LLVM_VERSION_MAJOR >= 12 && !defined(__s390x__)
       assuming(LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic);
       if (LLVM::Core::Roundeven != LLVM::Core::NotIntrinsic) {
         return Builder.createUnaryIntrinsic(LLVM::Core::Roundeven, V);
@@ -5287,8 +5355,12 @@ private:
       if (PadZero) {
         std::vector<uint32_t> Mask(Size * 2);
         std::iota(Mask.begin(), Mask.end(), 0);
-        V = Builder.createShuffleVector(
-            V, IntZeroV, LLVM::Value::getConstVector32(LLContext, Mask));
+        if constexpr (Endian::native == Endian::little)
+          V = Builder.createShuffleVector(
+              V, IntZeroV, LLVM::Value::getConstVector32(LLContext, Mask));
+        else
+          V = Builder.createShuffleVector(
+              IntZeroV, V, LLVM::Value::getConstVector32(LLContext, Mask));
       }
       return V;
     });
@@ -5316,8 +5388,12 @@ private:
         auto IntZeroV = LLVM::Value::getConstNull(IntMinV.getType());
         std::vector<uint32_t> Mask(Size * 2);
         std::iota(Mask.begin(), Mask.end(), 0);
-        V = Builder.createShuffleVector(
-            V, IntZeroV, LLVM::Value::getConstVector32(LLContext, Mask));
+        if constexpr (Endian::native == Endian::little)
+          V = Builder.createShuffleVector(
+              V, IntZeroV, LLVM::Value::getConstVector32(LLContext, Mask));
+        else
+          V = Builder.createShuffleVector(
+              IntZeroV, V, LLVM::Value::getConstVector32(LLContext, Mask));
       }
       return V;
     });
@@ -5329,7 +5405,10 @@ private:
                       if (Low) {
                         const auto Size = VectorTy.getVectorSize() / 2;
                         std::vector<uint32_t> Mask(Size);
-                        std::iota(Mask.begin(), Mask.end(), 0);
+                        if constexpr (Endian::native == Endian::little)
+                          std::iota(Mask.begin(), Mask.end(), 0);
+                        else
+                          std::iota(Mask.begin(), Mask.end(), Size);
                         V = Builder.createShuffleVector(
                             V, LLVM::Value::getUndef(VectorTy),
                             LLVM::Value::getConstVector32(LLContext, Mask));
@@ -5344,7 +5423,10 @@ private:
                       if (Low) {
                         const auto Size = VectorTy.getVectorSize() / 2;
                         std::vector<uint32_t> Mask(Size);
-                        std::iota(Mask.begin(), Mask.end(), 0);
+                        if constexpr (Endian::native == Endian::little)
+                          std::iota(Mask.begin(), Mask.end(), 0);
+                        else
+                          std::iota(Mask.begin(), Mask.end(), Size);
                         V = Builder.createShuffleVector(
                             V, LLVM::Value::getUndef(VectorTy),
                             LLVM::Value::getConstVector32(LLContext, Mask));
@@ -5357,9 +5439,14 @@ private:
       auto Demoted = Builder.createFPTrunc(
           V, LLVM::Type::getVectorType(Context.FloatTy, 2));
       auto ZeroV = LLVM::Value::getConstNull(Demoted.getType());
-      return Builder.createShuffleVector(
-          Demoted, ZeroV,
-          LLVM::Value::getConstVector32(LLContext, {0u, 1u, 2u, 3u}));
+      if constexpr (Endian::native == Endian::little)
+        return Builder.createShuffleVector(
+            Demoted, ZeroV,
+            LLVM::Value::getConstVector32(LLContext, {0u, 1u, 2u, 3u}));
+      else
+        return Builder.createShuffleVector(
+            Demoted, ZeroV,
+            LLVM::Value::getConstVector32(LLContext, {3u, 2u, 1u, 0u}));
     });
   }
   void compileVectorPromote() noexcept {
@@ -5615,6 +5702,32 @@ private:
              Stack.size() > ControlStack.back().StackSize);
     auto Value = Stack.back();
     Stack.pop_back();
+    return Value;
+  }
+
+  LLVM::Value switchEndian(LLVM::Value Value) {
+    if constexpr (Endian::native == Endian::big) {
+      auto Type = Value.getType();
+      if ((Type.isIntegerTy() && Type.getIntegerBitWidth() > 8) ||
+          (Type.isVectorTy() && Type.getVectorSize() == 1)) {
+        return Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
+      }
+      if (Type.isVectorTy()) {
+        LLVM::Type VecType = Type.getElementType().getIntegerBitWidth() == 128
+                                 ? Context.Int128Ty
+                                 : Context.Int64Ty;
+        Value = Builder.createBitCast(Value, VecType);
+        Value = Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
+        return Builder.createBitCast(Value, Type);
+      }
+      if (Type.isFloatTy() || Type.isDoubleTy()) {
+        LLVM::Type IntType =
+            Type.isFloatTy() ? Context.Int32Ty : Context.Int64Ty;
+        Value = Builder.createBitCast(Value, IntType);
+        Value = Builder.createUnaryIntrinsic(LLVM::Core::Bswap, Value);
+        return Builder.createBitCast(Value, Type);
+      }
+    }
     return Value;
   }
 

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "wasinn_ggml.h"
+#include "common/types.h"
 #include "wasinnenv.h"
 #include <cstdint>
 
@@ -2610,8 +2611,8 @@ ErrNo codesToSpeech(Graph &GraphRef, Context &CxtRef) noexcept {
 Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
                    [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
   // Add a new graph.
-  uint32_t GId = Env.newGraph(Backend::GGML);
-  auto &GraphRef = Env.NNGraph[GId].get<Graph>();
+  EndianValue<uint32_t> GId = Env.newGraph(Backend::GGML);
+  auto &GraphRef = Env.NNGraph[GId.raw()].get<Graph>();
 
   // Initialize the plugin parameters.
   GraphRef.EnableLog = false;
@@ -2680,7 +2681,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // Ignore context or model updates when initializing the graph.
     auto Res = parseMetadata(GraphRef, GraphRef.Conf, Metadata);
     if (Res != ErrNo::Success) {
-      Env.deleteGraph(GId);
+      Env.deleteGraph(GId.raw());
       RET_ERROR(Res, "load: Failed to parse metadata."sv)
     }
   }
@@ -2707,7 +2708,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     std::ofstream TempFile(GraphRef.Params.model.path,
                            std::ios::out | std::ios::binary);
     if (!TempFile) {
-      Env.deleteGraph(GId);
+      Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument,
                 "load: Failed to create the temporary file. Currently, our "sv
                 "workaround involves creating a temporary model file named "sv
@@ -2724,7 +2725,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Check if the model exists.
   if (!std::filesystem::exists(
           std::filesystem::u8path(GraphRef.Params.model.path))) {
-    Env.deleteGraph(GId);
+    Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::ModelNotFound, "load: model file not found."sv)
   }
   GraphRef.Params.model = GraphRef.Params.model;
@@ -2746,11 +2747,11 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.LlamaModel = std::move(LlamaInit.model);
   GraphRef.LlamaContext = std::move(LlamaInit.context);
   if (GraphRef.LlamaModel == nullptr) {
-    Env.deleteGraph(GId);
+    Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::InvalidArgument, "load: unable to init model."sv)
   }
   if (GraphRef.LlamaContext == nullptr) {
-    Env.deleteGraph(GId);
+    Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::InvalidArgument, "load: unable to init context."sv)
   }
   LOG_DEBUG(GraphRef.EnableDebugLog,
@@ -2765,19 +2766,19 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     GraphRef.TTSModel = std::move(TTSInit.model);
     GraphRef.TTSContext = std::move(TTSInit.context);
     if (GraphRef.TTSModel == nullptr) {
-      Env.deleteGraph(GId);
+      Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS model."sv)
     }
     if (GraphRef.TTSContext == nullptr) {
-      Env.deleteGraph(GId);
+      Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS context."sv)
     }
     LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model...Done"sv)
   }
 
   // Store the loaded graph.
-  GraphId = GId;
-  Env.NNGraph[GId].setReady();
+  GraphId = GId.le();
+  Env.NNGraph[GId.raw()].setReady();
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "load...Done"sv)
   return ErrNo::Success;
@@ -2804,6 +2805,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
       common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sampling);
 
   Env.NNContext[ContextId].setReady();
+  ContextId = EndianValue(ContextId).le();
   LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
   return ErrNo::Success;
 }
@@ -3103,7 +3105,8 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.size(),
               OutBuffer.data());
-  BytesWritten = static_cast<uint32_t>(CxtRef.LlamaOutputs.size());
+  BytesWritten =
+      EndianValue(static_cast<uint32_t>(CxtRef.LlamaOutputs.size())).le();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}...Done"sv, Index)
   return ErrNo::Success;
 }
@@ -3203,7 +3206,7 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   std::string LastToken = common_token_to_piece(
       GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
   std::copy_n(LastToken.data(), LastToken.length(), OutBuffer.data());
-  BytesWritten = static_cast<uint32_t>(LastToken.length());
+  BytesWritten = EndianValue(static_cast<uint32_t>(LastToken.length())).le();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}...Done"sv,
             Index)
   return ErrNo::Success;

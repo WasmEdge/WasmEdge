@@ -270,8 +270,7 @@ Executor::lowering(Runtime::Instance::Component::FunctionInstance *Func,
 }
 
 Expect<void>
-Executor::instantiate(Runtime::StoreManager &,
-                      Runtime::Instance::ComponentInstance &CompInst,
+Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CanonSection &CanonSec) {
   for (const auto &Canon : CanonSec.getContent()) {
     switch (Canon.getOpCode()) {
@@ -290,10 +289,10 @@ Executor::instantiate(Runtime::StoreManager &,
           spdlog::error("    incomplete canonincal options"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         case AST::Component::CanonOpt::OptCode::Memory:
-          MemInst = CompInst.getCoreMemoryInstance(Opt.getIndex());
+          MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
         case AST::Component::CanonOpt::OptCode::Realloc:
-          ReallocFunc = CompInst.getCoreFunctionInstance(Opt.getIndex());
+          ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
         case AST::Component::CanonOpt::OptCode::PostReturn:
         case AST::Component::CanonOpt::OptCode::Async:
@@ -303,17 +302,17 @@ Executor::instantiate(Runtime::StoreManager &,
         }
       }
 
-      const auto &DType = CompInst.getType(Canon.getTargetIndex());
-      if (unlikely(!DType.isFuncType())) {
+      const auto *DType = CompInst.getType(Canon.getTargetIndex());
+      if (unlikely(!DType->isFuncType())) {
         // It doesn't make sense if one tries to lift an instance not a
         // function, so unlikely happen.
         spdlog::error(ErrCode::Value::InvalidCanonOption);
         spdlog::error("    Cannot lift a non-function"sv);
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
-      auto *FuncInst = CompInst.getCoreFunctionInstance(Canon.getIndex());
-      CompInst.addFunctionInstance(lifting(CompInst, DType.getFuncType(),
-                                           FuncInst, MemInst, ReallocFunc));
+      auto *FuncInst = CompInst.getCoreFunction(Canon.getIndex());
+      CompInst.addFunction(lifting(CompInst, DType->getFuncType(), FuncInst,
+                                   MemInst, ReallocFunc));
       break;
     }
     case AST::Component::Canonical::OpCode::Lower: {
@@ -331,10 +330,10 @@ Executor::instantiate(Runtime::StoreManager &,
           spdlog::error("    incomplete canonincal options"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         case AST::Component::CanonOpt::OptCode::Memory:
-          MemInst = CompInst.getCoreMemoryInstance(Opt.getIndex());
+          MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
         case AST::Component::CanonOpt::OptCode::Realloc:
-          ReallocFunc = CompInst.getCoreFunctionInstance(Opt.getIndex());
+          ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
         case AST::Component::CanonOpt::OptCode::PostReturn:
         case AST::Component::CanonOpt::OptCode::Async:
@@ -344,9 +343,8 @@ Executor::instantiate(Runtime::StoreManager &,
         }
       }
 
-      auto *FuncInst = CompInst.getFunctionInstance(Canon.getIndex());
-      CompInst.addCoreFunctionInstance(
-          lowering(FuncInst, MemInst, ReallocFunc));
+      auto *FuncInst = CompInst.getFunction(Canon.getIndex());
+      CompInst.addCoreFunction(lowering(FuncInst, MemInst, ReallocFunc));
       break;
     }
     case AST::Component::Canonical::OpCode::Resource__new:

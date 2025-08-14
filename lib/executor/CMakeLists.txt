@@ -18,6 +18,7 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/component/component_export.cpp
   instantiate/component/component_import.cpp
   instantiate/component/component_instance.cpp
+  instantiate/component/component_module.cpp
   instantiate/component/component_start.cpp
   instantiate/component/component_type.cpp
   engine/proxy.cpp

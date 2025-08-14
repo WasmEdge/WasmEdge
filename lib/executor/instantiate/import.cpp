@@ -107,16 +107,18 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
 } // namespace
 
 // Instantiate imports. See "include/executor/executor.h".
-Expect<void> Executor::instantiate(Runtime::StoreManager &StoreMgr,
-                                   Runtime::Instance::ModuleInstance &ModInst,
-                                   const AST::ImportSection &ImportSec) {
+Expect<void> Executor::instantiate(
+    std::function<const Runtime::Instance::ModuleInstance *(std::string_view)>
+        ModuleFinder,
+    Runtime::Instance::ModuleInstance &ModInst,
+    const AST::ImportSection &ImportSec) {
   // Iterate and instantiate import descriptions.
   for (const auto &ImpDesc : ImportSec.getContent()) {
     // Get data from import description and find import module.
     auto ExtType = ImpDesc.getExternalType();
     auto ModName = ImpDesc.getModuleName();
     auto ExtName = ImpDesc.getExternalName();
-    const auto *ImpModInst = StoreMgr.findModule(ModName);
+    const auto *ImpModInst = ModuleFinder(ModName);
     if (unlikely(ImpModInst == nullptr)) {
       auto Res = logUnknownError(ModName, ExtName, ExtType);
       if (ModName == "wasi_snapshot_preview1"sv) {

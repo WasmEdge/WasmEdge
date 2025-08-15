@@ -45,10 +45,20 @@ using LlamaModelPtr = std::unique_ptr<llama_model, LlamaModelDeleter>;
 using LlamaContextPtr = std::unique_ptr<llama_context, LlamaContextDeleter>;
 using CommonSamplerPtr = std::unique_ptr<common_sampler, CommonSamplerDeleter>;
 
+enum class EmbdNormalizeType : int32_t {
+  // From: https://github.com/ggerganov/llama.cpp/blob/master/common/common.h
+  None = -1,
+  MaxAbsolute = 0,
+  Taxicab = 1,
+  Euclidean = 2,
+  PNorm = 3,
+};
+
 struct LocalConfig {
   int64_t NPredict = -1;
   bool StreamStdout = false;
   std::string ReversePrompt;
+  EmbdNormalizeType EmbdNormalize = EmbdNormalizeType::Euclidean;
 };
 
 struct Graph {
@@ -65,15 +75,19 @@ public:
   Context(uint32_t GId, Graph &G) noexcept : GraphId(GId), Conf(G.Conf) {}
 
   uint32_t GraphId;
-  LocalConfig Conf;
   bool ComputeSingleStarted = false;
 
   int32_t NPos = 0;
   std::vector<llama_token> LlamaInputs;
+  uint64_t LlamaNInputs = 0;
   std::vector<llama_token> LlamaOutputTokens;
   std::vector<uint8_t> LlamaOutputs;
   CommonSamplerPtr LlamaSampler = nullptr;
+  int64_t CurrentBatchSize = 0;
   struct llama_batch LlamaBatch;
+  struct llama_batch OutputBatch;
+
+  LocalConfig Conf;
 };
 
 #else

@@ -1,11 +1,13 @@
 #include "wasinn_bitnet.h"
 #include "wasinnenv.h"
+#include <cstdint>
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
 #include "simdjson.h"
 #include <algorithm>
 #include <common.h>
 #include <filesystem>
+#include <fmt/ranges.h>
 #include <fstream>
 #include <llama.h>
 #include <sampling.h>
@@ -38,8 +40,8 @@ namespace {
 
 // Macro for logging error message and return.
 #define RET_ERROR(Error, ...)                                                  \
-    spdlog::error("[WASI-NN] BitNet backend: "sv __VA_ARGS__);                 \
-    return Error;                                                              \
+  spdlog::error("[WASI-NN] BitNet backend: "sv __VA_ARGS__);                   \
+  return Error;
 
 // Llama logging callback.
 void llamaLogCallback(ggml_log_level LogLevel, const char *LogText,
@@ -56,15 +58,17 @@ void llamaLogCallback(ggml_log_level LogLevel, const char *LogText,
     return;
   }
   if (LogLevel == GGML_LOG_LEVEL_ERROR) {
-    spdlog::error("[WASI-NN] llama.cpp: {}"sv, Text);
+    spdlog::error("[WASI-NN] BitNet.cpp: {}"sv, Text);
   } else if (LogLevel == GGML_LOG_LEVEL_WARN) {
-    spdlog::warn("[WASI-NN] llama.cpp: {}"sv, Text);
+    spdlog::warn("[WASI-NN] BitNet.cpp: {}"sv, Text);
   } else if (LogLevel == GGML_LOG_LEVEL_INFO) {
-    spdlog::info("[WASI-NN] llama.cpp: {}"sv, Text);
+    spdlog::info("[WASI-NN] BitNet.cpp: {}"sv, Text);
   } else if (LogLevel == GGML_LOG_LEVEL_DEBUG) {
-    spdlog::debug("[WASI-NN] llama.cpp: {}"sv, Text);
+    spdlog::debug("[WASI-NN] BitNet.cpp: {}"sv, Text);
   }
 }
+
+// >>>>>>>> Metadata related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 // Parse metadata from json.
 ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
@@ -183,7 +187,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                 "Unknown split-mode: {}. Valid: none, layer, row."sv, SplitMode)
     }
   }
- 
 
   // The context parameters.
   if (Doc.at_key("ctx-size").error() == simdjson::SUCCESS) {
@@ -553,8 +556,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     double TfsZ;
     auto Err = Doc["tfs"].get<double>().get(TfsZ);
     if (Err) {
-      RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the tfs option."sv)
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the tfs option."sv)
     }
     GraphRef.Params.sparams.tfs_z = static_cast<float>(TfsZ);
   }
@@ -584,8 +586,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the last-n-penalty option."sv)
     }
-    GraphRef.Params.sparams.penalty_last_n =
-        static_cast<int32_t>(LastNPenalty);
+    GraphRef.Params.sparams.penalty_last_n = static_cast<int32_t>(LastNPenalty);
   }
   if (Doc.at_key("temp").error() == simdjson::SUCCESS) {
     double Temp;
@@ -652,6 +653,15 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
     GraphRef.Params.sparams.mirostat_eta = static_cast<float>(MirostatEta);
   }
+  if (Doc.at_key("mirostat-ent").error() == simdjson::SUCCESS) {
+    double MirostatEnt;
+    auto Err = Doc["mirostat-ent"].get<double>().get(MirostatEnt);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the mirostat-ent option."sv);
+    }
+    GraphRef.Params.sparams.mirostat_tau = static_cast<float>(MirostatEnt);
+  }
   if (Doc.at_key("ignore-eos").error() == simdjson::SUCCESS) {
     auto Err =
         Doc["ignore-eos"].get<bool>().get(GraphRef.Params.sparams.ignore_eos);
@@ -689,20 +699,21 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   if (Doc.at_key("n-gpu-layers-draft").error() == simdjson::SUCCESS) {
     int64_t NGPULayersDraft;
     auto Err = Doc["n-gpu-layers-draft"].get<int64_t>().get(NGPULayersDraft);
-    if (Err) { 
-      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the n-gpu-layers-draft option."sv) 
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-gpu-layers-draft option."sv)
     }
     GraphRef.Params.n_gpu_layers_draft = static_cast<int32_t>(NGPULayersDraft);
   }
   if (Doc.at_key("p-split").error() == simdjson::SUCCESS) {
     double PSplit;
     auto Err = Doc["p-split"].get<double>().get(PSplit);
-    if (Err) { 
-      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the p-split option."sv)
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the p-split option."sv)
     }
     GraphRef.Params.p_split = static_cast<float>(PSplit);
   }
-
 
   // The config parameters.
   if (Doc.at_key("stream-stdout").error() == simdjson::SUCCESS) {
@@ -1545,105 +1556,299 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   return ErrNo::Success;
 }
 
-void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
-  LOG_DEBUG(GraphRef.EnableDebugLog, "clearContext");
-  llama_kv_cache_clear(GraphRef.LlamaContext.get());
-  common_sampler_reset(CxtRef.LlamaSampler.get());
-  CxtRef.NPos = 0;
-  CxtRef.LlamaOutputTokens.clear();
-  CxtRef.LlamaOutputs.clear();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "clearContext...Done");
+// <<<<<<<< Metadata related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> Output related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+// Generate output metadata.
+std::string buildOutputMetadata(Context &CxtRef) noexcept {
+  return fmt::format(R"({{"input_tokens": {}, )"
+                     R"("output_tokens": {}, )"
+                     R"("llama_build_number": {}, )"
+                     R"("llama_commit": "{}"}})"sv,
+                     CxtRef.LlamaNInputs, CxtRef.LlamaOutputTokens.size(),
+                     LLAMA_BUILD_NUMBER, LLAMA_COMMIT);
 }
 
-ErrNo evaluateTokens(Graph &GraphRef, Context &CxtRef,
-                     Span<const llama_token> Tokens, bool IsLogit) noexcept {
-  const int32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
-  const int32_t BatchSize = GraphRef.Params.n_batch;
+// Generate output embedding.
+void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
+                          const float *Embeddings) noexcept {
+  // Embedding vector format
+  // | Content                             |
+  // | ----------------------------------- |
+  // | '{"number_embedding": '             |
+  // | n_embedding                         |
+  // | ', "embedding": '                   |
+  // | '['                                 |
+  // | n_embedding*(embedding value %.10f) |
+  // | (n_embedding-1)*(',')               |
+  // | ']'                                 |
+  // | '}'                                 |
+  Embedding =
+      fmt::format(R"({{"n_embedding": {}, )"
+                  R"("embedding": [{:.10}]}})"sv,
+                  NEmbd, fmt::join(Embeddings, Embeddings + NEmbd, ","sv));
+}
+// <<<<<<<< Output related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-  if (CxtRef.NPos + static_cast<int32_t>(Tokens.size()) > NCtx) {
-    RET_ERROR(ErrNo::ContextFull,
-              "evaluateTokens: context is full ({} + {} > {}).", CxtRef.NPos,
-              Tokens.size(), NCtx);
+// >>>>>>>> Compute related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+// Helper to init a llama batch.
+struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
+                              int32_t NSeqMax = 1) noexcept {
+  struct llama_batch Batch = llama_batch_init(
+      /* n_tokens_alloc */ static_cast<int32_t>(NTokens),
+      /* embd */ static_cast<int32_t>(Embd),
+      /* n_seq_max */ static_cast<int32_t>(NSeqMax));
+  std::fill(Batch.n_seq_id, Batch.n_seq_id + NTokens,
+            static_cast<int32_t>(NSeqMax));
+  for (int64_t I = 0; I < NTokens; I++) {
+    std::fill(Batch.seq_id[I], Batch.seq_id[I] + NSeqMax, 0);
+  }
+  std::fill(Batch.logits, Batch.logits + NTokens, false);
+  return Batch;
+}
+
+// Fill tokens (smaller than batch size) into a batch with position data.
+void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
+               llama_batch &Batch, int &NPos, bool IsLogit = false) {
+  assuming(GraphRef.Params.n_batch >= static_cast<int64_t>(Tokens.size()));
+  assuming(Batch.token != nullptr);
+  assuming(Batch.pos != nullptr);
+  assuming(Batch.logits != nullptr);
+  // Fill the batch with pos information.
+  Batch.n_tokens = static_cast<int32_t>(Tokens.size());
+  for (uint32_t I = 0; I < Tokens.size(); I++) {
+    Batch.token[I] = Tokens[I];
+    Batch.pos[I] = NPos + I;
+    Batch.logits[I] = false;
   }
 
-  for (size_t I = 0; I < Tokens.size(); I += BatchSize) {
-    const size_t NTokensToProcess =
-        std::min(static_cast<size_t>(BatchSize), Tokens.size() - I);
+  // Logits of sampling or end of inputs.
+  if (IsLogit) {
+    Batch.logits[Tokens.size() - 1] = true;
+  }
 
-    common_batch_clear(CxtRef.LlamaBatch);
-    for (size_t J = 0; J < NTokensToProcess; ++J) {
-      common_batch_add(CxtRef.LlamaBatch, Tokens[I + J], CxtRef.NPos, {0},
-                       false);
-      CxtRef.NPos++;
+  // Move the position.
+  NPos += static_cast<int>(Tokens.size());
+}
+
+// Evaluate tokens. Construct the tokens into batch and decode.
+ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
+                     llama_batch &Batch, int &NPos,
+                     bool IsLogits = false) noexcept {
+  // End the inference if the context is full.
+  uint32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
+  if (NPos + static_cast<uint32_t>(Tokens.size()) > NCtx) {
+    LOG_INFO(
+        GraphRef.EnableLog,
+        "evaluateTokens: the context if full ({} / {} tokens). Please increase your "sv
+        "context size."sv,
+        NPos + static_cast<uint32_t>(Tokens.size()), NCtx)
+    return ErrNo::ContextFull;
+  }
+
+  // Loop for decode batch. Split tokens into batch size length.
+  for (int I = 0; I < static_cast<int>(Tokens.size());
+       I += static_cast<int>(GraphRef.Params.n_batch)) {
+    int NEval = static_cast<int>(Tokens.size()) - I;
+    if (NEval > static_cast<int>(GraphRef.Params.n_batch)) {
+      NEval = static_cast<int>(GraphRef.Params.n_batch);
     }
 
-    if (IsLogit && (I + NTokensToProcess == Tokens.size())) {
-      CxtRef.LlamaBatch.logits[CxtRef.LlamaBatch.n_tokens - 1] = true;
-    }
+    // Fill the batch with pos information.
+    fillBatch(Span<const llama_token>(Tokens.begin() + I, NEval), GraphRef,
+              Batch, NPos,
+              IsLogits && I + NEval >= static_cast<int>(Tokens.size()));
 
-    if (llama_decode(GraphRef.LlamaContext.get(), CxtRef.LlamaBatch) != 0) {
-      RET_ERROR(ErrNo::RuntimeError,
-                "evaluateTokens: llama_decode failed during processing.");
+    // Decode the batch.
+    auto Status = llama_decode(GraphRef.LlamaContext.get(), Batch);
+    if (Status == 1) {
+      RET_ERROR(
+          ErrNo::RuntimeError,
+          "evaluateTokens: failed to llama_decode: try reducing the size of the batch "sv
+          "or increasing the size of context."sv)
+    }
+    if (Status < 0) {
+      RET_ERROR(
+          ErrNo::RuntimeError,
+          "evaluateTokens: failed to llama_decode: internal fatal error. Please open "sv
+          "an issue on GitHub."sv)
     }
   }
 
   return ErrNo::Success;
 }
 
+// Clear the context and reset the sampler.
+void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
+  LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext"sv)
+  llama_kv_cache_clear(GraphRef.LlamaContext.get());
+  common_sampler_reset(CxtRef.LlamaSampler.get());
+  CxtRef.NPos = 0;
+  CxtRef.LlamaOutputTokens.clear();
+  CxtRef.LlamaOutputs.clear();
+  LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext...Done"sv)
+}
+
+// Evaluate the input tokens. Clean all inputs if succeeded.
 ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                     std::string_view LogPrefix) noexcept {
-  if (CxtRef.LlamaInputs.empty()) {
-    RET_ERROR(ErrNo::InvalidArgument, "{}: Input tensor not set.", LogPrefix);
+  // Check if the input is set before setting up the context.
+  if (CxtRef.LlamaInputs.size() == 0) {
+    RET_ERROR(ErrNo::InvalidArgument, "{}: llama input is not set!"sv,
+              LogPrefix)
   }
 
-  const int32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
-  if (CxtRef.LlamaInputs.size() >= static_cast<size_t>(NCtx)) {
+  // Get the context size.
+  const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
+  // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
+  const uint64_t MaxTokensListSize = NCtx - 4;
+  // Return value.
+  auto ReturnCode = ErrNo::Success;
+
+  // Check if the input is too long.
+  if (static_cast<uint64_t>(CxtRef.LlamaInputs.size()) > MaxTokensListSize) {
     RET_ERROR(ErrNo::PromptTooLong,
-              "{}: Prompt is too long ({} tokens), but context size is {}.",
-              LogPrefix, CxtRef.LlamaInputs.size(), NCtx);
+              "{}: the prompt is too long. Your input has {} tokens. "sv
+              "Please reduce it to {} tokens."sv,
+              LogPrefix, CxtRef.LlamaInputs.size(), MaxTokensListSize)
   }
 
-  for (const auto &Token : CxtRef.LlamaInputs) {
-    common_sampler_accept(CxtRef.LlamaSampler.get(), Token, false);
+  // Evaluate input tokens.
+  ReturnCode =
+      evaluateTokens(Span<const llama_token>(CxtRef.LlamaInputs.begin(),
+                                             CxtRef.LlamaInputs.size()),
+                     GraphRef, CxtRef.LlamaBatch, CxtRef.NPos, true);
+  if (ReturnCode != ErrNo::Success) {
+    RET_ERROR(ReturnCode, "{}: failed to evaluate input tokens."sv, LogPrefix)
   }
 
-  return evaluateTokens(GraphRef, CxtRef, CxtRef.LlamaInputs, true);
+  return ErrNo::Success;
 }
 
+// Sample and get the output token.
 ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
                    bool IsSingleTokenMode = false) noexcept {
-  const int32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
-  if (CxtRef.NPos >= NCtx) {
-    return ErrNo::ContextFull;
-  }
+  // Use idx = -1 to sample the next token.
+  const llama_token Id = common_sampler_sample(
+      CxtRef.LlamaSampler.get(), GraphRef.LlamaContext.get(), /* idx */ -1);
+  common_sampler_accept(CxtRef.LlamaSampler.get(), Id,
+                        /* accept_grammar */ true);
 
-  llama_token NewTokenId = common_sampler_sample(
-      CxtRef.LlamaSampler.get(), GraphRef.LlamaContext.get(), -1);
-  common_sampler_accept(CxtRef.LlamaSampler.get(), NewTokenId, true);
-
-  if (NewTokenId == llama_token_eos(GraphRef.LlamaModel.get())) {
-    return ErrNo::EndOfSequence;
-  }
-
-  CxtRef.LlamaOutputTokens.push_back(NewTokenId);
+  // Save the output token.
+  CxtRef.LlamaOutputTokens.emplace_back(Id);
   std::string OutputString =
-      common_token_to_piece(GraphRef.LlamaContext.get(), NewTokenId);
-
+      common_token_to_piece(GraphRef.LlamaContext.get(), Id);
+  CxtRef.LlamaOutputs.insert(CxtRef.LlamaOutputs.end(), OutputString.begin(),
+                             OutputString.end());
+  // In single token mode, we do not handle StreamStdout and ReversePrompt.
   if (!IsSingleTokenMode) {
-    CxtRef.LlamaOutputs.insert(CxtRef.LlamaOutputs.end(), OutputString.begin(),
-                               OutputString.end());
+    // When setting StreamStdout, we print the output to stdout.
+    if (CxtRef.Conf.StreamStdout) {
+      fmt::print("{}"sv,
+                 common_token_to_piece(GraphRef.LlamaContext.get(), Id));
+      std::fflush(stdout);
+    }
+    // Break if reverse prompt is found.
+    if (!CxtRef.Conf.ReversePrompt.empty() &&
+        std::string(CxtRef.LlamaOutputs.begin(), CxtRef.LlamaOutputs.end())
+                .find(CxtRef.Conf.ReversePrompt) != std::string::npos) {
+      LOG_INFO(GraphRef.EnableLog, "sampleOutput: reverse prompt found."sv)
+      return ErrNo::EndOfSequence;
+    }
   }
 
-  return evaluateTokens(GraphRef, CxtRef,
-                        Span<const llama_token>(&NewTokenId, 1), true);
+  // Deal with end of text token.
+  // Only stop on EOS if GraphRef.Params.sparams.ignore_eos is false.
+  if (!GraphRef.Params.sparams.ignore_eos) {
+    if (llama_token_is_eog(GraphRef.LlamaModel.get(), Id)) {
+      LOG_INFO(GraphRef.EnableLog, "sampleOutput: EOS token found."sv)
+      return ErrNo::EndOfSequence;
+    }
+  }
+  // Evaluate the output token.
+  return evaluateTokens(Span<const llama_token>(&Id, 1), GraphRef,
+                        CxtRef.OutputBatch, CxtRef.NPos, true);
 }
+
+// TODO: Merge into compute.
+Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding"sv)
+
+  const llama_token SepTokenId = llama_token_sep(GraphRef.LlamaModel.get());
+  if (SepTokenId > -1) {
+    if (CxtRef.LlamaInputs.size() > 0 &&
+        CxtRef.LlamaInputs.back() != SepTokenId) {
+      LOG_WARN(
+          "getEmbedding: last token in the prompt is not SEP, "sv
+          "'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF "sv
+          "header."sv)
+    }
+  }
+
+  // Check if the input is too long.
+  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) >
+      GraphRef.Params.n_batch) {
+    RET_ERROR(
+        ErrNo::PromptTooLong,
+        "getEmbedding: the prompt is too long. Your input has {} tokens exceeds batch "sv
+        "size {}. Please reduce the input size or increase your batch-size."sv,
+        CxtRef.LlamaInputs.size(), GraphRef.Params.n_batch)
+  }
+
+  // Evaluate the input tokens.
+  auto ReturnCode = evaluateInput(GraphRef, CxtRef, "getEmbedding"sv);
+  if (ReturnCode != ErrNo::Success) {
+    return ReturnCode;
+  }
+
+  // Main prediction loop.
+  const struct llama_model *LlamaModel =
+      llama_get_model(GraphRef.LlamaContext.get());
+  const int32_t NEmbd = llama_n_embd(LlamaModel);
+  std::vector<float> Embeddings(NEmbd);
+
+  for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
+    if (!CxtRef.LlamaBatch.logits[I]) {
+      continue;
+    }
+
+    // Try to get sequence embeddings.
+    auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext.get(),
+                                          CxtRef.LlamaBatch.seq_id[I][0]);
+    if (Embd == nullptr) {
+      Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), I);
+      if (Embd == nullptr) {
+        LOG_ERROR("getEmbedding: failed to get embeddings for token {}"sv, I);
+        continue;
+      }
+    }
+
+    // Normalize the embeddings.
+    common_embd_normalize(Embd, Embeddings.data(), NEmbd,
+                          static_cast<int32_t>(CxtRef.Conf.EmbdNormalize));
+  }
+
+  std::string EmbeddingString;
+  buildOutputEmbedding(EmbeddingString, NEmbd, Embeddings.data());
+  CxtRef.LlamaOutputs =
+      std::vector<uint8_t>(EmbeddingString.begin(), EmbeddingString.end());
+
+  if (GraphRef.EnableLog) {
+    common_perf_print(GraphRef.LlamaContext.get(), /* Sampler */ nullptr);
+  }
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding...Done"sv)
+  return ErrNo::Success;
+}
+
+// <<<<<<<< Compute related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 } // namespace
 
-Expect<ErrNo> load(WasiNNEnvironment &Env,
-                           Span<const Span<uint8_t>> Builders,
-                           [[maybe_unused]] Device Device,
-                           uint32_t &GraphId) noexcept {
+Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
+                   [[maybe_unused]] Device Device, uint32_t &GraphId) noexcept {
   if (Builders.empty()) {
     RET_ERROR(ErrNo::InvalidArgument,
               "Invalid builders size, builders size must be > 0.");
@@ -1700,13 +1905,16 @@ Expect<ErrNo> load(WasiNNEnvironment &Env,
   const common_sampler_params SamplerParamsDefault;
   GraphRef.Params.sparams = SamplerParamsDefault;
 
-
+  // Initialize the config parameters.
   GraphRef.Conf.StreamStdout = false;
-  GraphRef.Conf.NPredict = -1;
+  GraphRef.Conf.EmbdNormalize =
+      static_cast<EmbdNormalizeType>(CommonParamsDefault.embd_normalize);
+  GraphRef.Conf.NPredict = ContextParamsDefault.n_ctx;
   GraphRef.Conf.ReversePrompt = ""sv;
 
+  // Set llama log callback.
   llama_log_set(llamaLogCallback, &GraphRef);
-  LOG_DEBUG(GraphRef.EnableDebugLog, "load start."sv);
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load start."sv)
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {
@@ -1719,13 +1927,14 @@ Expect<ErrNo> load(WasiNNEnvironment &Env,
       RET_ERROR(Res, "load: Failed to parse metadata."sv);
     }
   }
-  LOG_INFO(GraphRef.EnableLog, "LLAMA_COMMIT {}"sv, LLAMA_COMMIT);
-  LOG_INFO(GraphRef.EnableLog, "LLAMA_BUILD_NUMBER {}"sv, LLAMA_BUILD_NUMBER);
+
+  LOG_INFO(GraphRef.EnableLog, "LLAMA_COMMIT {}"sv, LLAMA_COMMIT)
+  LOG_INFO(GraphRef.EnableLog, "LLAMA_BUILD_NUMBER {}"sv, LLAMA_BUILD_NUMBER)
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path."sv)
   const auto &Weight = Builders[0];
-  const std::string_view BinModel(
-      reinterpret_cast<const char *>(Weight.data()), Weight.size());
+  const std::string_view BinModel(reinterpret_cast<const char *>(Weight.data()),
+                                  Weight.size());
 
   if (BinModel.substr(0, 8) == "preload:"sv) {
     GraphRef.Params.model = std::string(BinModel.substr(8));
@@ -1738,7 +1947,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env,
                            std::ios::out | std::ios::binary | std::ios::trunc);
     if (!TempFile) {
       Env.deleteGraph(GId);
-      RET_ERROR(ErrNo::InvalidArgument, "Failed to create temp model file."sv);
+      RET_ERROR(ErrNo::InvalidArgument, "Failed to create temp model file."sv)
     }
     TempFile.write(BinModel.data(), BinModel.size());
     TempFile.close();
@@ -1746,14 +1955,18 @@ Expect<ErrNo> load(WasiNNEnvironment &Env,
               "load: Write model into a tmpfile...Done"sv)
   }
   LOG_DEBUG(GraphRef.EnableDebugLog, "load: handling model path...Done"sv)
-  
+
   // Check if the model exists.
-  if (!std::filesystem::exists(std::filesystem::u8path(GraphRef.Params.model))) {
-      Env.deleteGraph(GId);
-      RET_ERROR(ErrNo::ModelNotFound, "Model file not found at path: '{}'."sv, GraphRef.Params.model);
+  if (!std::filesystem::exists(
+          std::filesystem::u8path(GraphRef.Params.model))) {
+    Env.deleteGraph(GId);
+    RET_ERROR(ErrNo::ModelNotFound,
+              "load: Model file not found at path: '{}'."sv,
+              GraphRef.Params.model)
   }
 
-  LOG_INFO(GraphRef.EnableLog, "load: Loading model from '{}'."sv, GraphRef.Params.model);
+  LOG_INFO(GraphRef.EnableLog, "load: Loading model from '{}'."sv,
+           GraphRef.Params.model)
 
   // Initialize model parameters.
   LOG_DEBUG(GraphRef.EnableDebugLog,
@@ -1761,317 +1974,448 @@ Expect<ErrNo> load(WasiNNEnvironment &Env,
 
   llama_backend_init();
   llama_numa_init(GraphRef.Params.numa);
+
+  // Initialize the llama model and context.
   common_init_result LlamaInit = common_init_from_params(GraphRef.Params);
   GraphRef.LlamaModel.reset(LlamaInit.model);
   GraphRef.LlamaContext.reset(LlamaInit.context);
 
   if (GraphRef.LlamaModel == nullptr) {
-      Env.deleteGraph(GId);
-      RET_ERROR(ErrNo::InvalidArgument, "Unable to init model."sv);
+    Env.deleteGraph(GId);
+    RET_ERROR(ErrNo::InvalidArgument, "load: Unable to init model."sv)
   }
   if (GraphRef.LlamaContext == nullptr) {
-      Env.deleteGraph(GId);
-      RET_ERROR(ErrNo::InvalidArgument, "Unable to init context."sv);
+    Env.deleteGraph(GId);
+    RET_ERROR(ErrNo::InvalidArgument, "load: Unable to init context."sv)
   }
 
   LOG_DEBUG(GraphRef.EnableDebugLog,
-          "load: initialize model with given parameters...Done"sv)
+            "load: initialize model with given parameters...Done"sv)
 
-  //Store the loaded graph.
+  // Store the loaded graph.
   GraphId = GId;
   Env.NNGraph[GId].setReady();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "load done."sv);
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "load...Done"sv)
   return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
-                                  uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept {
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
+                          uint32_t &ContextId) noexcept {
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx");
+  LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx"sv)
   ContextId = Env.newContext(GraphId, Env.NNGraph[GraphId]);
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+
   LOG_INFO(GraphRef.EnableLog, "llama_system_info: {}"sv,
            llama_print_system_info())
 
+  // Allocate the batch for input string prompt tokens.
+  CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+  CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
+
+  // Allocate the batch for single-token output sampling.
+  CxtRef.OutputBatch = allocBatch(1);
+
+  // Allocate the sampler
   CxtRef.LlamaSampler.reset(
       common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sparams));
-  if (!CxtRef.LlamaSampler) {
-    Env.deleteContext(ContextId);
-    RET_ERROR(WASINN::ErrNo::RuntimeError, "Failed to initialize sampler.");
-  }
-
-  CxtRef.LlamaBatch = llama_batch_init(GraphRef.Params.n_batch, 0, 1);
-  if (!CxtRef.LlamaBatch.token) {
-    Env.deleteContext(ContextId);
-    RET_ERROR(WASINN::ErrNo::RuntimeError, "Failed to initialize llama_batch.");
-  }
 
   Env.NNContext[ContextId].setReady();
-  LOG_INFO(GraphRef.EnableLog, "llama_system_info: {}"sv,
-           llama_print_system_info());
-  LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done");
-  return WASINN::ErrNo::Success;
+  LOG_DEBUG(GraphRef.EnableDebugLog, "initExecCtx...Done"sv)
+  return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
-                               uint32_t ContextId, uint32_t Index,
-                               const TensorData &Tensor) noexcept {
+Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
+                       uint32_t Index, const TensorData &Tensor) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId];
-  LOG_DEBUG(GraphRef.get<Graph>().EnableDebugLog, "setInput");
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  LOG_DEBUG(GraphRef.EnableDebugLog, "setInput"sv)
 
+  // Handle Metadata at Index 1
   if (Index == 1) {
-    LOG_DEBUG(GraphRef.get<Graph>().EnableDebugLog,
-              "setInput: found Metadata, processing");
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: found Metadata, processing"sv)
+    bool IsModelUpdated = false;
+    bool IsContextUpdated = false;
+    bool IsSamplerUpdated = false;
     const std::string Metadata(
         reinterpret_cast<const char *>(Tensor.Tensor.data()),
         Tensor.Tensor.size());
-    if (auto Res = parseMetadata(GraphRef.get<Graph>(), CxtRef.Conf, Metadata);
-        Res != ErrNo::Success) {
-      RET_ERROR(Res, "setInput: failed to parse metadata.");
+
+    auto Res = parseMetadata(GraphRef, CxtRef.Conf, Metadata, &IsModelUpdated,
+                             &IsContextUpdated, &IsSamplerUpdated);
+    if (Res != ErrNo::Success) {
+      RET_ERROR(Res, "setInput: failed to parse metadata."sv)
     }
-    // Re-initialize the sampler with new parameters
-    CxtRef.LlamaSampler.reset(
-        common_sampler_init(GraphRef.get<Graph>().LlamaModel.get(),
-                            GraphRef.get<Graph>().Params.sparams));
-    if (!CxtRef.LlamaSampler) {
-      RET_ERROR(WASINN::ErrNo::RuntimeError,
-                "Failed to re-initialize sampler with new options.");
+
+    if (IsModelUpdated || GraphRef.LlamaModel == nullptr) {
+      // The llama model may be nullptr if set_input with updated model params
+      // last time. Therefore besides the model params updated, we should
+      // reload the llama model if the model is nullptr.
+      LOG_INFO(GraphRef.EnableLog,
+               "setInput: Reloading model due to parameter change"sv)
+
+      // Prepare model parameters for the reload.
+      llama_model_params ModelParams = llama_model_default_params();
+      ModelParams.n_gpu_layers =
+          static_cast<int32_t>(GraphRef.Params.n_gpu_layers);
+
+      // Free all resources that depend on the old model.
+      GraphRef.LlamaModel.reset();
+
+      // Due to the model change, the context and sampler should also be
+      // reloaded. The new context and sampler will be created in the next
+      // block.
+      GraphRef.LlamaContext.reset();
+      if (CxtRef.LlamaSampler) {
+        CxtRef.LlamaSampler.reset();
+        CxtRef.LlamaSampler = nullptr;
+      }
+
+      // Attempt to load the model from file with new parameters.
+      GraphRef.LlamaModel.reset(llama_load_model_from_file(
+          GraphRef.Params.model.c_str(), ModelParams));
+      if (GraphRef.LlamaModel == nullptr) {
+        Env.NNGraph[CxtRef.GraphId].setInvalid();
+        RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init model."sv)
+      }
     }
-    LOG_DEBUG(GraphRef.get<Graph>().EnableDebugLog,
-              "setInput: found Metadata, processing...Done");
-    return WASINN::ErrNo::Success;
+
+    // Reload context if its parameters changed OR if it was cleared by a model
+    // reload.
+    if (IsContextUpdated || GraphRef.LlamaContext == nullptr) {
+      LOG_INFO(GraphRef.EnableLog,
+               "setInput: Reloading llama context due to parameter change."sv)
+      GraphRef.LlamaContext.reset();
+      llama_context_params CtxParams =
+          common_context_params_to_llama(GraphRef.Params);
+      GraphRef.LlamaContext.reset(
+          llama_new_context_with_model(GraphRef.LlamaModel.get(), CtxParams));
+      if (GraphRef.LlamaContext == nullptr) {
+        Env.NNGraph[CxtRef.GraphId].setInvalid();
+        RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init context."sv)
+      }
+    }
+
+    // Re-initialize sampler if its parameters changed OR if it was cleared.
+    if (IsSamplerUpdated || CxtRef.LlamaSampler == nullptr) {
+      LOG_INFO(GraphRef.EnableLog,
+               "setInput: Re-initializing sampler due to parameter change."sv);
+      CxtRef.LlamaSampler.reset(common_sampler_init(GraphRef.LlamaModel.get(),
+                                                    GraphRef.Params.sparams));
+      if (CxtRef.LlamaSampler == nullptr) {
+        Env.NNGraph[CxtRef.GraphId].setInvalid();
+        RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
+      }
+    }
+
+    // Re-allocate batch if the batch size changed.
+    if (CxtRef.CurrentBatchSize != GraphRef.Params.n_batch) {
+      LOG_INFO(GraphRef.EnableLog,
+               "Re-allocating batch due to n_batch change.");
+      llama_batch_free(CxtRef.LlamaBatch);
+      CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+      if (!CxtRef.LlamaBatch.token) {
+        RET_ERROR(ErrNo::InvalidArgument, "Failed to re-allocate llama_batch.");
+      }
+      CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
+    }
+
+    Env.NNGraph[CxtRef.GraphId].setReady();
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: metadata processing...Done");
+    return ErrNo::Success;
   }
 
   if (Index != 0) {
-    RET_ERROR(WASINN::ErrNo::InvalidArgument,
-              "Only one input tensor (the prompt) is supported at index 0.");
+    RET_ERROR(ErrNo::InvalidArgument,
+              "Only prompt (index 0) and metadata (index 1) are supported.");
   }
 
-  if (Tensor.RType != WASINN::TensorType::U8) {
-    RET_ERROR(WASINN::ErrNo::InvalidArgument,
+  // Check the graph is valid after reloading during previous set_input.
+  if (!Env.NNGraph[CxtRef.GraphId].isReady()) {
+    RET_ERROR(
+        ErrNo::InvalidArgument,
+        "setInput: Graph is invalid. Please reload again by passing metadata "sv
+        "in set_input or unload graph."sv)
+  }
+
+  LOG_DEBUG(GraphRef.EnableLog, "setInput: Clearing KV cache for new prompt."sv)
+  llama_kv_cache_clear(GraphRef.LlamaContext.get());
+  LOG_DEBUG(GraphRef.EnableLog,
+            "setInput: Clearing KV cache for new prompt...done"sv)
+
+  // Check tensor type.
+  if (Tensor.RType != TensorType::U8) {
+    RET_ERROR(ErrNo::InvalidArgument,
               "Input tensor must be a UTF-8 string (U8).");
   }
 
+  // Tokenize the new prompt.
   const std::string Prompt(reinterpret_cast<const char *>(Tensor.Tensor.data()),
                            Tensor.Tensor.size());
+  LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
+  CxtRef.LlamaInputs =
+      common_tokenize(GraphRef.LlamaContext.get(), Prompt,
+                      llama_add_bos_token(GraphRef.LlamaModel.get()), true);
+  LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt...Done"sv)
 
-  CxtRef.LlamaInputs = common_tokenize(
-      GraphRef.get<Graph>().LlamaContext.get(), Prompt,
-      llama_add_bos_token(GraphRef.get<Graph>().LlamaModel.get()), false);
+  // Get the number of input tokens (for the metadata).
+  CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
 
+  // Reset state for the compute loop.
   CxtRef.ComputeSingleStarted = false;
-  LOG_DEBUG(GraphRef.get<Graph>().EnableDebugLog, "setInput...Done");
-  return WASINN::ErrNo::Success;
+  LOG_DEBUG(GraphRef.EnableDebugLog, "setInput...Done"sv)
+  return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
+Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
+                        uint32_t Index, Span<uint8_t> OutBuffer,
+                        uint32_t &BytesWritten) noexcept {
+  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}"sv, Index)
+
+  // Handle Metadata Output at Index 1
+  if (Index == 1) {
+    const std::string Metadata = buildOutputMetadata(CxtRef);
+    const size_t BytesToCopy =
+        std::min(static_cast<size_t>(OutBuffer.size()), Metadata.length());
+    std::copy_n(Metadata.data(), BytesToCopy, OutBuffer.data());
+    BytesWritten = static_cast<uint32_t>(Metadata.length());
+
+    LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: Metadata (Index 1)...Done"sv)
+    return ErrNo::Success;
+  }
+
+  const size_t BytesToCopy = std::min(static_cast<size_t>(OutBuffer.size()),
+                                      CxtRef.LlamaOutputs.size());
+  std::copy_n(CxtRef.LlamaOutputs.data(), BytesToCopy, OutBuffer.data());
+  BytesWritten = CxtRef.LlamaOutputs.size();
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: Text (Index 0)...Done"sv)
+  return ErrNo::Success;
+}
+
+Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute");
 
+  // Clear the context and reset the sampler.
   clearContext(GraphRef, CxtRef);
 
+  if (GraphRef.Params.embedding) {
+    return getEmbedding(GraphRef, CxtRef);
+  }
+
+  // Evaluate the input tokens.
   auto ReturnCode = evaluateInput(GraphRef, CxtRef, "compute"sv);
   if (ReturnCode != ErrNo::Success) {
     return ReturnCode;
   }
 
-  int NRemain = CxtRef.Conf.NPredict;
-  if (NRemain < 0) {
-    NRemain = INT32_MAX;
+  // Main prediction loop.
+  LOG_DEBUG(GraphRef.EnableDebugLog, "compute: enter main prediction loop"sv)
+  int64_t NPredict = CxtRef.Conf.NPredict;
+  if (NPredict < 0) {
+    NPredict = INT32_MAX;
   }
 
-  while (NRemain > 0) {
+  while (NPredict > 0) {
     ReturnCode = sampleOutput(GraphRef, CxtRef);
     if (ReturnCode != ErrNo::Success) {
       break;
     }
-    NRemain--;
+    NPredict--;
   }
 
   if (ReturnCode == ErrNo::EndOfSequence || ReturnCode == ErrNo::ContextFull) {
-    LOG_INFO(GraphRef.EnableLog, "compute finished with status: {}.",
-             static_cast<uint32_t>(ReturnCode));
-    return WASINN::ErrNo::Success;
+    LOG_INFO(GraphRef.EnableLog, "compute finished with status: {}."sv,
+             static_cast<uint32_t>(ReturnCode))
+    return ErrNo::Success;
   }
 
-  LOG_DEBUG(GraphRef.EnableDebugLog, "compute...Done");
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "compute: enter main prediction loop...Done"sv)
+
+  if (GraphRef.EnableLog) {
+    common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler.get());
+  }
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "compute...Done")
   return ReturnCode;
 }
 
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
-                                uint32_t ContextId, uint32_t Index,
-                                Span<uint8_t> OutBuffer,
-                                uint32_t &BytesWritten) noexcept {
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
+                              uint32_t Index, Span<uint8_t> OutBuffer,
+                              uint32_t &BytesWritten) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}", Index);
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}"sv, Index)
 
-  if (Index != 0) {
-    RET_ERROR(WASINN::ErrNo::InvalidArgument,
-              "Only one output tensor (at index 0) is supported.");
+  // Metadata Output at Index 1
+  if (Index == 1) {
+    const std::string Metadata = buildOutputMetadata(CxtRef);
+    const size_t BytesToCopy =
+        std::min(static_cast<size_t>(OutBuffer.size()), Metadata.length());
+    std::copy_n(Metadata.data(), BytesToCopy, OutBuffer.data());
+    BytesWritten = static_cast<uint32_t>(Metadata.length());
+
+    LOG_DEBUG(GraphRef.EnableDebugLog,
+              "getOutputSingle: Metadata (Index 1)...Done"sv)
+    return ErrNo::Success;
   }
 
-  const size_t Len = std::min(static_cast<size_t>(OutBuffer.size()),
-                              CxtRef.LlamaOutputs.size());
-  std::copy_n(CxtRef.LlamaOutputs.data(), Len, OutBuffer.data());
-  BytesWritten = CxtRef.LlamaOutputs.size();
+  if (CxtRef.LlamaOutputTokens.empty()) {
+    BytesWritten = 0;
+    return ErrNo::Success;
+  }
 
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}...Done", Index);
-  return WASINN::ErrNo::Success;
+  const std::string LastTokenStr = common_token_to_piece(
+      GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
+
+  const size_t BytesToCopy =
+      std::min(static_cast<size_t>(OutBuffer.size()), LastTokenStr.length());
+  std::copy_n(LastTokenStr.data(), BytesToCopy, OutBuffer.data());
+  BytesWritten = LastTokenStr.length();
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: Text (Index 0)...Done"sv)
+  return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
-                                    uint32_t ContextId) noexcept {
+Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
+                            uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle");
+  LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle"sv)
 
   auto ReturnCode = ErrNo::Success;
   if (!CxtRef.ComputeSingleStarted) {
+    // Clear the context and reset the sampler.
     clearContext(GraphRef, CxtRef);
     ReturnCode = evaluateInput(GraphRef, CxtRef, "computeSingle"sv);
     if (ReturnCode != ErrNo::Success) {
       return ReturnCode;
     }
+
     CxtRef.ComputeSingleStarted = true;
   }
 
+  // Main prediction process.
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "computeSingle: enter main prediction process"sv)
   ReturnCode = sampleOutput(GraphRef, CxtRef, /* IsSingleTokenMode */ true);
   if (ReturnCode != ErrNo::Success) {
     CxtRef.ComputeSingleStarted = false;
   }
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "computeSingle: enter main prediction process...Done"sv)
+  // End of main predict process.
 
-  LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle...Done");
+  LOG_DEBUG(GraphRef.EnableDebugLog, "computeSingle...Done"sv)
   return ReturnCode;
 }
 
-Expect<WASINN::ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t ContextId, uint32_t Index,
-                                      Span<uint8_t> OutBuffer,
-                                      uint32_t &BytesWritten) noexcept {
-  auto &CxtRef = Env.NNContext[ContextId].get<Context>();
-  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}", Index);
-
-  if (Index != 0) {
-    RET_ERROR(WASINN::ErrNo::InvalidArgument,
-              "Only one output tensor (at index 0) is supported.");
-  }
-
-  if (CxtRef.LlamaOutputTokens.empty()) {
-    BytesWritten = 0;
-    return WASINN::ErrNo::Success;
-  }
-
-  llama_token LastTokenId = CxtRef.LlamaOutputTokens.back();
-  std::string LastTokenStr =
-      common_token_to_piece(GraphRef.LlamaContext.get(), LastTokenId);
-
-  const size_t Len =
-      std::min(static_cast<size_t>(OutBuffer.size()), LastTokenStr.length());
-  std::copy_n(LastTokenStr.data(), Len, OutBuffer.data());
-  BytesWritten = LastTokenStr.length();
-
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}...Done",
-            Index);
-  return WASINN::ErrNo::Success;
-}
-
-Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
-                                 uint32_t ContextId) noexcept {
+Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle");
 
-  clearContext(GraphRef, CxtRef);
+  if (GraphRef.EnableLog) {
+    common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler.get());
+  }
+
+  // Reset the llama sampler.
+  common_sampler_reset(CxtRef.LlamaSampler.get());
+
+  // Clear the outputs.
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "finiSingle: clear the previous output and tokens"sv)
+  CxtRef.LlamaOutputs.clear();
+  CxtRef.LlamaOutputTokens.clear();
+  LOG_DEBUG(GraphRef.EnableDebugLog,
+            "finiSingle: clear the previous output and tokens...Done"sv)
+
+  CxtRef.NPos = 0;
   CxtRef.ComputeSingleStarted = false;
 
-  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle...Done");
-  return WASINN::ErrNo::Success;
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle...Done"sv)
+  return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept {
-  const bool IsDebugLog = (GraphId < Env.NNGraph.size())
-                              ? Env.NNGraph[GraphId].get<Graph>().EnableDebugLog
-                              : false;
-  LOG_DEBUG(IsDebugLog, "unload");
+Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
 
-  if (GraphId < Env.NNGraph.size()) {
-    Env.deleteGraph(GraphId);
+  auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
+  if (GraphId >= Env.NNGraph.size() || GraphRef.LlamaModel == nullptr) {
+    return ErrNo::Success;
   }
-  llama_backend_free();
 
-  LOG_DEBUG(IsDebugLog, "unload...Done");
-  return WASINN::ErrNo::Success;
+  LOG_DEBUG(GraphRef.EnableDebugLog, "unload"sv)
+
+  Env.deleteGraph(GraphId);
+
+  LOG_DEBUG(GraphRef.EnableDebugLog, "unload...Done"sv)
+  return ErrNo::Success;
 }
 
-Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t ContextId) noexcept {
-  auto &GraphRef =
-      Env.NNGraph[Env.NNContext[ContextId].get<Context>().GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "finalizeExecCtx");
+Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
+                              uint32_t ContextId) noexcept {
 
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
+  auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finalizeExecCtx"sv)
+
   CxtRef.LlamaSampler.reset();
   llama_batch_free(CxtRef.LlamaBatch);
+  llama_batch_free(CxtRef.OutputBatch);
   Env.deleteContext(ContextId);
 
-  LOG_DEBUG(GraphRef.EnableDebugLog, "finalizeExecCtx...Done");
-  return WASINN::ErrNo::Success;
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finalizeExecCtx...Done"sv)
+  return ErrNo::Success;
 }
 
 #else
 namespace {
 Expect<ErrNo> reportBackendNotSupported() noexcept {
-  RET_ERROR(WASINN::ErrNo::InvalidArgument,
+  RET_ERROR(ErrNo::InvalidArgument,
             "BitNet backend is not built. Please build with "
-            "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET=ON.");
+            "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET=ON."sv)
 }
 } // namespace
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &,
-                           Span<const Span<uint8_t>>, WASINN::Device,
-                           uint32_t &) noexcept {
+Expect<ErrNo> load(WasiNNEnvironment &, Span<const Span<uint8_t>>, Device,
+                   uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &, uint32_t,
-                                  uint32_t &) noexcept {
+Expect<ErrNo> initExecCtx(WasiNNEnvironment &, uint32_t, uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
-                               const TensorData &) noexcept {
+Expect<ErrNo> setInput(WasiNNEnvironment &, uint32_t, uint32_t,
+                       const TensorData &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
-                                Span<uint8_t>, uint32_t &) noexcept {
+Expect<ErrNo> getOutput(WasiNNEnvironment &, uint32_t, uint32_t, Span<uint8_t>,
+                        uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> compute(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &, uint32_t, uint32_t,
+Expect<ErrNo> getOutputSingle(WasiNNEnvironment &, uint32_t, uint32_t,
                               Span<uint8_t>, uint32_t &) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> computeSingle(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> computeSingle(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> finiSingle(WASINN::WasiNNEnvironment &, uint32_t) noexcept {
+Expect<ErrNo> finiSingle(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t ContextId) noexcept {
-  Env.deleteContext(ContextId);
+Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   return reportBackendNotSupported();
 }
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept {
-  Env.deleteGraph(GraphId);
+Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
+                              uint32_t ContextId) noexcept {
   return reportBackendNotSupported();
 }
 

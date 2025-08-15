@@ -12,6 +12,8 @@
 #include "MLX/model/llm/registry.h"
 #include "MLX/model/llm/transformer.h"
 #include "MLX/model/utils.h"
+#include "MLX/model/whisper/whisper.h"
+#include "MLX/model/whisper_transcribe.h"
 #include "MLX/prompt/prompt.h"
 #include <memory>
 #include <mlx/array.h>
@@ -21,20 +23,6 @@
 
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
-std::string loadBytesFromFile(const std::string &Path) {
-  std::ifstream Fs(Path, std::ios::in | std::ios::binary);
-  if (Fs.fail()) {
-    spdlog::error("[WASI-NN] MLX backend: Cannot open {}."sv, Path);
-    return "";
-  }
-  std::string Data;
-  Fs.seekg(0, std::ios::end);
-  const size_t Size = static_cast<size_t>(Fs.tellg());
-  Fs.seekg(0, std::ios::beg);
-  Data.resize(Size);
-  Fs.read(Data.data(), Size);
-  return Data;
-}
 
 mx::array fromBytes(const Span<uint8_t> &Bytes) {
   if (Bytes.size() < 9) {
@@ -378,6 +366,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     } else if (GraphRef.ModelType == "gemma3") {
       auto Weight = mx::load_safetensors(ModelFilePath);
       Weights.insert(Weight.first.begin(), Weight.first.end());
+    } else if (GraphRef.ModelType == "whisper") {
+      auto Weight = mx::load_safetensors(ModelFilePath);
+      Weights.insert(Weight.first.begin(), Weight.first.end());
     } else {
       spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
                     GraphRef.ModelType);
@@ -419,10 +410,16 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     Weights =
         gemma3::VisionModel(ModelConfigObj.VisionConfig).sanitize(Weights);
     GraphRef.ModelArch = "vlm";
+  } else if (GraphRef.ModelType == "whisper") {
+    auto Obj = Doc.get_object();
+    whisper::ModelDimensions DefaultDims =
+        whisper::ModelDimensions::fromDict(Obj.value());
+    GraphRef.Model = std::dynamic_pointer_cast<nn::Module>(
+        std::make_shared<whisper::Whisper>(DefaultDims));
+    GraphRef.ModelArch = "whisper";
   } else {
-    spdlog::error(
-        "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
-        GraphRef.ModelArch);
+    spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
+                  GraphRef.ModelType);
     Env.deleteGraph(GId);
     return ErrNo::InvalidArgument;
   }
@@ -459,6 +456,8 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
     GraphRef.Model->update(Weights);
   } else if (GraphRef.ModelType == "gemma3") {
     GraphRef.Model->update(Weights);
+  } else if (GraphRef.ModelType == "whisper") {
+    GraphRef.Model->update(Weights);
   } else {
     spdlog::error("[WASI-NN] MLX backend: Model type {} not supported."sv,
                   GraphRef.ModelType);
@@ -488,6 +487,8 @@ Expect<WASINN::ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
     CxtRef.Inputs = LLMInput();
   } else if (GraphRef.ModelArch == "vlm") {
     CxtRef.Inputs = VLMInput();
+  } else if (GraphRef.ModelArch == "whisper") {
+    CxtRef.Inputs = WhisperInput();
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
@@ -522,6 +523,10 @@ Expect<WASINN::ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       spdlog::error("[WASI-NN] MLX backend: Index out of range."sv);
       return ErrNo::InvalidArgument;
     }
+  } else if (GraphRef.ModelArch == "whisper") {
+    std::get<WhisperInput>(CxtRef.Inputs).Audio =
+        std::string(reinterpret_cast<const char *>(Tensor.Tensor.data()),
+                    Tensor.Tensor.size());
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
@@ -559,6 +564,17 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
       return ErrNo::InvalidArgument;
     }
+  } else if (GraphRef.ModelArch == "whisper") {
+    auto *Output = std::get_if<whisper::TranscribeResult>(&CxtRef.Outputs);
+    if (Output != nullptr) {
+      std::string Text = Output->Text;
+      std::copy_n(Text.data(), Text.length(), OutBuffer.data());
+      BytesWritten = Text.length();
+    } else {
+      spdlog::error("[WASI-NN] MLX backend: No output found."sv);
+      return ErrNo::InvalidArgument;
+    }
+
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,
@@ -603,6 +619,10 @@ Expect<WASINN::ErrNo> compute(WasiNNEnvironment &Env,
         mx::array(TokenList.data(), {static_cast<int>(TokenList.size())});
     CxtRef.Outputs = VLMOutput({TokenArray});
     TokenListSize = TokenList.size();
+  } else if (GraphRef.ModelArch == "whisper") {
+    CxtRef.Outputs = whisper::transcribe(
+        std::get<WhisperInput>(CxtRef.Inputs).Audio,
+        std::dynamic_pointer_cast<whisper::Whisper>(GraphRef.Model), false);
   } else {
     spdlog::error(
         "[WASI-NN] MLX backend: Model architecture {} not supported."sv,

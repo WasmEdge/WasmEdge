@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "model/utils.h"
-
+#include <fstream>
 #include <sstream>
 
 namespace WasmEdge::Host::WASINN::MLX {
@@ -57,6 +57,21 @@ void saveWeights(const mx::array &Weights, const std::string &Path) {
     spdlog::error("[WASI-NN] MLX backend: Unsupported file format"sv);
     assumingUnreachable();
   }
+}
+
+std::string loadBytesFromFile(const std::string &Path) {
+  std::ifstream Fs(Path, std::ios::in | std::ios::binary);
+  if (Fs.fail()) {
+    spdlog::error("[WASI-NN] MLX backend: Cannot open {}."sv, Path);
+    return "";
+  }
+  std::string Data;
+  Fs.seekg(0, std::ios::end);
+  const size_t Size = static_cast<size_t>(Fs.tellg());
+  Fs.seekg(0, std::ios::beg);
+  Data.resize(Size);
+  Fs.read(Data.data(), Size);
+  return Data;
 }
 
 } // namespace WasmEdge::Host::WASINN::MLX

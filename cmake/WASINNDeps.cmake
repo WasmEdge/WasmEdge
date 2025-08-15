@@ -537,12 +537,12 @@ function(wasmedge_setup_mlx_target target)
     FetchContent_Declare(
       tokenizers
       GIT_REPOSITORY https://github.com/mlc-ai/tokenizers-cpp.git
-      GIT_TAG 5de6f65
+      GIT_TAG 55d53aa
       GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(tokenizers)
     message(STATUS "Downloading tokenizers source -- done")
-    set_property(TARGET tokenizer_cpp_objs PROPERTY POSITION_INDEPENDENT_CODE ON)
+    set_property(TARGET tokenizers_cpp PROPERTY POSITION_INDEPENDENT_CODE ON)
   endif()
 
   if(NOT TARGET gguflib)
@@ -563,6 +563,11 @@ function(wasmedge_setup_mlx_target target)
     )
     set_target_properties(gguflib PROPERTIES LINKER_LANGUAGE CXX)
   endif()
+
+  find_package(ZLIB REQUIRED)
+  
+  find_program(FFMPEG_EXECUTABLE ffmpeg)
+
   # Only the plugin library needs to fully linking the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
     wasmedge_setup_simdjson()
@@ -583,6 +588,7 @@ function(wasmedge_setup_mlx_target target)
       gguflib
       mlx
       simdjson::simdjson
+      ZLIB::ZLIB
     )
   endif()
 endfunction()

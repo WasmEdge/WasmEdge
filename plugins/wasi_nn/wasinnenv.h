@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "wasinn_bitnet.h"
 #include "wasinn_chattts.h"
 #include "wasinn_ggml.h"
 #include "wasinn_mlx.h"

@@ -54,7 +54,7 @@ void Module::apply(std::string Key, mx::array Value) {
   } else {
     std::string LayerName = SplitKey[0];
     SplitKey.erase(SplitKey.begin());
-    if (LayerName == "layers") {
+    if (LayerName == "layers" || LayerName == "blocks") {
       LayerName += "." + SplitKey[0];
       SplitKey.erase(SplitKey.begin());
     }

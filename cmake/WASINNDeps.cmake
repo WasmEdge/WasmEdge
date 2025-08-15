@@ -544,6 +544,11 @@ function(wasmedge_setup_mlx_target target)
     )
     set_target_properties(gguflib PROPERTIES LINKER_LANGUAGE CXX)
   endif()
+
+  find_package(ZLIB REQUIRED)
+  
+  find_program(FFMPEG_EXECUTABLE ffmpeg)
+
   # Only the plugin library needs to fully linking the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
     wasmedge_setup_simdjson()
@@ -564,6 +569,7 @@ function(wasmedge_setup_mlx_target target)
       gguflib
       mlx
       simdjson::simdjson
+      ZLIB::ZLIB
     )
   endif()
 endfunction()

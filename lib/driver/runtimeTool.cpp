@@ -101,7 +101,26 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
       case TypeCode::V128:
         fmt::print("{}\n"sv, uint128((*Result)[I].first.get<uint128_t>()));
         break;
-      /// TODO: FuncRef and ExternRef
+      case TypeCode::Ref: {
+        if ((*Result)[I].second.isFuncRefType()) {
+          fmt::print("<funcref>\n"sv);
+        } else if ((*Result)[I].second.isExternRefType()) {
+          fmt::print("<externref>\n"sv);
+        } else {
+          fmt::print("<anyref>\n"sv);
+        }
+        break;
+      }
+      case TypeCode::RefNull: {
+        if ((*Result)[I].second.isFuncRefType()) {
+          fmt::print("<null funcref>\n"sv);
+        } else if ((*Result)[I].second.isExternRefType()) {
+          fmt::print("<null externref>\n"sv);
+        } else {
+          fmt::print("<null anyref>\n"sv);
+        }
+        break;
+      }
       default:
         break;
       }
@@ -205,7 +224,26 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
             "{}\n"sv,
             uint128(std::get<ValVariant>((*Result)[I].first).get<uint128_t>()));
         break;
-      /// TODO: FuncRef and ExternRef
+      case TypeCode::Ref: {
+        if ((*Result)[I].second.isFuncRefType()) {
+          fmt::print("<funcref>\n"sv);
+        } else if ((*Result)[I].second.isExternRefType()) {
+          fmt::print("<externref>\n"sv);
+        } else {
+          fmt::print("<anyref>\n"sv);
+        }
+        break;
+      }
+      case TypeCode::RefNull: {
+        if ((*Result)[I].second.isFuncRefType()) {
+          fmt::print("<null funcref>\n"sv);
+        } else if ((*Result)[I].second.isExternRefType()) {
+          fmt::print("<null externref>\n"sv);
+        } else {
+          fmt::print("<null anyref>\n"sv);
+        }
+        break;
+      }
       default:
         break;
       }

@@ -43,6 +43,14 @@ std::shared_ptr<VINode> VINode::stdErr(__wasi_rights_t FRB,
   return std::make_shared<VINode>(INode::stdErr(), FRB, FRI);
 }
 
+WasiExpect<std::shared_ptr<VINode>>
+VINode::fromFd(int32_t Fd, __wasi_rights_t FRB, __wasi_rights_t FRI) {
+  auto NodeResult = INode::fromFd(Fd);
+  if (!NodeResult) {
+    return WasiUnexpect(NodeResult.error());
+  }
+  return std::make_shared<VINode>(std::move(*NodeResult), FRB, FRI);
+}
 std::string VINode::canonicalGuest(std::string_view Path) {
   std::vector<std::string_view> Parts;
 

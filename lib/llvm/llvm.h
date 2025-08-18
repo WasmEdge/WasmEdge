@@ -1952,6 +1952,7 @@ public:
   inline bool isBSS() const noexcept;
   inline bool isPData() const noexcept;
   inline bool isEHFrame() const noexcept;
+  inline bool isVirtual() const noexcept;
 
 private:
   LLVMSectionIteratorRef Ref = nullptr;
@@ -2320,6 +2321,11 @@ bool SectionIterator::isEHFrame() const noexcept {
 #else
   return false;
 #endif
+}
+
+bool SectionIterator::isVirtual() const noexcept {
+  auto *S = reinterpret_cast<const llvm::object::section_iterator *>(Ref);
+  return (*S)->isVirtual();
 }
 
 #if WASMEDGE_OS_WINDOWS

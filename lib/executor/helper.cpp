@@ -64,7 +64,9 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
   // For the exception handler, remove the inactive handlers caused by the
   // branches.
-  StackMgr.removeInactiveHandler(RetIt - 1);
+  if (likely(RetIt)) {
+    StackMgr.removeInactiveHandler(RetIt - 1);
+  }
 
   if (Func.isHostFunction()) {
     // Host function case: Push args and call function.

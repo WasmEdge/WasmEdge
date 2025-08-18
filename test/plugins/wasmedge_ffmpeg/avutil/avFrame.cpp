@@ -266,32 +266,6 @@ TEST_F(FFmpegTest, AVFrame) {
     EXPECT_EQ(Result[0].get<int32_t>(), 1);
   }
 
-  FuncInst = AVUtilMod->findFuncExports(
-      "wasmedge_ffmpeg_avutil_av_frame_coded_picture_number");
-  auto &HostAVFrameCodedPictureNumber = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameCodedPictureNumber &>(
-      FuncInst->getHostFunc());
-
-  {
-    HostAVFrameCodedPictureNumber.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
-        Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 0);
-  }
-
-  FuncInst = AVUtilMod->findFuncExports(
-      "wasmedge_ffmpeg_avutil_av_frame_display_picture_number");
-  auto &HostAVFrameDisplayPictureNumber = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFrameDisplayPictureNumber &>(
-      FuncInst->getHostFunc());
-
-  {
-    HostAVFrameDisplayPictureNumber.run(
-        CallFrame, std::initializer_list<WasmEdge::ValVariant>{AVFrameId},
-        Result);
-    EXPECT_EQ(Result[0].get<int32_t>(), 0);
-  }
-
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_frame_repeat_pict");
   auto &HostAVFrameRepeatPict =

@@ -65,33 +65,29 @@ IFStream::~IFStream() {
 bool IFStream::is_open() const noexcept {
   if (UseWASI) {
     return IsOpen;
-  } else {
-    return StdStream.is_open();
   }
+  return StdStream.is_open();
 }
 
 bool IFStream::good() const noexcept {
   if (UseWASI) {
     return !HasError;
-  } else {
-    return StdStream.good();
   }
+  return StdStream.good();
 }
 
 bool IFStream::eof() const noexcept {
   if (UseWASI) {
     return IsEof;
-  } else {
-    return StdStream.eof();
   }
+  return StdStream.eof();
 }
 
 bool IFStream::fail() const noexcept {
   if (UseWASI) {
     return HasError;
-  } else {
-    return StdStream.fail();
   }
+  return StdStream.fail();
 }
 
 IFStream &IFStream::read(char *Buffer, std::streamsize Count) {
@@ -141,14 +137,13 @@ std::streamsize IFStream::readsome(char *Buffer, std::streamsize Count) {
     }
 
     return NRead;
-  } else {
-    std::streamsize Result = StdStream.readsome(Buffer, Count);
-    if (StdStream.fail()) {
-      setError();
-      return 0;
-    }
-    return Result;
   }
+  std::streamsize Result = StdStream.readsome(Buffer, Count);
+  if (StdStream.fail()) {
+    setError();
+    return 0;
+  }
+  return Result;
 }
 
 int IFStream::get() {
@@ -174,13 +169,12 @@ int IFStream::get() {
     }
 
     return static_cast<unsigned char>(C);
-  } else {
-    int C = StdStream.get();
-    if (StdStream.fail() && !StdStream.eof()) {
-      setError();
-    }
-    return C;
   }
+  int C = StdStream.get();
+  if (StdStream.fail() && !StdStream.eof()) {
+    setError();
+  }
+  return C;
 }
 
 IFStream &IFStream::getline(std::string &Line, char Delim) {
@@ -191,15 +185,8 @@ IFStream &IFStream::getline(std::string &Line, char Delim) {
     while ((C = get()) != EOF && C != Delim) {
       Line += static_cast<char>(C);
     }
-
-    if (C == EOF && Line.empty()) {
-      setError();
-    }
   } else {
     std::getline(StdStream, Line, Delim);
-    if (StdStream.fail() && !StdStream.eof()) {
-      setError();
-    }
   }
 
   return *this;
@@ -226,14 +213,13 @@ std::streampos IFStream::tellg() {
     }
 
     return static_cast<std::streampos>(Pos);
-  } else {
-    std::streampos Pos = StdStream.tellg();
-    if (StdStream.fail()) {
-      setError();
-      return -1;
-    }
-    return Pos;
   }
+  std::streampos Pos = StdStream.tellg();
+  if (StdStream.fail()) {
+    setError();
+    return -1;
+  }
+  return Pos;
 }
 
 IFStream &IFStream::seekg(std::streampos Pos) {
@@ -372,25 +358,22 @@ OFStream::~OFStream() {
 bool OFStream::is_open() const noexcept {
   if (UseWASI) {
     return IsOpen;
-  } else {
-    return StdStream.is_open();
   }
+  return StdStream.is_open();
 }
 
 bool OFStream::good() const noexcept {
   if (UseWASI) {
     return !HasError;
-  } else {
-    return StdStream.good();
   }
+  return StdStream.good();
 }
 
 bool OFStream::fail() const noexcept {
   if (UseWASI) {
     return HasError;
-  } else {
-    return StdStream.fail();
   }
+  return StdStream.fail();
 }
 
 OFStream &OFStream::write(const char *Buffer, std::streamsize Count) {
@@ -466,14 +449,13 @@ std::streampos OFStream::tellp() {
     }
 
     return static_cast<std::streampos>(Pos);
-  } else {
-    std::streampos Pos = StdStream.tellp();
-    if (StdStream.fail()) {
-      setError();
-      return -1;
-    }
-    return Pos;
   }
+  std::streampos Pos = StdStream.tellp();
+  if (StdStream.fail()) {
+    setError();
+    return -1;
+  }
+  return Pos;
 }
 
 OFStream &OFStream::seekp(std::streampos Pos) {

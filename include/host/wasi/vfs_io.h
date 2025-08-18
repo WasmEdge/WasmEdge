@@ -26,8 +26,8 @@ namespace FStream {
 
 class WASMEDGE_VFS_EXPORT IFStream {
 public:
-  IFStream(const Host::WASI::Environ *WASIEnv,
-           const std::string_view &FileName) noexcept;
+  IFStream(const std::string_view FileName,
+           const Host::WASI::Environ *WASIEnv = nullptr) noexcept;
   ~IFStream();
   IFStream(const IFStream &) = delete;
   IFStream &operator=(const IFStream &) = delete;
@@ -66,10 +66,10 @@ private:
 
 class WASMEDGE_VFS_EXPORT OFStream {
 public:
-  OFStream(const Host::WASI::Environ *WASIEnv,
-           const std::string_view &FileName) noexcept;
-  OFStream(const Host::WASI::Environ *WASIEnv, const std::string_view &FileName,
-           std::ios_base::openmode Mode) noexcept;
+  OFStream(const std::string_view FileName,
+           const Host::WASI::Environ *WASIEnv = nullptr) noexcept;
+  OFStream(const std::string_view FileName, std::ios_base::openmode Mode,
+           const Host::WASI::Environ *WASIEnv) noexcept;
   ~OFStream();
   OFStream(const OFStream &) = delete;
   OFStream &operator=(const OFStream &) = delete;

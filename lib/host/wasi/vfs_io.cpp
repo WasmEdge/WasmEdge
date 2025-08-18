@@ -12,8 +12,8 @@
 namespace WasmEdge {
 namespace FStream {
 
-IFStream::IFStream(const Host::WASI::Environ *WASIEnv,
-                   const std::string_view &FileName) noexcept
+IFStream::IFStream(const std::string_view FileName,
+                   const Host::WASI::Environ *WASIEnv) noexcept
     : Fd(0), IsOpen(false), HasError(false), IsEof(false),
       UseWASI(WASIEnv != nullptr) {
 
@@ -313,13 +313,13 @@ void IFStream::close() {
   }
 }
 
-OFStream::OFStream(const Host::WASI::Environ *WASIEnv,
-                   const std::string_view &FileName) noexcept
-    : OFStream(WASIEnv, FileName, std::ios::out) {}
+OFStream::OFStream(const std::string_view FileName,
+                   const Host::WASI::Environ *WASIEnv) noexcept
+    : OFStream(FileName, std::ios::out, WASIEnv) {}
 
-OFStream::OFStream(const Host::WASI::Environ *WASIEnv,
-                   const std::string_view &FileName,
-                   std::ios_base::openmode Mode) noexcept
+OFStream::OFStream(const std::string_view FileName,
+                   std::ios_base::openmode Mode,
+                   const Host::WASI::Environ *WASIEnv) noexcept
     : Fd(0), IsOpen(false), HasError(false), ChunkSize(64 * 1024),
       UseWASI(WASIEnv != nullptr) {
 

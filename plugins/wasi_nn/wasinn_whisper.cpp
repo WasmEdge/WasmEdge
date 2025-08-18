@@ -78,7 +78,7 @@ estimateDiarizationSpeaker(const std::vector<std::vector<float>> PCMF32s,
 bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
                const std::string &Fname, const Config &Params,
                const std::vector<std::vector<float>> &PCMF32s) {
-  WasmEdge::FStream::OFStream Fout(Env.getEnv(), Fname);
+  WasmEdge::FStream::OFStream Fout(Fname, Env.getEnv());
   if (!Fout.is_open()) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
@@ -107,7 +107,7 @@ bool outputSrt(WasiNNEnvironment &Env, whisper_context *Ctx,
 static bool outputLrc(WasiNNEnvironment &Env, whisper_context *Ctx,
                       const std::string &Fname, const Config &Params,
                       const std::vector<std::vector<float>> &PCMF32s) {
-  WasmEdge::FStream::OFStream Fout(Env.getEnv(), Fname);
+  WasmEdge::FStream::OFStream Fout(Fname, Env.getEnv());
   if (!Fout.is_open()) {
     spdlog::error("[WASI-NN] Whisper backend: failed to open {} for writing."sv,
                   Fname);
@@ -161,7 +161,7 @@ std::string escapeDoubleQuotesAndBackslashes(const std::string &Str) {
 bool outputJson(WasiNNEnvironment &Env, whisper_context *Ctx,
                 const std::string &Fname, const Config &Params,
                 const std::vector<std::vector<float>> &PCMF32s, bool Full) {
-  WasmEdge::FStream::OFStream Fout(Env.getEnv(), Fname);
+  WasmEdge::FStream::OFStream Fout(Fname, Env.getEnv());
   int Indent = 0;
 
   auto Doindent = [&]() {

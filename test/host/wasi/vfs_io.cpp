@@ -33,7 +33,7 @@ TEST_F(VfsIoTest, IFStreamBasicRead) {
   OutFile << "Hello, World!" << std::endl;
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "test.txt");
+  WasmEdge::FStream::IFStream Stream("test.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
   EXPECT_FALSE(Stream.fail());
   EXPECT_FALSE(Stream.eof());
@@ -53,7 +53,7 @@ TEST_F(VfsIoTest, IFStreamReadMethod) {
   OutFile << "Test data for reading";
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "test.txt");
+  WasmEdge::FStream::IFStream Stream("test.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   char Buffer[20];
@@ -69,7 +69,7 @@ TEST_F(VfsIoTest, IFStreamReadsomeMethod) {
   OutFile << "Sample text for readsome test";
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "test.txt");
+  WasmEdge::FStream::IFStream Stream("test.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   char Buffer[50];
@@ -86,7 +86,7 @@ TEST_F(VfsIoTest, IFStreamGetMethod) {
   OutFile << "ABC";
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "test.txt");
+  WasmEdge::FStream::IFStream Stream("test.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   int FirstChar = Stream.get();
@@ -109,7 +109,7 @@ TEST_F(VfsIoTest, IFStreamGetlineWithCustomDelimiter) {
   OutFile << "Line1;Line2;Line3";
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "test.txt");
+  WasmEdge::FStream::IFStream Stream("test.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   std::string Line1, Line2, Line3;
@@ -129,7 +129,7 @@ TEST_F(VfsIoTest, IFStreamGetlineReturnValue) {
   OutFile << "Single line";
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "test.txt");
+  WasmEdge::FStream::IFStream Stream("test.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   std::string Line = Stream.getline();
@@ -143,7 +143,7 @@ TEST_F(VfsIoTest, IFStreamNumericOperators) {
   OutFile << "42 3.14 100 2.718";
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "numeric.txt");
+  WasmEdge::FStream::IFStream Stream("numeric.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   int IntValue;
@@ -166,7 +166,7 @@ TEST_F(VfsIoTest, IFStreamStringOperator) {
   OutFile << "Hello World Test";
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "test.txt");
+  WasmEdge::FStream::IFStream Stream("test.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   std::string Word1, Word2, Word3;
@@ -185,7 +185,7 @@ TEST_F(VfsIoTest, IFStreamPositionOperations) {
   OutFile << "0123456789";
   OutFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "seektest.txt");
+  WasmEdge::FStream::IFStream Stream("seektest.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   std::streampos InitialPos = Stream.tellg();
@@ -213,7 +213,7 @@ TEST_F(VfsIoTest, IFStreamPositionOperations) {
 
 // Basic OFStream Tests
 TEST_F(VfsIoTest, OFStreamBasicWrite) {
-  WasmEdge::FStream::OFStream Stream(&TestEnv, "output.txt");
+  WasmEdge::FStream::OFStream Stream("output.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
   EXPECT_FALSE(Stream.fail());
   EXPECT_TRUE(Stream.good());
@@ -230,7 +230,7 @@ TEST_F(VfsIoTest, OFStreamBasicWrite) {
 }
 
 TEST_F(VfsIoTest, OFStreamWriteMethod) {
-  WasmEdge::FStream::OFStream Stream(&TestEnv, "output.txt");
+  WasmEdge::FStream::OFStream Stream("output.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   const char *Data = "Binary data test";
@@ -244,7 +244,7 @@ TEST_F(VfsIoTest, OFStreamWriteMethod) {
 }
 
 TEST_F(VfsIoTest, OFStreamPutMethod) {
-  WasmEdge::FStream::OFStream Stream(&TestEnv, "output.txt");
+  WasmEdge::FStream::OFStream Stream("output.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   Stream.put('A').put('B').put('C');
@@ -257,7 +257,7 @@ TEST_F(VfsIoTest, OFStreamPutMethod) {
 }
 
 TEST_F(VfsIoTest, OFStreamFlushMethod) {
-  WasmEdge::FStream::OFStream Stream(&TestEnv, "output.txt");
+  WasmEdge::FStream::OFStream Stream("output.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   Stream << "Test data";
@@ -268,7 +268,7 @@ TEST_F(VfsIoTest, OFStreamFlushMethod) {
 }
 
 TEST_F(VfsIoTest, OFStreamNumericOperators) {
-  WasmEdge::FStream::OFStream Stream(&TestEnv, "numeric.txt");
+  WasmEdge::FStream::OFStream Stream("numeric.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   int IntValue = 42;
@@ -288,7 +288,7 @@ TEST_F(VfsIoTest, OFStreamNumericOperators) {
 
 // OFStream Position Operations
 TEST_F(VfsIoTest, OFStreamPositionOperations) {
-  WasmEdge::FStream::OFStream Stream(&TestEnv, "output.txt");
+  WasmEdge::FStream::OFStream Stream("output.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   std::streampos InitialPos = Stream.tellp();
@@ -310,7 +310,7 @@ TEST_F(VfsIoTest, OFStreamPositionOperations) {
 }
 
 TEST_F(VfsIoTest, OFStreamSeekOperations) {
-  WasmEdge::FStream::OFStream Stream(&TestEnv, "output.txt");
+  WasmEdge::FStream::OFStream Stream("output.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   Stream << "0123456789";
@@ -331,7 +331,7 @@ TEST_F(VfsIoTest, OFStreamSeekOperations) {
 }
 
 TEST_F(VfsIoTest, IFStreamNonExistentFile) {
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "non_existent_file.txt");
+  WasmEdge::FStream::IFStream Stream("non_existent_file.txt", &TestEnv);
   EXPECT_FALSE(Stream.is_open());
   EXPECT_TRUE(Stream.fail());
   EXPECT_FALSE(Stream.good());
@@ -342,7 +342,7 @@ TEST_F(VfsIoTest, IFStreamEmptyFile) {
   std::ofstream EmptyFile("empty.txt");
   EmptyFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "empty.txt");
+  WasmEdge::FStream::IFStream Stream("empty.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
   EXPECT_FALSE(Stream.eof());
 
@@ -360,7 +360,7 @@ TEST_F(VfsIoTest, IFStreamLargeFile) {
   }
   LargeFile.close();
 
-  WasmEdge::FStream::IFStream Stream(&TestEnv, "large.txt");
+  WasmEdge::FStream::IFStream Stream("large.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   std::string FirstLine;
@@ -374,7 +374,7 @@ TEST_F(VfsIoTest, IFStreamLargeFile) {
 }
 
 TEST_F(VfsIoTest, OFStreamLargeWrite) {
-  WasmEdge::FStream::OFStream Stream(&TestEnv, "large.txt");
+  WasmEdge::FStream::OFStream Stream("large.txt", &TestEnv);
   EXPECT_TRUE(Stream.is_open());
 
   Stream.setChunkSize(10);
@@ -392,14 +392,14 @@ TEST_F(VfsIoTest, OFStreamLargeWrite) {
 
 // Binary Data Tests
 TEST_F(VfsIoTest, BinaryDataHandling) {
-  WasmEdge::FStream::OFStream OutStream(&TestEnv, "binary.dat");
+  WasmEdge::FStream::OFStream OutStream("binary.dat", &TestEnv);
   EXPECT_TRUE(OutStream.is_open());
 
   const char BinaryData[] = {0x01, 0x02, 0x00, 0x03, 0x04};
   OutStream.write(BinaryData, sizeof(BinaryData));
   OutStream.close();
 
-  WasmEdge::FStream::IFStream InStream(&TestEnv, "binary.dat");
+  WasmEdge::FStream::IFStream InStream("binary.dat", &TestEnv);
   EXPECT_TRUE(InStream.is_open());
 
   char ReadBuffer[5];
@@ -414,7 +414,7 @@ TEST_F(VfsIoTest, BinaryDataHandling) {
 
 // Multiple Operations Test
 TEST_F(VfsIoTest, MultipleOperations) {
-  WasmEdge::FStream::OFStream OutStream(&TestEnv, "output.txt");
+  WasmEdge::FStream::OFStream OutStream("output.txt", &TestEnv);
   EXPECT_TRUE(OutStream.is_open());
 
   OutStream << "First line\n";
@@ -422,7 +422,7 @@ TEST_F(VfsIoTest, MultipleOperations) {
   OutStream.write(" Second part", 12);
   OutStream.close();
 
-  WasmEdge::FStream::IFStream InStream(&TestEnv, "output.txt");
+  WasmEdge::FStream::IFStream InStream("output.txt", &TestEnv);
   EXPECT_TRUE(InStream.is_open());
 
   std::string FirstLine;
@@ -442,13 +442,13 @@ TEST_F(VfsIoTest, MultipleOperations) {
 
 // Non-WASI mode tests
 TEST_F(VfsIoTest, NonWasiMode) {
-  WasmEdge::FStream::OFStream OutStream(nullptr, "output.txt");
+  WasmEdge::FStream::OFStream OutStream("output.txt", nullptr);
   EXPECT_TRUE(OutStream.is_open());
 
   OutStream << "Non-WASI test";
   OutStream.close();
 
-  WasmEdge::FStream::IFStream InStream(nullptr, "output.txt");
+  WasmEdge::FStream::IFStream InStream("output.txt", nullptr);
   EXPECT_TRUE(InStream.is_open());
 
   std::string Content;

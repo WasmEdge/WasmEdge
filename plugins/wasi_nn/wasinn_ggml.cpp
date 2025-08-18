@@ -1980,7 +1980,7 @@ std::string processTTSPromptText(const std::string &Text) {
 
 std::optional<TTSSpeakerProfile>
 getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
-  WasmEdge::FStream::IFStream JsonFile(Env.getEnv(), FilePath);
+  WasmEdge::FStream::IFStream JsonFile(FilePath, Env.getEnv());
   if (!JsonFile.is_open()) {
     return std::nullopt;
   }
@@ -2587,7 +2587,7 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
 
   // Save .wav file if path is provided.
   if (!GraphRef.TTSOutputFilePath.empty()) {
-    WasmEdge::FStream::OFStream File(Env.getEnv(), GraphRef.TTSOutputFilePath);
+    WasmEdge::FStream::OFStream File(GraphRef.TTSOutputFilePath, Env.getEnv());
     if (!File) {
       RET_ERROR(ErrNo::RuntimeError,
                 "codesToSpeech: Failed to open file '{}' for writing"sv,
@@ -2702,8 +2702,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // TODO: pass the model directly to ggml.
     // Write ggml model to file.
     GraphRef.Params.model.path = "ggml-model.bin"sv;
-    WasmEdge::FStream::OFStream TempFile(Env.getEnv(),
-                                         GraphRef.Params.model.path);
+    WasmEdge::FStream::OFStream TempFile(GraphRef.Params.model.path,
+                                         Env.getEnv());
     if (!TempFile) {
       Env.deleteGraph(GId);
       RET_ERROR(ErrNo::InvalidArgument,

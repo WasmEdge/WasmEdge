@@ -50,6 +50,16 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -stat
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 
+# LLVM configuration for cross-compilation
+set(LLVM_TARGET_ARCH riscv64)
+set(LLVM_DEFAULT_TARGET_TRIPLE "riscv64-linux-gnu")
+
+# Ensure we can find LLVM tools for cross-compilation
+find_program(LLVM_CONFIG_EXECUTABLE NAMES llvm-config-15 llvm-config)
+if(LLVM_CONFIG_EXECUTABLE)
+    message(STATUS "Found LLVM config: ${LLVM_CONFIG_EXECUTABLE}")
+endif()
+
 # Set pkg-config for cross-compilation if available
 find_program(RISCV64_PKG_CONFIG 
     NAMES riscv64-linux-gnu-pkg-config

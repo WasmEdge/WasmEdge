@@ -1,6 +1,4 @@
 #!/bin/bash
-# SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: 2024 WasmEdge Contributors
 
 # Script to set up RISC-V cross-compilation environment for WasmEdge CI
 # This script installs the necessary toolchain and dependencies for cross-compiling
@@ -33,11 +31,17 @@ log "Setting up RISC-V cross-compilation environment..."
 
 # Update package lists
 log "Updating package lists..."
-sudo apt-get update -q -y
+# Determine if sudo is required/available
+SUDO_CMD=""
+if command_exists sudo && [[ $(id -u) -ne 0 ]]; then
+    SUDO_CMD="sudo"
+fi
+
+${SUDO_CMD} apt-get update -q -y
 
 # Install RISC-V toolchain
 log "Installing RISC-V cross-compilation toolchain..."
-sudo apt-get install -q -y \
+${SUDO_CMD} apt-get install -q -y \
     gcc-riscv64-linux-gnu \
     g++-riscv64-linux-gnu \
     libc6-dev-riscv64-cross
@@ -60,22 +64,36 @@ fi
 
 # Install other required dependencies
 log "Installing additional build dependencies..."
-sudo apt-get install -q -y \
+${SUDO_CMD} apt-get install -q -y \
     git \
     cmake \
     dpkg \
     software-properties-common \
     llvm-15-dev \
     liblld-15-dev \
+    libllvm15 \
+    llvm-15-tools \
+    libpolly-15-dev \
     zlib1g-dev \
     wabt
 
 # Verify critical packages
-critical_packages=("gcc-riscv64-linux-gnu" "g++-riscv64-linux-gnu" "cmake" "wabt")
+critical_packages=("gcc-riscv64-linux-gnu" "g++-riscv64-linux-gnu" "cmake" "wabt" "llvm-15-dev")
 for package in "${critical_packages[@]}"; do
     if ! verify_package "$package"; then
         log "Critical package $package verification failed"
         exit 1
+    fi
+done
+
+# Verify LLVM tools are available
+log "Verifying LLVM tools..."
+llvm_tools=("llvm-config-15" "llc-15" "opt-15")
+for tool in "${llvm_tools[@]}"; do
+    if command_exists "$tool"; then
+        log "✓ Found LLVM tool: $tool"
+    else
+        log "⚠ LLVM tool not found: $tool (may cause AOT compilation issues)"
     fi
 done
 

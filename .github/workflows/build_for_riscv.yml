@@ -95,6 +95,21 @@ jobs:
         fi
         # Copy examples for testing
         cp -r examples riscv64-artifacts/
+        
+        # Copy test data required by unit tests
+        echo "Copying test data for unit tests..."
+        # Copy the spec test suite from the build directory where it's downloaded
+        if [ -d "build/test/spec" ]; then
+          cp -r build/test/spec riscv64-artifacts/ || true
+        else
+          echo "Warning: spec test suite not found in build directory"
+        fi
+        # Copy loader test data
+        mkdir -p riscv64-artifacts/test/loader || true
+        cp -r test/loader/filemgrTestData riscv64-artifacts/test/loader/ || true
+        # Copy API test data
+        cp -r test/api/apiTestData riscv64-artifacts/ || true
+        
         # Create a manifest file for debugging
         find riscv64-artifacts -type f -executable > riscv64-artifacts/executable_files.txt
         
@@ -112,5 +127,8 @@ jobs:
           apt-get install -q -y wabt coreutils timeout # For WASM tools and test utilities
         run: |
           cd /workplace
+          # Set up environment for proper library path propagation
+          export LD_LIBRARY_PATH="/workplace/riscv64-artifacts/lib:${LD_LIBRARY_PATH:-}"
+          # Make test script executable and run tests
           chmod +x utils/test-riscv-qemu.sh
-          ./utils/test-riscv-qemu.sh
+          ./utils/test-riscv-qemu.sh /workplace/riscv64-artifacts

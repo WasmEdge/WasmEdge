@@ -330,6 +330,31 @@ SymlinkPriviledgeHolder SymlinkPriviledgeHolder::Holder;
 
 } // namespace
 
+namespace {
+static WasiExpect<winapi::HANDLE_> getWindowsHandle(int32_t Fd) {
+
+  if (Fd < 0) {
+    spdlog::error("    Invalid file descriptor: {}"sv, Fd);
+    return WasiUnexpect(__WASI_ERRNO_BADF);
+  }
+
+  auto Raw = _get_osfhandle(Fd);
+  if (Raw == -1) {
+    spdlog::error("    Invalid file descriptor {}: _get_osfhandle failed"sv,
+                  Fd);
+    return WasiUnexpect(__WASI_ERRNO_BADF);
+  }
+
+  auto Handle = reinterpret_cast<winapi::HANDLE_>(Raw);
+  if (Handle == winapi::INVALID_HANDLE_VALUE_) {
+    spdlog::error("    Invalid handle for FD {}: got INVALID_HANDLE_VALUE"sv,
+                  Fd);
+    return WasiUnexpect(__WASI_ERRNO_BADF);
+  }
+  return Handle;
+}
+} // namespace
+
 HandleHolder::HandleHolder(const std::filesystem::path &Path,
                            const DWORD_ AccessFlags, const DWORD_ ShareFlags,
                            const DWORD_ CreationDisposition,
@@ -652,6 +677,11 @@ INode INode::stdOut() noexcept {
 
 INode INode::stdErr() noexcept {
   return INode(GetStdHandle(STD_ERROR_HANDLE_), true);
+}
+
+WasiExpect<INode> INode::fromFd(int32_t Fd) {
+  EXPECTED_TRY(auto Handle, getWindowsHandle(Fd));
+  return INode(Handle, true);
 }
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,

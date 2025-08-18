@@ -52,6 +52,8 @@ public:
                                         __wasi_rights_t FRI);
   static std::shared_ptr<VINode> stdErr(__wasi_rights_t FRB,
                                         __wasi_rights_t FRI);
+  static WasiExpect<std::shared_ptr<VINode>>
+  fromFd(int32_t Fd, __wasi_rights_t FRB, __wasi_rights_t FRI);
 
   static std::string canonicalGuest(std::string_view Path);
 

@@ -250,9 +250,6 @@ WasmEdgeFFmpegAVCodecModule::WasmEdgeFFmpegAVCodecModule(
               std::make_unique<AVCodecCtxAudioServiceType>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_has_b_frames",
               std::make_unique<AVCodecCtxHasBFrames>(Env));
-  addHostFunc(
-      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_request_channel_layout",
-      std::make_unique<AVCodecCtxSetRequestChannelLayout>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_active_thread_type",
               std::make_unique<AVCodecCtxActiveThreadType>(Env));
   addHostFunc("wasmedge_ffmpeg_avcodec_avcodeccontext_set_thread_type",

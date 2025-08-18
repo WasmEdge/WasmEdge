@@ -450,11 +450,13 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
       if (Section.getSize() == 0) {
         continue;
       }
-      std::vector<char> Content;
-      if (auto Res = Section.getContents(); unlikely(Res.empty())) {
-        assumingUnreachable();
-      } else {
-        Content.assign(Res.begin(), Res.end());
+      std::vector<char> Content(Section.getSize());
+      if (!Section.isVirtual()) {
+        if (auto Res = Section.getContents(); unlikely(Res.empty())) {
+          assumingUnreachable();
+        } else {
+          Content.assign(Res.begin(), Res.end());
+        }
       }
       if (Section.isEHFrame() || Section.isPData()) {
         WriteByte(OS, UINT8_C(4));

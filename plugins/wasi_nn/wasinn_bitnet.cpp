@@ -70,6 +70,19 @@ void llamaLogCallback(ggml_log_level LogLevel, const char *LogText,
 
 // >>>>>>>> Metadata related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+// Helper function to parse comma-separated string into vector.
+void stringToList(const std::string &Raw, std::vector<int> &Out) {
+  std::string Copy = Raw;
+  std::replace(Copy.begin(), Copy.end(), ',', ' ');
+  std::stringstream SS(Copy);
+  Out.clear();
+  while (SS.good()) {
+    int TmpInt;
+    SS >> TmpInt;
+    Out.push_back(TmpInt);
+  }
+}
+
 // Parse metadata from json.
 ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                     const std::string &Metadata, bool *IsModelUpdated = nullptr,
@@ -133,6 +146,9 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   if (Doc.at_key("tensor-split").error() == simdjson::SUCCESS) {
     // The TensorSplit is a comma-separated list of non-negative values.
     // E.g., "3,2" presents 60% of the data to GPU 0 and 40% to GPU 1.
+
+    // helper function `stringToList` cannot be used here since tensor-split
+    // needs a fixed-size array with validation checks.
     std::string_view TSV;
     auto Err = Doc["tensor-split"].get<std::string_view>().get(TSV);
     if (Err) {
@@ -162,7 +178,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
   if (Doc.at_key("embedding").error() == simdjson::SUCCESS) {
-
     auto Err = Doc["embedding"].get<bool>().get(GraphRef.Params.embedding);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
@@ -220,9 +235,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t NKeep;
     auto Err = Doc["n-keep"].get<int64_t>().get(NKeep);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the n-keep option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-keep option."sv)
     }
     GraphRef.Params.n_keep = static_cast<int32_t>(NKeep);
   }
@@ -230,9 +244,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t NChunks;
     auto Err = Doc["n-chunks"].get<int64_t>().get(NChunks);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the n-chunks option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-chunks option."sv)
     }
     GraphRef.Params.n_chunks = static_cast<int32_t>(NChunks);
   }
@@ -240,9 +253,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t NParallel;
     auto Err = Doc["n-parallel"].get<int64_t>().get(NParallel);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the n-parallel option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-parallel option."sv)
     }
     GraphRef.Params.n_parallel = static_cast<int32_t>(NParallel);
   }
@@ -250,9 +262,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t NSequences;
     auto Err = Doc["n-sequences"].get<int64_t>().get(NSequences);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the n-sequences option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-sequences option."sv)
     }
     GraphRef.Params.n_sequences = static_cast<int32_t>(NSequences);
   }
@@ -260,9 +271,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t GrpAttnN;
     auto Err = Doc["grp-attn-n"].get<int64_t>().get(GrpAttnN);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the grp-attn-n option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the grp-attn-n option."sv)
     }
     GraphRef.Params.grp_attn_n = static_cast<int32_t>(GrpAttnN);
   }
@@ -270,9 +280,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t GrpAttnW;
     auto Err = Doc["grp-attn-w"].get<int64_t>().get(GrpAttnW);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the grp-attn-w option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the grp-attn-w option."sv)
     }
     GraphRef.Params.grp_attn_w = static_cast<int32_t>(GrpAttnW);
   }
@@ -280,9 +289,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t NPrint;
     auto Err = Doc["n-print"].get<int64_t>().get(NPrint);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the n-print option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-print option."sv)
     }
     GraphRef.Params.n_print = static_cast<int32_t>(NPrint);
   }
@@ -290,9 +298,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     double RopeFreqBase;
     auto Err = Doc["rope-freq-base"].get<double>().get(RopeFreqBase);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the rope-freq-base option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the rope-freq-base option."sv)
     }
     GraphRef.Params.rope_freq_base = static_cast<float>(RopeFreqBase);
   }
@@ -300,9 +307,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     double RopeFreqScale;
     auto Err = Doc["rope-freq-scale"].get<double>().get(RopeFreqScale);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the rope-freq-scale option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the rope-freq-scale option."sv)
     }
     GraphRef.Params.rope_freq_scale = static_cast<float>(RopeFreqScale);
   }
@@ -310,9 +316,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     double YarnExtFactor;
     auto Err = Doc["yarn-ext-factor"].get<double>().get(YarnExtFactor);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the yarn-ext-factor option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the yarn-ext-factor option."sv)
     }
     GraphRef.Params.yarn_ext_factor = static_cast<float>(YarnExtFactor);
   }
@@ -320,9 +325,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     double YarnAttnFactor;
     auto Err = Doc["yarn-attn-factor"].get<double>().get(YarnAttnFactor);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the yarn-attn-factor option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the yarn-attn-factor option."sv)
     }
     GraphRef.Params.yarn_attn_factor = static_cast<float>(YarnAttnFactor);
   }
@@ -330,9 +334,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     double YarnBetaFast;
     auto Err = Doc["yarn-beta-fast"].get<double>().get(YarnBetaFast);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the yarn-beta-fast option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the yarn-beta-fast option."sv)
     }
     GraphRef.Params.yarn_beta_fast = static_cast<float>(YarnBetaFast);
   }
@@ -340,9 +343,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     double YarnBetaSlow;
     auto Err = Doc["yarn-beta-slow"].get<double>().get(YarnBetaSlow);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the yarn-beta-slow option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the yarn-beta-slow option."sv)
     }
     GraphRef.Params.yarn_beta_slow = static_cast<float>(YarnBetaSlow);
   }
@@ -350,9 +352,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t YarnOrigCtx;
     auto Err = Doc["yarn-orig-ctx"].get<int64_t>().get(YarnOrigCtx);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the yarn-orig-ctx option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the yarn-orig-ctx option."sv)
     }
     GraphRef.Params.yarn_orig_ctx = static_cast<int32_t>(YarnOrigCtx);
   }
@@ -360,9 +361,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     double DefragThold;
     auto Err = Doc["defrag-thold"].get<double>().get(DefragThold);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the defrag-thold option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the defrag-thold option."sv)
     }
     GraphRef.Params.defrag_thold = static_cast<float>(DefragThold);
   }
@@ -370,18 +370,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     auto Err =
         Doc["mask-valid"].get<bool>().get(GraphRef.Params.cpuparams.mask_valid);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the mask-valid option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the mask-valid option."sv)
     }
   }
   if (Doc.at_key("priority").error() == simdjson::SUCCESS) {
     int64_t Priority;
     auto Err = Doc["priority"].get<int64_t>().get(Priority);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the priority option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the priority option."sv)
     }
     GraphRef.Params.cpuparams.priority =
         static_cast<ggml_sched_priority>(Priority);
@@ -390,18 +388,15 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     auto Err =
         Doc["strict-cpu"].get<bool>().get(GraphRef.Params.cpuparams.strict_cpu);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the strict-cpu option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the strict-cpu option."sv)
     }
   }
   if (Doc.at_key("poll").error() == simdjson::SUCCESS) {
     int64_t Poll;
     auto Err = Doc["poll"].get<int64_t>().get(Poll);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the poll option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the poll option."sv)
     }
     GraphRef.Params.cpuparams.poll = static_cast<int32_t>(Poll);
   }
@@ -409,18 +404,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     auto Err = Doc["mask-valid-batch"].get<bool>().get(
         GraphRef.Params.cpuparams_batch.mask_valid);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the mask-valid-batch option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the mask-valid-batch option."sv)
     }
   }
   if (Doc.at_key("priority-batch").error() == simdjson::SUCCESS) {
     int64_t Priority;
     auto Err = Doc["priority-batch"].get<int64_t>().get(Priority);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the priority-batch option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the priority-batch option."sv)
     }
     GraphRef.Params.cpuparams_batch.priority =
         static_cast<ggml_sched_priority>(Priority);
@@ -429,18 +422,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     auto Err = Doc["strict-cpu-batch"].get<bool>().get(
         GraphRef.Params.cpuparams_batch.strict_cpu);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the strict-cpu-batch option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the strict-cpu-batch option."sv)
     }
   }
   if (Doc.at_key("poll-batch").error() == simdjson::SUCCESS) {
     int64_t Poll;
     auto Err = Doc["poll-batch"].get<int64_t>().get(Poll);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the poll-batch option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the poll-batch option."sv)
     }
     GraphRef.Params.cpuparams_batch.poll = static_cast<int32_t>(Poll);
   }
@@ -448,9 +439,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t Numa;
     auto Err = Doc["numa"].get<int64_t>().get(Numa);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the numa option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the numa option."sv)
     }
     GraphRef.Params.numa = static_cast<ggml_numa_strategy>(Numa);
   }
@@ -458,9 +447,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t RopeScalingType;
     auto Err = Doc["rope-scaling-type"].get<int64_t>().get(RopeScalingType);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the rope-scaling-type option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the rope-scaling-type option."sv)
     }
     GraphRef.Params.rope_scaling_type =
         static_cast<llama_rope_scaling_type>(RopeScalingType);
@@ -469,9 +457,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t PoolingType;
     auto Err = Doc["pooling-type"].get<int64_t>().get(PoolingType);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the pooling-type option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the pooling-type option."sv)
     }
     GraphRef.Params.pooling_type =
         static_cast<enum llama_pooling_type>(PoolingType);
@@ -480,9 +467,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     int64_t AttentionType;
     auto Err = Doc["attention-type"].get<int64_t>().get(AttentionType);
     if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the attention-type option."sv);
-      return ErrNo::InvalidArgument;
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the attention-type option."sv)
     }
     GraphRef.Params.attention_type =
         static_cast<llama_attention_type>(AttentionType);
@@ -658,7 +644,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     auto Err = Doc["mirostat-ent"].get<double>().get(MirostatEnt);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the mirostat-ent option."sv);
+                "Unable to retrieve the mirostat-ent option."sv)
     }
     GraphRef.Params.sparams.mirostat_tau = static_cast<float>(MirostatEnt);
   }
@@ -1346,25 +1332,28 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
   if (Doc.at_key("n-pp").error() == simdjson::SUCCESS) {
-    int64_t NPP;
-    auto Err = Doc["n-pp"].get<int64_t>().get(NPP);
+    std::string_view NPP;
+    auto Err = Doc["n-pp"].get<std::string_view>().get(NPP);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the n-pp option."sv)
     }
+    stringToList(std::string(NPP), GraphRef.Params.n_pp);
   }
   if (Doc.at_key("n-tg").error() == simdjson::SUCCESS) {
-    int64_t NTG;
-    auto Err = Doc["n-tg"].get<int64_t>().get(NTG);
+    std::string_view NTG;
+    auto Err = Doc["n-tg"].get<std::string_view>().get(NTG);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the n-tg option."sv)
     }
+    stringToList(std::string(NTG), GraphRef.Params.n_tg);
   }
   if (Doc.at_key("n-pl").error() == simdjson::SUCCESS) {
-    int64_t NPL;
-    auto Err = Doc["n-pl"].get<int64_t>().get(NPL);
+    std::string_view NPL;
+    auto Err = Doc["n-pl"].get<std::string_view>().get(NPL);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument, "Unable to retrieve the n-pl option."sv)
     }
+    stringToList(std::string(NPL), GraphRef.Params.n_pl);
   }
   if (Doc.at_key("context-files").error() == simdjson::SUCCESS) {
     std::string_view ContextFiles;
@@ -1381,6 +1370,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the chunk-size option."sv)
     }
+    GraphRef.Params.chunk_size = static_cast<int32_t>(ChunkSize);
   }
   if (Doc.at_key("chunk-separator").error() == simdjson::SUCCESS) {
     std::string_view ChunkSeparator;
@@ -1390,6 +1380,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the chunk-separator option."sv)
     }
+    GraphRef.Params.chunk_separator = ChunkSeparator;
   }
   if (Doc.at_key("n-junk").error() == simdjson::SUCCESS) {
     int64_t NJunk;
@@ -1398,6 +1389,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the n-junk option."sv)
     }
+    GraphRef.Params.n_junk = static_cast<int32_t>(NJunk);
   }
   if (Doc.at_key("i-pos").error() == simdjson::SUCCESS) {
     int64_t IPos;
@@ -1406,14 +1398,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the i-pos option."sv)
     }
-  }
-  if (Doc.at_key("out-file").error() == simdjson::SUCCESS) {
-    std::string_view OutFile;
-    auto Err = Doc["out-file"].get<std::string_view>().get(OutFile);
-    if (Err) {
-      RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the out-file option."sv)
-    }
+    GraphRef.Params.i_pos = static_cast<int32_t>(IPos);
   }
   if (Doc.at_key("n-out-freq").error() == simdjson::SUCCESS) {
     int64_t NOutFreq;
@@ -1422,6 +1407,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the n-out-freq option."sv)
     }
+    GraphRef.Params.n_out_freq = static_cast<int32_t>(NOutFreq);
   }
   if (Doc.at_key("n-save-freq").error() == simdjson::SUCCESS) {
     int64_t NSaveFreq;
@@ -1430,6 +1416,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the n-save-freq option."sv)
     }
+    GraphRef.Params.n_save_freq = static_cast<int32_t>(NSaveFreq);
   }
   if (Doc.at_key("i-chunk").error() == simdjson::SUCCESS) {
     int64_t IChunk;
@@ -1438,6 +1425,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the i-chunk option."sv)
     }
+    GraphRef.Params.i_chunk = static_cast<int32_t>(IChunk);
   }
   if (Doc.at_key("process-output").error() == simdjson::SUCCESS) {
     auto Err =
@@ -1461,6 +1449,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the n-pca-batch option."sv)
     }
+    GraphRef.Params.n_pca_batch = static_cast<int32_t>(NPCABatch);
   }
   if (Doc.at_key("n-pca-iterations").error() == simdjson::SUCCESS) {
     int64_t NPCAIterations;
@@ -1469,6 +1458,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the n-pca-iterations option."sv)
     }
+    GraphRef.Params.n_pca_iterations = static_cast<int32_t>(NPCAIterations);
   }
   if (Doc.at_key("cvector-dimre-method").error() == simdjson::SUCCESS) {
     std::string_view CVectorDimreMethod;
@@ -1477,6 +1467,15 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the cvector-dimre-method option."sv)
+    }
+    if (CVectorDimreMethod == "pca") {
+      GraphRef.Params.cvector_dimre_method = DIMRE_METHOD_PCA;
+    } else if (CVectorDimreMethod == "mean") {
+      GraphRef.Params.cvector_dimre_method = DIMRE_METHOD_MEAN;
+    } else {
+      RET_ERROR(
+          ErrNo::InvalidArgument,
+          "Invalid value for cvector-dimre-method: must be 'pca' or 'mean'."sv)
     }
   }
   if (Doc.at_key("cvector-outfile").error() == simdjson::SUCCESS) {
@@ -1487,6 +1486,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the cvector-outfile option."sv)
     }
+    GraphRef.Params.cvector_outfile = CVectorOutfile;
   }
   if (Doc.at_key("cvector-positive-file").error() == simdjson::SUCCESS) {
     std::string_view CVectorPositiveFile;
@@ -1496,6 +1496,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the cvector-positive-file option."sv)
     }
+    GraphRef.Params.cvector_positive_file = CVectorPositiveFile;
   }
   if (Doc.at_key("cvector-negative-file").error() == simdjson::SUCCESS) {
     std::string_view CVectorNegativeFile;
@@ -1505,6 +1506,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the cvector-negative-file option."sv)
     }
+    GraphRef.Params.cvector_negative_file = CVectorNegativeFile;
   }
   if (Doc.at_key("spm-infill").error() == simdjson::SUCCESS) {
     auto Err = Doc["spm-infill"].get<bool>().get(GraphRef.Params.spm_infill);
@@ -1518,7 +1520,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     auto Err = Doc["out-file"].get<std::string_view>().get(Outfile);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "Unable to retrieve the outfile option."sv)
+                "Unable to retrieve the out-file option."sv)
     }
     GraphRef.Params.out_file = Outfile;
   }

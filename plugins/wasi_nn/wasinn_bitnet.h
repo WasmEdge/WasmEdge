@@ -20,23 +20,23 @@ namespace WasmEdge::Host::WASINN::BitNet {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
 
 struct LlamaModelDeleter {
-  void operator()(llama_model *ptr) const {
-    if (ptr) {
-      llama_free_model(ptr);
+  void operator()(llama_model *Ptr) const {
+    if (Ptr) {
+      llama_free_model(Ptr);
     }
   }
 };
 struct LlamaContextDeleter {
-  void operator()(llama_context *ptr) const {
-    if (ptr) {
-      llama_free(ptr);
+  void operator()(llama_context *Ptr) const {
+    if (Ptr) {
+      llama_free(Ptr);
     }
   }
 };
 struct CommonSamplerDeleter {
-  void operator()(common_sampler *ptr) const {
-    if (ptr) {
-      common_sampler_free(ptr);
+  void operator()(common_sampler *Ptr) const {
+    if (Ptr) {
+      common_sampler_free(Ptr);
     }
   }
 };

@@ -490,7 +490,12 @@ static LLVM::Value toLLVMConstantZero(LLVM::Context LLContext,
   case TypeCode::I64:
     return LLVM::Value::getConstNull(LLContext.getInt64Ty());
   case TypeCode::Ref:
-  case TypeCode::RefNull:
+  case TypeCode::RefNull: {
+    std::array<uint8_t, 16> Data{};
+    const auto Raw = ValType.getRawData();
+    std::copy(Raw.begin(), Raw.end(), Data.begin());
+    return LLVM::Value::getConstVector8(LLContext, Data);
+  }
   case TypeCode::V128:
     return LLVM::Value::getConstNull(
         LLVM::Type::getVectorType(LLContext.getInt64Ty(), 2));

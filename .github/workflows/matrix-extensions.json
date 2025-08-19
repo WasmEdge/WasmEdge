@@ -31,7 +31,7 @@
             ]
         },
         {
-            "plugin": "wasi_nn-hip",
+            "plugin": "wasi_nn-ggml-hip",
             "bin": "libwasmedgePluginWasiNN",
             "dir": "wasi_nn",
             "target": "wasmedgePluginWasiNN",
@@ -311,7 +311,7 @@
             "bin": "libwasmedgePluginWasmEdgeZlib",
             "dir": "wasmedge_zlib",
             "target": "wasmedgePluginWasmEdgeZlib",
-            "testBin": "wasmedgeZLibTests",
+            "testBin": "wasmedgeZlibTests",
             "options": "-DWASMEDGE_PLUGIN_ZLIB=ON",
             "platforms": [
                 "manylinux_2_28_x86_64",

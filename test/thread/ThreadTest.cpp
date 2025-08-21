@@ -261,13 +261,14 @@ TEST(AOTAsyncExecute, ThreadTest) {
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
-      AsyncResults[Index] = VM.asyncExecute(
-          "mt19937",
-          std::initializer_list<WasmEdge::ValVariant>{
-              UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::ValType(WasmEdge::TypeCode::I32),
-           WasmEdge::ValType(WasmEdge::TypeCode::I64),
-           WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+      AsyncResults[Index] =
+          VM.asyncExecute("mt19937",
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              UINT32_C(2504) * static_cast<uint32_t>(Index),
+                              UINT64_C(5489), UINT64_C(100000) + Index},
+                          {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                           WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                           WasmEdge::ValType(WasmEdge::TypeCode::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();
@@ -314,13 +315,14 @@ TEST(AOTAsyncExecute, GasThreadTest) {
                4>
         AsyncResults;
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
-      AsyncResults[Index] = VM.asyncExecute(
-          "mt19937",
-          std::initializer_list<WasmEdge::ValVariant>{
-              UINT32_C(2504) * Index, UINT64_C(5489), UINT64_C(100000) + Index},
-          {WasmEdge::ValType(WasmEdge::TypeCode::I32),
-           WasmEdge::ValType(WasmEdge::TypeCode::I64),
-           WasmEdge::ValType(WasmEdge::TypeCode::I64)});
+      AsyncResults[Index] =
+          VM.asyncExecute("mt19937",
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              UINT32_C(2504) * static_cast<uint32_t>(Index),
+                              UINT64_C(5489), UINT64_C(100000) + Index},
+                          {WasmEdge::ValType(WasmEdge::TypeCode::I32),
+                           WasmEdge::ValType(WasmEdge::TypeCode::I64),
+                           WasmEdge::ValType(WasmEdge::TypeCode::I64)});
     }
     for (uint64_t Index = 0; Index < Answers.size(); ++Index) {
       auto Result = AsyncResults[Index].get();

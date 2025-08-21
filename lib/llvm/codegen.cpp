@@ -361,6 +361,8 @@ Expect<void> outputWasmLibrary(LLVM::Context LLContext,
     WriteByte(OS, UINT8_C(3));
 #elif defined(__arm__) && __ARM_ARCH == 7
     WriteByte(OS, UINT8_C(4));
+#elif defined(__s390x__)
+    WriteByte(OS, UINT8_C(5));
 #else
 #error Unsupported hardware architecture!
 #endif

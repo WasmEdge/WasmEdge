@@ -21,7 +21,22 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
   template <Expect<RetT> (Executor::*Func)(Runtime::StackManager &,
                                            ArgsT...) noexcept>
   static auto proxy(ArgsT... Args) {
+#if defined(__s390x__)
+    // Required on s390x: materializing args prevents runtime failures in
+    // release builds.
+    auto Materialize = [](auto &&A) -> decltype(auto) {
+      using T = std::decay_t<decltype(A)>;
+      if constexpr (std::is_integral_v<T>) {
+        volatile T Tmp = A;
+        return Tmp;
+      } else {
+        return std::forward<decltype(A)>(A);
+      }
+    };
+    Expect<RetT> Res = (This->*Func)(*CurrentStack, Materialize(Args)...);
+#else
     Expect<RetT> Res = (This->*Func)(*CurrentStack, Args...);
+#endif
     if (unlikely(!Res)) {
       Fault::emitFault(Res.error());
     }

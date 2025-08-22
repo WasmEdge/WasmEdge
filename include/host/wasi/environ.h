@@ -886,7 +886,7 @@ public:
   ///
   /// @param[in] Path The path to check.
   /// @return File statistics or WASI error.
-  WasiExpect<__wasi_fileflags_t>
+  WasiExpect<__wasi_rights_t>
   pathGetStats(std::string_view Path) const noexcept;
 
   /// Acquire a Poller for concurrently poll for the occurrence of a set of

@@ -190,31 +190,32 @@ WasiExpect<bool> Environ::pathCanWrite(std::string_view Path) const noexcept {
   return WasiUnexpect(Result.error());
 }
 
-WasiExpect<__wasi_fileflags_t>
+WasiExpect<__wasi_rights_t>
 Environ::pathGetStats(std::string_view Path) const noexcept {
-  __wasi_fileflags_t Flags = __wasi_fileflags_t::__WASI_FILEFLAGS_NONE;
+  __wasi_rights_t Rights = static_cast<__wasi_rights_t>(0);
   auto StatResult = pathExists(Path);
   if (StatResult.error()) {
     return WasiUnexpect(StatResult.error());
   }
   if (StatResult) {
-    Flags |= __WASI_FILEFLAGS_EXIST;
+    // File exists, so we can get file stats
+    Rights |= __WASI_RIGHTS_PATH_FILESTAT_GET;
   }
   StatResult = pathCanRead(Path);
   if (StatResult.error()) {
     return WasiUnexpect(StatResult.error());
   }
   if (StatResult) {
-    Flags |= __WASI_FILEFLAGS_READ;
+    Rights |= __WASI_RIGHTS_FD_READ;
   }
   StatResult = pathCanWrite(Path);
   if (StatResult.error()) {
     return WasiUnexpect(StatResult.error());
   }
   if (StatResult) {
-    Flags |= __WASI_FILEFLAGS_WRITE;
+    Rights |= __WASI_RIGHTS_FD_WRITE;
   }
-  return Flags;
+  return Rights;
 }
 
 } // namespace WASI

@@ -593,25 +593,100 @@ main() {
 			[ -f "$__HOME__/.zprofile" ] && echo "$_source" >>"$__HOME__/.zprofile"
 		fi
 	elif [[ "$_shell_" =~ "bash" ]]; then
-		if [ -f "$__HOME__/.bash_profile" ]; then
-			# If .bash_profile already exists, use it (user intentionally created it)
-			local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
-			if [ "$_grep" = "" ]; then
-				echo "$_source" >> "$__HOME__/.bash_profile"
-			fi
-		else
-			# If .bash_profile doesn't exist, check if .profile exists
-			if [ -f "$__HOME__/.profile" ]; then
-				local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
-				if [ "$_grep" = "" ]; then
-					echo "$_source" >> "$__HOME__/.profile"
-				fi
-			else
-				# neither exists, create .profile (Ubuntu convention)
-				echo "$_source" >> "$__HOME__/.profile"
-			fi
-		fi
-	fi
+    case "$OS" in
+        'Linux')
+            if [[ -f /etc/os-release ]]; then
+                DISTRO_ID=$(grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"')
+                case "$DISTRO_ID" in
+                    'ubuntu'|'debian')
+                        # Ubuntu/Debian: prefer .profile unless user already has .bash_profile
+                        if [ -f "$__HOME__/.bash_profile" ]; then
+                            _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+                            if [ "$_grep" = "" ]; then
+                                echo "$_source" >> "$__HOME__/.bash_profile"
+                            fi
+                        else
+                            _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
+                            if [ "$_grep" = "" ]; then
+                                echo "$_source" >> "$__HOME__/.profile"
+                            fi
+                        fi
+                        ;;
+                    'rhel'|'centos'|'fedora'|'rocky'|'almalinux')
+                        # RHEL/Fedora family: always prefer .bash_profile
+                        if [ -f "$__HOME__/.bash_profile" ]; then
+                            _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+                            if [ "$_grep" = "" ]; then
+                                echo "$_source" >> "$__HOME__/.bash_profile"
+                            fi
+                        else
+                            echo "$_source" >> "$__HOME__/.bash_profile"
+                        fi
+                        ;;
+                    *)
+                        # Default: use preferred existing config, fallback to .profile
+                        if [ -f "$__HOME__/.bash_profile" ]; then
+                            _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+                            if [ "$_grep" = "" ]; then
+                                echo "$_source" >> "$__HOME__/.bash_profile"
+                            fi
+                        elif [ -f "$__HOME__/.profile" ]; then
+                            _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
+                            if [ "$_grep" = "" ]; then
+                                echo "$_source" >> "$__HOME__/.profile"
+                            fi
+                        else
+                            echo "$_source" >> "$__HOME__/.profile"
+                        fi
+                        ;;
+                esac
+            else
+                # If no /etc/os-release, use typical fallback behavior
+                if [ -f "$__HOME__/.bash_profile" ]; then
+                    _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+                    if [ "$_grep" = "" ]; then
+                        echo "$_source" >> "$__HOME__/.bash_profile"
+                    fi
+                elif [ -f "$__HOME__/.profile" ]; then
+                    _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
+                    if [ "$_grep" = "" ]; then
+                        echo "$_source" >> "$__HOME__/.profile"
+                    fi
+                else
+                    echo "$_source" >> "$__HOME__/.profile"
+                fi
+            fi
+            ;;
+        'Darwin')
+            # macOS: always use .bash_profile for login shells
+            if [ -f "$__HOME__/.bash_profile" ]; then
+                _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+                if [ "$_grep" = "" ]; then
+                    echo "$_source" >> "$__HOME__/.bash_profile"
+                fi
+            else
+                echo "$_source" >> "$__HOME__/.bash_profile"
+            fi
+            ;;
+        *)
+            # Unknown OS: fallback logic
+            if [ -f "$__HOME__/.bash_profile" ]; then
+                _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+                if [ "$_grep" = "" ]; then
+                    echo "$_source" >> "$__HOME__/.bash_profile"
+                fi
+            elif [ -f "$__HOME__/.profile" ]; then
+                _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
+                if [ "$_grep" = "" ]; then
+                    echo "$_source" >> "$__HOME__/.profile"
+                fi
+            else
+                echo "$_source" >> "$__HOME__/.profile"
+            fi
+            ;;
+    esac
+fi
+
 
 	local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
 	if [ "$_grep" = "" ]; then

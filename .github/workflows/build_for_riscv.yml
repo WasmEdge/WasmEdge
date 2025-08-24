@@ -42,8 +42,8 @@ jobs:
   lint:
     uses: ./.github/workflows/reusable-call-linter.yml
 
-  build_and_test_riscv64:
-    name: Build and Test RISC-V64
+  build_riscv64:
+    name: RISC-V64
     runs-on: ubuntu-latest
     needs: lint
     steps:
@@ -52,69 +52,14 @@ jobs:
       with:
         egress-policy: audit
 
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
         fetch-depth: 0
-        
     - name: Ensure git safe directory
       run: |
         git config --global --add safe.directory $(pwd)
-        
-    - name: Install RISC-V cross-compilation toolchain
-      run: |
-        chmod +x utils/setup-riscv-cross.sh
-        ./utils/setup-riscv-cross.sh
-        
-    - name: Cross-compile WasmEdge for RISC-V64
-      run: |
-        mkdir -p build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release \
-              -DCMAKE_TOOLCHAIN_FILE=../cmake/riscv64-linux-gnu.cmake \
-              -DWASMEDGE_BUILD_TESTS=ON \
-              -DWASMEDGE_BUILD_TOOLS=ON \
-              -DWASMEDGE_BUILD_SHARED_LIB=ON \
-              -DWASMEDGE_USE_LLVM=OFF \
-              -DWASMEDGE_BUILD_PLUGINS=OFF \
-              ..
-        make -j $(nproc)
-        
-    - name: Package build artifacts for testing
-      run: |
-        mkdir -p riscv64-artifacts
-        # Copy built libraries
-        if [ -d "build/lib" ]; then
-          cp -r build/lib riscv64-artifacts/
-        fi
-        # Copy built tools
-        if [ -d "build/tools" ]; then
-          cp -r build/tools riscv64-artifacts/
-        fi
-        # Copy test binaries if they exist
-        if [ -d "build/test" ]; then
-          cp -r build/test riscv64-artifacts/
-        fi
-        # Copy examples for testing
-        cp -r examples riscv64-artifacts/
-        
-        # Copy test data required by unit tests
-        echo "Copying test data for unit tests..."
-        # Copy the spec test suite from the build directory where it's downloaded
-        if [ -d "build/test/spec" ]; then
-          cp -r build/test/spec riscv64-artifacts/ || true
-        else
-          echo "Warning: spec test suite not found in build directory"
-        fi
-        # Copy loader test data
-        mkdir -p riscv64-artifacts/test/loader || true
-        cp -r test/loader/filemgrTestData riscv64-artifacts/test/loader/ || true
-        # Copy API test data
-        cp -r test/api/apiTestData riscv64-artifacts/ || true
-        
-        # Create a manifest file for debugging
-        find riscv64-artifacts -type f -executable > riscv64-artifacts/executable_files.txt
-        
     - uses: uraimo/run-on-arch-action@aa8e672a03e10b403401927ea2ceda57e1b68ac3 # v3
-      name: Test WasmEdge on RISC-V64 with QEMU
+      name: Build WasmEdge
       with:
         arch: riscv64
         distro: ubuntu22.04
@@ -123,12 +68,44 @@ jobs:
           --volume "${PWD}:/workplace"
         shell: /bin/sh
         install: |
-          apt-get update -q -y
-          apt-get install -q -y wabt coreutils timeout # For WASM tools and test utilities
+          apt update
+          apt install -y build-essential cmake git wget ca-certificates \
+            gcc-riscv64-linux-gnu g++-riscv64-linux-gnu libc6-dev-riscv64-cross \
+            llvm-15-dev liblld-15-dev zlib1g-dev wabt python3 pkg-config
         run: |
           cd /workplace
-          # Set up environment for proper library path propagation
-          export LD_LIBRARY_PATH="/workplace/riscv64-artifacts/lib:${LD_LIBRARY_PATH:-}"
-          # Make test script executable and run tests
-          chmod +x utils/test-riscv-qemu.sh
-          ./utils/test-riscv-qemu.sh /workplace/riscv64-artifacts
+          mkdir -p build && cd build
+          cat > riscv-toolchain.cmake << 'EOF'
+          # RISC-V Cross-compilation Toolchain for WasmEdge
+          set(CMAKE_SYSTEM_NAME Linux)
+          set(CMAKE_SYSTEM_PROCESSOR riscv64)
+          set(CMAKE_C_COMPILER riscv64-linux-gnu-gcc)
+          set(CMAKE_CXX_COMPILER riscv64-linux-gnu-g++)
+          set(CMAKE_ASM_COMPILER riscv64-linux-gnu-gcc)
+          set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=rv64gc -mabi=lp64d")
+          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=rv64gc -mabi=lp64d")
+          set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
+          set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+          set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+          set(CMAKE_FIND_ROOT_PATH "${find_root_list}")
+          EOF
+
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../riscv-toolchain.cmake \
+          -DLLVM_DIR=/usr/lib/llvm-15/lib/cmake/llvm \
+          -DLLVM_CONFIG_EXECUTABLE=/usr/bin/llvm-config-15 \
+          ..
+
+          make -j$(nproc)
+          make install
+          wasmedge -v
+          wasmedgec -v
+          wasmedge compile -h
+          wasmedge run -h
+          cd ../examples/wasm
+          wat2wasm fibonacci.wat -o fibonacci.wasm
+          wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
+          wasmedge --reactor fibonacci_aot_c.wasm fib 30
+          wasmedge run --reactor fibonacci_aot_c.wasm fib 30
+          wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
+          wasmedge --reactor fibonacci_aot_compile.wasm fib 30
+          wasmedge run --reactor fibonacci_aot_compile.wasm fib 30

@@ -3,7 +3,7 @@
 ARG ALPINE_VERSION=3.22
 
 ########################################
-# Stage 1: xx (cross-compilation tool)
+# Stage 1: Cross-compilation tool
 ########################################
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.2.1 AS xx
 
@@ -28,7 +28,11 @@ RUN apk add --no-cache \
     libffi-dev \
     curl \
     tar \
-    xz
+    xz \
+    zstd-dev \
+    zstd-static \
+    file \
+    python3
 
 WORKDIR /lld-build
 
@@ -38,33 +42,43 @@ WORKDIR /lld-build/llvm-project
 
 RUN cmake -B build \
     -G Ninja \
-    -DLLVM_ENABLE_PROJECTS="lld" \
+    -DLLVM_ENABLE_PROJECTS="clang;llvm;lld" \
     -DLLVM_TARGETS_TO_BUILD="X86;WebAssembly" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/lld-install \
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DLLVM_ENABLE_ASSERTIONS=OFF \
+    -DLLVM_INCLUDE_TOOLS=ON \
+    -DLLVM_TOOL_LLVM_AR_BUILD=ON \
+    -DLLVM_TOOL_LLVM_NM_BUILD=ON \
+    -DLLVM_TOOL_LLVM_RANLIB_BUILD=ON \
+    -DLLVM_TOOL_LLVM_TBLGEN_BUILD=ON \
+    -DLLVM_TOOL_LLVM_PROFDATA_BUILD=ON \
+    -DLLVM_TOOL_LTO_BUILD=ON \
+    -DLLVM_TOOL_BUGPOINT_BUILD=ON \
+    -DLLVM_TOOL_LLVM_BCANALYZER_BUILD=ON \
+    -DLLVM_TOOL_LLI_BUILD=ON \
+    -DLLVM_TOOL_LLI_BUILD=ON \
     llvm
 
 RUN cmake --build build --target install
+
+# Copy all built tools, even if not installed via 'install' target
+RUN find build/bin -type f -executable -exec cp -v {} /lld-install/bin/ \;
+
+# Confirm lli is present
+RUN test -f /lld-install/bin/lli || (echo "Error: lli not installed!" && false)
 
 ########################################
 # Stage 3: Alpine Static Image with LLD
 ########################################
 FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS alpine-static
 
-LABEL maintainer="you@example.com"
-LABEL description="Alpine ${ALPINE_VERSION} with LLD and static toolchain"
-
-COPY --from=xx / /
-
-# Install bash so we can use SHELL
+COPY --from=xx /usr/bin/xx* /usr/bin/
 RUN apk add --no-cache bash
 
-# Set bash for all future RUN commands
 SHELL ["bash", "-c"]
 
-# Install static toolchain and build dependencies
 RUN apk add --no-cache \
     cmake \
     samurai \
@@ -79,29 +93,120 @@ RUN apk add --no-cache \
     libc-dev \
     libffi-dev
 
-# Ensure destination lib dir exists
-RUN mkdir -p /usr/lib/llvm/lib
+RUN mkdir -p /usr/lib/llvm/lib /usr/lib/cmake/llvm $(xx-info sysroot)/usr/bin
 
-# Copy LLD static libraries and binaries from builder
-COPY --from=lld-builder /lld-install/lib/liblld*.a /usr/lib/llvm/lib/
-COPY --from=lld-builder /lld-install/bin/lld* /usr/bin/
+COPY --from=lld-builder /lld-install/lib/ /usr/lib/
+COPY --from=lld-builder /lld-install/bin/ /usr/bin/
+COPY --from=lld-builder /lld-install/lib/cmake/ /usr/lib/cmake/
+
+RUN if xx-info is-cross; then cp -f /usr/bin/* $(xx-info sysroot)/usr/bin/; fi
+
+# Copy libLTO shared libraries
+COPY --from=lld-builder /lld-install/lib/libLTO.so* /usr/lib/
+RUN if xx-info is-cross; then cp -f /usr/lib/libLTO.so* $(xx-info sysroot)/usr/lib/; fi
 
 # Patch LLVMConfig for proper sysroot awareness
 RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake || true
 
-# Add xx-toolchain shortcut script
+# Add xx-toolchain helper
+# CRITICAL CHANGES:
+# - Set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER to use xx-clang directly.
+# - Add CMAKE_FIND_ROOT_PATH_MODE_* to ensure CMake only searches within the sysroot.
+# - Add CMAKE_*_COMPILER_FORCED to prevent problematic compiler probes.
 RUN cat <<'EOT' > /usr/bin/xx-toolchain && chmod +x /usr/bin/xx-toolchain
 #!/bin/bash
 mkdir -p /etc/xx-toolchains/
-TOOLCHAIN_FILE="/etc/xx-toolchains/$(xx-info triple).cmake"
-if [ ! -f "$TOOLCHAIN_FILE" ]; then
-  xx-clang --cmake-toolchain "$TOOLCHAIN_FILE"
-fi
+TOOLCHAIN_FILE="/etc/xx-toolchains/$(xx-clang --print-target-triple).cmake"
+[ -f "$TOOLCHAIN_FILE" ] || cat <<EOF > "$TOOLCHAIN_FILE"
+set(CMAKE_CROSSCOMPILING ON)
+set(CMAKE_SYSROOT "$(xx-info sysroot)")
+set(CMAKE_SYSTEM_NAME "Linux")
+set(CMAKE_SYSTEM_VERSION 1)
+set(CMAKE_SYSTEM_PROCESSOR "$(xx-info march)")
+set(CMAKE_C_COMPILER "$(which xx-clang)")
+set(CMAKE_CXX_COMPILER "$(which xx-clang++)")
+set(CMAKE_ASM_COMPILER "$(which xx-clang)")
+set(CMAKE_AR "$(which ar)")
+set(CMAKE_RANLIB "$(which ranlib)")
+set(PKG_CONFIG_EXECUTABLE "$(xx-clang --print-prog-name=pkg-config)")
+set(CMAKE_C_COMPILER_TARGET "$(xx-clang --print-target-triple)")
+set(CMAKE_CXX_COMPILER_TARGET "$(xx-clang --print-target-triple)")
+set(CMAKE_ASM_COMPILER_TARGET "$(xx-clang --print-target-triple)")
+
+# Crucial additions for robust cross-compilation with CMake
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+set(CMAKE_C_COMPILER_FORCED TRUE)
+set(CMAKE_CXX_COMPILER_FORCED TRUE)
+EOF
 echo "$TOOLCHAIN_FILE"
 EOT
 
-# Optional: Working directory if you plan to mount source code
-WORKDIR /src
+########################################
+# Stage 4: wasmedge-build with sysroot & include fixes
+########################################
+FROM alpine-static AS wasmedge-build
 
-# Optional: Default command
+ARG TARGETPLATFORM
+ARG ALPINE_VERSION
+
+WORKDIR /src
+SHELL ["bash", "-c"]
+
+# Host tools
+RUN apk add --no-cache \
+    curl \
+    tar \
+    git \
+    ninja \
+    bash \
+    cmake \
+    zstd-dev \
+    zstd-static
+
+# Standard headers into sysroot
+# Corrected package name: using 'g++' instead of 'g++-dev' for Alpine
+RUN xx-apk add musl-dev libc-dev g++
+
+# Fake dsymutil for CMake sanity
+RUN ln -sf /bin/true /usr/bin/dsymutil
+
+# Optional sanity check for stdlib.h
+RUN test -f "$(xx-info sysroot)/usr/include/stdlib.h" || (echo "stdlib.h not found in sysroot!" && false)
+# Also check for C++ headers to ensure the new package was installed correctly
+RUN test -f "$(xx-info sysroot)/usr/include/c++/$(ls "$(xx-info sysroot)"/usr/include/c++/)/cstdlib" || (echo "C++ cstdlib header not found in sysroot!" && false)
+
+# CMake with explicit sysroot & include path flags
+# CRITICAL CHANGE: Removed all explicit CMAKE_C_FLAGS and CMAKE_CXX_FLAGS,
+# relying entirely on xx-toolchain and xx-clang to manage include paths.
+RUN --mount=type=bind,target=/src,source=. \
+    # GCC_TRIPLE and GCC_VERSION variables are not directly used in CMAKE_CXX_FLAGS anymore,
+    # but could be useful for debugging or other specific needs if re-introduced.
+    GCC_TRIPLE=$(ls -d "$(xx-info sysroot)"/usr/lib/gcc/* | xargs basename) && \
+    GCC_VERSION=$(ls -d "$(xx-info sysroot)"/usr/lib/gcc/"${GCC_TRIPLE}"/* | xargs basename) && \
+    cmake -S /src -B /build -G Ninja \
+        -DCMAKE_BUILD_TYPE=MinSizeRel \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_INSTALL_PREFIX="/install" \
+        -DCMAKE_TOOLCHAIN_FILE="$(xx-toolchain)" \
+        -DCMAKE_PREFIX_PATH="$(xx-info sysroot)/usr/lib/cmake/llvm" \
+        -DWASMEDGE_BUILD_PACKAGE="TGZ" \
+        -DWASMEDGE_USE_LLVM=ON \
+        -DWASMEDGE_BUILD_STATIC_LIB=ON \
+        -DWASMEDGE_BUILD_TESTS=OFF \
+        -DWASMEDGE_BUILD_SHARED_LIB=OFF \
+        -DWASMEDGE_BUILD_TOOLS=OFF \
+        -DWASMEDGE_BUILD_PLUGINS=OFF \
+        -DWASMEDGE_BUILD_EXAMPLE=OFF \
+        -DWASMEDGE_LINK_LLVM_STATIC=ON \
+        -DWASMEDGE_LINK_TOOLS_STATIC=ON \
+        -DWASMEDGE_DISABLE_LIBTINFO=ON
+
+# Build and install
+RUN --mount=type=bind,target=/src,source=. \
+    cmake --build /build -- install package
+
+WORKDIR /src
 CMD ["/bin/bash"]

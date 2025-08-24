@@ -142,6 +142,32 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
     GraphRef.Params.n_gpu_layers = static_cast<int32_t>(NGPULayers);
   }
+  if (Doc.at_key("cpu-moe").error() == simdjson::SUCCESS) {
+    bool CpuMoe;
+    auto Err = Doc["cpu-moe"].get<bool>().get(CpuMoe);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the cpu-moe option."sv)
+    }
+    if (CpuMoe) {
+      GraphRef.TensorBuftOverrides.push_back("\\.ffn_(up|down|gate)_exps");
+    }
+  }
+  if (Doc.at_key("n-cpu-moe").error() == simdjson::SUCCESS) {
+    int64_t NCpuMoe;
+    auto Err = Doc["n-cpu-moe"].get<int64_t>().get(NCpuMoe);
+    if (Err) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Unable to retrieve the n-cpu-moe option."sv)
+    }
+    if (NCpuMoe < 0) {
+      RET_ERROR(ErrNo::InvalidArgument, "Invalid n-cpu-moe value."sv)
+    }
+    for (int I = 0; I < NCpuMoe; I++) {
+      GraphRef.TensorBuftOverrides.push_back(
+          string_format("blk\\.%d\\.ffn_(up|down|gate)_exps", I));
+    }
+  }
   if (Doc.at_key("tensor-split").error() == simdjson::SUCCESS) {
     // The TensorSplit is a comma-separated list of non-negative values.
     // E.g., "3,2" presents 60% of the data to GPU 0 and 40% to GPU 1.
@@ -1745,6 +1771,15 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
 
+  // The tensor buffer overrides should terminated with empty pattern.
+  if (!GraphRef.TensorBuftOverrides.empty()) {
+    for (const std::string &Override : GraphRef.TensorBuftOverrides) {
+      GraphRef.Params.tensor_buft_overrides.push_back(
+          {Override.c_str(), ggml_backend_cpu_buffer_type()});
+    }
+    GraphRef.Params.tensor_buft_overrides.push_back({nullptr, nullptr});
+  }
+
   if (GraphRef.TextToSpeech) {
     GraphRef.Params.sampling.top_k = 4;
     GraphRef.Params.sampling.samplers = {
@@ -2616,7 +2651,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Initialize the plugin parameters.
   GraphRef.EnableLog = false;
   GraphRef.EnableDebugLog = false;
-  const common_params CommonParamsDefault;
+  common_params CommonParamsDefault;
+  CommonParamsDefault.lr.init();
   GraphRef.Params = CommonParamsDefault;
   GraphRef.Params.n_keep = 0;
   GraphRef.Params.n_chunks = -1;
@@ -2630,34 +2666,6 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Params.n_gpu_layers = ModelParamsDefault.n_gpu_layers;
   GraphRef.Params.mmproj.path = ""sv;
   GraphRef.Params.warmup = false;
-  // Initialize the context parameters.
-  llama_context_params ContextParamsDefault = llama_context_default_params();
-  GraphRef.Params.cpuparams.n_threads = ContextParamsDefault.n_threads;
-  GraphRef.Params.n_ctx = ContextParamsDefault.n_ctx;
-  GraphRef.Params.n_batch = ContextParamsDefault.n_batch;
-  GraphRef.Params.n_ubatch = ContextParamsDefault.n_ubatch;
-  GraphRef.Params.cpuparams.n_threads = ContextParamsDefault.n_threads_batch;
-  GraphRef.Params.cpuparams_batch.n_threads =
-      ContextParamsDefault.n_threads_batch;
-  GraphRef.Params.rope_scaling_type = ContextParamsDefault.rope_scaling_type;
-  GraphRef.Params.pooling_type = ContextParamsDefault.pooling_type;
-  GraphRef.Params.attention_type = ContextParamsDefault.attention_type;
-  GraphRef.Params.rope_freq_base = ContextParamsDefault.rope_freq_base;
-  GraphRef.Params.rope_freq_scale = ContextParamsDefault.rope_freq_scale;
-  GraphRef.Params.yarn_ext_factor = ContextParamsDefault.yarn_ext_factor;
-  GraphRef.Params.yarn_attn_factor = ContextParamsDefault.yarn_attn_factor;
-  GraphRef.Params.yarn_beta_fast = ContextParamsDefault.yarn_beta_fast;
-  GraphRef.Params.yarn_beta_slow = ContextParamsDefault.yarn_beta_slow;
-  GraphRef.Params.yarn_orig_ctx = ContextParamsDefault.yarn_orig_ctx;
-  GraphRef.Params.defrag_thold = ContextParamsDefault.defrag_thold;
-  GraphRef.Params.cb_eval = ContextParamsDefault.cb_eval;
-  GraphRef.Params.cb_eval_user_data = ContextParamsDefault.cb_eval_user_data;
-  GraphRef.Params.cache_type_k = ContextParamsDefault.type_k;
-  GraphRef.Params.cache_type_v = ContextParamsDefault.type_v;
-  GraphRef.Params.embedding = ContextParamsDefault.embeddings;
-  GraphRef.Params.no_kv_offload = !ContextParamsDefault.offload_kqv;
-  GraphRef.Params.flash_attn = ContextParamsDefault.flash_attn;
-  GraphRef.Params.no_perf = ContextParamsDefault.no_perf;
 
   // Initialize the sampling parameters.
   const common_params_sampling SamplerParamsDefault;
@@ -2666,7 +2674,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Conf.StreamStdout = false;
   GraphRef.Conf.EmbdNormalize =
       static_cast<EmbdNormalizeType>(CommonParamsDefault.embd_normalize);
-  GraphRef.Conf.NPredict = ContextParamsDefault.n_ctx;
+  GraphRef.Conf.NPredict = GraphRef.Params.n_ctx;
   GraphRef.Conf.ReversePrompt = ""sv;
   GraphRef.Conf.ImagePath = ""sv;
 
@@ -3323,6 +3331,11 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
     LOG_DEBUG(IsDebugLog, "unload: free TTS context"sv)
     GraphRef.TTSContext.reset();
     LOG_DEBUG(IsDebugLog, "unload: free TTS context...Done"sv)
+  }
+  if (!GraphRef.TensorBuftOverrides.empty()) {
+    LOG_DEBUG(IsDebugLog, "unload: free tensor buffer overrides"sv)
+    GraphRef.TensorBuftOverrides.clear();
+    LOG_DEBUG(IsDebugLog, "unload: free tensor buffer overrides...Done"sv)
   }
   Env.deleteGraph(GraphId);
   Env.mdRemoveById(GraphId);

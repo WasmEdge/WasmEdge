@@ -11,6 +11,7 @@
 
 namespace WasmEdge {
 namespace FStream {
+  using namespace std::literals;
 
 IFStream::IFStream(const std::string_view FileName,
                    const Host::WASI::Environ *WASIEnv) noexcept
@@ -40,7 +41,7 @@ IFStream::IFStream(const std::string_view FileName,
     } else {
       HasError = true;
       IsOpen = false;
-      spdlog::error("Failed to open file for reading: {}",
+      spdlog::error("Failed to open file for reading: {}"sv,
                     std::string(FileName));
     }
   } else {

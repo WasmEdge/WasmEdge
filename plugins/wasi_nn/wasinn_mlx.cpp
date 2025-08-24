@@ -203,6 +203,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
         return ErrNo::InvalidArgument;
       }
       TempFile.write(BinModel.data(), BinModel.size());
+      TempFile.close();
       if (GraphRef.EnableDebugLog) {
         spdlog::info(
             "[WASI-NN][Debug] MLX backend: Write model into a tmpfile...Done"sv);

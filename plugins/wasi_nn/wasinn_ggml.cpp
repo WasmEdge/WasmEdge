@@ -1986,6 +1986,7 @@ getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
   }
   nlohmann::json JsonData;
   JsonFile >> JsonData;
+  JsonFile.close();
 
   // Initialize the outputs
   std::string AudioOutputText = "<|audio_start|>\n";

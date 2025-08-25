@@ -638,10 +638,6 @@ function(wasmedge_setup_bitnet_target target)
 
     add_subdirectory(${bitnet_SOURCE_DIR} ${bitnet_BINARY_DIR})
 
-    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
-      target_compile_options(ggml PRIVATE -flax-vector-conversions)
-    endif()
-
     set_property(TARGET llama PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET common PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)

@@ -2389,7 +2389,7 @@ Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
 namespace {
 Expect<ErrNo> reportBackendNotSupported() noexcept {
   spdlog::error("[WASI-NN] BitNet backend is not built. Please build with "
-            "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET=ON."sv);
+                "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET=ON."sv);
   return ErrNo::InvalidArgument;
 }
 } // namespace

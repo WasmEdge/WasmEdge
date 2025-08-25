@@ -14,7 +14,7 @@
 #include <string_view>
 #include <vector>
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 #include <dirent.h>
 #include <sys/stat.h>
 #include <unordered_map>
@@ -40,7 +40,7 @@
 #if WASMEDGE_OS_LINUX
 #include <sys/epoll.h>
 #endif
-#if WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 #include <sys/event.h>
 #endif
 
@@ -48,7 +48,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WASI {
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 struct FdHolder {
   FdHolder(const FdHolder &) = delete;
   FdHolder &operator=(const FdHolder &) = delete;
@@ -334,7 +334,7 @@ enum class TriggerType {
 class Poller;
 
 class INode
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
     : public FdHolder
 #elif WASMEDGE_OS_WINDOWS
     : public HandleHolder
@@ -804,7 +804,7 @@ public:
 private:
   friend class Poller;
 
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
 public:
   using FdHolder::FdHolder;
 
@@ -830,7 +830,7 @@ private:
 
 class PollerContext;
 class Poller
-#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
     : public FdHolder
 #endif
 {
@@ -925,7 +925,7 @@ private:
   };
   std::vector<OptionalEvent> Events;
 
-#if WASMEDGE_OS_LINUX | WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_LINUX | WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
   struct FdData {
     OptionalEvent *ReadEvent = nullptr;
     OptionalEvent *WriteEvent = nullptr;
@@ -969,7 +969,7 @@ private:
   std::vector<struct epoll_event> EPollEvents;
 #endif
 
-#if WASMEDGE_OS_MACOS
+#if WASMEDGE_OS_MACOS || WASMEDGE_OS_FREEBSD
   std::vector<struct kevent> KEvents;
   uint64_t NextTimerId = 0;
 #endif

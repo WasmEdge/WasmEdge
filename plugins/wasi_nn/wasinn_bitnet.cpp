@@ -98,6 +98,10 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
 
   // Get the current llama parameters.
   int64_t PrevNGPULayers = GraphRef.Params.n_gpu_layers;
+  int64_t PrevMainGpu = GraphRef.Params.main_gpu;
+  int64_t PrevThreads = GraphRef.Params.cpuparams.n_threads;
+  bool PrevFlashAttn = GraphRef.Params.flash_attn;
+  int64_t PrevCtxSize = GraphRef.Params.n_ctx;
   bool PrevEmbedding = GraphRef.Params.embedding;
   // Get the current sampler parameters.
   double PrevTemp = GraphRef.Params.sparams.temp;
@@ -1534,12 +1538,16 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   }
 
   // Check if the model parameters are updated.
-  if (IsModelUpdated && PrevNGPULayers != GraphRef.Params.n_gpu_layers) {
+  if (IsModelUpdated && (PrevNGPULayers != GraphRef.Params.n_gpu_layers ||
+                         PrevMainGpu != GraphRef.Params.main_gpu)) {
     *IsModelUpdated = true;
   }
 
   // Check if the context parameters are updated.
-  if (IsContextUpdated && PrevEmbedding != GraphRef.Params.embedding) {
+  if (IsContextUpdated && (PrevCtxSize != GraphRef.Params.n_ctx ||
+                           PrevThreads != GraphRef.Params.cpuparams.n_threads ||
+                           PrevFlashAttn != GraphRef.Params.flash_attn ||
+                           PrevEmbedding != GraphRef.Params.embedding)) {
     *IsContextUpdated = true;
   }
 
@@ -2061,6 +2069,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       llama_model_params ModelParams = llama_model_default_params();
       ModelParams.n_gpu_layers =
           static_cast<int32_t>(GraphRef.Params.n_gpu_layers);
+      ModelParams.main_gpu = static_cast<int32_t>(GraphRef.Params.main_gpu);
 
       // Free all resources that depend on the old model.
       GraphRef.LlamaModel.reset();

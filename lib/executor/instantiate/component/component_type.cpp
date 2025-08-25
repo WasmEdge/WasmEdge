@@ -7,8 +7,7 @@ namespace WasmEdge {
 namespace Executor {
 
 Expect<void>
-Executor::instantiate(Runtime::StoreManager &,
-                      Runtime::Instance::ComponentInstance &CompInst,
+Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CoreTypeSection &CoreTypeSec) {
   for (auto &Ty : CoreTypeSec.getContent()) {
     CompInst.addCoreType(Ty);
@@ -17,8 +16,7 @@ Executor::instantiate(Runtime::StoreManager &,
 }
 
 Expect<void>
-Executor::instantiate(Runtime::StoreManager &,
-                      Runtime::Instance::ComponentInstance &CompInst,
+Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::TypeSection &TypeSec) {
   for (auto &Ty : TypeSec.getContent()) {
     CompInst.addType(Ty);

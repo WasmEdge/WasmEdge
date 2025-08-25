@@ -7,26 +7,22 @@ namespace WasmEdge {
 namespace Executor {
 
 using namespace std::literals;
-using namespace AST::Component;
 
 Expect<void>
-Executor::instantiate(Runtime::StoreManager &,
-                      Runtime::Instance::ComponentInstance &Comp,
+Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::StartSection &StartSec) {
   const auto &Start = StartSec.getContent();
 
   std::vector<ValInterface> Args;
   for (auto Idx : Start.getArguments()) {
-    Args.push_back(Comp.getValue(Idx));
+    Args.push_back(CompInst.getValue(Idx));
   }
 
-  auto *FuncInst = Comp.getFunctionInstance(Start.getFunctionIndex());
+  auto *FuncInst = CompInst.getFunction(Start.getFunctionIndex());
   const auto &FuncType = FuncInst->getFuncType();
   EXPECTED_TRY(auto ResultList,
                invoke(FuncInst, Args, FuncType.getParamTypes()));
-  auto Result = ResultList[0].first;
-  auto ResultIndex = Start.getResult();
-  Comp.setValue(ResultIndex, Result);
+  CompInst.setValue(Start.getResult(), ResultList[0].first);
   return {};
 }
 

@@ -6,7 +6,7 @@
 namespace WasmEdge {
 namespace Executor {
 
-// Instantiate module instance. See "include/executor/Executor.h".
+// Instantiate component module instance. See "include/executor/Executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 Executor::instantiate(Runtime::StoreManager &StoreMgr,
                       const AST::Component::Component &Comp,
@@ -17,17 +17,19 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
   for (const auto &Section : Comp.getSections()) {
     auto Func = [&](auto &&Sec) -> Expect<void> {
       using T = std::decay_t<decltype(Sec)>;
-      if constexpr (std::is_same_v<T, AST::Component::CoreModuleSection>) {
-        // TODO: not to copy the module AST
-        CompInst->addModule(Sec.getContent());
-      } else if constexpr (std::is_same_v<T,
-                                          AST::Component::ComponentSection>) {
-        // TODO: not to copy the component AST
-        CompInst->addComponent(Sec.getContent());
-      } else if constexpr (std::is_same_v<T, AST::CustomSection>) {
+      if constexpr (std::is_same_v<T, AST::CustomSection>) {
         // Do nothing to custom section.
+      } else if constexpr (std::is_same_v<T, AST::Component::ImportSection>) {
+        EXPECTED_TRY(
+            instantiate(StoreMgr, *CompInst, Sec).map_error([](auto E) {
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+              return E;
+            }));
       } else {
-        EXPECTED_TRY(instantiate(StoreMgr, *CompInst, Sec));
+        EXPECTED_TRY(instantiate(*CompInst, Sec).map_error([](auto E) {
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+          return E;
+        }));
       }
       return {};
     };
@@ -38,6 +40,44 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
     StoreMgr.registerComponent(CompInst.get());
   }
   return CompInst;
+}
+
+// Instantiate component module instance. See "include/executor/Executor.h".
+Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
+                      const AST::Component::Component &Comp) {
+  auto CompInst = std::make_unique<Runtime::Instance::ComponentInstance>("");
+
+  for (const auto &Section : Comp.getSections()) {
+    auto Func = [&](auto &&Sec) -> Expect<void> {
+      using T = std::decay_t<decltype(Sec)>;
+      if constexpr (std::is_same_v<T, AST::CustomSection>) {
+        // Do nothing to custom section.
+      } else if constexpr (std::is_same_v<T, AST::Component::ImportSection>) {
+        EXPECTED_TRY(
+            instantiate(ImportMgr, *CompInst, Sec).map_error([](auto E) {
+              spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+              return E;
+            }));
+      } else {
+        EXPECTED_TRY(instantiate(*CompInst, Sec).map_error([](auto E) {
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
+          return E;
+        }));
+      }
+      return {};
+    };
+    EXPECTED_TRY(std::visit(Func, Section));
+  }
+  return CompInst;
+}
+
+// Instantiate component section. See "include/executor/Executor.h".
+Expect<void>
+Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
+                      const AST::Component::ComponentSection &CompSec) {
+  CompInst.addComponent(CompSec.getContent());
+  return {};
 }
 
 } // namespace Executor

@@ -315,7 +315,7 @@ VM::unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
                   Span<const ValType> ParamTypes) {
   // Find exported function by name.
   Runtime::Instance::Component::FunctionInstance *FuncInst =
-      CompInst->findFuncExports(Func);
+      CompInst->findFunction(Func);
 
   // Execute function.
   return ExecutorEngine.invoke(FuncInst, Params, ParamTypes)

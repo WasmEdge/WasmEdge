@@ -2422,11 +2422,10 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &, uint32_t) noexcept {
 Expect<ErrNo> finiSingle(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
+Expect<ErrNo> unload(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
-Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept {
+Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &, uint32_t) noexcept {
   return reportBackendNotSupported();
 }
 

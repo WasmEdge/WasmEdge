@@ -4,6 +4,7 @@
 #pragma once
 
 #include "common/filesystem.h"
+#include "host/preview2/wasi-sockets/api.h"
 #include "host/wasi/error.h"
 #include "host/wasi/inode.h"
 #include "host/wasi/vfs.h"
@@ -663,6 +664,115 @@ public:
                                    uint16_t *PortPtr) const noexcept {
     return Node.sockGetPeerAddr(AddressFamilyPtr, Address, PortPtr);
   }
+
+  static WasiExpect<std::shared_ptr<VINode>>
+  sockOpenPV2(__wasi_sockets_ip_address_family_t SysDomain,
+              __wasi_sockets_type_t SockType);
+
+  WasiExpect<void>
+  sockBindPV2(const __wasi_sockets_ip_socket_address_t &Address) noexcept {
+    return Node.sockBindPV2(Address);
+  }
+
+  WasiExpect<void>
+  sockConnectPV2(const __wasi_sockets_ip_socket_address_t &Address) noexcept {
+    return Node.sockConnectPV2(Address);
+  }
+
+  WasiExpect<void>
+  sockGetLocalAddrPV2(__wasi_sockets_ip_socket_address_t &Address) noexcept {
+    return Node.sockGetLocalAddrPV2(Address);
+  }
+
+  WasiExpect<void>
+  sockGetPeerAddrPV2(__wasi_sockets_ip_socket_address_t &Address) noexcept {
+    return Node.sockGetPeerAddrPV2(Address);
+  }
+
+  WasiExpect<void> sockUDPDisconnect() noexcept {
+    return Node.sockUDPDisconnect();
+  }
+
+  WasiExpect<void> sockSetIPv6V6only(bool IsV6only) const noexcept {
+    return Node.sockSetIPv6V6only(IsV6only);
+  }
+
+  WasiExpect<uint8_t> sockGetIPTTL() const noexcept {
+    return Node.sockGetIPTTL();
+  }
+
+  WasiExpect<void> sockSetIPTTL(uint8_t TTL) const noexcept {
+    return Node.sockSetIPTTL(TTL);
+  }
+
+  WasiExpect<uint8_t> sockGetIPv6UnicastHops() const noexcept {
+    return Node.sockGetIPv6UnicastHops();
+  }
+
+  WasiExpect<void> sockSetIPv6UnicastHops(uint8_t TTL) const noexcept {
+    return Node.sockSetIPv6UnicastHops(TTL);
+  }
+
+  WasiExpect<uint64_t> sockGetRecvBufferSize() const noexcept {
+    return Node.sockGetRecvBufferSize();
+  }
+
+  WasiExpect<void> sockSetRecvBufferSize(uint64_t Size) const noexcept {
+    return Node.sockSetRecvBufferSize(Size);
+  }
+
+  WasiExpect<uint64_t> sockGetSendBufferSize() const noexcept {
+    return Node.sockGetSendBufferSize();
+  }
+
+  WasiExpect<void> sockSetSendBufferSize(uint64_t Size) const noexcept {
+    return Node.sockSetSendBufferSize(Size);
+  }
+
+  WasiExpect<uint32_t> sockGetKeepAlive() const noexcept {
+    return Node.sockGetKeepAlive();
+  }
+
+  WasiExpect<void> sockSetKeepAlive(uint64_t Size) const noexcept {
+    return Node.sockSetKeepAlive(Size);
+  }
+
+  WasiExpect<uint32_t> sockGetKeepIdle() const noexcept {
+    return Node.sockGetKeepIdle();
+  }
+
+  WasiExpect<void> sockSetKeepIdle(uint32_t Sec) const noexcept {
+    return Node.sockSetKeepIdle(Sec);
+  }
+
+  WasiExpect<uint32_t> sockGetAliveInterval() const noexcept {
+    return Node.sockGetAliveInterval();
+  }
+
+  WasiExpect<void> sockSetAliveInterval(uint32_t Sec) const noexcept {
+    return Node.sockSetAliveInterval(Sec);
+  }
+
+  WasiExpect<uint32_t> sockGetKeepAliveCount() const noexcept {
+    return Node.sockGetKeepAliveCount();
+  }
+
+  WasiExpect<void> sockSetKeepAliveCount(uint32_t Val) const noexcept {
+    return Node.sockSetKeepAliveCount(Val);
+  }
+
+  WasiExpect<void> sockShutdownPV2(__wasi_sdflags_t SdFlags) const noexcept {
+    return Node.sockShutdownPV2(SdFlags);
+  }
+
+  WasiExpect<void> sockRecvPV2(Span<uint8_t> Buffer,
+                               __wasi_size_t &NRead) const noexcept {
+    return Node.sockRecvPV2(Buffer, NRead);
+  }
+
+  static WasiExpect<void>
+  sockGetaddrinfoPV2(std::string_view String,
+                     std::vector<__wasi_sockets_ip_address_t> &Addresses);
 
   __wasi_rights_t fsRightsBase() const noexcept { return FsRightsBase; }
 

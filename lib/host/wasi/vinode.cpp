@@ -300,6 +300,32 @@ VINode::sockOpen(__wasi_address_family_t SysDomain,
 }
 
 WasiExpect<std::shared_ptr<VINode>>
+VINode::sockOpenPV2(__wasi_sockets_ip_address_family_t SysDomain,
+                    __wasi_sockets_type_t SockType) {
+  if (auto Res = INode::sockOpenPV2(SysDomain, SockType); unlikely(!Res)) {
+    return WasiUnexpect(Res);
+  } else {
+    __wasi_rights_t Rights =
+        __WASI_RIGHTS_SOCK_OPEN | __WASI_RIGHTS_SOCK_CLOSE |
+        __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
+        __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO |
+        __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_SOCK_BIND |
+        __WASI_RIGHTS_POLL_FD_READWRITE | __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS |
+        __WASI_RIGHTS_FD_READ | __WASI_RIGHTS_FD_WRITE;
+    return std::make_shared<VINode>(std::move(*Res), Rights, Rights);
+  }
+}
+
+WasiExpect<void> VINode::sockGetaddrinfoPV2(
+    std::string_view String,
+    std::vector<__wasi_sockets_ip_address_t> &Addresses) {
+  if (auto Res = INode::sockGetaddrinfoPV2(String, Addresses); unlikely(!Res)) {
+    return WasiUnexpect(Res);
+  }
+  return {};
+}
+
+WasiExpect<std::shared_ptr<VINode>>
 VINode::sockAccept(__wasi_fdflags_t FdFlags) {
   EXPECTED_TRY(auto NewNode, Node.sockAccept(FdFlags));
   __wasi_rights_t Rights =

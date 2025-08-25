@@ -1387,6 +1387,487 @@ INode::sockGetPeerAddr(__wasi_address_family_t *AddressFamilyPtr,
   }
 }
 
+/// PV2 functions
+
+// Convert __wasi_sockets_ip_socket_address_t to native socket address with
+// necessary endian conversion
+
+static VarAddrT
+sockAddressAssignHelper(const __wasi_sockets_ip_socket_address_t &Address) {
+  VarAddrT Addr;
+  if (Address.AddressFamily == __WASI_SOCKETS_IP_ADDRESS_FAMILY_IPv4) {
+    auto &ServerAddr4 = Addr.emplace<sockaddr_in>();
+    auto &IPv4Addr = Address.Val.IPv4;
+
+    ServerAddr4.sin_family = AF_INET;
+    ServerAddr4.sin_port = htons(IPv4Addr.Port);
+
+    assuming(sizeof(IPv4Addr.Address) == sizeof(in_addr));
+    std::memcpy(&ServerAddr4.sin_addr, &IPv4Addr.Address, sizeof(in_addr));
+  } else if (Address.AddressFamily == __WASI_SOCKETS_IP_ADDRESS_FAMILY_IPv6) {
+    auto &ServerAddr6 = Addr.emplace<sockaddr_in6>();
+    auto &IPv6Addr = Address.Val.IPv6;
+
+    ServerAddr6.sin6_family = AF_INET6;
+    ServerAddr6.sin6_port = htons(IPv6Addr.Port);
+    ServerAddr6.sin6_flowinfo = htonl(IPv6Addr.FlowInfo);
+    ServerAddr6.sin6_scope_id = htonl(IPv6Addr.ScopeId);
+
+    assuming(sizeof(IPv6Addr.Address) == sizeof(in6_addr));
+    std::memcpy(&ServerAddr6.sin6_addr, &IPv6Addr.Address, sizeof(in6_addr));
+  } else {
+    assumingUnreachable();
+  }
+
+  return Addr;
+}
+
+static WasiExpect<__wasi_sockets_ip_socket_address_t>
+sockAddressAssignHelper(const sockaddr *Addr) {
+  __wasi_sockets_ip_socket_address_t Buf;
+  if (Addr == nullptr)
+    return WasiUnexpect(__WASI_ERRNO_NOTSUP);
+
+  switch (Addr->sa_family) {
+  case AF_INET: {
+    auto SocketAddr4 = reinterpret_cast<const sockaddr_in &>(Addr);
+
+    Buf.AddressFamily = __WASI_SOCKETS_IP_ADDRESS_FAMILY_IPv4;
+    Buf.Val.IPv4.Port = ntohs(SocketAddr4.sin_port);
+
+    assuming(sizeof(Buf.Val.IPv4.Address) == sizeof(in_addr));
+    std::memcpy(&Buf.Val.IPv4.Address, &SocketAddr4.sin_addr, sizeof(in_addr));
+    break;
+  }
+  case AF_INET6: {
+    auto SocketAddr6 = reinterpret_cast<const sockaddr_in6 &>(Addr);
+
+    Buf.AddressFamily = __WASI_SOCKETS_IP_ADDRESS_FAMILY_IPv6;
+    Buf.Val.IPv6.FlowInfo = ntohl(SocketAddr6.sin6_flowinfo);
+    Buf.Val.IPv6.Port = ntohs(SocketAddr6.sin6_port);
+    Buf.Val.IPv6.ScopeId = ntohl(SocketAddr6.sin6_scope_id);
+
+    assuming(sizeof(Buf.Val.IPv6.Address) == sizeof(in6_addr));
+    std::memcpy(&Buf.Val.IPv6.Address, &SocketAddr6.sin6_addr,
+                sizeof(in6_addr));
+    break;
+  }
+  default:
+    return WasiUnexpect(__WASI_ERRNO_NOTSUP);
+  }
+  return Buf;
+}
+
+static WasiExpect<__wasi_sockets_ip_socket_address_t>
+sockAddressAssignHelper(const sockaddr_storage &Addr) {
+  return sockAddressAssignHelper(reinterpret_cast<const sockaddr *>(&Addr));
+}
+
+WasiExpect<INode>
+INode::sockOpenPV2(__wasi_sockets_ip_address_family_t AddressFamily,
+                   __wasi_sockets_type_t SockType) noexcept {
+  int SysProtocol = 0;
+  int SysDomain = 0;
+  int SysType = 0;
+
+  switch (AddressFamily) {
+  case __WASI_SOCKETS_IP_ADDRESS_FAMILY_IPv4:
+    SysDomain = AF_INET;
+    break;
+  case __WASI_SOCKETS_IP_ADDRESS_FAMILY_IPv6:
+    SysDomain = AF_INET6;
+    break;
+  default:
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+
+  switch (SockType) {
+  case __WASI_SOCKETS_TYPE_DGRAM:
+    SysType = SOCK_DGRAM;
+    SysProtocol = IPPROTO_UDP;
+    break;
+  case __WASI_SOCKETS_TYPE_STREAM:
+    SysType = SOCK_STREAM;
+    SysProtocol = IPPROTO_TCP;
+    break;
+  default:
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+
+  // In wasi-sockets preview 2, it should be unblocked.
+#ifdef SOCK_CLOEXEC
+  SysType |= SOCK_CLOEXEC;
+#endif
+
+#ifdef SOCK_NONBLOCK
+  SysType |= SOCK_NONBLOCK;
+#endif
+
+  if (auto NewFd = ::socket(SysDomain, SysType, SysProtocol);
+      unlikely(NewFd < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  } else {
+    return INode(NewFd);
+  }
+}
+
+WasiExpect<void>
+INode::sockBindPV2(const __wasi_sockets_ip_socket_address_t &Address) noexcept {
+  auto AddressBuffer = sockAddressAssignHelper(Address);
+
+  auto ServerAddr = std::visit(VarAddrBuf(), AddressBuffer);
+  int Size = std::visit(VarAddrSize(), AddressBuffer);
+
+  if (auto Res = ::bind(Fd, ServerAddr, Size); unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+  return {};
+}
+
+WasiExpect<void> INode::sockConnectPV2(
+    const __wasi_sockets_ip_socket_address_t &Address) noexcept {
+  auto AddressBuffer = sockAddressAssignHelper(Address);
+
+  auto ClientAddr = std::visit(VarAddrBuf(), AddressBuffer);
+  int Size = std::visit(VarAddrSize(), AddressBuffer);
+
+  if (auto Res = ::connect(Fd, ClientAddr, Size); unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockGetLocalAddrPV2(
+    __wasi_sockets_ip_socket_address_t &Address) const noexcept {
+  sockaddr_storage SocketAddr = {};
+  socklen_t Slen = std::max(sizeof(sockaddr_in), sizeof(sockaddr_in6));
+
+  if (auto Res =
+          ::getsockname(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  if (auto Res = sockAddressAssignHelper(SocketAddr); unlikely(!Res)) {
+    return WasiUnexpect(Res.error());
+  } else {
+    Address = *Res;
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockGetPeerAddrPV2(
+    __wasi_sockets_ip_socket_address_t &Address) const noexcept {
+  sockaddr_storage SocketAddr = {};
+  socklen_t Slen = std::max(sizeof(sockaddr_in), sizeof(sockaddr_in6));
+
+  if (auto Res =
+          ::getpeername(Fd, reinterpret_cast<sockaddr *>(&SocketAddr), &Slen);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  if (auto Res = sockAddressAssignHelper(SocketAddr); unlikely(!Res)) {
+    return WasiUnexpect(Res.error());
+  } else {
+    Address = *Res;
+  }
+
+  return {};
+}
+
+// https://man7.org/linux/man-pages/man2/connect.2.html
+// Note: MacOS version should handle INVAL/AFNOSUPPORT as success
+WasiExpect<void> INode::sockUDPDisconnect() const noexcept {
+  sockaddr ZeroAddr{};
+  ZeroAddr.sa_family = AF_UNSPEC;
+
+  if (auto Res = ::connect(Fd, &ZeroAddr, sizeof(ZeroAddr));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockSetIPv6V6only(bool IsV6only) const noexcept {
+  if (auto Res = ::setsockopt(Fd, IPPROTO_IPV6, IPV6_V6ONLY, &IsV6only,
+                              sizeof(IsV6only));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<uint8_t> INode::sockGetIPTTL() const noexcept {
+  uint8_t Buf;
+  socklen_t BufSize = sizeof(Buf);
+  if (auto Res = ::getsockopt(Fd, IPPROTO_IP, IP_TTL, &Buf, &BufSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return Buf;
+}
+
+WasiExpect<void> INode::sockSetIPTTL(uint8_t TTL) const noexcept {
+  if (TTL == 0) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+  if (auto Res = ::setsockopt(Fd, IPPROTO_IP, IP_TTL, &TTL, sizeof(TTL));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<uint8_t> INode::sockGetIPv6UnicastHops() const noexcept {
+  uint8_t Buf;
+  socklen_t BufSize = sizeof(Buf);
+  if (auto Res =
+          ::getsockopt(Fd, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &Buf, &BufSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return Buf;
+}
+
+WasiExpect<void> INode::sockSetIPv6UnicastHops(uint8_t TTL) const noexcept {
+  if (TTL == 0) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+  if (auto Res =
+          ::setsockopt(Fd, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &TTL, sizeof(TTL));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<uint64_t> INode::sockGetRecvBufferSize() const noexcept {
+  uint64_t Buf;
+  socklen_t BufSize = sizeof(Buf);
+  if (auto Res = ::getsockopt(Fd, SOL_SOCKET, SO_RCVBUF, &Buf, &BufSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  // Linux will return doubled value
+  // https://linux.die.net/man/7/socket
+  return Buf / 2;
+}
+
+WasiExpect<uint64_t> INode::sockGetSendBufferSize() const noexcept {
+  uint64_t Buf;
+  socklen_t BufSize = sizeof(Buf);
+  if (auto Res = ::getsockopt(Fd, SOL_SOCKET, SO_SNDBUF, &Buf, &BufSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  // Linux will return doubled value
+  // https://linux.die.net/man/7/socket
+  return Buf / 2;
+}
+
+WasiExpect<void> INode::sockSetRecvBufferSize(uint64_t Size) const noexcept {
+  if (Size == 0) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+  if (auto Res = ::setsockopt(Fd, SOL_SOCKET, SO_RCVBUF, &Size, sizeof(Size));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockSetSendBufferSize(uint64_t Size) const noexcept {
+  if (Size == 0) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+  if (auto Res = ::setsockopt(Fd, SOL_SOCKET, SO_SNDBUF, &Size, sizeof(Size));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<uint32_t> INode::sockGetKeepAlive() const noexcept {
+  bool Buf;
+  socklen_t BufSize = sizeof(Buf);
+  if (auto Res = ::getsockopt(Fd, SOL_SOCKET, SO_SNDBUF, &Buf, &BufSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return Buf;
+}
+
+WasiExpect<void> INode::sockSetKeepAlive(uint32_t Size) const noexcept {
+  if (Size == 0) {
+    return WasiUnexpect(__WASI_ERRNO_INVAL);
+  }
+
+  bool Opt = !!Size;
+  if (auto Res = ::setsockopt(Fd, SOL_SOCKET, SO_RCVBUF, &Opt, sizeof(Opt));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<uint32_t> INode::sockGetKeepIdle() const noexcept {
+  uint32_t Buf;
+  socklen_t BufSize = sizeof(Buf);
+  if (auto Res = ::getsockopt(Fd, IPPROTO_TCP, TCP_KEEPIDLE, &Buf, &BufSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return Buf;
+}
+
+WasiExpect<void> INode::sockSetKeepIdle(uint32_t Sec) const noexcept {
+  uint32_t Opt = Sec;
+  if (auto Res = ::setsockopt(Fd, IPPROTO_TCP, TCP_KEEPIDLE, &Opt, sizeof(Opt));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<uint32_t> INode::sockGetAliveInterval() const noexcept {
+  uint32_t Buf;
+  socklen_t BufSize = sizeof(Buf);
+  if (auto Res = ::getsockopt(Fd, IPPROTO_TCP, TCP_KEEPINTVL, &Buf, &BufSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return Buf;
+}
+
+WasiExpect<void> INode::sockSetAliveInterval(uint32_t Sec) const noexcept {
+  uint32_t Opt = Sec;
+  if (auto Res =
+          ::setsockopt(Fd, IPPROTO_TCP, TCP_KEEPINTVL, &Opt, sizeof(Opt));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<uint32_t> INode::sockGetKeepAliveCount() const noexcept {
+  uint32_t Buf;
+  socklen_t BufSize = sizeof(Buf);
+  if (auto Res = ::getsockopt(Fd, IPPROTO_TCP, TCP_KEEPCNT, &Buf, &BufSize);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return Buf;
+}
+
+WasiExpect<void> INode::sockSetKeepAliveCount(uint32_t Val) const noexcept {
+  uint32_t Opt = Val;
+  if (auto Res = ::setsockopt(Fd, IPPROTO_TCP, TCP_KEEPCNT, &Opt, sizeof(Opt));
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<void>
+INode::sockShutdownPV2(__wasi_sdflags_t SdFlags) const noexcept {
+  int SysFlags = 0;
+  if (SdFlags == __WASI_SDFLAGS_RD) {
+    SysFlags = SHUT_RD;
+  } else if (SdFlags == __WASI_SDFLAGS_WR) {
+    SysFlags = SHUT_WR;
+  } else if (SdFlags == (__WASI_SDFLAGS_RD | __WASI_SDFLAGS_WR)) {
+    SysFlags = SHUT_RDWR;
+  }
+
+  if (auto Res = ::shutdown(Fd, SysFlags); unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
+
+WasiExpect<void> INode::sockRecvPV2(Span<uint8_t> Buffer,
+                                    __wasi_size_t &NRead) const noexcept {
+  int Flags = 0;
+
+  NRead = 0;
+  while (Buffer.size() != 0) {
+    if (auto Res = ::recv(Fd, Buffer.data(), Buffer.size(), Flags);
+        unlikely(Res < 0)) {
+      if (errno == EWOULDBLOCK) {
+        break;
+      }
+      return WasiUnexpect(fromErrNo(errno));
+    } else {
+      Buffer = Buffer.subspan(Res);
+      NRead += Res;
+    }
+  }
+
+  return {};
+}
+
+// Reference:
+// https://github.com/rust-lang/rust/blob/master/library/std/src/sys_common/net.rs#L196
+WasiExpect<void> INode::sockGetaddrinfoPV2(
+    std::string_view String,
+    std::vector<__wasi_sockets_ip_address_t> &Addresses) noexcept {
+  addrinfo Hints{};
+  addrinfo *Resolved = nullptr, *Ptr = nullptr;
+
+  Hints.ai_socktype = SOCK_STREAM;
+  if (auto Res = ::getaddrinfo(String.data(), nullptr, &Hints, &Resolved);
+      unlikely(Res < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  Ptr = Resolved;
+  Addresses.clear();
+  while (Ptr != nullptr) {
+    if (Ptr->ai_addr) {
+      if (auto Res = sockAddressAssignHelper(Ptr->ai_addr); Res) {
+        __wasi_sockets_ip_address_t IP;
+        IP.AddressFamily = Res->AddressFamily;
+        if (Res->AddressFamily == __WASI_SOCKETS_IP_ADDRESS_FAMILY_IPv4) {
+          IP.Val.IPv4 = Res->Val.IPv4.Address;
+        } else if (Res->AddressFamily ==
+                   __WASI_SOCKETS_IP_ADDRESS_FAMILY_IPv6) {
+          IP.Val.IPv6 = Res->Val.IPv6.Address;
+        } else {
+          __builtin_unreachable();
+        }
+
+        Addresses.emplace_back(std::move(IP));
+      }
+    }
+    Ptr = Ptr->ai_next;
+  }
+
+  ::freeaddrinfo(Resolved);
+  return {};
+}
+
 __wasi_filetype_t INode::unsafeFiletype() const noexcept {
   return fromFileType(static_cast<mode_t>(Stat->st_mode));
 }

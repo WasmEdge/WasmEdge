@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "common/types.h"
 #if WASMEDGE_OS_LINUX
 
 #include "host/wasi/clock.h"
@@ -19,7 +20,7 @@ WasiExpect<void> Clock::clockResGet(__wasi_clockid_t Id,
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  Resolution = fromTimespec(SysTimespec);
+  Resolution = fromTimespec(SysTimespec).le();
   return {};
 }
 
@@ -31,7 +32,7 @@ WasiExpect<void> Clock::clockTimeGet(__wasi_clockid_t Id, __wasi_timestamp_t,
     return WasiUnexpect(fromErrNo(errno));
   }
 
-  Time = fromTimespec(SysTimespec);
+  Time = fromTimespec(SysTimespec).le();
   return {};
 }
 

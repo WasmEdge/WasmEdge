@@ -14,6 +14,7 @@
 #include <fstream>
 #include <memory>
 #include <numeric>
+#include <string>
 #include <vector>
 
 using namespace std::literals;
@@ -85,8 +86,7 @@ void writeBinaries(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 
 void writeUInt32(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
                  uint32_t Value, uint32_t &Ptr) {
-  uint32_t *BufPtr = MemInst.getPointer<uint32_t *>(Ptr);
-  *BufPtr = Value;
+  MemInst.storeValue(Value, Ptr);
   Ptr += 4;
 }
 
@@ -1319,8 +1319,10 @@ TEST(WasiNNTest, GGMLBackend) {
   // Load the files.
   std::string Prompt = "Once upon a time, ";
   std::vector<uint8_t> TensorData(Prompt.begin(), Prompt.end());
-  std::vector<uint8_t> WeightRead =
-      readEntireFile("./wasinn_ggml_fixtures/orca_mini.gguf");
+  std::string Model = WasmEdge::Endian::native == WasmEdge::Endian::little
+                          ? "./wasinn_ggml_fixtures/orca_mini.gguf"
+                          : "./wasinn_ggml_fixtures/granite-3.gguf";
+  std::vector<uint8_t> WeightRead = readEntireFile(Model);
 
   std::vector<uint32_t> TensorDim{1};
   uint32_t BuilderPtr = UINT32_C(0);

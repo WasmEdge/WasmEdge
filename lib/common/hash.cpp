@@ -1,4 +1,5 @@
 #include "common/hash.h"
+#include "common/endian.h"
 
 namespace {
 
@@ -178,51 +179,24 @@ std::array<uint64_t, 4> generate() noexcept {
   return Secret;
 }
 
-#if WASMEDGE_ENDIAN_LITTLE_BYTE
 inline uint64_t read(WasmEdge::Span<const std::byte, 8> Data) noexcept {
   uint64_t V;
   std::memcpy(&V, Data.data(), 8);
-  return V;
+  if constexpr (WasmEdge::Endian::native == WasmEdge::Endian::little) {
+    return V;
+  } else {
+    return WasmEdge::byteswap(V);
+  }
 }
 inline uint64_t read(WasmEdge::Span<const std::byte, 4> Data) noexcept {
   uint32_t V;
   std::memcpy(&V, Data.data(), 4);
-  return V;
+  if constexpr (WasmEdge::Endian::native == WasmEdge::Endian::little) {
+    return V;
+  } else {
+    return WasmEdge::byteswap(V);
+  }
 }
-#else
-inline constexpr uint64_t bswap64(uint64_t V) noexcept {
-#if defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__clang__)
-  return __builtin_bswap64(V);
-#elif defined(_MSC_VER)
-  return _byteswap_uint64(V);
-#else
-  return (((V >> 56) & 0xff) | ((V >> 40) & 0xff00) | ((V >> 24) & 0xff0000) |
-          ((V >> 8) & 0xff000000) | ((V << 8) & 0xff00000000) |
-          ((V << 24) & 0xff0000000000) | ((V << 40) & 0xff000000000000) |
-          ((V << 56) & 0xff00000000000000));
-#endif
-}
-inline constexpr uint32_t bswap32(uint32_t V) noexcept {
-#if defined(__GNUC__) || defined(__INTEL_COMPILER) || defined(__clang__)
-  return __builtin_bswap32(V);
-#elif defined(_MSC_VER)
-  return _byteswap_ulong(V);
-#else
-  return (((V >> 24) & 0xff) | ((V >> 8) & 0xff00) | ((V << 8) & 0xff0000) |
-          ((V << 24) & 0xff000000));
-#endif
-}
-inline uint64_t read(WasmEdge::Span<const std::byte, 8> Data) noexcept {
-  uint64_t V;
-  std::memcpy(&V, Data.data(), 8);
-  return bswap64(V);
-}
-inline uint64_t read(WasmEdge::Span<const std::byte, 4> Data) noexcept {
-  uint32_t V;
-  std::memcpy(&V, Data.data(), 4);
-  return bswap32(V);
-}
-#endif
 
 inline uint64_t read_small(WasmEdge::Span<const std::byte> Data) noexcept {
   return (static_cast<uint64_t>(Data[0]) << 56) |

@@ -64,7 +64,7 @@ public:
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Offset(Off), Code(Byte) {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
     Data.Num = static_cast<uint128_t>(0);
 #else
     Data.Num.Low = static_cast<uint64_t>(0);
@@ -236,7 +236,7 @@ public:
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
     return ValVariant(Data.Num);
 #else
     uint128_t N{Data.Num.High, Data.Num.Low};
@@ -245,7 +245,7 @@ public:
   }
   void setNum(ValVariant N) noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
     Data.Num = N.get<uint128_t>();
 #else
     uint128_t V = N.get<uint128_t>();
@@ -339,7 +339,7 @@ private:
     } Memories;
     // Type 8: Num.
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64)
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
     uint128_t Num;
 #else
     struct {

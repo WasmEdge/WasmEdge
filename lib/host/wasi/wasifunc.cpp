@@ -4,6 +4,7 @@
 #include "host/wasi/wasifunc.h"
 #include "common/filesystem.h"
 #include "common/spdlog.h"
+#include "common/types.h"
 #include "executor/executor.h"
 #include "host/wasi/environ.h"
 #include "runtime/instance/memory.h"
@@ -757,12 +758,14 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const EndianValue<uint32_t> IOVBufLen = IOV.buf_len;
     const __wasi_size_t BufLen =
-        unlikely(IOV.buf_len > Space) ? Space : IOV.buf_len;
+        unlikely(IOVBufLen.le() > Space) ? Space : IOVBufLen.le();
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto ReadArr = MemInst->getSpan<uint8_t>(IOV.buf, BufLen);
+    const auto ReadArr =
+        MemInst->getSpan<uint8_t>(EndianValue(IOV.buf).le(), BufLen);
     if (unlikely(ReadArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -859,12 +862,15 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+
+    const EndianValue<uint32_t> IOVBufLen = IOV.buf_len;
     const __wasi_size_t BufLen =
-        unlikely(IOV.buf_len > Space) ? Space : IOV.buf_len;
+        unlikely(IOVBufLen.le() > Space) ? Space : IOVBufLen.le();
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto WriteArr = MemInst->getSpan<const uint8_t>(IOV.buf, BufLen);
+    const auto WriteArr =
+        MemInst->getSpan<const uint8_t>(EndianValue(IOV.buf).le(), BufLen);
     if (unlikely(WriteArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -914,12 +920,14 @@ Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const EndianValue<uint32_t> IOVBufLen = IOV.buf_len;
     const __wasi_size_t BufLen =
-        unlikely(IOV.buf_len > Space) ? Space : IOV.buf_len;
+        unlikely(IOVBufLen.le() > Space) ? Space : IOVBufLen.le();
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto ReadArr = MemInst->getSpan<uint8_t>(IOV.buf, BufLen);
+    const auto ReadArr =
+        MemInst->getSpan<uint8_t>(EndianValue(IOV.buf).le(), BufLen);
     if (unlikely(ReadArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -1077,12 +1085,14 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const EndianValue<uint32_t> IOVBufLen = IOV.buf_len;
     const __wasi_size_t BufLen =
-        unlikely(IOV.buf_len > Space) ? Space : IOV.buf_len;
+        unlikely(IOVBufLen.le() > Space) ? Space : IOVBufLen.le();
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto WriteArr = MemInst->getSpan<const uint8_t>(IOV.buf, BufLen);
+    const auto WriteArr =
+        MemInst->getSpan<const uint8_t>(EndianValue(IOV.buf).le(), BufLen);
     if (unlikely(WriteArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -1312,7 +1322,7 @@ Expect<uint32_t> WasiPathOpen::body(
       unlikely(!Res)) {
     return Res.error();
   } else {
-    *Fd = *Res;
+    *Fd = EndianValue(*Res).le();
   }
   return __WASI_ERRNO_SUCCESS;
 }
@@ -1476,16 +1486,16 @@ Expect<uint32_t> WasiPollOneoff<Trigger>::body(
     return __WASI_ERRNO_FAULT;
   }
 
-  const __wasi_size_t WasiNSub = NSubscriptions;
+  const EndianValue<__wasi_size_t> WasiNSub = NSubscriptions;
 
   const auto Subs =
-      MemInst->getSpan<const __wasi_subscription_t>(InPtr, WasiNSub);
-  if (unlikely(Subs.size() != WasiNSub)) {
+      MemInst->getSpan<const __wasi_subscription_t>(InPtr, WasiNSub.raw());
+  if (unlikely(Subs.size() != WasiNSub.raw())) {
     return __WASI_ERRNO_FAULT;
   }
 
-  const auto Events = MemInst->getSpan<__wasi_event_t>(OutPtr, WasiNSub);
-  if (unlikely(Events.size() != WasiNSub)) {
+  const auto Events = MemInst->getSpan<__wasi_event_t>(OutPtr, WasiNSub.raw());
+  if (unlikely(Events.size() != WasiNSub.raw())) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -1496,21 +1506,21 @@ Expect<uint32_t> WasiPollOneoff<Trigger>::body(
 
   // Validate contents
   if (auto Poll = this->Env.acquirePoller(Events); unlikely(!Poll)) {
-    for (__wasi_size_t I = 0; I < WasiNSub; ++I) {
+    for (__wasi_size_t I = 0; I < WasiNSub.raw(); ++I) {
       Events[I].userdata = Subs[I].userdata;
       Events[I].error = Poll.error();
       Events[I].type = Subs[I].u.tag;
     }
-    *NEvents = WasiNSub;
+    *NEvents = WasiNSub.le();
     return Poll.error();
   } else {
     auto &Poller = *Poll;
     for (auto &Sub : Subs) {
-      const __wasi_userdata_t WasiUserData = Sub.userdata;
+      const EndianValue<__wasi_userdata_t> WasiUserData = Sub.userdata;
 
       __wasi_eventtype_t Type;
       if (auto Res = cast<__wasi_eventtype_t>(Sub.u.tag); unlikely(!Res)) {
-        Poller.error(WasiUserData, Res.error(), Sub.u.tag);
+        Poller.error(WasiUserData.le(), Res.error(), Sub.u.tag);
         continue;
       } else {
         Type = *Res;
@@ -1519,38 +1529,43 @@ Expect<uint32_t> WasiPollOneoff<Trigger>::body(
       switch (Type) {
       case __WASI_EVENTTYPE_CLOCK: {
         __wasi_clockid_t WasiClockId;
-        if (auto Res = cast<__wasi_clockid_t>(Sub.u.u.clock.id);
+        if (auto Res =
+                cast<__wasi_clockid_t>(EndianValue(Sub.u.u.clock.id).le());
             unlikely(!Res)) {
-          Poller.error(WasiUserData, Res.error(), Type);
+          Poller.error(WasiUserData.le(), Res.error(), Type);
           continue;
         } else {
           WasiClockId = *Res;
         }
 
         __wasi_subclockflags_t WasiFlags;
-        if (auto Res = cast<__wasi_subclockflags_t>(Sub.u.u.clock.flags);
+        if (auto Res = cast<__wasi_subclockflags_t>(
+                EndianValue(Sub.u.u.clock.flags).le());
             unlikely(!Res)) {
-          Poller.error(WasiUserData, Res.error(), Type);
+          Poller.error(WasiUserData.le(), Res.error(), Type);
           continue;
         } else {
           WasiFlags = *Res;
         }
 
-        const __wasi_timestamp_t WasiTimeout = Sub.u.u.clock.timeout;
-        const __wasi_timestamp_t WasiPrecision = Sub.u.u.clock.precision;
+        const EndianValue<__wasi_timestamp_t> WasiTimeout =
+            Sub.u.u.clock.timeout;
+        const EndianValue<__wasi_timestamp_t> WasiPrecision =
+            Sub.u.u.clock.precision;
 
-        Poller.clock(WasiClockId, WasiTimeout, WasiPrecision, WasiFlags,
-                     WasiUserData);
+        Poller.clock(WasiClockId, WasiTimeout.le(), WasiPrecision.le(),
+                     WasiFlags, WasiUserData.le());
         continue;
       }
       case __WASI_EVENTTYPE_FD_READ: {
-        const __wasi_fd_t WasiFd = Sub.u.u.fd_read.file_descriptor;
-        Poller.read(WasiFd, Trigger, WasiUserData);
+        const EndianValue<__wasi_fd_t> WasiFd = Sub.u.u.fd_read.file_descriptor;
+        Poller.read(WasiFd.le(), Trigger, WasiUserData.le());
         continue;
       }
       case __WASI_EVENTTYPE_FD_WRITE: {
-        const __wasi_fd_t WasiFd = Sub.u.u.fd_write.file_descriptor;
-        Poller.write(WasiFd, Trigger, WasiUserData);
+        const EndianValue<__wasi_fd_t> WasiFd =
+            Sub.u.u.fd_write.file_descriptor;
+        Poller.write(WasiFd.le(), Trigger, WasiUserData.le());
         continue;
       }
       default:
@@ -1558,7 +1573,7 @@ Expect<uint32_t> WasiPollOneoff<Trigger>::body(
       }
     }
     Poller.wait();
-    *NEvents = Poller.result();
+    *NEvents = EndianValue<__wasi_size_t>(Poller.result()).le();
     Poller.reset();
     this->Env.releasePoller(std::move(Poller));
   }
@@ -1654,7 +1669,7 @@ Expect<uint32_t> WasiSockOpenV1::body(const Runtime::CallingFrame &Frame,
       unlikely(!Res)) {
     return Res.error();
   } else {
-    *RoFd = *Res;
+    *RoFd = EndianValue(*Res).le();
   }
 
   return __WASI_ERRNO_SUCCESS;
@@ -1673,10 +1688,10 @@ Expect<uint32_t> WasiSockBindV1::body(const Runtime::CallingFrame &Frame,
   if (InnerAddress == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-
-  const auto Address =
-      MemInst->getSpan<const uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  const auto Address = MemInst->getSpan<const uint8_t>(
+      EndianValue(InnerAddress->buf).le(), InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -1728,7 +1743,7 @@ Expect<uint32_t> WasiSockAcceptV1::body(const Runtime::CallingFrame &Frame,
   if (auto Res = Env.sockAccept(WasiFd, WasiFdFlags); unlikely(!Res)) {
     return Res.error();
   } else {
-    *RoFd = *Res;
+    *RoFd = EndianValue(*Res).le();
   }
 
   return __WASI_ERRNO_SUCCESS;
@@ -1758,7 +1773,7 @@ Expect<uint32_t> WasiSockAcceptV2::body(const Runtime::CallingFrame &Frame,
   if (auto Res = Env.sockAccept(WasiFd, WasiFdFlags); unlikely(!Res)) {
     return Res.error();
   } else {
-    *RoFd = *Res;
+    *RoFd = EndianValue(*Res).le();
   }
 
   return __WASI_ERRNO_SUCCESS;
@@ -1778,9 +1793,10 @@ Expect<uint32_t> WasiSockConnectV1::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  const auto Address =
-      MemInst->getSpan<uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  const auto Address = MemInst->getSpan<uint8_t>(
+      EndianValue(InnerAddress->buf).le(), InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -1821,7 +1837,7 @@ Expect<uint32_t> WasiSockRecvV1::body(const Runtime::CallingFrame &Frame,
   if (auto Res = cast<__wasi_riflags_t>(RiFlags); unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiRiFlags = *Res;
+    WasiRiFlags = EndianValue(*Res).le();
   }
 
   const __wasi_size_t WasiRiDataLen = RiDataLen;
@@ -1852,12 +1868,14 @@ Expect<uint32_t> WasiSockRecvV1::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const uint32_t RiDataBufLen = EndianValue(RiData.buf_len).le();
     const __wasi_size_t BufLen =
-        unlikely(RiData.buf_len > Space) ? Space : RiData.buf_len;
+        unlikely(RiDataBufLen > Space) ? Space : RiDataBufLen;
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto RiDataArr = MemInst->getSpan<uint8_t>(RiData.buf, BufLen);
+    const auto RiDataArr =
+        MemInst->getSpan<uint8_t>(EndianValue(RiData.buf).le(), BufLen);
     // Check for invalid address.
     if (unlikely(RiDataArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
@@ -1894,9 +1912,10 @@ Expect<uint32_t> WasiSockRecvFromV1::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  const auto Address =
-      MemInst->getSpan<uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  const auto Address = MemInst->getSpan<uint8_t>(
+      EndianValue(InnerAddress->buf).le(), InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -1929,17 +1948,17 @@ Expect<uint32_t> WasiSockRecvFromV1::body(const Runtime::CallingFrame &Frame,
   }
   __wasi_size_t TotalSize = 0;
   StaticVector<Span<uint8_t>, WASI::kIOVMax> WasiRiData;
-
   for (auto &RiData : RiDataArray) {
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const uint32_t RiDataBufLen = EndianValue(RiData.buf_len).le();
     const __wasi_size_t BufLen =
-        unlikely(RiData.buf_len > Space) ? Space : RiData.buf_len;
-    TotalSize += BufLen;
+        unlikely(RiDataBufLen > Space) ? Space : RiDataBufLen;
 
     // Check for invalid address.
-    const auto RiDataArr = MemInst->getSpan<uint8_t>(RiData.buf, BufLen);
+    const auto RiDataArr =
+        MemInst->getSpan<uint8_t>(EndianValue(RiData.buf).le(), BufLen);
     // Check for invalid address.
     if (unlikely(RiDataArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
@@ -1999,12 +2018,14 @@ Expect<uint32_t> WasiSockSendV1::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const uint32_t SiDataBufLen = EndianValue(SiData.buf_len).le();
     const __wasi_size_t BufLen =
-        unlikely(SiData.buf_len > Space) ? Space : SiData.buf_len;
+        unlikely(SiDataBufLen > Space) ? Space : SiDataBufLen;
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto SiDataArr = MemInst->getSpan<uint8_t>(SiData.buf, BufLen);
+    const auto SiDataArr =
+        MemInst->getSpan<uint8_t>(EndianValue(SiData.buf).le(), BufLen);
     if (unlikely(SiDataArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -2036,10 +2057,10 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
   if (InnerAddress == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-
-  const auto Address =
-      MemInst->getSpan<uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  const auto Address = MemInst->getSpan<uint8_t>(
+      EndianValue(InnerAddress->buf).le(), InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2086,12 +2107,14 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const uint32_t SiDataBufLen = EndianValue(SiData.buf_len).le();
     const __wasi_size_t BufLen =
-        unlikely(SiData.buf_len > Space) ? Space : SiData.buf_len;
+        unlikely(SiDataBufLen > Space) ? Space : SiDataBufLen;
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto SiDataArr = MemInst->getSpan<uint8_t>(SiData.buf, BufLen);
+    const auto SiDataArr =
+        MemInst->getSpan<uint8_t>(EndianValue(SiData.buf).le(), BufLen);
     if (unlikely(SiDataArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -2346,9 +2369,10 @@ WasiSockGetLocalAddrV1::body(const Runtime::CallingFrame &Frame, int32_t Fd,
     return __WASI_ERRNO_FAULT;
   }
 
-  const auto Address =
-      MemInst->getSpan<uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  const auto Address = MemInst->getSpan<uint8_t>(
+      EndianValue(InnerAddress->buf).le(), InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2380,17 +2404,17 @@ WasiSockGetLocalAddrV1::body(const Runtime::CallingFrame &Frame, int32_t Fd,
       unlikely(!Res)) {
     return Res.error();
   }
-  *RoPort = Port;
+  *RoPort = EndianValue(Port).le();
   // XXX: This is a workaround
   // The correct one should be `*RoAddressType = AddressType;`
   // However, due to this bugfix will break the existing applications.
   // So we changed back to the old way.
   switch (AddressType) {
   case __WASI_ADDRESS_FAMILY_INET4:
-    *RoAddressType = 4;
+    *RoAddressType = EndianValue(4U).le();
     break;
   case __WASI_ADDRESS_FAMILY_INET6:
-    *RoAddressType = 6;
+    *RoAddressType = EndianValue(6U).le();
     break;
   default:
     assumingUnreachable();
@@ -2413,8 +2437,9 @@ Expect<uint32_t> WasiSockGetPeerAddrV1::body(const Runtime::CallingFrame &Frame,
   }
 
   const auto Address =
-      MemInst->getSpan<uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+      MemInst->getSpan<uint8_t>(EndianValue(InnerAddress->buf).le(),
+                                EndianValue(InnerAddress->buf_len).le());
+  if (Address.size() != EndianValue(InnerAddress->buf_len).le()) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2438,25 +2463,26 @@ Expect<uint32_t> WasiSockGetPeerAddrV1::body(const Runtime::CallingFrame &Frame,
   if (RoPort == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
-  uint16_t Port;
+  EndianValue<uint16_t> Port;
 
   const __wasi_fd_t WasiFd = Fd;
 
-  if (auto Res = Env.sockGetPeerAddr(WasiFd, &AddressType, Address, &Port);
+  if (auto Res =
+          Env.sockGetPeerAddr(WasiFd, &AddressType, Address, &Port.raw());
       unlikely(!Res)) {
     return Res.error();
   }
-  *RoPort = Port;
+  *RoPort = Port.le();
   // XXX: This is a workaround
   // The correct one should be `*RoAddressType = AddressType;`
   // However, due to this bugfix will break the existing applications.
   // So we changed back to the old way.
   switch (AddressType) {
   case __WASI_ADDRESS_FAMILY_INET4:
-    *RoAddressType = 4;
+    *RoAddressType = EndianValue(4U).le();
     break;
   case __WASI_ADDRESS_FAMILY_INET6:
-    *RoAddressType = 6;
+    *RoAddressType = EndianValue(6U).le();
     break;
   default:
     assumingUnreachable();
@@ -2500,7 +2526,7 @@ Expect<uint32_t> WasiSockOpenV2::body(const Runtime::CallingFrame &Frame,
       unlikely(!Res)) {
     return Res.error();
   } else {
-    *RoFd = *Res;
+    *RoFd = EndianValue(*Res).le();
   }
 
   return __WASI_ERRNO_SUCCESS;
@@ -2520,9 +2546,10 @@ Expect<uint32_t> WasiSockBindV2::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  auto Address =
-      MemInst->getSpan<const uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  auto Address = MemInst->getSpan<const uint8_t>(
+      EndianValue(InnerAddress->buf).le(), InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2546,7 +2573,6 @@ Expect<uint32_t> WasiSockBindV2::body(const Runtime::CallingFrame &Frame,
   }
 
   const __wasi_fd_t WasiFd = Fd;
-
   if (auto Res = Env.sockBind(WasiFd, WasiAddressFamily, Address,
                               static_cast<uint16_t>(Port));
       unlikely(!Res)) {
@@ -2578,9 +2604,10 @@ Expect<uint32_t> WasiSockConnectV2::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  auto Address =
-      MemInst->getSpan<const uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  auto Address = MemInst->getSpan<const uint8_t>(
+      EndianValue(InnerAddress->buf).le(), InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2628,7 +2655,7 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
   if (auto Res = cast<__wasi_riflags_t>(RiFlags); unlikely(!Res)) {
     return Res.error();
   } else {
-    WasiRiFlags = *Res;
+    WasiRiFlags = EndianValue(*Res).le();
   }
 
   const __wasi_size_t WasiRiDataLen = RiDataLen;
@@ -2659,12 +2686,14 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const uint32_t RiDataBufLen = EndianValue(RiData.buf_len).le();
     const __wasi_size_t BufLen =
-        unlikely(RiData.buf_len > Space) ? Space : RiData.buf_len;
+        unlikely(RiDataBufLen > Space) ? Space : RiDataBufLen;
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto RiDataArr = MemInst->getSpan<uint8_t>(RiData.buf, BufLen);
+    const auto RiDataArr =
+        MemInst->getSpan<uint8_t>(EndianValue(RiData.buf).le(), BufLen);
     if (unlikely(RiDataArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -2678,7 +2707,6 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
       unlikely(!Res)) {
     return Res.error();
   }
-
   return __WASI_ERRNO_SUCCESS;
 }
 
@@ -2701,9 +2729,10 @@ Expect<uint32_t> WasiSockRecvFromV2::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  auto Address =
-      MemInst->getSpan<uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  auto Address = MemInst->getSpan<uint8_t>(EndianValue(InnerAddress->buf).le(),
+                                           InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2761,12 +2790,14 @@ Expect<uint32_t> WasiSockRecvFromV2::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const uint32_t RiDataBufLen = EndianValue(RiData.buf_len).le();
     const __wasi_size_t BufLen =
-        unlikely(RiData.buf_len > Space) ? Space : RiData.buf_len;
+        unlikely(RiDataBufLen > Space) ? Space : RiDataBufLen;
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto RiDataArr = MemInst->getSpan<uint8_t>(RiData.buf, BufLen);
+    const auto RiDataArr =
+        MemInst->getSpan<uint8_t>(EndianValue(RiData.buf).le(), BufLen);
     if (unlikely(RiDataArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -2828,12 +2859,14 @@ Expect<uint32_t> WasiSockSendV2::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const uint32_t SiDataBufLen = EndianValue(SiData.buf_len).le();
     const __wasi_size_t BufLen =
-        unlikely(SiData.buf_len > Space) ? Space : SiData.buf_len;
+        unlikely(SiDataBufLen > Space) ? Space : SiDataBufLen;
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto SiDataArr = MemInst->getSpan<uint8_t>(SiData.buf, BufLen);
+    const auto SiDataArr =
+        MemInst->getSpan<uint8_t>(EndianValue(SiData.buf).le(), BufLen);
     if (unlikely(SiDataArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -2866,9 +2899,10 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  auto Address =
-      MemInst->getSpan<const uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  auto Address = MemInst->getSpan<const uint8_t>(
+      EndianValue(InnerAddress->buf).le(), InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2922,12 +2956,14 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
     // Capping total size.
     const __wasi_size_t Space =
         std::numeric_limits<__wasi_size_t>::max() - TotalSize;
+    const uint32_t SiDataBufLen = EndianValue(SiData.buf_len).le();
     const __wasi_size_t BufLen =
-        unlikely(SiData.buf_len > Space) ? Space : SiData.buf_len;
+        unlikely(SiDataBufLen > Space) ? Space : SiDataBufLen;
     TotalSize += BufLen;
 
     // Check for invalid address.
-    const auto SiDataArr = MemInst->getSpan<uint8_t>(SiData.buf, BufLen);
+    const auto SiDataArr =
+        MemInst->getSpan<uint8_t>(EndianValue(SiData.buf).le(), BufLen);
     if (unlikely(SiDataArr.size() != BufLen)) {
       return __WASI_ERRNO_FAULT;
     }
@@ -2935,7 +2971,6 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
   }
 
   const __wasi_fd_t WasiFd = Fd;
-
   if (auto Res =
           Env.sockSendTo(WasiFd, WasiSiData, WasiSiFlags, WasiAddressFamily,
                          Address, static_cast<uint16_t>(Port), *SoDataLen);
@@ -2974,8 +3009,9 @@ Expect<uint32_t> WasiSockGetOpt::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_FAULT;
   }
 
-  auto Flag = MemInst->getSpan<uint8_t>(FlagPtr, *SysFlagSizePtr);
-  if (Flag.size() != *SysFlagSizePtr) {
+  auto Flag =
+      MemInst->getSpan<uint8_t>(FlagPtr, EndianValue(*SysFlagSizePtr).le());
+  if (Flag.size() != EndianValue(*SysFlagSizePtr).le()) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -2986,8 +3022,7 @@ Expect<uint32_t> WasiSockGetOpt::body(const Runtime::CallingFrame &Frame,
       unlikely(!Res)) {
     return Res.error();
   }
-
-  *SysFlagSizePtr = static_cast<uint32_t>(Flag.size());
+  *SysFlagSizePtr = EndianValue(static_cast<uint32_t>(Flag.size())).le();
   return __WASI_ERRNO_SUCCESS;
 }
 
@@ -3004,9 +3039,10 @@ WasiSockGetLocalAddrV2::body(const Runtime::CallingFrame &Frame, int32_t Fd,
     return __WASI_ERRNO_FAULT;
   }
 
-  auto Address =
-      MemInst->getSpan<uint8_t>(InnerAddress->buf, InnerAddress->buf_len);
-  if (Address.size() != InnerAddress->buf_len) {
+  const auto InnerAddressBufLen = EndianValue(InnerAddress->buf_len).le();
+  auto Address = MemInst->getSpan<uint8_t>(EndianValue(InnerAddress->buf).le(),
+                                           InnerAddressBufLen);
+  if (Address.size() != InnerAddressBufLen) {
     return __WASI_ERRNO_FAULT;
   }
 
@@ -3033,7 +3069,7 @@ WasiSockGetLocalAddrV2::body(const Runtime::CallingFrame &Frame, int32_t Fd,
   }
 
   Storage.setAddressFamily(WasiAddressFamily);
-  *RoPort = Port;
+  *RoPort = EndianValue(static_cast<uint32_t>(Port)).le();
   return __WASI_ERRNO_SUCCESS;
 }
 
@@ -3078,7 +3114,7 @@ Expect<uint32_t> WasiSockGetPeerAddrV2::body(const Runtime::CallingFrame &Frame,
     return Res.error();
   }
   Storage.setAddressFamily(WasiAddressFamily);
-  *RoPort = Port;
+  *RoPort = EndianValue(static_cast<uint32_t>(Port)).le();
   return __WASI_ERRNO_SUCCESS;
 }
 } // namespace Host

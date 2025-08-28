@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/endian.h"
+#include "common/types.h"
 #include "executor/executor.h"
 #include "runtime/instance/memory.h"
 #include <experimental/scope.hpp>
@@ -85,8 +87,8 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
-  I Return = AtomicObj->load();
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  EndianValue<I> Return = AtomicObj->load();
+  RawAddress.emplace<T>(static_cast<T>(Return.le()));
   return {};
 }
 
@@ -125,10 +127,26 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  I Value = static_cast<I>(RawValue.get<T>());
+  EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
-  AtomicObj->store(Value);
+  AtomicObj->store(Value.le());
   return {};
+}
+
+template <typename T, typename AtomicOp, typename BinaryOp>
+T runAtomicOp(std::atomic<T> *AtomicObj, T Value, AtomicOp Op [[maybe_unused]],
+              BinaryOp BinOp [[maybe_unused]]) {
+  if constexpr (Endian::native == Endian::little) {
+    return Op(AtomicObj, Value);
+  } else {
+    EndianValue<T> Return;
+    EndianValue<T> Result;
+    do {
+      Return = AtomicObj->load();
+      Result = BinOp(Return.le(), Value);
+    } while (!AtomicObj->compare_exchange_weak(Return.raw(), Result.le()));
+    return Return.le();
+  }
 }
 
 template <typename T, typename I>
@@ -168,7 +186,10 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_add(Value);
+  I Return = runAtomicOp(
+      AtomicObj, Value,
+      [](std::atomic<I> *Obj, I Val) { return Obj->fetch_add(Val); },
+      std::plus<I>{});
   RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
@@ -210,7 +231,10 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
   }
   I Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_sub(Value);
+  I Return = runAtomicOp(
+      AtomicObj, Value,
+      [](std::atomic<I> *Obj, I Val) { return Obj->fetch_sub(Val); },
+      std::minus<I>{});
   RawAddress.emplace<T>(static_cast<T>(Return));
   return {};
 }
@@ -250,10 +274,10 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  I Value = static_cast<I>(RawValue.get<T>());
+  EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_or(Value);
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  EndianValue<I> Return = AtomicObj->fetch_or(Value.le());
+  RawAddress.emplace<T>(static_cast<T>(Return.le()));
   return {};
 }
 
@@ -292,10 +316,10 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  I Value = static_cast<I>(RawValue.get<T>());
+  EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_and(Value);
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  EndianValue<I> Return = AtomicObj->fetch_and(Value.le());
+  RawAddress.emplace<T>(static_cast<T>(Return.le()));
   return {};
 }
 
@@ -334,10 +358,10 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  I Value = static_cast<I>(RawValue.get<T>());
+  EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->fetch_xor(Value);
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  EndianValue<I> Return = AtomicObj->fetch_xor(Value.le());
+  RawAddress.emplace<T>(static_cast<T>(Return.le()));
   return {};
 }
 
@@ -377,10 +401,10 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  I Value = static_cast<I>(RawValue.get<T>());
+  EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
-  I Return = AtomicObj->exchange(Value);
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  EndianValue<I> Return = AtomicObj->exchange(Value.le());
+  RawAddress.emplace<T>(static_cast<T>(Return.le()));
   return {};
 }
 
@@ -421,10 +445,10 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
-  I Replacement = static_cast<I>(RawReplacement.get<T>());
-  I Expected = static_cast<I>(RawExpected.get<T>());
+  EndianValue<I> Replacement = static_cast<I>(RawReplacement.get<T>());
+  I Expected = EndianValue<I>(static_cast<I>(RawExpected.get<T>())).le();
 
-  AtomicObj->compare_exchange_strong(Expected, Replacement);
+  AtomicObj->compare_exchange_strong(Expected, Replacement.le());
   RawAddress.emplace<T>(static_cast<T>(Expected));
   return {};
 }
@@ -432,7 +456,8 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
 template <typename T>
 Expect<uint32_t>
 Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                     uint32_t Address, T Expected, int64_t Timeout) noexcept {
+                     uint32_t Address, EndianValue<T> Expected,
+                     int64_t Timeout) noexcept {
   // The error message should be handled by the caller, or the AOT mode will
   // produce the duplicated messages.
   if (!MemInst.isShared()) {
@@ -453,7 +478,7 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
   auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
   assuming(AtomicObj);
 
-  if (AtomicObj->load() != Expected) {
+  if (AtomicObj->load() != Expected.le()) {
     return UINT32_C(1); // NotEqual
   }
 
@@ -480,7 +505,7 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     if (unlikely(StopToken.load(std::memory_order_relaxed) != 0)) {
       return Unexpect(ErrCode::Value::Interrupted);
     }
-    if (likely(AtomicObj->load() != Expected)) {
+    if (likely(AtomicObj->load() != Expected.le())) {
       return UINT32_C(0); // ok
     }
     if (WaitResult == std::cv_status::timeout) {

@@ -6,6 +6,7 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/span.h"
+#include "common/types.h"
 #include "host/wasi/error.h"
 #include "host/wasi/vfs.h"
 #include <functional>

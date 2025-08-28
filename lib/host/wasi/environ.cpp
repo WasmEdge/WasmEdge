@@ -143,8 +143,10 @@ Environ::~Environ() noexcept { fini(); }
 
 WasiExpect<bool> Environ::pathExists(std::string_view Path) const noexcept {
   __wasi_filestat_t Filestat;
+  // Using the first default preopened FD 3 as the working directory.
+  __wasi_fd_t BaseFd = 3;
   auto StatResult = const_cast<Environ *>(this)->pathFilestatGet(
-      3, Path, static_cast<__wasi_lookupflags_t>(0), Filestat);
+      BaseFd, Path, static_cast<__wasi_lookupflags_t>(0), Filestat);
   if (StatResult) {
     return true;
   }
@@ -155,6 +157,7 @@ WasiExpect<bool> Environ::pathExists(std::string_view Path) const noexcept {
 }
 
 WasiExpect<bool> Environ::pathCanRead(std::string_view Path) const noexcept {
+  // Using the first default preopened FD 3 as the working directory.
   __wasi_fd_t BaseFd = 3;
   auto Result = const_cast<Environ *>(this)->pathOpen(
       BaseFd, Path, static_cast<__wasi_lookupflags_t>(0),
@@ -173,6 +176,7 @@ WasiExpect<bool> Environ::pathCanRead(std::string_view Path) const noexcept {
 }
 
 WasiExpect<bool> Environ::pathCanWrite(std::string_view Path) const noexcept {
+  // Using the first default preopened FD 3 as the working directory.
   __wasi_fd_t BaseFd = 3;
   auto Result = const_cast<Environ *>(this)->pathOpen(
       BaseFd, Path, static_cast<__wasi_lookupflags_t>(0),

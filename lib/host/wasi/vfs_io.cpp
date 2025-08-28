@@ -11,7 +11,7 @@
 
 namespace WasmEdge {
 namespace FStream {
-  using namespace std::literals;
+using namespace std::literals;
 
 IFStream::IFStream(const std::string_view FileName,
                    const Host::WASI::Environ *WASIEnv) noexcept
@@ -20,6 +20,7 @@ IFStream::IFStream(const std::string_view FileName,
 
   if (UseWASI) {
     Env = const_cast<Host::WASI::Environ *>(WASIEnv);
+    // Using the first default preopened FD 3 as the working directory.
     __wasi_fd_t BaseFd = 3;
 
     auto ExistsResult = Env->pathExists(FileName);
@@ -312,6 +313,7 @@ OFStream::OFStream(const std::string_view FileName,
 
   if (UseWASI) {
     Env = const_cast<Host::WASI::Environ *>(WASIEnv);
+    // Using the first default preopened FD 3 as the working directory.
     __wasi_fd_t BaseFd = 3;
 
     __wasi_oflags_t OpenFlags = __WASI_OFLAGS_CREAT;

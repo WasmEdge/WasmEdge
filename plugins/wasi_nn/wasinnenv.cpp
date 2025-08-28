@@ -38,7 +38,8 @@ std::map<std::string_view, Backend> BackendMap = {
     {"mlx"sv, Backend::MLX},
     {"piper"sv, Backend::Piper},
     {"chattts"sv, Backend::ChatTTS},
-    {"openvinogenai"sv, Backend::OpenVINOGenAI}};
+    {"openvinogenai"sv, Backend::OpenVINOGenAI},
+    {"bitnet"sv, Backend::BitNet}};
 
 std::map<std::string_view, Device> DeviceMap = {{"cpu"sv, Device::CPU},
                                                 {"gpu"sv, Device::GPU},
@@ -110,6 +111,7 @@ WasiNNEnvironment::WasiNNEnvironment() noexcept {
     auto Device = DeviceMap.find(Target);
     if (Backend != BackendMap.end() && Device != DeviceMap.end()) {
       if (Backend->second == Backend::GGML ||
+          Backend->second == Backend::BitNet ||
           (Backend->second == Backend::PyTorch && Encode == "pytorchaoti"sv)) {
         // In GGML, we only support loading one model from nn-preload
         // config. To handle paths on Windows that contains `:` in the

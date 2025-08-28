@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/endian.h"
 #include "common/roundeven.h"
 #include "executor/executor.h"
 
@@ -11,7 +12,9 @@ template <typename TIn, typename TOut>
 Expect<void> Executor::runExtractLaneOp(ValVariant &Val,
                                         const uint8_t Index) const {
   using VTIn [[gnu::vector_size(16)]] = TIn;
-  const TOut Result = Val.get<VTIn>()[Index];
+  const uint8_t Lane =
+      Endian::native == Endian::little ? Index : 16 / sizeof(TIn) - 1 - Index;
+  const TOut Result = Val.get<VTIn>()[Lane];
   Val.emplace<TOut>(Result);
   return {};
 }
@@ -38,14 +41,26 @@ Expect<void> Executor::runVectorExtendLowOp(ValVariant &Val) const {
   using HVTIn [[gnu::vector_size(8)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
   const VTIn &V = Val.get<VTIn>();
-  if constexpr (sizeof(TIn) == 1) {
-    Val.emplace<VTOut>(__builtin_convertvector(
-        HVTIn{V[0], V[1], V[2], V[3], V[4], V[5], V[6], V[7]}, VTOut));
-  } else if constexpr (sizeof(TIn) == 2) {
-    Val.emplace<VTOut>(
-        __builtin_convertvector(HVTIn{V[0], V[1], V[2], V[3]}, VTOut));
-  } else if constexpr (sizeof(TIn) == 4) {
-    Val.emplace<VTOut>(__builtin_convertvector(HVTIn{V[0], V[1]}, VTOut));
+  if constexpr (Endian::native == Endian::little) {
+    if constexpr (sizeof(TIn) == 1) {
+      Val.emplace<VTOut>(__builtin_convertvector(
+          HVTIn{V[0], V[1], V[2], V[3], V[4], V[5], V[6], V[7]}, VTOut));
+    } else if constexpr (sizeof(TIn) == 2) {
+      Val.emplace<VTOut>(
+          __builtin_convertvector(HVTIn{V[0], V[1], V[2], V[3]}, VTOut));
+    } else if constexpr (sizeof(TIn) == 4) {
+      Val.emplace<VTOut>(__builtin_convertvector(HVTIn{V[0], V[1]}, VTOut));
+    }
+  } else {
+    if constexpr (sizeof(TIn) == 1) {
+      Val.emplace<VTOut>(__builtin_convertvector(
+          HVTIn{V[8], V[9], V[10], V[11], V[12], V[13], V[14], V[15]}, VTOut));
+    } else if constexpr (sizeof(TIn) == 2) {
+      Val.emplace<VTOut>(
+          __builtin_convertvector(HVTIn{V[4], V[5], V[6], V[7]}, VTOut));
+    } else if constexpr (sizeof(TIn) == 4) {
+      Val.emplace<VTOut>(__builtin_convertvector(HVTIn{V[2], V[3]}, VTOut));
+    }
   }
   return {};
 }
@@ -58,14 +73,26 @@ Expect<void> Executor::runVectorExtendHighOp(ValVariant &Val) const {
   using HVTIn [[gnu::vector_size(8)]] = TIn;
   using VTOut [[gnu::vector_size(16)]] = TOut;
   const VTIn &V = Val.get<VTIn>();
-  if constexpr (sizeof(TIn) == 1) {
-    Val.emplace<VTOut>(__builtin_convertvector(
-        HVTIn{V[8], V[9], V[10], V[11], V[12], V[13], V[14], V[15]}, VTOut));
-  } else if constexpr (sizeof(TIn) == 2) {
-    Val.emplace<VTOut>(
-        __builtin_convertvector(HVTIn{V[4], V[5], V[6], V[7]}, VTOut));
-  } else if constexpr (sizeof(TIn) == 4) {
-    Val.emplace<VTOut>(__builtin_convertvector(HVTIn{V[2], V[3]}, VTOut));
+  if constexpr (Endian::native == Endian::little) {
+    if constexpr (sizeof(TIn) == 1) {
+      Val.emplace<VTOut>(__builtin_convertvector(
+          HVTIn{V[8], V[9], V[10], V[11], V[12], V[13], V[14], V[15]}, VTOut));
+    } else if constexpr (sizeof(TIn) == 2) {
+      Val.emplace<VTOut>(
+          __builtin_convertvector(HVTIn{V[4], V[5], V[6], V[7]}, VTOut));
+    } else if constexpr (sizeof(TIn) == 4) {
+      Val.emplace<VTOut>(__builtin_convertvector(HVTIn{V[2], V[3]}, VTOut));
+    }
+  } else {
+    if constexpr (sizeof(TIn) == 1) {
+      Val.emplace<VTOut>(__builtin_convertvector(
+          HVTIn{V[0], V[1], V[2], V[3], V[4], V[5], V[6], V[7]}, VTOut));
+    } else if constexpr (sizeof(TIn) == 2) {
+      Val.emplace<VTOut>(
+          __builtin_convertvector(HVTIn{V[0], V[1], V[2], V[3]}, VTOut));
+    } else if constexpr (sizeof(TIn) == 4) {
+      Val.emplace<VTOut>(__builtin_convertvector(HVTIn{V[0], V[1]}, VTOut));
+    }
   }
   return {};
 }
@@ -161,7 +188,8 @@ Expect<void> Executor::runVectorTruncSatOp(ValVariant &Val) const {
     Y = detail::vectorSelect(X <= FMin, IMin, Y);
     Y = detail::vectorSelect(X >= FMax, IMax, Y);
     using VTOut22 [[gnu::vector_size(32)]] = TOut2;
-    VTOut22 T = {Y[0], Y[1], 0, 0};
+    VTOut22 T = Endian::native == Endian::little ? VTOut22{Y[0], Y[1], 0, 0}
+                                                 : VTOut22{0, 0, Y[0], Y[1]};
     Val.emplace<VTOut>(__builtin_convertvector(T, VTOut));
   }
   return {};
@@ -177,7 +205,8 @@ Expect<void> Executor::runVectorConvertOp(ValVariant &Val) const {
     Val.emplace<VTOut>(__builtin_convertvector(V, VTOut));
   } else {
     using VTIn2 [[gnu::vector_size(8)]] = TIn;
-    VTIn2 X = {V[0], V[1]};
+    VTIn2 X = Endian::native == Endian::little ? VTIn2{V[0], V[1]}
+                                               : VTIn2{V[2], V[3]};
     Val.emplace<VTOut>(__builtin_convertvector(X, VTOut));
   }
   return {};
@@ -185,15 +214,21 @@ Expect<void> Executor::runVectorConvertOp(ValVariant &Val) const {
 
 inline Expect<void> Executor::runVectorDemoteOp(ValVariant &Val) const {
   const auto V = Val.get<doublex2_t>();
-  Val.emplace<floatx4_t>(
-      floatx4_t{static_cast<float>(V[0]), static_cast<float>(V[1]), 0, 0});
+  const auto V2 =
+      Endian::native == Endian::little
+          ? floatx4_t{static_cast<float>(V[0]), static_cast<float>(V[1]), 0, 0}
+          : floatx4_t{0, 0, static_cast<float>(V[1]), static_cast<float>(V[0])};
+  Val.emplace<floatx4_t>(V2);
+  uint128_t Tmp;
+  std::memcpy(&Tmp, &V2, sizeof(V2));
   return {};
 }
 
 inline Expect<void> Executor::runVectorPromoteOp(ValVariant &Val) const {
   const auto V = Val.get<floatx4_t>();
-  Val.emplace<doublex2_t>(
-      doublex2_t{static_cast<double>(V[0]), static_cast<double>(V[1])});
+  const auto V2 = Endian::native == Endian::little ? doublex2_t{V[0], V[1]}
+                                                   : doublex2_t{V[3], V[2]};
+  Val.emplace<doublex2_t>(V2);
   return {};
 }
 
@@ -237,9 +272,14 @@ Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
   if constexpr (sizeof(T) == 1) {
     using int16x16_t [[gnu::vector_size(32)]] = int16_t;
     using uint16x16_t [[gnu::vector_size(32)]] = uint16_t;
-    const uint16x16_t Mask = {0x1,    0x2,    0x4,    0x8,   0x10,  0x20,
-                              0x40,   0x80,   0x100,  0x200, 0x400, 0x800,
-                              0x1000, 0x2000, 0x4000, 0x8000};
+    const uint16x16_t Mask =
+        Endian::native == Endian::little
+            ? uint16x16_t{0x1,    0x2,    0x4,    0x8,   0x10,  0x20,
+                          0x40,   0x80,   0x100,  0x200, 0x400, 0x800,
+                          0x1000, 0x2000, 0x4000, 0x8000}
+            : uint16x16_t{0x8000, 0x4000, 0x2000, 0x1000, 0x800, 0x400,
+                          0x200,  0x100,  0x80,   0x40,   0x20,  0x10,
+                          0x8,    0x4,    0x2,    0x1};
     uint16x16_t V =
         reinterpret_cast<uint16x16_t>(__builtin_convertvector(MSB, int16x16_t));
     V &= Mask;
@@ -248,20 +288,27 @@ Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
                             V[14] | V[15];
     Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 2) {
-    const uint16x8_t Mask = {0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80};
+    const uint16x8_t Mask =
+        Endian::native == Endian::little
+            ? uint16x8_t{0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80}
+            : uint16x8_t{0x80, 0x40, 0x20, 0x10, 0x8, 0x4, 0x2, 0x1};
     using uint8x8_t [[gnu::vector_size(8)]] = uint8_t;
     const uint8x8_t V = __builtin_convertvector(Z & Mask, uint8x8_t);
     const uint8_t Result =
         V[0] | V[1] | V[2] | V[3] | V[4] | V[5] | V[6] | V[7];
     Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 4) {
-    const uint32x4_t Mask = {0x1, 0x2, 0x4, 0x8};
+    const uint32x4_t Mask = Endian::native == Endian::little
+                                ? uint32x4_t{0x1, 0x2, 0x4, 0x8}
+                                : uint32x4_t{0x8, 0x4, 0x2, 0x1};
     using uint8x4_t [[gnu::vector_size(4)]] = uint8_t;
     const uint8x4_t V = __builtin_convertvector(Z & Mask, uint8x4_t);
     const uint8_t Result = V[0] | V[1] | V[2] | V[3];
     Val.emplace<uint32_t>(Result);
   } else if constexpr (sizeof(T) == 8) {
-    const uint64x2_t Mask = {0x1, 0x2};
+    const uint64x2_t Mask = Endian::native == Endian::little
+                                ? uint64x2_t{0x1, 0x2}
+                                : uint64x2_t{0x2, 0x1};
     using uint8x2_t [[gnu::vector_size(2)]] = uint8_t;
     const uint8x2_t V = __builtin_convertvector(Z & Mask, uint8x2_t);
     const uint8_t Result = V[0] | V[1];

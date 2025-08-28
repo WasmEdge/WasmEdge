@@ -60,11 +60,20 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     )
   elseif(BACKEND STREQUAL "ggml")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures")
-    download(
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "s390x")
+      # Use a big endian model for s390x
+      download(
+      https://huggingface.co/taronaeo/Granite-3.0-1B-A400M-Instruct-BE-GGUF/resolve/main/granite-3.0-1b-a400m-instruct-be.Q2_K.gguf
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/granite-3.gguf
+      MD5=2520fd8a702468942fdd1595b9dca9a2
+      )
+    else()
+      download(
       https://huggingface.co/TheBloke/orca_mini_v3_7B-GGUF/resolve/main/orca_mini_v3_7b.Q2_K.gguf
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_ggml_fixtures/orca_mini.gguf
       MD5=f895f00678bfbf89f70d6d25f20a7b5f
-    )
+      )
+    endif()
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       target_compile_options(wasiNNTests PUBLIC
         /wd4067 # unexpected tokens following preprocessor directive - expected a newline

@@ -16,7 +16,9 @@
 #include "ast/type.h"
 #include "common/errcode.h"
 #include "common/errinfo.h"
+#include "common/int128.h"
 #include "common/spdlog.h"
+#include "common/types.h"
 #include "system/allocator.h"
 
 #include <algorithm>
@@ -25,6 +27,7 @@
 #include <fstream>
 #include <memory>
 #include <set>
+#include <type_traits>
 #include <utility>
 
 namespace WasmEdge {
@@ -282,23 +285,27 @@ public:
     if (likely(Length > 0)) {
       if constexpr (std::is_floating_point_v<T>) {
         // Floating case. Do the memory copy.
-        std::memcpy(&Value, &DataPtr[Offset], sizeof(T));
+        EndianValue<T> LoadValue;
+        std::memcpy(&LoadValue.raw(), &DataPtr[Offset], Length);
+        Value = LoadValue.le();
       } else {
         if constexpr (sizeof(T) > 8) {
           assuming(sizeof(T) == 16);
-          Value = 0U;
-          std::memcpy(&Value, &DataPtr[Offset], Length);
+          EndianValue<T> LoadValue = 0U;
+          std::memcpy(&LoadValue.raw(), &DataPtr[Offset], Length);
+          Value = LoadValue.le();
         } else {
-          uint64_t LoadVal = 0;
           // Integer case. Extends to the result type.
-          std::memcpy(&LoadVal, &DataPtr[Offset], Length);
-          if (std::is_signed_v<T> && (LoadVal >> (Length * 8 - 1))) {
+          EndianValue<uint64_t> LoadVal = 0;
+          std::memcpy(&LoadVal.raw(), &DataPtr[Offset], Length);
+          uint64_t Val = LoadVal.le();
+          if (std::is_signed_v<T> && (Val >> (Length * 8 - 1))) {
             // Signed extension.
             for (unsigned int I = Length; I < 8; I++) {
-              LoadVal |= 0xFFULL << (I * 8);
+              Val |= 0xFFULL << (I * 8);
             }
           }
-          Value = static_cast<T>(LoadVal);
+          Value = static_cast<T>(Val);
         }
       }
     }
@@ -327,7 +334,8 @@ public:
     }
     // Copy the stored data to the value.
     if (likely(Length > 0)) {
-      std::memcpy(&DataPtr[Offset], &Value, Length);
+      T StoreValue = EndianValue<T>(Value).le();
+      std::memcpy(&DataPtr[Offset], &StoreValue, Length);
     }
     return {};
   }

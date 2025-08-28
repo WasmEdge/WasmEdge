@@ -74,7 +74,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build
           ./tools/wasmedge/wasmedge -v
-          ctest
+          ctest --output-on-failure
           cd -
       - name: Build (${{ matrix.compiler }}, Coverage)
         if: ${{ matrix.coverage }}

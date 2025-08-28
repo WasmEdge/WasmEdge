@@ -125,6 +125,19 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     target_compile_options(wasiNNTests PUBLIC
       -Wno-unused-parameter
     )
+
+  elseif(BACKEND STREQUAL "bitnet")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures")
+    download(
+      https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf/resolve/main/ggml-model-i2_s.gguf
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_bitnet_fixtures/ggml-model-i2_s.gguf
+      MD5=65cb04366e4d02ccd78b4b7b48c84b3b
+    )
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      target_compile_options(wasiNNTests PUBLIC
+        -Wno-unused-function
+      )
+    endif()
   else()
     # Add the other backend test files fetching here.
   endif()

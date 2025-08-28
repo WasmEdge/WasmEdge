@@ -91,6 +91,8 @@ set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable and build WasmEdge W
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_NATIVE "Enable LLAMA_NATIVE(AVX/AVX2/FMA) in the WASI-NN GGML backend." ON)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_BLAS "Enable LLAMA_BLAS in the WASI-NN GGML backend." OFF)
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS "Enable LLAMA_CUBLAS in the WASI-NN GGML backend." OFF)
+option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP "Enable LLAMA_HIP in the WASI-NN GGML backend for AMD platforms." OFF)
+set(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP_ARCH "" CACHE STRING "HIP target architectures (e.g. gfx900;gfx906;gfx1030). Empty = auto-detect / upstream default.")
 option(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_METAL "Enable LLAMA_METAL in the WASI-NN GGML backend. Available on MacOS arm64 only." ON)
 option(WASMEDGE_PLUGIN_WASI_NN_WHISPER_METAL "Enable GGML_METAL in the WASI-NN WHISPER backend. Available on MacOS arm64 only." ON)
 option(WASMEDGE_PLUGIN_WASI_NN_WHISPER_CUDA "Enable GGML_CUDA in the WASI-NN WHISPER backend." OFF)

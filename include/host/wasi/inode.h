@@ -6,6 +6,7 @@
 #include "common/defines.h"
 #include "common/errcode.h"
 #include "common/span.h"
+#include "host/preview2/wasi-sockets/api.h"
 #include "host/wasi/error.h"
 #include "host/wasi/vfs.h"
 #include <functional>
@@ -786,6 +787,41 @@ public:
                                    Span<uint8_t> Address,
                                    uint16_t *PortPtr) const noexcept;
 
+  static WasiExpect<INode>
+  sockOpenPV2(__wasi_sockets_ip_address_family_t SysDomain,
+              __wasi_sockets_type_t SockType) noexcept;
+  WasiExpect<void>
+  sockBindPV2(const __wasi_sockets_ip_socket_address_t &Address) noexcept;
+  WasiExpect<void>
+  sockConnectPV2(const __wasi_sockets_ip_socket_address_t &Address) noexcept;
+  WasiExpect<void> sockGetLocalAddrPV2(
+      __wasi_sockets_ip_socket_address_t &Address) const noexcept;
+  WasiExpect<void> sockGetPeerAddrPV2(
+      __wasi_sockets_ip_socket_address_t &Address) const noexcept;
+  WasiExpect<void> sockUDPDisconnect() const noexcept;
+  WasiExpect<void> sockSetIPv6V6only(bool IsV6only) const noexcept;
+  WasiExpect<uint8_t> sockGetIPTTL() const noexcept;
+  WasiExpect<void> sockSetIPTTL(uint8_t TTL) const noexcept;
+  WasiExpect<uint8_t> sockGetIPv6UnicastHops() const noexcept;
+  WasiExpect<void> sockSetIPv6UnicastHops(uint8_t TTL) const noexcept;
+  WasiExpect<uint64_t> sockGetRecvBufferSize() const noexcept;
+  WasiExpect<void> sockSetRecvBufferSize(uint64_t Size) const noexcept;
+  WasiExpect<uint64_t> sockGetSendBufferSize() const noexcept;
+  WasiExpect<void> sockSetSendBufferSize(uint64_t Size) const noexcept;
+  WasiExpect<uint32_t> sockGetKeepAlive() const noexcept;
+  WasiExpect<void> sockSetKeepAlive(uint32_t Size) const noexcept;
+  WasiExpect<uint32_t> sockGetKeepIdle() const noexcept;
+  WasiExpect<void> sockSetKeepIdle(uint32_t Sec) const noexcept;
+  WasiExpect<uint32_t> sockGetAliveInterval() const noexcept;
+  WasiExpect<void> sockSetAliveInterval(uint32_t Sec) const noexcept;
+  WasiExpect<uint32_t> sockGetKeepAliveCount() const noexcept;
+  WasiExpect<void> sockSetKeepAliveCount(uint32_t Val) const noexcept;
+  WasiExpect<void> sockShutdownPV2(__wasi_sdflags_t SdFlags) const noexcept;
+  WasiExpect<void> sockRecvPV2(Span<uint8_t> Buffer,
+                               __wasi_size_t &NRead) const noexcept;
+  static WasiExpect<void> sockGetaddrinfoPV2(
+      std::string_view String,
+      std::vector<__wasi_sockets_ip_address_t> &Addresses) noexcept;
   /// File type.
   WasiExpect<__wasi_filetype_t> filetype() const noexcept;
 

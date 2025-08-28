@@ -7,6 +7,7 @@
 #include "common/errcode.h"
 #include "common/hash.h"
 #include "common/span.h"
+#include "host/preview2/wasi-sockets/api.h"
 #include "host/wasi/clock.h"
 #include "host/wasi/error.h"
 #include "host/wasi/vfs.h"
@@ -1143,6 +1144,285 @@ public:
     }
     return Node->sockGetPeerAddr(AddressFamilyPtr, Address, PortPtr);
   }
+
+  // Above socket functions are for wasi preview 2
+
+  // sockOpenPV2 Create a non-block socket fd
+  // TODO: remove __wasi_address_family_t
+  WasiExpect<__wasi_fd_t>
+  sockOpenPV2(__wasi_sockets_ip_address_family_t AddressFamily,
+              __wasi_sockets_type_t SockType) noexcept {
+
+    std::shared_ptr<VINode> Node;
+    if (auto Res = VINode::sockOpenPV2(AddressFamily, SockType);
+        unlikely(!Res)) {
+      return WasiUnexpect(Res);
+    } else {
+      Node = std::move(*Res);
+    }
+
+    return generateRandomFdToNode(Node);
+  }
+
+  WasiExpect<void>
+  sockBindPV2(__wasi_fd_t Fd,
+              const __wasi_sockets_ip_socket_address_t &Address) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockBindPV2(Address);
+    }
+  }
+
+  WasiExpect<void>
+  sockConnectPV2(__wasi_fd_t Fd,
+                 const __wasi_sockets_ip_socket_address_t &Address) noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockConnectPV2(Address);
+    }
+  }
+
+  WasiExpect<void> sockGetLocalAddrPV2(
+      __wasi_fd_t Fd,
+      __wasi_sockets_ip_socket_address_t &Address) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetLocalAddrPV2(Address);
+    }
+  }
+
+  WasiExpect<void> sockGetPeerAddrPV2(
+      __wasi_fd_t Fd,
+      __wasi_sockets_ip_socket_address_t &Address) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetPeerAddrPV2(Address);
+    }
+  }
+
+  WasiExpect<void> sockUDPDisconnect(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockUDPDisconnect();
+    }
+  }
+
+  WasiExpect<void> sockSetIPv6V6only(__wasi_fd_t Fd,
+                                     bool IsV6only) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetIPv6V6only(IsV6only);
+    }
+  }
+
+  WasiExpect<uint8_t> sockGetIPTTL(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetIPTTL();
+    }
+  }
+
+  WasiExpect<void> sockSetIPTTL(__wasi_fd_t Fd, uint8_t TTL) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetIPTTL(TTL);
+    }
+  }
+
+  WasiExpect<uint8_t> sockGetIPv6UnicastHops(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetIPv6UnicastHops();
+    }
+  }
+
+  WasiExpect<void> sockSetIPv6UnicastHops(__wasi_fd_t Fd,
+                                          uint8_t TTL) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetIPv6UnicastHops(TTL);
+    }
+  }
+
+  WasiExpect<uint64_t> sockGetRecvBufferSize(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetRecvBufferSize();
+    }
+  }
+
+  WasiExpect<void> sockSetRecvBufferSize(__wasi_fd_t Fd,
+                                         uint64_t Size) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetRecvBufferSize(Size);
+    }
+  }
+
+  WasiExpect<uint64_t> sockGetSendBufferSize(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetSendBufferSize();
+    }
+  }
+
+  WasiExpect<void> sockSetSendBufferSize(__wasi_fd_t Fd,
+                                         uint64_t Size) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetSendBufferSize(Size);
+    }
+  }
+
+  WasiExpect<uint32_t> sockGetKeepAlive(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetKeepAlive();
+    }
+  }
+
+  WasiExpect<void> sockSetKeepAlive(__wasi_fd_t Fd,
+                                    uint32_t Val) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetKeepAlive(Val);
+    }
+  }
+
+  WasiExpect<uint32_t> sockGetKeepIdle(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetKeepIdle();
+    }
+  }
+
+  WasiExpect<void> sockSetKeepIdle(__wasi_fd_t Fd,
+                                   uint32_t Val) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetKeepIdle(Val);
+    }
+  }
+
+  WasiExpect<uint32_t> sockGetAliveInterval(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetAliveInterval();
+    }
+  }
+
+  WasiExpect<void> sockSetAliveInterval(__wasi_fd_t Fd,
+                                        uint32_t Val) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetAliveInterval(Val);
+    }
+  }
+
+  WasiExpect<uint32_t> sockGetKeepAliveCount(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetKeepAliveCount();
+    }
+  }
+
+  WasiExpect<void> sockSetKeepAliveCount(__wasi_fd_t Fd,
+                                         uint32_t Val) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockSetKeepAliveCount(Val);
+    }
+  }
+
+  WasiExpect<void> sockShutdownPV2(__wasi_fd_t Fd,
+                                   __wasi_sdflags_t SdFlags) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockShutdownPV2(SdFlags);
+    }
+  }
+
+  WasiExpect<void> sockRecvPV2(__wasi_fd_t Fd, Span<uint8_t> Buffer,
+                               __wasi_size_t &NRead) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockRecvPV2(Buffer, NRead);
+    }
+  }
+
+  WasiExpect<void> sockGetaddrinfoPV2(
+      std::string_view String,
+      std::vector<__wasi_sockets_ip_address_t> &Addresses) noexcept {
+    if (auto Res = VINode::sockGetaddrinfoPV2(String, Addresses);
+        unlikely(!Res)) {
+      return WasiUnexpect(Res);
+    }
+    return {};
+  }
+
+  /*WasiExpect<uint64_t> sockGetAliveIdleTime(__wasi_fd_t Fd) const noexcept {
+    auto Node = getNodeOrNull(Fd);
+    if (unlikely(!Node)) {
+      return WasiUnexpect(__WASI_ERRNO_BADF);
+    } else {
+      return Node->sockGetAliveIdleTime();
+    }
+  }
+
+  WasiExpect<uint64_t> sockSetAliveIdleTime(__wasi_fd_t Fd, uint32_t Val) const
+  noexcept { auto Node = getNodeOrNull(Fd); if (unlikely(!Node)) { return
+  WasiUnexpect(__WASI_ERRNO_BADF); } else { return
+  Node->sockSetAliveIdleTime(Val);
+    }
+  }*/
 
   WasiExpect<uint64_t> getNativeHandler(__wasi_fd_t Fd) const noexcept {
     auto Node = getNodeOrNull(Fd);

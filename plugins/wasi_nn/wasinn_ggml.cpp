@@ -442,16 +442,6 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
     GraphRef.Params.yarn_orig_ctx = static_cast<int32_t>(YarnOrigCtx);
   }
-  if (Doc.at_key("defrag-thold").error() == simdjson::SUCCESS) {
-    double DefragThold;
-    auto Err = Doc["defrag-thold"].get<double>().get(DefragThold);
-    if (Err) {
-      spdlog::error(
-          "[WASI-NN] GGML backend: Unable to retrieve the defrag-thold option."sv);
-      return ErrNo::InvalidArgument;
-    }
-    GraphRef.Params.defrag_thold = static_cast<float>(DefragThold);
-  }
   if (Doc.at_key("mask-valid").error() == simdjson::SUCCESS) {
     auto Err =
         Doc["mask-valid"].get<bool>().get(GraphRef.Params.cpuparams.mask_valid);

@@ -43,12 +43,14 @@ jobs:
       - name: Setup build environment - non-release
         if: ${{ !inputs.release }}
         run: |
+          brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
           brew tap WasmEdge/llvm
           brew install llvm ninja wabt grpc
           brew install --build-from-source WasmEdge/llvm/lld
       - name: Setup build environment - release
         if: ${{ inputs.release }}
         run: |
+          brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
           brew tap WasmEdge/llvm
           brew install llvm ninja wabt
           brew install --build-from-source WasmEdge/llvm/lld

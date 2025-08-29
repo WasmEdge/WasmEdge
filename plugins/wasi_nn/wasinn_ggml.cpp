@@ -3,6 +3,7 @@
 
 #include "wasinn_ggml.h"
 #include "common/types.h"
+#include "host/wasi/vfs_io.h"
 #include "wasinnenv.h"
 #include <cstdint>
 
@@ -2019,8 +2020,8 @@ std::string processTTSPromptText(const std::string &Text) {
 }
 
 std::optional<TTSSpeakerProfile>
-getSpeakerProfileFromFile(const std::string &FilePath) {
-  std::ifstream JsonFile(FilePath);
+getSpeakerProfileFromFile(const std::string &FilePath, WasiNNEnvironment &Env) {
+  WasmEdge::FStream::IFStream JsonFile(FilePath, Env.getEnv());
   if (!JsonFile.is_open()) {
     return std::nullopt;
   }
@@ -2055,13 +2056,14 @@ getSpeakerProfileFromFile(const std::string &FilePath) {
   return TTSSpeakerProfile{TextOutput, AudioOutputText};
 }
 
-std::vector<llama_token> processTTSPrompt(Graph &GraphRef,
+std::vector<llama_token> processTTSPrompt(WasiNNEnvironment &Env,
+                                          Graph &GraphRef,
                                           std::string &Prompt) noexcept {
   // Use the custom speaker profile if available.
   TTSSpeakerProfile SpeakerProfile = TTSDefaultSpeakerProfile;
   if (!GraphRef.TTSSpeakerFilePath.empty()) {
     std::optional<TTSSpeakerProfile> SpeakerProfileOpt =
-        getSpeakerProfileFromFile(GraphRef.TTSSpeakerFilePath);
+        getSpeakerProfileFromFile(GraphRef.TTSSpeakerFilePath, Env);
     if (SpeakerProfileOpt.has_value()) {
       SpeakerProfile = *SpeakerProfileOpt;
     } else {
@@ -2579,7 +2581,8 @@ std::vector<uint8_t> audioDataToWav(const std::vector<float> &Data,
 }
 
 // TextToSpeech function, will generate voice data from codes.
-ErrNo codesToSpeech(Graph &GraphRef, Context &CxtRef) noexcept {
+ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
+                    Context &CxtRef) noexcept {
   // Remove all non-audio tokens.
   CxtRef.LlamaOutputTokens.erase(
       std::remove_if(CxtRef.LlamaOutputTokens.begin(),
@@ -2626,7 +2629,7 @@ ErrNo codesToSpeech(Graph &GraphRef, Context &CxtRef) noexcept {
 
   // Save .wav file if path is provided.
   if (!GraphRef.TTSOutputFilePath.empty()) {
-    std::ofstream File(GraphRef.TTSOutputFilePath, std::ios::binary);
+    WasmEdge::FStream::OFStream File(GraphRef.TTSOutputFilePath, Env.getEnv());
     if (!File) {
       RET_ERROR(ErrNo::RuntimeError,
                 "codesToSpeech: Failed to open file '{}' for writing"sv,
@@ -2714,8 +2717,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // TODO: pass the model directly to ggml.
     // Write ggml model to file.
     GraphRef.Params.model.path = "ggml-model.bin"sv;
-    std::ofstream TempFile(GraphRef.Params.model.path,
-                           std::ios::out | std::ios::binary);
+    WasmEdge::FStream::OFStream TempFile(GraphRef.Params.model.path,
+                                         Env.getEnv());
     if (!TempFile) {
       Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument,
@@ -3067,7 +3070,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   } else if (GraphRef.TextToSpeech == true) {
     // TTS prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize tts prompt"sv)
-    CxtRef.LlamaInputs = processTTSPrompt(GraphRef, Prompt);
+    CxtRef.LlamaInputs = processTTSPrompt(Env, GraphRef, Prompt);
     if (CxtRef.LlamaInputs.empty()) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "setInput: failed to tokenize tts prompt."sv)
@@ -3177,7 +3180,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   if (GraphRef.TextToSpeech) {
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "compute: convert output codes to audio file."sv)
-    ReturnCode = codesToSpeech(GraphRef, CxtRef);
+    ReturnCode = codesToSpeech(Env, GraphRef, CxtRef);
     if (ReturnCode != ErrNo::Success) {
       RET_ERROR(ReturnCode,
                 "compute: failed to convert output codes to audio "sv

@@ -59,15 +59,25 @@ AVGetChannelLayoutNbChannels::body(const Runtime::CallingFrame &,
                                    uint64_t ChannelLayoutId) {
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  return av_get_channel_layout_nb_channels(ChannelLayout);
+
+  AVChannelLayout TmpChLayout;
+  av_channel_layout_from_mask(&TmpChLayout, ChannelLayout);
+  int32_t ChannelLayoutNbChannels = TmpChLayout.nb_channels;
+  av_channel_layout_uninit(&TmpChLayout);
+
+  return ChannelLayoutNbChannels;
 }
 
 Expect<int32_t> AVGetChannelLayoutNameLen::body(const Runtime::CallingFrame &,
                                                 uint64_t ChannelLayoutId) {
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  const char *ChName = av_get_channel_name(ChannelLayout);
-  if (ChName == nullptr) {
+  char ChName[16] = {0}; // bufsize based on AVChannelCustom.name
+  // mask ChannelLayout to AVChannel before passing
+  int code =
+      av_channel_name(ChName, 16, static_cast<AVChannel>(ChannelLayout >> 1));
+
+  if (code < 0) {
     return 0;
   }
   return strlen(ChName);
@@ -82,7 +92,9 @@ Expect<int32_t> AVGetChannelLayoutName::body(const Runtime::CallingFrame &Frame,
 
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  const char *ChName = av_get_channel_name(ChannelLayout);
+  char ChName[16] = {0}; // bufsize based on AVChannelCustom.name
+  // mask ChannelLayout to AVChannel before passing
+  av_channel_name(ChName, 16, static_cast<AVChannel>(ChannelLayout >> 1));
 
   std::copy_n(ChName, NameLen, NameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
@@ -97,8 +109,13 @@ Expect<uint64_t> AVGetChannelLayoutMask::body(const Runtime::CallingFrame &,
 
 Expect<uint64_t> AVGetDefaultChannelLayout::body(const Runtime::CallingFrame &,
                                                  int32_t Number) {
-  uint64_t const ChannelLayout = av_get_default_channel_layout(Number);
-  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(ChannelLayout);
+  AVChannelLayout TmpChLayout;
+  av_channel_layout_default(&TmpChLayout, Number);
+  uint64_t DefaultChannelLayout =
+      FFmpegUtils::ChannelLayout::intoChannelLayoutID(TmpChLayout.u.mask);
+  av_channel_layout_uninit(&TmpChLayout);
+
+  return DefaultChannelLayout;
 }
 
 Expect<int32_t> AVUtilConfigurationLength::body(const Runtime::CallingFrame &) {

@@ -460,8 +460,8 @@ public:
       return AV_CODEC_ID_012V;
     case 197:
       return AV_CODEC_ID_AVUI;
-    case 198:
-      return AV_CODEC_ID_AYUV;
+      // case 198:
+      //   return AV_CODEC_ID_AYUV;
     case 199:
       return AV_CODEC_ID_TARGA_Y216;
     case 200:
@@ -1516,8 +1516,8 @@ public:
       return 196;
     case AV_CODEC_ID_AVUI:
       return 197;
-    case AV_CODEC_ID_AYUV:
-      return 198;
+      // case AV_CODEC_ID_AYUV:
+      //   return 198;
     case AV_CODEC_ID_TARGA_Y216:
       return 199;
     case AV_CODEC_ID_V308:
@@ -2518,8 +2518,9 @@ public:
       return 172;
     case AV_PIX_FMT_VIDEOTOOLBOX:
       return 173;
-    case AV_PIX_FMT_XVMC:
-      return 174;
+      // case AV_PIX_FMT_XVMC:
+      //   return 174;
+      // =================================
       //        case AV_PIX_FMT_RGB32:  // IF format is this type, based on
       //        endianness, it resolves to big endian or small endian.
       //          return 175;           // The Switch case contains both big and
@@ -3123,8 +3124,8 @@ public:
       return AV_PIX_FMT_AYUV64BE;
     case 173:
       return AV_PIX_FMT_VIDEOTOOLBOX;
-    case 174:
-      return AV_PIX_FMT_XVMC;
+      // case 174:
+      //   return AV_PIX_FMT_XVMC;
     case 175:
       return AV_PIX_FMT_RGB32;
     case 176:
@@ -3483,7 +3484,6 @@ private:
   const static uint64_t SURROUND_DIRECT_LEFT = 1ULL << 22;
   const static uint64_t SURROUND_DIRECT_RIGHT = 1ULL << 23;
   const static uint64_t LOW_FREQUENCY_2 = 1ULL << 24;
-  const static uint64_t NATIVE = 1ULL << 25;
 
   const static uint64_t MONO = 1ULL << 26;
   const static uint64_t STEREO = 1ULL << 27;
@@ -3592,9 +3592,6 @@ public:
     }
     if (ChannelLayout & LOW_FREQUENCY_2) {
       Channel |= AV_CH_LOW_FREQUENCY_2;
-    }
-    if (ChannelLayout & NATIVE) {
-      Channel |= AV_CH_LAYOUT_NATIVE;
     }
     if (ChannelLayout & MONO) {
       Channel |= AV_CH_LAYOUT_MONO;
@@ -3767,9 +3764,6 @@ public:
     }
 
     // Channel Mask C;
-    if ((ChannelLayout & AV_CH_LAYOUT_NATIVE) == AV_CH_LAYOUT_NATIVE) {
-      Channel |= NATIVE;
-    }
     if ((ChannelLayout & AV_CH_LAYOUT_MONO) == AV_CH_LAYOUT_MONO) {
       Channel |= MONO;
     }
@@ -4117,8 +4111,8 @@ public:
       return AV_OPT_TYPE_DURATION;
     case 15:
       return AV_OPT_TYPE_COLOR;
-    case 16:
-      return AV_OPT_TYPE_CHANNEL_LAYOUT;
+    // case 16:
+    //   return AV_OPT_TYPE_CHANNEL_LAYOUT;
     case 17:
       return AV_OPT_TYPE_UINT64;
     case 18:
@@ -4164,8 +4158,8 @@ public:
       return 14;
     case AV_OPT_TYPE_COLOR:
       return 15;
-    case AV_OPT_TYPE_CHANNEL_LAYOUT:
-      return 16;
+    // case AV_OPT_TYPE_CHANNEL_LAYOUT:
+    //   return 16;
     case AV_OPT_TYPE_UINT64:
       return 17;
     case AV_OPT_TYPE_BOOL:

@@ -30,15 +30,15 @@ RUN apt-get install -y \
         libswresample-dev \
         libswscale-dev
 
-# FFmpeg 6.0 (ubuntu 20.04, 22.04)
+# FFmpeg 7.1 (ubuntu 20.04, 22.04)
 FROM base AS deps-20
 
 WORKDIR /usr/local
 
-COPY ffmpeg/install-ffmpeg-v6.0.sh .
-RUN [ "/bin/bash", "install-ffmpeg-v6.0.sh" ]
-ENV PKG_CONFIG_PATH=/usr/local/FFmpeg-n6.0/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
-ENV LD_LIBRARY_PATH=/usr/local/FFmpeg-n6.0/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+COPY ffmpeg/install-ffmpeg-v7.1.sh .
+RUN [ "/bin/bash", "install-ffmpeg-v7.1.sh" ]
+ENV PKG_CONFIG_PATH=/usr/local/FFmpeg-n7.1/output/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}
+ENV LD_LIBRARY_PATH=/usr/local/FFmpeg-n7.1/output/lib${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 FROM deps-20 AS deps-22
 
@@ -83,7 +83,7 @@ FROM deps-all AS clean-apt
 
 RUN rm -f \
     install-opencvmini.sh \
-    install-ffmpeg-v6.0.sh \
+    install-ffmpeg-v7.1.sh \
     install-pytorch.sh \
     install-openvino.sh \
     install-onnxruntime.sh \

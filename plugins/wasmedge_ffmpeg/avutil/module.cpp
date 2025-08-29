@@ -114,10 +114,6 @@ WasmEdgeFFmpegAVUtilModule::WasmEdgeFFmpegAVUtilModule(
               std::make_unique<AVFrameSetColorTransferCharacteristic>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_chroma_location",
               std::make_unique<AVFrameChromaLocation>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_coded_picture_number",
-              std::make_unique<AVFrameCodedPictureNumber>(Env));
-  addHostFunc("wasmedge_ffmpeg_avutil_av_frame_display_picture_number",
-              std::make_unique<AVFrameDisplayPictureNumber>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_repeat_pict",
               std::make_unique<AVFrameRepeatPict>(Env));
   addHostFunc("wasmedge_ffmpeg_avutil_av_frame_flags",

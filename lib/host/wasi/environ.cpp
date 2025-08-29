@@ -222,6 +222,87 @@ void Environ::fini() noexcept {
 
 Environ::~Environ() noexcept { fini(); }
 
+WasiExpect<bool> Environ::pathExists(std::string_view Path) const noexcept {
+  __wasi_filestat_t Filestat;
+  // Using the first default preopened FD 3 as the working directory.
+  __wasi_fd_t BaseFd = 3;
+  auto StatResult = const_cast<Environ *>(this)->pathFilestatGet(
+      BaseFd, Path, static_cast<__wasi_lookupflags_t>(0), Filestat);
+  if (StatResult) {
+    return true;
+  }
+  if (StatResult.error() == __WASI_ERRNO_NOENT) {
+    return false;
+  }
+  return WasiUnexpect(StatResult.error());
+}
+
+WasiExpect<bool> Environ::pathCanRead(std::string_view Path) const noexcept {
+  // Using the first default preopened FD 3 as the working directory.
+  __wasi_fd_t BaseFd = 3;
+  auto Result = const_cast<Environ *>(this)->pathOpen(
+      BaseFd, Path, static_cast<__wasi_lookupflags_t>(0),
+      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_READ,
+      __WASI_RIGHTS_FD_READ, static_cast<__wasi_fdflags_t>(0));
+
+  if (Result) {
+    const_cast<Environ *>(this)->fdClose(*Result);
+    return true;
+  }
+  if (Result.error() == __WASI_ERRNO_ACCES ||
+      Result.error() == __WASI_ERRNO_NOENT) {
+    return false;
+  }
+  return WasiUnexpect(Result.error());
+}
+
+WasiExpect<bool> Environ::pathCanWrite(std::string_view Path) const noexcept {
+  // Using the first default preopened FD 3 as the working directory.
+  __wasi_fd_t BaseFd = 3;
+  auto Result = const_cast<Environ *>(this)->pathOpen(
+      BaseFd, Path, static_cast<__wasi_lookupflags_t>(0),
+      static_cast<__wasi_oflags_t>(0), __WASI_RIGHTS_FD_WRITE,
+      __WASI_RIGHTS_FD_WRITE, static_cast<__wasi_fdflags_t>(0));
+
+  if (Result) {
+    const_cast<Environ *>(this)->fdClose(*Result);
+    return true;
+  }
+  if (Result.error() == __WASI_ERRNO_ACCES ||
+      Result.error() == __WASI_ERRNO_NOENT) {
+    return false;
+  }
+  return WasiUnexpect(Result.error());
+}
+
+WasiExpect<__wasi_rights_t>
+Environ::pathGetStats(std::string_view Path) const noexcept {
+  __wasi_rights_t Rights = static_cast<__wasi_rights_t>(0);
+  auto StatResult = pathExists(Path);
+  if (StatResult.error()) {
+    return WasiUnexpect(StatResult.error());
+  }
+  if (StatResult) {
+    // File exists, so we can get file stats
+    Rights |= __WASI_RIGHTS_PATH_FILESTAT_GET;
+  }
+  StatResult = pathCanRead(Path);
+  if (StatResult.error()) {
+    return WasiUnexpect(StatResult.error());
+  }
+  if (StatResult) {
+    Rights |= __WASI_RIGHTS_FD_READ;
+  }
+  StatResult = pathCanWrite(Path);
+  if (StatResult.error()) {
+    return WasiUnexpect(StatResult.error());
+  }
+  if (StatResult) {
+    Rights |= __WASI_RIGHTS_FD_WRITE;
+  }
+  return Rights;
+}
+
 } // namespace WASI
 } // namespace Host
 } // namespace WasmEdge

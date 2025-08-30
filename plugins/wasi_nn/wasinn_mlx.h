@@ -14,6 +14,7 @@
 #include "MLX/mlx/transformer.h"
 #include "MLX/model/llm/transformer.h"
 #include "MLX/prompt/prompt.h"
+#include <model/whisper_transcribe.h>
 
 #include <mlx/mlx.h>
 #include <tokenizers_cpp.h>
@@ -39,6 +40,9 @@ struct VLMInput {
 struct VLMOutput {
   mx::array Answer = mx::array({});
 };
+struct WhisperInput {
+  std::string Audio;
+};
 struct Graph {
   std::string ModelType;
   std::string ModelArch;
@@ -55,8 +59,8 @@ struct Graph {
 struct Context {
   Context(uint32_t Gid, Graph &) noexcept : GraphId(Gid) {}
   uint32_t GraphId;
-  std::variant<LLMInput, VLMInput> Inputs;
-  std::variant<LLMOutput, VLMOutput> Outputs;
+  std::variant<LLMInput, VLMInput, WhisperInput> Inputs;
+  std::variant<LLMOutput, VLMOutput, whisper::TranscribeResult> Outputs;
 };
 #else
 struct Graph {};

@@ -479,9 +479,21 @@ protected:
   }
 
   /// Get start function address in Store.
-  FunctionInstance *getStartFunc() const noexcept {
+  const FunctionInstance *getStartFunc() const noexcept {
     std::shared_lock Lock(Mutex);
     return StartFunc;
+  }
+
+  /// Set the target imported WASI module when instantiation.
+  void setWASIModule(const ModuleInstance *Mod) noexcept {
+    std::unique_lock Lock(Mutex);
+    WASIModInst = Mod;
+  }
+
+  /// Get the target imported WASI module when instantiation.
+  const ModuleInstance *getWASIModule() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return WASIModInst;
   }
 
   /// Unsafe import instance into this module.
@@ -599,7 +611,10 @@ protected:
   std::map<std::string, GlobalInstance *, std::less<>> ExpGlobals;
 
   /// Start function instance.
-  FunctionInstance *StartFunc = nullptr;
+  const FunctionInstance *StartFunc = nullptr;
+
+  /// Imported WASI module instance when instantiation.
+  const ModuleInstance *WASIModInst = nullptr;
 
   /// Linked store.
   std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>

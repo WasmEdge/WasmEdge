@@ -17,12 +17,15 @@
 #include <mlx/array.h>
 
 #include <simdjson.h>
+
+#include "host/wasi/vfs_io.h"
 #endif
 
 namespace WasmEdge::Host::WASINN::MLX {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX
-std::string loadBytesFromFile(const std::string &Path) {
-  std::ifstream Fs(Path, std::ios::in | std::ios::binary);
+std::string loadBytesFromFile(const std::string &Path,
+                              const WasmEdge::Host::WASI::Environ *Env) {
+  WasmEdge::FStream::IFStream Fs(Path, Env);
   if (Fs.fail()) {
     spdlog::error("[WASI-NN] MLX backend: Cannot open {}."sv, Path);
     return "";
@@ -351,7 +354,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       // Write model to file.
       // TODO: handle different model format.
       ModelFilePath = "MLX" + std::to_string(Idx) + ".safetensors";
-      std::ofstream TempFile(ModelFilePath, std::ios::out | std::ios::binary);
+      WasmEdge::FStream::OFStream TempFile(ModelFilePath, Env.getEnv());
       if (!TempFile) {
         spdlog::error(
             "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);
@@ -429,7 +432,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
 
   // Load tokenizer.
   if (!TokenizerPath.empty()) {
-    auto Bytes = loadBytesFromFile(TokenizerPath);
+    auto Bytes = loadBytesFromFile(TokenizerPath, Env.getEnv());
     if (Bytes.empty()) {
       spdlog::error("[WASI-NN] MLX backend: Load tokenizer failed."sv);
       Env.deleteGraph(GId);

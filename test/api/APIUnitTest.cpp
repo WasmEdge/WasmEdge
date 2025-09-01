@@ -3120,6 +3120,7 @@ TEST(APICoreTest, Async) {
   WasmEdge_StringDelete(ModName);
   WasmEdge_StringDelete(ModName2);
   WasmEdge_ASTModuleDelete(Mod);
+  WasmEdge_ModuleInstanceDelete(ModInst);
   WasmEdge_ModuleInstanceDelete(HostMod);
   WasmEdge_VMDelete(VM);
   WasmEdge_StoreDelete(Store);

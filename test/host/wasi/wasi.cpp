@@ -991,14 +991,14 @@ TEST(WasiTest, PollOneoffSocketV1) {
     auto PollReadTimeout = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
-          WasmEdge::EndianValue(0x1010101010101010).le();
+          WasmEdge::EndianValue<__wasi_userdata_t>(0x1010101010101010).le();
       Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_READ;
       Subscriptions[0].u.u.fd_read.file_descriptor =
-          WasmEdge::EndianValue(Fd).le();
+          WasmEdge::EndianValue<__wasi_fd_t>(Fd).le();
       Subscriptions[1].userdata =
           WasmEdge::EndianValue(0x2020202020202020).le();
       Subscriptions[1].u.tag =
@@ -1029,7 +1029,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
     auto PollRead = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1069,7 +1069,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
     auto PollWriteTimeout = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1108,7 +1108,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
     auto PollWrite = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1148,7 +1148,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
     auto PollReadWriteTimeout = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1194,7 +1194,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
     auto PollReadWriteWrite = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1240,7 +1240,7 @@ TEST(WasiTest, PollOneoffSocketV1) {
     auto PollReadWriteReadWrite = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1684,7 +1684,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
     auto PollReadTimeout = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1724,7 +1724,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
     auto PollRead = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1765,7 +1765,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
     auto PollWriteTimeout = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1805,7 +1805,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
     auto PollWrite = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1845,7 +1845,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
     auto PollReadWriteTimeout = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1891,7 +1891,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
     auto PollReadWriteWrite = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -1937,7 +1937,7 @@ TEST(WasiTest, PollOneoffSocketV2) {
     auto PollReadWriteReadWrite = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -2381,7 +2381,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
     auto PollReadTimeout = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -2421,7 +2421,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
     auto PollRead = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -2462,7 +2462,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
     auto PollWriteTimeout = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -2502,7 +2502,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
     auto PollWrite = [&]() {
       const uint32_t Count = 2;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -2542,7 +2542,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
     auto PollReadWriteTimeout = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -2588,7 +2588,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
     auto PollReadWriteWrite = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
@@ -2634,7 +2634,7 @@ TEST(WasiTest, EpollOneoffSocketV1) {
     auto PollReadWriteReadWrite = [&]() {
       const uint32_t Count = 3;
       const uint32_t NEventsPtr = 0;
-      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t);
+      const uint32_t InPtr = NEventsPtr + sizeof(__wasi_size_t) * 2;
       const uint32_t OutPtr = InPtr + sizeof(__wasi_subscription_t) * Count;
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =

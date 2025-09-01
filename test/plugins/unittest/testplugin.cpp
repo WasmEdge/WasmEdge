@@ -44,7 +44,7 @@ static Plugin::PluginModule::ModuleDescriptor MD[]{
     },
 };
 
-Plugin::Plugin::PluginDescriptor Descriptor{
+const Plugin::Plugin::PluginDescriptor Descriptor{
     /* Name */ "wasmedge_plugintest_cpp",
     /* Description */ "",
     /* APIVersion */ Plugin::Plugin::CurrentAPIVersion,

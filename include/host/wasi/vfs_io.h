@@ -11,20 +11,10 @@
 #include <sstream>
 #include <string>
 
-#if defined(_WIN32)
-#ifdef WASMEDGE_COMPILE_LIBRARY
-#define WASMEDGE_VFS_EXPORT __declspec(dllexport)
-#else
-#define WASMEDGE_VFS_EXPORT __declspec(dllimport)
-#endif
-#else
-#define WASMEDGE_VFS_EXPORT __attribute__((visibility("default")))
-#endif
-
 namespace WasmEdge {
 namespace FStream {
 
-class WASMEDGE_VFS_EXPORT IFStream {
+class IFStream {
 public:
   IFStream(const std::string_view FileName,
            const Host::WASI::Environ *WASIEnv = nullptr) noexcept;
@@ -64,7 +54,7 @@ private:
   void setError() { HasError = true; }
 };
 
-class WASMEDGE_VFS_EXPORT OFStream {
+class OFStream {
 public:
   OFStream(const std::string_view FileName,
            const Host::WASI::Environ *WASIEnv = nullptr) noexcept;
@@ -113,10 +103,10 @@ template <typename T> IFStream &IFStream::operator>>(T &Value) {
 
   if (UseWASI) {
     std::string Str;
-    char C;
+    int C;
 
     while ((C = get()) != EOF && !std::isspace(C)) {
-      Str += C;
+      Str += static_cast<char>(C);
     }
 
     try {
@@ -153,7 +143,7 @@ template <typename T> OFStream &OFStream::operator<<(const T &Value) {
     std::ostringstream Oss;
     Oss << Value;
     std::string Str = Oss.str();
-    return write(Str.c_str(), Str.length());
+    return write(Str.c_str(), static_cast<std::streamsize>(Str.length()));
   } else {
     StdStream << Value;
     if (StdStream.fail()) {

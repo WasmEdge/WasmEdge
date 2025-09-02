@@ -2120,9 +2120,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASIWithFds(
       DirVec.emplace_back(Preopens[I]);
     }
   }
-  auto &WasiEnv = WasiMod->getEnv();
-  auto Result = WasiEnv.initWithFds(DirVec, ProgName, ArgVec, EnvVec, StdInFd,
-                                    StdOutFd, StdErrFd);
+  auto Result = WasiMod->initWithFds(DirVec, ProgName, ArgVec, EnvVec, StdInFd,
+                                     StdOutFd, StdErrFd);
   if (!Result) {
     spdlog::error("    Failed to initialize WASI environment: {}"sv,
                   Result.error());

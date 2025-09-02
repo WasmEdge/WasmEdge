@@ -234,7 +234,7 @@ TEST_F(VfsIoTest, OFStreamWriteMethod) {
   EXPECT_TRUE(Stream.is_open());
 
   const char *Data = "Binary data test";
-  Stream.write(Data, strlen(Data));
+  Stream.write(Data, static_cast<std::streamsize>(strlen(Data)));
   Stream.close();
 
   std::ifstream ReadStream("output.txt");
@@ -429,7 +429,7 @@ TEST_F(VfsIoTest, MultipleOperations) {
   InStream.getline(FirstLine);
   EXPECT_EQ(FirstLine, "First line");
 
-  char NextChar = InStream.get();
+  char NextChar = static_cast<char>(InStream.get());
   EXPECT_EQ(NextChar, 'X');
 
   char Buffer[13];

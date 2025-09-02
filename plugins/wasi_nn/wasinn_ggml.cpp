@@ -1276,10 +1276,21 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     }
   }
   if (Doc.at_key("flash-attn").error() == simdjson::SUCCESS) {
-    auto Err = Doc["flash-attn"].get<bool>().get(GraphRef.Params.flash_attn);
+    std::string_view FlashAttn;
+    auto Err = Doc["flash-attn"].get<std::string_view>().get(FlashAttn);
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the flash-attn option."sv)
+    }
+    if (FlashAttn == "on"sv || FlashAttn == "enabled"sv) {
+      GraphRef.Params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_ENABLED;
+    } else if (FlashAttn == "off"sv || FlashAttn == "disabled"sv) {
+      GraphRef.Params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_DISABLED;
+    } else if (FlashAttn == "auto"sv) {
+      GraphRef.Params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_AUTO;
+    } else {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "The flash-attn option must be one of: on, off, auto."sv)
     }
   }
   if (Doc.at_key("no-perf").error() == simdjson::SUCCESS) {

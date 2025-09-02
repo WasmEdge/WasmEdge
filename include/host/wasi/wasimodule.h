@@ -25,6 +25,14 @@ public:
     return Env.getNativeHandler(Fd);
   }
 
+  WASI::WasiExpect<void>
+  initWithFds(Span<const std::string> Dirs, std::string ProgramName,
+              Span<const std::string> Args, Span<const std::string> Envs,
+              int32_t StdInFd, int32_t StdOutFd, int32_t StdErrFd) {
+    return Env.initWithFds(Dirs, ProgramName, Args, Envs, StdInFd, StdOutFd,
+                           StdErrFd);
+  }
+
   const WASI::Environ *getEnv() const noexcept { return &Env; }
 
 private:

@@ -98,7 +98,8 @@ IFStream &IFStream::read(char *Buffer, std::streamsize Count) {
   }
 
   if (UseWASI) {
-    Span<uint8_t> BufferSpan(reinterpret_cast<uint8_t *>(Buffer), Count);
+    Span<uint8_t> BufferSpan(reinterpret_cast<uint8_t *>(Buffer),
+                             static_cast<size_t>(Count));
     Span<Span<uint8_t>> Iovs(&BufferSpan, 1);
     __wasi_size_t NRead;
 
@@ -124,7 +125,8 @@ std::streamsize IFStream::readsome(char *Buffer, std::streamsize Count) {
   }
 
   if (UseWASI) {
-    Span<uint8_t> BufferSpan(reinterpret_cast<uint8_t *>(Buffer), Count);
+    Span<uint8_t> BufferSpan(reinterpret_cast<uint8_t *>(Buffer),
+                             static_cast<size_t>(Count));
     Span<Span<uint8_t>> Iovs(&BufferSpan, 1);
     __wasi_size_t NRead;
 
@@ -214,7 +216,7 @@ std::streampos IFStream::tellg() {
       return -1;
     }
 
-    return static_cast<std::streampos>(Pos);
+    return static_cast<std::streampos>(static_cast<std::streamoff>(Pos));
   }
   std::streampos Pos = StdStream.tellg();
   if (StdStream.fail()) {
@@ -392,7 +394,8 @@ OFStream &OFStream::write(const char *Buffer, std::streamsize Count) {
       std::streamsize ChunkSizeToWrite = std::min(Remaining, ChunkSize);
 
       Span<const uint8_t> DataSpan(
-          reinterpret_cast<const uint8_t *>(CurrentBuffer), ChunkSizeToWrite);
+          reinterpret_cast<const uint8_t *>(CurrentBuffer),
+          static_cast<size_t>(ChunkSizeToWrite));
       Span<Span<const uint8_t>> Iovs(&DataSpan, 1);
       __wasi_size_t NWritten;
 
@@ -405,7 +408,7 @@ OFStream &OFStream::write(const char *Buffer, std::streamsize Count) {
       if (NWritten != static_cast<__wasi_size_t>(ChunkSizeToWrite)) {
         if (NWritten > 0) {
           CurrentBuffer += NWritten;
-          Remaining -= NWritten;
+          Remaining -= static_cast<std::streamsize>(NWritten);
         } else {
           setError();
           break;
@@ -451,7 +454,7 @@ std::streampos OFStream::tellp() {
       return -1;
     }
 
-    return static_cast<std::streampos>(Pos);
+    return static_cast<std::streampos>(static_cast<std::streamoff>(Pos));
   }
   std::streampos Pos = StdStream.tellp();
   if (StdStream.fail()) {

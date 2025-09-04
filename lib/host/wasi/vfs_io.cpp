@@ -189,6 +189,9 @@ IFStream &IFStream::getline(std::string &Line, char Delim) {
     while ((C = get()) != EOF && C != Delim) {
       Line += static_cast<char>(C);
     }
+    if (Delim == '\n' && !Line.empty() && Line.back() == '\r') {
+      Line.pop_back();
+    }
   } else {
     std::getline(StdStream, Line, Delim);
   }

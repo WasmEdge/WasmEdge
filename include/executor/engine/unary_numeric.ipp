@@ -9,8 +9,9 @@
 namespace WasmEdge {
 namespace Executor {
 
-template <typename T> TypeU<T> Executor::runClzOp(ValVariant &Val) const {
-  T I = Val.get<T>();
+template <typename T>
+TypeU<T> Executor::runClzOp(Runtime::StackManager &StackMgr) const noexcept {
+  T I = StackMgr.peekTop<T>();
   // Return the count of leading zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
@@ -19,15 +20,16 @@ template <typename T> TypeU<T> Executor::runClzOp(ValVariant &Val) const {
       Cnt++;
       I <<= 1;
     }
-    Val.get<T>() = Cnt;
+    StackMgr.emplaceTop(Cnt);
   } else {
-    Val.get<T>() = static_cast<T>(sizeof(T) * 8);
+    StackMgr.emplaceTop<T>(sizeof(T) * 8);
   }
   return {};
 }
 
-template <typename T> TypeU<T> Executor::runCtzOp(ValVariant &Val) const {
-  T I = Val.get<T>();
+template <typename T>
+TypeU<T> Executor::runCtzOp(Runtime::StackManager &StackMgr) const noexcept {
+  T I = StackMgr.peekTop<T>();
   // Return the count of trailing zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
@@ -36,15 +38,16 @@ template <typename T> TypeU<T> Executor::runCtzOp(ValVariant &Val) const {
       Cnt++;
       I >>= 1;
     }
-    Val.get<T>() = Cnt;
+    StackMgr.emplaceTop(Cnt);
   } else {
-    Val.get<T>() = static_cast<T>(sizeof(T) * 8);
+    StackMgr.emplaceTop<T>(sizeof(T) * 8);
   }
   return {};
 }
 
-template <typename T> TypeU<T> Executor::runPopcntOp(ValVariant &Val) const {
-  T I = Val.get<T>();
+template <typename T>
+TypeU<T> Executor::runPopcntOp(Runtime::StackManager &StackMgr) const noexcept {
+  T I = StackMgr.peekTop<T>();
   // Return the count of non-zero bits in i.
   if (I != 0U) {
     T Cnt = 0;
@@ -55,58 +58,66 @@ template <typename T> TypeU<T> Executor::runPopcntOp(ValVariant &Val) const {
       }
       I >>= 1;
     }
-    Val.get<T>() = Cnt;
+    StackMgr.emplaceTop(Cnt);
   }
   return {};
 }
 
-template <typename T> TypeF<T> Executor::runAbsOp(ValVariant &Val) const {
+template <typename T>
+TypeF<T> Executor::runAbsOp(Runtime::StackManager &StackMgr) const noexcept {
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
   // In MSVC, std::fabs cannot be used. If input is NAN, std::fabs will set the
   // highest bit of fraction.
-  T &Fp = Val.get<T>();
+  T Fp = StackMgr.peekTop<T>();
   static_assert(std::is_floating_point_v<T>);
   if constexpr (sizeof(T) == 4) {
     uint32_t Tmp = reinterpret_cast<uint32_t &>(Fp) & UINT32_C(0x7fffffff);
-    Val.get<T>() = reinterpret_cast<T &>(Tmp);
+    StackMgr.emplaceTop<T>(reinterpret_cast<T &&>(Tmp));
   } else {
     uint64_t Tmp =
         reinterpret_cast<uint64_t &>(Fp) & UINT64_C(0x7fffffffffffffff);
-    Val.get<T>() = reinterpret_cast<T &>(Tmp);
+    StackMgr.emplaceTop<T>(reinterpret_cast<T &&>(Tmp));
   }
 #else
-  Val.get<T>() = std::fabs(Val.get<T>());
+  StackMgr.emplaceTop<T>(std::fabs(StackMgr.peekTop<T>()));
 #endif
   return {};
 }
 
-template <typename T> TypeF<T> Executor::runNegOp(ValVariant &Val) const {
-  Val.get<T>() = -Val.get<T>();
+template <typename T>
+TypeF<T> Executor::runNegOp(Runtime::StackManager &StackMgr) const noexcept {
+  StackMgr.emplaceTop<T>(-StackMgr.peekTop<T>());
   return {};
 }
 
-template <typename T> TypeF<T> Executor::runCeilOp(ValVariant &Val) const {
-  Val.get<T>() = std::ceil(Val.get<T>());
+template <typename T>
+TypeF<T> Executor::runCeilOp(Runtime::StackManager &StackMgr) const noexcept {
+  StackMgr.emplaceTop<T>(std::ceil(StackMgr.peekTop<T>()));
   return {};
 }
 
-template <typename T> TypeF<T> Executor::runFloorOp(ValVariant &Val) const {
-  Val.get<T>() = std::floor(Val.get<T>());
+template <typename T>
+TypeF<T> Executor::runFloorOp(Runtime::StackManager &StackMgr) const noexcept {
+  StackMgr.emplaceTop<T>(std::floor(StackMgr.peekTop<T>()));
   return {};
 }
 
-template <typename T> TypeF<T> Executor::runTruncOp(ValVariant &Val) const {
-  Val.get<T>() = std::trunc(Val.get<T>());
+template <typename T>
+TypeF<T> Executor::runTruncOp(Runtime::StackManager &StackMgr) const noexcept {
+  StackMgr.emplaceTop<T>(std::trunc(StackMgr.peekTop<T>()));
   return {};
 }
 
-template <typename T> TypeF<T> Executor::runNearestOp(ValVariant &Val) const {
-  Val.get<T>() = WasmEdge::roundeven(Val.get<T>());
+template <typename T>
+TypeF<T>
+Executor::runNearestOp(Runtime::StackManager &StackMgr) const noexcept {
+  StackMgr.emplaceTop<T>(WasmEdge::roundeven(StackMgr.peekTop<T>()));
   return {};
 }
 
-template <typename T> TypeF<T> Executor::runSqrtOp(ValVariant &Val) const {
-  Val.get<T>() = std::sqrt(Val.get<T>());
+template <typename T>
+TypeF<T> Executor::runSqrtOp(Runtime::StackManager &StackMgr) const noexcept {
+  StackMgr.emplaceTop<T>(std::sqrt(StackMgr.peekTop<T>()));
   return {};
 }
 

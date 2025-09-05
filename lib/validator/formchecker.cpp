@@ -1030,8 +1030,10 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                       {ValType(TypeCode::I32)});
 
   // Parametric Instructions.
-  case OpCode::Drop:
-    return StackPopAny();
+  case OpCode::Drop: {
+    EXPECTED_TRY(popType());
+    return {};
+  }
   case OpCode::Select: {
     // Pop I32.
     EXPECTED_TRY(popType(TypeCode::I32));
@@ -2252,11 +2254,6 @@ Expect<void> FormChecker::StackTrans(Span<const ValType> Take,
                                      Span<const ValType> Put) {
   EXPECTED_TRY(popTypes(Take));
   pushTypes(Put);
-  return {};
-}
-
-Expect<void> FormChecker::StackPopAny() {
-  EXPECTED_TRY(popType());
   return {};
 }
 

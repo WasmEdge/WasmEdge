@@ -378,7 +378,7 @@ function(wasmedge_setup_llama_target target)
         -Wno-unused-function
       )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      target_compile_options(${target}
+      add_compile_options(
         /wd4305
         /wd4244
       )

@@ -501,7 +501,7 @@ namespace WasmEdge::LLVM {
 
 Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
                               std::filesystem::path OutputPath) noexcept {
-  auto LLContext = D.extract().LLContext();
+  auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;
   auto &TM = D.extract().TM;
   std::filesystem::path LLPath(OutputPath);

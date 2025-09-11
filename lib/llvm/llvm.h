@@ -258,9 +258,12 @@ public:
   Context(const Context &) = default;
   Context &operator=(const Context &) = default;
 
+  static Context create() noexcept { return Context(LLVMContextCreate()); }
+
   constexpr operator bool() const noexcept { return Ref != nullptr; }
   constexpr auto &unwrap() const noexcept { return Ref; }
   constexpr auto &unwrap() noexcept { return Ref; }
+  LLVMContextRef release() noexcept { return std::exchange(Ref, nullptr); }
   friend void swap(Context &LHS, Context &RHS) noexcept {
     using std::swap;
     swap(LHS.Ref, RHS.Ref);
@@ -2053,6 +2056,14 @@ public:
     swap(*this, B);
     return *this;
   }
+#if LLVM_VERSION_MAJOR >= 21
+  OrcThreadSafeContext(Context &C) noexcept
+      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.release())) {}
+#else
+  Context getContext() noexcept {
+    return LLVMOrcThreadSafeContextGetContext(Ref);
+  }
+#endif
 
   OrcThreadSafeContext() noexcept : Ref(LLVMOrcCreateNewThreadSafeContext()) {}
   ~OrcThreadSafeContext() noexcept { LLVMOrcDisposeThreadSafeContext(Ref); }
@@ -2067,10 +2078,6 @@ public:
                    OrcThreadSafeContext &RHS) noexcept {
     using std::swap;
     swap(LHS.Ref, RHS.Ref);
-  }
-
-  Context getContext() noexcept {
-    return LLVMOrcThreadSafeContextGetContext(Ref);
   }
 
 private:

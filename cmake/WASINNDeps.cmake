@@ -6,6 +6,7 @@ include(FetchContent)
 # A helper function to remove a compile flag from a target's COMPILE_OPTIONS property.
 function(remove_flag_from_target TARGET FLAG)
     get_target_property(CURRENT_OPTIONS ${TARGET} COMPILE_OPTIONS)
+    message(STATUS "DEBUG===========Current compile options for target ${TARGET}: ${CURRENT_OPTIONS}")
     if(CURRENT_OPTIONS)
         string(REPLACE "${FLAG}" "" CURRENT_OPTIONS "${CURRENT_OPTIONS}")
         set_target_properties(${TARGET} PROPERTIES COMPILE_OPTIONS "${CURRENT_OPTIONS}")

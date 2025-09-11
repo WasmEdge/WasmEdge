@@ -451,12 +451,6 @@ struct RefVariant {
   RefVariant(const Runtime::Instance::FunctionInstance *P) noexcept {
     setData(TypeCode::FuncRef, reinterpret_cast<const void *>(P));
   }
-  RefVariant(const Runtime::Instance::StructInstance *P) noexcept {
-    setData(TypeCode::StructRef, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::ArrayInstance *P) noexcept {
-    setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
-  }
 
   // Getter of type.
   const ValType &getType() const noexcept {

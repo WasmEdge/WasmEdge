@@ -378,6 +378,7 @@ function(wasmedge_setup_llama_target target)
         -Wno-unused-function
       )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      message(STATUS "Disable some warnings for MSVC")
       add_compile_options(
         /wd4305
         /wd4244

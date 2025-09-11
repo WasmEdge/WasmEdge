@@ -3,6 +3,15 @@
 
 include(FetchContent)
 
+# A helper function to remove a compile flag from a target's COMPILE_OPTIONS property.
+function(remove_flag_from_target TARGET FLAG)
+    get_target_property(CURRENT_OPTIONS ${TARGET} COMPILE_OPTIONS)
+    if(CURRENT_OPTIONS)
+        string(REPLACE "${FLAG}" "" CURRENT_OPTIONS "${CURRENT_OPTIONS}")
+        set_target_properties(${TARGET} PROPERTIES COMPILE_OPTIONS "${CURRENT_OPTIONS}")
+    endif()
+endfunction()
+
 # Function of setup WASI-NN target.
 function(wasmedge_setup_wasinn_target target)
   cmake_parse_arguments(PARSE_ARGV 1 WASMEDGE_WASINNDEPS_${target} "PLUGINLIB" "" "")
@@ -378,15 +387,7 @@ function(wasmedge_setup_llama_target target)
         -Wno-unused-function
       )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      message(STATUS "Disable some warnings for MSVC")
-      target_compile_options(${target}
-        PRIVATE
-        /WX-
-      )
-      target_compile_options(common
-        PRIVATE
-        /WX-
-      )
+      remove_flag_from_target(${target} "/WX")
     endif()
   endif()
   # Only the plugin library needs to fully linking the dependency.

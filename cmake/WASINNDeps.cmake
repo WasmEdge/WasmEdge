@@ -379,8 +379,13 @@ function(wasmedge_setup_llama_target target)
       )
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
       message(STATUS "Disable some warnings for MSVC")
-      add_compile_options(
-        /WX-  # Disable treat warnings as errors
+      target_compile_options(${target}
+        PRIVATE
+        /WX-
+      )
+      target_compile_options(common
+        PRIVATE
+        /WX-
       )
     endif()
   endif()

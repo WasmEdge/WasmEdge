@@ -73,6 +73,7 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
   }
 
   auto &LLModule = D.extract().LLModule;
+  auto TSContext = D.extract().getTSContext();
 
   if (Conf.getCompilerConfigure().isDumpIR()) {
     if (auto ErrorMessage = LLModule.printModuleToFile("wasm-jit.ll")) {
@@ -82,8 +83,7 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
 
   auto MainJD = J.getMainJITDylib();
   if (auto Err = J.addLLVMIRModule(
-          MainJD,
-          OrcThreadSafeModule(LLModule.release(), D.extract().TSContext))) {
+          MainJD, OrcThreadSafeModule(LLModule.release(), TSContext))) {
     spdlog::error("{}"sv, Err.message().string_view());
     return Unexpect(ErrCode::Value::HostFuncError);
   }

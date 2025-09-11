@@ -5826,7 +5826,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   LLVM::Core::init();
 
   LLVM::Data D;
-  auto LLContext = D.extract().LLContext();
+  auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);

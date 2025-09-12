@@ -18,8 +18,12 @@
 #include "wasinn_whisper.h"
 #include "wasinntypes.h"
 
+#include "host/wasi/environ.h"
+
 #include "common/spdlog.h"
+#include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
+#include "runtime/callingframe.h"
 
 #include <cstdint>
 #include <functional>
@@ -370,6 +374,18 @@ struct WasiNNEnvironment :
   static PO::Option<std::string> NNRPCURI; // For RPC client mode
   std::shared_ptr<grpc::Channel> NNRPCChannel;
 #endif
+
+  const Host::WASI::Environ *getEnv() const noexcept { return Environ; }
+  void setEnviron(const Runtime::CallingFrame *CurrentFrame) noexcept {
+    auto *WasiModule = CurrentFrame->getWASIModule();
+    if (WasiModule != nullptr) {
+      Environ = dynamic_cast<const WasmEdge::Host::WasiModule *>(WasiModule)
+                    ->getEnv();
+    }
+  }
+
+private:
+  const Host::WASI::Environ *Environ = nullptr;
 };
 
 } // namespace WASINN

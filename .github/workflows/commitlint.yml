@@ -32,8 +32,8 @@ jobs:
 
       - name: Install commitlint
         run: |
-          npm install conventional-changelog-conventionalcommits
-          npm install commitlint@latest @commitlint/config-conventional
+          npm install conventional-changelog-conventionalcommits@9.1.0
+          npm install commitlint@19.8.1 @commitlint/config-conventional@19.8.1
           npx commitlint --version
 
       - name: Validate PR commits with commitlint

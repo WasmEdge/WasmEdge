@@ -386,10 +386,10 @@ jobs:
         echo "=== Test: Version ${TEST_228_VERSION} (new tarball structure) ==="
         bash utils/install_v2.sh -V --version=${TEST_228_VERSION}
         source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
-        
+
         INSTALLED_VERSION=$(~/.wasmedge/bin/wasmedge --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
         echo "Installed version: ${INSTALLED_VERSION}"
-        
+
         if [ "${INSTALLED_VERSION}" = "${TEST_228_VERSION}" ]; then
           echo "[PASS] Version ${TEST_228_VERSION} installed successfully"
         else
@@ -397,7 +397,7 @@ jobs:
           exit 1
         fi
         verify_plugin "libwasmedgePluginWasiNN.dylib"
-        
+
         bash utils/uninstall.sh -q -V
         # Test if the environment variable was removed
         IPATH="$HOME/.wasmedge"

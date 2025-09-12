@@ -156,7 +156,8 @@ jobs:
     - name: Build and scan WasmEdge with IWYU
       shell: bash
       run: |
-        brew install llvm@18 ninja cmake
+        brew install llvm@18 ninja
+        # cmake is installed by local/pinned tap inside the macos runner image
         export LLVM_DIR="$(brew --prefix)/opt/llvm@18/lib/cmake"
         export Clang_DIR="$(brew --prefix)/opt/llvm@18/lib/cmake/clang"
         export IWYU_PREFIX="$(brew --prefix)/opt/iwyu"

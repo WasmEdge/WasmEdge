@@ -56,6 +56,10 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       MLX/model/utils.cpp
       MLX/model/vlm_base.cpp
       MLX/model/vlm_sampling.cpp
+      MLX/model/whisper/whisper.cpp
+      MLX/model/whisper/tokenizer.cpp
+      MLX/model/whisper/decoding.cpp
+      MLX/model/whisper_transcribe.cpp
       MLX/mlx/base.cpp
       MLX/mlx/linear.cpp
       MLX/mlx/convolution.cpp

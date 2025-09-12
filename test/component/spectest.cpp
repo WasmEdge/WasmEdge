@@ -175,7 +175,7 @@ TEST(Component, LoadAndRun_MultiComponentBinary) {
       // } core module $Indirect
 
       // $C core instance section, size = 4, instantiate module 0 with arg {}
-      0x02, 0x04, 0x01, 0x00, 0x00, 0x00, 
+      0x02, 0x04, 0x01, 0x00, 0x00, 0x00,
       // $C alias section vec<1>, size = 13
       0x06, 0x0d, 0x01,
       // alias[0]: core:sort:func, target: core:export index:0 name:"R1-dtor"

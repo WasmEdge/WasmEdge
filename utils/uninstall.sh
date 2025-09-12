@@ -267,7 +267,7 @@ main() {
       sed "${line_num}d" "$real_file.bak" > "$real_file"
       rm -f "$real_file.bak"
     done
-    
+
     exit 0
 }
 

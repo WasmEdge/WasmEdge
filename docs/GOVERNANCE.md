@@ -63,7 +63,7 @@ Any Maintainer may suggest a request for CNCF resources, either in the [mailing 
 
 ## Code of Conduct
 
-* Code of Conduct violations by community members will be discussed and resolved on the private Maintainer mailing list <cncf-wasmedge-runtime-maintainers@lists.cncf.io>. 
+* Code of Conduct violations by community members will be discussed and resolved on the private Maintainer mailing list <cncf-wasmedge-runtime-maintainers@lists.cncf.io>.
 * If a Maintainer is directly involved in the report, the Maintainers will instead designate two Maintainers to work with the CNCF Code of Conduct Committee <conduct@cncf.io> in resolving it.
 
 See more details in [Code of Conduct](CODE_OF_CONDUCT.md) document.
@@ -86,7 +86,7 @@ Generally, a vote can be taken on the developer mailing list (wasmedge@googlegro
 **Simple majority (>1/2)** of all Maintainers is required for:
 * Promoting or removing reviewers
 * General conflict resolution
-  
+
 
 **Two-thirds majority (≥2/3)** of all Maintainers is required for:
 * Creating new repositories or subprojects

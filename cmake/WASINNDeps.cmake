@@ -565,7 +565,7 @@ function(wasmedge_setup_mlx_target target)
   endif()
 
   find_package(ZLIB REQUIRED)
-  
+
   find_program(FFMPEG_EXECUTABLE ffmpeg)
 
   # Only the plugin library needs to fully linking the dependency.
@@ -605,7 +605,7 @@ function(wasmedge_setup_bitnet_target target)
     set(GGML_ACCELERATE OFF)
     set(GGML_BLAS OFF)
     set(GGML_OPENMP OFF)
-   
+
     if(WASMEDGE_PLUGIN_WASI_NN_BITNET_ARM_TL1)
       message(STATUS "WASI-NN BitNet backend: Enable ARM TL1")
       set(BITNET_ARM_TL1 ON)
@@ -634,11 +634,11 @@ function(wasmedge_setup_bitnet_target target)
       GIT_SHALLOW    TRUE
       ${BITNET_PATCH_ARGS}
     )
-    
+
     # download/checkout and makes the source available but does NOT configure the project.
     FetchContent_Populate(bitnet)
     message(STATUS "Fetching BitNet.cpp source -- done")
-   
+
     if(WASMEDGE_PLUGIN_WASI_NN_BITNET_ARM_TL1 OR WASMEDGE_PLUGIN_WASI_NN_BITNET_X86_TL2)
         message(STATUS "Pre-generating BitNet kernel headers...")
         find_package(Python3 COMPONENTS Interpreter REQUIRED)

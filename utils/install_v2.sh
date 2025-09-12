@@ -216,7 +216,6 @@ VERBOSE=0
 LEGACY=0
 ENABLE_NOAVX=0
 GGML_BUILD_NUMBER=""
-DISABLE_WASI_LOGGING="0"
 BY_PASS_CUDA_VERSION="0"
 BY_PASS_CUDART="0"
 
@@ -368,25 +367,50 @@ cleanup() {
 install() {
 	local dir=$1
 	shift
+	# Determine the source directory based on tarball structure
+	# Check for actual content directories, not just the parent directory
+	local src_dir=""
+	if [ -d "$TMP_DIR/$dir/bin" ] || [ -d "$TMP_DIR/$dir/lib" ] || [ -d "$TMP_DIR/$dir/lib64" ] || [ -d "$TMP_DIR/$dir/include" ]; then
+		# Old structure (pre-0.15.0): WasmEdge-VERSION-OS directory contains the actual files
+		src_dir="$TMP_DIR/$dir"
+		info "Detected old tarball structure (pre-0.15.0)"
+	else
+		# New structure (0.15.0+): files extracted directly to TMP_DIR
+		src_dir="$TMP_DIR"
+		info "Detected new tarball structure (0.15.0+)"
+	fi
+	
 	for var in "$@"; do
 		if [ "$var" = "lib" ]; then
-			if [ -d "$TMP_DIR/$dir"/lib64 ]; then
-				cp -rf "$TMP_DIR/$dir"/lib64/* "$IPATH/$var"
-			else
-				cp -rf "$TMP_DIR/$dir"/lib/* "$IPATH/$var"
+			if [ -d "$src_dir"/lib64 ]; then
+				cp -rf "$src_dir"/lib64/* "$IPATH/$var"
+			elif [ -d "$src_dir"/lib ]; then
+				cp -rf "$src_dir"/lib/* "$IPATH/$var"
 			fi
 		elif [ "$var" = "plugin" ]; then
-			if [ -d "$TMP_DIR/$dir"/plugin ]; then
+			# Plugin might be in different locations depending on extraction
+			local plugin_src=""
+			if [ -d "$src_dir"/plugin ]; then
+				plugin_src="$src_dir/plugin"
+			elif [ -d "$TMP_DIR/$dir/plugin" ]; then
+				# Plugin was extracted to the old structure location
+				plugin_src="$TMP_DIR/$dir/plugin"
+			fi
+			
+			if [ -n "$plugin_src" ] && [ -d "$plugin_src" ]; then
 				if [[ ! $IPATH =~ ^"/usr" ]]; then
-					cp -rf "$TMP_DIR/$dir"/plugin/* "$IPATH/plugin"
+					cp -rf "$plugin_src"/* "$IPATH/plugin"
+					local plugin_dest="$IPATH/plugin"
 				else
-					cp -rf "$TMP_DIR/$dir"/plugin/* "$IPATH/lib"
+					cp -rf "$plugin_src"/* "$IPATH/lib"
+					local plugin_dest="$IPATH/lib"
 				fi
-				for _file_ in "$IPATH/$dir"/plugin/*; do
+				
+				for _file_ in "$plugin_dest"/*; do
 					if [[ "$_file_" =~ "Plugin" ]] || [[ "$_file_" =~ "plugin" ]] || [[ "$_file_" =~ "ggml" ]]; then
 						local _plugin_name_=${_file_##*/}
 						if [[ "$IPATH" =~ ^"/usr" ]]; then
-							echo "#$_file_" >>"$IPATH/env"
+							echo "#$IPATH/lib/$_plugin_name_" >>"$IPATH/env"
 						else
 							echo "#$IPATH/plugin/$_plugin_name_" >>"$IPATH/env"
 						fi
@@ -394,7 +418,9 @@ install() {
 				done
 			fi
 		else
-			cp -rf "$TMP_DIR/$dir/$var"/* "$IPATH/$var"
+			if [ -d "$src_dir/$var" ]; then
+				cp -rf "$src_dir/$var"/* "$IPATH/$var"
+			fi
 		fi
 	done
 }
@@ -460,14 +486,6 @@ get_wasmedge_ggml_plugin() {
 	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
 }
 
-get_wasmedge_wasi_logging_plugin() {
-	info "Fetching WASI-Logging-Plugin"
-	_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_logging-$VERSION-$RELEASE_PKG"
-	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"
-	mkdir -p "${TMP_PLUGIN_DIR}"
-	_extractor -C "${TMP_PLUGIN_DIR}" -vxzf "${TMP_DIR}/WasmEdge-plugin-wasi_logging-${VERSION}-${RELEASE_PKG}"
-}
-
 wasmedge_checks() {
 	if [ "${ARCH}" == $(uname -m) ] && [ "${OS}" == $(uname) ] ; then
 		# Check only MAJOR.MINOR.PATCH
@@ -519,9 +537,6 @@ main() {
 				;;
 			b | ggmlbn)
 				GGML_BUILD_NUMBER="${OPTARG}"
-				;;
-			nowasilogging)
-				DISABLE_WASI_LOGGING="1"
 				;;
 			c | ggmlcuda)
 				BY_PASS_CUDA_VERSION="${OPTARG}"
@@ -612,14 +627,6 @@ main() {
 
 		get_wasmedge_release
 		get_wasmedge_ggml_plugin
-	if [[ "${VERSION}" =~ ^"0.14.1" ]]; then
-		# WASI-Logging is bundled into the WasmEdge release package starting from 0.14.1-rc.1
-		DISABLE_WASI_LOGGING="1"
-	fi
-
-	if [[ "${DISABLE_WASI_LOGGING}" == "0" ]]; then
-		get_wasmedge_wasi_logging_plugin
-	fi
 
 		install "$IPKG" "include" "lib" "bin" "plugin"
 		wasmedge_checks "$VERSION"

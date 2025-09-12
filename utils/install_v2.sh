@@ -152,6 +152,26 @@ get_latest_release() {
 	echo "0.14.1"
 }
 
+# Compare semantic versions
+# Returns 0 if version1 >= version2, 1 otherwise
+version_ge() {
+	local version1=$1
+	local version2=$2
+	
+	# Convert versions to comparable format (major*10000 + minor*100 + patch)
+	local v1_parts=(${version1//./ })
+	local v2_parts=(${version2//./ })
+	
+	local v1_num=$((${v1_parts[0]:-0} * 10000 + ${v1_parts[1]:-0} * 100 + ${v1_parts[2]:-0}))
+	local v2_num=$((${v2_parts[0]:-0} * 10000 + ${v2_parts[1]:-0} * 100 + ${v2_parts[2]:-0}))
+	
+	if [ $v1_num -ge $v2_num ]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 VERSION=$(get_latest_release)
 
 check_os_arch() {
@@ -174,7 +194,11 @@ check_os_arch() {
 					;;
 			esac
 			if [ "${LEGACY}" == 1 ]; then
-				RELEASE_PKG="manylinux2014_${ARCH}.tar.gz"
+				if version_ge "${VERSION}" "0.15.0"; then
+					RELEASE_PKG="manylinux_2_28_${ARCH}.tar.gz"
+				else
+					RELEASE_PKG="manylinux2014_${ARCH}.tar.gz"
+				fi
 			else
 				RELEASE_PKG="ubuntu20.04_${ARCH}.tar.gz"
 			fi

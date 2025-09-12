@@ -53,17 +53,7 @@ jobs:
           git config --global --add safe.directory $(pwd)
       - name: Install lineguard
         run: |
-          curl -L https://github.com/hydai/lineguard/releases/download/v0.1.4/lineguard-v0.1.4-x86_64-unknown-linux-gnu.tar.gz | tar xz
-          sudo mv lineguard /usr/local/bin/
+          cargo install lineguard@0.1.5
       - name: Run lineguard
         run: |
-          BASE_REF=${{ github.base_ref }}
-          if git rev-parse --verify origin/$BASE_REF >/dev/null 2>&1; then
-            FROM_COMMIT=$(git rev-parse origin/$BASE_REF)
-            TO_COMMIT=$(git rev-parse HEAD)
-            lineguard --config .lineguardrc --fix --verbose --from $FROM_COMMIT --to $TO_COMMIT || { echo "Lineguard found issues"; exit 1; }
-          else
-            FROM_COMMIT=$(git rev-parse HEAD~1)
-            TO_COMMIT=$(git rev-parse HEAD)
-            lineguard --config .lineguardrc --fix --verbose --from $FROM_COMMIT --to $TO_COMMIT || { echo "Lineguard found issues"; exit 1; }
-          fi
+          lineguard --config .lineguardrc --verbose -r . || { echo "Lineguard found issues"; exit 1; }

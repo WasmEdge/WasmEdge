@@ -60,7 +60,8 @@ jobs:
         if: matrix.os == 'macos-latest'
         working-directory: WasmEdge
         run: |
-          brew install llvm ninja cmake
+          brew install llvm ninja
+          # cmake is installed by local/pinned tap inside the macos runner image
           export LLVM_DIR="/usr/local/opt/llvm/lib/cmake"
           export CC=clang
           export CXX=clang++

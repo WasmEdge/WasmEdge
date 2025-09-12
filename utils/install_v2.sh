@@ -157,14 +157,14 @@ get_latest_release() {
 version_ge() {
 	local version1=$1
 	local version2=$2
-	
+
 	# Convert versions to comparable format (major*10000 + minor*100 + patch)
 	local v1_parts=(${version1//./ })
 	local v2_parts=(${version2//./ })
-	
+
 	local v1_num=$((${v1_parts[0]:-0} * 10000 + ${v1_parts[1]:-0} * 100 + ${v1_parts[2]:-0}))
 	local v2_num=$((${v2_parts[0]:-0} * 10000 + ${v2_parts[1]:-0} * 100 + ${v2_parts[2]:-0}))
-	
+
 	if [ $v1_num -ge $v2_num ]; then
 		return 0
 	else
@@ -403,7 +403,7 @@ install() {
 		src_dir="$TMP_DIR"
 		info "Detected new tarball structure (0.15.0+)"
 	fi
-	
+
 	for var in "$@"; do
 		if [ "$var" = "lib" ]; then
 			if [ -d "$src_dir"/lib64 ]; then
@@ -420,7 +420,7 @@ install() {
 				# Plugin was extracted to the old structure location
 				plugin_src="$TMP_DIR/$dir/plugin"
 			fi
-			
+
 			if [ -n "$plugin_src" ] && [ -d "$plugin_src" ]; then
 				if [[ ! $IPATH =~ ^"/usr" ]]; then
 					cp -rf "$plugin_src"/* "$IPATH/plugin"
@@ -429,7 +429,7 @@ install() {
 					cp -rf "$plugin_src"/* "$IPATH/lib"
 					local plugin_dest="$IPATH/lib"
 				fi
-				
+
 				for _file_ in "$plugin_dest"/*; do
 					if [[ "$_file_" =~ "Plugin" ]] || [[ "$_file_" =~ "plugin" ]] || [[ "$_file_" =~ "ggml" ]]; then
 						local _plugin_name_=${_file_##*/}
@@ -496,13 +496,7 @@ get_wasmedge_ggml_plugin() {
 		_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
 	else
 		info "Use ${GGML_BUILD_NUMBER} GGML plugin"
-		if [[ "${VERSION}" =~ ^"0.14.1" ]]; then
-			# Due to the cuda assets are too large to be inside the repo tree
-			# We are using the release assets instead of the repo tree from 0.14.1
-			_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/releases/download/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
-		else
-			_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/raw/main/${VERSION}/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
-		fi
+		_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/releases/download/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
 	fi
 
 	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"

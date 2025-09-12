@@ -218,8 +218,8 @@ jobs:
         for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
         [ -f "$file" ] || continue
         if grep -q ". \"$IPATH/env\"" "$file"; then
-          echo "✗ Found WasmEdge source line in: $file"
-          echo "✗ Uninstallation failed"
+          echo "[FAIL] Found WasmEdge source line in: $file"
+          echo "[FAIL] Uninstallation failed"
           exit 1
         fi
         done
@@ -275,9 +275,9 @@ jobs:
         # Note: install_v2.sh currently defaults to ${TEST_VERSION}, not the latest version
         INSTALLED_VERSION=$(wasmedge -v | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
         if [[ "${INSTALLED_VERSION}" == "${TEST_VERSION}" ]]; then
-          echo "✓ Version: ${TEST_VERSION} (install_v2.sh default)"
+          echo "[PASS] Version: ${TEST_VERSION} (install_v2.sh default)"
         else
-          echo "✗ Version mismatch: expected ${TEST_VERSION}, got ${INSTALLED_VERSION}"
+          echo "[FAIL] Version mismatch: expected ${TEST_VERSION}, got ${INSTALLED_VERSION}"
           exit 1
         fi
 
@@ -289,6 +289,19 @@ jobs:
         # Test specific version with custom GGML build
         printf "\n=== Test 3: Custom GGML build ===\n"
         bash utils/install_v2.sh -V --version=${TEST_VERSION} --ggmlbn=b5640
+        verify_plugin "libwasmedgePluginWasiNN.so"
+
+        # Test version 0.15.0 with new tarball structure
+        printf "\n=== Test 4: Version ${TEST_228_VERSION} (new tarball structure) ===\n"
+        bash utils/install_v2.sh -V --version=${TEST_228_VERSION}
+        source ~/.wasmedge/env
+        INSTALLED_VERSION=$(wasmedge -v | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        if [[ "${INSTALLED_VERSION}" == "${TEST_228_VERSION}" ]]; then
+          echo "[PASS] Version ${TEST_228_VERSION} installed successfully"
+        else
+          echo "[FAIL] Version mismatch: expected ${TEST_228_VERSION}, got ${INSTALLED_VERSION}"
+          exit 1
+        fi
         verify_plugin "libwasmedgePluginWasiNN.so"
 
         # Test uninstallation
@@ -361,20 +374,38 @@ jobs:
         echo "Installed version: ${INSTALLED_VERSION}"
 
         if [ "${INSTALLED_VERSION}" = "${TEST_VERSION}" ]; then
-          echo "✓ Version: ${TEST_VERSION} (install_v2.sh default)"
+          echo "[PASS] Version: ${TEST_VERSION} (install_v2.sh default)"
         else
-          echo "✗ Version mismatch: expected ${TEST_VERSION}, got ${INSTALLED_VERSION}"
+          echo "[FAIL] Version mismatch: expected ${TEST_VERSION}, got ${INSTALLED_VERSION}"
           exit 1
         fi
 
+        bash utils/uninstall.sh -q -V
+
+        # Test version 0.15.0 with new tarball structure
+        echo "=== Test: Version ${TEST_228_VERSION} (new tarball structure) ==="
+        bash utils/install_v2.sh -V --version=${TEST_228_VERSION}
+        source ~/.wasmedge/env 2>/dev/null || source ~/.bashrc 2>/dev/null || true
+        
+        INSTALLED_VERSION=$(~/.wasmedge/bin/wasmedge --version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        echo "Installed version: ${INSTALLED_VERSION}"
+        
+        if [ "${INSTALLED_VERSION}" = "${TEST_228_VERSION}" ]; then
+          echo "[PASS] Version ${TEST_228_VERSION} installed successfully"
+        else
+          echo "[FAIL] Version mismatch: expected ${TEST_228_VERSION}, got ${INSTALLED_VERSION}"
+          exit 1
+        fi
+        verify_plugin "libwasmedgePluginWasiNN.dylib"
+        
         bash utils/uninstall.sh -q -V
         # Test if the environment variable was removed
         IPATH="$HOME/.wasmedge"
         for file in "$HOME/.zshrc" "$HOME/.bash_profile"; do
           [ -f "$file" ] || continue
           if grep -q ". \"$IPATH/env\"" "$file"; then
-            echo "✗ Found WasmEdge source line in: $file"
-            echo "✗ Uninstallation failed"
+            echo "[FAIL] Found WasmEdge source line in: $file"
+            echo "[FAIL] Uninstallation failed"
             exit 1
           fi
         done
@@ -448,7 +479,7 @@ jobs:
           # Test deprecated version handling
           echo "Test 3: Deprecated version handling"
           ${python_cmd} utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
-            echo "✓ Version validation works" || (echo "✗ Version validation failed" && exit 1)
+            echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
         done
 
     - name: Test Plugin Installations
@@ -534,7 +565,7 @@ jobs:
         # Test deprecated version handling
         printf "\n=== Test 3: Deprecated version handling ===\n"
         python3 utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
-          echo "✓ Version validation works" || (echo "✗ Version validation failed" && exit 1)
+          echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
 
     - name: Test Plugin Installations
       shell: zsh {0}

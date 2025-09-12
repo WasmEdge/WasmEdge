@@ -30,7 +30,7 @@ jobs:
         run: |
           python3 -m venv ./venv
           source ./venv/bin/activate
-          pip install codespell
+          pip install codespell==2.4.1
           # exclude files which may be synchronized from other places
           git ls-files | grep -v "^thirdparty" | grep -v "/thirdparty/" | grep -v "/dist/" | xargs -t codespell --ignore-words .github/workflows/ignore_words 2>/dev/null
   lineguard:

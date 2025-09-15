@@ -449,6 +449,13 @@ Expect<uint32_t> WasiArgsSizesGet::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
                                       uint32_t EnvPtr, uint32_t EnvBufPtr) {
+  // Alignment checks
+  if (EnvPtr % alignof(uint8_t_ptr) != 0) {
+    return __WASI_ERRNO_NOTALIGNED;
+  }
+
+  // EnvBufPtr should be aligned to at least 1 byte (which is always true)
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -484,6 +491,14 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiEnvironSizesGet::body(const Runtime::CallingFrame &Frame,
                                            uint32_t /* Out */ EnvCntPtr,
                                            uint32_t /* Out */ EnvBufSizePtr) {
+  // Alignment checks
+  if (EnvCntPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_NOTALIGNED;
+  }
+  if (EnvBufSizePtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_NOTALIGNED;
+  }
+  
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {

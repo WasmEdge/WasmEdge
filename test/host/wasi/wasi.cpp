@@ -616,6 +616,61 @@ TEST(WasiTest, Envs) {
       WasmEdge::EndianValue(*MemInst.getPointer<const uint32_t *>(0)).le(),
       UINT32_C(0xa5a5a5a5));
   Env.fini();
+
+  // alignment check for WasiEnvironGet
+  Env.init({}, "test"s, {}, {"a=b"s});
+  // Test misaligned EnvPtr (should fail)
+  EXPECT_TRUE(WasiEnvironGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          static_cast<uint32_t>(alignof(uint8_t_ptr)-1), // misaligned
+          UINT32_C(0)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+
+  // Test correctly aligned pointers (should succeed)
+  writeDummyMemoryContent(MemInst);
+  EXPECT_TRUE(WasiEnvironGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          static_cast<uint32_t>(alignof(uint8_t_ptr)), // aligned
+          UINT32_C(0)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  // Note: No need to test EnvBufPtr alignment as it only needs 1-byte alignment
+  // which is always satisfied
+  Env.fini();
+
+  // alignment check for WasiEnvironSizesGet
+  Env.init({}, "test"s, {}, {"a=b"s});
+  // Misaligned EnvCntPtr (should fail)
+  EXPECT_TRUE(WasiEnvironSizesGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          static_cast<uint32_t>(alignof(__wasi_size_t)-1), // misaligned
+          UINT32_C(0)},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+
+  // Misaligned EnvBufSizePtr (should fail)
+  EXPECT_TRUE(WasiEnvironSizesGet.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          UINT32_C(0),
+          static_cast<uint32_t>(sizeof(__wasi_size_t)-1)}, // misaligned
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+
+  // Correct alignment (should succeed)
+  writeDummyMemoryContent(MemInst);
+  EXPECT_TRUE(WasiEnvironSizesGet.run(
+      CallFrame, // both aligned
+      std::initializer_list<WasmEdge::ValVariant>{
+          UINT32_C(0),
+          static_cast<uint32_t>(sizeof(__wasi_size_t))}, // aligned
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  Env.fini();
 }
 
 TEST(WasiTest, ClockRes) {

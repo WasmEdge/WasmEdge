@@ -558,11 +558,6 @@ enum __wasi_errno_t : uint16_t {
    */
   __WASI_ERRNO_AISYSTEM = 87,
 
-  /**
-   * Argument is not aligned properly.
-   */
-  __WASI_ERRNO_NOTALIGNED = 88,
-
 };
 static_assert(sizeof(__wasi_errno_t) == 2, "witx calculated size");
 static_assert(alignof(__wasi_errno_t) == 2, "witx calculated align");

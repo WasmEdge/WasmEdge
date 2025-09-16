@@ -396,7 +396,7 @@ TEST(WasiTest, Args) {
           static_cast<uint32_t>(alignof(uint8_t_ptr)-1), // misaligned
           UINT32_C(0)},
       Errno));
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
   // Test correctly aligned pointers (should succeed)
   writeDummyMemoryContent(MemInst);
@@ -420,7 +420,7 @@ TEST(WasiTest, Args) {
           static_cast<uint32_t>(alignof(__wasi_size_t)-1), // misaligned
           UINT32_C(0)},
       Errno));
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
   // Misaligned ArgvBufSizePtr (should fail)
   EXPECT_TRUE(WasiArgsSizesGet.run(
@@ -429,7 +429,7 @@ TEST(WasiTest, Args) {
           UINT32_C(0),
           static_cast<uint32_t>(sizeof(__wasi_size_t)-1)}, // misaligned
       Errno));
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
   // Correct alignment (should succeed)
   writeDummyMemoryContent(MemInst);
@@ -626,7 +626,7 @@ TEST(WasiTest, Envs) {
           static_cast<uint32_t>(alignof(uint8_t_ptr)-1), // misaligned
           UINT32_C(0)},
       Errno));
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
   // Test correctly aligned pointers (should succeed)
   writeDummyMemoryContent(MemInst);
@@ -650,7 +650,7 @@ TEST(WasiTest, Envs) {
           static_cast<uint32_t>(alignof(__wasi_size_t)-1), // misaligned
           UINT32_C(0)},
       Errno));
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
   // Misaligned EnvBufSizePtr (should fail)
   EXPECT_TRUE(WasiEnvironSizesGet.run(
@@ -659,7 +659,7 @@ TEST(WasiTest, Envs) {
           UINT32_C(0),
           static_cast<uint32_t>(sizeof(__wasi_size_t)-1)}, // misaligned
       Errno));
-  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTALIGNED);
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
   // Correct alignment (should succeed)
   writeDummyMemoryContent(MemInst);

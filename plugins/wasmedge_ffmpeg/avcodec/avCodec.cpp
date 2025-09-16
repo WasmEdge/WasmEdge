@@ -179,7 +179,7 @@ AVCodecSupportedSampleRatesIter::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVCodecChannelLayoutIsNull::body(const Runtime::CallingFrame &,
                                                  uint32_t AvCodecId) {
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
-  if (AvCodec->channel_layouts == nullptr) {
+  if (AvCodec->ch_layouts == nullptr) {
     return 1;
   }
   return 0;
@@ -190,7 +190,7 @@ Expect<uint64_t> AVCodecChannelLayoutIter::body(const Runtime::CallingFrame &,
                                                 uint32_t Idx) {
 
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
-  const uint64_t *ChannelLayout = AvCodec->channel_layouts;
+  const AVChannelLayout *ChannelLayout = AvCodec->ch_layouts;
   if (ChannelLayout == nullptr) {
     return 0;
   }
@@ -201,7 +201,7 @@ Expect<uint64_t> AVCodecChannelLayoutIter::body(const Runtime::CallingFrame &,
     Curr++;
   }
 
-  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(*ChannelLayout);
+  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(ChannelLayout->u.mask);
 }
 
 Expect<int32_t> AVCodecSampleFmtsIsNull::body(const Runtime::CallingFrame &,

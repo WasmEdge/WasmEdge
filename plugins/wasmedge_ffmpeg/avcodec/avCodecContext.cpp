@@ -120,7 +120,7 @@ Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,
                                                uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   // Deprecated method
-  uint64_t const AvChannel = AvCodecCtx->channel_layout;
+  uint64_t const AvChannel = AvCodecCtx->ch_layout.u.mask;
   return FFmpegUtils::ChannelLayout::intoChannelLayoutID(AvChannel);
 }
 
@@ -130,7 +130,7 @@ Expect<int32_t> AVCodecCtxSetChannelLayout::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   uint64_t const AvChannel =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  AvCodecCtx->channel_layout = AvChannel;
+  av_channel_layout_from_mask(&AvCodecCtx->ch_layout, AvChannel);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -566,14 +566,14 @@ Expect<int32_t> AVCodecCtxCodec::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVCodecCtxChannels::body(const Runtime::CallingFrame &,
                                          uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  return AvCodecCtx->channels;
+  return AvCodecCtx->ch_layout.nb_channels;
 }
 
 Expect<int32_t> AVCodecCtxSetChannels::body(const Runtime::CallingFrame &,
                                             uint32_t AvCodecCtxId,
                                             int32_t Channels) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  AvCodecCtx->channels = Channels;
+  AvCodecCtx->ch_layout.nb_channels = Channels;
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -658,7 +658,7 @@ Expect<int32_t> AVCodecCtxSetSliceCount::body(const Runtime::CallingFrame &,
                                               uint32_t AvCodecCtxId,
                                               int32_t Value) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  AvCodecCtx->slice_count = Value;
+  AvCodecCtx->slices = Value;
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -687,7 +687,7 @@ AVCodecCtxChromaSampleLocation::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVCodecCtxFrameNumber::body(const Runtime::CallingFrame &,
                                             uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  return AvCodecCtx->frame_number;
+  return AvCodecCtx->frame_num;
 }
 
 Expect<int32_t> AVCodecCtxBlockAlign::body(const Runtime::CallingFrame &,
@@ -718,16 +718,6 @@ Expect<int32_t> AVCodecCtxHasBFrames::body(const Runtime::CallingFrame &,
                                            uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
   return AvCodecCtx->has_b_frames;
-}
-
-Expect<int32_t>
-AVCodecCtxSetRequestChannelLayout::body(const Runtime::CallingFrame &,
-                                        uint32_t AvCodecCtxId,
-                                        uint64_t ChannelLayoutId) {
-  FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  AvCodecCtx->request_channel_layout =
-      FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVCodecCtxActiveThreadType::body(const Runtime::CallingFrame &,

@@ -82,6 +82,20 @@ bool TestIPv6Enabled() {
   return IPv6Enabled;
 }
 
+template <typename T> void unalignedCopy(T *Dest, const T &Src) noexcept {
+  auto DestSpan = as_writable_bytes(WasmEdge::Span<T, 1>(Dest, 1));
+  auto SrcSpan = as_bytes(WasmEdge::Span<const T, 1>(&Src, 1));
+  std::copy(SrcSpan.begin(), SrcSpan.end(), DestSpan.begin());
+}
+
+template <typename T> T unalignedRead(const T *Src) noexcept {
+  T Dest;
+  auto DestSpan = as_writable_bytes(WasmEdge::Span<T, 1>(&Dest, 1));
+  auto SrcSpan = as_bytes(WasmEdge::Span<const T, 1>(Src, 1));
+  std::copy(SrcSpan.begin(), SrcSpan.end(), DestSpan.begin());
+  return Dest;
+}
+
 void writeDummyMemoryContent(
     WasmEdge::Runtime::Instance::MemoryInstance &MemInst) noexcept {
   std::fill_n(MemInst.getPointer<uint8_t *>(0), 64, UINT8_C(0xa5));
@@ -125,6 +139,7 @@ void allocateAddrinfoArray(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
     }
   }
 }
+
 } // namespace
 
 TEST(WasiSockTest, SocketUDP_4V1) {
@@ -434,7 +449,7 @@ TEST(WasiSockTest, SocketUDP_4V2) {
             static_cast<uint16_t>(__WASI_ADDRESS_FAMILY_INET4))
             .le();
     auto *AddrBufSend = MemInst.getPointer<uint32_t *>(AddrBufPtr + 2);
-    *AddrBufSend = htonl(INADDR_LOOPBACK);
+    unalignedCopy(AddrBufSend, static_cast<uint32_t>(htonl(INADDR_LOOPBACK)));
     Addr->buf_len =
         WasmEdge::EndianValue(UINT32_C(128)).le(); // sizeof(uint32_t);
 
@@ -1150,7 +1165,7 @@ TEST(WasiSockTest, SockGetLocalAddr_4) {
         WasmEdge::EndianValue(
             static_cast<uint16_t>(__WASI_ADDRESS_FAMILY_INET4))
             .le();
-    *MemInst.getPointer<uint32_t *>(AddrBufPtr + 2) = BindAddress;
+    unalignedCopy(MemInst.getPointer<uint32_t *>(AddrBufPtr + 2), BindAddress);
 
     Addr->buf = WasmEdge::EndianValue(AddrBufPtr).le();
     Addr->buf_len = WasmEdge::EndianValue(AddrBuflen).le();
@@ -1178,7 +1193,8 @@ TEST(WasiSockTest, SockGetLocalAddr_4) {
               WasmEdge::EndianValue(
                   static_cast<uint16_t>(__WASI_ADDRESS_FAMILY_INET4))
                   .le());
-    EXPECT_EQ(*MemInst.getPointer<uint32_t *>(ResAddrBufPtr + 2), BindAddress);
+    EXPECT_EQ(unalignedRead(MemInst.getPointer<uint32_t *>(ResAddrBufPtr + 2)),
+              BindAddress);
     EXPECT_EQ(
         WasmEdge::EndianValue(*MemInst.getPointer<const uint32_t *>(ResPortPtr))
             .le(),

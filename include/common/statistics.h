@@ -175,8 +175,11 @@ public:
       spdlog::info(" Gas costs: {}"sv, getTotalCost());
     }
     if (StatConf.isInstructionCounting() && StatConf.isTimeMeasuring()) {
+      const double IPS = getInstrPerSecond();
       spdlog::info(" Instructions per second: {}"sv,
-                   static_cast<uint64_t>(getInstrPerSecond()));
+                   likely(!std::isnan(IPS))
+                       ? static_cast<uint64_t>(IPS)
+                       : std::numeric_limits<uint64_t>::max());
     }
     if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
         StatConf.isCostMeasuring()) {

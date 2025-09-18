@@ -2085,8 +2085,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
       DirVec.emplace_back(Preopens[I]);
     }
   }
-  auto &WasiEnv = WasiMod->getEnv();
-  WasiEnv.init(DirVec, ProgName, ArgVec, EnvVec);
+  WasiMod->init(DirVec, ProgName, ArgVec, EnvVec);
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASIWithFds(
@@ -2121,9 +2120,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASIWithFds(
       DirVec.emplace_back(Preopens[I]);
     }
   }
-  auto &WasiEnv = WasiMod->getEnv();
-  auto Result = WasiEnv.initWithFds(DirVec, ProgName, ArgVec, EnvVec, StdInFd,
-                                    StdOutFd, StdErrFd);
+  auto Result = WasiMod->initWithFds(DirVec, ProgName, ArgVec, EnvVec, StdInFd,
+                                     StdOutFd, StdErrFd);
   if (!Result) {
     spdlog::error("    Failed to initialize WASI environment: {}"sv,
                   Result.error());
@@ -2142,7 +2140,7 @@ WasmEdge_ModuleInstanceWASIGetNativeHandler(
   if (!WasiMod) {
     return 2;
   }
-  auto Handler = WasiMod->getEnv().getNativeHandler(Fd);
+  auto Handler = WasiMod->getNativeHandler(Fd);
   if (!Handler) {
     return 2;
   }
@@ -2160,7 +2158,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
   if (!WasiMod) {
     return EXIT_FAILURE;
   }
-  return WasiMod->getEnv().getExitCode();
+  return WasiMod->getExitCode();
 }
 
 WASMEDGE_CAPI_EXPORT void

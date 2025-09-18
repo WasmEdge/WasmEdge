@@ -58,7 +58,7 @@ class Environ : public PollerContext {
 public:
   ~Environ() noexcept;
 
-  void init(Span<const std::string> Dirs, std::string ProgramName,
+  void init(Span<const std::string> Dirs, const std::string &ProgramName,
             Span<const std::string> Args, Span<const std::string> Envs);
 
   WasiExpect<void> initWithFds(Span<const std::string> Dirs,
@@ -877,6 +877,31 @@ public:
     }
     return VINode::pathUnlinkFile(std::move(Node), Path);
   }
+
+  /// Check if a file exists.
+  ///
+  /// @param[in] Path The path to check.
+  /// @return True if file exists, false otherwise, or WASI error.
+  WasiExpect<bool> pathExists(std::string_view Path) const noexcept;
+
+  /// Check if a file can be read.
+  ///
+  /// @param[in] Path The path to check.
+  /// @return True if file can be read, false otherwise, or WASI error.
+  WasiExpect<bool> pathCanRead(std::string_view Path) const noexcept;
+
+  /// Check if a file can be written.
+  ///
+  /// @param[in] Path The path to check.
+  /// @return True if file can be written, false otherwise, or WASI error.
+  WasiExpect<bool> pathCanWrite(std::string_view Path) const noexcept;
+
+  /// Get file statistics.
+  ///
+  /// @param[in] Path The path to check.
+  /// @return File statistics or WASI error.
+  WasiExpect<__wasi_rights_t>
+  pathGetStats(std::string_view Path) const noexcept;
 
   /// Acquire a Poller for concurrently poll for the occurrence of a set of
   /// events.

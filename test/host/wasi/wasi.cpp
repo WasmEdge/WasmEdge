@@ -830,7 +830,28 @@ TEST(WasiTest, ClockRes) {
     }
   }
 #endif
+  // Alignment checks (common for both Windows and Linux)
+  {
+    writeDummyMemoryContent(MemInst);
+    // Test misaligned resolution pointer (should fail)
+    EXPECT_TRUE(WasiClockResGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
+            static_cast<uint32_t>(alignof(uint64_t) - 1)}, // misaligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
 
+    // Test correctly aligned pointer (should succeed)
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiClockResGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
+            static_cast<uint32_t>(alignof(uint64_t))}, // aligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  }
   // invalid clockid
   {
     writeDummyMemoryContent(MemInst);
@@ -3111,6 +3132,31 @@ TEST(WasiTest, ClockTimeGet) {
                                  UINT64_C(0), UINT32_C(65536)},
                              Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_FAULT);
+  }
+
+    // Alignment checks (common for both Windows and Linux)
+  {
+    writeDummyMemoryContent(MemInst);
+    // Test misaligned timestamp pointer (should fail)
+    EXPECT_TRUE(WasiClockTimeGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
+            UINT64_C(0),
+            static_cast<uint32_t>(alignof(uint64_t) - 1)}, // misaligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+
+    // Test correctly aligned timestamp pointer (should succeed)
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiClockTimeGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<uint32_t>(__WASI_CLOCKID_REALTIME),
+            UINT64_C(0),
+            static_cast<uint32_t>(alignof(uint64_t))}, // aligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
   }
 
   Env.fini();

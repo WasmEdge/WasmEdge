@@ -526,6 +526,11 @@ Expect<uint32_t> WasiEnvironSizesGet::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiClockResGet::body(const Runtime::CallingFrame &Frame,
                                        uint32_t ClockId,
                                        uint32_t /* Out */ ResolutionPtr) {
+  // Alignment checks
+  if (ResolutionPtr % alignof(__wasi_timestamp_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -554,6 +559,11 @@ Expect<uint32_t> WasiClockResGet::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiClockTimeGet::body(const Runtime::CallingFrame &Frame,
                                         uint32_t ClockId, uint64_t Precision,
                                         uint32_t /* Out */ TimePtr) {
+  // Alignment checks
+  if (TimePtr % alignof(__wasi_timestamp_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -636,6 +646,11 @@ Expect<uint32_t> WasiFdDatasync::body(const Runtime::CallingFrame &,
 Expect<uint32_t> WasiFdFdstatGet::body(const Runtime::CallingFrame &Frame,
                                        int32_t Fd,
                                        uint32_t /* Out */ FdStatPtr) {
+  // Alignment checks
+  if( FdStatPtr % alignof(__wasi_fdstat_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -702,6 +717,11 @@ Expect<uint32_t> WasiFdFdstatSetRights::body(const Runtime::CallingFrame &,
 Expect<uint32_t> WasiFdFilestatGet::body(const Runtime::CallingFrame &Frame,
                                          int32_t Fd,
                                          uint32_t /* Out */ FilestatPtr) {
+  // Alignment checks
+  if (FilestatPtr % alignof(__wasi_filestat_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -837,6 +857,11 @@ Expect<uint32_t> WasiFdPrestatDirName::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiFdPrestatGet::body(const Runtime::CallingFrame &Frame,
                                         int32_t Fd,
                                         uint32_t /* Out */ PreStatPtr) {
+  // Alignment checks
+  if (PreStatPtr % alignof(__wasi_prestat_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1019,6 +1044,11 @@ Expect<uint32_t> WasiFdRenumber::body(const Runtime::CallingFrame &, int32_t Fd,
 Expect<int32_t> WasiFdSeek::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                                  int64_t Offset, uint32_t Whence,
                                  uint32_t /* Out */ NewOffsetPtr) {
+  // Alignment checks
+  if (NewOffsetPtr % alignof(__wasi_filesize_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1059,6 +1089,11 @@ Expect<uint32_t> WasiFdSync::body(const Runtime::CallingFrame &, int32_t Fd) {
 
 Expect<uint32_t> WasiFdTell::body(const Runtime::CallingFrame &Frame,
                                   int32_t Fd, uint32_t /* Out */ OffsetPtr) {
+  // Alignment checks
+  if (OffsetPtr % alignof(__wasi_filesize_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {

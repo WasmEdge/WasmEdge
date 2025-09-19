@@ -1119,6 +1119,15 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
                                    int32_t Fd, uint32_t IOVsPtr,
                                    uint32_t IOVsLen,
                                    uint32_t /* Out */ NWrittenPtr) {
+  // Alignment checks
+  if (IOVsPtr % alignof(__wasi_ciovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if (NWrittenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {

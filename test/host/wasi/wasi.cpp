@@ -3755,6 +3755,55 @@ TEST(WasiTest, CustomFds) {
     EXPECT_FALSE(InitResult.has_value())
         << "Should fail to initialize with invalid stderr fd";
   }
+
+  // Test WasiFdWrite alignment checks
+  {
+    Env.init({}, "test"s, {}, {});
+
+    // Declare WasiFdWrite object
+    WasmEdge::Host::WasiFdWrite WasiFdWrite(Env);
+
+    // Test IOVsPtr alignment
+    {
+      writeDummyMemoryContent(MemInst);
+      EXPECT_TRUE(
+        WasiFdWrite.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              UINT32_C(1), // stdout
+              static_cast<uint32_t>(alignof(__wasi_ciovec_t) - 1), // misaligned IOVsPtr
+              UINT32_C(1), // IOVsLen
+              static_cast<uint32_t>(alignof(__wasi_size_t))}, // aligned NWrittenPtr
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    }
+
+    // Test NWrittenPtr alignment
+    {
+      writeDummyMemoryContent(MemInst);
+      const uint32_t IOVsPtr = alignof(__wasi_ciovec_t);
+      const uint32_t DataPtr = 64;
+      const auto TestData = "test"sv;
+
+      // Setup valid IOV structure
+      auto *IOVec = MemInst.getPointer<__wasi_ciovec_t *>(IOVsPtr);
+      IOVec->buf = WasmEdge::EndianValue(DataPtr).le();
+      IOVec->buf_len = WasmEdge::EndianValue(static_cast<__wasi_size_t>(TestData.size())).le();
+      writeString(MemInst, TestData, DataPtr);
+
+      EXPECT_TRUE(WasiFdWrite.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              UINT32_C(1), // stdout
+              IOVsPtr, // aligned IOVsPtr
+              UINT32_C(1), // IOVsLen
+              static_cast<uint32_t>(alignof(__wasi_size_t) - 1)}, // misaligned NWrittenPtr
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+    }
+
+    Env.fini();
+  }
 }
 
 GTEST_API_ int main(int argc, char **argv) {

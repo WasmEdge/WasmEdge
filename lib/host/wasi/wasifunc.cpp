@@ -378,7 +378,6 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
   if (ArgvPtr % alignof(uint8_t_ptr) != 0) {
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
-
   // ArgvBufPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
@@ -453,7 +452,6 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
   if (EnvPtr % alignof(uint8_t_ptr) != 0) {
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
-
   // EnvBufPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
@@ -1184,6 +1182,7 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t>
 WasiPathCreateDirectory::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                               uint32_t PathPtr, uint32_t PathLen) {
+  // no alignment checks for PathPtr, as char has alignment of 1 byte.
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1208,6 +1207,12 @@ Expect<uint32_t> WasiPathFilestatGet::body(const Runtime::CallingFrame &Frame,
                                            int32_t Fd, uint32_t Flags,
                                            uint32_t PathPtr, uint32_t PathLen,
                                            uint32_t /* Out */ FilestatPtr) {
+  // Alignment checks
+  // no alignment checks for PathPtr, as char has alignment of 1 byte.
+  if (FilestatPtr % alignof(__wasi_filestat_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1246,6 +1251,8 @@ WasiPathFilestatSetTimes::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                                uint32_t Flags, uint32_t PathPtr,
                                uint32_t PathLen, uint64_t ATim, uint64_t MTim,
                                uint32_t FstFlags) {
+  // no alignment checks for PathPtr, as char has alignment of 1 byte.
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1289,6 +1296,8 @@ Expect<uint32_t> WasiPathLink::body(const Runtime::CallingFrame &Frame,
                                     uint32_t OldPathPtr, uint32_t OldPathLen,
                                     int32_t NewFd, uint32_t NewPathPtr,
                                     uint32_t NewPathLen) {
+  // No alignment checks needed for path pointers (char data has 1-byte alignment)
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1329,6 +1338,12 @@ Expect<uint32_t> WasiPathOpen::body(
     const Runtime::CallingFrame &Frame, int32_t DirFd, uint32_t DirFlags,
     uint32_t PathPtr, uint32_t PathLen, uint32_t OFlags, uint64_t FsRightsBase,
     uint64_t FsRightsInheriting, uint32_t FsFlags, uint32_t /* Out */ FdPtr) {
+  // Alignment checks
+  if (FdPtr % alignof(__wasi_fd_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+  // no alignment checks for PathPtr, as char has alignment of 1 byte.
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1406,6 +1421,12 @@ Expect<uint32_t> WasiPathReadLink::body(const Runtime::CallingFrame &Frame,
                                         uint32_t PathLen, uint32_t BufPtr,
                                         uint32_t BufLen,
                                         uint32_t /* Out */ NReadPtr) {
+  // Alignment checks
+  if (NReadPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+  // no alignment checks for PathPtr and BufPtr, as char has alignment of 1 byte.
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1441,6 +1462,9 @@ Expect<uint32_t> WasiPathReadLink::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t>
 WasiPathRemoveDirectory::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                               uint32_t PathPtr, uint32_t PathLen) {
+  // Alignment checks
+  // no alignment checks for PathPtr, as char has alignment of 1 byte.
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1466,6 +1490,9 @@ Expect<uint32_t> WasiPathRename::body(const Runtime::CallingFrame &Frame,
                                       uint32_t OldPathLen, int32_t NewFd,
                                       uint32_t NewPathPtr,
                                       uint32_t NewPathLen) {
+  // Alignment checks
+  // no alignment checks for path pointers, as char has alignment of 1 byte.
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1498,6 +1525,9 @@ Expect<uint32_t> WasiPathSymlink::body(const Runtime::CallingFrame &Frame,
                                        uint32_t OldPathPtr, uint32_t OldPathLen,
                                        int32_t Fd, uint32_t NewPathPtr,
                                        uint32_t NewPathLen) {
+  // Alignment checks
+  // no alignment checks for path pointers, as char has alignment of 1 byte.
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1531,6 +1561,9 @@ Expect<uint32_t> WasiPathSymlink::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiPathUnlinkFile::body(const Runtime::CallingFrame &Frame,
                                           int32_t Fd, uint32_t PathPtr,
                                           uint32_t PathLen) {
+  // Alignment checks
+  // no alignment checks for PathPtr, as char has alignment of 1 byte.
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1554,6 +1587,17 @@ template <WASI::TriggerType Trigger>
 Expect<uint32_t> WasiPollOneoff<Trigger>::body(
     const Runtime::CallingFrame &Frame, uint32_t InPtr, uint32_t OutPtr,
     uint32_t NSubscriptions, uint32_t /* Out */ NEventsPtr) {
+  // Alignment checks
+  if (InPtr % alignof(__wasi_subscription_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+  if (OutPtr % alignof(__wasi_event_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+  if (NEventsPtr % alignof(__wasi_size_t) != 0)
+  {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1688,6 +1732,9 @@ Expect<uint32_t> WasiSchedYield::body(const Runtime::CallingFrame &) {
 
 Expect<uint32_t> WasiRandomGet::body(const Runtime::CallingFrame &Frame,
                                      uint32_t BufPtr, uint32_t BufLen) {
+  // Alignment checks
+  // no alignment checks for BufPtr, as uint8_t has alignment of 1 byte
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1710,6 +1757,11 @@ Expect<uint32_t> WasiRandomGet::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiSockOpenV1::body(const Runtime::CallingFrame &Frame,
                                       uint32_t AddressFamily, uint32_t SockType,
                                       uint32_t /* Out */ RoFdPtr) {
+  // Alignment checks
+  if (RoFdPtr % alignof(__wasi_fd_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1752,6 +1804,11 @@ Expect<uint32_t> WasiSockOpenV1::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiSockBindV1::body(const Runtime::CallingFrame &Frame,
                                       int32_t Fd, uint32_t AddressPtr,
                                       uint32_t Port) {
+  // Alignment checks
+  if ( AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+  
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {

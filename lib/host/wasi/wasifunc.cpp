@@ -777,6 +777,20 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
                                    int32_t Fd, uint32_t IOVsPtr,
                                    uint32_t IOVsLen, uint64_t Offset,
                                    uint32_t /* Out */ NReadPtr) {
+  // Alignment checks
+
+  if (IOVsPtr % alignof(__wasi_iovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if (NReadPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if (NReadPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -833,6 +847,9 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiFdPrestatDirName::body(const Runtime::CallingFrame &Frame,
                                             int32_t Fd, uint32_t PathBufPtr,
                                             uint32_t PathLen) {
+  // Alignment checks
+  // PathBufPtr should be aligned to at least 1 byte (which is always true)
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -884,6 +901,16 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
                                     int32_t Fd, uint32_t IOVsPtr,
                                     uint32_t IOVsLen, uint64_t Offset,
                                     uint32_t /* Out */ NWrittenPtr) {
+  // Alignment checks
+
+  if (IOVsPtr % alignof(__wasi_ciovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if (NWrittenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -944,6 +971,19 @@ Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
                                   int32_t Fd, uint32_t IOVsPtr,
                                   uint32_t IOVsLen,
                                   uint32_t /* Out */ NReadPtr) {
+  // Alignment checks
+  if (IOVsPtr % alignof(__wasi_iovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if (NReadPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if (NReadPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -999,6 +1039,13 @@ Expect<uint32_t> WasiFdReadDir::body(const Runtime::CallingFrame &Frame,
                                      int32_t Fd, uint32_t BufPtr,
                                      uint32_t BufLen, uint64_t Cookie,
                                      uint32_t /* Out */ NReadPtr) {
+  // Alignment checks
+  // no alignment requirement for BufPtr
+  if (NReadPtr % alignof(__wasi_size_t) != 0)
+  {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1808,7 +1855,7 @@ Expect<uint32_t> WasiSockBindV1::body(const Runtime::CallingFrame &Frame,
   if ( AddressPtr % alignof(__wasi_address_t) != 0) {
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
-  
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1860,6 +1907,12 @@ Expect<uint32_t> WasiSockListenV1::body(const Runtime::CallingFrame &,
 Expect<uint32_t> WasiSockAcceptV1::body(const Runtime::CallingFrame &Frame,
                                         int32_t Fd,
                                         uint32_t /* Out */ RoFdPtr) {
+  // Alignment checks
+  if (RoFdPtr % alignof(__wasi_fd_t) != 0)
+  {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1883,6 +1936,12 @@ Expect<uint32_t> WasiSockAcceptV1::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiSockAcceptV2::body(const Runtime::CallingFrame &Frame,
                                         int32_t Fd, uint32_t FsFlags,
                                         uint32_t /* Out */ RoFdPtr) {
+  // Alignment checks
+  if (RoFdPtr % alignof(__wasi_fd_t) != 0)
+  {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1913,6 +1972,10 @@ Expect<uint32_t> WasiSockAcceptV2::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiSockConnectV1::body(const Runtime::CallingFrame &Frame,
                                          int32_t Fd, uint32_t AddressPtr,
                                          uint32_t Port) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -1958,6 +2021,19 @@ Expect<uint32_t> WasiSockRecvV1::body(const Runtime::CallingFrame &Frame,
                                       uint32_t RiDataLen, uint32_t RiFlags,
                                       uint32_t /* Out */ RoDataLenPtr,
                                       uint32_t /* Out */ RoFlagsPtr) {
+  // Alignment checks
+  if (RiDataPtr % alignof(__wasi_iovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RoDataLenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RoFlagsPtr % alignof(__wasi_roflags_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2031,6 +2107,23 @@ Expect<uint32_t> WasiSockRecvFromV1::body(const Runtime::CallingFrame &Frame,
                                           uint32_t AddressPtr, uint32_t RiFlags,
                                           uint32_t /* Out */ RoDataLenPtr,
                                           uint32_t /* Out */ RoFlagsPtr) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RiDataPtr % alignof(__wasi_iovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RoDataLenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RoFlagsPtr % alignof(__wasi_roflags_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2112,6 +2205,15 @@ Expect<uint32_t> WasiSockSendV1::body(const Runtime::CallingFrame &Frame,
                                       int32_t Fd, uint32_t SiDataPtr,
                                       uint32_t SiDataLen, uint32_t SiFlags,
                                       uint32_t /* Out */ SoDataLenPtr) {
+  // Alignment checks
+  if( SiDataPtr % alignof(__wasi_ciovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( SoDataLenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2177,6 +2279,19 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
                                         uint32_t SiDataLen, uint32_t AddressPtr,
                                         int32_t Port, uint32_t SiFlags,
                                         uint32_t /* Out */ SoDataLenPtr) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( SiDataPtr % alignof(__wasi_ciovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( SoDataLenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2285,6 +2400,9 @@ Expect<uint32_t> WasiSockSetOpt::body(const Runtime::CallingFrame &Frame,
                                       int32_t Fd, uint32_t SockOptLevel,
                                       uint32_t SockOptName, uint32_t FlagPtr,
                                       uint32_t FlagSize) {
+  // Alignment checks
+  // no alignment checks for FlagPtr, as uint8_t has alignment of 1 byte
+
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -2324,6 +2442,19 @@ Expect<uint32_t> WasiSockGetAddrinfo::body(
     const Runtime::CallingFrame &Frame, uint32_t NodePtr, uint32_t NodeLen,
     uint32_t ServicePtr, uint32_t ServiceLen, uint32_t HintsPtr,
     uint32_t ResPtr, uint32_t MaxResLength, uint32_t ResLengthPtr) {
+  // Alignment checks
+  // no alignment checks for NodePtr and ServicePtr, as uint8_t has alignment of 1 byte
+
+  if (HintsPtr % alignof(__wasi_addrinfo_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+  if (ResPtr % alignof(uint8_t_ptr) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+  if (ResLengthPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2490,6 +2621,19 @@ Expect<uint32_t>
 WasiSockGetLocalAddrV1::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                              uint32_t AddressPtr, uint32_t AddressTypePtr,
                              uint32_t PortPtr) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( AddressTypePtr % alignof(uint32_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( PortPtr % alignof(uint32_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -2557,6 +2701,19 @@ Expect<uint32_t> WasiSockGetPeerAddrV1::body(const Runtime::CallingFrame &Frame,
                                              int32_t Fd, uint32_t AddressPtr,
                                              uint32_t AddressTypePtr,
                                              uint32_t PortPtr) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( AddressTypePtr % alignof(uint32_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( PortPtr % alignof(uint32_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -2624,6 +2781,11 @@ Expect<uint32_t> WasiSockGetPeerAddrV1::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiSockOpenV2::body(const Runtime::CallingFrame &Frame,
                                       uint32_t AddressFamily, uint32_t SockType,
                                       uint32_t /* Out */ RoFdPtr) {
+  // Alignment checks
+  if( RoFdPtr % alignof(__wasi_fd_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2666,6 +2828,11 @@ Expect<uint32_t> WasiSockOpenV2::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> WasiSockBindV2::body(const Runtime::CallingFrame &Frame,
                                       int32_t Fd, uint32_t AddressPtr,
                                       uint32_t Port) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2724,6 +2891,11 @@ Expect<uint32_t> WasiSockListenV2::body(const Runtime::CallingFrame &,
 Expect<uint32_t> WasiSockConnectV2::body(const Runtime::CallingFrame &Frame,
                                          int32_t Fd, uint32_t AddressPtr,
                                          uint32_t Port) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2776,6 +2948,19 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
                                       uint32_t RiDataLen, uint32_t RiFlags,
                                       uint32_t /* Out */ RoDataLenPtr,
                                       uint32_t /* Out */ RoFlagsPtr) {
+  // Alignment checks
+  if( RiDataPtr % alignof(__wasi_iovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RoDataLenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RoFlagsPtr % alignof(__wasi_roflags_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2848,6 +3033,27 @@ Expect<uint32_t> WasiSockRecvFromV2::body(const Runtime::CallingFrame &Frame,
                                           uint32_t /* Out */ PortPtr,
                                           uint32_t /* Out */ RoDataLenPtr,
                                           uint32_t /* Out */ RoFlagsPtr) {
+  // Alignment checks
+  if( RiDataPtr % alignof(__wasi_iovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( PortPtr % alignof(uint16_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RoDataLenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( RoFlagsPtr % alignof(__wasi_roflags_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -2953,6 +3159,15 @@ Expect<uint32_t> WasiSockSendV2::body(const Runtime::CallingFrame &Frame,
                                       int32_t Fd, uint32_t SiDataPtr,
                                       uint32_t SiDataLen, uint32_t SiFlags,
                                       uint32_t /* Out */ SoDataLenPtr) {
+  // Alignment checks
+  if( SiDataPtr % alignof(__wasi_ciovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( SoDataLenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -3018,6 +3233,19 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
                                         uint32_t SiDataLen, uint32_t AddressPtr,
                                         int32_t Port, uint32_t SiFlags,
                                         uint32_t /* Out */ SoDataLenPtr) {
+  // Alignment checks
+  if( SiDataPtr % alignof(__wasi_ciovec_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( SoDataLenPtr % alignof(__wasi_size_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
@@ -3116,6 +3344,13 @@ Expect<uint32_t> WasiSockGetOpt::body(const Runtime::CallingFrame &Frame,
                                       int32_t Fd, uint32_t SockOptLevel,
                                       uint32_t SockOptName, uint32_t FlagPtr,
                                       uint32_t FlagSizePtr) {
+  // Alignment checks
+  // no alignment requirement for FlagPtr as it's a byte array
+
+  if( FlagSizePtr % alignof(uint32_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -3160,6 +3395,15 @@ Expect<uint32_t> WasiSockGetOpt::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t>
 WasiSockGetLocalAddrV2::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                              uint32_t AddressPtr, uint32_t PortPtr) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( PortPtr % alignof(uint32_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
@@ -3207,6 +3451,15 @@ WasiSockGetLocalAddrV2::body(const Runtime::CallingFrame &Frame, int32_t Fd,
 Expect<uint32_t> WasiSockGetPeerAddrV2::body(const Runtime::CallingFrame &Frame,
                                              int32_t Fd, uint32_t AddressPtr,
                                              uint32_t PortPtr) {
+  // Alignment checks
+  if (AddressPtr % alignof(__wasi_address_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
+  if( PortPtr % alignof(uint32_t) != 0) {
+    return __WASI_ERRNO_ADDRNOTAVAIL;
+  }
+
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;

@@ -153,91 +153,91 @@ Expect<void> Loader::loadType(AST::Component::DefValType &Ty, uint8_t Code) {
   //              | 0x66 t?:<valtype>?         => (stream t?) 🔀
   //              | 0x65 t?:<valtype>?         => (future t?) 🔀
 
-  switch (Code) {
-  case 0x7F:
-  case 0x7E:
-  case 0x7D:
-  case 0x7C:
-  case 0x7B:
-  case 0x7A:
-  case 0x79:
-  case 0x78:
-  case 0x77:
-  case 0x76:
-  case 0x75:
-  case 0x74:
-  case 0x73:
-  case 0x64:
+  switch (static_cast<ComponentTypeCode>(Code)) {
+  case ComponentTypeCode::Bool:
+  case ComponentTypeCode::S8:
+  case ComponentTypeCode::U8:
+  case ComponentTypeCode::S16:
+  case ComponentTypeCode::U16:
+  case ComponentTypeCode::S32:
+  case ComponentTypeCode::U32:
+  case ComponentTypeCode::S64:
+  case ComponentTypeCode::U64:
+  case ComponentTypeCode::F32:
+  case ComponentTypeCode::F64:
+  case ComponentTypeCode::Char:
+  case ComponentTypeCode::String:
+  case ComponentTypeCode::ErrContext:
     Ty.setPrimValType(static_cast<AST::Component::PrimValType>(Code));
     return {};
-  case 0x72: {
+  case ComponentTypeCode::Record: {
     AST::Component::RecordTy RTy;
     EXPECTED_TRY(loadType(RTy).map_error(ReportError));
     Ty.setRecord(std::move(RTy));
     return {};
   }
-  case 0x71: {
+  case ComponentTypeCode::Variant: {
     AST::Component::VariantTy VTy;
     EXPECTED_TRY(loadType(VTy).map_error(ReportError));
     Ty.setVariant(std::move(VTy));
     return {};
   }
-  case 0x70:
-  case 0x67: {
+  case ComponentTypeCode::List:
+  case ComponentTypeCode::ListLen: {
     AST::Component::ListTy LTy;
     EXPECTED_TRY(loadType(LTy, Code == 0x67).map_error(ReportError));
     Ty.setList(std::move(LTy));
     return {};
   }
-  case 0x6F: {
+  case ComponentTypeCode::Tuple: {
     AST::Component::TupleTy TTy;
     EXPECTED_TRY(loadType(TTy).map_error(ReportError));
     Ty.setTuple(std::move(TTy));
     return {};
   }
-  case 0x6E: {
+  case ComponentTypeCode::Flags: {
     AST::Component::FlagsTy FTy;
     EXPECTED_TRY(loadType(FTy).map_error(ReportError));
     Ty.setFlags(std::move(FTy));
     return {};
   }
-  case 0x6D: {
+  case ComponentTypeCode::Enum: {
     AST::Component::EnumTy ETy;
     EXPECTED_TRY(loadType(ETy).map_error(ReportError));
     Ty.setEnum(std::move(ETy));
     return {};
   }
-  case 0x6B: {
+  case ComponentTypeCode::Option: {
     AST::Component::OptionTy OTy;
     EXPECTED_TRY(loadType(OTy).map_error(ReportError));
     Ty.setOption(std::move(OTy));
     return {};
   }
-  case 0x6A: {
+  case ComponentTypeCode::Result: {
     AST::Component::ResultTy RTy;
     EXPECTED_TRY(loadType(RTy).map_error(ReportError));
     Ty.setResult(std::move(RTy));
     return {};
   }
-  case 0x69: {
+  case ComponentTypeCode::Own: {
     AST::Component::OwnTy OTy;
     EXPECTED_TRY(loadType(OTy).map_error(ReportError));
     Ty.setOwn(std::move(OTy));
     return {};
   }
-  case 0x68: {
+  case ComponentTypeCode::Borrow: {
     AST::Component::BorrowTy BTy;
     EXPECTED_TRY(loadType(BTy).map_error(ReportError));
     Ty.setBorrow(std::move(BTy));
     return {};
   }
-  case 0x66: {
+  case ComponentTypeCode::Stream: {
     AST::Component::StreamTy STy;
     EXPECTED_TRY(loadType(STy).map_error(ReportError));
     Ty.setStream(std::move(STy));
     return {};
   }
-  case 0x65: {
+  case ComponentTypeCode::Future: {
     AST::Component::FutureTy FTy;
     EXPECTED_TRY(loadType(FTy).map_error(ReportError));
     Ty.setFuture(std::move(FTy));
@@ -284,7 +284,7 @@ Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
   }));
   switch (Flag) {
   case 0x00: {
-    AST::Component::ValueType VT;
+    ComponentValType VT;
     EXPECTED_TRY(loadType(VT).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_FuncType));
       return E;
@@ -384,17 +384,16 @@ Expect<void> Loader::loadType(AST::Component::VariantTy &Ty) {
   // case    ::= l:<label'> t?:<valtype>? 0x00
 
   auto LoadCase =
-      [this](std::pair<std::string, std::optional<AST::Component::ValueType>>
-                 &Case) -> Expect<void> {
+      [this](std::pair<std::string, std::optional<ComponentValType>> &Case)
+      -> Expect<void> {
     EXPECTED_TRY(std::string Label, FMgr.readName().map_error([this](auto E) {
       spdlog::error(E);
       spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
       return E;
     }));
-    EXPECTED_TRY(
-        std::optional<AST::Component::ValueType> VT,
-        loadOption<AST::Component::VariantTy, AST::Component::ValueType>(
-            [this](AST::Component::ValueType &VTy) { return loadType(VTy); }));
+    EXPECTED_TRY(std::optional<ComponentValType> VT,
+                 loadOption<AST::Component::VariantTy, ComponentValType>(
+                     [this](ComponentValType &VTy) { return loadType(VTy); }));
     EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error([this](auto E) {
       spdlog::error(E);
       spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
@@ -410,8 +409,7 @@ Expect<void> Loader::loadType(AST::Component::VariantTy &Ty) {
   };
   return loadVec<AST::Component::VariantTy>(
       Ty.Cases,
-      [LoadCase](
-          std::pair<std::string, std::optional<AST::Component::ValueType>> &C) {
+      [LoadCase](std::pair<std::string, std::optional<ComponentValType>> &C) {
         return LoadCase(C);
       });
 }
@@ -438,7 +436,7 @@ Expect<void> Loader::loadType(AST::Component::TupleTy &Ty) {
   // tuple ::= t*:vec(<valtype>) => (tuple t+) (if |t*| > 0)
 
   EXPECTED_TRY(loadVec<AST::Component::TupleTy>(
-      Ty.Types, [this](AST::Component::ValueType &T) { return loadType(T); }));
+      Ty.Types, [this](ComponentValType &T) { return loadType(T); }));
   if (unlikely(Ty.Types.size() == 0)) {
     return logLoadError(ErrCode::Value::MalformedTupleType,
                         FMgr.getLastOffset(), ASTNodeAttr::Comp_Type_Tuple);
@@ -496,14 +494,12 @@ Expect<void> Loader::loadType(AST::Component::OptionTy &Ty) {
 Expect<void> Loader::loadType(AST::Component::ResultTy &Ty) {
   // result ::= t?:<valtype>? u?:<valtype>? => (result t? (error u)?)
 
-  EXPECTED_TRY(
-      Ty.ValTy,
-      loadOption<AST::Component::ResultTy, AST::Component::ValueType>(
-          [this](AST::Component::ValueType &VTy) { return loadType(VTy); }));
-  EXPECTED_TRY(
-      Ty.ErrTy,
-      loadOption<AST::Component::ResultTy, AST::Component::ValueType>(
-          [this](AST::Component::ValueType &VTy) { return loadType(VTy); }));
+  EXPECTED_TRY(Ty.ValTy,
+               loadOption<AST::Component::ResultTy, ComponentValType>(
+                   [this](ComponentValType &VTy) { return loadType(VTy); }));
+  EXPECTED_TRY(Ty.ErrTy,
+               loadOption<AST::Component::ResultTy, ComponentValType>(
+                   [this](ComponentValType &VTy) { return loadType(VTy); }));
   return {};
 }
 
@@ -528,20 +524,18 @@ Expect<void> Loader::loadType(AST::Component::BorrowTy &Ty) {
 Expect<void> Loader::loadType(AST::Component::StreamTy &Ty) {
   // stream ::= t?:<valtype>? => (stream t?) 🔀
 
-  EXPECTED_TRY(
-      Ty.ValTy,
-      loadOption<AST::Component::StreamTy, AST::Component::ValueType>(
-          [this](AST::Component::ValueType &VTy) { return loadType(VTy); }));
+  EXPECTED_TRY(Ty.ValTy,
+               loadOption<AST::Component::StreamTy, ComponentValType>(
+                   [this](ComponentValType &VTy) { return loadType(VTy); }));
   return {};
 }
 
 Expect<void> Loader::loadType(AST::Component::FutureTy &Ty) {
   // future ::= t?:<valtype>? => (future t?) 🔀
 
-  EXPECTED_TRY(
-      Ty.ValTy,
-      loadOption<AST::Component::FutureTy, AST::Component::ValueType>(
-          [this](AST::Component::ValueType &VTy) { return loadType(VTy); }));
+  EXPECTED_TRY(Ty.ValTy,
+               loadOption<AST::Component::FutureTy, ComponentValType>(
+                   [this](ComponentValType &VTy) { return loadType(VTy); }));
   return {};
 }
 

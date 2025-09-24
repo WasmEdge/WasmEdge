@@ -68,6 +68,10 @@ public:
   std::vector<Section> &getSections() noexcept { return Secs; }
   Span<const Section> getSections() const noexcept { return Secs; }
 
+  /// Getter and setter of validated flag.
+  bool getIsValidated() const noexcept { return IsValidated; }
+  void setIsValidated(bool V = true) noexcept { IsValidated = V; }
+
 private:
   /// \name Data of Component node.
   /// @{
@@ -75,6 +79,11 @@ private:
   std::vector<Byte> Version;
   std::vector<Byte> Layer;
   std::vector<Section> Secs;
+  /// @}
+
+  /// \name Validated flag.
+  /// @{
+  bool IsValidated = false;
   /// @}
 };
 

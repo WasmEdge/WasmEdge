@@ -15,9 +15,7 @@
 
 #include "ast/component/alias.h"
 #include "ast/component/descriptor.h"
-#include "ast/type.h"
 
-#include <memory>
 #include <string>
 #include <string_view>
 #include <variant>

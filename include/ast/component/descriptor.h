@@ -13,7 +13,6 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/component/valtype.h"
 #include "ast/type.h"
 
 #include <variant>
@@ -103,7 +102,7 @@ private:
 
 class ExternDesc {
 public:
-  enum class DescType : Byte {
+  enum class DescType : uint8_t {
     CoreType = 0x00,
     FuncType = 0x01,
     ValueBound = 0x02,
@@ -115,7 +114,7 @@ public:
   DescType getDescType() const noexcept { return Type; }
   uint32_t getTypeIndex() const noexcept { return Idx; }
   bool isEqType() const noexcept { return Eq; }
-  const ValueType &getValueType() const noexcept { return VType; }
+  const ComponentValType &getValType() const noexcept { return VType; }
 
   void setCoreTypeIdx(const uint32_t I) noexcept {
     Type = DescType::CoreType;
@@ -130,7 +129,7 @@ public:
     Eq = true;
     Idx = I;
   }
-  void setValueBound(const ValueType &T) noexcept {
+  void setValueBound(const ComponentValType &T) noexcept {
     Type = DescType::ValueBound;
     Eq = false;
     VType = T;
@@ -157,7 +156,7 @@ private:
   DescType Type;
   bool Eq;
   uint32_t Idx;
-  ValueType VType;
+  ComponentValType VType;
 };
 
 } // namespace Component

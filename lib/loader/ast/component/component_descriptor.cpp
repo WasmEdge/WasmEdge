@@ -92,7 +92,7 @@ Expect<void> Loader::loadDesc(AST::Component::ExternDesc &Desc) {
       EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
       Desc.setValueBound(Idx);
     } else if (B == 0x01) {
-      AST::Component::ValueType VT;
+      ComponentValType VT;
       EXPECTED_TRY(loadType(VT).map_error(ReportError));
       Desc.setValueBound(VT);
     } else {

@@ -13,6 +13,8 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "common/types.h"
+
 #include <cstdint>
 #include <string>
 
@@ -57,54 +59,7 @@ enum class PrimValType : uint8_t {
 // valtype     ::= i:<typeidx>       => i
 //               | pvt:<primvaltype> => pvt
 
-/// AST Component::ValueType definition.
-// The bit pattern of the ValueType:
-// ------------------------------------------------------
-//  byte | 0th  | 1st  | 2nd  |     3rd     | 4th ~ 7th
-// ------|--------------------|-------------|------------
-//  code | Reserved (Padding) | PrimValType | Type index
-// ------------------------------------------------------
-class ValueType {
-public:
-  ValueType() noexcept = default;
-  ValueType(const PrimValType T) noexcept { setCode(T); }
-  ValueType(const uint32_t I) noexcept { setTypeIndex(I); }
-
-  friend bool operator==(const ValueType &LHS, const ValueType &RHS) noexcept {
-    return (LHS.Inner.Data.PVT == RHS.Inner.Data.PVT) &&
-           (LHS.Inner.Data.Idx == RHS.Inner.Data.Idx);
-  }
-  friend bool operator!=(const ValueType &LHS, const ValueType &RHS) noexcept {
-    return !(LHS == RHS);
-  }
-
-  PrimValType getCode() const noexcept { return Inner.Data.PVT; }
-  uint32_t getTypeIndex() const noexcept { return Inner.Data.Idx; }
-
-  void setCode(const PrimValType T) noexcept {
-    Inner.Data.PVT = T;
-    Inner.Data.Idx = 0;
-  }
-  void setTypeIndex(const uint32_t I) noexcept {
-    Inner.Data.PVT = PrimValType::TypeIndex;
-    Inner.Data.Idx = I;
-  }
-
-  bool isPrimValType() const noexcept {
-    return Inner.Data.PVT != PrimValType::TypeIndex;
-  }
-
-private:
-  union {
-    uint8_t Raw[8];
-    struct {
-      // Note: The padding bytes are reserved and should not be written.
-      uint8_t Padding[3];
-      PrimValType PVT;
-      uint32_t Idx;
-    } Data;
-  } Inner;
-};
+// Use the ComponentValType implementation.
 
 // labelvaltype ::= l:<label'> t:<valtype> => l t
 // label'       ::= len:<u32> l:<label>    => l (if len = |l|)
@@ -113,17 +68,17 @@ private:
 class LabelValType {
 public:
   LabelValType() noexcept = default;
-  LabelValType(const std::string &L, const ValueType &VT) noexcept
+  LabelValType(const std::string &L, const ComponentValType &VT) noexcept
       : Label(L), ValTy(VT) {}
 
   std::string_view getLabel() const noexcept { return Label; }
   void setLabel(const std::string &L) noexcept { Label = L; }
-  const ValueType &getValType() const noexcept { return ValTy; }
-  void setValType(const ValueType VT) noexcept { ValTy = VT; }
+  const ComponentValType &getValType() const noexcept { return ValTy; }
+  void setValType(const ComponentValType VT) noexcept { ValTy = VT; }
 
 private:
   std::string Label;
-  ValueType ValTy;
+  ComponentValType ValTy;
 };
 
 } // namespace Component

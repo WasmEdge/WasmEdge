@@ -86,6 +86,27 @@ static inline constexpr auto ExternalTypeStr = []() constexpr {
   return DenseEnumMap(Array);
 }();
 
+/// Component Model Value type C++ enumeration class.
+enum class ComponentTypeCode : uint8_t {
+#define UseComponentTypeCode
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentTypeCode
+};
+
+static inline constexpr const auto ComponentTypeCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ComponentTypeCode, std::string_view> Array[] = {
+#define UseComponentTypeCode
+#define Line(NAME, VALUE, STRING) {ComponentTypeCode::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseComponentTypeCode
+  };
+  return SpareEnumMap(Array);
+}();
+
 } // namespace WasmEdge
 
 template <>

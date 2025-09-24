@@ -119,7 +119,7 @@
             "dir": "wasi_nn",
             "target": "wasmedgePluginWasiNN",
             "testBin": "wasiNNTests",
-            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=MLX",
+            "options": "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=MLX -DCMAKE_POLICY_VERSION_MINIMUM=3.5",
             "platforms": [
                 "macos_arm64"
             ]

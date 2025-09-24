@@ -19,7 +19,7 @@ Expect<void> Loader::loadExternName(std::string &Name) {
   return {};
 }
 
-Expect<void> Loader::loadType(AST::Component::ValueType &Ty) {
+Expect<void> Loader::loadType(ComponentValType &Ty) {
   // valtype ::= i:<typeidx>       => i
   //           | pvt:<primvaltype> => pvt
 
@@ -50,7 +50,7 @@ Expect<void> Loader::loadType(AST::Component::ValueType &Ty) {
     case AST::Component::PrimValType::Char:
     case AST::Component::PrimValType::String:
     case AST::Component::PrimValType::ErrorContext:
-      Ty.setCode(PVT);
+      Ty.setCode(static_cast<ComponentTypeCode>(PVT));
       break;
     default:
       return logLoadError(ErrCode::Value::MalformedValType,
@@ -73,7 +73,7 @@ Expect<void> Loader::loadType(AST::Component::LabelValType &Ty) {
   }));
   Ty.setLabel(Label);
 
-  AST::Component::ValueType VT;
+  ComponentValType VT;
   EXPECTED_TRY(loadType(VT).map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(),
                         ASTNodeAttr::Comp_LabelValType);

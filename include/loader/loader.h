@@ -480,7 +480,7 @@ private:
   Expect<void> loadType(AST::Component::FutureTy &Ty);
   // helpers
   Expect<void> loadExternName(std::string &Name);
-  Expect<void> loadType(AST::Component::ValueType &Ty);
+  Expect<void> loadType(ComponentValType &Ty);
   Expect<void> loadType(AST::Component::LabelValType &Ty);
   template <typename ASTType, typename T>
   Expect<std::optional<T>> loadOption(std::function<Expect<void>(T &)> F) {

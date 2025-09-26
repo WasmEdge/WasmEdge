@@ -13,9 +13,9 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
-#include "ast/expression.h"
-#include "ast/type.h"
+#include "common/span.h"
 
+#include <cstdint>
 #include <vector>
 
 namespace WasmEdge {
@@ -35,7 +35,7 @@ namespace Component {
 /// AST Component::CanonOpt definition.
 class CanonOpt {
 public:
-  enum class OptCode : Byte {
+  enum class OptCode : uint8_t {
     Encode_UTF8 = 0x00,
     Encode_UTF16 = 0x01,
     Encode_Latin1 = 0x02,
@@ -129,7 +129,7 @@ private:
 class Canonical {
 public:
   // TODO: COMPONENT - move to enum.inc.
-  enum class OpCode : Byte {
+  enum class OpCode : uint8_t {
     Lift = 0x00,
     Lower = 0x01,
     Resource__new = 0x02,

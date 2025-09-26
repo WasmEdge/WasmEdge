@@ -52,15 +52,13 @@ public:
   /// Find module by name.
   const Instance::ModuleInstance *findModule(std::string_view Name) const {
     std::shared_lock Lock(Mutex);
-    if (auto Iter = SoftNamedMod.find(Name);
-        likely(Iter != SoftNamedMod.cend())) {
-      return Iter->second;
-    }
     if (auto Iter = NamedMod.find(Name); likely(Iter != NamedMod.cend())) {
       return Iter->second;
     }
     return nullptr;
   }
+
+  /// Find component by name.
   const Instance::ComponentInstance *
   findComponent(std::string_view Name) const {
     std::shared_lock Lock(Mutex);
@@ -110,24 +108,15 @@ public:
     return {};
   }
 
-  void addNamedModule(std::string_view Name,
-                      const Instance::ModuleInstance *Inst) {
+  /// Register named component into this store.
+  Expect<void> registerComponent(const Instance::ComponentInstance *CompInst) {
     std::unique_lock Lock(Mutex);
-    SoftNamedMod.emplace(Name, Inst);
-  }
-
-  Expect<void> registerComponent(std::string_view Name,
-                                 const Instance::ComponentInstance *Inst) {
-    std::unique_lock Lock(Mutex);
-    auto Iter = NamedComp.find(Name);
+    auto Iter = NamedComp.find(CompInst->getComponentName());
     if (likely(Iter != NamedComp.cend())) {
       return Unexpect(ErrCode::Value::ModuleNameConflict);
     }
-    NamedComp.emplace(Name, Inst);
+    NamedComp.emplace(CompInst->getComponentName(), CompInst);
     return {};
-  }
-  Expect<void> registerComponent(const Instance::ComponentInstance *Inst) {
-    return registerComponent(Inst->getComponentName(), Inst);
   }
 
 private:
@@ -143,9 +132,6 @@ private:
 
   /// \name Module name mapping.
   std::map<std::string, const Instance::ModuleInstance *, std::less<>> NamedMod;
-  /// \name Soft module are those temporary added by component linking process
-  std::map<std::string, const Instance::ModuleInstance *, std::less<>>
-      SoftNamedMod;
   /// \name Component name mapping.
   std::map<std::string, const Instance::ComponentInstance *, std::less<>>
       NamedComp;

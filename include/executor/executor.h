@@ -228,9 +228,11 @@ private:
               std::optional<std::string_view> Name = std::nullopt);
 
   /// Instantiation of Imports.
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ModuleInstance &ModInst,
-                           const AST::ImportSection &ImportSec);
+  Expect<void> instantiate(
+      std::function<const Runtime::Instance::ModuleInstance *(std::string_view)>
+          ModuleFinder,
+      Runtime::Instance::ModuleInstance &ModInst,
+      const AST::ImportSection &ImportSec);
 
   /// Instantiation of Function Instances.
   Expect<void> instantiate(Runtime::Instance::ModuleInstance &ModInst,
@@ -278,39 +280,73 @@ private:
                            const AST::ExportSection &ExportSec);
   /// @}
 
+  /// \name Functions for instantiation of component model.
   /// @{
   /// Instantiation of Component Instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
   instantiate(Runtime::StoreManager &StoreMgr,
               const AST::Component::Component &Comp,
               std::optional<std::string_view> Name = std::nullopt);
+
+  /// Instantiation of Child Component Instance.
+  Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
+  instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
+              const AST::Component::Component &Comp);
+
+  /// Instantiation of Child Core Module Instance.
+  Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+  instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
+              const AST::Module &Mod);
+
+  /// Instantiation of Core Module Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::CoreModuleSection &CoreModSec);
+
+  /// Instantiation of Core Instance Section.
   Expect<void>
-  instantiate(Runtime::StoreManager &StoreMgr,
-              Runtime::Instance::ComponentInstance &CompInst,
+  instantiate(Runtime::Instance::ComponentInstance &CompInst,
               const AST::Component::CoreInstanceSection &CoreInstSec);
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ComponentInstance &CompInst,
+
+  /// Instantiation of Core Type Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::CoreTypeSection &CoreTypeSec);
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ComponentInstance &CompInst,
+
+  /// Instantiation of Component Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::ComponentSection &CompSec);
+
+  /// Instantiation of Instance Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::InstanceSection &InstSec);
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ComponentInstance &CompInst,
+
+  /// Instantiation of Alias Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::AliasSection &AliasSec);
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ComponentInstance &CompInst,
+
+  /// Instantiation of Type Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::TypeSection &TypeSec);
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ComponentInstance &CompInst,
+
+  /// Instantiation of Canonical Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::CanonSection &CanonSec);
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
-                           Runtime::Instance::ComponentInstance &CompInst,
+
+  /// Instantiation of Start Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::StartSection &StartSec);
+
+  /// Instantiation of Import Section.
   Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
                            Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::ImportSection &ImportSec);
-  Expect<void> instantiate(Runtime::StoreManager &StoreMgr,
+
+  /// Instantiation of Import Section in the child component instance.
+  Expect<void> instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
                            Runtime::Instance::ComponentInstance &CompInst,
+                           const AST::Component::ImportSection &ImportSec);
+
+  /// Instantiation of Export Section.
+  Expect<void> instantiate(Runtime::Instance::ComponentInstance &CompInst,
                            const AST::Component::ExportSection &ExportSec);
   /// @}
 

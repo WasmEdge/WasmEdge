@@ -3,28 +3,22 @@
 
 #pragma once
 
+#include "plugin/plugin.h"
 #include "wasinntypes.h"
 
-#include "plugin/plugin.h"
-
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-#include <common.h>
+#include "wasinntypes.h"
+#include <list>
 #include <llama-cpp.h>
 #include <llama.h>
 #include <mtmd.h>
 #include <sampling.h>
 
-#include <list>
 #endif
-
-namespace WasmEdge::Host::WASINN {
-struct WasiNNEnvironment;
-}
 
 namespace WasmEdge::Host::WASINN::GGML {
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-
 enum class EmbdNormalizeType : int32_t {
   // Follow:
   // https://github.com/ggerganov/llama.cpp/blob/0bf2d10c5514ff61b99897a4a5054f846e384e1e/common/common.h#L312
@@ -33,11 +27,6 @@ enum class EmbdNormalizeType : int32_t {
   Taxicab = 1,
   Euclidean = 2,
   PNorm = 3,
-};
-
-struct TTSSpeakerProfile {
-  std::string Text;
-  std::string Data;
 };
 
 struct LocalConfig {
@@ -107,31 +96,32 @@ struct Context {
 
 struct Environ {};
 
-Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
-                           Span<const Span<uint8_t>> Builders,
-                           WASINN::Device Device, uint32_t &GraphId) noexcept;
-Expect<WASINN::ErrNo> initExecCtx(WASINN::WasiNNEnvironment &Env,
-                                  uint32_t GraphId,
-                                  uint32_t &ContextId) noexcept;
-Expect<WASINN::ErrNo> setInput(WASINN::WasiNNEnvironment &Env,
-                               uint32_t ContextId, uint32_t Index,
-                               const TensorData &Tensor) noexcept;
-Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
-                                uint32_t ContextId, uint32_t Index,
-                                Span<uint8_t> OutBuffer,
-                                uint32_t &BytesWritten) noexcept;
-Expect<WASINN::ErrNo> getOutputSingle(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t ContextId, uint32_t Index,
-                                      Span<uint8_t> OutBuffer,
-                                      uint32_t &BytesWritten) noexcept;
-Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
-                              uint32_t ContextId) noexcept;
-Expect<WASINN::ErrNo> computeSingle(WASINN::WasiNNEnvironment &Env,
-                                    uint32_t ContextId) noexcept;
-Expect<WASINN::ErrNo> finiSingle(WASINN::WasiNNEnvironment &Env,
-                                 uint32_t ContextId) noexcept;
-Expect<WASINN::ErrNo> unload(WASINN::WasiNNEnvironment &Env,
-                             uint32_t GraphId) noexcept;
-Expect<WASINN::ErrNo> finalizeExecCtx(WASINN::WasiNNEnvironment &Env,
-                                      uint32_t ContextId) noexcept;
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+namespace {
+
+// Macro for logging debug message.
+#define LOG_DEBUG(Debug, ...)                                                  \
+  if (Debug) {                                                                 \
+    spdlog::info("[WASI-NN][Debug] GGML backend: "sv __VA_ARGS__);             \
+  }
+
+// Macro for logging info message.
+#define LOG_INFO(Info, ...)                                                    \
+  if (Info) {                                                                  \
+    spdlog::info("[WASI-NN] GGML backend: "sv __VA_ARGS__);                    \
+  }
+
+// Macro for logging warning message.
+#define LOG_WARN(...) spdlog::warn("[WASI-NN] GGML backend: "sv __VA_ARGS__);
+
+// Macro for logging error message.
+#define LOG_ERROR(...) spdlog::error("[WASI-NN] GGML backend: "sv __VA_ARGS__);
+
+// Macro for logging error message and return.
+#define RET_ERROR(Error, ...)                                                  \
+  spdlog::error("[WASI-NN] GGML backend: "sv __VA_ARGS__);                     \
+  return Error;
+} // namespace
+#endif
+
 } // namespace WasmEdge::Host::WASINN::GGML

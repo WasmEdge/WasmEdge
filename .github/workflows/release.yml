@@ -67,7 +67,7 @@ jobs:
     with:
       version: ${{ needs.create_release.outputs.version }}
       matrix:
-        "[{'name':'MacOS 13 (x86_64)','runner':'macos-13','darwin_version':22,'arch':'x86_64'},
+        "[{'name':'MacOS 14 (x86_64)','runner':'macos-14-large','darwin_version':23,'arch':'x86_64'},
         {'name':'MacOS 14 (arm64)','runner':'macos-14','darwin_version':23,'arch':'arm64'}]"
       release: true
     secrets: inherit

@@ -58,7 +58,6 @@ RUN cmake -B build \
     -DLLVM_TOOL_BUGPOINT_BUILD=ON \
     -DLLVM_TOOL_LLVM_BCANALYZER_BUILD=ON \
     -DLLVM_TOOL_LLI_BUILD=ON \
-    -DLLVM_TOOL_LLI_BUILD=ON \
     llvm
 
 RUN cmake --build build --target install
@@ -70,7 +69,7 @@ RUN find build/bin -type f -executable -exec cp -v {} /lld-install/bin/ \;
 RUN test -f /lld-install/bin/lli || (echo "Error: lli not installed!" && false)
 
 ########################################
-# Stage 3: Alpine Static Image with LLD
+# Stage 3: Alpine Static Image with LLD and a Robust Toolchain
 ########################################
 FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS alpine-static
 
@@ -79,10 +78,10 @@ RUN apk add --no-cache bash
 
 SHELL ["bash", "-c"]
 
+# CRITICAL FIX: Do not install g++, as it creates a standard library conflict.
 RUN apk add --no-cache \
     cmake \
     samurai \
-    g++ \
     clang \
     llvm-static \
     lld-dev \
@@ -108,51 +107,63 @@ RUN if xx-info is-cross; then cp -f /usr/lib/libLTO.so* $(xx-info sysroot)/usr/l
 # Patch LLVMConfig for proper sysroot awareness
 RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake || true
 
-# Add xx-toolchain helper
-# CRITICAL CHANGES:
-# - Set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER to use xx-clang directly.
-# - Add CMAKE_FIND_ROOT_PATH_MODE_* to ensure CMake only searches within the sysroot.
-# - Add CMAKE_*_COMPILER_FORCED to prevent problematic compiler probes.
+# Create a comprehensive, robust toolchain file generator
 RUN cat <<'EOT' > /usr/bin/xx-toolchain && chmod +x /usr/bin/xx-toolchain
 #!/bin/bash
-mkdir -p /etc/xx-toolchains/
-TOOLCHAIN_FILE="/etc/xx-toolchains/$(xx-clang --print-target-triple).cmake"
-[ -f "$TOOLCHAIN_FILE" ] || cat <<EOF > "$TOOLCHAIN_FILE"
-set(CMAKE_CROSSCOMPILING ON)
-set(CMAKE_SYSROOT "$(xx-info sysroot)")
-set(CMAKE_SYSTEM_NAME "Linux")
-set(CMAKE_SYSTEM_VERSION 1)
-set(CMAKE_SYSTEM_PROCESSOR "$(xx-info march)")
+set -e
+SYSROOT=$(xx-info sysroot)
+TARGET_TRIPLE=$(xx-clang --print-target-triple)
+TOOLCHAIN_FILE="/etc/xx-toolchains/${TARGET_TRIPLE}.cmake"
+
+# Only generate the file if it doesn't exist
+if [ ! -f "$TOOLCHAIN_FILE" ]; then
+    mkdir -p "$(dirname "$TOOLCHAIN_FILE")"
+    echo "--- Generating CMake toolchain file for ${TARGET_TRIPLE} ---" >&2
+    cat <<EOF > "$TOOLCHAIN_FILE"
+# CMake Toolchain File for ${TARGET_TRIPLE}
+
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR "$(xx-info arch)")
+set(CMAKE_SYSROOT "${SYSROOT}")
+
 set(CMAKE_C_COMPILER "$(which xx-clang)")
 set(CMAKE_CXX_COMPILER "$(which xx-clang++)")
 set(CMAKE_ASM_COMPILER "$(which xx-clang)")
-set(CMAKE_AR "$(which ar)")
-set(CMAKE_RANLIB "$(which ranlib)")
-set(PKG_CONFIG_EXECUTABLE "$(xx-clang --print-prog-name=pkg-config)")
-set(CMAKE_C_COMPILER_TARGET "$(xx-clang --print-target-triple)")
-set(CMAKE_CXX_COMPILER_TARGET "$(xx-clang --print-target-triple)")
-set(CMAKE_ASM_COMPILER_TARGET "$(xx-clang --print-target-triple)")
 
-# Crucial additions for robust cross-compilation with CMake
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM ONLY)
+set(CMAKE_LINKER "$(which xx-clang++)")
+set(CMAKE_AR "$(which xx-llvm-ar)")
+set(CMAKE_RANLIB "$(which xx-llvm-ranlib)")
+
+# FINAL FIX: Use -nostdinc++ to prevent the compiler from using its broken default C++ include paths.
+# We then manually add the correct paths in the correct order. This is the most forceful and reliable way
+# to fix the header search path and macro collision errors.
+set(CMAKE_CXX_FLAGS "--sysroot=${SYSROOT} -stdlib=libc++ -pthread -D_GNU_SOURCE -nostdinc++ -isystem \${SYSROOT}/usr/include/c++/v1 -isystem \${SYSROOT}/usr/include" CACHE STRING "C++ compiler flags")
+set(CMAKE_C_FLAGS "--sysroot=${SYSROOT} -pthread -D_GNU_SOURCE -isystem \${SYSROOT}/usr/include" CACHE STRING "C compiler flags")
+
+# Linker flags.
+set(COMMON_LINKER_FLAGS "--sysroot=\${SYSROOT} -stdlib=libc++ -fuse-ld=lld -L\${SYSROOT}/usr/lib -lunwind")
+set(CMAKE_EXE_LINKER_FLAGS    "\${COMMON_LINKER_FLAGS}" CACHE STRING "Executable linker flags")
+set(CMAKE_SHARED_LINKER_FLAGS "\${COMMON_LINKER_FLAGS}" CACHE STRING "Shared linker flags")
+set(CMAKE_MODULE_LINKER_FLAGS "\${COMMON_LINKER_FLAGS}" CACHE STRING "Module linker flags")
+
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
-set(CMAKE_C_COMPILER_FORCED TRUE)
-set(CMAKE_CXX_COMPILER_FORCED TRUE)
 EOF
+fi
 echo "$TOOLCHAIN_FILE"
 EOT
 
 ########################################
-# Stage 4: wasmedge-build with sysroot & include fixes
+# Stage 4: wasmedge-build with the robust toolchain
 ########################################
 FROM alpine-static AS wasmedge-build
 
 ARG TARGETPLATFORM
 ARG ALPINE_VERSION
 
-WORKDIR /src
+WORKDIR /src_writable
 SHELL ["bash", "-c"]
 
 # Host tools
@@ -166,27 +177,32 @@ RUN apk add --no-cache \
     zstd-dev \
     zstd-static
 
-# Standard headers into sysroot
-# Corrected package name: using 'g++' instead of 'g++-dev' for Alpine
-RUN xx-apk add musl-dev libc-dev g++
+# Install a clean libc++ toolchain into the sysroot.
+# Do NOT install g++, as it brings in a conflicting libstdc++ implementation.
+RUN xx-apk add \
+    musl-dev \
+    libc-dev \
+    clang \
+    libc++-static \
+    libc++-dev \
+    llvm-libunwind-static
 
 # Fake dsymutil for CMake sanity
 RUN ln -sf /bin/true /usr/bin/dsymutil
 
-# Optional sanity check for stdlib.h
+# Sanity checks
 RUN test -f "$(xx-info sysroot)/usr/include/stdlib.h" || (echo "stdlib.h not found in sysroot!" && false)
-# Also check for C++ headers to ensure the new package was installed correctly
-RUN test -f "$(xx-info sysroot)/usr/include/c++/$(ls "$(xx-info sysroot)"/usr/include/c++/)/cstdlib" || (echo "C++ cstdlib header not found in sysroot!" && false)
+RUN test -f "$(xx-info sysroot)/usr/include/c++/v1/vector" || (echo "libc++ headers not found in sysroot!" && false)
 
-# CMake with explicit sysroot & include path flags
-# CRITICAL CHANGE: Removed all explicit CMAKE_C_FLAGS and CMAKE_CXX_FLAGS,
-# relying entirely on xx-toolchain and xx-clang to manage include paths.
-RUN --mount=type=bind,target=/src,source=. \
-    # GCC_TRIPLE and GCC_VERSION variables are not directly used in CMAKE_CXX_FLAGS anymore,
-    # but could be useful for debugging or other specific needs if re-introduced.
-    GCC_TRIPLE=$(ls -d "$(xx-info sysroot)"/usr/lib/gcc/* | xargs basename) && \
-    GCC_VERSION=$(ls -d "$(xx-info sysroot)"/usr/lib/gcc/"${GCC_TRIPLE}"/* | xargs basename) && \
-    cmake -S /src -B /build -G Ninja \
+# Copy the read-only mounted source to a writable location, then patch and build from there.
+RUN --mount=type=bind,target=/src,source=.,ro \
+    set -e && \
+    echo "Creating a writable copy of the source code..." && \
+    cp -r /src/. . && \
+    echo "Patching for older Alpine compatibility..." && \
+    sed -i '1i#include <fcntl.h>\n#ifndef O_SYMLINK\n#define O_SYMLINK O_NOFOLLOW\n#endif' lib/host/wasi/inode-linux.cpp && \
+    echo "Configuring with CMake..." && \
+    cmake -S . -B /build -G Ninja \
         -DCMAKE_BUILD_TYPE=MinSizeRel \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_INSTALL_PREFIX="/install" \
@@ -202,11 +218,8 @@ RUN --mount=type=bind,target=/src,source=. \
         -DWASMEDGE_BUILD_EXAMPLE=OFF \
         -DWASMEDGE_LINK_LLVM_STATIC=ON \
         -DWASMEDGE_LINK_TOOLS_STATIC=ON \
-        -DWASMEDGE_DISABLE_LIBTINFO=ON
-
-# Build and install
-RUN --mount=type=bind,target=/src,source=. \
+        -DWASMEDGE_DISABLE_LIBTINFO=ON && \
+    echo "Building with CMake..." && \
     cmake --build /build -- install package
 
-WORKDIR /src
 CMD ["/bin/bash"]

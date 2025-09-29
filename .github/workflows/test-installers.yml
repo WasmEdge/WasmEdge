@@ -185,7 +185,6 @@ jobs:
 
     - name: Install Zsh
       run: |
-        eval $(/opt/homebrew/bin/brew shellenv) 2>/dev/null || true
         brew install zsh
 
     - name: Test install.sh Functionality
@@ -346,7 +345,6 @@ jobs:
 
     - name: Install Zsh
       run: |
-        eval $(/opt/homebrew/bin/brew shellenv) 2>/dev/null || true
         brew install zsh
 
     - name: Test install_v2.sh Functionality
@@ -535,7 +533,6 @@ jobs:
     - name: Install Python and Zsh
       shell: zsh {0}
       run: |
-        eval $(/opt/homebrew/bin/brew shellenv) 2>/dev/null || true
         brew upgrade
         brew install python zsh
 

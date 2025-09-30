@@ -29,22 +29,22 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 ## Current Roadmap
 
-Last Updated: Q3 / 2025
+Last Updated: Q4 / 2025
 
 | Theme    | Description | Timeline | Assignee |
 | ---      | ----------- | -------- | -------- |
-| Feature  | A new WasmEdge installer and plugin manager | Q3 / 2025 | [@hydai](https://github.com/hydai) |
-| Proposal | Exception-Handling proposal for AOT/JIT | Q3 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) |
-| Proposal | Typed continuation proposal | Q3 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | Stack-switch proposal | Q3 / 2025 | [@q82419](https://github.com/q82419) |
+| Feature | WasmEdge 0.16.0 release | Q4 / 2025 | [@hydai](https://github.com/hydai) |
+| Proposal | [WASM 3.0 supporting](https://github.com/WasmEdge/WasmEdge/issues/4382) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
 | Proposal | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/pull/2964) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) | Q3 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) |
-| Proposal | Component Model completion | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | WASI preview2 as plugins | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | WASI-NN GGML plugin with latest llama.cpp integration | Q3 / 2025 | [@dm4](https://github.com/dm4) |
-| Proposal | WASI-NN Whisper.cpp plugin: update for supporting the greedy sampling | Q3 / 2025 | [@hydai](https://github.com/hydai) |
-| Proposal | [LFX (2025/term2) runwasi multi-node stability testing](https://github.com/WasmEdge/WasmEdge/issues/4155) | Q3 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) |
-| Proposal | Update the Android NDK build examples | Q3 / 2025 | [@dm4](https://github.com/dm4) |
+| Proposal | [Component Model completion](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | [Component Model value and value type refactoring](https://github.com/WasmEdge/WasmEdge/issues/4333) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | [Component Model canonical section refactoring](https://github.com/WasmEdge/WasmEdge/issues/4334) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | [WASI preview2 as plugins](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
+| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) | Q4 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Proposal | Update the Android NDK build examples | Q4 / 2025 | [@dm4](https://github.com/dm4) |
+| Proposal | WASI-NN GGML plugin with latest llama.cpp integration for Q4/2025 | Q4 / 2025 | [@dm4](https://github.com/dm4) |
+| Document | WasmEdge documentation refactoring | Q1 / 2026 | [@q82419](https://github.com/q82419) |
+| Feature | [LFX (2025/term3) Pointer alignment checking for WASI host function arguments](https://github.com/WasmEdge/WasmEdge/issues/4362) | Q4 / 2025 | [@Minimega12121](https://github.com/Minimega12121) |
 
 ## Inactive Roadmap
 
@@ -65,8 +65,27 @@ Last Updated: Q3 / 2025
 | Languages Bindings | [Python SDK](https://github.com/WasmEdge/WasmEdge/pull/633) |
 | Feature | Support stack tracing in the JIT and AOT modes |
 | Feature | [Setup workflows for](https://github.com/WasmEdge/WasmEdge/issues/3840) [cpp-plugins repo](https://github.com/WasmEdge/cpp-plugins) |
+| Feature | A new WasmEdge installer and plugin manager |
+| Proposal | Exception-Handling proposal for AOT/JIT |
+| Proposal | Typed continuation proposal |
+| Proposal | Stack-switch proposal |
+| Proposal | WASI-NN Whisper.cpp plugin: update for supporting the greedy sampling |
 
 ## Previous Roadmap
+
+### Q3/2025
+
+| Theme | Description | Timeline | Assignee | Status |
+| --- | --- | --- | --- | --- |
+| Proposal | WASI-NN GGML plugin with latest llama.cpp integration | Q3 / 2025 | [@dm4](https://github.com/dm4) | Completed |
+| Proposal | [Component Model AST refactoring](https://github.com/WasmEdge/WasmEdge/pull/4123) | Q3 / 2025 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | [Component Model linking phase refactoring](https://github.com/WasmEdge/WasmEdge/pull/4321) | Q3 / 2025 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | [LFX (2025/term2) runwasi multi-node stability testing](https://github.com/WasmEdge/WasmEdge/issues/4155) | Q3 / 2025 | [@CaptainVincent](https://github.com/CaptainVincent) | Completed |
+| Feature | A new WasmEdge installer and plugin manager (TBD) | Q3 / 2025 | [@hydai](https://github.com/hydai) | Staled |
+| Proposal | Exception-Handling proposal for AOT/JIT | Q3 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) | Staled |
+| Proposal | Typed continuation proposal | Q3 / 2025 | [@q82419](https://github.com/q82419) | Staled |
+| Proposal | Stack-switch proposal | Q3 / 2025 | [@q82419](https://github.com/q82419) | Staled |
+| Proposal | WASI-NN Whisper.cpp plugin: update for supporting the greedy sampling | Q3 / 2025 | [@hydai](https://github.com/hydai) | Staled |
 
 ### Q2/2025
 

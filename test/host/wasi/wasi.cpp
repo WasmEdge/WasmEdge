@@ -2963,6 +2963,372 @@ TEST(WasiTest, EpollOneoffSocketV1) {
 }
 #endif
 
+TEST(WasiTest, WasiSocketAlignmentTests) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  Env.init({}, "test"s, {}, {});
+
+  // Test WasiSockOpenV1 RoFdPtr alignment
+  {
+    WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
+
+    // Test all possible misalignment offsets
+    for (uint32_t offset = 1; offset < alignof(__wasi_fd_t); ++offset) {
+      const uint32_t MisalignedRoFdPtr = alignof(__wasi_fd_t) + offset;
+
+      EXPECT_TRUE(WasiSockOpen.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+              static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM),
+              MisalignedRoFdPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for RoFdPtr offset: " << offset;
+    }
+
+    // Test properly aligned RoFdPtr (should succeed)
+    const uint32_t AlignedRoFdPtr = static_cast<uint32_t>(alignof(__wasi_fd_t) * 2);
+    EXPECT_TRUE(WasiSockOpen.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+            static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM),
+            AlignedRoFdPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // Clean up the created socket
+    __wasi_fd_t CreatedFd;
+    EXPECT_TRUE(MemInst.loadValue(CreatedFd, AlignedRoFdPtr));
+    WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+    std::array<WasmEdge::ValVariant, 1> CloseErrno;
+    EXPECT_TRUE(WasiFdClose.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{static_cast<int32_t>(CreatedFd)},
+        CloseErrno));
+    EXPECT_EQ(CloseErrno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  }
+
+  // Test WasiSockBindV1 AddressPtr alignment
+  {
+    WasmEdge::Host::WasiSockBindV1 WasiSockBind(Env);
+
+    // Test all possible misalignment offsets for AddressPtr
+    for (uint32_t offset = 1; offset < alignof(__wasi_address_t); ++offset) {
+      const uint32_t MisalignedAddressPtr = alignof(__wasi_address_t) + offset;
+
+      EXPECT_TRUE(WasiSockBind.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              MisalignedAddressPtr,
+              static_cast<uint32_t>(8080)},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for AddressPtr offset: " << offset;
+    }
+
+    // Test properly aligned AddressPtr (should pass alignment check but fail on invalid fd)
+    const uint32_t AlignedAddressPtr = static_cast<uint32_t>(alignof(__wasi_address_t) * 2);
+    EXPECT_TRUE(WasiSockBind.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<int32_t>(3), // dummy fd
+            AlignedAddressPtr,
+            static_cast<uint32_t>(8080)},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+  }
+
+  // Test WasiSockAcceptV1 RoFdPtr alignment
+  {
+    WasmEdge::Host::WasiSockAcceptV1 WasiSockAccept(Env);
+
+    // Test all possible misalignment offsets
+    for (uint32_t offset = 1; offset < alignof(__wasi_fd_t); ++offset) {
+      const uint32_t MisalignedRoFdPtr = alignof(__wasi_fd_t) + offset;
+
+      EXPECT_TRUE(WasiSockAccept.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              MisalignedRoFdPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for RoFdPtr offset: " << offset;
+    }
+
+    // Test properly aligned RoFdPtr (should pass alignment check but fail on invalid fd)
+    const uint32_t AlignedRoFdPtr = static_cast<uint32_t>(alignof(__wasi_fd_t) * 2);
+    EXPECT_TRUE(WasiSockAccept.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<int32_t>(3), // dummy fd
+            AlignedRoFdPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+  }
+
+  // Test WasiSockAcceptV2 RoFdPtr alignment
+  {
+    WasmEdge::Host::WasiSockAcceptV2 WasiSockAccept(Env);
+
+    // Test all possible misalignment offsets
+    for (uint32_t offset = 1; offset < alignof(__wasi_fd_t); ++offset) {
+      const uint32_t MisalignedRoFdPtr = alignof(__wasi_fd_t) + offset;
+
+      EXPECT_TRUE(WasiSockAccept.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              static_cast<uint32_t>(0), // flags
+              MisalignedRoFdPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for RoFdPtr offset: " << offset;
+    }
+
+    // Test properly aligned RoFdPtr (should pass alignment check but fail on invalid fd)
+    const uint32_t AlignedRoFdPtr = static_cast<uint32_t>(alignof(__wasi_fd_t) * 2);
+    EXPECT_TRUE(WasiSockAccept.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<int32_t>(3), // dummy fd
+            static_cast<uint32_t>(0), // flags
+            AlignedRoFdPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+  }
+
+  // Test WasiSockConnectV1 AddressPtr alignment
+  {
+    WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
+
+    // Test all possible misalignment offsets for AddressPtr
+    for (uint32_t offset = 1; offset < alignof(__wasi_address_t); ++offset) {
+      const uint32_t MisalignedAddressPtr = alignof(__wasi_address_t) + offset;
+
+      EXPECT_TRUE(WasiSockConnect.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              MisalignedAddressPtr,
+              static_cast<uint32_t>(8080)},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for AddressPtr offset: " << offset;
+    }
+
+    // Test properly aligned AddressPtr (should pass alignment check but fail on invalid fd)
+    const uint32_t AlignedAddressPtr = static_cast<uint32_t>(alignof(__wasi_address_t) * 2);
+    EXPECT_TRUE(WasiSockConnect.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<int32_t>(3), // dummy fd
+            AlignedAddressPtr,
+            static_cast<uint32_t>(8080)},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+  }
+
+  // Test WasiSockRecvV1 alignment for multiple parameters
+  {
+    WasmEdge::Host::WasiSockRecvV1 WasiSockRecv(Env);
+
+    // Test RiDataPtr alignment
+    for (uint32_t offset = 1; offset < alignof(__wasi_iovec_t); ++offset) {
+      const uint32_t MisalignedRiDataPtr = alignof(__wasi_iovec_t) + offset;
+      const uint32_t AlignedRoDataLenPtr = static_cast<uint32_t>(alignof(__wasi_size_t) * 2);
+      const uint32_t AlignedRoFlagsPtr = static_cast<uint32_t>(alignof(__wasi_roflags_t) * 3);
+
+      EXPECT_TRUE(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              MisalignedRiDataPtr,
+              static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0), // RiFlags
+              AlignedRoDataLenPtr,
+              AlignedRoFlagsPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for RiDataPtr offset: " << offset;
+    }
+
+    // Test RoDataLenPtr alignment
+    for (uint32_t offset = 1; offset < alignof(__wasi_size_t); ++offset) {
+      const uint32_t AlignedRiDataPtr = static_cast<uint32_t>(alignof(__wasi_iovec_t) * 2);
+      const uint32_t MisalignedRoDataLenPtr = alignof(__wasi_size_t) + offset;
+      const uint32_t AlignedRoFlagsPtr = static_cast<uint32_t>(alignof(__wasi_roflags_t) * 3);
+
+      EXPECT_TRUE(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              AlignedRiDataPtr,
+              static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0), // RiFlags
+              MisalignedRoDataLenPtr,
+              AlignedRoFlagsPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for RoDataLenPtr offset: " << offset;
+    }
+
+    // Test RoFlagsPtr alignment
+    for (uint32_t offset = 1; offset < alignof(__wasi_roflags_t); ++offset) {
+      const uint32_t AlignedRiDataPtr = static_cast<uint32_t>(alignof(__wasi_iovec_t) * 2);
+      const uint32_t AlignedRoDataLenPtr = static_cast<uint32_t>(alignof(__wasi_size_t) * 3);
+      const uint32_t MisalignedRoFlagsPtr = alignof(__wasi_roflags_t) + offset;
+
+      EXPECT_TRUE(WasiSockRecv.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              AlignedRiDataPtr,
+              static_cast<uint32_t>(1), // RiDataLen
+              static_cast<uint32_t>(0), // RiFlags
+              AlignedRoDataLenPtr,
+              MisalignedRoFlagsPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for RoFlagsPtr offset: " << offset;
+    }
+
+    // Test properly aligned parameters (should pass alignment but fail on invalid fd)
+    const uint32_t AlignedRiDataPtr = static_cast<uint32_t>(alignof(__wasi_iovec_t) * 2);
+    const uint32_t AlignedRoDataLenPtr = static_cast<uint32_t>(alignof(__wasi_size_t) * 3);
+    const uint32_t AlignedRoFlagsPtr = static_cast<uint32_t>(alignof(__wasi_roflags_t) * 4);
+
+    EXPECT_TRUE(WasiSockRecv.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<int32_t>(3), // dummy fd
+            AlignedRiDataPtr,
+            static_cast<uint32_t>(1), // RiDataLen
+            static_cast<uint32_t>(0), // RiFlags
+            AlignedRoDataLenPtr,
+            AlignedRoFlagsPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+  }
+
+  // Test WasiSockSendV1 alignment for multiple parameters
+  {
+    WasmEdge::Host::WasiSockSendV1 WasiSockSend(Env);
+
+    // Test SiDataPtr alignment
+    for (uint32_t offset = 1; offset < alignof(__wasi_ciovec_t); ++offset) {
+      const uint32_t MisalignedSiDataPtr = alignof(__wasi_ciovec_t) + offset;
+      const uint32_t AlignedSoDataLenPtr = static_cast<uint32_t>(alignof(__wasi_size_t) * 2);
+
+      EXPECT_TRUE(WasiSockSend.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              MisalignedSiDataPtr,
+              static_cast<uint32_t>(1), // SiDataLen
+              static_cast<uint32_t>(0), // SiFlags
+              AlignedSoDataLenPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for SiDataPtr offset: " << offset;
+    }
+
+    // Test SoDataLenPtr alignment
+    for (uint32_t offset = 1; offset < alignof(__wasi_size_t); ++offset) {
+      const uint32_t AlignedSiDataPtr = static_cast<uint32_t>(alignof(__wasi_ciovec_t) * 2);
+      const uint32_t MisalignedSoDataLenPtr = alignof(__wasi_size_t) + offset;
+
+      EXPECT_TRUE(WasiSockSend.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              AlignedSiDataPtr,
+              static_cast<uint32_t>(1), // SiDataLen
+              static_cast<uint32_t>(0), // SiFlags
+              MisalignedSoDataLenPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for SoDataLenPtr offset: " << offset;
+    }
+
+    // Test properly aligned parameters (should pass alignment but fail on invalid fd)
+    const uint32_t AlignedSiDataPtr = static_cast<uint32_t>(alignof(__wasi_ciovec_t) * 2);
+    const uint32_t AlignedSoDataLenPtr = static_cast<uint32_t>(alignof(__wasi_size_t) * 3);
+
+    EXPECT_TRUE(WasiSockSend.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<int32_t>(3), // dummy fd
+            AlignedSiDataPtr,
+            static_cast<uint32_t>(1), // SiDataLen
+            static_cast<uint32_t>(0), // SiFlags
+            AlignedSoDataLenPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+  }
+
+  // Test WasiSockRecvFromV1 alignment for multiple parameters
+  {
+    WasmEdge::Host::WasiSockRecvFromV1 WasiSockRecvFrom(Env);
+
+    // Test AddressPtr alignment
+    for (uint32_t offset = 1; offset < alignof(__wasi_address_t); ++offset) {
+      const uint32_t AlignedRiDataPtr = static_cast<uint32_t>(alignof(__wasi_iovec_t) * 2);
+      const uint32_t MisalignedAddressPtr = alignof(__wasi_address_t) + offset;
+      const uint32_t AlignedRoDataLenPtr = static_cast<uint32_t>(alignof(__wasi_size_t) * 4);
+      const uint32_t AlignedRoFlagsPtr = static_cast<uint32_t>(alignof(__wasi_roflags_t) * 5);
+
+      EXPECT_TRUE(WasiSockRecvFrom.run(
+          CallFrame,
+          std::initializer_list<WasmEdge::ValVariant>{
+              static_cast<int32_t>(3), // dummy fd
+              AlignedRiDataPtr,
+              static_cast<uint32_t>(1), // RiDataLen
+              MisalignedAddressPtr,
+              static_cast<uint32_t>(0), // RiFlags
+              AlignedRoDataLenPtr,
+              AlignedRoFlagsPtr},
+          Errno));
+      EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL)
+          << "Failed for AddressPtr offset: " << offset;
+    }
+
+    // Test properly aligned parameters (should pass alignment but fail on invalid fd)
+    const uint32_t AlignedRiDataPtr = static_cast<uint32_t>(alignof(__wasi_iovec_t) * 2);
+    const uint32_t AlignedAddressPtr = static_cast<uint32_t>(alignof(__wasi_address_t) * 3);
+    const uint32_t AlignedRoDataLenPtr = static_cast<uint32_t>(alignof(__wasi_size_t) * 4);
+    const uint32_t AlignedRoFlagsPtr = static_cast<uint32_t>(alignof(__wasi_roflags_t) * 5);
+
+    EXPECT_TRUE(WasiSockRecvFrom.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<int32_t>(3), // dummy fd
+            AlignedRiDataPtr,
+            static_cast<uint32_t>(1), // RiDataLen
+            AlignedAddressPtr,
+            static_cast<uint32_t>(0), // RiFlags
+            AlignedRoDataLenPtr,
+            AlignedRoFlagsPtr},
+        Errno));
+    EXPECT_NE(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+  }
+
+  Env.fini();
+}
+
 TEST(WasiTest, ClockTimeGet) {
   WasmEdge::Host::WASI::Environ Env;
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
@@ -3363,6 +3729,33 @@ TEST(WasiTest, Directory) {
     EXPECT_TRUE(WasiPathRemoveDirectory.run(
         CallFrame,
         std::initializer_list<WasmEdge::ValVariant>{Fd, PathPtr, PathSize},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  //Alignment test for WasiFileStatGet
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    const auto Path = "."sv;
+    const uint32_t PathSize = static_cast<uint32_t>(Path.size());
+    writeString(MemInst, Path, PathPtr);
+
+    // Misaligned filestat pointer (should fail)
+    EXPECT_TRUE(WasiPathFilestatGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, static_cast<uint32_t>(__WASI_LOOKUPFLAGS_SYMLINK_FOLLOW),
+            PathPtr, PathSize, static_cast<uint32_t>(alignof(__wasi_filestat_t) - 1)}, // misaligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+
+    // Correctly aligned filestat pointer (should succeed)
+    EXPECT_TRUE(WasiPathFilestatGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, static_cast<uint32_t>(__WASI_LOOKUPFLAGS_SYMLINK_FOLLOW),
+            PathPtr, PathSize, static_cast<uint32_t>(alignof(__wasi_filestat_t))}, // aligned
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
     Env.fini();

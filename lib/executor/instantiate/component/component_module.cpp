@@ -8,41 +8,29 @@
 
 #include <cstdint>
 #include <string_view>
+#include <utility>
+
+using namespace std::literals;
 
 namespace WasmEdge {
 namespace Executor {
 
-// Instantiate module instance. See "include/executor/Executor.h".
-Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
-Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
-                      std::optional<std::string_view> Name) {
-  // Check the module is validated.
-  if (unlikely(!Mod.getIsValidated())) {
-    spdlog::error(ErrCode::Value::NotValidated);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    return Unexpect(ErrCode::Value::NotValidated);
-  }
+Expect<void>
+Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
+                      const AST::Component::CoreModuleSection &CoreModSec) {
+  CompInst.addModule(CoreModSec.getContent());
+  return {};
+}
 
+Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
+Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
+                      const AST::Module &Mod) {
   // Create the stack manager.
   Runtime::StackManager StackMgr;
 
-  // Check is module name duplicated when trying to registration.
-  if (Name.has_value()) {
-    const auto *FindModInst = StoreMgr.findModule(Name.value());
-    if (FindModInst != nullptr) {
-      spdlog::error(ErrCode::Value::ModuleNameConflict);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      return Unexpect(ErrCode::Value::ModuleNameConflict);
-    }
-  }
-
-  // Insert the module instance to store manager and retrieve instance.
-  std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst;
-  if (Name.has_value()) {
-    ModInst = std::make_unique<Runtime::Instance::ModuleInstance>(Name.value());
-  } else {
-    ModInst = std::make_unique<Runtime::Instance::ModuleInstance>("");
-  }
+  // Create the module instance.
+  std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst =
+      std::make_unique<Runtime::Instance::ModuleInstance>("");
 
   // Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &SubType : Mod.getTypeSection().getContent()) {
@@ -50,17 +38,10 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     ModInst->addDefinedType(SubType);
   }
 
-  auto ReportModuleError = [&StoreMgr, &ModInst](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-    StoreMgr.recycleModule(std::move(ModInst));
-    return E;
-  };
-
-  auto ReportError = [&StoreMgr, &ModInst](ASTNodeAttr Attr) {
-    return [Attr, &StoreMgr, &ModInst](auto E) {
+  auto ReportError = [](ASTNodeAttr Attr) {
+    return [Attr](auto E) {
       spdlog::error(ErrInfo::InfoAST(Attr));
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
-      StoreMgr.recycleModule(std::move(ModInst));
       return E;
     };
   };
@@ -68,9 +49,9 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
   EXPECTED_TRY(instantiate(
-                   [&StoreMgr](std::string_view ModName)
+                   [&ImportMgr](std::string_view Name)
                        -> const WasmEdge::Runtime::Instance::ModuleInstance * {
-                     return StoreMgr.findModule(ModName);
+                     return ImportMgr.findCoreModuleInstance(Name);
                    },
                    *ModInst, ImportSec)
                    .map_error(ReportError(ASTNodeAttr::Sec_Import)));
@@ -137,17 +118,14 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     const auto *FuncInst = ModInst->getStartFunc();
 
     // Execute instruction.
-    EXPECTED_TRY(
-        runFunction(StackMgr, *FuncInst, {}).map_error(ReportModuleError));
+    EXPECTED_TRY(runFunction(StackMgr, *FuncInst, {}).map_error([](auto E) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+      return E;
+    }));
   }
 
   // Pop Frame.
   StackMgr.popFrame();
-
-  // For the named modules, register it into the store.
-  if (Name.has_value()) {
-    StoreMgr.registerModule(ModInst.get());
-  }
 
   return ModInst;
 }

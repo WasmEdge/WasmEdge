@@ -228,48 +228,6 @@ public:
     return std::forward<CallbackT>(CallBack)(ExpGlobals);
   }
 
-  /// Component model concepts
-  ///
-  /// Export functions with name, these functions are suppose not owned by this
-  /// module, because the module is just a wrapper for component functions.
-  ///
-  /// See the example below, with statement below shows why we need this kind of
-  /// exporting
-  ///
-  /// (component
-  ///   (core module $A
-  ///     (func (export "one") (result i32) (i32.const 1))
-  ///   )
-  ///   (core module $B
-  ///     (func (import "a" "one") (result i32))
-  ///   )
-  ///   (core instance $a (instantiate $A))
-  ///   (core instance $b (instantiate $B (with "a" (instance $a))))
-  /// )
-  void exportFunction(std::string_view Name, FunctionInstance *Func) {
-    std::unique_lock Lock(Mutex);
-    assuming(Func->isHostFunction());
-    unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
-    Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
-    FuncInsts.push_back(Func);
-    ExpFuncs.insert_or_assign(std::string(Name), FuncInsts.back());
-  }
-  void exportTable(std::string_view Name, TableInstance *Tab) {
-    std::unique_lock Lock(Mutex);
-    TabInsts.push_back(Tab);
-    ExpTables.insert_or_assign(std::string(Name), TabInsts.back());
-  }
-  void exportMemory(std::string_view Name, MemoryInstance *Mem) {
-    std::unique_lock Lock(Mutex);
-    MemInsts.push_back(Mem);
-    ExpMems.insert_or_assign(std::string(Name), MemInsts.back());
-  }
-  void exportGlobal(std::string_view Name, GlobalInstance *Glob) {
-    std::unique_lock Lock(Mutex);
-    GlobInsts.push_back(Glob);
-    ExpGlobals.insert_or_assign(std::string(Name), GlobInsts.back());
-  }
-
 protected:
   friend class Executor::Executor;
   friend class ComponentInstance;
@@ -479,9 +437,21 @@ protected:
   }
 
   /// Get start function address in Store.
-  FunctionInstance *getStartFunc() const noexcept {
+  const FunctionInstance *getStartFunc() const noexcept {
     std::shared_lock Lock(Mutex);
     return StartFunc;
+  }
+
+  /// Set the target imported WASI module when instantiation.
+  void setWASIModule(const ModuleInstance *Mod) noexcept {
+    std::unique_lock Lock(Mutex);
+    WASIModInst = Mod;
+  }
+
+  /// Get the target imported WASI module when instantiation.
+  const ModuleInstance *getWASIModule() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return WASIModInst;
   }
 
   /// Unsafe import instance into this module.
@@ -599,7 +569,10 @@ protected:
   std::map<std::string, GlobalInstance *, std::less<>> ExpGlobals;
 
   /// Start function instance.
-  FunctionInstance *StartFunc = nullptr;
+  const FunctionInstance *StartFunc = nullptr;
+
+  /// Imported WASI module instance when instantiation.
+  const ModuleInstance *WASIModInst = nullptr;
 
   /// Linked store.
   std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>

@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "model/utils.h"
+#include "host/wasi/vfs_io.h"
 #include <fstream>
 #include <sstream>
 
@@ -59,8 +60,9 @@ void saveWeights(const mx::array &Weights, const std::string &Path) {
   }
 }
 
-std::string loadBytesFromFile(const std::string &Path) {
-  std::ifstream Fs(Path, std::ios::in | std::ios::binary);
+std::string loadBytesFromFile(const std::string &Path,
+                              const Host::WASI::Environ *Env) {
+  WasmEdge::FStream::IFStream Fs(Path, Env);
   if (Fs.fail()) {
     spdlog::error("[WASI-NN] MLX backend: Cannot open {}."sv, Path);
     return "";

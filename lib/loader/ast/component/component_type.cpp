@@ -289,7 +289,7 @@ Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_FuncType));
       return E;
     }));
-    Ty.setResultType(VT);
+    Ty.setResultList(VT);
     return {};
   }
   case 0x01: {

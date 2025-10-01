@@ -312,9 +312,9 @@ public:
   FuncType() noexcept = default;
   FuncType(const std::vector<LabelValType> &P,
            const ComponentValType &R) noexcept
-      : ParamList(P), ResultList(R) {}
+      : ParamList(P), ResultList({R}) {}
   FuncType(std::vector<LabelValType> &&P, const ComponentValType &R) noexcept
-      : ParamList(std::move(P)), ResultList(R) {}
+      : ParamList(std::move(P)), ResultList({R}) {}
   FuncType(const std::vector<LabelValType> &P,
            const std::vector<LabelValType> &R) noexcept
       : ParamList(P), ResultList(R) {}
@@ -327,31 +327,21 @@ public:
     ParamList = std::move(P);
   }
 
-  const ComponentValType &getResultType() const noexcept {
-    return *std::get_if<ComponentValType>(&ResultList);
+  Span<const LabelValType> getResultList() const noexcept { return ResultList; }
+  void setResultList(std::vector<LabelValType> &&R) noexcept {
+    ResultList = std::move(R);
   }
-  void setResultType(const ComponentValType &VT) noexcept {
-    ResultList.emplace<ComponentValType>(VT);
-  }
-  Span<const LabelValType> getResultList() const noexcept {
-    return *std::get_if<std::vector<LabelValType>>(&ResultList);
-  }
-  void setResultList(std::vector<LabelValType> &&List) noexcept {
-    ResultList.emplace<std::vector<LabelValType>>(std::move(List));
+  void setResultList(const ComponentValType &VT) noexcept {
+    ResultList.clear();
+    ResultList.push_back(VT);
   }
 
   uint32_t getResultArity() const noexcept {
-    if (std::holds_alternative<ComponentValType>(ResultList)) {
-      return 1U;
-    } else {
-      return static_cast<uint32_t>(
-          std::get<std::vector<LabelValType>>(ResultList).size());
-    }
+    return static_cast<uint32_t>(ResultList.size());
   }
 
 private:
-  std::vector<LabelValType> ParamList;
-  std::variant<ComponentValType, std::vector<LabelValType>> ResultList;
+  std::vector<LabelValType> ParamList, ResultList;
 };
 
 // =============================================================================

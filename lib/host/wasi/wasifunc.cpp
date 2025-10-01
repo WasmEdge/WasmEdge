@@ -980,10 +980,6 @@ Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
 
-  if (NReadPtr % alignof(__wasi_size_t) != 0) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
-  }
-
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
   if (MemInst == nullptr) {

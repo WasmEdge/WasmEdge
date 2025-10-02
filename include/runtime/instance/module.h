@@ -232,6 +232,7 @@ protected:
   friend class Executor::Executor;
   friend class ComponentInstance;
   friend class Runtime::CallingFrame;
+  friend class GC::Allocator;
 
   /// Create and copy the defined type to this module instance.
   void addDefinedType(const AST::SubType &SType) {
@@ -246,9 +247,11 @@ protected:
     unsafeAddInstance(OwnedFuncInsts, FuncInsts, this,
                       std::forward<Args>(Values)...);
   }
-  template <typename... Args> void addTable(Args &&...Values) {
+  template <typename... Args>
+  void addTable(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedTabInsts, TabInsts, std::forward<Args>(Values)...);
+    TabInsts.back()->setAllocator(A);
   }
   template <typename... Args> void addMemory(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -258,9 +261,11 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedTagInsts, TagInsts, std::forward<Args>(Values)...);
   }
-  template <typename... Args> void addGlobal(Args &&...Values) {
+  template <typename... Args>
+  void addGlobal(GC::Allocator &A, Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedGlobInsts, GlobInsts, std::forward<Args>(Values)...);
+    GlobInsts.back()->setAllocator(A);
   }
   template <typename... Args> void addElem(Args &&...Values) {
     std::unique_lock Lock(Mutex);
@@ -269,18 +274,6 @@ protected:
   template <typename... Args> void addData(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedDataInsts, DataInsts, std::forward<Args>(Values)...);
-  }
-  template <typename... Args> ArrayInstance *newArray(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedArrayInsts.push_back(
-        std::make_unique<ArrayInstance>(this, std::forward<Args>(Values)...));
-    return OwnedArrayInsts.back().get();
-  }
-  template <typename... Args> StructInstance *newStruct(Args &&...Values) {
-    std::unique_lock Lock(Mutex);
-    OwnedStructInsts.push_back(
-        std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
-    return OwnedStructInsts.back().get();
   }
 
   /// Import instances into this module instance.
@@ -500,6 +493,36 @@ protected:
       return Iter->second;
     }
     return nullptr;
+  }
+
+  bool isRuntimeGCType(const ValType &VT) const noexcept {
+    switch (VT.getCode()) {
+    case TypeCode::Ref:
+    case TypeCode::RefNull:
+      break;
+    default:
+      assumingUnreachable();
+    }
+    switch (VT.getHeapTypeCode()) {
+    case TypeCode::StructRef:
+    case TypeCode::ArrayRef:
+      return true;
+    case TypeCode::TypeIndex:
+      break;
+    default:
+      return false;
+    }
+    auto SubType = getType(VT.getTypeIndex());
+    if (!SubType) {
+      return false;
+    }
+    switch ((*SubType)->getCompositeType().getContentTypeCode()) {
+    case TypeCode::Struct:
+    case TypeCode::Array:
+      return true;
+    default:
+      return false;
+    }
   }
 
   /// \name Data for compiled functions.

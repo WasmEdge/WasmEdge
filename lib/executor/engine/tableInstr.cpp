@@ -10,7 +10,7 @@ Expect<void> Executor::runTableGetOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::TableInstance &TabInst,
                                      const AST::Instruction &Instr) {
   // Pop Idx from Stack.
-  uint32_t Idx = StackMgr.pop().get<uint32_t>();
+  uint32_t Idx = StackMgr.peekTop<uint32_t>();
 
   // Get table[Idx] and push to Stack.
   return TabInst.getRefAddr(Idx)
@@ -20,8 +20,8 @@ Expect<void> Executor::runTableGetOp(Runtime::StackManager &StackMgr,
                                                {ValTypeFromType<uint32_t>()}));
         return E;
       })
-      .and_then([&](auto Ref) -> Expect<void> {
-        StackMgr.push(Ref);
+      .and_then([&](RefVariant Ref) -> Expect<void> {
+        StackMgr.emplaceTop(std::move(Ref));
         return {};
       });
 }
@@ -29,14 +29,11 @@ Expect<void> Executor::runTableGetOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runTableSetOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::TableInstance &TabInst,
                                      const AST::Instruction &Instr) {
-  // Pop Ref from Stack.
-  RefVariant Ref = StackMgr.pop().get<RefVariant>();
-
-  // Pop Idx from Stack.
-  uint32_t Idx = StackMgr.pop().get<uint32_t>();
+  // Pop Ref and Idx from Stack.
+  auto [Ref, Idx] = StackMgr.pops<RefVariant, uint32_t>();
 
   // Set table[Idx] with Ref.
-  return TabInst.setRefAddr(Idx, Ref).map_error([&Instr, &Idx](auto E) {
+  return TabInst.setRefAddr(Idx, Ref).map_error([&Instr, Idx = Idx](auto E) {
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
                                            {ValTypeFromType<uint32_t>()}));
@@ -50,12 +47,13 @@ Executor::runTableInitOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::ElementInstance &ElemInst,
                          const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
-  uint32_t Src = StackMgr.pop().get<uint32_t>();
-  uint32_t Dst = StackMgr.pop().get<uint32_t>();
+  auto [Len, Src, Dst] = StackMgr.pops<uint32_t, uint32_t, uint32_t>();
 
   // Replace tab[Dst : Dst + Len] with elem[Src : Src + Len].
-  return TabInst.setRefs(ElemInst.getRefs(), Dst, Src, Len)
+  return ElemInst.getRefs(Src, Len)
+      .and_then([&, Dst = Dst](Span<const RefVariant> Refs) {
+        return TabInst.setRefs(Refs, Dst);
+      })
       .map_error([&Instr](auto E) {
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -76,14 +74,13 @@ Executor::runTableCopyOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::TableInstance &TabInstSrc,
                          const AST::Instruction &Instr) {
   // Pop the length, source, and destination from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
-  uint32_t Src = StackMgr.pop().get<uint32_t>();
-  uint32_t Dst = StackMgr.pop().get<uint32_t>();
+  auto [Len, Src, Dst] = StackMgr.pops<uint32_t, uint32_t, uint32_t>();
 
   // Replace tab_dst[Dst : Dst + Len] with tab_src[Src : Src + Len].
-  return TabInstSrc.getRefs(0, Src + Len)
-      .and_then(
-          [&](auto Refs) { return TabInstDst.setRefs(Refs, Dst, Src, Len); })
+  return TabInstSrc.getRefs(Src, Len)
+      .and_then([&, Dst = Dst](Span<const RefVariant> Refs) {
+        return TabInstDst.setRefs(Refs, Dst);
+      })
       .map_error([&Instr](auto E) {
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -95,16 +92,15 @@ Expect<void>
 Executor::runTableGrowOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::TableInstance &TabInst) {
   // Pop N for growing size, Val for init ref value.
-  uint32_t N = StackMgr.pop().get<uint32_t>();
-  ValVariant &Val = StackMgr.getTop();
+  auto [N, RefVal] = StackMgr.pops<uint32_t, RefVariant>();
 
   // Grow size and push result.
   const uint32_t CurrSize = TabInst.getSize();
 
-  if (TabInst.growTable(N, Val.get<RefVariant>())) {
-    Val.emplace<uint32_t>(CurrSize);
+  if (TabInst.growTable(N, RefVal)) {
+    StackMgr.push(CurrSize);
   } else {
-    Val.emplace<int32_t>(INT32_C(-1));
+    StackMgr.push(INT32_C(-1));
   }
   return {};
 }
@@ -121,9 +117,7 @@ Expect<void> Executor::runTableFillOp(Runtime::StackManager &StackMgr,
                                       Runtime::Instance::TableInstance &TabInst,
                                       const AST::Instruction &Instr) {
   // Pop the length, ref_value, and offset from stack.
-  uint32_t Len = StackMgr.pop().get<uint32_t>();
-  RefVariant Val = StackMgr.pop().get<RefVariant>();
-  uint32_t Off = StackMgr.pop().get<uint32_t>();
+  auto [Len, Val, Off] = StackMgr.pops<uint32_t, RefVariant, uint32_t>();
 
   // Fill refs with ref_value.
   return TabInst.fillRefs(Val, Off, Len).map_error([&Instr](auto E) {

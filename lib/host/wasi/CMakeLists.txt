@@ -27,6 +27,7 @@ target_link_libraries(wasmedgeHostModuleWasi
   PUBLIC
   Threads::Threads
   wasmedgeSystem
+  wasmedgeGC
 )
 
 if(NOT APPLE AND NOT WIN32 AND NOT ANDROID)

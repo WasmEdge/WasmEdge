@@ -241,20 +241,6 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
 };
 
-class AVFrameCodedPictureNumber
-    : public HostFunction<AVFrameCodedPictureNumber> {
-public:
-  using HostFunction::HostFunction;
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
-};
-
-class AVFrameDisplayPictureNumber
-    : public HostFunction<AVFrameDisplayPictureNumber> {
-public:
-  using HostFunction::HostFunction;
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame, uint32_t FrameId);
-};
-
 class AVFrameRepeatPict : public HostFunction<AVFrameRepeatPict> {
 public:
   using HostFunction::HostFunction;

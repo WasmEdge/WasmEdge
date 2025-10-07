@@ -1554,24 +1554,6 @@ TEST_F(FFmpegTest, AVCodecCtx) {
   }
 
   FuncInst = AVCodecMod->findFuncExports(
-      "wasmedge_ffmpeg_avcodec_avcodeccontext_set_request_channel_layout");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
-
-  auto &HostFuncAVCodecCtxSetRequestChannelLayout = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCtxSetRequestChannelLayout
-          &>(FuncInst->getHostFunc());
-
-  {
-    EXPECT_TRUE(HostFuncAVCodecCtxSetRequestChannelLayout.run(
-        CallFrame,
-        std::initializer_list<WasmEdge::ValVariant>{AVCodecCtxId,
-                                                    ChannelLayoutId},
-        Result));
-    EXPECT_EQ(Result[0].get<int32_t>(), static_cast<int32_t>(ErrNo::Success));
-  }
-
-  FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodeccontext_active_thread_type");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());

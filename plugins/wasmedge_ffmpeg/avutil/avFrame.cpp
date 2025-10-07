@@ -137,7 +137,7 @@ Expect<int32_t> AVFrameSetChannelLayout::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutID);
-  AvFrame->channel_layout = ChannelLayout;
+  av_channel_layout_from_mask(&AvFrame->ch_layout, ChannelLayout);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -171,20 +171,20 @@ Expect<int32_t> AVFrameSetSampleRate::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFrameChannels::body(const Runtime::CallingFrame &,
                                       uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  return AvFrame->channels;
+  return AvFrame->ch_layout.nb_channels;
 }
 
 Expect<int32_t> AVFrameSetChannels::body(const Runtime::CallingFrame &,
                                          uint32_t FrameId, int32_t Channels) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  AvFrame->channels = Channels;
+  AvFrame->ch_layout.nb_channels = Channels;
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<uint64_t> AVFrameChannelLayout::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  uint64_t const ChannelLayout = AvFrame->channel_layout;
+  uint64_t const ChannelLayout = AvFrame->ch_layout.u.mask;
   return FFmpegUtils::ChannelLayout::intoChannelLayoutID(ChannelLayout);
 }
 
@@ -284,18 +284,6 @@ Expect<int32_t> AVFrameChromaLocation::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   AVChromaLocation const AvChromaLocation = AvFrame->chroma_location;
   return FFmpegUtils::ChromaLocation::fromAVChromaLocation(AvChromaLocation);
-}
-
-Expect<int32_t> AVFrameCodedPictureNumber::body(const Runtime::CallingFrame &,
-                                                uint32_t FrameId) {
-  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  return AvFrame->coded_picture_number;
-}
-
-Expect<int32_t> AVFrameDisplayPictureNumber::body(const Runtime::CallingFrame &,
-                                                  uint32_t FrameId) {
-  FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  return AvFrame->display_picture_number;
 }
 
 Expect<int32_t> AVFrameRepeatPict::body(const Runtime::CallingFrame &,

@@ -12,7 +12,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinn_tf.cpp
   wasinn_torch.cpp
   wasinn_tfl.cpp
-  wasinn_ggml.cpp
+  GGML/core/ggml_core.cpp
   wasinn_neuralspeed.cpp
   wasinn_piper.cpp
   wasinn_whisper.cpp
@@ -70,6 +70,20 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       MLX/mlx/transformer.cpp
       MLX/mlx/pooling.cpp
       MLX/mlx/quantized.cpp
+    )
+  endif()
+
+  if(BACKEND STREQUAL "ggml")
+    target_sources(wasmedgePluginWasiNN
+      PRIVATE
+      GGML/core/ggml_core.cpp
+      GGML/core/input_processor.cpp
+      GGML/core/output_generator.cpp
+      GGML/metadata/metadata_parser.cpp
+      GGML/compute/compute_engine.cpp
+      GGML/compute/inference_manager.cpp
+      GGML/tts/tts_core.cpp
+      GGML/utils.cpp
     )
   endif()
 endforeach()

@@ -1518,8 +1518,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   auto &GraphRef = Env.NNGraph[GId.raw()].get<Graph>();
 
   // Initialize the plugin parameters.
-  GraphRef.EnableLog = false;
-  GraphRef.EnableDebugLog = false;
+  GraphRef.EnableLog = true;
+  GraphRef.EnableDebugLog = true;
   common_params CommonParamsDefault;
   CommonParamsDefault.lr.init();
   GraphRef.Params = CommonParamsDefault;

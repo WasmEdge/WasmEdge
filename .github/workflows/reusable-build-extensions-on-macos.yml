@@ -52,13 +52,12 @@ jobs:
       - name: Build and install dependencies
         shell: bash
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
-          brew install ninja opencv rust ffmpeg@6
+          brew install ninja opencv rust ffmpeg@7
+          brew unlink ffmpeg
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
-          export PKG_CONFIG_PATH="$(brew --prefix)/opt/ffmpeg@6/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export PKG_CONFIG_PATH="$(brew --prefix)/opt/ffmpeg@7/lib/pkgconfig:$PKG_CONFIG_PATH"
           export OpenSSL_DIR="$(brew --prefix)/opt/openssl"
           export CC=clang
           export CXX=clang++
@@ -128,7 +127,6 @@ jobs:
       - if: ${{ inputs.release }}
         name: Install gh for release
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
           brew install gh
       - if: ${{ inputs.release }}
         name: Upload release ${{ steps.var.outputs.artifact }}

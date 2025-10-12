@@ -75,17 +75,14 @@ jobs:
           cmake --build build
       - name: Test WasmEdge
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           cd build
           ctest
       - name: Create package tarball
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
           cmake --build build --target package
       - name: Test Standalone WasmEdge without LLVM
         run: |
-          eval $(/opt/homebrew/bin/brew shellenv)
           export DYLD_LIBRARY_PATH="$(pwd)/build/lib/api:$DYLD_LIBRARY_PATH"
           echo "otool -L ./build/tools/wasmedge/wasmedge:"
           otool -L ./build/tools/wasmedge/wasmedge

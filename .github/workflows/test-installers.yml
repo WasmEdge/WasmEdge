@@ -165,7 +165,7 @@ jobs:
       matrix:
         include:
           - name: macOS x86_64
-            runner: macos-13
+            runner: macos-14-large
           - name: macOS arm64
             runner: macos-15
 
@@ -185,7 +185,6 @@ jobs:
 
     - name: Install Zsh
       run: |
-        eval $(/opt/homebrew/bin/brew shellenv) 2>/dev/null || true
         brew install zsh
 
     - name: Test install.sh Functionality
@@ -326,7 +325,7 @@ jobs:
       matrix:
         include:
           - name: macOS Intel
-            runner: macos-13
+            runner: macos-14-large
           - name: macOS Apple Silicon
             runner: macos-15
 
@@ -346,7 +345,6 @@ jobs:
 
     - name: Install Zsh
       run: |
-        eval $(/opt/homebrew/bin/brew shellenv) 2>/dev/null || true
         brew install zsh
 
     - name: Test install_v2.sh Functionality
@@ -514,7 +512,7 @@ jobs:
       matrix:
         include:
           - name: macOS Intel
-            runner: macos-13
+            runner: macos-14-large
           - name: macOS Apple Silicon
             runner: macos-15
 
@@ -535,7 +533,6 @@ jobs:
     - name: Install Python and Zsh
       shell: zsh {0}
       run: |
-        eval $(/opt/homebrew/bin/brew shellenv) 2>/dev/null || true
         brew upgrade
         brew install python zsh
 

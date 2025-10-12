@@ -636,14 +636,6 @@ public:
                        uint32_t AvCodecCtxId);
 };
 
-class AVCodecCtxSetRequestChannelLayout
-    : public HostFunction<AVCodecCtxSetRequestChannelLayout> {
-public:
-  using HostFunction::HostFunction;
-  Expect<int32_t> body(const Runtime::CallingFrame &Frame,
-                       uint32_t AvCodecCtxId, uint64_t ChannelLayoutId);
-};
-
 class AVCodecCtxActiveThreadType
     : public HostFunction<AVCodecCtxActiveThreadType> {
 public:

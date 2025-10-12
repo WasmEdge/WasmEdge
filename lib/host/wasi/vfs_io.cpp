@@ -308,7 +308,7 @@ void IFStream::close() {
 
 OFStream::OFStream(const std::string_view FileName,
                    const Host::WASI::Environ *WASIEnv) noexcept
-    : OFStream(FileName, std::ios::out, WASIEnv) {}
+    : OFStream(FileName, std::ios_base::out, WASIEnv) {}
 
 OFStream::OFStream(const std::string_view FileName,
                    std::ios_base::openmode Mode,

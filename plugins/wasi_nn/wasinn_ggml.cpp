@@ -1493,7 +1493,9 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
 
   // Save .wav file if path is provided.
   if (!GraphRef.TTSOutputFilePath.empty()) {
-    WasmEdge::FStream::OFStream File(GraphRef.TTSOutputFilePath, Env.getEnv());
+    WasmEdge::FStream::OFStream File(GraphRef.TTSOutputFilePath,
+                                     std::ios_base::out | std::ios_base::binary,
+                                     Env.getEnv());
     if (!File) {
       RET_ERROR(ErrNo::RuntimeError,
                 "codesToSpeech: Failed to open file '{}' for writing"sv,
@@ -1581,8 +1583,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     // TODO: pass the model directly to ggml.
     // Write ggml model to file.
     GraphRef.Params.model.path = "ggml-model.bin"sv;
-    WasmEdge::FStream::OFStream TempFile(GraphRef.Params.model.path,
-                                         Env.getEnv());
+    WasmEdge::FStream::OFStream TempFile(
+        GraphRef.Params.model.path, std::ios_base::out | std::ios_base::binary,
+        Env.getEnv());
     if (!TempFile) {
       Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument,

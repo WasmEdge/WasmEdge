@@ -15,7 +15,7 @@
 
 #include "ast/component/declarator.h"
 #include "ast/component/valtype.h"
-#include "ast/type.h"
+#include "common/types.h"
 
 #include <optional>
 #include <variant>
@@ -107,7 +107,7 @@ struct RecordTy {
 
 /// AST Component::VariantTy node. (One type of DefValType)
 struct VariantTy {
-  std::vector<std::pair<std::string, std::optional<ValueType>>> Cases;
+  std::vector<std::pair<std::string, std::optional<ComponentValType>>> Cases;
 };
 
 // list ::= t:<valtype>           => (list t)
@@ -115,7 +115,7 @@ struct VariantTy {
 
 /// AST Component::ListTy node. (One type of DefValType)
 struct ListTy {
-  ValueType ValTy;
+  ComponentValType ValTy;
   std::optional<uint32_t> Len;
 };
 
@@ -123,7 +123,7 @@ struct ListTy {
 struct TupleTy {
   // A tuple is the product of given non-empty type list.
   // e.g. given [A, B, C], the tuple is a product A x B x C.
-  std::vector<ValueType> Types;
+  std::vector<ComponentValType> Types;
 };
 
 // flags  ::= l*:vec(<label'>)    => (flags l+) (if 0 < |l*| <= 32)
@@ -146,14 +146,14 @@ struct EnumTy {
 
 /// AST Component::OptionTy node. (One type of DefValType)
 struct OptionTy {
-  ValueType ValTy;
+  ComponentValType ValTy;
 };
 
 // result ::= t?:<valtype>? u?:<valtype>? => (result t? (error u)?)
 
 /// AST Component::ResultTy node. (One type of DefValType)
 struct ResultTy {
-  std::optional<ValueType> ValTy, ErrTy;
+  std::optional<ComponentValType> ValTy, ErrTy;
 };
 
 // own ::= i:<typeidx> => (own i)
@@ -174,14 +174,14 @@ struct BorrowTy {
 
 /// AST Component::StreamTy node. (One type of DefValType)
 struct StreamTy {
-  std::optional<ValueType> ValTy;
+  std::optional<ComponentValType> ValTy;
 };
 
 // future ::= t?:<valtype>? => (future t?) 🔀
 
 /// AST Component::FutureTy node. (One type of DefValType)
 struct FutureTy {
-  std::optional<ValueType> ValTy;
+  std::optional<ComponentValType> ValTy;
 };
 
 // defvaltype ::= pvt:<primvaltype>          => pvt
@@ -310,9 +310,10 @@ private:
 class FuncType {
 public:
   FuncType() noexcept = default;
-  FuncType(const std::vector<LabelValType> &P, const ValueType &R) noexcept
+  FuncType(const std::vector<LabelValType> &P,
+           const ComponentValType &R) noexcept
       : ParamList(P), ResultList(R) {}
-  FuncType(std::vector<LabelValType> &&P, const ValueType &R) noexcept
+  FuncType(std::vector<LabelValType> &&P, const ComponentValType &R) noexcept
       : ParamList(std::move(P)), ResultList(R) {}
   FuncType(const std::vector<LabelValType> &P,
            const std::vector<LabelValType> &R) noexcept
@@ -326,11 +327,11 @@ public:
     ParamList = std::move(P);
   }
 
-  const ValueType &getResultType() const noexcept {
-    return *std::get_if<ValueType>(&ResultList);
+  const ComponentValType &getResultType() const noexcept {
+    return *std::get_if<ComponentValType>(&ResultList);
   }
-  void setResultType(const ValueType &VT) noexcept {
-    ResultList.emplace<ValueType>(VT);
+  void setResultType(const ComponentValType &VT) noexcept {
+    ResultList.emplace<ComponentValType>(VT);
   }
   Span<const LabelValType> getResultList() const noexcept {
     return *std::get_if<std::vector<LabelValType>>(&ResultList);
@@ -340,7 +341,7 @@ public:
   }
 
   uint32_t getResultArity() const noexcept {
-    if (std::holds_alternative<ValueType>(ResultList)) {
+    if (std::holds_alternative<ComponentValType>(ResultList)) {
       return 1U;
     } else {
       return static_cast<uint32_t>(
@@ -350,40 +351,7 @@ public:
 
 private:
   std::vector<LabelValType> ParamList;
-  std::variant<ValueType, std::vector<LabelValType>> ResultList;
-};
-
-/// AST Component::FunctionType node. (For interface types)
-class FunctionType {
-public:
-  FunctionType() noexcept = default;
-  FunctionType(Span<const InterfaceType> P,
-               Span<const InterfaceType> R) noexcept
-      : ParamTypes(P.begin(), P.end()), ReturnTypes(R.begin(), R.end()) {}
-
-  friend bool operator==(const FunctionType &LHS,
-                         const FunctionType &RHS) noexcept {
-    return LHS.ParamTypes == RHS.ParamTypes &&
-           LHS.ReturnTypes == RHS.ReturnTypes;
-  }
-  friend bool operator!=(const FunctionType &LHS,
-                         const FunctionType &RHS) noexcept {
-    return !(LHS == RHS);
-  }
-
-  const std::vector<InterfaceType> &getParamTypes() const noexcept {
-    return ParamTypes;
-  }
-  std::vector<InterfaceType> &getParamTypes() noexcept { return ParamTypes; }
-
-  const std::vector<InterfaceType> &getReturnTypes() const noexcept {
-    return ReturnTypes;
-  }
-  std::vector<InterfaceType> &getReturnTypes() noexcept { return ReturnTypes; }
-
-private:
-  std::vector<InterfaceType> ParamTypes;
-  std::vector<InterfaceType> ReturnTypes;
+  std::variant<ComponentValType, std::vector<LabelValType>> ResultList;
 };
 
 // =============================================================================

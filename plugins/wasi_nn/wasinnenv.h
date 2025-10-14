@@ -3,9 +3,9 @@
 
 #pragma once
 
+#include "GGML/core/ggml_core.h"
 #include "wasinn_bitnet.h"
 #include "wasinn_chattts.h"
-#include "wasinn_ggml.h"
 #include "wasinn_mlx.h"
 #include "wasinn_neuralspeed.h"
 #include "wasinn_onnx.h"

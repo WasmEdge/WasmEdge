@@ -707,8 +707,6 @@ public:
         break;
       case OpCode::Nop:
         break;
-      // LEGACY-EH: remove the `Try` cases after deprecating legacy EH.
-      // case OpCode::Try:
       // case OpCode::Throw:
       // case OpCode::Throw_ref:
       case OpCode::Br: {
@@ -851,10 +849,7 @@ public:
         Builder.positionAtEnd(
             LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call_ref.end"));
         break;
-        // LEGACY-EH: remove the `Catch` cases after deprecating legacy EH.
-        // case OpCode::Catch:
-        // case OpCode::Catch_all:
-        // case OpCode::Try_table:
+      // case OpCode::Try_table:
 
       // Reference Instructions
       case OpCode::Ref__null: {

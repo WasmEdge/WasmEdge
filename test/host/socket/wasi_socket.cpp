@@ -1572,6 +1572,9 @@ TEST(WasiTest, UNIX_Socket) {
 
     if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
       GTEST_SKIP();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
     uint32_t MaxMsgBufLen = 100;
     auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
     std::fill_n(MsgBuf.data(), AddrBuf.size(), 0x00);

@@ -24,7 +24,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   }
 
   // Create the stack manager.
-  Runtime::StackManager StackMgr;
+  Runtime::StackManager StackMgr(Allocator);
 
   // Check is module name duplicated when trying to registration.
   if (Name.has_value()) {
@@ -92,7 +92,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   instantiate(*ModInst, TagSec);
 
   // Push a new frame {ModInst, locals:none}
-  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);
+  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator());
 
   // Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();

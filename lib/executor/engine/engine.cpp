@@ -124,9 +124,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
     case OpCode::End:
       PC = StackMgr.maybePopFrameOrHandler(PC);
       return {};
-    // LEGACY-EH: remove the `Try` cases after deprecating legacy EH.
-    case OpCode::Try:
-      return runTryTableOp(StackMgr, Instr, PC);
     case OpCode::Throw:
       return runThrowOp(StackMgr, Instr, PC);
     case OpCode::Throw_ref:
@@ -159,12 +156,6 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return runCallRefOp(StackMgr, Instr, PC);
     case OpCode::Return_call_ref:
       return runCallRefOp(StackMgr, Instr, PC, true);
-    // LEGACY-EH: remove the `Catch` cases after deprecating legacy EH.
-    case OpCode::Catch:
-    case OpCode::Catch_all:
-      PC -= Instr.getCatchLegacy().CatchPCOffset;
-      PC += PC->getTryCatch().JumpEnd;
-      return {};
     case OpCode::Try_table:
       return runTryTableOp(StackMgr, Instr, PC);
 

@@ -341,7 +341,9 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
       // Write model to file.
       // TODO: handle different model format.
       ModelFilePath = "MLX" + std::to_string(Idx) + ".safetensors";
-      WasmEdge::FStream::OFStream TempFile(ModelFilePath, Env.getEnv());
+      WasmEdge::FStream::OFStream TempFile(
+          ModelFilePath, std::ios_base::out | std::ios_base::binary,
+          Env.getEnv());
       if (!TempFile) {
         spdlog::error(
             "[WASI-NN] MLX backend: Failed to create the temporary file. "sv);

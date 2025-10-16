@@ -371,18 +371,27 @@ function(wasmedge_setup_llama_target target)
     if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
-    # Ignore unused function warnings at common.h in llama.cpp.
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-      target_compile_options(${target}
-        PRIVATE
-        -Wno-unused-function
-      )
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-      target_compile_options(${target}
-        /wd4305
-        /wd4244
-      )
-    endif()
+  endif()
+  # Ignore unused function warnings at common.h in llama.cpp.
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    target_compile_options(${target}
+      PRIVATE
+      -Wno-error=unused-function
+    )
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(${target}
+      PRIVATE
+      -Wno-error=unused-function
+      -Wno-error=implicit-float-conversion
+      -Wno-error=documentation
+      -Wno-error=unused-template
+    )
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+    target_compile_options(${target}
+      PRIVATE
+      /wd4305
+      /wd4244
+    )
   endif()
   # Only the plugin library needs to fully linking the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)

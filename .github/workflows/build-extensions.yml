@@ -140,8 +140,8 @@ jobs:
   build_windows_wasi_nn:
     permissions:
       contents: write
-    name: WASI-NN (Windows Server 2022)
-    runs-on: windows-2022
+    name: WASI-NN (Windows Server 2025)
+    runs-on: windows-2025
     env:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn
@@ -168,18 +168,22 @@ jobs:
           args: install cmake ninja vswhere
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@9979bedbf6ae74f038cc338622ba015942ed2408 # v2.4
         with:
-          sdk-version: 22621
+          sdk-version: 26100
       - name: Build WasmEdge
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
-          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.22621.0"
-          $llvm = "LLVM-17.0.6-win64-MultiThreadedDLL.zip"
-          curl -sLO https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-17.0.6/LLVM-17.0.6-win64-MultiThreadedDLL.zip -o $llvm
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.26100.0"
+          $uri = "https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-19.1.6/LLVM-19.1.6-win64-MultiThreadedDLL.zip"
+          $llvm = "LLVM-19.1.6-win64-MultiThreadedDLL.zip"
+          Invoke-WebRequest -Uri $uri -HttpVersion 2.0 -OutFile $llvm
           Expand-Archive -Path $llvm
-          $llvm_dir = "$pwd\\LLVM-17.0.6-win64-MultiThreadedDLL\\LLVM-17.0.6-win64\\lib\\cmake\\llvm"
-          $cmake_sys_version = "10.0.22621.0"
-          cmake -Bbuild -GNinja "-DCMAKE_SYSTEM_VERSION=$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL "-DLLVM_DIR=$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF
+          $llvm_dir = "$pwd\LLVM-19.1.6-win64-MultiThreadedDLL\LLVM-19.1.6-win64\lib\cmake\llvm"
+          $Env:CC = "$pwd\LLVM-19.1.6-win64-MultiThreadedDLL\LLVM-19.1.6-win64\bin\clang-cl.exe"
+          $Env:CXX = "$pwd\LLVM-19.1.6-win64-MultiThreadedDLL\LLVM-19.1.6-win64\bin\clang-cl.exe"
+          $llvm_mt = "mt"
+          $cmake_sys_version = "10.0.26100.0"
+          cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF .
 
           Write-Output "Building $Env:tar_names backend:"
           cmake -Bbuild -GNinja "$Env:build_options"

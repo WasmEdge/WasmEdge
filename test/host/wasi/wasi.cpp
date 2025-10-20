@@ -1074,7 +1074,8 @@ TEST(WasiTest, PollOneoffSocketV1) {
       auto Subscriptions = MemInst.getPointer<__wasi_subscription_t *>(InPtr);
       Subscriptions[0].userdata =
           WasmEdge::EndianValue(0x1010101010101010).le();
-      Subscriptions[0].u.tag = __WASI_EVENTTYPE_FD_WRITE;
+      Subscriptions[0].u.tag =
+          WasmEdge::EndianValue(__WASI_EVENTTYPE_FD_WRITE).le();
       Subscriptions[0].u.u.fd_write.file_descriptor =
           WasmEdge::EndianValue(Fd).le();
       Subscriptions[1].userdata =

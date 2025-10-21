@@ -122,6 +122,7 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     -Wno-cast-align
     -Wno-cast-qual
     -Wno-implicit-int-conversion
+    -Wno-implicit-int-enum-cast
     -Wno-language-extension-token
     -Wno-missing-prototypes
     -Wno-pointer-sign

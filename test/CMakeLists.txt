@@ -28,6 +28,14 @@ else()
       $<$<COMPILE_LANGUAGE:CXX>:-Wno-zero-as-null-pointer-constant>
       -Wno-deprecated
     )
+    if(WIN32)
+      add_compile_options(
+        -Wno-padded
+        -Wno-character-conversion
+        -Wno-unique-object-duplication
+        -Wno-nrvo
+      )
+    endif()
     if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
       add_compile_options(
         -Wno-suggest-destructor-override

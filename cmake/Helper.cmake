@@ -135,6 +135,7 @@ if(WIN32)
       -Wno-deprecated-declarations
       -Wno-error=rtti
       -Wno-error=cast-function-type-strict
+      -Wno-error=c++-keyword
     )
   endif()
 endif()

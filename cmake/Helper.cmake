@@ -135,6 +135,7 @@ if(WIN32)
       -Wno-deprecated-declarations
       -Wno-error=rtti
       -Wno-error=cast-function-type-strict
+      -Wno-error=c++-keyword
     )
   endif()
 endif()
@@ -393,6 +394,9 @@ function(wasmedge_setup_spdlog)
       target_compile_options(fmt
         PUBLIC
         -Wno-duplicate-enum
+        -Wno-error=padded
+        -Wno-error=unique-object-duplication
+        -Wno-error=nrvo
       )
     endif()
 

@@ -1,96 +1,225 @@
 # syntax=docker/dockerfile:1.5-labs
 
-ARG XX_VERSION=1.2.1
-ARG ALPINE_VERSION=3.16
-# alpine 3.16 ships with llvm 13.
-# alpine 3.17 and 3.18 do not ship lld-static.
+ARG ALPINE_VERSION=3.22
 
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
-FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS base
-COPY --from=xx / /
+########################################
+# Stage 1: Cross-compilation tool
+########################################
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:1.2.1 AS xx
 
-# Install host dependencies
-RUN apk add bash cmake samurai g++ clang
-SHELL [ "bash", "-c" ]
+########################################
+# Stage 2: Build LLD from LLVM source
+########################################
+FROM alpine:${ALPINE_VERSION} AS lld-builder
 
-# Make a cmake toolchain file
-RUN cat <<'EOT' > /usr/bin/xx-toolchain && chmod a+x /usr/bin/xx-toolchain
+RUN apk add --no-cache \
+    bash \
+    cmake \
+    ninja \
+    clang \
+    llvm-dev \
+    llvm-static \
+    lld-dev \
+    git \
+    musl-dev \
+    zlib-dev \
+    zlib-static \
+    libc-dev \
+    libffi-dev \
+    curl \
+    tar \
+    xz \
+    zstd-dev \
+    zstd-static \
+    file \
+    python3
+
+WORKDIR /lld-build
+
+RUN git clone --depth=1 --branch=release/18.x https://github.com/llvm/llvm-project.git
+
+WORKDIR /lld-build/llvm-project
+
+RUN cmake -B build \
+    -G Ninja \
+    -DLLVM_ENABLE_PROJECTS="clang;llvm;lld" \
+    -DLLVM_TARGETS_TO_BUILD="X86;WebAssembly" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/lld-install \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DLLVM_ENABLE_ASSERTIONS=OFF \
+    -DLLVM_INCLUDE_TOOLS=ON \
+    -DLLVM_TOOL_LLVM_AR_BUILD=ON \
+    -DLLVM_TOOL_LLVM_NM_BUILD=ON \
+    -DLLVM_TOOL_LLVM_RANLIB_BUILD=ON \
+    -DLLVM_TOOL_LLVM_TBLGEN_BUILD=ON \
+    -DLLVM_TOOL_LLVM_PROFDATA_BUILD=ON \
+    -DLLVM_TOOL_LTO_BUILD=ON \
+    -DLLVM_TOOL_BUGPOINT_BUILD=ON \
+    -DLLVM_TOOL_LLVM_BCANALYZER_BUILD=ON \
+    -DLLVM_TOOL_LLI_BUILD=ON \
+    llvm
+
+RUN cmake --build build --target install
+
+# Copy all built tools, even if not installed via 'install' target
+RUN find build/bin -type f -executable -exec cp -v {} /lld-install/bin/ \;
+
+# Confirm lli is present
+RUN test -f /lld-install/bin/lli || (echo "Error: lli not installed!" && false)
+
+########################################
+# Stage 3: Alpine Static Image with LLD and a Robust Toolchain
+########################################
+FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS alpine-static
+
+COPY --from=xx /usr/bin/xx* /usr/bin/
+RUN apk add --no-cache bash
+
+SHELL ["bash", "-c"]
+
+# CRITICAL FIX: Do not install g++, as it creates a standard library conflict.
+RUN apk add --no-cache \
+    cmake \
+    samurai \
+    clang \
+    llvm-static \
+    lld-dev \
+    zlib-static \
+    zlib-dev \
+    git \
+    musl-dev \
+    libc-dev \
+    libffi-dev
+
+RUN mkdir -p /usr/lib/llvm/lib /usr/lib/cmake/llvm $(xx-info sysroot)/usr/bin
+
+COPY --from=lld-builder /lld-install/lib/ /usr/lib/
+COPY --from=lld-builder /lld-install/bin/ /usr/bin/
+COPY --from=lld-builder /lld-install/lib/cmake/ /usr/lib/cmake/
+
+RUN if xx-info is-cross; then cp -f /usr/bin/* $(xx-info sysroot)/usr/bin/; fi
+
+# Copy libLTO shared libraries
+COPY --from=lld-builder /lld-install/lib/libLTO.so* /usr/lib/
+RUN if xx-info is-cross; then cp -f /usr/lib/libLTO.so* $(xx-info sysroot)/usr/lib/; fi
+
+# Patch LLVMConfig for proper sysroot awareness
+RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake || true
+
+# Create a comprehensive, robust toolchain file generator
+RUN cat <<'EOT' > /usr/bin/xx-toolchain && chmod +x /usr/bin/xx-toolchain
 #!/bin/bash
-mkdir -p /etc/xx-toolchains/
-TOOLCHAIN_FILE="/etc/xx-toolchains/$(xx-clang --print-target-triple).cmake"
-[ -f "$TOOLCHAIN_FILE" ] || cat <<EOF > "$TOOLCHAIN_FILE"
-set(CMAKE_CROSSCOMPILING ON)
-set(CMAKE_SYSROOT "$(xx-info sysroot)")
-set(CMAKE_SYSTEM_NAME "Linux")
-set(CMAKE_SYSTEM_VERSION 1)
-set(CMAKE_SYSTEM_PROCESSOR "$(xx-info march)")
-set(CMAKE_C_COMPILER "$(which clang)")
-set(CMAKE_CXX_COMPILER "$(which clang++)")
-set(CMAKE_ASM_COMPILER "$(which clang)")
-set(CMAKE_AR "$(which ar)")
-set(CMAKE_RANLIB "$(which ranlib)")
-set(PKG_CONFIG_EXECUTABLE "$(xx-clang --print-prog-name=pkg-config)")
-set(CMAKE_C_COMPILER_TARGET "$(xx-clang --print-target-triple)")
-set(CMAKE_CXX_COMPILER_TARGET "$(xx-clang --print-target-triple)")
-set(CMAKE_ASM_COMPILER_TARGET "$(xx-clang --print-target-triple)")
+set -e
+SYSROOT=$(xx-info sysroot)
+TARGET_TRIPLE=$(xx-clang --print-target-triple)
+TOOLCHAIN_FILE="/etc/xx-toolchains/${TARGET_TRIPLE}.cmake"
+
+# Only generate the file if it doesn't exist
+if [ ! -f "$TOOLCHAIN_FILE" ]; then
+    mkdir -p "$(dirname "$TOOLCHAIN_FILE")"
+    echo "--- Generating CMake toolchain file for ${TARGET_TRIPLE} ---" >&2
+    cat <<EOF > "$TOOLCHAIN_FILE"
+# CMake Toolchain File for ${TARGET_TRIPLE}
+
+set(CMAKE_SYSTEM_NAME Linux)
+set(CMAKE_SYSTEM_PROCESSOR "$(xx-info arch)")
+set(CMAKE_SYSROOT "${SYSROOT}")
+
+set(CMAKE_C_COMPILER "$(which xx-clang)")
+set(CMAKE_CXX_COMPILER "$(which xx-clang++)")
+set(CMAKE_ASM_COMPILER "$(which xx-clang)")
+
+set(CMAKE_LINKER "$(which xx-clang++)")
+set(CMAKE_AR "$(which xx-llvm-ar)")
+set(CMAKE_RANLIB "$(which xx-llvm-ranlib)")
+
+# FINAL FIX: Use -nostdinc++ to prevent the compiler from using its broken default C++ include paths.
+# We then manually add the correct paths in the correct order. This is the most forceful and reliable way
+# to fix the header search path and macro collision errors.
+set(CMAKE_CXX_FLAGS "--sysroot=${SYSROOT} -stdlib=libc++ -pthread -D_GNU_SOURCE -nostdinc++ -isystem \${SYSROOT}/usr/include/c++/v1 -isystem \${SYSROOT}/usr/include" CACHE STRING "C++ compiler flags")
+set(CMAKE_C_FLAGS "--sysroot=${SYSROOT} -pthread -D_GNU_SOURCE -isystem \${SYSROOT}/usr/include" CACHE STRING "C compiler flags")
+
+# Linker flags.
+set(COMMON_LINKER_FLAGS "--sysroot=\${SYSROOT} -stdlib=libc++ -fuse-ld=lld -L\${SYSROOT}/usr/lib -lunwind")
+set(CMAKE_EXE_LINKER_FLAGS    "\${COMMON_LINKER_FLAGS}" CACHE STRING "Executable linker flags")
+set(CMAKE_SHARED_LINKER_FLAGS "\${COMMON_LINKER_FLAGS}" CACHE STRING "Shared linker flags")
+set(CMAKE_MODULE_LINKER_FLAGS "\${COMMON_LINKER_FLAGS}" CACHE STRING "Module linker flags")
+
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 EOF
+fi
 echo "$TOOLCHAIN_FILE"
 EOT
 
-FROM base AS config
+########################################
+# Stage 4: wasmedge-build with the robust toolchain
+########################################
+FROM alpine-static AS wasmedge-build
+
 ARG TARGETPLATFORM
+ARG ALPINE_VERSION
 
-RUN apk add git llvm-dev
+WORKDIR /src_writable
+SHELL ["bash", "-c"]
+
+# Host tools
+RUN apk add --no-cache \
+    curl \
+    tar \
+    git \
+    ninja \
+    bash \
+    cmake \
+    zstd-dev \
+    zstd-static
+
+# Install a clean libc++ toolchain into the sysroot.
+# Do NOT install g++, as it brings in a conflicting libstdc++ implementation.
 RUN xx-apk add \
-    g++ \
-    llvm-dev llvm-static \
-    lld lld-dev lld-static \
-    zlib-dev zlib-static
+    musl-dev \
+    libc-dev \
+    clang \
+    libc++-static \
+    libc++-dev \
+    llvm-libunwind-static
 
-# Fix LLVMConfig.cmake to account for the sysroot
-RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake
-# In cmake/Helper.cmake we assume that lld is installed alongside llvm, so copy files over
-RUN cp $(xx-info sysroot)usr/lib/liblld*.a $(xx-info sysroot)usr/lib/llvm*/lib/
-# Use the native version of llvm-config
-RUN ! xx-info is-cross || cp -f /usr/lib/llvm*/bin/llvm-config $(xx-info sysroot)usr/lib/llvm*/bin/llvm-config
+# Fake dsymutil for CMake sanity
+RUN ln -sf /bin/true /usr/bin/dsymutil
 
-RUN --mount=type=bind,target=/src,source=. \
-    cmake -S /src -B /build -G Ninja \
+# Sanity checks
+RUN test -f "$(xx-info sysroot)/usr/include/stdlib.h" || (echo "stdlib.h not found in sysroot!" && false)
+RUN test -f "$(xx-info sysroot)/usr/include/c++/v1/vector" || (echo "libc++ headers not found in sysroot!" && false)
+
+# Copy the read-only mounted source to a writable location, then patch and build from there.
+RUN --mount=type=bind,target=/src,source=.,ro \
+    set -e && \
+    echo "Creating a writable copy of the source code..." && \
+    cp -r /src/. . && \
+    echo "Patching for older Alpine compatibility..." && \
+    sed -i '1i#include <fcntl.h>\n#ifndef O_SYMLINK\n#define O_SYMLINK O_NOFOLLOW\n#endif' lib/host/wasi/inode-linux.cpp && \
+    echo "Configuring with CMake..." && \
+    cmake -S . -B /build -G Ninja \
         -DCMAKE_BUILD_TYPE=MinSizeRel \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_INSTALL_PREFIX="/install" \
-        # For cross compiling
         -DCMAKE_TOOLCHAIN_FILE="$(xx-toolchain)" \
+        -DCMAKE_PREFIX_PATH="$(xx-info sysroot)/usr/lib/cmake/llvm" \
         -DWASMEDGE_BUILD_PACKAGE="TGZ" \
         -DWASMEDGE_USE_LLVM=ON \
-        # Build just what we need
         -DWASMEDGE_BUILD_STATIC_LIB=ON \
         -DWASMEDGE_BUILD_TESTS=OFF \
         -DWASMEDGE_BUILD_SHARED_LIB=OFF \
         -DWASMEDGE_BUILD_TOOLS=OFF \
         -DWASMEDGE_BUILD_PLUGINS=OFF \
         -DWASMEDGE_BUILD_EXAMPLE=OFF \
-        # Link llvm statically
         -DWASMEDGE_LINK_LLVM_STATIC=ON \
         -DWASMEDGE_LINK_TOOLS_STATIC=ON \
-        # Disable extra dependencies
-        -DWASMEDGE_DISABLE_LIBTINFO=ON
-
-FROM  config AS build
-RUN --mount=type=bind,target=/src,source=. \
+        -DWASMEDGE_DISABLE_LIBTINFO=ON && \
+    echo "Building with CMake..." && \
     cmake --build /build -- install package
 
-ARG ALPINE_VERSION
-RUN --mount=type=bind,target=/src,source=. <<EOT
-    set -ex
-    WASMEDGE_VERSION="$(cd /src && git describe --match '[0-9].[0-9]*' --tag)"
-    ARCH="$(xx-info march)"
-    ARCHIVE_TAG=${WASMEDGE_VERSION%%-*}-alpine${ALPINE_VERSION}_$(xx-info march)
-    mv /build/WasmEdge-*-Linux.tar.gz /build/WasmEdge-${ARCHIVE_TAG}_static.tar.gz
-EOT
-
-FROM scratch AS install
-COPY --from=build /install /
-
-FROM scratch AS tar
-COPY --from=build /build/WasmEdge-*.tar.gz /
+CMD ["/bin/bash"]

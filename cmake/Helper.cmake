@@ -394,6 +394,9 @@ function(wasmedge_setup_spdlog)
       target_compile_options(fmt
         PUBLIC
         -Wno-duplicate-enum
+        -Wno-error=padded
+        -Wno-error=unique-object-duplication
+        -Wno-error=nrvo
       )
     endif()
 

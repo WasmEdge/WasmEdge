@@ -47,8 +47,8 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       // enabled.
-      if (!Conf.hasProposal(Proposal::ReferenceTypes) &&
-          !Conf.hasProposal(Proposal::BulkMemoryOperations)) {
+      if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes) &&
+                   !Conf.hasProposal(Proposal::BulkMemoryOperations))) {
         // Table index should be 0. Checked in validation phase.
         auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
         // Check elements fits.

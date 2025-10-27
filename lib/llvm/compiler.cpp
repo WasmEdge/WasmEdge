@@ -5799,10 +5799,23 @@ namespace WasmEdge {
 namespace LLVM {
 
 Expect<void> Compiler::checkConfigure() noexcept {
+  // Note: Although the exception handling proposal and memory64 proposal is not
+  // implemented in AOT yet, we should not trap here because the default
+  // configuration becomes WASM 3.0 which contains these proposals.
   if (Conf.hasProposal(Proposal::ExceptionHandling)) {
+    spdlog::warn("Proposal Exception Handling is not yet supported in WasmEdge "
+                 "AOT/JIT. The compilation will be trapped when related data "
+                 "structure or instructions found in WASM.");
+  }
+  if (Conf.hasProposal(Proposal::Memory64)) {
+    spdlog::warn("Proposal Memory64 is not yet supported in WasmEdge AOT/JIT. "
+                 "The compilation will be trapped when related data "
+                 "structure or instructions found in WASM.");
+  }
+  if (Conf.hasProposal(Proposal::Annotations)) {
     spdlog::error(ErrCode::Value::InvalidConfigure);
-    spdlog::error(
-        "    Proposal ExceptionHandling is not yet supported in LLVM backend");
+    spdlog::error("    Proposal Custom Annotation Syntax is not yet supported "
+                  "in WasmEdge AOT/JIT.");
     return Unexpect(ErrCode::Value::InvalidConfigure);
   }
   return {};

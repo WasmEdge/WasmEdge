@@ -21,6 +21,16 @@
 
 namespace WasmEdge {
 
+/// WASM Standard C++ enumeration class.
+enum class Standard : uint8_t {
+#define UseStandard
+#define Line(NAME) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseStandard
+  Max
+};
+
 /// WASM Proposal C++ enumeration class.
 enum class Proposal : uint8_t {
 #define UseProposal

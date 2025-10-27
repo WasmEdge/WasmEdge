@@ -782,17 +782,26 @@ OFE(I64__atomic__rmw32__cmpxchg_u, "i64.atomic.rmw32.cmpxchg_u", 0xFE, 78)
 
 // enum_configure.h
 
+#ifdef UseStandard
+#define S Line
+S(WASM_1)
+S(WASM_2)
+S(WASM_3)
+#undef S
+#endif // UseStandard
+
 #ifdef UseProposal
 #define P Line
-// Finished and standardized proposals
+// Proposals of WASM 1.0
 P(ImportExportMutGlobals, "Import/Export of Mutable Globals")
+// Proposals of WASM 2.0
 P(NonTrapFloatToIntConversions, "Non-trapping float-to-int Conversions")
 P(SignExtensionOperators, "Sign-extension Operators")
 P(MultiValue, "Multi-value")
 P(BulkMemoryOperations, "Bulk Memory Operations")
 P(ReferenceTypes, "Reference Types")
 P(SIMD, "Fixed-width SIMD")
-// Phase 5 proposals
+// Proposals of WASM 3.0
 P(TailCall, "Tail Call")
 P(ExtendedConst, "Extended Const Expressions")
 P(FunctionReferences, "Typed Function References")
@@ -800,10 +809,10 @@ P(GC, "Garbage Collection")
 P(MultiMemories, "Multiple Memories")
 P(RelaxSIMD, "Relaxed SIMD")
 P(Annotations, "Custom Annotation Syntax in the Text Format")
-// Phase 4 proposals
-P(Threads, "Threads")
 P(ExceptionHandling, "Exception Handling")
 P(Memory64, "Memory64")
+// Phase 4 proposals
+P(Threads, "Threads")
 // Phase 1 proposals
 P(Component, "Component Model")
 #undef P

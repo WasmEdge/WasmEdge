@@ -305,7 +305,6 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   }
   if (Opt.PropGC.value()) {
     Conf.addProposal(Proposal::GC);
-    spdlog::warn("GC proposal is enabled, this is experimental."sv);
   }
   if (Opt.PropComponent.value()) {
     Conf.addProposal(Proposal::Component);
@@ -321,7 +320,6 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.addProposal(Proposal::Threads);
     Conf.addProposal(Proposal::GC);
     Conf.addProposal(Proposal::Component);
-    spdlog::warn("GC proposal is enabled, this is experimental."sv);
     spdlog::warn("component model is enabled, this is experimental."sv);
     Conf.addProposal(Proposal::ExceptionHandling);
   }

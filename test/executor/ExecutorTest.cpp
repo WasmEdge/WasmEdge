@@ -48,23 +48,36 @@ TEST_P(CoreTest, TestSuites) {
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
   T.onModule = [&VM](const std::string &ModName,
-                     const std::string &Filename) -> Expect<void> {
+                     const std::string &FileName) -> Expect<void> {
     if (!ModName.empty()) {
-      return VM.registerModule(ModName, Filename);
+      return VM.registerModule(ModName, FileName);
     } else {
-      return VM.loadWasm(Filename)
+      return VM.loadWasm(FileName)
           .and_then([&VM]() { return VM.validate(); })
           .and_then([&VM]() { return VM.instantiate(); });
     }
   };
-  T.onLoad = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename);
+  T.onLoad = [&VM](const std::string &FileName) -> Expect<void> {
+    return VM.loadWasm(FileName);
   };
-  T.onValidate = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename).and_then([&VM]() { return VM.validate(); });
+  T.onValidate = [&VM](const std::string &FileName) -> Expect<void> {
+    return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
   };
-  T.onInstantiate = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename)
+  T.onModuleDefine =
+      [&VM](
+          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+    Loader::Loader &Loader = VM.getLoader();
+    Validator::Validator &Validator = VM.getValidator();
+    EXPECTED_TRY(auto ASTMod, Loader.parseModule(FileName));
+    EXPECTED_TRY(Validator.validate(*ASTMod.get()));
+    return ASTMod;
+  };
+  T.onInstanceFromDef = [&VM](const std::string &ModName,
+                              const AST::Module &ASTMod) -> Expect<void> {
+    return VM.registerModule(ModName, ASTMod);
+  };
+  T.onInstantiate = [&VM](const std::string &FileName) -> Expect<void> {
+    return VM.loadWasm(FileName)
         .and_then([&VM]() { return VM.validate(); })
         .and_then([&VM]() { return VM.instantiate(); });
   };

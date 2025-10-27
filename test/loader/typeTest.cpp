@@ -37,14 +37,8 @@ std::vector<uint8_t> prefixedVec(const std::vector<uint8_t> &Vec) {
 TEST(TypeTest, LoadFunctionType) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Loader LdrNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
-  Conf.removeProposal(WasmEdge::Proposal::MultiValue);
-  WasmEdge::Loader::Loader LdrNoMultiVal(Conf);
-  Conf.addProposal(WasmEdge::Proposal::MultiValue);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWASM1(Conf);
 
   // 1. Test load function type.
   //
@@ -184,7 +178,7 @@ TEST(TypeTest, LoadFunctionType) {
       0x01U,        // Result length = 2
       0x7CU, 0x7FU  // Result list
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x01U,        // Type section
@@ -196,7 +190,7 @@ TEST(TypeTest, LoadFunctionType) {
       0x01U,        // Result length = 2
       0x6FU, 0x6FU  // Result list with ExternRef
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x01U,        // Type section
@@ -208,7 +202,7 @@ TEST(TypeTest, LoadFunctionType) {
       0x01U,        // Result length = 2
       0x7CU, 0x7FU  // Result list
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x01U,        // Type section
@@ -220,7 +214,7 @@ TEST(TypeTest, LoadFunctionType) {
       0x01U,        // Result length = 2
       0x6DU, 0x6DU  // Result list with invalid value types
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x01U,                      // Type section
@@ -232,17 +226,14 @@ TEST(TypeTest, LoadFunctionType) {
       0x02U,                      // Result length = 2
       0x7CU, 0x7DU                // Result list
   };
-  EXPECT_FALSE(LdrNoMultiVal.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadTableType) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Loader LdrNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWASM1(Conf);
 
   // 3. Test load table type, which is reference type and limit.
   //
@@ -321,7 +312,7 @@ TEST(TypeTest, LoadTableType) {
       0x00U, // Limit with only has min
       0x00U  // Min = 0
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x04U, // Table section
@@ -331,7 +322,7 @@ TEST(TypeTest, LoadTableType) {
       0x00U, // Limit with only has min
       0x00U  // Min = 0
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadMemoryType) {
@@ -393,11 +384,8 @@ TEST(TypeTest, LoadMemoryType) {
 TEST(TypeTest, LoadGlobalType) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Loader LdrNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWASM1(Conf);
 
   // 4. Test load global type.
   //
@@ -427,7 +415,7 @@ TEST(TypeTest, LoadGlobalType) {
       0x06U, // Global section
       0x04U, // Content size = 4
       0x01U, // Vector length = 1
-      0x6DU, // Unknown value type
+      0x41U, // Unknown value type
       0x00U, // Const mutation
       0x0BU  // Expression
   };
@@ -461,15 +449,14 @@ TEST(TypeTest, LoadGlobalType) {
       0x00U, // Const mutation
       0x0BU  // Expression
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 }
 
 TEST(TypeTest, LoadHeapType) {
   std::vector<uint8_t> Vec;
 
-  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
-  WasmEdge::Loader::Loader LdrFuncRef(Conf);
-  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Loader LdrWASM2(Conf);
 
   // 5. Test load heap type.
   //
@@ -486,7 +473,7 @@ TEST(TypeTest, LoadHeapType) {
       0xD0U         // OpCode Ref__null
                     // Missed heap type
   };
-  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x06U,        // Global section
@@ -497,7 +484,7 @@ TEST(TypeTest, LoadHeapType) {
       0x5CU,        // Invalid heap type code
       0x0BU         // Expression End
   };
-  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x06U,        // Global section
@@ -508,7 +495,7 @@ TEST(TypeTest, LoadHeapType) {
       0x28U,        // Type index 40
       0x0BU         // Expression End
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_TRUE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM2.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 }
 } // namespace

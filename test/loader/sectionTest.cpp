@@ -550,9 +550,8 @@ TEST(SectionTest, LoadDataSection) {
 TEST(SectionTest, LoadDataCountSection) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Loader LdrNoRefType(Conf);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWASM1(Conf);
 
   // 13. Test load datacount section.
   //
@@ -595,6 +594,6 @@ TEST(SectionTest, LoadDataCountSection) {
       0x0CU, // Datacount section
       0x00U, // Content size = 0
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 }
 } // namespace

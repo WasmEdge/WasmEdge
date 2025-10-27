@@ -63,10 +63,9 @@ TEST(SerializeSegmentTest, SerializeGlobalSegment) {
 }
 
 TEST(SerializeSegmentTest, SerializeElementSegment) {
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -306,14 +305,13 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   };
   EXPECT_EQ(Output, Expected);
 
-  EXPECT_FALSE(SerNoRefType.serializeSection(ElementSec, Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(ElementSec, Output));
 }
 
 TEST(SerializeSegmentTest, SerializeCodeSegment) {
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -376,14 +374,13 @@ TEST(SerializeSegmentTest, SerializeCodeSegment) {
 
   CodeSeg.getLocals() = {{0x01U, WasmEdge::TypeCode::ExternRef}};
   CodeSec.getContent() = {CodeSeg};
-  EXPECT_FALSE(SerNoRefType.serializeSection(CodeSec, Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(CodeSec, Output));
 }
 
 TEST(SerializeSegmentTest, SerializeDataSegment) {
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -471,6 +468,6 @@ TEST(SerializeSegmentTest, SerializeDataSegment) {
   };
   EXPECT_EQ(Output, Expected);
 
-  EXPECT_FALSE(SerNoRefType.serializeSection(DataSec, Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(DataSec, Output));
 }
 } // namespace

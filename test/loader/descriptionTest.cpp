@@ -36,6 +36,7 @@ std::vector<uint8_t> prefixedVec(const std::vector<uint8_t> &Vec) {
 TEST(DescriptionTest, LoadImportDesc) {
   std::vector<uint8_t> Vec;
 
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   Conf.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
   WasmEdge::Loader::Loader LdrNoImpMutGlob(Conf);
 

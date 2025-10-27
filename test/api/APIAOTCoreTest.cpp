@@ -55,29 +55,29 @@ TEST_P(CoreCompileTest, TestSuites) {
   WasmEdge_VMRegisterModuleFromImport(VM, TestModCxt);
 
   auto Compile = [&, Conf = std::cref(Conf)](
-                     const std::string &Filename) -> Expect<std::string> {
-    auto Path = std::filesystem::u8path(Filename);
+                     const std::string &FileName) -> Expect<std::string> {
+    auto Path = std::filesystem::u8path(FileName);
     Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
     const auto SOPath = Path.u8string();
     WasmEdge_Result Res =
-        WasmEdge_CompilerCompile(CompilerCxt, Filename.c_str(), SOPath.c_str());
+        WasmEdge_CompilerCompile(CompilerCxt, FileName.c_str(), SOPath.c_str());
     if (!WasmEdge_ResultOK(Res)) {
       return Unexpect(convResult(Res));
     }
     return SOPath;
   };
   T.onModule = [&VM, &Compile](const std::string &ModName,
-                               const std::string &Filename) -> Expect<void> {
-    return Compile(Filename).and_then(
-        [&VM, &ModName](const std::string &SOFilename) -> Expect<void> {
+                               const std::string &FileName) -> Expect<void> {
+    return Compile(FileName).and_then(
+        [&VM, &ModName](const std::string &SOFileName) -> Expect<void> {
           WasmEdge_Result Res;
           if (!ModName.empty()) {
             WasmEdge_String ModStr = WasmEdge_StringWrap(
                 ModName.data(), static_cast<uint32_t>(ModName.length()));
             Res = WasmEdge_VMRegisterModuleFromFile(VM, ModStr,
-                                                    SOFilename.c_str());
+                                                    SOFileName.c_str());
           } else {
-            Res = WasmEdge_VMLoadWasmFromFile(VM, SOFilename.c_str());
+            Res = WasmEdge_VMLoadWasmFromFile(VM, SOFileName.c_str());
             if (!WasmEdge_ResultOK(Res)) {
               return Unexpect(convResult(Res));
             }
@@ -93,22 +93,22 @@ TEST_P(CoreCompileTest, TestSuites) {
           return {};
         });
   };
-  T.onLoad = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
-    return Compile(Filename).and_then(
-        [&](const std::string &SOFilename) -> Expect<void> {
+  T.onLoad = [&VM, &Compile](const std::string &FileName) -> Expect<void> {
+    return Compile(FileName).and_then(
+        [&](const std::string &SOFileName) -> Expect<void> {
           WasmEdge_Result Res =
-              WasmEdge_VMLoadWasmFromFile(VM, SOFilename.c_str());
+              WasmEdge_VMLoadWasmFromFile(VM, SOFileName.c_str());
           if (!WasmEdge_ResultOK(Res)) {
             return Unexpect(convResult(Res));
           }
           return {};
         });
   };
-  T.onValidate = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
-    return Compile(Filename).and_then(
-        [&](const std::string &SOFilename) -> Expect<void> {
+  T.onValidate = [&VM, &Compile](const std::string &FileName) -> Expect<void> {
+    return Compile(FileName).and_then(
+        [&](const std::string &SOFileName) -> Expect<void> {
           WasmEdge_Result Res =
-              WasmEdge_VMLoadWasmFromFile(VM, SOFilename.c_str());
+              WasmEdge_VMLoadWasmFromFile(VM, SOFileName.c_str());
           if (!WasmEdge_ResultOK(Res)) {
             return Unexpect(convResult(Res));
           }
@@ -119,12 +119,48 @@ TEST_P(CoreCompileTest, TestSuites) {
           return {};
         });
   };
+  T.onModuleDefine =
+      [&VM, &Compile](
+          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+    return Compile(FileName).and_then(
+        [&VM](const std::string &SOFileName)
+            -> Expect<std::unique_ptr<AST::Module>> {
+          WasmEdge_LoaderContext *LoadCxt = WasmEdge_VMGetLoaderContext(VM);
+          WasmEdge_ValidatorContext *ValidCxt =
+              WasmEdge_VMGetValidatorContext(VM);
+          WasmEdge_ASTModuleContext *ASTMod = nullptr;
+          WasmEdge_Result Res = WasmEdge_LoaderParseFromFile(
+              LoadCxt, &ASTMod, SOFileName.c_str());
+          if (!WasmEdge_ResultOK(Res)) {
+            return Unexpect(convResult(Res));
+          }
+          Res = WasmEdge_ValidatorValidate(ValidCxt, ASTMod);
+          if (!WasmEdge_ResultOK(Res)) {
+            return Unexpect(convResult(Res));
+          }
+          return std::unique_ptr<AST::Module>(
+              reinterpret_cast<AST::Module *>(ASTMod));
+        });
+  };
+  T.onInstanceFromDef = [&VM](const std::string &ModName,
+                              const AST::Module &ASTMod) -> Expect<void> {
+    const WasmEdge_ASTModuleContext *ASTModCxt =
+        reinterpret_cast<const WasmEdge_ASTModuleContext *>(&ASTMod);
+    WasmEdge_String ModStr = WasmEdge_StringWrap(
+        ModName.data(), static_cast<uint32_t>(ModName.length()));
+    WasmEdge_Result Res =
+        WasmEdge_VMRegisterModuleFromASTModule(VM, ModStr, ASTModCxt);
+    if (!WasmEdge_ResultOK(Res)) {
+      return Unexpect(convResult(Res));
+    }
+    return {};
+  };
   T.onInstantiate = [&VM,
-                     &Compile](const std::string &Filename) -> Expect<void> {
-    return Compile(Filename).and_then(
-        [&](const std::string &SOFilename) -> Expect<void> {
+                     &Compile](const std::string &FileName) -> Expect<void> {
+    return Compile(FileName).and_then(
+        [&](const std::string &SOFileName) -> Expect<void> {
           WasmEdge_Result Res =
-              WasmEdge_VMLoadWasmFromFile(VM, SOFilename.c_str());
+              WasmEdge_VMLoadWasmFromFile(VM, SOFileName.c_str());
           if (!WasmEdge_ResultOK(Res)) {
             return Unexpect(convResult(Res));
           }

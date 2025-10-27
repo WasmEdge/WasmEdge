@@ -119,6 +119,7 @@ public:
       Inner.Data.Code = C;
       Inner.Data.HTCode = TypeCode::Epsilon;
       break;
+    case TypeCode::NullExnRef:
     case TypeCode::NullFuncRef:
     case TypeCode::NullExternRef:
     case TypeCode::NullRef:
@@ -285,6 +286,7 @@ public:
   bool isAbsHeapType() const noexcept {
     if (isRefType()) {
       switch (Inner.Data.HTCode) {
+      case TypeCode::NullExnRef:
       case TypeCode::NullFuncRef:
       case TypeCode::NullExternRef:
       case TypeCode::NullRef:

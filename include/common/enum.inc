@@ -1228,6 +1228,7 @@ T(F64, 0x7C, "f64")                // -0x04 for number type
 T(V128, 0x7B, "v128")              // -0x05 for vector type
 T(I8, 0x78, "i8")                  // -0x08 for packed type
 T(I16, 0x77, "i16")                // -0x09 for packed type
+T(NullExnRef, 0x74, "noexn")       // -0x0C for heap type
 T(NullFuncRef, 0x73, "nofunc")     // -0x0D for heap type
 T(NullExternRef, 0x72, "noextern") // -0x0E for heap type
 T(NullRef, 0x71, "none")           // -0x0F for heap type

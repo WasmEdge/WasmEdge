@@ -657,6 +657,14 @@ private:
       return false;
     }
 
+    // Match the exception types: noexn <= exn
+    if (Exp == TypeCode::ExnRef || Exp == TypeCode::NullExnRef) {
+      return Got == TypeCode::NullExnRef;
+    }
+    if (Got == TypeCode::ExnRef || Got == TypeCode::NullExnRef) {
+      return false;
+    }
+
     // Match the other types: none <= i31 | struct | array <= eq <= any
     switch (Exp) {
     case TypeCode::I31Ref:

@@ -866,6 +866,10 @@ public:
           case TypeCode::ExternRef:
             VType = TypeCode::NullExternRef;
             break;
+          case TypeCode::NullExnRef:
+          case TypeCode::ExnRef:
+            VType = TypeCode::NullExnRef;
+            break;
           case TypeCode::NullRef:
           case TypeCode::AnyRef:
           case TypeCode::EqRef:

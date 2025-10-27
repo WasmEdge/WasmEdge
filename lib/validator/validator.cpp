@@ -507,6 +507,18 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
           static_cast<uint32_t>(Checker.getTypes().size())));
       return Unexpect(ErrCode::Value::InvalidTagIdx);
     }
+    // Tag type must be valid.
+    auto &CompType = Checker.getTypes()[TagTypeIdx]->getCompositeType();
+    if (!CompType.isFunc()) {
+      spdlog::error(ErrCode::Value::InvalidTagIdx);
+      spdlog::error("    Defined type index {} is not a function type."sv,
+                    TagTypeIdx);
+      return Unexpect(ErrCode::Value::InvalidTagIdx);
+    }
+    if (!CompType.getFuncType().getReturnTypes().empty()) {
+      spdlog::error(ErrCode::Value::InvalidTagResultType);
+      return Unexpect(ErrCode::Value::InvalidTagResultType);
+    }
     Checker.addTag(TagTypeIdx);
     return {};
   }

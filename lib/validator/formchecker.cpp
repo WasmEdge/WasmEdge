@@ -369,7 +369,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                        .getParamTypes();
         }
         if (C.IsRef) {
-          NTypes.emplace_back(ValType(TypeCode::ExnRef));
+          NTypes.emplace_back(ValType(TypeCode::Ref, TypeCode::ExnRef));
         }
         pushTypes(NTypes);
         EXPECTED_TRY(popCtrl());

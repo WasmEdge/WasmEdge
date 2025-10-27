@@ -208,6 +208,10 @@ TEST(SerializeInstructionTest, SerializeIfElseControlInstruction) {
 }
 
 TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
+  WasmEdge::Configure ConfWASM2;
+  ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
@@ -254,7 +258,6 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   Expected[5] = 0x0DU; // OpCode Br_if.
   EXPECT_EQ(Output, Expected);
 
-  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
   BrOnNull.getJump().TargetIndex = 0xFFFFFFFFU;
   Instructions = {BrOnNull, End};
   Output = {};
@@ -270,12 +273,10 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   // Test without Func-Ref proposal
-  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
   Instructions = {BrOnNonNull, End};
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM2.serializeSection(createCodeSec(Instructions), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::GC);
   BrOnCast.setBrCast(0xFFFFFFFFU);
   BrOnCast.getBrCast().RType1 = WasmEdge::TypeCode::AnyRef;
   BrOnCast.getBrCast().RType2 = WasmEdge::TypeCode::EqRef;
@@ -306,9 +307,9 @@ TEST(SerializeInstructionTest, SerializeBrControlInstruction) {
   Expected[6] = 0x19; // OpCode Br_on_cast_fail.
   EXPECT_EQ(Output, Expected);
 
-  Conf.removeProposal(WasmEdge::Proposal::GC);
+  // Test without GC proposal
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM2.serializeSection(createCodeSec(Instructions), Output));
 }
 
 TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
@@ -368,9 +369,9 @@ TEST(SerializeInstructionTest, SerializeBrTableControlInstruction) {
 }
 
 TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -426,8 +427,7 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
   };
   EXPECT_EQ(Output, Expected);
 
-  EXPECT_FALSE(
-      SerNoRefType.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 
   Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
   CallRef.getTargetIndex() = 0xFFFFFFFFU;
@@ -454,16 +454,17 @@ TEST(SerializeInstructionTest, SerializeCallControlInstruction) {
   Expected[5] = 0x15U; // OpCode Return_call_ref.
   EXPECT_EQ(Output, Expected);
 
-  // Test without Func-Ref proposal
-  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
-  Conf.removeProposal(WasmEdge::Proposal::TailCall);
   ReturnCallRef.getTargetIndex() = 0xFFFFFFFFU;
   Instructions = {ReturnCallRef, End};
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 }
 
 TEST(SerializeInstructionTest, SerializeEHControlInstruction) {
+  WasmEdge::Configure ConfWASM2;
+  ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
+
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
   std::vector<WasmEdge::AST::Instruction> Instructions;
@@ -500,10 +501,8 @@ TEST(SerializeInstructionTest, SerializeEHControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   Output = {};
-  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM2.serializeSection(createCodeSec(Instructions), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
   Throw.getTargetIndex() = 0xFFFFFFFFU;
   Instructions = {Throw, End};
   Output = {};
@@ -521,10 +520,8 @@ TEST(SerializeInstructionTest, SerializeEHControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   Output = {};
-  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM2.serializeSection(createCodeSec(Instructions), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
   TryTable.setTryCatch();
   TryTable.getTryCatch().ResType.setEmpty();
   TryTable.getTryCatch().Catch.resize(4);
@@ -565,14 +562,13 @@ TEST(SerializeInstructionTest, SerializeEHControlInstruction) {
   EXPECT_EQ(Output, Expected);
 
   Output = {};
-  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM2.serializeSection(createCodeSec(Instructions), Output));
 }
 
 TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -676,8 +672,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
 
   RefNull.setValType(WasmEdge::TypeCode::ExternRef);
   Instructions = {RefNull, End};
-  EXPECT_FALSE(
-      SerNoRefType.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 
   Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
   Instructions = {RefAsNonNull, End};
@@ -695,12 +690,10 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   EXPECT_EQ(Output, Expected);
 
   // Test without Func-Ref proposal
-  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
   Instructions = {RefAsNonNull, End};
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::GC);
   Instructions = {RefEq, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -758,12 +751,10 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   Expected[6] = 0x17U; // OpCode Ref__cast_null.
   EXPECT_EQ(Output, Expected);
 
-  Conf.removeProposal(WasmEdge::Proposal::GC);
   Output = {};
   Instructions = {RefCastNull, End};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::GC);
   Instructions = {AnyConvertExtern, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -784,11 +775,9 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   Expected[6] = 0x1BU; // OpCode Extern__convert_any.
   EXPECT_EQ(Output, Expected);
 
-  Conf.removeProposal(WasmEdge::Proposal::GC);
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::GC);
   Instructions = {I31GetS, End};
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
@@ -809,11 +798,9 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   Expected[6] = 0x1EU; // OpCode I31__get_u.
   EXPECT_EQ(Output, Expected);
 
-  Conf.removeProposal(WasmEdge::Proposal::GC);
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::GC);
   StructNew.getTargetIndex() = 0xFFFFFFFFU;
   Instructions = {StructNew, End};
   Output = {};
@@ -879,11 +866,9 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   Expected[6] = 0x05U; // OpCode Struct__set.
   EXPECT_EQ(Output, Expected);
 
-  Conf.removeProposal(WasmEdge::Proposal::GC);
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::GC);
   ArrayNew.getTargetIndex() = 0xFFFFFFFFU;
   Instructions = {ArrayNew, End};
   Output = {};
@@ -1015,15 +1000,14 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   Expected[6] = 0x13U; // OpCode Array__init_elem.
   EXPECT_EQ(Output, Expected);
 
-  Conf.removeProposal(WasmEdge::Proposal::GC);
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 }
 
 TEST(SerializeInstructionTest, SerializeParametricInstruction) {
-  WasmEdge::Configure ConfNoSIMD;
-  ConfNoSIMD.removeProposal(WasmEdge::Proposal::SIMD);
-  WasmEdge::Loader::Serializer SerNoSIMD(ConfNoSIMD);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -1059,7 +1043,7 @@ TEST(SerializeInstructionTest, SerializeParametricInstruction) {
   SelectT.getValTypeList()[0] = WasmEdge::TypeCode::V128;
   SelectT.getValTypeList()[1] = WasmEdge::TypeCode::V128;
   Instructions = {SelectT, End};
-  EXPECT_FALSE(SerNoSIMD.serializeSection(createCodeSec(Instructions), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Instructions), Output));
 }
 
 TEST(SerializeInstructionTest, SerializeVariableInstruction) {

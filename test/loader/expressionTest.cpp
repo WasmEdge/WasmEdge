@@ -39,9 +39,8 @@ std::vector<uint8_t> prefixedVec(const std::vector<uint8_t> &Vec) {
 TEST(ExpressionTest, LoadExpression) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Loader LdrNoRefType(Conf);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWASM1(Conf);
 
   // 1. Test load limit.
   //
@@ -103,7 +102,7 @@ TEST(ExpressionTest, LoadExpression) {
       0x25U, 0x00U, // Table_get.
       0x0BU         // OpCode End.
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
 }
 
 } // namespace

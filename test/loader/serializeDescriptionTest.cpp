@@ -30,8 +30,12 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   std::vector<uint8_t> Output;
 
   WasmEdge::Configure ConfNoImpMutGlob;
+  ConfNoImpMutGlob.setWASMStandard(WasmEdge::Standard::WASM_1);
   ConfNoImpMutGlob.removeProposal(WasmEdge::Proposal::ImportExportMutGlobals);
   WasmEdge::Loader::Serializer SerNoImpMutGlob(ConfNoImpMutGlob);
+  WasmEdge::Configure ConfWASM2;
+  ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
 
   // 1. Test serialize import description.
   //
@@ -144,7 +148,6 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Desc.getExternalGlobalType().setValMut(WasmEdge::ValMut::Var);
   EXPECT_FALSE(SerNoImpMutGlob.serializeSection(createImportSec(Desc), Output));
 
-  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
   Desc.setExternalType(WasmEdge::ExternalType::Tag);
   Desc.getExternalTagType().setTypeIdx(0x02U);
   Output = {};
@@ -160,15 +163,18 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   };
   EXPECT_EQ(Expected, Output);
 
-  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createImportSec(Desc), Output));
+  EXPECT_FALSE(SerWASM2.serializeSection(createImportSec(Desc), Output));
 }
 
 TEST(SerializeDescriptionTest, SerializeExportDesc) {
   WasmEdge::AST::ExportDesc Desc;
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
+
+  WasmEdge::Configure ConfWASM2;
+  ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
 
   // 2. Test serialize export description.
   //
@@ -224,7 +230,6 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   };
   EXPECT_EQ(Output, Expected);
 
-  Conf.addProposal(WasmEdge::Proposal::ExceptionHandling);
   Desc.setExternalType(WasmEdge::ExternalType::Tag);
   Desc.setExternalIndex(0x02U);
   Output = {};
@@ -239,8 +244,7 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   };
   EXPECT_EQ(Expected, Output);
 
-  Conf.removeProposal(WasmEdge::Proposal::ExceptionHandling);
   Output = {};
-  EXPECT_FALSE(Ser.serializeSection(createExportSec(Desc), Output));
+  EXPECT_FALSE(SerWASM2.serializeSection(createExportSec(Desc), Output));
 }
 } // namespace

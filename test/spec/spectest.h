@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "ast/module.h"
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
@@ -35,6 +36,8 @@ public:
   enum class CommandID {
     Unknown,
     Module,
+    ModuleDefinition,
+    ModuleInstance,
     Action,
     Register,
     AssertReturn,
@@ -73,16 +76,24 @@ public:
   void run(std::string_view Proposal, std::string_view UnitName);
 
   using ModuleCallback = Expect<void>(const std::string &Modname,
-                                      const std::string &Filename);
+                                      const std::string &FileName);
   std::function<ModuleCallback> onModule;
 
-  using LoadCallback = Expect<void>(const std::string &Filename);
+  using LoadCallback = Expect<void>(const std::string &FileName);
   std::function<LoadCallback> onLoad;
 
-  using ValidateCallback = Expect<void>(const std::string &Filename);
+  using ValidateCallback = Expect<void>(const std::string &FileName);
   std::function<ValidateCallback> onValidate;
 
-  using InstantiateCallback = Expect<void>(const std::string &Filename);
+  using ModuleDefineCallback =
+      Expect<std::unique_ptr<AST::Module>>(const std::string &FileName);
+  std::function<ModuleDefineCallback> onModuleDefine;
+
+  using InstanceFromDefCallback = Expect<void>(const std::string &ModName,
+                                               const AST::Module &ASTMod);
+  std::function<InstanceFromDefCallback> onInstanceFromDef;
+
+  using InstantiateCallback = Expect<void>(const std::string &FileName);
   std::function<InstantiateCallback> onInstantiate;
 
   using InvokeCallback = Expect<std::vector<std::pair<ValVariant, ValType>>>(

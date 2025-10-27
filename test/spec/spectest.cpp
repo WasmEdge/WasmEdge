@@ -20,12 +20,13 @@
 #include "common/spdlog.h"
 
 #include "simdjson.h"
+#include <gtest/gtest.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
-#include <gtest/gtest.h>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -43,7 +44,6 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
   uint64_t LastModLine = 0;
   for (const simdjson::dom::object &Cmd : CmdArray) {
     std::string_view CmdType = Cmd["type"];
-    bool Replaced = false;
     if (CmdType == "module"sv) {
       // Record last module in order
       if (Cmd["name"].get(OrgName)) {
@@ -56,18 +56,16 @@ void resolveRegister(std::map<std::string, std::string> &Alias,
       if (!Cmd["name"].get(Value)) {
         // Register command records the original name. Set aliasing.
         Alias.emplace(std::string(Value), std::string(NewNameStr));
-      } else if (!OrgName.empty()) {
+      } else {
         // Register command does not record the original name. Get name from the
         // module.
-        Replaced = true;
-        Alias.emplace(std::string(OrgName), std::string(NewNameStr));
-      }
-      if (!OrgName.empty() && !Replaced) {
-        // Module has origin name. Replace to aliased one.
-        Alias.emplace(std::string(OrgName), NewNameStr);
-      } else {
-        // Module has no origin name. Add the aliased one.
-        Alias.emplace(std::to_string(LastModLine), NewNameStr);
+        if (OrgName.empty()) {
+          // Module has no origin name. Alias to the latest anonymous module.
+          Alias.emplace(std::to_string(LastModLine), NewNameStr);
+        } else {
+          // Module has origin name. Replace to aliased one.
+          Alias.emplace(std::string(OrgName), NewNameStr);
+        }
       }
     }
   }
@@ -78,6 +76,8 @@ SpecTest::CommandID resolveCommand(std::string_view Name) {
                                   Hash::Hash>
       CommandMapping = {
           {"module"sv, SpecTest::CommandID::Module},
+          {"module_definition"sv, SpecTest::CommandID::ModuleDefinition},
+          {"module_instance"sv, SpecTest::CommandID::ModuleInstance},
           {"action"sv, SpecTest::CommandID::Action},
           {"register"sv, SpecTest::CommandID::Register},
           {"assert_return"sv, SpecTest::CommandID::AssertReturn},
@@ -240,10 +240,12 @@ parseEithersList(const simdjson::dom::array &Args) {
 struct TestsuiteProposal {
   TestsuiteProposal(
       std::string_view P,
+      const WasmEdge::Standard Std = WasmEdge::Standard::WASM_3,
       const std::vector<WasmEdge::Proposal> &EnableProps = {},
       const std::vector<WasmEdge::Proposal> &DisableProps = {},
       WasmEdge::SpecTest::TestMode M = WasmEdge::SpecTest::TestMode::All)
       : Path(P), Mode(M) {
+    Conf.setWASMStandard(Std);
     for (const auto &Prop : EnableProps) {
       Conf.addProposal(Prop);
     }
@@ -258,24 +260,32 @@ struct TestsuiteProposal {
 };
 
 static const TestsuiteProposal TestsuiteProposals[] = {
-    {"wasm-1.0"sv,
+    // | Folder | WASM_Base | Additional_set | Removal_set | Mode |
+    // ------------------------------------------------------------
+    // Folder: the directory name of tests.
+    // WASM_Base: the WASM standard base (1.0, 2.0, 3.0). Default: WASM 3.0
+    // Additional_set: additional proposals to turn on. Default: {}
+    // Removal_set: additional proposals to turn off. Default: {}
+    // Mode: test execution modes (interpreter, AOT, JIT). Default: all
+    {"wasm-1.0"sv, WasmEdge::Standard::WASM_1},
+    {"wasm-2.0"sv, WasmEdge::Standard::WASM_2},
+    // TODO: MEMORY64 - proposal not implemented and OFF by default currently.
+    // Should turn on and remove this column below after implementation ready.
+    {"wasm-3.0"sv, WasmEdge::Standard::WASM_3, {Proposal::Memory64}},
+    {"wasm-3.0-bulk-memory"sv, WasmEdge::Standard::WASM_3},
+    // TODO: EXCEPTION - implement the AOT.
+    {"wasm-3.0-exceptions"sv,
+     WasmEdge::Standard::WASM_3,
      {},
-     {Proposal::NonTrapFloatToIntConversions, Proposal::SignExtensionOperators,
-      Proposal::MultiValue, Proposal::BulkMemoryOperations,
-      Proposal::ReferenceTypes, Proposal::SIMD}},
-    {"wasm-2.0"sv, {}},
-    {"multi-memory"sv, {Proposal::MultiMemories}},
-    {"tail-call"sv, {Proposal::TailCall}},
-    {"extended-const"sv, {Proposal::ExtendedConst}},
-    {"threads"sv, {Proposal::Threads}},
-    {"function-references"sv,
-     {Proposal::FunctionReferences, Proposal::TailCall}},
-    {"gc"sv, {Proposal::GC}},
-    {"exception-handling"sv,
-     {Proposal::ExceptionHandling, Proposal::TailCall},
      {},
      WasmEdge::SpecTest::TestMode::Interpreter},
-    {"relaxed-simd"sv, {Proposal::RelaxSIMD}},
+    {"wasm-3.0-gc"sv, WasmEdge::Standard::WASM_3},
+    // TODO: MEMORY64 - Turn on this test.
+    // {"wasm-3.0-memory64"sv, WasmEdge::Standard::WASM_3},
+    {"wasm-3.0-multi-memory"sv, WasmEdge::Standard::WASM_3},
+    {"wasm-3.0-relaxed-simd"sv, WasmEdge::Standard::WASM_3},
+    {"wasm-3.0-simd"sv, WasmEdge::Standard::WASM_3},
+    {"threads"sv, WasmEdge::Standard::WASM_2, {Proposal::Threads}},
 };
 
 } // namespace
@@ -449,8 +459,16 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
     }
     return IsRefMatch(Got.first.get<RefVariant>());
   } else if (TypeStr == "exnref"sv) {
+    // "exnref" fits exnref and nullexnref.
     if (!Got.second.isRefType() ||
-        Got.second.getHeapTypeCode() != TypeCode::ExnRef) {
+        (Got.second.getHeapTypeCode() != TypeCode::ExnRef &&
+         Got.second.getHeapTypeCode() != TypeCode::NullExnRef)) {
+      return false;
+    }
+    return IsRefMatch(Got.first.get<RefVariant>());
+  } else if (TypeStr == "nullexnref"sv) {
+    if (!Got.second.isRefType() ||
+        Got.second.getHeapTypeCode() != TypeCode::NullExnRef) {
       return false;
     }
     return IsRefMatch(Got.first.get<RefVariant>());
@@ -631,6 +649,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   simdjson::dom::element Doc = Parser.load(TestFileName);
 
   std::map<std::string, std::string> Alias;
+  std::map<std::string, std::unique_ptr<AST::Module>> ASTMap;
   std::string LastModName;
 
   // Helper function to get module name.
@@ -646,6 +665,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     return LastModName;
   };
 
+  // Helper function to check result of invocation.
   auto Invoke = [&](const simdjson::dom::object &Action,
                     const simdjson::dom::array &Expected, uint64_t LineNumber) {
     const auto ModName = GetModuleName(Action);
@@ -665,6 +685,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     }
   };
 
+  // Helper function to check one of matched results of invocation.
   auto InvokeEither = [&](const simdjson::dom::object &Action,
                           const simdjson::dom::array &Eithers,
                           uint64_t LineNumber) {
@@ -705,8 +726,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       EXPECT_NE(LineNumber, LineNumber);
     }
   };
-  auto TrapLoad = [&](const std::string &Filename, const std::string &Text) {
-    if (auto Res = onLoad(Filename)) {
+
+  // Helper function to check trap on loading.
+  auto TrapLoad = [&](const std::string &FileName, const std::string &Text) {
+    if (auto Res = onLoad(FileName)) {
       EXPECT_TRUE(false);
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
@@ -715,6 +738,35 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }
   };
+
+  // Helper function to check trap on validation.
+  auto TrapValidate = [&](const std::string &FileName,
+                          const std::string &Text) {
+    if (auto Res = onValidate(FileName); Res) {
+      EXPECT_TRUE(false);
+    } else {
+      EXPECT_TRUE(Res.error().getErrCodePhase() ==
+                  WasmEdge::WasmPhase::Validation);
+      EXPECT_TRUE(
+          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+    }
+  };
+
+  // Helper function to check trap on instantiation.
+  auto TrapInstantiate = [&](const std::string &FileName,
+                             const std::string &Text) {
+    if (auto Res = onInstantiate(FileName); Res) {
+      EXPECT_TRUE(false);
+    } else {
+      EXPECT_TRUE(
+          Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Instantiation ||
+          Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Execution);
+      EXPECT_TRUE(
+          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+    }
+  };
+
+  // Helper function to check trap on invocation.
   auto TrapInvoke = [&](const simdjson::dom::object &Action,
                         const std::string &Text, uint64_t LineNumber) {
     const auto ModName = GetModuleName(Action);
@@ -732,29 +784,8 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
           stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }
   };
-  auto TrapValidate = [&](const std::string &Filename,
-                          const std::string &Text) {
-    if (auto Res = onValidate(Filename); Res) {
-      EXPECT_TRUE(false);
-    } else {
-      EXPECT_TRUE(Res.error().getErrCodePhase() ==
-                  WasmEdge::WasmPhase::Validation);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
-    }
-  };
-  auto TrapInstantiate = [&](const std::string &Filename,
-                             const std::string &Text) {
-    if (auto Res = onInstantiate(Filename); Res) {
-      EXPECT_TRUE(false);
-    } else {
-      EXPECT_TRUE(
-          Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Instantiation ||
-          Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Execution);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
-    }
-  };
+
+  // Helper function to check exception on invocation.
   auto ExceptionInvoke = [&](const simdjson::dom::object &Action,
                              uint64_t LineNumber) {
     const auto ModName = GetModuleName(Action);
@@ -777,9 +808,16 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     if (!Cmd["type"].get(TypeField)) {
       switch (resolveCommand(TypeField)) {
       case SpecTest::CommandID::Module: {
-        std::string_view Name = Cmd["filename"];
-        const auto FileName =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
+        std::string_view ModType;
+        if (!Cmd["module_type"].get(ModType)) {
+          if (ModType != "binary"sv) {
+            // TODO: Wat is not supported in WasmEdge yet.
+            return;
+          }
+        }
+        std::string_view FileName = Cmd["filename"];
+        const auto FilePath =
+            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
         const uint64_t LineNumber = Cmd["line"];
         std::string LineStr = std::to_string(LineNumber);
         std::string_view TempName;
@@ -796,7 +834,44 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
           // Instantiate the anonymous module.
           LastModName.clear();
         }
-        if (onModule(LastModName, FileName)) {
+        if (onModule(LastModName, FilePath)) {
+          EXPECT_TRUE(true);
+        } else {
+          EXPECT_NE(LineNumber, LineNumber);
+        }
+        return;
+      }
+      case CommandID::ModuleDefinition: {
+        std::string_view ASTName;
+        std::string_view FileName = Cmd["filename"];
+        const auto FilePath =
+            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
+        const uint64_t LineNumber = Cmd["line"];
+        if (auto Res = onModuleDefine(std::string(FilePath)); Res) {
+          if (!Cmd["name"].get(ASTName)) {
+            // Module definition has name. Store the AST module.
+            ASTMap.emplace(std::string(ASTName), std::move(*Res));
+          }
+          // TODO: maybe should handle the anonymous AST module in the future.
+          EXPECT_TRUE(true);
+        } else {
+          EXPECT_NE(LineNumber, LineNumber);
+        }
+        return;
+      }
+      case CommandID::ModuleInstance: {
+        std::string_view ModName = Cmd["name"];
+        std::string_view ASTName = Cmd["definition"];
+        const uint64_t LineNumber = Cmd["line"];
+        auto ASTDef = ASTMap.find(std::string(ASTName));
+        if (ASTDef == ASTMap.end()) {
+          EXPECT_NE(LineNumber, LineNumber);
+          return;
+        }
+        if (auto It = Alias.find(std::string(ModName)); It != Alias.end()) {
+          ModName = It->second;
+        }
+        if (onInstanceFromDef(std::string(ModName), *(ASTDef->second).get())) {
           EXPECT_TRUE(true);
         } else {
           EXPECT_NE(LineNumber, LineNumber);
@@ -818,14 +893,14 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         const uint64_t LineNumber = Cmd["line"];
         const simdjson::dom::object &Action = Cmd["action"];
         const std::string_view ActType = Action["type"];
-        simdjson::dom::array Expected, Either;
+        simdjson::dom::array Exp, Either;
 
-        if (Cmd["expected"].get(Expected) == simdjson::error_code::SUCCESS) {
+        if (Cmd["expected"].get(Exp) == simdjson::error_code::SUCCESS) {
           if (ActType == "invoke"sv) {
-            Invoke(Action, Expected, LineNumber);
+            Invoke(Action, Exp, LineNumber);
             return;
           } else if (ActType == "get"sv) {
-            Get(Action, Expected, LineNumber);
+            Get(Action, Exp, LineNumber);
             return;
           }
         } else if (Cmd["either"].get(Either) == simdjson::error_code::SUCCESS) {
@@ -863,6 +938,11 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::AssertInvalid: {
+        const std::string_view ModType = Cmd["module_type"];
+        if (ModType != "binary"sv) {
+          // TODO: Wat is not supported in WasmEdge yet.
+          return;
+        }
         const std::string_view Name = Cmd["filename"];
         const auto Filename =
             (TestsuiteRoot / Proposal / UnitName / Name).u8string();
@@ -902,7 +982,6 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   simdjson::dom::array CmdArray;
 
   if (!Doc["commands"].get(CmdArray)) {
-
     // Preprocessing register command.
     resolveRegister(Alias, CmdArray);
 

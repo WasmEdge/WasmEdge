@@ -57,6 +57,7 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
                                From);
       }
       return ValType(TC, HTCode);
+    case TypeCode::NullExnRef:
     case TypeCode::ExnRef:
       if (!Conf.hasProposal(Proposal::ExceptionHandling)) {
         return logNeedProposal(ErrCode::Value::MalformedValType,

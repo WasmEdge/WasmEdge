@@ -414,8 +414,9 @@ TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
       case TypeCode::StructRef:
       case TypeCode::ArrayRef:
         return TypeCode::NullRef;
+      case TypeCode::NullExnRef:
       case TypeCode::ExnRef:
-        return TypeCode::ExnRef;
+        return TypeCode::NullExnRef;
       default:
         assumingUnreachable();
       }

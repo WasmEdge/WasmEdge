@@ -536,7 +536,7 @@ TEST(Configure, ConfigureTest) {
   }
   {
     WasmEdge::Configure Conf;
-    Conf.addProposal(Proposal::ExceptionHandling);
+    Conf.addProposal(Proposal::Annotations);
     WasmEdge::LLVM::Compiler Compiler(Conf);
     auto Result = Compiler.checkConfigure();
     EXPECT_FALSE(Result);

@@ -69,7 +69,6 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   Checker.reset(true);
 
   // Validate and register type section.
-
   EXPECTED_TRY(validate(Mod.getTypeSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Type));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -281,9 +280,13 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
   }));
   if (Lim.getMin() > LIMIT_MEMORYTYPE ||
       (Lim.hasMax() && Lim.getMax() > LIMIT_MEMORYTYPE)) {
-    spdlog::error(ErrCode::Value::InvalidMemPages);
+    // TODO: MEMORY64 - fully support implementation.
+    ErrCode::Value FailCode = Conf.hasProposal(Proposal::Memory64)
+                                  ? ErrCode::Value::InvalidMemPages64
+                                  : ErrCode::Value::InvalidMemPages;
+    spdlog::error(FailCode);
     spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
-    return Unexpect(ErrCode::Value::InvalidMemPages);
+    return Unexpect(FailCode);
   }
   return {};
 }
@@ -404,7 +407,7 @@ Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
   Checker.reset();
   // Add parameters into this frame.
   for (auto &Type : FuncType.getParamTypes()) {
-    // Local passed as function parameters should be initialized.
+    // Local passed by function parameters must have been initialized.
     Checker.addLocal(Type, true);
   }
   // Add locals into this frame.

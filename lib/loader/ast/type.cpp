@@ -241,28 +241,52 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
     Lim.setType(static_cast<AST::Limit::LimitType>(B));
     break;
   default:
-    if (B == 0x80 || B == 0x81) {
-      // LEB128 cases will fail.
-      return logLoadError(ErrCode::Value::IntegerTooLong, FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Limit);
+    if (Conf.hasProposal(Proposal::Memory64)) {
+      // TODO: MEMORY64 - fully support implementation.
+      // Currently add this for passing binary parsing in spec tests.
+      return logLoadError(ErrCode::Value::MalformedLimitFlags,
+                          FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
     } else {
-      return logLoadError(ErrCode::Value::IntegerTooLarge, FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Limit);
+      if (B == 0x80 || B == 0x81) {
+        // LEB128 cases will fail.
+        return logLoadError(ErrCode::Value::IntegerTooLong,
+                            FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
+      } else {
+        return logLoadError(ErrCode::Value::IntegerTooLarge,
+                            FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
+      }
     }
   }
 
   // Read the min and max number.
-  EXPECTED_TRY(uint32_t MinVal, FMgr.readU32().map_error([this](auto E) {
-    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
-  }));
-  Lim.setMin(MinVal);
-  if (Lim.hasMax()) {
-    EXPECTED_TRY(uint32_t MaxVal, FMgr.readU32().map_error([this](auto E) {
+  if (Conf.hasProposal(Proposal::Memory64)) {
+    // TODO: MEMORY64 - fully support implementation.
+    // Currently add this for passing binary parsing in spec tests.
+    EXPECTED_TRY(uint64_t MinVal, FMgr.readU64().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
     }));
-    Lim.setMax(MaxVal);
+    Lim.setMin(static_cast<uint32_t>(MinVal));
+    if (Lim.hasMax()) {
+      EXPECTED_TRY(uint64_t MaxVal, FMgr.readU64().map_error([this](auto E) {
+        return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
+      }));
+      Lim.setMax(static_cast<uint32_t>(MaxVal));
+    } else {
+      Lim.setMax(static_cast<uint32_t>(MinVal));
+    }
   } else {
-    Lim.setMax(MinVal);
+    EXPECTED_TRY(uint32_t MinVal, FMgr.readU32().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
+    }));
+    Lim.setMin(MinVal);
+    if (Lim.hasMax()) {
+      EXPECTED_TRY(uint32_t MaxVal, FMgr.readU32().map_error([this](auto E) {
+        return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
+      }));
+      Lim.setMax(MaxVal);
+    } else {
+      Lim.setMax(MinVal);
+    }
   }
   return {};
 }

@@ -246,7 +246,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  auto readMemImmediate = [this, readU32, &Instr]() -> Expect<void> {
+  auto readU64 = [this, ReportError](uint64_t &Dst) -> Expect<void> {
+    EXPECTED_TRY(Dst, FMgr.readU64().map_error(ReportError));
+    return {};
+  };
+
+  auto readMemImmediate = [this, readU32, readU64, &Instr]() -> Expect<void> {
     Instr.getTargetIndex() = 0;
     EXPECTED_TRY(readU32(Instr.getMemoryAlign()));
     if (Conf.hasProposal(Proposal::MultiMemories) &&
@@ -254,12 +259,19 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       Instr.getMemoryAlign() -= 64;
       EXPECTED_TRY(readU32(Instr.getTargetIndex()));
     }
-    if (unlikely(Instr.getMemoryAlign() >= 32)) {
-      // This is for WASM32. May change for memory64 proposal in the future.
+    uint32_t MaxAlign = Conf.hasProposal(Proposal::Memory64) ? 64U : 32U;
+    if (unlikely(Instr.getMemoryAlign() >= MaxAlign)) {
       return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
-    EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
+    if (Conf.hasProposal(Proposal::Memory64)) {
+      // TODO: MEMORY64 - fully support implementation.
+      uint64_t Offset;
+      EXPECTED_TRY(readU64(Offset));
+      Instr.getMemoryOffset() = static_cast<uint32_t>(Offset);
+    } else {
+      EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
+    }
     return {};
   };
 

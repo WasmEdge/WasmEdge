@@ -924,10 +924,12 @@ E(ENDCodeExpected, 0x0118, "END opcode expected")
 E(IllegalGrammar, 0x0119, "invalid wasm grammar")
 // Intrinsics table not found
 E(IntrinsicsTableNotFound, 0x011A, "intrinsics table not found")
-// Malformed table (Ref-types proposal)
+// Malformed table (Func-ref proposal)
 E(MalformedTable, 0x011B, "malformed table")
-// Alignment must < 64 without and < 128 with multi-memory proposal.
+// Alignment flag >= 128 (Multi-mem proposal).
 E(MalformedMemoryOpFlags, 0x011C, "malformed memop flags")
+// Malformed limit flag (Mem64 proposal).
+E(MalformedLimitFlags, 0x011D, "malformed limits flags")
 // @}
 
 // Component model load phase
@@ -999,20 +1001,20 @@ E(ConstExprRequired, 0x020F, "constant expression required")
 // Export name conflicted
 E(DupExportName, 0x0210, "duplicate export name")
 // Tried to store to const global value
-E(ImmutableGlobal, 0x0211, "global is immutable")
+E(ImmutableGlobal, 0x0211, "immutable global")
 // Tried to store to const field of structure
-E(ImmutableField, 0x0212, "field is immutable")
+E(ImmutableField, 0x0212, "immutable field")
 // Tried to store to const array
-E(ImmutableArray, 0x0213, "array is immutable")
+E(ImmutableArray, 0x0213, "immutable array")
 // Invalid result arity in select t* instruction
 E(InvalidResultArity, 0x0214, "invalid result arity")
 // #Tables > 1 (without Ref-types proposal)
 E(MultiTables, 0x0215, "multiple tables")
-// #Memories > 1
+// #Memories > 1 (without Multi-mem proposal)
 E(MultiMemories, 0x0216, "multiple memories")
 // Invalid Limit grammar
 E(InvalidLimit, 0x0217, "size minimum must not be greater than maximum")
-// Memory pages > 65536
+// Memory pages > 2^16 (without Mem64 proposal)
 E(InvalidMemPages, 0x0218, "memory size must be at most 65536 pages (4GiB)")
 // Invalid start function signature
 E(InvalidStartFunc, 0x0219, "start function")
@@ -1044,6 +1046,8 @@ E(InvalidSubType, 0x0225, "sub type")
 E(InvalidTagResultType, 0x0226, "non-empty tag result type")
 // Shared memory must have max
 E(SharedMemoryNoMax, 0x0227, "shared memory must have maximum")
+// Memory pages > 2^32 (Mem64 proposal)
+E(InvalidMemPages64, 0x0228, "memory size")
 // @}
 
 // Component model validation phase

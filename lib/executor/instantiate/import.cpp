@@ -78,7 +78,7 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
     }
     break;
   default:
-    return logUnknownError(ModName, ExtName, ExtType);
+    assumingUnreachable();
   }
 
   // Check is error external type or unknown imports.
@@ -311,7 +311,7 @@ Expect<void> Executor::instantiate(
       break;
     }
     default:
-      break;
+      assumingUnreachable();
     }
   }
   return {};

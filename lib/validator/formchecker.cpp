@@ -590,8 +590,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            static_cast<uint32_t>(Tables.size()));
     }
     if (unlikely(!Tables[T].isFuncRefType())) {
-      spdlog::error(ErrCode::Value::InvalidTableIdx);
-      return Unexpect(ErrCode::Value::InvalidTableIdx);
+      spdlog::error(ErrCode::Value::TypeCheckFailed);
+      spdlog::error(ErrInfo::InfoMismatch(TypeCode::FuncRef, Tables[T]));
+      return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Check target function type index.
     EXPECTED_TRY(auto CompType, checkDefinedType(N, TypeCode::Func));

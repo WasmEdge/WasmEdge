@@ -29,6 +29,18 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
 #ifdef WASMEDGE_USE_LLVM
 
   Configure Conf;
+  // WASM standard configuration has the highest priority.
+  if (Opt.PropWASM1.value()) {
+    Conf.setWASMStandard(Standard::WASM_1);
+  }
+  if (Opt.PropWASM2.value()) {
+    Conf.setWASMStandard(Standard::WASM_2);
+  }
+  if (Opt.PropWASM3.value()) {
+    Conf.setWASMStandard(Standard::WASM_3);
+  }
+
+  // Proposals adjustment.
   if (Opt.PropMutGlobals.value()) {
     Conf.removeProposal(Proposal::ImportExportMutGlobals);
   }
@@ -44,31 +56,53 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   if (Opt.PropBulkMemOps.value()) {
     Conf.removeProposal(Proposal::BulkMemoryOperations);
   }
-  if (Opt.PropRefTypes.value()) {
-    Conf.removeProposal(Proposal::ReferenceTypes);
-  }
   if (Opt.PropSIMD.value()) {
     Conf.removeProposal(Proposal::SIMD);
   }
-  if (Opt.PropRelaxedSIMD.value()) {
-    Conf.addProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropMultiMem.value()) {
-    Conf.addProposal(Proposal::MultiMemories);
-  }
   if (Opt.PropTailCall.value()) {
-    Conf.addProposal(Proposal::TailCall);
+    Conf.removeProposal(Proposal::TailCall);
   }
   if (Opt.PropExtendConst.value()) {
-    Conf.addProposal(Proposal::ExtendedConst);
+    Conf.removeProposal(Proposal::ExtendedConst);
   }
+  if (Opt.PropMultiMem.value()) {
+    Conf.removeProposal(Proposal::MultiMemories);
+  }
+  if (Opt.PropRelaxedSIMD.value()) {
+    Conf.removeProposal(Proposal::RelaxSIMD);
+  }
+  // TODO: EXCEPTION - enable the option.
+  Conf.removeProposal(Proposal::ExceptionHandling);
+  // if (Opt.PropExceptionHandling.value()) {
+  //   Conf.removeProposal(Proposal::ExceptionHandling);
+  // }
+  // TODO: MEMORY64 - enable the option.
+  // if (Opt.PropMemory64.value()) {
+  //   Conf.removeProposal(Proposal::Memory64);
+  // }
+
+  // Handle the proposal removal which has dependency.
+  // The GC proposal depends on the func-ref proposal, and the func-ref proposal
+  // depends on the ref-types proposal.
+  if (Opt.PropGC.value()) {
+    Conf.removeProposal(Proposal::GC);
+  }
+  if (Opt.PropFunctionReference.value()) {
+    // This will automatically not work if the GC proposal not disabled.
+    Conf.removeProposal(Proposal::FunctionReferences);
+  }
+  if (Opt.PropRefTypes.value()) {
+    // This will automatically not work if the GC or func-ref proposal not
+    // disabled.
+    Conf.removeProposal(Proposal::ReferenceTypes);
+  }
+
   if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
   if (Opt.PropAll.value()) {
-    Conf.addProposal(Proposal::MultiMemories);
-    Conf.addProposal(Proposal::TailCall);
-    Conf.addProposal(Proposal::ExtendedConst);
+    Conf.setWASMStandard(Standard::WASM_3);
+    Conf.removeProposal(Proposal::ExceptionHandling);
     Conf.addProposal(Proposal::Threads);
   }
 

@@ -34,10 +34,12 @@ struct DriverCompilerOptions {
             "Enable generating code for counting gas burned during execution."sv)),
         ConfEnableTimeMeasuring(PO::Description(
             "Enable generating code for counting time during execution."sv)),
-        ConfEnableAllStatistics(
-            PO::Description("Enable generating code for all statistics options "
-                            "include instruction "
-                            "counting, gas measuring, and execution time"sv)),
+        ConfEnableAllStatistics(PO::Description(
+            "Enable generating code for all statistics options include "
+            "instruction counting, gas measuring, and execution time."sv)),
+        PropWASM1(PO::Description("Set as WASM 1.0 standard."sv)),
+        PropWASM2(PO::Description("Set as WASM 2.0 standard."sv)),
+        PropWASM3(PO::Description("Set as WASM 3.0 standard (default)."sv)),
         PropMutGlobals(PO::Description(
             "Disable Import/Export of mutable globals proposal"sv)),
         PropNonTrapF2IConvs(PO::Description(
@@ -49,13 +51,19 @@ struct DriverCompilerOptions {
             PO::Description("Disable Bulk memory operations proposal"sv)),
         PropRefTypes(PO::Description("Disable Reference types proposal"sv)),
         PropSIMD(PO::Description("Disable SIMD proposal"sv)),
-        PropTailCall(PO::Description("Enable Tail-call proposal"sv)),
-        PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
+        PropTailCall(PO::Description("Disable Tail-call proposal"sv)),
+        PropExtendConst(PO::Description("Disable Extended-const proposal"sv)),
         PropFunctionReference(
-            PO::Description("Enable Function Reference proposal"sv)),
-        PropMultiMem(PO::Description("Enable Multiple memories proposal"sv)),
+            PO::Description("Disable Function Reference proposal"sv)),
+        PropGC(PO::Description("Disable GC proposal"sv)),
+        PropMultiMem(PO::Description("Disable Multiple memories proposal"sv)),
+        PropRelaxedSIMD(PO::Description("Disable Relaxed SIMD proposal"sv)),
+        // TODO: EXCEPTION - enable the option.
+        // PropExceptionHandling(
+        //     PO::Description("Disable Exception handling proposal"sv)),
+        // TODO: MEMORY64 - enable the option.
+        // PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
-        PropRelaxedSIMD(PO::Description("Enable Relaxed SIMD proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)),
         PropOptimizationLevel(
             PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
@@ -70,6 +78,9 @@ struct DriverCompilerOptions {
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
+  PO::Option<PO::Toggle> PropWASM1;
+  PO::Option<PO::Toggle> PropWASM2;
+  PO::Option<PO::Toggle> PropWASM3;
   PO::Option<PO::Toggle> PropMutGlobals;
   PO::Option<PO::Toggle> PropNonTrapF2IConvs;
   PO::Option<PO::Toggle> PropSignExtendOps;
@@ -80,9 +91,14 @@ struct DriverCompilerOptions {
   PO::Option<PO::Toggle> PropTailCall;
   PO::Option<PO::Toggle> PropExtendConst;
   PO::Option<PO::Toggle> PropFunctionReference;
+  PO::Option<PO::Toggle> PropGC;
   PO::Option<PO::Toggle> PropMultiMem;
-  PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropRelaxedSIMD;
+  // TODO: EXCEPTION - enable the option.
+  // PO::Option<PO::Toggle> PropExceptionHandling;
+  // TODO: MEMORY64 - enable the option.
+  // PO::Option<PO::Toggle> PropMemory64;
+  PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<std::string> PropOptimizationLevel;
 
@@ -96,6 +112,9 @@ struct DriverCompilerOptions {
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
         .add_option("generic-binary"sv, ConfGenericBinary)
+        .add_option("wasm-1"sv, PropWASM1)
+        .add_option("wasm-2"sv, PropWASM2)
+        .add_option("wasm-3"sv, PropWASM3)
         .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
         .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
         .add_option("disable-sign-extension-operators"sv, PropSignExtendOps)
@@ -103,12 +122,17 @@ struct DriverCompilerOptions {
         .add_option("disable-bulk-memory"sv, PropBulkMemOps)
         .add_option("disable-reference-types"sv, PropRefTypes)
         .add_option("disable-simd"sv, PropSIMD)
-        .add_option("enable-tail-call"sv, PropTailCall)
-        .add_option("enable-extended-const"sv, PropExtendConst)
-        .add_option("enable-function-reference"sv, PropFunctionReference)
-        .add_option("enable-multi-memory"sv, PropMultiMem)
-        .add_option("enable-threads"sv, PropThreads)
-        .add_option("enable-relaxed-simd"sv, PropRelaxedSIMD)
+        .add_option("disable-tail-call"sv, PropTailCall)
+        .add_option("disable-extended-const"sv, PropExtendConst)
+        .add_option("disable-function-reference"sv, PropFunctionReference)
+        .add_option("disable-gc"sv, PropGC)
+        .add_option("disable-multi-memory"sv, PropMultiMem)
+        .add_option("disable-threads"sv, PropThreads)
+        .add_option("disable-relaxed-simd"sv, PropRelaxedSIMD)
+        // TODO: EXCEPTION - enable the option.
+        // .add_option("disable-exception-handling"sv, PropExceptionHandling)
+        // TODO: MEMORY64 - enable the option.
+        // .add_option("disable-memory64"sv, PropMemory64)
         .add_option("enable-all"sv, PropAll)
         .add_option("optimize"sv, PropOptimizationLevel);
   }

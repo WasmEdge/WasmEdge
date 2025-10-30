@@ -256,14 +256,22 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 }
 
 int Tool(struct DriverToolOptions &Opt) noexcept {
-
   std::ios::sync_with_stdio(false);
   Log::setInfoLoggingLevel();
 
   Configure Conf;
-  if (Opt.PropAFUNIX.value()) {
-    Conf.getRuntimeConfigure().setAllowAFUNIX(true);
+  // WASM standard configuration has the highest priority.
+  if (Opt.PropWASM1.value()) {
+    Conf.setWASMStandard(Standard::WASM_1);
   }
+  if (Opt.PropWASM2.value()) {
+    Conf.setWASMStandard(Standard::WASM_2);
+  }
+  if (Opt.PropWASM3.value()) {
+    Conf.setWASMStandard(Standard::WASM_3);
+  }
+
+  // Proposals adjustment.
   if (Opt.PropMutGlobals.value()) {
     Conf.removeProposal(Proposal::ImportExportMutGlobals);
   }
@@ -279,49 +287,57 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropBulkMemOps.value()) {
     Conf.removeProposal(Proposal::BulkMemoryOperations);
   }
-  if (Opt.PropRefTypes.value()) {
-    Conf.removeProposal(Proposal::ReferenceTypes);
-  }
   if (Opt.PropSIMD.value()) {
     Conf.removeProposal(Proposal::SIMD);
   }
-  if (Opt.PropRelaxedSIMD.value()) {
-    Conf.addProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropMultiMem.value()) {
-    Conf.addProposal(Proposal::MultiMemories);
-  }
   if (Opt.PropTailCall.value()) {
-    Conf.addProposal(Proposal::TailCall);
+    Conf.removeProposal(Proposal::TailCall);
   }
   if (Opt.PropExtendConst.value()) {
-    Conf.addProposal(Proposal::ExtendedConst);
+    Conf.removeProposal(Proposal::ExtendedConst);
   }
-  if (Opt.PropThreads.value()) {
-    Conf.addProposal(Proposal::Threads);
+  if (Opt.PropMultiMem.value()) {
+    Conf.removeProposal(Proposal::MultiMemories);
+  }
+  if (Opt.PropRelaxedSIMD.value()) {
+    Conf.removeProposal(Proposal::RelaxSIMD);
+  }
+  if (Opt.PropExceptionHandling.value()) {
+    Conf.removeProposal(Proposal::ExceptionHandling);
+  }
+  // TODO: MEMORY64 - enable the option.
+  // if (Opt.PropMemory64.value()) {
+  //   Conf.removeProposal(Proposal::Memory64);
+  // }
+
+  // Handle the proposal removal which has dependency.
+  // The GC proposal depends on the func-ref proposal, and the func-ref proposal
+  // depends on the ref-types proposal.
+  if (Opt.PropGC.value()) {
+    Conf.removeProposal(Proposal::GC);
   }
   if (Opt.PropFunctionReference.value()) {
-    Conf.addProposal(Proposal::FunctionReferences);
+    // This will automatically not work if the GC proposal not disabled.
+    Conf.removeProposal(Proposal::FunctionReferences);
   }
-  if (Opt.PropGC.value()) {
-    Conf.addProposal(Proposal::GC);
+  if (Opt.PropRefTypes.value()) {
+    // This will automatically not work if the GC or func-ref proposal not
+    // disabled.
+    Conf.removeProposal(Proposal::ReferenceTypes);
+  }
+
+  if (Opt.PropThreads.value()) {
+    Conf.addProposal(Proposal::Threads);
   }
   if (Opt.PropComponent.value()) {
     Conf.addProposal(Proposal::Component);
     spdlog::warn("component model is enabled, this is experimental."sv);
   }
-  if (Opt.PropExceptionHandling.value()) {
-    Conf.addProposal(Proposal::ExceptionHandling);
-  }
   if (Opt.PropAll.value()) {
-    Conf.addProposal(Proposal::MultiMemories);
-    Conf.addProposal(Proposal::TailCall);
-    Conf.addProposal(Proposal::ExtendedConst);
+    Conf.setWASMStandard(Standard::WASM_3);
     Conf.addProposal(Proposal::Threads);
-    Conf.addProposal(Proposal::GC);
-    Conf.addProposal(Proposal::Component);
     spdlog::warn("component model is enabled, this is experimental."sv);
-    Conf.addProposal(Proposal::ExceptionHandling);
+    Conf.addProposal(Proposal::Component);
   }
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
@@ -366,6 +382,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   }
   if (Opt.ConfForceInterpreter.value()) {
     Conf.getRuntimeConfigure().setForceInterpreter(true);
+  }
+  if (Opt.ConfAFUNIX.value()) {
+    Conf.getRuntimeConfigure().setAllowAFUNIX(true);
   }
 
   for (const auto &Name : Opt.ForbiddenPlugins.value()) {

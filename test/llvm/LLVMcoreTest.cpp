@@ -587,7 +587,7 @@ TEST(Configure, ConfigureTest) {
     WasmEdge::LLVM::Compiler Compiler(Conf);
     auto Result = Compiler.checkConfigure();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::InvalidConfigure);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::InvalidAOTConfigure);
   }
 }
 

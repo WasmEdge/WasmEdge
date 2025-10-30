@@ -863,8 +863,10 @@ E(SetValueToConst, 0x000A, "set value into const")
 E(SetValueErrorType, 0x000B, "set value type mismatch")
 // User defined error
 E(UserDefError, 0x000C, "user defined error code")
+// Invalid AOT Configure
+E(InvalidAOTConfigure, 0x000D, "invalid AOT/JIT configure")
 // Invalid Configure
-E(InvalidConfigure, 0x000D, "invalid configure")
+E(AOTNotImpl, 0x000E, "Not implemented instructions in AOT/JIT")
 
 // Load phase
 // @{

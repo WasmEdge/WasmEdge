@@ -63,6 +63,19 @@ endfunction()
 
 set(WASMEDGE_CAPI_HEADERS
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_ast.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_basic.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_compiler.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_configure.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_context.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_deprecated.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_execution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_experimental.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_instance.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_plugin.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_tools.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_value.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_vm.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/version.h
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum.inc
   ${CMAKE_CURRENT_BINARY_DIR}/../../include/api/wasmedge/enum_configure.h
@@ -150,7 +163,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
   wasmedge_add_static_lib_component_command(wasmedgeHostModuleWasi)
   wasmedge_add_static_lib_component_command(wasmedgePlugin)
   # BUILTIN-PLUGIN: Temporary add the wasi-logging plugin here until the new
-  # plugin architecture ready in 0.15.0.
+  # plugin architecture ready in the future.
   wasmedge_add_static_lib_component_command(wasmedgePluginWasiLogging)
   wasmedge_add_static_lib_component_command(wasmedgeVM)
   wasmedge_add_static_lib_component_command(wasmedgeDriver)

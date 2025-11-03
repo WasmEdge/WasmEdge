@@ -883,6 +883,14 @@ WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
   return false;
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetWASMStandard(WasmEdge_ConfigureContext *Cxt,
+                                  const enum WasmEdge_Standard Std) {
+  if (Cxt) {
+    Cxt->Conf.setWASMStandard(static_cast<WasmEdge::Standard>(Std));
+  }
+}
+
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureAddHostRegistration(
     WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host) {
   if (Cxt) {

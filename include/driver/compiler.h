@@ -53,6 +53,7 @@ struct DriverCompilerOptions {
         PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
         PropFunctionReference(
             PO::Description("Enable Function Reference proposal"sv)),
+        PropGC(PO::Description("Enable GC proposal, this is experimental"sv)),
         PropMultiMem(PO::Description("Enable Multiple memories proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropRelaxedSIMD(PO::Description("Enable Relaxed SIMD proposal"sv)),
@@ -80,6 +81,7 @@ struct DriverCompilerOptions {
   PO::Option<PO::Toggle> PropTailCall;
   PO::Option<PO::Toggle> PropExtendConst;
   PO::Option<PO::Toggle> PropFunctionReference;
+  PO::Option<PO::Toggle> PropGC;
   PO::Option<PO::Toggle> PropMultiMem;
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropRelaxedSIMD;
@@ -106,6 +108,7 @@ struct DriverCompilerOptions {
         .add_option("enable-tail-call"sv, PropTailCall)
         .add_option("enable-extended-const"sv, PropExtendConst)
         .add_option("enable-function-reference"sv, PropFunctionReference)
+        .add_option("enable-gc"sv, PropGC)
         .add_option("enable-multi-memory"sv, PropMultiMem)
         .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-relaxed-simd"sv, PropRelaxedSIMD)

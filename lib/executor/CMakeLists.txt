@@ -12,6 +12,8 @@ wasmedge_add_library(wasmedgeExecutor
   instantiate/export.cpp
   instantiate/tag.cpp
   instantiate/module.cpp
+  instantiate/struct.cpp
+  instantiate/array.cpp
   instantiate/component/component.cpp
   instantiate/component/component_alias.cpp
   instantiate/component/component_canon.cpp
@@ -38,4 +40,5 @@ target_link_libraries(wasmedgeExecutor
   PUBLIC
   wasmedgeCommon
   wasmedgeSystem
+  wasmedgeGC
 )

@@ -105,14 +105,14 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     HostFuncHelper.invokePreHostFunc();
 
     // Run host function.
-    Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
+    std::vector<ValVariant> Args = StackMgr.popVec(ArgsN);
     for (uint32_t I = 0; I < ArgsN; I++) {
       // For the number type cases of the arguments, the unused bits should be
       // erased due to the security issue.
       cleanNumericVal(Args[I], FuncType.getParamTypes()[I]);
     }
     std::vector<ValVariant> Rets(RetsN);
-    auto Ret = HostFunc.run(CallFrame, std::move(Args), Rets);
+    auto Ret = HostFunc.run(CallFrame, Args, Rets);
 
     // Call post-host-function
     HostFuncHelper.invokePostHostFunc();
@@ -134,9 +134,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     }
 
     // Push returns back to stack.
-    for (auto &R : Rets) {
-      StackMgr.push(std::move(R));
-    }
+    StackMgr.pushSpan(Rets);
 
     // For host function case, the continuation will be the continuation from
     // the popped frame.
@@ -154,7 +152,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     );
 
     // Prepare arguments.
-    Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
+    std::vector<ValVariant> Args = StackMgr.popVec(ArgsN);
     std::vector<ValVariant> Rets(RetsN);
     SavedThreadLocal Saved(*this, StackMgr, Func);
 

@@ -228,6 +228,7 @@ WASMEDGE_EXPORT uint64_t Hash::rapidHash(Span<const std::byte> Data) noexcept {
       A = B = 0;
     }
   } else {
+    Span<const std::byte> OriginalData = Data;
     if (unlikely(Data.size() > 48)) {
       uint64_t See1 = Seed, See2 = Seed;
       while (likely(Data.size() >= 96)) {
@@ -264,8 +265,8 @@ WASMEDGE_EXPORT uint64_t Hash::rapidHash(Span<const std::byte> Data) noexcept {
         Seed = rapidMix(read(Data.subspan<16>().first<8>()) ^ Secret[2],
                         read(Data.subspan<24>().first<8>()) ^ Seed);
     }
-    A = read(Data.last<16>().first<8>());
-    B = read(Data.last<8>());
+    A = read(OriginalData.last<16>().first<8>());
+    B = read(OriginalData.last<8>());
   }
   A ^= Secret[1];
   B ^= Seed;

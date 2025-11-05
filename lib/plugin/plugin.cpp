@@ -68,19 +68,27 @@ namespace Plugin {
 
 namespace {
 
+/// Wrapper type to ensure standard layout type
+template <typename T> struct Wrap {
+  Wrap() noexcept(std::is_nothrow_constructible_v<T>) { new (&Storage) T(); }
+  ~Wrap() noexcept(std::is_nothrow_destructible_v<T>) { get().~T(); }
+  T &get() noexcept { return *reinterpret_cast<T *>(&Storage); }
+  alignas(T) char Storage[sizeof(T)];
+};
+
 class CAPIPluginRegister {
 public:
   CAPIPluginRegister(const CAPIPluginRegister &) = delete;
   CAPIPluginRegister &operator=(const CAPIPluginRegister &) = delete;
 
   CAPIPluginRegister(const WasmEdge_PluginDescriptor *Desc) noexcept {
-    ModuleDescriptions.resize(Desc->ModuleCount);
-    for (size_t I = 0; I < ModuleDescriptions.size(); ++I) {
-      ModuleDescriptions[I].Name = Desc->ModuleDescriptions[I].Name;
-      ModuleDescriptions[I].Description =
+    moduleDescriptions().resize(Desc->ModuleCount);
+    for (size_t I = 0; I < moduleDescriptions().size(); ++I) {
+      moduleDescriptions()[I].Name = Desc->ModuleDescriptions[I].Name;
+      moduleDescriptions()[I].Description =
           Desc->ModuleDescriptions[I].Description;
-      ModuleDescriptions[I].Create = &createWrapper;
-      DescriptionLookup.emplace(&ModuleDescriptions[I],
+      moduleDescriptions()[I].Create = &createWrapper;
+      DescriptionLookup.emplace(&moduleDescriptions()[I],
                                 &Desc->ModuleDescriptions[I]);
     }
 
@@ -92,14 +100,14 @@ public:
     Descriptor.Version.Patch = Desc->Version.Patch;
     Descriptor.Version.Build = Desc->Version.Build;
     Descriptor.ModuleCount = Desc->ModuleCount;
-    Descriptor.ModuleDescriptions = ModuleDescriptions.data();
+    Descriptor.ModuleDescriptions = moduleDescriptions().data();
     Descriptor.AddOptions = &addOptionsWrapper;
 
     for (size_t I = 0; I < Desc->ProgramOptionCount; ++I) {
       const auto *OptionDesc = &Desc->ProgramOptions[I];
       auto Emplace = [OptionDesc, this](auto InPlaceType, auto *Storage,
                                         auto *DefaultValue) {
-        Options.emplace_back(
+        options().emplace_back(
             std::piecewise_construct, std::tuple{OptionDesc},
             std::tuple{InPlaceType, PO::Description(OptionDesc->Description),
                        Storage, DefaultValue});
@@ -177,7 +185,6 @@ public:
 private:
   static Runtime::Instance::ModuleInstance *
   createWrapper(const PluginModule::ModuleDescriptor *Descriptor) noexcept {
-    static_assert(std::is_standard_layout_v<CAPIPluginRegister>);
     if (auto Iter = DescriptionLookup.find(Descriptor);
         unlikely(Iter == DescriptionLookup.end())) {
       return nullptr;
@@ -193,7 +200,7 @@ private:
         reinterpret_cast<const CAPIPluginRegister *>(
             reinterpret_cast<uintptr_t>(Descriptor) -
             offsetof(CAPIPluginRegister, Descriptor));
-    for (auto &Option : This->Options) {
+    for (auto &Option : This->options()) {
       std::visit(
           [&Option, &Parser](auto &POOption) {
             Parser.add_option(Option.first->Name, POOption);
@@ -202,23 +209,31 @@ private:
     }
   }
 
-  Plugin::PluginDescriptor Descriptor;
-  mutable std::vector<std::pair<
+  using OptionsType = std::vector<std::pair<
       const WasmEdge_ProgramOption *,
       std::variant<PO::Option<PO::Toggle *>, PO::Option<int8_t *>,
                    PO::Option<int16_t *>, PO::Option<int32_t *>,
                    PO::Option<int64_t *>, PO::Option<uint8_t *>,
                    PO::Option<uint16_t *>, PO::Option<uint32_t *>,
                    PO::Option<uint64_t *>, PO::Option<float *>,
-                   PO::Option<double *>, PO::Option<WasmEdge_String *>>>>
-      Options;
-  std::vector<PluginModule::ModuleDescriptor> ModuleDescriptions;
+                   PO::Option<double *>, PO::Option<WasmEdge_String *>>>>;
+  using ModuleDescriptionsType = std::vector<PluginModule::ModuleDescriptor>;
+  OptionsType &options() const noexcept { return OptionsStorage.get(); }
+  ModuleDescriptionsType &moduleDescriptions() noexcept {
+    return ModuleDescriptions.get();
+  }
+
+  Plugin::PluginDescriptor Descriptor;
+  mutable Wrap<OptionsType> OptionsStorage;
+  Wrap<ModuleDescriptionsType> ModuleDescriptions;
   static std::unordered_map<const PluginModule::ModuleDescriptor *,
                             const WasmEdge_ModuleDescriptor *>
       DescriptionLookup;
 
   bool Result = false;
 };
+static_assert(std::is_standard_layout_v<CAPIPluginRegister>);
+
 std::unordered_map<const PluginModule::ModuleDescriptor *,
                    const WasmEdge_ModuleDescriptor *>
     CAPIPluginRegister::DescriptionLookup;

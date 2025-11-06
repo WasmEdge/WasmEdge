@@ -790,6 +790,19 @@ WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
                               const enum WasmEdge_Proposal Prop);
 
+/// Set the WASM standard in the WasmEdge_ConfigureContext.
+///
+/// When setting the WASM standard, the proposal settings in this
+/// WasmEdge_ConfigureContext will be overridden.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to check the proposal value.
+/// \param Std the standard value.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetWASMStandard(WasmEdge_ConfigureContext *Cxt,
+                                  const enum WasmEdge_Standard Std);
+
 /// Add a built-in host registration setting into WasmEdge_ConfigureContext.
 ///
 /// For turning on the Wasi support in `WasmEdge_VMContext`, you can set the

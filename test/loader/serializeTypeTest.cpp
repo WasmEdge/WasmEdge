@@ -54,13 +54,9 @@ createGlobalSec(WasmEdge::AST::GlobalType GlobalType) {
 }
 
 TEST(serializeTypeTest, SerializeFunctionType) {
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
-  WasmEdge::Configure ConfNoMultiVal;
-  ConfNoMultiVal.removeProposal(WasmEdge::Proposal::MultiValue);
-  WasmEdge::Loader::Serializer SerNoMultiVal(ConfNoMultiVal);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -139,22 +135,21 @@ TEST(serializeTypeTest, SerializeFunctionType) {
 
   FuncType.getParamTypes() = {WasmEdge::TypeCode::ExternRef};
   FuncType.getReturnTypes() = {};
-  EXPECT_FALSE(SerNoRefType.serializeSection(createTypeSec(FuncType), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createTypeSec(FuncType), Output));
 
   FuncType.getParamTypes() = {};
   FuncType.getReturnTypes() = {WasmEdge::TypeCode::ExternRef};
-  EXPECT_FALSE(SerNoRefType.serializeSection(createTypeSec(FuncType), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createTypeSec(FuncType), Output));
 
   FuncType.getReturnTypes() = {WasmEdge::TypeCode::I32,
                                WasmEdge::TypeCode::I32};
-  EXPECT_FALSE(SerNoMultiVal.serializeSection(createTypeSec(FuncType), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createTypeSec(FuncType), Output));
 }
 
 TEST(serializeTypeTest, SerializeTableType) {
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -202,8 +197,7 @@ TEST(serializeTypeTest, SerializeTableType) {
   EXPECT_EQ(Output, Expected);
 
   TableType.setRefType(WasmEdge::TypeCode::ExternRef);
-  EXPECT_FALSE(
-      SerNoRefType.serializeSection(createTableSec(TableType), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createTableSec(TableType), Output));
 }
 
 TEST(serializeTypeTest, SerializeMemoryType) {
@@ -249,10 +243,9 @@ TEST(serializeTypeTest, SerializeMemoryType) {
 }
 
 TEST(serializeTypeTest, SerializeGlobalType) {
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   std::vector<uint8_t> Expected;
   std::vector<uint8_t> Output;
@@ -279,8 +272,7 @@ TEST(serializeTypeTest, SerializeGlobalType) {
   EXPECT_EQ(Output, Expected);
 
   GlobalType.setValType(WasmEdge::TypeCode::ExternRef);
-  EXPECT_FALSE(
-      SerNoRefType.serializeSection(createGlobalSec(GlobalType), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createGlobalSec(GlobalType), Output));
 }
 
 TEST(serializeTypeTest, SerializeValType) {

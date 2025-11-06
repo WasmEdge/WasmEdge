@@ -395,9 +395,9 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
 TEST(InstructionTest, LoadCallControlInstruction) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
 
   // 5. Test call control instructions.
   //
@@ -475,9 +475,9 @@ TEST(InstructionTest, LoadCallControlInstruction) {
 TEST(InstructionTest, LoadReferenceInstruction) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
 
   // 6. Test reference instructions.
   //
@@ -510,9 +510,9 @@ TEST(InstructionTest, LoadReferenceInstruction) {
 TEST(InstructionTest, LoadParametricInstruction) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::SIMD);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
   WasmEdge::Loader::Loader LdrNoSIMD(Conf);
-  Conf.addProposal(WasmEdge::Proposal::SIMD);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
 
   // 7. Test parametric instructions.
   //
@@ -644,9 +644,9 @@ TEST(InstructionTest, LoadTableInstruction) {
 TEST(InstructionTest, LoadMemoryInstruction) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::MultiMemories);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_2);
   WasmEdge::Loader::Loader LdrMultiMem(Conf);
-  Conf.addProposal(WasmEdge::Proposal::MultiMemories);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
 
   // 10. Test memory instructions.
   //
@@ -861,45 +861,16 @@ TEST(InstructionTest, LoadConstInstruction) {
 TEST(InstructionTest, Proposals) {
   std::vector<uint8_t> Vec;
 
-  Conf.removeProposal(WasmEdge::Proposal::SIMD);
-  WasmEdge::Loader::Loader LdrNoSIMD(Conf);
-  Conf.addProposal(WasmEdge::Proposal::SIMD);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWASM1(Conf);
 
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Loader LdrNoRefType(Conf);
-  Conf.addProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.addProposal(WasmEdge::Proposal::ReferenceTypes);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_2);
+  WasmEdge::Loader::Loader LdrWASM2(Conf);
 
-  Conf.removeProposal(WasmEdge::Proposal::MultiValue);
-  WasmEdge::Loader::Loader LdrNoMultiVal(Conf);
-  Conf.addProposal(WasmEdge::Proposal::MultiValue);
-
-  Conf.removeProposal(WasmEdge::Proposal::NonTrapFloatToIntConversions);
-  WasmEdge::Loader::Loader LdrNoTrapConv(Conf);
-  Conf.addProposal(WasmEdge::Proposal::NonTrapFloatToIntConversions);
-
-  Conf.removeProposal(WasmEdge::Proposal::SignExtensionOperators);
-  WasmEdge::Loader::Loader LdrNoSignExt(Conf);
-  Conf.addProposal(WasmEdge::Proposal::SignExtensionOperators);
-
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_3);
   Conf.addProposal(WasmEdge::Proposal::Threads);
   WasmEdge::Loader::Loader LdrThreads(Conf);
   Conf.removeProposal(WasmEdge::Proposal::Threads);
-
-  Conf.addProposal(WasmEdge::Proposal::TailCall);
-  WasmEdge::Loader::Loader LdrTailCall(Conf);
-  Conf.removeProposal(WasmEdge::Proposal::TailCall);
-
-  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
-  WasmEdge::Loader::Loader LdrFuncRef(Conf);
-  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
-
-  Conf.addProposal(WasmEdge::Proposal::TailCall);
-  Conf.addProposal(WasmEdge::Proposal::FunctionReferences);
-  WasmEdge::Loader::Loader LdrFuncRefAndTailCall(Conf);
-  Conf.removeProposal(WasmEdge::Proposal::TailCall);
-  Conf.removeProposal(WasmEdge::Proposal::FunctionReferences);
 
   // 12. Test ValTypes and instructions with disabled proposals
   //
@@ -942,7 +913,7 @@ TEST(InstructionTest, Proposals) {
       0x0BU,                      // OpCode End.
       0x0BU                       // Expression End.
   };
-  EXPECT_FALSE(LdrNoSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
@@ -959,8 +930,8 @@ TEST(InstructionTest, Proposals) {
       0x0BU,        // OpCode End.
       0x0BU         // Expression End.
   };
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,                      // Code section
@@ -983,7 +954,7 @@ TEST(InstructionTest, Proposals) {
       0x01U, 0x7BU,               // Select type V128.
       0x0BU                       // Expression End.
   };
-  EXPECT_FALSE(LdrNoSIMD.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
@@ -999,8 +970,8 @@ TEST(InstructionTest, Proposals) {
       0x01U, 0x70U, // Select type FuncRef.
       0x0BU,        // Expression End.
   };
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_FALSE(LdrNoRefType.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        // Code section
@@ -1016,8 +987,8 @@ TEST(InstructionTest, Proposals) {
       0x0BU,        // OpCode End.
       0x0BU,        // Expression End.
   };
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_FALSE(LdrNoMultiVal.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        // Code section
@@ -1029,8 +1000,8 @@ TEST(InstructionTest, Proposals) {
       0xFCU, 0x01U, // OpCode I32__trunc_sat_f32_u.
       0x0BU         // Expression End.
   };
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_FALSE(LdrNoTrapConv.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU, // Code section
@@ -1045,8 +1016,8 @@ TEST(InstructionTest, Proposals) {
       0xC4U, // OpCode I64__extend32_s.
       0x0BU  // Expression End.
   };
+  EXPECT_FALSE(LdrWASM1.parseModule(prefixedVec(Vec)));
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_FALSE(LdrNoSignExt.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,                      // Code section
@@ -1071,8 +1042,8 @@ TEST(InstructionTest, Proposals) {
       0x12U, 0x00U, // OpCode Return_call.
       0x0BU         // Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_TRUE(LdrTailCall.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM2.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        // Code section
@@ -1083,8 +1054,8 @@ TEST(InstructionTest, Proposals) {
       0x14U, 0x00U, // OpCode Call_ref.
       0x0BU         // Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_TRUE(LdrFuncRef.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM2.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 
   Vec = {
       0x0AU,        // Code section
@@ -1095,9 +1066,8 @@ TEST(InstructionTest, Proposals) {
       0x15U, 0x00U, // OpCode Return_call_ref.
       0x0BU         // Expression End.
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
-  EXPECT_FALSE(LdrFuncRef.parseModule(prefixedVec(Vec)));
-  EXPECT_TRUE(LdrFuncRefAndTailCall.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(LdrWASM2.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadSIMDInstruction) {

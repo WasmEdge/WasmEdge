@@ -158,8 +158,6 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
     case OpCode::Block:
     case OpCode::Loop:
     case OpCode::If:
-    // LEGACY-EH: remove the `Try` after deprecating legacy EH.
-    case OpCode::Try:
     case OpCode::Try_table:
       BlockStack.emplace_back(Code, Cnt);
       break;
@@ -174,22 +172,6 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
         return logIllegalOpCode();
       }
       Instrs[Pos].setJumpElse(Cnt - Pos);
-      break;
-    }
-    // LEGACY-EH: remove the `Catch` cases after deprecating legacy EH.
-    case OpCode::Catch:
-    case OpCode::Catch_all: {
-      if (BlockStack.size() == 0 || BlockStack.back().first != OpCode::Try) {
-        // A Catch/Catch_all instruction appeared outside a try-block.
-        return logIllegalOpCode();
-      }
-      auto Pos = BlockStack.back().second;
-      auto &CatchClause = Instrs[Pos].getTryCatch().Catch;
-      if (CatchClause.size() > 0 && CatchClause.back().IsAll) {
-        // A Catch shouldn't behind a Catch_all in the same block.
-        // And also a try block may contain only one Catch_all instruction.
-        return logIllegalOpCode();
-      }
       break;
     }
     default:
@@ -208,8 +190,6 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
         if (BackOp == OpCode::Block || BackOp == OpCode::Loop ||
             BackOp == OpCode::If) {
           Instrs.back().setTryBlockLast(false);
-          // LEGACY-EH: remove this after deprecating legacy EH.
-          Instrs.back().setLegacyTryBlockLast(false);
           Instrs[Pos].setJumpEnd(Cnt - Pos);
           if (BackOp == OpCode::If) {
             if (Instrs[Pos].getJumpElse() == 0) {
@@ -222,13 +202,6 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
           }
         } else if (BackOp == OpCode::Try_table) {
           Instrs.back().setTryBlockLast(true);
-          // LEGACY-EH: remove this after deprecating legacy EH.
-          Instrs.back().setLegacyTryBlockLast(false);
-          Instrs[Pos].getTryCatch().JumpEnd = Cnt - Pos;
-        } else if (BackOp == OpCode::Try) {
-          // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
-          Instrs.back().setTryBlockLast(false);
-          Instrs.back().setLegacyTryBlockLast(true);
           Instrs[Pos].getTryCatch().JumpEnd = Cnt - Pos;
         }
         BlockStack.pop_back();
@@ -236,19 +209,6 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
         Instrs.back().setExprLast(true);
         IsReachEnd = true;
       }
-    } else if (Code == OpCode::Catch || Code == OpCode::Catch_all) {
-      // LEGACY-EH: remove these cases after deprecating legacy EH.
-      uint32_t Pos = BlockStack.back().second;
-      auto &CatchClause = Instrs[Pos].getTryCatch().Catch;
-      auto &CatchDesc = Instrs.back().getCatchLegacy();
-      CatchDesc.CatchPCOffset = Cnt - Pos;
-      CatchDesc.CatchIndex = static_cast<uint32_t>(CatchClause.size());
-      CatchClause.push_back({true,
-                             Code == OpCode::Catch_all,
-                             false,
-                             Code == OpCode::Catch ? CatchDesc.TagIndex : 0,
-                             0,
-                             {0, 0, 0, 0}});
     }
     Cnt++;
   } while (!IsReachEnd);
@@ -286,7 +246,12 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   };
 
-  auto readMemImmediate = [this, readU32, &Instr]() -> Expect<void> {
+  auto readU64 = [this, ReportError](uint64_t &Dst) -> Expect<void> {
+    EXPECTED_TRY(Dst, FMgr.readU64().map_error(ReportError));
+    return {};
+  };
+
+  auto readMemImmediate = [this, readU32, readU64, &Instr]() -> Expect<void> {
     Instr.getTargetIndex() = 0;
     EXPECTED_TRY(readU32(Instr.getMemoryAlign()));
     if (Conf.hasProposal(Proposal::MultiMemories) &&
@@ -294,12 +259,19 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       Instr.getMemoryAlign() -= 64;
       EXPECTED_TRY(readU32(Instr.getTargetIndex()));
     }
-    if (unlikely(Instr.getMemoryAlign() >= 32)) {
-      // This is for WASM32. May change for memory64 proposal in the future.
+    uint32_t MaxAlign = Conf.hasProposal(Proposal::Memory64) ? 64U : 32U;
+    if (unlikely(Instr.getMemoryAlign() >= MaxAlign)) {
       return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
-    EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
+    if (Conf.hasProposal(Proposal::Memory64)) {
+      // TODO: MEMORY64 - fully support implementation.
+      uint64_t Offset;
+      EXPECTED_TRY(readU64(Offset));
+      Instr.getMemoryOffset() = static_cast<uint32_t>(Offset);
+    } else {
+      EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
+    }
     return {};
   };
 
@@ -351,8 +323,6 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   case OpCode::Throw_ref:
   case OpCode::End:
   case OpCode::Else:
-  // LEGACY-EH: remove the `Catch_all` case after deprecating legacy EH.
-  case OpCode::Catch_all:
     return {};
 
   case OpCode::Block:
@@ -370,8 +340,6 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       auto &Desc = Instr.getTryCatch().Catch[I];
       // Read the catch flag.
       EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
-      // LEGACY-EH: remove this `IsLegacy` flag after deprecating legacy EH.
-      Desc.IsLegacy = false;
       Desc.IsRef = (Flag & 0x01U) ? true : false;
       Desc.IsAll = (Flag & 0x02U) ? true : false;
       if (!Desc.IsAll) {
@@ -384,35 +352,14 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     return {};
   }
 
-  // LEGACY-EH: remove the `Try` case after deprecating legacy EH.
-  case OpCode::Try:
-    Instr.setTryCatch();
-    return readBlockType(Instr.getTryCatch().ResType);
-
-  // LEGACY-EH: remove the `Catch` case after deprecating legacy EH.
-  case OpCode::Catch:
-    return readU32(Instr.getCatchLegacy().TagIndex);
-
   case OpCode::Throw:
     return readU32(Instr.getTargetIndex());
-
-  // LEGACY-EH: remove the `Rethrow` case after deprecating legacy EH.
-  case OpCode::Rethrow:
-    spdlog::error(ErrCode::Value::IllegalOpCode);
-    spdlog::error("    Deprecated `rethrow` instruction."sv);
-    return Unexpect(ErrCode::Value::IllegalOpCode);
 
   case OpCode::Br:
   case OpCode::Br_if:
   case OpCode::Br_on_null:
   case OpCode::Br_on_non_null:
     return readU32(Instr.getJump().TargetIndex);
-
-  // LEGACY-EH: remove the `Delegate` case after deprecating legacy EH.
-  case OpCode::Delegate:
-    spdlog::error(ErrCode::Value::IllegalOpCode);
-    spdlog::error("    Deprecated `delegate` instruction."sv);
-    return Unexpect(ErrCode::Value::IllegalOpCode);
 
   case OpCode::Br_table: {
     // Read the vector of labels.

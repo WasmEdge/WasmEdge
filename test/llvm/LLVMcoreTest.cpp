@@ -53,7 +53,7 @@ TEST_P(NativeCoreTest, TestSuites) {
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
   auto Compile = [&, Conf = std::cref(Conf)](
-                     const std::string &Filename) -> Expect<std::string> {
+                     const std::string &FileName) -> Expect<std::string> {
     WasmEdge::Configure CopyConf = Conf.get();
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
@@ -64,12 +64,12 @@ TEST_P(NativeCoreTest, TestSuites) {
     CopyConf.getCompilerConfigure().setDumpIR(true);
     WasmEdge::LLVM::Compiler Compiler(CopyConf);
     WasmEdge::LLVM::CodeGen CodeGen(CopyConf);
-    auto Path = std::filesystem::u8path(Filename);
+    auto Path = std::filesystem::u8path(FileName);
     Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
     const auto SOPath = Path.u8string();
     std::vector<WasmEdge::Byte> Data;
     std::unique_ptr<WasmEdge::AST::Module> Module;
-    return Loader.loadFile(Filename)
+    return Loader.loadFile(FileName)
         .and_then([&](auto Result) noexcept {
           Data = std::move(Result);
           return Loader.parseModule(Data);
@@ -85,33 +85,50 @@ TEST_P(NativeCoreTest, TestSuites) {
         .and_then([&]() noexcept { return Expect<std::string>{SOPath}; });
   };
   T.onModule = [&VM, &Compile](const std::string &ModName,
-                               const std::string &Filename) -> Expect<void> {
-    return Compile(Filename).and_then(
-        [&VM, &ModName](const std::string &SOFilename) -> Expect<void> {
+                               const std::string &FileName) -> Expect<void> {
+    return Compile(FileName).and_then(
+        [&VM, &ModName](const std::string &SOFileName) -> Expect<void> {
           if (!ModName.empty()) {
-            return VM.registerModule(ModName, SOFilename);
+            return VM.registerModule(ModName, SOFileName);
           } else {
-            return VM.loadWasm(SOFilename)
+            return VM.loadWasm(SOFileName)
                 .and_then([&VM]() { return VM.validate(); })
                 .and_then([&VM]() { return VM.instantiate(); });
           }
         });
   };
-  T.onLoad = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename);
+  T.onLoad = [&VM](const std::string &FileName) -> Expect<void> {
+    return VM.loadWasm(FileName);
   };
-  T.onValidate = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
-    return Compile(Filename)
-        .and_then([&](const std::string &SOFilename) -> Expect<void> {
-          return VM.loadWasm(SOFilename);
+  T.onValidate = [&VM, &Compile](const std::string &FileName) -> Expect<void> {
+    return Compile(FileName)
+        .and_then([&](const std::string &SOFileName) -> Expect<void> {
+          return VM.loadWasm(SOFileName);
         })
         .and_then([&VM]() { return VM.validate(); });
   };
+  T.onModuleDefine =
+      [&VM, &Compile](
+          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+    return Compile(FileName).and_then(
+        [&VM](const std::string &SOFileName)
+            -> Expect<std::unique_ptr<AST::Module>> {
+          Loader::Loader &Loader = VM.getLoader();
+          Validator::Validator &Validator = VM.getValidator();
+          EXPECTED_TRY(auto ASTMod, Loader.parseModule(SOFileName));
+          EXPECTED_TRY(Validator.validate(*ASTMod.get()));
+          return ASTMod;
+        });
+  };
+  T.onInstanceFromDef = [&VM](const std::string &ModName,
+                              const AST::Module &ASTMod) -> Expect<void> {
+    return VM.registerModule(ModName, ASTMod);
+  };
   T.onInstantiate = [&VM,
-                     &Compile](const std::string &Filename) -> Expect<void> {
-    return Compile(Filename)
-        .and_then([&](const std::string &SOFilename) -> Expect<void> {
-          return VM.loadWasm(SOFilename);
+                     &Compile](const std::string &FileName) -> Expect<void> {
+    return Compile(FileName)
+        .and_then([&](const std::string &SOFileName) -> Expect<void> {
+          return VM.loadWasm(SOFileName);
         })
         .and_then([&VM]() { return VM.validate(); })
         .and_then([&VM]() { return VM.instantiate(); });
@@ -164,7 +181,7 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
   auto Compile = [&, Conf = std::cref(Conf)](
-                     const std::string &Filename) -> Expect<std::string> {
+                     const std::string &FileName) -> Expect<std::string> {
     WasmEdge::Configure CopyConf = Conf.get();
     WasmEdge::Loader::Loader Loader(Conf);
     WasmEdge::Validator::Validator ValidatorEngine(Conf);
@@ -173,12 +190,12 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
     CopyConf.getCompilerConfigure().setDumpIR(true);
     WasmEdge::LLVM::Compiler Compiler(CopyConf);
     WasmEdge::LLVM::CodeGen CodeGen(CopyConf);
-    auto Path = std::filesystem::u8path(Filename);
+    auto Path = std::filesystem::u8path(FileName);
     Path.replace_extension(std::filesystem::u8path(".aot.wasm"));
     const auto SOPath = Path.u8string();
     std::vector<WasmEdge::Byte> Data;
     std::unique_ptr<WasmEdge::AST::Module> Module;
-    return Loader.loadFile(Filename)
+    return Loader.loadFile(FileName)
         .and_then([&](auto Result) noexcept {
           Data = std::move(Result);
           return Loader.parseModule(Data);
@@ -194,33 +211,50 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
         .and_then([&]() noexcept { return Expect<std::string>{SOPath}; });
   };
   T.onModule = [&VM, &Compile](const std::string &ModName,
-                               const std::string &Filename) -> Expect<void> {
-    return Compile(Filename).and_then(
-        [&VM, &ModName](const std::string &SOFilename) -> Expect<void> {
+                               const std::string &FileName) -> Expect<void> {
+    return Compile(FileName).and_then(
+        [&VM, &ModName](const std::string &SOFileName) -> Expect<void> {
           if (!ModName.empty()) {
-            return VM.registerModule(ModName, SOFilename);
+            return VM.registerModule(ModName, SOFileName);
           } else {
-            return VM.loadWasm(SOFilename)
+            return VM.loadWasm(SOFileName)
                 .and_then([&VM]() { return VM.validate(); })
                 .and_then([&VM]() { return VM.instantiate(); });
           }
         });
   };
-  T.onLoad = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename);
+  T.onLoad = [&VM](const std::string &FileName) -> Expect<void> {
+    return VM.loadWasm(FileName);
   };
-  T.onValidate = [&VM, &Compile](const std::string &Filename) -> Expect<void> {
-    return Compile(Filename)
-        .and_then([&](const std::string &SOFilename) -> Expect<void> {
-          return VM.loadWasm(SOFilename);
+  T.onValidate = [&VM, &Compile](const std::string &FileName) -> Expect<void> {
+    return Compile(FileName)
+        .and_then([&](const std::string &SOFileName) -> Expect<void> {
+          return VM.loadWasm(SOFileName);
         })
         .and_then([&VM]() { return VM.validate(); });
   };
+  T.onModuleDefine =
+      [&VM, &Compile](
+          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+    return Compile(FileName).and_then(
+        [&VM](const std::string &SOFileName)
+            -> Expect<std::unique_ptr<AST::Module>> {
+          Loader::Loader &Loader = VM.getLoader();
+          Validator::Validator &Validator = VM.getValidator();
+          EXPECTED_TRY(auto ASTMod, Loader.parseModule(SOFileName));
+          EXPECTED_TRY(Validator.validate(*ASTMod.get()));
+          return ASTMod;
+        });
+  };
+  T.onInstanceFromDef = [&VM](const std::string &ModName,
+                              const AST::Module &ASTMod) -> Expect<void> {
+    return VM.registerModule(ModName, ASTMod);
+  };
   T.onInstantiate = [&VM,
-                     &Compile](const std::string &Filename) -> Expect<void> {
-    return Compile(Filename)
-        .and_then([&](const std::string &SOFilename) -> Expect<void> {
-          return VM.loadWasm(SOFilename);
+                     &Compile](const std::string &FileName) -> Expect<void> {
+    return Compile(FileName)
+        .and_then([&](const std::string &SOFileName) -> Expect<void> {
+          return VM.loadWasm(SOFileName);
         })
         .and_then([&VM]() { return VM.validate(); })
         .and_then([&VM]() { return VM.instantiate(); });
@@ -278,23 +312,36 @@ TEST_P(JITCoreTest, TestSuites) {
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
   T.onModule = [&VM](const std::string &ModName,
-                     const std::string &Filename) -> Expect<void> {
+                     const std::string &FileName) -> Expect<void> {
     if (!ModName.empty()) {
-      return VM.registerModule(ModName, Filename);
+      return VM.registerModule(ModName, FileName);
     } else {
-      return VM.loadWasm(Filename)
+      return VM.loadWasm(FileName)
           .and_then([&VM]() { return VM.validate(); })
           .and_then([&VM]() { return VM.instantiate(); });
     }
   };
-  T.onLoad = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename);
+  T.onLoad = [&VM](const std::string &FileName) -> Expect<void> {
+    return VM.loadWasm(FileName);
   };
-  T.onValidate = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename).and_then([&VM]() { return VM.validate(); });
+  T.onValidate = [&VM](const std::string &FileName) -> Expect<void> {
+    return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
   };
-  T.onInstantiate = [&VM](const std::string &Filename) -> Expect<void> {
-    return VM.loadWasm(Filename)
+  T.onModuleDefine =
+      [&VM](
+          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+    Loader::Loader &Loader = VM.getLoader();
+    Validator::Validator &Validator = VM.getValidator();
+    EXPECTED_TRY(auto ASTMod, Loader.parseModule(FileName));
+    EXPECTED_TRY(Validator.validate(*ASTMod.get()));
+    return ASTMod;
+  };
+  T.onInstanceFromDef = [&VM](const std::string &ModName,
+                              const AST::Module &ASTMod) -> Expect<void> {
+    return VM.registerModule(ModName, ASTMod);
+  };
+  T.onInstantiate = [&VM](const std::string &FileName) -> Expect<void> {
+    return VM.loadWasm(FileName)
         .and_then([&VM]() { return VM.validate(); })
         .and_then([&VM]() { return VM.instantiate(); });
   };
@@ -536,11 +583,11 @@ TEST(Configure, ConfigureTest) {
   }
   {
     WasmEdge::Configure Conf;
-    Conf.addProposal(Proposal::ExceptionHandling);
+    Conf.addProposal(Proposal::Annotations);
     WasmEdge::LLVM::Compiler Compiler(Conf);
     auto Result = Compiler.checkConfigure();
     EXPECT_FALSE(Result);
-    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::InvalidConfigure);
+    EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::InvalidAOTConfigure);
   }
 }
 

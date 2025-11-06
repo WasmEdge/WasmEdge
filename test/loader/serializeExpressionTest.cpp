@@ -25,10 +25,9 @@ TEST(ExpressionTest, SerializeExpression) {
   std::vector<uint8_t> Output;
   WasmEdge::AST::Expression Expr;
 
-  WasmEdge::Configure ConfNoRefType;
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  ConfNoRefType.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Serializer SerNoRefType(ConfNoRefType);
+  WasmEdge::Configure ConfWASM1;
+  ConfWASM1.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Serializer SerWASM1(ConfWASM1);
 
   // 1. Test serialize expression.
   //
@@ -70,6 +69,6 @@ TEST(ExpressionTest, SerializeExpression) {
   EXPECT_EQ(Output, Expected);
 
   Expr.getInstrs() = {TableGet, End};
-  EXPECT_FALSE(SerNoRefType.serializeSection(createCodeSec(Expr), Output));
+  EXPECT_FALSE(SerWASM1.serializeSection(createCodeSec(Expr), Output));
 }
 } // namespace

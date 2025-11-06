@@ -44,8 +44,8 @@ private:
                const AST::DataSection &DataSection) noexcept;
   void compile(const AST::TableSection &TableSection,
                const AST::ElementSection &ElementSection) noexcept;
-  void compile(const AST::FunctionSection &FunctionSection,
-               const AST::CodeSection &CodeSection) noexcept;
+  Expect<void> compile(const AST::FunctionSection &FunctionSection,
+                       const AST::CodeSection &CodeSection) noexcept;
 
   std::mutex Mutex;
   CompileContext *Context;

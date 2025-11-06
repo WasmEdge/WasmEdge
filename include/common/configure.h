@@ -236,6 +236,15 @@ public:
     unsafeAddProposal(Proposal::BulkMemoryOperations);
     unsafeAddProposal(Proposal::ReferenceTypes);
     unsafeAddProposal(Proposal::SIMD);
+    unsafeAddProposal(Proposal::TailCall);
+    unsafeAddProposal(Proposal::ExtendedConst);
+    unsafeAddProposal(Proposal::FunctionReferences);
+    unsafeAddProposal(Proposal::GC);
+    unsafeAddProposal(Proposal::MultiMemories);
+    unsafeAddProposal(Proposal::RelaxSIMD);
+    // unsafeAddProposal(Proposal::Annotations);    Not implemented
+    unsafeAddProposal(Proposal::ExceptionHandling);
+    // unsafeAddProposal(Proposal::Memory64);       Not implemented
   }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept : Configure() {
     (unsafeAddSet(Args), ...);
@@ -265,6 +274,47 @@ public:
       return;
     }
     Proposals.reset(static_cast<uint8_t>(Type));
+  }
+
+  void setWASMStandard(const Standard Std) noexcept {
+    std::unique_lock Lock(Mutex);
+    switch (Std) {
+    case Standard::WASM_1:
+      Proposals.reset();
+      unsafeAddProposal(Proposal::ImportExportMutGlobals);
+      break;
+    case Standard::WASM_2:
+      Proposals.reset();
+      unsafeAddProposal(Proposal::ImportExportMutGlobals);
+      unsafeAddProposal(Proposal::NonTrapFloatToIntConversions);
+      unsafeAddProposal(Proposal::SignExtensionOperators);
+      unsafeAddProposal(Proposal::MultiValue);
+      unsafeAddProposal(Proposal::BulkMemoryOperations);
+      unsafeAddProposal(Proposal::ReferenceTypes);
+      unsafeAddProposal(Proposal::SIMD);
+      break;
+    case Standard::WASM_3:
+      Proposals.reset();
+      unsafeAddProposal(Proposal::ImportExportMutGlobals);
+      unsafeAddProposal(Proposal::NonTrapFloatToIntConversions);
+      unsafeAddProposal(Proposal::SignExtensionOperators);
+      unsafeAddProposal(Proposal::MultiValue);
+      unsafeAddProposal(Proposal::BulkMemoryOperations);
+      unsafeAddProposal(Proposal::ReferenceTypes);
+      unsafeAddProposal(Proposal::SIMD);
+      unsafeAddProposal(Proposal::TailCall);
+      unsafeAddProposal(Proposal::ExtendedConst);
+      unsafeAddProposal(Proposal::FunctionReferences);
+      unsafeAddProposal(Proposal::GC);
+      unsafeAddProposal(Proposal::MultiMemories);
+      unsafeAddProposal(Proposal::RelaxSIMD);
+      // unsafeAddProposal(Proposal::Annotations);    Not implemented
+      unsafeAddProposal(Proposal::ExceptionHandling);
+      // unsafeAddProposal(Proposal::Memory64);       Not implemented
+      break;
+    default:
+      break;
+    }
   }
 
   bool hasProposal(const Proposal Type) const noexcept {
@@ -347,19 +397,19 @@ public:
     } else if (Code >= OpCode::V128__load &&
                Code <= OpCode::F64x2__convert_low_i32x4_u) {
       // These instructions are for SIMD proposal.
-      if (!hasProposal(Proposal::SIMD)) {
+      if (unlikely(!hasProposal(Proposal::SIMD))) {
         return Proposal::SIMD;
       }
     } else if (Code >= OpCode::I8x16__relaxed_swizzle &&
                Code <= OpCode::I32x4__relaxed_dot_i8x16_i7x16_add_s) {
       // These instructions are for Relaxed SIMD proposal.
-      if (!hasProposal(Proposal::RelaxSIMD)) {
+      if (unlikely(!hasProposal(Proposal::RelaxSIMD))) {
         return Proposal::RelaxSIMD;
       }
     } else if (Code == OpCode::Return_call ||
                Code == OpCode::Return_call_indirect) {
       // These instructions are for TailCall proposal.
-      if (!hasProposal(Proposal::TailCall)) {
+      if (unlikely(!hasProposal(Proposal::TailCall))) {
         return Proposal::TailCall;
       }
     } else if (Code >= OpCode::I32__atomic__load &&
@@ -372,7 +422,7 @@ public:
                Code == OpCode::Ref__as_non_null || Code == OpCode::Br_on_null ||
                Code == OpCode::Br_on_non_null) {
       // These instructions are for TypedFunctionReferences proposal.
-      if (!hasProposal(Proposal::FunctionReferences)) {
+      if (unlikely(!hasProposal(Proposal::FunctionReferences))) {
         return Proposal::FunctionReferences;
       }
       if (Code == OpCode::Return_call_ref && !hasProposal(Proposal::TailCall)) {
@@ -381,15 +431,13 @@ public:
     } else if (Code == OpCode::Ref__eq ||
                (Code >= OpCode::Struct__new && Code <= OpCode::I31__get_u)) {
       // These instructions are for GC proposal.
-      if (!hasProposal(Proposal::GC)) {
+      if (unlikely(!hasProposal(Proposal::GC))) {
         return Proposal::GC;
       }
-    } else if ((Code >= OpCode::Try && Code <= OpCode::Throw_ref) ||
-               Code == OpCode::Delegate || Code == OpCode::Catch_all ||
+    } else if (Code == OpCode::Throw || Code == OpCode::Throw_ref ||
                Code == OpCode::Try_table) {
-      // LEGACY-EH: remove the old instructions after deprecating legacy EH.
       // These instructions are for ExceptionHandling proposal.
-      if (!hasProposal(Proposal::ExceptionHandling)) {
+      if (unlikely(!hasProposal(Proposal::ExceptionHandling))) {
         return Proposal::ExceptionHandling;
       }
     }

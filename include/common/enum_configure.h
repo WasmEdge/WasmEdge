@@ -15,6 +15,15 @@
 #ifndef WASMEDGE_C_API_ENUM_CONFIGURE_H
 #define WASMEDGE_C_API_ENUM_CONFIGURE_H
 
+/// WASM Standard C enumeration.
+enum WasmEdge_Standard {
+#define UseStandard
+#define Line(NAME) WasmEdge_Standard_##NAME,
+#include "enum.inc"
+#undef Line
+#undef UseStandard
+};
+
 /// WASM Proposal C enumeration.
 enum WasmEdge_Proposal {
 #define UseProposal

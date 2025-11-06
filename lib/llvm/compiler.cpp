@@ -558,13 +558,13 @@ public:
     return BB;
   }
 
-  void
+  Expect<void>
   compile(const AST::CodeSegment &Code,
           std::pair<std::vector<ValType>, std::vector<ValType>> Type) noexcept {
     auto RetBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ret");
     Type.first.clear();
     enterBlock(RetBB, {}, {}, {}, std::move(Type));
-    compile(Code.getExpr().getInstrs());
+    EXPECTED_TRY(compile(Code.getExpr().getInstrs()));
     assuming(ControlStack.empty());
     compileReturn();
 
@@ -577,10 +577,11 @@ public:
       CallTrap.addCallSiteAttribute(Context.NoReturn);
       Builder.createUnreachable();
     }
+    return {};
   }
 
-  void compile(AST::InstrView Instrs) noexcept {
-    auto Dispatch = [this](const AST::Instruction &Instr) -> void {
+  Expect<void> compile(AST::InstrView Instrs) noexcept {
+    auto Dispatch = [this](const AST::Instruction &Instr) -> Expect<void> {
       switch (Instr.getOpCode()) {
       // Control instructions (for blocks)
       case OpCode::Block: {
@@ -606,7 +607,7 @@ public:
         enterBlock(EndBlock, {}, {}, std::move(Args), std::move(Type));
         checkStop();
         updateGas();
-        return;
+        return {};
       }
       case OpCode::Loop: {
         auto Curr = Builder.getInsertBlock();
@@ -638,7 +639,7 @@ public:
         enterBlock(Loop, EndLoop, {}, std::move(Args), std::move(Type));
         checkStop();
         updateGas();
-        return;
+        return {};
       }
       case OpCode::If: {
         auto Then = LLVM::BasicBlock::create(LLContext, F.Fn, "then");
@@ -668,7 +669,7 @@ public:
           }
         }
         enterBlock(EndIf, {}, Else, std::move(Args), std::move(Type));
-        return;
+        return {};
       }
       case OpCode::End: {
         auto Entry = leaveBlock();
@@ -680,21 +681,21 @@ public:
           Entry = leaveBlock();
         }
         buildPHI(Entry.Type.second, Entry.ReturnPHI);
-        return;
+        return {};
       }
       case OpCode::Else: {
         auto Entry = leaveBlock();
         Builder.positionAtEnd(Entry.ElseBlock);
         enterBlock(Entry.JumpBlock, {}, {}, std::move(Entry.Args),
                    std::move(Entry.Type), std::move(Entry.ReturnPHI));
-        return;
+        return {};
       }
       default:
         break;
       }
 
       if (isUnreachable()) {
-        return;
+        return {};
       }
 
       switch (Instr.getOpCode()) {
@@ -707,10 +708,10 @@ public:
         break;
       case OpCode::Nop:
         break;
-      // LEGACY-EH: remove the `Try` cases after deprecating legacy EH.
-      // case OpCode::Try:
-      // case OpCode::Throw:
-      // case OpCode::Throw_ref:
+      case OpCode::Throw:
+      case OpCode::Throw_ref:
+        // TODO: EXCEPTION - implement the AOT.
+        return Unexpect(ErrCode::Value::AOTNotImpl);
       case OpCode::Br: {
         const auto Label = Instr.getJump().TargetIndex;
         setLableJumpPHI(Label);
@@ -851,10 +852,9 @@ public:
         Builder.positionAtEnd(
             LLVM::BasicBlock::create(LLContext, F.Fn, "ret_call_ref.end"));
         break;
-        // LEGACY-EH: remove the `Catch` cases after deprecating legacy EH.
-        // case OpCode::Catch:
-        // case OpCode::Catch_all:
-        // case OpCode::Try_table:
+      case OpCode::Try_table:
+        // TODO: EXCEPTION - implement the AOT.
+        return Unexpect(ErrCode::Value::AOTNotImpl);
 
       // Reference Instructions
       case OpCode::Ref__null: {
@@ -870,6 +870,10 @@ public:
           case TypeCode::NullExternRef:
           case TypeCode::ExternRef:
             VType = TypeCode::NullExternRef;
+            break;
+          case TypeCode::NullExnRef:
+          case TypeCode::ExnRef:
+            VType = TypeCode::NullExnRef;
             break;
           case TypeCode::NullRef:
           case TypeCode::AnyRef:
@@ -3344,316 +3348,341 @@ public:
 
       // Atomic Instructions
       case OpCode::Atomic__fence:
-        return compileMemoryFence();
+        compileMemoryFence();
+        break;
       case OpCode::Memory__atomic__notify:
-        return compileAtomicNotify(Instr.getTargetIndex(),
-                                   Instr.getMemoryOffset());
+        compileAtomicNotify(Instr.getTargetIndex(), Instr.getMemoryOffset());
+        break;
       case OpCode::Memory__atomic__wait32:
-        return compileAtomicWait(Instr.getTargetIndex(),
-                                 Instr.getMemoryOffset(), Context.Int32Ty, 32);
+        compileAtomicWait(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Context.Int32Ty, 32);
+        break;
       case OpCode::Memory__atomic__wait64:
-        return compileAtomicWait(Instr.getTargetIndex(),
-                                 Instr.getMemoryOffset(), Context.Int64Ty, 64);
+        compileAtomicWait(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Context.Int64Ty, 64);
+        break;
       case OpCode::I32__atomic__load:
-        return compileAtomicLoad(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int32Ty, Context.Int32Ty, true);
+        compileAtomicLoad(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Instr.getMemoryAlign(), Context.Int32Ty,
+                          Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__load:
-        return compileAtomicLoad(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int64Ty, Context.Int64Ty, true);
+        compileAtomicLoad(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Instr.getMemoryAlign(), Context.Int64Ty,
+                          Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__load8_u:
-        return compileAtomicLoad(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int32Ty, Context.Int8Ty);
+        compileAtomicLoad(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Instr.getMemoryAlign(), Context.Int32Ty,
+                          Context.Int8Ty);
+        break;
       case OpCode::I32__atomic__load16_u:
-        return compileAtomicLoad(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int32Ty, Context.Int16Ty);
+        compileAtomicLoad(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Instr.getMemoryAlign(), Context.Int32Ty,
+                          Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__load8_u:
-        return compileAtomicLoad(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int64Ty, Context.Int8Ty);
+        compileAtomicLoad(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Instr.getMemoryAlign(), Context.Int64Ty,
+                          Context.Int8Ty);
+        break;
       case OpCode::I64__atomic__load16_u:
-        return compileAtomicLoad(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int64Ty, Context.Int16Ty);
+        compileAtomicLoad(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Instr.getMemoryAlign(), Context.Int64Ty,
+                          Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__load32_u:
-        return compileAtomicLoad(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int64Ty, Context.Int32Ty);
+        compileAtomicLoad(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                          Instr.getMemoryAlign(), Context.Int64Ty,
+                          Context.Int32Ty);
+        break;
       case OpCode::I32__atomic__store:
-        return compileAtomicStore(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int32Ty, Context.Int32Ty, true);
+        compileAtomicStore(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), Context.Int32Ty,
+                           Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__store:
-        return compileAtomicStore(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int64Ty, Context.Int64Ty, true);
+        compileAtomicStore(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), Context.Int64Ty,
+                           Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__store8:
-        return compileAtomicStore(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int32Ty, Context.Int8Ty, true);
+        compileAtomicStore(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), Context.Int32Ty,
+                           Context.Int8Ty, true);
+        break;
       case OpCode::I32__atomic__store16:
-        return compileAtomicStore(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int32Ty, Context.Int16Ty, true);
+        compileAtomicStore(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), Context.Int32Ty,
+                           Context.Int16Ty, true);
+        break;
       case OpCode::I64__atomic__store8:
-        return compileAtomicStore(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int64Ty, Context.Int8Ty, true);
+        compileAtomicStore(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), Context.Int64Ty,
+                           Context.Int8Ty, true);
+        break;
       case OpCode::I64__atomic__store16:
-        return compileAtomicStore(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int64Ty, Context.Int16Ty, true);
+        compileAtomicStore(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), Context.Int64Ty,
+                           Context.Int16Ty, true);
+        break;
       case OpCode::I64__atomic__store32:
-        return compileAtomicStore(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), Context.Int64Ty, Context.Int32Ty, true);
+        compileAtomicStore(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), Context.Int64Ty,
+                           Context.Int32Ty, true);
+        break;
       case OpCode::I32__atomic__rmw__add:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
-                                  Context.Int32Ty, Context.Int32Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                           Context.Int32Ty, Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__rmw__add:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
-                                  Context.Int64Ty, Context.Int64Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                           Context.Int64Ty, Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__rmw8__add_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
-                                  Context.Int32Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                           Context.Int32Ty, Context.Int8Ty);
+        break;
       case OpCode::I32__atomic__rmw16__add_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
-                                  Context.Int32Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                           Context.Int32Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw8__add_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
-                                  Context.Int64Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                           Context.Int64Ty, Context.Int8Ty);
+        break;
       case OpCode::I64__atomic__rmw16__add_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
-                                  Context.Int64Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                           Context.Int64Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw32__add_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
-                                  Context.Int64Ty, Context.Int32Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAdd,
+                           Context.Int64Ty, Context.Int32Ty);
+        break;
       case OpCode::I32__atomic__rmw__sub:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
-                                  Context.Int32Ty, Context.Int32Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                           Context.Int32Ty, Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__rmw__sub:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
-                                  Context.Int64Ty, Context.Int64Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                           Context.Int64Ty, Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__rmw8__sub_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
-                                  Context.Int32Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                           Context.Int32Ty, Context.Int8Ty);
+        break;
       case OpCode::I32__atomic__rmw16__sub_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
-                                  Context.Int32Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                           Context.Int32Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw8__sub_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
-                                  Context.Int64Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                           Context.Int64Ty, Context.Int8Ty);
+        break;
       case OpCode::I64__atomic__rmw16__sub_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
-                                  Context.Int64Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                           Context.Int64Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw32__sub_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
-                                  Context.Int64Ty, Context.Int32Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpSub,
+                           Context.Int64Ty, Context.Int32Ty);
+        break;
       case OpCode::I32__atomic__rmw__and:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
-                                  Context.Int32Ty, Context.Int32Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                           Context.Int32Ty, Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__rmw__and:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
-                                  Context.Int64Ty, Context.Int64Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                           Context.Int64Ty, Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__rmw8__and_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
-                                  Context.Int32Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                           Context.Int32Ty, Context.Int8Ty);
+        break;
       case OpCode::I32__atomic__rmw16__and_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
-                                  Context.Int32Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                           Context.Int32Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw8__and_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
-                                  Context.Int64Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                           Context.Int64Ty, Context.Int8Ty);
+        break;
       case OpCode::I64__atomic__rmw16__and_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
-                                  Context.Int64Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                           Context.Int64Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw32__and_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
-                                  Context.Int64Ty, Context.Int32Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpAnd,
+                           Context.Int64Ty, Context.Int32Ty);
+        break;
       case OpCode::I32__atomic__rmw__or:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
-                                  Context.Int32Ty, Context.Int32Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                           Context.Int32Ty, Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__rmw__or:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
-                                  Context.Int64Ty, Context.Int64Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                           Context.Int64Ty, Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__rmw8__or_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
-                                  Context.Int32Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                           Context.Int32Ty, Context.Int8Ty);
+        break;
       case OpCode::I32__atomic__rmw16__or_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
-                                  Context.Int32Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                           Context.Int32Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw8__or_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
-                                  Context.Int64Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                           Context.Int64Ty, Context.Int8Ty);
+        break;
       case OpCode::I64__atomic__rmw16__or_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
-                                  Context.Int64Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                           Context.Int64Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw32__or_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
-                                  Context.Int64Ty, Context.Int32Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpOr,
+                           Context.Int64Ty, Context.Int32Ty);
+        break;
       case OpCode::I32__atomic__rmw__xor:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
-                                  Context.Int32Ty, Context.Int32Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                           Context.Int32Ty, Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__rmw__xor:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
-                                  Context.Int64Ty, Context.Int64Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                           Context.Int64Ty, Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__rmw8__xor_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
-                                  Context.Int32Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                           Context.Int32Ty, Context.Int8Ty);
+        break;
       case OpCode::I32__atomic__rmw16__xor_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
-                                  Context.Int32Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                           Context.Int32Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw8__xor_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
-                                  Context.Int64Ty, Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                           Context.Int64Ty, Context.Int8Ty);
+        break;
       case OpCode::I64__atomic__rmw16__xor_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
-                                  Context.Int64Ty, Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                           Context.Int64Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw32__xor_u:
-        return compileAtomicRMWOp(Instr.getTargetIndex(),
-                                  Instr.getMemoryOffset(),
-                                  Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
-                                  Context.Int64Ty, Context.Int32Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXor,
+                           Context.Int64Ty, Context.Int32Ty);
+        break;
       case OpCode::I32__atomic__rmw__xchg:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int32Ty,
-            Context.Int32Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg,
+                           Context.Int32Ty, Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__rmw__xchg:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int64Ty,
-            Context.Int64Ty, true);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg,
+                           Context.Int64Ty, Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__rmw8__xchg_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int32Ty,
-            Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg,
+                           Context.Int32Ty, Context.Int8Ty);
+        break;
       case OpCode::I32__atomic__rmw16__xchg_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int32Ty,
-            Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg,
+                           Context.Int32Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw8__xchg_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int64Ty,
-            Context.Int8Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg,
+                           Context.Int64Ty, Context.Int8Ty);
+        break;
       case OpCode::I64__atomic__rmw16__xchg_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int64Ty,
-            Context.Int16Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg,
+                           Context.Int64Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw32__xchg_u:
-        return compileAtomicRMWOp(
-            Instr.getTargetIndex(), Instr.getMemoryOffset(),
-            Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg, Context.Int64Ty,
-            Context.Int32Ty);
+        compileAtomicRMWOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
+                           Instr.getMemoryAlign(), LLVMAtomicRMWBinOpXchg,
+                           Context.Int64Ty, Context.Int32Ty);
+        break;
       case OpCode::I32__atomic__rmw__cmpxchg:
-        return compileAtomicCompareExchange(
+        compileAtomicCompareExchange(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
             Instr.getMemoryAlign(), Context.Int32Ty, Context.Int32Ty, true);
+        break;
       case OpCode::I64__atomic__rmw__cmpxchg:
-        return compileAtomicCompareExchange(
+        compileAtomicCompareExchange(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
             Instr.getMemoryAlign(), Context.Int64Ty, Context.Int64Ty, true);
+        break;
       case OpCode::I32__atomic__rmw8__cmpxchg_u:
-        return compileAtomicCompareExchange(
+        compileAtomicCompareExchange(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
             Instr.getMemoryAlign(), Context.Int32Ty, Context.Int8Ty);
+        break;
       case OpCode::I32__atomic__rmw16__cmpxchg_u:
-        return compileAtomicCompareExchange(
+        compileAtomicCompareExchange(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
             Instr.getMemoryAlign(), Context.Int32Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw8__cmpxchg_u:
-        return compileAtomicCompareExchange(
+        compileAtomicCompareExchange(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
             Instr.getMemoryAlign(), Context.Int64Ty, Context.Int8Ty);
+        break;
       case OpCode::I64__atomic__rmw16__cmpxchg_u:
-        return compileAtomicCompareExchange(
+        compileAtomicCompareExchange(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
             Instr.getMemoryAlign(), Context.Int64Ty, Context.Int16Ty);
+        break;
       case OpCode::I64__atomic__rmw32__cmpxchg_u:
-        return compileAtomicCompareExchange(
+        compileAtomicCompareExchange(
             Instr.getTargetIndex(), Instr.getMemoryOffset(),
             Instr.getMemoryAlign(), Context.Int64Ty, Context.Int32Ty);
+        break;
 
       default:
         assumingUnreachable();
       }
-      return;
+      return {};
     };
+
     for (const auto &Instr : Instrs) {
       // Update instruction count
       if (LocalInstrCount) {
@@ -3676,8 +3705,9 @@ public:
       }
 
       // Make the instruction node according to Code.
-      Dispatch(Instr);
+      EXPECTED_TRY(Dispatch(Instr));
     }
+    return {};
   }
   void compileSignedTrunc(LLVM::Type IntType) noexcept {
     auto NormBB = LLVM::BasicBlock::create(LLContext, F.Fn, "strunc.norm");
@@ -5804,11 +5834,24 @@ namespace WasmEdge {
 namespace LLVM {
 
 Expect<void> Compiler::checkConfigure() noexcept {
+  // Note: Although the exception handling proposal and memory64 proposal is not
+  // implemented in AOT yet, we should not trap here because the default
+  // configuration becomes WASM 3.0 which contains these proposals.
   if (Conf.hasProposal(Proposal::ExceptionHandling)) {
-    spdlog::error(ErrCode::Value::InvalidConfigure);
-    spdlog::error(
-        "    Proposal ExceptionHandling is not yet supported in LLVM backend");
-    return Unexpect(ErrCode::Value::InvalidConfigure);
+    spdlog::warn("Proposal Exception Handling is not yet supported in WasmEdge "
+                 "AOT/JIT. The compilation will be trapped when related data "
+                 "structure or instructions found in WASM.");
+  }
+  if (Conf.hasProposal(Proposal::Memory64)) {
+    spdlog::warn("Proposal Memory64 is not yet supported in WasmEdge AOT/JIT. "
+                 "The compilation will be trapped when related data "
+                 "structure or instructions found in WASM.");
+  }
+  if (Conf.hasProposal(Proposal::Annotations)) {
+    spdlog::error(ErrCode::Value::InvalidAOTConfigure);
+    spdlog::error("    Proposal Custom Annotation Syntax is not yet supported "
+                  "in WasmEdge AOT/JIT.");
+    return Unexpect(ErrCode::Value::InvalidAOTConfigure);
   }
   return {};
 }
@@ -5854,7 +5897,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Compile TableSection (TableSec, ElemSec)
   compile(Module.getTableSection(), Module.getElementSection());
   // compile Functions in module. (FunctionSec, CodeSec)
-  compile(Module.getFunctionSection(), Module.getCodeSection());
+  EXPECTED_TRY(compile(Module.getFunctionSection(), Module.getCodeSection()));
   // Compile ExportSection
   compile(Module.getExportSection());
   // StartSection is not required to compile
@@ -6165,8 +6208,13 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       Context->Globals.push_back(Type);
       break;
     }
-    default:
+    case ExternalType::Tag: // Tag type
+    {
+      // TODO: EXCEPTION - implement the AOT.
       break;
+    }
+    default:
+      assumingUnreachable();
     }
   }
 }
@@ -6187,15 +6235,13 @@ void Compiler::compile(const AST::MemorySection &,
 void Compiler::compile(const AST::TableSection &,
                        const AST::ElementSection &) noexcept {}
 
-void Compiler::compile(const AST::FunctionSection &FuncSec,
-                       const AST::CodeSection &CodeSec) noexcept {
+Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
+                               const AST::CodeSection &CodeSec) noexcept {
   const auto &TypeIdxs = FuncSec.getContent();
   const auto &CodeSegs = CodeSec.getContent();
-  if (TypeIdxs.size() == 0 || CodeSegs.size() == 0) {
-    return;
-  }
+  assuming(TypeIdxs.size() == CodeSegs.size());
 
-  for (size_t I = 0; I < TypeIdxs.size() && I < CodeSegs.size(); ++I) {
+  for (size_t I = 0; I < CodeSegs.size(); ++I) {
     const auto &TypeIdx = TypeIdxs[I];
     const auto &Code = CodeSegs[I];
     assuming(TypeIdx < Context->CompositeTypes.size());
@@ -6234,9 +6280,10 @@ void Compiler::compile(const AST::FunctionSection &FuncSec,
                         Conf.getStatisticsConfigure().isInstructionCounting(),
                         Conf.getStatisticsConfigure().isCostMeasuring());
     auto Type = Context->resolveBlockType(T);
-    FC.compile(*Code, std::move(Type));
+    EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
     F.Fn.eliminateUnreachableBlocks();
   }
+  return {};
 }
 
 } // namespace LLVM

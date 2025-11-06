@@ -30,21 +30,21 @@ struct DriverToolOptions {
             "Enable reactor mode. Reactor mode calls `_initialize` if exported."sv)),
         Dir(PO::Description(
                 "Binding directories into WASI virtual filesystem. Each "
-                "directory "
-                "can be specified as --dir `host_path`. You can also map a "
-                "guest "
-                "directory to a host directory by --dir "
-                "`guest_path:host_path`, "
-                "where `guest_path` specifies the path that will correspond to "
-                "`host_path` for calls like `fopen` in the guest."
-                "The default permission is `readwrite`, however, you can use "
-                "--dir `guest_path:host_path:readonly` to make the mapping "
-                "directory become a read only mode."sv),
+                "directory can be specified as --dir `host_path`. You can also "
+                "map a guest directory to a host directory by --dir "
+                "`guest_path:host_path`, where `guest_path` specifies the path "
+                "that will correspond to `host_path` for calls like `fopen` in "
+                "the guest. The default permission is `readwrite`, however, "
+                "you can use --dir `guest_path:host_path:readonly` to make the "
+                "mapping directory become a read only mode."sv),
             PO::MetaVar("PREOPEN_DIRS"sv)),
         Env(PO::Description(
-                "Environ variables. Each variable can be specified as --env `NAME=VALUE`."sv),
+                "Environ variables. Each variable can be specified as --env "
+                "`NAME=VALUE`."sv),
             PO::MetaVar("ENVS"sv)),
-        PropAFUNIX(PO::Description("Enable UNIX domain sockets"sv)),
+        PropWASM1(PO::Description("Set as WASM 1.0 standard."sv)),
+        PropWASM2(PO::Description("Set as WASM 2.0 standard."sv)),
+        PropWASM3(PO::Description("Set as WASM 3.0 standard (default)."sv)),
         PropMutGlobals(PO::Description(
             "Disable Import/Export of mutable globals proposal"sv)),
         PropNonTrapF2IConvs(PO::Description(
@@ -56,16 +56,18 @@ struct DriverToolOptions {
             PO::Description("Disable Bulk memory operations proposal"sv)),
         PropRefTypes(PO::Description("Disable Reference types proposal"sv)),
         PropSIMD(PO::Description("Disable SIMD proposal"sv)),
-        PropTailCall(PO::Description("Enable Tail-call proposal"sv)),
-        PropExtendConst(PO::Description("Enable Extended-const proposal"sv)),
+        PropTailCall(PO::Description("Disable Tail-call proposal"sv)),
+        PropExtendConst(PO::Description("Disable Extended-const proposal"sv)),
         PropFunctionReference(
-            PO::Description("Enable Function Reference proposal"sv)),
-        PropGC(PO::Description("Enable GC proposal, this is experimental"sv)),
-        PropMultiMem(PO::Description("Enable Multiple memories proposal"sv)),
-        PropThreads(PO::Description("Enable Threads proposal"sv)),
-        PropRelaxedSIMD(PO::Description("Enable Relaxed SIMD proposal"sv)),
+            PO::Description("Disable Function Reference proposal"sv)),
+        PropGC(PO::Description("Disable GC proposal"sv)),
+        PropMultiMem(PO::Description("Disable Multiple memories proposal"sv)),
+        PropRelaxedSIMD(PO::Description("Disable Relaxed SIMD proposal"sv)),
         PropExceptionHandling(
-            PO::Description("Enable Exception handling proposal"sv)),
+            PO::Description("Disable Exception handling proposal"sv)),
+        // TODO: MEMORY64 - enable the option.
+        // PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
+        PropThreads(PO::Description("Disable Threads proposal"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
         PropAll(PO::Description("Enable all features"sv)),
@@ -76,7 +78,8 @@ struct DriverToolOptions {
         ConfEnableTimeMeasuring(PO::Description(
             "Enable generating code for counting time during execution."sv)),
         ConfEnableAllStatistics(PO::Description(
-            "Enable generating code for all statistics options include instruction counting, gas measuring, and execution time"sv)),
+            "Enable generating code for all statistics options include "
+            "instruction counting, gas measuring, and execution time"sv)),
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
         ConfEnableCoredump(PO::Description(
@@ -85,17 +88,22 @@ struct DriverToolOptions {
             PO::Description("Enable coredump for wasm-gdb to debug"sv)),
         ConfForceInterpreter(
             PO::Description("Forcibly run WASM in interpreter mode."sv)),
+        ConfAFUNIX(PO::Description("Enable UNIX domain sockets"sv)),
         TimeLim(
             PO::Description(
-                "Limitation of maximum time(in milliseconds) for execution, default value is 0 for no limitations"sv),
+                "Limitation of maximum time(in milliseconds) for execution, "
+                "default value is 0 for no limitations"sv),
             PO::MetaVar("TIMEOUT"sv), PO::DefaultValue<uint64_t>(0)),
         GasLim(
             PO::Description(
-                "Limitation of execution gas. Upper bound can be specified as --gas-limit `GAS_LIMIT`."sv),
+                "Limitation of execution gas. Upper bound can be specified as "
+                "--gas-limit `GAS_LIMIT`."sv),
             PO::MetaVar("GAS_LIMIT"sv)),
         MemLim(
             PO::Description(
-                "Limitation of pages(as size of 64 KiB) in every memory instance. Upper bound can be specified as --memory-page-limit `PAGE_COUNT`."sv),
+                "Limitation of pages(as size of 64 KiB) in every memory "
+                "instance. Upper bound can be specified as --memory-page-limit "
+                "`PAGE_COUNT`."sv),
             PO::MetaVar("PAGE_COUNT"sv)),
         ForbiddenPlugins(PO::Description("List of plugins to ignore."sv),
                          PO::MetaVar("NAMES"sv)) {}
@@ -105,7 +113,9 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> Reactor;
   PO::List<std::string> Dir;
   PO::List<std::string> Env;
-  PO::Option<PO::Toggle> PropAFUNIX;
+  PO::Option<PO::Toggle> PropWASM1;
+  PO::Option<PO::Toggle> PropWASM2;
+  PO::Option<PO::Toggle> PropWASM3;
   PO::Option<PO::Toggle> PropMutGlobals;
   PO::Option<PO::Toggle> PropNonTrapF2IConvs;
   PO::Option<PO::Toggle> PropSignExtendOps;
@@ -118,9 +128,11 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropFunctionReference;
   PO::Option<PO::Toggle> PropGC;
   PO::Option<PO::Toggle> PropMultiMem;
-  PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropRelaxedSIMD;
   PO::Option<PO::Toggle> PropExceptionHandling;
+  // TODO: MEMORY64 - enable the option.
+  // PO::Option<PO::Toggle> PropMemory64;
+  PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
@@ -131,6 +143,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> ConfEnableCoredump;
   PO::Option<PO::Toggle> ConfCoredumpWasmgdb;
   PO::Option<PO::Toggle> ConfForceInterpreter;
+  PO::Option<PO::Toggle> ConfAFUNIX;
   PO::Option<uint64_t> TimeLim;
   PO::List<int> GasLim;
   PO::List<int> MemLim;
@@ -151,6 +164,10 @@ struct DriverToolOptions {
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
         .add_option("force-interpreter"sv, ConfForceInterpreter)
+        .add_option("allow-af-unix"sv, ConfAFUNIX)
+        .add_option("wasm-1"sv, PropWASM1)
+        .add_option("wasm-2"sv, PropWASM2)
+        .add_option("wasm-3"sv, PropWASM3)
         .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
         .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
         .add_option("disable-sign-extension-operators"sv, PropSignExtendOps)
@@ -158,15 +175,16 @@ struct DriverToolOptions {
         .add_option("disable-bulk-memory"sv, PropBulkMemOps)
         .add_option("disable-reference-types"sv, PropRefTypes)
         .add_option("disable-simd"sv, PropSIMD)
-        .add_option("allow-af-unix"sv, PropAFUNIX)
-        .add_option("enable-tail-call"sv, PropTailCall)
-        .add_option("enable-extended-const"sv, PropExtendConst)
-        .add_option("enable-function-reference"sv, PropFunctionReference)
-        .add_option("enable-gc"sv, PropGC)
-        .add_option("enable-multi-memory"sv, PropMultiMem)
-        .add_option("enable-threads"sv, PropThreads)
-        .add_option("enable-relaxed-simd"sv, PropRelaxedSIMD)
-        .add_option("enable-exception-handling"sv, PropExceptionHandling)
+        .add_option("disable-tail-call"sv, PropTailCall)
+        .add_option("disable-extended-const"sv, PropExtendConst)
+        .add_option("disable-function-reference"sv, PropFunctionReference)
+        .add_option("disable-gc"sv, PropGC)
+        .add_option("disable-multi-memory"sv, PropMultiMem)
+        .add_option("disable-relaxed-simd"sv, PropRelaxedSIMD)
+        .add_option("disable-exception-handling"sv, PropExceptionHandling)
+        // TODO: MEMORY64 - enable the option.
+        // .add_option("disable-memory64"sv, PropMemory64)
+        .add_option("disable-threads"sv, PropThreads)
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)

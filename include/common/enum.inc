@@ -133,10 +133,10 @@ O(Block, "block", 0x02)
 O(Loop, "loop", 0x03)
 O(If, "if", 0x04)
 O(Else, "else", 0x05)
-O(Try, "try", 0x06)     // For legacy EH proposal
-O(Catch, "catch", 0x07) // For legacy EH proposal
+// 0x06: Reserved (previous "try" for old EH proposal)
+// 0x07: Reserved (previous "catch" for old EH proposal)
 O(Throw, "throw", 0x08)
-O(Rethrow, "rethrow", 0x09) // For legacy EH proposal
+// 0x09: Reserved (previous "rethrow" for old EH proposal)
 O(Throw_ref, "throw_ref", 0x0A)
 O(End, "end", 0x0B)
 O(Br, "br", 0x0C)
@@ -151,8 +151,8 @@ O(Call_ref, "call_ref", 0x14)
 O(Return_call_ref, "return_call_ref", 0x15)
 // 0x16: Reserved
 // 0x17: Reserved
-O(Delegate, "delegate", 0x18)   // For legacy EH proposal
-O(Catch_all, "catch_all", 0x19) // For legacy EH proposal
+// 0x18: Reserved (previous "delegate" for old EH proposal)
+// 0x19: Reserved (previous "catch_all" for old EH proposal)
 
 // Parametric Instructions
 O(Drop, "drop", 0x1A)
@@ -782,17 +782,26 @@ OFE(I64__atomic__rmw32__cmpxchg_u, "i64.atomic.rmw32.cmpxchg_u", 0xFE, 78)
 
 // enum_configure.h
 
+#ifdef UseStandard
+#define S Line
+S(WASM_1)
+S(WASM_2)
+S(WASM_3)
+#undef S
+#endif // UseStandard
+
 #ifdef UseProposal
 #define P Line
-// Finished and standardized proposals
+// Proposals of WASM 1.0
 P(ImportExportMutGlobals, "Import/Export of Mutable Globals")
+// Proposals of WASM 2.0
 P(NonTrapFloatToIntConversions, "Non-trapping float-to-int Conversions")
 P(SignExtensionOperators, "Sign-extension Operators")
 P(MultiValue, "Multi-value")
 P(BulkMemoryOperations, "Bulk Memory Operations")
 P(ReferenceTypes, "Reference Types")
 P(SIMD, "Fixed-width SIMD")
-// Phase 5 proposals
+// Proposals of WASM 3.0
 P(TailCall, "Tail Call")
 P(ExtendedConst, "Extended Const Expressions")
 P(FunctionReferences, "Typed Function References")
@@ -800,10 +809,10 @@ P(GC, "Garbage Collection")
 P(MultiMemories, "Multiple Memories")
 P(RelaxSIMD, "Relaxed SIMD")
 P(Annotations, "Custom Annotation Syntax in the Text Format")
-// Phase 4 proposals
-P(Threads, "Threads")
 P(ExceptionHandling, "Exception Handling")
 P(Memory64, "Memory64")
+// Phase 4 proposals
+P(Threads, "Threads")
 // Phase 1 proposals
 P(Component, "Component Model")
 #undef P
@@ -854,8 +863,10 @@ E(SetValueToConst, 0x000A, "set value into const")
 E(SetValueErrorType, 0x000B, "set value type mismatch")
 // User defined error
 E(UserDefError, 0x000C, "user defined error code")
+// Invalid AOT Configure
+E(InvalidAOTConfigure, 0x000D, "invalid AOT/JIT configure")
 // Invalid Configure
-E(InvalidConfigure, 0x000D, "invalid configure")
+E(AOTNotImpl, 0x000E, "Not implemented instructions in AOT/JIT")
 
 // Load phase
 // @{
@@ -915,10 +926,12 @@ E(ENDCodeExpected, 0x0118, "END opcode expected")
 E(IllegalGrammar, 0x0119, "invalid wasm grammar")
 // Intrinsics table not found
 E(IntrinsicsTableNotFound, 0x011A, "intrinsics table not found")
-// Malformed table (Ref-types proposal)
+// Malformed table (Func-ref proposal)
 E(MalformedTable, 0x011B, "malformed table")
-// Alignment must < 64 without and < 128 with multi-memory proposal.
+// Alignment flag >= 128 (Multi-mem proposal).
 E(MalformedMemoryOpFlags, 0x011C, "malformed memop flags")
+// Malformed limit flag (Mem64 proposal).
+E(MalformedLimitFlags, 0x011D, "malformed limits flags")
 // @}
 
 // Component model load phase
@@ -990,20 +1003,20 @@ E(ConstExprRequired, 0x020F, "constant expression required")
 // Export name conflicted
 E(DupExportName, 0x0210, "duplicate export name")
 // Tried to store to const global value
-E(ImmutableGlobal, 0x0211, "global is immutable")
+E(ImmutableGlobal, 0x0211, "immutable global")
 // Tried to store to const field of structure
-E(ImmutableField, 0x0212, "field is immutable")
+E(ImmutableField, 0x0212, "immutable field")
 // Tried to store to const array
-E(ImmutableArray, 0x0213, "array is immutable")
+E(ImmutableArray, 0x0213, "immutable array")
 // Invalid result arity in select t* instruction
 E(InvalidResultArity, 0x0214, "invalid result arity")
 // #Tables > 1 (without Ref-types proposal)
 E(MultiTables, 0x0215, "multiple tables")
-// #Memories > 1
+// #Memories > 1 (without Multi-mem proposal)
 E(MultiMemories, 0x0216, "multiple memories")
 // Invalid Limit grammar
 E(InvalidLimit, 0x0217, "size minimum must not be greater than maximum")
-// Memory pages > 65536
+// Memory pages > 2^16 (without Mem64 proposal)
 E(InvalidMemPages, 0x0218, "memory size must be at most 65536 pages (4GiB)")
 // Invalid start function signature
 E(InvalidStartFunc, 0x0219, "start function")
@@ -1035,6 +1048,8 @@ E(InvalidSubType, 0x0225, "sub type")
 E(InvalidTagResultType, 0x0226, "non-empty tag result type")
 // Shared memory must have max
 E(SharedMemoryNoMax, 0x0227, "shared memory must have maximum")
+// Memory pages > 2^32 (Mem64 proposal)
+E(InvalidMemPages64, 0x0228, "memory size")
 // @}
 
 // Component model validation phase
@@ -1219,6 +1234,7 @@ T(F64, 0x7C, "f64")                // -0x04 for number type
 T(V128, 0x7B, "v128")              // -0x05 for vector type
 T(I8, 0x78, "i8")                  // -0x08 for packed type
 T(I16, 0x77, "i16")                // -0x09 for packed type
+T(NullExnRef, 0x74, "noexn")       // -0x0C for heap type
 T(NullFuncRef, 0x73, "nofunc")     // -0x0D for heap type
 T(NullExternRef, 0x72, "noextern") // -0x0E for heap type
 T(NullRef, 0x71, "none")           // -0x0F for heap type

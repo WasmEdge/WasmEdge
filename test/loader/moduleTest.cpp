@@ -75,9 +75,8 @@ TEST(ModuleTest, LoadModule) {
 }
 
 TEST(ModuleTest, LoadDataCountSecModule) {
-  Conf.removeProposal(WasmEdge::Proposal::BulkMemoryOperations);
-  Conf.removeProposal(WasmEdge::Proposal::ReferenceTypes);
-  WasmEdge::Loader::Loader LdrNoRefType(Conf);
+  Conf.setWASMStandard(WasmEdge::Standard::WASM_1);
+  WasmEdge::Loader::Loader LdrWASM1(Conf);
   std::vector<uint8_t> Vec;
 
   // 5. Test load module with invalid datacount section without proposals.
@@ -87,7 +86,7 @@ TEST(ModuleTest, LoadDataCountSecModule) {
       0x0CU, 0x01U, 0x01U,              // DataCount section
       0x0BU, 0x03U, 0x01U, 0x01U, 0x00U // Data section
   };
-  EXPECT_FALSE(LdrNoRefType.parseModule(Vec));
+  EXPECT_FALSE(LdrWASM1.parseModule(Vec));
 
   // 6. Test load module with invalid datacount section.
   Vec = {

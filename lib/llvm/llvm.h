@@ -2555,7 +2555,11 @@ LLVMOrcLLJITBuilderRef OrcLLJIT::getBuilder() noexcept {
       Builder,
       [](void *, LLVMOrcExecutionSessionRef ES, const char *) noexcept {
         auto Layer = std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
-            *unwrap(ES), []() { return std::make_unique<Win64EHManager>(); });
+            *unwrap(ES), [](
+#if LLVM_VERSION_MAJOR >= 21
+                             const llvm::MemoryBuffer &
+#endif
+                         ) { return std::make_unique<Win64EHManager>(); });
         Layer->setOverrideObjectFlagsWithResponsibilityFlags(true);
         Layer->setAutoClaimResponsibilityForObjectSymbols(true);
         return wrap(static_cast<llvm::orc::ObjectLayer *>(Layer.release()));

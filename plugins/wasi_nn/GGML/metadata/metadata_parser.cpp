@@ -34,7 +34,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   double PrevPresencePenalty = GraphRef.Params.sampling.penalty_present;
   double PrevFrequencyPenalty = GraphRef.Params.sampling.penalty_freq;
   std::string PrevGrammar = GraphRef.Params.sampling.grammar;
-  uint64_t PrevSeed = GraphRef.Params.sampling.seed;
+  uint32_t PrevSeed = GraphRef.Params.sampling.seed;
 
   try {
     parseJsonAuto(Doc, "enable-log", GraphRef.EnableLog);
@@ -268,7 +268,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
               json_schema_to_grammar(nlohmann::ordered_json::parse(JsonSchema));
           return true;
         });
-    parseJsonWithCastAuto<uint64_t>(Doc, "seed", GraphRef.Params.sampling.seed);
+    parseJsonWithCastAuto<int64_t>(Doc, "seed", GraphRef.Params.sampling.seed);
 
     // The speculative parameters.
     parseJsonWithCastAuto<int64_t>(Doc, "n-ctx-speculative",

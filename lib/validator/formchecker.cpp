@@ -297,6 +297,9 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       case TypeCode::NullExternRef:
       case TypeCode::ExternRef:
         return TypeCode::ExternRef;
+      case TypeCode::NullExnRef:
+      case TypeCode::ExnRef:
+        return TypeCode::ExnRef;
       case TypeCode::NullRef:
       case TypeCode::AnyRef:
       case TypeCode::EqRef:

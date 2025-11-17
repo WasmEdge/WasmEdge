@@ -309,25 +309,6 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
-Expect<std::vector<std::pair<ValInterface, ValType>>>
-VM::unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
-                  std::string_view Func, Span<const ValInterface> Params,
-                  Span<const ValType> ParamTypes) {
-  // Find exported function by name.
-  Runtime::Instance::Component::FunctionInstance *FuncInst =
-      CompInst->findFunction(Func);
-
-  // Execute function.
-  return ExecutorEngine.invoke(FuncInst, Params, ParamTypes)
-      .map_error([&CompInst, &Func](auto E) {
-        if (E != ErrCode::Value::Terminated) {
-          spdlog::error(
-              ErrInfo::InfoExecuting(CompInst->getComponentName(), Func));
-        }
-        return E;
-      });
-}
-
 Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
 VM::asyncRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                      Span<const ValVariant> Params,
@@ -519,32 +500,6 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
   return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
 }
 
-Expect<std::vector<std::pair<ValInterface, ValType>>>
-VM::unsafeExecute(std::string_view Func, Span<const ValInterface> Params,
-                  Span<const ValType> ParamTypes) {
-  if (unlikely(!ActiveCompInst)) {
-    spdlog::error(ErrCode::Value::WrongInstanceAddress);
-    spdlog::error(ErrInfo::InfoExecuting("When invoking"sv, Func));
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
-  }
-  return unsafeExecute(ActiveCompInst.get(), Func, Params, ParamTypes);
-}
-
-Expect<std::vector<std::pair<ValInterface, ValType>>>
-VM::unsafeExecute(std::string_view CompName, std::string_view Func,
-                  Span<const ValInterface> Params,
-                  Span<const ValType> ParamTypes) {
-  // Find module instance by name.
-  const auto *FindCompInst = StoreRef.findComponent(CompName);
-  if (unlikely(!FindCompInst)) {
-    spdlog::error(ErrCode::Value::WrongInstanceAddress);
-    spdlog::error(ErrInfo::InfoExecuting(CompName, Func));
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
-  }
-  // Execute function and return values with the component instance.
-  return unsafeExecute(FindCompInst, Func, Params, ParamTypes);
-}
-
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(std::string_view ModName, std::string_view Func,
                   Span<const ValVariant> Params,
@@ -560,6 +515,33 @@ VM::unsafeExecute(std::string_view ModName, std::string_view Func,
   return unsafeExecute(FindModInst, Func, Params, ParamTypes);
 }
 
+Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+VM::unsafeExecuteComponent(std::string_view Func,
+                           Span<const ComponentValVariant> Params,
+                           Span<const ComponentValType> ParamTypes) {
+  if (unlikely(!ActiveCompInst)) {
+    spdlog::error(ErrCode::Value::WrongInstanceAddress);
+    spdlog::error(ErrInfo::InfoExecuting("When invoking"sv, Func));
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
+  }
+  return unsafeExecuteComponent(ActiveCompInst.get(), Func, Params, ParamTypes);
+}
+
+Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+VM::unsafeExecuteComponent(std::string_view CompName, std::string_view Func,
+                           Span<const ComponentValVariant> Params,
+                           Span<const ComponentValType> ParamTypes) {
+  // Find module instance by name.
+  const auto *FindCompInst = StoreRef.findComponent(CompName);
+  if (unlikely(!FindCompInst)) {
+    spdlog::error(ErrCode::Value::WrongInstanceAddress);
+    spdlog::error(ErrInfo::InfoExecuting(CompName, Func));
+    return Unexpect(ErrCode::Value::WrongInstanceAddress);
+  }
+  // Execute function and return values with the component instance.
+  return unsafeExecuteComponent(FindCompInst, Func, Params, ParamTypes);
+}
+
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
                   std::string_view Func, Span<const ValVariant> Params,
@@ -573,6 +555,26 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
       .map_error([&ModInst, &Func](auto E) {
         if (E != ErrCode::Value::Terminated) {
           spdlog::error(ErrInfo::InfoExecuting(ModInst->getModuleName(), Func));
+        }
+        return E;
+      });
+}
+
+Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+VM::unsafeExecuteComponent(const Runtime::Instance::ComponentInstance *CompInst,
+                           std::string_view Func,
+                           Span<const ComponentValVariant> Params,
+                           Span<const ComponentValType> ParamTypes) {
+  // Find exported function by name.
+  Runtime::Instance::Component::FunctionInstance *FuncInst =
+      CompInst->findFunction(Func);
+
+  // Execute function.
+  return ExecutorEngine.invoke(FuncInst, Params, ParamTypes)
+      .map_error([&CompInst, &Func](auto E) {
+        if (E != ErrCode::Value::Terminated) {
+          spdlog::error(
+              ErrInfo::InfoExecuting(CompInst->getComponentName(), Func));
         }
         return E;
       });
@@ -604,24 +606,26 @@ VM::asyncExecute(std::string_view ModName, std::string_view Func,
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
-VM::asyncExecute(std::string_view Func, Span<const ValInterface> Params,
-                 Span<const ValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValInterface, ValType>>> (VM::*FPtr)(
-      std::string_view, Span<const ValInterface>, Span<const ValType>) =
-      &VM::execute;
+Async<Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>>
+VM::asyncExecuteComponent(std::string_view Func,
+                          Span<const ComponentValVariant> Params,
+                          Span<const ComponentValType> ParamTypes) {
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>> (
+      VM::*FPtr)(std::string_view, Span<const ComponentValVariant>,
+                 Span<const ComponentValType>) = &VM::executeComponent;
   return {FPtr, *this, std::string(Func),
           std::vector(Params.begin(), Params.end()),
           std::vector(ParamTypes.begin(), ParamTypes.end())};
 }
 
-Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
-VM::asyncExecute(std::string_view CompName, std::string_view Func,
-                 Span<const ValInterface> Params,
-                 Span<const ValType> ParamTypes) {
-  Expect<std::vector<std::pair<ValInterface, ValType>>> (VM::*FPtr)(
-      std::string_view, std::string_view, Span<const ValInterface>,
-      Span<const ValType>) = &VM::execute;
+Async<Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>>
+VM::asyncExecuteComponent(std::string_view CompName, std::string_view Func,
+                          Span<const ComponentValVariant> Params,
+                          Span<const ComponentValType> ParamTypes) {
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>> (
+      VM::*FPtr)(std::string_view, std::string_view,
+                 Span<const ComponentValVariant>,
+                 Span<const ComponentValType>) = &VM::executeComponent;
   return {FPtr,
           *this,
           std::string(CompName),
@@ -665,8 +669,21 @@ VM::unsafeGetFunctionList() const {
         Map.emplace_back(Func.first, FuncType);
       }
     });
-  } else if (ActiveCompInst) {
-    return ActiveCompInst->getFuncExports();
+  }
+  return Map;
+}
+
+std::vector<std::pair<std::string, const AST::Component::FuncType &>>
+VM::unsafeGetComponentFunctionList() const {
+  std::vector<std::pair<std::string, const AST::Component::FuncType &>> Map;
+  if (ActiveCompInst) {
+    ActiveCompInst->getFuncExports([&](const auto &FuncExports) {
+      Map.reserve(FuncExports.size());
+      for (auto &&Func : FuncExports) {
+        const auto &FuncType = (Func.second)->getFuncType();
+        Map.emplace_back(Func.first, FuncType);
+      }
+    });
   }
   return Map;
 }

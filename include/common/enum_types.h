@@ -42,4 +42,13 @@ enum WasmEdge_ExternalType {
 #undef UseExternalType
 };
 
+/// Component Model Type code C enumeration.
+enum WasmEdge_ComponentTypeCode {
+#define UseComponentTypeCode
+#define Line(NAME, VALUE, STRING) WasmEdge_ComponentTypeCode_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentTypeCode
+};
+
 #endif // WASMEDGE_C_API_ENUM_TYPES_H

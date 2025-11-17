@@ -207,44 +207,43 @@ Executor::asyncInvoke(const Runtime::Instance::FunctionInstance *FuncInst,
 }
 
 /// Invoke component function. See "include/executor/executor.h".
-Expect<std::vector<std::pair<ValInterface, ValType>>>
+Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
 Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
-                 Span<const ValInterface> Params,
-                 Span<const ValType> ParamTypes) {
-  // NOTE: due to internal reason, we accept the multi-return values, but in
-  // fact a component function will only return at most one. This concept
-  // mismatching should be fix in the future.
+                 Span<const ComponentValVariant> Params,
+                 Span<const ComponentValType> ParamTypes) {
   if (unlikely(FuncInst == nullptr)) {
     spdlog::error(ErrCode::Value::FuncNotFound);
     return Unexpect(ErrCode::Value::FuncNotFound);
   }
 
   // Matching arguments and function type.
-  const auto &FuncType = FuncInst->getFuncType();
-  const auto &PTypes = FuncType.getParamTypes();
-  const auto &RTypes = FuncType.getReturnTypes();
+  // TODO: COMPONENT - type matching.
+  // const auto &FuncType = FuncInst->getFuncType();
+  // const auto PTypes = FuncType.getParamList();
 
-  Span<const WasmEdge::AST::SubType *const> TypeList = {};
-  if (!AST::TypeMatcher::matchTypes(TypeList, ParamTypes, PTypes)) {
-    spdlog::error(ErrCode::Value::FuncSigMismatch);
-    spdlog::error(ErrInfo::InfoMismatch(
-        PTypes, RTypes, std::vector(ParamTypes.begin(), ParamTypes.end()),
-        RTypes));
-    return Unexpect(ErrCode::Value::FuncSigMismatch);
+  // Convert the component params into core WASM params.
+  auto *ReallocFuncInst = FuncInst->getAllocFunction();
+  auto *MemInst = FuncInst->getMemoryInstance();
+  std::vector<ValVariant> CoreWASMArgs =
+      convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst);
+
+  // Call runFunction.
+  auto *CoreFuncInst = FuncInst->getLowerFunction();
+  assuming(CoreFuncInst);
+  const auto &CoreFuncType = CoreFuncInst->getFuncType();
+  // TODO: COMPONENT - check the ABI types between core functype and args.
+  EXPECTED_TRY(auto CoreWASMReturns, invoke(CoreFuncInst, CoreWASMArgs,
+                                            CoreFuncType.getParamTypes()));
+
+  // Get return values.
+  std::vector<ComponentValType> ReturnTypes;
+  for (const auto &Type : FuncInst->getFuncType().getResultList()) {
+    ReturnTypes.push_back(Type.getValType());
   }
-
-  auto &HostFunc = FuncInst->getHostFunc();
-  std::vector<ValInterface> Rets(RTypes.size());
-
-  EXPECTED_TRY(HostFunc.run(std::move(Params), Rets));
-
-  std::vector<std::pair<ValInterface, ValType>> R;
-  auto RType = RTypes.begin();
-  for (auto &&V : Rets) {
-    R.push_back(std::pair(V, *RType));
-    RType++;
-  }
-  return R;
+  std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns =
+      convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst);
+  assuming(Returns.size() == ReturnTypes.size());
+  return Returns;
 }
 
 } // namespace Executor

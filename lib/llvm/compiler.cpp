@@ -671,6 +671,9 @@ public:
         enterBlock(EndIf, {}, Else, std::move(Args), std::move(Type));
         return {};
       }
+      case OpCode::Try_table:
+        // TODO: EXCEPTION - implement the AOT.
+        return Unexpect(ErrCode::Value::AOTNotImpl);
       case OpCode::End: {
         auto Entry = leaveBlock();
         if (Entry.ElseBlock) {

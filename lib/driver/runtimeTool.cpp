@@ -36,15 +36,15 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
        ++I) {
     switch (FuncType.getParamTypes()[I].getCode()) {
     case TypeCode::I32: {
-      const uint32_t Value =
-          static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
+      const int32_t Value =
+          static_cast<int32_t>(std::stol(Opt.Args.value()[I + 1]));
       FuncArgs.emplace_back(Value);
       FuncArgTypes.emplace_back(TypeCode::I32);
       break;
     }
     case TypeCode::I64: {
-      const uint64_t Value =
-          static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
+      const int64_t Value =
+          static_cast<int64_t>(std::stoll(Opt.Args.value()[I + 1]));
       FuncArgs.emplace_back(Value);
       FuncArgTypes.emplace_back(TypeCode::I64);
       break;
@@ -87,10 +87,10 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     for (size_t I = 0; I < Result->size(); ++I) {
       switch ((*Result)[I].second.getCode()) {
       case TypeCode::I32:
-        fmt::print("{}\n"sv, (*Result)[I].first.get<uint32_t>());
+        fmt::print("{}\n"sv, (*Result)[I].first.get<int32_t>());
         break;
       case TypeCode::I64:
-        fmt::print("{}\n"sv, (*Result)[I].first.get<uint64_t>());
+        fmt::print("{}\n"sv, (*Result)[I].first.get<int64_t>());
         break;
       case TypeCode::F32:
         fmt::print("{}\n"sv, (*Result)[I].first.get<float>());

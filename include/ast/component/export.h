@@ -36,7 +36,7 @@ public:
   SortIndex &getSortIndex() noexcept { return SortIdx; }
   const SortIndex &getSortIndex() const noexcept { return SortIdx; }
   std::optional<ExternDesc> &getDesc() noexcept { return Desc; }
-  const std::optional<ExternDesc> getDesc() const noexcept { return Desc; }
+  const std::optional<ExternDesc> &getDesc() const noexcept { return Desc; }
 
 private:
   std::string Name;

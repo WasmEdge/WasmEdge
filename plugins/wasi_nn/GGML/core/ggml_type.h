@@ -8,6 +8,7 @@
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 #include "wasinntypes.h"
+#include <ggml.h>
 #include <list>
 #include <llama-cpp.h>
 #include <llama.h>

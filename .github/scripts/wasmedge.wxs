@@ -56,6 +56,45 @@
 			<Component Id="wasmedge.h" Guid="*">
 				<File Id="wasmedge.h" Source="build\include\api\wasmedge\wasmedge.h" KeyPath="yes" Checksum="yes"/>
 			</Component>
+			<Component Id="wasmedge_ast.h" Guid="*">
+				<File Id="wasmedge_ast.h" Source="build\include\api\wasmedge\wasmedge_ast.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_basic.h" Guid="*">
+				<File Id="wasmedge_basic.h" Source="build\include\api\wasmedge\wasmedge_basic.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_compiler.h" Guid="*">
+				<File Id="wasmedge_compiler.h" Source="build\include\api\wasmedge\wasmedge_compiler.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_configure.h" Guid="*">
+				<File Id="wasmedge_configure.h" Source="build\include\api\wasmedge\wasmedge_configure.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_context.h" Guid="*">
+				<File Id="wasmedge_context.h" Source="build\include\api\wasmedge\wasmedge_context.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_deprecated.h" Guid="*">
+				<File Id="wasmedge_deprecated.h" Source="build\include\api\wasmedge\wasmedge_deprecated.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_execution.h" Guid="*">
+				<File Id="wasmedge_execution.h" Source="build\include\api\wasmedge\wasmedge_execution.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_experimental.h" Guid="*">
+				<File Id="wasmedge_experimental.h" Source="build\include\api\wasmedge\wasmedge_experimental.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_instance.h" Guid="*">
+				<File Id="wasmedge_instance.h" Source="build\include\api\wasmedge\wasmedge_instance.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_plugin.h" Guid="*">
+				<File Id="wasmedge_plugin.h" Source="build\include\api\wasmedge\wasmedge_plugin.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_tools.h" Guid="*">
+				<File Id="wasmedge_tools.h" Source="build\include\api\wasmedge\wasmedge_tools.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_vm.h" Guid="*">
+				<File Id="wasmedge_vm.h" Source="build\include\api\wasmedge\wasmedge_vm.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
+			<Component Id="wasmedge_value.h" Guid="*">
+				<File Id="wasmedge_value.h" Source="build\include\api\wasmedge\wasmedge_value.h" KeyPath="yes" Checksum="yes"/>
+			</Component>
 		</DirectoryRef>
 
 		<DirectoryRef Id="LIBDIR">
@@ -75,6 +114,19 @@
 			<ComponentRef Id="int128.h" />
 			<ComponentRef Id="version.h" />
 			<ComponentRef Id="wasmedge.h" />
+			<ComponentRef Id="wasmedge_ast.h" />
+			<ComponentRef Id="wasmedge_basic.h" />
+			<ComponentRef Id="wasmedge_compiler.h" />
+			<ComponentRef Id="wasmedge_configure.h" />
+			<ComponentRef Id="wasmedge_context.h" />
+			<ComponentRef Id="wasmedge_deprecated.h" />
+			<ComponentRef Id="wasmedge_execution.h" />
+			<ComponentRef Id="wasmedge_experimental.h" />
+			<ComponentRef Id="wasmedge_instance.h" />
+			<ComponentRef Id="wasmedge_plugin.h" />
+			<ComponentRef Id="wasmedge_tools.h" />
+			<ComponentRef Id="wasmedge_value.h" />
+			<ComponentRef Id="wasmedge_vm.h" />
 			<ComponentRef Id="wasmedge.lib" />
 		</Feature>
 		<Feature Id="AddPath" Title="Add WasmEdge to PATH" Level="1">

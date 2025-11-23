@@ -5429,4 +5429,3 @@ TEST(WasiTest, PointerAlignment) {
     }
   }
 }
-

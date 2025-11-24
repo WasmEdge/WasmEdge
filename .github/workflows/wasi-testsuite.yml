@@ -40,7 +40,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           path: WasmEdge
       - name: Ensure git safe directory
@@ -105,7 +105,7 @@ jobs:
           echo "$Env:GITHUB_WORKSPACE\\WasmEdge\\build\\lib\\api" | Out-File -FilePath $Env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Checkout wasi-testsuite
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           repository: WebAssembly/wasi-testsuite
           ref: prod/testsuite-base

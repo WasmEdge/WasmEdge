@@ -19,7 +19,6 @@
 #include "common/errcode.h"
 #include "common/types.h"
 #include "runtime/instance/component/function.h"
-#include "runtime/instance/component/hostfunc.h"
 #include "runtime/instance/module.h"
 
 #include <atomic>
@@ -176,13 +175,13 @@ public:
   }
 
   // values stored in component instance
-  ValInterface getValue(uint32_t Index) const noexcept {
+  ComponentValVariant getValue(uint32_t Index) const noexcept {
     if (ValueList.size() > Index) {
       return ValueList[Index];
     }
     return 0;
   }
-  void setValue(uint32_t Index, ValInterface V) noexcept {
+  void setValue(uint32_t Index, ComponentValVariant V) noexcept {
     if (ValueList.size() <= Index) {
       ValueList.resize(Index + 1, 0U);
     }
@@ -208,15 +207,9 @@ public:
   findFunction(std::string_view Name) const noexcept {
     return findExport(ExpFuncInsts, Name);
   }
-  std::vector<std::pair<std::string, const AST::FunctionType &>>
-  getFuncExports() {
-    std::vector<std::pair<std::string, const AST::FunctionType &>> R;
-    R.reserve(ExpFuncInsts.size());
-    for (auto &&[Name, Func] : ExpFuncInsts) {
-      const auto &FuncType = Func->getFuncType();
-      R.emplace_back(Name, FuncType);
-    }
-    return R;
+  template <typename CallbackT>
+  auto getFuncExports(CallbackT &&CallBack) const noexcept {
+    return std::forward<CallbackT>(CallBack)(ExpFuncInsts);
   }
 
   // Index space: type.
@@ -359,7 +352,7 @@ private:
   std::string CompName;
 
   // value
-  std::vector<ValInterface> ValueList;
+  std::vector<ComponentValVariant> ValueList;
 
   // Index spaces.
   // The index spaces of AST should be cleaned after instantiation.

@@ -2,10 +2,9 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #pragma once
 
-#include "runtime/instance/component/hostfunc.h"
-
-#include "ast/type.h"
-#include "common/symbol.h"
+#include "ast/component/type.h"
+#include "runtime/instance/function.h"
+#include "runtime/instance/memory.h"
 
 #include <memory>
 
@@ -15,22 +14,47 @@ namespace Instance {
 namespace Component {
 
 class FunctionInstance {
+  // The component function instance currently can only be instantiated by the
+  // `canon lift` operation. For the component host functions, the extension may
+  // be implemented in the future.
 public:
   FunctionInstance() = delete;
   /// Move constructor.
   FunctionInstance(FunctionInstance &&Inst) noexcept
-      : FuncType(Inst.FuncType), Data(std::move(Inst.Data)) {}
+      : FuncType(Inst.FuncType), LowerFunc(Inst.LowerFunc),
+        MemInst(Inst.MemInst), ReallocFunc(Inst.ReallocFunc) {}
+  /// Constructor for component native function.
+  FunctionInstance(const AST::Component::FuncType &Type,
+                   Runtime::Instance::FunctionInstance *F,
+                   Runtime::Instance::MemoryInstance *M,
+                   Runtime::Instance::FunctionInstance *R) noexcept
+      : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R) {}
 
-  FunctionInstance(std::unique_ptr<HostFunctionBase> &&Func) noexcept
-      : FuncType(Func->getFuncType()), Data(std::move(Func)) {}
+  /// Getter of component function type.
+  const AST::Component::FuncType &getFuncType() const noexcept {
+    return FuncType;
+  }
 
-  const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
+  /// Getter of lower core function instance.
+  Runtime::Instance::FunctionInstance *getLowerFunction() const noexcept {
+    return LowerFunc;
+  }
 
-  HostFunctionBase &getHostFunc() const noexcept { return *Data; }
+  /// Getter of memory instance to value conversion.
+  Runtime::Instance::MemoryInstance *getMemoryInstance() const noexcept {
+    return MemInst;
+  }
 
-private:
-  AST::FunctionType FuncType;
-  std::unique_ptr<HostFunctionBase> Data;
+  /// Getter of allocation core function instance.
+  Runtime::Instance::FunctionInstance *getAllocFunction() const noexcept {
+    return ReallocFunc;
+  }
+
+protected:
+  const AST::Component::FuncType &FuncType;
+  Runtime::Instance::FunctionInstance *LowerFunc;
+  Runtime::Instance::MemoryInstance *MemInst;
+  Runtime::Instance::FunctionInstance *ReallocFunc;
 };
 
 } // namespace Component

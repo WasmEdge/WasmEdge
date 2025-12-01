@@ -156,13 +156,6 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       VisionContextParams.n_threads = GraphRef.Params.cpuparams.n_threads;
       VisionContextParams.print_timings =
           GraphRef.EnableLog || GraphRef.EnableDebugLog;
-      if (GraphRef.EnableDebugLog) {
-        VisionContextParams.verbosity = GGML_LOG_LEVEL_DEBUG;
-      } else if (GraphRef.EnableLog) {
-        VisionContextParams.verbosity = GGML_LOG_LEVEL_INFO;
-      } else {
-        VisionContextParams.verbosity = GGML_LOG_LEVEL_NONE;
-      }
       GraphRef.VisionContext.reset(
           mtmd_init_from_file(GraphRef.Params.mmproj.path.c_str(),
                               GraphRef.LlamaModel.get(), VisionContextParams));

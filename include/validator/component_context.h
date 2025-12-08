@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
+
 #pragma once
 
 #include "ast/component/component.h"
@@ -53,6 +54,8 @@ public:
     }
   };
 
+  void reset() noexcept { CompCtxs.clear(); }
+
   void enterComponent(const AST::Component::Component &C) noexcept {
     const Context *Parent = nullptr;
     if (!CompCtxs.empty()) {
@@ -64,9 +67,7 @@ public:
 
   void exitComponent() noexcept {
     assuming(!CompCtxs.empty());
-    if (!CompCtxs.empty()) {
-      CompCtxs.pop_back();
-    }
+    CompCtxs.pop_back();
   }
 
   Context &getCurrentContext() noexcept {

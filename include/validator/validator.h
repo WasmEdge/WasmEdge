@@ -74,6 +74,9 @@ private:
 
   /// \name Validate Component Model AST nodes
   /// @{
+  // Validate component
+  Expect<void>
+  validateComponent(const AST::Component::Component &Comp) noexcept;
   // Validate component sections
   Expect<void>
   validate(const AST::Component::CoreModuleSection &ModSec) noexcept;

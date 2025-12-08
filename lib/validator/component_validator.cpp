@@ -14,53 +14,33 @@ using namespace std::literals;
 
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
+  spdlog::warn("Component Model Validation is in active development."sv);
+  CompCtx.reset();
+  return validateComponent(Comp).and_then([&]() {
+    const_cast<AST::Component::Component &>(Comp).setIsValidated();
+    return Expect<void>{};
+  });
+}
+
+Expect<void>
+Validator::validateComponent(const AST::Component::Component &Comp) noexcept {
   auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return E;
   };
 
-  spdlog::warn("Component Model Validation is in active development."sv);
   CompCtx.enterComponent(Comp);
-  for (auto &Sec : Comp.getSections()) {
-    if (std::holds_alternative<AST::CustomSection>(Sec)) {
-      // Always pass validation.
-    } else if (std::holds_alternative<AST::Component::CoreModuleSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::CoreModuleSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::CoreInstanceSection>(
-                   Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::CoreInstanceSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::CoreTypeSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::CoreTypeSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::ComponentSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::ComponentSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::InstanceSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::InstanceSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::AliasSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::AliasSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::TypeSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::TypeSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::CanonSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::CanonSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::StartSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::StartSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::ImportSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::ImportSection>(Sec))
-                       .map_error(ReportError));
-    } else if (std::holds_alternative<AST::Component::ExportSection>(Sec)) {
-      EXPECTED_TRY(validate(std::get<AST::Component::ExportSection>(Sec))
-                       .map_error(ReportError));
-    } else {
-      assumingUnreachable();
-    }
+  for (const auto &Sec : Comp.getSections()) {
+    auto Func = [&](auto &&S) -> Expect<void> {
+      using T = std::decay_t<decltype(S)>;
+      if constexpr (std::is_same_v<T, AST::CustomSection>) {
+        // Always pass validation.
+      } else {
+        EXPECTED_TRY(validate(S).map_error(ReportError));
+      }
+      return {};
+    };
+    EXPECTED_TRY(std::visit(Func, Sec));
   }
   CompCtx.exitComponent();
   return {};
@@ -73,6 +53,7 @@ Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
     return E;
   }));
   CompCtx.incCoreSortIndexSize(AST::Component::Sort::CoreSortType::Module);
+  const_cast<AST::Module &>(ModSec.getContent()).setIsValidated();
   CompCtx.addCoreModule(ModSec.getContent());
   return {};
 }
@@ -101,7 +82,7 @@ Validator::validate(const AST::Component::CoreTypeSection &TypeSec) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ComponentSection &CompSec) noexcept {
-  EXPECTED_TRY(validate(CompSec.getContent()).map_error([](auto E) {
+  EXPECTED_TRY(validateComponent(CompSec.getContent()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Component));
     return E;
   }));

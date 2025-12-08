@@ -11,22 +11,10 @@ namespace {
 
 using namespace WasmEdge;
 
-template <typename T> void assertOk(Expect<T> Res, const char *Message) {
-  if (!Res) {
-    EXPECT_TRUE(false) << Message;
-  }
-}
-
-template <typename T> void assertFail(Expect<T> Res, const char *Message) {
-  if (Res) {
-    FAIL() << Message;
-  }
-}
-
 TEST(Component, LoadAndValidate_TestWasm) {
   Configure Conf;
   Conf.addProposal(Proposal::Component);
-  VM::VM VM{Conf};
+  VM::VM VM(Conf);
 
   std::vector<uint8_t> Vec = {
       0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // WASM preamble
@@ -80,10 +68,9 @@ TEST(Component, LoadAndValidate_TestWasm) {
       0x31, // Custom section
   };
 
-  assertOk(VM.loadWasm(Vec), "failed to load component binary");
-
+  ASSERT_TRUE(VM.loadWasm(Vec));
   // TODO: Fix this for the validator.
-  // assertOk(VM.validate(), "failed to validate");
+  // ASSERT_TRUE(VM.validate());
 }
 
 TEST(ComponentValidatorTest, MissingArgument) {
@@ -119,8 +106,7 @@ TEST(ComponentValidatorTest, MissingArgument) {
   Configure Conf;
   Conf.addProposal(Proposal::Component);
   Validator::Validator Validator(Conf);
-  assertFail(Validator.validate(Comp),
-             "Validation should fail due to missing argument 'f'");
+  ASSERT_FALSE(Validator.validate(Comp));
 }
 
 TEST(ComponentValidatorTest, TypeMismatch) {
@@ -156,8 +142,7 @@ TEST(ComponentValidatorTest, TypeMismatch) {
 
   WasmEdge::Configure Conf;
   WasmEdge::Validator::Validator Validator(Conf);
-  assertFail(Validator.validate(Comp),
-             "Validation should fail due to type mismatch");
+  ASSERT_FALSE(Validator.validate(Comp));
 }
 
 } // namespace

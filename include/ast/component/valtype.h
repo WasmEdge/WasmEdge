@@ -68,6 +68,7 @@ enum class PrimValType : uint8_t {
 class LabelValType {
 public:
   LabelValType() noexcept = default;
+  LabelValType(const ComponentValType &VT) noexcept : Label(""), ValTy(VT) {}
   LabelValType(const std::string &L, const ComponentValType &VT) noexcept
       : Label(L), ValTy(VT) {}
 

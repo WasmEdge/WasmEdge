@@ -155,13 +155,6 @@ public:
     return unsafeExecute(Func, Params, ParamTypes);
   }
 
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
-  execute(std::string_view Func, Span<const ValInterface> Params,
-          Span<const ValType> ParamTypes) {
-    std::shared_lock Lock(Mutex);
-    return unsafeExecute(Func, Params, ParamTypes);
-  }
-
   /// Execute function of registered module with given input.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view ModName, std::string_view Func,
@@ -171,12 +164,22 @@ public:
     return unsafeExecute(ModName, Func, Params, ParamTypes);
   }
 
-  /// Execute function of registered component with given input.
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
-  execute(std::string_view CompName, std::string_view Func,
-          Span<const ValInterface> Params, Span<const ValType> ParamTypes) {
+  /// Execute component function with given input.
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  executeComponent(std::string_view Func,
+                   Span<const ComponentValVariant> Params = {},
+                   Span<const ComponentValType> ParamTypes = {}) {
     std::shared_lock Lock(Mutex);
-    return unsafeExecute(CompName, Func, Params, ParamTypes);
+    return unsafeExecuteComponent(Func, Params, ParamTypes);
+  }
+
+  /// Execute function of registered component with given input.
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  executeComponent(std::string_view CompName, std::string_view Func,
+                   Span<const ComponentValVariant> Params = {},
+                   Span<const ComponentValType> ParamTypes = {}) {
+    std::shared_lock Lock(Mutex);
+    return unsafeExecuteComponent(CompName, Func, Params, ParamTypes);
   }
 
   /// Asynchronous execute wasm with given input.
@@ -190,15 +193,17 @@ public:
                Span<const ValVariant> Params = {},
                Span<const ValType> ParamTypes = {});
 
-  /// Asynchronous execute wasm with given input.
-  Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
-  asyncExecute(std::string_view Func, Span<const ValInterface> Params,
-               Span<const ValType> ParamTypes);
+  /// Asynchronous execute component function with given input.
+  Async<Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>>
+  asyncExecuteComponent(std::string_view Func,
+                        Span<const ComponentValVariant> Params = {},
+                        Span<const ComponentValType> ParamTypes = {});
 
   /// Asynchronous execute function of registered component with given input.
-  Async<Expect<std::vector<std::pair<ValInterface, ValType>>>>
-  asyncExecute(std::string_view ModName, std::string_view Func,
-               Span<const ValInterface> Params, Span<const ValType> ParamTypes);
+  Async<Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>>
+  asyncExecuteComponent(std::string_view ModName, std::string_view Func,
+                        Span<const ComponentValVariant> Params = {},
+                        Span<const ComponentValType> ParamTypes = {});
 
   /// Stop execution
   void stop() noexcept { ExecutorEngine.stop(); }
@@ -215,6 +220,13 @@ public:
   getFunctionList() const {
     std::shared_lock Lock(Mutex);
     return unsafeGetFunctionList();
+  }
+
+  /// Get list of callable component functions and corresponding function types.
+  std::vector<std::pair<std::string, const AST::Component::FuncType &>>
+  getComponentFunctionList() const {
+    std::shared_lock Lock(Mutex);
+    return unsafeGetComponentFunctionList();
   }
 
   /// Get pre-registered module instance by configuration.
@@ -292,19 +304,23 @@ private:
                 Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
 
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
-  unsafeExecute(std::string_view Func, Span<const ValInterface> Params = {},
-                Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  unsafeExecuteComponent(std::string_view Func,
+                         Span<const ComponentValVariant> Params = {},
+                         Span<const ComponentValType> ParamTypes = {});
 
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
-  unsafeExecute(std::string_view Comp, std::string_view Func,
-                Span<const ValInterface> Params = {},
-                Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  unsafeExecuteComponent(std::string_view Comp, std::string_view Func,
+                         Span<const ComponentValVariant> Params = {},
+                         Span<const ComponentValType> ParamTypes = {});
 
   void unsafeCleanup();
 
   std::vector<std::pair<std::string, const AST::FunctionType &>>
   unsafeGetFunctionList() const;
+
+  std::vector<std::pair<std::string, const AST::Component::FuncType &>>
+  unsafeGetComponentFunctionList() const;
 
   Runtime::Instance::ModuleInstance *
   unsafeGetImportModule(const HostRegistration Type) const;
@@ -325,10 +341,11 @@ private:
                 std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
 
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
-  unsafeExecute(const Runtime::Instance::ComponentInstance *CompInst,
-                std::string_view Func, Span<const ValInterface> Params = {},
-                Span<const ValType> ParamTypes = {});
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
+  unsafeExecuteComponent(const Runtime::Instance::ComponentInstance *CompInst,
+                         std::string_view Func,
+                         Span<const ComponentValVariant> Params = {},
+                         Span<const ComponentValType> ParamTypes = {});
 
   /// \name VM environment.
   /// @{

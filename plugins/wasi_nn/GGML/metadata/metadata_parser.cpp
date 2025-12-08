@@ -335,14 +335,14 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithCastAuto<int64_t>(Doc, "ppl-output-type",
                                    GraphRef.Params.ppl_output_type);
     parseJsonAuto<bool>(Doc, "hellaswag", GraphRef.Params.hellaswag);
-    parseJsonWithCastAuto<uint64_t, uint64_t>(Doc, "hellaswag-tasks",
-                                              GraphRef.Params.hellaswag_tasks);
+    parseJsonWithCastAuto<uint64_t, size_t>(Doc, "hellaswag-tasks",
+                                            GraphRef.Params.hellaswag_tasks);
     parseJsonAuto<bool>(Doc, "winogrande", GraphRef.Params.winogrande);
-    parseJsonWithCastAuto<uint64_t, uint64_t>(Doc, "winogrande-tasks",
-                                              GraphRef.Params.winogrande_tasks);
+    parseJsonWithCastAuto<uint64_t, size_t>(Doc, "winogrande-tasks",
+                                            GraphRef.Params.winogrande_tasks);
     parseJsonAuto<bool>(Doc, "multiple-choice",
                         GraphRef.Params.multiple_choice);
-    parseJsonWithCastAuto<uint64_t, uint64_t>(
+    parseJsonWithCastAuto<uint64_t, size_t>(
         Doc, "multiple-choice-tasks", GraphRef.Params.multiple_choice_tasks);
     parseJsonAuto<bool>(Doc, "kl-divergence", GraphRef.Params.kl_divergence);
     parseJsonAuto<bool>(Doc, "usage", GraphRef.Params.usage);

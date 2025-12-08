@@ -190,9 +190,10 @@ public:
          Span<const ValVariant> Params, Span<const ValType> ParamTypes);
 
   /// Invoke a Component function by function instance.
-  Expect<std::vector<std::pair<ValInterface, ValType>>>
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
   invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
-         Span<const ValInterface> Params, Span<const ValType> ParamTypes);
+         Span<const ComponentValVariant> Params,
+         Span<const ComponentValType> ParamTypes);
 
   /// Asynchronous invoke a WASM function by function instance.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>

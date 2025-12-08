@@ -21,8 +21,8 @@ public:
   virtual ~HostFunctionBase() = default;
 
   /// Run host function body.
-  virtual Expect<void> run(Span<const ValInterface> Args,
-                           Span<ValInterface> Rets) = 0;
+  virtual Expect<void> run(Span<const ComponentValVariant> Args,
+                           Span<ComponentValVariant> Rets) = 0;
 
   /// Getter of function type.
   const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
@@ -33,37 +33,50 @@ protected:
 };
 
 template <typename ArgT> struct convert {
-  static ArgT run(const ValInterface &V) {
+  static ArgT run(const ComponentValVariant &V) {
     return std::get<ValVariant>(V).template get<ArgT>();
   }
 };
 template <> struct convert<bool> {
-  static bool run(const ValInterface &V) { return std::get<bool>(V); }
+  static bool run(const ComponentValVariant &V) { return std::get<bool>(V); }
 };
 template <> struct convert<uint8_t> {
-  static uint8_t run(const ValInterface &V) { return std::get<uint8_t>(V); }
+  static uint8_t run(const ComponentValVariant &V) {
+    return std::get<uint8_t>(V);
+  }
 };
 template <> struct convert<uint16_t> {
-  static uint16_t run(const ValInterface &V) { return std::get<uint16_t>(V); }
+  static uint16_t run(const ComponentValVariant &V) {
+    return std::get<uint16_t>(V);
+  }
 };
 template <> struct convert<uint32_t> {
-  static uint32_t run(const ValInterface &V) { return std::get<uint32_t>(V); }
+  static uint32_t run(const ComponentValVariant &V) {
+    return std::get<uint32_t>(V);
+  }
 };
 template <> struct convert<uint64_t> {
-  static uint64_t run(const ValInterface &V) { return std::get<uint64_t>(V); }
+  static uint64_t run(const ComponentValVariant &V) {
+    return std::get<uint64_t>(V);
+  }
 };
 template <> struct convert<int8_t> {
-  static int8_t run(const ValInterface &V) { return std::get<int8_t>(V); }
+  static int8_t run(const ComponentValVariant &V) {
+    return std::get<int8_t>(V);
+  }
 };
 template <> struct convert<int16_t> {
-  static int16_t run(const ValInterface &V) { return std::get<int16_t>(V); }
+  static int16_t run(const ComponentValVariant &V) {
+    return std::get<int16_t>(V);
+  }
 };
 
 template <> struct convert<std::string> {
-  static std::string run(const ValInterface &V) {
+  static std::string run(const ComponentValVariant &V) {
     return std::get<std::string>(V);
   }
 };
+/*
 template <typename T> struct convert<List<T>> {
   static List<T> run(const ValInterface &V) {
     auto *C = std::get<std::shared_ptr<ValComp>>(V).get();
@@ -100,38 +113,52 @@ template <typename V, typename E> struct convert<Result<V, E>> {
     return *dynamic_cast<Result<V, E> *>(C);
   }
 };
+*/
 
 template <typename ArgT> struct emplace {
-  static void run(ValInterface &V, ArgT Arg) {
+  static void run(ComponentValVariant &V, ArgT Arg) {
     std::get<ValVariant>(V).emplace<ArgT>(Arg);
   }
 };
 template <> struct emplace<bool> {
-  static void run(ValInterface &V, bool Arg) { V.emplace<bool>(Arg); }
+  static void run(ComponentValVariant &V, bool Arg) { V.emplace<bool>(Arg); }
 };
 template <> struct emplace<uint8_t> {
-  static void run(ValInterface &V, uint8_t Arg) { V.emplace<uint8_t>(Arg); }
+  static void run(ComponentValVariant &V, uint8_t Arg) {
+    V.emplace<uint8_t>(Arg);
+  }
 };
 template <> struct emplace<uint16_t> {
-  static void run(ValInterface &V, uint16_t Arg) { V.emplace<uint16_t>(Arg); }
+  static void run(ComponentValVariant &V, uint16_t Arg) {
+    V.emplace<uint16_t>(Arg);
+  }
 };
 template <> struct emplace<uint32_t> {
-  static void run(ValInterface &V, uint32_t Arg) { V.emplace<uint32_t>(Arg); }
+  static void run(ComponentValVariant &V, uint32_t Arg) {
+    V.emplace<uint32_t>(Arg);
+  }
 };
 template <> struct emplace<uint64_t> {
-  static void run(ValInterface &V, uint64_t Arg) { V.emplace<uint64_t>(Arg); }
+  static void run(ComponentValVariant &V, uint64_t Arg) {
+    V.emplace<uint64_t>(Arg);
+  }
 };
 template <> struct emplace<int8_t> {
-  static void run(ValInterface &V, int8_t Arg) { V.emplace<int8_t>(Arg); }
+  static void run(ComponentValVariant &V, int8_t Arg) {
+    V.emplace<int8_t>(Arg);
+  }
 };
 template <> struct emplace<int16_t> {
-  static void run(ValInterface &V, int16_t Arg) { V.emplace<int16_t>(Arg); }
+  static void run(ComponentValVariant &V, int16_t Arg) {
+    V.emplace<int16_t>(Arg);
+  }
 };
 template <> struct emplace<std::string> {
-  static void run(ValInterface &V, std::string Arg) {
+  static void run(ComponentValVariant &V, std::string Arg) {
     V.emplace<std::string>(Arg);
   }
 };
+/*
 template <typename T> struct emplace<List<T>> {
   static void run(ValInterface &V, List<T> Arg) {
     V.emplace<std::shared_ptr<ValComp>>(std::make_shared<List<T>>(Arg));
@@ -170,13 +197,14 @@ struct emplace<WasmEdge::Component::Variant<Types...>> {
         std::make_shared<WasmEdge::Component::Variant<Types...>>(Arg));
   }
 };
+*/
 
 template <typename T> class HostFunction : public HostFunctionBase {
 public:
   HostFunction() : HostFunctionBase() { initializeFuncType(); }
 
-  Expect<void> run(Span<const ValInterface> Args,
-                   Span<ValInterface> Rets) override {
+  Expect<void> run(Span<const ComponentValVariant> Args,
+                   Span<ComponentValVariant> Rets) override {
     using F = FuncTraits<decltype(&T::body)>;
     if (unlikely(F::ArgsN != Args.size())) {
       return Unexpect(ErrCode::Value::FuncSigMismatch);

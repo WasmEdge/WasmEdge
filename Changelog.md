@@ -1,4 +1,4 @@
-### 0.16.0-alpha.1 (2025-12-05)
+### 0.16.0-alpha.2 (2025-12-12)
 
 Features:
 
@@ -41,6 +41,11 @@ Fixed issues:
 * [ComponentModel]
   * fix(validator): correct core module handling (#4295)
   * refactor(runtime,executor): implement the import manager to correct the isolation if import scope in nested components
+  * refactor(ast): move the component value type structure to common
+  * refactor(ast): make the component function type better use
+  * refactor(common): separate the wasm and component values
+  * refactor(validator): refine the nested component entry
+  * refactor(executor): simplify the component function execution
 * [AOT]
   * fix(llvm): ignore contents of virtual sections
   * fix(llvm): fill correct null reference value
@@ -63,12 +68,14 @@ Fixed issues:
   * fix(WASI-NN,ggml): fix compiler warning on windows
   * fix(WASI-NN,ggml): fixed embedding issue (#4350)
   * fix(WASI-NN): use binary mode for binary file
+  * fix(WASI-NN,ggml): keep size_t for the type match on macOS (#4437)
 
 Tests:
 
 * test: fix ubsan warnings (#4341)
 * test: fix code to apply wasm 3.0 and new commands in spec tests
 * test(wasi): added tests for WASI host function alignment validation
+* test(component): ignore component validator tests until implementation ready
 
 Misc:
 
@@ -82,15 +89,15 @@ CI:
 
 * [dependabot]
   * ci(dependabot): bump the upload-and-download-artifact group with 2 updates
-  * ci(dependabot): bump step-security/harden-runner from 2.13.0 to 2.13.2
-  * ci(dependabot): bump actions/setup-python from 5.6.0 to 6.0.0
+  * ci(dependabot): bump step-security/harden-runner from 2.13.0 to 2.13.3
+  * ci(dependabot): bump actions/setup-python from 5.6.0 to 6.1.0
   * ci(dependabot): bump actions/github-script from 7.0.1 to 8.0.0
   * ci(dependabot): bump actions/labeler from 5.0.0 to 6.0.1
   * ci(dependabot): bump codecov/codecov-action from 5.4.3 to 5.5.1
-  * ci(dependabot): bump docker/bake-action from 6.8.0 to 6.9.0 in the docker group
+  * ci(dependabot): bump docker/bake-action from 6.8.0 to 6.10.0 in the docker group
   * ci(dependabot): bump docker/login-action from 3.4.0 to 3.6.0 in the docker group
-  * ci(dependabot): bump actions/checkout from 4.2.2 to 6.0.0
-  * ci(dependabot): bump github/codeql-action from 3.29.3 to 4.31.5
+  * ci(dependabot): bump actions/checkout from 4.2.2 to 6.0.1
+  * ci(dependabot): bump github/codeql-action from 3.29.3 to 4.31.7
   * ci(dependabot): bump actions/cache from 4.2.3 to 4.3.0
   * ci(dependabot): bump cachix/install-nix-action from 31.5.1 to 31.8.4
   * ci(dependabot): bump actions/download-artifact from 4.3.0 to 5.0.0 in the upload-and-download-artifact group
@@ -118,7 +125,7 @@ Thank all the contributors who made this release possible!
 
 Han-Wen Tsao, Karan Lokchandani, Khush Agrawal, Minimega12121, Shen-Ta Hsieh(BestSteve), Vishruth Thimmaiah, Wang-Yang, Li, Yi-Ying He, cmd05, dm4, grorge, hydai
 
-If you want to build from source, please use WasmEdge-0.16.0-alpha.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.16.0-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.15.0 (2025-08-04)
 

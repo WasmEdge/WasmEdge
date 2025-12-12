@@ -426,10 +426,10 @@ function(wasmedge_setup_piper_target target)
     find_program(GIT_CMD git REQUIRED)
     FetchContent_Declare(
       piper
-      GIT_REPOSITORY https://github.com/rhasspy/piper.git
-      GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
+      GIT_REPOSITORY https://github.com/OHF-Voice/piper1-gpl.git
+      GIT_TAG fee9b9cefae4ebf9e196cfe994dea418f051506c  # v1.3.0
       UPDATE_DISCONNECTED TRUE
-      PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
+      #PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
     )
     set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Piper not build shared")
     set(BUILD_TESTING OFF CACHE INTERNAL "Piper not build tests")

@@ -88,17 +88,17 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     download(
-      https://github.com/rhasspy/piper/raw/master/etc/test_voice.onnx
+      https://github.com/OHF-Voice/piper1-gpl/raw/main/tests/test_voice.onnx
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx
       SHA256=937682595755bbb3ee9f131b8a4b2b1ba2fac9b26431fcd7aa48cff0f7382838
     )
     download(
-      https://github.com/rhasspy/piper/raw/master/etc/test_voice.onnx.json
+      https://github.com/OHF-Voice/piper1-gpl/raw/main/tests/test_voice.onnx.json
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx.json
       SHA256=f3e0b906861cc2fb8a50e12ceca263afe226ff9688f60e9d4ef943d4f047a513
     )
     download(
-      https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz
+      https://github.com/OHF-Voice/piper1-gpl/archive/refs/tags/v1.3.0.tar.gz
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/piper_linux_x86_64.tar.gz
       SHA256=a50cb45f355b7af1f6d758c1b360717877ba0a398cc8cbe6d2a7a3a26e225992
     )

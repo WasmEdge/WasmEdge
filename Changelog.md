@@ -1,4 +1,4 @@
-### 0.16.0-alpha.2 (2025-12-12)
+### 0.16.0-alpha.3 (2025-12-19)
 
 Features:
 
@@ -57,6 +57,7 @@ Fixed issues:
   * fix(validator): lost getting top type of exnref (#4415)
 * [Executor]
   * fix(executor): check iterator is valid before using
+  * fix(runtime): refine the overflow detection when wrapping memory instance
 * [Tools]
   * fix(tools): output funcref and externref (#4324)
   * fix(cli): print signed value instead of unsigned (#4417)
@@ -81,6 +82,7 @@ Misc:
 
 * chore: nomination of HanWen Tsao as WasmEdge Maintainer (#4402)
 * docs(roadmap): update roadmap for Q4/2025
+* docs(README): fix broken introduction and blog links (#4452)
 * feat: support WasmEdge on the s390x platform (#4251)
 * feat: remove the legacy exception-handling proposal contents due to wasm 3.0 released
 * feat(common): default turn on wasm 3.0
@@ -89,16 +91,16 @@ CI:
 
 * [dependabot]
   * ci(dependabot): bump the upload-and-download-artifact group with 2 updates
-  * ci(dependabot): bump step-security/harden-runner from 2.13.0 to 2.13.3
+  * ci(dependabot): bump step-security/harden-runner from 2.13.0 to 2.14.0
   * ci(dependabot): bump actions/setup-python from 5.6.0 to 6.1.0
   * ci(dependabot): bump actions/github-script from 7.0.1 to 8.0.0
   * ci(dependabot): bump actions/labeler from 5.0.0 to 6.0.1
-  * ci(dependabot): bump codecov/codecov-action from 5.4.3 to 5.5.1
+  * ci(dependabot): bump codecov/codecov-action from 5.4.3 to 5.5.2
   * ci(dependabot): bump docker/bake-action from 6.8.0 to 6.10.0 in the docker group
   * ci(dependabot): bump docker/login-action from 3.4.0 to 3.6.0 in the docker group
   * ci(dependabot): bump actions/checkout from 4.2.2 to 6.0.1
-  * ci(dependabot): bump github/codeql-action from 3.29.3 to 4.31.7
-  * ci(dependabot): bump actions/cache from 4.2.3 to 4.3.0
+  * ci(dependabot): bump github/codeql-action from 3.29.3 to 4.31.8
+  * ci(dependabot): bump actions/cache from 4.2.3 to 5.0.1
   * ci(dependabot): bump cachix/install-nix-action from 31.5.1 to 31.8.4
   * ci(dependabot): bump actions/download-artifact from 4.3.0 to 5.0.0 in the upload-and-download-artifact group
 * [Runner]
@@ -123,9 +125,9 @@ CI:
 
 Thank all the contributors who made this release possible!
 
-Han-Wen Tsao, Karan Lokchandani, Khush Agrawal, Minimega12121, Shen-Ta Hsieh(BestSteve), Vishruth Thimmaiah, Wang-Yang, Li, Yi-Ying He, cmd05, dm4, grorge, hydai
+Han-Wen Tsao, Karan Lokchandani, Khush Agrawal, Minimega12121, Sankalp Jha, Shen-Ta Hsieh(BestSteve), Vishruth Thimmaiah, Wang-Yang, Li, Yi-Ying He, cmd05, dm4, grorge, hydai
 
-If you want to build from source, please use WasmEdge-0.16.0-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.16.0-alpha.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.15.0 (2025-08-04)
 

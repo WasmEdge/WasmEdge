@@ -611,10 +611,7 @@ main() {
 	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env"
 
 	local _source="source \"$IPATH/env\""
-	local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
-	if [ "$_grep" = "" ]; then
-		[ -f "$__HOME__/.profile" ] && echo "$_source" >>"$__HOME__/.profile"
-	fi
+	
 
 	local _shell_ _shell_rc
 	_shell_="${SHELL#${SHELL%/*}/}"

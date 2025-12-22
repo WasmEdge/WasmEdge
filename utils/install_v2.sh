@@ -626,7 +626,7 @@ main() {
 
     target="" # Path of the shell login file that should be modified.
 
-    # Step 1:  Prefer an existing login file following Bash's login precedence
+    #Prefer an existing login file following Bash's login precedence
     if [ -f "$__HOME__/.bash_profile" ]; then
         target="$__HOME__/.bash_profile"
     elif [ -f "$__HOME__/.bash_login" ]; then
@@ -635,15 +635,11 @@ main() {
         target="$__HOME__/.profile"
     fi
 
-    # Step 2:  No existing login file found.
     # Decide which file to create based on OS and distribution defaults.
-    # This avoids unintentionally changing user startup behavior.
     if [ "$target" = "" ]; then
-
         if [[ "$OS" == "Linux" ]]; then
             if [ -f /etc/os-release ]; then
                 DISTRO_ID=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
-
                 case "$DISTRO_ID" in
                     ubuntu|debian)  # Ubuntu/Debian convention: User environment is typically configured in ~/.profile.
                         target="$__HOME__/.profile"
@@ -656,20 +652,15 @@ main() {
                         ;;
                 esac
             else
-                # Linux but no /etc/os-release
-                target="$__HOME__/.profile"
+                target="$__HOME__/.profile" # Linux but no /etc/os-release
             fi
-
         elif [[ "$OS" == "Darwin" ]]; then
-            # macOS Bash login shells traditionally source ~/.bash_profile.
-            target="$__HOME__/.bash_profile"
+            target="$__HOME__/.bash_profile"   # macOS Bash login shells source ~/.bash_profile.
         fi
     fi
 
-    # Create the file only if needed
     [ -n "$target" ] && [ ! -f "$target" ] && touch "$target"
 
-    # Append only if not already present
     if [ -n "$target" ]; then
         grep -q "$IPATH/env" "$target" 2>/dev/null || echo "$_source" >> "$target"
     fi

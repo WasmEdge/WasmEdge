@@ -303,6 +303,8 @@ std::string replaceNumbersWithWords(const std::string &InputText) {
   return Result;
 }
 
+} // namespace
+
 std::vector<llama_token> processTTSPrompt(WasiNNEnvironment &Env,
                                           Graph &GraphRef,
                                           std::string &Prompt) noexcept {
@@ -475,6 +477,5 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
   return ErrNo::Success;
 }
 
-} // namespace
 #endif
 } // namespace WasmEdge::Host::WASINN::GGML

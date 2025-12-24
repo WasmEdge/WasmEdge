@@ -20,45 +20,47 @@ namespace {
 
 static constexpr uint32_t MaxSubtypeDepth = 63;
 
-Expect<void> calculateSubtypeDepthRecursiveHelper(
-    uint32_t Index, uint32_t Depth, std::unordered_set<uint32_t> &VisitedSet,
-    const FormChecker &Checker, uint32_t TypeIdx) {
-  if (VisitedSet.count(Index)) {
+// TODO: make the super type depth table instead of recursively querying.
+Expect<void>
+checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
+                  std::unordered_set<uint32_t> &VisitedNodes,
+                  const std::vector<const WasmEdge::AST::SubType *> &TypeVec,
+                  uint32_t Depth) {
+  if (VisitedNodes.count(TestIdx)) {
     spdlog::error(ErrCode::Value::InvalidSubType);
     spdlog::error("    Cycle detected in subtype hierarchy for type {}."sv,
-                  Index);
+                  BaseIdx);
     return Unexpect(ErrCode::Value::InvalidSubType);
   }
 
   if (Depth >= MaxSubtypeDepth) {
     spdlog::error(ErrCode::Value::InvalidSubType);
-    spdlog::error(
-        "    subtype depth for Type section's {}th signature exceeded "
-        "the limits of {}"sv,
-        TypeIdx, MaxSubtypeDepth);
+    spdlog::error("    Subtype depth for type {} exceeded the limits of {}"sv,
+                  BaseIdx, MaxSubtypeDepth);
     return Unexpect(ErrCode::Value::InvalidSubType);
   }
 
-  VisitedSet.insert(Index);
-  const auto &TypeVec = Checker.getTypes();
-  const auto &Type = *TypeVec[Index];
-  for (const auto SuperIdx : Type.getSuperTypeIndices()) {
-    EXPECTED_TRY(calculateSubtypeDepthRecursiveHelper(
-                     SuperIdx, Depth + 1, VisitedSet, Checker, TypeIdx)
-                     .map_error([&](auto E) {
-                       spdlog::error("    When checking super type index {}."sv,
-                                     SuperIdx);
-                       return E;
-                     }));
+  // The test type index validation is guaranteed in the caller.
+  VisitedNodes.insert(TestIdx);
+  const auto &TestType = *TypeVec[TestIdx];
+  for (const auto SuperIdx : TestType.getSuperTypeIndices()) {
+    if (unlikely(SuperIdx >= TypeVec.size())) {
+      spdlog::error(ErrCode::Value::InvalidSubType);
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::DefinedType, SuperIdx,
+          static_cast<uint32_t>(TypeVec.size())));
+      return Unexpect(ErrCode::Value::InvalidSubType);
+    }
+    EXPECTED_TRY(
+        checkSubtypeDepth(BaseIdx, SuperIdx, VisitedNodes, TypeVec, Depth + 1)
+            .map_error([=](auto E) {
+              spdlog::error(
+                  "    When checking subtype hierarchy of super type {}."sv,
+                  SuperIdx);
+              return E;
+            }));
   }
   return {};
-}
-
-Expect<void> calculateSubtypeDepth(uint32_t TypeIdx,
-                                   const FormChecker &Checker) {
-  std::unordered_set<uint32_t> VisitedNodes;
-  return calculateSubtypeDepthRecursiveHelper(TypeIdx, 0, VisitedNodes, Checker,
-                                              TypeIdx);
 }
 
 } // namespace
@@ -224,11 +226,15 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
       return Unexpect(ErrCode::Value::InvalidSubType);
     }
 
-    if (auto Res = calculateSubtypeDepth(Index, Checker); !Res) {
-      spdlog::error("    When checking subtype hierarchy of super type {}."sv,
-                    Index);
-      return Unexpect(Res.error());
-    }
+    std::unordered_set<uint32_t> VisitedNodes;
+    EXPECTED_TRY(
+        checkSubtypeDepth(Index, Index, VisitedNodes, TypeVec, 0)
+            .map_error([=](auto E) {
+              spdlog::error(
+                  "    When checking subtype hierarchy of super type {}."sv,
+                  Index);
+              return E;
+            }));
 
     if (TypeVec[Index]->isFinal()) {
       spdlog::error(ErrCode::Value::InvalidSubType);

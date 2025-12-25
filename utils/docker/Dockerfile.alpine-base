@@ -1,0 +1,62 @@
+# syntax=docker/dockerfile:1.5-labs
+
+ARG ALPINE_VERSION=3.23
+
+# ----------------------------------------------------
+# STAGE 1: Builder
+# Compiles LLD from source, linking against system LLVM
+# ----------------------------------------------------
+FROM alpine:${ALPINE_VERSION} AS builder
+
+# Use a specific tag for reproducibility
+# Pinned version to match Alpine 3.23's system LLVM (v19)
+ARG LLVM_VERSION=llvmorg-19.1.5
+
+# Build Dependencies:
+# - build-base: Compiler toolchain (gcc, g++, make, libc-dev) required for compilation.
+# - cmake: The build system used by LLVM.
+# - ninja: The build generator (faster than make).
+# - python3: Required by LLVM build scripts and configuration utilities.
+# - git: Required to clone the LLVM repository.
+# - linux-headers: Ensures system header compatibility for C++ standard library builds.
+# - llvm19-dev: Provides LLVM development headers for version 19.
+# - llvm19-static: Provides static LLVM libraries for version 19.
+# - zstd-static: Provides static zstd compression libraries.
+# - zlib-static: Provides static zlib compression libraries.
+RUN apk add --no-cache build-base cmake ninja python3 git linux-headers \
+    llvm19-dev llvm19-static zstd-static zlib-static
+
+
+# The system CMake files require testing libraries that are missing in the Alpine package.
+# We create empty dummy archives to satisfy the dependency check.
+RUN LLVM_LIB_DIR=/usr/lib/llvm19/lib && \
+    for f in libLLVMTestingAnnotations.a libLLVMTestingSupport.a libllvm_gtest.a libllvm_gtest_main.a; do \
+        ar rc "$LLVM_LIB_DIR/$f"; \
+    done
+
+# Clone LLVM Project
+WORKDIR /src
+# Shallow clone specific tag
+RUN git clone --depth 1 -b ${LLVM_VERSION} https://github.com/llvm/llvm-project.git
+
+    
+# Configure and Build LLD
+# We treat LLD as a standalone project and point it to the system LLVM
+WORKDIR /src/llvm-project/lld
+RUN cmake -B build -G Ninja \
+    -DCMAKE_BUILD_TYPE=MinSizeRel \
+    -DCMAKE_INSTALL_PREFIX=/usr/local \
+    -DLLVM_DIR=/usr/lib/llvm19/lib/cmake/llvm \
+    -DLLVM_BUILD_STATIC=ON \
+    -DLLVM_INCLUDE_TESTS=OFF \
+    -DLLVM_INCLUDE_EXAMPLES=OFF && \
+    cmake --build build --target lldELF lldCommon lldMachO lldCOFF lldWasm lldMinGW
+
+# ----------------------------------------------------
+# STAGE 2: Final Image (Contains only the compiled static libraries)
+# ----------------------------------------------------
+FROM alpine:${ALPINE_VERSION}
+
+# Copy artifacts to a standard library path
+COPY --from=builder /src/llvm-project/lld/build/lib/liblld*.a /usr/local/lib/
+

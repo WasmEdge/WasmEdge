@@ -611,10 +611,7 @@ main() {
 	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env"
 
 	local _source="source \"$IPATH/env\""
-	local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
-	if [ "$_grep" = "" ]; then
-		[ -f "$__HOME__/.profile" ] && echo "$_source" >>"$__HOME__/.profile"
-	fi
+	
 
 	local _shell_ _shell_rc
 	_shell_="${SHELL#${SHELL%/*}/}"
@@ -626,13 +623,49 @@ main() {
 			[ -f "$__HOME__/.zprofile" ] && echo "$_source" >>"$__HOME__/.zprofile"
 		fi
 	elif [[ "$_shell_" =~ "bash" ]]; then
-		local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
-		if [ "$_grep" = "" ]; then
-			# If the .bash_profile is not existing, create a new one
-			[ ! -f "$__HOME__/.bash_profile" ] && touch "$__HOME__/.bash_profile"
-			[ -f "$__HOME__/.bash_profile" ] && echo "$_source" >>"$__HOME__/.bash_profile"
-		fi
-	fi
+
+    target="" # Path of the shell login file that should be modified.
+
+    #Prefer an existing login file following Bash's login precedence
+    if [ -f "$__HOME__/.bash_profile" ]; then
+        target="$__HOME__/.bash_profile"
+    elif [ -f "$__HOME__/.bash_login" ]; then
+        target="$__HOME__/.bash_login"
+    elif [ -f "$__HOME__/.profile" ]; then
+        target="$__HOME__/.profile"
+    fi
+
+    # Decide which file to create based on OS and distribution defaults.
+    if [ "$target" = "" ]; then
+        if [[ "$OS" == "Linux" ]]; then
+            if [ -f /etc/os-release ]; then
+                DISTRO_ID=$(grep '^ID=' /etc/os-release | cut -d= -f2 | tr -d '"')
+                case "$DISTRO_ID" in
+                    ubuntu|debian)  # Ubuntu/Debian convention: User environment is typically configured in ~/.profile.
+                        target="$__HOME__/.profile"
+                        ;;
+                    rhel|centos|fedora|rocky|almalinux) # RHEL/Fedora family convention: Bash configuration is typically stored in ~/.bash_profile
+                        target="$__HOME__/.bash_profile"
+                        ;;
+                    *)
+                        target="$__HOME__/.profile" #If any other OS use ~/.profile as default and safe option
+                        ;;
+                esac
+            else
+                target="$__HOME__/.profile" # Linux but no /etc/os-release
+            fi
+        elif [[ "$OS" == "Darwin" ]]; then
+            target="$__HOME__/.bash_profile"   # macOS Bash login shells source ~/.bash_profile.
+        fi
+    fi
+
+    [ -n "$target" ] && [ ! -f "$target" ] && touch "$target"
+
+    if [ -n "$target" ]; then
+        grep -q "$IPATH/env" "$target" 2>/dev/null || echo "$_source" >> "$target"
+    fi
+
+fi
 
 	local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
 	if [ "$_grep" = "" ]; then

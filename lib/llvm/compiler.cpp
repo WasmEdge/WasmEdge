@@ -1481,39 +1481,39 @@ public:
 
       // Table Instructions
       case OpCode::Table__get: {
-        auto Idx = stackPop();
+        auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
         stackPush(Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kTableGet,
                 LLVM::Type::getFunctionType(Context.Int64x2Ty,
-                                            {Context.Int32Ty, Context.Int32Ty},
+                                            {Context.Int32Ty, Context.Int64Ty},
                                             false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Idx}));
+            {LLContext.getInt32(Instr.getTargetIndex()), Off}));
         break;
       }
       case OpCode::Table__set: {
         auto Ref = stackPop();
-        auto Idx = stackPop();
+        auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kTableSet,
                 LLVM::Type::getFunctionType(
                     Context.Int64Ty,
-                    {Context.Int32Ty, Context.Int32Ty, Context.Int64x2Ty},
+                    {Context.Int32Ty, Context.Int64Ty, Context.Int64x2Ty},
                     false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Idx, Ref});
+            {LLContext.getInt32(Instr.getTargetIndex()), Off, Ref});
         break;
       }
       case OpCode::Table__init: {
         auto Len = stackPop();
         auto Src = stackPop();
-        auto Dst = stackPop();
+        auto Dst = Builder.createZExt(stackPop(), Context.Int64Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kTableInit,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int64Ty, Context.Int32Ty,
                                              Context.Int32Ty},
                                             false)),
             {LLContext.getInt32(Instr.getTargetIndex()),
@@ -1529,53 +1529,55 @@ public:
         break;
       }
       case OpCode::Table__copy: {
-        auto Len = stackPop();
-        auto Src = stackPop();
-        auto Dst = stackPop();
+        auto Len = Builder.createZExt(stackPop(), Context.Int64Ty);
+        auto Src = Builder.createZExt(stackPop(), Context.Int64Ty);
+        auto Dst = Builder.createZExt(stackPop(), Context.Int64Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kTableCopy,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int32Ty},
+                                             Context.Int64Ty, Context.Int64Ty,
+                                             Context.Int64Ty},
                                             false)),
             {LLContext.getInt32(Instr.getTargetIndex()),
              LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
         break;
       }
       case OpCode::Table__grow: {
-        auto NewSize = stackPop();
+        // TODO: MEMORY64 - return value addr to built-in type
+        auto NewSize = Builder.createZExt(stackPop(), Context.Int64Ty);
         auto Val = stackPop();
         stackPush(Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kTableGrow,
                 LLVM::Type::getFunctionType(
-                    Context.Int32Ty,
-                    {Context.Int32Ty, Context.Int64x2Ty, Context.Int32Ty},
+                    Context.Int64Ty,
+                    {Context.Int32Ty, Context.Int64x2Ty, Context.Int64Ty},
                     false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Val, NewSize}));
         break;
       }
       case OpCode::Table__size: {
+        // TODO: MEMORY64 - return value addr to built-in type
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kTableSize,
-                                 LLVM::Type::getFunctionType(Context.Int32Ty,
+                                 LLVM::Type::getFunctionType(Context.Int64Ty,
                                                              {Context.Int32Ty},
                                                              false)),
             {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
       }
       case OpCode::Table__fill: {
-        auto Len = stackPop();
+        auto Len = Builder.createZExt(stackPop(), Context.Int64Ty);
         auto Val = stackPop();
-        auto Off = stackPop();
+        auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
         Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kTableFill,
                                  LLVM::Type::getFunctionType(
                                      Context.Int32Ty,
-                                     {Context.Int32Ty, Context.Int32Ty,
-                                      Context.Int64x2Ty, Context.Int32Ty},
+                                     {Context.Int32Ty, Context.Int64Ty,
+                                      Context.Int64x2Ty, Context.Int64Ty},
                                      false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
         break;
@@ -1679,34 +1681,36 @@ public:
                        Instr.getMemoryAlign(), Context.Int32Ty, true);
         break;
       case OpCode::Memory__size:
+        // TODO: MEMORY64 - return value addr to built-in type
         stackPush(Builder.createCall(
             Context.getIntrinsic(Builder, Executable::Intrinsics::kMemSize,
-                                 LLVM::Type::getFunctionType(Context.Int32Ty,
+                                 LLVM::Type::getFunctionType(Context.Int64Ty,
                                                              {Context.Int32Ty},
                                                              false)),
             {LLContext.getInt32(Instr.getTargetIndex())}));
         break;
       case OpCode::Memory__grow: {
-        auto Diff = stackPop();
+        // TODO: MEMORY64 - return value addr to built-in type
+        auto NewPageSize = Builder.createZExt(stackPop(), Context.Int64Ty);
         stackPush(Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kMemGrow,
-                LLVM::Type::getFunctionType(Context.Int32Ty,
-                                            {Context.Int32Ty, Context.Int32Ty},
+                LLVM::Type::getFunctionType(Context.Int64Ty,
+                                            {Context.Int32Ty, Context.Int64Ty},
                                             false)),
-            {LLContext.getInt32(Instr.getTargetIndex()), Diff}));
+            {LLContext.getInt32(Instr.getTargetIndex()), NewPageSize}));
         break;
       }
       case OpCode::Memory__init: {
         auto Len = stackPop();
         auto Src = stackPop();
-        auto Dst = stackPop();
+        auto Dst = Builder.createZExt(stackPop(), Context.Int64Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kMemInit,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int32Ty, Context.Int32Ty,
+                                             Context.Int64Ty, Context.Int32Ty,
                                              Context.Int32Ty},
                                             false)),
             {LLContext.getInt32(Instr.getTargetIndex()),
@@ -1722,31 +1726,31 @@ public:
         break;
       }
       case OpCode::Memory__copy: {
-        auto Len = stackPop();
-        auto Src = stackPop();
-        auto Dst = stackPop();
+        auto Len = Builder.createZExt(stackPop(), Context.Int64Ty);
+        auto Src = Builder.createZExt(stackPop(), Context.Int64Ty);
+        auto Dst = Builder.createZExt(stackPop(), Context.Int64Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kMemCopy,
                 LLVM::Type::getFunctionType(Context.VoidTy,
                                             {Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int32Ty},
+                                             Context.Int64Ty, Context.Int64Ty,
+                                             Context.Int64Ty},
                                             false)),
             {LLContext.getInt32(Instr.getTargetIndex()),
              LLContext.getInt32(Instr.getSourceIndex()), Dst, Src, Len});
         break;
       }
       case OpCode::Memory__fill: {
-        auto Len = stackPop();
+        auto Len = Builder.createZExt(stackPop(), Context.Int64Ty);
         auto Val = Builder.createTrunc(stackPop(), Context.Int8Ty);
-        auto Off = stackPop();
+        auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
         Builder.createCall(
             Context.getIntrinsic(
                 Builder, Executable::Intrinsics::kMemFill,
                 LLVM::Type::getFunctionType(Context.VoidTy,
-                                            {Context.Int32Ty, Context.Int32Ty,
-                                             Context.Int8Ty, Context.Int32Ty},
+                                            {Context.Int32Ty, Context.Int64Ty,
+                                             Context.Int8Ty, Context.Int64Ty},
                                             false)),
             {LLContext.getInt32(Instr.getTargetIndex()), Off, Val, Len});
         break;
@@ -3939,46 +3943,44 @@ public:
     Builder.createFence(LLVMAtomicOrderingSequentiallyConsistent);
   }
   void compileAtomicNotify(unsigned MemoryIndex,
-                           unsigned MemoryOffset) noexcept {
-    auto Count = stackPop();
-    auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+                           uint64_t MemoryOffset) noexcept {
+    auto Count = Builder.createZExt(stackPop(), Context.Int64Ty);
+    auto Offset = Builder.createZExt(stackPop(), Context.Int64Ty);
     if (MemoryOffset != 0) {
-      Addr = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
-    compileAtomicCheckOffsetAlignment(Addr, Context.Int32Ty);
-    auto Offset = stackPop();
-
+    compileAtomicCheckOffsetAlignment(Offset, Context.Int32Ty);
+    // TODO: MEMORY64 - return value addr to built-in type
     stackPush(Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kMemAtomicNotify,
             LLVM::Type::getFunctionType(
-                Context.Int32Ty,
-                {Context.Int32Ty, Context.Int32Ty, Context.Int32Ty}, false)),
+                Context.Int64Ty,
+                {Context.Int32Ty, Context.Int64Ty, Context.Int64Ty}, false)),
         {LLContext.getInt32(MemoryIndex), Offset, Count}));
   }
-  void compileAtomicWait(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicWait(unsigned MemoryIndex, uint64_t MemoryOffset,
                          LLVM::Type TargetType, uint32_t BitWidth) noexcept {
     auto Timeout = stackPop();
     auto ExpectedValue = Builder.createZExtOrTrunc(stackPop(), Context.Int64Ty);
-    auto Addr = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Offset = Builder.createZExt(stackPop(), Context.Int64Ty);
     if (MemoryOffset != 0) {
-      Addr = Builder.createAdd(Addr, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
-    compileAtomicCheckOffsetAlignment(Addr, TargetType);
-    auto Offset = stackPop();
-
+    compileAtomicCheckOffsetAlignment(Offset, TargetType);
+    // TODO: MEMORY64 - return value addr to built-in type
     stackPush(Builder.createCall(
         Context.getIntrinsic(
             Builder, Executable::Intrinsics::kMemAtomicWait,
-            LLVM::Type::getFunctionType(Context.Int32Ty,
-                                        {Context.Int32Ty, Context.Int32Ty,
+            LLVM::Type::getFunctionType(Context.Int64Ty,
+                                        {Context.Int32Ty, Context.Int64Ty,
                                          Context.Int64Ty, Context.Int64Ty,
                                          Context.Int32Ty},
                                         false)),
         {LLContext.getInt32(MemoryIndex), Offset, ExpectedValue, Timeout,
          LLContext.getInt32(BitWidth)}));
   }
-  void compileAtomicLoad(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicLoad(unsigned MemoryIndex, uint64_t MemoryOffset,
                          unsigned Alignment, LLVM::Type IntType,
                          LLVM::Type TargetType, bool Signed = false) noexcept {
 
@@ -4002,7 +4004,7 @@ public:
       Stack.back() = Builder.createZExt(Load, IntType);
     }
   }
-  void compileAtomicStore(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicStore(unsigned MemoryIndex, uint64_t MemoryOffset,
                           unsigned Alignment, LLVM::Type, LLVM::Type TargetType,
                           bool Signed = false) noexcept {
     auto V = stackPop();
@@ -4027,7 +4029,7 @@ public:
     Store.setOrdering(LLVMAtomicOrderingSequentiallyConsistent);
   }
 
-  void compileAtomicRMWOp(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicRMWOp(unsigned MemoryIndex, uint64_t MemoryOffset,
                           [[maybe_unused]] unsigned Alignment,
                           LLVMAtomicRMWBinOp BinOp, LLVM::Type IntType,
                           LLVM::Type TargetType, bool Signed = false) noexcept {
@@ -4091,7 +4093,7 @@ public:
       Stack.back() = Builder.createZExt(Ret, IntType);
     }
   }
-  void compileAtomicCompareExchange(unsigned MemoryIndex, unsigned MemoryOffset,
+  void compileAtomicCompareExchange(unsigned MemoryIndex, uint64_t MemoryOffset,
                                     [[maybe_unused]] unsigned Alignment,
                                     LLVM::Type IntType, LLVM::Type TargetType,
                                     bool Signed = false) noexcept {
@@ -4605,7 +4607,7 @@ private:
     }
   }
 
-  void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
+  void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                      LLVM::Type LoadTy) noexcept {
     if constexpr (kForceUnalignment) {
       Alignment = 0;
@@ -4622,7 +4624,7 @@ private:
     LoadInst.setAlignment(1 << Alignment);
     stackPush(switchEndian(LoadInst));
   }
-  void compileLoadOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
+  void compileLoadOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                      LLVM::Type LoadTy, LLVM::Type ExtendTy,
                      bool Signed) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
@@ -4632,24 +4634,24 @@ private:
       Stack.back() = Builder.createZExt(Stack.back(), ExtendTy);
     }
   }
-  void compileVectorLoadOp(unsigned MemoryIndex, unsigned Offset,
+  void compileVectorLoadOp(unsigned MemoryIndex, uint64_t Offset,
                            unsigned Alignment, LLVM::Type LoadTy) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
     Stack.back() = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
   }
-  void compileVectorLoadOp(unsigned MemoryIndex, unsigned Offset,
+  void compileVectorLoadOp(unsigned MemoryIndex, uint64_t Offset,
                            unsigned Alignment, LLVM::Type LoadTy,
                            LLVM::Type ExtendTy, bool Signed) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy, ExtendTy, Signed);
     Stack.back() = Builder.createBitCast(Stack.back(), Context.Int64x2Ty);
   }
-  void compileSplatLoadOp(unsigned MemoryIndex, unsigned Offset,
+  void compileSplatLoadOp(unsigned MemoryIndex, uint64_t Offset,
                           unsigned Alignment, LLVM::Type LoadTy,
                           LLVM::Type VectorTy) noexcept {
     compileLoadOp(MemoryIndex, Offset, Alignment, LoadTy);
     compileSplatOp(VectorTy);
   }
-  void compileLoadLaneOp(unsigned MemoryIndex, unsigned Offset,
+  void compileLoadLaneOp(unsigned MemoryIndex, uint64_t Offset,
                          unsigned Alignment, unsigned Index, LLVM::Type LoadTy,
                          LLVM::Type VectorTy) noexcept {
     auto Vector = stackPop();
@@ -4663,7 +4665,7 @@ private:
                                     Value, LLContext.getInt64(Index)),
         Context.Int64x2Ty);
   }
-  void compileStoreOp(unsigned MemoryIndex, unsigned Offset, unsigned Alignment,
+  void compileStoreOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
                       LLVM::Type LoadTy, bool Trunc = false,
                       bool BitCast = false) noexcept {
     if constexpr (kForceUnalignment) {

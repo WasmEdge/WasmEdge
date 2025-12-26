@@ -144,8 +144,8 @@ fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>::format(
   fmt::memory_buffer Buffer;
   auto Iter = fmt::format_to(std::back_inserter(Buffer),
                              "    Mismatched {}. "sv, Info.Category);
-  auto FormatLimit = [](auto Out, bool LimHasMax, uint32_t LimMin,
-                        uint32_t LimMax) {
+  auto FormatLimit = [](auto Out, bool LimHasMax, uint64_t LimMin,
+                        uint64_t LimMax) {
     Out = fmt::format_to(Out, "Limit{{{}"sv, LimMin);
     if (LimHasMax) {
       Out = fmt::format_to(Out, " , {}"sv, LimMax);
@@ -300,7 +300,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoBoundary>::format(
                  "boundary: 0x{:08x}"sv,
                  Info.Offset,
                  Info.Offset + (Info.Size > 0U ? Info.Size - 1U : 0U),
-                 Info.Limit);
+                 (Info.Limit > 0U ? Info.Limit - 1U : 0U));
   return formatter<std::string_view>::format(
       std::string_view(Buffer.data(), Buffer.size()), Ctx);
 }

@@ -12,6 +12,13 @@ namespace {
 
 using namespace WasmEdge;
 
+template <typename T>
+void assertOk(WasmEdge::Expect<T> Res, const char *Message) {
+  if (!Res) {
+    EXPECT_TRUE(false) << Message;
+  }
+}
+
 TEST(Component, LoadAndRun_SimpleBinary) {
   Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);
@@ -32,15 +39,15 @@ TEST(Component, LoadAndRun_SimpleBinary) {
       0x4d, 0x01, 0x06, 0x00, 0x12, 0x01, 0x00, 0x01, 0x6d, 0x01, 0x07, 0x01,
       0x01, 0x00, 0x03, 0x72, 0x75, 0x6e,
   };
-  ASSERT_TRUE(VM.loadWasm(Vec));
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
+  assertOk(VM.loadWasm(Vec), "failed to load component binary");
+  assertOk(VM.validate(), "failed to validate");
+  assertOk(VM.instantiate(), "failed to instantiate");
 
   uint64_t V = 100;
-  auto Res = VM.executeComponent("mdup", {ComponentValVariant(ValVariant(V))},
-                                 {ComponentValType(ComponentTypeCode::U64)});
-  ASSERT_TRUE(Res);
-  std::vector<std::pair<ComponentValVariant, ComponentValType>> Result = *Res;
+  auto Res = VM.execute("mdup", {ValInterface(ValVariant(V))},
+                        {ValType(TypeCode::I64)});
+  assertOk(Res, "failed to execute");
+  std::vector<std::pair<ValInterface, ValType>> Result = *Res;
   auto Ret = std::get<ValVariant>(Result[0].first).get<uint64_t>();
   EXPECT_EQ(Ret, 200);
 }
@@ -117,10 +124,9 @@ TEST(Component, Load_HttpBinary) {
       0x01, 0x07, 0x01, 0x01, 0x02, 0x03, 0x72, 0x75, 0x6e, 0x01, 0x08, 0x05,
       0x01, 0x00, 0x04, 0x68, 0x74, 0x74, 0x70,
   };
-  ASSERT_TRUE(VM.loadWasm(Vec));
+  assertOk(VM.loadWasm(Vec), "failed to load component binary");
 
-  // TODO: Fix this for the validator.
-  // ASSERT_TRUE(VM.validate());
+  assertOk(VM.validate(), "failed to validate");
 }
 
 TEST(Component, LoadAndRun_MultiComponentBinary) {
@@ -631,11 +637,11 @@ TEST(Component, LoadAndRun_MultiComponentBinary) {
   };
   // clang-format on
 
-  ASSERT_TRUE(VM.loadWasm(Vec));
+  assertOk(VM.loadWasm(Vec), "failed to load component binary");
   // TODO: Fix this for the validator.
   /*
-  ASSERT_TRUE(VM.validate());
-  ASSERT_TRUE(VM.instantiate());
+  assertOk(VM.validate(), "failed to validate");
+  assertOk(VM.instantiate(), "failed to instantiate");
   */
 }
 

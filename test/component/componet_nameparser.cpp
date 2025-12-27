@@ -1,0 +1,225 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
+#include "common/errinfo.h"
+#include "validator/component_name.h"
+#include "validator/validator.h"
+#include "vm/vm.h"
+
+#include <gtest/gtest.h>
+
+namespace {
+
+using namespace WasmEdge;
+using namespace std::literals;
+
+TEST(ComponentNameParser, Functions) {
+  {
+    std::string_view Name = "[constructor]MyClass"sv;
+    std::string_view Prefix = "[constructor]"sv;
+    EXPECT_TRUE(Validator::ComponentNameParser::tryRead(Prefix, Name));
+    spdlog::error("Remaining name: {}", Name);
+    EXPECT_EQ(Name, "MyClass");
+  }
+  {
+    std::string_view Name = "[constructor]MyClass"sv;
+    std::string_view Prefix = "[fail]"sv;
+    EXPECT_FALSE(Validator::ComponentNameParser::tryRead(Prefix, Name));
+    EXPECT_EQ(Name, "[constructor]MyClass");
+  }
+}
+
+TEST(ComponentNameParser, Kebab) {
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("A"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("abc-def-ghi"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-DEF-GHI"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-def-GHI"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-123"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC123-G45H"sv));
+
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abcDefGhi"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abc_def_ghi"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abc def ghi"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc-Fef-Ghi"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("ABC123-G45h"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc--Ghi"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc-"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("-Ghi"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1-abc"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString(""sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Σ╕¡µûçσ¡ù"sv));
+
+  EXPECT_TRUE(
+      Validator::ComponentNameParser::isLowercaseKebabString("abc-def-ghi"sv));
+  EXPECT_TRUE(
+      Validator::ComponentNameParser::isLowercaseKebabString("abc-123"sv));
+
+  EXPECT_FALSE(
+      Validator::ComponentNameParser::isLowercaseKebabString("aBc-def-ghi"sv));
+  EXPECT_FALSE(
+      Validator::ComponentNameParser::isLowercaseKebabString("ABC-def-ghi"sv));
+
+  {
+    std::string_view Input = "abc-def-ghi/rest-of-string"sv;
+    std::string_view Output;
+    EXPECT_TRUE(Validator::ComponentNameParser::tryReadKebab(Input, Output));
+    EXPECT_EQ(Output, "abc-def-ghi"sv);
+    EXPECT_EQ(Input, "/rest-of-string"sv);
+
+    EXPECT_TRUE(Validator::ComponentNameParser::readUntil(Input, '/', Output));
+    EXPECT_EQ(Input, "rest-of-string"sv);
+    EXPECT_EQ(Output, ""sv);
+    EXPECT_TRUE(Validator::ComponentNameParser::tryReadKebab(Input, Output));
+    EXPECT_EQ(Output, "rest-of-string"sv);
+    EXPECT_TRUE(Validator::ComponentNameParser::isEOF(Input));
+  }
+}
+TEST(ComponentNameParser, Parse) {
+  {
+    std::string_view Name = "[constructor]my-class"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Constructor);
+    EXPECT_EQ(CName.getDetails().Constructor.Label, "my-class"sv);
+  }
+  {
+    std::string_view Name = "[method]my-resource.my-method"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Method);
+    EXPECT_EQ(CName.getDetails().Method.Resource, "my-resource"sv);
+    EXPECT_EQ(CName.getDetails().Method.Method, "my-method"sv);
+  }
+  {
+    std::string_view Name = "[static]my-resource.my-method"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Static);
+    EXPECT_EQ(CName.getDetails().Static.Resource, "my-resource"sv);
+    EXPECT_EQ(CName.getDetails().Static.Method, "my-method"sv);
+  }
+  {
+    std::string_view Name = "name-space:a-label/projection-label@1.2.3"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
+    EXPECT_EQ(CName.getDetails().Interface.Namespace, "name-space"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Package, "a-label"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Interface, "projection-label"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Projection, ""sv);
+    EXPECT_EQ(CName.getDetails().Interface.Version, "1.2.3"sv);
+  }
+}
+
+TEST(ComponentNameParser, SemverValidation) {
+  // Valid semver versions
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidSemver("0.0.0"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidSemver("1.0.0"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidSemver("1.2.3"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidSemver("10.20.30"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidSemver("999.999.999"sv));
+
+  // Invalid semver versions
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver(""sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1.2"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1.2.3.4"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("v1.2.3"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1.2.3-alpha"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1.2.3+build"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("01.2.3"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1.02.3"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1.2.03"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1..3"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1.2."sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver(".1.2"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("a.b.c"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver("1.2.3 "sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidSemver(" 1.2.3"sv));
+}
+
+TEST(ComponentNameParser, HashNameValidation) {
+  // Valid hash names with sha256
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha256-abc123def456"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha256-ABCDEF0123456789"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha256-a+b/c=def"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha256-abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789+/="sv));
+
+  // Valid hash names with sha512
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha512-abc123def456"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha512-ABCDEF0123456789"sv));
+
+  // Invalid hash names
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      "integrity="sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha256"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha256-"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=md5-abc123"sv)); // Unsupported algorithm
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha1-abc123"sv)); // Unsupported algorithm
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      "sha256-abc123"sv)); // Missing integrity= prefix
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha256-abc@123"sv)); // Invalid char @
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      "integrity=sha256-abc#123"sv)); // Invalid char #
+  EXPECT_FALSE(Validator::ComponentNameParser::isValidHashName(
+      ""sv));
+}
+
+TEST(ComponentNameParser, InterfaceWithValidVersion) {
+  {
+    std::string_view Name = "wasi:http/types@0.2.0"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
+    EXPECT_EQ(CName.getDetails().Interface.Namespace, "wasi"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Package, "http"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Interface, "types"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Version, "0.2.0"sv);
+  }
+  {
+    std::string_view Name = "my-namespace:my-package/my-interface@1.0.0"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
+    EXPECT_EQ(CName.getDetails().Interface.Version, "1.0.0"sv);
+  }
+  {
+    std::string_view Name = "test:pkg/iface@10.20.30"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
+    EXPECT_EQ(CName.getDetails().Interface.Version, "10.20.30"sv);
+  }
+}
+
+TEST(ComponentNameParser, InterfaceWithInvalidVersion) {
+  // These should be Invalid because version format is wrong
+  {
+    std::string_view Name = "wasi:http/types@1.2"sv; // Missing patch
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Invalid);
+  }
+  {
+    std::string_view Name = "wasi:http/types@v1.2.3"sv; // Has 'v' prefix
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Invalid);
+  }
+  {
+    std::string_view Name = "wasi:http/types@01.2.3"sv; // Leading zero
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Invalid);
+  }
+  {
+    std::string_view Name = "wasi:http/types@1.2.3-alpha"sv; // Pre-release tag
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Invalid);
+  }
+}
+
+
+} // namespace

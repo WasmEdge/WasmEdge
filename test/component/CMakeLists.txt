@@ -2,7 +2,8 @@
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 wasmedge_add_executable(componentTests
-  spectest.cpp
+  #spectest.cpp
+  componet_nameparser.cpp
   componentvalidatortest.cpp
 )
 

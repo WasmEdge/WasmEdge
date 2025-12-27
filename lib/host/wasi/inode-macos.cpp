@@ -1406,7 +1406,7 @@ WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
   return {};
 }
 
-void Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
+void Poller::clock(__wasi_clockid_t ClockId, __wasi_timestamp_t Timeout,
                    __wasi_timestamp_t, __wasi_subclockflags_t Flags,
                    __wasi_userdata_t UserData) noexcept {
   assuming(Events.size() < WasiEvents.size());
@@ -1419,13 +1419,28 @@ void Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
 
   uint32_t FFlags = NOTE_NSECONDS;
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
-#ifdef NOTE_ABSOLUTE
-    FFlags |= NOTE_ABSOLUTE;
-#else
-    Event.Valid = true;
-    Event.error = __WASI_ERRNO_NOSYS;
-    return;
-#endif
+    timespec NowTS;
+    // WASI: 0 = Realtime, 1 = Monotonic. Map to macOS system clocks.
+    clockid_t SysClockId = (ClockId == 0) ? CLOCK_REALTIME : CLOCK_MONOTONIC;
+
+    if (auto Res = ::clock_gettime(SysClockId, &NowTS); unlikely(Res != 0)) {
+      Event.Valid = true;
+      Event.error = fromErrNo(errno);
+      return;
+    }
+    // Convert current system time to nanoseconds
+    const __wasi_timestamp_t CurrentTimeNS=
+        static_cast<__wasi_timestamp_t>(NowTS.tv_sec) * 1000000000ULL +
+        static_cast<__wasi_timestamp_t>(NowTS.tv_nsec);
+
+    // Calculate how long to wait (Relative Timeout)
+    if (Timeout > CurrentTimeNS) {
+        Timeout = Timeout - CurrentTimeNS;
+    } else {
+        Timeout = 0; // The time has already passed; fire immediately
+    }
+    // Note: We deliberately do NOT set NOTE_ABSOLUTE here.
+    // We converted it to a relative duration above.
   }
 
   struct kevent KEvent;

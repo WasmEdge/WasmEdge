@@ -450,11 +450,28 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
 
     // Get the function name to invoke.
     if (Opt.Args.value().empty()) {
+      // Check if module has any exported functions
+      // If no exported functions, just instantiate (for testing purposes like
+      // shared memory)
+      auto Functions = VM.getFunctionList();
+      bool HasExportedFunctions = !Functions.empty();
+
+      if (!HasExportedFunctions) {
+        // Instantiation-only mode: Module has no _start and no exported
+        // functions This is valid for modules that only declare resources
+        // (memory, tables, etc.)
+        spdlog::info("Module instantiated successfully (no _start or exported "
+                     "functions).");
+        return EXIT_SUCCESS;
+      }
+
+      // Original error for modules with exports but no function name provided
       fmt::print(
           stderr,
           "A function name is required when reactor mode is enabled.\n"sv);
       return EXIT_FAILURE;
     }
+
     const auto &FuncName = Opt.Args.value().front();
 
     if (VM.holdsModule()) {

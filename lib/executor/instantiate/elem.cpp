@@ -33,7 +33,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       InitVals.push_back(StackMgr.pop().get<RefVariant>());
     }
 
-    uint32_t Offset = 0;
+    addr_t Offset = 0;
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
       // Run initialize expression.
       EXPECTED_TRY(
@@ -80,13 +80,12 @@ Expect<void> Executor::initTable(Runtime::StackManager &StackMgr,
       // Table index is checked in validation phase.
       auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
       assuming(TabInst);
-      const uint32_t Off = ElemInst->getOffset();
+      const addr_t Off = ElemInst->getOffset();
 
       // Replace table[Off : Off + n] with elem[0 : n].
       EXPECTED_TRY(
           TabInst
-              ->setRefs(ElemInst->getRefs(), Off, 0,
-                        static_cast<uint32_t>(ElemInst->getRefs().size()))
+              ->setRefs(ElemInst->getRefs(), Off, 0, ElemInst->getRefs().size())
               .map_error([](auto E) {
                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
                 return E;

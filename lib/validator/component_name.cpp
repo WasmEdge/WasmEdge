@@ -117,7 +117,7 @@ using namespace ComponentNameParser;
 //                     | <urlname>
 //                     | <hashname>
 void ComponentName::parse() {
-  auto Next = Name;
+  auto Next = getOriginalName();
   Kind = ComponentNameKind::Invalid;
   Detail = {};
 
@@ -129,6 +129,7 @@ void ComponentName::parse() {
   //                    | '[static]' <label> '.' <label>
   //                    | '[async static]' <label> '.' <label> 🔀
   if (tryRead("[async]"sv, Next)) {
+    NoTagName = Next;
     // Not supported yet
     return;
   }
@@ -138,11 +139,13 @@ void ComponentName::parse() {
       return;
     }
     Detail.Constructor.Label = Next;
+    NoTagName = Next;
     Kind = ComponentNameKind::Constructor;
     return;
   }
 
   if (tryRead("[method]"sv, Next)) {
+    NoTagName = Next;
     std::string_view Resource;
     if (!readUntil(Next, '.', Resource)) {
       return;
@@ -157,11 +160,13 @@ void ComponentName::parse() {
   }
 
   if (tryRead("[async method]"sv, Next)) {
+    NoTagName = Next;
     // Not supported yet
     return;
   }
 
   if (tryRead("[static]"sv, Next)) {
+    NoTagName = Next;
     std::string_view Resource;
     if (!readUntil(Next, '.', Resource)) {
       return;
@@ -176,9 +181,13 @@ void ComponentName::parse() {
   }
 
   if (tryRead("[async static]"sv, Next)) {
+    NoTagName = Next;
     // Not supported yet
     return;
   }
+
+  // No tag more
+  NoTagName = Next;
 
   // depname           ::= 'unlocked-dep=<' <pkgnamequery> '>'
   //                     | 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?

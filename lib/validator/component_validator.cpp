@@ -749,6 +749,7 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
   ComponentName CName(Im.getName());
   switch (CName.getKind()) {
   case ComponentNameKind::InterfaceType:
+  case ComponentNameKind::Label:
     break;
   case ComponentNameKind::Invalid:
     spdlog::error(ErrCode::Value::ComponentNotImplValidator);
@@ -776,6 +777,26 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
 
   // TODO: Validation of [method] and [static] names ensures that all field
   // names are disjoint.
+  switch (CName.getKind()) {
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
+  case ComponentNameKind::InterfaceType:
+  case ComponentNameKind::Label:
+    if (!CompCtx.AddImportedName(CName)) {
+      spdlog::error(ErrCode::Value::ComponentDuplicateName);
+      spdlog::error("    Import: Duplicate import name"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::ComponentDuplicateName);
+    }
+    break;
+  default:
+    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
+    spdlog::error("    Import: Name is not resolved"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
+  }
+
   return {};
 }
 
@@ -837,6 +858,8 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
         }
       }
     } else {
+      // TODO: check getCoreSortIndexSize(), because it may miss type, not out
+      // of bound
       spdlog::error(ErrCode::Value::InvalidIndex);
       spdlog::error("    ExternDesc: Instance index {} out of bound"sv,
                     Desc.getTypeIndex());

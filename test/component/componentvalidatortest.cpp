@@ -68,8 +68,8 @@ TEST(Component, LoadAndValidate_TestWasm) {
       0x31, // Custom section
   };
 
-  assertOk(VM.loadWasm(Vec), "failed to load component binary");
-  assertOk(VM.validate(), "failed to validate");
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
 }
 
 TEST(ComponentValidatorTest, MissingArgument) {

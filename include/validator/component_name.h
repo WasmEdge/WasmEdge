@@ -36,7 +36,8 @@ enum class ComponentNameKind {
 };
 
 class ComponentName {
-  const std::string_view Name;
+  const std::string_view OriName;
+  std::string_view NoTagName;
   ComponentNameKind Kind;
   union Details {
     struct {
@@ -63,12 +64,13 @@ class ComponentName {
 
 public:
   ComponentName(std::string_view Name)
-      : Name(Name), Kind(ComponentNameKind::Invalid), Detail({}) {
+      : OriName(Name), Kind(ComponentNameKind::Invalid), Detail({}) {
     parse();
   }
 
   ComponentNameKind getKind() const { return Kind; }
-  std::string_view getName() const { return Name; }
+  std::string_view getOriginalName() const { return OriName; }
+  std::string_view getNoTagName() const { return NoTagName; }
   Details getDetails() const { return Detail; }
 };
 

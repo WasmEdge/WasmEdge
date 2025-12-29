@@ -119,7 +119,7 @@ TEST(Component, Load_HttpBinary) {
   };
   ASSERT_TRUE(VM.loadWasm(Vec));
 
-  assertOk(VM.validate(), "failed to validate");
+  ASSERT_TRUE(VM.validate());
 }
 
 TEST(Component, LoadAndRun_MultiComponentBinary) {

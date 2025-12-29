@@ -31,6 +31,7 @@ namespace WasmEdge {
 // >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 using Byte = uint8_t;
+using addr_t = uint64_t;
 
 /// SIMD types definition.
 template <typename Ty, size_t TotalSize,

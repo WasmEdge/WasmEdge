@@ -451,11 +451,11 @@ private:
   /// \name Helper Functions for atomic operations.
   /// @{
   template <typename T>
-  Expect<uint64_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                              uint64_t Address, EndianValue<T> Expected,
-                              int64_t Timeout) noexcept;
-  Expect<uint64_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                                uint64_t Address, uint64_t Count) noexcept;
+  Expect<addr_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                            addr_t Address, EndianValue<T> Expected,
+                            int64_t Timeout) noexcept;
+  Expect<addr_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                              addr_t Address, addr_t Count) noexcept;
   void atomicNotifyAll() noexcept;
   /// @}
 
@@ -1125,7 +1125,7 @@ private:
   /// Waiter map mutex
   std::mutex WaiterMapMutex;
   /// Waiter multimap
-  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
+  std::unordered_multimap<addr_t, Waiter> WaiterMap;
 
   /// WasmEdge configuration
   const Configure Conf;

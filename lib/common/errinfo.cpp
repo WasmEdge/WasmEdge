@@ -4,6 +4,7 @@
 #include "common/errinfo.h"
 #include "common/errcode.h"
 #include "common/hexstr.h"
+#include "common/int128.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/fmt/ranges.h>
@@ -299,7 +300,8 @@ fmt::formatter<WasmEdge::ErrInfo::InfoBoundary>::format(
                  "    Accessing offset from: 0x{:08x} to: 0x{:08x} , Out of "
                  "boundary: 0x{:08x}"sv,
                  Info.Offset,
-                 Info.Offset + (Info.Size > 0U ? Info.Size - 1U : 0U),
+                 Info.Offset +
+                     WasmEdge::uint128_t(Info.Size > 0U ? Info.Size - 1U : 0U),
                  (Info.Limit > 0U ? Info.Limit - 1U : 0U));
   return formatter<std::string_view>::format(
       std::string_view(Buffer.data(), Buffer.size()), Ctx);

@@ -25,21 +25,23 @@ namespace Instance {
 class DataInstance {
 public:
   DataInstance() = delete;
-  DataInstance(const uint64_t Offset, Span<const Byte> Init) noexcept
+  DataInstance(const addr_t Offset, Span<const Byte> Init) noexcept
       : Off(Offset), Data(Init.begin(), Init.end()) {}
 
   /// Get offset in data instance.
-  uint64_t getOffset() const noexcept { return Off; }
+  addr_t getOffset() const noexcept { return Off; }
 
   /// Get data in data instance.
   Span<const Byte> getData() const noexcept { return Data; }
 
   /// Load bytes to value.
-  ValVariant loadValue(uint32_t Offset, uint32_t N) const noexcept {
+  ValVariant loadValue(const addr_t Offset, const addr_t N) const noexcept {
     assuming(N <= 16);
+    // Due to applying the Memory64 proposal, we should avoid the overflow issue
+    // of the following code.
     // Check the data boundary.
-    if (unlikely(static_cast<uint64_t>(Offset) + static_cast<uint64_t>(N) >
-                 Data.size())) {
+    if (unlikely(std::numeric_limits<addr_t>::max() - Offset < N ||
+                 Offset + N > Data.size())) {
       return 0;
     }
     // Load the data to the value.
@@ -52,12 +54,12 @@ public:
   }
 
   /// Clear data in data instance.
-  void clear() { Data.clear(); }
+  void clear() noexcept { Data.clear(); }
 
 private:
   /// \name Data of data instance.
   /// @{
-  const uint64_t Off;
+  const addr_t Off;
   std::vector<Byte> Data;
   /// @}
 };

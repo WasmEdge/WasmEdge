@@ -19,7 +19,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
 
   // Iterate through the data segments to instantiate data instances.
   for (const auto &DataSeg : DataSec.getContent()) {
-    uint64_t Offset = 0;
+    addr_t Offset = 0;
     // Initialize memory if the data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Run initialize expression.
@@ -60,7 +60,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
 Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
                                   const AST::DataSection &DataSec) {
   // initialize memory.
-  uint64_t Idx = 0;
+  uint32_t Idx = 0;
   for (const auto &DataSeg : DataSec.getContent()) {
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {

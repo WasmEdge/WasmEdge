@@ -20,6 +20,9 @@
 #include "wasmedge/wasmedge_basic.h"
 #include "wasmedge/wasmedge_value.h"
 
+/// WasmEdge address type.
+typedef uint64_t WasmEdge_Addr_t;
+
 /// Struct of WASM limit.
 typedef struct WasmEdge_Limit {
   /// Boolean to describe has max value or not.
@@ -27,9 +30,9 @@ typedef struct WasmEdge_Limit {
   /// Boolean to describe is shared memory or not.
   bool Shared;
   /// Minimum value.
-  uint64_t Min;
+  WasmEdge_Addr_t Min;
   /// Maximum value. Will be ignored if the `HasMax` is false.
-  uint64_t Max;
+  WasmEdge_Addr_t Max;
 } WasmEdge_Limit;
 
 #ifdef __cplusplus

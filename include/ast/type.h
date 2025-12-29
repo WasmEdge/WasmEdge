@@ -74,22 +74,19 @@ public:
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
   /// Getter and setter of min value.
-  uint64_t getMin() const noexcept {
-    // Hint: if one ensure it, is not 64-bit, do static_cast<uint32_t>(getMin())
-    return Min;
-  }
-  void setMin(uint64_t Val) noexcept { Min = Val; }
+  addr_t getMin() const noexcept { return Min; }
+  void setMin(addr_t Val) noexcept { Min = Val; }
 
   /// Getter and setter of max value.
-  uint64_t getMax() const noexcept { return Max; }
-  void setMax(uint64_t Val) noexcept { Max = Val; }
+  addr_t getMax() const noexcept { return Max; }
+  void setMax(addr_t Val) noexcept { Max = Val; }
 
 private:
   /// \name Data of Limit.
   /// @{
   LimitType Type;
-  uint64_t Min;
-  uint64_t Max;
+  addr_t Min;
+  addr_t Max;
   /// @}
 };
 
@@ -720,11 +717,11 @@ public:
   TableType() noexcept : Type(TypeCode::FuncRef), Lim() {
     assuming(Type.isRefType());
   }
-  TableType(const ValType &RType, uint32_t MinVal) noexcept
+  TableType(const ValType &RType, addr_t MinVal) noexcept
       : Type(RType), Lim(MinVal) {
     assuming(Type.isRefType());
   }
-  TableType(const ValType &RType, uint32_t MinVal, uint32_t MaxVal) noexcept
+  TableType(const ValType &RType, addr_t MinVal, addr_t MaxVal) noexcept
       : Type(RType), Lim(MinVal, MaxVal) {
     assuming(Type.isRefType());
   }

@@ -306,6 +306,9 @@ function(wasmedge_setup_llama_target target)
     set(LLAMA_METAL_NDEBUG ON)
     set(LLAMA_BUILD_COMMON ON)
     set(LLAMA_BUILD_TOOLS ON)
+    # https://github.com/ggml-org/llama.cpp/issues/18046
+    # Bug, If LLAMA_BUILD_TOOLS=ON and LLAMA_BUILD_SERVER=OFF, the build will fail.
+    set(LLAMA_BUILD_SERVER ON)
     set(GGML_ACCELERATE OFF)
     set(GGML_AMX OFF)
     set(GGML_OPENMP OFF)
@@ -357,7 +360,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b7090
+      GIT_TAG        b7399
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)

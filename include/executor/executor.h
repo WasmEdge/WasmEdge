@@ -398,6 +398,14 @@ private:
                               AST::InstrView::iterator &PC) noexcept;
   /// @}
 
+  /// \name Helper Function for checking memory offset boundary.
+  /// @{
+  Expect<void>
+  checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
+                      const AST::Instruction &Instr, const addr_t Val,
+                      const addr_t Size) const noexcept;
+  /// @}
+
   /// \name Helper Functions for GC instructions.
   /// @{
   Expect<RefVariant> structNew(Runtime::StackManager &StackMgr,
@@ -1136,45 +1144,6 @@ private:
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
 };
-
-// If `memoryOffset + instruction Value` is overflow, it's an out of bound
-// access, trap.
-template <uint32_t BitWidth>
-Expect<void> checkOutOfBound(const Runtime::Instance::MemoryInstance &MemInst,
-                             const AST::Instruction &Instr, uint64_t Val) {
-  switch (MemInst.getMemoryType().getIdxType()) {
-  case AST::MemoryType::IndexType::I64: {
-    if (Val > std::numeric_limits<uint64_t>::max() - Instr.getMemoryOffset()) {
-      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Val + Instr.getMemoryOffset(),
-                                          BitWidth / 8, MemInst.getSize()));
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-    }
-    break;
-  }
-  case AST::MemoryType::IndexType::I32:
-  default: {
-    if (static_cast<uint32_t>(Val) >
-        std::numeric_limits<uint32_t>::max() -
-            static_cast<uint32_t>(Instr.getMemoryOffset())) {
-      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(
-          Val + static_cast<uint32_t>(Instr.getMemoryOffset()), BitWidth / 8,
-          MemInst.getSize()));
-      spdlog::error(
-          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-    }
-    break;
-  }
-  }
-  return {};
-}
-
-uint64_t valToIndex(WasmEdge::ValVariant &Val,
-                    AST::MemoryType::IndexType IdxType);
 
 } // namespace Executor
 } // namespace WasmEdge

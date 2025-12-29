@@ -30,18 +30,18 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
                          return E;
                        }));
-      auto ROff = StackMgr.pop();
-      Offset = Conf.hasProposal(Proposal::Memory64) ? ROff.get<uint64_t>()
-                                                    : ROff.get<uint32_t>();
+      // Get memory instance and address type.
+      // Memory64 proposal is checked in validation phase.
+      auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
+      assuming(MemInst);
+      Offset = extractAddr(StackMgr.pop(),
+                           MemInst->getMemoryType().getLimit().getAddrType());
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       // enabled.
       if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes) &&
                    !Conf.hasProposal(Proposal::BulkMemoryOperations))) {
-        // Memory index should be 0. Checked in validation phase.
-        auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
         // Check data fits.
-        assuming(MemInst);
         if (!MemInst->checkAccessBound(Offset, DataSeg.getData().size())) {
           spdlog::error(ErrCode::Value::DataSegDoesNotFit);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
@@ -64,10 +64,9 @@ Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
   for (const auto &DataSeg : DataSec.getContent()) {
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
-      // Memory index should be 0. Checked in validation phase.
+      // Memory and data index are checked in validation phase.
       auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
       assuming(MemInst);
-
       auto *DataInst = getDataInstByIdx(StackMgr, Idx);
       assuming(DataInst);
       const uint64_t Off = DataInst->getOffset();

@@ -611,8 +611,6 @@ main() {
 	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env"
 
 	local _source="source \"$IPATH/env\""
-	
-
 	local _shell_ _shell_rc
 	_shell_="${SHELL#${SHELL%/*}/}"
 	_shell_rc=".""$_shell_""rc"

@@ -45,19 +45,23 @@ public:
   }
 
   /// Get size of table.refs
-  uint32_t getSize() const noexcept {
+  addr_t getSize() const noexcept {
     // The table size is binded with the limit in table type.
-    return static_cast<uint32_t>(TabType.getLimit().getMin());
+    return TabType.getLimit().getMin();
   }
 
   /// Getter of table type.
   const AST::TableType &getTableType() const noexcept { return TabType; }
 
   /// Check is out of bound.
-  bool checkAccessBound(uint32_t Offset, uint32_t Length) const noexcept {
-    const uint64_t AccessLen =
-        static_cast<uint64_t>(Offset) + static_cast<uint64_t>(Length);
-    return AccessLen <= Refs.size();
+  bool checkAccessBound(const addr_t Offset,
+                        const addr_t Length) const noexcept {
+    // Due to applying the Memory64 proposal, we should avoid the overflow issue
+    // of the following code:
+    //   return Offset + Length <= Limit;
+    const addr_t Limit = TabType.getLimit().getMin();
+    return std::numeric_limits<addr_t>::max() - Offset >= Length &&
+           Offset + Length <= Limit;
   }
 
   /// Grow table with initialization value.
@@ -76,13 +80,13 @@ public:
     TabType.getLimit().setMin(Min + Count);
     return true;
   }
-  bool growTable(uint32_t Count) noexcept {
+  bool growTable(const addr_t Count) noexcept {
     return growTable(Count, InitValue);
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]
-  Expect<Span<const RefVariant>> getRefs(uint32_t Offset,
-                                         uint32_t Length) const noexcept {
+  Expect<Span<const RefVariant>> getRefs(const addr_t Offset,
+                                         const addr_t Length) const noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
@@ -93,8 +97,8 @@ public:
   }
 
   /// Replace the Refs[Dst :] by Slice[Src : Src + Length)
-  Expect<void> setRefs(Span<const RefVariant> Slice, uint32_t Dst, uint32_t Src,
-                       uint32_t Length) noexcept {
+  Expect<void> setRefs(Span<const RefVariant> Slice, const addr_t Dst,
+                       const addr_t Src, const addr_t Length) noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Dst, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
@@ -103,11 +107,10 @@ public:
     }
 
     // Check the input data validation.
-    if (static_cast<uint64_t>(Src) + static_cast<uint64_t>(Length) >
-        Slice.size()) {
+    if (std::numeric_limits<addr_t>::max() - Src < Length ||
+        Src + Length > Slice.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Src, Length,
-                                          static_cast<uint32_t>(Slice.size())));
+      spdlog::error(ErrInfo::InfoBoundary(Src, Length, Slice.size()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
 
@@ -124,8 +127,8 @@ public:
   }
 
   /// Fill the Refs[Offset : Offset + Length - 1] by Val.
-  Expect<void> fillRefs(const RefVariant &Val, uint32_t Offset,
-                        uint32_t Length) noexcept {
+  Expect<void> fillRefs(const RefVariant &Val, const addr_t Offset,
+                        const addr_t Length) noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
@@ -139,7 +142,7 @@ public:
   }
 
   /// Get the elem address.
-  Expect<RefVariant> getRefAddr(uint32_t Idx) const noexcept {
+  Expect<RefVariant> getRefAddr(const addr_t Idx) const noexcept {
     if (Idx >= Refs.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getSize()));
@@ -149,7 +152,7 @@ public:
   }
 
   /// Set the elem address.
-  Expect<void> setRefAddr(uint32_t Idx, const RefVariant &Val) {
+  Expect<void> setRefAddr(const addr_t Idx, const RefVariant &Val) {
     if (Idx >= Refs.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getSize()));

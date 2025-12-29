@@ -15,14 +15,10 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
                              const AST::Instruction &Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (auto Res = checkOutOfBound<BitWidth>(
-          MemInst, Instr,
-          valToIndex(Val, MemInst.getMemoryType().getIdxType()));
-      !Res) {
-    return Unexpect(Res);
-  }
-  uint64_t EA = valToIndex(Val, MemInst.getMemoryType().getIdxType()) +
-                Instr.getMemoryOffset();
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t EA = extractAddr(Val, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, EA, BitWidth / 8));
+  EA += Instr.getMemoryOffset();
   // Value = Mem.Data[EA : N / 8]
   return MemInst.loadValue<T, BitWidth / 8>(Val.emplace<T>(), EA)
       .map_error([&Instr](auto E) {
@@ -40,11 +36,10 @@ TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
   T C = StackMgr.pop().get<T>();
 
   // Calculate EA = i + offset
-  uint64_t I = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
-  if (auto Res = checkOutOfBound<BitWidth>(MemInst, Instr, I); !Res) {
-    return Unexpect(Res);
-  }
-  uint64_t EA = I + Instr.getMemoryOffset();
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t I = extractAddr(StackMgr.pop(), AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, I, BitWidth / 8));
+  addr_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
   return MemInst.storeValue<T, BitWidth / 8>(C, EA).map_error([&Instr](auto E) {
@@ -62,14 +57,10 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
   static_assert(sizeof(TOut) == sizeof(TIn) * 2);
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (auto Res = checkOutOfBound<64>(
-          MemInst, Instr,
-          valToIndex(Val, MemInst.getMemoryType().getIdxType()));
-      !Res) {
-    return Unexpect(Res);
-  }
-  uint64_t EA = valToIndex(Val, MemInst.getMemoryType().getIdxType()) +
-                Instr.getMemoryOffset();
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t EA = extractAddr(Val, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, EA, 8));
+  EA += Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
@@ -104,14 +95,10 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr) {
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(
-          MemInst, Instr,
-          valToIndex(Val, MemInst.getMemoryType().getIdxType()));
-      !Res) {
-    return Unexpect(Res);
-  }
-  uint64_t EA = valToIndex(Val, MemInst.getMemoryType().getIdxType()) +
-                Instr.getMemoryOffset();
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t EA = extractAddr(Val, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, EA, sizeof(T)));
+  EA += Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   using VT = SIMDArray<T, 16>;
@@ -149,14 +136,10 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
                             : (16 / sizeof(T)) - 1 - Instr.getMemoryLane();
   // Calculate EA
   ValVariant &Val = StackMgr.getTop();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(
-          MemInst, Instr,
-          valToIndex(Val, MemInst.getMemoryType().getIdxType()));
-      !Res) {
-    return Unexpect(Res);
-  }
-  uint64_t EA = valToIndex(Val, MemInst.getMemoryType().getIdxType()) +
-                Instr.getMemoryOffset();
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t EA = extractAddr(Val, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, EA, sizeof(T)));
+  EA += Instr.getMemoryOffset();
 
   // Value = Mem.Data[EA : N / 8]
   uint64_t Buffer;
@@ -185,11 +168,10 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
   const TBuf C = StackMgr.pop().get<VT>()[Lane];
 
   // Calculate EA = i + offset
-  uint64_t I = StackMgr.popIndexType(MemInst.getMemoryType().getIdxType());
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, I); !Res) {
-    return Unexpect(Res);
-  }
-  uint64_t EA = I + Instr.getMemoryOffset();
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t I = extractAddr(StackMgr.pop(), AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, I, sizeof(T)));
+  addr_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
   return MemInst.storeValue<decltype(C), sizeof(T)>(C, EA).map_error(

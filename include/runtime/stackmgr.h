@@ -90,16 +90,6 @@ public:
     ValueStack.pop_back();
     return V;
   }
-  /// Return an value by index type
-  uint64_t popIndexType(AST::MemoryType::IndexType IdxType) {
-    switch (IdxType) {
-    case AST::MemoryType::IndexType::I64:
-      return pop().get<uint64_t>();
-    case AST::MemoryType::IndexType::I32:
-    default:
-      return pop().get<uint32_t>();
-    }
-  }
 
   /// Unsafe pop and return the top N entries.
   std::vector<Value> pop(uint32_t N) {

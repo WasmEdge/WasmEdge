@@ -50,6 +50,16 @@ public:
                  addr_t PageLim = kPageLimit64) noexcept
       : MemType(MType), PageLimit(PageLim) {
     using namespace std::literals;
+    if (MemType.getLimit().is32() && PageLimit > kPageLimit32) {
+      if (PageLimit != kPageLimit64) {
+        // Only log error when the page limit is not the default value of 64-bit
+        // memory.
+        spdlog::error("Memory Instance: Limited {} page larger than the 32-bit "
+                      "page upper bound {}."sv,
+                      PageLimit, kPageLimit32);
+      }
+      PageLimit = kPageLimit32;
+    }
     if (MemType.getLimit().getMin() > PageLimit) {
       spdlog::error("Memory Instance: Limited {} page in configuration."sv,
                     PageLimit);
@@ -99,12 +109,12 @@ public:
     if (Count == 0) {
       return true;
     }
-    uint64_t MaxPageCaped = MemType.getPageLimit();
-    uint64_t Min = MemType.getLimit().getMin();
-    uint64_t Max = MemType.getLimit().getMax();
+    addr_t MaxPageCaped =
+        MemType.getLimit().is32() ? kPageLimit32 : kPageLimit64;
+    const addr_t Min = MemType.getLimit().getMin();
+    assuming(MaxPageCaped >= Min);
     if (MemType.getLimit().hasMax()) {
-      Max = MemType.getLimit().getMax();
-      assuming(Max >= Min);
+      const addr_t Max = MemType.getLimit().getMax();
       MaxPageCaped = std::min(Max, MaxPageCaped);
     }
     if (Count > MaxPageCaped - Min) {

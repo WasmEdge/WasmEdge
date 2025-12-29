@@ -19,11 +19,9 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
   ValVariant RawTimeout = StackMgr.pop();
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(T) != 0) {
@@ -42,7 +40,7 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       })
-      .map([&](auto V) { RawAddress.emplace<uint64_t>(V); });
+      .map([&](auto V) { RawAddress = emplaceAddr(V, AddrType); });
 }
 
 template <typename T, typename I>
@@ -50,11 +48,9 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
                                    const AST::Instruction &Instr) {
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -84,11 +80,9 @@ TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant RawAddress = StackMgr.pop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -134,11 +128,9 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -172,11 +164,9 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -210,11 +200,9 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -245,11 +233,9 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -280,11 +266,9 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -316,11 +300,9 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
                               const AST::Instruction &Instr) {
   ValVariant RawValue = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -353,11 +335,9 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
   ValVariant RawReplacement = StackMgr.pop();
   ValVariant RawExpected = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
-  uint64_t Address = RawAddress.get<uint64_t>();
-  if (auto Res = checkOutOfBound<sizeof(T) * 8>(MemInst, Instr, Address);
-      !Res) {
-    return Unexpect(Res);
-  }
+  const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
+  addr_t Address = extractAddr(RawAddress, AddrType);
+  EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
   Address += Instr.getMemoryOffset();
 
   if (Address % sizeof(I) != 0) {
@@ -384,10 +364,9 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
 }
 
 template <typename T>
-Expect<uint64_t>
-Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                     uint64_t Address, EndianValue<T> Expected,
-                     int64_t Timeout) noexcept {
+Expect<addr_t> Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                                    addr_t Address, EndianValue<T> Expected,
+                                    int64_t Timeout) noexcept {
   // The error message should be handled by the caller, or the AOT mode will
   // produce the duplicated messages.
   if (!MemInst.isShared()) {
@@ -409,7 +388,7 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
   assuming(AtomicObj);
 
   if (AtomicObj->load() != Expected.le()) {
-    return UINT64_C(1); // NotEqual
+    return static_cast<addr_t>(1); // NotEqual
   }
 
   decltype(WaiterMap)::iterator WaiterIterator;
@@ -436,10 +415,10 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
       return Unexpect(ErrCode::Value::Interrupted);
     }
     if (likely(AtomicObj->load() != Expected.le())) {
-      return UINT64_C(0); // ok
+      return static_cast<addr_t>(0); // ok
     }
     if (WaitResult == std::cv_status::timeout) {
-      return UINT64_C(2); // Timed-out
+      return static_cast<addr_t>(2); // Timed-out
     }
   }
 }

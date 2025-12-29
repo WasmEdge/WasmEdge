@@ -65,14 +65,18 @@ public:
   }
 
   /// Grow table with initialization value.
-  bool growTable(uint32_t Count, const RefVariant &Val) noexcept {
-    uint32_t MaxSizeCaped = std::numeric_limits<uint32_t>::max();
-    uint32_t Min = static_cast<uint32_t>(TabType.getLimit().getMin());
-    uint32_t Max = static_cast<uint32_t>(TabType.getLimit().getMax());
+  bool growTable(const addr_t Count, const RefVariant &Val) noexcept {
+    if (Count == 0) {
+      return true;
+    }
+    addr_t MaxSizeCaped = getMaxAddress(TabType.getLimit().getAddrType());
+    const addr_t Min = TabType.getLimit().getMin();
+    assuming(MaxSizeCaped >= Min);
     if (TabType.getLimit().hasMax()) {
+      const addr_t Max = TabType.getLimit().getMax();
       MaxSizeCaped = std::min(Max, MaxSizeCaped);
     }
-    if (Count > MaxSizeCaped - Refs.size()) {
+    if (Count > MaxSizeCaped - Min) {
       return false;
     }
     Refs.resize(Refs.size() + Count);

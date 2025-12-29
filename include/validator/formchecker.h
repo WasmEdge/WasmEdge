@@ -53,19 +53,6 @@ public:
   void addLocal(const ValType &V, bool Initialized);
   void addTag(const uint32_t TypeIdx);
 
-  void setIndexType(WasmEdge::AST::MemoryType::IndexType IdxType) {
-    IndexType = IdxType;
-  }
-  ValType getItTypeCode() {
-    switch (IndexType) {
-    case WasmEdge::AST::MemoryType::IndexType::I64:
-      return TypeCode::I64;
-    case WasmEdge::AST::MemoryType::IndexType::I32:
-    default:
-      return TypeCode::I32;
-    }
-  }
-
   std::vector<VType> result() { return ValStack; }
   auto &getTypes() const { return Types; }
   auto &getFunctions() { return Funcs; }
@@ -141,10 +128,8 @@ private:
   /// Contexts.
   std::vector<const AST::SubType *> Types;
   std::vector<uint32_t> Funcs;
-  std::vector<ValType> Tables;
-  // With Memory64, it's possible to have up to 2^48 pages.
-  uint64_t Mems = 0;
-  WasmEdge::AST::MemoryType::IndexType IndexType;
+  std::vector<std::pair<TypeCode, ValType>> Tables;
+  std::vector<TypeCode> Mems;
   std::vector<std::pair<ValType, ValMut>> Globals;
   std::vector<ValType> Elems;
   std::vector<uint32_t> Datas;

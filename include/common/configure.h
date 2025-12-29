@@ -244,7 +244,7 @@ public:
     unsafeAddProposal(Proposal::RelaxSIMD);
     // unsafeAddProposal(Proposal::Annotations);    Not implemented
     unsafeAddProposal(Proposal::ExceptionHandling);
-    // unsafeAddProposal(Proposal::Memory64);       Not implemented
+    unsafeAddProposal(Proposal::Memory64);
   }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept : Configure() {
     (unsafeAddSet(Args), ...);
@@ -310,7 +310,7 @@ public:
       unsafeAddProposal(Proposal::RelaxSIMD);
       // unsafeAddProposal(Proposal::Annotations);    Not implemented
       unsafeAddProposal(Proposal::ExceptionHandling);
-      // unsafeAddProposal(Proposal::Memory64);       Not implemented
+      unsafeAddProposal(Proposal::Memory64);
       break;
     default:
       break;

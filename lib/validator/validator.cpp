@@ -164,7 +164,8 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   }
 
   // Multiple memories is for the MultiMemories proposal.
-  if (Checker.getMemories() > 1 && !Conf.hasProposal(Proposal::MultiMemories)) {
+  if (Checker.getMemories().size() > 1 &&
+      !Conf.hasProposal(Proposal::MultiMemories)) {
     spdlog::error(ErrCode::Value::MultiMemories);
     spdlog::error(ErrInfo::InfoProposal(Proposal::MultiMemories));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -270,10 +271,23 @@ Expect<void> Validator::validate(const AST::TableType &Tab) {
   // Validate value type.
   EXPECTED_TRY(Checker.validate(Tab.getRefType()));
   // Validate table limits.
-  return validate(Tab.getLimit()).map_error([](auto E) {
+  const auto &Lim = Tab.getLimit();
+  EXPECTED_TRY(validate(Lim).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return E;
-  });
+  }));
+  addr_t Range = getMaxAddress(Lim.getAddrType());
+  if (Lim.getMin() > Range || (Lim.hasMax() && Lim.getMax() > Range)) {
+    // Since spec test has no related error message, use this error instead.
+    auto Code = Conf.hasProposal(Proposal::Memory64)
+                    ? ErrCode::Value::InvalidTableSize64
+                    : ErrCode::Value::InvalidLimit;
+    spdlog::error(Code);
+    spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(Code);
+  }
+  return {};
 }
 
 // Validate Memory type. See "include/validator/validator.h".
@@ -284,33 +298,22 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return E;
   }));
-  uint64_t LIMIT_MEMORYTYPE;
-  switch (Mem.getIdxType()) {
-  case AST::MemoryType::IndexType::I64: {
-    if (!Conf.hasProposal(Proposal::Memory64)) {
-      spdlog::error(ErrCode::Value::InvalidMemPages);
-      spdlog::error(ErrInfo::InfoProposal(Proposal::Memory64));
-      return Unexpect(ErrCode::Value::InvalidMemPages);
-    }
-    LIMIT_MEMORYTYPE = LIMIT_MEMORYTYPE_LIM64;
-    break;
+  if (!Conf.hasProposal(Proposal::Memory64) && Lim.is64()) {
+    spdlog::error(ErrCode::Value::InvalidLimit);
+    spdlog::error(ErrInfo::InfoProposal(Proposal::Memory64));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(ErrCode::Value::InvalidLimit);
   }
-  case AST::MemoryType::IndexType::I32:
-  default: {
-    LIMIT_MEMORYTYPE = LIMIT_MEMORYTYPE_LIM32;
-    break;
-  }
-  }
-  Checker.setIndexType(Mem.getIdxType());
-  if (Lim.getMin() > LIMIT_MEMORYTYPE ||
-      (Lim.hasMax() && Lim.getMax() > LIMIT_MEMORYTYPE)) {
-    // TODO: MEMORY64 - fully support implementation.
-    ErrCode::Value FailCode = Conf.hasProposal(Proposal::Memory64)
-                                  ? ErrCode::Value::InvalidMemPages64
-                                  : ErrCode::Value::InvalidMemPages;
-    spdlog::error(FailCode);
+  addr_t Range = Lim.is32() ? (static_cast<addr_t>(1) << 16)
+                            : (static_cast<addr_t>(1) << 48);
+  if (Lim.getMin() > Range || (Lim.hasMax() && Lim.getMax() > Range)) {
+    auto Code = Conf.hasProposal(Proposal::Memory64)
+                    ? ErrCode::Value::InvalidMemPages64
+                    : ErrCode::Value::InvalidMemPages;
+    spdlog::error(Code);
     spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
-    return Unexpect(FailCode);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(Code);
   }
   return {};
 }
@@ -399,19 +402,19 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
     // matching. But for the table type, the type index is recorded into the
     // heap type. So it will fail here to do strict type matching. Therefore,
     // only check the FuncRef and ExternRef and the nullable here.
-    if (TableVec[ElemSeg.getIdx()].isFuncRefType() !=
+    if (TableVec[ElemSeg.getIdx()].second.isFuncRefType() !=
             ElemSeg.getRefType().isFuncRefType() ||
-        (!TableVec[ElemSeg.getIdx()].isNullableRefType() &&
+        (!TableVec[ElemSeg.getIdx()].second.isNullableRefType() &&
          ElemSeg.getRefType().isNullableRefType())) {
       // Reference type not matched.
       spdlog::error(ErrCode::Value::TypeCheckFailed);
-      spdlog::error(ErrInfo::InfoMismatch(TableVec[ElemSeg.getIdx()],
+      spdlog::error(ErrInfo::InfoMismatch(TableVec[ElemSeg.getIdx()].second,
                                           ElemSeg.getRefType()));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Check table initialization is a const expression.
     return validateConstExpr(ElemSeg.getExpr().getInstrs(),
-                             {ValType(TypeCode::I32)})
+                             {ValType(TableVec[ElemSeg.getIdx()].first)})
         .map_error([](auto E) {
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
           return E;
@@ -456,16 +459,17 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
   switch (DataSeg.getMode()) {
   case AST::DataSegment::DataMode::Active: {
     // Check memory index in context.
-    const auto &MemNum = Checker.getMemories();
-    if (DataSeg.getIdx() >= MemNum) {
+    const auto &MemVec = Checker.getMemories();
+    if (DataSeg.getIdx() >= MemVec.size()) {
       spdlog::error(ErrCode::Value::InvalidMemoryIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory,
-                                             DataSeg.getIdx(), MemNum));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Memory, DataSeg.getIdx(),
+          static_cast<uint32_t>(MemVec.size())));
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     // Check memory initialization is a const expression.
     return validateConstExpr(DataSeg.getExpr().getInstrs(),
-                             {Checker.getItTypeCode()})
+                             {ValType(MemVec[DataSeg.getIdx()])})
         .map_error([](auto E) {
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
           return E;
@@ -588,10 +592,11 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
     }
     return {};
   case ExternalType::Memory:
-    if (Id >= Checker.getMemories()) {
+    if (Id >= Checker.getMemories().size()) {
       spdlog::error(ErrCode::Value::InvalidMemoryIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, Id,
-                                             Checker.getMemories()));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Memory, Id,
+          static_cast<uint32_t>(Checker.getMemories().size())));
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     return {};

@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "ast/component/component.h"
 #include "common/errinfo.h"
+#include "validator/component_context.h"
 #include "validator/component_name.h"
 #include "validator/validator.h"
 #include "vm/vm.h"
@@ -75,12 +77,15 @@ TEST(ComponentNameParser, Kebab) {
     EXPECT_TRUE(Validator::ComponentNameParser::isEOF(Input));
   }
 }
+
 TEST(ComponentNameParser, Parse) {
   {
     std::string_view Name = "[constructor]my-class"sv;
     Validator::ComponentName CName(Name);
     EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Constructor);
     EXPECT_EQ(CName.getDetails().Constructor.Label, "my-class"sv);
+    EXPECT_EQ(CName.getNoTagName(), "my-class"sv);
+    EXPECT_EQ(CName.getOriginalName(), "[constructor]my-class"sv);
   }
   {
     std::string_view Name = "[method]my-resource.my-method"sv;
@@ -88,6 +93,8 @@ TEST(ComponentNameParser, Parse) {
     EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Method);
     EXPECT_EQ(CName.getDetails().Method.Resource, "my-resource"sv);
     EXPECT_EQ(CName.getDetails().Method.Method, "my-method"sv);
+    EXPECT_EQ(CName.getNoTagName(), "my-resource.my-method"sv);
+    EXPECT_EQ(CName.getOriginalName(), "[method]my-resource.my-method"sv);
   }
   {
     std::string_view Name = "[static]my-resource.my-method"sv;
@@ -95,6 +102,8 @@ TEST(ComponentNameParser, Parse) {
     EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Static);
     EXPECT_EQ(CName.getDetails().Static.Resource, "my-resource"sv);
     EXPECT_EQ(CName.getDetails().Static.Method, "my-method"sv);
+    EXPECT_EQ(CName.getNoTagName(), "my-resource.my-method"sv);
+    EXPECT_EQ(CName.getOriginalName(), "[static]my-resource.my-method"sv);
   }
   {
     std::string_view Name = "name-space:a-label/projection-label@1.2.3"sv;
@@ -106,6 +115,55 @@ TEST(ComponentNameParser, Parse) {
     EXPECT_EQ(CName.getDetails().Interface.Projection, ""sv);
     EXPECT_EQ(CName.getDetails().Interface.Version, "1.2.3"sv);
   }
+}
+
+TEST(ComponentNameParser, StronglyUnique1) {
+  using namespace Validator;
+  ComponentContext::Context Ctx(nullptr);
+
+  auto add = [&](std::string_view S) {
+    ComponentName CN(S);
+    return Ctx.AddImportedName(CN);
+  };
+
+  // Accept set: all should be strongly-unique together.
+  EXPECT_TRUE(add("foo"sv));
+  EXPECT_TRUE(add("foo-bar"sv));
+  EXPECT_TRUE(add("[constructor]foo"sv));
+  EXPECT_TRUE(add("[method]foo.bar"sv));
+  EXPECT_TRUE(add("[method]foo.baz"sv));
+
+  // Reject additions against the accepted set above.
+  // Duplicate label
+  EXPECT_FALSE(add("foo"sv));
+  // Normalized duplicate of kebab label (foo-BAR -> foo-bar)
+  EXPECT_FALSE(add("foo-BAR"sv));
+  // Normalized duplicate of constructor label
+  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
+  // l vs [*]l.l conflict
+  EXPECT_FALSE(add("[method]foo.foo"sv));
+  // Normalized duplicate of method (foo.BAR -> foo.bar)
+  EXPECT_FALSE(add("[method]foo.BAR"sv));
+}
+
+TEST(ComponentNameParser, StronglyUnique) {
+  using namespace Validator;
+  ComponentContext::Context Ctx(nullptr);
+
+  auto add = [&](std::string_view S) {
+    ComponentName CN(S);
+    return Ctx.AddImportedName(CN);
+  };
+
+  // Accept set: all should be strongly-unique together.
+  EXPECT_TRUE(add("[method]foo.abc"sv));
+  EXPECT_TRUE(add("[constructor]foo"sv));
+  EXPECT_TRUE(add("foo-bar"sv));
+  EXPECT_TRUE(add("foo"sv));
+
+  // Reject additions against the accepted set above.
+  EXPECT_FALSE(add("[method]foo"sv));
+  EXPECT_FALSE(add("[static]foo.abc"sv));
 }
 
 } // namespace

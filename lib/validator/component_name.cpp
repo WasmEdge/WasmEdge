@@ -22,28 +22,28 @@ namespace ComponentNameParser {
 //                     | <acronym>
 // word              ::= [a-z] [0-9a-z]*
 // acronym           ::= [A-Z] [0-9A-Z]*
-bool isKebabString(std::string_view input) {
-  bool isFirstPart = true;
+bool isKebabString(std::string_view Input) {
+  bool IsFirstPart = true;
   bool Uppercase = false;
   bool Lowercase = false;
   bool Digit = false;
 
-  for (char c : input) {
-    if (islower(c)) {
+  for (char C : Input) {
+    if (islower(C)) {
       if (Uppercase)
         return false;
       Lowercase = true;
-    } else if (isupper(c)) {
+    } else if (isupper(C)) {
       if (Lowercase)
         return false;
       Uppercase = true;
-    } else if (isdigit(c)) {
-      if (isFirstPart && !(Uppercase || Lowercase))
+    } else if (isdigit(C)) {
+      if (IsFirstPart && !(Uppercase || Lowercase))
         return false;
       Digit = true;
-    } else if (c == '-') {
+    } else if (C == '-') {
       if (Uppercase || Lowercase || Digit) {
-        isFirstPart = false;
+        IsFirstPart = false;
         Uppercase = false;
         Lowercase = false;
         Digit = false;
@@ -55,54 +55,54 @@ bool isKebabString(std::string_view input) {
     }
   }
 
-  return input.size() > 0 && input.back() != '-';
+  return Input.size() > 0 && Input.back() != '-';
 }
 
 // words             ::= <word>
 //                     | <words> '-' <word>
 // word              ::= [a-z] [0-9a-z]*
-bool isLowercaseKebabString(std::string_view input) {
-  return isKebabString(input) &&
-         std::all_of(input.begin(), input.end(), [](char c) {
+bool isLowercaseKebabString(std::string_view Input) {
+  return isKebabString(Input) &&
+         std::all_of(Input.begin(), Input.end(), [](char c) {
            return c == '-' || islower(c) || isdigit(c);
          });
 }
 
-bool isEOF(std::string_view input) { return input.empty(); }
+bool isEOF(std::string_view Input) { return Input.empty(); }
 
-bool readUntil(std::string_view &input, char delim, std::string_view &output) {
-  size_t Pos = input.find(delim);
-  if (Pos == input.npos) {
+bool readUntil(std::string_view &Input, char delim, std::string_view &output) {
+  size_t Pos = Input.find(delim);
+  if (Pos == Input.npos) {
     return false;
   }
 
-  output = input.substr(0, Pos);
-  input.remove_prefix(Pos + 1);
+  output = Input.substr(0, Pos);
+  Input.remove_prefix(Pos + 1);
   return true;
 }
 
-bool tryRead(std::string_view prefix, std::string_view &name) {
-  if (prefix.size() > name.size())
+bool tryRead(std::string_view Prefix, std::string_view &Name) {
+  if (Prefix.size() > Name.size())
     return false;
-  if (prefix != name.substr(0, prefix.size()))
+  if (Prefix != Name.substr(0, Prefix.size()))
     return false;
 
-  name.remove_prefix(prefix.size());
+  Name.remove_prefix(Prefix.size());
   return true;
 }
 
-bool tryReadKebab(std::string_view &input, std::string_view &output) {
+bool tryReadKebab(std::string_view &Input, std::string_view &Output) {
   size_t Pos = 0;
-  while (Pos < input.size()) {
-    if (isalnum(input[Pos]) || input[Pos] == '-') {
+  while (Pos < Input.size()) {
+    if (isalnum(Input[Pos]) || Input[Pos] == '-') {
       Pos++;
     } else {
       break;
     }
   }
-  output = input.substr(0, Pos);
-  input.remove_prefix(Pos);
-  return isKebabString(output);
+  Output = Input.substr(0, Pos);
+  Input.remove_prefix(Pos);
+  return isKebabString(Output);
 }
 
 } // namespace ComponentNameParser
@@ -117,7 +117,7 @@ using namespace ComponentNameParser;
 //                     | <urlname>
 //                     | <hashname>
 void ComponentName::parse() {
-  auto Next = Name;
+  auto Next = getOriginalName();
   Kind = ComponentNameKind::Invalid;
   Detail = {};
 
@@ -129,6 +129,7 @@ void ComponentName::parse() {
   //                    | '[static]' <label> '.' <label>
   //                    | '[async static]' <label> '.' <label> 🔀
   if (tryRead("[async]"sv, Next)) {
+    NoTagName = Next;
     // Not supported yet
     return;
   }
@@ -138,11 +139,13 @@ void ComponentName::parse() {
       return;
     }
     Detail.Constructor.Label = Next;
+    NoTagName = Next;
     Kind = ComponentNameKind::Constructor;
     return;
   }
 
   if (tryRead("[method]"sv, Next)) {
+    NoTagName = Next;
     std::string_view Resource;
     if (!readUntil(Next, '.', Resource)) {
       return;
@@ -157,11 +160,13 @@ void ComponentName::parse() {
   }
 
   if (tryRead("[async method]"sv, Next)) {
+    NoTagName = Next;
     // Not supported yet
     return;
   }
 
   if (tryRead("[static]"sv, Next)) {
+    NoTagName = Next;
     std::string_view Resource;
     if (!readUntil(Next, '.', Resource)) {
       return;
@@ -176,9 +181,13 @@ void ComponentName::parse() {
   }
 
   if (tryRead("[async static]"sv, Next)) {
+    NoTagName = Next;
     // Not supported yet
     return;
   }
+
+  // No tag more
+  NoTagName = Next;
 
   // depname           ::= 'unlocked-dep=<' <pkgnamequery> '>'
   //                     | 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?

@@ -6,7 +6,8 @@ rm -rf piper-source
 
 git clone https://github.com/OHF-Voice/piper1-gpl piper-source
 cd piper-source/libpiper
-
+# we could do git checkout -b new_branch hash to avoid problems when pushing something to the rmeote as we modify the head of existing branch here.
+git checkout 32b95f8c1f0dc0ce27a6acd1143de331f61af777 
 cmake -Bbuild-deps \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_INSTALL_PREFIX="$PWD/install" \

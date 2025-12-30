@@ -88,12 +88,12 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
   elseif(BACKEND STREQUAL "piper")
     message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures")
     download(
-      https://github.com/OHF-Voice/piper1-gpl/raw/main/tests/test_voice.onnx
+      https://github.com/OHF-Voice/piper1-gpl/raw/v1.3.0/tests/test_voice.onnx
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx
       SHA256=1c8bbb420741358f0a356bb83eaae1b4161fbb5974f6941e10eb5a1725d78994
     )
     download(
-      https://github.com/OHF-Voice/piper1-gpl/raw/main/tests/test_voice.onnx.json
+      https://github.com/OHF-Voice/piper1-gpl/raw/v1.3.0/tests/test_voice.onnx.json
       ${CMAKE_CURRENT_BINARY_DIR}/wasinn_piper_fixtures/test_voice.onnx.json
       SHA256=ccd28e02c334fbcfc94a86c8f86f1d7dbb5bffc844af9f22243a1f9f7840db1b
     )

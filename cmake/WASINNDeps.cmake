@@ -421,7 +421,7 @@ function(wasmedge_setup_piper_target target)
     message(FATAL_ERROR "Cannot find onnxruntime")
   endif()
   if(NOT TARGET piper)
-# setup piper
+  # setup piper
     if(DEFINED PIPER_ROOT)
       message(STATUS "Build: Using pre-built Piper from ${PIPER_ROOT}")
       add_library(piper STATIC IMPORTED)

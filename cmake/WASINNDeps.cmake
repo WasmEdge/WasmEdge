@@ -428,7 +428,7 @@ function(wasmedge_setup_piper_target target)
       find_library(
         PIPER_LIB_PATH
         NAMES piper libpiper
-        PATHS "${PIPER_ROOT}/lib"
+        PATHS "${PIPER_ROOT}/"
         NO_DEFAULT_PATH REQUIRED)
       set_target_properties(
         piper PROPERTIES IMPORTED_LOCATION "${PIPER_LIB_PATH}"

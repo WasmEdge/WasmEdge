@@ -114,7 +114,7 @@ class ExternDecl {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
-  ExternDesc getExternDesc() const noexcept { return Desc; }
+  const ExternDesc &getExternDesc() const noexcept { return Desc; }
   ExternDesc &getExternDesc() noexcept { return Desc; }
 
 private:

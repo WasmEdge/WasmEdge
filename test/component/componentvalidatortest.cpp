@@ -69,8 +69,7 @@ TEST(Component, LoadAndValidate_TestWasm) {
   };
 
   ASSERT_TRUE(VM.loadWasm(Vec));
-  // TODO: Fix this for the validator.
-  // ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.validate());
 }
 
 TEST(ComponentValidatorTest, MissingArgument) {

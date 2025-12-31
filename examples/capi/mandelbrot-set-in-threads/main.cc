@@ -30,9 +30,9 @@ int main(int argc, char **argv) {
   WasmEdge_String ExportName = WasmEdge_StringCreateByCString("env");
   WasmEdge_ModuleInstanceContext *HostModCxt =
       WasmEdge_ModuleInstanceCreate(ExportName);
-  WasmEdge_Limit MemLimit = {
-      .HasMax = true, .Shared = true, .Min = 60, .Max = 60};
-  WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(MemLimit);
+  WasmEdge_LimitContext *LimitCxt =
+      WasmEdge_LimitCreateWithMax(60, 60, false, true);
+  WasmEdge_MemoryTypeContext *MemTypeCxt = WasmEdge_MemoryTypeCreate(LimitCxt);
   WasmEdge_MemoryInstanceContext *HostMemory =
       WasmEdge_MemoryInstanceCreate(MemTypeCxt);
   WasmEdge_String MemoryName = WasmEdge_StringCreateByCString("memory");
@@ -117,6 +117,7 @@ int main(int argc, char **argv) {
   WasmEdge_VMDelete(VMCxt);
   WasmEdge_StringDelete(ModName);
   WasmEdge_StringDelete(FuncName);
+  WasmEdge_LimitDelete(LimitCxt);
   WasmEdge_MemoryTypeDelete(MemTypeCxt);
   WasmEdge_ConfigureDelete(ConfCxt);
   return 0;

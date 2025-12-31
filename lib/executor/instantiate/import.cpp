@@ -35,6 +35,9 @@ auto logUnknownError(std::string_view ModName, std::string_view ExtName,
 }
 
 bool matchLimit(const AST::Limit &Exp, const AST::Limit &Got) {
+  if (Exp.getAddrType() != Got.getAddrType()) {
+    return false;
+  }
   if (Exp.isShared() != Got.isShared()) {
     return false;
   }
@@ -233,10 +236,12 @@ Expect<void> Executor::instantiate(
               ImpModInst->getTypeList(), ImpType.getRefType(),
               ModInst.getTypeList(), TabType.getRefType()) ||
           !matchLimit(TabLim, ImpLim)) {
-        return logMatchError(ModName, ExtName, ExtType, TabType.getRefType(),
-                             TabLim.hasMax(), TabLim.getMin(), TabLim.getMax(),
-                             ImpType.getRefType(), ImpLim.hasMax(),
-                             ImpLim.getMin(), ImpLim.getMax());
+        return logMatchError(
+            ModName, ExtName, ExtType, TabType.getRefType(), TabLim.hasMax(),
+            static_cast<uint32_t>(TabLim.getMin()),
+            static_cast<uint32_t>(TabLim.getMax()), ImpType.getRefType(),
+            ImpLim.hasMax(), static_cast<uint32_t>(ImpLim.getMin()),
+            static_cast<uint32_t>(ImpLim.getMax()));
       }
       // Set the matched table address to module instance.
       ModInst.importTable(ImpInst);

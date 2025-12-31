@@ -31,6 +31,7 @@ namespace WasmEdge {
 // >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 using Byte = uint8_t;
+using addr_t = uint64_t;
 
 /// SIMD types definition.
 template <typename Ty, size_t TotalSize,
@@ -53,6 +54,9 @@ using int8x16_t = SIMDArray<int8_t, 16>;
 using uint8x16_t = SIMDArray<uint8_t, 16>;
 using doublex2_t = SIMDArray<double, 16>;
 using floatx4_t = SIMDArray<float, 16>;
+
+/// Address type enumeration class.
+enum class AddressType : uint8_t { I32, I64 };
 
 // The bit pattern of the value types:
 // -----------------------------------------------------------------------------
@@ -694,6 +698,45 @@ template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
 }
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> Functions to access address value from ValVariant >>>>>>>>>>>>>>>>>>
+
+inline addr_t extractAddr(const ValVariant &Val,
+                          const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<addr_t>(Val.get<uint32_t>());
+  case AddressType::I64:
+    return static_cast<addr_t>(Val.get<uint64_t>());
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline ValVariant emplaceAddr(const addr_t Addr,
+                              const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<uint32_t>(Addr);
+  case AddressType::I64:
+    return static_cast<uint64_t>(Addr);
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline addr_t getMaxAddress(const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<addr_t>(std::numeric_limits<uint32_t>::max());
+  case AddressType::I64:
+    return static_cast<addr_t>(std::numeric_limits<uint64_t>::max());
+  default:
+    assumingUnreachable();
+  }
+}
+
+// <<<<<<<< Functions to access address value from ValVariant <<<<<<<<<<<<<<<<<<
 
 /// EndianValue definition.
 template <typename T> class EndianValue {

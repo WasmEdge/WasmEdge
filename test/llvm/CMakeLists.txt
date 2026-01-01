@@ -12,3 +12,7 @@ target_link_libraries(wasmedgeLLVMCoreTests
   wasmedgeTestSpec
   wasmedgeVM
 )
+
+add_executable(JITLibraryNullTest JITLibraryNullTest.cpp)
+target_link_libraries(JITLibraryNullTest PRIVATE wasmedgeLLVM gtest)
+add_test(NAME JITLibraryNullTest COMMAND JITLibraryNullTest)

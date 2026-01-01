@@ -22,7 +22,7 @@ JITLibrary::~JITLibrary() noexcept {
 Symbol<const Executable::IntrinsicsTable *>
 JITLibrary::getIntrinsics() noexcept {
   if (!J) {
-    spdlog::error("JITLibrary: J is null in getIntrinsics()"sv);
+    spdlog::error("J is null in getIntrinsics()"sv);
     return {};
   }
   if (auto Symbol = J->lookup<const IntrinsicsTable *>("intrinsics")) {
@@ -38,7 +38,7 @@ JITLibrary::getTypes(size_t Size) noexcept {
   std::vector<Symbol<Wrapper>> Result;
   Result.reserve(Size);
   if (!J) {
-    spdlog::error("JITLibrary: J is null in getTypes()"sv);
+    spdlog::error("J is null in getTypes()"sv);
     Result.resize(Size);
     return Result;
   }
@@ -51,6 +51,7 @@ JITLibrary::getTypes(size_t Size) noexcept {
       Result.emplace_back();
     }
   }
+  
   return Result;
 }
 
@@ -59,7 +60,7 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
   std::vector<Symbol<void>> Result;
   Result.reserve(Size);
   if (!J) {
-    spdlog::error("JITLibrary: J is null in getCodes()"sv);
+    spdlog::error("J is null in getCodes()"sv);
     Result.resize(Size);
     return Result;
   }
@@ -72,6 +73,7 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
       Result.emplace_back();
     }
   }
+
   return Result;
 }
 

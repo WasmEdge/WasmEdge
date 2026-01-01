@@ -450,6 +450,15 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
 
     // Get the function name to invoke.
     if (Opt.Args.value().empty()) {
+      // Check if module has any exported functions
+      auto Functions = VM.getFunctionList();
+
+      if (Functions.empty()) {
+        spdlog::info("Module instantiated successfully (no _start or exported "
+                     "functions).");
+        return EXIT_SUCCESS;
+      }
+
       fmt::print(
           stderr,
           "A function name is required when reactor mode is enabled.\n"sv);

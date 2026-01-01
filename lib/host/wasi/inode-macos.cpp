@@ -1406,7 +1406,7 @@ WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
   return {};
 }
 
-void Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
+void Poller::clock(__wasi_clockid_t ClockId, __wasi_timestamp_t Timeout,
                    __wasi_timestamp_t, __wasi_subclockflags_t Flags,
                    __wasi_userdata_t UserData) noexcept {
   assuming(Events.size() < WasiEvents.size());
@@ -1416,19 +1416,34 @@ void Poller::clock(__wasi_clockid_t, __wasi_timestamp_t Timeout,
   Event.type = __WASI_EVENTTYPE_CLOCK;
 
   const uint64_t Ident = NextTimerId++;
+  //  Use toClockId for safety
+  clockid_t SysClockId = toClockId(ClockId);
 
   uint32_t FFlags = NOTE_NSECONDS;
+  // Handle ABSTIME
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
-#ifdef NOTE_ABSOLUTE
-    FFlags |= NOTE_ABSOLUTE;
-#else
-    Event.Valid = true;
-    Event.error = __WASI_ERRNO_NOSYS;
-    return;
-#endif
+    //  Handle ABSTIME Manually
+    // macOS NOTE_ABSOLUTE checks Realtime clock. If guest gives Monotonic
+    // (uptime), it fails. We calculate Relative Timeout manually to fix the
+    // busy loop.
+
+    struct timespec NowTS;
+    clock_gettime(SysClockId, &NowTS);
+    const __wasi_timestamp_t CurrentTimeNS =
+        static_cast<__wasi_timestamp_t>(NowTS.tv_sec) * 1000000000ULL +
+        static_cast<__wasi_timestamp_t>(NowTS.tv_nsec);
+
+    // Convert Absolute Target to Relative Duration manually
+    if (Timeout > CurrentTimeNS) {
+      Timeout = Timeout - CurrentTimeNS;
+    } else {
+      Timeout = 0;
+    }
   }
 
   struct kevent KEvent;
+  // Note: We use &Event (the pointer to the result) as the udata,
+  // ensuring the callback knows which WASI event to complete.
   EV_SET(&KEvent, Ident, EVFILT_TIMER, EV_ADD | EV_ENABLE, FFlags, Timeout,
          &Event);
 

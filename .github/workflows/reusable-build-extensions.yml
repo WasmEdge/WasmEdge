@@ -169,8 +169,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: 'macos-14-large'
-            asset_tag: 'darwin_23-x86_64'
+          - runner: 'macos-15-intel'
+            asset_tag: 'darwin_24-x86_64'
             plugins: ${{ needs.prepare.outputs.macos_x86_64 }}
           - runner: 'macos-14'
             asset_tag: 'darwin_23-arm64'

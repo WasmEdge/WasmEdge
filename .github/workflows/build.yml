@@ -93,7 +93,7 @@ jobs:
     uses: ./.github/workflows/reusable-build-on-macos.yml
     with:
       version: ${{ needs.get_version.outputs.version }}
-      matrix: "[{'name':'MacOS 14 (x86_64)','runner':'macos-14-large','darwin_version':23,'arch':'x86_64'},
+      matrix: "[{'name':'MacOS 15 (x86_64)','runner':'macos-15-intel','darwin_version':24,'arch':'x86_64'},
                 {'name':'MacOS 14 (arm64)','runner':'macos-14','darwin_version':23,'arch':'arm64'}]"
 
   build_on_manylinux_2_28:

@@ -1,12 +1,16 @@
 name: Commit Lint
 
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
 
 jobs:
   commitlint:
+    # Skip commit validation when only PR title/body is edited (no new commits)
+    if: github.event.action != 'edited'
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
@@ -21,7 +25,7 @@ jobs:
       - name: Install required dependencies
         run: |
           sudo apt update && sudo apt install -y git curl
-          curl -fsSL https://deb.nodesource.com/setup_18.x  | sudo -E bash -
+          curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
           sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
 
       - name: Print versions
@@ -33,9 +37,50 @@ jobs:
       - name: Install commitlint
         run: |
           npm install conventional-changelog-conventionalcommits@9.1.0
-          npm install commitlint@19.8.1 @commitlint/config-conventional@19.8.1
+          npm install commitlint@20.2.0 @commitlint/config-conventional@20.2.0
           npx commitlint --version
 
       - name: Validate PR commits with commitlint
         if: github.event_name == 'pull_request'
         run: npx commitlint --from ${{ github.event.pull_request.head.sha }}~${{ github.event.pull_request.commits }} --to ${{ github.event.pull_request.head.sha }} --verbose
+
+  pr-title-lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Install required dependencies
+        run: |
+          sudo apt update && sudo apt install -y git curl
+          curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
+          sudo DEBIAN_FRONTEND=noninteractive apt install -y nodejs
+
+      - name: Print versions
+        run: |
+          git --version
+          node --version
+          npm --version
+
+      - name: Install commitlint
+        run: |
+          npm install conventional-changelog-conventionalcommits@9.1.0
+          npm install commitlint@20.2.0 @commitlint/config-conventional@20.2.0
+
+      - name: Validate PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node -e "
+            const { execFileSync } = require('child_process');
+            const title = process.env.PR_TITLE;
+            console.log('Validating PR title:', title);
+            execFileSync('npx', ['commitlint'], {
+              input: title,
+              stdio: ['pipe', 'inherit', 'inherit']
+            });
+          "

@@ -51,7 +51,7 @@ JITLibrary::getTypes(size_t Size) noexcept {
       Result.emplace_back();
     }
   }
-  
+
   return Result;
 }
 

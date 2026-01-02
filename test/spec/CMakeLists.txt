@@ -54,3 +54,45 @@ target_link_libraries(wasmedgeTestSpec
   wasmedgeCommon
   ${GTEST_BOTH_LIBRARIES}
 )
+
+# Download component-model test suite
+message(STATUS "Downloading the Component Model spec test suite")
+FetchContent_Declare(
+  wasmedge_component_model_test
+  GIT_REPOSITORY https://github.com/WebAssembly/component-model.git
+  GIT_TAG        main
+  GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(wasmedge_component_model_test)
+message(STATUS "Downloading the Component Model spec test suite -- done")
+
+# Copy component-model validator tests
+message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/component-model")
+file(COPY ${wasmedge_component_model_test_SOURCE_DIR}/test/wasmtime/
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/testSuites/component-model
+     FILES_MATCHING PATTERN "*.wast" PATTERN "*.json")
+message(STATUS "Copying test suite to ${CMAKE_CURRENT_BINARY_DIR}/testSuites/component-model -- done")
+
+# Component Model validator test executable
+wasmedge_add_executable(wasmedgeComponentModelTest
+  componentModelTest.cpp
+)
+
+target_include_directories(wasmedgeComponentModelTest
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(wasmedgeComponentModelTest
+  PRIVATE
+  wasmedgeCommon
+  std::filesystem
+  ${GTEST_BOTH_LIBRARIES}
+)
+
+# Add CTest integration
+add_test(NAME ComponentModelTest COMMAND wasmedgeComponentModelTest)
+
+# Note: Tests are placeholder checks until validator is complete
+# Once validator implementation progresses, expand tests to validate component model spec

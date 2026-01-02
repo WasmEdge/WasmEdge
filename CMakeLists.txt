@@ -1,3 +1,5 @@
+string(REPLACE "-Wno-error=template-id-cdtor" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REPLACE "-Wno-error=template-id-cdtor" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
@@ -7,6 +9,15 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
   cmake_policy(SET CMP0135 NEW)
 endif()
 project(WasmEdge LANGUAGES CXX C)
+
+foreach(_lang C CXX)
+  foreach(_cfg "" _DEBUG _RELEASE _RELWITHDEBINFO _MINSIZEREL)
+    set(_var "CMAKE_${_lang}_FLAGS${_cfg}")
+    if(DEFINED ${_var})
+      string(REPLACE "-Wno-error=template-id-cdtor" "" ${_var} "${${_var}}")
+    endif()
+  endforeach()
+endforeach()
 
 # CMake build type.
 if(NOT CMAKE_BUILD_TYPE)

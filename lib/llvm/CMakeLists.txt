@@ -9,6 +9,9 @@ include(AddLLVM)
 find_package(LLD HINTS "${LLD_CMAKE_PATH}" "${LLD_DIR}" "${LLVM_LIBRARY_DIR}/cmake/lld")
 if(LLD_FOUND)
   list(APPEND CMAKE_MODULE_PATH "${LLD_CMAKE_DIR}")
+  set(WASMEDGE_HAVE_LLD ON)
+else()
+  set(WASMEDGE_HAVE_LLD OFF)
 endif()
 
 if(WASMEDGE_LINK_LLVM_STATIC)
@@ -28,18 +31,20 @@ if(WASMEDGE_LINK_LLVM_STATIC)
     ${WASMEDGE_LLVM_LINK_SHARED_COMPONENTS}
   )
 else()
-  if(APPLE)
-    list(APPEND LLD_LIBS lldMachO)
-  elseif(WIN32)
-    list(APPEND LLD_LIBS lldCOFF)
-    set(EXTRA_COMPONENTS DebugInfoPDB LibDriver WindowsManifest)
-  else()
-    list(APPEND LLD_LIBS lldELF)
-  endif()
+  if(WASMEDGE_HAVE_LLD)
+    if(APPLE)
+      list(APPEND LLD_LIBS lldMachO)
+    elseif(WIN32)
+      list(APPEND LLD_LIBS lldCOFF)
+      set(EXTRA_COMPONENTS DebugInfoPDB LibDriver WindowsManifest)
+    else()
+      list(APPEND LLD_LIBS lldELF)
+    endif()
 
-  list(APPEND LLD_LIBS lldCommon)
-  if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
-    list(APPEND LLD_LIBS lldDriver)
+    list(APPEND LLD_LIBS lldCommon)
+    if(LLVM_VERSION_MAJOR LESS_EQUAL 13)
+      list(APPEND LLD_LIBS lldDriver)
+    endif()
   endif()
 
   # Command line warning D9025 : overriding '/EHs' with '/EHs-'
@@ -79,7 +84,7 @@ target_include_directories(wasmedgeLLVM
   SYSTEM
   PRIVATE
   ${LLVM_INCLUDE_DIR}
-  ${LLD_INCLUDE_DIRS}
+  $<$<BOOL:${WASMEDGE_HAVE_LLD}>:${LLD_INCLUDE_DIRS}>
 )
 
 target_include_directories(wasmedgeLLVM

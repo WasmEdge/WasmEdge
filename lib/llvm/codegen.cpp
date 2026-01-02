@@ -11,20 +11,27 @@
 
 #include <charconv>
 #include <fstream>
+#ifdef LLD_FOUND
 #include <lld/Common/Driver.h>
+#endif
 #include <random>
 #include <sstream>
 
 #if LLVM_VERSION_MAJOR >= 14
+#ifdef LLD_FOUND
 #include <lld/Common/CommonLinkerContext.h>
 #endif
+#endif
+
 #if LLVM_VERSION_MAJOR >= 17
+#ifdef LLD_FOUND
 #if WASMEDGE_OS_MACOS
 LLD_HAS_DRIVER(macho)
 #elif WASMEDGE_OS_LINUX
 LLD_HAS_DRIVER(elf)
 #elif WASMEDGE_OS_WINDOWS
 LLD_HAS_DRIVER(coff)
+#endif
 #endif
 #endif
 
@@ -199,6 +206,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     OS.close();
   }
 
+#ifdef LLD_FOUND
   // link
   bool LinkResult = false;
 #if WASMEDGE_OS_MACOS
@@ -272,6 +280,9 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   } else {
     spdlog::error("link error"sv);
   }
+#else
+  spdlog::error("LLD support not available: cannot link native library."sv);
+#endif
 
 #if WASMEDGE_OS_MACOS
   // codesign

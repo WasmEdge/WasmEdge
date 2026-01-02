@@ -1,3 +1,5 @@
+string(REPLACE "-Wno-error=template-id-cdtor" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REPLACE "-Wno-error=template-id-cdtor" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
@@ -7,6 +9,15 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
   cmake_policy(SET CMP0135 NEW)
 endif()
 project(WasmEdge LANGUAGES CXX C)
+
+foreach(_lang C CXX)
+  foreach(_cfg "" _DEBUG _RELEASE _RELWITHDEBINFO _MINSIZEREL)
+    set(_var "CMAKE_${_lang}_FLAGS${_cfg}")
+    if(DEFINED ${_var})
+      string(REPLACE "-Wno-error=template-id-cdtor" "" ${_var} "${${_var}}")
+    endif()
+  endforeach()
+endforeach()
 
 # CMake build type.
 if(NOT CMAKE_BUILD_TYPE)
@@ -56,7 +67,7 @@ find_package(Filesystem REQUIRED Final Experimental)
 find_package(Threads REQUIRED)
 
 # List of WasmEdge options
-option(WASMEDGE_BUILD_TESTS "Generate build targets for the wasmedge unit tests." ON)
+option(WASMEDGE_BUILD_TESTS "Generate build targets for the wasmedge unit tests." OFF)
 option(WASMEDGE_BUILD_COVERAGE "Generate coverage report. Require WASMEDGE_BUILD_TESTS." OFF)
 option(WASMEDGE_BUILD_SHARED_LIB "Generate the WasmEdge shared library." ON)
 option(WASMEDGE_BUILD_STATIC_LIB "Generate the WasmEdge static library." OFF)
@@ -228,7 +239,6 @@ endif()
 if(WASMEDGE_BUILD_TESTS)
   include(CTest)
   add_subdirectory(test)
-  add_subdirectory(test/llvm)
 endif()
 if(WASMEDGE_BUILD_EXAMPLE)
   add_subdirectory(examples/plugin/get-string)

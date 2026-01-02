@@ -109,11 +109,6 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
       -Wno-error=dangling-reference
     )
   endif()
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 14)
-    list(APPEND WASMEDGE_CFLAGS
-      -Wno-error=template-id-cdtor
-    )
-  endif()
 endif()
 
 if(WIN32)

@@ -11,6 +11,7 @@ namespace LLVM = WasmEdge::LLVM;
 using namespace std::literals;
 
 namespace WasmEdge::LLVM {
+JITLibrary::JITLibrary() noexcept : J(nullptr) {}
 
 JITLibrary::JITLibrary(OrcLLJIT JIT) noexcept
     : J(std::make_unique<OrcLLJIT>(std::move(JIT)).release()) {}

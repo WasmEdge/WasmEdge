@@ -7,24 +7,23 @@ class JITLibraryNullTest : public ::testing::Test {
 protected:
   JITLibrary *jitLibNull;
   void SetUp() override {
-    jitLibNull = reinterpret_cast<JITLibrary *>(malloc(sizeof(JITLibrary)));
-    memset(jitLibNull, 0, sizeof(JITLibrary));
+    jitLibNull = new JITLibrary();
   }
   void TearDown() override {
-    free(jitLibNull);
+    delete jitLibNull;
   }
 };
 
 TEST_F(JITLibraryNullTest, GetIntrinsicsNull) {
   auto result = jitLibNull->getIntrinsics();
-  EXPECT_FALSE(result.has_value());
+  EXPECT_FALSE(static_cast<bool>(result));
 }
 
 TEST_F(JITLibraryNullTest, GetTypesNull) {
   auto result = jitLibNull->getTypes(3);
   EXPECT_EQ(result.size(), 3);
   for (const auto &symbol : result) {
-    EXPECT_FALSE(symbol.has_value());
+    EXPECT_FALSE(static_cast<bool>(symbol));
   }
 }
 
@@ -32,6 +31,6 @@ TEST_F(JITLibraryNullTest, GetCodesNull) {
   auto result = jitLibNull->getCodes(0, 2);
   EXPECT_EQ(result.size(), 2);
   for (const auto &symbol : result) {
-    EXPECT_FALSE(symbol.has_value());
+    EXPECT_FALSE(static_cast<bool>(symbol));
   }
 }

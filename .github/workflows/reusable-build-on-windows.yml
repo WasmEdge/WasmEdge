@@ -71,6 +71,12 @@ jobs:
           tools\wasmedge\wasmedge -v
           ctest --output-on-failure
           cd -
+      - name: Check symbol exposure
+        run: |
+          $vsPath = (vswhere -latest -property installationPath)
+          Import-Module (Join-Path $vsPath Common7\Tools\Microsoft.VisualStudio.DevShell.dll)
+          Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.26100.0"
+          bash .github/scripts/check_symbols.sh
       - name: Create WasmEdge package
         run: |
           cmake --build build --target package

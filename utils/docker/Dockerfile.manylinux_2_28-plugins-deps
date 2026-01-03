@@ -41,4 +41,7 @@ ENV OPENVINO_YEAR="2025"
 COPY wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
 
+COPY wasi-nn/install-libpiper.sh .
+RUN [ "/bin/bash", "install-libpiper.sh" ]
+
 RUN yum clean all

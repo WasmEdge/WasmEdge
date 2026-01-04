@@ -1,0 +1,38 @@
+# Using Ubuntu 22.04 for better llvm support
+FROM ubuntu:22.04
+
+# Grab build deps. We specifically need clang-14 here because gcc often fails
+# with the newer PyTorch ABI.
+RUN apt-get update && \
+    apt-get install -y software-properties-common wget git cmake make \
+    libboost-all-dev llvm-14-dev liblld-14-dev clang-14 zip unzip python3 \
+    && apt-get clean
+
+# Manually install LibTorch 2.4.0 (CPU).
+# The docs suggest 1.8.2, but that causes header errors on master.
+WORKDIR /usr/local
+RUN wget --no-check-certificate https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.4.0%2Bcpu.zip && \
+    unzip -q libtorch-cxx11-abi-shared-with-deps-2.4.0+cpu.zip && \
+    rm libtorch-cxx11-abi-shared-with-deps-2.4.0+cpu.zip
+
+# Make sure CMake can find the Torch config files we just extracted
+ENV LD_LIBRARY_PATH=/usr/local/libtorch/lib:$LD_LIBRARY_PATH
+ENV Torch_DIR=/usr/local/libtorch/share/cmake/Torch
+
+# Pull latest source
+WORKDIR /root
+RUN git clone https://github.com/WasmEdge/WasmEdge.git
+
+# Build with the WASI-NN PyTorch backend enabled
+WORKDIR /root/WasmEdge/build
+RUN cmake -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=clang-14 \
+    -DCMAKE_CXX_COMPILER=clang++-14 \
+    -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="PyTorch" \
+    .. && \
+    make -j4 && \
+    make install && \
+    ldconfig
+
+# Sanity check to confirm the plugin is loaded
+CMD ["wasmedge", "--version"]

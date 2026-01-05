@@ -1,3 +1,21 @@
+### 0.14.2 (2025-01-05)
+
+Fixed issues:
+
+* Fixed the overflow issue of getting memory over 32-bit offset.
+
+Known issues:
+
+* Universal WASM format failed on macOS platforms.
+  * In the current status, the universal WASM format output of the AOT compiler with the `O1` or upper optimizations on MacOS platforms will cause a bus error during execution.
+  * We are trying to fix this issue. For a working around, please use the `--optimize=0` to set the compiler optimization level to `O0` in `wasmedgec` CLI.
+
+Thank all the contributors who made this release possible!
+
+Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.14.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.14.1 (2024-09-16)
 
 Features:

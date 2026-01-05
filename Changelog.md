@@ -1,3 +1,18 @@
+### 0.16.1 (2026-01-06)
+
+This is the hot fix for 0.16.x versions.
+
+* fix(tools): revert the proposal disable options
+* fix(tools): wrong option name for threads proposal
+* test(example): update mandelbrot-set-in-threads example
+* ci: use macos-15-intel as the ci runner, instead of macos-14-large (#4476)
+
+Thank all the contributors who made this release possible!
+
+Yi-Ying He, hydai
+
+If you want to build from source, please use WasmEdge-0.16.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.16.0 (2025-12-31)
 
 Features:

@@ -71,6 +71,18 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   if (Opt.PropRelaxedSIMD.value()) {
     Conf.removeProposal(Proposal::RelaxSIMD);
   }
+  if (Opt.PropTailCallDeprecated.value()) {
+    Conf.addProposal(Proposal::TailCall);
+  }
+  if (Opt.PropExtendConstDeprecated.value()) {
+    Conf.addProposal(Proposal::ExtendedConst);
+  }
+  if (Opt.PropMultiMemDeprecated.value()) {
+    Conf.addProposal(Proposal::MultiMemories);
+  }
+  if (Opt.PropRelaxedSIMDDeprecated.value()) {
+    Conf.addProposal(Proposal::RelaxSIMD);
+  }
   // TODO: EXCEPTION - enable the option.
   Conf.removeProposal(Proposal::ExceptionHandling);
   // if (Opt.PropExceptionHandling.value()) {
@@ -95,6 +107,12 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
     // This will automatically not work if the GC or func-ref proposal not
     // disabled.
     Conf.removeProposal(Proposal::ReferenceTypes);
+  }
+  if (Opt.PropFunctionReferenceDeprecated.value()) {
+    Conf.addProposal(Proposal::FunctionReferences);
+  }
+  if (Opt.PropGCDeprecated.value()) {
+    Conf.addProposal(Proposal::GC);
   }
 
   if (Opt.PropThreads.value()) {

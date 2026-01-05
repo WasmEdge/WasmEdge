@@ -65,6 +65,29 @@ struct DriverToolOptions {
         PropRelaxedSIMD(PO::Description("Disable Relaxed SIMD proposal"sv)),
         PropExceptionHandling(
             PO::Description("Disable Exception handling proposal"sv)),
+        PropTailCallDeprecated(PO::Description(
+            "(DEPRECATED) Enable Tail-call proposal. WASM 3.0 includes this "
+            "proposal, and this option will be removed in the future."sv)),
+        PropExtendConstDeprecated(PO::Description(
+            "(DEPRECATED) Enable Extended-const proposal. WASM 3.0 includes "
+            "this proposal, and this option will be removed in the future."sv)),
+        PropFunctionReferenceDeprecated(PO::Description(
+            "(DEPRECATED) Enable Function Reference proposal. WASM 3.0 "
+            "includes this proposal, and this option will be removed in the "
+            "future."sv)),
+        PropGCDeprecated(PO::Description(
+            "(DEPRECATED) Enable GC proposal. WASM 3.0 includes this proposal, "
+            "and this option will be removed in the future."sv)),
+        PropMultiMemDeprecated(PO::Description(
+            "(DEPRECATED) Enable Multiple memories proposal. WASM 3.0 includes "
+            "this proposal, and this option will be removed in the future."sv)),
+        PropRelaxedSIMDDeprecated(PO::Description(
+            "(DEPRECATED) Enable Relaxed SIMD proposal. WASM 3.0 includes this "
+            "proposal, and this option will be removed in the future."sv)),
+        PropExceptionHandlingDeprecated(PO::Description(
+            "(DEPRECATED) Enable Exception handling proposal. WASM 3.0 "
+            "includes this proposal, and this option will be removed in the "
+            "future."sv)),
         // TODO: MEMORY64 - enable the option.
         // PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
@@ -130,6 +153,13 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropMultiMem;
   PO::Option<PO::Toggle> PropRelaxedSIMD;
   PO::Option<PO::Toggle> PropExceptionHandling;
+  PO::Option<PO::Toggle> PropTailCallDeprecated;
+  PO::Option<PO::Toggle> PropExtendConstDeprecated;
+  PO::Option<PO::Toggle> PropFunctionReferenceDeprecated;
+  PO::Option<PO::Toggle> PropGCDeprecated;
+  PO::Option<PO::Toggle> PropMultiMemDeprecated;
+  PO::Option<PO::Toggle> PropRelaxedSIMDDeprecated;
+  PO::Option<PO::Toggle> PropExceptionHandlingDeprecated;
   // TODO: MEMORY64 - enable the option.
   // PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropThreads;
@@ -182,6 +212,15 @@ struct DriverToolOptions {
         .add_option("disable-multi-memory"sv, PropMultiMem)
         .add_option("disable-relaxed-simd"sv, PropRelaxedSIMD)
         .add_option("disable-exception-handling"sv, PropExceptionHandling)
+        .add_option("enable-tail-call"sv, PropTailCallDeprecated)
+        .add_option("enable-extended-const"sv, PropExtendConstDeprecated)
+        .add_option("enable-function-reference"sv,
+                    PropFunctionReferenceDeprecated)
+        .add_option("enable-gc"sv, PropGCDeprecated)
+        .add_option("enable-multi-memory"sv, PropMultiMemDeprecated)
+        .add_option("enable-relaxed-simd"sv, PropRelaxedSIMDDeprecated)
+        .add_option("enable-exception-handling"sv,
+                    PropExceptionHandlingDeprecated)
         // TODO: MEMORY64 - enable the option.
         // .add_option("disable-memory64"sv, PropMemory64)
         .add_option("enable-threads"sv, PropThreads)

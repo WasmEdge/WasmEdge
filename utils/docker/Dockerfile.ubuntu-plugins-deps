@@ -52,7 +52,7 @@ ENV OPENCV_VERSION="4.8.0"
 RUN [ "/bin/bash", "install-opencvmini.sh" ]
 
 COPY wasi-nn/install-pytorch.sh .
-ENV PYTORCH_VERSION="2.5.1"
+ENV PYTORCH_VERSION="2.4.0"
 ENV PYTORCH_INSTALL_TO="/usr/local"
 ENV Torch_DIR="/usr/local/libtorch"
 RUN [ "/bin/bash", "install-pytorch.sh"  ]

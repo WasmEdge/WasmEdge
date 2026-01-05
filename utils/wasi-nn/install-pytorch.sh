@@ -3,21 +3,22 @@
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 if [[ ! -n ${PYTORCH_VERSION} ]]; then
-  PYTORCH_VERSION="2.5.1"
+  PYTORCH_VERSION="2.4.0"
 fi
 
 if [[ ! -n ${PYTORCH_INSTALL_TO} ]]; then
   PYTORCH_INSTALL_TO=.
 fi
 
+# SHA checksum for PyTorch 2.4.0 (cxx11 ABI)
+PYTORCH_SHA="9d16cc0da41e057f20c0be5f26d7418f969e857631cfcb86550ccdecfee8de60"
 PYTORCH_LINK="libtorch-cxx11-abi"
-PYTORCH_SHA="618ca54eef82a1dca46ff1993d5807d9c0deb0bae147da4974166a147cb562fa"
 
 for i in "$@"; do
   case $i in
   --disable-cxx11-abi)
     PYTORCH_LINK="libtorch"
-    PYTORCH_SHA="21d05ad61935fc70912c779443dba112bda9c9ec1c999345d724935828f81c55"
+    # If using non-ABI 2.4.0, we would need a different SHA here, but we default to ABI.
     shift
     ;;
   esac

@@ -97,9 +97,17 @@ AST::CustomSection createCorestack(
     }
     // frame type 0x00 for wasmedbg
     Content.push_back(0x00);
-    // TODO: fix main Funcidx is 0
-    auto Funcidx = Frames[Idx].From->getTargetIndex();
-    auto Codeoffset = Frames[Idx].From->getOffset();
+
+    // Entry/start frames (module start, WASI _start) have no caller
+    // instruction, so From is default-constructed. Output 0/0 to satisfy
+    // format, but these are not meaningful function indices.
+    uint32_t Funcidx = 0;
+    uint32_t Codeoffset = 0;
+    if (Frames[Idx].From != AST::InstrView::iterator()) {
+      Funcidx = Frames[Idx].From->getTargetIndex();
+      Codeoffset = Frames[Idx].From->getOffset();
+    }
+
     uint32_t Lstart = Frames[Idx].VPos - Frames[Idx].Locals;
     uint32_t Lend = Frames[Idx].VPos;
     uint32_t Vstart = Frames[Idx].VPos;

@@ -127,12 +127,12 @@ struct DriverCompilerOptions {
         .add_option("disable-function-reference"sv, PropFunctionReference)
         .add_option("disable-gc"sv, PropGC)
         .add_option("disable-multi-memory"sv, PropMultiMem)
-        .add_option("disable-threads"sv, PropThreads)
         .add_option("disable-relaxed-simd"sv, PropRelaxedSIMD)
         // TODO: EXCEPTION - enable the option.
         // .add_option("disable-exception-handling"sv, PropExceptionHandling)
         // TODO: MEMORY64 - enable the option.
         // .add_option("disable-memory64"sv, PropMemory64)
+        .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-all"sv, PropAll)
         .add_option("optimize"sv, PropOptimizationLevel);
   }

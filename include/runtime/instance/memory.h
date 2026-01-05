@@ -238,14 +238,28 @@ public:
     return reinterpret_cast<T>(&DataPtr[Offset]);
   }
 
-  /// Get array of object at specific offset of memory.
+  /// Get array of object with count at specific offset of memory.
   template <typename T>
-  Span<T> getSpan(uint32_t Offset, uint32_t Size) const noexcept {
-    uint32_t ByteSize = static_cast<uint32_t>(sizeof(T) * Size);
-    if (unlikely(!checkAccessBound(Offset, ByteSize))) {
+  Span<T> getSpan(uint32_t Offset, uint32_t Count) const noexcept {
+    uint32_t Size;
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+    // Should extend for memory64 proposal.
+    uint64_t Num =
+        static_cast<uint64_t>(sizeof(T)) * static_cast<uint64_t>(Count);
+    if ((Num >> 32) != 0) {
       return Span<T>();
     }
-    return Span<T>(reinterpret_cast<T *>(&DataPtr[Offset]), Size);
+    Size = static_cast<uint32_t>(Num);
+#else
+    if (unlikely(__builtin_mul_overflow(static_cast<uint32_t>(sizeof(T)), Count,
+                                        &Size))) {
+      return Span<T>();
+    }
+#endif
+    if (unlikely(!checkAccessBound(Offset, Size))) {
+      return Span<T>();
+    }
+    return Span<T>(reinterpret_cast<T *>(&DataPtr[Offset]), Count);
   }
 
   /// Get array of object at specific offset of memory.

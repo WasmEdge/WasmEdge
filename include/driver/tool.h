@@ -67,7 +67,7 @@ struct DriverToolOptions {
             PO::Description("Disable Exception handling proposal"sv)),
         // TODO: MEMORY64 - enable the option.
         // PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
-        PropThreads(PO::Description("Disable Threads proposal"sv)),
+        PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
         PropAll(PO::Description("Enable all features"sv)),
@@ -184,7 +184,7 @@ struct DriverToolOptions {
         .add_option("disable-exception-handling"sv, PropExceptionHandling)
         // TODO: MEMORY64 - enable the option.
         // .add_option("disable-memory64"sv, PropMemory64)
-        .add_option("disable-threads"sv, PropThreads)
+        .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)

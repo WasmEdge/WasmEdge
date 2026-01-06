@@ -59,7 +59,7 @@ jobs:
       run: |
         git config --global --add safe.directory $(pwd)
     - uses: uraimo/run-on-arch-action@aa8e672a03e10b403401927ea2ceda57e1b68ac3 # v3
-      name: Build WasmEdge
+      name: Build and Test WasmEdge
       with:
         arch: riscv64
         distro: ubuntu22.04
@@ -74,6 +74,7 @@ jobs:
           apt-get install -q -y llvm-15-dev liblld-15-dev zlib1g-dev
           apt-get install -q -y wabt # For generating wasm
         run: |
+          cd /workplace
           mkdir -p build && cd build
           cmake -DCMAKE_BUILD_TYPE=Release .. && make -j $(nproc) && make install
           wasmedge -v

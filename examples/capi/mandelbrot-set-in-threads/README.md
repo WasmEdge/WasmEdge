@@ -53,7 +53,7 @@ for (int y = y_offset; y < y_max; y++) {
 Notice that we need to import share memory from other workers later, so we should add `--import-memory` and `--shared-memory` to the linker.
 
 ```bash
-wasm-ld --no-entry mandelbrot.o -o mandelbrot.wasm --import-memory --export-all --shared-memory --features=mutable-globals,atomics,bulk-memory
+wasm-ld --no-entry mandelbrot.o -o mandelbrot.wasm --import-memory --export-all --shared-memory --features=mutable-globals,atomics,bulk-memory,multivalue,reference-types,sign-ext,call-indirect-overlong,nontrapping-fptoint,bulk-memory-opt
 ```
 
 #### Enable AOT Mode

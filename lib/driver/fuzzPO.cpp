@@ -141,6 +141,12 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
           "Environ variables. Each variable can be specified as --env `NAME=VALUE`."sv),
       PO::MetaVar("ENVS"sv));
 
+  PO::Option<PO::Toggle> PropWASM1(
+      PO::Description("Set as WASM 1.0 standard."sv));
+  PO::Option<PO::Toggle> PropWASM2(
+      PO::Description("Set as WASM 2.0 standard."sv));
+  PO::Option<PO::Toggle> PropWASM3(
+      PO::Description("Set as WASM 3.0 standard (default)."sv));
   PO::Option<PO::Toggle> PropMutGlobals(
       PO::Description("Disable Import/Export of mutable globals proposal"sv));
   PO::Option<PO::Toggle> PropNonTrapF2IConvs(PO::Description(
@@ -154,12 +160,22 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
   PO::Option<PO::Toggle> PropRefTypes(
       PO::Description("Disable Reference types proposal"sv));
   PO::Option<PO::Toggle> PropSIMD(PO::Description("Disable SIMD proposal"sv));
-  PO::Option<PO::Toggle> PropMultiMem(
-      PO::Description("Enable Multiple memories proposal"sv));
   PO::Option<PO::Toggle> PropTailCall(
-      PO::Description("Enable Tail-call proposal"sv));
+      PO::Description("Disable Tail-call proposal"sv));
   PO::Option<PO::Toggle> PropExtendConst(
-      PO::Description("Enable Extended-const proposal"sv));
+      PO::Description("Disable Extended-const proposal"sv));
+  PO::Option<PO::Toggle> PropFunctionReference(
+      PO::Description("Disable Function Reference proposal"sv));
+  PO::Option<PO::Toggle> PropGC(PO::Description("Disable GC proposal"sv));
+  PO::Option<PO::Toggle> PropMultiMem(
+      PO::Description("Disable Multiple memories proposal"sv));
+  PO::Option<PO::Toggle> PropRelaxedSIMD(
+      PO::Description("Disable Relaxed SIMD proposal"sv));
+  PO::Option<PO::Toggle> PropExceptionHandling(
+      PO::Description("Disable Exception handling proposal"sv));
+  // TODO: MEMORY64 - enable the option.
+  // PO::Option<PO::Toggle> PropMemory64(
+  //     PO::Description("Disable Memory64 proposal"sv));
   PO::Option<PO::Toggle> PropThreads(
       PO::Description("Enable Threads proposal"sv));
   PO::Option<PO::Toggle> PropAll(PO::Description("Enable all features"sv));
@@ -197,10 +213,9 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       .add_option("reactor"sv, Reactor)
       .add_option("dir"sv, Dir)
       .add_option("env"sv, Env)
-      .add_option("enable-instruction-count"sv, ConfEnableInstructionCounting)
-      .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
-      .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
-      .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
+      .add_option("wasm-1"sv, PropWASM1)
+      .add_option("wasm-2"sv, PropWASM2)
+      .add_option("wasm-3"sv, PropWASM3)
       .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
       .add_option("disable-non-trap-float-to-int"sv, PropNonTrapF2IConvs)
       .add_option("disable-sign-extension-operators"sv, PropSignExtendOps)
@@ -208,10 +223,17 @@ int FuzzPO(const uint8_t *Data, size_t Size) noexcept {
       .add_option("disable-bulk-memory"sv, PropBulkMemOps)
       .add_option("disable-reference-types"sv, PropRefTypes)
       .add_option("disable-simd"sv, PropSIMD)
-      .add_option("enable-multi-memory"sv, PropMultiMem)
-      .add_option("enable-tail-call"sv, PropTailCall)
-      .add_option("enable-extended-const"sv, PropExtendConst)
+      .add_option("disable-tail-call"sv, PropTailCall)
+      .add_option("disable-extended-const"sv, PropExtendConst)
+      .add_option("disable-function-reference"sv, PropFunctionReference)
+      .add_option("disable-gc"sv, PropGC)
+      .add_option("disable-multi-memory"sv, PropMultiMem)
+      .add_option("disable-relaxed-simd"sv, PropRelaxedSIMD)
+      .add_option("disable-exception-handling"sv, PropExceptionHandling)
+      // TODO: MEMORY64 - enable the option.
+      // .add_option("disable-memory64"sv, PropMemory64)
       .add_option("enable-threads"sv, PropThreads)
+      .add_option("enable-component"sv, PropComponent)
       .add_option("enable-all"sv, PropAll)
       .add_option("time-limit"sv, TimeLim)
       .add_option("gas-limit"sv, GasLim)

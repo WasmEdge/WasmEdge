@@ -288,6 +288,21 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropExceptionHandling.value()) {
     Conf.removeProposal(Proposal::ExceptionHandling);
   }
+  if (Opt.PropTailCallDeprecated.value()) {
+    Conf.addProposal(Proposal::TailCall);
+  }
+  if (Opt.PropExtendConstDeprecated.value()) {
+    Conf.addProposal(Proposal::ExtendedConst);
+  }
+  if (Opt.PropMultiMemDeprecated.value()) {
+    Conf.addProposal(Proposal::MultiMemories);
+  }
+  if (Opt.PropRelaxedSIMDDeprecated.value()) {
+    Conf.addProposal(Proposal::RelaxSIMD);
+  }
+  if (Opt.PropExceptionHandlingDeprecated.value()) {
+    Conf.addProposal(Proposal::ExceptionHandling);
+  }
   // TODO: MEMORY64 - enable the option.
   // if (Opt.PropMemory64.value()) {
   //   Conf.removeProposal(Proposal::Memory64);
@@ -307,6 +322,12 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     // This will automatically not work if the GC or func-ref proposal not
     // disabled.
     Conf.removeProposal(Proposal::ReferenceTypes);
+  }
+  if (Opt.PropFunctionReferenceDeprecated.value()) {
+    Conf.addProposal(Proposal::FunctionReferences);
+  }
+  if (Opt.PropGCDeprecated.value()) {
+    Conf.addProposal(Proposal::GC);
   }
 
   if (Opt.PropThreads.value()) {

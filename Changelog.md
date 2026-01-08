@@ -149,6 +149,21 @@ Han-Wen Tsao, Karan Lokchandani, Khush Agrawal, Minimega12121, Sankalp Jha, Shen
 
 If you want to build from source, please use WasmEdge-0.16.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
+### 0.15.1 (2026-01-08)
+
+This is the hot fix for 0.15.x versions.
+
+Fixed issues:
+
+* feat(aot): add support for llvm 21
+* [CVE-2025-69261] fix(runtime): overflow issue of getting memory over 32-bit offset
+
+Thank all the contributors who made this release possible!
+
+Shen-Ta Hsieh, Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.15.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.15.0 (2025-08-04)
 
 Features:

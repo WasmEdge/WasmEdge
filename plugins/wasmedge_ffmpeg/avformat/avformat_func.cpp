@@ -338,7 +338,8 @@ Expect<int32_t> AVFormatConfiguration::body(const Runtime::CallingFrame &Frame,
 
   const char *Config = avformat_configuration();
   auto Actual = std::strlen(Config);
-  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
+  auto N =
+      std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
   std::copy_n(Config, N, ConfigBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -356,7 +357,8 @@ Expect<int32_t> AVFormatLicense::body(const Runtime::CallingFrame &Frame,
 
   const char *License = avformat_license();
   auto Actual = std::strlen(License);
-  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
+  auto N =
+      std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
   std::copy_n(License, N, LicenseBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }

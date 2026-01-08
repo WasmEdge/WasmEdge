@@ -58,7 +58,8 @@ Expect<int32_t> AVColorRangeName::body(const Runtime::CallingFrame &Frame,
   AVColorRange const ColorRange = static_cast<AVColorRange>(RangeId);
   const char *RangeName = av_color_range_name(ColorRange);
   auto Actual = std::strlen(RangeName);
-  auto N = std::min<uint32_t>(RangeLength, static_cast<uint32_t>(Actual + 1));
+  auto N =
+      std::min<uint32_t>(RangeLength, static_cast<uint32_t>(Actual + 1));
   std::copy_n(RangeName, N, RangeNameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -83,7 +84,8 @@ Expect<int32_t> AVColorTransferName::body(const Runtime::CallingFrame &Frame,
       static_cast<AVColorTransferCharacteristic>(TransferId);
   const char *TransferName = av_color_transfer_name(Characteristic);
   auto Actual = std::strlen(TransferName);
-  auto N = std::min<uint32_t>(TransferLength, static_cast<uint32_t>(Actual + 1));
+  auto N =
+      std::min<uint32_t>(TransferLength, static_cast<uint32_t>(Actual + 1));
   std::copy_n(TransferName, N, TransferNameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -106,7 +108,8 @@ Expect<int32_t> AVColorSpaceName::body(const Runtime::CallingFrame &Frame,
   AVColorSpace const ColorSpace = static_cast<AVColorSpace>(ColorSpaceId);
   const char *ColorSpaceName = av_color_space_name(ColorSpace);
   auto Actual = std::strlen(ColorSpaceName);
-  auto N = std::min<uint32_t>(ColorSpaceLen, static_cast<uint32_t>(Actual + 1));
+  auto N =
+      std::min<uint32_t>(ColorSpaceLen, static_cast<uint32_t>(Actual + 1));
   std::copy_n(ColorSpaceName, N, ColorSpaceBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -131,7 +134,8 @@ Expect<int32_t> AVColorPrimariesName::body(const Runtime::CallingFrame &Frame,
       FFmpegUtils::ColorPrimaries::intoAVColorPrimaries(ColorPrimariesId);
   const char *PrimariesName = av_color_primaries_name(ColorPrimaries);
   auto Actual = std::strlen(PrimariesName);
-  auto N = std::min<uint32_t>(ColorPrimariesLen, static_cast<uint32_t>(Actual + 1));
+  auto N =
+      std::min<uint32_t>(ColorPrimariesLen, static_cast<uint32_t>(Actual + 1));
   std::copy_n(PrimariesName, N, ColorPrimariesBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -158,7 +162,8 @@ Expect<int32_t> AVPixelFormatName::body(const Runtime::CallingFrame &Frame,
   const AVPixFmtDescriptor *PixFmtDescriptor = av_pix_fmt_desc_get(PixFormat);
   const char *PixFormatName = PixFmtDescriptor->name;
   auto Actual = std::strlen(PixFormatName);
-  auto N = std::min<uint32_t>(PixFormatNameLen, static_cast<uint32_t>(Actual + 1));
+  auto N =
+      std::min<uint32_t>(PixFormatNameLen, static_cast<uint32_t>(Actual + 1));
   std::copy_n(PixFormatName, N, PixFormatBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }

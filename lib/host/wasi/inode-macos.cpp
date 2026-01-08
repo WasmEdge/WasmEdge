@@ -1416,34 +1416,38 @@ void Poller::clock(__wasi_clockid_t ClockId, __wasi_timestamp_t Timeout,
   Event.type = __WASI_EVENTTYPE_CLOCK;
 
   const uint64_t Ident = NextTimerId++;
-  //  Use toClockId for safety
+
+  // Identify which clock we are checking (Realtime vs Monotonic)
   clockid_t SysClockId = toClockId(ClockId);
 
   uint32_t FFlags = NOTE_NSECONDS;
-  // Handle ABSTIME
-  if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
-    //  Handle ABSTIME Manually
-    // macOS NOTE_ABSOLUTE checks Realtime clock. If guest gives Monotonic
-    // (uptime), it fails. We calculate Relative Timeout manually to fix the
-    // busy loop.
 
+  // If it is an ABSTIME (Absolute) wait, we calculate the difference manually.
+  if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
     struct timespec NowTS;
-    clock_gettime(SysClockId, &NowTS);
+
+    // Get the current time from the SPECIFIC clock requested.
+    if (clock_gettime(SysClockId, &NowTS) != 0) {
+      Event.Valid = true;
+      Event.error = fromErrNo(errno);
+      return;
+    }
+
     const __wasi_timestamp_t CurrentTimeNS =
         static_cast<__wasi_timestamp_t>(NowTS.tv_sec) * 1000000000ULL +
         static_cast<__wasi_timestamp_t>(NowTS.tv_nsec);
 
-    // Convert Absolute Target to Relative Duration manually
+    // Calculate the Relative Timeout (Target - Now)
     if (Timeout > CurrentTimeNS) {
       Timeout = Timeout - CurrentTimeNS;
     } else {
-      Timeout = 0;
+      Timeout = 0; // The time has already passed, return immediately.
     }
+    // IMPORTANT: We do NOT add NOTE_ABSOLUTE here.
+    // We have already converted it to a relative duration.
   }
 
   struct kevent KEvent;
-  // Note: We use &Event (the pointer to the result) as the udata,
-  // ensuring the callback knows which WASI event to complete.
   EV_SET(&KEvent, Ident, EVFILT_TIMER, EV_ADD | EV_ENABLE, FFlags, Timeout,
          &Event);
 
@@ -1548,9 +1552,12 @@ void Poller::write(const INode &Node, TriggerType Trigger,
 }
 
 void Poller::wait() noexcept {
+  // Clean up ZOMBIE events (Events we used to want, but don't anymore)
   for (const auto &[NodeFd, FdData] : OldFdDatas) {
-    if (auto Iter = FdDatas.find(NodeFd); Iter == FdDatas.end()) {
-      // Remove unused event, ignore failed.
+    auto Iter = FdDatas.find(NodeFd);
+
+    // Case 1: The FD is completely gone.
+    if (Iter == FdDatas.end()) {
       if (FdData.ReadEvent) {
         struct kevent KEvent;
         EV_SET(&KEvent, NodeFd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
@@ -1559,6 +1566,19 @@ void Poller::wait() noexcept {
       if (FdData.WriteEvent) {
         struct kevent KEvent;
         EV_SET(&KEvent, NodeFd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+        ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+      }
+    }
+    // Case 2: The FD is still here, but interests might have changed.
+    else {
+      if (FdData.WriteEvent && !Iter->second.WriteEvent) {
+        struct kevent KEvent;
+        EV_SET(&KEvent, NodeFd, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+        ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
+      }
+      if (FdData.ReadEvent && !Iter->second.ReadEvent) {
+        struct kevent KEvent;
+        EV_SET(&KEvent, NodeFd, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
         ::kevent(Fd, &KEvent, 1, nullptr, 0, nullptr);
       }
     }

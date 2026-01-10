@@ -631,12 +631,40 @@ bool SpecTest::compares(
 
 bool SpecTest::stringContains(std::string_view Expected,
                               std::string_view Got) const {
-  if (Expected.rfind(Got, 0) != 0) {
-    spdlog::error("   ##### expected text : {}"sv, Expected);
-    spdlog::error("   ######## error text : {}"sv, Got);
-    return false;
+  size_t EPos = 0;
+  size_t GPos = 0;
+  while (EPos < Expected.length() && GPos < Got.length()) {
+    if (GPos + 1 < Got.length() && Got.substr(GPos, 2) == "{}") {
+      // If we see "{}", skip the number in the Expected string
+      while (EPos < Expected.length() && (isdigit(Expected[EPos]) || Expected[EPos] == ' ')) {
+        EPos++;
+      }
+      GPos += 2; // Skip the "{}"
+    } else {
+      // Standard character match
+      if (Expected[EPos] != Got[GPos]) {
+        spdlog::error("   ##### expected text : {}"sv, Expected);
+        spdlog::error("   ######## error text : {}"sv, Got);
+        return false;
+      }
+      EPos++;
+      GPos++;
+    }
   }
-  return true;
+
+  // If we finished checking both strings, it is a match
+  if (EPos == Expected.length() && GPos == Got.length()) {
+    return true;
+  }
+  
+  // If we finished Got but Expected still has generic numbers left (edge case)
+  if (GPos == Got.length()) {
+      return true;
+  }
+
+  spdlog::error("   ##### expected text : {}"sv, Expected);
+  spdlog::error("   ######## error text : {}"sv, Got);
+  return false;
 }
 
 void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {

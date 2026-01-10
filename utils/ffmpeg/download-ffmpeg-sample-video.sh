@@ -12,9 +12,6 @@ fi
 if [ ! -d $TODIR ]; then
     mkdir $TODIR
 fi
-if [ ! -d $TODIR ]; then
-    mkdir $TODIR
-fi
 
 if [ ! -f $TODIR/sample_video.mp4 ]; then
   curl -sL $SAMPLE_VIDEO -o $TODIR/sample_video.mp4

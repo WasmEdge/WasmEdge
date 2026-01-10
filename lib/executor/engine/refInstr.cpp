@@ -28,7 +28,7 @@ void logArrayOOB(const ErrCode &Code, const uint32_t Idx, const uint32_t Cnt,
   if (Code == ErrCode::Value::ArrayOutOfBounds) {
     const auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
     spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Cnt,
-                                        Inst->getBoundIdx()));
+                                        Inst->getLength()));
   }
 }
 
@@ -42,11 +42,11 @@ void logDoubleArrayOOB(const ErrCode &Code, const uint32_t Idx1,
     if (static_cast<uint64_t>(Idx1) + static_cast<uint64_t>(Cnt1) >
         Inst1->getLength()) {
       spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx1), Cnt1,
-                                          Inst1->getBoundIdx()));
+                                          Inst1->getLength()));
     } else if (static_cast<uint64_t>(Idx2) + static_cast<uint64_t>(Cnt2) >
                Inst2->getLength()) {
       spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx2), Cnt2,
-                                          Inst2->getBoundIdx()));
+                                          Inst2->getLength()));
     }
   }
 }
@@ -57,9 +57,7 @@ void logMemoryOOB(const ErrCode &Code,
   if (Code == ErrCode::Value::MemoryOutOfBounds) {
     spdlog::error(ErrInfo::InfoBoundary(
         static_cast<uint64_t>(Idx), Length,
-        DataInst.getData().size() > 0
-            ? static_cast<uint32_t>(DataInst.getData().size() - 1)
-            : 0U));
+        static_cast<uint32_t>(DataInst.getData().size())));
   }
 }
 
@@ -68,9 +66,8 @@ void logTableOOB(const ErrCode &Code,
                  const uint32_t Idx, const uint32_t Length) noexcept {
   if (Code == ErrCode::Value::TableOutOfBounds) {
     auto ElemSrc = ElemInst.getRefs();
-    spdlog::error(ErrInfo::InfoBoundary(
-        static_cast<uint64_t>(Idx), Length,
-        ElemSrc.size() > 0 ? static_cast<uint32_t>(ElemSrc.size() - 1) : 0U));
+    spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Length,
+                                        static_cast<uint32_t>(ElemSrc.size())));
   }
 }
 

@@ -8,6 +8,13 @@
 namespace WasmEdge {
 namespace Host {
 
+#define MEMINST_CHECK(Out, CallFrame, Index)                                   \
+  auto *Out = CallFrame.getMemoryByIndex(Index);                               \
+  if (unlikely(Out == nullptr)) {                                              \
+    spdlog::error("[WasmEdge-Zlib] Memory instance not found."sv);             \
+    return Unexpect(ErrCode::Value::HostFuncError);                            \
+  }
+
 constexpr bool CheckSize(int32_t StreamSize) {
 
   return (StreamSize == static_cast<int32_t>(sizeof(WasmZStream)));
@@ -20,13 +27,7 @@ auto SyncRun(const std::string_view &Msg, WasmEdgeZlibEnvironment &Env,
              uint32_t ZStreamPtr, const Runtime::CallingFrame &Frame,
              T Callback) -> Expect<int32_t> {
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [{}-SyncRun] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv,
-                  Msg);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
   WasmZStream *ModuleZStream = MemInst->getPointer<WasmZStream *>(ZStreamPtr);
 
   const auto HostZStreamIt = Env.ZStreamMap.find(ZStreamPtr);
@@ -264,12 +265,7 @@ Expect<int32_t> WasmEdgeZlibDeflateSetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLength) {
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateSetDictionary] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *Dictionary = MemInst->getPointer<const Bytef *>(DictionaryPtr);
 
@@ -284,12 +280,7 @@ Expect<int32_t> WasmEdgeZlibDeflateGetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLengthPtr) {
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateGetDictionary] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
   auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
@@ -386,12 +377,7 @@ WasmEdgeZlibDeflatePending::body(const Runtime::CallingFrame &Frame,
                                  uint32_t ZStreamPtr, uint32_t PendingPtr,
                                  uint32_t BitsPtr) {
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflatePending] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Pending = MemInst->getPointer<uint32_t *>(PendingPtr);
   auto *Bits = MemInst->getPointer<int32_t *>(BitsPtr);
@@ -468,12 +454,7 @@ Expect<int32_t> WasmEdgeZlibInflateSetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLength) {
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateSetDictionary] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
 
@@ -488,12 +469,7 @@ Expect<int32_t> WasmEdgeZlibInflateGetDictionary::body(
     const Runtime::CallingFrame &Frame, uint32_t ZStreamPtr,
     uint32_t DictionaryPtr, uint32_t DictLengthPtr) {
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateGetDictionary] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Dictionary = MemInst->getPointer<Bytef *>(DictionaryPtr);
   auto *DictLength = MemInst->getPointer<uint32_t *>(DictLengthPtr);
@@ -623,12 +599,7 @@ WasmEdgeZlibInflateBackInit::body(const Runtime::CallingFrame &Frame,
   HostZStream->opaque =
       Z_NULL; // ignore opaque since zmalloc and zfree was ignored
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateBackInit] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Window = MemInst->getPointer<unsigned char *>(WindowPtr);
 
@@ -671,12 +642,7 @@ Expect<int32_t> WasmEdgeZlibCompress::body(const Runtime::CallingFrame &Frame,
                                            uint32_t DestLenPtr,
                                            uint32_t SourcePtr,
                                            uint32_t SourceLen) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibCompress] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
   auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
@@ -695,12 +661,7 @@ Expect<int32_t> WasmEdgeZlibCompress2::body(const Runtime::CallingFrame &Frame,
                                             uint32_t DestLenPtr,
                                             uint32_t SourcePtr,
                                             uint32_t SourceLen, int32_t Level) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibCompress2] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
   auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
@@ -724,12 +685,7 @@ Expect<int32_t> WasmEdgeZlibUncompress::body(const Runtime::CallingFrame &Frame,
                                              uint32_t DestLenPtr,
                                              uint32_t SourcePtr,
                                              uint32_t SourceLen) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibUncompress] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
   auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
@@ -747,12 +703,7 @@ Expect<int32_t>
 WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
                               uint32_t DestPtr, uint32_t DestLenPtr,
                               uint32_t SourcePtr, uint32_t SourceLenPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibUncompress2] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Dest = MemInst->getPointer<Bytef *>(DestPtr);
   auto *DestLen = MemInst->getPointer<uint32_t *>(DestLenPtr);
@@ -771,12 +722,7 @@ WasmEdgeZlibUncompress2::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
                                           uint32_t PathPtr, uint32_t ModePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZOpen] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Path = MemInst->getPointer<const char *>(PathPtr);
   auto *Mode = MemInst->getPointer<const char *>(ModePtr);
@@ -795,12 +741,7 @@ Expect<uint32_t> WasmEdgeZlibGZOpen::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t> WasmEdgeZlibGZDOpen::body(const Runtime::CallingFrame &Frame,
                                            int32_t FD, uint32_t ModePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZDOpen] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Mode = MemInst->getPointer<const char *>(ModePtr);
 
@@ -851,12 +792,7 @@ Expect<int32_t> WasmEdgeZlibGZRead::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZRead] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
@@ -873,12 +809,7 @@ Expect<int32_t> WasmEdgeZlibGZFread::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZFread] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
@@ -895,12 +826,7 @@ Expect<int32_t> WasmEdgeZlibGZWrite::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZWrite] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
@@ -917,12 +843,7 @@ Expect<int32_t> WasmEdgeZlibGZFwrite::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZFwrite] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Buf = MemInst->getPointer<unsigned char *>(BufPtr);
 
@@ -938,12 +859,7 @@ Expect<int32_t> WasmEdgeZlibGZPuts::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibGZPuts] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *String = MemInst->getPointer<const char *>(StringPtr);
 
@@ -1136,12 +1052,7 @@ Expect<void> WasmEdgeZlibGZClearerr::body(const Runtime::CallingFrame &,
 Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
                                           uint32_t Adler, uint32_t BufPtr,
                                           uint32_t Len) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibAdler32] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
 
@@ -1151,12 +1062,7 @@ Expect<int32_t> WasmEdgeZlibAdler32::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> WasmEdgeZlibAdler32_z::body(const Runtime::CallingFrame &Frame,
                                             uint32_t Adler, uint32_t BufPtr,
                                             uint32_t Len) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibAdler32_z] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
 
@@ -1173,12 +1079,7 @@ Expect<int32_t> WasmEdgeZlibAdler32Combine::body(const Runtime::CallingFrame &,
 Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
                                         uint32_t CRC, uint32_t BufPtr,
                                         uint32_t Len) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibCRC32] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
 
@@ -1188,12 +1089,7 @@ Expect<int32_t> WasmEdgeZlibCRC32::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> WasmEdgeZlibCRC32_z::body(const Runtime::CallingFrame &Frame,
                                           uint32_t CRC, uint32_t BufPtr,
                                           uint32_t Len) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibCRC32_z] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   auto *Buf = MemInst->getPointer<Bytef *>(BufPtr);
 
@@ -1213,12 +1109,7 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
   if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateInit_] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   auto HostZStream = std::make_unique<z_stream>();
@@ -1253,12 +1144,7 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateInit_] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   auto HostZStream = std::make_unique<z_stream>();
@@ -1292,12 +1178,7 @@ Expect<int32_t> WasmEdgeZlibDeflateInit2_::body(
   if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibDeflateInit2_] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   auto HostZStream = std::make_unique<z_stream>();
@@ -1330,12 +1211,7 @@ WasmEdgeZlibInflateInit2_::body(const Runtime::CallingFrame &Frame,
   if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateInit2_] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   auto HostZStream = std::make_unique<z_stream>();
@@ -1367,12 +1243,7 @@ Expect<int32_t> WasmEdgeZlibInflateBackInit_::body(
   if (!CheckSize(StreamSize))
     return static_cast<int32_t>(Z_VERSION_ERROR);
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
-  if (MemInst == nullptr) {
-    spdlog::error("[WasmEdge-Zlib] [WasmEdgeZlibInflateBackInit_] "sv
-                  "Frame.getMemoryByIndex(0) returned nullptr."sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
+  MEMINST_CHECK(MemInst, Frame, 0)
 
   const auto *WasmZlibVersion = MemInst->getPointer<const char *>(VersionPtr);
   auto *Window = MemInst->getPointer<unsigned char *>(WindowPtr);

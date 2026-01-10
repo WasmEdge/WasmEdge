@@ -107,11 +107,13 @@ public:
     PostHostFunc = HostFunc;
   }
   void invokePreHostFunc() {
+    std::shared_lock Lock(Mutex);
     if (PreHostFunc.operator bool()) {
       PreHostFunc(PreHostData);
     }
   }
   void invokePostHostFunc() {
+    std::shared_lock Lock(Mutex);
     if (PostHostFunc.operator bool()) {
       PostHostFunc(PostHostData);
     }

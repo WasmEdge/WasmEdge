@@ -24,6 +24,7 @@ class OrcLLJIT;
 
 class JITLibrary : public Executable {
 public:
+  JITLibrary() noexcept;
   JITLibrary(OrcLLJIT JIT) noexcept;
   ~JITLibrary() noexcept override;
 

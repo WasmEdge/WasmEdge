@@ -1,0 +1,39 @@
+# Use the standard WasmEdge development base image
+FROM wasmedge/wasmedge:latest
+
+# Install necessary build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    wget \
+    unzip \
+    cmake \
+    libopencv-dev \
+    libxml2-dev \
+    libz-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Setup PyTorch 2.5.1 using the project's install script
+WORKDIR /usr/local
+COPY utils/wasi-nn/install-pytorch.sh .
+
+# Explicitly set the version to match WasmEdge master
+ENV PYTORCH_VERSION="2.5.1"
+ENV PYTORCH_INSTALL_TO="/usr/local"
+ENV CMAKE_PREFIX_PATH="/usr/local/libtorch"
+
+# Execute installation (downloads libtorch-cxx11-abi)
+RUN bash install-pytorch.sh
+
+# Build WasmEdge with the WASI-NN PyTorch backend enabled
+WORKDIR /root/WasmEdge
+COPY . .
+
+WORKDIR /root/WasmEdge/build
+RUN cmake -DCMAKE_BUILD_TYPE=Release \
+    -DWASMEDGE_PLUGIN_WASI_NN_BACKEND="PyTorch" \
+    .. && \
+    make -j$(nproc) wasmedgePluginWasiNN
+
+# Verify the plugin was built successfully
+RUN ls -lh /root/WasmEdge/build/lib/plugin/libwasmedgePluginWasiNN.so

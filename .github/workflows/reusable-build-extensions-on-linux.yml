@@ -67,12 +67,7 @@ jobs:
         shell: bash
         run: |
           [ "${{ matrix.plugin }}" == "wasi_nn-openvino-genai" ] && source /root/openvino_genai/setupvars.sh
-          PIPER_INSTALL_PATH=""
-          if [[ "${{ matrix.plugin }}" == "wasi_nn-piper" ]]; then
-            chmod +x utils/build_libpiper.sh
-            ./utils/build_libpiper.sh
-            PIPER_INSTALL_PATH="$PWD/piper-source/libpiper/install"
-          fi
+          PIPER_INSTALL_PATH="/usr/local"
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
             -DPIPER_ROOT="$PIPER_INSTALL_PATH" \

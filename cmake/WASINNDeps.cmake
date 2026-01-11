@@ -407,6 +407,17 @@ endfunction()
 
 # Function of preparing piper dependency.
 function(wasmedge_setup_piper_target target)
+  if(DEFINED PIPER_ROOT)
+    find_library(ONNXRUNTIME_LIBRARY
+      NAMES onnxruntime
+      PATHS "${PIPER_ROOT}"
+      PATH_SUFFIXES "lib"
+      NO_DEFAULT_PATH
+    )
+    if("${ONNXRUNTIME_LIBRARY}" STREQUAL "ONNXRUNTIME_LIBRARY-NOTFOUND")
+       unset(ONNXRUNTIME_LIBRARY)
+    endif()
+  endif()
   find_package(onnxruntime)
   if(NOT onnxruntime_FOUND)
     find_library(ONNXRUNTIME_LIBRARY onnxruntime)
@@ -428,7 +439,8 @@ function(wasmedge_setup_piper_target target)
       find_library(
         PIPER_LIB_PATH
         NAMES piper libpiper
-        PATHS "${PIPER_ROOT}/"
+        PATHS "${PIPER_ROOT}"
+        PATH_SUFFIXES "lib"
         NO_DEFAULT_PATH REQUIRED)
       set_target_properties(
         piper PROPERTIES IMPORTED_LOCATION "${PIPER_LIB_PATH}"

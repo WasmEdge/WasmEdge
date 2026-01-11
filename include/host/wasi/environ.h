@@ -1284,7 +1284,7 @@ public:
   void close(std::shared_ptr<VINode> Node) noexcept { VPoller::close(Node); }
 
 private:
-  Environ &env() noexcept { return static_cast<Environ &>(Ctx.get()); }
+  Environ &env() noexcept { return static_cast<Environ &>(*Ctx); }
 };
 
 inline WasiExpect<EVPoller>

@@ -2179,7 +2179,7 @@ WasiExpect<__wasi_filesize_t> INode::filesize() const noexcept {
 
 bool INode::canBrowse() const noexcept { return SavedVFSFlags & VFS::Read; }
 
-Poller::Poller(PollerContext &C) noexcept : Ctx(C) {}
+Poller::Poller(PollerContext &C) noexcept : Ctx(&C) {}
 
 WasiExpect<void> Poller::prepare(Span<__wasi_event_t> E) noexcept {
   WasiEvents = E;

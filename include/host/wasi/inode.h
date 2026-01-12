@@ -911,7 +911,7 @@ public:
   bool ok() noexcept;
 
 protected:
-  std::reference_wrapper<PollerContext> Ctx;
+  PollerContext *Ctx;
 
 private:
   Span<__wasi_event_t> WasiEvents;

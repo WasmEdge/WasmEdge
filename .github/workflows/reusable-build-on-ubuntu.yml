@@ -76,6 +76,10 @@ jobs:
           ./tools/wasmedge/wasmedge -v
           ctest
           cd -
+      - name: Check symbol exposure
+        if: ${{ !matrix.coverage }}
+        run: |
+          bash .github/scripts/check_symbols.sh
       - name: Build (${{ matrix.compiler }}, Coverage)
         if: ${{ matrix.coverage }}
         run: |

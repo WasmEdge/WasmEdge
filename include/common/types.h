@@ -31,7 +31,6 @@ namespace WasmEdge {
 // >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 using Byte = uint8_t;
-using addr_t = uint64_t;
 
 /// SIMD types definition.
 template <typename Ty, size_t TotalSize,
@@ -701,19 +700,19 @@ template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
 
 // >>>>>>>> Functions to access address value from ValVariant >>>>>>>>>>>>>>>>>>
 
-inline addr_t extractAddr(const ValVariant &Val,
-                          const AddressType AT) noexcept {
+inline uint64_t extractAddr(const ValVariant &Val,
+                            const AddressType AT) noexcept {
   switch (AT) {
   case AddressType::I32:
-    return static_cast<addr_t>(Val.get<uint32_t>());
+    return static_cast<uint64_t>(Val.get<uint32_t>());
   case AddressType::I64:
-    return static_cast<addr_t>(Val.get<uint64_t>());
+    return static_cast<uint64_t>(Val.get<uint64_t>());
   default:
     assumingUnreachable();
   }
 }
 
-inline ValVariant emplaceAddr(const addr_t Addr,
+inline ValVariant emplaceAddr(const uint64_t Addr,
                               const AddressType AT) noexcept {
   switch (AT) {
   case AddressType::I32:
@@ -725,12 +724,12 @@ inline ValVariant emplaceAddr(const addr_t Addr,
   }
 }
 
-inline addr_t getMaxAddress(const AddressType AT) noexcept {
+inline uint64_t getMaxAddress(const AddressType AT) noexcept {
   switch (AT) {
   case AddressType::I32:
-    return static_cast<addr_t>(std::numeric_limits<uint32_t>::max());
+    return static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
   case AddressType::I64:
-    return static_cast<addr_t>(std::numeric_limits<uint64_t>::max());
+    return static_cast<uint64_t>(std::numeric_limits<uint64_t>::max());
   default:
     assumingUnreachable();
   }

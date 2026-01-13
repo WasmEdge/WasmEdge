@@ -410,21 +410,22 @@ Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
   return Ref;
 }
 
-// For the runtime value of `addr_t`, the arguments are expected to extended
+// For the runtime value of `uint64_t`, the arguments are expected to extended
 // into 64-bit length in LLVM compiler no matter the address type is 32 or 64
-// bit. On the other hand, the return of `addr_t` should handle the conversion
+// bit. On the other hand, the return of `uint64_t` should handle the conversion
 // into 32 or 64 bit value according to the address type in LLVM compiler.
 
 Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,
                                            const uint32_t TableIdx,
-                                           const addr_t Off) noexcept {
+                                           const uint64_t Off) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
   return TabInst->getRefAddr(Off);
 }
 
 Expect<void> Executor::proxyTableSet(Runtime::StackManager &StackMgr,
-                                     const uint32_t TableIdx, const addr_t Off,
+                                     const uint32_t TableIdx,
+                                     const uint64_t Off,
                                      const RefVariant Ref) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
@@ -434,7 +435,7 @@ Expect<void> Executor::proxyTableSet(Runtime::StackManager &StackMgr,
 Expect<void> Executor::proxyTableInit(Runtime::StackManager &StackMgr,
                                       const uint32_t TableIdx,
                                       const uint32_t ElemIdx,
-                                      const addr_t DstOff,
+                                      const uint64_t DstOff,
                                       const uint32_t SrcOff,
                                       const uint32_t Len) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
@@ -455,8 +456,9 @@ Expect<void> Executor::proxyElemDrop(Runtime::StackManager &StackMgr,
 Expect<void> Executor::proxyTableCopy(Runtime::StackManager &StackMgr,
                                       const uint32_t TableIdxDst,
                                       const uint32_t TableIdxSrc,
-                                      const addr_t DstOff, const addr_t SrcOff,
-                                      const addr_t Len) noexcept {
+                                      const uint64_t DstOff,
+                                      const uint64_t SrcOff,
+                                      const uint64_t Len) noexcept {
   auto *TabInstDst = getTabInstByIdx(StackMgr, TableIdxDst);
   assuming(TabInstDst);
   auto *TabInstSrc = getTabInstByIdx(StackMgr, TableIdxSrc);
@@ -466,14 +468,14 @@ Expect<void> Executor::proxyTableCopy(Runtime::StackManager &StackMgr,
   return TabInstDst->setRefs(Refs, DstOff, SrcOff, Len);
 }
 
-Expect<addr_t> Executor::proxyTableGrow(Runtime::StackManager &StackMgr,
-                                        const uint32_t TableIdx,
-                                        const RefVariant Val,
-                                        const addr_t NewSize) noexcept {
+Expect<uint64_t> Executor::proxyTableGrow(Runtime::StackManager &StackMgr,
+                                          const uint32_t TableIdx,
+                                          const RefVariant Val,
+                                          const uint64_t NewSize) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
   const auto AddrType = TabInst->getTableType().getLimit().getAddrType();
-  const addr_t CurrTableSize = TabInst->getSize();
+  const uint64_t CurrTableSize = TabInst->getSize();
   if (likely(TabInst->growTable(NewSize, Val))) {
     return CurrTableSize;
   } else {
@@ -488,25 +490,25 @@ Expect<addr_t> Executor::proxyTableGrow(Runtime::StackManager &StackMgr,
   }
 }
 
-Expect<addr_t> Executor::proxyTableSize(Runtime::StackManager &StackMgr,
-                                        const uint32_t TableIdx) noexcept {
+Expect<uint64_t> Executor::proxyTableSize(Runtime::StackManager &StackMgr,
+                                          const uint32_t TableIdx) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
   return TabInst->getSize();
 }
 
 Expect<void> Executor::proxyTableFill(Runtime::StackManager &StackMgr,
-                                      const uint32_t TableIdx, const addr_t Off,
-                                      const RefVariant Ref,
-                                      const addr_t Len) noexcept {
+                                      const uint32_t TableIdx,
+                                      const uint64_t Off, const RefVariant Ref,
+                                      const uint64_t Len) noexcept {
   auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
   return TabInst->fillRefs(Ref, Off, Len);
 }
 
-Expect<addr_t> Executor::proxyMemGrow(Runtime::StackManager &StackMgr,
-                                      const uint32_t MemIdx,
-                                      const addr_t NewSize) noexcept {
+Expect<uint64_t> Executor::proxyMemGrow(Runtime::StackManager &StackMgr,
+                                        const uint32_t MemIdx,
+                                        const uint64_t NewSize) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
   const auto AddrType = MemInst->getMemoryType().getLimit().getAddrType();
@@ -525,18 +527,17 @@ Expect<addr_t> Executor::proxyMemGrow(Runtime::StackManager &StackMgr,
   }
 }
 
-Expect<addr_t> Executor::proxyMemSize(Runtime::StackManager &StackMgr,
-                                      const uint32_t MemIdx) noexcept {
+Expect<uint64_t> Executor::proxyMemSize(Runtime::StackManager &StackMgr,
+                                        const uint32_t MemIdx) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
   return MemInst->getPageSize();
 }
 
-Expect<void> Executor::proxyMemInit(Runtime::StackManager &StackMgr,
-                                    const uint32_t MemIdx,
-                                    const uint32_t DataIdx, const addr_t DstOff,
-                                    const uint32_t SrcOff,
-                                    const uint32_t Len) noexcept {
+Expect<void>
+Executor::proxyMemInit(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
+                       const uint32_t DataIdx, const uint64_t DstOff,
+                       const uint32_t SrcOff, const uint32_t Len) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
   auto *DataInst = getDataInstByIdx(StackMgr, DataIdx);
@@ -555,8 +556,9 @@ Expect<void> Executor::proxyDataDrop(Runtime::StackManager &StackMgr,
 Expect<void> Executor::proxyMemCopy(Runtime::StackManager &StackMgr,
                                     const uint32_t DstMemIdx,
                                     const uint32_t SrcMemIdx,
-                                    const addr_t DstOff, const addr_t SrcOff,
-                                    const addr_t Len) noexcept {
+                                    const uint64_t DstOff,
+                                    const uint64_t SrcOff,
+                                    const uint64_t Len) noexcept {
   auto *MemInstDst = getMemInstByIdx(StackMgr, DstMemIdx);
   assuming(MemInstDst);
   auto *MemInstSrc = getMemInstByIdx(StackMgr, SrcMemIdx);
@@ -567,29 +569,28 @@ Expect<void> Executor::proxyMemCopy(Runtime::StackManager &StackMgr,
 }
 
 Expect<void> Executor::proxyMemFill(Runtime::StackManager &StackMgr,
-                                    const uint32_t MemIdx, const addr_t Off,
+                                    const uint32_t MemIdx, const uint64_t Off,
                                     const uint8_t Val,
-                                    const addr_t Len) noexcept {
+                                    const uint64_t Len) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
   return MemInst->fillBytes(Val, Off, Len);
 }
 
-Expect<addr_t> Executor::proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
-                                              const uint32_t MemIdx,
-                                              const addr_t Offset,
-                                              const addr_t Count) noexcept {
+Expect<uint64_t> Executor::proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
+                                                const uint32_t MemIdx,
+                                                const uint64_t Offset,
+                                                const uint64_t Count) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
   return atomicNotify(*MemInst, Offset, Count);
 }
 
-Expect<addr_t> Executor::proxyMemAtomicWait(Runtime::StackManager &StackMgr,
-                                            const uint32_t MemIdx,
-                                            const addr_t Offset,
-                                            const uint64_t Expected,
-                                            const int64_t Timeout,
-                                            const uint32_t BitWidth) noexcept {
+Expect<uint64_t>
+Executor::proxyMemAtomicWait(Runtime::StackManager &StackMgr,
+                             const uint32_t MemIdx, const uint64_t Offset,
+                             const uint64_t Expected, const int64_t Timeout,
+                             const uint32_t BitWidth) noexcept {
   auto *MemInst = getMemInstByIdx(StackMgr, MemIdx);
   assuming(MemInst);
 

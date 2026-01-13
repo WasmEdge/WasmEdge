@@ -284,15 +284,15 @@ Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
 
 Expect<void>
 Executor::checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::Instruction &Instr, const addr_t Val,
-                              const addr_t Size) const noexcept {
+                              const AST::Instruction &Instr, const uint64_t Val,
+                              const uint64_t Size) const noexcept {
   // This function simply check the calculated offset is under 64-bit size.
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
   uint128_t Num = static_cast<uint128_t>(Instr.getMemoryOffset()) +
                   static_cast<uint128_t>(Val);
   if ((Num >> 64) != 0) {
 #else
-  addr_t StartOffset;
+  uint64_t StartOffset;
   if (unlikely(
           __builtin_add_overflow(Instr.getMemoryOffset(), Val, &StartOffset))) {
 #endif

@@ -170,7 +170,7 @@ public:
   }
 
 private:
-  std::atomic<uint32_t> MaxMemPage = 65536;
+  std::atomic<uint64_t> MaxMemPage = 65536;
   std::atomic<bool> EnableJIT = false;
   std::atomic<bool> EnableCoredump = false;
   std::atomic<bool> CoredumpWasmgdb = false;

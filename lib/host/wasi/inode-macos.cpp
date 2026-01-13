@@ -1422,29 +1422,38 @@ void Poller::clock(__wasi_clockid_t ClockId, __wasi_timestamp_t Timeout,
 
   uint32_t FFlags = NOTE_NSECONDS;
 
-  // If it is an ABSTIME (Absolute) wait, we calculate the difference manually.
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
-    struct timespec NowTS;
-
-    // Get the current time from the SPECIFIC clock requested.
-    if (clock_gettime(SysClockId, &NowTS) != 0) {
+    // Case 1: Realtime Clock (Wall Clock)
+    // Strictly use kernel support (NOTE_ABSOLUTE) to handle time jumps/NTP.
+    if (SysClockId == CLOCK_REALTIME) {
+#ifdef NOTE_ABSOLUTE
+      FFlags |= NOTE_ABSOLUTE;
+#else
+      // If the kernel doesn't support Absolute Realtime, fail the request.
       Event.Valid = true;
-      Event.error = fromErrNo(errno);
+      Event.error = __WASI_ERRNO_NOSYS;
       return;
+#endif
     }
+    // Case 2: Monotonic Clock (Uptime)
+    // Calculate manually because NOTE_ABSOLUTE + Monotonic is buggy on macOS
+    else {
+      struct timespec NowTS;
+      if (clock_gettime(SysClockId, &NowTS) != 0) {
+        Event.Valid = true;
+        Event.error = fromErrNo(errno);
+        return;
+      }
+      const __wasi_timestamp_t CurrentTimeNS =
+          static_cast<__wasi_timestamp_t>(NowTS.tv_sec) * 1000000000ULL +
+          static_cast<__wasi_timestamp_t>(NowTS.tv_nsec);
 
-    const __wasi_timestamp_t CurrentTimeNS =
-        static_cast<__wasi_timestamp_t>(NowTS.tv_sec) * 1000000000ULL +
-        static_cast<__wasi_timestamp_t>(NowTS.tv_nsec);
-
-    // Calculate the Relative Timeout (Target - Now)
-    if (Timeout > CurrentTimeNS) {
-      Timeout = Timeout - CurrentTimeNS;
-    } else {
-      Timeout = 0; // The time has already passed, return immediately.
+      if (Timeout > CurrentTimeNS) {
+        Timeout = Timeout - CurrentTimeNS;
+      } else {
+        Timeout = 0;
+      }
     }
-    // IMPORTANT: We do NOT add NOTE_ABSOLUTE here.
-    // We have already converted it to a relative duration.
   }
 
   struct kevent KEvent;

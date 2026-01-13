@@ -40,6 +40,7 @@ ENV CXX=/usr/bin/clang++-18
 ### deps for ubuntu 22.04 ###
 FROM base AS deps-22
 
+RUN curl -sSf https://apt.kitware.com/kitware-archive.sh | sh
 RUN apt-get install -y cmake
 
 RUN apt-get install -y \

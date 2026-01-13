@@ -4686,7 +4686,7 @@ private:
                                     Value, LLContext.getInt64(Index)),
         Context.Int64x2Ty);
   }
-  void compileStoreOp(unsigned MemoryIndex, uint64_t Offset, unsigned Alignment,
+  void compileStoreOp(uint32_t MemoryIndex, uint64_t Offset, uint32_t Alignment,
                       LLVM::Type LoadTy, bool Trunc = false,
                       bool BitCast = false) noexcept {
     if constexpr (kForceUnalignment) {
@@ -4711,12 +4711,12 @@ private:
     auto StoreInst = Builder.createStore(V, Ptr, true);
     StoreInst.setAlignment(1 << Alignment);
   }
-  void compileStoreLaneOp(unsigned MemoryIndex, unsigned Offset,
-                          unsigned Alignment, unsigned Index, LLVM::Type LoadTy,
+  void compileStoreLaneOp(uint32_t MemoryIndex, uint64_t Offset,
+                          uint32_t Alignment, uint8_t Index, LLVM::Type LoadTy,
                           LLVM::Type VectorTy) noexcept {
     auto Vector = Stack.back();
     if constexpr (Endian::native == Endian::big) {
-      Index = VectorTy.getVectorSize() - Index - 1;
+      Index = static_cast<uint8_t>(VectorTy.getVectorSize() - Index - 1);
     }
     Stack.back() = Builder.createExtractElement(
         Builder.createBitCast(Vector, VectorTy), LLContext.getInt64(Index));

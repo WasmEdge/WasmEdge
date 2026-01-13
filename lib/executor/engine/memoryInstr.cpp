@@ -20,14 +20,14 @@ Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
   // Pop N for growing page size.
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
-  addr_t N = extractAddr(StackMgr.pop(), AddrType);
+  uint64_t N = extractAddr(StackMgr.pop(), AddrType);
 
   // Grow page and push result.
-  const addr_t CurrPageSize = MemInst.getPageSize();
+  const uint64_t CurrPageSize = MemInst.getPageSize();
   if (MemInst.growPage(N)) {
     StackMgr.push(emplaceAddr(CurrPageSize, AddrType));
   } else {
-    StackMgr.push(emplaceAddr(static_cast<addr_t>(-1), AddrType));
+    StackMgr.push(emplaceAddr(static_cast<uint64_t>(-1), AddrType));
   }
   return {};
 }
@@ -41,7 +41,7 @@ Expect<void> Executor::runMemoryInitOp(
   uint64_t Len = static_cast<uint64_t>(StackMgr.pop().get<uint32_t>());
   uint64_t Src = static_cast<uint64_t>(StackMgr.pop().get<uint32_t>());
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
-  addr_t Dst = extractAddr(StackMgr.pop(), AddrType);
+  uint64_t Dst = extractAddr(StackMgr.pop(), AddrType);
 
   // Replace mem[Dst : Dst + Len] with data[Src : Src + Len].
   return MemInst.setBytes(DataInst.getData(), Dst, Src, Len)
@@ -67,9 +67,9 @@ Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
   // Pop the length, source, and destination from stack.
   const auto AddrType1 = MemInstSrc.getMemoryType().getLimit().getAddrType();
   const auto AddrType2 = MemInstDst.getMemoryType().getLimit().getAddrType();
-  addr_t Len = extractAddr(StackMgr.pop(), std::min(AddrType1, AddrType2));
-  addr_t Src = extractAddr(StackMgr.pop(), AddrType2);
-  addr_t Dst = extractAddr(StackMgr.pop(), AddrType1);
+  uint64_t Len = extractAddr(StackMgr.pop(), std::min(AddrType1, AddrType2));
+  uint64_t Src = extractAddr(StackMgr.pop(), AddrType2);
+  uint64_t Dst = extractAddr(StackMgr.pop(), AddrType1);
 
   // Replace mem[Dst : Dst + Len] with mem[Src : Src + Len].
   EXPECTED_TRY(auto Data,
@@ -91,9 +91,9 @@ Executor::runMemoryFillOp(Runtime::StackManager &StackMgr,
                           const AST::Instruction &Instr) {
   // Pop the length, value, and offset from stack.
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
-  addr_t Len = extractAddr(StackMgr.pop(), AddrType);
+  uint64_t Len = extractAddr(StackMgr.pop(), AddrType);
   uint8_t Val = static_cast<uint8_t>(StackMgr.pop().get<uint32_t>());
-  addr_t Off = extractAddr(StackMgr.pop(), AddrType);
+  uint64_t Off = extractAddr(StackMgr.pop(), AddrType);
 
   // Fill data with Val.
   return MemInst.fillBytes(Val, Off, Len).map_error([&Instr](auto E) {

@@ -13,7 +13,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
   ValVariant RawCount = StackMgr.pop();
   ValVariant &RawAddress = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
-  addr_t Address = extractAddr(RawAddress, AddrType);
+  uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(uint32_t)));
   Address += Instr.getMemoryOffset();
   uint32_t Align =
@@ -26,7 +26,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
-  addr_t Count = extractAddr(RawCount, AddrType);
+  uint64_t Count = extractAddr(RawCount, AddrType);
   EXPECTED_TRY(
       auto Total,
       atomicNotify(MemInst, Address, Count).map_error([&Instr](auto E) {
@@ -44,18 +44,18 @@ Expect<void> Executor::runMemoryFenceOp() {
   return {};
 }
 
-Expect<addr_t>
+Expect<uint64_t>
 Executor::atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                       addr_t Address, addr_t Count) noexcept {
+                       uint64_t Address, uint64_t Count) noexcept {
   // The error message should be handled by the caller, or the AOT mode will
   // produce the duplicated messages.
-  if (auto *AtomicObj = MemInst.getPointer<std::atomic<addr_t> *>(Address);
+  if (auto *AtomicObj = MemInst.getPointer<std::atomic<uint64_t> *>(Address);
       !AtomicObj) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
   std::unique_lock<decltype(WaiterMapMutex)> Locker(WaiterMapMutex);
-  addr_t Total = 0;
+  uint64_t Total = 0;
   auto Range = WaiterMap.equal_range(Address);
   for (auto Iterator = Range.first; Total < Count && Iterator != Range.second;
        ++Iterator) {

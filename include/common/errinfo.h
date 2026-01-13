@@ -245,13 +245,14 @@ struct InfoInstruction {
 
 struct InfoBoundary {
   InfoBoundary() = delete;
-  InfoBoundary(const uint128_t Off, const addr_t Len = 0,
-               const addr_t Lim = std::numeric_limits<addr_t>::max()) noexcept
+  InfoBoundary(
+      const uint128_t Off, const uint64_t Len = 0,
+      const uint64_t Lim = std::numeric_limits<uint64_t>::max()) noexcept
       : Offset(Off), Size(Len), Limit(Lim) {}
 
   uint128_t Offset;
-  addr_t Size;
-  addr_t Limit;
+  uint64_t Size;
+  uint64_t Limit;
 };
 
 struct InfoProposal {

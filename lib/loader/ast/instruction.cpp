@@ -269,7 +269,7 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
     } else {
       uint32_t Offset;
       EXPECTED_TRY(readU32(Offset));
-      Instr.getMemoryOffset() = static_cast<addr_t>(Offset);
+      Instr.getMemoryOffset() = static_cast<uint64_t>(Offset);
     }
     return {};
   };

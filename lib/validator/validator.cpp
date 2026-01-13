@@ -276,7 +276,7 @@ Expect<void> Validator::validate(const AST::TableType &Tab) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return E;
   }));
-  addr_t Range = getMaxAddress(Lim.getAddrType());
+  uint64_t Range = getMaxAddress(Lim.getAddrType());
   if (Lim.getMin() > Range || (Lim.hasMax() && Lim.getMax() > Range)) {
     // Since spec test has no related error message, use this error instead.
     auto Code = Conf.hasProposal(Proposal::Memory64)
@@ -304,8 +304,8 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return Unexpect(ErrCode::Value::InvalidLimit);
   }
-  addr_t Range = Lim.is32() ? (static_cast<addr_t>(1) << 16)
-                            : (static_cast<addr_t>(1) << 48);
+  uint64_t Range = Lim.is32() ? (static_cast<uint64_t>(1) << 16)
+                              : (static_cast<uint64_t>(1) << 48);
   if (Lim.getMin() > Range || (Lim.hasMax() && Lim.getMax() > Range)) {
     auto Code = Conf.hasProposal(Proposal::Memory64)
                     ? ErrCode::Value::InvalidMemPages64

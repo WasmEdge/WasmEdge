@@ -45,7 +45,7 @@ public:
   }
 
   /// Get size of table.refs
-  addr_t getSize() const noexcept {
+  uint64_t getSize() const noexcept {
     // The table size is binded with the limit in table type.
     return TabType.getLimit().getMin();
   }
@@ -54,26 +54,26 @@ public:
   const AST::TableType &getTableType() const noexcept { return TabType; }
 
   /// Check is out of bound.
-  bool checkAccessBound(const addr_t Offset,
-                        const addr_t Length) const noexcept {
+  bool checkAccessBound(const uint64_t Offset,
+                        const uint64_t Length) const noexcept {
     // Due to applying the Memory64 proposal, we should avoid the overflow issue
     // of the following code:
     //   return Offset + Length <= Limit;
-    const addr_t Limit = TabType.getLimit().getMin();
-    return std::numeric_limits<addr_t>::max() - Offset >= Length &&
+    const uint64_t Limit = TabType.getLimit().getMin();
+    return std::numeric_limits<uint64_t>::max() - Offset >= Length &&
            Offset + Length <= Limit;
   }
 
   /// Grow table with initialization value.
-  bool growTable(const addr_t Count, const RefVariant &Val) noexcept {
+  bool growTable(const uint64_t Count, const RefVariant &Val) noexcept {
     if (Count == 0) {
       return true;
     }
-    addr_t MaxSizeCaped = getMaxAddress(TabType.getLimit().getAddrType());
-    const addr_t Min = TabType.getLimit().getMin();
+    uint64_t MaxSizeCaped = getMaxAddress(TabType.getLimit().getAddrType());
+    const uint64_t Min = TabType.getLimit().getMin();
     assuming(MaxSizeCaped >= Min);
     if (TabType.getLimit().hasMax()) {
-      const addr_t Max = TabType.getLimit().getMax();
+      const uint64_t Max = TabType.getLimit().getMax();
       MaxSizeCaped = std::min(Max, MaxSizeCaped);
     }
     if (Count > MaxSizeCaped - Min) {
@@ -84,13 +84,13 @@ public:
     TabType.getLimit().setMin(Min + Count);
     return true;
   }
-  bool growTable(const addr_t Count) noexcept {
+  bool growTable(const uint64_t Count) noexcept {
     return growTable(Count, InitValue);
   }
 
   /// Get slice of Refs[Offset : Offset + Length - 1]
-  Expect<Span<const RefVariant>> getRefs(const addr_t Offset,
-                                         const addr_t Length) const noexcept {
+  Expect<Span<const RefVariant>> getRefs(const uint64_t Offset,
+                                         const uint64_t Length) const noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
@@ -101,8 +101,8 @@ public:
   }
 
   /// Replace the Refs[Dst :] by Slice[Src : Src + Length)
-  Expect<void> setRefs(Span<const RefVariant> Slice, const addr_t Dst,
-                       const addr_t Src, const addr_t Length) noexcept {
+  Expect<void> setRefs(Span<const RefVariant> Slice, const uint64_t Dst,
+                       const uint64_t Src, const uint64_t Length) noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Dst, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
@@ -111,7 +111,7 @@ public:
     }
 
     // Check the input data validation.
-    if (std::numeric_limits<addr_t>::max() - Src < Length ||
+    if (std::numeric_limits<uint64_t>::max() - Src < Length ||
         Src + Length > Slice.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Src, Length, Slice.size()));
@@ -131,8 +131,8 @@ public:
   }
 
   /// Fill the Refs[Offset : Offset + Length - 1] by Val.
-  Expect<void> fillRefs(const RefVariant &Val, const addr_t Offset,
-                        const addr_t Length) noexcept {
+  Expect<void> fillRefs(const RefVariant &Val, const uint64_t Offset,
+                        const uint64_t Length) noexcept {
     // Check the accessing boundary.
     if (!checkAccessBound(Offset, Length)) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
@@ -146,7 +146,7 @@ public:
   }
 
   /// Get the elem address.
-  Expect<RefVariant> getRefAddr(const addr_t Idx) const noexcept {
+  Expect<RefVariant> getRefAddr(const uint64_t Idx) const noexcept {
     if (Idx >= Refs.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getSize()));
@@ -156,7 +156,7 @@ public:
   }
 
   /// Set the elem address.
-  Expect<void> setRefAddr(const addr_t Idx, const RefVariant &Val) {
+  Expect<void> setRefAddr(const uint64_t Idx, const RefVariant &Val) {
     if (Idx >= Refs.size()) {
       spdlog::error(ErrCode::Value::TableOutOfBounds);
       spdlog::error(ErrInfo::InfoBoundary(Idx, 1, getSize()));

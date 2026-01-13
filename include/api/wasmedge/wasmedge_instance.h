@@ -746,8 +746,7 @@ WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value *Data,
-                              const WasmEdge_Addr_t Offset);
+                              WasmEdge_Value *Data, const uint64_t Offset);
 
 /// Set the reference value into a table instance.
 ///
@@ -759,15 +758,14 @@ WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value Data,
-                              const WasmEdge_Addr_t Offset);
+                              WasmEdge_Value Data, const uint64_t Offset);
 
 /// Get the size of a table instance.
 ///
 /// \param Cxt the WasmEdge_TableInstanceContext.
 ///
 /// \returns the size of the table instance.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Addr_t
+WASMEDGE_CAPI_EXPORT extern uint64_t
 WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt);
 
 /// Grow a table instance with a size.
@@ -779,7 +777,7 @@ WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_TableInstanceGrow(WasmEdge_TableInstanceContext *Cxt,
-                           const WasmEdge_Addr_t Size);
+                           const uint64_t Size);
 
 /// Deletion of the WasmEdge_TableInstanceContext.
 ///
@@ -831,8 +829,8 @@ WasmEdge_MemoryInstanceGetMemoryType(const WasmEdge_MemoryInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
-                               uint8_t *Data, const WasmEdge_Addr_t Offset,
-                               const WasmEdge_Addr_t Length);
+                               uint8_t *Data, const uint64_t Offset,
+                               const uint64_t Length);
 
 /// Copy the data into a memory instance from the input buffer.
 ///
@@ -844,9 +842,10 @@ WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_MemoryInstanceSetData(
-    WasmEdge_MemoryInstanceContext *Cxt, const uint8_t *Data,
-    const WasmEdge_Addr_t Offset, const WasmEdge_Addr_t Length);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_MemoryInstanceSetData(WasmEdge_MemoryInstanceContext *Cxt,
+                               const uint8_t *Data, const uint64_t Offset,
+                               const uint64_t Length);
 
 /// Get the data pointer in a memory instance.
 ///
@@ -858,8 +857,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_MemoryInstanceSetData(
 /// \returns the pointer to data with the start offset. NULL if failed.
 WASMEDGE_CAPI_EXPORT extern uint8_t *
 WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
-                                  const WasmEdge_Addr_t Offset,
-                                  const WasmEdge_Addr_t Length);
+                                  const uint64_t Offset, const uint64_t Length);
 
 /// Get the const data pointer in a const memory instance.
 ///
@@ -871,15 +869,15 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
 /// \returns the pointer to data with the start offset. NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const uint8_t *
 WasmEdge_MemoryInstanceGetPointerConst(
-    const WasmEdge_MemoryInstanceContext *Cxt, const WasmEdge_Addr_t Offset,
-    const WasmEdge_Addr_t Length);
+    const WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Offset,
+    const uint64_t Length);
 
 /// Get the current page size (64 KiB of each page) of a memory instance.
 ///
 /// \param Cxt the WasmEdge_MemoryInstanceContext.
 ///
 /// \returns the page size of the memory instance.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Addr_t
+WASMEDGE_CAPI_EXPORT extern uint64_t
 WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt);
 
 /// Grow a memory instance with a page size.
@@ -891,7 +889,7 @@ WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_MemoryInstanceGrowPage(WasmEdge_MemoryInstanceContext *Cxt,
-                                const WasmEdge_Addr_t Page);
+                                const uint64_t Page);
 
 /// Deletion of the WasmEdge_MemoryInstanceContext.
 ///

@@ -273,7 +273,7 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   // Read the min and max number.
   // The s64 is accepted after applying memory64 proposal. Therefore we should
   // check the s32 presentation length without memory64 proposal.
-  addr_t MinVal, MaxVal;
+  uint64_t MinVal = 0, MaxVal = 0;
   if (Conf.hasProposal(Proposal::Memory64)) {
     EXPECTED_TRY(MinVal, FMgr.readU64().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);

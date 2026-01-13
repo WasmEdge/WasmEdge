@@ -20,9 +20,6 @@
 #include "wasmedge/wasmedge_basic.h"
 #include "wasmedge/wasmedge_value.h"
 
-/// WasmEdge address type.
-typedef uint64_t WasmEdge_Addr_t;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -101,7 +98,7 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
-WasmEdge_LimitCreate(const WasmEdge_Addr_t Min, const bool Is64Bit);
+WasmEdge_LimitCreate(const uint64_t Min, const bool Is64Bit);
 
 /// Creation of the WasmEdge_LimitContext with max value.
 ///
@@ -117,16 +114,15 @@ WasmEdge_LimitCreate(const WasmEdge_Addr_t Min, const bool Is64Bit);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
-WasmEdge_LimitCreateWithMax(const WasmEdge_Addr_t Min,
-                            const WasmEdge_Addr_t Max, const bool Is64Bit,
-                            const bool IsShared);
+WasmEdge_LimitCreateWithMax(const uint64_t Min, const uint64_t Max,
+                            const bool Is64Bit, const bool IsShared);
 
 /// Get the minimum value from the WasmEdge_LimitContext.
 ///
 /// \param Cxt the WasmEdge_LimitContext.
 ///
 /// \returns the minimum value of this limit.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Addr_t
+WASMEDGE_CAPI_EXPORT extern uint64_t
 WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt);
 
 /// Get the maximum value from the WasmEdge_LimitContext.
@@ -135,7 +131,7 @@ WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt);
 ///
 /// \returns the maximum value of this limit. Should not be referred if the
 /// limit context is configured as without maximum value.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Addr_t
+WASMEDGE_CAPI_EXPORT extern uint64_t
 WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt);
 
 /// Get the has-maximum option from the WasmEdge_LimitContext.

@@ -97,6 +97,16 @@ jobs:
       release: true
     secrets: inherit
 
+  build_on_amazonlinux2:
+    needs: create_release
+    uses: ./.github/workflows/reusable-build-on-amazonlinux2.yml
+    permissions:
+      contents: write
+    with:
+      version: ${{ needs.create_release.outputs.version }}
+      release: true
+    secrets: inherit
+
   build_on_debian_static:
     needs: create_release
     uses: ./.github/workflows/reusable-build-on-debian-static.yml

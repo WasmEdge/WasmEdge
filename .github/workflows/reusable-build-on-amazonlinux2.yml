@@ -1,0 +1,140 @@
+name: Build on Amazon Linux 2
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+      release:
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  build_amazonlinux2:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Amazon Linux 2 (x86_64, ggml-cuda)
+            image: amazonlinux:2
+            asset_postfix: amazonlinux2_x86_64
+    permissions:
+      contents: write
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    container:
+      image: ${{ matrix.image }}
+      options: --privileged
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Install build dependencies
+        run: |
+          set -e
+          yum update -y
+          yum install -y \
+            gcc gcc-c++ make \
+            git \
+            cmake3 \
+            ninja-build \
+            llvm llvm-devel clang lld-devel \
+            zlib-devel \
+            rpm-build \
+            which \
+            pkgconfig \
+            tar gzip bzip2 xz
+
+          # Ensure cmake3 is available as cmake
+          if command -v cmake3 >/dev/null 2>&1 && ! command -v cmake >/dev/null 2>&1; then
+            ln -s "$(command -v cmake3)" /usr/local/bin/cmake
+          fi
+
+      - name: Install CUDA toolkit (for ggml CUDA build)
+        run: |
+          set -e
+          yum install -y yum-utils
+          yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo
+          yum clean all
+          yum install -y cuda-toolkit-12-0
+
+          echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+          echo "/usr/local/cuda/bin" >> $GITHUB_PATH
+          echo "/usr/local/cuda/lib64" >> $GITHUB_PATH
+
+          nvcc --version || echo "nvcc not found in PATH; check CUDA installation if build fails."
+
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          fetch-depth: 0
+
+      - name: Grant the safe directory for git
+        run: |
+          git config --global --add safe.directory "$(pwd)"
+
+      - name: Configure WasmEdge with WASI-NN ggml (CUDA) on Amazon Linux 2
+        run: |
+          set -e
+          # Configure a build that enables the WASI-NN ggml backend with CUDA (cublas).
+          cmake -Bbuild -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DWASMEDGE_BUILD_TOOLS=ON \
+            -DWASMEDGE_BUILD_SHARED_LIB=ON \
+            -DWASMEDGE_BUILD_STATIC_LIB=OFF \
+            -DWASMEDGE_BUILD_PLUGINS=ON \
+            -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=ggml \
+            -DWASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_CUBLAS=ON \
+            -DWASMEDGE_BUILD_PACKAGE="TGZ;RPM" \
+            .
+
+      - name: Build WasmEdge
+        run: |
+          set -e
+          cmake --build build
+
+      - name: Smoke test WasmEdge and WASI-NN plugin
+        run: |
+          set -e
+          ./build/tools/wasmedge/wasmedge -v
+          if [ -f build/plugins/wasmedge/libwasmedgePluginWasiNN.so ]; then
+            echo "Found libwasmedgePluginWasiNN.so"
+            # Dump dependency information so we can enforce glibc compatibility.
+            ldd build/plugins/wasmedge/libwasmedgePluginWasiNN.so > /tmp/wasinn-ldd.txt || true
+            cat /tmp/wasinn-ldd.txt
+
+            # Enforce that the plugin does NOT depend on GLIBC_2.29 or newer.
+            if grep -E 'GLIBC_2\.(29|3[0-9])' /tmp/wasinn-ldd.txt; then
+              echo "Error: Amazon Linux 2 build of libwasmedgePluginWasiNN.so is linked against GLIBC >= 2.29" >&2
+              echo "This violates the compatibility requirement with glibc 2.26 on Amazon Linux 2." >&2
+              exit 1
+            fi
+          else
+            echo "libwasmedgePluginWasiNN.so not found; failing."
+            exit 1
+          fi
+
+      - name: Create package tarball
+        run: |
+          set -e
+          cmake --build build --target package
+
+      - name: Upload artifact
+        if: ${{ !inputs.release }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: WasmEdge-${{ inputs.version }}-${{ matrix.asset_postfix }}.tar.gz
+          path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz
+
+      - name: Upload tar.gz package to release
+        if: ${{ inputs.release }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          mv build/WasmEdge-${{ inputs.version }}-Linux.tar.gz WasmEdge-${{ inputs.version }}-${{ matrix.asset_postfix }}.tar.gz
+          gh release upload ${{ inputs.version }} WasmEdge-${{ inputs.version }}-${{ matrix.asset_postfix }}.tar.gz --clobber

@@ -132,7 +132,9 @@ Expect<int32_t> AVFilterConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avfilter_configuration();
-  std::copy_n(Config, ConfigLen, ConfigBuf.data());
+  auto Actual = std::strlen(Config);
+  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
+  std::copy_n(Config, N, ConfigBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -148,7 +150,9 @@ Expect<int32_t> AVFilterLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avfilter_license();
-  std::copy_n(License, LicenseLen, LicenseBuf.data());
+  auto Actual = std::strlen(License);
+  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
+  std::copy_n(License, N, LicenseBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -212,7 +216,9 @@ Expect<int32_t> AVFilterPadGetName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(FilterPad, FilterPadId, AVFilterPad);
 
   const char *Name = avfilter_pad_get_name(FilterPad, Idx);
-  std::copy_n(Name, NameLen, NameBuf.data());
+  auto Actual = std::strlen(Name);
+  auto N = std::min<uint32_t>(NameLen, static_cast<uint32_t>(Actual + 1));
+  std::copy_n(Name, N, NameBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -60,6 +60,11 @@ body:
       placeholder: According to the GSoC policy, it **requires** at least two mentors with one being a primary mentor.
     validations:
       required: true
+  - type: markdown
+    attributes:
+      value: |
+        ### Important Note
+        Before you apply, please make sure you have read and understood the [WasmEdge Mentorship Program Policy](https://github.com/WasmEdge/WasmEdge/blob/master/docs/mentorship-policy.md).
   - type: textarea
     id: apply-link
     attributes:

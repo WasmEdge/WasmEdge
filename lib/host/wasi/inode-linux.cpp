@@ -1592,7 +1592,7 @@ Poller::Poller(PollerContext &C) noexcept
           ::epoll_create(32)
 #endif
               ),
-      Ctx(C) {
+      Ctx(&C) {
 #if !__GLIBC_PREREQ(2, 9)
   if (auto Res = ::fcntl(Fd, F_SETFD, FD_CLOEXEC); unlikely(Res != 0)) {
     FdHolder::reset();
@@ -1623,7 +1623,7 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
   Event.userdata = UserData;
   Event.type = __WASI_EVENTTYPE_CLOCK;
 
-  if (auto Res = Ctx.get().acquireTimer(Clock); unlikely(!Res)) {
+  if (auto Res = Ctx->acquireTimer(Clock); unlikely(!Res)) {
     Event.Valid = true;
     Event.error = Res.error();
     return;
@@ -1633,7 +1633,7 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
 
   auto &Timer = Timers.back();
   if (auto Res = Timer.setTime(Timeout, Precision, Flags); unlikely(!Res)) {
-    Ctx.get().releaseTimer(std::move(Timer));
+    Ctx->releaseTimer(std::move(Timer));
     Timers.pop_back();
     Event.Valid = true;
     Event.error = Res.error();
@@ -1657,7 +1657,7 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
     if (auto Res = ::epoll_ctl(Fd, EPOLL_CTL_ADD, Timer.Fd, &EPollEvent);
         unlikely(Res < 0)) {
       FdDatas.erase(Iter);
-      Ctx.get().releaseTimer(std::move(Timer));
+      Ctx->releaseTimer(std::move(Timer));
       Timers.pop_back();
       Event.Valid = true;
       Event.error = fromErrNo(errno);
@@ -1666,7 +1666,7 @@ void Poller::clock(__wasi_clockid_t Clock, __wasi_timestamp_t Timeout,
 
     return;
   } catch (std::bad_alloc &) {
-    Ctx.get().releaseTimer(std::move(Timer));
+    Ctx->releaseTimer(std::move(Timer));
     Timers.pop_back();
     Event.Valid = true;
     Event.error = __WASI_ERRNO_NOMEM;
@@ -1895,7 +1895,7 @@ void Poller::wait() noexcept {
     // `this` as the dummy parameter.
     ::epoll_ctl(Fd, EPOLL_CTL_DEL, Timer.Fd,
                 reinterpret_cast<struct epoll_event *>(this));
-    Ctx.get().releaseTimer(std::move(Timer));
+    Ctx->releaseTimer(std::move(Timer));
   }
 
   std::swap(FdDatas, OldFdDatas);

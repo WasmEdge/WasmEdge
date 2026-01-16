@@ -35,6 +35,11 @@ void setErrorLoggingLevel();
 
 void setCriticalLoggingLevel();
 
+/// Set logging level from string.
+/// Supported values: off, trace, debug, info, warning, error, fatal.
+/// Returns true if level was set successfully, false if invalid.
+bool setLoggingLevelFromString(std::string_view Level);
+
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback);
 

@@ -240,7 +240,15 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 
 int Tool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
-  Log::setInfoLoggingLevel();
+
+  const std::string &Level = Opt.LogLevel.value();
+
+  if (!Log::setLoggingLevelFromString(Level)) {
+    spdlog::warn("Invalid log level: {}. Valid values are: off, trace, debug, "
+                 "info, warning, error, fatal. Falling back to info level.",
+                 Level);
+    Log::setInfoLoggingLevel();
+  }
 
   Configure Conf;
   // WASM standard configuration has the highest priority.

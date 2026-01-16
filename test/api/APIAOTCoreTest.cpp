@@ -54,8 +54,7 @@ TEST_P(CoreCompileTest, TestSuites) {
   WasmEdge_ModuleInstanceContext *TestModCxt = createSpecTestModule();
   WasmEdge_VMRegisterModuleFromImport(VM, TestModCxt);
 
-  auto Compile = [&, Conf = std::cref(Conf)](
-                     const std::string &FileName) -> Expect<std::string> {
+  auto Compile = [&](const std::string &FileName) -> Expect<std::string> {
     auto Path = std::filesystem::u8path(FileName);
     Path.replace_extension(std::filesystem::u8path(WASMEDGE_LIB_EXTENSION));
     const auto SOPath = Path.u8string();

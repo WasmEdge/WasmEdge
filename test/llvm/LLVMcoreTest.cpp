@@ -52,11 +52,11 @@ TEST_P(NativeCoreTest, TestSuites) {
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
-  auto Compile = [&, Conf = std::cref(Conf)](
+  auto Compile = [&, ConfWrap = std::cref(Conf)](
                      const std::string &FileName) -> Expect<std::string> {
-    WasmEdge::Configure CopyConf = Conf.get();
-    WasmEdge::Loader::Loader Loader(Conf);
-    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::Configure CopyConf = ConfWrap.get();
+    WasmEdge::Loader::Loader Loader(ConfWrap);
+    WasmEdge::Validator::Validator ValidatorEngine(ConfWrap);
     CopyConf.getCompilerConfigure().setOutputFormat(
         CompilerConfigure::OutputFormat::Native);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
@@ -180,11 +180,11 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
-  auto Compile = [&, Conf = std::cref(Conf)](
+  auto Compile = [&, ConfWrap = std::cref(Conf)](
                      const std::string &FileName) -> Expect<std::string> {
-    WasmEdge::Configure CopyConf = Conf.get();
-    WasmEdge::Loader::Loader Loader(Conf);
-    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::Configure CopyConf = ConfWrap.get();
+    WasmEdge::Loader::Loader Loader(ConfWrap);
+    WasmEdge::Validator::Validator ValidatorEngine(ConfWrap);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O0);
     CopyConf.getCompilerConfigure().setDumpIR(true);

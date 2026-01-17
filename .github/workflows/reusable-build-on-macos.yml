@@ -102,6 +102,9 @@ jobs:
           ./build/tools/wasmedge/wasmedge compile examples/wasm/fibonacci.wasm fib_compile.dylib
           echo "./build/tools/wasmedge/wasmedge --reactor fib_compile.dylib fib 20"
           ./build/tools/wasmedge/wasmedge --reactor fib_compile.dylib fib 20
+      - name: Check symbol exposure
+        run: |
+          bash .github/scripts/check_symbols.sh
       - name: Upload artifact
         if: ${{ !inputs.release }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

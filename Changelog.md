@@ -1,4 +1,19 @@
-### 0.16.0-alpha.4 (2025-12-24)
+### 0.16.1 (2026-01-06)
+
+This is the hot fix for 0.16.x versions.
+
+* fix(tools): revert the proposal disable options
+* fix(tools): wrong option name for threads proposal
+* test(example): update mandelbrot-set-in-threads example
+* ci: use macos-15-intel as the ci runner, instead of macos-14-large (#4476)
+
+Thank all the contributors who made this release possible!
+
+Yi-Ying He, hydai
+
+If you want to build from source, please use WasmEdge-0.16.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.16.0 (2025-12-31)
 
 Features:
 
@@ -126,12 +141,13 @@ CI:
   * ci(runner): update llvm-windows to 21.1.3
   * ci(runner): fix spdlog warnings
   * ci(runner): fix dependency for alpine-static and debian-static (#4460)
+  * feat(docker): add standalone alpine-base image build pipeline (#4466)
 
 Thank all the contributors who made this release possible!
 
 Han-Wen Tsao, Karan Lokchandani, Khush Agrawal, Minimega12121, Sankalp Jha, Shen-Ta Hsieh(BestSteve), Vishruth Thimmaiah, Wang-Yang, Li, Yi, Yi-Ying He, cmd05, dm4, grorge, hydai
 
-If you want to build from source, please use WasmEdge-0.16.0-alpha.4-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.16.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.15.0 (2025-08-04)
 

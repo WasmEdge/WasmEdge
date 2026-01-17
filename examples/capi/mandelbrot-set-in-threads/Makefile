@@ -5,7 +5,7 @@ mandelbrot.o: mandelbrot.c
 	clang -O3 --no-standard-libraries --target=wasm32 -c -o $@ $^
 
 mandelbrot.wasm: mandelbrot.o
-	wasm-ld --no-entry $^ -o $@ --import-memory --export-all --shared-memory --features=mutable-globals,atomics,bulk-memory
+	wasm-ld --no-entry $^ -o $@ --import-memory --export-all --shared-memory --features=mutable-globals,atomics,bulk-memory,multivalue,reference-types,sign-ext,call-indirect-overlong,nontrapping-fptoint,bulk-memory-opt
 
 mandelbrot.wat: mandelbrot.wasm
 	wasm2wat --enable-all mandelbrot.wasm -o mandelbrot.wat

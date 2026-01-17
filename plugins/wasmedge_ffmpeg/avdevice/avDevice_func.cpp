@@ -94,7 +94,9 @@ Expect<int32_t> AVDeviceConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avdevice_configuration();
-  std::copy_n(Config, ConfigLen, ConfigBuf.data());
+  auto Actual = std::strlen(Config);
+  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
+  std::copy_n(Config, N, ConfigBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -110,7 +112,9 @@ Expect<int32_t> AVDeviceLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avdevice_license();
-  std::copy_n(License, LicenseLen, LicenseBuf.data());
+  auto Actual = std::strlen(License);
+  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
+  std::copy_n(License, N, LicenseBuf.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
 

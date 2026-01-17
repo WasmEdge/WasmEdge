@@ -1,10 +1,17 @@
 # syntax=docker/dockerfile:1.5-labs
 
 ARG XX_VERSION=1.2.1
-ARG ALPINE_VERSION=3.16
-# alpine 3.16 ships with llvm 13.
-# alpine 3.17 and 3.18 do not ship lld-static.
+ARG ALPINE_VERSION=3.23
 
+
+# ----------------------------------------------------
+# STAGE 1: Import Pre-Built LLD Libraries
+# ----------------------------------------------------
+FROM wasmedge/wasmedge:alpine-base-3.23 AS lld-artifact
+
+# ----------------------------------------------------
+# STAGE 2: Main WasmEdge Build
+# ----------------------------------------------------
 FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
 FROM --platform=$BUILDPLATFORM alpine:${ALPINE_VERSION} AS base
 COPY --from=xx / /
@@ -41,16 +48,29 @@ FROM base AS config
 ARG TARGETPLATFORM
 
 RUN apk add git llvm-dev
+# We add zstd-static because the SYSTEM LLVM (installed via apk) depends on it.
 RUN xx-apk add \
     g++ \
     llvm-dev llvm-static \
-    lld lld-dev lld-static \
-    zlib-dev zlib-static
+    lld lld-dev \
+    zlib-dev zlib-static \
+    zstd-static
 
 # Fix LLVMConfig.cmake to account for the sysroot
 RUN sed -i 's|/usr/lib/llvm|${CMAKE_SYSROOT}usr/lib/llvm|' $(xx-info sysroot)usr/lib/cmake/llvm*/LLVMConfig.cmake
-# In cmake/Helper.cmake we assume that lld is installed alongside llvm, so copy files over
-RUN cp $(xx-info sysroot)usr/lib/liblld*.a $(xx-info sysroot)usr/lib/llvm*/lib/
+
+# Patch: Create dummy files for missing testing libraries to satisfy CMake
+RUN for d in $(xx-info sysroot)usr/lib/llvm*/lib; do \
+      for f in libLLVMTestingAnnotations.a libLLVMTestingSupport.a libllvm_gtest.a libllvm_gtest_main.a; do \
+        ar rc "$d/$f"; \
+      done \
+    done
+
+# Inject the Native LLD libraries from Stage 1 (The Base Image)
+# Note: We changed the source path to /usr/local/lib because that's where we put them in the base image
+COPY --from=lld-artifact /usr/local/lib/liblld*.a /tmp/lld-libs/
+RUN cp /tmp/lld-libs/*.a $(xx-info sysroot)usr/lib/llvm*/lib/
+
 # Use the native version of llvm-config
 RUN ! xx-info is-cross || cp -f /usr/lib/llvm*/bin/llvm-config $(xx-info sysroot)usr/lib/llvm*/bin/llvm-config
 
@@ -70,7 +90,7 @@ RUN --mount=type=bind,target=/src,source=. \
         -DWASMEDGE_BUILD_TOOLS=OFF \
         -DWASMEDGE_BUILD_PLUGINS=OFF \
         -DWASMEDGE_BUILD_EXAMPLE=OFF \
-        # Link llvm statically
+        # link llvm statically
         -DWASMEDGE_LINK_LLVM_STATIC=ON \
         -DWASMEDGE_LINK_TOOLS_STATIC=ON \
         # Disable extra dependencies

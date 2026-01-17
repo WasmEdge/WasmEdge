@@ -107,13 +107,27 @@ public:
     PostHostFunc = HostFunc;
   }
   void invokePreHostFunc() {
-    if (PreHostFunc.operator bool()) {
-      PreHostFunc(PreHostData);
+    std::function<void(void *)> FuncSnapshot;
+    void *DataSnapshot = nullptr;
+    {
+      std::shared_lock Lock(Mutex);
+      FuncSnapshot = PreHostFunc;
+      DataSnapshot = PreHostData;
+    }
+    if (FuncSnapshot.operator bool()) {
+      FuncSnapshot(DataSnapshot);
     }
   }
   void invokePostHostFunc() {
-    if (PostHostFunc.operator bool()) {
-      PostHostFunc(PostHostData);
+    std::function<void(void *)> FuncSnapshot;
+    void *DataSnapshot = nullptr;
+    {
+      std::shared_lock Lock(Mutex);
+      FuncSnapshot = PostHostFunc;
+      DataSnapshot = PostHostData;
+    }
+    if (FuncSnapshot.operator bool()) {
+      FuncSnapshot(DataSnapshot);
     }
   }
 
@@ -363,13 +377,6 @@ private:
   convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
                       Span<const ComponentValType> ValTypes,
                       Runtime::Instance::MemoryInstance *MemInst) noexcept;
-
-  std::unique_ptr<Runtime::Instance::Component::FunctionInstance>
-  lifting(Runtime::Instance::ComponentInstance &Comp,
-          const WasmEdge::AST::Component::FuncType &FuncType,
-          Runtime::Instance::FunctionInstance *F,
-          Runtime::Instance::MemoryInstance *Memory,
-          Runtime::Instance::FunctionInstance *Realloc);
   /// @}
 
   /// \name Helper Functions for block controls.

@@ -2356,8 +2356,11 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
 Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
 
+  if (GraphId >= Env.NNGraph.size()) {
+    return ErrNo::Success;
+  }
   auto &GraphRef = Env.NNGraph[GraphId].get<Graph>();
-  if (GraphId >= Env.NNGraph.size() || GraphRef.LlamaModel == nullptr) {
+  if (GraphRef.LlamaModel == nullptr) {
     return ErrNo::Success;
   }
 

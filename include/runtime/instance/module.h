@@ -87,9 +87,28 @@ public:
     }
   }
 
+
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
     return ModName;
+  }
+
+  /// Module dependency tracking.
+  void addDependent(const ModuleInstance *Mod) noexcept {
+    std::unique_lock Lock(Mutex);
+    Dependents.insert(Mod);
+  }
+  void removeDependent(const ModuleInstance *Mod) noexcept {
+    std::unique_lock Lock(Mutex);
+    Dependents.erase(Mod);
+  }
+  bool hasDependents() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return !Dependents.empty();
+  }
+  uint32_t getDependentCount() const noexcept {
+    std::shared_lock Lock(Mutex);
+    return static_cast<uint32_t>(Dependents.size());
   }
 
   void *getHostData() const noexcept { return HostData; }
@@ -577,6 +596,9 @@ protected:
   /// Linked store.
   std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>
       LinkedStore;
+
+  /// Dependent modules.
+  std::set<const ModuleInstance *> Dependents;
 
   /// External data and its finalizer function pointer.
   void *HostData;

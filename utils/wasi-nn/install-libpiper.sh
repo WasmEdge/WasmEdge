@@ -24,7 +24,11 @@ git checkout FETCH_HEAD
 
 cd libpiper
 
-cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="${PIPER_INSTALL_TO}"
+cmake -Bbuild \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_INSTALL_PREFIX="${PIPER_INSTALL_TO}" \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 cmake --build build
 cmake --install build
 

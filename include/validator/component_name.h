@@ -38,6 +38,10 @@ enum class ComponentNameKind {
 class ComponentName {
   const std::string_view OriName;
   std::string_view NoTagName;
+  
+  // Store Hash 
+  std::string_view Hash;
+
   ComponentNameKind Kind;
   union Details {
     struct {
@@ -67,6 +71,12 @@ public:
       : OriName(Name), Kind(ComponentNameKind::Invalid), Detail({}) {
     parse();
   }
+
+  // UPDATED: validateVersion now takes an argument and is static
+  static bool validateVersion(std::string_view Ver);
+  bool validateHash();
+
+  std::string_view getHash() const { return Hash; }
 
   ComponentNameKind getKind() const { return Kind; }
   std::string_view getOriginalName() const { return OriName; }

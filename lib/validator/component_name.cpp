@@ -16,6 +16,18 @@ namespace Validator {
 
 namespace ComponentNameParser {
 
+// --- HELPER FUNCTIONS ---
+static bool isIdentifierChar(char C) { return std::isalnum(C) || C == '-'; }
+
+static const char *parseNumeric(const char *Begin, const char *End) {
+  if (Begin == End) return nullptr;
+  if (*Begin == '0' && (Begin + 1 != End && std::isdigit(*(Begin + 1)))) return nullptr;
+  const char *Curr = Begin;
+  while (Curr != End && std::isdigit(*Curr)) Curr++;
+  return (Curr == Begin) ? nullptr : Curr;
+}
+// ------------------------
+
 // label             ::= <fragment>
 //                     | <label> '-' <fragment>
 // fragment          ::= <word>
@@ -210,7 +222,15 @@ void ComponentName::parse() {
 
   // hashname          ::= 'integrity=<' <integrity-metadata> '>'
   if (tryRead("integrity="sv, Next)) {
-    // Not supported yet
+    // --- HASH VALIDATION ---
+    if (Next.size() >= 2 && Next.front() == '<' && Next.back() == '>') {
+      Hash = Next.substr(1, Next.size() - 2);
+    } else {
+      Hash = Next; 
+    }
+    if (!validateHash()) {
+      return;
+    }
     return;
   }
 
@@ -267,7 +287,11 @@ void ComponentName::parse() {
     // read a:b:c/d/e/f[@g]?
     if (!isEOF(Next) && Next[0] == '@') {
       Next.remove_prefix(1);
-      // TODO: semver format check
+      
+      // --- SEMVER VALIDATION ---
+      if (!validateVersion(Next)) {
+        return;
+      }
       Version = Next;
     }
 
@@ -284,6 +308,92 @@ void ComponentName::parse() {
     }
     Kind = ComponentNameKind::Label;
   }
+}
+
+// --- VALIDATION LOGIC ---
+
+bool ComponentName::validateVersion(std::string_view Ver) {
+  if (Ver.empty()) return true;
+
+  const char *Ptr = Ver.data();
+  const char *End = Ver.data() + Ver.size();
+
+  const char *Next = ComponentNameParser::parseNumeric(Ptr, End);
+  if (!Next || Next == End || *Next != '.') return false;
+  Ptr = Next + 1; 
+
+  Next = ComponentNameParser::parseNumeric(Ptr, End);
+  if (!Next || Next == End || *Next != '.') return false;
+  Ptr = Next + 1;
+
+  Next = ComponentNameParser::parseNumeric(Ptr, End);
+  if (!Next) return false;
+  Ptr = Next;
+
+  if (Ptr == End) return true;
+
+  if (*Ptr == '-') {
+    Ptr++;
+    if (Ptr == End) return false;
+    while (true) {
+      const char *SegmentStart = Ptr;
+      while (Ptr != End && *Ptr != '.' && *Ptr != '+') {
+        if (!ComponentNameParser::isIdentifierChar(*Ptr)) return false;
+        Ptr++;
+      }
+      if (Ptr == SegmentStart) return false;
+      
+      bool IsNumeric = true;
+      for (const char *C = SegmentStart; C != Ptr; ++C) {
+        if (!std::isdigit(*C)) { IsNumeric = false; break; }
+      }
+      if (IsNumeric && (Ptr - SegmentStart > 1) && *SegmentStart == '0') return false;
+
+      if (Ptr == End || *Ptr == '+') break;
+      Ptr++;
+    }
+  }
+
+  if (Ptr != End && *Ptr == '+') {
+    Ptr++;
+    if (Ptr == End) return false;
+    while (true) {
+      const char *SegmentStart = Ptr;
+      while (Ptr != End && *Ptr != '.') {
+        if (!ComponentNameParser::isIdentifierChar(*Ptr)) return false;
+        Ptr++;
+      }
+      if (Ptr == SegmentStart) return false;
+      if (Ptr == End) break;
+      Ptr++;
+    }
+  }
+
+  return Ptr == End;
+}
+
+bool ComponentName::validateHash() {
+  if (Hash.empty()) return true;
+
+  auto DashPos = Hash.find('-');
+  if (DashPos == std::string_view::npos) return false;
+
+  std::string_view Algo = Hash.substr(0, DashPos);
+  std::string_view Value = Hash.substr(DashPos + 1);
+
+  if (Algo != "sha256" && Algo != "sha512") return false;
+
+  if (Algo == "sha256" && Value.size() != 64) return false;
+  if (Algo == "sha512" && Value.size() != 128) return false;
+
+  for (char C : Value) {
+    bool IsDigit = (C >= '0' && C <= '9');
+    bool IsLower = (C >= 'a' && C <= 'f');
+    bool IsUpper = (C >= 'A' && C <= 'F');
+    if (!IsDigit && !IsLower && !IsUpper) return false;
+  }
+
+  return true;
 }
 
 } // namespace Validator

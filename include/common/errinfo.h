@@ -245,12 +245,13 @@ struct InfoInstruction {
 
 struct InfoBoundary {
   InfoBoundary() = delete;
-  InfoBoundary(
-      const uint128_t Off, const uint64_t Len = 0,
-      const uint64_t Lim = std::numeric_limits<uint64_t>::max()) noexcept
-      : Offset(Off), Size(Len), Limit(Lim) {}
+  InfoBoundary(const uint64_t Off, const uint64_t Len = 0,
+               const uint64_t Lim = std::numeric_limits<uint64_t>::max(),
+               const bool IsOverflow = false) noexcept
+      : IsOffsetOverflow(IsOverflow), Offset(Off), Size(Len), Limit(Lim) {}
 
-  uint128_t Offset;
+  bool IsOffsetOverflow;
+  uint64_t Offset;
   uint64_t Size;
   uint64_t Limit;
 };

@@ -265,10 +265,10 @@ public:
 #if defined(_MSC_VER) && !defined(__clang__) // MSVC
     uint128_t Num =
         static_cast<uint128_t>(sizeof(T)) * static_cast<uint128_t>(Count);
-    if ((Num >> 64) != 0) {
+    if ((Num >> 64).high() != 0) {
       return Span<T>();
     }
-    Size = static_cast<uint64_t>(Num);
+    Size = Num.low();
 #else
     if (unlikely(__builtin_mul_overflow(static_cast<uint64_t>(sizeof(T)), Count,
                                         &Size))) {

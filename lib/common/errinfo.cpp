@@ -296,13 +296,50 @@ fmt::formatter<WasmEdge::ErrInfo::InfoBoundary>::format(
     const WasmEdge::ErrInfo::InfoBoundary &Info,
     fmt::format_context &Ctx) const noexcept {
   fmt::memory_buffer Buffer;
+  WasmEdge::uint128_t OffFrom = Info.Offset;
+  if (Info.IsOffsetOverflow) {
+    OffFrom += (WasmEdge::uint128_t(1ULL) << 64);
+  }
+  WasmEdge::uint128_t OffTo =
+      OffFrom + WasmEdge::uint128_t(Info.Size > 0U ? Info.Size - 1U : 0U);
+  uint64_t Bound = (Info.Limit > 0U ? Info.Limit - 1U : 0U);
+#if WASMEDGE_OS_WINDOWS
+  uint64_t OffFromHigh = static_cast<uint64_t>(OffFrom >> 64);
+  uint64_t OffFromLow = static_cast<uint64_t>(OffFrom);
+  uint64_t OffToHigh = static_cast<uint64_t>(OffTo >> 64);
+  uint64_t OffToLow = static_cast<uint64_t>(OffTo);
+  if (OffFromHigh > 0) {
+    fmt::format_to(
+        std::back_inserter(Buffer),
+        "    Accessing offset from: 0x{:8x}{:016x} to: 0x{:8x}{:016x} , Out of "
+        "boundary: 0x{:016x}"sv,
+        OffFromHigh, OffFromLow, OffToHigh, OffToLow, Bound);
+  } else {
+    fmt::format_to(std::back_inserter(Buffer),
+                   "    Accessing offset from: 0x{:08x} to: 0x{:08x} , Out of "
+                   "boundary: 0x{:08x}"sv,
+                   OffFromLow, OffToLow, Bound);
+  }
+#elif defined(__x86_64__) || defined(__aarch64__) ||                           \
+    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
   fmt::format_to(std::back_inserter(Buffer),
                  "    Accessing offset from: 0x{:08x} to: 0x{:08x} , Out of "
                  "boundary: 0x{:08x}"sv,
-                 Info.Offset,
-                 Info.Offset +
-                     WasmEdge::uint128_t(Info.Size > 0U ? Info.Size - 1U : 0U),
-                 (Info.Limit > 0U ? Info.Limit - 1U : 0U));
+                 OffFrom, OffTo, Bound);
+#else
+  if (OffFrom.high() > 0) {
+    fmt::format_to(
+        std::back_inserter(Buffer),
+        "    Accessing offset from: 0x{:8x}{:016x} to: 0x{:8x}{:016x} , Out of "
+        "boundary: 0x{:016x}"sv,
+        OffFrom.high(), OffFrom.low(), OffTo.high(), OffTo.low(), Bound);
+  } else {
+    fmt::format_to(std::back_inserter(Buffer),
+                   "    Accessing offset from: 0x{:08x} to: 0x{:08x} , Out of "
+                   "boundary: 0x{:08x}"sv,
+                   OffFrom.low(), OffTo.low(), Bound);
+  }
+#endif
   return formatter<std::string_view>::format(
       std::string_view(Buffer.data(), Buffer.size()), Ctx);
 }

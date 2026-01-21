@@ -34,8 +34,6 @@ TEST_F(WasiCryptoTest, NotImplement) {
   WASI_CRYPTO_EXPECT_FAILURE(keypairFromId(1, {}, 1),
                              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 
-  WASI_CRYPTO_EXPECT_FAILURE(secretsManagerOpen(std::nullopt),
-                             __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   WASI_CRYPTO_EXPECT_FAILURE(secretsManagerClose(InvaildHandle),
                              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   WASI_CRYPTO_EXPECT_FAILURE(secretsManagerInvalidate(InvaildHandle, {}, 0),

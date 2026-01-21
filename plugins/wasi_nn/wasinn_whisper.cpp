@@ -1113,7 +1113,11 @@ Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
     spdlog::info(
         "[WASI-NN][Debug] Whisper backend: finalize_execution_context"sv);
   }
-  // TODO: Free resources
+  // Free resources
+  CxtRef.InputPCM.clear();
+  CxtRef.InputPCMs.clear();
+  CxtRef.Outputs.clear();
+  
   Env.deleteContext(ContextId);
   if (IsDebugLog) {
     spdlog::info(

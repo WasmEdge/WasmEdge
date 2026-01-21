@@ -80,7 +80,7 @@ public:
       return false;
     }
     Refs.resize(Refs.size() + Count);
-    std::fill_n(Refs.end() - Count, Count, Val);
+    std::fill_n(Refs.end() - static_cast<std::ptrdiff_t>(Count), Count, Val);
     TabType.getLimit().setMin(Min + Count);
     return true;
   }
@@ -97,7 +97,8 @@ public:
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::TableOutOfBounds);
     }
-    return Span<const RefVariant>(Refs.begin() + Offset, Length);
+    return Span<const RefVariant>(
+        Refs.begin() + static_cast<std::ptrdiff_t>(Offset), Length);
   }
 
   /// Replace the Refs[Dst :] by Slice[Src : Src + Length)
@@ -121,11 +122,12 @@ public:
     // Copy the references.
     if (Dst <= Src) {
       std::copy(Slice.begin() + Src, Slice.begin() + Src + Length,
-                Refs.begin() + Dst);
+                Refs.begin() + static_cast<std::ptrdiff_t>(Dst));
     } else {
       std::copy(std::make_reverse_iterator(Slice.begin() + Src + Length),
                 std::make_reverse_iterator(Slice.begin() + Src),
-                std::make_reverse_iterator(Refs.begin() + Dst + Length));
+                std::make_reverse_iterator(
+                    Refs.begin() + static_cast<std::ptrdiff_t>(Dst + Length)));
     }
     return {};
   }
@@ -141,7 +143,8 @@ public:
     }
 
     // Fill the references.
-    std::fill_n(Refs.begin() + Offset, Length, Val);
+    std::fill_n(Refs.begin() + static_cast<std::ptrdiff_t>(Offset), Length,
+                Val);
     return {};
   }
 

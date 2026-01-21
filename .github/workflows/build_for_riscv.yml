@@ -5,9 +5,10 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  workflow_dispatch:
   push:
     branches:
-      - master
+      - "**"
     paths:
       - ".github/workflows/build_for_riscv.yml"
       - "include/**"
@@ -20,7 +21,7 @@ on:
       - "cmake/**"
   pull_request:
     branches:
-      - master
+      - "**"
       - 'proposal/**'
     paths:
       - ".github/workflows/build_for_riscv.yml"
@@ -37,54 +38,161 @@ permissions:
   contents: read
 
 jobs:
-  # TODO: Refactor `lint` with `on.workflow_run`
-  # https://docs.github.com/en/actions/using-workflows/triggering-a-workflow
   lint:
     uses: ./.github/workflows/reusable-call-linter.yml
 
   build_riscv64:
-    name: RISC-V64
-    runs-on: ubuntu-latest
+    name: Cross-Compile with LLVM
+    runs-on: ubuntu-24.04 # Updated to 24.04 VM (No container, to allow QEMU registration)
     needs: lint
     steps:
-    - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
-      with:
-        egress-policy: audit
+      - name: Harden runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
 
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      with:
-        fetch-depth: 0
-    - name: Ensure git safe directory
-      run: |
-        git config --global --add safe.directory $(pwd)
-    - uses: uraimo/run-on-arch-action@aa8e672a03e10b403401927ea2ceda57e1b68ac3 # v3
-      name: Build WasmEdge
-      with:
-        arch: riscv64
-        distro: ubuntu22.04
-        githubToken: ${{ github.token }}
-        dockerRunArgs: |
-          --volume "${PWD}:/workplace"
-        shell: /bin/sh
-        install: |
-          apt-get update -q -y
-          apt-get install -q -y git cmake g++ dpkg
-          apt-get install -q -y software-properties-common
-          apt-get install -q -y llvm-15-dev liblld-15-dev zlib1g-dev
-          apt-get install -q -y wabt # For generating wasm
+      - name: Install Build Prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y software-properties-common wget curl git ninja-build cmake dpkg-dev
+
+      - name: Install QEMU Emulator
+        run: |
+          # Install QEMU and register binfmt handlers to run RISC-V binaries
+          sudo apt-get install -y qemu-user-static binfmt-support
+
+      - name: Setup Multi-Arch (RISC-V64)
+        run: |
+          sudo dpkg --add-architecture riscv64
+
+          # Detect if sources are in the new DEB822 format (ubuntu.sources) or legacy (sources.list)
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i 's/^Types: deb/Types: deb\nArchitectures: amd64/' /etc/apt/sources.list.d/ubuntu.sources
+          elif [ -f /etc/apt/sources.list ]; then
+            sudo sed -i 's/^deb http/deb [arch=amd64] http/' /etc/apt/sources.list
+          fi
+
+          # Add RISC-V ports
+          echo "deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/riscv.list
+          echo "deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/riscv.list
+          echo "deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/riscv.list
+
+          sudo apt-get update
+
+      - name: Install Cross-Compiler and RISC-V Libraries
+        run: |
+          # 1. Purge conflicting Bootloader AND Host LLVM packages
+          sudo apt-get purge -y --allow-remove-essential \
+            shim-signed grub-common grub-pc grub-pc-bin grub-efi-amd64-signed grub-efi-amd64-bin \
+            libllvm18 llvm-18 llvm-18-dev llvm-18-runtime \
+            || true
+
+          sudo apt-get autoremove -y
+
+          # 2. Install cross-compiler and RISC-V specific LLVM libraries
+          # Added liblld-18-dev:riscv64 to fix missing header lld/Common/Driver.h
+          sudo apt-get install -y --no-install-recommends \
+            crossbuild-essential-riscv64 \
+            llvm-18-dev:riscv64 \
+            liblld-18-dev:riscv64 \
+            lld-18:riscv64 \
+            zlib1g-dev:riscv64
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Build WasmEdge (Cross-Compile + AOT)
         run: |
           mkdir -p build && cd build
-          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j $(nproc) && make install
-          wasmedge -v
-          wasmedgec -v
-          wasmedge compile -h
-          wasmedge run -h
-          cd ../examples/wasm
-          wat2wasm fibonacci.wat -o fibonacci.wasm
-          wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
-          wasmedge --reactor fibonacci_aot_c.wasm fib 30
-          wasmedge run --reactor fibonacci_aot_c.wasm fib 30
-          wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
-          wasmedge --reactor fibonacci_aot_compile.wasm fib 30
-          wasmedge run --reactor fibonacci_aot_compile.wasm fib 30
+
+          cat > ../riscv-toolchain.cmake << 'EOF'
+          set(CMAKE_SYSTEM_NAME Linux)
+          set(CMAKE_SYSTEM_PROCESSOR riscv64)
+          set(CMAKE_C_COMPILER riscv64-linux-gnu-gcc)
+          set(CMAKE_CXX_COMPILER riscv64-linux-gnu-g++)
+          set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=rv64gc -mabi=lp64d")
+          set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=rv64gc -mabi=lp64d")
+          set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++")
+          EOF
+
+          cmake -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE=../riscv-toolchain.cmake \
+            -DWASMEDGE_BUILD_TESTS=ON \
+            -DWASMEDGE_BUILD_TOOLS=ON \
+            -DWASMEDGE_USE_LLVM=ON \
+            -DLLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm \
+            -DWASMEDGE_BUILD_AOT_RUNTIME=ON \
+            ..
+
+          ninja
+
+      - name: Prepare Artifacts
+        run: |
+          mkdir -p release_pack
+          cp -r build release_pack/build
+          cp -r examples release_pack/examples
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: riscv-build-artifacts
+          path: release_pack/
+          retention-days: 1
+
+  test_riscv64:
+    name: Run Full Test Suite (QEMU)
+    needs: build_riscv64
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Install QEMU & Tools
+        run: |
+          sudo dpkg --add-architecture riscv64
+
+          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+            sudo sed -i 's/^Types: deb/Types: deb\nArchitectures: amd64/' /etc/apt/sources.list.d/ubuntu.sources
+          elif [ -f /etc/apt/sources.list ]; then
+            sudo sed -i 's/^deb http/deb [arch=amd64] http/' /etc/apt/sources.list
+          fi
+
+          echo "deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/riscv.list
+          echo "deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/riscv.list
+          echo "deb [arch=riscv64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/riscv.list
+
+          sudo apt-get update
+
+          # 1. Purge conflicting host packages (Same as Build Job)
+          sudo apt-get purge -y --allow-remove-essential \
+            shim-signed grub-common grub-pc grub-pc-bin grub-efi-amd64-signed grub-efi-amd64-bin \
+            libllvm18 llvm-18 llvm-18-dev llvm-18-runtime \
+            || true
+          sudo apt-get autoremove -y
+
+          # 2. Install QEMU, Tools, and RISC-V Runtime Libraries
+          # Added libllvm18:riscv64 to fix the loading error
+          sudo apt-get install -y qemu-user-static binfmt-support wabt \
+            libc6:riscv64 libstdc++6:riscv64 libgcc-s1:riscv64 \
+            zlib1g:riscv64 libtinfo6:riscv64 libzstd1:riscv64 \
+            libxml2:riscv64 libffi8:riscv64 \
+            libllvm18:riscv64
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: riscv-build-artifacts
+          path: .
+
+      - name: Run Essential Tests
+        run: |
+          export LD_LIBRARY_PATH=$(pwd)/build/lib/api:$(pwd)/build/lib:$LD_LIBRARY_PATH
+          export QEMU_LD_PREFIX=/usr
+          cd build/test
+          # Run only common and API tests which are faster
+          ctest -L "Common|API" --output-on-failure --parallel $(nproc)

@@ -125,10 +125,6 @@ jobs:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifacts }}
       - if: ${{ inputs.release }}
-        name: Install gh for release
-        run: |
-          brew install gh
-      - if: ${{ inputs.release }}
         name: Upload release ${{ steps.var.outputs.artifact }}
         run: |
           gh release upload ${{ inputs.version }} ${{ steps.var.outputs.artifact }} --clobber

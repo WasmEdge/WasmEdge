@@ -67,7 +67,7 @@ jobs:
       uses: actions/cache/restore@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
       with:
         path: ./openwrt-x86-64-generic-rootfs.tar.gz
-        key: openwrt
+        key: openwrt-${{ hashFiles('.github/workflows/build_for_openwrt.yml') }}
     - name: Install dependency
       if: steps.restore-openwrt.outputs.cache-hit != 'true'
       run: |

@@ -1067,7 +1067,7 @@ E(ExportNotFound, 0x02A4, "export not found")
 // Component model not implemented
 E(ComponentNotImplValidator, 0x02A5,
   "component model (validator) not implemented")
-// Component model not implemented
+// Component model duplicate name
 E(ComponentDuplicateName, 0x02A6, "duplicate name in component")
 // @}
 

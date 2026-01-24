@@ -32,13 +32,24 @@ TEST(ComponentNameParser, Functions) {
 }
 
 TEST(ComponentNameParser, Kebab) {
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a"sv));
   EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("A"sv));
   EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("abc-def-ghi"sv));
   EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-DEF-GHI"sv));
   EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-def-GHI"sv));
   EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-123"sv));
   EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC123-G45H"sv));
+
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a1"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1-b-2-c-3"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B1"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B-1"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B-1-C-2-D-3"sv));
+  EXPECT_TRUE(
+      Validator::ComponentNameParser::isKebabString("a11-B11-123-ABC-abc"sv));
+  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1-c"sv));
 
   EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abcDefGhi"sv));
   EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abc_def_ghi"sv));
@@ -51,6 +62,9 @@ TEST(ComponentNameParser, Kebab) {
   EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1-abc"sv));
   EXPECT_FALSE(Validator::ComponentNameParser::isKebabString(""sv));
   EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("中文字"sv));
+
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1"sv));
+  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1-a"sv));
 
   EXPECT_TRUE(
       Validator::ComponentNameParser::isLowercaseKebabString("abc-def-ghi"sv));
@@ -117,7 +131,7 @@ TEST(ComponentNameParser, Parse) {
   }
 }
 
-TEST(ComponentNameParser, StronglyUnique1) {
+TEST(ComponentNameParser, StronglyUniqueBasicCases) {
   using namespace Validator;
   ComponentContext::Context Ctx(nullptr);
 

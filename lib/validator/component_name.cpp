@@ -128,11 +128,6 @@ void ComponentName::parse() {
   //                    | '[async method]' <label> '.' <label> 🔀
   //                    | '[static]' <label> '.' <label>
   //                    | '[async static]' <label> '.' <label> 🔀
-  if (tryRead("[async]"sv, Next)) {
-    NoTagName = Next;
-    // Not supported yet
-    return;
-  }
 
   if (tryRead("[constructor]"sv, Next)) {
     if (!isKebabString(Next)) {
@@ -144,39 +139,45 @@ void ComponentName::parse() {
     return;
   }
 
-  if (tryRead("[method]"sv, Next)) {
-    NoTagName = Next;
-    std::string_view Resource;
+  auto tryReadResourceWithLabel = [&](std::string_view Tag,
+                                      std::string_view &Resource,
+                                      std::string_view &Label) -> bool {
+    if (!tryRead(Tag, Next)) {
+      return false;
+    }
+    auto TmpNoTagName = Next;
     if (!readUntil(Next, '.', Resource)) {
-      return;
+      return false;
     }
     if (!isKebabString(Resource) || !isKebabString(Next)) {
-      return;
+      return false;
     }
-    Detail.Method.Resource = Resource;
-    Detail.Method.Method = Next;
+    NoTagName = TmpNoTagName;
+    Label = Next;
+    return true;
+  };
+
+  if (tryReadResourceWithLabel("[method]"sv, Detail.Method.Resource,
+                               Detail.Method.Method)) {
     Kind = ComponentNameKind::Method;
+    return;
+  }
+
+  if (tryReadResourceWithLabel("[static]"sv, Detail.Static.Resource,
+                               Detail.Static.Method)) {
+    Kind = ComponentNameKind::Static;
+    return;
+  }
+
+  if (tryRead("[async]"sv, Next)) {
+    NoTagName = Next;
+    // Not supported yet
     return;
   }
 
   if (tryRead("[async method]"sv, Next)) {
     NoTagName = Next;
     // Not supported yet
-    return;
-  }
-
-  if (tryRead("[static]"sv, Next)) {
-    NoTagName = Next;
-    std::string_view Resource;
-    if (!readUntil(Next, '.', Resource)) {
-      return;
-    }
-    if (!isKebabString(Resource) || !isKebabString(Next)) {
-      return;
-    }
-    Detail.Static.Resource = Resource;
-    Detail.Static.Method = Next;
-    Kind = ComponentNameKind::Static;
     return;
   }
 
@@ -187,6 +188,9 @@ void ComponentName::parse() {
   }
 
   // No tag more
+  if (Next.size() != 0 && Next[0] == '[') {
+    return;
+  }
   NoTagName = Next;
 
   // depname           ::= 'unlocked-dep=<' <pkgnamequery> '>'

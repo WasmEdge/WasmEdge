@@ -3,6 +3,7 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "validator/component_name.h"
 #include "validator/validator.h"
 
 #include <variant>
@@ -508,8 +509,8 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     case AST::Component::ExternDesc::DescType::CoreType:
     default:
       spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error("    Alias export: Type mapping mismatch for export '{}'"sv,
-                    Name);
+      spdlog::error(
+          "    Alias export: Unknown mapping mismatch for export '{}'"sv, Name);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     if (ST != Sort.getSortType()) {
@@ -739,7 +740,28 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   }
 }
 
-Expect<void> Validator::validate(const AST::Component::Import &) noexcept {
+Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
+  EXPECTED_TRY(validate(Im.getDesc()).map_error([](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    return E;
+  }));
+
+  ComponentName CName(Im.getName());
+  switch (CName.getKind()) {
+  case ComponentNameKind::InterfaceType:
+  case ComponentNameKind::Label:
+    break;
+  case ComponentNameKind::Invalid:
+    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
+    spdlog::error("    Import: Invalid import name"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
+  default:
+    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
+    spdlog::error("    Import: Import name kind not supported yet"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
+  }
   // TODO: Validation requires that annotated plainnames only occur on func
   // imports or exports and that the first label of a [constructor],
   // [method] or [static] matches the plainname of a preceding resource
@@ -755,6 +777,26 @@ Expect<void> Validator::validate(const AST::Component::Import &) noexcept {
 
   // TODO: Validation of [method] and [static] names ensures that all field
   // names are disjoint.
+  switch (CName.getKind()) {
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
+  case ComponentNameKind::InterfaceType:
+  case ComponentNameKind::Label:
+    if (!CompCtx.AddImportedName(CName)) {
+      spdlog::error(ErrCode::Value::ComponentDuplicateName);
+      spdlog::error("    Import: Duplicate import name"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::ComponentDuplicateName);
+    }
+    break;
+  default:
+    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
+    spdlog::error("    Import: Name is not resolved"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
+  }
+
   return {};
 }
 
@@ -816,6 +858,8 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
         }
       }
     } else {
+      // TODO: check getCoreSortIndexSize(), because it may miss type, not out
+      // of bound
       spdlog::error(ErrCode::Value::InvalidIndex);
       spdlog::error("    ExternDesc: Instance index {} out of bound"sv,
                     Desc.getTypeIndex());

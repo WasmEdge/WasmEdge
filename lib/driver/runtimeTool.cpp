@@ -94,10 +94,10 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
         fmt::print("{}\n"sv, (*Result)[I].first.get<int64_t>());
         break;
       case TypeCode::F32:
-        fmt::print("{}\n"sv, (*Result)[I].first.get<float>());
+        fmt::print("{:.0f}\n"sv, (*Result)[I].first.get<float>());
         break;
       case TypeCode::F64:
-        fmt::print("{}\n"sv, (*Result)[I].first.get<double>());
+        fmt::print("{:.0f}\n"sv, (*Result)[I].first.get<double>());
         break;
       case TypeCode::V128:
         fmt::print("{}\n"sv, uint128((*Result)[I].first.get<uint128_t>()));
@@ -218,10 +218,10 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
         fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<uint64_t>());
         break;
       case ComponentTypeCode::F32:
-        fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<float>());
+        fmt::print("{:.0f}\n"sv, std::get<ValVariant>(Val.first).get<float>());
         break;
       case ComponentTypeCode::F64:
-        fmt::print("{}\n"sv, std::get<ValVariant>(Val.first).get<double>());
+        fmt::print("{:.0f}\n"sv, std::get<ValVariant>(Val.first).get<double>());
         break;
       case ComponentTypeCode::String:
         fmt::print("{}\n"sv, std::get<std::string>(Val.first));

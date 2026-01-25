@@ -187,6 +187,34 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
     return Unexpect(ErrCode::Value::IllegalGrammar);
   }
 
+  // Validate that all individual symbols are valid (non-null).
+  // This prevents null pointer dereference at runtime if JIT symbol lookup
+  // partially failed.
+  {
+    uint32_t TypeIdx = 0;
+    for (const auto &SubType : SubTypes) {
+      if (SubType.getCompositeType().isFunc()) {
+        if (unlikely(!FuncTypeSymbols[TypeIdx])) {
+          spdlog::error(
+              "    AOT section -- invalid type symbol at index {}, use "
+              "interpreter mode instead.",
+              TypeIdx);
+          return Unexpect(ErrCode::Value::IllegalGrammar);
+        }
+      }
+      TypeIdx++;
+    }
+  }
+  for (size_t I = 0; I < CodeSymbols.size(); ++I) {
+    if (unlikely(!CodeSymbols[I])) {
+      spdlog::error(
+          "    AOT section -- invalid code symbol at index {}, use "
+          "interpreter mode instead.",
+          I);
+      return Unexpect(ErrCode::Value::IllegalGrammar);
+    }
+  }
+
   // Set the symbols into the module.
   uint32_t FuncTypeIdx = 0;
   for (auto &SubType : SubTypes) {

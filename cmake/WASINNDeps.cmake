@@ -116,6 +116,12 @@ function(wasmedge_setup_wasinn_target target)
       endif()
       target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET)
       wasmedge_setup_bitnet_target(${target})
+    elseif(BACKEND STREQUAL "rwkv")
+      if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+        message(STATUS "WASI-NN: Build rwkv.cpp backend for WASI-NN")
+      endif()
+      target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_RWKV)
+      wasmedge_setup_rwkv_target(${target})
     else()
       # Add the message of other backends here.
       message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")
@@ -702,5 +708,91 @@ function(wasmedge_setup_bitnet_target target)
       simdjson::simdjson
     )
 
+  endif()
+endfunction()
+
+function(wasmedge_setup_rwkv_target target)
+  if(NOT TARGET rwkv)
+    set(BUILD_SHARED_LIBS OFF)
+    set(RWKV_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Build rwkv as static library")
+    set(RWKV_STANDALONE ON CACHE BOOL "Build only RWKV library (no tests/extras)")
+
+    if(WASMEDGE_PLUGIN_WASI_NN_RWKV_CUBLAS)
+      message(STATUS "WASI-NN RWKV backend: Enable RWKV_CUBLAS")
+      set(RWKV_CUBLAS ON CACHE BOOL "Enable cuBLAS for RWKV")
+    else()
+      message(STATUS "WASI-NN RWKV backend: Disable RWKV_CUBLAS")
+      set(RWKV_CUBLAS OFF CACHE BOOL "Enable cuBLAS for RWKV")
+    endif()
+
+    message(STATUS "Downloading rwkv.cpp source")
+    FetchContent_Declare(
+      rwkv
+      GIT_REPOSITORY https://github.com/RWKV/rwkv.cpp.git
+      GIT_TAG        master-14663c8  # Pinned for reproducibility (Mar 23, 2025)
+      GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(rwkv)
+    message(STATUS "Downloading rwkv.cpp source -- done")
+
+    set(WASMEDGE_RWKV_SOURCE_DIR "${rwkv_SOURCE_DIR}" CACHE PATH "Path to RWKV source directory")
+
+    set_property(TARGET rwkv PROPERTY POSITION_INDEPENDENT_CODE ON)
+    if(TARGET ggml)
+      set_property(TARGET ggml PROPERTY POSITION_INDEPENDENT_CODE ON)
+    endif()
+  endif()
+
+  if(NOT TARGET tokenizers_cpp)
+    message(STATUS "Downloading tokenizers source for RWKV")
+    FetchContent_Declare(
+      tokenizers
+      GIT_REPOSITORY https://github.com/mlc-ai/tokenizers-cpp.git
+      GIT_TAG 55d53aa
+      GIT_SHALLOW FALSE
+    )
+    FetchContent_MakeAvailable(tokenizers)
+    message(STATUS "Downloading tokenizers source for RWKV -- done")
+    set_property(TARGET tokenizers_cpp PROPERTY POSITION_INDEPENDENT_CODE ON)
+  endif()
+
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    target_compile_options(${target}
+      PRIVATE
+      -Wno-error=unused-function
+    )
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(${target}
+      PRIVATE
+      -Wno-error=unused-function
+    )
+  endif()
+
+  if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
+    wasmedge_setup_simdjson()
+    target_include_directories(${target}
+      PRIVATE
+      ${rwkv_SOURCE_DIR}
+      ${tokenizers_SOURCE_DIR}/include
+    )
+    target_link_libraries(${target}
+      PRIVATE
+      rwkv
+      tokenizers_cpp
+      simdjson::simdjson
+    )
+
+    if(TARGET ggml)
+      target_link_libraries(${target} PRIVATE ggml)
+    endif()
+    if(TARGET ggml-base)
+      target_link_libraries(${target} PRIVATE ggml-base)
+    endif()
+    if(TARGET ggml-cpu)
+      target_link_libraries(${target} PRIVATE ggml-cpu)
+    endif()
+    if(TARGET ggml-blas)
+      target_link_libraries(${target} PRIVATE ggml-blas)
+    endif()
   endif()
 endfunction()

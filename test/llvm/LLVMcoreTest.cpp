@@ -49,10 +49,12 @@ class JITCoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(NativeCoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Configure ModifiedConf = Conf;
+  ModifiedConf.getRuntimeConfigure().setMaxCallDepth(1024);
+  WasmEdge::VM::VM VM(ModifiedConf);
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
-  auto Compile = [&, ConfWrap = std::cref(Conf)](
+  auto Compile = [&, ConfWrap = std::cref(ModifiedConf)](
                      const std::string &FileName) -> Expect<std::string> {
     WasmEdge::Configure CopyConf = ConfWrap.get();
     WasmEdge::Loader::Loader Loader(ConfWrap);
@@ -61,7 +63,6 @@ TEST_P(NativeCoreTest, TestSuites) {
         CompilerConfigure::OutputFormat::Native);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O0);
-    CopyConf.getCompilerConfigure().setDumpIR(true);
     WasmEdge::LLVM::Compiler Compiler(CopyConf);
     WasmEdge::LLVM::CodeGen CodeGen(CopyConf);
     auto Path = std::filesystem::u8path(FileName);
@@ -177,17 +178,18 @@ TEST_P(NativeCoreTest, TestSuites) {
 
 TEST_P(CustomWasmCoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Configure ModifiedConf = Conf;
+  ModifiedConf.getRuntimeConfigure().setMaxCallDepth(1024);
+  WasmEdge::VM::VM VM(ModifiedConf);
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
-  auto Compile = [&, ConfWrap = std::cref(Conf)](
+  auto Compile = [&, ConfWrap = std::cref(ModifiedConf)](
                      const std::string &FileName) -> Expect<std::string> {
     WasmEdge::Configure CopyConf = ConfWrap.get();
     WasmEdge::Loader::Loader Loader(ConfWrap);
     WasmEdge::Validator::Validator ValidatorEngine(ConfWrap);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O0);
-    CopyConf.getCompilerConfigure().setDumpIR(true);
     WasmEdge::LLVM::Compiler Compiler(CopyConf);
     WasmEdge::LLVM::CodeGen CodeGen(CopyConf);
     auto Path = std::filesystem::u8path(FileName);
@@ -304,10 +306,10 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
 TEST_P(JITCoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
   WasmEdge::Configure CopyConf = Conf;
+  CopyConf.getRuntimeConfigure().setMaxCallDepth(1024);
   CopyConf.getRuntimeConfigure().setEnableJIT(true);
   CopyConf.getCompilerConfigure().setOptimizationLevel(
       WasmEdge::CompilerConfigure::OptimizationLevel::O0);
-  CopyConf.getCompilerConfigure().setDumpIR(true);
   WasmEdge::VM::VM VM(CopyConf);
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);

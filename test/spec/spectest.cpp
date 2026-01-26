@@ -921,7 +921,21 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::AssertExhaustion: {
-        // TODO: Add stack overflow mechanism.
+        const simdjson::dom::object &Action = Cmd["action"];
+        const uint64_t LineNumber = Cmd["line"];
+        const auto ModName = GetModuleName(Action);
+        const std::string_view Field = Action["field"];
+        simdjson::dom::array Args = Action["args"];
+        const auto Params = parseValueList(Args);
+
+        if (auto Res = onInvoke(ModName, std::string(Field), Params.first,
+                                Params.second)) {
+          EXPECT_NE(LineNumber, LineNumber);
+        } else {
+          EXPECT_TRUE(Res.error().getErrCodePhase() ==
+                      WasmEdge::WasmPhase::Execution);
+          EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::CallStackExhausted);
+        }
         return;
       }
       case CommandID::AssertMalformed: {

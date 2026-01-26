@@ -1155,6 +1155,8 @@ E(AccessNullException, 0x0417, "null exception reference")
 E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
 E(UncaughtException, 0x0419, "uncaught exception")
+// Call Stack Exhausted
+E(CallStackExhausted, 0x041A, "call stack exhausted")
 // @}
 
 #undef E

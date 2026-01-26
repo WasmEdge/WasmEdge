@@ -4615,6 +4615,10 @@ private:
       Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }
 
+#if defined(__x86_64__) // Enforce 32-bit WASM memory boundary for x86_64 to
+                        // prevent SIGSEGV
+    Off = Builder.createAnd(Off, LLContext.getInt64(0xFFFFFFFFULL));
+#endif
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
@@ -4675,6 +4679,10 @@ private:
       Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }
 
+#if defined(__x86_64__) // Enforce 32-bit WASM memory boundary for x86_64 to
+                        // prevent SIGSEGV
+    Off = Builder.createAnd(Off, LLContext.getInt64(0xFFFFFFFFULL));
+#endif
     if (Trunc) {
       V = Builder.createTrunc(V, LoadTy);
     }

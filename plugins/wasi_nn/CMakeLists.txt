@@ -19,6 +19,7 @@ wasmedge_add_library(wasmedgePluginWasiNN
   wasinn_chattts.cpp
   wasinn_mlx.cpp
   wasinn_bitnet.cpp
+  wasinn_rwkv.cpp
 )
 
 include(WASINNDeps)

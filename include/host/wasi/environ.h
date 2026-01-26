@@ -1200,6 +1200,10 @@ public:
     return std::string(Buffer.data(), Buffer.size());
   }
 
+  void setMaxWasiFd(uint32_t Limit) noexcept {
+    MaxFd = std::clamp(Limit, 3U, 0x7FFFFFFFU);
+  }
+
 private:
   std::vector<std::string> Arguments;
   std::vector<std::string> EnvironVariables;
@@ -1211,6 +1215,7 @@ private:
 
   mutable std::shared_mutex FdMutex; ///< Protect FdMap
   std::unordered_map<__wasi_fd_t, std::shared_ptr<VINode>> FdMap;
+  uint32_t MaxFd = 0x7FFFFFFF;
 
   std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
     std::shared_lock Lock(FdMutex);
@@ -1221,7 +1226,8 @@ private:
   }
 
   WasiExpect<__wasi_fd_t> generateRandomFdToNode(std::shared_ptr<VINode> Node) {
-    std::uniform_int_distribution<__wasi_fd_t> Distribution(0, 0x7FFFFFFF);
+    std::uniform_int_distribution<__wasi_fd_t> Distribution(
+        0, static_cast<__wasi_fd_t>(MaxFd));
     bool Success = false;
     __wasi_fd_t NewFd;
     while (!Success) {

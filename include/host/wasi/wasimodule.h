@@ -33,6 +33,8 @@ public:
                            StdErrFd);
   }
 
+  void setMaxWasiFd(uint32_t Limit) noexcept { Env.setMaxWasiFd(Limit); }
+
   const WASI::Environ *getEnv() const noexcept { return &Env; }
 
 private:

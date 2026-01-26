@@ -26,7 +26,6 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
-#include <cstring>
 #include <functional>
 #include <gtest/gtest.h>
 #include <map>

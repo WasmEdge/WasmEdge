@@ -123,9 +123,19 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
     }
   }
 
-  if (AST::TypeMatcher::matchType(ModInst->getTypeList(),
-                                  Instr.getBrCast().RType2, GotTypeList,
-                                  VT) != IsReverse) {
+  ValType NormalizedVT = VT;
+  if (NormalizedVT.isExternalized()) {
+    // An externalized reference must appear as an 'externref' to the matcher.
+    // We preserve the nullability (Ref vs RefNull).
+    NormalizedVT =
+        ValType(VT.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
+                TypeCode::ExternRef);
+  }
+
+  bool MatchResult = AST::TypeMatcher::matchType(ModInst->getTypeList(),
+                                                 Instr.getBrCast().RType2,
+                                                 GotTypeList, NormalizedVT);
+  if (MatchResult != IsReverse) {
     return branchToLabel(StackMgr, Instr.getBrCast().Jump, PC);
   }
   return {};

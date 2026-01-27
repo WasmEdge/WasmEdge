@@ -5340,8 +5340,8 @@ private:
           LHS.getType());
       Ret = Builder.createSelect(OGT, RHS, Ret);
       Ret = Builder.createSelect(OLT, LHS, Ret);
-      Ret = Builder.createSelect(RNaN, RHS, Ret);
       Ret = Builder.createSelect(LNaN, LHS, Ret);
+      Ret = Builder.createSelect(RNaN, RHS, Ret);
       return Ret;
     });
   }
@@ -5357,8 +5357,8 @@ private:
           LHS.getType());
       Ret = Builder.createSelect(OLT, RHS, Ret);
       Ret = Builder.createSelect(OGT, LHS, Ret);
-      Ret = Builder.createSelect(RNaN, RHS, Ret);
       Ret = Builder.createSelect(LNaN, LHS, Ret);
+      Ret = Builder.createSelect(RNaN, RHS, Ret);
       return Ret;
     });
   }

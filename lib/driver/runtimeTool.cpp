@@ -409,6 +409,12 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     return EXIT_FAILURE;
   }
   if (auto Result = VM.validate(); !Result) {
+    // This allows printing detailed errors like "type index 5 is not"
+    auto &Val = VM.getValidator();
+    std::string_view DynErr = Val.getErrorStr();
+    if (!DynErr.empty()) {
+      spdlog::error(DynErr);
+    }
     return EXIT_FAILURE;
   }
   if (auto Result = VM.instantiate(); !Result) {

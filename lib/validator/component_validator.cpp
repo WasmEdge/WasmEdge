@@ -191,12 +191,9 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
     // Check the module index bound first.
     const uint32_t ModIdx = Inst.getModuleIndex();
     if (ModIdx >= CompCtx.getCoreModuleCount()) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error(
-          "    CoreInstance: Module index {} exceeds available core modules {}"sv,
-          ModIdx, CompCtx.getCoreModuleCount());
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return logError(ErrCode::Value::InvalidIndex,
+                      "    CoreInstance: Module index {} exceeds available core modules {}"sv,
+                      ModIdx, CompCtx.getCoreModuleCount());
     }
     // Get the import descriptors of the module to instantiate.
     const auto &Mod = CompCtx.getCoreModule(ModIdx);
@@ -209,12 +206,9 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         return Arg.getName() == Import.getModuleName();
       });
       if (ArgIt == Args.end()) {
-        spdlog::error(ErrCode::Value::MissingArgument);
-        spdlog::error(
-            "    CoreInstance: Module index {} missing argument for import '{}'"sv,
-            Inst.getModuleIndex(), Import.getModuleName());
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
-        return Unexpect(ErrCode::Value::MissingArgument);
+        return logError(ErrCode::Value::MissingArgument,
+                        "    CoreInstance: Module index {} missing argument for import '{}'"sv,
+                        Inst.getModuleIndex(), Import.getModuleName());
       }
     }
     // Add the module exports and bind to the core:instance index.
@@ -234,12 +228,9 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       uint32_t Idx = Export.getSortIdx().getIdx();
       assuming(Sort.isCore());
       if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
-        spdlog::error(ErrCode::Value::InvalidIndex);
-        spdlog::error(
-            "    CoreInstance: Inline export '{}' refers to invalid index {}"sv,
-            Export.getName(), Idx);
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
-        return Unexpect(ErrCode::Value::InvalidIndex);
+        return logError(ErrCode::Value::InvalidIndex,
+                        "    CoreInstance: Inline export '{}' refers to invalid index {}"sv,
+                        Export.getName(), Idx);
       }
     }
   } else {
@@ -258,12 +249,9 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     // Check the component index bound first.
     const uint32_t CompIdx = Inst.getComponentIndex();
     if (CompIdx >= CompCtx.getComponentCount()) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error(
-          "    Instance: Component index {} exceeds available components {}"sv,
-          CompIdx, CompCtx.getComponentCount());
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return logError(ErrCode::Value::InvalidIndex,
+                      "    Instance: Component index {} exceeds available components {}"sv,
+                      CompIdx, CompCtx.getComponentCount());
     }
     // Get the imports of the component to instantiate.
     const auto &Comp = CompCtx.getComponent(CompIdx);
@@ -290,12 +278,9 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         return Arg.getName() == ImportName;
       });
       if (ArgIt == Args.end()) {
-        spdlog::error(ErrCode::Value::MissingArgument);
-        spdlog::error(
-            "    Instance: Component index {} missing argument for import '{}'"sv,
-            Inst.getComponentIndex(), ImportName);
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-        return Unexpect(ErrCode::Value::MissingArgument);
+        return logError(ErrCode::Value::MissingArgument,
+                        "    Instance: Component index {} missing argument for import '{}'"sv,
+                        Inst.getComponentIndex(), ImportName);
       }
 
       const auto &Sort = ArgIt->getIndex().getSort();
@@ -350,12 +335,9 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         }
         // Check the core:sort index bound of the args.
         if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
-          spdlog::error(ErrCode::Value::InvalidIndex);
-          spdlog::error(
-              "    Instance: Argument '{}' refers to invalid index {}"sv,
-              ImportName, Idx);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-          return Unexpect(ErrCode::Value::InvalidIndex);
+          return logError(ErrCode::Value::InvalidIndex,
+                          "    Instance: Argument '{}' refers to invalid index {}"sv,
+                          ImportName, Idx);
         }
       } else {
         // Check the import descriptor type matches the sort type.
@@ -398,12 +380,9 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         }
         // Check the sort index bound of the args.
         if (Idx >= CompCtx.getSortIndexSize(Sort.getSortType())) {
-          spdlog::error(ErrCode::Value::InvalidIndex);
-          spdlog::error(
-              "    Instance: Argument '{}' refers to invalid index {}"sv,
-              ImportName, Idx);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-          return Unexpect(ErrCode::Value::InvalidIndex);
+          return logError(ErrCode::Value::InvalidIndex,
+                          "    Instance: Argument '{}' refers to invalid index {}"sv,
+                          ImportName, Idx);
         }
         if (Sort.getSortType() == AST::Component::Sort::SortType::Type &&
             ImportDesc.getDescType() ==
@@ -421,31 +400,23 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
       uint32_t Idx = Export.getSortIdx().getIdx();
       if (Sort.isCore()) {
         if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
-          spdlog::error(ErrCode::Value::InvalidIndex);
-          spdlog::error(
-              "    Instance: Inline export '{}' refers to invalid index {}"sv,
-              Export.getName(), Idx);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-          return Unexpect(ErrCode::Value::InvalidIndex);
+          return logError(ErrCode::Value::InvalidIndex,
+                          "    Instance: Inline export '{}' refers to invalid index {}"sv,
+                          Export.getName(), Idx);
         }
       } else {
         if (Idx >= CompCtx.getSortIndexSize(Sort.getSortType())) {
-          spdlog::error(ErrCode::Value::InvalidIndex);
-          spdlog::error(
-              "    Instance: Inline export '{}' refers to invalid index {}"sv,
-              Export.getName(), Idx);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-          return Unexpect(ErrCode::Value::InvalidIndex);
+          return logError(ErrCode::Value::InvalidIndex,
+                          "    Instance: Inline export '{}' refers to invalid index {}"sv,
+                          Export.getName(), Idx);
         }
         if (Sort.getSortType() == AST::Component::Sort::SortType::Type) {
           auto SubstitutedIdx =
               CompCtx.getSubstitutedType(std::string(Export.getName()));
           if (SubstitutedIdx.has_value() && Idx != SubstitutedIdx.value()) {
-            spdlog::error(ErrCode::Value::InvalidTypeReference);
-            spdlog::error(
-                "    Instance: Inline export '{}' type index {} does not match substituted type index {}"sv,
-                Export.getName(), Idx, *SubstitutedIdx);
-            return Unexpect(ErrCode::Value::InvalidTypeReference);
+            return logError(ErrCode::Value::InvalidTypeReference,
+                            "    Instance: Inline export '{}' type index {} does not match substituted type index {}"sv,
+                            Export.getName(), Idx, *SubstitutedIdx);
           }
         }
       }
@@ -474,20 +445,16 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     }
 
     if (Idx >= CompCtx.getComponentInstanceExportsSize()) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error(
-          "    Alias export: Export index {} exceeds available component instance index {}"sv,
-          Idx, CompCtx.getComponentInstanceExportsSize());
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return logError(ErrCode::Value::InvalidIndex,
+                      "    Alias export: Export index {} exceeds available component instance index {}"sv,
+                      Idx, CompCtx.getComponentInstanceExportsSize());
     }
 
     auto It = CompExports.find(Name);
     if (It == CompExports.cend()) {
-      spdlog::error(ErrCode::Value::ExportNotFound);
-      spdlog::error(
-          "    Alias export: No matching export '{}' found in component instance index {}"sv,
-          Name, Idx);
-      return Unexpect(ErrCode::Value::ExportNotFound);
+      return logError(ErrCode::Value::ExportNotFound,
+                      "    Alias export: No matching export '{}' found in component instance index {}"sv,
+                      Name, Idx);
     }
 
     const auto *ExternDesc = It->second;
@@ -534,20 +501,16 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     }
 
     if (Idx >= CompCtx.getCoreInstanceExportsSize()) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error(
-          "    Alias core:export: Export index {} exceeds available core instance index {}"sv,
-          Idx, CompCtx.getCoreInstanceExportsSize() - 1);
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return logError(ErrCode::Value::InvalidIndex,
+                      "    Alias core:export: Export index {} exceeds available core instance index {}"sv,
+                      Idx, CompCtx.getCoreInstanceExportsSize() - 1);
     }
 
     auto It = CoreExports.find(Name);
     if (It == CoreExports.end()) {
-      spdlog::error(ErrCode::Value::ExportNotFound);
-      spdlog::error(
-          "    Alias core:export: No matching export '{}' found in core instance index {}"sv,
-          Name, Idx);
-      return Unexpect(ErrCode::Value::ExportNotFound);
+      return logError(ErrCode::Value::ExportNotFound,
+                      "    Alias core:export: No matching export '{}' found in core instance index {}"sv,
+                      Name, Idx);
     }
 
     const auto ExternTy = It->second;
@@ -593,11 +556,9 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       OutLinkCompCnt++;
     }
     if (TargetCtx == nullptr) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error(
-          "    Alias outer: Component out-link count {} is exceeding the enclosing component count {}"sv,
-          Ct, OutLinkCompCnt);
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return logError(ErrCode::Value::InvalidIndex,
+                      "    Alias outer: Component out-link count {} is exceeding the enclosing component count {}"sv,
+                      Ct, OutLinkCompCnt);
     }
 
     if (Sort.isCore()) {
@@ -610,11 +571,9 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }
       if (Idx >= TargetCtx->getCoreSortIndexSize(Sort.getCoreSortType())) {
-        spdlog::error(ErrCode::Value::InvalidIndex);
-        spdlog::error(
-            "    Alias outer: core:sort index {} invalid in component context"sv,
-            Idx);
-        return Unexpect(ErrCode::Value::InvalidIndex);
+        return logError(ErrCode::Value::InvalidIndex,
+                        "    Alias outer: core:sort index {} invalid in component context"sv,
+                        Idx);
       }
     } else {
       if (Sort.getSortType() != AST::Component::Sort::SortType::Type &&
@@ -625,20 +584,16 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         return Unexpect(ErrCode::Value::InvalidTypeReference);
       }
       if (Idx >= TargetCtx->getSortIndexSize(Sort.getSortType())) {
-        spdlog::error(ErrCode::Value::InvalidIndex);
-        spdlog::error(
-            "    Alias outer: sort index {} invalid in component context"sv,
-            Idx);
-        return Unexpect(ErrCode::Value::InvalidIndex);
+        return logError(ErrCode::Value::InvalidIndex,
+                        "    Alias outer: sort index {} invalid in component context"sv,
+                        Idx);
       }
       if (Sort.getSortType() == AST::Component::Sort::SortType::Type) {
         if (TargetCtx->ComponentResourceTypes.find(Idx) !=
             TargetCtx->ComponentResourceTypes.end()) {
-          spdlog::error(ErrCode::Value::InvalidTypeReference);
-          spdlog::error(
-              "    Alias outer: Cannot outer-alias a resource type at index {}. Resource types are generative."sv,
-              Idx);
-          return Unexpect(ErrCode::Value::InvalidTypeReference);
+          return logError(ErrCode::Value::InvalidTypeReference,
+                          "    Alias outer: Cannot outer-alias a resource type at index {}. Resource types are generative."sv,
+                          Idx);
         }
       }
     }
@@ -860,11 +815,9 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     } else {
       // TODO: check getCoreSortIndexSize(), because it may miss type, not out
       // of bound
-      spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error("    ExternDesc: Instance index {} out of bound"sv,
-                    Desc.getTypeIndex());
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Desc_Extern));
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return logError(ErrCode::Value::InvalidIndex,
+                      "    ExternDesc: Instance index {} out of bound"sv,
+                      Desc.getTypeIndex());
     }
     break;
   }

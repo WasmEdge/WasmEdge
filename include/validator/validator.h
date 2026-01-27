@@ -20,6 +20,8 @@
 #include "validator/formchecker.h"
 
 #include <cstdint>
+#include <string>
+#include <fmt/core.h>
 
 namespace WasmEdge {
 namespace Validator {
@@ -34,6 +36,8 @@ public:
   Expect<void> validate(const AST::Module &Mod);
   /// Validate AST::Component.
   Expect<void> validate(const AST::Component::Component &Comp) noexcept;
+
+  std::string_view getErrorStr() const noexcept { return ErrorMsg; }
 
 private:
   /// \name Validate WASM AST nodes
@@ -132,6 +136,16 @@ private:
   FormChecker Checker;
   /// Context for Component validation
   ComponentContext CompCtx;
+
+  /// Dynamic Error Message Storage
+  std::string ErrorMsg;
+
+  /// Helper to format error and return Unexpect
+  template <typename... Args>
+  Expect<void> logError(ErrCode Code, fmt::string_view Format, Args &&...Arguments) {
+    ErrorMsg = fmt::format(Format, std::forward<Args>(Arguments)...);
+    return Unexpect(Code);
+  }
 };
 
 } // namespace Validator

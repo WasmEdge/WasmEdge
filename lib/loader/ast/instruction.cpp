@@ -264,6 +264,125 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
+    
+    // Validate alignment based on instruction opcode
+    auto OpCode = Instr.getOpCode();
+    auto IsAtomic = OpCode >= OpCode::Memory__atomic__notify &&
+                    OpCode <= OpCode::I64__atomic__rmw32__cmpxchg_u;
+    
+    // Natural alignment in bits for each instruction type
+    uint32_t NaturalAlignBits = 0;
+    if (OpCode == OpCode::I32__load || OpCode == OpCode::I32__store ||
+        OpCode == OpCode::F32__load || OpCode == OpCode::F32__store ||
+        OpCode == OpCode::I32__atomic__load || OpCode == OpCode::I32__atomic__store ||
+        OpCode == OpCode::I32__atomic__rmw__add || OpCode == OpCode::I32__atomic__rmw__sub ||
+        OpCode == OpCode::I32__atomic__rmw__and || OpCode == OpCode::I32__atomic__rmw__or ||
+        OpCode == OpCode::I32__atomic__rmw__xor || OpCode == OpCode::I32__atomic__rmw__xchg ||
+        OpCode == OpCode::I32__atomic__rmw__cmpxchg ||
+        OpCode == OpCode::I32__atomic__rmw8__add_u || OpCode == OpCode::I32__atomic__rmw16__add_u ||
+        OpCode == OpCode::I32__atomic__rmw8__sub_u || OpCode == OpCode::I32__atomic__rmw16__sub_u ||
+        OpCode == OpCode::I32__atomic__rmw8__and_u || OpCode == OpCode::I32__atomic__rmw16__and_u ||
+        OpCode == OpCode::I32__atomic__rmw8__or_u || OpCode == OpCode::I32__atomic__rmw16__or_u ||
+        OpCode == OpCode::I32__atomic__rmw8__xor_u || OpCode == OpCode::I32__atomic__rmw16__xor_u ||
+        OpCode == OpCode::I32__atomic__rmw8__xchg_u || OpCode == OpCode::I32__atomic__rmw16__xchg_u ||
+        OpCode == OpCode::I32__atomic__rmw8__cmpxchg_u || OpCode == OpCode::I32__atomic__rmw16__cmpxchg_u) {
+      NaturalAlignBits = 32;
+    } else if (OpCode == OpCode::I64__load || OpCode == OpCode::I64__store ||
+               OpCode == OpCode::F64__load || OpCode == OpCode::F64__store ||
+               OpCode == OpCode::I64__atomic__load || OpCode == OpCode::I64__atomic__store ||
+               OpCode == OpCode::I64__atomic__rmw__add || OpCode == OpCode::I64__atomic__rmw__sub ||
+               OpCode == OpCode::I64__atomic__rmw__and || OpCode == OpCode::I64__atomic__rmw__or ||
+               OpCode == OpCode::I64__atomic__rmw__xor || OpCode == OpCode::I64__atomic__rmw__xchg ||
+               OpCode == OpCode::I64__atomic__rmw__cmpxchg ||
+               OpCode == OpCode::I64__atomic__rmw8__add_u || OpCode == OpCode::I64__atomic__rmw16__add_u ||
+               OpCode == OpCode::I64__atomic__rmw32__add_u ||
+               OpCode == OpCode::I64__atomic__rmw8__sub_u || OpCode == OpCode::I64__atomic__rmw16__sub_u ||
+               OpCode == OpCode::I64__atomic__rmw32__sub_u ||
+               OpCode == OpCode::I64__atomic__rmw8__and_u || OpCode == OpCode::I64__atomic__rmw16__and_u ||
+               OpCode == OpCode::I64__atomic__rmw32__and_u ||
+               OpCode == OpCode::I64__atomic__rmw8__or_u || OpCode == OpCode::I64__atomic__rmw16__or_u ||
+               OpCode == OpCode::I64__atomic__rmw32__or_u ||
+               OpCode == OpCode::I64__atomic__rmw8__xor_u || OpCode == OpCode::I64__atomic__rmw16__xor_u ||
+               OpCode == OpCode::I64__atomic__rmw32__xor_u ||
+               OpCode == OpCode::I64__atomic__rmw8__xchg_u || OpCode == OpCode::I64__atomic__rmw16__xchg_u ||
+               OpCode == OpCode::I64__atomic__rmw32__xchg_u ||
+               OpCode == OpCode::I64__atomic__rmw8__cmpxchg_u || OpCode == OpCode::I64__atomic__rmw16__cmpxchg_u ||
+               OpCode == OpCode::I64__atomic__rmw32__cmpxchg_u) {
+      NaturalAlignBits = 64;
+    } else if (OpCode == OpCode::I32__load8_s || OpCode == OpCode::I32__load8_u ||
+               OpCode == OpCode::I32__store8 ||
+               OpCode == OpCode::I64__load8_s || OpCode == OpCode::I64__load8_u ||
+               OpCode == OpCode::I64__store8 ||
+               OpCode == OpCode::I32__atomic__load8_u || OpCode == OpCode::I32__atomic__store8 ||
+               OpCode == OpCode::I32__atomic__rmw8__add_u || OpCode == OpCode::I32__atomic__rmw8__sub_u ||
+               OpCode == OpCode::I32__atomic__rmw8__and_u || OpCode == OpCode::I32__atomic__rmw8__or_u ||
+               OpCode == OpCode::I32__atomic__rmw8__xor_u || OpCode == OpCode::I32__atomic__rmw8__xchg_u ||
+               OpCode == OpCode::I32__atomic__rmw8__cmpxchg_u ||
+               OpCode == OpCode::I64__atomic__load8_u || OpCode == OpCode::I64__atomic__store8 ||
+               OpCode == OpCode::I64__atomic__rmw8__add_u || OpCode == OpCode::I64__atomic__rmw8__sub_u ||
+               OpCode == OpCode::I64__atomic__rmw8__and_u || OpCode == OpCode::I64__atomic__rmw8__or_u ||
+               OpCode == OpCode::I64__atomic__rmw8__xor_u || OpCode == OpCode::I64__atomic__rmw8__xchg_u ||
+               OpCode == OpCode::I64__atomic__rmw8__cmpxchg_u) {
+      NaturalAlignBits = 8;
+    } else if (OpCode == OpCode::I32__load16_s || OpCode == OpCode::I32__load16_u ||
+               OpCode == OpCode::I32__store16 ||
+               OpCode == OpCode::I64__load16_s || OpCode == OpCode::I64__load16_u ||
+               OpCode == OpCode::I64__store16 ||
+               OpCode == OpCode::I32__atomic__load16_u || OpCode == OpCode::I32__atomic__store16 ||
+               OpCode == OpCode::I32__atomic__rmw16__add_u || OpCode == OpCode::I32__atomic__rmw16__sub_u ||
+               OpCode == OpCode::I32__atomic__rmw16__and_u || OpCode == OpCode::I32__atomic__rmw16__or_u ||
+               OpCode == OpCode::I32__atomic__rmw16__xor_u || OpCode == OpCode::I32__atomic__rmw16__xchg_u ||
+               OpCode == OpCode::I32__atomic__rmw16__cmpxchg_u ||
+               OpCode == OpCode::I64__atomic__load16_u || OpCode == OpCode::I64__atomic__store16 ||
+               OpCode == OpCode::I64__atomic__rmw16__add_u || OpCode == OpCode::I64__atomic__rmw16__sub_u ||
+               OpCode == OpCode::I64__atomic__rmw16__and_u || OpCode == OpCode::I64__atomic__rmw16__or_u ||
+               OpCode == OpCode::I64__atomic__rmw16__xor_u || OpCode == OpCode::I64__atomic__rmw16__xchg_u ||
+               OpCode == OpCode::I64__atomic__rmw16__cmpxchg_u) {
+      NaturalAlignBits = 16;
+    } else if (OpCode == OpCode::I64__load32_s || OpCode == OpCode::I64__load32_u ||
+               OpCode == OpCode::I64__store32 ||
+               OpCode == OpCode::I64__atomic__load32_u || OpCode == OpCode::I64__atomic__store32 ||
+               OpCode == OpCode::I64__atomic__rmw32__add_u || OpCode == OpCode::I64__atomic__rmw32__sub_u ||
+               OpCode == OpCode::I64__atomic__rmw32__and_u || OpCode == OpCode::I64__atomic__rmw32__or_u ||
+               OpCode == OpCode::I64__atomic__rmw32__xor_u || OpCode == OpCode::I64__atomic__rmw32__xchg_u ||
+               OpCode == OpCode::I64__atomic__rmw32__cmpxchg_u) {
+      NaturalAlignBits = 32;
+    } else if (OpCode == OpCode::V128__load || OpCode == OpCode::V128__store) {
+      NaturalAlignBits = 128;
+    } else if (OpCode == OpCode::V128__load8x8_s || OpCode == OpCode::V128__load8x8_u ||
+               OpCode == OpCode::V128__load16x4_s || OpCode == OpCode::V128__load16x4_u ||
+               OpCode == OpCode::V128__load32x2_s || OpCode == OpCode::V128__load32x2_u ||
+               OpCode == OpCode::V128__load64_splat || OpCode == OpCode::V128__load64_zero) {
+      NaturalAlignBits = 64;
+    } else if (OpCode == OpCode::V128__load32_splat || OpCode == OpCode::V128__load32_zero ||
+               OpCode == OpCode::V128__load8_splat) {
+      NaturalAlignBits = 32;
+    } else if (OpCode == OpCode::V128__load16_splat) {
+      NaturalAlignBits = 16;
+    } else if (OpCode == OpCode::Memory__atomic__notify || OpCode == OpCode::Memory__atomic__wait32) {
+      NaturalAlignBits = 32;
+    } else if (OpCode == OpCode::Memory__atomic__wait64) {
+      NaturalAlignBits = 64;
+    }
+    
+    // Validate alignment constraints
+    if (NaturalAlignBits > 0) {
+      uint32_t NaturalAlignBytes = NaturalAlignBits >> 3;
+      if (IsAtomic) {
+        // For atomic ops: 2^align must equal natural alignment
+        if ((1UL << Instr.getMemoryAlign()) != NaturalAlignBytes) {
+          return logLoadError(ErrCode::Value::InvalidAlignment,
+                              FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+        }
+      } else {
+        // For non-atomic ops: 2^align must be <= natural alignment
+        if ((1UL << Instr.getMemoryAlign()) > NaturalAlignBytes) {
+          return logLoadError(ErrCode::Value::AlignmentTooLarge,
+                              FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+        }
+      }
+    }
+    
     if (Conf.hasProposal(Proposal::Memory64)) {
       // TODO: MEMORY64 - fully support implementation.
       uint64_t Offset;

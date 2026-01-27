@@ -324,6 +324,23 @@ TEST(WasmEdgeVM, ForceDeleteInvalidInput) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
+TEST(WasmEdgeVM, RegisterModuleFromFileInvalidPath) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_mod");
+
+  // Test registering a non-existent file path
+  WasmEdge_Result Res =
+      WasmEdge_VMRegisterModuleFromFile(VMCxt, ModuleName, "not_exist.wasm");
+  EXPECT_FALSE(WasmEdge_ResultOK(Res));
+  // The error code for file not found is usually IllegalPath
+  EXPECT_EQ(WasmEdge_ResultGetCode(Res), WasmEdge_ErrCode_IllegalPath);
+
+  WasmEdge_StringDelete(ModuleName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

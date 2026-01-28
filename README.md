@@ -12,7 +12,7 @@
 
 <a href="https://trendshift.io/repositories/2481" target="_blank"><img src="https://trendshift.io/api/badge/repositories/2481" alt="WasmEdge%2FWasmEdge | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 
-WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403). WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). [LlamaEdge](https://github.com/LlamaEdge/LlamaEdge) is an application framework built on top of WasmEdge to run GenAI models (e.g., [LLM](https://llamaedge.com/docs/intro), [speech-to-text](https://llamaedge.com/docs/user-guide/speech-to-text/quick-start-whisper), [text-to-image](https://llamaedge.com/docs/user-guide/text-to-image/quick-start-sd), and [TTS](https://github.com/LlamaEdge/whisper-api-server)) across GPUs on servers, personal computers, and edge devices. Additional [use cases](https://wasmedge.org/docs/start/usage/use-cases/) include microservices on the edge cloud, serverless SaaS APIs, embedded functions, smart contracts, and smart devices.
+WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime. It is [the fastest Wasm VM](https://ieeexplore.ieee.org/document/9214403). WasmEdge is an official sandbox project hosted by the [CNCF](https://www.cncf.io/). [LlamaEdge](https://github.com/LlamaEdge/LlamaEdge) is an application framework built on top of WasmEdge to run GenAI models (e.g., [LLMs](https://llamaedge.com/docs/intro), [speech-to-text](https://llamaedge.com/docs/user-guide/speech-to-text/quick-start-whisper), [text-to-image](https://llamaedge.com/docs/user-guide/text-to-image/quick-start-sd), and [TTS](https://github.com/LlamaEdge/whisper-api-server)) across GPUs on servers, personal computers, and edge devices. Additional [use cases](https://wasmedge.org/docs/start/usage/use-cases/) include microservices on the edge cloud, serverless SaaS APIs, embedded functions, smart contracts, and smart devices.
 
 [![build](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml/badge.svg)](https://github.com/WasmEdge/WasmEdge/actions/workflows/build.yml?query=event%3Apush++branch%3Amaster)
 [![codecov](https://codecov.io/gh/WasmEdge/WasmEdge/branch/master/graph/badge.svg)](https://codecov.io/gh/WasmEdge/WasmEdge)
@@ -34,7 +34,7 @@ WasmEdge is a lightweight, high-performance, and extensible WebAssembly runtime.
 
 # Introduction
 
-The WasmEdge Runtime provides a well-defined execution sandbox for its contained WebAssembly bytecode program. The runtime offers isolation and protection for operating system resources (e.g., file system, sockets, environment variables, processes) and memory space. The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plug-ins in a software product (e.g., SaaS, software-defined vehicles, edge nodes, or even blockchain nodes). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product. **[Learn more here](https://wasmedge.org/docs/contribute/users)**
+The WasmEdge Runtime provides a well-defined execution sandbox for its contained WebAssembly bytecode programs. The runtime offers isolation and protection for operating system resources (e.g., file system, sockets, environment variables, processes) and memory space. The most important use case for WasmEdge is to safely execute user-defined or community-contributed code as plugins in a software product (e.g., SaaS, software-defined vehicles, edge nodes, or even blockchain nodes). It enables third-party developers, vendors, suppliers, and community members to extend and customize the software product. **[Learn more here](https://wasmedge.org/docs/contribute/users)**
 
 ## Performance
 
@@ -43,7 +43,7 @@ The WasmEdge Runtime provides a well-defined execution sandbox for its contained
 
 ## Features
 
-WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It [runs JavaScript](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript), including 3rd party ES6, CJS, and NPM modules, in a secure, fast, lightweight, portable, and containerized sandbox. It also supports mixing of those languages (e.g., to [use Rust to implement a JavaScript API](https://wasmedge.org/docs/develop/javascript/rust)), the [Fetch](https://wasmedge.org/docs/develop/javascript/networking#fetch-client) API, and [Server-side Rendering (SSR)](https://wasmedge.org/docs/develop/javascript/ssr) functions on edge servers.
+WasmEdge can run standard WebAssembly bytecode programs compiled from C/C++, Rust, Swift, AssemblyScript, or Kotlin source code. It [runs JavaScript](https://wasmedge.org/docs/category/develop-wasm-apps-in-javascript), including third-party ES6, CJS, and npm modules, in a secure, fast, lightweight, portable, and containerized sandbox. It also supports mixing  those languages (e.g., to [use Rust to implement a JavaScript API](https://wasmedge.org/docs/develop/javascript/rust)), the [Fetch](https://wasmedge.org/docs/develop/javascript/networking#fetch-client) API, and [Server-side Rendering (SSR)](https://wasmedge.org/docs/develop/javascript/ssr) functions on edge servers.
 
 WasmEdge supports [all standard WebAssembly features and many proposed extensions](https://wasmedge.org/docs/start/wasmedge/extensions/proposals). It also supports a number of extensions tailored for cloud-native and edge computing uses (e.g., the [WasmEdge network sockets](https://wasmedge.org/docs/category/socket-networking),[Postgres and MySQL-based database driver](https://wasmedge.org/docs/category/database-drivers), and the [WasmEdge AI extension](https://wasmedge.org/docs/category/ai-inference)).
 
@@ -51,7 +51,7 @@ WasmEdge supports [all standard WebAssembly features and many proposed extension
 
 ## Integrations and management
 
-WasmEdge and its contained wasm program can be started from the [CLI](https://wasmedge.org/docs/category/running-with-wasmedge) as a new process, or from an existing process. If started from an existing process (e.g., from a running [Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge) or [Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not yet thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
+WasmEdge and its contained Wasm program can be started from the [CLI](https://wasmedge.org/docs/category/running-with-wasmedge) as a new process, or from an existing process. If started from an existing process (e.g., from a running [Go](https://wasmedge.org/docs/category/go-sdk-for-embedding-wasmedge) or [Rust](https://wasmedge.org/docs/category/rust-sdk-for-embedding-wasmedge) program), WasmEdge will simply run inside the process as a function. Currently, WasmEdge is not thread-safe. In order to use WasmEdge in your own application or cloud-native frameworks, please refer to the guides below.
 
 * [Embed WasmEdge into a host application](https://wasmedge.org/docs/embed/overview)
 * [Orchestrate and manage WasmEdge instances using container tools](https://wasmedge.org/docs/category/deploy-wasmedge-apps-in-kubernetes)
@@ -74,7 +74,7 @@ Check out our [project roadmap](https://github.com/WasmEdge/WasmEdge/blob/master
 
 ## Contact
 
-If you have any questions, feel free to open a GitHub issue on a related project or to join the following channels:
+If you have any questions, feel free to open a GitHub issue on a related project or join the following channels:
 
 * Mailing list: Send an email to [WasmEdge@googlegroups.com](https://groups.google.com/g/wasmedge/)
 * Discord: Join the [WasmEdge Discord server](https://discord.gg/h4KDyB8XTt)!
@@ -87,9 +87,9 @@ Check out our [list of Adopters](https://wasmedge.org/docs/contribute/users/) wh
 
 ## Community Meeting
 
-We host a monthly community meeting to showcase new features, demo new use cases, and a Q&A part. Everyone is welcome!
+We host a monthly community meeting to showcase new features, demo new use cases, and a Q&A session. Everyone is welcome!
 
-Time: The first Tuesday of each month at 11PM Hong Kong Time/ 7AM PST.
+Time: The first Tuesday of each month at 11 PM Hong Kong Time / 7 AM PST.
 
 [Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/82221747919?pwd=3MORhaxDk15rACk7mNDvyz9KtaEbWy.1)
 

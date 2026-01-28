@@ -117,6 +117,11 @@ struct DriverToolOptions {
                 "Limitation of maximum time(in milliseconds) for execution, "
                 "default value is 0 for no limitations"sv),
             PO::MetaVar("TIMEOUT"sv), PO::DefaultValue<uint64_t>(0)),
+        MaxWasiFd(PO::Description("Limitation of max range of randomly "
+                                  "generated file descriptors. "
+                                  "Default value is 2**31-1."sv),
+                  PO::MetaVar("MAX_FD"sv),
+                  PO::DefaultValue<uint32_t>(0x7FFFFFFF)),
         GasLim(
             PO::Description(
                 "Limitation of execution gas. Upper bound can be specified as "
@@ -175,6 +180,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> ConfForceInterpreter;
   PO::Option<PO::Toggle> ConfAFUNIX;
   PO::Option<uint64_t> TimeLim;
+  PO::Option<uint32_t> MaxWasiFd;
   PO::List<int> GasLim;
   PO::List<int> MemLim;
   PO::List<std::string> ForbiddenPlugins;
@@ -227,6 +233,7 @@ struct DriverToolOptions {
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)
+        .add_option("max-fd"sv, MaxWasiFd)
         .add_option("gas-limit"sv, GasLim)
         .add_option("memory-page-limit"sv, MemLim)
         .add_option("forbidden-plugin"sv, ForbiddenPlugins);

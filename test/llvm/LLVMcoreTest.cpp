@@ -19,6 +19,7 @@
 #include "vm/vm.h"
 #include "llvm/codegen.h"
 #include "llvm/compiler.h"
+#include "llvm/jit.h"
 
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
@@ -668,6 +669,31 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
 
   VM.cleanup();
   EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+TEST(JITLibrary, NullPointerTest) {
+  WasmEdge::LLVM::JITLibrary JITLib;
+
+  {
+    auto Result = JITLib.getIntrinsics();
+    EXPECT_FALSE(static_cast<bool>(Result));
+  }
+
+  {
+    auto Result = JITLib.getTypes(3);
+    EXPECT_EQ(Result.size(), 3);
+    for (const auto &Symbol : Result) {
+      EXPECT_FALSE(static_cast<bool>(Symbol));
+    }
+  }
+
+  {
+    auto Result = JITLib.getCodes(0, 2);
+    EXPECT_EQ(Result.size(), 2);
+    for (const auto &Symbol : Result) {
+      EXPECT_FALSE(static_cast<bool>(Symbol));
+    }
+  }
 }
 
 } // namespace

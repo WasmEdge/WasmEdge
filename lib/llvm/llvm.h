@@ -1282,6 +1282,12 @@ public:
     return LLVMBuildInBoundsGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
                                  static_cast<unsigned>(std::size(Data)), Name);
   }
+  Value createGEP1(Type Ty, Value Pointer, Value Idx0,
+                   const char *Name = "") noexcept {
+    LLVMValueRef Data[1] = {Idx0.unwrap()};
+    return LLVMBuildGEP2(Ref, Ty.unwrap(), Pointer.unwrap(), Data,
+                         static_cast<unsigned>(std::size(Data)), Name);
+  }
   Value createInBoundsGEP2(Type Ty, Value Pointer, Value Idx0, Value Idx1,
                            const char *Name = "") noexcept {
     LLVMValueRef Data[2] = {Idx0.unwrap(), Idx1.unwrap()};

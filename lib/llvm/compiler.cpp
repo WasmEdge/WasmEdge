@@ -4615,7 +4615,8 @@ private:
       Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
     }
 
-    auto VPtr = Builder.createInBoundsGEP1(
+    // Use GEP without inbounds to allow trapping on Guard Page access.
+    auto VPtr = Builder.createGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
     auto LoadInst = Builder.createLoad(LoadTy, Ptr, true);
@@ -4682,7 +4683,9 @@ private:
       V = Builder.createBitCast(V, LoadTy);
     }
     V = switchEndian(V);
-    auto VPtr = Builder.createInBoundsGEP1(
+    
+    // Use GEP without inbounds to allow trapping on Guard Page access.
+    auto VPtr = Builder.createGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
     auto StoreInst = Builder.createStore(V, Ptr, true);

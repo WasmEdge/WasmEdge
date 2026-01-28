@@ -314,6 +314,18 @@ Expect<void> Executor::instantiate(
       assumingUnreachable();
     }
   }
+  // WASI: After all imports, check if WASI is used and memory is exported
+  if (ModInst.getWASIModule()) {
+    bool hasExportedMemory = false;
+    ModInst.getMemoryExports([&hasExportedMemory](const auto &mems) {
+      hasExportedMemory = !mems.empty();
+      return 0;
+    });
+    if (!hasExportedMemory) {
+      spdlog::error("WASI runtime error: No memory exported. WASI programs require at least one exported memory.");
+      return Unexpect(ErrCode::Value::UnknownImport);
+    }
+  }
   return {};
 }
 

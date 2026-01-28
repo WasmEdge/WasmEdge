@@ -179,7 +179,7 @@ jobs:
           $Env:CXX = "$pwd\LLVM-21.1.3-win64-MultiThreadedDLL\LLVM-21.1.3-win64\bin\clang-cl.exe"
           $llvm_mt = "mt"
           $cmake_sys_version = "10.0.26100.0"
-          cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF .
 
           Write-Output "Building $Env:tar_names backend:"
           cmake -Bbuild -GNinja "$Env:build_options"

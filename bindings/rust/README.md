@@ -39,6 +39,6 @@ The `wasmedge-types` crate defines a group of common data structures used by bot
 
 ## wasmedge-macro
 
-** `wasmedge-mcaro` is under [wasmedge-rust-sdk/crates/wasmedge-mcaro](https://github.com/WasmEdge/wasmedge-rust-sdk/tree/main/crates/wasmedge-mcaro) now. **
+** `wasmedge-macro` is under [wasmedge-rust-sdk/crates/wasmedge-macro](https://github.com/WasmEdge/wasmedge-rust-sdk/tree/main/crates/wasmedge-macro) now. **
 
 The [wasmedge-macro](https://crates.io/crates/wasmedge-macro) crate defines a group of procedural macros used by both [wasmedge-sdk](https://crates.io/crates/wasmedge-sdk) and [wasmedge-sys](https://crates.io/crates/wasmedge-sys) crates.

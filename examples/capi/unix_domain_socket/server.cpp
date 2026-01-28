@@ -22,7 +22,12 @@ int main() {
   }
 
   Addr.sun_family = AF_UNIX;
-  strcpy(Addr.sun_path, SockPath);
+  if (std::strlen(SockPath) >= sizeof(Addr.sun_path)) {
+    std::fprintf(stderr, "Socket path is too long\n");
+    return -1;
+  }
+  std::strncpy(Addr.sun_path, SockPath, sizeof(Addr.sun_path) - 1);
+  Addr.sun_path[sizeof(Addr.sun_path) - 1] = '\0';
   Size = offsetof(sockaddr_un, sun_path) + strlen(Addr.sun_path);
 
   // unlink(SockPath);

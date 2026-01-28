@@ -22,7 +22,13 @@ int main() {
   }
 
   ClientAddr.sun_family = AF_UNIX;
-  strcpy(ClientAddr.sun_path, ClientSockPath);
+  if (std::strlen(ClientSockPath) >= sizeof(ClientAddr.sun_path)) {
+    std::fprintf(stderr, "Socket path is too long\n");
+    return -1;
+  }
+  std::strncpy(ClientAddr.sun_path, ClientSockPath,
+               sizeof(ClientAddr.sun_path) - 1);
+  ClientAddr.sun_path[sizeof(ClientAddr.sun_path) - 1] = '\0';
   Size = offsetof(sockaddr_un, sun_path) + strlen(ClientAddr.sun_path);
 
   // unlink(ClientSockPath);
@@ -33,7 +39,13 @@ int main() {
   }
 
   ServerAddr.sun_family = AF_UNIX;
-  strcpy(ServerAddr.sun_path, ServerSockPath);
+  if (std::strlen(ServerSockPath) >= sizeof(ServerAddr.sun_path)) {
+    std::fprintf(stderr, "Socket path is too long\n");
+    return -1;
+  }
+  std::strncpy(ServerAddr.sun_path, ServerSockPath,
+               sizeof(ServerAddr.sun_path) - 1);
+  ServerAddr.sun_path[sizeof(ServerAddr.sun_path) - 1] = '\0';
   Size = offsetof(sockaddr_un, sun_path) + strlen(ServerAddr.sun_path);
 
   if (WasmedgeConnect(SockFd, reinterpret_cast<sockaddr *>(&ServerAddr), Size) <

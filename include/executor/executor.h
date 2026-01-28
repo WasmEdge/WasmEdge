@@ -107,13 +107,27 @@ public:
     PostHostFunc = HostFunc;
   }
   void invokePreHostFunc() {
-    if (PreHostFunc.operator bool()) {
-      PreHostFunc(PreHostData);
+    std::function<void(void *)> FuncSnapshot;
+    void *DataSnapshot = nullptr;
+    {
+      std::shared_lock Lock(Mutex);
+      FuncSnapshot = PreHostFunc;
+      DataSnapshot = PreHostData;
+    }
+    if (FuncSnapshot.operator bool()) {
+      FuncSnapshot(DataSnapshot);
     }
   }
   void invokePostHostFunc() {
-    if (PostHostFunc.operator bool()) {
-      PostHostFunc(PostHostData);
+    std::function<void(void *)> FuncSnapshot;
+    void *DataSnapshot = nullptr;
+    {
+      std::shared_lock Lock(Mutex);
+      FuncSnapshot = PostHostFunc;
+      DataSnapshot = PostHostData;
+    }
+    if (FuncSnapshot.operator bool()) {
+      FuncSnapshot(DataSnapshot);
     }
   }
 

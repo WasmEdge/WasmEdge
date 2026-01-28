@@ -52,6 +52,11 @@ body:
       placeholder: According to the CNCF policy, at least two mentors(one for major, another for backup) are required for each project.
     validations:
       required: true
+  - type: markdown
+    attributes:
+      value: |
+        ### Important Note
+        Before you apply, please make sure you have read and understood the [WasmEdge Mentorship Program Policy](https://github.com/WasmEdge/WasmEdge/blob/master/docs/mentorship-policy.md).
   - type: textarea
     id: apply-link
     attributes:

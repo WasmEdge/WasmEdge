@@ -75,6 +75,10 @@ RUN [ "/bin/bash", "-c", "echo \"source ./openvino_genai/setupvars.sh\" >> .bash
 COPY wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
 
+COPY wasi-nn/libpiper.patch .
+COPY wasi-nn/install-libpiper.sh .
+RUN [ "/bin/bash", "install-libpiper.sh" ]
+
 COPY wasi-nn/install-chattts.sh .
 RUN [ "/bin/bash", "install-chattts.sh" ]
 
@@ -88,6 +92,7 @@ RUN rm -f \
     install-openvino.sh \
     install-onnxruntime.sh \
     install-openvino-genai.sh \
-    install-chattts.sh
+    install-chattts.sh \
+    install-libpiper.sh
 
 RUN rm -rf /var/lib/apt/lists/*

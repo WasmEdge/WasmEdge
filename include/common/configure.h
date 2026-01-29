@@ -169,7 +169,7 @@ public:
     return AllowAFUNIX.load(std::memory_order_relaxed);
   }
 
-  void setMaxWasiFd(uint32_t Fd) noexcept { MaxWasiFd = Fd; }
+  void setMaxWasiFd(uint32_t MaxFd) noexcept { MaxWasiFd = MaxFd; }
 
   uint32_t getMaxWasiFd() const noexcept { return MaxWasiFd; }
 
@@ -180,7 +180,7 @@ private:
   std::atomic<bool> CoredumpWasmgdb = false;
   std::atomic<bool> ForceInterpreter = false;
   std::atomic<bool> AllowAFUNIX = false;
-  uint32_t MaxWasiFd = 0x7FFFFFFF;
+  std::atomic<uint32_t> MaxWasiFd = 0x7FFFFFFF;
 };
 
 class StatisticsConfigure {

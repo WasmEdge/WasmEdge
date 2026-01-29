@@ -117,9 +117,11 @@ struct DriverToolOptions {
                 "Limitation of maximum time(in milliseconds) for execution, "
                 "default value is 0 for no limitations"sv),
             PO::MetaVar("TIMEOUT"sv), PO::DefaultValue<uint64_t>(0)),
-        MaxWasiFd(PO::Description("Limitation of max range of randomly "
-                                  "generated file descriptors. "
-                                  "Default value is 2**31-1."sv),
+        MaxWasiFd(PO::Description(
+                      "Limitation of max range for randomly generated file "
+                      "descriptors. The value will be clamped to the range [3, "
+                      "2**31-1]. "
+                      "Default value is 2**31-1."sv),
                   PO::MetaVar("MAX_FD"sv),
                   PO::DefaultValue<uint32_t>(0x7FFFFFFF)),
         GasLim(

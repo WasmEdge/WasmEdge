@@ -1200,8 +1200,8 @@ public:
     return std::string(Buffer.data(), Buffer.size());
   }
 
-  void setMaxWasiFd(uint32_t Limit) noexcept {
-    MaxFd = std::clamp(Limit, 3U, 0x7FFFFFFFU);
+  void setMaxWasiFd(uint32_t MaxFd) noexcept {
+    MaxFd = std::clamp(MaxFd, 3U, 0x7FFFFFFFU);
   }
 
 private:

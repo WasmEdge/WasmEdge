@@ -3213,6 +3213,34 @@ TEST(WasiTest, Directory) {
   }
 }
 
+TEST(WasiTest, FdSyncDirectory) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  WasmEdge::Host::WasiFdSync WasiFdSync(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // fd_sync on a directory must return BADF
+  const uint32_t Fd = 3;
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+
+    EXPECT_TRUE(WasiFdSync.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{Fd}, Errno));
+
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_BADF);
+    Env.fini();
+  }
+}
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WASI::Environ Env;

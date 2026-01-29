@@ -38,7 +38,6 @@ target_compile_definitions(wasmedgePluginWasiNN PRIVATE
     WASI_NN_VERSION_MINOR=${WASI_NN_VERSION_MINOR}
     WASI_NN_VERSION_PATCH=${WASI_NN_VERSION_PATCH}
 )
-
 # This for-each iteration is for the additional sources.
 # The dependencies are moved into `cmake/WASINNDeps.cmake`.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -85,6 +84,19 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       GGML/tts/tts_core.cpp
       GGML/utils.cpp
     )
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
+      find_package(hip REQUIRED)
+      find_package(hipblas REQUIRED)
+      set(GGML_HIP ON CACHE BOOL "Build GGML with HIP" FORCE)
+      if(DEFINED ENV{GPU_TARGETS})
+        set(GPU_TARGETS $ENV{GPU_TARGETS} CACHE STRING "HIP GPU targets")
+      else()
+        set(GPU_TARGETS "gfx90c" CACHE STRING "Default for Vega iGPU")
+      endif()
+      message(STATUS "Enabling HIP for ggml backend with targets: ${GPU_TARGETS}")
+      target_compile_definitions(wasmedgePluginWasiNN PRIVATE GGML_HIP=${GGML_HIP} GPU_TARGETS=${GPU_TARGETS})
+      target_link_libraries(wasmedgePluginWasiNN PRIVATE hip::host roc::hipblas)
+    endif()
   endif()
 endforeach()
 

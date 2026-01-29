@@ -4,6 +4,7 @@
 #include "ctx.h"
 #include "common/array_output.h"
 #include "common/options.h"
+#include "utils/optional.h"
 
 namespace WasmEdge {
 namespace Host {
@@ -67,8 +68,17 @@ Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
 }
 
 WasiCryptoExpect<__wasi_secrets_manager_t>
-Context::secretsManagerOpen(__wasi_opt_options_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::secretsManagerOpen(__wasi_opt_options_t OptOptionsHandle) noexcept {
+
+  auto OptOptionsResult = mapAndTransposeOptional(
+      OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
+        return OptionsManager.get(OptionsHandle);
+      });
+
+  if (!OptOptionsResult) {
+    return WasiCryptoUnexpect(OptOptionsResult);
+  }
+  return SecretsManagerManager.registerManager();
 }
 
 WasiCryptoExpect<void>

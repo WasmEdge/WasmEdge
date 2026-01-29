@@ -124,6 +124,50 @@ TEST_F(WasiCryptoTest, Options) {
   }
 }
 
+TEST_F(WasiCryptoTest, SecretsManager) {
+  // Open secretsManager
+  {
+    // Passing nullopt
+    {
+      WASI_CRYPTO_EXPECT_SUCCESS(SecretsManagerHandle,
+                                 secretsManagerOpen(std::nullopt));
+
+      EXPECT_NE(SecretsManagerHandle, 0);
+    }
+
+    // Passing empty opt {}
+    {
+      WASI_CRYPTO_EXPECT_SUCCESS(SecretsManagerHandle, secretsManagerOpen({}));
+
+      EXPECT_NE(SecretsManagerHandle, 0);
+    }
+
+    // Passing a valid OptOptionsHandle
+    {
+      WASI_CRYPTO_EXPECT_SUCCESS(ValidOption,
+                                 optionsOpen(__WASI_ALGORITHM_TYPE_SYMMETRIC));
+      WASI_CRYPTO_EXPECT_SUCCESS(
+          SecretsManagerHandle,
+          secretsManagerOpen(std::optional<__wasi_options_t>(ValidOption)));
+
+      WASI_CRYPTO_EXPECT_TRUE(optionsClose(ValidOption));
+
+      EXPECT_NE(SecretsManagerHandle, 0);
+    }
+
+    // Passing invalid/expired OptOptionsHandle
+    {
+      WASI_CRYPTO_EXPECT_SUCCESS(ZombieOption,
+                                 optionsOpen(__WASI_ALGORITHM_TYPE_SYMMETRIC));
+      WASI_CRYPTO_EXPECT_TRUE(optionsClose(ZombieOption));
+
+      WASI_CRYPTO_EXPECT_FAILURE(
+          secretsManagerOpen(std::optional<__wasi_options_t>(ZombieOption)),
+          __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+    }
+  }
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

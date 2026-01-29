@@ -355,6 +355,8 @@ private:
   RcHandlesManager<__wasi_signature_state_t,
                    Signatures::VerificationStateVariant>
       VerificationStateManager{0x02};
+  RcHandlesManager<__wasi_secrets_manager_t, Common::Options>
+      SecretsManagerManager{0xb};
 
   static std::shared_mutex Mutex;
   static std::weak_ptr<Context> Instance;

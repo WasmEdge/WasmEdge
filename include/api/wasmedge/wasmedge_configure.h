@@ -157,6 +157,28 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
 
+/// Set the maximum call stack depth.
+///
+/// Limit the maximum call stack depth to prevent stack overflow from
+/// infinite recursion. This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the maximum call depth.
+/// \param Depth the maximum call stack depth (default: 10000).
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetMaxCallDepth(WasmEdge_ConfigureContext *Cxt,
+                                  const uint32_t Depth);
+
+/// Get the setting of the maximum call stack depth.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the maximum call depth
+/// setting.
+///
+/// \returns the maximum call stack depth value.
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_ConfigureGetMaxCallDepth(const WasmEdge_ConfigureContext *Cxt);
+
 /// Set the force interpreter mode execution option.
 ///
 /// This function is thread-safe.

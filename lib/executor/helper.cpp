@@ -81,6 +81,13 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     }
     Runtime::CallingFrame CallFrame(this, ModInst);
 
+    // Check for call stack overflow before pushing frame.
+    if (unlikely(StackMgr.getFrameDepth() >=
+                 Conf.getRuntimeConfigure().getMaxCallDepth())) {
+      spdlog::error(ErrCode::Value::CallStackExhausted);
+      return Unexpect(ErrCode::Value::CallStackExhausted);
+    }
+
     // Push frame.
     StackMgr.pushFrame(Func.getModule(), // Module instance
                        RetIt,            // Return PC
@@ -145,6 +152,13 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Compiled function case: Execute the function and jump to the
     // continuation.
 
+    // Check for call stack overflow before pushing frame.
+    if (unlikely(StackMgr.getFrameDepth() >=
+                 Conf.getRuntimeConfigure().getMaxCallDepth())) {
+      spdlog::error(ErrCode::Value::CallStackExhausted);
+      return Unexpect(ErrCode::Value::CallStackExhausted);
+    }
+
     // Push frame.
     StackMgr.pushFrame(Func.getModule(), // Module instance
                        RetIt,            // Return PC
@@ -207,6 +221,13 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     return StackMgr.popFrame();
   } else {
     // Native function case: Jump to the start of the function body.
+
+    // Check for call stack overflow before pushing frame.
+    if (unlikely(StackMgr.getFrameDepth() >=
+                 Conf.getRuntimeConfigure().getMaxCallDepth())) {
+      spdlog::error(ErrCode::Value::CallStackExhausted);
+      return Unexpect(ErrCode::Value::CallStackExhausted);
+    }
 
     // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {

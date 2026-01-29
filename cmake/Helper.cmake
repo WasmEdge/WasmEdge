@@ -339,8 +339,8 @@ function(wasmedge_setup_simdjson)
         -Wno-sign-conversion
         -Wno-extra-semi-stmt
         -Wno-old-style-cast
-        -Wno-error=unused-parameter
-        -Wno-error=unused-template
+        -Wno-unused-parameter
+        -Wno-unused-template
         -Wno-conditional-uninitialized
         -Wno-implicit-int-conversion
         -Wno-shorten-64-to-32
@@ -394,7 +394,7 @@ function(wasmedge_setup_spdlog)
       target_compile_options(fmt
         PUBLIC
         -Wno-duplicate-enum
-        -Wno-error=padded
+        -Wno-padded
         -Wno-error=unique-object-duplication
         -Wno-error=nrvo
       )
@@ -412,6 +412,12 @@ function(wasmedge_setup_spdlog)
     FetchContent_MakeAvailable(spdlog)
     message(STATUS "Downloading spdlog source -- done")
     wasmedge_setup_target(spdlog)
+    if (WIN32 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      target_compile_options(spdlog
+        PUBLIC
+        -Wno-unique-object-duplication
+      )
+    endif()
   endif()
 endfunction()
 

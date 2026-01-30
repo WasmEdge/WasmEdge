@@ -166,6 +166,15 @@ Expect<void> Executor::runVectorAddOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   V1 += Val2.get<VT>();
 
+  if constexpr (std::is_floating_point_v<T>) {
+    constexpr size_t NumElements = 16 / sizeof(T);
+    for (size_t I = 0; I < NumElements; ++I) {
+      if (std::isnan(V1[I])) {
+        V1[I] = std::numeric_limits<T>::quiet_NaN();
+      }
+    }
+  }
+
   return {};
 }
 
@@ -196,6 +205,14 @@ Expect<void> Executor::runVectorSubOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   V1 -= Val2.get<VT>();
+  if constexpr (std::is_floating_point_v<T>) {
+    constexpr size_t NumElements = 16 / sizeof(T);
+    for (size_t I = 0; I < NumElements; ++I) {
+      if (std::isnan(V1[I])) {
+        V1[I] = std::numeric_limits<T>::quiet_NaN();
+      }
+    }
+  }
 
   return {};
 }
@@ -228,6 +245,15 @@ Expect<void> Executor::runVectorMulOp(ValVariant &Val1,
   VT &V1 = Val1.get<VT>();
   V1 *= Val2.get<VT>();
 
+  if constexpr (std::is_floating_point_v<T>) {
+    constexpr size_t NumElements = 16 / sizeof(T);
+    for (size_t I = 0; I < NumElements; ++I) {
+      if (std::isnan(V1[I])) {
+        V1[I] = std::numeric_limits<T>::quiet_NaN();
+      }
+    }
+  }
+
   return {};
 }
 
@@ -237,6 +263,15 @@ Expect<void> Executor::runVectorDivOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   V1 /= Val2.get<VT>();
+  
+  if constexpr (std::is_floating_point_v<T>) {
+    constexpr size_t NumElements = 16 / sizeof(T);
+    for (size_t I = 0; I < NumElements; ++I) {
+      if (std::isnan(V1[I])) {
+        V1[I] = std::numeric_limits<T>::quiet_NaN();
+      }
+    }
+  }
 
   return {};
 }

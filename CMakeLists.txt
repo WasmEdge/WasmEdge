@@ -78,6 +78,9 @@ option(WASMEDGE_LINK_TOOLS_STATIC "Statically link the wasmedge and wasmedgec to
 option(WASMEDGE_ENABLE_UB_SANITIZER "Enable undefined behavior sanitizer." OFF)
 option(WASMEDGE_DISABLE_LIBTINFO "Disable linking against libtinfo when linking LLVM." OFF)
 
+# Memory configuration options.
+set(WASMEDGE_MAX_MEMORY_PAGES "65536" CACHE STRING "Maximum memory pages for WASM32 (default: 65536 = 4GB)")
+
 # Options about plug-ins.
 #   WASI plug-in: WASI-Crypto proposal.
 option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable and build WasmEdge wasi-crypto plugin." OFF)

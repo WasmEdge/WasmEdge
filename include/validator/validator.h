@@ -125,7 +125,11 @@ private:
   /// @}
 
   /// Memory page limit for WASM32
-  static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
+  /// Can be overridden at build time via WASMEDGE_MAX_MEMORY_PAGES CMake option
+#ifndef WASMEDGE_MAX_MEMORY_PAGES
+#define WASMEDGE_MAX_MEMORY_PAGES (1U << 16) // 65536 pages = 4GB
+#endif
+  static inline const uint32_t LIMIT_MEMORYTYPE = WASMEDGE_MAX_MEMORY_PAGES;
   /// Proposal configure
   const Configure Conf;
   /// Formal checker

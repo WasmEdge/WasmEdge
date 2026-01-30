@@ -559,7 +559,7 @@ public:
   /// @return Nothing or WASI error
   WasiExpect<void> fdSync(__wasi_fd_t Fd) const noexcept {
     auto Node = getNodeOrNull(Fd);
-    if (unlikely(!Node)) {
+    if (unlikely(!Node) || Node->isDirectory()) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
     }
     return Node->fdSync();

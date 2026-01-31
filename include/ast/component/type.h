@@ -107,7 +107,13 @@ struct RecordTy {
 
 /// AST Component::VariantTy node. (One type of DefValType)
 struct VariantTy {
-  std::vector<std::pair<std::string, std::optional<ComponentValType>>> Cases;
+  struct Case {
+    std::string Label;
+    std::optional<ComponentValType> ValType;
+    std::optional<uint32_t> Refines; // Index of the case this refines
+  };
+
+  std::vector<Case> Cases;
 };
 
 // list ::= t:<valtype>           => (list t)

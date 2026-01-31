@@ -381,37 +381,43 @@ Expect<void> Loader::loadType(AST::Component::RecordTy &Ty) {
 
 Expect<void> Loader::loadType(AST::Component::VariantTy &Ty) {
   // variant ::= case*:vec(<case>) => (variant case+) (if |case*| > 0)
-  // case    ::= l:<label'> t?:<valtype>? 0x00
+  // case    ::= l:<label'> t?:<valtype>? r?:<u32>? 0x00
+  //   where r? is the optional refines index
 
   auto LoadCase =
-      [this](std::pair<std::string, std::optional<ComponentValType>> &Case)
-      -> Expect<void> {
+      [this](AST::Component::VariantTy::Case &Case) -> Expect<void> {
+    // Read label
     EXPECTED_TRY(std::string Label, FMgr.readName().map_error([this](auto E) {
       spdlog::error(E);
       spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
       return E;
     }));
+
+    // Read optional type
     EXPECTED_TRY(std::optional<ComponentValType> VT,
                  loadOption<AST::Component::VariantTy, ComponentValType>(
                      [this](ComponentValType &VTy) { return loadType(VTy); }));
-    EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error([this](auto E) {
-      spdlog::error(E);
-      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
-      return E;
-    }));
-    if (Flag != 0x00) {
-      spdlog::error(ErrCode::Value::MalformedVariantType);
-      spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
-      return Unexpect(ErrCode::Value::MalformedVariantType);
-    }
-    Case = std::make_pair(Label, VT);
+
+    // Read optional refines index
+    EXPECTED_TRY(
+        std::optional<uint32_t> Refines,
+        loadOption<AST::Component::VariantTy, uint32_t>(
+            [this](uint32_t &Idx) -> Expect<void> {
+              EXPECTED_TRY(Idx, FMgr.readU32().map_error([this](auto E) {
+                spdlog::error(E);
+                spdlog::error(ErrInfo::InfoLoading(FMgr.getLastOffset()));
+                return E;
+              }));
+              return {};
+            }));
+
+    Case.Label = Label;
+    Case.ValType = VT;
+    Case.Refines = Refines;
     return {};
   };
-  return loadVec<AST::Component::VariantTy>(
-      Ty.Cases,
-      [LoadCase](std::pair<std::string, std::optional<ComponentValType>> &C) {
-        return LoadCase(C);
-      });
+
+  return loadVec<AST::Component::VariantTy>(Ty.Cases, LoadCase);
 }
 
 Expect<void> Loader::loadType(AST::Component::ListTy &Ty, bool IsFixedLen) {

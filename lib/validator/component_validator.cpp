@@ -1019,9 +1019,8 @@ Validator::validate(const AST::Component::RecordTy &Record) noexcept {
     auto It = SeenNames.find(LowerLabel);
     if (It != SeenNames.end()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error(
-          "    record field name `{}` conflicts with previous field name `{}`"sv,
-          Label, It->second);
+      spdlog::error("    duplicate record field name `{}`"sv, Label,
+                    It->second);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
 
@@ -1059,9 +1058,8 @@ Validator::validate(const AST::Component::VariantTy &Variant) noexcept {
     auto It = SeenLabels.find(LowerLabel);
     if (It != SeenLabels.end()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error(
-          "    variant case name `{}` conflicts with previous case name `{}`"sv,
-          Case.Label, It->second);
+      spdlog::error("    duplicate variant case name `{}`"sv, Case.Label,
+                    It->second);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     SeenLabels.emplace(LowerLabel, Case.Label);
@@ -1116,9 +1114,7 @@ Validator::validate(const AST::Component::FlagsTy &Flags) noexcept {
     auto It = SeenNames.find(LowerLabel);
     if (It != SeenNames.end()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error(
-          "    flag name `{}` conflicts with previous flag name `{}`"sv, Label,
-          It->second);
+      spdlog::error("    duplicate flag name `{}`"sv, Label, It->second);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
 
@@ -1151,9 +1147,7 @@ Expect<void> Validator::validate(const AST::Component::EnumTy &Enum) noexcept {
     auto It = SeenNames.find(LowerLabel);
     if (It != SeenNames.end()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error(
-          "    enum tag name `{}` conflicts with previous tag name `{}`"sv,
-          Label, It->second);
+      spdlog::error("    duplicate enum tag name `{}`"sv, Label, It->second);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
 

@@ -7,15 +7,20 @@ namespace WasmEdge {
 namespace Loader {
 
 Expect<void> Loader::loadExternName(std::string &Name) {
-  // importname' ::= 0x00 len:<u32> in:<importname> => in (if len = |in|)
-  // exportname' ::= 0x00 len:<u32> en:<exportname> => en (if len = |en|)
+  // importname' ::= 0x00 len:<u32> in:<importname>                    => in     (if len = |in|)
+  //               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'> => in vs  (if len = |in|)
+  // exportname' ::= 0x00 len:<u32> en:<exportname>                    => en     (if len = |en|)
+  //               | 0x01 len:<u32> en:<exportname> vs:<versionsuffix'> => en vs  (if len = |en|)
 
   // Error messages will be handled in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte());
-  if (B != 0x00) {
+  if (B != 0x00 && B != 0x01) {
     return Unexpect(ErrCode::Value::MalformedName);
   }
   EXPECTED_TRY(Name, FMgr.readName());
+  // Note: VersionSuffix handling is done in loadImport/loadExport
+  // We store the prefix byte in a thread-local for those functions to read
+  LastNamePrefix = B;
   return {};
 }
 

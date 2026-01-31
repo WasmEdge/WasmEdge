@@ -24,7 +24,8 @@ namespace AST {
 namespace Component {
 
 // import      ::= in:<importname'> ed:<externdesc> => (import in ed)
-// importname' ::= 0x00 len:<u32> in:<importname>   => in  (if len = |in|)
+// importname' ::= 0x00 len:<u32> in:<importname>                    => in     (if len = |in|)
+//               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'> => in vs  (if len = |in|)
 
 /// AST Component::Import node.
 class Import {
@@ -33,10 +34,14 @@ public:
   std::string_view getName() const noexcept { return Name; }
   ExternDesc &getDesc() noexcept { return Desc; }
   const ExternDesc &getDesc() const noexcept { return Desc; }
+  
+  std::optional<std::string> &getVersionSuffix() noexcept { return VersionSuffix; }
+  const std::optional<std::string> &getVersionSuffix() const noexcept { return VersionSuffix; }
 
 private:
   std::string Name;
   ExternDesc Desc;
+  std::optional<std::string> VersionSuffix;
 };
 
 } // namespace Component

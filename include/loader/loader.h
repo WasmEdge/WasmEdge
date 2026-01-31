@@ -513,6 +513,7 @@ private:
   const Executable::IntrinsicsTable *IntrinsicsTable;
   std::recursive_mutex Mutex;
   bool HasDataSection;
+  uint8_t LastNamePrefix = 0x00; // Track import/export name prefix (0x00 or 0x01)
 
   /// Input data type enumeration.
   enum class InputType : uint8_t { WASM, UniversalWASM, SharedLibrary };

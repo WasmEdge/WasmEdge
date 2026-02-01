@@ -5,6 +5,7 @@ add_subdirectory(wasi_logging)
 
 wasmedge_add_library(wasmedgePlugin
   plugin.cpp
+  hot_reload.cpp
 )
 
 target_include_directories(wasmedgePlugin

@@ -73,6 +73,7 @@ set(WASMEDGE_CAPI_HEADERS
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_experimental.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_instance.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_plugin.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_hot_reload.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_tools.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_value.h
   ${CMAKE_CURRENT_SOURCE_DIR}/../../include/api/wasmedge/wasmedge_vm.h
@@ -87,6 +88,7 @@ set(WASMEDGE_CAPI_HEADERS
 # Object library of the C API wrapper.
 wasmedge_add_library(wasmedgeCAPI OBJECT
   wasmedge.cpp
+  wasmedge_hot_reload.cpp
 )
 
 target_link_libraries(wasmedgeCAPI

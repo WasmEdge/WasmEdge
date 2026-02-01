@@ -72,6 +72,22 @@ target_link_libraries(wasmedgePluginUnittestsCPP
   ${GTEST_BOTH_LIBRARIES}
 )
 
+wasmedge_add_executable(wasmedgePluginUnittestsHotReload
+  unittest_hot_reload.cpp
+)
+
+target_include_directories(wasmedgePluginUnittestsHotReload
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+)
+
+target_link_libraries(wasmedgePluginUnittestsHotReload
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgePlugin
+)
+
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasmedgePluginTestModuleC
@@ -111,3 +127,4 @@ endif()
 
 add_test(wasmedgePluginUnittestsC wasmedgePluginUnittestsC)
 add_test(wasmedgePluginUnittestsCPP wasmedgePluginUnittestsCPP)
+add_test(wasmedgePluginUnittestsHotReload wasmedgePluginUnittestsHotReload)

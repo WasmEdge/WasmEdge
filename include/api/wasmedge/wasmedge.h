@@ -23,6 +23,7 @@
 #include "wasmedge/wasmedge_execution.h"
 #include "wasmedge/wasmedge_instance.h"
 #include "wasmedge/wasmedge_plugin.h"
+#include "wasmedge/wasmedge_hot_reload.h"
 #include "wasmedge/wasmedge_tools.h"
 #include "wasmedge/wasmedge_value.h"
 #include "wasmedge/wasmedge_vm.h"

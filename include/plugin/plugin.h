@@ -160,8 +160,37 @@ public:
   // Static function to find loaded plugin by name.
   WASMEDGE_EXPORT static const Plugin *find(std::string_view Name) noexcept;
 
+  // Static function to find loaded plugin by path.
+  WASMEDGE_EXPORT static const Plugin *
+  findByPath(const std::filesystem::path &Path) noexcept;
+
   // Static function to list loaded plugins.
   static Span<const Plugin> plugins() noexcept;
+
+  // Static function to unload a plugin by name.
+  // Returns true if the plugin was found and unloaded successfully.
+  WASMEDGE_EXPORT static bool unload(std::string_view Name) noexcept;
+
+  // Static function to unload a plugin by path.
+  // Returns true if the plugin was found and unloaded successfully.
+  WASMEDGE_EXPORT static bool
+  unloadByPath(const std::filesystem::path &Path) noexcept;
+
+  // Static function to reload a plugin by name.
+  // This will unload the current version and load the new version from the
+  // same path. Returns true if the plugin was reloaded successfully.
+  WASMEDGE_EXPORT static bool reload(std::string_view Name) noexcept;
+
+  // Static function to reload a plugin by path.
+  // Returns true if the plugin was reloaded successfully.
+  WASMEDGE_EXPORT static bool
+  reloadByPath(const std::filesystem::path &Path) noexcept;
+
+  // Static function to check if a plugin is loaded.
+  WASMEDGE_EXPORT static bool isLoaded(std::string_view Name) noexcept;
+
+  // Static function to get the number of loaded plugins.
+  static size_t count() noexcept;
 
   Plugin(const Plugin &) = delete;
   Plugin &operator=(const Plugin &) = delete;
@@ -210,6 +239,17 @@ public:
 
   std::filesystem::path path() const noexcept { return Path; }
 
+  // Get the last modification time of the plugin file.
+  std::filesystem::file_time_type lastModified() const noexcept {
+    return LastModified;
+  }
+
+  // Get the number of times this plugin has been loaded.
+  uint64_t loadCount() const noexcept { return LoadCount; }
+
+  // Check if the plugin file has been modified since it was loaded.
+  bool hasChanged() const noexcept;
+
 private:
   static std::mutex Mutex;
   static std::vector<Plugin> PluginRegistry;
@@ -224,6 +264,8 @@ private:
 
   // Plugin contents.
   std::filesystem::path Path;
+  std::filesystem::file_time_type LastModified;
+  uint64_t LoadCount = 0;
   const PluginDescriptor *Desc = nullptr;
   std::shared_ptr<Loader::SharedLibrary> Lib;
   std::vector<PluginModule> ModuleRegistry;

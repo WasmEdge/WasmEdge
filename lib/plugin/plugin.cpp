@@ -392,7 +392,174 @@ WASMEDGE_EXPORT const Plugin *Plugin::find(std::string_view Name) noexcept {
   return nullptr;
 }
 
+WASMEDGE_EXPORT const Plugin *
+Plugin::findByPath(const std::filesystem::path &Path) noexcept {
+  std::unique_lock Lock(Mutex);
+  for (const auto &P : PluginRegistry) {
+    if (P.Path == Path) {
+      return std::addressof(P);
+    }
+  }
+  return nullptr;
+}
+
 Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistry; }
+
+WASMEDGE_EXPORT bool Plugin::unload(std::string_view Name) noexcept {
+  std::unique_lock Lock(Mutex);
+  
+  auto Iter = PluginNameLookup.find(Name);
+  if (Iter == PluginNameLookup.end()) {
+    spdlog::debug("Plugin: {} not found for unloading."sv, Name);
+    return false;
+  }
+  
+  const auto Index = Iter->second;
+  auto &PluginToUnload = PluginRegistry[Index];
+  
+  if (!PluginToUnload.Lib) {
+    spdlog::debug("Plugin: {} is a built-in plugin and cannot be unloaded."sv,
+                  Name);
+    return false;
+  }
+  
+  spdlog::info("Plugin: Unloading plugin {}."sv, Name);
+  
+  PluginToUnload.ModuleRegistry.clear();
+  PluginToUnload.ComponentRegistry.clear();
+  PluginToUnload.ModuleNameLookup.clear();
+  PluginToUnload.ComponentNameLookup.clear();
+  PluginToUnload.Lib.reset();
+  PluginToUnload.Desc = nullptr;
+  
+  PluginNameLookup.erase(Iter);
+  
+  return true;
+}
+
+WASMEDGE_EXPORT bool
+Plugin::unloadByPath(const std::filesystem::path &Path) noexcept {
+  std::unique_lock Lock(Mutex);
+  
+  for (auto &P : PluginRegistry) {
+    if (P.Path == Path && P.Desc != nullptr) {
+      std::string_view Name = P.Desc->Name;
+      Lock.unlock();
+      return unload(Name);
+    }
+  }
+  
+  spdlog::debug("Plugin: No plugin found at path {} for unloading."sv,
+                Path.string());
+  return false;
+}
+
+WASMEDGE_EXPORT bool Plugin::reload(std::string_view Name) noexcept {
+  std::filesystem::path PluginPath;
+  
+  {
+    std::unique_lock Lock(Mutex);
+    auto Iter = PluginNameLookup.find(Name);
+    if (Iter == PluginNameLookup.end()) {
+      spdlog::debug("Plugin: {} not found for reloading."sv, Name);
+      return false;
+    }
+    
+    const auto &PluginToReload = PluginRegistry[Iter->second];
+    
+    if (!PluginToReload.Lib) {
+      spdlog::debug(
+          "Plugin: {} is a built-in plugin and cannot be reloaded."sv, Name);
+      return false;
+    }
+    
+    PluginPath = PluginToReload.Path;
+  }
+  
+  if (PluginPath.empty()) {
+    spdlog::error("Plugin: {} has no associated path, cannot reload."sv, Name);
+    return false;
+  }
+  
+  spdlog::info("Plugin: Reloading plugin {} from {}."sv, Name,
+               PluginPath.string());
+  
+  if (!unload(Name)) {
+    spdlog::error("Plugin: Failed to unload {} for reload."sv, Name);
+    return false;
+  }
+  
+  if (!loadFile(PluginPath)) {
+    spdlog::error("Plugin: Failed to load {} from {} during reload."sv, Name,
+                  PluginPath.string());
+    return false;
+  }
+  
+  {
+    std::unique_lock Lock(Mutex);
+    auto Iter = PluginNameLookup.find(Name);
+    if (Iter != PluginNameLookup.end()) {
+      PluginRegistry[Iter->second].LoadCount++;
+    }
+  }
+  
+  return true;
+}
+
+WASMEDGE_EXPORT bool
+Plugin::reloadByPath(const std::filesystem::path &Path) noexcept {
+  std::string PluginName;
+  
+  {
+    std::unique_lock Lock(Mutex);
+    for (const auto &P : PluginRegistry) {
+      if (P.Path == Path && P.Desc != nullptr) {
+        PluginName = P.Desc->Name;
+        break;
+      }
+    }
+  }
+  
+  if (!PluginName.empty()) {
+    return reload(PluginName);
+  }
+  
+  spdlog::info("Plugin: No existing plugin at {}, loading as new."sv,
+               Path.string());
+  return loadFile(Path);
+}
+
+WASMEDGE_EXPORT bool Plugin::isLoaded(std::string_view Name) noexcept {
+  std::unique_lock Lock(Mutex);
+  auto Iter = PluginNameLookup.find(Name);
+  if (Iter != PluginNameLookup.end()) {
+    return PluginRegistry[Iter->second].Desc != nullptr;
+  }
+  return false;
+}
+
+size_t Plugin::count() noexcept {
+  std::unique_lock Lock(Mutex);
+  size_t Count = 0;
+  for (const auto &P : PluginRegistry) {
+    if (P.Desc != nullptr) {
+      ++Count;
+    }
+  }
+  return Count;
+}
+
+bool Plugin::hasChanged() const noexcept {
+  if (Path.empty()) {
+    return false;
+  }
+  std::error_code EC;
+  auto CurrentModTime = std::filesystem::last_write_time(Path, EC);
+  if (EC) {
+    return false;
+  }
+  return CurrentModTime != LastModified;
+}
 
 bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
   std::unique_lock Lock(Mutex);
@@ -431,6 +598,16 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
   auto &Plugin = PluginRegistry.back();
   Plugin.Path = Path;
   Plugin.Lib = std::move(Lib);
+  
+  // Record the file modification time
+  std::error_code EC;
+  Plugin.LastModified = std::filesystem::last_write_time(Path, EC);
+  if (EC) {
+    spdlog::warn("Plugin: Could not get modification time for {}."sv,
+                 Path.string());
+  }
+  Plugin.LoadCount = 1;
+  
   return true;
 }
 

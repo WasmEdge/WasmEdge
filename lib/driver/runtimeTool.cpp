@@ -68,8 +68,9 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
         break;
       }
     } catch (const std::invalid_argument &) {
-      spdlog::error("Invalid argument '{}' for parameter {}: expected numeric value"sv,
-                    Opt.Args.value()[I + 1], I);
+      spdlog::error(
+          "Invalid argument '{}' for parameter {}: expected numeric value"sv,
+          Opt.Args.value()[I + 1], I);
       return EXIT_FAILURE;
     } catch (const std::out_of_range &) {
       spdlog::error("Argument '{}' for parameter {}: value out of range"sv,
@@ -86,8 +87,9 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(TypeCode::I64);
       } catch (const std::invalid_argument &) {
-        spdlog::error("Invalid argument '{}' for parameter {}: expected numeric value"sv,
-                      Opt.Args.value()[I], I);
+        spdlog::error(
+            "Invalid argument '{}' for parameter {}: expected numeric value"sv,
+            Opt.Args.value()[I], I);
         return EXIT_FAILURE;
       } catch (const std::out_of_range &) {
         spdlog::error("Argument '{}' for parameter {}: value out of range"sv,
@@ -206,8 +208,9 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
         break;
       }
     } catch (const std::invalid_argument &) {
-      spdlog::error("Invalid argument '{}' for parameter {}: expected numeric value"sv,
-                    Opt.Args.value()[I + 1], I);
+      spdlog::error(
+          "Invalid argument '{}' for parameter {}: expected numeric value"sv,
+          Opt.Args.value()[I + 1], I);
       return EXIT_FAILURE;
     } catch (const std::out_of_range &) {
       spdlog::error("Argument '{}' for parameter {}: value out of range"sv,
@@ -224,8 +227,9 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
         FuncArgs.emplace_back(Value);
         FuncArgTypes.emplace_back(ComponentTypeCode::U64);
       } catch (const std::invalid_argument &) {
-        spdlog::error("Invalid argument '{}' for parameter {}: expected numeric value"sv,
-                      Opt.Args.value()[I], I);
+        spdlog::error(
+            "Invalid argument '{}' for parameter {}: expected numeric value"sv,
+            Opt.Args.value()[I], I);
         return EXIT_FAILURE;
       } catch (const std::out_of_range &) {
         spdlog::error("Argument '{}' for parameter {}: value out of range"sv,

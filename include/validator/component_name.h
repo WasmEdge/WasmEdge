@@ -25,9 +25,7 @@ bool tryRead(std::string_view prefix, std::string_view &name);
 bool tryReadKebab(std::string_view &input, std::string_view &output);
 
 bool isValidSemVer(std::string_view version);
-
 }; // namespace ComponentNameParser
-
 
 enum class ComponentNameKind {
   Invalid,

@@ -763,19 +763,8 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
     return Unexpect(ErrCode::Value::ComponentNotImplValidator);
   }
   
-  // Validate version suffix if present (for InterfaceType names)
-  if (CName.getKind() == ComponentNameKind::InterfaceType) {
-    const auto &InterfaceDetails = CName.getDetails().Interface;
-    if (!InterfaceDetails.Version.empty()) {
-      if (!ComponentNameParser::isValidSemVer(InterfaceDetails.Version)) {
-        spdlog::error(ErrCode::Value::ComponentInvalidVersion);
-        spdlog::error("    Import: Invalid semver format in version '{}'"sv,
-                      InterfaceDetails.Version);
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-        return Unexpect(ErrCode::Value::ComponentInvalidVersion);
-      }
-    }
-  }
+  EXPECTED_TRY(
+      validateInterfaceVersion(CName, "Import"sv, ASTNodeAttr::Comp_Import));
   
   // TODO: Validation requires that annotated plainnames only occur on func
   // imports or exports and that the first label of a [constructor],
@@ -829,19 +818,27 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   
   // Validate version suffix if present (for InterfaceType names)
   ComponentName CName(Ex.getName());
+  EXPECTED_TRY(
+      validateInterfaceVersion(CName, "Export"sv, ASTNodeAttr::Comp_Export));
+  
+  return {};
+}
+
+Expect<void> Validator::validateInterfaceVersion(
+    const ComponentName &CName, std::string_view ErrorContext,
+    ASTNodeAttr NodeAttr) noexcept {
   if (CName.getKind() == ComponentNameKind::InterfaceType) {
     const auto &InterfaceDetails = CName.getDetails().Interface;
     if (!InterfaceDetails.Version.empty()) {
       if (!ComponentNameParser::isValidSemVer(InterfaceDetails.Version)) {
         spdlog::error(ErrCode::Value::ComponentInvalidVersion);
-        spdlog::error("    Export: Invalid semver format in version '{}'"sv,
-                      InterfaceDetails.Version);
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+        spdlog::error("    {}: Invalid semver format in version '{}'"sv,
+                      ErrorContext, InterfaceDetails.Version);
+        spdlog::error(ErrInfo::InfoAST(NodeAttr));
         return Unexpect(ErrCode::Value::ComponentInvalidVersion);
       }
     }
   }
-  
   return {};
 }
 

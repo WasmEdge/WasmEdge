@@ -122,6 +122,11 @@ private:
   // Expect<void> validate(const AST::Component::ComponentDecl &Decl) noexcept;
   // types
   // TODO
+
+  // Helper for checking interface version
+  Expect<void> validateInterfaceVersion(const ComponentName &CName,
+                                        std::string_view ErrorContext,
+                                        ASTNodeAttr NodeAttr) noexcept;
   /// @}
 
   /// Memory page limit for WASM32

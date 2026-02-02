@@ -141,7 +141,47 @@ bool isValidSemVer(std::string_view Version) {
     return false;
   }
 
-  return true;
+  if (!readNumber()) {
+    return false;
+  }
+
+  if (Pos >= Version.size()) {
+    return true;
+  }
+
+  // Pre-release
+  if (Version[Pos] == '-') {
+    Pos++;
+    if (Pos >= Version.size()) {
+      return false;
+    }
+    while (Pos < Version.size()) {
+      if (!isalnum(Version[Pos]) && Version[Pos] != '-' && Version[Pos] != '.') {
+        break;
+      }
+      Pos++;
+    }
+  }
+
+  if (Pos >= Version.size()) {
+    return true;
+  }
+
+  // Build metadata
+  if (Version[Pos] == '+') {
+    Pos++;
+    if (Pos >= Version.size()) {
+      return false;
+    }
+    while (Pos < Version.size()) {
+      if (!isalnum(Version[Pos]) && Version[Pos] != '-' && Version[Pos] != '.') {
+        break;
+      }
+      Pos++;
+    }
+  }
+
+  return Pos == Version.size();
 }
 
 } // namespace ComponentNameParser

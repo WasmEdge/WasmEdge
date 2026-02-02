@@ -479,7 +479,7 @@ private:
   Expect<void> loadType(AST::Component::StreamTy &Ty);
   Expect<void> loadType(AST::Component::FutureTy &Ty);
   // helpers
-  Expect<void> loadExternName(std::string &Name);
+  Expect<uint8_t> loadExternName(std::string &Name);
   Expect<void> loadType(ComponentValType &Ty);
   Expect<void> loadType(AST::Component::LabelValType &Ty);
   template <typename ASTType, typename T>
@@ -513,7 +513,6 @@ private:
   const Executable::IntrinsicsTable *IntrinsicsTable;
   std::recursive_mutex Mutex;
   bool HasDataSection;
-  uint8_t LastNamePrefix = 0x00; // Track import/export name prefix (0x00 or 0x01)
 
   /// Input data type enumeration.
   enum class InputType : uint8_t { WASM, UniversalWASM, SharedLibrary };

@@ -12,16 +12,15 @@ Expect<void> Loader::loadImport(AST::Component::Import &Im) {
   //               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'> => in vs  (if len = |in|)
   // versionsuffix' ::= len:<u32> vs:<semversuffix>                     => (versionsuffix vs) (if len = |vs|)
 
-  EXPECTED_TRY(loadExternName(Im.getName()).map_error([this](auto E) {
+  EXPECTED_TRY(uint8_t Prefix, loadExternName(Im.getName()).map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Import);
   }));
   
   // If prefix was 0x01, read the version suffix
-  if (LastNamePrefix == 0x01) {
-    EXPECTED_TRY(std::string VersionSuffix, FMgr.readName().map_error([this](auto E) {
+  if (Prefix == 0x01) {
+    EXPECTED_TRY(Im.getVersionSuffix(), FMgr.readName().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Import);
     }));
-    Im.getVersionSuffix() = std::move(VersionSuffix);
   }
   
   EXPECTED_TRY(loadDesc(Im.getDesc()).map_error([](auto E) {

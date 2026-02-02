@@ -381,8 +381,7 @@ Expect<void> Loader::loadType(AST::Component::RecordTy &Ty) {
 
 Expect<void> Loader::loadType(AST::Component::VariantTy &Ty) {
   // variant ::= case*:vec(<case>) => (variant case+) (if |case*| > 0)
-  // case    ::= l:<label'> t?:<valtype>? r?:<u32>? 0x00
-  //   where r? is the optional refines index
+  // case    ::= l:<label'> t?:<valtype>? r?:<u32>?
 
   auto LoadCase =
       [this](AST::Component::VariantTy::Case &Case) -> Expect<void> {

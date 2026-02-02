@@ -23,6 +23,44 @@ namespace WasiCrypto {
 using namespace std::literals;
 
 TEST_F(WasiCryptoTest, Options) {
+  // Secrets Manager options.
+  {
+    // Open options.
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        SecretsManagerOptionsHandle,
+        optionsOpen(static_cast<__wasi_algorithm_type_e_t>(
+            SecretsManager::AlgorithmType)));
+
+    // Set options.
+    WASI_CRYPTO_EXPECT_TRUE(
+        optionsSet(SecretsManagerOptionsHandle, "password"sv, "foo"_u8));
+    WASI_CRYPTO_EXPECT_TRUE(
+        optionsSetU64(SecretsManagerOptionsHandle, "auto_lock"sv, 0));
+
+    // Unsupported options.
+    WASI_CRYPTO_EXPECT_FAILURE(
+        optionsSet(SecretsManagerOptionsHandle, "foo"sv, "foo"_u8),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        optionsSetU64(SecretsManagerOptionsHandle, "foo"sv, 0),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    writeDummyMemoryContent();
+    writeString("foo"sv, 0);
+    uint32_t NameSize = 3;
+    auto *Func = getHostFunc<Common::OptionsSetGuestBuffer>(
+        WasiCryptoCommonMod, "options_set_guest_buffer");
+    ASSERT_NE(Func, nullptr);
+    EXPECT_TRUE(
+        Func->run(CallFrame,
+                  std::initializer_list<WasmEdge::ValVariant>{
+                      SecretsManagerOptionsHandle, 0, NameSize, 0, NameSize},
+                  Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
+
+    WASI_CRYPTO_EXPECT_TRUE(optionsClose(SecretsManagerOptionsHandle));
+  }
+
   // Symmetric options.
   {
     // Open options.

@@ -187,16 +187,30 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
     return Unexpect(ErrCode::Value::IllegalGrammar);
   }
 
-  // Set the symbols into the module.
+  // Validate and set the symbols into the module.
   uint32_t FuncTypeIdx = 0;
   for (auto &SubType : SubTypes) {
     if (SubType.getCompositeType().isFunc()) {
+      if (unlikely(!FuncTypeSymbols[FuncTypeIdx])) {
+        spdlog::error(
+            "    AOT section -- invalid type symbol at index {}, use "
+            "interpreter mode instead.",
+            FuncTypeIdx);
+        return Unexpect(ErrCode::Value::IllegalGrammar);
+      }
       SubType.getCompositeType().getFuncType().setSymbol(
           std::move(FuncTypeSymbols[FuncTypeIdx]));
     }
     FuncTypeIdx++;
   }
   for (size_t I = 0; I < CodeSegs.size(); ++I) {
+    if (unlikely(!CodeSymbols[I])) {
+      spdlog::error(
+          "    AOT section -- invalid code symbol at index {}, use "
+          "interpreter mode instead.",
+          I);
+      return Unexpect(ErrCode::Value::IllegalGrammar);
+    }
     CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));
   }
   Mod.setSymbol(std::move(IntrinsicsSymbol));

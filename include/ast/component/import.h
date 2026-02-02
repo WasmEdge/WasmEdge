@@ -16,7 +16,6 @@
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
 
-#include <optional>
 #include <string>
 
 namespace WasmEdge {
@@ -35,13 +34,13 @@ public:
   ExternDesc &getDesc() noexcept { return Desc; }
   const ExternDesc &getDesc() const noexcept { return Desc; }
   
-  std::optional<std::string> &getVersionSuffix() noexcept { return VersionSuffix; }
-  const std::optional<std::string> &getVersionSuffix() const noexcept { return VersionSuffix; }
+  std::string &getVersionSuffix() noexcept { return VersionSuffix; }
+  std::string_view getVersionSuffix() const noexcept { return VersionSuffix; }
 
 private:
   std::string Name;
   ExternDesc Desc;
-  std::optional<std::string> VersionSuffix;
+  std::string VersionSuffix;
 };
 
 } // namespace Component

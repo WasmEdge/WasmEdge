@@ -67,7 +67,31 @@ Context::optionsSetGuestBuffer(__wasi_options_t OptionsHandle,
 }
 
 WasiCryptoExpect<__wasi_secrets_manager_t>
-Context::secretsManagerOpen(__wasi_opt_options_t) noexcept {
+Context::secretsManagerOpen(__wasi_opt_options_t OptOptionsHandle) noexcept {
+  auto OptOptionsResult = mapAndTransposeOptional(
+      OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
+        return OptionsManager.get(OptionsHandle);
+      });
+  if (!OptOptionsResult) {
+    return WasiCryptoUnexpect(OptOptionsResult);
+  }
+
+  // Refer to OptOptionsResult if it's a SecretsManager::Options.
+  auto OptSecretsManagerOptionsResult = transposeOptionalToRef(
+      *OptOptionsResult,
+      [](const auto &Options) noexcept
+          -> WasiCryptoExpect<OptionalRef<const SecretsManager::Options>> {
+        auto *SecretsManagerOptions =
+            std::get_if<SecretsManager::Options>(&Options);
+        if (!SecretsManagerOptions) {
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+        }
+        return SecretsManagerOptions;
+      });
+  if (!OptSecretsManagerOptionsResult) {
+    return WasiCryptoUnexpect(OptSecretsManagerOptionsResult);
+  }
+  // TODO: Complete secrets manager opening logic.
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 

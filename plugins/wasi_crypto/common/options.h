@@ -15,6 +15,7 @@
 #pragma once
 
 #include "kx/options.h"
+#include "secrets_manager/options.h"
 #include "signatures/options.h"
 #include "symmetric/options.h"
 #include "wasi_crypto/api.hpp"
@@ -39,8 +40,8 @@ namespace Common {
 ///
 /// More detail:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#options
-using Options =
-    std::variant<Symmetric::Options, Kx::Options, Signatures::Options>;
+using Options = std::variant<Symmetric::Options, Kx::Options,
+                             Signatures::Options, SecretsManager::Options>;
 
 Options optionsOpen(__wasi_algorithm_type_e_t Alg) noexcept;
 

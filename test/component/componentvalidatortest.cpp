@@ -144,4 +144,315 @@ TEST(ComponentValidatorTest, TypeMismatch) {
   ASSERT_FALSE(Validator.validate(Comp));
 }
 
+// Alias validation tests based on alias.wast spec tests.
+// These tests verify the Component Model alias validation logic.
+
+TEST(ComponentAliasValidatorTest, OuterAliasInvalidCount) {
+  // Outer alias with ct=100 exceeds any valid nesting depth.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(true);
+  Alias.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Type);
+  Alias.setOuter(100, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasIndexOutOfBounds) {
+  // Outer alias with ct=0, idx=0 but no types defined at that level.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(true);
+  Alias.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Type);
+  Alias.setOuter(0, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasCoreModuleInvalidCount) {
+  // Outer alias for core module with ct=100 exceeds nesting depth.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(true);
+  Alias.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Module);
+  Alias.setOuter(100, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasCoreModuleIndexOutOfBounds) {
+  // Outer alias for core module with index 0 but no modules exist.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(true);
+  Alias.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Module);
+  Alias.setOuter(0, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasComponentInvalidCount) {
+  // Outer alias for component with ct=100 exceeds nesting depth.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(false);
+  Alias.getSort().setSortType(AST::Component::Sort::SortType::Component);
+  Alias.setOuter(100, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasComponentIndexOutOfBounds) {
+  // Outer alias for component with index 0 but no components exist.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(false);
+  Alias.getSort().setSortType(AST::Component::Sort::SortType::Component);
+  Alias.setOuter(0, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasTypeIndexOutOfBounds) {
+  // Outer alias for type with index 0 but no types exist.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(false);
+  Alias.getSort().setSortType(AST::Component::Sort::SortType::Type);
+  Alias.setOuter(0, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasInvalidSortFunc) {
+  // Func sort is not allowed for outer alias.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(false);
+  Alias.getSort().setSortType(AST::Component::Sort::SortType::Func);
+  Alias.setOuter(0, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasInvalidSortInstance) {
+  // Instance sort is not allowed for outer alias.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(false);
+  Alias.getSort().setSortType(AST::Component::Sort::SortType::Instance);
+  Alias.setOuter(0, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, OuterAliasInvalidCoreSortFunc) {
+  // Core func sort is not allowed for outer alias.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Outer);
+  Alias.getSort().setIsCore(true);
+  Alias.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Func);
+  Alias.setOuter(0, 0);
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, ExportAliasInvalidInstanceIndex) {
+  // Export alias with instance index 99 that does not exist.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Export);
+  Alias.getSort().setIsCore(false);
+  Alias.getSort().setSortType(AST::Component::Sort::SortType::Func);
+  Alias.setExport(99, "nonexistent");
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, ExportAliasCoreSort) {
+  // Export alias cannot use core sort.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::Export);
+  Alias.getSort().setIsCore(true);
+  Alias.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Func);
+  Alias.setExport(0, "func");
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, CoreExportAliasInvalidInstanceIndex) {
+  // CoreExport alias with core instance index 99 that does not exist.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::CoreExport);
+  Alias.getSort().setIsCore(true);
+  Alias.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Func);
+  Alias.setExport(99, "nonexistent");
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+TEST(ComponentAliasValidatorTest, CoreExportAliasNonCoreSort) {
+  // CoreExport alias cannot use non-core sort.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections().back());
+  AliasSec.getContent().emplace_back();
+
+  auto &Alias = AliasSec.getContent().back();
+  Alias.setTargetType(AST::Component::Alias::TargetType::CoreExport);
+  Alias.getSort().setIsCore(false);
+  Alias.getSort().setSortType(AST::Component::Sort::SortType::Func);
+  Alias.setExport(0, "func");
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  WasmEdge::Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
 } // namespace

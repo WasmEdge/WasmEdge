@@ -762,6 +762,21 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
     return Unexpect(ErrCode::Value::ComponentNotImplValidator);
   }
+  
+  // Validate version suffix if present (for InterfaceType names)
+  if (CName.getKind() == ComponentNameKind::InterfaceType) {
+    const auto &InterfaceDetails = CName.getDetails().Interface;
+    if (!InterfaceDetails.Version.empty()) {
+      if (!ComponentNameParser::isValidSemVer(InterfaceDetails.Version)) {
+        spdlog::error(ErrCode::Value::ComponentInvalidVersion);
+        spdlog::error("    Import: Invalid semver format in version '{}'"sv,
+                      InterfaceDetails.Version);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+        return Unexpect(ErrCode::Value::ComponentInvalidVersion);
+      }
+    }
+  }
+  
   // TODO: Validation requires that annotated plainnames only occur on func
   // imports or exports and that the first label of a [constructor],
   // [method] or [static] matches the plainname of a preceding resource
@@ -811,6 +826,22 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   if (!Sort.isCore()) {
     CompCtx.incSortIndexSize(Sort.getSortType());
   }
+  
+  // Validate version suffix if present (for InterfaceType names)
+  ComponentName CName(Ex.getName());
+  if (CName.getKind() == ComponentNameKind::InterfaceType) {
+    const auto &InterfaceDetails = CName.getDetails().Interface;
+    if (!InterfaceDetails.Version.empty()) {
+      if (!ComponentNameParser::isValidSemVer(InterfaceDetails.Version)) {
+        spdlog::error(ErrCode::Value::ComponentInvalidVersion);
+        spdlog::error("    Export: Invalid semver format in version '{}'"sv,
+                      InterfaceDetails.Version);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+        return Unexpect(ErrCode::Value::ComponentInvalidVersion);
+      }
+    }
+  }
+  
   return {};
 }
 

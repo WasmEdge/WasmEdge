@@ -144,4 +144,104 @@ TEST(ComponentValidatorTest, TypeMismatch) {
   ASSERT_FALSE(Validator.validate(Comp));
 }
 
+// Test: Valid versioned interface name passes validation
+TEST(ComponentValidatorTest, ValidVersionedInterface) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
+  
+  // Import with valid versioned interface name: "wasi:http/types@0.2.1"
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "wasi:http/types@0.2.1";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+  ASSERT_TRUE(Validator.validate(Comp));
+}
+
+// Test: Invalid version format fails validation
+TEST(ComponentValidatorTest, InvalidVersionFormat) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
+  
+  // Import with invalid version format: "wasi:http/types@invalid"
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "wasi:http/types@invalid";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
+// Test: Legacy interface without version still works
+TEST(ComponentValidatorTest, LegacyNoVersionInterface) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
+  
+  // Import without version suffix: "wasi:http/types"
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "wasi:http/types";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+  ASSERT_TRUE(Validator.validate(Comp));
+}
+
+// Test: Export with valid version passes validation
+TEST(ComponentValidatorTest, ValidVersionedExport) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec =
+      std::get<AST::Component::ExportSection>(Comp.getSections()[0]);
+  
+  // Export with valid versioned interface name: "wasi:cli/run@1.0.0"
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "wasi:cli/run@1.0.0";
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+      AST::Component::Sort::SortType::Func);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+  ASSERT_TRUE(Validator.validate(Comp));
+}
+
+// Test: Export with invalid version format fails
+TEST(ComponentValidatorTest, InvalidVersionFormatExport) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec =
+      std::get<AST::Component::ExportSection>(Comp.getSections()[0]);
+  
+  // Export with invalid version: "wasi:cli/run@1.x"
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "wasi:cli/run@1.x";
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(
+      AST::Component::Sort::SortType::Func);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+
 } // namespace
+

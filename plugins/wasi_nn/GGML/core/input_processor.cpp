@@ -47,25 +47,29 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
         // reload the llama model if the model is nullptr.
         LOG_INFO(GraphRef.EnableLog,
                  "setInput: Reload model due to parameters change."sv)
-        llama_model_params ModelParams = llama_model_default_params();
+        auto ModelParams = GraphRef.Params;
         ModelParams.n_gpu_layers =
             static_cast<int32_t>(GraphRef.Params.n_gpu_layers);
-        GraphRef.LlamaModel.reset();
         // Due to the model change, the context and sampler should also be
         // reloaded. The new context and sampler will be created in the next
         // block.
-        GraphRef.LlamaContext.reset();
+        GraphRef.LlamaInitResult->free_context();
+        GraphRef.LlamaModel = nullptr;
+        GraphRef.LlamaContext = nullptr;
         if (CxtRef.LlamaSampler) {
           // TODO: Trigger the sampler in other contexts to reallocate.
           common_sampler_free(CxtRef.LlamaSampler);
           CxtRef.LlamaSampler = nullptr;
         }
-        GraphRef.LlamaModel = llama_model_ptr(llama_model_load_from_file(
-            GraphRef.Params.model.path.c_str(), ModelParams));
-        if (GraphRef.LlamaModel == nullptr) {
+
+        GraphRef.LlamaInitResult = common_init_from_params(GraphRef.Params);
+        if (GraphRef.LlamaInitResult == nullptr ||
+            GraphRef.LlamaModel == nullptr) {
           Env.NNGraph[CxtRef.GraphId].setInvalid();
           RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init model."sv)
         }
+        GraphRef.LlamaModel = GraphRef.LlamaInitResult->model();
+        GraphRef.LlamaContext = GraphRef.LlamaInitResult->context();
       }
     }
 #endif
@@ -75,14 +79,18 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     if (IsContextParamsUpdated || GraphRef.LlamaContext == nullptr) {
       LOG_INFO(GraphRef.EnableLog,
                "setInput: Reload llama context due to parameters change."sv)
-      GraphRef.LlamaContext.reset();
-      GraphRef.LlamaContext = llama_context_ptr(llama_init_from_model(
-          GraphRef.LlamaModel.get(),
-          common_context_params_to_llama(GraphRef.Params)));
+
+      GraphRef.LlamaInitResult->free_context();
+      GraphRef.LlamaModel = nullptr;
+      GraphRef.LlamaContext = nullptr;
+
+      GraphRef.LlamaInitResult = common_init_from_params(GraphRef.Params);
       if (GraphRef.LlamaContext == nullptr) {
         Env.NNGraph[CxtRef.GraphId].setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init context."sv)
       }
+      GraphRef.LlamaModel = GraphRef.LlamaInitResult->model();
+      GraphRef.LlamaContext = GraphRef.LlamaInitResult->context();
     }
 
     // Some changes of sampling parameters will require the sampler to be
@@ -93,8 +101,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       if (CxtRef.LlamaSampler) {
         common_sampler_free(CxtRef.LlamaSampler);
       }
-      CxtRef.LlamaSampler = common_sampler_init(GraphRef.LlamaModel.get(),
-                                                GraphRef.Params.sampling);
+      CxtRef.LlamaSampler =
+          common_sampler_init(GraphRef.LlamaModel, GraphRef.Params.sampling);
       if (GraphRef.LlamaContext == nullptr) {
         Env.NNGraph[CxtRef.GraphId].setInvalid();
         RET_ERROR(ErrNo::InvalidArgument, "setInput: unable to init sampler."sv)
@@ -124,7 +132,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
 
   // Clear the llama context.
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context"sv)
-  llama_memory_clear(llama_get_memory(GraphRef.LlamaContext.get()), true);
+  llama_memory_clear(llama_get_memory(GraphRef.LlamaContext), true);
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: clear llama context...Done"sv)
 
   // Set the input.
@@ -158,7 +166,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
           GraphRef.EnableLog || GraphRef.EnableDebugLog;
       GraphRef.VisionContext.reset(
           mtmd_init_from_file(GraphRef.Params.mmproj.path.c_str(),
-                              GraphRef.LlamaModel.get(), VisionContextParams));
+                              GraphRef.LlamaModel, VisionContextParams));
       if (GraphRef.VisionContext == nullptr) {
         RET_ERROR(ErrNo::InvalidArgument,
                   "setInput: unable to load the mmproj model {}."sv,
@@ -267,7 +275,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   } else {
     // Text only prompt.
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt"sv)
-    CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext.get(), Prompt,
+    CxtRef.LlamaInputs = common_tokenize(GraphRef.LlamaContext, Prompt,
                                          AddSpecial, ParseSpecial);
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: tokenize text prompt...Done"sv)

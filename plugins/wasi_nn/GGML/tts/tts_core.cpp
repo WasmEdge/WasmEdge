@@ -324,22 +324,22 @@ std::vector<llama_token> processTTSPrompt(WasiNNEnvironment &Env,
   }
   std::string ProcessedPrompt = processTTSPromptText(Prompt);
   std::vector<llama_token> Result, TmpTokens;
-  Result = common_tokenize(GraphRef.LlamaContext.get(), "<|im_start|>\n",
+  Result = common_tokenize(GraphRef.LlamaContext, "<|im_start|>\n",
                            /* add_special */ true,
                            /* parse_special */ true);
-  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), SpeakerProfile.Text,
+  TmpTokens = common_tokenize(GraphRef.LlamaContext, SpeakerProfile.Text,
                               /* add_special */ false,
                               /* parse_special */ true);
   Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
-  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), ProcessedPrompt,
+  TmpTokens = common_tokenize(GraphRef.LlamaContext, ProcessedPrompt,
                               /* add_special */ false,
                               /* parse_special */ true);
   Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
-  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), "<|text_end|>\n",
+  TmpTokens = common_tokenize(GraphRef.LlamaContext, "<|text_end|>\n",
                               /* add_special */ false,
                               /* parse_special */ true);
   Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
-  TmpTokens = common_tokenize(GraphRef.LlamaContext.get(), SpeakerProfile.Data,
+  TmpTokens = common_tokenize(GraphRef.LlamaContext, SpeakerProfile.Data,
                               /* add_special */ false,
                               /* parse_special */ true);
   Result.insert(Result.end(), TmpTokens.begin(), TmpTokens.end());
@@ -436,14 +436,14 @@ ErrNo codesToSpeech(WasiNNEnvironment &Env, Graph &GraphRef,
     common_batch_add(TTSBatch, CxtRef.LlamaOutputTokens[I], I,
                      /* seq_ids */ {0}, /* logits */ true);
   }
-  if (llama_decode(GraphRef.TTSContext.get(), TTSBatch) != 0) {
+  if (llama_decode(GraphRef.TTSContext, TTSBatch) != 0) {
     RET_ERROR(ErrNo::RuntimeError, "codesToSpeech: fail to eval."sv)
   }
   llama_batch_free(TTSBatch);
 
   // Get embeddings.
-  const int NEmbd = llama_model_n_embd(GraphRef.TTSModel.get());
-  const float *Embd = llama_get_embeddings(GraphRef.TTSContext.get());
+  const int NEmbd = llama_model_n_embd(GraphRef.TTSModel);
+  const float *Embd = llama_get_embeddings(GraphRef.TTSContext);
 
   // Embeddings to audio.
   std::vector<float> AudioData =

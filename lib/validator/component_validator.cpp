@@ -1045,38 +1045,27 @@ Validator::validate(const AST::Component::VariantTy &Variant) noexcept {
   for (size_t i = 0; i < Variant.Cases.size(); ++i) {
     const auto &Case = Variant.Cases[i];
 
-    if (Case.Label.empty()) {
+    if (Case.first.empty()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error("    name cannot be empty"sv);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
 
-    std::string LowerLabel(Case.Label);
+    std::string LowerLabel(Case.first);
     std::transform(LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
                    [](unsigned char c) { return std::tolower(c); });
 
     auto It = SeenLabels.find(LowerLabel);
     if (It != SeenLabels.end()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error("    duplicate variant case name `{}`"sv, Case.Label,
+      spdlog::error("    duplicate variant case name `{}`"sv, Case.first,
                     It->second);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
-    SeenLabels.emplace(LowerLabel, Case.Label);
+    SeenLabels.emplace(LowerLabel, Case.first);
 
-    if (Case.ValType.has_value()) {
-      EXPECTED_TRY(validateComponentValType(*Case.ValType));
-    }
-
-    if (Case.Refines.has_value()) {
-      uint32_t RefIdx = *Case.Refines;
-
-      if (RefIdx >= i) {
-        spdlog::error(ErrCode::Value::InvalidTypeReference);
-        spdlog::error(
-            "    variant case can only refine a previously defined case"sv);
-        return Unexpect(ErrCode::Value::InvalidTypeReference);
-      }
+    if (Case.second.has_value()) {
+      EXPECTED_TRY(validateComponentValType(*Case.second));
     }
   }
 

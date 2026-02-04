@@ -37,6 +37,18 @@ target_link_libraries(wasmedgeLoaderASTTests
   wasmedgeLoader
 )
 
+wasmedge_add_executable(wasmedgeLoaderAOTSymbolValidationTests
+  aotSymbolValidationTest.cpp
+)
+
+add_test(wasmedgeLoaderAOTSymbolValidationTests wasmedgeLoaderAOTSymbolValidationTests)
+
+target_link_libraries(wasmedgeLoaderAOTSymbolValidationTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeLoader
+)
+
 wasmedge_add_executable(wasmedgeLoaderSerializerTests
   serializeModuleTest.cpp
   serializeSectionTest.cpp

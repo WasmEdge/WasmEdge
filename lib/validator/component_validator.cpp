@@ -801,16 +801,62 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
 }
 
 Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
+  // 1. Validate the optional external descriptor (Type Ascription)
   if (Ex.getDesc().has_value()) {
     EXPECTED_TRY(validate(*Ex.getDesc()).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
       return E;
     }));
   }
-  const auto &Sort = Ex.getSortIndex().getSort();
-  if (!Sort.isCore()) {
-    CompCtx.incSortIndexSize(Sort.getSortType());
+
+  // 2. Validate Name Uniqueness
+  // We parse the name and check if it has already been exported or used in this scope.
+  ComponentName CName(Ex.getName());
+  switch (CName.getKind()) {
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
+  case ComponentNameKind::InterfaceType:
+  case ComponentNameKind::Label:
+    // Ensure the name is unique in the export scope
+    if (!CompCtx.addExportName(CName)) {
+      spdlog::error(ErrCode::Value::ComponentDuplicateName);
+      spdlog::error("    Export: Duplicate export name '{}'"sv, Ex.getName());
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+      return Unexpect(ErrCode::Value::ComponentDuplicateName);
+    }
+    break;
+  default:
+    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
+    spdlog::error("    Export: Export name kind not supported yet"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
   }
+
+  // 3. Validate Index Existence
+  // We must ensure the item (func, table, module, etc.) being exported actually exists.
+  const auto &SortIdx = Ex.getSortIndex();
+  const auto &Sort = SortIdx.getSort();
+  uint32_t Idx = SortIdx.getIdx();
+
+  if (Sort.isCore()) {
+    // Check Core Sorts (Func, Table, Mem, Global)
+    if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Export: Core index {} out of bounds"sv, Idx);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+  } else {
+    // Check Component Sorts (Func, Module, Component, Instance, Type)
+    if (Idx >= CompCtx.getSortIndexSize(Sort.getSortType())) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Export: Index {} out of bounds"sv, Idx);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+  }
+
   return {};
 }
 

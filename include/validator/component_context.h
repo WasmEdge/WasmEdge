@@ -58,6 +58,7 @@ public:
     }
 
     bool AddImportedName(const ComponentName &Name) noexcept;
+    bool addExportName(const ComponentName &Name) noexcept;
   };
 
   void reset() noexcept { CompCtxs.clear(); }
@@ -246,6 +247,9 @@ public:
 
   bool AddImportedName(const ComponentName &Name) noexcept {
     return getCurrentContext().AddImportedName(Name);
+  }
+  bool addExportName(const ComponentName &Name) noexcept {
+    return getCurrentContext().addExportName(Name);
   }
 
 private:

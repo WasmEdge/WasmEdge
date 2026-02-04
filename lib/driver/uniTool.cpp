@@ -16,7 +16,6 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   using namespace std::literals;
 
   std::ios::sync_with_stdio(false);
-  Log::setInfoLoggingLevel();
 
   auto Parser = PO::ArgumentParser();
 
@@ -62,6 +61,15 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   }
   if (Parser.isHelp()) {
     return EXIT_SUCCESS;
+  }
+
+  const std::string &Level = ToolOptions.LogLevel.value();
+
+  if (!Log::setLoggingLevelFromString(Level)) {
+    spdlog::warn("Invalid log level: {}. Valid values are: off, trace, debug, "
+                 "info, warning, error, fatal. Falling back to info level.",
+                 Level);
+    Log::setInfoLoggingLevel();
   }
 
   // Forward Results

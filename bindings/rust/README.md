@@ -1,11 +1,16 @@
 # WasmEdge Rust Bindings
 
-** Rust Binding and related projects are moved to [wasmedge-rust-sdk](https://github.com/WasmEdge/wasmedge-rust-sdk) **
-** Please refer to the new repository for the further updates **
+> **Note**
+> Rust bindings and related projects have moved to
+> [wasmedge-rust-sdk](https://github.com/WasmEdge/wasmedge-rust-sdk).
+> Please refer to the new repository for further updates.
 
 WasmEdge Rust bindings consist of the following crates. They together provide different levels of APIs for Rust developers to use WasmEdge runtime. For example, `wasmedge-sdk` defines the high-level APIs for application development.
 
 ## Versioning Table
+
+> [!IMPORTANT]
+> The WasmEdge Rust SDK has moved to a separate repository: [wasmedge-rust-sdk](https://github.com/WasmEdge/wasmedge-rust-sdk). The table below is preserved for historical reference and may be outdated. Please refer to the new repository for up-to-date versioning and documentation.
 
 The following table provides the versioning information about each crate of WasmEdge Rust bindings.
 

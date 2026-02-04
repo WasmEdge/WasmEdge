@@ -475,9 +475,16 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
 
     if (Idx >= CompCtx.getComponentInstanceExportsSize()) {
       spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error(
-          "    Alias export: Export index {} exceeds available component instance index {}"sv,
-          Idx, CompCtx.getComponentInstanceExportsSize());
+      auto Size = CompCtx.getComponentInstanceExportsSize();
+      if (Size == 0) {
+        spdlog::error(
+            "    Alias export: Instance index {} invalid, no component instances available"sv,
+            Idx);
+      } else {
+        spdlog::error(
+            "    Alias export: Instance index {} exceeds available instances (max index: {})"sv,
+            Idx, Size - 1);
+      }
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
@@ -485,26 +492,31 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     if (It == CompExports.cend()) {
       spdlog::error(ErrCode::Value::ExportNotFound);
       spdlog::error(
-          "    Alias export: No matching export '{}' found in component instance index {}"sv,
-          Name, Idx);
+          "    Alias export: instance {} has no export named `{}`"sv,
+          Idx, Name);
       return Unexpect(ErrCode::Value::ExportNotFound);
     }
 
     const auto *ExternDesc = It->second;
     AST::Component::Sort::SortType ST;
+    std::string_view ActualType;
     switch (ExternDesc->getDescType()) {
     case AST::Component::ExternDesc::DescType::FuncType:
       ST = AST::Component::Sort::SortType::Func;
+      ActualType = "func"sv;
       break;
     case AST::Component::ExternDesc::DescType::ValueBound:
     case AST::Component::ExternDesc::DescType::TypeBound:
       ST = AST::Component::Sort::SortType::Type;
+      ActualType = "type"sv;
       break;
     case AST::Component::ExternDesc::DescType::ComponentType:
       ST = AST::Component::Sort::SortType::Component;
+      ActualType = "component"sv;
       break;
     case AST::Component::ExternDesc::DescType::InstanceType:
       ST = AST::Component::Sort::SortType::Instance;
+      ActualType = "instance"sv;
       break;
     case AST::Component::ExternDesc::DescType::CoreType:
     default:
@@ -514,9 +526,31 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     if (ST != Sort.getSortType()) {
+      std::string_view ExpectedType;
+      switch (Sort.getSortType()) {
+      case AST::Component::Sort::SortType::Func:
+        ExpectedType = "func"sv;
+        break;
+      case AST::Component::Sort::SortType::Value:
+        ExpectedType = "value"sv;
+        break;
+      case AST::Component::Sort::SortType::Type:
+        ExpectedType = "type"sv;
+        break;
+      case AST::Component::Sort::SortType::Component:
+        ExpectedType = "component"sv;
+        break;
+      case AST::Component::Sort::SortType::Instance:
+        ExpectedType = "instance"sv;
+        break;
+      default:
+        ExpectedType = "unknown"sv;
+        break;
+      }
       spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error("    Alias export: Type mapping mismatch for export '{}'"sv,
-                    Name);
+      spdlog::error(
+          "    Alias export: export `{}` for instance {} is not a {} (actual: {})"sv,
+          Name, Idx, ExpectedType, ActualType);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     return {};
@@ -535,9 +569,16 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
 
     if (Idx >= CompCtx.getCoreInstanceExportsSize()) {
       spdlog::error(ErrCode::Value::InvalidIndex);
-      spdlog::error(
-          "    Alias core:export: Export index {} exceeds available core instance index {}"sv,
-          Idx, CompCtx.getCoreInstanceExportsSize() - 1);
+      auto Size = CompCtx.getCoreInstanceExportsSize();
+      if (Size == 0) {
+        spdlog::error(
+            "    Alias core:export: Core instance index {} invalid, no core instances available"sv,
+            Idx);
+      } else {
+        spdlog::error(
+            "    Alias core:export: Core instance index {} exceeds available core instances (max index: {})"sv,
+            Idx, Size - 1);
+      }
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
@@ -545,25 +586,30 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     if (It == CoreExports.end()) {
       spdlog::error(ErrCode::Value::ExportNotFound);
       spdlog::error(
-          "    Alias core:export: No matching export '{}' found in core instance index {}"sv,
-          Name, Idx);
+          "    Alias core:export: core instance {} has no export named `{}`"sv,
+          Idx, Name);
       return Unexpect(ErrCode::Value::ExportNotFound);
     }
 
     const auto ExternTy = It->second;
     AST::Component::Sort::CoreSortType ST;
+    std::string_view ActualType;
     switch (ExternTy) {
     case ExternalType::Function:
       ST = AST::Component::Sort::CoreSortType::Func;
+      ActualType = "func"sv;
       break;
     case ExternalType::Table:
       ST = AST::Component::Sort::CoreSortType::Table;
+      ActualType = "table"sv;
       break;
     case ExternalType::Memory:
       ST = AST::Component::Sort::CoreSortType::Memory;
+      ActualType = "memory"sv;
       break;
     case ExternalType::Global:
       ST = AST::Component::Sort::CoreSortType::Global;
+      ActualType = "global"sv;
       break;
     case ExternalType::Tag:
     default:
@@ -574,10 +620,37 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     if (ST != Sort.getCoreSortType()) {
+      std::string_view ExpectedType;
+      switch (Sort.getCoreSortType()) {
+      case AST::Component::Sort::CoreSortType::Func:
+        ExpectedType = "func"sv;
+        break;
+      case AST::Component::Sort::CoreSortType::Table:
+        ExpectedType = "table"sv;
+        break;
+      case AST::Component::Sort::CoreSortType::Memory:
+        ExpectedType = "memory"sv;
+        break;
+      case AST::Component::Sort::CoreSortType::Global:
+        ExpectedType = "global"sv;
+        break;
+      case AST::Component::Sort::CoreSortType::Type:
+        ExpectedType = "type"sv;
+        break;
+      case AST::Component::Sort::CoreSortType::Module:
+        ExpectedType = "module"sv;
+        break;
+      case AST::Component::Sort::CoreSortType::Instance:
+        ExpectedType = "instance"sv;
+        break;
+      default:
+        ExpectedType = "unknown"sv;
+        break;
+      }
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
-          "    Alias core:export: Type mapping mismatch for export '{}'"sv,
-          Name);
+          "    Alias core:export: export `{}` for core instance {} is not a {} (actual: {})"sv,
+          Name, Idx, ExpectedType, ActualType);
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     return {};
@@ -595,8 +668,8 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     if (TargetCtx == nullptr) {
       spdlog::error(ErrCode::Value::InvalidIndex);
       spdlog::error(
-          "    Alias outer: Component out-link count {} is exceeding the enclosing component count {}"sv,
-          Ct, OutLinkCompCnt);
+          "    Alias outer: invalid outer alias count of {}"sv,
+          Ct);
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
@@ -611,9 +684,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       }
       if (Idx >= TargetCtx->getCoreSortIndexSize(Sort.getCoreSortType())) {
         spdlog::error(ErrCode::Value::InvalidIndex);
-        spdlog::error(
-            "    Alias outer: core:sort index {} invalid in component context"sv,
-            Idx);
+        spdlog::error("    Alias outer: index out of bounds"sv);
         return Unexpect(ErrCode::Value::InvalidIndex);
       }
     } else {
@@ -626,9 +697,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       }
       if (Idx >= TargetCtx->getSortIndexSize(Sort.getSortType())) {
         spdlog::error(ErrCode::Value::InvalidIndex);
-        spdlog::error(
-            "    Alias outer: sort index {} invalid in component context"sv,
-            Idx);
+        spdlog::error("    Alias outer: index out of bounds"sv);
         return Unexpect(ErrCode::Value::InvalidIndex);
       }
       if (Sort.getSortType() == AST::Component::Sort::SortType::Type) {

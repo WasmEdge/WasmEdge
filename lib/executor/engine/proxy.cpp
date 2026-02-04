@@ -604,6 +604,14 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;
+  // Check if the function type matches the expected type.
+  // The matching has two steps:
+  // 1. If the function instance is in the same module instance, we can check
+  // the
+  //    type index directly. This is the fast path.
+  // 2. If the type index is not the same, we still need to check the type
+  //    structure. This is because the type alias may have different type
+  //    indices but the same type structure.
   if (FuncInst->getModule() == ModInst &&
       *ExpDefType.getTypeIndex() == FuncInst->getTypeIndex()) {
     IsMatch = true;

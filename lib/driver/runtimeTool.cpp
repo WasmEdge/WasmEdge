@@ -23,6 +23,25 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Driver {
 
+// Helper template to parse numeric arguments and catch conversion exceptions
+template <typename T, typename Converter>
+inline bool parseNumericArg(const std::string &Value, size_t ParamIndex, T &Out,
+                            Converter Conv) {
+  try {
+    Out = Conv(Value);
+    return true;
+  } catch (const std::invalid_argument &) {
+    spdlog::error(
+        "Invalid argument '{}' for parameter {}: expected numeric value"sv,
+        Value, ParamIndex);
+    return false;
+  } catch (const std::out_of_range &) {
+    spdlog::error("Argument '{}' for parameter {}: value out of range"sv, Value,
+                  ParamIndex);
+    return false;
+  }
+}
+
 static int
 ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
              std::optional<std::chrono::system_clock::time_point> Timeout,
@@ -35,67 +54,68 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
        I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
        ++I) {
     const auto TCode = FuncType.getParamTypes()[I].getCode();
-    try {
-      switch (TCode) {
-      case TypeCode::I32: {
-        const int32_t Value =
-            static_cast<int32_t>(std::stol(Opt.Args.value()[I + 1]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
+    const std::string &ArgValue = Opt.Args.value()[I + 1];
+
+    switch (TCode) {
+    case TypeCode::I32: {
+      int32_t Value = 0;
+      if (!parseNumericArg(ArgValue, I, Value, [](const std::string &S) {
+            return static_cast<int32_t>(std::stol(S));
+          })) {
+        return EXIT_FAILURE;
       }
-      case TypeCode::I64: {
-        const int64_t Value =
-            static_cast<int64_t>(std::stoll(Opt.Args.value()[I + 1]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    case TypeCode::I64: {
+      int64_t Value = 0;
+      if (!parseNumericArg(ArgValue, I, Value, [](const std::string &S) {
+            return static_cast<int64_t>(std::stoll(S));
+          })) {
+        return EXIT_FAILURE;
       }
-      case TypeCode::F32: {
-        const float Value = std::stof(Opt.Args.value()[I + 1]);
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    case TypeCode::F32: {
+      float Value = 0.0f;
+      if (!parseNumericArg(ArgValue, I, Value,
+                           [](const std::string &S) { return std::stof(S); })) {
+        return EXIT_FAILURE;
       }
-      case TypeCode::F64: {
-        const double Value = std::stod(Opt.Args.value()[I + 1]);
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    case TypeCode::F64: {
+      double Value = 0.0;
+      if (!parseNumericArg(ArgValue, I, Value,
+                           [](const std::string &S) { return std::stod(S); })) {
+        return EXIT_FAILURE;
       }
-      // TODO: FuncRef and ExternRef
-      default:
-        break;
-      }
-    } catch (const std::invalid_argument &) {
-      spdlog::error(
-          "Invalid argument '{}' for parameter {}: expected numeric value"sv,
-          Opt.Args.value()[I + 1], I);
-      return EXIT_FAILURE;
-    } catch (const std::out_of_range &) {
-      spdlog::error("Argument '{}' for parameter {}: value out of range"sv,
-                    Opt.Args.value()[I + 1], I);
-      return EXIT_FAILURE;
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    // TODO: FuncRef and ExternRef
+    default:
+      break;
     }
   }
   if (FuncType.getParamTypes().size() + 1 < Opt.Args.value().size()) {
     for (size_t I = FuncType.getParamTypes().size() + 1;
          I < Opt.Args.value().size(); ++I) {
-      try {
-        const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TypeCode::I64);
-      } catch (const std::invalid_argument &) {
-        spdlog::error(
-            "Invalid argument '{}' for parameter {}: expected numeric value"sv,
-            Opt.Args.value()[I], I);
-        return EXIT_FAILURE;
-      } catch (const std::out_of_range &) {
-        spdlog::error("Argument '{}' for parameter {}: value out of range"sv,
-                      Opt.Args.value()[I], I);
+      uint64_t Value = 0;
+      if (!parseNumericArg(Opt.Args.value()[I], I, Value,
+                           [](const std::string &S) {
+                             return static_cast<uint64_t>(std::stoll(S));
+                           })) {
         return EXIT_FAILURE;
       }
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TypeCode::I64);
     }
   }
 
@@ -167,75 +187,76 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
        I < FuncType.getParamList().size() && I + 1 < Opt.Args.value().size();
        ++I) {
     const auto TCode = FuncType.getParamList()[I].getValType().getCode();
-    try {
-      switch (TCode) {
-      case ComponentTypeCode::S32:
-      case ComponentTypeCode::U32: {
-        const uint32_t Value =
-            static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
+    const std::string &ArgValue = Opt.Args.value()[I + 1];
+
+    switch (TCode) {
+    case ComponentTypeCode::S32:
+    case ComponentTypeCode::U32: {
+      uint32_t Value = 0;
+      if (!parseNumericArg(ArgValue, I, Value, [](const std::string &S) {
+            return static_cast<uint32_t>(std::stol(S));
+          })) {
+        return EXIT_FAILURE;
       }
-      case ComponentTypeCode::S64:
-      case ComponentTypeCode::U64: {
-        const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    case ComponentTypeCode::S64:
+    case ComponentTypeCode::U64: {
+      uint64_t Value = 0;
+      if (!parseNumericArg(ArgValue, I, Value, [](const std::string &S) {
+            return static_cast<uint64_t>(std::stoll(S));
+          })) {
+        return EXIT_FAILURE;
       }
-      case ComponentTypeCode::F32: {
-        const float Value = std::stof(Opt.Args.value()[I + 1]);
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    case ComponentTypeCode::F32: {
+      float Value = 0.0f;
+      if (!parseNumericArg(ArgValue, I, Value,
+                           [](const std::string &S) { return std::stof(S); })) {
+        return EXIT_FAILURE;
       }
-      case ComponentTypeCode::F64: {
-        const double Value = std::stod(Opt.Args.value()[I + 1]);
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    case ComponentTypeCode::F64: {
+      double Value = 0.0;
+      if (!parseNumericArg(ArgValue, I, Value,
+                           [](const std::string &S) { return std::stod(S); })) {
+        return EXIT_FAILURE;
       }
-      case ComponentTypeCode::String: {
-        const std::string Value = Opt.Args.value()[I + 1];
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(TCode);
-        break;
-      }
-      // TODO: COMPONENT - other types.
-      default:
-        break;
-      }
-    } catch (const std::invalid_argument &) {
-      spdlog::error(
-          "Invalid argument '{}' for parameter {}: expected numeric value"sv,
-          Opt.Args.value()[I + 1], I);
-      return EXIT_FAILURE;
-    } catch (const std::out_of_range &) {
-      spdlog::error("Argument '{}' for parameter {}: value out of range"sv,
-                    Opt.Args.value()[I + 1], I);
-      return EXIT_FAILURE;
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    case ComponentTypeCode::String: {
+      const std::string Value = Opt.Args.value()[I + 1];
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    // TODO: COMPONENT - other types.
+    default:
+      break;
     }
   }
   if (FuncType.getParamList().size() + 1 < Opt.Args.value().size()) {
     for (size_t I = FuncType.getParamList().size() + 1;
          I < Opt.Args.value().size(); ++I) {
-      try {
-        const uint64_t Value =
-            static_cast<uint64_t>(std::stoll(Opt.Args.value()[I]));
-        FuncArgs.emplace_back(Value);
-        FuncArgTypes.emplace_back(ComponentTypeCode::U64);
-      } catch (const std::invalid_argument &) {
-        spdlog::error(
-            "Invalid argument '{}' for parameter {}: expected numeric value"sv,
-            Opt.Args.value()[I], I);
-        return EXIT_FAILURE;
-      } catch (const std::out_of_range &) {
-        spdlog::error("Argument '{}' for parameter {}: value out of range"sv,
-                      Opt.Args.value()[I], I);
+      uint64_t Value = 0;
+      if (!parseNumericArg(Opt.Args.value()[I], I, Value,
+                           [](const std::string &S) {
+                             return static_cast<uint64_t>(std::stoll(S));
+                           })) {
         return EXIT_FAILURE;
       }
+      FuncArgs.emplace_back(Value);
+      FuncArgTypes.emplace_back(ComponentTypeCode::U64);
     }
   }
 

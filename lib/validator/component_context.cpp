@@ -90,15 +90,12 @@ bool ComponentContext::Context::AddImportedName(
 }
 bool ComponentContext::Context::addExportName(
     const ComponentName &Name) noexcept {
-  // Get the actual string name from the ComponentName object
   std::string ExportName(Name.getOriginalName());
 
-  // Check if this name is already in the set of exported names
   if (ExportedNames.count(ExportName) > 0) {
-    return false; // Duplicate found, return failure
+    return false; 
   }
 
-  // Insert the new name and return success
   ExportedNames.insert(ExportName);
   return true;
 }

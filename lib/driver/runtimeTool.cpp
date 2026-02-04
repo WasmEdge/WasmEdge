@@ -354,6 +354,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.getStatisticsConfigure().setCostLimit(
         static_cast<uint32_t>(Opt.GasLim.value().back()));
   }
+  if (Opt.MaxWasiFd.value() > 0) {
+    Conf.getRuntimeConfigure().setMaxWasiFd(Opt.MaxWasiFd.value());
+  }
   if (Opt.MemLim.value().size() > 0) {
     Conf.getRuntimeConfigure().setMaxMemoryPage(
         static_cast<uint32_t>(Opt.MemLim.value().back()));

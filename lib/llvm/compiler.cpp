@@ -4610,11 +4610,19 @@ private:
     if constexpr (kForceUnalignment) {
       Alignment = 0;
     }
-    auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
-    if (Offset != 0) {
-      Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
-    }
 
+    // [FIX] Enforce 32-bit integer wrapping for address calculation.
+    // We add the offset to the 32-bit base *before* extending to 64-bit.
+    // This ensures that (MAX_UINT + 1) wraps to 0, consistent with Wasm32 spec,
+    // avoiding false OOB traps on valid wrap-around logic.
+    auto Base = stackPop();
+    if (Offset != 0) {
+      Base = Builder.createAdd(Base, LLContext.getInt32(Offset));
+    }
+    auto Off = Builder.createZExt(Base, Context.Int64Ty);
+
+    // We can safely use createInBoundsGEP1 now because the address is
+    // guaranteed to be wrapped within the 32-bit range.
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
@@ -4670,10 +4678,13 @@ private:
       Alignment = 0;
     }
     auto V = stackPop();
-    auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
+
+    // [FIX] Enforce 32-bit integer wrapping for address calculation.
+    auto Base = stackPop();
     if (Offset != 0) {
-      Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
+      Base = Builder.createAdd(Base, LLContext.getInt32(Offset));
     }
+    auto Off = Builder.createZExt(Base, Context.Int64Ty);
 
     if (Trunc) {
       V = Builder.createTrunc(V, LoadTy);
@@ -4682,6 +4693,7 @@ private:
       V = Builder.createBitCast(V, LoadTy);
     }
     V = switchEndian(V);
+
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());

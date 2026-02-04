@@ -16,6 +16,7 @@
 #pragma once
 
 #include "ctx.h"
+#include "secrets_manager/options.h"
 #include "symmetric/registered.h"
 #include "utils/error.h"
 
@@ -64,6 +65,7 @@ cast(uint64_t AlgType) noexcept {
   case __WASI_ALGORITHM_TYPE_SIGNATURES:
   case __WASI_ALGORITHM_TYPE_SYMMETRIC:
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
+  case SecretsManager::AlgorithmType:
     return static_cast<__wasi_algorithm_type_e_t>(AlgType);
   default:
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);

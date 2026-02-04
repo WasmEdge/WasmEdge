@@ -604,7 +604,9 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;
-  if (FuncInst->getModule()) {
+  if (FuncInst->getModule() == ModInst) {
+    IsMatch = (*ExpDefType.getTypeIndex() == FuncInst->getTypeIndex());
+  } else if (FuncInst->getModule()) {
     IsMatch = AST::TypeMatcher::matchType(
         ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
         FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());

@@ -1011,8 +1011,9 @@ Validator::validate(const AST::Component::RecordTy &Record) noexcept {
     }
 
     std::string LowerLabel(Label);
-    std::transform(LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(
+        LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     auto It = SeenNames.find(LowerLabel);
     if (It != SeenNames.end()) {
@@ -1049,8 +1050,9 @@ Validator::validate(const AST::Component::VariantTy &Variant) noexcept {
     }
 
     std::string LowerLabel(Case.first);
-    std::transform(LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(
+        LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     auto It = SeenLabels.find(LowerLabel);
     if (It != SeenLabels.end()) {
@@ -1092,8 +1094,9 @@ Validator::validate(const AST::Component::FlagsTy &Flags) noexcept {
     }
 
     std::string LowerLabel(Label);
-    std::transform(LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(
+        LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     auto It = SeenNames.find(LowerLabel);
     if (It != SeenNames.end()) {
@@ -1124,8 +1127,9 @@ Expect<void> Validator::validate(const AST::Component::EnumTy &Enum) noexcept {
     }
 
     std::string LowerLabel(Label);
-    std::transform(LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(
+        LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     auto It = SeenNames.find(LowerLabel);
     if (It != SeenNames.end()) {

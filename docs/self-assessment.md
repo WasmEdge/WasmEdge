@@ -38,6 +38,7 @@ A table at the top for quick reference information, later used for indexing.
 | Security file | https://github.com/WasmEdge/WasmEdge/blob/master/SECURITY.md |
 | Embargo policy | https://github.com/WasmEdge/WasmEdge/blob/master/docs/embargo-policy.md |
 | Security contacts | https://github.com/WasmEdge/WasmEdge/blob/master/docs/SECURITY_CONTACTS.md |
+| SPIFFE/SPIRE compatibility | https://github.com/WasmEdge/WasmEdge/blob/master/docs/spiffe-spire.md |
 
 ### Overview
 

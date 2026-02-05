@@ -165,22 +165,22 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           switch (Sort.getCoreSortType()) {
           case AST::Component::Sort::CoreSortType::Func:
             Comp->addCoreFunction(CompInst.getCoreFunction(Idx));
-            Comp->exportCoreFunction(Exp.getName(), CoreExpIdx[0]);
+            Comp->exportCoreFunction(Exp.getName().Name, CoreExpIdx[0]);
             CoreExpIdx[0]++;
             break;
           case AST::Component::Sort::CoreSortType::Table:
             Comp->addCoreTable(CompInst.getCoreTable(Idx));
-            Comp->exportCoreTable(Exp.getName(), CoreExpIdx[1]);
+            Comp->exportCoreTable(Exp.getName().Name, CoreExpIdx[1]);
             CoreExpIdx[1]++;
             break;
           case AST::Component::Sort::CoreSortType::Memory:
             Comp->addCoreMemory(CompInst.getCoreMemory(Idx));
-            Comp->exportCoreMemory(Exp.getName(), CoreExpIdx[2]);
+            Comp->exportCoreMemory(Exp.getName().Name, CoreExpIdx[2]);
             CoreExpIdx[2]++;
             break;
           case AST::Component::Sort::CoreSortType::Global:
             Comp->addCoreGlobal(CompInst.getCoreGlobal(Idx));
-            Comp->exportCoreGlobal(Exp.getName(), CoreExpIdx[3]);
+            Comp->exportCoreGlobal(Exp.getName().Name, CoreExpIdx[3]);
             CoreExpIdx[3]++;
             break;
           case AST::Component::Sort::CoreSortType::Type:
@@ -188,7 +188,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           case AST::Component::Sort::CoreSortType::Instance:
             // TODO: COMPONENT - complete the instance instantiation.
             spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-            spdlog::error("    incomplete inline export {}"sv, Exp.getName());
+            spdlog::error("    incomplete inline export {}"sv,
+                          Exp.getName().Name);
             return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
           default:
             assumingUnreachable();
@@ -197,12 +198,12 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           switch (Sort.getSortType()) {
           case AST::Component::Sort::SortType::Func:
             Comp->addFunction(CompInst.getFunction(Idx));
-            Comp->exportFunction(Exp.getName(), ExpIdx[0]);
+            Comp->exportFunction(Exp.getName().Name, ExpIdx[0]);
             ExpIdx[0]++;
             break;
           case AST::Component::Sort::SortType::Instance:
             Comp->addComponentInstance(CompInst.getComponentInstance(Idx));
-            Comp->exportComponentInstance(Exp.getName(), ExpIdx[4]);
+            Comp->exportComponentInstance(Exp.getName().Name, ExpIdx[4]);
             ExpIdx[4]++;
             break;
           case AST::Component::Sort::SortType::Value:
@@ -210,7 +211,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           case AST::Component::Sort::SortType::Component:
             // TODO: COMPONENT - complete the instance instantiation.
             spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-            spdlog::error("    incomplete inline export {}"sv, Exp.getName());
+            spdlog::error("    incomplete inline export {}"sv,
+                          Exp.getName().Name);
             return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
           default:
             assumingUnreachable();

@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/declarator.h"
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
 
@@ -31,15 +32,15 @@ namespace Component {
 /// AST Component::Export node.
 class Export {
 public:
-  std::string &getName() noexcept { return Name; }
-  std::string_view getName() const noexcept { return Name; }
+  ComponentName &getName() noexcept { return Name; }
+  const ComponentName &getName() const noexcept { return Name; }
   SortIndex &getSortIndex() noexcept { return SortIdx; }
   const SortIndex &getSortIndex() const noexcept { return SortIdx; }
   std::optional<ExternDesc> &getDesc() noexcept { return Desc; }
   const std::optional<ExternDesc> &getDesc() const noexcept { return Desc; }
 
 private:
-  std::string Name;
+  ComponentName Name;
   SortIndex SortIdx;
   std::optional<ExternDesc> Desc;
 };

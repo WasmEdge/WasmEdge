@@ -6,16 +6,33 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadExternName(std::string &Name) {
+Expect<void> Loader::loadExternName(AST::Component::ComponentName &CompName) {
   // importname' ::= 0x00 len:<u32> in:<importname> => in (if len = |in|)
   // exportname' ::= 0x00 len:<u32> en:<exportname> => en (if len = |en|)
 
-  // Error messages will be handled in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte());
   if (B != 0x00) {
     return Unexpect(ErrCode::Value::MalformedName);
   }
-  EXPECTED_TRY(Name, FMgr.readName());
+  EXPECTED_TRY(CompName.Name, FMgr.readName());
+
+  if (auto AtPos = CompName.Name.find('@'); AtPos != std::string::npos) {
+    CompName.Kind = AST::Component::ComponentName::Category::Scoped;
+    CompName.Version = CompName.Name.substr(AtPos + 1);
+    CompName.Name = CompName.Name.substr(0, AtPos);
+  }
+
+  if (auto ColonPos = CompName.Name.find(':'); ColonPos != std::string::npos) {
+    if (CompName.Name.compare(0, 10, "integrity-") == 0) {
+      CompName.Kind = AST::Component::ComponentName::Category::Hash;
+      CompName.Hash = CompName.Name.substr(ColonPos + 1);
+      CompName.Name = CompName.Name.substr(0, ColonPos);
+    } else {
+      CompName.Kind = AST::Component::ComponentName::Category::Scoped;
+      CompName.Namespace = CompName.Name.substr(0, ColonPos);
+      CompName.Package = CompName.Name.substr(ColonPos + 1);
+    }
+  }
   return {};
 }
 

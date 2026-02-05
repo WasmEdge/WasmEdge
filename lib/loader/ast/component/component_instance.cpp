@@ -36,7 +36,7 @@ Expect<void> Loader::loadCoreInstance(AST::Component::CoreInstance &Instance) {
   };
 
   auto LoadInlineExp =
-      [this](AST::Component::InlineExport &Exp) -> Expect<void> {
+      [this](AST::Component::CoreInlineExport &Exp) -> Expect<void> {
     // core:inlineexport ::= n:<core:name> si:<core:sortidx> => (export n si)
     EXPECTED_TRY(Exp.getName(), FMgr.readName().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(),
@@ -58,7 +58,7 @@ Expect<void> Loader::loadCoreInstance(AST::Component::CoreInstance &Instance) {
     return {};
   }
   case 0x01: {
-    std::vector<AST::Component::InlineExport> Exports;
+    std::vector<AST::Component::CoreInlineExport> Exports;
     EXPECTED_TRY(loadVec<AST::Component::CoreInstance>(Exports, LoadInlineExp));
     Instance.setInlineExports(std::move(Exports));
     return {};
@@ -97,7 +97,7 @@ Expect<void> Loader::loadInstance(AST::Component::Instance &Instance) {
   auto LoadInlineExp =
       [this](AST::Component::InlineExport &Exp) -> Expect<void> {
     // inlineexport ::= n:<exportname> si:<sortidx> => (export n si)
-    EXPECTED_TRY(Exp.getName(), FMgr.readName().map_error([this](auto E) {
+    EXPECTED_TRY(loadExternName(Exp.getName()).map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_InlineExport);
     }));

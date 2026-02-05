@@ -5,6 +5,7 @@
 #include "common/spdlog.h"
 #include "validator/component_name.h"
 #include "validator/validator.h"
+
 #include <algorithm>
 #include <cctype>
 #include <unordered_map>
@@ -965,7 +966,6 @@ Validator::validate(const AST::Component::InstanceDecl &) noexcept {
 
 Expect<void>
 Validator::validateComponentValType(const ComponentValType &ValTy) noexcept {
-
   // Primitive types need no validation
   if (ValTy.isPrimValType()) {
     return {};
@@ -988,13 +988,11 @@ Validator::validateComponentValType(const ComponentValType &ValTy) noexcept {
     spdlog::error("    type index {} is not a defined type"sv, TypeIdx);
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
-
   return {};
 }
 
 Expect<void>
 Validator::validate(const AST::Component::RecordTy &Record) noexcept {
-
   if (Record.LabelTypes.empty()) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error("    record type must have at least one field"sv);
@@ -1033,7 +1031,6 @@ Validator::validate(const AST::Component::RecordTy &Record) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::VariantTy &Variant) noexcept {
-
   if (Variant.Cases.empty()) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error("    variant type must have at least one case"sv);
@@ -1068,13 +1065,11 @@ Validator::validate(const AST::Component::VariantTy &Variant) noexcept {
       EXPECTED_TRY(validateComponentValType(*Case.second));
     }
   }
-
   return {};
 }
 
 Expect<void>
 Validator::validate(const AST::Component::FlagsTy &Flags) noexcept {
-
   if (Flags.Labels.empty()) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error("    flags type must have at least one flag"sv);
@@ -1113,7 +1108,6 @@ Validator::validate(const AST::Component::FlagsTy &Flags) noexcept {
 }
 
 Expect<void> Validator::validate(const AST::Component::EnumTy &Enum) noexcept {
-
   if (Enum.Labels.empty()) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error("    enum type must have at least one tag"sv);
@@ -1147,7 +1141,6 @@ Expect<void> Validator::validate(const AST::Component::EnumTy &Enum) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::TupleTy &Tuple) noexcept {
-
   if (Tuple.Types.empty()) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error("    tuple type must have at least one element"sv);
@@ -1157,7 +1150,6 @@ Validator::validate(const AST::Component::TupleTy &Tuple) noexcept {
   for (const auto &Ty : Tuple.Types) {
     EXPECTED_TRY(validateComponentValType(Ty));
   }
-
   return {};
 }
 

@@ -245,10 +245,10 @@ public:
     }
   }
 
-
   bool AddImportedName(const ComponentName &Name) noexcept {
     return getCurrentContext().AddImportedName(Name);
   }
+
   void addDefValType(uint32_t Idx) {
     auto &Ctx = getCurrentContext();
     Ctx.DefValTypeIndices.insert(Idx);

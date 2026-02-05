@@ -802,31 +802,62 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
 
 Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   if (Ex.getDesc().has_value()) {
+    const auto &Desc = *Ex.getDesc();
     EXPECTED_TRY(validate(*Ex.getDesc()).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
       return E;
     }));
-  }
+  const auto &Sort = Ex.getSortIndex().getSort();
+    bool IsMatched = false;
 
-  ComponentName CName(Ex.getName());
-  switch (CName.getKind()) {
-  case ComponentNameKind::Constructor:
-  case ComponentNameKind::Method:
-  case ComponentNameKind::Static:
-  case ComponentNameKind::InterfaceType:
-  case ComponentNameKind::Label:
-    if (!CompCtx.addExportName(CName)) {
-      spdlog::error(ErrCode::Value::ComponentDuplicateName);
-      spdlog::error("    Export: Duplicate export name '{}'"sv, Ex.getName());
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-      return Unexpect(ErrCode::Value::ComponentDuplicateName);
+    switch (Desc.getDescType()) {
+    case AST::Component::ExternDesc::DescType::CoreType:
+      if (Sort.isCore()) {
+        IsMatched = Sort.getCoreSortType() == AST::Component::Sort::CoreSortType::Type;
+      }
+      break;
+    case AST::Component::ExternDesc::DescType::FuncType:
+      if (!Sort.isCore()) {
+        IsMatched = Sort.getSortType() == AST::Component::Sort::SortType::Func;
+      }
+      break;
+    case AST::Component::ExternDesc::DescType::ValueBound:
+      if (!Sort.isCore()) {
+        IsMatched = Sort.getSortType() == AST::Component::Sort::SortType::Value;
+      }
+      break;
+    case AST::Component::ExternDesc::DescType::TypeBound:
+      if (!Sort.isCore()) {
+        IsMatched = Sort.getSortType() == AST::Component::Sort::SortType::Type;
+      }
+      break;
+    case AST::Component::ExternDesc::DescType::ComponentType:
+      if (!Sort.isCore()) {
+        IsMatched = Sort.getSortType() == AST::Component::Sort::SortType::Component;
+      }
+      break;
+    case AST::Component::ExternDesc::DescType::InstanceType:
+      if (!Sort.isCore()) {
+        IsMatched = Sort.getSortType() == AST::Component::Sort::SortType::Instance;
+      }
+      break;
+    default:
+      break;
     }
-    break;
-  default:
-    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
-    spdlog::error("    Export: Export name kind not supported yet"sv);
+
+    if (!IsMatched) {
+      spdlog::error(ErrCode::Value::ArgTypeMismatch); 
+      spdlog::error("    Export: Type ascription mismatch. Exported item sort does not match ascribed type sort."sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+      return Unexpect(ErrCode::Value::ArgTypeMismatch);
+    }
+  }
+  ComponentName CName(Ex.getName());
+  if (!CompCtx.addExportName(CName)) {
+    spdlog::error(ErrCode::Value::ComponentDuplicateName);
+    spdlog::error("    Export: Duplicate export name '{}'"sv, Ex.getName());
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
+    return Unexpect(ErrCode::Value::ComponentDuplicateName);
   }
 
   const auto &SortIdx = Ex.getSortIndex();

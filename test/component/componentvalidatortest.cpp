@@ -143,5 +143,167 @@ TEST(ComponentValidatorTest, TypeMismatch) {
   WasmEdge::Validator::Validator Validator(Conf);
   ASSERT_FALSE(Validator.validate(Comp));
 }
+TEST(ComponentValidatorTest, Export_NameUniqueness) {
+  AST::Component::Component Comp;
 
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "imported-func"; 
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec = std::get<AST::Component::ExportSection>(Comp.getSections().back());
+
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "my-export"; 
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "my-export";
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  ExpSec.getContent().back().getSortIndex().setIdx(0);
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+TEST(ComponentValidatorTest, Export_Valid_ExportingImport) {
+  AST::Component::Component Comp;
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "imported-func";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec = std::get<AST::Component::ExportSection>(Comp.getSections().back());
+
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "exported-func";
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  
+  ExpSec.getContent().back().getSortIndex().setIdx(0); 
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+
+  ASSERT_TRUE(Validator.validate(Comp));
+}
+TEST(ComponentValidatorTest, Export_IndexOutOfBounds) {
+  AST::Component::Component Comp;
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec = std::get<AST::Component::ExportSection>(Comp.getSections().back());
+
+  ExpSec.getContent().emplace_back();
+  ExpSec.getContent().back().getName() = "bar";
+  ExpSec.getContent().back().getSortIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  ExpSec.getContent().back().getSortIndex().setIdx(99);
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+
+  ASSERT_FALSE(Validator.validate(Comp));
+}
+TEST(ComponentValidatorTest, Export_TypeAscription_Valid) {
+  AST::Component::Component Comp;
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "imported-func";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec = std::get<AST::Component::ExportSection>(Comp.getSections().back());
+
+  ExpSec.getContent().emplace_back();
+  auto &Exp = ExpSec.getContent().back();
+  Exp.getName() = "f2";
+  
+  Exp.getSortIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  Exp.getSortIndex().setIdx(0);
+
+  Exp.getDesc().emplace(); 
+  Exp.getDesc()->setFuncTypeIdx(0); 
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+
+  ASSERT_TRUE(Validator.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, Export_TypeAscription_Mismatch) {
+  AST::Component::Component Comp;
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "imported-func";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec = std::get<AST::Component::ExportSection>(Comp.getSections().back());
+
+  ExpSec.getContent().emplace_back();
+  auto &Exp = ExpSec.getContent().back();
+  Exp.getName() = "f2";
+  
+  Exp.getSortIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  Exp.getSortIndex().setIdx(0);
+
+  Exp.getDesc().emplace();
+  Exp.getDesc()->setComponentTypeIdx(0);
+
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  Validator::Validator Validator(Conf);
+
+  ASSERT_FALSE(Validator.validate(Comp));
+}
 } // namespace

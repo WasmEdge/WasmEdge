@@ -1,4 +1,4 @@
-# SPIFFE/SPIRE Compatibility and Non-Human Identity in WasmEdge
+# SPIFFE/SPIRE Compatibility and Non-Human Identity Management in WasmEdge
 
 ## Summary
 

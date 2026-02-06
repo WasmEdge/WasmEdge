@@ -63,10 +63,17 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
+      - name: Verify Piper Dependencies (Debug)
+        if: ${{ contains(matrix.plugin, 'piper') }}
+        run: |
+          echo "Checking for rescued libraries..."
+          ls -l /usr/local/lib/libespeak-ng.a || echo "❌ LibEspeak NOT FOUND"
+          ls -l /usr/local/lib/libucd.a || echo "❌ LibUCD NOT FOUND"
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
           [ "${{ matrix.plugin }}" == "wasi_nn-openvino-genai" ] && source /root/openvino_genai/setupvars.sh
+          PIPER_INSTALL_PATH="/usr/local"
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
             -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
@@ -74,6 +81,7 @@ jobs:
             -DWASMEDGE_USE_LLVM=OFF \
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
             -DWASMEDGE_USE_CXX11_ABI=${{ startsWith(inputs.asset_tag, 'manylinux_2_28') && 'OFF' || 'ON' }} \
+            -DPIPER_ROOT="$PIPER_INSTALL_PATH" \
             ${{ matrix.options }}
           cmake --build build --target ${target}
 

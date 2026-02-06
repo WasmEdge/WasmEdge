@@ -74,7 +74,11 @@ class ModuleInstance {
 public:
   ModuleInstance(std::string_view Name, void *Data = nullptr,
                  std::function<void(void *)> Finalizer = nullptr)
-      : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {}
+      : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {
+    auto InitialTypes = std::make_unique<std::vector<const AST::SubType *>>();
+    AtomicTypes.store(InitialTypes.get(), std::memory_order_relaxed);
+    TypeSnapshots.push_back(std::move(InitialTypes));
+  }
   virtual ~ModuleInstance() noexcept {
     // When destroying this module instance, call the callbacks to unlink to the
     // store managers.
@@ -126,14 +130,21 @@ public:
     unsafeAddHostInstance(
         Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
         std::make_unique<FunctionInstance>(
-            this, static_cast<uint32_t>(Types.size()) - 1, std::move(Func)));
+            this,
+            static_cast<uint32_t>(
+                AtomicTypes.load(std::memory_order_relaxed)->size()) -
+                1,
+            std::move(Func)));
   }
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<FunctionInstance> &&Func) {
     std::unique_lock Lock(Mutex);
     assuming(Func->isHostFunction());
     unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
-    Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
+    Func->linkDefinedType(
+        this, static_cast<uint32_t>(
+                  AtomicTypes.load(std::memory_order_relaxed)->size()) -
+                  1);
     unsafeAddHostInstance(Name, OwnedFuncInsts, FuncInsts, ExpFuncs,
                           std::move(Func));
   }
@@ -237,7 +248,13 @@ protected:
   void addDefinedType(const AST::SubType &SType) {
     std::unique_lock Lock(Mutex);
     OwnedTypes.push_back(std::make_unique<AST::SubType>(SType));
-    Types.push_back(OwnedTypes.back().get());
+
+    auto *CurrentTypes = AtomicTypes.load(std::memory_order_relaxed);
+    auto NewTypes =
+        std::make_unique<std::vector<const AST::SubType *>>(*CurrentTypes);
+    NewTypes->push_back(OwnedTypes.back().get());
+    AtomicTypes.store(NewTypes.get(), std::memory_order_release);
+    TypeSnapshots.push_back(std::move(NewTypes));
   }
 
   /// Create and add instances into this module instance.
@@ -329,19 +346,24 @@ protected:
   }
 
   /// Get defined type list.
-  Span<const AST::SubType *const> getTypeList() const noexcept { return Types; }
+  Span<const AST::SubType *const> getTypeList() const noexcept {
+    auto *CurrentTypes = AtomicTypes.load(std::memory_order_acquire);
+    return *CurrentTypes;
+  }
 
   /// Get instance pointer by index.
   Expect<const AST::SubType *> getType(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
-    if (unlikely(Idx >= Types.size())) {
+    auto *CurrentTypes = AtomicTypes.load(std::memory_order_relaxed);
+    if (unlikely(Idx >= CurrentTypes->size())) {
       // Error logging need to be handled in caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetType(Idx);
   }
   const AST::SubType *unsafeGetType(uint32_t Idx) const noexcept {
-    return Types[Idx];
+    auto *CurrentTypes = AtomicTypes.load(std::memory_order_acquire);
+    return (*CurrentTypes)[Idx];
   }
   Expect<FunctionInstance *> getFunc(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
@@ -463,9 +485,17 @@ protected:
 
   /// Unsafe import defined type from host function into this module.
   void unsafeImportDefinedType(const AST::SubType &SType) {
-    Types.push_back(&SType);
-    const_cast<AST::SubType *>(Types.back())
-        ->setTypeIndex(static_cast<uint32_t>(Types.size()) - 1);
+    auto *CurrentTypes = AtomicTypes.load(std::memory_order_relaxed);
+    auto NewTypes =
+        std::make_unique<std::vector<const AST::SubType *>>(*CurrentTypes);
+    NewTypes->push_back(&SType);
+    AtomicTypes.store(NewTypes.get(), std::memory_order_release);
+    TypeSnapshots.push_back(std::move(NewTypes));
+
+    const_cast<AST::SubType *>(&SType)->setTypeIndex(
+        static_cast<uint32_t>(
+            AtomicTypes.load(std::memory_order_relaxed)->size()) -
+        1);
   }
 
   /// Unsafe create and add the instance into this module.
@@ -535,7 +565,8 @@ protected:
   const std::string ModName;
 
   /// Defined types.
-  std::vector<const AST::SubType *> Types;
+  std::atomic<std::vector<const AST::SubType *> *> AtomicTypes;
+  std::vector<std::unique_ptr<std::vector<const AST::SubType *>>> TypeSnapshots;
   std::vector<std::unique_ptr<const AST::SubType>> OwnedTypes;
 
   /// Owned instances in this module.

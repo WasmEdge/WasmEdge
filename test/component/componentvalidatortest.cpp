@@ -488,7 +488,6 @@ TEST(ComponentValidatorTest, EmptyVariant) {
   AST::Component::VariantTy Variant;
 
   // Variant.Cases is left empty
-
   DVT.setVariant(std::move(Variant));
   TypeSec.getContent().back().setDefValType(std::move(DVT));
 
@@ -606,7 +605,6 @@ TEST(ComponentValidatorTest, EnumTagNameConflictCaseInsensitive) {
 
 // Derived from:
 // https://github.com/WebAssembly/component-model/blob/main/test/wasm-tools/definedtypes.wast
-//
 // Converted with wasm-tools into a component binary and embedded here to
 // exercise loader + validator end-to-end.
 

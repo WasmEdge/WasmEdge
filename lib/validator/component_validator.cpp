@@ -703,7 +703,6 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
         CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
     CompCtx.addDefValType(NewTypeIdx);
     CompCtx.incSortIndexSize(AST::Component::Sort::SortType::Type);
-
   } else if (DType.isFuncType()) {
     const auto &FT = DType.getFuncType();
     for (const auto &Param : FT.getParamList()) {

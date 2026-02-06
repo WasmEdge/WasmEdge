@@ -80,8 +80,7 @@ struct DriverCompilerOptions {
         // TODO: EXCEPTION - enable the option.
         // PropExceptionHandling(
         //     PO::Description("Disable Exception handling proposal"sv)),
-        // TODO: MEMORY64 - enable the option.
-        // PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
+        PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropAll(PO::Description("Enable all features"sv)),
         PropOptimizationLevel(
@@ -121,8 +120,7 @@ struct DriverCompilerOptions {
   PO::Option<PO::Toggle> PropRelaxedSIMDDeprecated;
   // TODO: EXCEPTION - enable the option.
   // PO::Option<PO::Toggle> PropExceptionHandling;
-  // TODO: MEMORY64 - enable the option.
-  // PO::Option<PO::Toggle> PropMemory64;
+  PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropAll;
   PO::Option<std::string> PropOptimizationLevel;
@@ -162,8 +160,7 @@ struct DriverCompilerOptions {
         .add_option("enable-relaxed-simd"sv, PropRelaxedSIMDDeprecated)
         // TODO: EXCEPTION - enable the option.
         // .add_option("disable-exception-handling"sv, PropExceptionHandling)
-        // TODO: MEMORY64 - enable the option.
-        // .add_option("disable-memory64"sv, PropMemory64)
+        .add_option("disable-memory64"sv, PropMemory64)
         .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-all"sv, PropAll)
         .add_option("optimize"sv, PropOptimizationLevel);

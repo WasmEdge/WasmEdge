@@ -135,12 +135,6 @@ private:
   // TODO
   /// @}
 
-  Expect<void>
-  validateUniqueLabel(std::string_view Label,
-                      std::unordered_map<std::string, std::string> &SeenNames,
-                      std::string_view ErrorContext) noexcept;
-  Expect<void> validateComponentValType(const ComponentValType &ValTy) noexcept;
-
   /// Memory page limit for WASM32 and WASM64
   static inline const uint64_t LIMIT_MEMORYTYPE_LIM64 = UINT64_C(1) << 48;
   static inline const uint32_t LIMIT_MEMORYTYPE_LIM32 = UINT32_C(1) << 16;

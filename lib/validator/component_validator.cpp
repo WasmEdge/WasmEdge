@@ -6,6 +6,7 @@
 #include "validator/component_name.h"
 #include "validator/validator.h"
 
+#include <algorithm>
 #include <variant>
 
 namespace WasmEdge {
@@ -276,7 +277,7 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         const auto &ImportSec = std::get<AST::Component::ImportSection>(Sec);
         for (const auto &Import : ImportSec.getContent()) {
           // TODO: strongly-unique problem of the import name.
-          ImportMap[std::string(Import.getName())] = &Import.getDesc();
+          ImportMap[std::string(Import.getName().Name)] = &Import.getDesc();
         }
       }
     }
@@ -424,7 +425,7 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
           spdlog::error(ErrCode::Value::InvalidIndex);
           spdlog::error(
               "    Instance: Inline export '{}' refers to invalid index {}"sv,
-              Export.getName(), Idx);
+              Export.getName().Name, Idx);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
           return Unexpect(ErrCode::Value::InvalidIndex);
         }
@@ -433,18 +434,18 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
           spdlog::error(ErrCode::Value::InvalidIndex);
           spdlog::error(
               "    Instance: Inline export '{}' refers to invalid index {}"sv,
-              Export.getName(), Idx);
+              Export.getName().Name, Idx);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
           return Unexpect(ErrCode::Value::InvalidIndex);
         }
         if (Sort.getSortType() == AST::Component::Sort::SortType::Type) {
           auto SubstitutedIdx =
-              CompCtx.getSubstitutedType(std::string(Export.getName()));
+              CompCtx.getSubstitutedType(std::string(Export.getName().Name));
           if (SubstitutedIdx.has_value() && Idx != SubstitutedIdx.value()) {
             spdlog::error(ErrCode::Value::InvalidTypeReference);
             spdlog::error(
                 "    Instance: Inline export '{}' type index {} does not match substituted type index {}"sv,
-                Export.getName(), Idx, *SubstitutedIdx);
+                Export.getName().Name, Idx, *SubstitutedIdx);
             return Unexpect(ErrCode::Value::InvalidTypeReference);
           }
         }
@@ -746,22 +747,10 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
     return E;
   }));
 
-  ComponentName CName(Im.getName());
-  switch (CName.getKind()) {
-  case ComponentNameKind::InterfaceType:
-  case ComponentNameKind::Label:
-    break;
-  case ComponentNameKind::Invalid:
-    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
-    spdlog::error("    Import: Invalid import name"sv);
+  EXPECTED_TRY(validateComponentName(Im.getName()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
-  default:
-    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
-    spdlog::error("    Import: Import name kind not supported yet"sv);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
-  }
+    return E;
+  }));
   // TODO: Validation requires that annotated plainnames only occur on func
   // imports or exports and that the first label of a [constructor],
   // [method] or [static] matches the plainname of a preceding resource
@@ -777,30 +766,14 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
 
   // TODO: Validation of [method] and [static] names ensures that all field
   // names are disjoint.
-  switch (CName.getKind()) {
-  case ComponentNameKind::Constructor:
-  case ComponentNameKind::Method:
-  case ComponentNameKind::Static:
-  case ComponentNameKind::InterfaceType:
-  case ComponentNameKind::Label:
-    if (!CompCtx.AddImportedName(CName)) {
-      spdlog::error(ErrCode::Value::ComponentDuplicateName);
-      spdlog::error("    Import: Duplicate import name"sv);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-      return Unexpect(ErrCode::Value::ComponentDuplicateName);
-    }
-    break;
-  default:
-    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
-    spdlog::error("    Import: Name is not resolved"sv);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
-  }
-
   return {};
 }
 
 Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
+  EXPECTED_TRY(validateComponentName(Ex.getName()).map_error([](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+    return E;
+  }));
   if (Ex.getDesc().has_value()) {
     EXPECTED_TRY(validate(*Ex.getDesc()).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
@@ -810,6 +783,41 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   const auto &Sort = Ex.getSortIndex().getSort();
   if (!Sort.isCore()) {
     CompCtx.incSortIndexSize(Sort.getSortType());
+  }
+  return {};
+}
+
+Expect<void> Validator::validateComponentName(
+    const AST::Component::ComponentName &CompName) noexcept {
+  if (CompName.Kind == AST::Component::ComponentName::Category::Scoped) {
+    // Validate semver
+    std::string_view V = CompName.Version;
+    size_t DotCount = static_cast<size_t>(std::count(V.begin(), V.end(), '.'));
+    if (DotCount < 2) {
+      spdlog::error("    ComponentName: Invalid semver format '{}'"sv, V);
+      return Unexpect(ErrCode::Value::MalformedName);
+    }
+    for (char C : V) {
+      if (!std::isalnum(static_cast<unsigned char>(C)) && C != '.' &&
+          C != '+' && C != '-') {
+        spdlog::error("    ComponentName: Invalid character '{}' in semver"sv,
+                      C);
+        return Unexpect(ErrCode::Value::MalformedName);
+      }
+    }
+  } else if (CompName.Kind == AST::Component::ComponentName::Category::Hash) {
+    // Validate hash (integrity-<alg>:<hash>)
+    if (CompName.Hash.empty()) {
+      spdlog::error("    ComponentName: Missing hash value"sv);
+      return Unexpect(ErrCode::Value::MalformedName);
+    }
+  }
+
+  // Use existing parser for the base name validation
+  ComponentName CName(CompName.Name);
+  if (CName.getKind() == ComponentNameKind::Invalid) {
+    spdlog::error("    ComponentName: Invalid base name '{}'"sv, CompName.Name);
+    return Unexpect(ErrCode::Value::MalformedName);
   }
   return {};
 }
@@ -851,7 +859,7 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
           uint32_t InstIdx = CompCtx.getSortIndexSize(
                                  AST::Component::Sort::SortType::Instance) -
                              1;
-          CompCtx.addComponentInstanceExport(InstIdx, Exp.getName(),
+          CompCtx.addComponentInstanceExport(InstIdx, Exp.getName().Name,
                                              Exp.getExternDesc());
         } else {
           assumingUnreachable();

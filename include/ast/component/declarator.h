@@ -28,6 +28,16 @@ namespace Component {
 class CoreDefType;
 class DefType;
 
+struct ComponentName {
+  enum class Category : uint8_t { Plain, Scoped, Hash };
+  Category Kind = Category::Plain;
+  std::string Name;
+  std::string Namespace;
+  std::string Package;
+  std::string Version;
+  std::string Hash;
+};
+
 // core:importdecl ::= m:<core:name> n:<core:name> d:<core:importdesc>
 //                   => (import m n d)
 
@@ -112,13 +122,13 @@ private:
 /// Base class of Component::ImportDecl and Component::ExportDecl node.
 class ExternDecl {
 public:
-  std::string_view getName() const noexcept { return Name; }
-  std::string &getName() noexcept { return Name; }
+  const ComponentName &getName() const noexcept { return Name; }
+  ComponentName &getName() noexcept { return Name; }
   const ExternDesc &getExternDesc() const noexcept { return Desc; }
   ExternDesc &getExternDesc() noexcept { return Desc; }
 
 private:
-  std::string Name;
+  ComponentName Name;
   ExternDesc Desc;
 };
 

@@ -17,6 +17,57 @@ namespace Validator {
 using namespace std::literals;
 
 Expect<void>
+validateUniqueLabel(std::string_view Label,
+                    std::unordered_map<std::string, std::string> &SeenNames,
+                    std::string_view ErrorContext) noexcept {
+  if (Label.empty()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    name cannot be empty"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  std::string LowerLabel(Label);
+  std::transform(
+      LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
+      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+  auto It = SeenNames.find(LowerLabel);
+  if (It != SeenNames.end()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    duplicate {} name `{}`"sv, ErrorContext, Label);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  SeenNames.emplace(LowerLabel, std::string(Label));
+  return {};
+}
+
+Expect<void>
+validateComponentValType(const ComponentValType &ValTy,
+                         const ComponentContext &CompCtx) noexcept {
+  if (ValTy.isPrimValType()) {
+    return {};
+  }
+
+  uint32_t TypeIdx = ValTy.getTypeIndex();
+  uint32_t TypeCount =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+
+  if (TypeIdx >= TypeCount) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error("    index out of bounds"sv);
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+
+  if (!CompCtx.isDefValType(TypeIdx)) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    type index {} is not a defined type"sv, TypeIdx);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  return {};
+}
+
+Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
   spdlog::warn("Component Model Validation is in active development."sv);
   CompCtx.reset();
@@ -923,56 +974,6 @@ Expect<void> Validator::validate(const AST::Component::ImportDecl &) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::InstanceDecl &) noexcept {
   // TODO
-  return {};
-}
-
-Expect<void> Validator::validateUniqueLabel(
-    std::string_view Label,
-    std::unordered_map<std::string, std::string> &SeenNames,
-    std::string_view ErrorContext) noexcept {
-  if (Label.empty()) {
-    spdlog::error(ErrCode::Value::InvalidTypeReference);
-    spdlog::error("    name cannot be empty"sv);
-    return Unexpect(ErrCode::Value::InvalidTypeReference);
-  }
-
-  std::string LowerLabel(Label);
-  std::transform(
-      LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
-      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-  auto It = SeenNames.find(LowerLabel);
-  if (It != SeenNames.end()) {
-    spdlog::error(ErrCode::Value::InvalidTypeReference);
-    spdlog::error("    duplicate {} name `{}`"sv, ErrorContext, Label);
-    return Unexpect(ErrCode::Value::InvalidTypeReference);
-  }
-
-  SeenNames.emplace(LowerLabel, std::string(Label));
-  return {};
-}
-
-Expect<void>
-Validator::validateComponentValType(const ComponentValType &ValTy) noexcept {
-  if (ValTy.isPrimValType()) {
-    return {};
-  }
-
-  uint32_t TypeIdx = ValTy.getTypeIndex();
-  uint32_t TypeCount =
-      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
-
-  if (TypeIdx >= TypeCount) {
-    spdlog::error(ErrCode::Value::InvalidIndex);
-    spdlog::error("    index out of bounds"sv);
-    return Unexpect(ErrCode::Value::InvalidIndex);
-  }
-
-  if (!CompCtx.isDefValType(TypeIdx)) {
-    spdlog::error(ErrCode::Value::InvalidTypeReference);
-    spdlog::error("    type index {} is not a defined type"sv, TypeIdx);
-    return Unexpect(ErrCode::Value::InvalidTypeReference);
-  }
   return {};
 }
 

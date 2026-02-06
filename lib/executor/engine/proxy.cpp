@@ -604,24 +604,22 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;
-  // Check if the function type matches the expected type.
-  // The matching has two steps:
-  // 1. If the function instance is in the same module instance, we can check
-  // the
-  //    type index directly. This is the fast path.
-  // 2. If the type index is not the same, we still need to check the type
-  //    structure. This is because the type alias may have different type
-  //    indices but the same type structure.
+  // Check if the function type matches the expected type with a two-step
+  // approach:
+  // 1. Fast path: If the function instance is in the same module instance, we
+  //    can bypass the expensive structural type matching (O(N)) by checking the
+  //    type index directly (O(1)).
   if (FuncInst->getModule() == ModInst &&
       *ExpDefType.getTypeIndex() == FuncInst->getTypeIndex()) {
     IsMatch = true;
   } else if (FuncInst->getModule()) {
+    // 2. Slow path: If the type index is not the same, we still need to check
+    //    the type structure. This is because the type alias may have different
+    //    type indices but the same type structure.
     IsMatch = AST::TypeMatcher::matchType(
         ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
         FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
   } else {
-    // Independent host module instance case. Matching the composite type
-    // directly.
     IsMatch = AST::TypeMatcher::matchType(
         ModInst->getTypeList(), ExpDefType.getCompositeType(),
         FuncInst->getHostFunc().getDefinedType().getCompositeType());

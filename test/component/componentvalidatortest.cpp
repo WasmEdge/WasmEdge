@@ -526,6 +526,7 @@ TEST(ComponentValidatorTest, RecordFieldNameConflictCaseInsensitive) {
   Validator::Validator Validator(Conf);
   ASSERT_FALSE(Validator.validate(Comp));
 }
+
 TEST(ComponentValidatorTest, VariantCaseNameDuplicate) {
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();

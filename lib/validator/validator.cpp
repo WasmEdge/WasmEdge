@@ -479,7 +479,8 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
     if (!Checker.getTypes()[TId]->getCompositeType().isFunc()) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
       spdlog::error("    Defined type index {} is not a function type."sv, TId);
-      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      return UnexpectMsg(ErrCode::Value::InvalidFuncTypeIdx,
+                         "type index {} is not a function type", TId);
     }
     Checker.addRef(static_cast<uint32_t>(Checker.getFunctions().size()));
     Checker.addFunc(TId, true);
@@ -522,7 +523,8 @@ Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
       spdlog::error(ErrCode::Value::InvalidTagIdx);
       spdlog::error("    Defined type index {} is not a function type."sv,
                     TagTypeIdx);
-      return Unexpect(ErrCode::Value::InvalidTagIdx);
+      return UnexpectMsg(ErrCode::Value::InvalidTagIdx,
+                         "type index {} is not a function type", TagTypeIdx);
     }
     if (!CompType.getFuncType().getReturnTypes().empty()) {
       spdlog::error(ErrCode::Value::InvalidTagResultType);
@@ -666,7 +668,8 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
       spdlog::error("    Defined type index {} is not a function type."sv, TId);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Function));
-      return Unexpect(ErrCode::Value::InvalidFuncTypeIdx);
+      return UnexpectMsg(ErrCode::Value::InvalidFuncTypeIdx,
+                         "type index {} is not a function type", TId);
     }
     Checker.addFunc(TId);
   }
@@ -773,7 +776,8 @@ Expect<void> Validator::validate(const AST::StartSection &StartSec) {
     if (!Checker.getTypes()[TId]->getCompositeType().isFunc()) {
       spdlog::error(ErrCode::Value::InvalidStartFunc);
       spdlog::error("    Defined type index {} is not a function type."sv, TId);
-      return Unexpect(ErrCode::Value::InvalidStartFunc);
+      return UnexpectMsg(ErrCode::Value::InvalidStartFunc,
+                         "type index {} is not a function type", TId);
     }
     auto &Type = Checker.getTypes()[TId]->getCompositeType().getFuncType();
     if (Type.getParamTypes().size() != 0 || Type.getReturnTypes().size() != 0) {
@@ -826,7 +830,8 @@ Expect<void> Validator::validate(const AST::TagSection &TagSec) {
       spdlog::error(ErrCode::Value::InvalidTagIdx);
       spdlog::error("    Defined type index {} is not a function type."sv,
                     TagTypeIdx);
-      return Unexpect(ErrCode::Value::InvalidTagIdx);
+      return UnexpectMsg(ErrCode::Value::InvalidTagIdx,
+                         "type index {} is not a function type", TagTypeIdx);
     }
     if (!CompType.getFuncType().getReturnTypes().empty()) {
       spdlog::error(ErrCode::Value::InvalidTagResultType);

@@ -734,8 +734,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
                   WasmEdge::WasmPhase::Loading);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+      EXPECT_TRUE(stringContains(Text, Res.error().getErrString()));
     }
   };
 
@@ -747,8 +746,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
                   WasmEdge::WasmPhase::Validation);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+      EXPECT_TRUE(stringContains(Text, Res.error().getErrString()));
     }
   };
 
@@ -761,8 +759,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       EXPECT_TRUE(
           Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Instantiation ||
           Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Execution);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+      EXPECT_TRUE(stringContains(Text, Res.error().getErrString()));
     }
   };
 
@@ -780,8 +777,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
                   WasmEdge::WasmPhase::Execution);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+      EXPECT_TRUE(stringContains(Text, Res.error().getErrString()));
     }
   };
 

@@ -16,7 +16,7 @@ namespace Validator {
 
 using namespace std::literals;
 
-Expect<void>
+static Expect<void>
 validateUniqueLabel(std::string_view Label,
                     std::unordered_map<std::string, std::string> &SeenNames,
                     std::string_view ErrorContext) noexcept {
@@ -42,7 +42,7 @@ validateUniqueLabel(std::string_view Label,
   return {};
 }
 
-Expect<void>
+static Expect<void>
 validateComponentValType(const ComponentValType &ValTy,
                          const ComponentContext &CompCtx) noexcept {
   if (ValTy.isPrimValType()) {

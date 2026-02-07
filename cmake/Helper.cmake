@@ -366,7 +366,10 @@ function(wasmedge_setup_spdlog)
     return()
   endif()
   # setup spdlog
-  find_package(spdlog QUIET)
+  if(NOT WASMEDGE_FORCE_DOWNLOAD_SPDLOG)
+    message(STATUS "Checking spdlog from system")
+    find_package(spdlog QUIET)
+  endif()
   if(spdlog_FOUND)
     message(STATUS "spdlog found")
   else()
@@ -404,7 +407,7 @@ function(wasmedge_setup_spdlog)
     FetchContent_Declare(
       spdlog
       GIT_REPOSITORY https://github.com/gabime/spdlog.git
-      GIT_TAG        v1.13.0
+      GIT_TAG        v1.14.1
       GIT_SHALLOW    TRUE
     )
     set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "Build shared library" FORCE)

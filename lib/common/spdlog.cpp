@@ -9,7 +9,10 @@
 // https://github.com/gabime/spdlog/pull/3198
 #pragma clang diagnostic ignored "-Wextra-semi"
 #endif
+#if SPDLOG_VER_MAJOR > 1 || (SPDLOG_VER_MAJOR == 1 && SPDLOG_VER_MINOR >= 14)
 #include <spdlog/sinks/callback_sink.h>
+#define WASMEDGE_HAS_CALLBACK_SINK 1
+#endif
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic pop
 #endif
@@ -42,6 +45,7 @@ void setCriticalLoggingLevel() { spdlog::set_level(spdlog::level::critical); }
 
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback) {
+#ifdef WASMEDGE_HAS_CALLBACK_SINK
   if (Callback) {
     auto Callback_sink =
         std::make_shared<spdlog::sinks::callback_sink_mt>(Callback);
@@ -51,6 +55,13 @@ void setLoggingCallback(
     spdlog::set_default_logger(std::make_shared<spdlog::logger>(
         ""s, std::make_shared<color_sink_t>()));
   }
+#else
+  // For spdlog < 1.14.0, callback_sink is not available
+  // Fall back to using the default logger
+  (void)Callback; // Suppress unused parameter warning
+  spdlog::set_default_logger(std::make_shared<spdlog::logger>(
+      ""s, std::make_shared<color_sink_t>()));
+#endif
 }
 
 } // namespace Log

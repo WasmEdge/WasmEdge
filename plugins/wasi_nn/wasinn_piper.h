@@ -8,7 +8,7 @@
 #include "plugin/plugin.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER
-#include <piper.hpp>
+#include <piper.h>
 
 #include <filesystem>
 #include <memory>
@@ -30,7 +30,7 @@ struct SynthesisConfig {
   std::optional<SynthesisConfigOutputType> OutputType;
 
   // Numerical id of the default speaker (multi-speaker voices)
-  std::optional<piper::SpeakerId> SpeakerId;
+  std::optional<int64_t> SpeakerId;
 
   // Amount of noise to add during audio generation
   std::optional<float> NoiseScale;
@@ -44,8 +44,7 @@ struct SynthesisConfig {
   // Seconds of silence to add after each sentence
   std::optional<float> SentenceSilenceSeconds;
 
-  // Seconds of extra silence to insert after a single phoneme
-  std::optional<std::map<piper::Phoneme, float>> PhonemeSilenceSeconds;
+  // PhonemeSilenceSeconds removed (not supported)
 };
 struct RunConfig {
   // Path to .onnx voice file
@@ -72,10 +71,13 @@ struct RunConfig {
 
   SynthesisConfig DefaultSynthesisConfig;
 };
+struct PiperDeleter {
+  void operator()(piper_synthesizer *P) { piper_free(P); }
+};
+
 struct Graph {
   std::unique_ptr<RunConfig> Config;
-  std::unique_ptr<piper::PiperConfig> PiperConfig;
-  std::unique_ptr<piper::Voice> Voice;
+  std::unique_ptr<piper_synthesizer, PiperDeleter> Synthesizer;
 };
 struct Context {
   Context(uint32_t GId, Graph &) noexcept : GraphId(GId) {}

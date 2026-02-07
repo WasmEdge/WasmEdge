@@ -1,0 +1,48 @@
+fatal: No names found, cannot describe anything.
+-- Checking spdlog from system
+-- spdlog found
+-- WASI-NN: Build piper backend for WASI-NN
+CMake Warning at cmake/WASINNDeps.cmake:410 (find_package):
+  By not providing "Findonnxruntime.cmake" in CMAKE_MODULE_PATH this project
+  has asked CMake to find a package configuration file provided by
+  "onnxruntime", but CMake did not find one.
+
+  Could not find a package configuration file provided by "onnxruntime" with
+  any of the following names:
+
+    onnxruntimeConfig.cmake
+    onnxruntime-config.cmake
+
+  Add the installation prefix of "onnxruntime" to CMAKE_PREFIX_PATH or set
+  "onnxruntime_DIR" to a directory containing one of the above files.  If
+  "onnxruntime" provides a separate development package or SDK, be sure it
+  has been installed.
+Call Stack (most recent call first):
+  cmake/WASINNDeps.cmake:72 (wasmedge_setup_piper_target)
+  plugins/wasi_nn/CMakeLists.txt:25 (wasmedge_setup_wasinn_target)
+
+
+-- Downloading piper source
+[0/8] Performing download step (git clone) for 'piper-populate'
+Cloning into 'piper-src'...
+fatal: reference is not a tree: 38917ffd8c0e219c6581d73e07b30ef1d572fce1
+CMake Error at piper-subbuild/piper-populate-prefix/tmp/piper-populate-gitclone.cmake:49 (message):
+  Failed to checkout tag: '38917ffd8c0e219c6581d73e07b30ef1d572fce1'
+
+
+FAILED: piper-populate-prefix/src/piper-populate-stamp/piper-populate-download /mnt/d/wasm/WasmEdge/build/_deps/piper-subbuild/piper-populate-prefix/src/piper-populate-stamp/piper-populate-download 
+cd /mnt/d/wasm/WasmEdge/build/_deps && /usr/bin/cmake -P /mnt/d/wasm/WasmEdge/build/_deps/piper-subbuild/piper-populate-prefix/tmp/piper-populate-gitclone.cmake && /usr/bin/cmake -E touch /mnt/d/wasm/WasmEdge/build/_deps/piper-subbuild/piper-populate-prefix/src/piper-populate-stamp/piper-populate-download
+ninja: build stopped: subcommand failed.
+
+CMake Error at /usr/share/cmake-3.28/Modules/FetchContent.cmake:1679 (message):
+  Build step for piper failed: 1
+Call Stack (most recent call first):
+  /usr/share/cmake-3.28/Modules/FetchContent.cmake:1819:EVAL:2 (__FetchContent_directPopulate)
+  /usr/share/cmake-3.28/Modules/FetchContent.cmake:1819 (cmake_language)
+  /usr/share/cmake-3.28/Modules/FetchContent.cmake:2033 (FetchContent_Populate)
+  cmake/WASINNDeps.cmake:437 (FetchContent_MakeAvailable)
+  cmake/WASINNDeps.cmake:72 (wasmedge_setup_piper_target)
+  plugins/wasi_nn/CMakeLists.txt:25 (wasmedge_setup_wasinn_target)
+
+
+-- Configuring incomplete, errors occurred!

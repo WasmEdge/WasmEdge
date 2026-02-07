@@ -128,14 +128,12 @@ public:
   constexpr uint128(unsigned long V) noexcept : Low(V), High(0) {}
   constexpr uint128(unsigned long long V) noexcept : Low(V), High(0) {}
   constexpr uint128(int128 V) noexcept;
-  constexpr uint128(uint64_t H, uint64_t L) noexcept
-      : Low(L), High(H){}
+  constexpr uint128(uint64_t H, uint64_t L) noexcept : Low(L), High(H) {}
 
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
-        constexpr uint128(unsigned __int128 V) noexcept
-      : Low(static_cast<uint64_t>(V)), High(static_cast<uint64_t>(V >> 64)) {
-  }
+  constexpr uint128(unsigned __int128 V) noexcept
+      : Low(static_cast<uint64_t>(V)), High(static_cast<uint64_t>(V >> 64)) {}
 #endif
 
   constexpr operator bool() const noexcept {
@@ -395,13 +393,11 @@ public:
   constexpr int128(unsigned long V) noexcept : Low(V), High(INT64_C(0)) {}
   constexpr int128(unsigned long long V) noexcept : Low(V), High(INT64_C(0)) {}
   constexpr int128(uint128 V) noexcept;
-  constexpr int128(int64_t H, uint64_t L) noexcept
-      : Low(L), High(H){}
+  constexpr int128(int64_t H, uint64_t L) noexcept : Low(L), High(H) {}
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
-        constexpr int128(__int128 V) noexcept
-      : Low(static_cast<uint64_t>(V)), High(V >> 64) {
-  }
+  constexpr int128(__int128 V) noexcept
+      : Low(static_cast<uint64_t>(V)), High(V >> 64) {}
 #endif
 
   constexpr int128 &operator=(int V) noexcept { return *this = int128(V); }
@@ -583,6 +579,13 @@ operator+(detail::uint128_fallback LHS, unsigned int RHS) {
   uint64_t NewHigh = LHS.high() + (NewLow < LHS.low());
   return {NewHigh, NewLow};
 }
+
+#if FMT_VERSION < 100000
+inline constexpr detail::uint128_fallback
+operator~(detail::uint128_fallback Value) {
+  return {~Value.high(), ~Value.low()};
+}
+#endif
 
 inline constexpr detail::uint128_fallback
 operator-(unsigned int LHS, detail::uint128_fallback RHS) {

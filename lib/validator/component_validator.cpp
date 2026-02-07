@@ -757,13 +757,13 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
   } else if (DType.isFuncType()) {
     const auto &FT = DType.getFuncType();
     for (const auto &Param : FT.getParamList()) {
-      EXPECTED_TRY(
-          validateComponentValType(Param.getValType()).map_error(ReportError));
+      EXPECTED_TRY(validateComponentValType(Param.getValType(), CompCtx)
+                       .map_error(ReportError));
     }
 
     for (const auto &Result : FT.getResultList()) {
-      EXPECTED_TRY(
-          validateComponentValType(Result.getValType()).map_error(ReportError));
+      EXPECTED_TRY(validateComponentValType(Result.getValType(), CompCtx)
+                       .map_error(ReportError));
     }
     // TODO: Validation of functype rejects any transitive use of borrow in
     // a result type. Similarly, validation of components and component
@@ -990,7 +990,7 @@ Validator::validate(const AST::Component::RecordTy &Record) noexcept {
   for (const auto &Field : Record.LabelTypes) {
     EXPECTED_TRY(
         validateUniqueLabel(Field.getLabel(), SeenNames, "record field"));
-    EXPECTED_TRY(validateComponentValType(Field.getValType()));
+    EXPECTED_TRY(validateComponentValType(Field.getValType(), CompCtx));
   }
   return {};
 }
@@ -1009,7 +1009,7 @@ Validator::validate(const AST::Component::VariantTy &Variant) noexcept {
     EXPECTED_TRY(validateUniqueLabel(Case.first, SeenLabels, "variant case"));
 
     if (Case.second.has_value()) {
-      EXPECTED_TRY(validateComponentValType(*Case.second));
+      EXPECTED_TRY(validateComponentValType(*Case.second, CompCtx));
     }
   }
   return {};
@@ -1061,29 +1061,29 @@ Validator::validate(const AST::Component::TupleTy &Tuple) noexcept {
   }
 
   for (const auto &Ty : Tuple.Types) {
-    EXPECTED_TRY(validateComponentValType(Ty));
+    EXPECTED_TRY(validateComponentValType(Ty, CompCtx));
   }
   return {};
 }
 
 Expect<void> Validator::validate(const AST::Component::ListTy &List) noexcept {
-  EXPECTED_TRY(validateComponentValType(List.ValTy));
+  EXPECTED_TRY(validateComponentValType(List.ValTy, CompCtx));
   return {};
 }
 
 Expect<void>
 Validator::validate(const AST::Component::OptionTy &Option) noexcept {
-  EXPECTED_TRY(validateComponentValType(Option.ValTy));
+  EXPECTED_TRY(validateComponentValType(Option.ValTy, CompCtx));
   return {};
 }
 
 Expect<void>
 Validator::validate(const AST::Component::ResultTy &Result) noexcept {
   if (Result.ValTy.has_value()) {
-    EXPECTED_TRY(validateComponentValType(*Result.ValTy));
+    EXPECTED_TRY(validateComponentValType(*Result.ValTy, CompCtx));
   }
   if (Result.ErrTy.has_value()) {
-    EXPECTED_TRY(validateComponentValType(*Result.ErrTy));
+    EXPECTED_TRY(validateComponentValType(*Result.ErrTy, CompCtx));
   }
   return {};
 }

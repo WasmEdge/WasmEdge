@@ -277,6 +277,34 @@ public:
     Type.emplace<FutureTy>(std::move(Ty));
   }
 
+  bool isRecord() const noexcept {
+    return std::holds_alternative<RecordTy>(Type);
+  }
+
+  bool isVariant() const noexcept {
+    return std::holds_alternative<VariantTy>(Type);
+  }
+
+  bool isFlags() const noexcept {
+    return std::holds_alternative<FlagsTy>(Type);
+  }
+
+  bool isEnum() const noexcept { return std::holds_alternative<EnumTy>(Type); }
+
+  bool isTuple() const noexcept {
+    return std::holds_alternative<TupleTy>(Type);
+  }
+
+  bool isResult() const noexcept {
+    return std::holds_alternative<ResultTy>(Type);
+  }
+
+  bool isList() const noexcept { return std::holds_alternative<ListTy>(Type); }
+
+  bool isOption() const noexcept {
+    return std::holds_alternative<OptionTy>(Type);
+  }
+
 private:
   std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, FlagsTy,
                EnumTy, OptionTy, ResultTy, OwnTy, BorrowTy, StreamTy, FutureTy>

@@ -1,5 +1,4 @@
 all:
-  - '.github/**'
   - 'CMakeLists.txt'
   - 'plugins/CMakeLists.txt'
   - 'test/plugins/CMakeLists.txt'

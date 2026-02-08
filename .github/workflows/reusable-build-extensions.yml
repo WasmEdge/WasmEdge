@@ -104,7 +104,6 @@ jobs:
 
   build_on_ubuntu:
     needs: prepare
-    if: ${{ needs.prepare.outputs.ubuntu2004_x86_64 != '[]' || needs.prepare.outputs.ubuntu2004_cuda11 != '[]' || needs.prepare.outputs.ubuntu2004_cuda12 != '[]' }}
     permissions:
       contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
@@ -136,9 +135,7 @@ jobs:
 
   build_on_ubuntu_latest:
     needs: prepare
-    if: ${{ !inputs.release && (needs.prepare.outputs.ubuntu_latest != '[]') }}
-    permissions:
-      contents: write # Required by reusable-build-extensions-on-linux.yml
+    contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
       matrix:
@@ -164,8 +161,6 @@ jobs:
 
   build_on_macos:
     needs: prepare
-    if: ${{ needs.prepare.outputs.macos_x86_64 != '[]' || needs.prepare.outputs.macos_arm64 != '[]' }}
-    permissions:
       contents: write # Required by reusable-build-extensions-on-macos.yml
     strategy:
       fail-fast: false
@@ -189,7 +184,6 @@ jobs:
 
   build_on_manylinux:
     needs: prepare
-    if: ${{ needs.prepare.outputs.manylinux_2_28_x86_64 != '[]' || needs.prepare.outputs.manylinux_2_28_aarch64 != '[]' }}
     permissions:
       contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:

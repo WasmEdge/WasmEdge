@@ -134,8 +134,10 @@ jobs:
     secrets: inherit
 
   build_on_ubuntu_latest:
+    if: ${{ !inputs.release }}
     needs: prepare
-    contents: write # Required by reusable-build-extensions-on-linux.yml
+    permissions:
+      contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
       matrix:
@@ -161,6 +163,7 @@ jobs:
 
   build_on_macos:
     needs: prepare
+    permissions:
       contents: write # Required by reusable-build-extensions-on-macos.yml
     strategy:
       fail-fast: false

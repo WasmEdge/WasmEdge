@@ -107,12 +107,13 @@ jobs:
         mkdir -p riscv64-artifacts/build
         cp -a build/tools riscv64-artifacts/build/
         cp -a build/lib riscv64-artifacts/build/
-        find build/test -type f -executable | while read f; do
-          d="riscv64-artifacts/$(dirname "$f")"
-          mkdir -p "$d"
-          cp "$f" "$d/"
-        done
-        cp -r test/api/apiTestData riscv64-artifacts/ || true
+        # Copy the full test directory: executables, test data files, and
+        # spec test suites (fetched by FetchContent during CMake configure).
+        # Tests expect data files relative to their binary directory.
+        cp -a build/test riscv64-artifacts/build/
+        # Remove build intermediates to reduce artifact size
+        find riscv64-artifacts/build/test -type d -name CMakeFiles -exec rm -rf {} + 2>/dev/null || true
+        find riscv64-artifacts/build/test \( -name '*.o' -o -name '*.d' \) -delete 2>/dev/null || true
         tar -czf riscv64-artifacts.tar.gz riscv64-artifacts/
 
     - name: Upload build artifacts
@@ -181,12 +182,20 @@ jobs:
         tar -xzf riscv64-artifacts.tar.gz
         cd riscv64-artifacts
         failed=0
-        for test_bin in $(find build/test -type f -executable 2>/dev/null); do
+        for test_bin in $(find build/test -type f -executable -not -name '*.so' 2>/dev/null); do
           echo "--- ${test_bin} ---"
-          if timeout 300 qemu-riscv64-static \
+          test_dir=$(dirname "${test_bin}")
+          test_name=$(basename "${test_bin}")
+          # Compute relative path from the test's directory to build/lib
+          # so LD_LIBRARY_PATH stays relative (QEMU translates absolute paths).
+          REL_LIB=$(realpath --relative-to="${test_dir}" build/lib)
+          # Run from the test binary's directory: tests expect data files
+          # (filemgrTestData/, externrefTestData/, etc.) and spec test suites
+          # (../spec/testSuites/) relative to their binary directory.
+          if ( cd "${test_dir}" && timeout 300 qemu-riscv64-static \
             -L /usr/riscv64-linux-gnu \
-            -E LD_LIBRARY_PATH=/usr/lib/riscv64-linux-gnu:build/lib \
-            "${test_bin}"; then
+            -E LD_LIBRARY_PATH=/usr/lib/riscv64-linux-gnu:${REL_LIB} \
+            "./${test_name}" ); then
             :
           else
             echo "FAILED: ${test_bin}"

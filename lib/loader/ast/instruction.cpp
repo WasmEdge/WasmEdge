@@ -253,17 +253,31 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
 
   auto readMemImmediate = [this, readU32, readU64, &Instr]() -> Expect<void> {
     Instr.getTargetIndex() = 0;
-    EXPECTED_TRY(readU32(Instr.getMemoryAlign()));
-    if (Conf.hasProposal(Proposal::MultiMemories) &&
-        Instr.getMemoryAlign() >= 64) {
-      Instr.getMemoryAlign() -= 64;
-      EXPECTED_TRY(readU32(Instr.getTargetIndex()));
+    uint32_t Flags = 0;
+    EXPECTED_TRY(readU32(Flags));
+
+    static constexpr uint32_t kWasmMemFlagsAllowedMask = 0x7FU;
+    if (unlikely(Flags & ~kWasmMemFlagsAllowedMask)) {
+      return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
+                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
+
+    Instr.getMemoryAlign() = Flags & 0x3FU;
+
+    bool HasMultiMemories = Conf.hasProposal(Proposal::MultiMemories);
+    if (HasMultiMemories && (Flags & 0x40U)) {
+      EXPECTED_TRY(readU32(Instr.getTargetIndex()));
+    } else if (!HasMultiMemories && (Flags & 0x40U)) {
+      return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
+                          FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+    }
+
     uint32_t MaxAlign = Conf.hasProposal(Proposal::Memory64) ? 64U : 32U;
     if (unlikely(Instr.getMemoryAlign() >= MaxAlign)) {
       return logLoadError(ErrCode::Value::MalformedMemoryOpFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
+
     if (Conf.hasProposal(Proposal::Memory64)) {
       // TODO: MEMORY64 - fully support implementation.
       uint64_t Offset;

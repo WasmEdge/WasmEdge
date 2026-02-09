@@ -7,21 +7,20 @@ namespace WasmEdge {
 namespace Loader {
 
 Expect<void> Loader::loadImport(AST::Component::Import &Im) {
-  // import      ::= in:<importname'> ed:<externdesc> => (import in ed)
-  // importname' ::= 0x00 len:<u32> in:<importname>                    => in     (if len = |in|)
-  //               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'> => in vs  (if len = |in|)
-  // versionsuffix' ::= len:<u32> vs:<semversuffix>                     => (versionsuffix vs) (if len = |vs|)
+  // import      ::= in:<importname'> ed:<externdesc>
+  //               => (import in ed)
+  // importname' ::= 0x00 len:<u32> in:<importname>
+  //                   => in (if len = |in|)
+  //               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'>
+  //                   => in vs (if len = |in|)
+  // versionsuffix' ::= len:<u32> vs:<semversuffix>
+  //                      => (versionsuffix vs) (if len = |vs|)
 
-  EXPECTED_TRY(uint8_t Prefix, loadExternName(Im.getName()).map_error([this](auto E) {
-    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Import);
-  }));
-  
-  // If prefix was 0x01, read the version suffix
-  if (Prefix == 0x01) {
-    EXPECTED_TRY(Im.getVersionSuffix(), FMgr.readName().map_error([this](auto E) {
-      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Import);
-    }));
-  }
+  EXPECTED_TRY(loadExternName(Im.getName(), Im.getVersionSuffix())
+                   .map_error([this](auto E) {
+                     return logLoadError(E, FMgr.getLastOffset(),
+                                         ASTNodeAttr::Comp_Import);
+                   }));
   
   EXPECTED_TRY(loadDesc(Im.getDesc()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));

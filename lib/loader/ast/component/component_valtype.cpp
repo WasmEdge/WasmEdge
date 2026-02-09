@@ -6,11 +6,15 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<uint8_t> Loader::loadExternName(std::string &Name) {
-  // importname' ::= 0x00 len:<u32> in:<importname>                    => in     (if len = |in|)
-  //               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'> => in vs  (if len = |in|)
-  // exportname' ::= 0x00 len:<u32> en:<exportname>                    => en     (if len = |en|)
-  //               | 0x01 len:<u32> en:<exportname> vs:<versionsuffix'> => en vs  (if len = |en|)
+Expect<void> Loader::loadExternName(std::string &Name, std::string &Suffix) {
+  // importname' ::= 0x00 len:<u32> in:<importname>
+  //                   => in (if len = |in|)
+  //               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'>
+  //                   => in vs (if len = |in|)
+  // exportname' ::= 0x00 len:<u32> en:<exportname>
+  //                   => en (if len = |en|)
+  //               | 0x01 len:<u32> en:<exportname> vs:<versionsuffix'>
+  //                   => en vs (if len = |en|)
 
   // Error messages will be handled in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte());
@@ -18,7 +22,12 @@ Expect<uint8_t> Loader::loadExternName(std::string &Name) {
     return Unexpect(ErrCode::Value::MalformedName);
   }
   EXPECTED_TRY(Name, FMgr.readName());
-  return B;
+  if (B == 0x01) {
+    EXPECTED_TRY(Suffix, FMgr.readName());
+  } else {
+    Suffix.clear();
+  }
+  return {};
 }
 
 Expect<void> Loader::loadType(ComponentValType &Ty) {

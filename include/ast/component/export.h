@@ -24,8 +24,10 @@ namespace Component {
 
 // export      ::= en:<exportname'> si:<sortidx> ed?:<externdesc>?
 //               => (export en si ed?)
-// exportname' ::= 0x00 len:<u32> en:<exportname>                    => en     (if len = |en|)
-//               | 0x01 len:<u32> en:<exportname> vs:<versionsuffix'> => en vs  (if len = |en|)
+// exportname' ::= 0x00 len:<u32> en:<exportname>
+//                   => en (if len = |en|)
+//               | 0x01 len:<u32> en:<exportname> vs:<versionsuffix'>
+//                   => en vs (if len = |en|)
 
 /// AST Component::Export node.
 class Export {

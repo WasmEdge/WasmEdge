@@ -22,9 +22,12 @@ namespace WasmEdge {
 namespace AST {
 namespace Component {
 
-// import      ::= in:<importname'> ed:<externdesc> => (import in ed)
-// importname' ::= 0x00 len:<u32> in:<importname>                    => in     (if len = |in|)
-//               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'> => in vs  (if len = |in|)
+// import      ::= in:<importname'> ed:<externdesc>
+//               => (import in ed)
+// importname' ::= 0x00 len:<u32> in:<importname>
+//                   => in (if len = |in|)
+//               | 0x01 len:<u32> in:<importname> vs:<versionsuffix'>
+//                   => in vs (if len = |in|)
 
 /// AST Component::Import node.
 class Import {

@@ -16,6 +16,7 @@
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
 
+#include <optional>
 #include <string>
 
 namespace WasmEdge {

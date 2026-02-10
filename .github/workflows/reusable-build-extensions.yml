@@ -33,14 +33,10 @@ jobs:
     name: Prepare ${{ inputs.asset_tag }}
     runs-on: ubuntu-latest
     outputs:
-      macos_x86_64: ${{ steps.readfile.outputs.macos_x86_64 }}
-      macos_arm64: ${{ steps.readfile.outputs.macos_arm64 }}
-      manylinux_2_28_x86_64: ${{ steps.readfile.outputs.manylinux_2_28_x86_64 }}
-      manylinux_2_28_aarch64: ${{ steps.readfile.outputs.manylinux_2_28_aarch64 }}
-      ubuntu2004_x86_64: ${{ steps.readfile.outputs.ubuntu2004_x86_64 }}
-      ubuntu2004_cuda11: ${{ steps.readfile.outputs.ubuntu2004_cuda11 }}
-      ubuntu2004_cuda12: ${{ steps.readfile.outputs.ubuntu2004_cuda12 }}
-      ubuntu_latest: ${{ steps.readfile.outputs.ubuntu_latest }}
+      ubuntu_matrix: ${{ steps.prepare.outputs.ubuntu_matrix }}
+      ubuntu_latest_matrix: ${{ steps.prepare.outputs.ubuntu_latest_matrix }}
+      macos_matrix: ${{ steps.prepare.outputs.macos_matrix }}
+      manylinux_matrix: ${{ steps.prepare.outputs.manylinux_matrix }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
@@ -79,15 +75,137 @@ jobs:
               "ubuntu2004_cuda12",
               "ubuntu_latest",
             ]
-            for (const tag of asset_tags) {
-              core.setOutput(tag, plugins.filter(
-                (plugin) => plugin.platforms.includes(tag)
-              ).map((plugin) => {
-                let copy = { ...plugin }
+
+            const pluginsForPlatform = (platform) =>
+            plugins.filter(p => p.platforms.includes(platform))
+              .map(p => {
+                const copy = { ...p }
                 delete copy.platforms
                 return copy
-              }))
+              })
+            # for (const tag of asset_tags) {
+            #   core.setOutput(tag, plugins.filter(
+            #     (plugin) => plugin.platforms.includes(tag)
+            #   ).map((plugin) => {
+            #     let copy = { ...plugin }
+            #     delete copy.platforms
+            #     return copy
+            #   }))
+            # }
+
+            const platformPlugins = {
+            ubuntu2004_x86_64:  pluginsForPlatform("ubuntu2004_x86_64"),
+            ubuntu2004_cuda11:  pluginsForPlatform("ubuntu2004_cuda11"),
+            ubuntu2004_cuda12:  pluginsForPlatform("ubuntu2004_cuda12"),
+            ubuntu_latest:      pluginsForPlatform("ubuntu_latest"),
+            macos_x86_64:       pluginsForPlatform("macos_x86_64"),
+            macos_arm64:        pluginsForPlatform("macos_arm64"),
+            manylinux_x86_64:   pluginsForPlatform("manylinux_2_28_x86_64"),
+            manylinux_aarch64: pluginsForPlatform("manylinux_2_28_aarch64"),
             }
+
+            const buildMatrix = (variants) =>
+            variants
+              .filter(v => v.plugins.length > 0)
+              .map(v => ({
+                runner: v.runner,
+                docker_tag: v.docker_tag,
+                asset_tag: v.asset_tag,
+                plugins: v.plugins,
+              }))
+
+              // --------------------------------------------------
+             // Ubuntu 20.04 variants
+            // --------------------------------------------------
+           const ubuntuVariants = [
+            {
+              runner: "ubuntu-latest",
+              docker_tag: "ubuntu-20.04-build-clang-plugins-deps",
+              asset_tag: "ubuntu20.04_x86_64",
+              plugins: platformPlugins.ubuntu2004_x86_64,
+            },
+            {
+              runner: "ubuntu-latest",
+              docker_tag: "ubuntu-20.04-build-gcc-cuda11",
+              asset_tag: "ubuntu20.04_x86_64",
+              plugins: platformPlugins.ubuntu2004_cuda11,
+            },
+            {
+              runner: "ubuntu-latest",
+              docker_tag: "ubuntu-20.04-build-gcc-cuda12",
+              asset_tag: "ubuntu20.04_x86_64",
+              plugins: platformPlugins.ubuntu2004_cuda12,
+            },
+            ]
+
+            // --------------------------------------------------
+            // Ubuntu latest variants
+            // --------------------------------------------------
+            const ubuntuLatestVariants = [
+            {
+              runner: "ubuntu-latest",
+              docker_tag: "ubuntu-24.04-build-clang-plugins-deps",
+              asset_tag: "ubuntu24.04-clang",
+              plugins: platformPlugins.ubuntu_latest,
+            },
+            {
+              runner: "ubuntu-latest",
+              docker_tag: "ubuntu-24.04-build-gcc-plugins-deps",
+              asset_tag: "ubuntu24.04-gcc",
+              plugins: platformPlugins.ubuntu_latest,
+            },
+            ]
+
+            // --------------------------------------------------
+            // macOS variants
+            // --------------------------------------------------
+            const macosVariants = [
+            {
+              runner: "macos-15-intel",
+              asset_tag: "darwin_24-x86_64",
+              plugins: platformPlugins.macos_x86_64,
+            },
+            {
+              runner: "macos-14",
+              asset_tag: "darwin_23-arm64",
+              plugins: platformPlugins.macos_arm64,
+            },
+            ]
+
+            // --------------------------------------------------
+            // manylinux variants
+            // --------------------------------------------------
+            const manylinuxVariants = [
+            {
+              runner: "ubuntu-latest",
+              docker_tag: "manylinux_2_28_x86_64-plugins-deps",
+              asset_tag: "manylinux_2_28_x86_64",
+              plugins: platformPlugins.manylinux_x86_64,
+            },
+            {
+              runner: "ubuntu-24.04-arm",
+              docker_tag: "manylinux_2_28_aarch64-plugins-deps",
+              asset_tag: "manylinux_2_28_aarch64",
+              plugins: platformPlugins.manylinux_aarch64,
+            },
+            ]
+
+            // --------------------------------------------------
+            // Build matrices
+            // --------------------------------------------------
+            const ubuntuMatrix       = buildMatrix(ubuntuVariants)
+            const ubuntuLatestMatrix = buildMatrix(ubuntuLatestVariants)
+            const macosMatrix        = buildMatrix(macosVariants)
+            const manylinuxMatrix    = buildMatrix(manylinuxVariants)
+
+            // --------------------------------------------------
+            // Outputs
+            // --------------------------------------------------
+            core.setOutput("ubuntu_matrix", JSON.stringify(ubuntuMatrix))
+            core.setOutput("ubuntu_latest_matrix", JSON.stringify(ubuntuLatestMatrix))
+            core.setOutput("macos_matrix", JSON.stringify(macosMatrix))
+            core.setOutput("manylinux_matrix", JSON.stringify(manylinuxMatrix))
+
         env:
           wasi_crypto: ${{ steps.filter.outputs.wasi_crypto }}
           wasi_nn: ${{ steps.filter.outputs.wasi_nn }}

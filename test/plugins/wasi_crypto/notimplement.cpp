@@ -33,6 +33,8 @@ TEST_F(WasiCryptoTest, NotImplement) {
                              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   WASI_CRYPTO_EXPECT_FAILURE(keypairFromId(1, {}, 1),
                              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  WASI_CRYPTO_EXPECT_FAILURE(secretsManagerInvalidate(InvaildHandle, {}, 0),
+                             __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 } // namespace WasiCrypto

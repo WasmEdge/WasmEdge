@@ -97,6 +97,8 @@ jobs:
             cd -
           fi
         shell: bash
+        env:
+          ESPEAK_DATA_PATH: /usr/local/share/espeak-ng-data
       - if: ${{ !inputs.release }}
         name: Upload artifact ${{ matrix.plugin }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

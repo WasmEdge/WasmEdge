@@ -1,109 +1,135 @@
 'binding-java':
   - changed-files:
-    - any-glob-to-any-file: [
-      'bindings/java/**',
-      'bindings/java/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'bindings/java/**'
 
 'binding-rust':
   - changed-files:
-    - any-glob-to-any-file: [
-      'bindings/rust/**',
-      'bindings/rust/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'bindings/rust/**'
 
 'c-AOT':
   - changed-files:
-    - any-glob-to-any-file: [
-      'include/aot/**',
-      'lib/aot/**',
-      'include/aot/**/*',
-      'lib/aot/**/*']
+    - any-glob-to-any-file:
+      - 'include/aot/**'
+      - 'lib/aot/**'
+      - 'include/llvm/**'
+      - 'lib/llvm/**'
 
 'c-CAPI':
   - changed-files:
-    - any-glob-to-any-file: [
-      'include/api/**',
-      'lib/api/**',
-      'include/api/**/*',
-      'lib/api/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'include/api/**'
+      - 'lib/api/**'
 
 'c-CI':
   - changed-files:
-    - any-glob-to-any-file: [
-      '.github/**',
-      '.github/**/*'
-    ]
+    - any-glob-to-any-file:
+      - '.github/**'
 
 'c-CLI':
   - changed-files:
-    - any-glob-to-any-file: [
-      'include/driver/**',
-      'lib/driver/**',
-      'include/po/**',
-      'lib/po/**',
-      'include/driver/**/*',
-      'lib/driver/**/*',
-      'include/po/**/*',
-      'lib/po/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'include/driver/**'
+      - 'lib/driver/**'
+      - 'include/po/**'
+      - 'lib/po/**'
 
 'c-CMake':
   - changed-files:
-    - any-glob-to-any-file: [
-      'cmake/**',
-      'cmake/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+
+'c-Common':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'include/common/**'
+      - 'lib/common/**'
+      - 'include/ast/**'
+      - 'include/experimental/**'
+      - 'include/runtime/**'
 
 'c-Example':
   - changed-files:
-    - any-glob-to-any-file: [
-      'examples/**',
-      'examples/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'examples/**'
+
+'c-Executor':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'include/executor/**'
+      - 'lib/executor/**'
 
 'c-Installer':
   - changed-files:
-    - any-glob-to-any-file: [
-      'utils/install.*',
-      'utils/installer_changes.sh',
-      'utils/uninstall.sh'
-    ]
+    - any-glob-to-any-file:
+      - 'utils/install*'
+      - 'utils/uninstall.sh'
+
+'c-Loader':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'include/loader/**'
+      - 'lib/loader/**'
 
 'c-Plugin':
   - changed-files:
-    - any-glob-to-any-file: [
-      'plugins/**',
-      'plugins/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'plugins/**'
+
+'c-PluginAPI':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'include/plugin/**'
+      - 'lib/plugin/**'
 
 'c-Test':
   - changed-files:
-    - any-glob-to-any-file: [
-      'test/**',
-      'test/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'test/**'
 
-'WASI':
+'c-Validator':
   - changed-files:
-    - any-glob-to-any-file: [
-      'include/host/wasi/**',
-      'lib/host/wasi/**',
-      'include/host/wasi/**/*',
-      'lib/host/wasi/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'include/validator/**'
+      - 'lib/validator/**'
 
-'WASI-NN':
+'c-VM':
   - changed-files:
-    - any-glob-to-any-file: [
-      'plugins/wasi_nn/**',
-      'plugins/wasi_nn/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'include/vm/**'
+      - 'lib/vm/**'
 
 documentation:
   - changed-files:
-    - any-glob-to-any-file: [
-      'docs/**',
-      'docs/**/*'
-    ]
+    - any-glob-to-any-file:
+      - 'docs/**'
+      - '**.md'
+
+'WASI':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'include/host/wasi/**'
+      - 'lib/host/wasi/**'
+
+'WASI-Crypto':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'plugins/wasi_crypto/**'
+
+'WASI-HTTP':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'plugins/wasi_http/**'
+
+'WASI-NN':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'plugins/wasi_nn/**'
+      - 'lib/wasi_nn_rpc/**'
+
+'WASI-Poll':
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'plugins/wasi_poll/**'

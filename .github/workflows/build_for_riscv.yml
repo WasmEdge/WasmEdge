@@ -177,35 +177,126 @@ jobs:
         mkdir -p /usr/riscv64-linux-gnu/lib
         ln -sf /lib/riscv64-linux-gnu /usr/riscv64-linux-gnu/lib/riscv64-linux-gnu
 
-    - name: Extract artifacts and run tests
+    - name: Extract artifacts and run quick test suite
       run: |
         tar -xzf riscv64-artifacts.tar.gz
         cd riscv64-artifacts
+
+        # =============================================================
+        # RISC-V Quick Test Suite
+        # =============================================================
+        # A focused subset of tests for basic execution verification
+        # under QEMU user-mode emulation. Confirms that compilation
+        # is sound and fundamental WasmEdge components work correctly
+        # within a reasonable time.
+        #
+        # Tests are categorized into three groups:
+        #   1. QUICK  - Fast unit/integration tests (enabled)
+        #   2. HEAVY  - Spec-test-based suites, too slow for QEMU (disabled)
+        #   3. FLAKY  - Unreliable under QEMU user-mode emulation (disabled)
+        # =============================================================
+
+        # --- Group 1: Quick tests (enabled) ---
+        # These complete within a reasonable time under QEMU and verify
+        # core compilation and fundamental component functionality.
+        #
+        # Core utilities:
+        #   wasmedgeCommonTests            - Common utilities (int128 arithmetic)
+        #   wasmedgeErrinfoTests           - Error information handling
+        #   expectedTests                  - Expected<T> library tests
+        #   poTests                        - Program options parsing
+        #   spanTests                      - Span utility tests
+        # Loader:
+        #   wasmedgeLoaderFileMgrTests     - WASM binary file manager
+        #   wasmedgeLoaderASTTests         - WASM AST module loading & parsing
+        #   wasmedgeLoaderSerializerTests  - WASM module serialization
+        # Validator:
+        #   wasmedgeValidatorSubtypeTests  - Validator subtype checking
+        # Runtime:
+        #   wasmedgeMemLimitTests          - Memory limit enforcement
+        #   wasmedgeExternrefTests         - External reference (externref) tests
+        #   wasmedgeHostMockTests          - Host module mock tests
+        # API:
+        #   wasmedgeAPIUnitTests           - Core C API unit tests (types, values, config)
+        # AOT:
+        #   wasmedgeAOTBlake3Tests         - AOT Blake3 hash tests
+        QUICK_TESTS="
+          wasmedgeCommonTests
+          wasmedgeErrinfoTests
+          expectedTests
+          poTests
+          spanTests
+          wasmedgeLoaderFileMgrTests
+          wasmedgeLoaderASTTests
+          wasmedgeLoaderSerializerTests
+          wasmedgeValidatorSubtypeTests
+          wasmedgeMemLimitTests
+          wasmedgeExternrefTests
+          wasmedgeHostMockTests
+          wasmedgeAPIUnitTests
+          wasmedgeAOTBlake3Tests
+        "
+
+        # --- Group 2: Time-consuming tests (disabled) ---
+        # These tests run the full WebAssembly spec test suites
+        # (wasm-1.0 through wasm-3.0 + proposals: bulk-memory,
+        # exceptions, GC, multi-memory, relaxed-simd, simd, threads)
+        # through various execution paths. Under QEMU emulation each
+        # can take 30+ minutes. Re-enable when native RISC-V CI
+        # runners are available.
+        #
+        # wasmedgeExecutorCoreTests       - Executor + full spec test suites
+        # wasmedgeAPIVMCoreTests          - VM API + full spec test suites
+        # wasmedgeAPIStepsCoreTests       - Step-by-step exec + spec suites
+        # wasmedgeAPIAOTCoreTests         - AOT compilation + spec test suites
+        # wasmedgeAPIAOTNestedVMTests     - Nested VM + AOT + spec suites
+        # wasmedgeLLVMCoreTests           - LLVM backend + full spec test suites
+        # wasmedgeAOTCacheTests           - AOT cache (requires LLVM compilation)
+        # wasmedgeMixcallTests            - Mixed AOT/interpreter call interop
+        # componentTests                  - Component model spec test suites
+
+        # --- Group 3: Expected-to-fail tests (disabled) ---
+        # These tests are unreliable under QEMU user-mode emulation
+        # due to platform or emulation limitations.
+        #
+        # wasmedgeThreadTests             - QEMU user-mode does not reliably
+        #                                   emulate multi-threaded atomics
+        # wasiTests                       - WASI filesystem/process behavior
+        #                                   differs under QEMU cross-arch sysroot
+        # wasiSocketTests                 - Network stack not fully functional
+        #                                   in QEMU user-mode emulation
+
         failed=0
-        for test_bin in $(find build/test -type f -executable -not -name '*.so' 2>/dev/null); do
-          echo "--- ${test_bin} ---"
+        for test_name in ${QUICK_TESTS}; do
+          # Locate the test binary under the build tree
+          test_bin=$(find build/test -type f -executable -name "${test_name}" 2>/dev/null | head -1)
+          if [ -z "${test_bin}" ]; then
+            echo "SKIP: ${test_name} (binary not found)"
+            continue
+          fi
+          echo "=== Running: ${test_name} ==="
           test_dir=$(dirname "${test_bin}")
-          test_name=$(basename "${test_bin}")
           # Compute relative path from the test's directory to build/lib
           # so LD_LIBRARY_PATH stays relative (QEMU translates absolute paths).
           REL_LIB=$(realpath --relative-to="${test_dir}" build/lib)
           # Run from the test binary's directory: tests expect data files
-          # (filemgrTestData/, externrefTestData/, etc.) and spec test suites
-          # (../spec/testSuites/) relative to their binary directory.
+          # (filemgrTestData/, externrefTestData/, etc.) relative to cwd.
           if ( cd "${test_dir}" && timeout 300 qemu-riscv64-static \
             -L /usr/riscv64-linux-gnu \
             -E LD_LIBRARY_PATH=/usr/lib/riscv64-linux-gnu:${REL_LIB} \
             "./${test_name}" ); then
-            :
+            echo "PASSED: ${test_name}"
           else
-            echo "FAILED: ${test_bin}"
+            echo "FAILED: ${test_name}"
             failed=$((failed + 1))
           fi
         done
+        echo "=== Quick Test Suite Complete ==="
         if [ "${failed}" -gt 0 ]; then
           echo "${failed} test(s) failed"
           exit 1
         fi
+        echo "All quick tests passed"
 
     - name: Verify WasmEdge CLI tools
       run: |

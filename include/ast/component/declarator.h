@@ -16,8 +16,7 @@
 #include "ast/component/alias.h"
 #include "ast/component/descriptor.h"
 
-#include <string>
-#include <string_view>
+#include "ast/component/component_name.h"
 #include <variant>
 
 namespace WasmEdge {
@@ -27,16 +26,6 @@ namespace Component {
 // Need the forward declaration.
 class CoreDefType;
 class DefType;
-
-struct ComponentName {
-  enum class Category : uint8_t { Plain, Scoped, Hash };
-  Category Kind = Category::Plain;
-  std::string Name;
-  std::string Namespace;
-  std::string Package;
-  std::string Version;
-  std::string Hash;
-};
 
 // core:importdecl ::= m:<core:name> n:<core:name> d:<core:importdesc>
 //                   => (import m n d)

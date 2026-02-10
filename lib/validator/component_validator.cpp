@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/errinfo.h"
+#include "common/fmt_component.h"
 #include "common/spdlog.h"
 #include "validator/component_name.h"
 #include "validator/validator.h"
@@ -207,7 +208,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
     // Check the import module names are supplied from the instantiate args.
     for (const auto &Import : ImportDescs) {
       auto ArgIt = std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
-        return Arg.getName() == Import.getModuleName();
+        return Arg.getName().getFullName() == Import.getModuleName();
       });
       if (ArgIt == Args.end()) {
         spdlog::error(ErrCode::Value::MissingArgument);
@@ -277,7 +278,7 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         const auto &ImportSec = std::get<AST::Component::ImportSection>(Sec);
         for (const auto &Import : ImportSec.getContent()) {
           // TODO: strongly-unique problem of the import name.
-          ImportMap[std::string(Import.getName().Name)] = &Import.getDesc();
+          ImportMap[Import.getName().getFullName()] = &Import.getDesc();
         }
       }
     }
@@ -288,7 +289,7 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
       const auto &ImportName = It->first;
       const auto &ImportDesc = *It->second;
       auto ArgIt = std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
-        return Arg.getName() == ImportName;
+        return Arg.getName().getFullName() == ImportName;
       });
       if (ArgIt == Args.end()) {
         spdlog::error(ErrCode::Value::MissingArgument);
@@ -425,7 +426,7 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
           spdlog::error(ErrCode::Value::InvalidIndex);
           spdlog::error(
               "    Instance: Inline export '{}' refers to invalid index {}"sv,
-              Export.getName().Name, Idx);
+              Export.getName(), Idx);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
           return Unexpect(ErrCode::Value::InvalidIndex);
         }
@@ -434,18 +435,18 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
           spdlog::error(ErrCode::Value::InvalidIndex);
           spdlog::error(
               "    Instance: Inline export '{}' refers to invalid index {}"sv,
-              Export.getName().Name, Idx);
+              Export.getName(), Idx);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
           return Unexpect(ErrCode::Value::InvalidIndex);
         }
         if (Sort.getSortType() == AST::Component::Sort::SortType::Type) {
           auto SubstitutedIdx =
-              CompCtx.getSubstitutedType(std::string(Export.getName().Name));
+              CompCtx.getSubstitutedType(Export.getName().getFullName());
           if (SubstitutedIdx.has_value() && Idx != SubstitutedIdx.value()) {
             spdlog::error(ErrCode::Value::InvalidTypeReference);
             spdlog::error(
                 "    Instance: Inline export '{}' type index {} does not match substituted type index {}"sv,
-                Export.getName().Name, Idx, *SubstitutedIdx);
+                Export.getName(), Idx, *SubstitutedIdx);
             return Unexpect(ErrCode::Value::InvalidTypeReference);
           }
         }
@@ -482,7 +483,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
-    auto It = CompExports.find(Name);
+    auto It = CompExports.find(Name.getFullName());
     if (It == CompExports.cend()) {
       spdlog::error(ErrCode::Value::ExportNotFound);
       spdlog::error(
@@ -542,7 +543,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
-    auto It = CoreExports.find(Name);
+    auto It = CoreExports.find(Name.getFullName());
     if (It == CoreExports.end()) {
       spdlog::error(ErrCode::Value::ExportNotFound);
       spdlog::error(
@@ -814,7 +815,7 @@ Expect<void> Validator::validateComponentName(
   }
 
   // Use existing parser for the base name validation
-  ComponentName CName(CompName.Name);
+  WasmEdge::Validator::ComponentName CName(CompName.Name);
   if (CName.getKind() == ComponentNameKind::Invalid) {
     spdlog::error("    ComponentName: Invalid base name '{}'"sv, CompName.Name);
     return Unexpect(ErrCode::Value::MalformedName);
@@ -859,8 +860,8 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
           uint32_t InstIdx = CompCtx.getSortIndexSize(
                                  AST::Component::Sort::SortType::Instance) -
                              1;
-          CompCtx.addComponentInstanceExport(InstIdx, Exp.getName().Name,
-                                             Exp.getExternDesc());
+          CompCtx.addComponentInstanceExport(
+              InstIdx, Exp.getName().getFullName(), Exp.getExternDesc());
         } else {
           assumingUnreachable();
         }

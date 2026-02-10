@@ -63,6 +63,17 @@ if [ ! -f "${PIPER_INSTALL_TO}/lib/libucd.a" ]; then
     exit 1
 fi
 
+echo "Installing espeak-ng-data to ${PIPER_INSTALL_TO}/share..."
+
+if [ -d "build/espeak_ng-install/share/espeak-ng-data" ]; then
+    mkdir -p "${PIPER_INSTALL_TO}/share"
+    cp -r "build/espeak_ng-install/share/espeak-ng-data" "${PIPER_INSTALL_TO}/share/"
+    echo "Espeak-ng-data installed successfully."
+else
+    echo "Error: espeak-ng-data directory not found in build tree!"
+    exit 1
+fi
+
 cd ../..
 rm -rf piper-source
 

@@ -639,7 +639,7 @@ function(wasmedge_setup_bitnet_target target)
     FetchContent_Declare(
       bitnet
       GIT_REPOSITORY https://github.com/microsoft/BitNet.git
-      GIT_TAG        404980e
+      GIT_TAG        8fd3412fbc9319f0764f82da6e9406c0323140f3
       GIT_SHALLOW    TRUE
       ${BITNET_PATCH_ARGS}
     )

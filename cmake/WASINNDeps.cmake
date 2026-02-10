@@ -640,7 +640,7 @@ function(wasmedge_setup_bitnet_target target)
       bitnet
       GIT_REPOSITORY https://github.com/microsoft/BitNet.git
       GIT_TAG        404980e
-      GIT_SHALLOW    TRUE
+      GIT_SHALLOW    FALSE
       ${BITNET_PATCH_ARGS}
     )
 

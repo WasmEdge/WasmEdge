@@ -29,22 +29,18 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 ## Current Roadmap
 
-Last Updated: Q4 / 2025
+Last Updated: Q1 / 2026
 
 | Theme    | Description | Timeline | Assignee |
 | ---      | ----------- | -------- | -------- |
-| Feature | WasmEdge 0.16.0 release | Q4 / 2025 | [@hydai](https://github.com/hydai) |
-| Proposal | [WASM 3.0 supporting](https://github.com/WasmEdge/WasmEdge/issues/4382) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/pull/2964) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | [Component Model completion](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | [Component Model value and value type refactoring](https://github.com/WasmEdge/WasmEdge/issues/4333) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | [Component Model canonical section refactoring](https://github.com/WasmEdge/WasmEdge/issues/4334) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | [WASI preview2 as plugins](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q4 / 2025 | [@q82419](https://github.com/q82419) |
-| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) | Q4 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) |
-| Proposal | Update the Android NDK build examples | Q4 / 2025 | [@dm4](https://github.com/dm4) |
-| Proposal | WASI-NN GGML plugin with latest llama.cpp integration for Q4/2025 | Q4 / 2025 | [@dm4](https://github.com/dm4) |
+
 | Document | WasmEdge documentation refactoring | Q1 / 2026 | [@q82419](https://github.com/q82419) |
-| Feature | [LFX (2025/term3) Pointer alignment checking for WASI host function arguments](https://github.com/WasmEdge/WasmEdge/issues/4362) | Q4 / 2025 | [@Minimega12121](https://github.com/Minimega12121) |
+| Proposal | [Component Model completion](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q2 / 2026 | [@q82419](https://github.com/q82419) |
+| Proposal | [Component Model canonical section refactoring](https://github.com/WasmEdge/WasmEdge/issues/4334) | Q2 / 2026 | [@q82419](https://github.com/q82419) |
+| Proposal | [WASI preview2 as plugins](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q2 / 2026 | [@q82419](https://github.com/q82419) |
+| Feature | [LFX (2026/term1) Extend sub-command of WasmEdge CLI tool](https://github.com/WasmEdge/WasmEdge/issues/4513) | Q2 / 2026 | |
+| Feature | [LFX (2026/term1) Module instance dependency tree in WASM store](https://github.com/WasmEdge/WasmEdge/issues/4514) | Q2 / 2026 | |
+| Feature | [LFX (2026/term1) Enable JIT mode support for per-function compilation](https://github.com/WasmEdge/WasmEdge/issues/4516) | Q2 / 2026 | |
 
 ## Inactive Roadmap
 
@@ -70,8 +66,21 @@ Last Updated: Q4 / 2025
 | Proposal | Typed continuation proposal |
 | Proposal | Stack-switch proposal |
 | Proposal | WASI-NN Whisper.cpp plugin: update for supporting the greedy sampling |
+| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) |
 
 ## Previous Roadmap
+
+### Q4/2025
+
+| Theme | Description | Timeline | Assignee | Status |
+| --- | --- | --- | --- | --- |
+| Feature | WasmEdge 0.16.0 release | Q4 / 2025 | [@hydai](https://github.com/hydai) | Completed |
+| Proposal | [WASM 3.0 supporting](https://github.com/WasmEdge/WasmEdge/issues/4382) | Q4 / 2025 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | [Component Model value and value type refactoring](https://github.com/WasmEdge/WasmEdge/issues/4333) | Q4 / 2025 | [@q82419](https://github.com/q82419) | Completed |
+| Feature | [LFX (2025/term3) Pointer alignment checking for WASI host function arguments](https://github.com/WasmEdge/WasmEdge/issues/4362) | Q4 / 2025 | [@Minimega12121](https://github.com/Minimega12121) | Completed |
+| Proposal | WASI-NN GGML plugin with latest llama.cpp integration for Q4/2025 | Q4 / 2025 | [@dm4](https://github.com/dm4) | Completed |
+| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) | Q4 / 2025 | [@ibmibmibm](https://github.com/ibmibmibm) | Staled |
+| Proposal | Update the Android NDK build examples | Q4 / 2025 | [@dm4](https://github.com/dm4) | Staled |
 
 ### Q3/2025
 

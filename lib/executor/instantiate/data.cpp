@@ -19,7 +19,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
 
   // Iterate through the data segments to instantiate data instances.
   for (const auto &DataSeg : DataSec.getContent()) {
-    uint32_t Offset = 0;
+    uint64_t Offset = 0;
     // Initialize memory if the data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
       // Run initialize expression.
@@ -30,18 +30,19 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
                          return E;
                        }));
-      Offset = StackMgr.pop().get<uint32_t>();
+      // Get memory instance and address type.
+      // Memory64 proposal is checked in validation phase.
+      auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
+      assuming(MemInst);
+      Offset = extractAddr(StackMgr.pop(),
+                           MemInst->getMemoryType().getLimit().getAddrType());
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
       // enabled.
       if (unlikely(!Conf.hasProposal(Proposal::ReferenceTypes) &&
                    !Conf.hasProposal(Proposal::BulkMemoryOperations))) {
-        // Memory index should be 0. Checked in validation phase.
-        auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
         // Check data fits.
-        assuming(MemInst);
-        if (!MemInst->checkAccessBound(
-                Offset, static_cast<uint32_t>(DataSeg.getData().size()))) {
+        if (!MemInst->checkAccessBound(Offset, DataSeg.getData().size())) {
           spdlog::error(ErrCode::Value::DataSegDoesNotFit);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
           return Unexpect(ErrCode::Value::DataSegDoesNotFit);
@@ -63,23 +64,21 @@ Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
   for (const auto &DataSeg : DataSec.getContent()) {
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
-      // Memory index should be 0. Checked in validation phase.
+      // Memory and data index are checked in validation phase.
       auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
       assuming(MemInst);
-
       auto *DataInst = getDataInstByIdx(StackMgr, Idx);
       assuming(DataInst);
-      const uint32_t Off = DataInst->getOffset();
+      const uint64_t Off = DataInst->getOffset();
 
       // Replace mem[Off : Off + n] with data[0 : n].
-      EXPECTED_TRY(
-          MemInst
-              ->setBytes(DataInst->getData(), Off, 0,
-                         static_cast<uint32_t>(DataInst->getData().size()))
-              .map_error([](auto E) {
-                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
-                return E;
-              }));
+      EXPECTED_TRY(MemInst
+                       ->setBytes(DataInst->getData(), Off, 0,
+                                  DataInst->getData().size())
+                       .map_error([](auto E) {
+                         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Data));
+                         return E;
+                       }));
 
       // Drop the data instance.
       DataInst->clear();

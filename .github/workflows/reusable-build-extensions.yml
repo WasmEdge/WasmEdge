@@ -65,7 +65,7 @@ jobs:
                   process.env[plugin.plugin] != 'true' &&
                   process.env[plugin.plugin.split('-')[0]] != 'true')
               )
-            }           
+            }
 
             const pluginsForPlatform = (platform) =>
               plugins.filter(p => p.platforms.includes(platform))
@@ -74,7 +74,7 @@ jobs:
                   delete copy.platforms
                   return copy
                 })
-           
+
             const platformPlugins = {
               macos_x86_64: pluginsForPlatform("macos_x86_64"),
               macos_arm64:  pluginsForPlatform("macos_arm64"),
@@ -85,7 +85,7 @@ jobs:
               ubuntu2004_cuda12:  pluginsForPlatform("ubuntu2004_cuda12"),
               ubuntu_latest:  pluginsForPlatform("ubuntu_latest"),
             }
- 
+
             const ubuntuVariants = [
               {
                 runner: "ubuntu-latest",

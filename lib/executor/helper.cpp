@@ -421,9 +421,9 @@ TypeCode Executor::toBottomType(Runtime::StackManager &StackMgr,
         assumingUnreachable();
       }
     } else {
-      const auto &CompType =
-          (*StackMgr.getModule()->getType(Type.getTypeIndex()))
-              ->getCompositeType();
+      auto TypeResult = StackMgr.getModule()->getType(Type.getTypeIndex());
+      assuming(TypeResult);
+      const auto &CompType = (*TypeResult)->getCompositeType();
       if (CompType.isFunc()) {
         return TypeCode::NullFuncRef;
       } else {

@@ -12,3 +12,15 @@ target_link_libraries(wasmedgeExecutorCoreTests
   wasmedgeTestSpec
   wasmedgeVM
 )
+
+wasmedge_add_executable(wasmedgeExecutorNullDerefTests
+  executorNullDerefTest.cpp
+)
+
+add_test(wasmedgeExecutorNullDerefTests wasmedgeExecutorNullDerefTests)
+
+target_link_libraries(wasmedgeExecutorNullDerefTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeVM
+)

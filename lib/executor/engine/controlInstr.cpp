@@ -193,7 +193,9 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Get function type at index x.
   const auto *ModInst = StackMgr.getModule();
-  const auto &ExpDefType = **ModInst->getType(Instr.getTargetIndex());
+  EXPECTED_TRY(auto const *ExpDefTypePtr,
+               ModInst->getType(Instr.getTargetIndex()));
+  const auto &ExpDefType = *ExpDefTypePtr;
 
   // Pop the value i32.const i from the Stack.
   uint32_t Idx = StackMgr.pop().get<uint32_t>();

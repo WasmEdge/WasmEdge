@@ -164,7 +164,9 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  EXPECTED_TRY(auto const *ExpDefTypePtr,
+               ModInst->getType(FuncTypeIdx));
+  const auto &ExpDefType = *ExpDefTypePtr;
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;
@@ -600,7 +602,9 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
 
   const auto *ModInst = StackMgr.getModule();
   assuming(ModInst);
-  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  EXPECTED_TRY(auto const *ExpDefTypePtr,
+               ModInst->getType(FuncTypeIdx));
+  const auto &ExpDefType = *ExpDefTypePtr;
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
   bool IsMatch = false;

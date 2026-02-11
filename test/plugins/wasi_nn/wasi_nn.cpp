@@ -2519,8 +2519,7 @@ TEST(WasiNNTest, PiperBackend) {
 
   // First json input with parameters overridden
   Text = "{\"text\": \"This is a test.\", \"noise_scale\": 0.0, "
-         "\"length_scale\": 2.0, \"noise_w\": 0.0, \"sentence_silence\": 1.0, "
-         "\"phoneme_silence\": {\"t\": 0.0}}";
+         "\"length_scale\": 2.0, \"noise_w\": 0.0}";
   TensorData = {Text.begin(), Text.end()};
   SetInputEntryPtr = BuilderPtr;
   writeFatPointer(MemInst, StorePtr, TensorDim.size(), BuilderPtr);
@@ -2563,8 +2562,8 @@ TEST(WasiNNTest, PiperBackend) {
         Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
-    // Should output more than 50000 bytes.
-    EXPECT_GE(BytesWritten, 50000);
+    // Should output more than 40000 bytes.
+    EXPECT_GE(BytesWritten, 40000);
   }
 
   // Second json input to check if one-time overriding is working properly
@@ -2613,9 +2612,9 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
     auto BytesWritten = *MemInst.getPointer<uint32_t *>(BuilderPtr);
     EXPECT_GE(BytesWritten, 30000);
-    // Should output less than 40000 bytes.
-    EXPECT_LT(BytesWritten, 40000);
-    EXPECT_EQ(BytesWritten, 34048);
+    // Should output less than 50000 bytes.
+    EXPECT_LT(BytesWritten, 50000);
+    EXPECT_EQ(BytesWritten, 44100);
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER

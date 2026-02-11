@@ -58,7 +58,6 @@ jobs:
             const fs = require("fs")
             const s = fs.readFileSync(".github/workflows/matrix-extensions.json")
             let plugins = JSON.parse(s).plugins
-
             if (!${{ inputs.release || fromJSON(steps.filter.outputs.all) }}) {
               plugins = plugins.filter(
                 (plugin) => !(
@@ -106,7 +105,6 @@ jobs:
                 plugins: platformPlugins.ubuntu2004_cuda12,
               },
             ]
-
 
             const ubuntuLatestVariants = [
               {
@@ -183,7 +181,8 @@ jobs:
       contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare.outputs.ubuntu_matrix) }}
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.ubuntu_matrix) }}
     name: ${{ matrix.asset_tag }}
     uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
     with:
@@ -202,7 +201,8 @@ jobs:
       contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare.outputs.ubuntu_latest_matrix) }}
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.ubuntu_latest_matrix) }}
     name: ${{ matrix.asset_tag }}
     uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
     with:
@@ -221,7 +221,8 @@ jobs:
       contents: write # Required by reusable-build-extensions-on-macos.yml
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare.outputs.macos_matrix) }}
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.macos_matrix) }}
     name: ${{ matrix.asset_tag }}
     uses: ./.github/workflows/reusable-build-extensions-on-macos.yml
     with:
@@ -239,7 +240,8 @@ jobs:
       contents: write # Required by reusable-build-extensions-on-linux.yml
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.prepare.outputs.manylinux_matrix) }}
+      matrix:
+        include: ${{ fromJson(needs.prepare.outputs.manylinux_matrix) }}
     name: ${{ matrix.asset_tag }}
     uses: ./.github/workflows/reusable-build-extensions-on-linux.yml
     with:

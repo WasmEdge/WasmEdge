@@ -128,6 +128,8 @@ static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
 struct LLVM::Compiler::CompileContext {
   LLVM::Context LLContext;
   LLVM::Module &LLModule;
+  const Configure &Conf;
+  const AST::Module &Module;
   LLVM::Attribute Cold;
   LLVM::Attribute NoAlias;
   LLVM::Attribute NoInline;
@@ -204,9 +206,9 @@ struct LLVM::Compiler::CompileContext {
   std::vector<LLVM::Type> Globals;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
-  CompileContext(LLVM::Context C, LLVM::Module &M,
-                 bool IsGenericBinary) noexcept
-      : LLContext(C), LLModule(M),
+  CompileContext(LLVM::Context C, LLVM::Module &M, const Configure &Conf,
+                 const AST::Module &Module, bool IsGenericBinary) noexcept
+      : LLContext(C), LLModule(M), Conf(Conf), Module(Module),
         Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
         NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
         NoInline(LLVM::Attribute::createEnum(C, LLVM::Core::NoInline, 0)),
@@ -519,7 +521,8 @@ public:
       : Context(Context), LLContext(Context.LLContext),
         Interruptible(Interruptible), F(F), Builder(LLContext) {
     if (F.Fn) {
-      Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
+      EntryBB = LLVM::BasicBlock::create(LLContext, F.Fn, "entry");
+      Builder.positionAtEnd(EntryBB);
       ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
 
       if (InstructionCounting) {
@@ -558,12 +561,73 @@ public:
     return BB;
   }
 
+  void computeCacheableMemories(AST::InstrView Instrs) noexcept {
+    // Find memory indices that are grown in this function
+    std::unordered_set<uint32_t> GrowingMemories;
+    // Check for any call instructions (may execute memory.grow transitively)
+    bool HasCall = false;
+    for (const auto &Instr : Instrs) {
+      if (Instr.getOpCode() == OpCode::Memory__grow) {
+        GrowingMemories.insert(Instr.getTargetIndex());
+      }
+      if (Instr.getOpCode() == OpCode::Call ||
+          Instr.getOpCode() == OpCode::Call_indirect) {
+        HasCall = true;
+      }
+    }
+    const bool ThreadsEnabled = Context.Conf.hasProposal(Proposal::Threads);
+    auto isSharedMemory = [this](uint32_t MemIdx) noexcept -> bool {
+      uint32_t ImportMemCount = 0;
+      for (const auto &Imp : Context.Module.getImportSection().getContent()) {
+        if (Imp.getExternalType() != ExternalType::Memory) {
+          continue;
+        }
+        if (ImportMemCount == MemIdx) {
+          return Imp.getExternalMemoryType().getLimit().isShared();
+        }
+        ++ImportMemCount;
+      }
+      const auto &Mems = Context.Module.getMemorySection().getContent();
+      return Mems[MemIdx - ImportMemCount].getLimit().isShared();
+    };
+    // Memory.size results can be cached for indices that are never grown
+    for (const auto &Instr : Instrs) {
+      if (Instr.getOpCode() == OpCode::Memory__size) {
+        const uint32_t MemIdx = Instr.getTargetIndex();
+        // Cannot cache if: (1) memory grows directly, (2) calls exist (may
+        // grow), or (3) threads+shared (concurrent growth)
+        if (GrowingMemories.find(MemIdx) != GrowingMemories.end() || HasCall) {
+          continue;
+        }
+        if (ThreadsEnabled && isSharedMemory(MemIdx)) {
+          // Shared memory may grow concurrently under threads
+          continue;
+        }
+        CacheableMemSizes.insert(MemIdx);
+      }
+    }
+  }
+
   Expect<void>
   compile(const AST::CodeSegment &Code,
           std::pair<std::vector<ValType>, std::vector<ValType>> Type) noexcept {
     auto RetBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ret");
     Type.first.clear();
     enterBlock(RetBB, {}, {}, {}, std::move(Type));
+    computeCacheableMemories(Code.getExpr().getInstrs());
+    if (!CacheableMemSizes.empty()) {
+      auto CurrBB = Builder.getInsertBlock();
+      Builder.positionAtEnd(EntryBB);
+      for (const auto MemIdx : CacheableMemSizes) {
+        CachedMemSize[MemIdx] = Builder.createCall(
+            Context.getIntrinsic(Builder, Executable::Intrinsics::kMemSize,
+                                 LLVM::Type::getFunctionType(Context.Int32Ty,
+                                                             {Context.Int32Ty},
+                                                             false)),
+            {LLContext.getInt32(MemIdx)});
+      }
+      Builder.positionAtEnd(CurrBB);
+    }
     EXPECTED_TRY(compile(Code.getExpr().getInstrs()));
     assuming(ControlStack.empty());
     compileReturn();
@@ -1678,14 +1742,23 @@ public:
         compileStoreOp(Instr.getTargetIndex(), Instr.getMemoryOffset(),
                        Instr.getMemoryAlign(), Context.Int32Ty, true);
         break;
-      case OpCode::Memory__size:
-        stackPush(Builder.createCall(
-            Context.getIntrinsic(Builder, Executable::Intrinsics::kMemSize,
-                                 LLVM::Type::getFunctionType(Context.Int32Ty,
-                                                             {Context.Int32Ty},
-                                                             false)),
-            {LLContext.getInt32(Instr.getTargetIndex())}));
+      case OpCode::Memory__size: {
+        uint32_t MemIdx = Instr.getTargetIndex();
+        if (auto Iter = CachedMemSize.find(MemIdx);
+            Iter != CachedMemSize.end()) {
+          stackPush(Iter->second);
+        } else {
+          // Not in cache: memory grows in this function, or threads+shared
+          // memory
+          stackPush(Builder.createCall(
+              Context.getIntrinsic(
+                  Builder, Executable::Intrinsics::kMemSize,
+                  LLVM::Type::getFunctionType(Context.Int32Ty,
+                                              {Context.Int32Ty}, false)),
+              {LLContext.getInt32(MemIdx)}));
+        }
         break;
+      }
       case OpCode::Memory__grow: {
         auto Diff = stackPop();
         stackPush(Builder.createCall(
@@ -5818,6 +5891,9 @@ private:
   LLVM::FunctionCallee F;
   LLVM::Value ExecCtx;
   LLVM::Builder Builder;
+  LLVM::BasicBlock EntryBB;
+  std::unordered_set<uint32_t> CacheableMemSizes;
+  std::unordered_map<uint32_t, LLVM::Value> CachedMemSize;
 };
 
 std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
@@ -5877,7 +5953,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
-  CompileContext NewContext(LLContext, LLModule,
+  CompileContext NewContext(LLContext, LLModule, Conf, Module,
                             Conf.getCompilerConfigure().isGenericBinary());
   struct RAIICleanup {
     RAIICleanup(CompileContext *&Context, CompileContext &NewContext)

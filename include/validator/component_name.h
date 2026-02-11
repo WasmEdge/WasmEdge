@@ -32,7 +32,8 @@ enum class ComponentNameKind {
   Method,
   Static,
   InterfaceType,
-  Label
+  Label,
+  Hash
 };
 
 class ComponentName {
@@ -58,6 +59,10 @@ class ComponentName {
       std::string_view Projection;
       std::string_view Version;
     } Interface;
+    struct {
+      // integrity=<HashValue>
+      std::string_view HashValue;
+    } Hash;
   } Detail;
 
   void parse();

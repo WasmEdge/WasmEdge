@@ -487,12 +487,18 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       const AST::FunctionType *FuncType = nullptr;
       for (const auto &Func : VM.getFunctionList()) {
         if (Func.first == InitFunc) {
-          // Found the init function.
           HasInit = true;
-        } else if (Func.first == FuncName) {
-          // Found the function to invoke.
+        }
+        if (Func.first == FuncName) {
           FuncType = &Func.second;
         }
+      }
+
+      if (FuncType == nullptr) {
+        fmt::print(stderr,
+                   "Function \"{}\" not found in the module export list.\n"sv,
+                   FuncName);
+        return EXIT_FAILURE;
       }
 
       // If found initialize function, invoke it first.
@@ -516,12 +522,15 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       const AST::Component::FuncType *FuncType = nullptr;
       for (const auto &Func : VM.getComponentFunctionList()) {
         if (Func.first == FuncName) {
-          // Found the function to invoke.
           FuncType = &Func.second;
         }
       }
-      // TODO: COMPONENT - Check the exported function name and function type
-      // first.
+      if (FuncType == nullptr) {
+        fmt::print(stderr,
+                   "Function \"{}\" not found in the component export list.\n"sv,
+                   FuncName);
+        return EXIT_FAILURE;
+      }
       return ToolOnComponent(VM, FuncName, Timeout, Opt, *FuncType);
     } else {
       // which means VM has neither instantiated module nor instantiated

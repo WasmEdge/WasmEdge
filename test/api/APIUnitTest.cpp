@@ -678,6 +678,11 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
+  // Tests for call stack depth limits.
+  WasmEdge_ConfigureSetMaxCallDepth(ConfNull, 5000U);
+  WasmEdge_ConfigureSetMaxCallDepth(Conf, 5000U);
+  EXPECT_NE(WasmEdge_ConfigureGetMaxCallDepth(ConfNull), 5000U);
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxCallDepth(Conf), 5000U);
   // Tests for force interpreter.
   WasmEdge_ConfigureSetForceInterpreter(ConfNull, true);
   EXPECT_EQ(WasmEdge_ConfigureIsForceInterpreter(Conf), false);
@@ -3754,6 +3759,86 @@ TEST(APICoreTest, Plugin) {
   WasmEdge_ModuleInstanceDelete(ModCxt);
 }
 #endif
+
+TEST(APICoreTest, StackOverflow) {
+  // WASM binary for stack overflow test (compiled from stack_overflow.wat)
+  std::vector<uint8_t> StackOverflowWasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02, 0x60,
+      0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00,
+      0x01, 0x07, 0x27, 0x02, 0x12, 0x69, 0x6e, 0x66, 0x69, 0x6e, 0x69, 0x74,
+      0x65, 0x5f, 0x72, 0x65, 0x63, 0x75, 0x72, 0x73, 0x69, 0x6f, 0x6e, 0x00,
+      0x00, 0x0e, 0x64, 0x65, 0x65, 0x70, 0x5f, 0x72, 0x65, 0x63, 0x75, 0x72,
+      0x73, 0x69, 0x6f, 0x6e, 0x00, 0x01, 0x0a, 0x21, 0x02, 0x07, 0x00, 0x41,
+      0x01, 0x10, 0x00, 0x6a, 0x0b, 0x17, 0x00, 0x20, 0x00, 0x41, 0x00, 0x4c,
+      0x04, 0x7f, 0x41, 0x00, 0x05, 0x41, 0x01, 0x20, 0x00, 0x41, 0x01, 0x6b,
+      0x10, 0x01, 0x6a, 0x0b, 0x0b};
+
+  // Test stack overflow protection with configurable limits
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_Result Res;
+  WasmEdge_String FuncName;
+  std::array<WasmEdge_Value, 1> Returns;
+
+  // Load and instantiate the stack overflow test module
+  Res = WasmEdge_VMLoadWasmFromBuffer(
+      VM, StackOverflowWasm.data(),
+      static_cast<uint32_t>(StackOverflowWasm.size()));
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMValidate(VM);
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMInstantiate(VM);
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Test 1: Infinite recursion should hit default limit (10000)
+  FuncName = WasmEdge_StringWrap("infinite_recursion", 18);
+  Res = WasmEdge_VMExecute(VM, FuncName, nullptr, 0, Returns.data(), 1);
+  EXPECT_FALSE(WasmEdge_ResultOK(Res));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCategory_WASM, 0x041A, Res));
+
+  // Test 2: Set low limit and verify it's enforced
+  WasmEdge_VMDelete(VM);
+  WasmEdge_ConfigureSetMaxCallDepth(Conf, 100U);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  Res = WasmEdge_VMLoadWasmFromBuffer(
+      VM, StackOverflowWasm.data(),
+      static_cast<uint32_t>(StackOverflowWasm.size()));
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMValidate(VM);
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMInstantiate(VM);
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Deep recursion with 1000 should exceed limit of 100
+  FuncName = WasmEdge_StringWrap("deep_recursion", 14);
+  std::array<WasmEdge_Value, 1> Params = {WasmEdge_ValueGenI32(1000)};
+  Res = WasmEdge_VMExecute(VM, FuncName, Params.data(), 1, Returns.data(), 1);
+  EXPECT_FALSE(WasmEdge_ResultOK(Res));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCategory_WASM, 0x041A, Res));
+
+  // Test 3: Set high limit and verify shallow recursion works
+  WasmEdge_VMDelete(VM);
+  WasmEdge_ConfigureSetMaxCallDepth(Conf, 10000U);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  Res = WasmEdge_VMLoadWasmFromBuffer(
+      VM, StackOverflowWasm.data(),
+      static_cast<uint32_t>(StackOverflowWasm.size()));
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMValidate(VM);
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMInstantiate(VM);
+  ASSERT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Shallow recursion with 50 should succeed with limit of 10000
+  Params = {WasmEdge_ValueGenI32(50)};
+  Res = WasmEdge_VMExecute(VM, FuncName, Params.data(), 1, Returns.data(), 1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 50);
+
+  WasmEdge_VMDelete(VM);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

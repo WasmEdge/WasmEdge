@@ -24,20 +24,22 @@ namespace WasmEdge {
 namespace Driver {
 
 // Helper template to parse numeric arguments and catch conversion exceptions
-template <typename T, typename Converter>
-inline bool parseNumericArg(const std::string &Value, size_t ParamIndex, T &Out,
-                            Converter Conv) {
+template <typename Converter, typename ValVec, typename TypeVec, typename TC>
+bool parseNumericArg(const std::string &Value, size_t ParamIndex,
+                     std::string_view TypeName, Converter Conv,
+                     ValVec &FuncArgs, TypeVec &FuncArgTypes, TC TCode) {
   try {
-    Out = Conv(Value);
+    auto Out = Conv(Value);
+    FuncArgs.emplace_back(Out);
+    FuncArgTypes.emplace_back(TCode);
     return true;
   } catch (const std::invalid_argument &) {
-    spdlog::error(
-        "Invalid argument '{}' for parameter {}: expected numeric value"sv,
-        Value, ParamIndex);
+    spdlog::error("Invalid argument '{}' for parameter {}: expected {}"sv,
+                  Value, ParamIndex + 1, TypeName);
     return false;
   } catch (const std::out_of_range &) {
-    spdlog::error("Argument '{}' for parameter {}: value out of range"sv, Value,
-                  ParamIndex);
+    spdlog::error("Argument '{}' for parameter {}: {} out of range"sv, Value,
+                  ParamIndex + 1, TypeName);
     return false;
   }
 }
@@ -54,49 +56,47 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
        I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
        ++I) {
     const auto TCode = FuncType.getParamTypes()[I].getCode();
-    const std::string &ArgValue = Opt.Args.value()[I + 1];
+    const auto &ArgValue = Opt.Args.value()[I + 1];
 
     switch (TCode) {
     case TypeCode::I32: {
-      int32_t Value = 0;
-      if (!parseNumericArg(ArgValue, I, Value, [](const std::string &S) {
-            return static_cast<int32_t>(std::stol(S));
-          })) {
+      if (!parseNumericArg(
+              ArgValue, I, "i32"sv,
+              [](const std::string &S) {
+                return static_cast<int32_t>(std::stol(S));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
       break;
     }
     case TypeCode::I64: {
-      int64_t Value = 0;
-      if (!parseNumericArg(ArgValue, I, Value, [](const std::string &S) {
-            return static_cast<int64_t>(std::stoll(S));
-          })) {
+      if (!parseNumericArg(
+              ArgValue, I, "i64"sv,
+              [](const std::string &S) {
+                return static_cast<int64_t>(std::stoll(S));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
       break;
     }
     case TypeCode::F32: {
-      float Value = 0.0f;
-      if (!parseNumericArg(ArgValue, I, Value,
-                           [](const std::string &S) { return std::stof(S); })) {
+      if (!parseNumericArg(
+              ArgValue, I, "f32"sv,
+              [](const std::string &S) { return std::stof(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
       break;
     }
     case TypeCode::F64: {
-      double Value = 0.0;
-      if (!parseNumericArg(ArgValue, I, Value,
-                           [](const std::string &S) { return std::stod(S); })) {
+      if (!parseNumericArg(
+              ArgValue, I, "f64"sv,
+              [](const std::string &S) { return std::stod(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
       break;
     }
     // TODO: FuncRef and ExternRef
@@ -107,15 +107,14 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
   if (FuncType.getParamTypes().size() + 1 < Opt.Args.value().size()) {
     for (size_t I = FuncType.getParamTypes().size() + 1;
          I < Opt.Args.value().size(); ++I) {
-      uint64_t Value = 0;
-      if (!parseNumericArg(Opt.Args.value()[I], I, Value,
-                           [](const std::string &S) {
-                             return static_cast<uint64_t>(std::stoll(S));
-                           })) {
+      if (!parseNumericArg(
+              Opt.Args.value()[I], I, "i64"sv,
+              [](const std::string &S) {
+                return static_cast<uint64_t>(std::stoll(S));
+              },
+              FuncArgs, FuncArgTypes, TypeCode::I64)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TypeCode::I64);
     }
   }
 
@@ -187,51 +186,69 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
        I < FuncType.getParamList().size() && I + 1 < Opt.Args.value().size();
        ++I) {
     const auto TCode = FuncType.getParamList()[I].getValType().getCode();
-    const std::string &ArgValue = Opt.Args.value()[I + 1];
+    const auto &ArgValue = Opt.Args.value()[I + 1];
 
     switch (TCode) {
-    case ComponentTypeCode::S32:
-    case ComponentTypeCode::U32: {
-      uint32_t Value = 0;
-      if (!parseNumericArg(ArgValue, I, Value, [](const std::string &S) {
-            return static_cast<uint32_t>(std::stol(S));
-          })) {
+    case ComponentTypeCode::S32: {
+      if (!parseNumericArg(
+              ArgValue, I, "s32"sv,
+              [](const std::string &S) {
+                return static_cast<uint32_t>(std::stol(S));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
       break;
     }
-    case ComponentTypeCode::S64:
-    case ComponentTypeCode::U64: {
-      uint64_t Value = 0;
-      if (!parseNumericArg(ArgValue, I, Value, [](const std::string &S) {
-            return static_cast<uint64_t>(std::stoll(S));
-          })) {
+    case ComponentTypeCode::U32: {
+      if (!parseNumericArg(
+              ArgValue, I, "u32"sv,
+              [](const std::string &S) {
+                return static_cast<uint32_t>(std::stol(S));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
+      break;
+    }
+    case ComponentTypeCode::S64: {
+      if (!parseNumericArg(
+              ArgValue, I, "s64"sv,
+              [](const std::string &S) {
+                return static_cast<uint64_t>(std::stoll(S));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
+      break;
+    }
+    case ComponentTypeCode::U64: {
+      if (!parseNumericArg(
+              ArgValue, I, "u64"sv,
+              [](const std::string &S) {
+                return static_cast<uint64_t>(std::stoll(S));
+              },
+              FuncArgs, FuncArgTypes, TCode)) {
+        return EXIT_FAILURE;
+      }
       break;
     }
     case ComponentTypeCode::F32: {
-      float Value = 0.0f;
-      if (!parseNumericArg(ArgValue, I, Value,
-                           [](const std::string &S) { return std::stof(S); })) {
+      if (!parseNumericArg(
+              ArgValue, I, "f32"sv,
+              [](const std::string &S) { return std::stof(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
       break;
     }
     case ComponentTypeCode::F64: {
-      double Value = 0.0;
-      if (!parseNumericArg(ArgValue, I, Value,
-                           [](const std::string &S) { return std::stod(S); })) {
+      if (!parseNumericArg(
+              ArgValue, I, "f64"sv,
+              [](const std::string &S) { return std::stod(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(TCode);
       break;
     }
     case ComponentTypeCode::String: {
@@ -248,15 +265,14 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
   if (FuncType.getParamList().size() + 1 < Opt.Args.value().size()) {
     for (size_t I = FuncType.getParamList().size() + 1;
          I < Opt.Args.value().size(); ++I) {
-      uint64_t Value = 0;
-      if (!parseNumericArg(Opt.Args.value()[I], I, Value,
-                           [](const std::string &S) {
-                             return static_cast<uint64_t>(std::stoll(S));
-                           })) {
+      if (!parseNumericArg(
+              Opt.Args.value()[I], I, "u64"sv,
+              [](const std::string &S) {
+                return static_cast<uint64_t>(std::stoll(S));
+              },
+              FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
         return EXIT_FAILURE;
       }
-      FuncArgs.emplace_back(Value);
-      FuncArgTypes.emplace_back(ComponentTypeCode::U64);
     }
   }
 

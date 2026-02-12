@@ -1,0 +1,67 @@
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileCopyrightText: 2019-2024 Second State INC
+
+//===-- wasmedge/plugins/wasi_crypto/secrets_manager/options.h -
+// Options--------===//
+//
+// Part of the WasmEdge Project.
+//
+//===----------------------------------------------------------------------===//
+///
+/// \file
+/// This file contains the Secrets Manager Options class definition.
+///
+//===----------------------------------------------------------------------===//
+#pragma once
+
+#include "utils/error.h"
+
+#include <algorithm>
+#include <memory>
+#include <mutex>
+#include <optional>
+#include <shared_mutex>
+#include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
+
+namespace WasmEdge {
+namespace Host {
+namespace WasiCrypto {
+namespace SecretsManager {
+
+// WasmEdge extension defined - not part of WASI Crypto specification
+constexpr uint16_t AlgorithmType = 0x100;
+
+// Options for secrets manager
+// More detail:
+// TODO: Add the link to the docs when it's ready.
+class Options {
+public:
+  WasiCryptoExpect<void> set(std::string_view Name,
+                             Span<const uint8_t> Value) noexcept;
+
+  WasiCryptoExpect<void> setU64(std::string_view Name, uint64_t Value) noexcept;
+
+  WasiCryptoExpect<void> setGuestBuffer(std::string_view Name,
+                                        Span<uint8_t> Buffer) noexcept;
+
+  WasiCryptoExpect<size_t> get(std::string_view Name,
+                               Span<uint8_t> Value) const noexcept;
+
+  WasiCryptoExpect<uint64_t> getU64(std::string_view Name) const noexcept;
+
+private:
+  struct DataType {
+    std::unordered_map<std::string, std::vector<uint8_t>> ValueMap;
+    std::unordered_map<std::string, uint64_t> U64ValueMap;
+    mutable std::shared_mutex Mutex;
+  };
+  std::shared_ptr<DataType> Inner = std::make_shared<DataType>();
+};
+
+} // namespace SecretsManager
+} // namespace WasiCrypto
+} // namespace Host
+} // namespace WasmEdge

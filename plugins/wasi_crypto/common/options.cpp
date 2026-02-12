@@ -19,6 +19,9 @@ Options optionsOpen(__wasi_algorithm_type_e_t Alg) noexcept {
   case __WASI_ALGORITHM_TYPE_KEY_EXCHANGE:
     return Options{std::in_place_type<Kx::Options>};
   default:
+    if (static_cast<uint16_t>(Alg) == SecretsManager::AlgorithmType) {
+      return Options{std::in_place_type<SecretsManager::Options>};
+    }
     assumingUnreachable();
   }
 }

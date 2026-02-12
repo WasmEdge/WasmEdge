@@ -6,12 +6,66 @@
 #include "validator/component_name.h"
 #include "validator/validator.h"
 
+#include <algorithm>
+#include <cctype>
+#include <unordered_map>
 #include <variant>
 
 namespace WasmEdge {
 namespace Validator {
 
 using namespace std::literals;
+
+static Expect<void>
+validateUniqueLabel(std::string_view Label,
+                    std::unordered_map<std::string, std::string> &SeenNames,
+                    std::string_view ErrorContext) noexcept {
+  if (Label.empty()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    name cannot be empty"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  std::string LowerLabel(Label);
+  std::transform(
+      LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
+      [](unsigned char C) { return static_cast<char>(std::tolower(C)); });
+
+  auto It = SeenNames.find(LowerLabel);
+  if (It != SeenNames.end()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    duplicate {} name `{}`"sv, ErrorContext, Label);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  SeenNames.emplace(LowerLabel, std::string(Label));
+  return {};
+}
+
+static Expect<void>
+validateComponentValType(const ComponentValType &ValTy,
+                         const ComponentContext &CompCtx) noexcept {
+  if (ValTy.isPrimValType()) {
+    return {};
+  }
+
+  uint32_t TypeIdx = ValTy.getTypeIndex();
+  uint32_t TypeCount =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+
+  if (TypeIdx >= TypeCount) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error("    index out of bounds"sv);
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+
+  if (!CompCtx.isDefValType(TypeIdx)) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    type index {} is not a defined type"sv, TypeIdx);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  return {};
+}
 
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
@@ -668,13 +722,49 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::DefType &DType) noexcept {
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+    return E;
+  };
+
   if (DType.isDefValType()) {
-    // TODO: Validation of valtype requires the typeidx to refer to a
-    // defvaltype.
     // TODO: Validation of own and borrow requires the typeidx to refer to a
     // resource type.
+    const auto &DVT = DType.getDefValType();
+
+    if (DVT.isRecord()) {
+      EXPECTED_TRY(validate(DVT.getRecord()).map_error(ReportError));
+    } else if (DVT.isVariant()) {
+      EXPECTED_TRY(validate(DVT.getVariant()).map_error(ReportError));
+    } else if (DVT.isFlags()) {
+      EXPECTED_TRY(validate(DVT.getFlags()).map_error(ReportError));
+    } else if (DVT.isEnum()) {
+      EXPECTED_TRY(validate(DVT.getEnum()).map_error(ReportError));
+    } else if (DVT.isTuple()) {
+      EXPECTED_TRY(validate(DVT.getTuple()).map_error(ReportError));
+    } else if (DVT.isResult()) {
+      EXPECTED_TRY(validate(DVT.getResult()).map_error(ReportError));
+    } else if (DVT.isList()) {
+      EXPECTED_TRY(validate(DVT.getList()).map_error(ReportError));
+    } else if (DVT.isOption()) {
+      EXPECTED_TRY(validate(DVT.getOption()).map_error(ReportError));
+    }
+
+    uint32_t NewTypeIdx =
+        CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+    CompCtx.addDefValType(NewTypeIdx);
     CompCtx.incSortIndexSize(AST::Component::Sort::SortType::Type);
   } else if (DType.isFuncType()) {
+    const auto &FT = DType.getFuncType();
+    for (const auto &Param : FT.getParamList()) {
+      EXPECTED_TRY(validateComponentValType(Param.getValType(), CompCtx)
+                       .map_error(ReportError));
+    }
+
+    for (const auto &Result : FT.getResultList()) {
+      EXPECTED_TRY(validateComponentValType(Result.getValType(), CompCtx)
+                       .map_error(ReportError));
+    }
     // TODO: Validation of functype rejects any transitive use of borrow in
     // a result type. Similarly, validation of components and component
     // types rejects any transitive use of borrow in an exported value type.
@@ -682,20 +772,14 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
   } else if (DType.isComponentType()) {
     for (const auto &Decl : DType.getComponentType().getDecl()) {
       if (Decl.isImportDecl()) {
-        EXPECTED_TRY(validate(Decl.getImport()).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-          return E;
-        }));
+        EXPECTED_TRY(validate(Decl.getImport()).map_error(ReportError));
       } else if (Decl.isInstanceDecl()) {
-        EXPECTED_TRY(validate(Decl.getInstance()).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-          return E;
-        }));
+        EXPECTED_TRY(validate(Decl.getInstance()).map_error(ReportError));
       } else {
         assumingUnreachable();
       }
-      CompCtx.incSortIndexSize(AST::Component::Sort::SortType::Type);
     }
+    CompCtx.incSortIndexSize(AST::Component::Sort::SortType::Type);
     // TODO: Validation rejects resourcetype type definitions inside
     // componenttype and instancettype. Thus, handle types inside a
     // componenttype can only refer to resource types that are imported or
@@ -890,6 +974,117 @@ Expect<void> Validator::validate(const AST::Component::ImportDecl &) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::InstanceDecl &) noexcept {
   // TODO
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::RecordTy &Record) noexcept {
+  if (Record.LabelTypes.empty()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    record type must have at least one field"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  std::unordered_map<std::string, std::string> SeenNames;
+
+  for (const auto &Field : Record.LabelTypes) {
+    EXPECTED_TRY(
+        validateUniqueLabel(Field.getLabel(), SeenNames, "record field"));
+    EXPECTED_TRY(validateComponentValType(Field.getValType(), CompCtx));
+  }
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::VariantTy &Variant) noexcept {
+  if (Variant.Cases.empty()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    variant type must have at least one case"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  std::unordered_map<std::string, std::string> SeenLabels;
+
+  for (const auto &Case : Variant.Cases) {
+    EXPECTED_TRY(validateUniqueLabel(Case.first, SeenLabels, "variant case"));
+
+    if (Case.second.has_value()) {
+      EXPECTED_TRY(validateComponentValType(*Case.second, CompCtx));
+    }
+  }
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::FlagsTy &Flags) noexcept {
+  if (Flags.Labels.empty()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    flags type must have at least one flag"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  if (Flags.Labels.size() > 32) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    flags type cannot have more than 32 flags"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  std::unordered_map<std::string, std::string> SeenNames;
+
+  for (const auto &Label : Flags.Labels) {
+    EXPECTED_TRY(validateUniqueLabel(Label, SeenNames, "flag"));
+  }
+  return {};
+}
+
+Expect<void> Validator::validate(const AST::Component::EnumTy &Enum) noexcept {
+  if (Enum.Labels.empty()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    enum type must have at least one tag"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  std::unordered_map<std::string, std::string> SeenNames;
+
+  for (const auto &Label : Enum.Labels) {
+    EXPECTED_TRY(validateUniqueLabel(Label, SeenNames, "enum tag"));
+  }
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::TupleTy &Tuple) noexcept {
+  if (Tuple.Types.empty()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    tuple type must have at least one element"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+
+  for (const auto &Ty : Tuple.Types) {
+    EXPECTED_TRY(validateComponentValType(Ty, CompCtx));
+  }
+  return {};
+}
+
+Expect<void> Validator::validate(const AST::Component::ListTy &List) noexcept {
+  EXPECTED_TRY(validateComponentValType(List.ValTy, CompCtx));
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::OptionTy &Option) noexcept {
+  EXPECTED_TRY(validateComponentValType(Option.ValTy, CompCtx));
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::ResultTy &Result) noexcept {
+  if (Result.ValTy.has_value()) {
+    EXPECTED_TRY(validateComponentValType(*Result.ValTy, CompCtx));
+  }
+  if (Result.ErrTy.has_value()) {
+    EXPECTED_TRY(validateComponentValType(*Result.ErrTy, CompCtx));
+  }
   return {};
 }
 

@@ -25,6 +25,7 @@ public:
     const Context *Parent;
     std::vector<uint32_t> SortIndexSizes;
     std::vector<uint32_t> CoreSortIndexSizes;
+    std::unordered_set<uint32_t> DefValTypeIndices;
     std::unordered_map<std::string, uint32_t> TypeSubstitutions;
     std::unordered_map<uint32_t,
                        std::unordered_map<std::string_view,
@@ -246,6 +247,16 @@ public:
 
   bool AddImportedName(const ComponentName &Name) noexcept {
     return getCurrentContext().AddImportedName(Name);
+  }
+
+  void addDefValType(uint32_t Idx) {
+    auto &Ctx = getCurrentContext();
+    Ctx.DefValTypeIndices.insert(Idx);
+  }
+
+  bool isDefValType(uint32_t Idx) const {
+    const auto &Ctx = getCurrentContext();
+    return Ctx.DefValTypeIndices.count(Idx) != 0;
   }
 
 private:

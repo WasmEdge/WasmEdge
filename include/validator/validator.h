@@ -103,6 +103,17 @@ private:
   // Validate component core:deftype and deftype
   Expect<void> validate(const AST::Component::CoreDefType &DType) noexcept;
   Expect<void> validate(const AST::Component::DefType &DType) noexcept;
+
+  // Helper validators for component types
+  Expect<void> validate(const AST::Component::RecordTy &Record) noexcept;
+  Expect<void> validate(const AST::Component::VariantTy &Variant) noexcept;
+  Expect<void> validate(const AST::Component::FlagsTy &Flags) noexcept;
+  Expect<void> validate(const AST::Component::EnumTy &Enum) noexcept;
+  Expect<void> validate(const AST::Component::TupleTy &Tuple) noexcept;
+  Expect<void> validate(const AST::Component::ListTy &List) noexcept;
+  Expect<void> validate(const AST::Component::OptionTy &Option) noexcept;
+  Expect<void> validate(const AST::Component::ResultTy &Result) noexcept;
+
   // Validate component canonical
   Expect<void> validate(const AST::Component::Canonical &Canon) noexcept;
   // Validate component import

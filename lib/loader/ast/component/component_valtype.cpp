@@ -22,10 +22,15 @@ Expect<void> Loader::loadExternName(std::string &Name, std::string &Suffix) {
     return Unexpect(ErrCode::Value::MalformedName);
   }
   EXPECTED_TRY(Name, FMgr.readName());
-  if (B == 0x01) {
+  switch (B) {
+  case 0x01:
     EXPECTED_TRY(Suffix, FMgr.readName());
-  } else {
+    break;
+  case 0x00:
     Suffix.clear();
+    break;
+  default:
+    assumingUnreachable();
   }
   return {};
 }

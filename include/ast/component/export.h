@@ -26,7 +26,9 @@ namespace Component {
 // export      ::= en:<exportname'> si:<sortidx> ed?:<externdesc>?
 //               => (export en si ed?)
 // exportname' ::= 0x00 len:<u32> en:<exportname>
-//               => en  (if len = |en|)
+//                   => en (if len = |en|)
+//               | 0x01 len:<u32> en:<exportname> vs:<versionsuffix'>
+//                   => en vs (if len = |en|)
 
 /// AST Component::Export node.
 class Export {
@@ -37,11 +39,15 @@ public:
   const SortIndex &getSortIndex() const noexcept { return SortIdx; }
   std::optional<ExternDesc> &getDesc() noexcept { return Desc; }
   const std::optional<ExternDesc> &getDesc() const noexcept { return Desc; }
+  
+  std::string &getVersionSuffix() noexcept { return VersionSuffix; }
+  std::string_view getVersionSuffix() const noexcept { return VersionSuffix; }
 
 private:
   std::string Name;
   SortIndex SortIdx;
   std::optional<ExternDesc> Desc;
+  std::string VersionSuffix;
 };
 
 } // namespace Component

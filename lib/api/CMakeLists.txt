@@ -86,6 +86,7 @@ set(WASMEDGE_CAPI_HEADERS
 
 # Object library of the C API wrapper.
 wasmedge_add_library(wasmedgeCAPI OBJECT
+  wasm_c.cpp
   wasmedge.cpp
 )
 
@@ -106,6 +107,7 @@ target_include_directories(wasmedgeCAPI
   PUBLIC
   ${PROJECT_BINARY_DIR}/include/api
   ${PROJECT_SOURCE_DIR}/include/api
+  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
 )
 
 if(WASMEDGE_BUILD_SHARED_LIB)

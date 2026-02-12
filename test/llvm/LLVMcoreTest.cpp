@@ -52,11 +52,11 @@ TEST_P(NativeCoreTest, TestSuites) {
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
-  auto Compile = [&, Conf = std::cref(Conf)](
+  auto Compile = [&, ConfWrap = std::cref(Conf)](
                      const std::string &FileName) -> Expect<std::string> {
-    WasmEdge::Configure CopyConf = Conf.get();
-    WasmEdge::Loader::Loader Loader(Conf);
-    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::Configure CopyConf = ConfWrap.get();
+    WasmEdge::Loader::Loader Loader(ConfWrap);
+    WasmEdge::Validator::Validator ValidatorEngine(ConfWrap);
     CopyConf.getCompilerConfigure().setOutputFormat(
         CompilerConfigure::OutputFormat::Native);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
@@ -180,11 +180,11 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::SpecTestModule SpecTestMod;
   VM.registerModule(SpecTestMod);
-  auto Compile = [&, Conf = std::cref(Conf)](
+  auto Compile = [&, ConfWrap = std::cref(Conf)](
                      const std::string &FileName) -> Expect<std::string> {
-    WasmEdge::Configure CopyConf = Conf.get();
-    WasmEdge::Loader::Loader Loader(Conf);
-    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::Configure CopyConf = ConfWrap.get();
+    WasmEdge::Loader::Loader Loader(ConfWrap);
+    WasmEdge::Validator::Validator ValidatorEngine(ConfWrap);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O0);
     CopyConf.getCompilerConfigure().setDumpIR(true);
@@ -589,6 +589,85 @@ TEST(Configure, ConfigureTest) {
     EXPECT_FALSE(Result);
     EXPECT_EQ(Result.error(), WasmEdge::ErrCode::Value::InvalidAOTConfigure);
   }
+}
+
+// Test for f32x4.max NaN handling (Issue #4257)
+// This test verifies that f32x4.max correctly returns the RHS NaN when both
+// operands are NaN, as per the WebAssembly SIMD spec.
+//
+// WAT source for SIMDNaNTestWasm:
+// (module
+//   (func (export "test_f32x4_max_nan") (result v128)
+//     ;; LHS: v128.const with NaN values (0x7fc00001 in each lane)
+//     v128.const i32x4 0x7fc00001 0x7fc00001 0x7fc00001 0x7fc00001
+//     ;; RHS: v128.const with NaN values (0x7fc00000 in each lane)
+//     v128.const i32x4 0x7fc00000 0x7fc00000 0x7fc00000 0x7fc00000
+//     ;; f32x4.max should return RHS NaN (0x7fc00000) per spec
+//     f32x4.max
+//   )
+// )
+TEST(SIMDNaN, F32x4MaxNaNHandling) {
+  // clang-format off
+  std::array<WasmEdge::Byte, 88> SIMDNaNTestWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
+      0x00, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x07, 0x16, 0x01, 0x12, 0x74,
+      0x65, 0x73, 0x74, 0x5f, 0x66, 0x33, 0x32, 0x78, 0x34, 0x5f, 0x6d, 0x61,
+      0x78, 0x5f, 0x6e, 0x61, 0x6e, 0x00, 0x00, 0x0a, 0x2b, 0x01, 0x29, 0x00,
+      0xfd, 0x0c, 0x01, 0x00, 0xc0, 0x7f, 0x01, 0x00, 0xc0, 0x7f, 0x01, 0x00,
+      0xc0, 0x7f, 0x01, 0x00, 0xc0, 0x7f, 0xfd, 0x0c, 0x00, 0x00, 0xc0, 0x7f,
+      0x00, 0x00, 0xc0, 0x7f, 0x00, 0x00, 0xc0, 0x7f, 0x00, 0x00, 0xc0, 0x7f,
+      0xfd, 0xe9, 0x01, 0x0b};
+  // clang-format on
+
+  WasmEdge::Configure Conf;
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+
+  WasmEdge::VM::VM VM(Conf);
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+  auto Path = std::filesystem::temp_directory_path() /
+              std::filesystem::u8path("SIMDNaNTest" WASMEDGE_LIB_EXTENSION);
+
+  auto Module = *Loader.parseModule(SIMDNaNTestWasm);
+  ASSERT_TRUE(ValidatorEngine.validate(*Module));
+  auto Data = Compiler.compile(*Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(SIMDNaNTestWasm, std::move(*Data), Path));
+
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+
+  auto Result = VM.execute("test_f32x4_max_nan");
+  ASSERT_TRUE(Result);
+  ASSERT_EQ((*Result).size(), 1U);
+
+  auto ResultVal = (*Result)[0].first.get<WasmEdge::uint128_t>();
+
+  uint32_t Lanes[4];
+  std::copy_n(reinterpret_cast<const uint32_t *>(&ResultVal), 4, Lanes);
+
+  // Per SIMD spec, f32x4.max with two NaN inputs should return RHS NaN
+  const uint32_t ExpectedNaN = 0x7fc00000;
+  EXPECT_EQ(Lanes[0], ExpectedNaN)
+      << "Lane 0: Expected RHS NaN (0x7fc00000), got 0x" << std::hex
+      << Lanes[0];
+  EXPECT_EQ(Lanes[1], ExpectedNaN)
+      << "Lane 1: Expected RHS NaN (0x7fc00000), got 0x" << std::hex
+      << Lanes[1];
+  EXPECT_EQ(Lanes[2], ExpectedNaN)
+      << "Lane 2: Expected RHS NaN (0x7fc00000), got 0x" << std::hex
+      << Lanes[2];
+  EXPECT_EQ(Lanes[3], ExpectedNaN)
+      << "Lane 3: Expected RHS NaN (0x7fc00000), got 0x" << std::hex
+      << Lanes[3];
+
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
 } // namespace

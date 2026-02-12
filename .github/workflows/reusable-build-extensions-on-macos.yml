@@ -42,11 +42,11 @@ jobs:
       output_dir: build/plugins/${{ matrix.dir }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Build and install dependencies
@@ -54,6 +54,13 @@ jobs:
         run: |
           brew install ninja opencv rust ffmpeg@7
           brew unlink ffmpeg
+      - name: Install dependencies for wasi_nn-piper
+        if: matrix.plugin == 'wasi_nn-piper'
+        shell: bash
+        run: |
+          chmod +x utils/build_libpiper.sh
+          ./utils/build_libpiper.sh
+          echo "PIPER_INSTALL_PATH=$PWD/piper-source/libpiper/install" >> $GITHUB_ENV
       - name: Build ${{ matrix.plugin }}
         shell: bash
         run: |
@@ -61,9 +68,9 @@ jobs:
           export OpenSSL_DIR="$(brew --prefix)/opt/openssl"
           export CC=clang
           export CXX=clang++
-
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DPIPER_ROOT="$PIPER_INSTALL_PATH" \
             -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
             -DWASMEDGE_BUILD_TOOLS=OFF \
             -DWASMEDGE_USE_LLVM=OFF \
@@ -124,10 +131,6 @@ jobs:
         with:
           name: ${{ steps.var.outputs.artifact }}
           path: ${{ steps.var.outputs.artifacts }}
-      - if: ${{ inputs.release }}
-        name: Install gh for release
-        run: |
-          brew install gh
       - if: ${{ inputs.release }}
         name: Upload release ${{ steps.var.outputs.artifact }}
         run: |

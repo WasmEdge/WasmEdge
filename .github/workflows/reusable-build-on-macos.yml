@@ -30,11 +30,11 @@ jobs:
       BUILD_TYPE: Debug
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -43,17 +43,75 @@ jobs:
       - name: Setup build environment - non-release
         if: ${{ !inputs.release }}
         run: |
+          echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
           brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
           brew tap WasmEdge/llvm
+      - name: Install Homebrew tools - non-release
+        if: ${{ !inputs.release }}
+        run: |
           brew install llvm ninja wabt grpc
-          brew install --build-from-source WasmEdge/llvm/lld
+      - name: Get lld version
+        if: ${{ !inputs.release }}
+        id: lld-version-non-release
+        run: |
+          VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+      - name: Cache lld and cmake - non-release
+        if: ${{ !inputs.release }}
+        id: cache-lld-non-release
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ${{ env.BREW_PREFIX }}/Cellar/lld
+            ${{ env.BREW_PREFIX }}/Cellar/cmake
+          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-non-release.outputs.version }}-${{ hashFiles('.github/workflows/reusable-build-on-macos.yml') }}
+          restore-keys: |
+            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-non-release.outputs.version }}-
+            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-
+      - name: Install or link lld and cmake - non-release
+        if: ${{ !inputs.release }}
+        run: |
+          if [ "${{ steps.cache-lld-non-release.outputs.cache-hit }}" != "true" ]; then
+            brew install --build-from-source WasmEdge/llvm/lld
+          fi
+          brew link lld || true
+          brew link cmake || true
       - name: Setup build environment - release
         if: ${{ inputs.release }}
         run: |
+          echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
           brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
           brew tap WasmEdge/llvm
+      - name: Install Homebrew tools - release
+        if: ${{ inputs.release }}
+        run: |
           brew install llvm ninja wabt
-          brew install --build-from-source WasmEdge/llvm/lld
+      - name: Get lld version
+        if: ${{ inputs.release }}
+        id: lld-version-release
+        run: |
+          VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+      - name: Cache lld and cmake - release
+        if: ${{ inputs.release }}
+        id: cache-lld-release
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: |
+            ${{ env.BREW_PREFIX }}/Cellar/lld
+            ${{ env.BREW_PREFIX }}/Cellar/cmake
+          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-release.outputs.version }}-${{ hashFiles('.github/workflows/reusable-build-on-macos.yml') }}
+          restore-keys: |
+            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-release.outputs.version }}-
+            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-
+      - name: Install or link lld and cmake - release
+        if: ${{ inputs.release }}
+        run: |
+          if [ "${{ steps.cache-lld-release.outputs.cache-hit }}" != "true" ]; then
+            brew install --build-from-source WasmEdge/llvm/lld
+          fi
+          brew link lld || true
+          brew link cmake || true
       - name: Set environment variables for release
         if: ${{ inputs.release }}
         run: |

@@ -54,11 +54,11 @@ jobs:
       version: ${{ steps.prep.outputs.version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -92,11 +92,11 @@ jobs:
       image: wasmedge/wasmedge:${{ matrix.docker_tag }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -145,48 +145,52 @@ jobs:
     env:
       output_dir: build/plugins/wasi_nn
       test_dir: build/test/plugins/wasi_nn
-      build_options: -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML
       tar_names: wasi_nn-ggml
       test_bin: wasiNNTests
       output_bin: wasmedgePluginWasiNN.dll
     needs: [ get_version ]
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@2526f467ccbd337d307fe179959cabbeca0bc8c0 # v3.4.0
-        with:
-          args: install cmake ninja vswhere
       - uses: GuillaumeFalourd/setup-windows10-sdk-action@9979bedbf6ae74f038cc338622ba015942ed2408 # v2.4
         with:
           sdk-version: 26100
+      - name: Cache LLVM
+        id: llvm-cache
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        with:
+          path: LLVM-21.1.3-win64-MultiThreadedDLL
+          key: llvm-21.1.3-windows-2025
+      - name: Download and Extract LLVM
+        if: steps.llvm-cache.outputs.cache-hit != 'true'
+        run: |
+          $uri = "https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-21.1.3/LLVM-21.1.3-win64-MultiThreadedDLL.zip"
+          $llvm = "LLVM-21.1.3-win64-MultiThreadedDLL.zip"
+          Invoke-WebRequest -Uri $uri -HttpVersion 2.0 -OutFile $llvm
+          Expand-Archive -Path $llvm
+          Remove-Item -Path $llvm
       - name: Build WasmEdge
         run: |
           $vsPath = (vswhere -latest -property installationPath)
           Import-Module (Join-Path $vsPath "Common7\Tools\Microsoft.VisualStudio.DevShell.dll")
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64 -winsdk=10.0.26100.0"
-          $uri = "https://github.com/WasmEdge/llvm-windows/releases/download/llvmorg-21.1.3/LLVM-21.1.3-win64-MultiThreadedDLL.zip"
-          $llvm = "LLVM-21.1.3-win64-MultiThreadedDLL.zip"
-          Invoke-WebRequest -Uri $uri -HttpVersion 2.0 -OutFile $llvm
-          Expand-Archive -Path $llvm
           $llvm_dir = "$pwd\LLVM-21.1.3-win64-MultiThreadedDLL\LLVM-21.1.3-win64\lib\cmake\llvm"
           $Env:CC = "$pwd\LLVM-21.1.3-win64-MultiThreadedDLL\LLVM-21.1.3-win64\bin\clang-cl.exe"
           $Env:CXX = "$pwd\LLVM-21.1.3-win64-MultiThreadedDLL\LLVM-21.1.3-win64\bin\clang-cl.exe"
           $llvm_mt = "mt"
           $cmake_sys_version = "10.0.26100.0"
-          cmake -Bbuild -GNinja -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF .
+          cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_VERSION="$cmake_sys_version" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_MT="$llvm_mt" -DLLVM_DIR="$llvm_dir" -DWASMEDGE_BUILD_TESTS=ON -DWASMEDGE_USE_LLVM=OFF -DWASMEDGE_BUILD_TOOLS=OFF -DWASMEDGE_PLUGIN_WASI_NN_BACKEND=GGML .
 
           Write-Output "Building $Env:tar_names backend:"
-          cmake -Bbuild -GNinja "$Env:build_options"
           cmake --build build --target "$Env:test_bin"
 
           $Env:PATH += ";$pwd\\build\\lib\\api"

@@ -38,7 +38,6 @@ target_compile_definitions(wasmedgePluginWasiNN PRIVATE
     WASI_NN_VERSION_MINOR=${WASI_NN_VERSION_MINOR}
     WASI_NN_VERSION_PATCH=${WASI_NN_VERSION_PATCH}
 )
-
 # This for-each iteration is for the additional sources.
 # The dependencies are moved into `cmake/WASINNDeps.cmake`.
 foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
@@ -84,6 +83,50 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       GGML/compute/inference_manager.cpp
       GGML/tts/tts_core.cpp
       GGML/utils.cpp
+    )
+    if(WASMEDGE_PLUGIN_WASI_NN_GGML_LLAMA_HIP)
+      find_package(hip REQUIRED)
+      find_package(hipblas REQUIRED)
+      set(GGML_HIP ON CACHE BOOL "Build GGML with HIP" FORCE)
+      if(DEFINED ENV{GPU_TARGETS})
+        set(GPU_TARGETS $ENV{GPU_TARGETS} CACHE STRING "HIP GPU targets")
+      else()
+        set(GPU_TARGETS "gfx90c" CACHE STRING "Default for Vega iGPU")
+      endif()
+      message(STATUS "Enabling HIP for ggml backend with targets: ${GPU_TARGETS}")
+      target_compile_definitions(wasmedgePluginWasiNN PRIVATE GGML_HIP=${GGML_HIP} GPU_TARGETS=${GPU_TARGETS})
+      target_link_libraries(wasmedgePluginWasiNN PRIVATE hip::host roc::hipblas)
+    endif()
+  endif()
+  if(BACKEND STREQUAL "piper")
+    if(DEFINED PIPER_ROOT)
+      find_library(ESPEAK_NG_LIB
+          NAMES espeak-ng libespeak-ng
+          PATHS /usr/local/lib /usr/local/lib64
+          NO_DEFAULT_PATH
+      )
+      if (NOT ESPEAK_NG_LIB)
+          find_library(ESPEAK_NG_LIB NAMES espeak-ng libespeak-ng)
+      endif()
+
+      find_library(UCD_LIB
+          NAMES ucd libucd
+          PATHS /usr/local/lib /usr/local/lib64
+          NO_DEFAULT_PATH
+      )
+      if (NOT UCD_LIB)
+          find_library(UCD_LIB NAMES ucd libucd)
+      endif()
+
+      set(ESPEAK_TARGETS ${ESPEAK_NG_LIB} ${UCD_LIB})
+    else()
+      set(ESPEAK_TARGETS "")
+    endif()
+
+    target_link_libraries(wasmedgePluginWasiNN
+      PRIVATE
+      onnxruntime
+      ${ESPEAK_TARGETS}
     )
   endif()
 endforeach()

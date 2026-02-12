@@ -29,7 +29,7 @@ validateUniqueLabel(std::string_view Label,
   std::string LowerLabel(Label);
   std::transform(
       LowerLabel.begin(), LowerLabel.end(), LowerLabel.begin(),
-      [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+      [](unsigned char C) { return static_cast<char>(std::tolower(C)); });
 
   auto It = SeenNames.find(LowerLabel);
   if (It != SeenNames.end()) {

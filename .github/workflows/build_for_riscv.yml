@@ -42,9 +42,10 @@ jobs:
   lint:
     uses: ./.github/workflows/reusable-call-linter.yml
 
-  build_riscv64:
-    name: RISC-V64
+  cross_compile:
+    name: Cross-Compile for RISC-V64
     runs-on: ubuntu-latest
+    container: ubuntu:24.04
     needs: lint
     steps:
     - name: Harden the runner (Audit all outbound calls)
@@ -55,36 +56,143 @@ jobs:
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         fetch-depth: 0
-    - name: Ensure git safe directory
+
+    - name: Set up riscv64 multi-arch sources
       run: |
+        apt-get update
+        apt-get install -y --no-install-recommends git ca-certificates
         git config --global --add safe.directory $(pwd)
-    - uses: uraimo/run-on-arch-action@aa8e672a03e10b403401927ea2ceda57e1b68ac3 # v3
-      name: Build WasmEdge
+        dpkg --add-architecture riscv64
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sed -i '/^Types:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+        fi
+        printf 'Types: deb\nURIs: http://ports.ubuntu.com/ubuntu-ports\nSuites: noble noble-updates\nComponents: main universe\nArchitectures: riscv64\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n' \
+          > /etc/apt/sources.list.d/riscv64-ports.sources
+        apt-get update
+
+    - name: Install cross-compilation toolchain
+      run: |
+        # Install amd64 build tools and riscv64 cross-compiler + zlib
+        apt-get install -y --no-install-recommends \
+          cmake g++ dpkg-dev make \
+          gcc-riscv64-linux-gnu g++-riscv64-linux-gnu \
+          zlib1g-dev:riscv64
+
+        # llvm-18-dev:riscv64 cannot be installed via apt-get because its
+        # dependency chain pulls in python3.12-minimal:riscv64, whose postinst
+        # script tries to execute /usr/bin/python3.12 (a riscv64 binary) on
+        # the x86_64 host, causing "Exec format error".
+        # Workaround: download the packages and extract without running postinst.
+        apt-get install -y -d --no-install-recommends \
+          llvm-18-dev:riscv64 liblld-18-dev:riscv64
+        for deb in /var/cache/apt/archives/*_riscv64.deb; do
+          dpkg-deb -x "$deb" /
+        done
+
+    - name: Build WasmEdge
+      run: |
+        cmake -Bbuild \
+          -DCMAKE_TOOLCHAIN_FILE=$(pwd)/cmake/riscv64-linux-gnu.cmake \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DWASMEDGE_BUILD_TESTS=ON \
+          -DWASMEDGE_BUILD_TOOLS=ON \
+          -DWASMEDGE_BUILD_SHARED_LIB=ON \
+          -DWASMEDGE_USE_LLVM=ON \
+          -DLLVM_DIR=/usr/lib/riscv64-linux-gnu/cmake/llvm-18 \
+          .
+        cmake --build build -j $(nproc)
+
+    - name: Package build artifacts
+      run: |
+        mkdir -p riscv64-artifacts/build
+        cp -a build/tools riscv64-artifacts/build/
+        cp -a build/lib riscv64-artifacts/build/
+        # Copy the full test directory: executables, test data files, and
+        # spec test suites (fetched by FetchContent during CMake configure).
+        # Tests expect data files relative to their binary directory.
+        cp -a build/test riscv64-artifacts/build/
+        # Remove build intermediates to reduce artifact size
+        find riscv64-artifacts/build/test -type d -name CMakeFiles -exec rm -rf {} + 2>/dev/null || true
+        find riscv64-artifacts/build/test \( -name '*.o' -o -name '*.d' \) -delete 2>/dev/null || true
+        tar -czf riscv64-artifacts.tar.gz riscv64-artifacts/
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
       with:
-        arch: riscv64
-        distro: ubuntu22.04
-        githubToken: ${{ github.token }}
-        dockerRunArgs: |
-          --volume "${PWD}:/workplace"
-        shell: /bin/sh
-        install: |
-          apt-get update -q -y
-          apt-get install -q -y git cmake g++ dpkg
-          apt-get install -q -y software-properties-common
-          apt-get install -q -y llvm-15-dev liblld-15-dev zlib1g-dev
-          apt-get install -q -y wabt # For generating wasm
-        run: |
-          mkdir -p build && cd build
-          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j $(nproc) && make install
-          wasmedge -v
-          wasmedgec -v
-          wasmedge compile -h
-          wasmedge run -h
-          cd ../examples/wasm
-          wat2wasm fibonacci.wat -o fibonacci.wasm
-          wasmedgec fibonacci.wasm fibonacci_aot_c.wasm
-          wasmedge --reactor fibonacci_aot_c.wasm fib 30
-          wasmedge run --reactor fibonacci_aot_c.wasm fib 30
-          wasmedge compile fibonacci.wasm fibonacci_aot_compile.wasm
-          wasmedge --reactor fibonacci_aot_compile.wasm fib 30
-          wasmedge run --reactor fibonacci_aot_compile.wasm fib 30
+        name: riscv64-build-artifacts
+        path: riscv64-artifacts.tar.gz
+        retention-days: 1
+
+  test_riscv64:
+    name: Test on RISC-V64 (QEMU)
+    runs-on: ubuntu-latest
+    container: ubuntu:24.04
+    needs: cross_compile
+    steps:
+    - name: Harden the runner (Audit all outbound calls)
+      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        fetch-depth: 0
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      with:
+        name: riscv64-build-artifacts
+
+    - name: Set up riscv64 runtime environment
+      run: |
+        dpkg --add-architecture riscv64
+        if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+          sed -i '/^Types:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+        fi
+        printf 'Types: deb\nURIs: http://ports.ubuntu.com/ubuntu-ports\nSuites: noble noble-updates\nComponents: main universe\nArchitectures: riscv64\nSigned-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg\n' \
+          > /etc/apt/sources.list.d/riscv64-ports.sources
+        apt-get update
+
+        # Install QEMU, test utilities, and riscv64 cross-runtime for sysroot
+        apt-get install -y --no-install-recommends \
+          qemu-user-static tar wabt \
+          libc6-riscv64-cross \
+          libstdc++6-riscv64-cross \
+          libgcc-s1-riscv64-cross \
+          libatomic1-riscv64-cross
+
+        # Install riscv64 LLVM/LLD runtime libraries (these do NOT depend on
+        # python3:riscv64, so apt-get install works without postinst issues)
+        apt-get install -y --no-install-recommends \
+          libllvm18:riscv64 \
+          liblld-18:riscv64 \
+          zlib1g:riscv64
+
+        # Create symlinks so QEMU sysroot can find multi-arch libraries.
+        # With -L /usr/riscv64-linux-gnu, QEMU translates guest absolute paths
+        # by prepending the sysroot prefix. The kernel resolves symlinks natively,
+        # so symlinks pointing outside the sysroot work correctly.
+        mkdir -p /usr/riscv64-linux-gnu/usr/lib
+        ln -sf /usr/lib/riscv64-linux-gnu /usr/riscv64-linux-gnu/usr/lib/riscv64-linux-gnu
+        mkdir -p /usr/riscv64-linux-gnu/lib
+        ln -sf /lib/riscv64-linux-gnu /usr/riscv64-linux-gnu/lib/riscv64-linux-gnu
+
+    - name: Extract artifacts and run quick test suite
+      run: |
+        tar -xzf riscv64-artifacts.tar.gz
+        chmod +x .github/scripts/run-riscv64-quick-tests.sh
+        ./.github/scripts/run-riscv64-quick-tests.sh riscv64-artifacts
+
+    - name: Verify WasmEdge CLI tools
+      run: |
+        cd riscv64-artifacts
+        qemu-riscv64-static \
+          -L /usr/riscv64-linux-gnu \
+          -E LD_LIBRARY_PATH=/usr/lib/riscv64-linux-gnu:build/lib \
+          build/tools/wasmedge/wasmedge -v
+        cd ../examples/wasm
+        wat2wasm fibonacci.wat -o fibonacci.wasm
+        qemu-riscv64-static \
+          -L /usr/riscv64-linux-gnu \
+          -E LD_LIBRARY_PATH=/usr/lib/riscv64-linux-gnu:../../riscv64-artifacts/build/lib \
+          ../../riscv64-artifacts/build/tools/wasmedge/wasmedge --reactor fibonacci.wasm fib 30

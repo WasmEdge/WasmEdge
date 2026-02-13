@@ -189,7 +189,7 @@ jobs:
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}
       asset_tag: ${{ matrix.asset_tag }}
-      plugins: ${{ toJson(matrix.plugins) }}  
+      plugins: ${{ toJson(matrix.plugins) }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}
     secrets: inherit
@@ -209,7 +209,7 @@ jobs:
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}
       asset_tag: ${{ matrix.asset_tag }}
-      plugins: ${{ toJson(matrix.plugins) }}  
+      plugins: ${{ toJson(matrix.plugins) }}
       version: ${{ inputs.version }}
       release: false
     secrets: inherit
@@ -228,7 +228,7 @@ jobs:
     with:
       runner: ${{ matrix.runner }}
       asset_tag: ${{ matrix.asset_tag }}
-      plugins: ${{ toJson(matrix.plugins) }}  
+      plugins: ${{ toJson(matrix.plugins) }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}
     secrets: inherit
@@ -248,7 +248,7 @@ jobs:
       runner: ${{ matrix.runner }}
       docker_tag: ${{ matrix.docker_tag }}
       asset_tag: ${{ matrix.asset_tag }}
-      plugins: ${{ toJson(matrix.plugins) }}  
+      plugins: ${{ toJson(matrix.plugins) }}
       version: ${{ inputs.version }}
       release: ${{ inputs.release }}
     secrets: inherit

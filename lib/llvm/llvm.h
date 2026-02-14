@@ -83,6 +83,7 @@ public:
   static inline unsigned int Ctlz = 0;
   static inline unsigned int Cttz = 0;
   static inline unsigned int Ctpop = 0;
+  static inline unsigned int StackSave = 0;
   static inline unsigned int Expect = 0;
   static inline unsigned int ExperimentalConstrainedFAdd = 0;
   static inline unsigned int ExperimentalConstrainedFDiv = 0;
@@ -163,6 +164,7 @@ private:
     Ctlz = getIntrinsicID("llvm.ctlz"sv);
     Cttz = getIntrinsicID("llvm.cttz"sv);
     Ctpop = getIntrinsicID("llvm.ctpop"sv);
+    StackSave = getIntrinsicID("llvm.stacksave"sv);
     Expect = getIntrinsicID("llvm.expect");
     ExperimentalConstrainedFAdd =
         getIntrinsicID("llvm.experimental.constrained.fadd"sv);

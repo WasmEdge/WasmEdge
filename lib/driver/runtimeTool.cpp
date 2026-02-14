@@ -501,8 +501,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         return EXIT_FAILURE;
       }
 
-      // If found initialize function, invoke it first.
-      if (HasInit) {
+      // If found initialize function and it's not being called explicitly,
+      // invoke it first.
+      if (HasInit && FuncName != InitFunc) {
         auto AsyncResult = VM.asyncExecute(InitFunc);
         if (Timeout.has_value()) {
           if (!AsyncResult.waitUntil(*Timeout)) {

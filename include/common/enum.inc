@@ -1155,6 +1155,7 @@ E(AccessNullException, 0x0417, "null exception reference")
 E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
 E(UncaughtException, 0x0419, "uncaught exception")
+E(StackOverflow, 0x041A, "stack overflow")
 // @}
 
 #undef E

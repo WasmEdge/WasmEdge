@@ -121,29 +121,64 @@ public:
   /// Load given wasm file, wasm bytecode, or wasm module.
   Expect<void> loadWasm(const std::filesystem::path &Path) {
     std::unique_lock Lock(Mutex);
-    return unsafeLoadWasm(Path);
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.startRecordColdStartLoad();
+    }
+    auto Res = unsafeLoadWasm(Path);
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.stopRecordColdStartLoad();
+    }
+    return Res;
   }
   Expect<void> loadWasm(Span<const Byte> Code) {
     std::unique_lock Lock(Mutex);
-    return unsafeLoadWasm(Code);
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.startRecordColdStartLoad();
+    }
+    auto Res = unsafeLoadWasm(Code);
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.stopRecordColdStartLoad();
+    }
+    return Res;
   }
   Expect<void> loadWasm(const AST::Module &Module) {
     std::unique_lock Lock(Mutex);
-    return unsafeLoadWasm(Module);
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.startRecordColdStartLoad();
+    }
+    auto Res = unsafeLoadWasm(Module);
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.stopRecordColdStartLoad();
+    }
+    return Res;
   }
 
   /// ======= Functions can be called after loaded stage. =======
   /// Validate loaded wasm module.
   Expect<void> validate() {
     std::unique_lock Lock(Mutex);
-    return unsafeValidate();
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.startRecordColdStartValidate();
+    }
+    auto Res = unsafeValidate();
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.stopRecordColdStartValidate();
+    }
+    return Res;
   }
 
   /// ======= Functions can be called after validated stage. =======
   /// Instantiate validated wasm module.
   Expect<void> instantiate() {
     std::unique_lock Lock(Mutex);
-    return unsafeInstantiate();
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.startRecordColdStartInstantiate();
+    }
+    auto Res = unsafeInstantiate();
+    if (Conf.getStatisticsConfigure().isColdStartMeasuring()) {
+      Stat.stopRecordColdStartInstantiate();
+    }
+    return Res;
   }
 
   /// ======= Functions can be called after instantiated stage. =======

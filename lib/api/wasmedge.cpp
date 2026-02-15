@@ -1099,6 +1099,52 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
 }
 
 WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureStatisticsSetColdStartMeasuring(
+    WasmEdge_ConfigureContext *Cxt, const bool IsMeasure) {
+  if (Cxt) {
+    Cxt->Conf.getStatisticsConfigure().setColdStartMeasuring(IsMeasure);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsColdStartMeasuring(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getStatisticsConfigure().isColdStartMeasuring();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureStatisticsSetCpuMeasuring(
+    WasmEdge_ConfigureContext *Cxt, const bool IsMeasure) {
+  if (Cxt) {
+    Cxt->Conf.getStatisticsConfigure().setCpuMeasuring(IsMeasure);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsCpuMeasuring(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getStatisticsConfigure().isCpuMeasuring();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureStatisticsSetMemoryMeasuring(
+    WasmEdge_ConfigureContext *Cxt, const bool IsMeasure) {
+  if (Cxt) {
+    Cxt->Conf.getStatisticsConfigure().setMemoryMeasuring(IsMeasure);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsMemoryMeasuring(
+    const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getStatisticsConfigure().isMemoryMeasuring();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) {
   delete Cxt;
 }
@@ -1150,6 +1196,40 @@ WasmEdge_StatisticsSetCostLimit(WasmEdge_StatisticsContext *Cxt,
   if (Cxt) {
     fromStatCxt(Cxt)->setCostLimit(Limit);
   }
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t
+WasmEdge_StatisticsGetColdStartTimeNs(const WasmEdge_StatisticsContext *Cxt) {
+  if (Cxt) {
+    return static_cast<uint64_t>(
+        std::chrono::nanoseconds(fromStatCxt(Cxt)->getColdStartTotalTime())
+            .count());
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t
+WasmEdge_StatisticsGetCpuTimeNs(const WasmEdge_StatisticsContext *Cxt) {
+  if (Cxt) {
+    return fromStatCxt(Cxt)->getCpuTimeNs();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t
+WasmEdge_StatisticsGetMemoryPages(const WasmEdge_StatisticsContext *Cxt) {
+  if (Cxt) {
+    return fromStatCxt(Cxt)->getMemoryPages();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t
+WasmEdge_StatisticsGetMemoryPeakPages(const WasmEdge_StatisticsContext *Cxt) {
+  if (Cxt) {
+    return fromStatCxt(Cxt)->getMemoryPeakPages();
+  }
+  return 0;
 }
 
 WASMEDGE_CAPI_EXPORT void

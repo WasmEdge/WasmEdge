@@ -1201,7 +1201,7 @@ public:
   }
 
   void setMaxWasiFd(uint32_t MaxFd) noexcept {
-    MaxFd = std::clamp(MaxFd, 3U, 0x7FFFFFFFU);
+    MaxFd = std::clamp(MaxFd, 1024U, 0x7FFFFFFFU);
   }
 
 private:
@@ -1226,16 +1226,25 @@ private:
   }
 
   WasiExpect<__wasi_fd_t> generateRandomFdToNode(std::shared_ptr<VINode> Node) {
+    {
+      std::shared_lock Lock(FdMutex);
+      if (FdMap.size() >= MaxFd) {
+        return WasiUnexpect(__WASI_ERRNO_MFILE);
+      }
+    }
+
     std::uniform_int_distribution<__wasi_fd_t> Distribution(
         0, static_cast<__wasi_fd_t>(MaxFd));
-    bool Success = false;
     __wasi_fd_t NewFd;
-    while (!Success) {
+
+    for (int i = 0; i < 50; i++) {
       NewFd = Distribution(Hash::RandEngine);
       std::unique_lock Lock(FdMutex);
-      Success = FdMap.emplace(NewFd, Node).second;
+      if (FdMap.emplace(NewFd, Node).second) {
+        return NewFd;
+      }
     }
-    return NewFd;
+    return WasiUnexpect(__WASI_ERRNO_MFILE);
   }
 };
 

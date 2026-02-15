@@ -1,18 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/ast/component/alias.h - Alias class definitions ----------===//
-//
-// Part of the WasmEdge Project.
-//
-//===----------------------------------------------------------------------===//
-///
-/// \file
-/// This file contains the declaration of the Alias node related classes.
-///
-//===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/component_name.h"
 #include "ast/component/sort.h"
 
 #include <cstdint>
@@ -64,11 +55,11 @@ public:
   Sort &getSort() noexcept { return S; }
   const Sort &getSort() const noexcept { return S; }
 
-  const std::pair<uint32_t, std::string> &getExport() const noexcept {
-    return *std::get_if<std::pair<uint32_t, std::string>>(&Target);
+  const std::pair<uint32_t, ComponentName> &getExport() const noexcept {
+    return *std::get_if<std::pair<uint32_t, ComponentName>>(&Target);
   }
-  void setExport(const uint32_t Idx, std::string_view Name) noexcept {
-    Target.emplace<std::pair<uint32_t, std::string>>(Idx, Name);
+  void setExport(const uint32_t Idx, ComponentName &&Name) noexcept {
+    Target.emplace<std::pair<uint32_t, ComponentName>>(Idx, std::move(Name));
   }
 
   const std::pair<uint32_t, uint32_t> &getOuter() const noexcept {
@@ -81,7 +72,8 @@ public:
 private:
   TargetType Type;
   Sort S;
-  std::variant<std::pair<uint32_t, std::string>, std::pair<uint32_t, uint32_t>>
+  std::variant<std::pair<uint32_t, ComponentName>,
+               std::pair<uint32_t, uint32_t>>
       Target;
 };
 

@@ -40,42 +40,66 @@ class ComponentImportManager {
   // child components and core modules.
 public:
   // Export component func with name into this import manager.
+  void exportFunction(const AST::Component::ComponentName &Name,
+                      Component::FunctionInstance *Inst) noexcept {
+    NamedFunc.emplace(Name.getFullName(), Inst);
+  }
   void exportFunction(std::string_view Name,
                       Component::FunctionInstance *Inst) noexcept {
     NamedFunc.emplace(Name, Inst);
   }
 
   // Export component instance with name into this import manager.
-  void exportComponentInstance(std::string_view Name,
+  void exportComponentInstance(const AST::Component::ComponentName &Name,
                                const ComponentInstance *Inst) noexcept {
-    NamedCompInst.emplace(Name, Inst);
+    NamedCompInst.emplace(Name.getFullName(), Inst);
   }
 
   // Export core function instance with name into this import manager.
+  void exportCoreFunctionInstance(const AST::Component::ComponentName &Name,
+                                  FunctionInstance *Inst) noexcept {
+    NamedCoreFunc.emplace(Name.getFullName(), Inst);
+  }
   void exportCoreFunctionInstance(std::string_view Name,
                                   FunctionInstance *Inst) noexcept {
     NamedCoreFunc.emplace(Name, Inst);
   }
 
   // Export core table instance with name into this import manager.
+  void exportCoreTableInstance(const AST::Component::ComponentName &Name,
+                               TableInstance *Inst) noexcept {
+    NamedCoreTable.emplace(Name.getFullName(), Inst);
+  }
   void exportCoreTableInstance(std::string_view Name,
                                TableInstance *Inst) noexcept {
     NamedCoreTable.emplace(Name, Inst);
   }
 
   // Export core memory instance with name into this import manager.
+  void exportCoreMemoryInstance(const AST::Component::ComponentName &Name,
+                                MemoryInstance *Inst) noexcept {
+    NamedCoreMemory.emplace(Name.getFullName(), Inst);
+  }
   void exportCoreMemoryInstance(std::string_view Name,
                                 MemoryInstance *Inst) noexcept {
     NamedCoreMemory.emplace(Name, Inst);
   }
 
   // Export core global instance with name into this import manager.
+  void exportCoreGlobalInstance(const AST::Component::ComponentName &Name,
+                                GlobalInstance *Inst) noexcept {
+    NamedCoreGlobal.emplace(Name.getFullName(), Inst);
+  }
   void exportCoreGlobalInstance(std::string_view Name,
                                 GlobalInstance *Inst) noexcept {
     NamedCoreGlobal.emplace(Name, Inst);
   }
 
   // Export core module instance with name into this import manager.
+  void exportCoreModuleInstance(const AST::Component::ComponentName &Name,
+                                const ModuleInstance *Inst) noexcept {
+    NamedCoreModInst.emplace(Name.getFullName(), Inst);
+  }
   void exportCoreModuleInstance(std::string_view Name,
                                 const ModuleInstance *Inst) noexcept {
     NamedCoreModInst.emplace(Name, Inst);
@@ -83,14 +107,14 @@ public:
 
   // Find component func by name.
   Component::FunctionInstance *
-  findFunction(std::string_view Name) const noexcept {
-    return findExport(NamedFunc, Name);
+  findFunction(const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(NamedFunc, Name.getFullName());
   }
 
   // Find component instance by name.
-  const ComponentInstance *
-  findComponentInstance(std::string_view Name) const noexcept {
-    return findExport(NamedCompInst, Name);
+  const ComponentInstance *findComponentInstance(
+      const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(NamedCompInst, Name.getFullName());
   }
 
   // Find core function instance by name.
@@ -200,12 +224,13 @@ public:
   Component::FunctionInstance *getFunction(uint32_t Index) const noexcept {
     return FuncInsts[Index];
   }
-  void exportFunction(std::string_view Name, uint32_t Idx) noexcept {
-    ExpFuncInsts.insert_or_assign(std::string(Name), FuncInsts[Idx]);
+  void exportFunction(const AST::Component::ComponentName &Name,
+                      uint32_t Idx) noexcept {
+    ExpFuncInsts.insert_or_assign(Name.getFullName(), FuncInsts[Idx]);
   }
   Component::FunctionInstance *
-  findFunction(std::string_view Name) const noexcept {
-    return findExport(ExpFuncInsts, Name);
+  findFunction(const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(ExpFuncInsts, Name.getFullName());
   }
   template <typename CallbackT>
   auto getFuncExports(CallbackT &&CallBack) const noexcept {
@@ -220,12 +245,13 @@ public:
   const AST::Component::DefType *getType(uint32_t Index) const noexcept {
     return Types[Index];
   }
-  void exportType(std::string_view Name, uint32_t Idx) noexcept {
-    ExpTypes.insert_or_assign(std::string(Name), Types[Idx]);
+  void exportType(const AST::Component::ComponentName &Name,
+                  uint32_t Idx) noexcept {
+    ExpTypes.insert_or_assign(Name.getFullName(), Types[Idx]);
   }
   const AST::Component::DefType *
-  findType(std::string_view Name) const noexcept {
-    return findExport(ExpTypes, Name);
+  findType(const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(ExpTypes, Name.getFullName());
   }
 
   // Index space: component instance.
@@ -240,12 +266,13 @@ public:
   const ComponentInstance *getComponentInstance(uint32_t Index) const noexcept {
     return CompInsts[Index];
   }
-  void exportComponentInstance(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCompInsts.insert_or_assign(std::string(Name), CompInsts[Idx]);
+  void exportComponentInstance(const AST::Component::ComponentName &Name,
+                               uint32_t Idx) noexcept {
+    ExpCompInsts.insert_or_assign(Name.getFullName(), CompInsts[Idx]);
   }
-  const ComponentInstance *
-  findComponentInstance(std::string_view Name) const noexcept {
-    return findExport(ExpCompInsts, Name);
+  const ComponentInstance *findComponentInstance(
+      const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(ExpCompInsts, Name.getFullName());
   }
 
   // Index space: component. (declaration for instantiation phase)
@@ -267,11 +294,13 @@ public:
   FunctionInstance *getCoreFunction(uint32_t Index) const noexcept {
     return CoreFuncInsts[Index];
   }
-  void exportCoreFunction(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreFuncInsts.insert_or_assign(std::string(Name), CoreFuncInsts[Idx]);
+  void exportCoreFunction(const AST::Component::ComponentName &Name,
+                          uint32_t Idx) noexcept {
+    ExpCoreFuncInsts.insert_or_assign(Name.getFullName(), CoreFuncInsts[Idx]);
   }
-  FunctionInstance *findCoreFunction(std::string_view Name) const noexcept {
-    return findExport(ExpCoreFuncInsts, Name);
+  FunctionInstance *
+  findCoreFunction(const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(ExpCoreFuncInsts, Name.getFullName());
   }
 
   // Index space: core table.
@@ -281,11 +310,13 @@ public:
   TableInstance *getCoreTable(uint32_t Index) const noexcept {
     return CoreTabInsts[Index];
   }
-  void exportCoreTable(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreTabInsts.insert_or_assign(std::string(Name), CoreTabInsts[Idx]);
+  void exportCoreTable(const AST::Component::ComponentName &Name,
+                       uint32_t Idx) noexcept {
+    ExpCoreTabInsts.insert_or_assign(Name.getFullName(), CoreTabInsts[Idx]);
   }
-  TableInstance *findCoreTable(std::string_view Name) const noexcept {
-    return findExport(ExpCoreTabInsts, Name);
+  TableInstance *
+  findCoreTable(const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(ExpCoreTabInsts, Name.getFullName());
   }
 
   // Index space: core memory.
@@ -295,11 +326,13 @@ public:
   MemoryInstance *getCoreMemory(uint32_t Index) const noexcept {
     return CoreMemInsts[Index];
   }
-  void exportCoreMemory(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreMemInsts.insert_or_assign(std::string(Name), CoreMemInsts[Idx]);
+  void exportCoreMemory(const AST::Component::ComponentName &Name,
+                        uint32_t Idx) noexcept {
+    ExpCoreMemInsts.insert_or_assign(Name.getFullName(), CoreMemInsts[Idx]);
   }
-  MemoryInstance *findCoreMemory(std::string_view Name) const noexcept {
-    return findExport(ExpCoreMemInsts, Name);
+  MemoryInstance *
+  findCoreMemory(const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(ExpCoreMemInsts, Name.getFullName());
   }
 
   // Index space: core glocal.
@@ -309,11 +342,13 @@ public:
   GlobalInstance *getCoreGlobal(uint32_t Index) const noexcept {
     return CoreGlobInsts[Index];
   }
-  void exportCoreGlobal(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreGlobInsts.insert_or_assign(std::string(Name), CoreGlobInsts[Idx]);
+  void exportCoreGlobal(const AST::Component::ComponentName &Name,
+                        uint32_t Idx) noexcept {
+    ExpCoreGlobInsts.insert_or_assign(Name.getFullName(), CoreGlobInsts[Idx]);
   }
-  GlobalInstance *findCoreGlobal(std::string_view Name) const noexcept {
-    return findExport(ExpCoreGlobInsts, Name);
+  GlobalInstance *
+  findCoreGlobal(const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(ExpCoreGlobInsts, Name.getFullName());
   }
 
   // Index space: core type.
@@ -334,12 +369,13 @@ public:
   const ModuleInstance *getCoreModuleInstance(uint32_t Index) const noexcept {
     return CoreModInsts[Index];
   }
-  void exportCoreModuleInstance(std::string_view Name, uint32_t Idx) noexcept {
-    ExpCoreModInsts.insert_or_assign(std::string(Name), CoreModInsts[Idx]);
+  void exportCoreModuleInstance(const AST::Component::ComponentName &Name,
+                                uint32_t Idx) noexcept {
+    ExpCoreModInsts.insert_or_assign(Name.getFullName(), CoreModInsts[Idx]);
   }
-  const ModuleInstance *
-  findCoreModuleInstance(std::string_view Name) const noexcept {
-    return findExport(ExpCoreModInsts, Name);
+  const ModuleInstance *findCoreModuleInstance(
+      const AST::Component::ComponentName &Name) const noexcept {
+    return findExport(ExpCoreModInsts, Name.getFullName());
   }
 
   // Index space: module. (declaration for instantiation phase)

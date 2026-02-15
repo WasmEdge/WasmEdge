@@ -109,6 +109,9 @@ private:
   Expect<void> validate(const AST::Component::Import &Im) noexcept;
   // Validate component export
   Expect<void> validate(const AST::Component::Export &Ex) noexcept;
+  // Validate component name
+  Expect<void>
+  validateComponentName(const AST::Component::ComponentName &Name) noexcept;
   // Validate component descs
   // Expect<void> validate(const AST::Component::CoreImportDesc &Desc) noexcept;
   Expect<void> validate(const AST::Component::ExternDesc &Desc) noexcept;

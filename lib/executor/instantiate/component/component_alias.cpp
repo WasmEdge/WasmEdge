@@ -3,8 +3,10 @@
 
 #include "executor/executor.h"
 
+#include "ast/component/component_name.h"
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+
 
 #include <string_view>
 
@@ -52,7 +54,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       const auto &Export = Alias.getExport();
       const auto *ModInst = CompInst.getCoreModuleInstance(Export.first);
       auto FindExports = [&](const auto &Map) {
-        return ModInst->unsafeFindExports(Map, Export.second);
+        return ModInst->unsafeFindExports(Map, Export.second.getFullName());
       };
       switch (Sort.getCoreSortType()) {
       case AST::Component::Sort::CoreSortType::Func: {

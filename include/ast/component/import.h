@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/declarator.h"
 #include "ast/component/sort.h"
 #include "ast/component/type.h"
 
@@ -29,13 +30,13 @@ namespace Component {
 /// AST Component::Import node.
 class Import {
 public:
-  std::string &getName() noexcept { return Name; }
-  std::string_view getName() const noexcept { return Name; }
+  ComponentName &getName() noexcept { return Name; }
+  const ComponentName &getName() const noexcept { return Name; }
   ExternDesc &getDesc() noexcept { return Desc; }
   const ExternDesc &getDesc() const noexcept { return Desc; }
 
 private:
-  std::string Name;
+  ComponentName Name;
   ExternDesc Desc;
 };
 

@@ -67,6 +67,7 @@ jobs:
         shell: bash
         run: |
           [ "${{ matrix.plugin }}" == "wasi_nn-openvino-genai" ] && source /root/openvino_genai/setupvars.sh
+          PIPER_INSTALL_PATH="/usr/local"
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
             -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
@@ -74,6 +75,7 @@ jobs:
             -DWASMEDGE_USE_LLVM=OFF \
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
             -DWASMEDGE_USE_CXX11_ABI=${{ startsWith(inputs.asset_tag, 'manylinux_2_28') && 'OFF' || 'ON' }} \
+            -DPIPER_ROOT="$PIPER_INSTALL_PATH" \
             ${{ matrix.options }}
           cmake --build build --target ${target}
 
@@ -97,6 +99,8 @@ jobs:
             cd -
           fi
         shell: bash
+        env:
+          ESPEAK_DATA_PATH: /usr/local/share/espeak-ng-data
       - if: ${{ !inputs.release }}
         name: Upload artifact ${{ matrix.plugin }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

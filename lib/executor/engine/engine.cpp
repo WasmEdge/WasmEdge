@@ -28,6 +28,10 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   if (Stat && Conf.getStatisticsConfigure().isTimeMeasuring()) {
     Stat->startRecordWasm();
   }
+  // Start CPU time recording.
+  if (Stat && Conf.getStatisticsConfigure().isCpuMeasuring()) {
+    Stat->startRecordCpuTime();
+  }
 
   // Reset and push a dummy frame into stack.
   StackMgr.pushFrame(nullptr, AST::InstrView::iterator(), 0, 0);
@@ -66,6 +70,22 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
 
   if (Stat && Conf.getStatisticsConfigure().isTimeMeasuring()) {
     Stat->stopRecordWasm();
+  }
+  // Stop CPU time recording.
+  if (Stat && Conf.getStatisticsConfigure().isCpuMeasuring()) {
+    Stat->stopRecordCpuTime();
+  }
+  // Record final memory usage.
+  if (Stat && Conf.getStatisticsConfigure().isMemoryMeasuring()) {
+    if (const auto *ModInst = StackMgr.getModule()) {
+      uint64_t TotalPages = 0;
+      for (uint32_t I = 0; I < ModInst->getMemoryNum(); ++I) {
+        if (auto Res = ModInst->getMemory(I); Res) {
+          TotalPages += (*Res)->getPageSize();
+        }
+      }
+      Stat->recordMemoryPages(TotalPages);
+    }
   }
 
   // If Statistics is enabled, then dump it here.

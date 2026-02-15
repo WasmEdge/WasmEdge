@@ -8,6 +8,7 @@ wasmedge_add_library(wasmedgeCommon
   hexstr.cpp
   spdlog.cpp
   errinfo.cpp
+  cputime.cpp
 )
 
 target_link_libraries(wasmedgeCommon

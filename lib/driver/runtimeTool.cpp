@@ -362,6 +362,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.getStatisticsConfigure().setInstructionCounting(true);
     Conf.getStatisticsConfigure().setCostMeasuring(true);
     Conf.getStatisticsConfigure().setTimeMeasuring(true);
+    Conf.getStatisticsConfigure().setColdStartMeasuring(true);
+    Conf.getStatisticsConfigure().setCpuMeasuring(true);
+    Conf.getStatisticsConfigure().setMemoryMeasuring(true);
   } else {
     if (Opt.ConfEnableInstructionCounting.value()) {
       Conf.getStatisticsConfigure().setInstructionCounting(true);
@@ -371,6 +374,15 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     }
     if (Opt.ConfEnableTimeMeasuring.value()) {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
+    }
+    if (Opt.ConfEnableColdStartMeasuring.value()) {
+      Conf.getStatisticsConfigure().setColdStartMeasuring(true);
+    }
+    if (Opt.ConfEnableCpuMeasuring.value()) {
+      Conf.getStatisticsConfigure().setCpuMeasuring(true);
+    }
+    if (Opt.ConfEnableMemoryMeasuring.value()) {
+      Conf.getStatisticsConfigure().setMemoryMeasuring(true);
     }
   }
   if (Opt.ConfEnableJIT.value()) {

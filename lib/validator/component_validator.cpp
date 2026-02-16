@@ -679,6 +679,9 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
     // a result type. Similarly, validation of components and component
     // types rejects any transitive use of borrow in an exported value type.
     CompCtx.incSortIndexSize(AST::Component::Sort::SortType::Type);
+    CompCtx.addComponentFuncType(
+        CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type) - 1,
+        DType.getFuncType());
   } else if (DType.isComponentType()) {
     for (const auto &Decl : DType.getComponentType().getDecl()) {
       if (Decl.isImportDecl()) {
@@ -748,6 +751,9 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
 
   ComponentName CName(Im.getName());
   switch (CName.getKind()) {
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
   case ComponentNameKind::InterfaceType:
   case ComponentNameKind::Label:
     break;
@@ -762,18 +768,92 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
     return Unexpect(ErrCode::Value::ComponentNotImplValidator);
   }
-  // TODO: Validation requires that annotated plainnames only occur on func
-  // imports or exports and that the first label of a [constructor],
-  // [method] or [static] matches the plainname of a preceding resource
-  // import or export, respectively, in the same scope (component, component
-  // type or instance type).
 
-  // TODO: Validation of [constructor] names requires that the func returns
-  // a (result (own $R)), where $R is the resource labeled r.
+  if (CName.getKind() == ComponentNameKind::Constructor) {
+    if (Im.getDesc().getDescType() !=
+        AST::Component::ExternDesc::DescType::FuncType) {
+      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      spdlog::error("    Import: Constructor import must be a function type"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::InvalidTypeReference);
+    }
+    auto ResourceTypeIdx = CompCtx.getImportedResourceType(
+        std::string(CName.getDetails().Constructor.Label));
+    if (!ResourceTypeIdx.has_value()) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "    Import: Constructor refers to unknown resource type"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    auto FuncType = CompCtx.getComponentFuncType(Im.getDesc().getTypeIndex());
+    if (!FuncType) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Import: Constructor function type not found"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
 
-  // TODO: Validation of [method] names requires the first parameter of the
-  // function to be (param "self" (borrow $R)), where $R is the resource
-  // labeled r.
+    if (FuncType->getResultList().size() != 1) {
+      spdlog::error(ErrCode::Value::ArgTypeMismatch);
+      spdlog::error("    Import: Constructor must return exactly one result"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::ArgTypeMismatch);
+    }
+
+    auto ResValType = FuncType->getResultList()[0].getValType();
+    if (ResValType.getCode() != ComponentTypeCode::Own ||
+        ResValType.getTypeIndex() != *ResourceTypeIdx) {
+      spdlog::error(ErrCode::Value::ArgTypeMismatch);
+      spdlog::error("    Import: Constructor must return (result (own $R))"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::ArgTypeMismatch);
+    }
+  }
+
+  if (CName.getKind() == ComponentNameKind::Method) {
+    if (Im.getDesc().getDescType() !=
+        AST::Component::ExternDesc::DescType::FuncType) {
+      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      spdlog::error("    Import: Method import must be a function type"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::InvalidTypeReference);
+    }
+    auto ResourceTypeIdx = CompCtx.getImportedResourceType(
+        std::string(CName.getDetails().Method.Resource));
+    if (!ResourceTypeIdx.has_value()) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Import: Method refers to unknown resource type"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    auto FuncType = CompCtx.getComponentFuncType(Im.getDesc().getTypeIndex());
+    if (!FuncType) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Import: Method function type not found"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+
+    if (FuncType->getParamList().size() < 1) {
+      spdlog::error(ErrCode::Value::ArgTypeMismatch);
+      spdlog::error("    Import: Method must have at least one parameter"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::ArgTypeMismatch);
+    }
+
+    auto ParamLabelType = FuncType->getParamList()[0];
+    auto ParamValType = ParamLabelType.getValType();
+    if (ParamLabelType.getLabel() != "self" ||
+        ParamValType.getCode() != ComponentTypeCode::Borrow ||
+        ParamValType.getTypeIndex() != *ResourceTypeIdx) {
+      spdlog::error(ErrCode::Value::ArgTypeMismatch);
+      spdlog::error(
+          "    Import: Method must have first parameter (param \"self\" (borrow $R))"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::ArgTypeMismatch);
+    }
+  }
 
   // TODO: Validation of [method] and [static] names ensures that all field
   // names are disjoint.
@@ -788,6 +868,16 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
       spdlog::error("    Import: Duplicate import name"sv);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
       return Unexpect(ErrCode::Value::ComponentDuplicateName);
+    }
+    if (CName.getKind() == ComponentNameKind::Label ||
+        CName.getKind() == ComponentNameKind::InterfaceType) {
+      // If it is a TypeBound, record it.
+      if (Im.getDesc().getDescType() ==
+          AST::Component::ExternDesc::DescType::TypeBound) {
+        CompCtx.addImportedResourceType(
+            std::string(CName.getNoTagName()),
+            CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type) - 1);
+      }
     }
     break;
   default:

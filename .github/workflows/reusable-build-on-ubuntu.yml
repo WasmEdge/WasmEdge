@@ -76,6 +76,20 @@ jobs:
           ./tools/wasmedge/wasmedge -v
           ctest
           cd -
+      - name: Install wasm-tools
+        if: ${{ !matrix.coverage && matrix.tests }}
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          source "$HOME/.cargo/env"
+          cargo install wasm-tools
+      - name: Component Fuzz Test
+        if: ${{ !matrix.coverage && matrix.tests }}
+        env:
+          FUZZ_ITERATION_COUNT: 100
+        run: |
+          source "$HOME/.cargo/env"
+          export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
+          bash test/component/fuzzing/run_fuzz.sh ./build/test/component/fuzzing/componentFuzzTest
       - name: Check symbol exposure
         if: ${{ !matrix.coverage }}
         run: |

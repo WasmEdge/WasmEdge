@@ -105,6 +105,112 @@ bool tryReadKebab(std::string_view &Input, std::string_view &Output) {
   return isKebabString(Output);
 }
 
+bool isSemVer(std::string_view Input) {
+  auto IsNumeric = [](std::string_view S) {
+    if (S.empty())
+      return false;
+    if (S.size() > 1 && S[0] == '0')
+      return false;
+    return std::all_of(S.begin(), S.end(),
+                       [](char C) { return std::isdigit(C); });
+  };
+
+  auto IsIdentifier = [](std::string_view S) {
+    if (S.empty())
+      return false;
+    return std::all_of(S.begin(), S.end(),
+                       [](char C) { return std::isalnum(C) || C == '-'; });
+  };
+
+  std::string_view MajorStr, MinorStr, PatchStr;
+
+  size_t Dot1 = Input.find('.');
+  if (Dot1 == std::string_view::npos)
+    return false;
+  MajorStr = Input.substr(0, Dot1);
+  if (!IsNumeric(MajorStr))
+    return false;
+  Input.remove_prefix(Dot1 + 1);
+
+  size_t Dot2 = Input.find('.');
+  if (Dot2 == std::string_view::npos)
+    return false;
+  MinorStr = Input.substr(0, Dot2);
+  if (!IsNumeric(MinorStr))
+    return false;
+  Input.remove_prefix(Dot2 + 1);
+
+  size_t EndPatch = Input.find_first_of("-+");
+  if (EndPatch == std::string_view::npos) {
+    PatchStr = Input;
+    Input = "";
+  } else {
+    PatchStr = Input.substr(0, EndPatch);
+    Input.remove_prefix(EndPatch);
+  }
+  if (!IsNumeric(PatchStr))
+    return false;
+
+  if (!Input.empty() && Input[0] == '-') {
+    Input.remove_prefix(1);
+    if (Input.empty())
+      return false;
+    size_t EndPre = Input.find('+');
+    std::string_view Prerelease;
+    if (EndPre == std::string_view::npos) {
+      Prerelease = Input;
+      Input = "";
+    } else {
+      Prerelease = Input.substr(0, EndPre);
+      Input.remove_prefix(EndPre);
+    }
+
+    while (!Prerelease.empty()) {
+      size_t Dot = Prerelease.find('.');
+      std::string_view Part = (Dot == std::string_view::npos)
+                                  ? Prerelease
+                                  : Prerelease.substr(0, Dot);
+      if (!IsIdentifier(Part))
+        return false;
+
+      bool AllDigits =
+          !Part.empty() && std::all_of(Part.begin(), Part.end(),
+                                       [](char C) { return std::isdigit(C); });
+      if (AllDigits && Part.size() > 1 && Part[0] == '0')
+        return false;
+
+      if (Dot == std::string_view::npos)
+        break;
+      Prerelease.remove_prefix(Dot + 1);
+      if (Prerelease.empty())
+        return false;
+    }
+  }
+
+  if (!Input.empty() && Input[0] == '+') {
+    Input.remove_prefix(1);
+    if (Input.empty())
+      return false;
+    std::string_view Build = Input;
+    Input = "";
+
+    while (!Build.empty()) {
+      size_t Dot = Build.find('.');
+      std::string_view Part =
+          (Dot == std::string_view::npos) ? Build : Build.substr(0, Dot);
+      if (!IsIdentifier(Part))
+        return false;
+      if (Dot == std::string_view::npos)
+        break;
+      Build.remove_prefix(Dot + 1);
+      if (Build.empty())
+        return false;
+    }
+  }
+
+  return Input.empty();
+}
+
 } // namespace ComponentNameParser
 
 using namespace std::literals;
@@ -214,7 +320,11 @@ void ComponentName::parse() {
 
   // hashname          ::= 'integrity=<' <integrity-metadata> '>'
   if (tryRead("integrity="sv, Next)) {
-    // Not supported yet
+    if (Next.size() >= 2 && Next.front() == '<' && Next.back() == '>') {
+      Detail.Hash.HashValue = Next.substr(1, Next.size() - 2);
+      Kind = ComponentNameKind::Hash;
+      return;
+    }
     return;
   }
 
@@ -271,7 +381,9 @@ void ComponentName::parse() {
     // read a:b:c/d/e/f[@g]?
     if (!isEOF(Next) && Next[0] == '@') {
       Next.remove_prefix(1);
-      // TODO: semver format check
+      if (!isSemVer(Next)) {
+        return;
+      }
       Version = Next;
     }
 

@@ -250,6 +250,8 @@ struct LLVM::Compiler::CompileContext {
                 Int64Ty,
                 // StopToken
                 Int32PtrTy,
+                // StackLimit
+                Int8PtrTy,
             })),
         ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
         IntrinsicsTableTy(LLVM::Type::getArrayType(
@@ -375,6 +377,10 @@ struct LLVM::Compiler::CompileContext {
   LLVM::Value getStopToken(LLVM::Builder &Builder,
                            LLVM::Value ExecCtx) noexcept {
     return Builder.createExtractValue(ExecCtx, 6);
+  }
+  LLVM::Value getStackLimit(LLVM::Builder &Builder,
+                            LLVM::Value ExecCtx) noexcept {
+    return Builder.createExtractValue(ExecCtx, 7);
   }
   LLVM::FunctionCallee getIntrinsic(LLVM::Builder &Builder,
                                     Executable::Intrinsics Index,
@@ -521,6 +527,21 @@ public:
     if (F.Fn) {
       Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
       ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
+
+      assuming(LLVM::Core::StackSave != LLVM::Core::NotIntrinsic);
+      auto CurrSP = Builder.createPtrToInt(
+          Builder.createIntrinsic(LLVM::Core::StackSave, {Context.Int8PtrTy},
+                                  {}),
+          Context.Int64Ty);
+      auto StackLimit = Builder.createPtrToInt(
+          Context.getStackLimit(Builder, ExecCtx), Context.Int64Ty);
+      auto StackOkBB =
+          LLVM::BasicBlock::create(LLContext, F.Fn, "stack.ok");
+      auto HasSpace =
+          Builder.createLikely(Builder.createICmpUGE(CurrSP, StackLimit));
+      Builder.createCondBr(HasSpace, StackOkBB,
+                           getTrapBB(ErrCode::Value::StackOverflow));
+      Builder.positionAtEnd(StackOkBB);
 
       if (InstructionCounting) {
         LocalInstrCount = Builder.createAlloca(Context.Int64Ty);

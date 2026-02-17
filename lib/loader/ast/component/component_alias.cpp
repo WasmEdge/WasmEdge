@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "ast/component/component_name.h"
 #include "loader/loader.h"
 
 namespace WasmEdge {
@@ -42,7 +43,7 @@ Expect<void> Loader::loadAlias(AST::Component::Alias &Alias) {
   case 0x01: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     EXPECTED_TRY(std::string Name, FMgr.readName().map_error(ReportError));
-    Alias.setExport(Idx, Name);
+    Alias.setExport(Idx, AST::Component::ComponentName(Name));
     break;
   }
   case 0x02: {

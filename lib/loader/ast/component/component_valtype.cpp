@@ -6,16 +6,16 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadExternName(std::string &Name) {
+Expect<void> Loader::loadExternName(AST::Component::ComponentName &CompName) {
   // importname' ::= 0x00 len:<u32> in:<importname> => in (if len = |in|)
   // exportname' ::= 0x00 len:<u32> en:<exportname> => en (if len = |en|)
 
-  // Error messages will be handled in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte());
   if (B != 0x00) {
     return Unexpect(ErrCode::Value::MalformedName);
   }
-  EXPECTED_TRY(Name, FMgr.readName());
+  EXPECTED_TRY(std::string Name, FMgr.readName());
+  CompName.parse(Name);
   return {};
 }
 

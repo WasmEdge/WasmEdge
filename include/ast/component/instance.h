@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/declarator.h"
 #include "ast/component/sort.h"
 #include "common/span.h"
 
@@ -47,8 +48,8 @@ private:
 // inlineexport        ::= n:<exportname> si:<sortidx>
 //                       => (export n si)
 
-/// AST Component::InlineExport class.
-class InlineExport {
+/// AST Component::CoreInlineExport class.
+class CoreInlineExport {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
@@ -57,6 +58,19 @@ public:
 
 private:
   std::string Name;
+  SortIndex SortIdx;
+};
+
+/// AST Component::InlineExport class.
+class InlineExport {
+public:
+  const ComponentName &getName() const noexcept { return Name; }
+  ComponentName &getName() noexcept { return Name; }
+  const SortIndex &getSortIdx() const noexcept { return SortIdx; }
+  SortIndex &getSortIdx() noexcept { return SortIdx; }
+
+private:
+  ComponentName Name;
   SortIndex SortIdx;
 };
 
@@ -71,7 +85,7 @@ private:
 class CoreInstance {
 public:
   using InstantiateArgs = std::vector<InstantiateArg<uint32_t>>;
-  using InlineExports = std::vector<InlineExport>;
+  using InlineExports = std::vector<CoreInlineExport>;
 
   void setInstantiateArgs(const uint32_t ModIdx,
                           InstantiateArgs &&Args) noexcept {
@@ -87,7 +101,7 @@ public:
   void setInlineExports(InlineExports &&Exports) noexcept {
     Expr.emplace<InlineExports>(std::move(Exports));
   }
-  Span<const InlineExport> getInlineExports() const noexcept {
+  Span<const CoreInlineExport> getInlineExports() const noexcept {
     return *std::get_if<InlineExports>(&Expr);
   }
 

@@ -27,15 +27,16 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr,
     case AST::Component::ExternDesc::DescType::ComponentType:
       // TODO: COMPONENT - complete the import instantiation.
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error("    incomplete import {} desc types"sv, Import.getName());
+      spdlog::error("    incomplete import {} desc types"sv,
+                    Import.getName().Name);
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     case AST::Component::ExternDesc::DescType::InstanceType: {
       // TODO: COMPONENT - type matching for the instance type.
       auto CompName = Import.getName();
-      const auto *ImportedCompInst = StoreMgr.findComponent(CompName);
+      const auto *ImportedCompInst = StoreMgr.findComponent(CompName.Name);
       if (unlikely(ImportedCompInst == nullptr)) {
         spdlog::error(ErrCode::Value::UnknownImport);
-        spdlog::error("    component name: {}"sv, CompName);
+        spdlog::error("    component name: {}"sv, CompName.Name);
         return Unexpect(ErrCode::Value::UnknownImport);
       }
       CompInst.addComponentInstance(ImportedCompInst);
@@ -62,15 +63,17 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
     case AST::Component::ExternDesc::DescType::ComponentType:
       // TODO: COMPONENT - complete the import instantiation.
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error("    incomplete import {} desc types"sv, Import.getName());
+      spdlog::error("    incomplete import {} desc types"sv,
+                    Import.getName().Name);
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     case AST::Component::ExternDesc::DescType::InstanceType: {
       // TODO: COMPONENT - type matching for the instance type.
       auto CompName = Import.getName();
-      const auto *ImportedCompInst = ImportMgr.findComponentInstance(CompName);
+      const auto *ImportedCompInst =
+          ImportMgr.findComponentInstance(CompName.Name);
       if (unlikely(ImportedCompInst == nullptr)) {
         spdlog::error(ErrCode::Value::UnknownImport);
-        spdlog::error("    component name: {}"sv, CompName);
+        spdlog::error("    component name: {}"sv, CompName.Name);
         return Unexpect(ErrCode::Value::UnknownImport);
       }
       CompInst.addComponentInstance(ImportedCompInst);

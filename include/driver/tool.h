@@ -129,7 +129,12 @@ struct DriverToolOptions {
                 "`PAGE_COUNT`."sv),
             PO::MetaVar("PAGE_COUNT"sv)),
         ForbiddenPlugins(PO::Description("List of plugins to ignore."sv),
-                         PO::MetaVar("NAMES"sv)) {}
+                         PO::MetaVar("NAMES"sv)),
+        LogLevel(
+            PO::Description(
+                "Set logging level. Valid values: off, trace, debug, info, "
+                "warning, error, fatal. Default is info."sv),
+            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string("info"))) {}
 
   PO::Option<std::string> SoName;
   PO::List<std::string> Args;
@@ -178,6 +183,7 @@ struct DriverToolOptions {
   PO::List<int> GasLim;
   PO::List<int> MemLim;
   PO::List<std::string> ForbiddenPlugins;
+  PO::Option<std::string> LogLevel;
 
   void add_option(PO::ArgumentParser &Parser) noexcept {
 
@@ -229,7 +235,8 @@ struct DriverToolOptions {
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)
         .add_option("memory-page-limit"sv, MemLim)
-        .add_option("forbidden-plugin"sv, ForbiddenPlugins);
+        .add_option("forbidden-plugin"sv, ForbiddenPlugins)
+        .add_option("log-level"sv, LogLevel);
 
     Plugin::Plugin::loadFromDefaultPaths();
     Plugin::Plugin::addPluginOptions(Parser);

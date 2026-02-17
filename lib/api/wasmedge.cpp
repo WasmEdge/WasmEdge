@@ -734,9 +734,13 @@ WasmEdge_StringCreateByCString(const char *Str) {
 WASMEDGE_CAPI_EXPORT WasmEdge_String
 WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len) {
   if (Buf && Len) {
-    char *Str = new char[Len];
-    std::copy_n(Buf, Len, Str);
-    return WasmEdge_String{/* Length */ Len, /* Buf */ Str};
+    try {
+      char *Str = new char[Len];
+      std::copy_n(Buf, Len, Str);
+      return WasmEdge_String{/* Length */ Len, /* Buf */ Str};
+    } catch (const std::bad_alloc &) {
+      return WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
+    }
   }
   return WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
 }

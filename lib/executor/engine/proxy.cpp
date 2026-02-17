@@ -21,6 +21,9 @@ struct Executor::ProxyHelper<Expect<RetT> (Executor::*)(Runtime::StackManager &,
   template <Expect<RetT> (Executor::*Func)(Runtime::StackManager &,
                                            ArgsT...) noexcept>
   static auto proxy(ArgsT... Args) {
+    if (unlikely(!This || !CurrentStack)) {
+      Fault::emitFault(ErrCode::Value::AOTNotImpl);
+    }
 #if defined(__s390x__)
     // Required on s390x: materializing args prevents runtime failures in
     // release builds.

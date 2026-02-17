@@ -4,6 +4,7 @@
 #pragma once
 
 #include "ast/component/component.h"
+#include "ast/component/type.h"
 #include "ast/module.h"
 #include "validator/component_name.h"
 
@@ -38,6 +39,9 @@ public:
     std::unordered_map<uint32_t, const AST::Component::ResourceType *>
         ComponentResourceTypes;
     std::unordered_set<std::string> ImportedNames;
+    std::unordered_map<std::string, uint32_t> ImportedResourceTypes;
+    std::unordered_map<uint32_t, const AST::Component::FuncType *>
+        ComponentFuncTypes;
     std::unordered_set<std::string> ExportedNames;
 
     Context(const AST::Component::Component *C,
@@ -242,6 +246,36 @@ public:
     } else {
       return nullptr;
     }
+  }
+
+  void addComponentFuncType(uint32_t Idx, const AST::Component::FuncType &FT) {
+    auto &Ctx = getCurrentContext();
+    Ctx.ComponentFuncTypes[Idx] = &FT;
+  }
+
+  const AST::Component::FuncType *getComponentFuncType(uint32_t Idx) const {
+    const auto &Ctx = getCurrentContext();
+    auto It = Ctx.ComponentFuncTypes.find(Idx);
+    if (It != Ctx.ComponentFuncTypes.end()) {
+      return It->second;
+    } else {
+      return nullptr;
+    }
+  }
+
+  void addImportedResourceType(const std::string &Name, uint32_t TypeIdx) {
+    auto &Ctx = getCurrentContext();
+    Ctx.ImportedResourceTypes[Name] = TypeIdx;
+  }
+
+  std::optional<uint32_t>
+  getImportedResourceType(const std::string &Name) const {
+    const auto &Ctx = getCurrentContext();
+    auto It = Ctx.ImportedResourceTypes.find(Name);
+    if (It != Ctx.ImportedResourceTypes.end()) {
+      return It->second;
+    }
+    return std::nullopt;
   }
 
   bool AddImportedName(const ComponentName &Name) noexcept {

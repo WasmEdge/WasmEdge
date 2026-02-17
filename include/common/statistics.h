@@ -14,6 +14,7 @@
 #pragma once
 
 #include "common/configure.h"
+#include "common/cputime.h"
 #include "common/enum_ast.hpp"
 #include "common/errcode.h"
 #include "common/span.h"
@@ -117,6 +118,10 @@ public:
     TimeRecorder.reset();
     InstrCnt.store(0, std::memory_order_relaxed);
     CostSum.store(0, std::memory_order_relaxed);
+    CpuTimeStartNs.store(0, std::memory_order_relaxed);
+    CpuTimeTotalNs.store(0, std::memory_order_relaxed);
+    WasmMemoryPages.store(0, std::memory_order_relaxed);
+    WasmMemoryPeakPages.store(0, std::memory_order_relaxed);
   }
 
   /// Start recording wasm time.
@@ -151,14 +156,108 @@ public:
            TimeRecorder.getRecord(Timer::TimerTag::HostFunc);
   }
 
+  /// Start/stop recording cold start load time.
+  void startRecordColdStartLoad() noexcept {
+    TimeRecorder.startRecord(Timer::TimerTag::ColdStartLoad);
+  }
+  void stopRecordColdStartLoad() noexcept {
+    TimeRecorder.stopRecord(Timer::TimerTag::ColdStartLoad);
+  }
+
+  /// Start/stop recording cold start validate time.
+  void startRecordColdStartValidate() noexcept {
+    TimeRecorder.startRecord(Timer::TimerTag::ColdStartValidate);
+  }
+  void stopRecordColdStartValidate() noexcept {
+    TimeRecorder.stopRecord(Timer::TimerTag::ColdStartValidate);
+  }
+
+  /// Start/stop recording cold start instantiate time.
+  void startRecordColdStartInstantiate() noexcept {
+    TimeRecorder.startRecord(Timer::TimerTag::ColdStartInstantiate);
+  }
+  void stopRecordColdStartInstantiate() noexcept {
+    TimeRecorder.stopRecord(Timer::TimerTag::ColdStartInstantiate);
+  }
+
+  /// Getter of cold start phase times.
+  Timer::Timer::Clock::duration getColdStartLoadTime() const noexcept {
+    return TimeRecorder.getRecord(Timer::TimerTag::ColdStartLoad);
+  }
+  Timer::Timer::Clock::duration getColdStartValidateTime() const noexcept {
+    return TimeRecorder.getRecord(Timer::TimerTag::ColdStartValidate);
+  }
+  Timer::Timer::Clock::duration getColdStartInstantiateTime() const noexcept {
+    return TimeRecorder.getRecord(Timer::TimerTag::ColdStartInstantiate);
+  }
+  Timer::Timer::Clock::duration getColdStartTotalTime() const noexcept {
+    return getColdStartLoadTime() + getColdStartValidateTime() +
+           getColdStartInstantiateTime();
+  }
+
+  /// Start recording process CPU time.
+  void startRecordCpuTime() noexcept {
+    CpuTimeStartNs.store(CpuTime::getProcessCpuTimeNs(),
+                         std::memory_order_relaxed);
+  }
+
+  /// Stop recording process CPU time and accumulate.
+  void stopRecordCpuTime() noexcept {
+    uint64_t Start = CpuTimeStartNs.load(std::memory_order_relaxed);
+    uint64_t Now = CpuTime::getProcessCpuTimeNs();
+    if (Now > Start) {
+      CpuTimeTotalNs.fetch_add(Now - Start, std::memory_order_relaxed);
+    }
+  }
+
+  /// Getter of accumulated CPU time in nanoseconds.
+  uint64_t getCpuTimeNs() const noexcept {
+    return CpuTimeTotalNs.load(std::memory_order_relaxed);
+  }
+
+  /// Record current Wasm memory pages and update peak.
+  void recordMemoryPages(uint64_t Pages) noexcept {
+    WasmMemoryPages.store(Pages, std::memory_order_relaxed);
+    uint64_t OldPeak = WasmMemoryPeakPages.load(std::memory_order_relaxed);
+    while (Pages > OldPeak) {
+      if (WasmMemoryPeakPages.compare_exchange_weak(OldPeak, Pages,
+                                                    std::memory_order_relaxed))
+        break;
+    }
+  }
+
+  /// Getter of current Wasm memory pages.
+  uint64_t getMemoryPages() const noexcept {
+    return WasmMemoryPages.load(std::memory_order_relaxed);
+  }
+
+  /// Getter of peak Wasm memory pages.
+  uint64_t getMemoryPeakPages() const noexcept {
+    return WasmMemoryPeakPages.load(std::memory_order_relaxed);
+  }
+
+  /// Getter of current Wasm memory in bytes.
+  uint64_t getMemoryBytes() const noexcept {
+    return getMemoryPages() * UINT64_C(65536);
+  }
+
+  /// Getter of peak Wasm memory in bytes.
+  uint64_t getMemoryPeakBytes() const noexcept {
+    return getMemoryPeakPages() * UINT64_C(65536);
+  }
+
   void dumpToLog(const Configure &Conf) const noexcept {
     using namespace std::literals;
     auto Nano = [](auto &&Duration) {
       return std::chrono::nanoseconds(Duration).count();
     };
     const auto &StatConf = Conf.getStatisticsConfigure();
-    if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
-        StatConf.isCostMeasuring()) {
+    bool HasAny = StatConf.isTimeMeasuring() ||
+                  StatConf.isInstructionCounting() ||
+                  StatConf.isCostMeasuring() ||
+                  StatConf.isColdStartMeasuring() ||
+                  StatConf.isCpuMeasuring() || StatConf.isMemoryMeasuring();
+    if (HasAny) {
       spdlog::info("====================  Statistics  ===================="sv);
     }
     if (StatConf.isTimeMeasuring()) {
@@ -181,8 +280,25 @@ public:
                        ? static_cast<uint64_t>(IPS)
                        : std::numeric_limits<uint64_t>::max());
     }
-    if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
-        StatConf.isCostMeasuring()) {
+    if (StatConf.isColdStartMeasuring()) {
+      spdlog::info(" Cold start total time: {} ns"sv,
+                   Nano(getColdStartTotalTime()));
+      spdlog::info("   Load time: {} ns"sv, Nano(getColdStartLoadTime()));
+      spdlog::info("   Validation time: {} ns"sv,
+                   Nano(getColdStartValidateTime()));
+      spdlog::info("   Instantiation time: {} ns"sv,
+                   Nano(getColdStartInstantiateTime()));
+    }
+    if (StatConf.isCpuMeasuring()) {
+      spdlog::info(" Process CPU time: {} ns"sv, getCpuTimeNs());
+    }
+    if (StatConf.isMemoryMeasuring()) {
+      spdlog::info(" Wasm linear memory: {} pages ({} bytes)"sv,
+                   getMemoryPages(), getMemoryBytes());
+      spdlog::info(" Wasm linear memory peak: {} pages ({} bytes)"sv,
+                   getMemoryPeakPages(), getMemoryPeakBytes());
+    }
+    if (HasAny) {
       spdlog::info("=======================   End   ======================"sv);
     }
   }
@@ -193,6 +309,10 @@ private:
   uint64_t CostLimit;
   std::atomic_uint64_t CostSum;
   Timer::Timer TimeRecorder;
+  std::atomic_uint64_t CpuTimeStartNs{0};
+  std::atomic_uint64_t CpuTimeTotalNs{0};
+  std::atomic_uint64_t WasmMemoryPages{0};
+  std::atomic_uint64_t WasmMemoryPeakPages{0};
 };
 
 } // namespace Statistics

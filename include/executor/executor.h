@@ -146,7 +146,10 @@ public:
       : Conf(Conf) {
     if (Conf.getStatisticsConfigure().isInstructionCounting() ||
         Conf.getStatisticsConfigure().isCostMeasuring() ||
-        Conf.getStatisticsConfigure().isTimeMeasuring()) {
+        Conf.getStatisticsConfigure().isTimeMeasuring() ||
+        Conf.getStatisticsConfigure().isColdStartMeasuring() ||
+        Conf.getStatisticsConfigure().isCpuMeasuring() ||
+        Conf.getStatisticsConfigure().isMemoryMeasuring()) {
       Stat = S;
     } else {
       Stat = nullptr;

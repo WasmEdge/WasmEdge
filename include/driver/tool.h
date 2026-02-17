@@ -102,7 +102,14 @@ struct DriverToolOptions {
             "Enable generating code for counting time during execution."sv)),
         ConfEnableAllStatistics(PO::Description(
             "Enable generating code for all statistics options include "
-            "instruction counting, gas measuring, and execution time"sv)),
+            "instruction counting, gas measuring, execution time, cold start "
+            "time, CPU measuring, and memory measuring"sv)),
+        ConfEnableColdStartMeasuring(PO::Description(
+            "Enable measuring cold start time (load, validate, instantiate)."sv)),
+        ConfEnableCpuMeasuring(PO::Description(
+            "Enable measuring process CPU time during execution."sv)),
+        ConfEnableMemoryMeasuring(PO::Description(
+            "Enable measuring Wasm linear memory usage."sv)),
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
         ConfEnableCoredump(PO::Description(
@@ -169,6 +176,9 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
+  PO::Option<PO::Toggle> ConfEnableColdStartMeasuring;
+  PO::Option<PO::Toggle> ConfEnableCpuMeasuring;
+  PO::Option<PO::Toggle> ConfEnableMemoryMeasuring;
   PO::Option<PO::Toggle> ConfEnableJIT;
   PO::Option<PO::Toggle> ConfEnableCoredump;
   PO::Option<PO::Toggle> ConfCoredumpWasmgdb;
@@ -190,6 +200,10 @@ struct DriverToolOptions {
         .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
+        .add_option("enable-cold-start-measuring"sv,
+                    ConfEnableColdStartMeasuring)
+        .add_option("enable-cpu-measuring"sv, ConfEnableCpuMeasuring)
+        .add_option("enable-memory-measuring"sv, ConfEnableMemoryMeasuring)
         .add_option("enable-jit"sv, ConfEnableJIT)
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)

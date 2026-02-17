@@ -24,6 +24,10 @@ Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
   const uint32_t CurrPageSize = static_cast<uint32_t>(MemInst.getPageSize());
   if (MemInst.growPage(N)) {
     N = CurrPageSize;
+    // Record memory growth for statistics.
+    if (Stat && Conf.getStatisticsConfigure().isMemoryMeasuring()) {
+      Stat->recordMemoryPages(MemInst.getPageSize());
+    }
   } else {
     N = static_cast<uint32_t>(-1);
   }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: 2019-2022 Second State INC
 
 //===-- wasmedge/ast/instruction.h - Instruction class definition ---------===//
 //
@@ -32,30 +32,13 @@ public:
     uint32_t StackEraseEnd;
     int32_t PCOffset;
   };
-  struct BrCastDescriptor {
-    struct JumpDescriptor Jump;
-    ValType RType1, RType2;
-  };
-  struct CatchDescriptor {
-    bool IsAll : 1;
-    bool IsRef : 1;
-    uint32_t TagIndex;
-    uint32_t LabelIndex;
-    struct JumpDescriptor Jump;
-  };
-  struct TryDescriptor {
-    BlockType ResType;
-    uint32_t BlockParamNum;
-    uint32_t JumpEnd;
-    std::vector<CatchDescriptor> Catch;
-  };
 
 public:
   /// Constructor assigns the OpCode and the Offset.
   Instruction(OpCode Byte, uint32_t Off = 0) noexcept
       : Offset(Off), Code(Byte) {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
+    (defined(__riscv) && __riscv_xlen == 64)
     Data.Num = static_cast<uint128_t>(0);
 #else
     Data.Num.Low = static_cast<uint64_t>(0);
@@ -63,12 +46,10 @@ public:
 #endif
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
-    Flags.IsAllocBrCast = false;
-    Flags.IsAllocTryCatch = false;
   }
 
   /// Copy constructor.
-  Instruction(const Instruction &Instr) noexcept
+  Instruction(const Instruction &Instr)
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
     if (Flags.IsAllocLabelList) {
@@ -79,21 +60,15 @@ public:
       Data.SelectT.ValTypeList = new ValType[Data.SelectT.ValTypeListSize];
       std::copy_n(Instr.Data.SelectT.ValTypeList, Data.SelectT.ValTypeListSize,
                   Data.SelectT.ValTypeList);
-    } else if (Flags.IsAllocBrCast) {
-      Data.BrCast = new BrCastDescriptor(*Instr.Data.BrCast);
-    } else if (Flags.IsAllocTryCatch) {
-      Data.TryCatch = new TryDescriptor(*Instr.Data.TryCatch);
     }
   }
 
   /// Move constructor.
-  Instruction(Instruction &&Instr) noexcept
+  Instruction(Instruction &&Instr)
       : Data(Instr.Data), Offset(Instr.Offset), Code(Instr.Code),
         Flags(Instr.Flags) {
     Instr.Flags.IsAllocLabelList = false;
     Instr.Flags.IsAllocValTypeList = false;
-    Instr.Flags.IsAllocBrCast = false;
-    Instr.Flags.IsAllocTryCatch = false;
   }
 
   /// Destructor.
@@ -115,8 +90,12 @@ public:
   uint32_t getOffset() const noexcept { return Offset; }
 
   /// Getter and setter of block type.
-  const BlockType &getBlockType() const noexcept { return Data.Blocks.ResType; }
-  BlockType &getBlockType() noexcept { return Data.Blocks.ResType; }
+  BlockType getBlockType() const noexcept { return Data.Blocks.ResType; }
+  void setBlockType(ValType VType) noexcept {
+    Data.Blocks.ResType.setData(VType);
+  }
+  void setBlockType(uint32_t Idx) noexcept { Data.Blocks.ResType.setData(Idx); }
+  void setEmptyBlockType() noexcept { Data.Blocks.ResType.setEmpty(); }
 
   /// Getter and setter of jump count to End instruction.
   uint32_t getJumpEnd() const noexcept { return Data.Blocks.JumpEnd; }
@@ -126,9 +105,9 @@ public:
   uint32_t getJumpElse() const noexcept { return Data.Blocks.JumpElse; }
   void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
 
-  /// Getter and setter of value type.
-  const ValType &getValType() const noexcept { return Data.VType; }
-  void setValType(const ValType &VType) noexcept { Data.VType = VType; }
+  /// Getter and setter of reference type.
+  RefType getRefType() const noexcept { return Data.ReferenceType; }
+  void setRefType(RefType RType) noexcept { Data.ReferenceType = RType; }
 
   /// Getter and setter of label list.
   void setLabelListSize(uint32_t Size) {
@@ -150,17 +129,9 @@ public:
         Flags.IsAllocLabelList ? Data.BrTable.LabelListSize : 0);
   }
 
-  /// Getter and setter of expression end for End instruction.
-  bool isExprLast() const noexcept { return Data.EndFlags.IsExprLast; }
-  void setExprLast(bool Last = true) noexcept {
-    Data.EndFlags.IsExprLast = Last;
-  }
-
-  /// Getter and setter of try block end for End instruction.
-  bool isTryBlockLast() const noexcept { return Data.EndFlags.IsTryBlockLast; }
-  void setTryBlockLast(bool Last = true) noexcept {
-    Data.EndFlags.IsTryBlockLast = Last;
-  }
+  /// Getter and setter of IsLast for End instruction.
+  bool isLast() const noexcept { return Data.IsLast; }
+  void setLast(bool Last = true) noexcept { Data.IsLast = Last; }
 
   /// Getter and setter of Jump for Br* instruction.
   const JumpDescriptor &getJump() const noexcept { return Data.Jump; }
@@ -211,61 +182,34 @@ public:
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
+    (defined(__riscv) && __riscv_xlen == 64)
     return ValVariant(Data.Num);
 #else
-    uint128_t N{Data.Num.High, Data.Num.Low};
+    uint128_t N(Data.Num.High, Data.Num.Low);
     return ValVariant(N);
 #endif
   }
   void setNum(ValVariant N) noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
+    (defined(__riscv) && __riscv_xlen == 64)
     Data.Num = N.get<uint128_t>();
 #else
-    uint128_t V = N.get<uint128_t>();
-    Data.Num.Low = V.low();
-    Data.Num.High = V.high();
+    std::memcpy(&Data.Num, &N.get<uint128_t>(), sizeof(uint128_t));
 #endif
   }
 
-  /// Getter and setter of BrCast info for Br_cast instructions.
-  void setBrCast(uint32_t LabelIdx) {
-    reset();
-    Data.BrCast = new BrCastDescriptor();
-    Data.BrCast->Jump.TargetIndex = LabelIdx;
-    Flags.IsAllocBrCast = true;
-  }
-  const BrCastDescriptor &getBrCast() const noexcept { return *Data.BrCast; }
-  BrCastDescriptor &getBrCast() noexcept { return *Data.BrCast; }
-
-  /// Getter and setter of try block info for try_table instruction.
-  void setTryCatch() {
-    reset();
-    Data.TryCatch = new TryDescriptor();
-    Flags.IsAllocTryCatch = true;
-  }
-  const TryDescriptor &getTryCatch() const noexcept { return *Data.TryCatch; }
-  TryDescriptor &getTryCatch() noexcept { return *Data.TryCatch; }
-
 private:
   /// Release allocated resources.
-  void reset() noexcept {
+  void reset() {
     if (Flags.IsAllocLabelList) {
       Data.BrTable.LabelListSize = 0;
       delete[] Data.BrTable.LabelList;
     } else if (Flags.IsAllocValTypeList) {
       Data.SelectT.ValTypeListSize = 0;
       delete[] Data.SelectT.ValTypeList;
-    } else if (Flags.IsAllocBrCast) {
-      delete Data.BrCast;
-    } else if (Flags.IsAllocTryCatch) {
-      delete Data.TryCatch;
     }
     Flags.IsAllocLabelList = false;
     Flags.IsAllocValTypeList = false;
-    Flags.IsAllocBrCast = false;
-    Flags.IsAllocTryCatch = false;
   }
 
   /// Swap function.
@@ -279,42 +223,78 @@ private:
   /// \name Data of instructions.
   /// @{
   union Inner {
-    // Type 1: BlockType, JumpEnd, and JumpElse.
+    // Type 1: Block control flow data.
+    // Used by: block, loop, and if instructions.
+    // JumpEnd stores the offset to jump to the matching 'end' instruction.
+    // JumpElse stores the offset to jump to the 'else' branch (if present).
+    // ResType stores the block's declared return type.
     struct {
       uint32_t JumpEnd;
       uint32_t JumpElse;
       BlockType ResType;
     } Blocks;
-    // Type 2: TargetIdx, SourceIdx and StackOffset.
+
+    // Type 2: Dual-index and stack offset data.
+    // Used by: call_indirect, table.copy, memory.copy, and similar
+    // instructions that require two separate index operands and a
+    // stack adjustment offset.
     struct {
       uint32_t TargetIdx;
       uint32_t SourceIdx;
       uint32_t StackOffset;
     } Indices;
-    // Type 3: Jump.
+
+    // Type 3: Single jump descriptor.
+    // Used by: br and br_if instructions for direct branch targets.
+    // Stores the target label index, stack erase range, and PC offset.
     JumpDescriptor Jump;
-    // Type 4: LabelList.
+
+    // Type 4: Jump label list for table-driven branching.
+    // Used by: br_table instruction (analogous to a switch-case statement).
+    // The runtime selects a jump target from the list based on an index
+    // value at the top of the stack. The list is heap-allocated because
+    // its size varies per instruction and is not known at compile time.
     struct {
       uint32_t LabelListSize;
       JumpDescriptor *LabelList;
     } BrTable;
-    // Type 5: ValType.
-    ValType VType;
-    // Type 6: ValTypeList.
+
+    // Type 5: Reference type.
+    // Used by: ref.null and ref.is_null instructions.
+    // Stores the reference type (funcref or externref).
+    RefType ReferenceType;
+
+    // Type 6: Value type list for typed select.
+    // Used by: select t* instruction which requires explicit value types
+    // to be specified. The list is heap-allocated because its size varies.
     struct {
       uint32_t ValTypeListSize;
       ValType *ValTypeList;
     } SelectT;
-    // Type 7: TargetIdx, MemAlign, MemOffset, and MemLane.
+
+    // Type 7: Memory operation data.
+    // Used by: memory load/store instructions (i32.load, i64.store, etc.)
+    // and SIMD lane instructions (v128.load8_lane, etc.).
+    // TargetIdx is the memory index, MemAlign is the alignment hint,
+    // MemOffset is the static offset, and MemLane is the SIMD lane index.
     struct {
       uint32_t TargetIdx;
       uint32_t MemAlign;
       uint32_t MemOffset;
       uint8_t MemLane;
     } Memories;
-    // Type 8: Num.
+
+    // Type 8: Numeric constant value (up to 128 bits).
+    // Used by: i32.const, i64.const, f32.const, f64.const, and v128.const.
+    // The full 128-bit width is required by SIMD v128.const instructions
+    // which store a 128-bit vector constant. This field is the largest
+    // member of the union (16 bytes) and therefore determines the minimum
+    // size of the entire union, causing every instruction to occupy at
+    // least 16 bytes of immediate storage regardless of actual data needs.
+    // This is the primary motivation for refactoring the instruction layout
+    // to split OpCodes and immediates into separate storage vectors.
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
-    (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
+    (defined(__riscv) && __riscv_xlen == 64)
     uint128_t Num;
 #else
     struct {
@@ -322,23 +302,17 @@ private:
       uint64_t High;
     } Num;
 #endif
-    // Type 9: End flags.
-    struct {
-      bool IsExprLast : 1;
-      bool IsTryBlockLast : 1;
-    } EndFlags;
-    // Type 10: TypeCastBranch.
-    BrCastDescriptor *BrCast;
-    // Type 11: Try Block.
-    TryDescriptor *TryCatch;
+
+    // Type 9: End instruction marker.
+    // Used by: end instruction to mark the last instruction in a
+    // block, loop, if, or function body.
+    bool IsLast;
   } Data;
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;
   struct {
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
-    bool IsAllocBrCast : 1;
-    bool IsAllocTryCatch : 1;
   } Flags;
   /// @}
 };

@@ -12,6 +12,7 @@
 #include "wasinn_openvino.h"
 #include "wasinn_openvino_genai.h"
 #include "wasinn_piper.h"
+#include "wasinn_rwkv.h"
 #include "wasinn_tf.h"
 #include "wasinn_tfl.h"
 #include "wasinn_torch.h"

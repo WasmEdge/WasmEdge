@@ -33,11 +33,9 @@ std::once_flag InitOnce;
 
 void ensureInitialized() {
   std::call_once(InitOnce, []() {
-    if (spdlog::default_logger() == nullptr) {
-      spdlog::set_default_logger(std::make_shared<spdlog::logger>(
-          "WasmEdge"s, std::make_shared<color_sink_t>()));
-      spdlog::set_level(spdlog::level::err);
-    }
+    spdlog::set_default_logger(std::make_shared<spdlog::logger>(
+        "WasmEdge"s, std::make_shared<color_sink_t>()));
+    spdlog::set_level(spdlog::level::err);
   });
 }
 
@@ -57,6 +55,7 @@ void setCriticalLoggingLevel() { spdlog::set_level(spdlog::level::critical); }
 
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback) {
+  std::call_once(InitOnce, []() {});
   if (Callback) {
     auto Callback_sink =
         std::make_shared<spdlog::sinks::callback_sink_mt>(Callback);

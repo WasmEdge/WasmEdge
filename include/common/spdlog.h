@@ -38,6 +38,8 @@ void setCriticalLoggingLevel();
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback);
 
+void ensureInitialized();
+
 } // namespace Log
 } // namespace WasmEdge
 

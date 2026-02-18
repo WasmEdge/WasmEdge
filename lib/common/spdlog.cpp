@@ -3,6 +3,7 @@
 
 #include "common/spdlog.h"
 
+#include <mutex>
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic push
 // Suppression can be removed after spdlog with fix is released
@@ -25,6 +26,20 @@ using namespace std::literals;
 
 namespace WasmEdge {
 namespace Log {
+
+namespace {
+std::once_flag InitOnce;
+}
+
+void ensureInitialized() {
+  std::call_once(InitOnce, []() {
+    if (spdlog::default_logger() == nullptr) {
+      spdlog::set_default_logger(std::make_shared<spdlog::logger>(
+          "WasmEdge"s, std::make_shared<color_sink_t>()));
+      spdlog::set_level(spdlog::level::err);
+    }
+  });
+}
 
 void setLogOff() { spdlog::set_level(spdlog::level::off); }
 

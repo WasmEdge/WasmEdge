@@ -4,6 +4,7 @@
 #include "wasmedge/wasmedge.h"
 
 #include "common/defines.h"
+#include "common/spdlog.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
@@ -855,6 +856,7 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1,
 // >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ConfigureContext *WasmEdge_ConfigureCreate(void) {
+  WasmEdge::Log::ensureInitialized();
   return new WasmEdge_ConfigureContext;
 }
 

@@ -19,6 +19,7 @@
 #include "common/spdlog.h"
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace WasmEdge {
@@ -81,13 +82,26 @@ public:
                : static_cast<WasmPhase>((getCode() >> 8) & 0x0FU);
   }
 
-  constexpr ErrCode() noexcept : Inner(0) {}
-  constexpr ErrCode(const ErrCode &E) noexcept : Inner(E.Inner.Num) {}
-  constexpr ErrCode(const ErrCode::Value E) noexcept : Inner(E) {}
-  constexpr ErrCode(const uint32_t N) noexcept
+  const std::string &getMessage() const noexcept { return Message; }
+
+  bool hasMessage() const noexcept { return !Message.empty(); }
+
+  void setMessage(std::string Msg) noexcept { Message = std::move(Msg); }
+
+  /// Note: returns string_view; lifetime is either Message or static storage.
+  std::string_view getErrString() const noexcept;
+
+  ErrCode() noexcept : Inner(0) {}
+  ErrCode(const ErrCode &E) noexcept : Inner(E.Inner.Num), Message(E.Message) {}
+  ErrCode(ErrCode &&E) noexcept
+      : Inner(E.Inner.Num), Message(std::move(E.Message)) {}
+  ErrCode(const ErrCode::Value E) noexcept : Inner(E) {}
+  ErrCode(const ErrCode::Value E, std::string Msg) noexcept
+      : Inner(E), Message(std::move(Msg)) {}
+  ErrCode(const uint32_t N) noexcept
       : Inner((static_cast<uint32_t>(ErrCategory::UserLevelError) << 24) +
               (N & 0x00FFFFFFU)) {}
-  constexpr ErrCode(const ErrCategory C, const uint32_t N) noexcept
+  ErrCode(const ErrCategory C, const uint32_t N) noexcept
       : Inner((static_cast<uint32_t>(C) << 24) + (N & 0x00FFFFFFU)) {}
 
   friend constexpr bool operator==(const ErrCode &LHS,
@@ -114,16 +128,26 @@ public:
                                    const ErrCode &RHS) noexcept {
     return !(LHS == RHS);
   }
-  constexpr ErrCode &operator=(const ErrCode &) noexcept = default;
+  ErrCode &operator=(const ErrCode &E) noexcept {
+    Inner.Num = E.Inner.Num;
+    Message = E.Message;
+    return *this;
+  }
+  ErrCode &operator=(ErrCode &&E) noexcept {
+    Inner.Num = E.Inner.Num;
+    Message = std::move(E.Message);
+    return *this;
+  }
   constexpr operator uint32_t() const noexcept { return Inner.Num; }
 
 private:
   union InnerT {
-    constexpr InnerT(uint32_t Num) : Num(Num) {}
-    constexpr InnerT(ErrCode::Value Code) : Code(Code) {}
+    InnerT(uint32_t Num) : Num(Num) {}
+    InnerT(ErrCode::Value Code) : Code(Code) {}
     uint32_t Num;
     ErrCode::Value Code;
   } Inner;
+  std::string Message;
 };
 
 static inline constexpr const auto ErrCodeStr = []() constexpr {
@@ -137,6 +161,13 @@ static inline constexpr const auto ErrCodeStr = []() constexpr {
   };
   return SpareEnumMap(Array);
 }();
+
+inline std::string_view ErrCode::getErrString() const noexcept {
+  if (!Message.empty()) {
+    return Message;
+  }
+  return ErrCodeStr[getEnum()];
+}
 
 } // namespace WasmEdge
 

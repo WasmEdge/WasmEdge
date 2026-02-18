@@ -48,12 +48,21 @@ static inline constexpr bool unlikely(bool V) noexcept {
 template <typename T> using Expect = Expected<T, ErrCode>;
 
 /// Helper function for Unexpected<ErrCode>.
-constexpr auto Unexpect(const ErrCode &Val) { return Unexpected<ErrCode>(Val); }
-template <typename... ArgsT> constexpr auto Unexpect(ArgsT... Args) {
+inline auto Unexpect(const ErrCode &Val) { return Unexpected<ErrCode>(Val); }
+template <typename... ArgsT> auto Unexpect(ArgsT... Args) {
   return Unexpected<ErrCode>(ErrCode(Args...));
 }
-template <typename T> constexpr auto Unexpect(const Expect<T> &Val) {
+template <typename T> auto Unexpect(const Expect<T> &Val) {
   return Unexpected<ErrCode>(Val.error());
+}
+
+/// Create Unexpected with a formatted error message.
+/// Usage: return UnexpectMsg(ErrCode::Value::X, "type index {} ...", TId);
+template <typename... Args>
+auto UnexpectMsg(ErrCode::Value Code, fmt::format_string<Args...> Fmt,
+                 Args &&...FmtArgs) {
+  ErrCode E(Code, fmt::format(Fmt, std::forward<Args>(FmtArgs)...));
+  return Unexpected<ErrCode>(std::move(E));
 }
 
 } // namespace WasmEdge
@@ -64,9 +73,16 @@ struct fmt::formatter<WasmEdge::ErrCode> : fmt::formatter<std::string_view> {
   format(const WasmEdge::ErrCode &Code,
          fmt::format_context &Ctx) const noexcept {
     using namespace std::literals;
-    std::string Output =
-        fmt::format("{} failed: {}, Code: 0x{:03x}"sv, Code.getErrCodePhase(),
-                    WasmEdge::ErrCodeStr[Code.getEnum()], Code.getCode());
+    std::string Output;
+    if (Code.hasMessage()) {
+      Output =
+          fmt::format("{} failed: {}, Code: 0x{:03x}"sv, Code.getErrCodePhase(),
+                      Code.getMessage(), Code.getCode());
+    } else {
+      Output =
+          fmt::format("{} failed: {}, Code: 0x{:03x}"sv, Code.getErrCodePhase(),
+                      WasmEdge::ErrCodeStr[Code.getEnum()], Code.getCode());
+    }
     return formatter<std::string_view>::format(Output, Ctx);
   }
 };

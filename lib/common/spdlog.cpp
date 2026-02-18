@@ -64,7 +64,7 @@ void setLoggingCallback(
         std::make_shared<spdlog::logger>("WasmEdge"s, Callback_sink));
   } else {
     spdlog::set_default_logger(std::make_shared<spdlog::logger>(
-        ""s, std::make_shared<color_sink_t>()));
+        "WasmEdge"s, std::make_shared<color_sink_t>()));
   }
 }
 

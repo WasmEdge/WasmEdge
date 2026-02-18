@@ -3,6 +3,7 @@
 
 #include "common/spdlog.h"
 
+#include <mutex>
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic push
 // Suppression can be removed after spdlog with fix is released
@@ -26,6 +27,18 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Log {
 
+namespace {
+std::once_flag InitOnce;
+}
+
+void ensureInitialized() {
+  std::call_once(InitOnce, []() {
+    spdlog::set_default_logger(std::make_shared<spdlog::logger>(
+        "WasmEdge"s, std::make_shared<color_sink_t>()));
+    spdlog::set_level(spdlog::level::err);
+  });
+}
+
 void setLogOff() { spdlog::set_level(spdlog::level::off); }
 
 void setTraceLoggingLevel() { spdlog::set_level(spdlog::level::trace); }
@@ -42,6 +55,7 @@ void setCriticalLoggingLevel() { spdlog::set_level(spdlog::level::critical); }
 
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback) {
+  std::call_once(InitOnce, []() {});
   if (Callback) {
     auto Callback_sink =
         std::make_shared<spdlog::sinks::callback_sink_mt>(Callback);
@@ -49,7 +63,7 @@ void setLoggingCallback(
         std::make_shared<spdlog::logger>("WasmEdge"s, Callback_sink));
   } else {
     spdlog::set_default_logger(std::make_shared<spdlog::logger>(
-        ""s, std::make_shared<color_sink_t>()));
+        "WasmEdge"s, std::make_shared<color_sink_t>()));
   }
 }
 

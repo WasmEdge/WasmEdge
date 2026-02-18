@@ -129,6 +129,36 @@ TEST(ComponentNameParser, Parse) {
     EXPECT_EQ(CName.getDetails().Interface.Projection, ""sv);
     EXPECT_EQ(CName.getDetails().Interface.Version, "1.2.3"sv);
   }
+  {
+    // Extended canonical version: major > 0 canonicalizes to just major
+    std::string_view Name = "wasi:http/types@1"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
+    EXPECT_EQ(CName.getDetails().Interface.Namespace, "wasi"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Package, "http"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Interface, "types"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Version, "1"sv);
+  }
+  {
+    // Extended canonical version: minor > 0 canonicalizes to major.minor
+    std::string_view Name = "wasi:filesystem/types@0.2"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
+    EXPECT_EQ(CName.getDetails().Interface.Namespace, "wasi"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Package, "filesystem"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Interface, "types"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Version, "0.2"sv);
+  }
+  {
+    // Extended canonical version: zero major & minor keeps patch
+    std::string_view Name = "example:lib/api@0.0.1"sv;
+    Validator::ComponentName CName(Name);
+    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
+    EXPECT_EQ(CName.getDetails().Interface.Namespace, "example"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Package, "lib"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Interface, "api"sv);
+    EXPECT_EQ(CName.getDetails().Interface.Version, "0.0.1"sv);
+  }
 }
 
 TEST(ComponentNameParser, StronglyUniqueBasicCases) {

@@ -3408,6 +3408,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) {
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadFromPath(const char *Path) {
+  WasmEdge::Log::ensureInitialized();
   WasmEdge::Plugin::Plugin::load(Path);
 }
 

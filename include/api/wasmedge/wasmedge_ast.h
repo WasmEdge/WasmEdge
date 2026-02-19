@@ -20,35 +20,9 @@
 #include "wasmedge/wasmedge_basic.h"
 #include "wasmedge/wasmedge_value.h"
 
-/// Struct of WASM limit.
-typedef struct WasmEdge_Limit {
-  /// Boolean to describe has max value or not.
-  bool HasMax;
-  /// Boolean to describe is shared memory or not.
-  bool Shared;
-  /// Minimum value.
-  uint32_t Min;
-  /// Maximum value. Will be ignored if the `HasMax` is false.
-  uint32_t Max;
-} WasmEdge_Limit;
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-/// Compare the two WasmEdge_Limit objects.
-///
-/// \param Lim1 the first WasmEdge_Limit object to compare.
-/// \param Lim2 the second WasmEdge_Limit object to compare.
-///
-/// \returns true if the content of two WasmEdge_Limit objects are the same,
-/// false if not.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1, const WasmEdge_Limit Lim2);
-
-// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -110,6 +84,106 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 
 // <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Creation of the WasmEdge_LimitContext without max value.
+///
+/// The caller owns the object and should call `WasmEdge_LimitDelete` to destroy
+/// it.
+///
+/// \param Min the minimum of this limit.
+/// \param Is64Bit determine the 64-bit address type of this limit. `false` for
+/// the 32-bit address type.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
+WasmEdge_LimitCreate(const uint64_t Min, const bool Is64Bit);
+
+/// Creation of the WasmEdge_LimitContext with max value.
+///
+/// The caller owns the object and should call `WasmEdge_LimitDelete` to destroy
+/// it.
+///
+/// \param Min the minimum of this limit.
+/// \param Max the maximum of this limit.
+/// \param Is64Bit determine the 64-bit address type of this limit. `false` for
+/// the 32-bit address type.
+/// \param IsShared determine the shareable of this limit when using in memory
+/// type. For the table type using, this configuration should be `false`.
+///
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
+WasmEdge_LimitCreateWithMax(const uint64_t Min, const uint64_t Max,
+                            const bool Is64Bit, const bool IsShared);
+
+/// Get the minimum value from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the minimum value of this limit.
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt);
+
+/// Get the maximum value from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the maximum value of this limit. Should not be referred if the
+/// limit context is configured as without maximum value.
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt);
+
+/// Get the has-maximum option from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the boolean value to determine the limit context configured as
+/// having maximum value or not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt);
+
+/// Get the shareable option from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the boolean value to determine the shareable option.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt);
+
+/// Get the 64-bit address type option from the WasmEdge_LimitContext.
+///
+/// \param Cxt the WasmEdge_LimitContext.
+///
+/// \returns the boolean value to determine the limit is 64-bit address type.
+/// `false` if the limit is 32-bit address type.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt);
+
+/// Compare the two WasmEdge_LimitContext objects.
+///
+/// If the both limits are set as no max value, the comparison of max values
+/// will be ignored.
+///
+/// \param Lim1 the first WasmEdge_LimitContext object to compare.
+/// \param Lim2 the second WasmEdge_LimitContext object to compare.
+///
+/// \returns true if the content of two WasmEdge_LimitContext objects are the
+/// same, false if not.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_LimitIsEqual(const WasmEdge_LimitContext *Lim1,
+                      const WasmEdge_LimitContext *Lim2);
+
+/// Deletion of the WasmEdge_LimitContext.
+///
+/// After calling this function, the context will be destroyed and should
+/// __NOT__ be used.
+///
+/// \param Cxt the WasmEdge_LimitContext to destroy.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt);
+
+// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -202,7 +276,7 @@ WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *
 WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
-                         const WasmEdge_Limit Limit);
+                         const WasmEdge_LimitContext *Limit);
 
 /// Get the reference type from a table type.
 ///
@@ -213,12 +287,12 @@ WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
 WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt);
 
-/// Get the limit from a table type.
+/// Get the limit context from a table type.
 ///
 /// \param Cxt the WasmEdge_TableTypeContext.
 ///
-/// \returns the limit struct of the table type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Limit
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_LimitContext *
 WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt);
 
 /// Deletion of the WasmEdge_TableTypeContext.
@@ -243,14 +317,14 @@ WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryTypeContext *
-WasmEdge_MemoryTypeCreate(const WasmEdge_Limit Limit);
+WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit);
 
-/// Get the limit from a memory type.
+/// Get the limit context from a memory type.
 ///
 /// \param Cxt the WasmEdge_MemoryTypeContext.
 ///
-/// \returns the limit struct of the memory type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Limit
+/// \returns pointer to context, NULL if failed.
+WASMEDGE_CAPI_EXPORT extern const WasmEdge_LimitContext *
 WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt);
 
 /// Deletion of the WasmEdge_MemoryTypeContext.

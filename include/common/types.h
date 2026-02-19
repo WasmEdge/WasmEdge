@@ -54,6 +54,9 @@ using uint8x16_t = SIMDArray<uint8_t, 16>;
 using doublex2_t = SIMDArray<double, 16>;
 using floatx4_t = SIMDArray<float, 16>;
 
+/// Address type enumeration class.
+enum class AddressType : uint8_t { I32, I64 };
+
 // The bit pattern of the value types:
 // -----------------------------------------------------------------------------
 //  byte | 0th  | 1st  |      2nd     |         3rd         |     4th ~ 7th
@@ -694,6 +697,45 @@ template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
 }
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> Functions to access address value from ValVariant >>>>>>>>>>>>>>>>>>
+
+inline uint64_t extractAddr(const ValVariant &Val,
+                            const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<uint64_t>(Val.get<uint32_t>());
+  case AddressType::I64:
+    return static_cast<uint64_t>(Val.get<uint64_t>());
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline ValVariant emplaceAddr(const uint64_t Addr,
+                              const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<uint32_t>(Addr);
+  case AddressType::I64:
+    return static_cast<uint64_t>(Addr);
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline uint64_t getMaxAddress(const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
+  case AddressType::I64:
+    return static_cast<uint64_t>(std::numeric_limits<uint64_t>::max());
+  default:
+    assumingUnreachable();
+  }
+}
+
+// <<<<<<<< Functions to access address value from ValVariant <<<<<<<<<<<<<<<<<<
 
 /// EndianValue definition.
 template <typename T> class EndianValue {

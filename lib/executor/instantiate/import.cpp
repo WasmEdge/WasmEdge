@@ -35,6 +35,9 @@ auto logUnknownError(std::string_view ModName, std::string_view ExtName,
 }
 
 bool matchLimit(const AST::Limit &Exp, const AST::Limit &Got) {
+  if (Exp.getAddrType() != Got.getAddrType()) {
+    return false;
+  }
   if (Exp.isShared() != Got.isShared()) {
     return false;
   }

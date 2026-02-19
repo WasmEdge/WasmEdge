@@ -188,15 +188,16 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
                                          const AST::Instruction &Instr,
                                          AST::InstrView::iterator &PC,
                                          bool IsTailCall) noexcept {
-  // Get Table Instance
+  // Get Table Instance.
   const auto *TabInst = getTabInstByIdx(StackMgr, Instr.getSourceIndex());
 
   // Get function type at index x.
   const auto *ModInst = StackMgr.getModule();
   const auto &ExpDefType = **ModInst->getType(Instr.getTargetIndex());
 
-  // Pop the value i32.const i from the Stack.
-  uint32_t Idx = StackMgr.pop().get<uint32_t>();
+  // Pop the value of index from the Stack.
+  const auto AddrType = TabInst->getTableType().getLimit().getAddrType();
+  uint64_t Idx = extractAddr(StackMgr.pop(), AddrType);
 
   // If idx not small than tab.elem, trap.
   if (Idx >= TabInst->getSize()) {

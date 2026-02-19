@@ -201,12 +201,12 @@ public:
   uint32_t &getMemoryAlign() noexcept { return Data.Memories.MemAlign; }
 
   /// Getter of memory offset.
-  uint32_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
-  uint32_t &getMemoryOffset() noexcept { return Data.Memories.MemOffset; }
+  uint64_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
+  uint64_t &getMemoryOffset() noexcept { return Data.Memories.MemOffset; }
 
   /// Getter of memory lane.
-  uint8_t getMemoryLane() const noexcept { return Data.Memories.MemLane; }
-  uint8_t &getMemoryLane() noexcept { return Data.Memories.MemLane; }
+  uint8_t getMemoryLane() const noexcept { return Flags.MemLane; }
+  uint8_t &getMemoryLane() noexcept { return Flags.MemLane; }
 
   /// Getter and setter of the constant value.
   ValVariant getNum() const noexcept {
@@ -305,12 +305,15 @@ private:
       uint32_t ValTypeListSize;
       ValType *ValTypeList;
     } SelectT;
-    // Type 7: TargetIdx, MemAlign, MemOffset, and MemLane.
+    // Type 7: TargetIdx, MemAlign, MemOffset.
     struct {
       uint32_t TargetIdx;
       uint32_t MemAlign;
-      uint32_t MemOffset;
-      uint8_t MemLane;
+      uint64_t MemOffset;
+      // Due to keeping the size of inner data union as 16-bytes, and not to
+      // allocate this struct because the memory instructions may be in high
+      // density in instruction sequences, we should move out the `MemLane`
+      // member out of this struct.
     } Memories;
     // Type 8: Num.
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
@@ -335,6 +338,9 @@ private:
   uint32_t Offset = 0;
   OpCode Code = OpCode::End;
   struct {
+    // Memory lane data for memory instructions.
+    uint8_t MemLane;
+    // Flags of if allocating something in this instance.
     bool IsAllocLabelList : 1;
     bool IsAllocValTypeList : 1;
     bool IsAllocBrCast : 1;

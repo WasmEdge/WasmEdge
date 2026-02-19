@@ -282,6 +282,29 @@ Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
   return Unexpect(ErrCode::Value::UncaughtException);
 }
 
+Expect<void>
+Executor::checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
+                              const AST::Instruction &Instr, const uint64_t Val,
+                              const uint64_t Size) const noexcept {
+  // This function simply check the calculated offset is under 64-bit size.
+  uint64_t StartOffset;
+#if defined(_MSC_VER) && !defined(__clang__) // MSVC
+  if (std::numeric_limits<uint64_t>::max() - Instr.getMemoryOffset() < Val) {
+    StartOffset = Instr.getMemoryOffset() + Val;
+#else
+  if (unlikely(
+          __builtin_add_overflow(Instr.getMemoryOffset(), Val, &StartOffset))) {
+#endif
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+    spdlog::error(
+        ErrInfo::InfoBoundary(StartOffset, Size, MemInst.getSize(), true));
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  }
+  return {};
+}
+
 const AST::SubType *Executor::getDefTypeByIdx(Runtime::StackManager &StackMgr,
                                               const uint32_t Idx) const {
   const auto *ModInst = StackMgr.getModule();
@@ -530,5 +553,6 @@ ValVariant Executor::unpackVal(const ValType &Type, const ValVariant &Val,
   }
   return Val;
 }
+
 } // namespace Executor
 } // namespace WasmEdge

@@ -269,9 +269,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     // Mode: test execution modes (interpreter, AOT, JIT). Default: all
     {"wasm-1.0"sv, WasmEdge::Standard::WASM_1},
     {"wasm-2.0"sv, WasmEdge::Standard::WASM_2},
-    // TODO: MEMORY64 - proposal not implemented and OFF by default currently.
-    // Should turn on and remove this column below after implementation ready.
-    {"wasm-3.0"sv, WasmEdge::Standard::WASM_3, {Proposal::Memory64}},
+    {"wasm-3.0"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-bulk-memory"sv, WasmEdge::Standard::WASM_3},
     // TODO: EXCEPTION - implement the AOT.
     {"wasm-3.0-exceptions"sv,
@@ -280,8 +278,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
      {},
      WasmEdge::SpecTest::TestMode::Interpreter},
     {"wasm-3.0-gc"sv, WasmEdge::Standard::WASM_3},
-    // TODO: MEMORY64 - Turn on this test.
-    // {"wasm-3.0-memory64"sv, WasmEdge::Standard::WASM_3},
+    {"wasm-3.0-memory64"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-multi-memory"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-relaxed-simd"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-simd"sv, WasmEdge::Standard::WASM_3},
@@ -525,7 +522,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
           }
         } else {
           const uint32_t V1 = VI[I];
-          const uint32_t V2 = std::stoul(std::string(Parts[I]));
+          const uint32_t V2 =
+              static_cast<uint32_t>(std::stoul(std::string(Parts[I])));
           if (V1 != V2) {
             return false;
           }
@@ -589,7 +587,8 @@ bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
       }
       for (size_t I = 0; I < 4; ++I) {
         const uint32_t V1 = V[I];
-        const uint32_t V2 = std::stoul(std::string(Parts[I]));
+        const uint32_t V2 =
+            static_cast<uint32_t>(std::stoul(std::string(Parts[I])));
         if (V1 != V2) {
           return false;
         }
@@ -781,7 +780,11 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
                   WasmEdge::WasmPhase::Execution);
       EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
+          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]))
+          << "spec " << ModName << "/" << std::string(Field) << " should work"
+          << "\n\terror should be: \"" << Text << "\""
+          << "\n\tbut got: \"" << WasmEdge::ErrCodeStr[Res.error().getEnum()]
+          << "\"";
     }
   };
 

@@ -24,6 +24,7 @@ bash .github/scripts/check_symbols.sh --verbose
 ```
 
 Override library path
+
 ```bash
 LIB_PATH=/path/to/libwasmedge.so bash .github/scripts/check_symbols.sh
 ```
@@ -33,6 +34,7 @@ Static-only builds are detected and skipped.
 ## Updating Whitelist
 
 When adding new public API functions:
+
 1. Add the function to `include/api/wasmedge/wasmedge.h` with `WASMEDGE_CAPI_EXPORT`
 2. Add the symbol name to `whitelist.symbols` (keep alphabetical order)
 3. Commit both changes together

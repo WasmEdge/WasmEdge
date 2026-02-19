@@ -51,12 +51,6 @@ public:
     return static_cast<uint32_t>(Data.size());
   }
 
-  /// Get boundary index.
-  uint32_t getBoundIdx() const noexcept {
-    return std::max(static_cast<uint32_t>(Data.size()), UINT32_C(1)) -
-           UINT32_C(1);
-  }
-
 private:
   /// \name Data of array instance.
   /// @{

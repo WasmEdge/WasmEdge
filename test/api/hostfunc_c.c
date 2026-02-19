@@ -89,9 +89,8 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_TableInstanceContext *HostTable = NULL;
   WasmEdge_MemoryInstanceContext *HostMemory = NULL;
   WasmEdge_GlobalInstanceContext *HostGlobal = NULL;
-  WasmEdge_Limit TabLimit;
-  WasmEdge_Limit MemLimit;
-  WasmEdge_Limit SharedMemLimit;
+  WasmEdge_LimitContext *TabLimit = NULL;
+  WasmEdge_LimitContext *MemLimit = NULL;
   WasmEdge_ValType Param[2];
 
   HostName = WasmEdge_StringCreateByCString("spectest");
@@ -169,35 +168,39 @@ WasmEdge_ModuleInstanceContext *createSpecTestModule(void) {
   WasmEdge_StringDelete(HostName);
 
   // Add host table "table"
-  TabLimit.HasMax = true;
-  TabLimit.Shared = false;
-  TabLimit.Min = 10;
-  TabLimit.Max = 20;
+  TabLimit = WasmEdge_LimitCreateWithMax(10, 20, false, false);
   HostTType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), TabLimit);
+  WasmEdge_LimitDelete(TabLimit);
   HostTable = WasmEdge_TableInstanceCreate(HostTType);
   WasmEdge_TableTypeDelete(HostTType);
   HostName = WasmEdge_StringCreateByCString("table");
   WasmEdge_ModuleInstanceAddTable(HostMod, HostName, HostTable);
   WasmEdge_StringDelete(HostName);
 
+  // Add host table "table64"
+  TabLimit = WasmEdge_LimitCreateWithMax(10, 20, true, false);
+  HostTType = WasmEdge_TableTypeCreate(WasmEdge_ValTypeGenFuncRef(), TabLimit);
+  WasmEdge_LimitDelete(TabLimit);
+  HostTable = WasmEdge_TableInstanceCreate(HostTType);
+  WasmEdge_TableTypeDelete(HostTType);
+  HostName = WasmEdge_StringCreateByCString("table64");
+  WasmEdge_ModuleInstanceAddTable(HostMod, HostName, HostTable);
+  WasmEdge_StringDelete(HostName);
+
   // Add host memory "memory"
-  MemLimit.HasMax = true;
-  MemLimit.Shared = false;
-  MemLimit.Min = 1;
-  MemLimit.Max = 2;
+  MemLimit = WasmEdge_LimitCreateWithMax(1, 2, false, false);
   HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
+  WasmEdge_LimitDelete(MemLimit);
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   WasmEdge_MemoryTypeDelete(HostMType);
   HostName = WasmEdge_StringCreateByCString("memory");
   WasmEdge_ModuleInstanceAddMemory(HostMod, HostName, HostMemory);
   WasmEdge_StringDelete(HostName);
 
-  // Add host memory "memory"
-  SharedMemLimit.HasMax = true;
-  SharedMemLimit.Shared = true;
-  SharedMemLimit.Min = 1;
-  SharedMemLimit.Max = 2;
-  HostMType = WasmEdge_MemoryTypeCreate(SharedMemLimit);
+  // Add host memory "shared_memory"
+  MemLimit = WasmEdge_LimitCreateWithMax(1, 2, false, true);
+  HostMType = WasmEdge_MemoryTypeCreate(MemLimit);
+  WasmEdge_LimitDelete(MemLimit);
   HostMemory = WasmEdge_MemoryInstanceCreate(HostMType);
   WasmEdge_MemoryTypeDelete(HostMType);
   HostName = WasmEdge_StringCreateByCString("shared_memory");

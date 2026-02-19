@@ -30,7 +30,7 @@ jobs:
   #   process.env['wasi_nn-ggml'] => undefined
   # ------------------------------------------------------------------#
   prepare:
-    name: Prepare ${{ inputs.asset_tag }}
+    name: Prepare
     runs-on: ubuntu-latest
     outputs:
       macos_x86_64: ${{ steps.readfile.outputs.macos_x86_64 }}

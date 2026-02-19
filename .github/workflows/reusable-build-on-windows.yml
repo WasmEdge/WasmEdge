@@ -33,11 +33,11 @@ jobs:
         run: |
           git config --global --add safe.directory $(pwd)
       - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@2526f467ccbd337d307fe179959cabbeca0bc8c0 # v3.4.0
+        uses: crazy-max/ghaction-chocolatey@dff3862348493b11fba2fbc49147b6d2dfe09b66 # v4.0.0
         with:
           args: install --no-progress ninja vswhere
       - name: Upgrade dependency
-        uses: crazy-max/ghaction-chocolatey@2526f467ccbd337d307fe179959cabbeca0bc8c0 # v3.4.0
+        uses: crazy-max/ghaction-chocolatey@dff3862348493b11fba2fbc49147b6d2dfe09b66 # v4.0.0
         with:
           args: upgrade --no-progress llvm
       - name: Install Windows SDK

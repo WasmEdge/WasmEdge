@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(wasmedgeThreadTests
   ThreadTest.cpp
+  TypeRaceTest.cpp
 )
 
 add_test(wasmedgeThreadTests wasmedgeThreadTests)

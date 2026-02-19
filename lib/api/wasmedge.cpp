@@ -934,6 +934,22 @@ WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetMaxCallDepth(WasmEdge_ConfigureContext *Cxt,
+                                  const uint32_t Depth) {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setMaxCallDepth(Depth);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_ConfigureGetMaxCallDepth(const WasmEdge_ConfigureContext *Cxt) {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().getMaxCallDepth();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
                                       const bool IsForceInterpreter) {
   if (Cxt) {

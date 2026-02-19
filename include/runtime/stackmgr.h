@@ -140,6 +140,9 @@ public:
   // Get all frames
   Span<const Frame> getFramesSpan() const { return FrameStack; }
 
+  // Get current frame depth
+  size_t getFrameDepth() const noexcept { return FrameStack.size(); }
+
   /// Push handler for try-catch block.
   void
   pushHandler(AST::InstrView::iterator TryIt, uint32_t BlockParamNum,

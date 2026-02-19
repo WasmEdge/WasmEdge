@@ -115,6 +115,7 @@ public:
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
+        MaxCallDepth(RHS.MaxCallDepth.load(std::memory_order_relaxed)),
         EnableJIT(RHS.EnableJIT.load(std::memory_order_relaxed)),
         EnableCoredump(RHS.EnableCoredump.load(std::memory_order_relaxed)),
         CoredumpWasmgdb(RHS.CoredumpWasmgdb.load(std::memory_order_relaxed)),
@@ -169,8 +170,17 @@ public:
     return AllowAFUNIX.load(std::memory_order_relaxed);
   }
 
+  void setMaxCallDepth(uint32_t Depth) noexcept {
+    MaxCallDepth.store(Depth, std::memory_order_relaxed);
+  }
+
+  uint32_t getMaxCallDepth() const noexcept {
+    return MaxCallDepth.load(std::memory_order_relaxed);
+  }
+
 private:
   std::atomic<uint32_t> MaxMemPage = 65536;
+  std::atomic<uint32_t> MaxCallDepth = 10000;
   std::atomic<bool> EnableJIT = false;
   std::atomic<bool> EnableCoredump = false;
   std::atomic<bool> CoredumpWasmgdb = false;

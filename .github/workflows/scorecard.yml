@@ -1,0 +1,47 @@
+name: Scorecards supply-chain security
+on:
+  branch_protection_rule:
+  schedule:
+    - cron: '41 0 * * 1'
+  push:
+    branches: [ "master" ]
+  # XXX: This is for testing purposes only. MUST REMOVE before merging.
+  pull_request:
+    branches: [ "master" ]
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecards analysis
+    runs-on: ubuntu-latest
+    permissions:
+      # For uploading the results to code-scanning dashboard.
+      security-events: write
+      # Used to receive a badge.
+      id-token: write
+
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # tag=v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: "Run analysis"
+        uses: ossf/scorecard-action@05b42c624433fc40578a4040d5cf5e36ddca8cde # tag=v2.4.2
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: false
+
+      - name: "Upload artifact"
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # tag=v4.6.2
+        with:
+          name: SARIF file
+          path: results.sarif
+          retention-days: 5
+
+      - name: "Upload to code-scanning"
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f # tag=v3.28.18
+        with:
+          sarif_file: results.sarif

@@ -35,7 +35,7 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   }
 
   std::string LastToken = common_token_to_piece(
-      GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
+      GraphRef.LlamaContext, CxtRef.LlamaOutputTokens.back());
   std::copy_n(LastToken.data(), LastToken.length(), OutBuffer.data());
   BytesWritten = EndianValue(static_cast<uint32_t>(LastToken.length())).le();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}...Done"sv,

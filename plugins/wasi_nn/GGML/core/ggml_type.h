@@ -50,8 +50,9 @@ struct Graph {
   common_params Params;
   std::list<std::string> TensorBuftOverrides;
   // Model context:
-  llama_model_ptr LlamaModel = nullptr;
-  llama_context_ptr LlamaContext = nullptr;
+  common_init_result_ptr LlamaInitResult = nullptr;
+  llama_model *LlamaModel = nullptr;
+  llama_context *LlamaContext = nullptr;
   // Multimodal context:
   mtmd::context_ptr VisionContext = nullptr;
   mtmd::input_chunks_ptr VisionInputChunks = nullptr;
@@ -59,8 +60,9 @@ struct Graph {
   bool TextToSpeech = false;
   std::string TTSOutputFilePath = "output.wav";
   std::string TTSSpeakerFilePath;
-  llama_model_ptr TTSModel = nullptr;
-  llama_context_ptr TTSContext = nullptr;
+  common_init_result_ptr TTSInitResult = nullptr;
+  llama_model *TTSModel = nullptr;
+  llama_context *TTSContext = nullptr;
   // Configs.
   LocalConfig Conf;
 };

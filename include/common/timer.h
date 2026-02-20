@@ -25,7 +25,13 @@
 namespace WasmEdge {
 namespace Timer {
 
-enum class TimerTag : uint32_t { Wasm, HostFunc, Max };
+enum class TimerTag : uint32_t {
+  Wasm,
+  HostFunc,
+  ModuleLoad,
+  Instantiation,
+  Max
+};
 
 class Timer {
 public:

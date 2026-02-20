@@ -139,12 +139,38 @@ public:
     TimeRecorder.stopRecord(Timer::TimerTag::HostFunc);
   }
 
+  /// Start recording module load time.
+  void startRecordModuleLoad() noexcept {
+    TimeRecorder.startRecord(Timer::TimerTag::ModuleLoad);
+  }
+
+  /// Stop recording module load time.
+  void stopRecordModuleLoad() noexcept {
+    TimeRecorder.stopRecord(Timer::TimerTag::ModuleLoad);
+  }
+
+  /// Start recording instantiation time.
+  void startRecordInstantiation() noexcept {
+    TimeRecorder.startRecord(Timer::TimerTag::Instantiation);
+  }
+
+  /// Stop recording instantiation time.
+  void stopRecordInstantiation() noexcept {
+    TimeRecorder.stopRecord(Timer::TimerTag::Instantiation);
+  }
+
   /// Getter of execution time.
   Timer::Timer::Clock::duration getWasmExecTime() const noexcept {
     return TimeRecorder.getRecord(Timer::TimerTag::Wasm);
   }
   Timer::Timer::Clock::duration getHostFuncExecTime() const noexcept {
     return TimeRecorder.getRecord(Timer::TimerTag::HostFunc);
+  }
+  Timer::Timer::Clock::duration getModuleLoadTime() const noexcept {
+    return TimeRecorder.getRecord(Timer::TimerTag::ModuleLoad);
+  }
+  Timer::Timer::Clock::duration getInstantiationTime() const noexcept {
+    return TimeRecorder.getRecord(Timer::TimerTag::Instantiation);
   }
   Timer::Timer::Clock::duration getTotalExecTime() const noexcept {
     return TimeRecorder.getRecord(Timer::TimerTag::Wasm) +
@@ -167,6 +193,9 @@ public:
                    Nano(getWasmExecTime()));
       spdlog::info(" Host functions execution time: {} ns"sv,
                    Nano(getHostFuncExecTime()));
+      spdlog::info(" Module load time: {} ns"sv, Nano(getModuleLoadTime()));
+      spdlog::info(" Module instantiation time: {} ns"sv,
+                   Nano(getInstantiationTime()));
     }
     if (StatConf.isInstructionCounting()) {
       spdlog::info(" Executed wasm instructions count: {}"sv, getInstrCount());

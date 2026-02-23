@@ -81,7 +81,7 @@ jobs:
         run: |
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
           source "$HOME/.cargo/env"
-          cargo install wasm-tools
+          cargo install wasm-tools@1.245.1
       - name: Component Fuzz Test
         if: ${{ !matrix.coverage && matrix.tests }}
         env:

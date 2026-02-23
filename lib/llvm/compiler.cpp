@@ -3982,10 +3982,11 @@ public:
                          unsigned Alignment, LLVM::Type IntType,
                          LLVM::Type TargetType, bool Signed = false) noexcept {
 
-    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Offset = Stack.back();
     if (MemoryOffset != 0) {
-      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt32(MemoryOffset));
     }
+    Offset = Builder.createZExt(Offset, Context.Int64Ty);
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
@@ -4013,10 +4014,11 @@ public:
       V = Builder.createZExtOrTrunc(V, TargetType);
     }
     V = switchEndian(V);
-    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Offset = Stack.back();
     if (MemoryOffset != 0) {
-      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt32(MemoryOffset));
     }
+    Offset = Builder.createZExt(Offset, Context.Int64Ty);
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
@@ -4032,10 +4034,11 @@ public:
                           LLVMAtomicRMWBinOp BinOp, LLVM::Type IntType,
                           LLVM::Type TargetType, bool Signed = false) noexcept {
     auto Value = Builder.createSExtOrTrunc(stackPop(), TargetType);
-    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Offset = Stack.back();
     if (MemoryOffset != 0) {
-      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt32(MemoryOffset));
     }
+    Offset = Builder.createZExt(Offset, Context.Int64Ty);
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
@@ -4098,10 +4101,11 @@ public:
 
     auto Replacement = Builder.createSExtOrTrunc(stackPop(), TargetType);
     auto Expected = Builder.createSExtOrTrunc(stackPop(), TargetType);
-    auto Offset = Builder.createZExt(Stack.back(), Context.Int64Ty);
+    auto Offset = Stack.back();
     if (MemoryOffset != 0) {
-      Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
+      Offset = Builder.createAdd(Offset, LLContext.getInt32(MemoryOffset));
     }
+    Offset = Builder.createZExt(Offset, Context.Int64Ty);
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex),
@@ -4610,10 +4614,11 @@ private:
     if constexpr (kForceUnalignment) {
       Alignment = 0;
     }
-    auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
+    auto Off = stackPop();
     if (Offset != 0) {
-      Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
+      Off = Builder.createAdd(Off, LLContext.getInt32(Offset));
     }
+    Off = Builder.createZExt(Off, Context.Int64Ty);
 
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
@@ -4670,10 +4675,11 @@ private:
       Alignment = 0;
     }
     auto V = stackPop();
-    auto Off = Builder.createZExt(stackPop(), Context.Int64Ty);
+    auto Off = stackPop();
     if (Offset != 0) {
-      Off = Builder.createAdd(Off, LLContext.getInt64(Offset));
+      Off = Builder.createAdd(Off, LLContext.getInt32(Offset));
     }
+    Off = Builder.createZExt(Off, Context.Int64Ty);
 
     if (Trunc) {
       V = Builder.createTrunc(V, LoadTy);

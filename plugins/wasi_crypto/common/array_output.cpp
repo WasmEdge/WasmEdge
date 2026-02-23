@@ -4,7 +4,6 @@
 #include "common/array_output.h"
 
 #include <algorithm>
-#include <climits>
 
 namespace WasmEdge {
 namespace Host {

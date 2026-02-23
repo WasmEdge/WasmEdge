@@ -5,10 +5,12 @@
 
 #include "ast/component/component.h"
 #include "ast/module.h"
+#include "validator/component_name.h"
 
 #include <deque>
 #include <optional>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge {
@@ -35,6 +37,8 @@ public:
         ComponentInstanceTypes;
     std::unordered_map<uint32_t, const AST::Component::ResourceType *>
         ComponentResourceTypes;
+    std::unordered_set<std::string> ImportedNames;
+    std::unordered_set<std::string> ExportedNames;
 
     Context(const AST::Component::Component *C,
             const Context *P = nullptr) noexcept
@@ -52,6 +56,8 @@ public:
         const AST::Component::Sort::CoreSortType ST) const noexcept {
       return CoreSortIndexSizes[static_cast<uint32_t>(ST)];
     }
+
+    bool AddImportedName(const ComponentName &Name) noexcept;
   };
 
   void reset() noexcept { CompCtxs.clear(); }
@@ -236,6 +242,10 @@ public:
     } else {
       return nullptr;
     }
+  }
+
+  bool AddImportedName(const ComponentName &Name) noexcept {
+    return getCurrentContext().AddImportedName(Name);
   }
 
 private:

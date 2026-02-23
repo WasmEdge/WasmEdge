@@ -149,7 +149,8 @@ public:
     if (unlikely(static_cast<uint64_t>(Start) + static_cast<uint64_t>(Length) >
                  Slice.size())) {
       spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-      spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getBoundIdx()));
+      spdlog::error(ErrInfo::InfoBoundary(Start, Length,
+                                          static_cast<uint32_t>(Slice.size())));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
 

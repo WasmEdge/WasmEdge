@@ -75,6 +75,7 @@ RUN [ "/bin/bash", "-c", "echo \"source ./openvino_genai/setupvars.sh\" >> .bash
 COPY wasi-nn/install-onnxruntime.sh .
 RUN [ "/bin/bash", "install-onnxruntime.sh" ]
 
+COPY wasi-nn/libpiper.patch .
 COPY wasi-nn/install-libpiper.sh .
 RUN [ "/bin/bash", "install-libpiper.sh" ]
 

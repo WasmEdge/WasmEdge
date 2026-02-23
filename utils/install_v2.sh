@@ -626,11 +626,19 @@ main() {
 			[ -f "$__HOME__/.zprofile" ] && echo "$_source" >>"$__HOME__/.zprofile"
 		fi
 	elif [[ "$_shell_" =~ "bash" ]]; then
-		local _grep=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
-		if [ "$_grep" = "" ]; then
-			# If the .bash_profile is not existing, create a new one
-			[ ! -f "$__HOME__/.bash_profile" ] && touch "$__HOME__/.bash_profile"
-			[ -f "$__HOME__/.bash_profile" ] && echo "$_source" >>"$__HOME__/.bash_profile"
+		local _grep1=$(cat "$__HOME__/.bash_profile" 2>/dev/null | grep "$IPATH/env")
+		local _grep2=$(cat "$__HOME__/.bash_login" 2>/dev/null | grep "$IPATH/env")
+		local _grep3=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
+
+		if [ -f "$__HOME__/.bash_profile" ]; then
+			[ "$_grep1" = "" ] && echo "$_source" >>"$__HOME__/.bash_profile"
+		elif [ -f "$__HOME__/.bash_login" ]; then
+			[ "$_grep2" = "" ] && echo "$_source" >>"$__HOME__/.bash_login"
+		else
+			if [ "$_grep3" = "" ]; then
+				[ ! -f "$__HOME__/.profile" ] && touch "$__HOME__/.profile"
+				echo "$_source" >>"$__HOME__/.profile"
+			fi
 		fi
 	fi
 

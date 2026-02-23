@@ -116,6 +116,15 @@ std::vector<uint8_t> STLWasm = {
     0x0,  0xe,  0x2,  0x0,  0x0,  0x1,  0x0,  0xf,  0x2,  0x0,  0x0,  0x1,
     0x0};
 
+std::vector<uint8_t> ExternConvertWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x00, 0x02, 0x7d, 0x6f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x08, 0x01, 0x04,
+    0x6d, 0x61, 0x69, 0x6e, 0x00, 0x00, 0x0a, 0x21, 0x01, 0x1f, 0x00, 0x02,
+    0x00, 0x43, 0x66, 0x66, 0xe6, 0x3f, 0x41, 0x00, 0xfb, 0x1c, 0xfb, 0x1b,
+    0xfb, 0x18, 0x00, 0x00, 0x6f, 0x6f, 0x1a, 0x1a, 0x43, 0xcd, 0xcc, 0x4c,
+    0x40, 0xd0, 0x6f, 0x0b, 0x0b, 0x00, 0x11, 0x04, 0x6e, 0x61, 0x6d, 0x65,
+    0x01, 0x04, 0x01, 0x00, 0x01, 0x30, 0x04, 0x04, 0x01, 0x00, 0x01, 0x30};
+
 void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
   std::ofstream TFile(std::filesystem::u8path(Path), std::ios_base::binary);
   TFile.write(reinterpret_cast<const char *>(Wasm.data()),
@@ -471,6 +480,40 @@ TEST(ExternRefTest, Ref__Functions) {
 
   WasmEdge_VMDelete(VMCxt);
   WasmEdge_ModuleInstanceDelete(HostMod);
+}
+
+TEST(ExternRefTest, ExternConvertAnyWithBrOnCast) {
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(nullptr, nullptr);
+  WasmEdge_Value R[2];
+  WasmEdge_String FuncName;
+
+  char ExternConvertPath[] = "externrefTestData/externconvert.wasm";
+  HexToFile(ExternConvertWasm, ExternConvertPath);
+
+  EXPECT_TRUE(
+      WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VMCxt, ExternConvertPath)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
+
+  // Execute the main function
+  FuncName = WasmEdge_StringCreateByCString("main");
+  auto Result = WasmEdge_VMExecute(VMCxt, FuncName, nullptr, 0, R, 2);
+  WasmEdge_StringDelete(FuncName);
+
+  // The function should execute without error
+  EXPECT_TRUE(WasmEdge_ResultOK(Result));
+
+  // Verify the expected results - should match wasmtime's correct behavior
+  // First return: 1.8 (NOT 3.2 which was the buggy behavior)
+  EXPECT_TRUE(WasmEdge_ValTypeIsF32(R[0].Type));
+  EXPECT_EQ(WasmEdge_ValueGetF32(R[0]), 1.8f);
+
+  // Second return: non-null externref (NOT null which was the buggy behavior)
+  // The br_on_cast should succeed, returning the converted externref
+  EXPECT_TRUE(WasmEdge_ValTypeIsRef(R[1].Type));
+  EXPECT_FALSE(WasmEdge_ValueIsNullRef(R[1]));
+
+  WasmEdge_VMDelete(VMCxt);
 }
 
 TEST(ExternRefTest, Ref__STL) {

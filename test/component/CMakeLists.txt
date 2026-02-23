@@ -19,3 +19,5 @@ target_include_directories(componentTests
   PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
+
+add_subdirectory(fuzzing)

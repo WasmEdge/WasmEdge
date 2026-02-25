@@ -407,37 +407,41 @@ endfunction()
 
 # Function of preparing piper dependency.
 function(wasmedge_setup_piper_target target)
-  find_package(onnxruntime)
-  if(NOT onnxruntime_FOUND)
-    find_library(ONNXRUNTIME_LIBRARY onnxruntime)
-    if(NOT "${ONNXRUNTIME_LIBRARY}" STREQUAL "ONNXRUNTIME_LIBRARY-NOTFOUND")
-      find_path(ONNXRUNTIME_PATH "onnxruntime_cxx_api.h" PATH_SUFFIXES "onnxruntime")
-      if(NOT "${ONNXRUNTIME_PATH}" STREQUAL "ONNXRUNTIME_PATH-NOTFOUND")
-        set(onnxruntime_FOUND TRUE)
-      endif()
-    endif()
-  endif()
-  if(NOT onnxruntime_FOUND)
-    message(FATAL_ERROR "Cannot find onnxruntime")
-  endif()
   if(NOT TARGET piper)
     # setup piper
-    message(STATUS "Downloading piper source")
-    find_program(GIT_CMD git REQUIRED)
-    FetchContent_Declare(
-      piper
-      GIT_REPOSITORY https://github.com/rhasspy/piper.git
-      GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
-      UPDATE_DISCONNECTED TRUE
-      PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
-    )
-    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Piper not build shared")
-    set(BUILD_TESTING OFF CACHE INTERNAL "Piper not build tests")
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE INTERNAL "Piper build independent code")
-    FetchContent_MakeAvailable(piper)
-    message(STATUS "Downloading piper source -- done")
-    # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
-    target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
+    if(DEFINED PIPER_ROOT)
+      message(STATUS "Build: Using pre-built Piper from ${PIPER_ROOT}")
+      add_library(piper STATIC IMPORTED)
+      set(_OLD_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+      set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+      find_library(
+        PIPER_LIB_PATH
+        NAMES piper libpiper
+        PATHS "${PIPER_ROOT}"
+        NO_DEFAULT_PATH REQUIRED)
+      set(CMAKE_FIND_LIBRARY_SUFFIXES ${_OLD_SUFFIXES})
+      set_target_properties(
+        piper PROPERTIES IMPORTED_LOCATION "${PIPER_LIB_PATH}"
+                         INTERFACE_INCLUDE_DIRECTORIES "${PIPER_ROOT}/include")
+    else()
+      message(STATUS "Downloading piper source")
+      find_program(GIT_CMD git REQUIRED)
+      FetchContent_Declare(
+        piper
+        GIT_REPOSITORY https://github.com/OHF-Voice/piper1-gpl.git
+        GIT_TAG 32b95f8c1f0dc0ce27a6acd1143de331f61af777
+        UPDATE_DISCONNECTED TRUE
+        SOURCE_SUBDIR libpiper
+        PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/utils/wasi-nn/libpiper.patch"
+      )
+      set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Piper not build shared")
+      set(BUILD_TESTING OFF CACHE INTERNAL "Piper not build tests")
+      set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE INTERNAL "Piper build independent code")
+      FetchContent_MakeAvailable(piper)
+      message(STATUS "Downloading piper source -- done")
+      # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
+      target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
+    endif()
   endif()
   wasmedge_setup_simdjson()
   target_link_libraries(${target}

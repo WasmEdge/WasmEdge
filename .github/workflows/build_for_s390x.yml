@@ -58,6 +58,13 @@ jobs:
     - name: Ensure git safe directory
       run: |
         git config --global --add safe.directory $(pwd)
+    - name: Cache s390x apt packages
+      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      with:
+        path: .s390x-apt-cache
+        key: s390x-apt-${{ runner.os }}-jammy-llvm18
+        restore-keys: |
+          s390x-apt-${{ runner.os }}-jammy-
     - uses: uraimo/run-on-arch-action@aa8e672a03e10b403401927ea2ceda57e1b68ac3 # v3
       name: Build WasmEdge
       with:
@@ -66,6 +73,7 @@ jobs:
         githubToken: ${{ github.token }}
         dockerRunArgs: |
           --volume "${PWD}:/workplace"
+          --volume "${PWD}/.s390x-apt-cache:/var/cache/apt"
         shell: /bin/sh
         install: |
           apt-get update -q -y
@@ -74,13 +82,13 @@ jobs:
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
           echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" | tee /etc/apt/sources.list.d/llvm.list
           apt-get update -q -y
-          apt-get install -q -y git cmake g++ dpkg
+          apt-get install -q -y git cmake g++ dpkg ninja-build
           apt-get install -q -y software-properties-common
           apt-get install -q -y llvm-18-dev liblld-18-dev zlib1g-dev
           apt-get install -q -y wabt # For generating wasm
         run: |
           mkdir -p build && cd build
-          cmake -DCMAKE_BUILD_TYPE=Release .. && make -j $(nproc) && make install
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=Release .. && ninja && ninja install
           wasmedge -v
           wasmedgec -v
           wasmedge compile -h

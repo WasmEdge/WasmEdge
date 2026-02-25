@@ -40,6 +40,38 @@ void setErrorLoggingLevel() { spdlog::set_level(spdlog::level::err); }
 
 void setCriticalLoggingLevel() { spdlog::set_level(spdlog::level::critical); }
 
+bool setLoggingLevelFromString(std::string_view Level) {
+  if (Level == "off"sv) {
+    setLogOff();
+    return true;
+  }
+  if (Level == "trace"sv) {
+    setTraceLoggingLevel();
+    return true;
+  }
+  if (Level == "debug"sv) {
+    setDebugLoggingLevel();
+    return true;
+  }
+  if (Level == "info"sv) {
+    setInfoLoggingLevel();
+    return true;
+  }
+  if (Level == "warning"sv || Level == "warn"sv) {
+    setWarnLoggingLevel();
+    return true;
+  }
+  if (Level == "error"sv) {
+    setErrorLoggingLevel();
+    return true;
+  }
+  if (Level == "fatal"sv || Level == "critical"sv) {
+    setCriticalLoggingLevel();
+    return true;
+  }
+  return false;
+}
+
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback) {
   if (Callback) {

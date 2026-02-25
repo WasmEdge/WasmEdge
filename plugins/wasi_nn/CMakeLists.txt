@@ -98,6 +98,37 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
       target_link_libraries(wasmedgePluginWasiNN PRIVATE hip::host roc::hipblas)
     endif()
   endif()
+  if(BACKEND STREQUAL "piper")
+    if(DEFINED PIPER_ROOT)
+      find_library(ESPEAK_NG_LIB
+          NAMES espeak-ng libespeak-ng
+          PATHS /usr/local/lib /usr/local/lib64
+          NO_DEFAULT_PATH
+      )
+      if (NOT ESPEAK_NG_LIB)
+          find_library(ESPEAK_NG_LIB NAMES espeak-ng libespeak-ng)
+      endif()
+
+      find_library(UCD_LIB
+          NAMES ucd libucd
+          PATHS /usr/local/lib /usr/local/lib64
+          NO_DEFAULT_PATH
+      )
+      if (NOT UCD_LIB)
+          find_library(UCD_LIB NAMES ucd libucd)
+      endif()
+
+      set(ESPEAK_TARGETS ${ESPEAK_NG_LIB} ${UCD_LIB})
+    else()
+      set(ESPEAK_TARGETS "")
+    endif()
+
+    target_link_libraries(wasmedgePluginWasiNN
+      PRIVATE
+      onnxruntime
+      ${ESPEAK_TARGETS}
+    )
+  endif()
 endforeach()
 
 target_compile_options(wasmedgePluginWasiNN

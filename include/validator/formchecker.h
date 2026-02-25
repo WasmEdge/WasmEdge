@@ -128,8 +128,8 @@ private:
   /// Contexts.
   std::vector<const AST::SubType *> Types;
   std::vector<uint32_t> Funcs;
-  std::vector<ValType> Tables;
-  uint32_t Mems = 0;
+  std::vector<std::pair<TypeCode, ValType>> Tables;
+  std::vector<TypeCode> Mems;
   std::vector<std::pair<ValType, ValMut>> Globals;
   std::vector<ValType> Elems;
   std::vector<uint32_t> Datas;

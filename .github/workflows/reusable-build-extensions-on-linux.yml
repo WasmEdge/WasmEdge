@@ -50,7 +50,7 @@ jobs:
       output_dir: build/plugins/${{ matrix.dir }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@e3f713f2d8f53843e71c69a996d56f51aa9adfb9 # v2.14.1
+        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
         with:
           egress-policy: audit
 
@@ -67,6 +67,7 @@ jobs:
         shell: bash
         run: |
           [ "${{ matrix.plugin }}" == "wasi_nn-openvino-genai" ] && source /root/openvino_genai/setupvars.sh
+          PIPER_INSTALL_PATH="/usr/local"
           cmake -Bbuild -GNinja \
             -DCMAKE_BUILD_TYPE=Release \
             -DWASMEDGE_BUILD_TESTS=${{ inputs.release && 'OFF' || 'ON' }} \
@@ -74,6 +75,7 @@ jobs:
             -DWASMEDGE_USE_LLVM=OFF \
             -DOPENSSL_ROOT_DIR=${OpenSSL_DIR} \
             -DWASMEDGE_USE_CXX11_ABI=${{ startsWith(inputs.asset_tag, 'manylinux_2_28') && 'OFF' || 'ON' }} \
+            -DPIPER_ROOT="$PIPER_INSTALL_PATH" \
             ${{ matrix.options }}
           cmake --build build --target ${target}
 
@@ -97,6 +99,8 @@ jobs:
             cd -
           fi
         shell: bash
+        env:
+          ESPEAK_DATA_PATH: /usr/local/share/espeak-ng-data
       - if: ${{ !inputs.release }}
         name: Upload artifact ${{ matrix.plugin }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0

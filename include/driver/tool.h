@@ -88,8 +88,7 @@ struct DriverToolOptions {
             "(DEPRECATED) Enable Exception handling proposal. WASM 3.0 "
             "includes this proposal, and this option will be removed in the "
             "future."sv)),
-        // TODO: MEMORY64 - enable the option.
-        // PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
+        PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
@@ -129,7 +128,12 @@ struct DriverToolOptions {
                 "`PAGE_COUNT`."sv),
             PO::MetaVar("PAGE_COUNT"sv)),
         ForbiddenPlugins(PO::Description("List of plugins to ignore."sv),
-                         PO::MetaVar("NAMES"sv)) {}
+                         PO::MetaVar("NAMES"sv)),
+        LogLevel(
+            PO::Description(
+                "Set logging level. Valid values: off, trace, debug, info, "
+                "warning, error, fatal. Default is info."sv),
+            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string("info"))) {}
 
   PO::Option<std::string> SoName;
   PO::List<std::string> Args;
@@ -160,8 +164,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropMultiMemDeprecated;
   PO::Option<PO::Toggle> PropRelaxedSIMDDeprecated;
   PO::Option<PO::Toggle> PropExceptionHandlingDeprecated;
-  // TODO: MEMORY64 - enable the option.
-  // PO::Option<PO::Toggle> PropMemory64;
+  PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> PropAll;
@@ -178,9 +181,9 @@ struct DriverToolOptions {
   PO::List<int> GasLim;
   PO::List<int> MemLim;
   PO::List<std::string> ForbiddenPlugins;
+  PO::Option<std::string> LogLevel;
 
   void add_option(PO::ArgumentParser &Parser) noexcept {
-
     Parser.add_option(SoName)
         .add_option(Args)
         .add_option("reactor"sv, Reactor)
@@ -221,15 +224,15 @@ struct DriverToolOptions {
         .add_option("enable-relaxed-simd"sv, PropRelaxedSIMDDeprecated)
         .add_option("enable-exception-handling"sv,
                     PropExceptionHandlingDeprecated)
-        // TODO: MEMORY64 - enable the option.
-        // .add_option("disable-memory64"sv, PropMemory64)
+        .add_option("disable-memory64"sv, PropMemory64)
         .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)
         .add_option("memory-page-limit"sv, MemLim)
-        .add_option("forbidden-plugin"sv, ForbiddenPlugins);
+        .add_option("forbidden-plugin"sv, ForbiddenPlugins)
+        .add_option("log-level"sv, LogLevel);
 
     Plugin::Plugin::loadFromDefaultPaths();
     Plugin::Plugin::addPluginOptions(Parser);

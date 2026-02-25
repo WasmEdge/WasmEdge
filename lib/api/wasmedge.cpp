@@ -258,7 +258,7 @@ genParamPair(const WasmEdge_Value *Val, const uint32_t Len) noexcept {
 // Helper function for making a Span to a uint8_t array.
 template <typename T>
 inline constexpr Span<const T> genSpan(const T *Buf,
-                                       const uint32_t Len) noexcept {
+                                       const uint64_t Len) noexcept {
   if (Buf && Len > 0) {
     return Span<const T>(Buf, Len);
   }
@@ -332,6 +332,8 @@ inline uint32_t fillMap(const std::map<std::string, T *, std::less<>> &Map,
   }
 CONVTO(Stat, Statistics::Statistics, Statistics, )
 CONVTO(ASTMod, AST::Module, ASTModule, )
+CONVTO(Limit, AST::Limit, Limit, )
+CONVTO(Limit, AST::Limit, Limit, const)
 CONVTO(FuncType, AST::FunctionType, FunctionType, )
 CONVTO(FuncType, AST::FunctionType, FunctionType, const)
 CONVTO(TabType, AST::TableType, TableType, )
@@ -368,6 +370,8 @@ CONVFROM(Stat, Statistics::Statistics, Statistics, )
 CONVFROM(Stat, Statistics::Statistics, Statistics, const)
 CONVFROM(ASTMod, AST::Module, ASTModule, )
 CONVFROM(ASTMod, AST::Module, ASTModule, const)
+CONVFROM(Limit, AST::Limit, Limit, )
+CONVFROM(Limit, AST::Limit, Limit, const)
 CONVFROM(FuncType, AST::FunctionType, FunctionType, )
 CONVFROM(FuncType, AST::FunctionType, FunctionType, const)
 CONVFROM(TabType, AST::TableType, TableType, )
@@ -842,16 +846,6 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res) {
 
 // <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-
-WASMEDGE_CAPI_EXPORT bool WasmEdge_LimitIsEqual(const WasmEdge_Limit Lim1,
-                                                const WasmEdge_Limit Lim2) {
-  return Lim1.HasMax == Lim2.HasMax && Lim1.Shared == Lim2.Shared &&
-         Lim1.Min == Lim2.Min && Lim1.Max == Lim2.Max;
-}
-
-// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
 // >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ConfigureContext *WasmEdge_ConfigureCreate(void) {
@@ -919,13 +913,13 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureHasHostRegistration(
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
-                                   const uint32_t Page) {
+                                   const uint64_t Page) {
   if (Cxt) {
     Cxt->Conf.getRuntimeConfigure().setMaxMemoryPage(Page);
   }
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
+WASMEDGE_CAPI_EXPORT uint64_t
 WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
   if (Cxt) {
     return Cxt->Conf.getRuntimeConfigure().getMaxMemoryPage();
@@ -1223,6 +1217,86 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) {
 
 // <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASMEDGE_CAPI_EXPORT WasmEdge_LimitContext *
+WasmEdge_LimitCreate(const uint64_t Min, const bool Is64Bit) {
+  return toLimitCxt(new WasmEdge::AST::Limit(Min, Is64Bit));
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_LimitContext *
+WasmEdge_LimitCreateWithMax(const uint64_t Min, const uint64_t Max,
+                            const bool Is64Bit, const bool IsShared) {
+  return toLimitCxt(new WasmEdge::AST::Limit(Min, Max, Is64Bit, IsShared));
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t
+WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt) {
+  if (Cxt) {
+    return fromLimitCxt(Cxt)->getMin();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT uint64_t
+WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt) {
+  if (Cxt) {
+    return fromLimitCxt(Cxt)->getMax();
+  }
+  return 0;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt) {
+  if (Cxt) {
+    return fromLimitCxt(Cxt)->hasMax();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt) {
+  if (Cxt) {
+    return fromLimitCxt(Cxt)->isShared();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt) {
+  if (Cxt) {
+    return fromLimitCxt(Cxt)->is64();
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_LimitIsEqual(const WasmEdge_LimitContext *Cxt1,
+                      const WasmEdge_LimitContext *Cxt2) {
+  if (Cxt1 && Cxt2) {
+    const auto *Lim1 = fromLimitCxt(Cxt1);
+    const auto *Lim2 = fromLimitCxt(Cxt2);
+    if (Lim1->hasMax() && Lim2->hasMax()) {
+      return Lim1->getMin() == Lim2->getMin() &&
+             Lim1->getMax() == Lim2->getMax() &&
+             Lim1->getAddrType() == Lim2->getAddrType() &&
+             Lim1->isShared() == Lim2->isShared();
+    } else {
+      return Lim1->hasMax() == Lim2->hasMax() &&
+             Lim1->getMin() == Lim2->getMin() &&
+             Lim1->getAddrType() == Lim2->getAddrType() &&
+             Lim1->isShared() == Lim2->isShared();
+    }
+  }
+  return false;
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt) {
+  delete fromLimitCxt(Cxt);
+}
+
+// <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> WasmEdge function type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *WasmEdge_FunctionTypeCreate(
@@ -1297,16 +1371,12 @@ WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_TableTypeContext *
 WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
-                         const WasmEdge_Limit Limit) {
+                         const WasmEdge_LimitContext *Limit) {
   WasmEdge::ValType RT = genValType(RefType);
-  if (!RT.isRefType()) {
-    return nullptr;
+  if (Limit && RT.isRefType()) {
+    return toTabTypeCxt(new WasmEdge::AST::TableType(RT, *fromLimitCxt(Limit)));
   }
-  if (Limit.HasMax) {
-    return toTabTypeCxt(new WasmEdge::AST::TableType(RT, Limit.Min, Limit.Max));
-  } else {
-    return toTabTypeCxt(new WasmEdge::AST::TableType(RT, Limit.Min));
-  }
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ValType
@@ -1317,17 +1387,12 @@ WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt) {
   return WasmEdge_ValTypeGenFuncRef();
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Limit
+WASMEDGE_CAPI_EXPORT const WasmEdge_LimitContext *
 WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt) {
   if (Cxt) {
-    const auto &Lim = fromTabTypeCxt(Cxt)->getLimit();
-    return WasmEdge_Limit{/* HasMax */ Lim.hasMax(),
-                          /* Shared */ Lim.isShared(),
-                          /* Min */ Lim.getMin(),
-                          /* Max */ Lim.getMax()};
+    return toLimitCxt(&fromTabTypeCxt(Cxt)->getLimit());
   }
-  return WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Min */ 0,
-                        /* Max */ 0};
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT void
@@ -1340,28 +1405,19 @@ WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt) {
 // >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryTypeContext *
-WasmEdge_MemoryTypeCreate(const WasmEdge_Limit Limit) {
-  if (Limit.Shared) {
-    return toMemTypeCxt(
-        new WasmEdge::AST::MemoryType(Limit.Min, Limit.Max, true));
-  } else if (Limit.HasMax) {
-    return toMemTypeCxt(new WasmEdge::AST::MemoryType(Limit.Min, Limit.Max));
-  } else {
-    return toMemTypeCxt(new WasmEdge::AST::MemoryType(Limit.Min));
+WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit) {
+  if (Limit) {
+    return toMemTypeCxt(new WasmEdge::AST::MemoryType(*fromLimitCxt(Limit)));
   }
+  return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Limit
+WASMEDGE_CAPI_EXPORT const WasmEdge_LimitContext *
 WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt) {
   if (Cxt) {
-    const auto &Lim = fromMemTypeCxt(Cxt)->getLimit();
-    return WasmEdge_Limit{/* HasMax */ Lim.hasMax(),
-                          /* Shared */ Lim.isShared(),
-                          /* Min */ Lim.getMin(),
-                          /* Max */ Lim.getMax()};
+    return toLimitCxt(&fromMemTypeCxt(Cxt)->getLimit());
   }
-  return WasmEdge_Limit{/* HasMax */ false, /* Shared */ false, /* Min */ 0,
-                        /* Max */ 0};
+  return nullptr;
 }
 
 WASMEDGE_CAPI_EXPORT void
@@ -2501,7 +2557,7 @@ WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value *Data, const uint32_t Offset) {
+                              WasmEdge_Value *Data, const uint64_t Offset) {
   return wrap([&]() { return fromTabCxt(Cxt)->getRefAddr(Offset); },
               [&Data, &Cxt](auto &&Res) {
                 *Data = genWasmEdge_Value(
@@ -2512,7 +2568,7 @@ WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value Data, const uint32_t Offset) {
+                              WasmEdge_Value Data, const uint64_t Offset) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         // Comparison of the value types needs the module instance to retrieve
@@ -2542,7 +2598,7 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
       EmptyThen, Cxt);
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
+WASMEDGE_CAPI_EXPORT uint64_t
 WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt) {
   if (Cxt) {
     return fromTabCxt(Cxt)->getSize();
@@ -2551,7 +2607,7 @@ WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceGrow(
-    WasmEdge_TableInstanceContext *Cxt, const uint32_t Size) {
+    WasmEdge_TableInstanceContext *Cxt, const uint64_t Size) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         if (fromTabCxt(Cxt)->growTable(Size)) {
@@ -2593,7 +2649,7 @@ WasmEdge_MemoryInstanceGetMemoryType(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
     const WasmEdge_MemoryInstanceContext *Cxt, uint8_t *Data,
-    const uint32_t Offset, const uint32_t Length) {
+    const uint64_t Offset, const uint64_t Length) {
   return wrap([&]() { return fromMemCxt(Cxt)->getBytes(Offset, Length); },
               [&](auto &&Res) { std::copy_n((*Res).begin(), Length, Data); },
               Cxt, Data);
@@ -2601,7 +2657,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
     WasmEdge_MemoryInstanceContext *Cxt, const uint8_t *Data,
-    const uint32_t Offset, const uint32_t Length) {
+    const uint64_t Offset, const uint64_t Length) {
   return wrap(
       [&]() {
         return fromMemCxt(Cxt)->setBytes(genSpan(Data, Length), Offset, 0,
@@ -2612,8 +2668,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
 
 WASMEDGE_CAPI_EXPORT uint8_t *
 WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
-                                  const uint32_t Offset,
-                                  const uint32_t Length) {
+                                  const uint64_t Offset,
+                                  const uint64_t Length) {
   if (Cxt) {
     const auto S = fromMemCxt(Cxt)->getSpan<uint8_t>(Offset, Length);
     if (S.size() == Length) {
@@ -2624,8 +2680,8 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
-    const WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Offset,
-    const uint32_t Length) {
+    const WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Offset,
+    const uint64_t Length) {
   if (Cxt) {
     const auto S = fromMemCxt(Cxt)->getSpan<const uint8_t>(Offset, Length);
     if (S.size() == Length) {
@@ -2635,7 +2691,7 @@ WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
+WASMEDGE_CAPI_EXPORT uint64_t
 WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
   if (Cxt) {
     return fromMemCxt(Cxt)->getPageSize();
@@ -2644,7 +2700,7 @@ WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGrowPage(
-    WasmEdge_MemoryInstanceContext *Cxt, const uint32_t Page) {
+    WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Page) {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         if (fromMemCxt(Cxt)->growPage(Page)) {

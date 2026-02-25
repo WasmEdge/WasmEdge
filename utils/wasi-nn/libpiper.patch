@@ -1,0 +1,22 @@
+diff --git a/libpiper/CMakeLists.txt b/libpiper/CMakeLists.txt
+index 57349c1..2e7ddd8 100644
+--- a/libpiper/CMakeLists.txt
++++ b/libpiper/CMakeLists.txt
+@@ -2,6 +2,8 @@
+ cmake_minimum_required(VERSION 3.26)
+ project(piper LANGUAGES C CXX)
+ 
++option(BUILD_SHARED_LIBS "Build using shared libraries" OFF)
++
+ set(CMAKE_CXX_STANDARD 17)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ 
+@@ -112,7 +114,7 @@ endif()
+ 
+ # ---- libpiper ---
+ 
+-add_library(piper SHARED
++add_library(piper
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/piper.cpp
+ )
+ 

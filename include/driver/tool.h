@@ -88,8 +88,7 @@ struct DriverToolOptions {
             "(DEPRECATED) Enable Exception handling proposal. WASM 3.0 "
             "includes this proposal, and this option will be removed in the "
             "future."sv)),
-        // TODO: MEMORY64 - enable the option.
-        // PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
+        PropMemory64(PO::Description("Disable Memory64 proposal"sv)),
         PropThreads(PO::Description("Enable Threads proposal"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
@@ -165,8 +164,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> PropMultiMemDeprecated;
   PO::Option<PO::Toggle> PropRelaxedSIMDDeprecated;
   PO::Option<PO::Toggle> PropExceptionHandlingDeprecated;
-  // TODO: MEMORY64 - enable the option.
-  // PO::Option<PO::Toggle> PropMemory64;
+  PO::Option<PO::Toggle> PropMemory64;
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropComponent;
   PO::Option<PO::Toggle> PropAll;
@@ -186,7 +184,6 @@ struct DriverToolOptions {
   PO::Option<std::string> LogLevel;
 
   void add_option(PO::ArgumentParser &Parser) noexcept {
-
     Parser.add_option(SoName)
         .add_option(Args)
         .add_option("reactor"sv, Reactor)
@@ -227,8 +224,7 @@ struct DriverToolOptions {
         .add_option("enable-relaxed-simd"sv, PropRelaxedSIMDDeprecated)
         .add_option("enable-exception-handling"sv,
                     PropExceptionHandlingDeprecated)
-        // TODO: MEMORY64 - enable the option.
-        // .add_option("disable-memory64"sv, PropMemory64)
+        .add_option("disable-memory64"sv, PropMemory64)
         .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-component"sv, PropComponent)
         .add_option("enable-all"sv, PropAll)

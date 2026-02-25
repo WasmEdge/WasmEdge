@@ -27,14 +27,14 @@ public:
 #define WASMEDGE_ALLOCATOR_IS_STABLE 0
 #endif
 
-  WASMEDGE_EXPORT static uint8_t *allocate(uint32_t PageCount) noexcept;
+  WASMEDGE_EXPORT static uint8_t *allocate(uint64_t PageCount) noexcept;
 
   WASMEDGE_EXPORT static uint8_t *resize(uint8_t *Pointer,
-                                         uint32_t OldPageCount,
-                                         uint32_t NewPageCount) noexcept;
+                                         uint64_t OldPageCount,
+                                         uint64_t NewPageCount) noexcept;
 
   WASMEDGE_EXPORT static void release(uint8_t *Pointer,
-                                      uint32_t PageCount) noexcept;
+                                      uint64_t PageCount) noexcept;
 
   static uint8_t *allocate_chunk(uint64_t Size) noexcept;
   static void release_chunk(uint8_t *Pointer, uint64_t Size) noexcept;

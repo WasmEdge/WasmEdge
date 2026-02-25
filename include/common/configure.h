@@ -121,11 +121,11 @@ public:
         ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)),
         AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
 
-  void setMaxMemoryPage(const uint32_t Page) noexcept {
+  void setMaxMemoryPage(const uint64_t Page) noexcept {
     MaxMemPage.store(Page, std::memory_order_relaxed);
   }
 
-  uint32_t getMaxMemoryPage() const noexcept {
+  uint64_t getMaxMemoryPage() const noexcept {
     return MaxMemPage.load(std::memory_order_relaxed);
   }
 
@@ -170,7 +170,7 @@ public:
   }
 
 private:
-  std::atomic<uint32_t> MaxMemPage = 65536;
+  std::atomic<uint64_t> MaxMemPage = 65536;
   std::atomic<bool> EnableJIT = false;
   std::atomic<bool> EnableCoredump = false;
   std::atomic<bool> CoredumpWasmgdb = false;
@@ -244,7 +244,7 @@ public:
     unsafeAddProposal(Proposal::RelaxSIMD);
     // unsafeAddProposal(Proposal::Annotations);    Not implemented
     unsafeAddProposal(Proposal::ExceptionHandling);
-    // unsafeAddProposal(Proposal::Memory64);       Not implemented
+    unsafeAddProposal(Proposal::Memory64);
   }
   template <typename... ArgsT> Configure(ArgsT... Args) noexcept : Configure() {
     (unsafeAddSet(Args), ...);
@@ -310,7 +310,7 @@ public:
       unsafeAddProposal(Proposal::RelaxSIMD);
       // unsafeAddProposal(Proposal::Annotations);    Not implemented
       unsafeAddProposal(Proposal::ExceptionHandling);
-      // unsafeAddProposal(Proposal::Memory64);       Not implemented
+      unsafeAddProposal(Proposal::Memory64);
       break;
     default:
       break;

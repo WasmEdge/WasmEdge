@@ -13,26 +13,10 @@ namespace Host {
 
 namespace {
 
-Runtime::Instance::ModuleInstance *createAsymmetricCommon(
-    const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasiCryptoAsymmetricCommonModule(
-      WasiCrypto::Context::getInstance());
-}
+template <typename T>
 Runtime::Instance::ModuleInstance *
-createCommon(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasiCryptoCommonModule(WasiCrypto::Context::getInstance());
-}
-Runtime::Instance::ModuleInstance *
-createKx(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasiCryptoKxModule(WasiCrypto::Context::getInstance());
-}
-Runtime::Instance::ModuleInstance *
-createSignatures(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasiCryptoSignaturesModule(WasiCrypto::Context::getInstance());
-}
-Runtime::Instance::ModuleInstance *
-createSymmetric(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
-  return new WasiCryptoSymmetricModule(WasiCrypto::Context::getInstance());
+createModule(const Plugin::PluginModule::ModuleDescriptor *) noexcept {
+  return new T(WasiCrypto::Context::getInstance());
 }
 
 Plugin::Plugin::PluginDescriptor Descriptor{
@@ -46,27 +30,27 @@ Plugin::Plugin::PluginDescriptor Descriptor{
             {
                 .Name = "wasi_crypto_asymmetric_common",
                 .Description = "",
-                .Create = createAsymmetricCommon,
+                .Create = createModule<WasiCryptoAsymmetricCommonModule>,
             },
             {
                 .Name = "wasi_crypto_common",
                 .Description = "",
-                .Create = createCommon,
+                .Create = createModule<WasiCryptoCommonModule>,
             },
             {
                 .Name = "wasi_crypto_kx",
                 .Description = "",
-                .Create = createKx,
+                .Create = createModule<WasiCryptoKxModule>,
             },
             {
                 .Name = "wasi_crypto_signatures",
                 .Description = "",
-                .Create = createSignatures,
+                .Create = createModule<WasiCryptoSignaturesModule>,
             },
             {
                 .Name = "wasi_crypto_symmetric",
                 .Description = "",
-                .Create = createSymmetric,
+                .Create = createModule<WasiCryptoSymmetricModule>,
             },
         },
     .AddOptions = nullptr,

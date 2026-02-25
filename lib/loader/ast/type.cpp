@@ -228,22 +228,21 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
   }));
 
   // Check the type flag with proposals.
-  switch (static_cast<AST::Limit::LimitType>(B)) {
-  case AST::Limit::LimitType::SharedNoMax:
-  case AST::Limit::LimitType::Shared:
-    if (!Conf.hasProposal(Proposal::Threads)) {
-      return logLoadError(ErrCode::Value::IntegerTooLarge, FMgr.getLastOffset(),
-                          ASTNodeAttr::Type_Limit);
-    }
-    [[fallthrough]];
+  auto LimitType = static_cast<AST::Limit::LimitType>(B);
+  switch (LimitType) {
   case AST::Limit::LimitType::HasMin:
   case AST::Limit::LimitType::HasMinMax:
+  case AST::Limit::LimitType::SharedNoMax:
+  case AST::Limit::LimitType::Shared:
+  case AST::Limit::LimitType::I64HasMin:
+  case AST::Limit::LimitType::I64HasMinMax:
+  case AST::Limit::LimitType::I64SharedNoMax:
+  case AST::Limit::LimitType::I64Shared:
     Lim.setType(static_cast<AST::Limit::LimitType>(B));
     break;
   default:
     if (Conf.hasProposal(Proposal::Memory64)) {
-      // TODO: MEMORY64 - fully support implementation.
-      // Currently add this for passing binary parsing in spec tests.
+      // The error code after memory64 proposal is different.
       return logLoadError(ErrCode::Value::MalformedLimitFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
     } else {
@@ -257,36 +256,47 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
       }
     }
   }
+  if (Lim.isShared() && !Conf.hasProposal(Proposal::Threads)) {
+    if (Conf.hasProposal(Proposal::Memory64)) {
+      return logLoadError(ErrCode::Value::MalformedLimitFlags,
+                          FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
+    } else {
+      return logLoadError(ErrCode::Value::IntegerTooLarge, FMgr.getLastOffset(),
+                          ASTNodeAttr::Type_Limit);
+    }
+  }
+  if (Lim.is64() && !Conf.hasProposal(Proposal::Memory64)) {
+    return logLoadError(ErrCode::Value::IntegerTooLarge, FMgr.getLastOffset(),
+                        ASTNodeAttr::Type_Limit);
+  }
 
   // Read the min and max number.
+  // The s64 is accepted after applying memory64 proposal. Therefore we should
+  // check the s32 presentation length without memory64 proposal.
+  uint64_t MinVal = 0, MaxVal = 0;
   if (Conf.hasProposal(Proposal::Memory64)) {
-    // TODO: MEMORY64 - fully support implementation.
-    // Currently add this for passing binary parsing in spec tests.
-    EXPECTED_TRY(uint64_t MinVal, FMgr.readU64().map_error([this](auto E) {
+    EXPECTED_TRY(MinVal, FMgr.readU64().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
     }));
-    Lim.setMin(static_cast<uint32_t>(MinVal));
     if (Lim.hasMax()) {
-      EXPECTED_TRY(uint64_t MaxVal, FMgr.readU64().map_error([this](auto E) {
+      EXPECTED_TRY(MaxVal, FMgr.readU64().map_error([this](auto E) {
         return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       }));
-      Lim.setMax(static_cast<uint32_t>(MaxVal));
-    } else {
-      Lim.setMax(static_cast<uint32_t>(MinVal));
     }
   } else {
-    EXPECTED_TRY(uint32_t MinVal, FMgr.readU32().map_error([this](auto E) {
+    EXPECTED_TRY(MinVal, FMgr.readU32().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
     }));
-    Lim.setMin(MinVal);
     if (Lim.hasMax()) {
-      EXPECTED_TRY(uint32_t MaxVal, FMgr.readU32().map_error([this](auto E) {
+      EXPECTED_TRY(MaxVal, FMgr.readU32().map_error([this](auto E) {
         return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
       }));
-      Lim.setMax(MaxVal);
-    } else {
-      Lim.setMax(MinVal);
     }
+  }
+  Lim.setMin(MinVal);
+  Lim.setMax(MinVal);
+  if (Lim.hasMax()) {
+    Lim.setMax(MaxVal);
   }
   return {};
 }

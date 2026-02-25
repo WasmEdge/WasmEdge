@@ -184,7 +184,12 @@ public:
   StatisticsConfigure(const StatisticsConfigure &RHS) noexcept
       : InstrCounting(RHS.InstrCounting.load(std::memory_order_relaxed)),
         CostMeasuring(RHS.CostMeasuring.load(std::memory_order_relaxed)),
-        TimeMeasuring(RHS.TimeMeasuring.load(std::memory_order_relaxed)) {}
+        TimeMeasuring(RHS.TimeMeasuring.load(std::memory_order_relaxed)),
+        ColdStartMeasuring(
+            RHS.ColdStartMeasuring.load(std::memory_order_relaxed)),
+        CpuMeasuring(RHS.CpuMeasuring.load(std::memory_order_relaxed)),
+        MemoryMeasuring(
+            RHS.MemoryMeasuring.load(std::memory_order_relaxed)) {}
 
   void setInstructionCounting(bool IsCount) noexcept {
     InstrCounting.store(IsCount, std::memory_order_relaxed);
@@ -210,6 +215,30 @@ public:
     return TimeMeasuring.load(std::memory_order_relaxed);
   }
 
+  void setColdStartMeasuring(bool IsMeasure) noexcept {
+    ColdStartMeasuring.store(IsMeasure, std::memory_order_relaxed);
+  }
+
+  bool isColdStartMeasuring() const noexcept {
+    return ColdStartMeasuring.load(std::memory_order_relaxed);
+  }
+
+  void setCpuMeasuring(bool IsMeasure) noexcept {
+    CpuMeasuring.store(IsMeasure, std::memory_order_relaxed);
+  }
+
+  bool isCpuMeasuring() const noexcept {
+    return CpuMeasuring.load(std::memory_order_relaxed);
+  }
+
+  void setMemoryMeasuring(bool IsMeasure) noexcept {
+    MemoryMeasuring.store(IsMeasure, std::memory_order_relaxed);
+  }
+
+  bool isMemoryMeasuring() const noexcept {
+    return MemoryMeasuring.load(std::memory_order_relaxed);
+  }
+
   void setCostLimit(uint64_t Cost) noexcept {
     CostLimit.store(Cost, std::memory_order_relaxed);
   }
@@ -222,6 +251,9 @@ private:
   std::atomic<bool> InstrCounting = false;
   std::atomic<bool> CostMeasuring = false;
   std::atomic<bool> TimeMeasuring = false;
+  std::atomic<bool> ColdStartMeasuring = false;
+  std::atomic<bool> CpuMeasuring = false;
+  std::atomic<bool> MemoryMeasuring = false;
 
   std::atomic<uint64_t> CostLimit = std::numeric_limits<uint64_t>::max();
 };

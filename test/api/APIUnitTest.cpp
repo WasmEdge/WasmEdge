@@ -726,6 +726,18 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
   EXPECT_NE(WasmEdge_ConfigureStatisticsIsTimeMeasuring(ConfNull), true);
   EXPECT_EQ(WasmEdge_ConfigureStatisticsIsTimeMeasuring(Conf), true);
+  WasmEdge_ConfigureStatisticsSetColdStartMeasuring(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetColdStartMeasuring(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsColdStartMeasuring(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsColdStartMeasuring(Conf), true);
+  WasmEdge_ConfigureStatisticsSetCpuMeasuring(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetCpuMeasuring(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsCpuMeasuring(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsCpuMeasuring(Conf), true);
+  WasmEdge_ConfigureStatisticsSetMemoryMeasuring(ConfNull, true);
+  WasmEdge_ConfigureStatisticsSetMemoryMeasuring(Conf, true);
+  EXPECT_NE(WasmEdge_ConfigureStatisticsIsMemoryMeasuring(ConfNull), true);
+  EXPECT_EQ(WasmEdge_ConfigureStatisticsIsMemoryMeasuring(Conf), true);
   // Test to delete nullptr.
   WasmEdge_ConfigureDelete(ConfNull);
   EXPECT_TRUE(true);
@@ -1808,6 +1820,17 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   // Statistics get total cost
   EXPECT_GT(WasmEdge_StatisticsGetTotalCost(Stat), 0ULL);
   EXPECT_EQ(WasmEdge_StatisticsGetTotalCost(nullptr), 0ULL);
+
+  // Statistics get CPU time (may be 0 if CPU measuring not enabled in config)
+  EXPECT_EQ(WasmEdge_StatisticsGetCpuTimeNs(nullptr), 0ULL);
+
+  // Statistics get cold start time (may be 0 if cold start measuring not
+  // enabled)
+  EXPECT_EQ(WasmEdge_StatisticsGetColdStartTimeNs(nullptr), 0ULL);
+
+  // Statistics get memory pages
+  EXPECT_EQ(WasmEdge_StatisticsGetMemoryPages(nullptr), 0ULL);
+  EXPECT_EQ(WasmEdge_StatisticsGetMemoryPeakPages(nullptr), 0ULL);
 
   // Statistics clear
   WasmEdge_StatisticsClear(Stat);

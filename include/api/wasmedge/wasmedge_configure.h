@@ -375,6 +375,71 @@ WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
     const WasmEdge_ConfigureContext *Cxt);
 
+/// Set the cold start measuring option for the statistics.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsMeasure the boolean value to determine to support cold start
+/// measuring (load, validate, instantiate phases).
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureStatisticsSetColdStartMeasuring(
+    WasmEdge_ConfigureContext *Cxt, const bool IsMeasure);
+
+/// Get the cold start measuring option for the statistics.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to support cold start measuring.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureStatisticsIsColdStartMeasuring(
+    const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the CPU measuring option for the statistics.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsMeasure the boolean value to determine to support CPU time
+/// measuring during execution.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureStatisticsSetCpuMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                            const bool IsMeasure);
+
+/// Get the CPU measuring option for the statistics.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to support CPU time measuring.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsCpuMeasuring(
+    const WasmEdge_ConfigureContext *Cxt);
+
+/// Set the memory measuring option for the statistics.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsMeasure the boolean value to determine to support Wasm linear
+/// memory usage measuring.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureStatisticsSetMemoryMeasuring(WasmEdge_ConfigureContext *Cxt,
+                                               const bool IsMeasure);
+
+/// Get the memory measuring option for the statistics.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns the boolean value to determine to support memory measuring.
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ConfigureStatisticsIsMemoryMeasuring(
+    const WasmEdge_ConfigureContext *Cxt);
+
 /// Deletion of the WasmEdge_ConfigureContext.
 ///
 /// After calling this function, the context will be destroyed and should
@@ -442,6 +507,39 @@ WasmEdge_StatisticsSetCostTable(WasmEdge_StatisticsContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_StatisticsSetCostLimit(WasmEdge_StatisticsContext *Cxt,
                                 const uint64_t Limit);
+
+/// Get the cold start total time in nanoseconds.
+///
+/// \param Cxt the WasmEdge_StatisticsContext to get data.
+///
+/// \returns the cold start total time (load + validate + instantiate) in
+/// nanoseconds.
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_StatisticsGetColdStartTimeNs(const WasmEdge_StatisticsContext *Cxt);
+
+/// Get the process CPU time in nanoseconds.
+///
+/// \param Cxt the WasmEdge_StatisticsContext to get data.
+///
+/// \returns the process CPU time consumed during execution in nanoseconds.
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_StatisticsGetCpuTimeNs(const WasmEdge_StatisticsContext *Cxt);
+
+/// Get the current Wasm linear memory usage in pages.
+///
+/// \param Cxt the WasmEdge_StatisticsContext to get data.
+///
+/// \returns the current Wasm linear memory in pages (each page is 64 KiB).
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_StatisticsGetMemoryPages(const WasmEdge_StatisticsContext *Cxt);
+
+/// Get the peak Wasm linear memory usage in pages.
+///
+/// \param Cxt the WasmEdge_StatisticsContext to get data.
+///
+/// \returns the peak Wasm linear memory in pages (each page is 64 KiB).
+WASMEDGE_CAPI_EXPORT extern uint64_t
+WasmEdge_StatisticsGetMemoryPeakPages(const WasmEdge_StatisticsContext *Cxt);
 
 /// Clear all data in the WasmEdge_StatisticsContext.
 ///

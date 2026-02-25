@@ -500,6 +500,10 @@ Expect<uint32_t> Executor::proxyMemGrow(Runtime::StackManager &StackMgr,
   assuming(MemInst);
   const uint32_t CurrPageSize = MemInst->getPageSize();
   if (MemInst->growPage(NewSize)) {
+    // Record memory growth for statistics.
+    if (Stat && Conf.getStatisticsConfigure().isMemoryMeasuring()) {
+      Stat->recordMemoryPages(MemInst->getPageSize());
+    }
     return CurrPageSize;
   } else {
     return static_cast<uint32_t>(-1);

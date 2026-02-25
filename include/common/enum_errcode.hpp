@@ -53,6 +53,15 @@ enum class ErrCategory : uint8_t {
 #undef UseErrCategory
 };
 
+/// ErrCode wraps a compact uint32_t error code used throughout WasmEdge.
+///
+/// Note: Parameterized error messages (e.g., embedding function names or
+/// indices into error strings) are intentionally NOT stored in this class.
+/// Adding a std::string member would prevent ErrCode from being constexpr and
+/// introduce implicit heap allocations on every copy in Expected<T, ErrCode>
+/// return paths, causing significant performance regression (~10% release,
+/// ~16% debug). See PR #4625 for benchmarks and discussion.
+/// Contextual debug information should be logged separately via spdlog instead.
 class ErrCode {
 public:
   /// Error code C++ enumeration class.

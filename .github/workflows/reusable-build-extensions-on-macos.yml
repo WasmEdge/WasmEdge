@@ -25,6 +25,7 @@ permissions:
 
 jobs:
   build:
+    if: ${{ inputs.plugins != '[]' }}
     permissions:
       contents: write
     strategy:

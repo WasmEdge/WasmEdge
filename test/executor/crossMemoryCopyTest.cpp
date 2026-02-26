@@ -17,8 +17,9 @@
 ///   uint64_t Dst = extractAddr(StackMgr.pop(), AddrType1); // wrong: src type
 ///
 /// The fix corrects the assignment:
-///   uint64_t Src = extractAddr(StackMgr.pop(), AddrType1); // correct: src type
-///   uint64_t Dst = extractAddr(StackMgr.pop(), AddrType2); // correct: dst type
+///   uint64_t Src = extractAddr(StackMgr.pop(), AddrType1); // correct: src
+///   type uint64_t Dst = extractAddr(StackMgr.pop(), AddrType2); // correct:
+///   dst type
 ///
 /// This test creates a module with both memory32 (idx=0) and memory64 (idx=1),
 /// stores data in one memory, copies to the other using memory.copy, and
@@ -141,12 +142,10 @@ TEST(CrossMemoryCopy, CopyFromMemory64ToMemory32) {
   // Step 2: Copy 4 bytes from memory64[100] to memory32[200].
   // copy_m64_to_m32(dst: i32, src: i64, len: i32)
   {
-    std::vector<ValVariant> Params = {ValVariant(DstOffset),
-                                      ValVariant(SrcOffset),
-                                      ValVariant(CopyLen)};
-    std::vector<ValType> ParamTypes = {ValType(TypeCode::I32),
-                                       ValType(TypeCode::I64),
-                                       ValType(TypeCode::I32)};
+    std::vector<ValVariant> Params = {
+        ValVariant(DstOffset), ValVariant(SrcOffset), ValVariant(CopyLen)};
+    std::vector<ValType> ParamTypes = {
+        ValType(TypeCode::I32), ValType(TypeCode::I64), ValType(TypeCode::I32)};
     auto Result = VM.execute("copy_m64_to_m32", Params, ParamTypes);
     ASSERT_TRUE(Result) << "copy_m64_to_m32 should succeed";
   }
@@ -196,12 +195,10 @@ TEST(CrossMemoryCopy, CopyFromMemory32ToMemory64) {
   // Step 2: Copy 4 bytes from memory32[300] to memory64[400].
   // copy_m32_to_m64(dst: i64, src: i32, len: i32)
   {
-    std::vector<ValVariant> Params = {ValVariant(DstOffset),
-                                      ValVariant(SrcOffset),
-                                      ValVariant(CopyLen)};
-    std::vector<ValType> ParamTypes = {ValType(TypeCode::I64),
-                                       ValType(TypeCode::I32),
-                                       ValType(TypeCode::I32)};
+    std::vector<ValVariant> Params = {
+        ValVariant(DstOffset), ValVariant(SrcOffset), ValVariant(CopyLen)};
+    std::vector<ValType> ParamTypes = {
+        ValType(TypeCode::I64), ValType(TypeCode::I32), ValType(TypeCode::I32)};
     auto Result = VM.execute("copy_m32_to_m64", Params, ParamTypes);
     ASSERT_TRUE(Result) << "copy_m32_to_m64 should succeed";
   }
@@ -250,12 +247,10 @@ TEST(CrossMemoryCopy, BidirectionalCopy) {
 
   // Copy from memory64 to memory32.
   {
-    std::vector<ValVariant> Params = {ValVariant(M32Offset),
-                                      ValVariant(M64Offset),
-                                      ValVariant(CopyLen)};
-    std::vector<ValType> ParamTypes = {ValType(TypeCode::I32),
-                                       ValType(TypeCode::I64),
-                                       ValType(TypeCode::I32)};
+    std::vector<ValVariant> Params = {
+        ValVariant(M32Offset), ValVariant(M64Offset), ValVariant(CopyLen)};
+    std::vector<ValType> ParamTypes = {
+        ValType(TypeCode::I32), ValType(TypeCode::I64), ValType(TypeCode::I32)};
     auto Result = VM.execute("copy_m64_to_m32", Params, ParamTypes);
     ASSERT_TRUE(Result);
   }
@@ -283,12 +278,10 @@ TEST(CrossMemoryCopy, BidirectionalCopy) {
   // Copy back from memory32 to memory64 at a different offset.
   const uint64_t M64Offset2 = 100;
   {
-    std::vector<ValVariant> Params = {ValVariant(M64Offset2),
-                                      ValVariant(M32Offset),
-                                      ValVariant(CopyLen)};
-    std::vector<ValType> ParamTypes = {ValType(TypeCode::I64),
-                                       ValType(TypeCode::I32),
-                                       ValType(TypeCode::I32)};
+    std::vector<ValVariant> Params = {
+        ValVariant(M64Offset2), ValVariant(M32Offset), ValVariant(CopyLen)};
+    std::vector<ValType> ParamTypes = {
+        ValType(TypeCode::I64), ValType(TypeCode::I32), ValType(TypeCode::I32)};
     auto Result = VM.execute("copy_m32_to_m64", Params, ParamTypes);
     ASSERT_TRUE(Result);
   }

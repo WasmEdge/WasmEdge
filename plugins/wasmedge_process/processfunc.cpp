@@ -228,7 +228,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(const Runtime::CallingFrame &) {
     while (true) {
       gettimeofday(&TCurr, NULL);
       if ((TCurr.tv_sec - TStart.tv_sec) * 1000U +
-              (TCurr.tv_usec - TStart.tv_usec) / 1000000U >
+              (TCurr.tv_usec - TStart.tv_usec) / 1000U >
           Env.TimeOut) {
         // Over timeout. Interrupt child process.
         kill(PID, SIGKILL);

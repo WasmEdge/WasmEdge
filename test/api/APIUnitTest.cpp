@@ -3136,6 +3136,17 @@ TEST(APICoreTest, Async) {
   WasmEdge_ExecutorDelete(Exec);
 }
 
+TEST(APICoreTest, StringEmptyTest) {
+  // WasmEdge_String
+  WasmEdge_String Str = WasmEdge_StringCreateByCString("");
+  // Internal length Verification
+  EXPECT_EQ(Str.Length, 0u);
+  // Equality with empty string
+  EXPECT_TRUE(WasmEdge_StringIsEqual(Str, WasmEdge_StringWrap("", 0)));
+  // Clean up
+  WasmEdge_StringDelete(Str);
+}
+
 TEST(APICoreTest, VM) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);

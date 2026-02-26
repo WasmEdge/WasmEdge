@@ -596,6 +596,11 @@ TEST(APICoreTest, String) {
   WasmEdge_StringDelete(Str1);
   WasmEdge_StringDelete(Str2);
   WasmEdge_StringDelete(Str3);
+
+  // Boundary check for empty string
+  WasmEdge_String EmptyStr = WasmEdge_StringCreateByCString("");
+  EXPECT_TRUE(WasmEdge_StringIsEqual(EmptyStr, WasmEdge_StringWrap("", 0)));
+  WasmEdge_StringDelete(EmptyStr);
 }
 
 TEST(APICoreTest, Bytes) {

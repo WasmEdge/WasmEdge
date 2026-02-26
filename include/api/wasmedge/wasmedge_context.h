@@ -24,6 +24,9 @@ typedef struct WasmEdge_StatisticsContext WasmEdge_StatisticsContext;
 /// Opaque struct of WasmEdge AST module.
 typedef struct WasmEdge_ASTModuleContext WasmEdge_ASTModuleContext;
 
+/// Opaque struct of WasmEdge limit type.
+typedef struct WasmEdge_LimitContext WasmEdge_LimitContext;
+
 /// Opaque struct of WasmEdge function type.
 typedef struct WasmEdge_FunctionTypeContext WasmEdge_FunctionTypeContext;
 

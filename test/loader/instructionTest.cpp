@@ -1168,22 +1168,16 @@ TEST(InstructionTest, LoadSIMDInstruction) {
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
-TEST(InstructionTest, LoadTryTableValidCatchFlags) {
-  // Test try_table instruction with all valid catch flags (0x00-0x03).
-  //
-  // Catch flag meanings:
-  //   0x00 = catch:         tag_idx + label_idx
-  //   0x01 = catch_ref:     tag_idx + label_idx
-  //   0x02 = catch_all:     label_idx (no tag)
-  //   0x03 = catch_all_ref: label_idx (no tag)
-  //
-  // Module structure:
-  //   Type section:     1 type  () -> ()
-  //   Function section: 1 func  referencing type 0
-  //   Tag section:      1 tag   referencing type 0
-  //   Code section:     1 body  with try_table using all 4 catch flags
+TEST(InstructionTest, LoadTryTable) {
+  std::vector<uint8_t> Vec;
 
-  std::vector<uint8_t> Vec = {
+  // 14. Test try_table instructions.
+  //
+  //   1.  Load try_table with all valid catch flags (0x00-0x03).
+  //   2.  Load try_table with invalid catch flag 0x04.
+  //   3.  Load try_table with invalid catch flag 0xFF.
+
+  Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
 
@@ -1222,20 +1216,8 @@ TEST(InstructionTest, LoadTryTableValidCatchFlags) {
       0x0BU                // Expression End
   };
   EXPECT_TRUE(Ldr.parseModule(Vec));
-}
 
-TEST(InstructionTest, LoadTryTableInvalidCatchFlag) {
-  // Test try_table instruction with invalid catch flags (> 0x03).
-  // Flags 0x04 and above should be rejected by the loader.
-  //
-  // Module structure:
-  //   Type section:     1 type  () -> ()
-  //   Function section: 1 func  referencing type 0
-  //   Tag section:      1 tag   referencing type 0
-  //   Code section:     1 body  with try_table using an invalid catch flag
-
-  // --- Test with flag 0x04 ---
-  std::vector<uint8_t> Vec = {
+  Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version
 
@@ -1272,7 +1254,6 @@ TEST(InstructionTest, LoadTryTableInvalidCatchFlag) {
   };
   EXPECT_FALSE(Ldr.parseModule(Vec));
 
-  // --- Test with flag 0xFF ---
   Vec = {
       0x00U, 0x61U, 0x73U, 0x6DU, // Magic
       0x01U, 0x00U, 0x00U, 0x00U, // Version

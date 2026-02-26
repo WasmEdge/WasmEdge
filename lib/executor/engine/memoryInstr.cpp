@@ -68,8 +68,8 @@ Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
   const auto AddrType1 = MemInstSrc.getMemoryType().getLimit().getAddrType();
   const auto AddrType2 = MemInstDst.getMemoryType().getLimit().getAddrType();
   uint64_t Len = extractAddr(StackMgr.pop(), std::min(AddrType1, AddrType2));
-  uint64_t Src = extractAddr(StackMgr.pop(), AddrType2);
-  uint64_t Dst = extractAddr(StackMgr.pop(), AddrType1);
+  uint64_t Src = extractAddr(StackMgr.pop(), AddrType1);
+  uint64_t Dst = extractAddr(StackMgr.pop(), AddrType2);
 
   // Replace mem[Dst : Dst + Len] with mem[Src : Src + Len].
   EXPECTED_TRY(auto Data,

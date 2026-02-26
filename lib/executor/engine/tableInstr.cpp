@@ -84,8 +84,8 @@ Executor::runTableCopyOp(Runtime::StackManager &StackMgr,
   const auto AddrType1 = TabInstSrc.getTableType().getLimit().getAddrType();
   const auto AddrType2 = TabInstDst.getTableType().getLimit().getAddrType();
   uint64_t Len = extractAddr(StackMgr.pop(), std::min(AddrType1, AddrType2));
-  uint64_t Src = extractAddr(StackMgr.pop(), AddrType2);
-  uint64_t Dst = extractAddr(StackMgr.pop(), AddrType1);
+  uint64_t Src = extractAddr(StackMgr.pop(), AddrType1);
+  uint64_t Dst = extractAddr(StackMgr.pop(), AddrType2);
 
   // Replace tab_dst[Dst : Dst + Len] with tab_src[Src : Src + Len].
   return TabInstSrc.getRefs(0, Src + Len)

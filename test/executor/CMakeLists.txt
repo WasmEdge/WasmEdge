@@ -12,3 +12,17 @@ target_link_libraries(wasmedgeExecutorCoreTests
   wasmedgeTestSpec
   wasmedgeVM
 )
+
+wasmedge_add_executable(wasmedgeExecutorCrossMemoryCopyTests
+  crossMemoryCopyTest.cpp
+)
+
+add_test(wasmedgeExecutorCrossMemoryCopyTests
+  wasmedgeExecutorCrossMemoryCopyTests
+)
+
+target_link_libraries(wasmedgeExecutorCrossMemoryCopyTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeVM
+)

@@ -398,6 +398,14 @@ private:
                               AST::InstrView::iterator &PC) noexcept;
   /// @}
 
+  /// \name Helper Function for checking memory offset boundary.
+  /// @{
+  Expect<void>
+  checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
+                      const AST::Instruction &Instr, const uint64_t Val,
+                      const uint64_t Size) const noexcept;
+  /// @}
+
   /// \name Helper Functions for GC instructions.
   /// @{
   Expect<RefVariant> structNew(Runtime::StackManager &StackMgr,
@@ -451,11 +459,11 @@ private:
   /// \name Helper Functions for atomic operations.
   /// @{
   template <typename T>
-  Expect<uint32_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                              uint32_t Address, EndianValue<T> Expected,
+  Expect<uint64_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                              uint64_t Address, EndianValue<T> Expected,
                               int64_t Timeout) noexcept;
-  Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                                uint32_t Address, uint32_t Count) noexcept;
+  Expect<uint64_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                                uint64_t Address, uint64_t Count) noexcept;
   void atomicNotifyAll() noexcept;
   /// @}
 
@@ -1011,55 +1019,55 @@ public:
                                   ValType VTCast) noexcept;
   Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
                                    const uint32_t TableIdx,
-                                   const uint32_t Off) noexcept;
+                                   const uint64_t Off) noexcept;
   Expect<void> proxyTableSet(Runtime::StackManager &StackMgr,
-                             const uint32_t TableIdx, const uint32_t Off,
+                             const uint32_t TableIdx, const uint64_t Off,
                              const RefVariant Ref) noexcept;
   Expect<void> proxyTableInit(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint32_t ElemIdx,
-                              const uint32_t DstOff, const uint32_t SrcOff,
+                              const uint64_t DstOff, const uint32_t SrcOff,
                               const uint32_t Len) noexcept;
   Expect<void> proxyElemDrop(Runtime::StackManager &StackMgr,
                              const uint32_t ElemIdx) noexcept;
   Expect<void> proxyTableCopy(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdxDst,
-                              const uint32_t TableIdxSrc, const uint32_t DstOff,
-                              const uint32_t SrcOff,
-                              const uint32_t Len) noexcept;
-  Expect<uint32_t> proxyTableGrow(Runtime::StackManager &StackMgr,
+                              const uint32_t TableIdxSrc, const uint64_t DstOff,
+                              const uint64_t SrcOff,
+                              const uint64_t Len) noexcept;
+  Expect<uint64_t> proxyTableGrow(Runtime::StackManager &StackMgr,
                                   const uint32_t TableIdx, const RefVariant Val,
-                                  const uint32_t NewSize) noexcept;
-  Expect<uint32_t> proxyTableSize(Runtime::StackManager &StackMgr,
+                                  const uint64_t NewSize) noexcept;
+  Expect<uint64_t> proxyTableSize(Runtime::StackManager &StackMgr,
                                   const uint32_t TableIdx) noexcept;
   Expect<void> proxyTableFill(Runtime::StackManager &StackMgr,
-                              const uint32_t TableIdx, const uint32_t Off,
+                              const uint32_t TableIdx, const uint64_t Off,
                               const RefVariant Ref,
-                              const uint32_t Len) noexcept;
-  Expect<uint32_t> proxyMemGrow(Runtime::StackManager &StackMgr,
+                              const uint64_t Len) noexcept;
+  Expect<uint64_t> proxyMemGrow(Runtime::StackManager &StackMgr,
                                 const uint32_t MemIdx,
-                                const uint32_t NewSize) noexcept;
-  Expect<uint32_t> proxyMemSize(Runtime::StackManager &StackMgr,
+                                const uint64_t NewSize) noexcept;
+  Expect<uint64_t> proxyMemSize(Runtime::StackManager &StackMgr,
                                 const uint32_t MemIdx) noexcept;
   Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
                             const uint32_t MemIdx, const uint32_t DataIdx,
-                            const uint32_t DstOff, const uint32_t SrcOff,
+                            const uint64_t DstOff, const uint32_t SrcOff,
                             const uint32_t Len) noexcept;
   Expect<void> proxyDataDrop(Runtime::StackManager &StackMgr,
                              const uint32_t DataIdx) noexcept;
   Expect<void> proxyMemCopy(Runtime::StackManager &StackMgr,
                             const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
-                            const uint32_t DstOff, const uint32_t SrcOff,
-                            const uint32_t Len) noexcept;
+                            const uint64_t DstOff, const uint64_t SrcOff,
+                            const uint64_t Len) noexcept;
   Expect<void> proxyMemFill(Runtime::StackManager &StackMgr,
-                            const uint32_t MemIdx, const uint32_t Off,
-                            const uint8_t Val, const uint32_t Len) noexcept;
-  Expect<uint32_t> proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
+                            const uint32_t MemIdx, const uint64_t Off,
+                            const uint8_t Val, const uint64_t Len) noexcept;
+  Expect<uint64_t> proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
                                         const uint32_t MemIdx,
-                                        const uint32_t Offset,
-                                        const uint32_t Count) noexcept;
-  Expect<uint32_t>
+                                        const uint64_t Offset,
+                                        const uint64_t Count) noexcept;
+  Expect<uint64_t>
   proxyMemAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                     const uint32_t Offset, const uint64_t Expected,
+                     const uint64_t Offset, const uint64_t Expected,
                      const int64_t Timeout, const uint32_t BitWidth) noexcept;
   Expect<void *> proxyTableGetFuncSymbol(Runtime::StackManager &StackMgr,
                                          const uint32_t TableIdx,
@@ -1125,7 +1133,7 @@ private:
   /// Waiter map mutex
   std::mutex WaiterMapMutex;
   /// Waiter multimap
-  std::unordered_multimap<uint32_t, Waiter> WaiterMap;
+  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
 
   /// WasmEdge configuration
   const Configure Conf;

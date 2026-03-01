@@ -265,12 +265,11 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
                           FMgr.getLastOffset(), ASTNodeAttr::Instruction);
     }
     if (Conf.hasProposal(Proposal::Memory64)) {
-      // TODO: MEMORY64 - fully support implementation.
-      uint64_t Offset;
-      EXPECTED_TRY(readU64(Offset));
-      Instr.getMemoryOffset() = static_cast<uint32_t>(Offset);
+      EXPECTED_TRY(readU64(Instr.getMemoryOffset()));
     } else {
-      EXPECTED_TRY(readU32(Instr.getMemoryOffset()));
+      uint32_t Offset;
+      EXPECTED_TRY(readU32(Offset));
+      Instr.getMemoryOffset() = static_cast<uint64_t>(Offset);
     }
     return {};
   };
@@ -340,6 +339,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       auto &Desc = Instr.getTryCatch().Catch[I];
       // Read the catch flag.
       EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
+      if (unlikely(Flag > 0x03U)) {
+        return logLoadError(ErrCode::Value::MalformedCatchFlags,
+                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+      }
       Desc.IsRef = (Flag & 0x01U) ? true : false;
       Desc.IsAll = (Flag & 0x02U) ? true : false;
       if (!Desc.IsAll) {
@@ -563,11 +566,15 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
   // Const Instructions.
   case OpCode::I32__const:
     EXPECTED_TRY(FMgr.readS32().map_error(ReportError).map([&](int32_t Num) {
+      // Should clear the higher bits.
+      Instr.setNum(static_cast<uint128_t>(0U));
       Instr.setNum(static_cast<uint32_t>(Num));
     }));
     return {};
   case OpCode::I64__const:
     EXPECTED_TRY(FMgr.readS64().map_error(ReportError).map([&](int64_t Num) {
+      // Should clear the higher bits.
+      Instr.setNum(static_cast<uint128_t>(0U));
       Instr.setNum(static_cast<uint64_t>(Num));
     }));
     return {};

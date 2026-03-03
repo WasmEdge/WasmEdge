@@ -4,6 +4,7 @@
 #include "wasmedge/wasmedge.h"
 
 #include "common/defines.h"
+#include "common/spdlog.h"
 #include "driver/compiler.h"
 #include "driver/tool.h"
 #include "driver/unitool.h"
@@ -849,6 +850,7 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res) {
 // >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ConfigureContext *WasmEdge_ConfigureCreate(void) {
+  WasmEdge::Log::ensureInitialized();
   return new WasmEdge_ConfigureContext;
 }
 
@@ -3457,10 +3459,12 @@ WASMEDGE_CAPI_EXPORT extern "C" int WasmEdge_Driver_FuzzPO(const uint8_t *Data,
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) {
+  WasmEdge::Log::ensureInitialized();
   WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadFromPath(const char *Path) {
+  WasmEdge::Log::ensureInitialized();
   WasmEdge::Plugin::Plugin::load(Path);
 }
 

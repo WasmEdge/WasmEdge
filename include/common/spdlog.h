@@ -43,6 +43,8 @@ bool setLoggingLevelFromString(std::string_view Level);
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback);
 
+void ensureInitialized();
+
 } // namespace Log
 } // namespace WasmEdge
 

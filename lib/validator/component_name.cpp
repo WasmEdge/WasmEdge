@@ -105,7 +105,87 @@ bool tryReadKebab(std::string_view &Input, std::string_view &Output) {
   return isKebabString(Output);
 }
 
+bool isValidSemVer(std::string_view Version) {
+  if (Version.empty()) {
+    return false;
+  }
+
+  size_t Pos = 0;
+  auto readNumber = [&]() -> bool {
+    if (Pos >= Version.size() || !isdigit(Version[Pos])) {
+      return false;
+    }
+    while (Pos < Version.size() && isdigit(Version[Pos])) {
+      Pos++;
+    }
+    return true;
+  };
+
+  if (!readNumber()) {
+    return false;
+  }
+
+  if (Pos >= Version.size() || Version[Pos] != '.') {
+    return false;
+  }
+  Pos++;
+  if (!readNumber()) {
+    return false;
+  }
+
+  if (Pos >= Version.size() || Version[Pos] != '.') {
+    return false;
+  }
+  Pos++;
+  if (!readNumber()) {
+    return false;
+  }
+
+  if (!readNumber()) {
+    return false;
+  }
+
+  if (Pos >= Version.size()) {
+    return true;
+  }
+
+  // Pre-release
+  if (Version[Pos] == '-') {
+    Pos++;
+    if (Pos >= Version.size()) {
+      return false;
+    }
+    while (Pos < Version.size()) {
+      if (!isalnum(Version[Pos]) && Version[Pos] != '-' && Version[Pos] != '.') {
+        break;
+      }
+      Pos++;
+    }
+  }
+
+  if (Pos >= Version.size()) {
+    return true;
+  }
+
+  // Build metadata
+  if (Version[Pos] == '+') {
+    Pos++;
+    if (Pos >= Version.size()) {
+      return false;
+    }
+    while (Pos < Version.size()) {
+      if (!isalnum(Version[Pos]) && Version[Pos] != '-' && Version[Pos] != '.') {
+        break;
+      }
+      Pos++;
+    }
+  }
+
+  return Pos == Version.size();
+}
+
 } // namespace ComponentNameParser
+
 
 using namespace std::literals;
 using namespace ComponentNameParser;
@@ -271,7 +351,6 @@ void ComponentName::parse() {
     // read a:b:c/d/e/f[@g]?
     if (!isEOF(Next) && Next[0] == '@') {
       Next.remove_prefix(1);
-      // TODO: semver format check
       Version = Next;
     }
 

@@ -89,7 +89,7 @@ jobs:
         run: |
           source "$HOME/.cargo/env"
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
-          bash test/component/fuzzing/run_fuzz.sh ./build/test/component/fuzzing/componentFuzzTest
+          bash test/component/fuzzing/run_fuzz.sh ./build/test/component/fuzzing/wasmedgeComponentFuzzTest
       - name: Check symbol exposure
         if: ${{ !matrix.coverage }}
         run: |

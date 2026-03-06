@@ -57,8 +57,9 @@ Expect<void> Loader::loadSection(AST::Component::CoreTypeSection &Sec) {
 }
 
 // Load component nested-component section. See "include/loader/loader.h".
-Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
-  return loadSectionContent(Sec, [this, &Sec]() -> Expect<void> {
+Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec,
+                                 uint32_t Depth) {
+  return loadSectionContent(Sec, [this, &Sec, Depth]() -> Expect<void> {
     auto ReportError = [](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Component));
       return E;
@@ -84,9 +85,9 @@ Expect<void> Loader::loadSection(AST::Component::ComponentSection &Sec) {
                           ASTNodeAttr::Component);
     }
 
-    EXPECTED_TRY(
-        loadComponent(*NestedComp, ExpectedSize - (Offset - StartOffset))
-            .map_error(ReportError));
+    EXPECTED_TRY(loadComponent(*NestedComp,
+                               ExpectedSize - (Offset - StartOffset), Depth + 1)
+                     .map_error(ReportError));
     Sec.getContent() = std::move(NestedComp);
     return {};
   });

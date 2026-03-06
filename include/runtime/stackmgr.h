@@ -100,11 +100,17 @@ public:
     return Vec;
   }
 
+  static constexpr uint32_t MaxCallDepth = 1000;
+
   /// Push a new frame entry to stack.
-  void pushFrame(const Instance::ModuleInstance *Module,
-                 AST::InstrView::iterator From, uint32_t LocalNum = 0,
-                 uint32_t Arity = 0, bool IsTailCall = false) noexcept {
+  Expect<void> pushFrame(const Instance::ModuleInstance *Module,
+                         AST::InstrView::iterator From, uint32_t LocalNum = 0,
+                         uint32_t Arity = 0, bool IsTailCall = false) noexcept {
     if (!IsTailCall) {
+      if (unlikely(FrameStack.size() >= MaxCallDepth)) {
+        spdlog::error(ErrCode::Value::CallStackOverflow);
+        return Unexpect(ErrCode::Value::CallStackOverflow);
+      }
       FrameStack.emplace_back(Module, From, LocalNum, Arity,
                               static_cast<uint32_t>(ValueStack.size()));
     } else {
@@ -121,6 +127,7 @@ public:
       FrameStack.back().VPos = static_cast<uint32_t>(ValueStack.size());
       FrameStack.back().HandlerStack.clear();
     }
+    return {};
   }
 
   /// Unsafe pop top frame.

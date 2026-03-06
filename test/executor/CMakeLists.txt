@@ -12,3 +12,15 @@ target_link_libraries(wasmedgeExecutorCoreTests
   wasmedgeTestSpec
   wasmedgeVM
 )
+
+wasmedge_add_executable(wasmedgeCallStackDepthTests
+  callStackDepthTest.cpp
+)
+
+add_test(wasmedgeCallStackDepthTests wasmedgeCallStackDepthTests)
+
+target_link_libraries(wasmedgeCallStackDepthTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeVM
+)

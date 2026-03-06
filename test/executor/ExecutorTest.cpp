@@ -20,12 +20,13 @@
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
 
+#include <gtest/gtest.h>
+
 #include <array>
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
-#include <gtest/gtest.h>
 #include <map>
 #include <string>
 #include <string_view>

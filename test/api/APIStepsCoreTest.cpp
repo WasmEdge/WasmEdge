@@ -14,14 +14,16 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#include "../spec/spectest.h"
 #include "helper.h"
 #include "hostfunc_c.h"
 #include "wasmedge/wasmedge.h"
 
+#include "../spec/spectest.h"
+
+#include <gtest/gtest.h>
+
 #include <cstdint>
 #include <functional>
-#include <gtest/gtest.h>
 #include <string>
 #include <string_view>
 #include <type_traits>

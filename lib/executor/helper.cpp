@@ -82,12 +82,12 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     Runtime::CallingFrame CallFrame(this, ModInst);
 
     // Push frame.
-    StackMgr.pushFrame(Func.getModule(), // Module instance
-                       RetIt,            // Return PC
-                       ArgsN,            // Only args, no locals in stack
-                       RetsN,            // Returns num
-                       IsTailCall        // For tail-call
-    );
+    EXPECTED_TRY(StackMgr.pushFrame(Func.getModule(), // Module instance
+                                    RetIt,            // Return PC
+                                    ArgsN,     // Only args, no locals in stack
+                                    RetsN,     // Returns num
+                                    IsTailCall // For tail-call
+                                    ));
 
     // Do the statistics if the statistics turned on.
     if (Stat) {
@@ -146,12 +146,12 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // continuation.
 
     // Push frame.
-    StackMgr.pushFrame(Func.getModule(), // Module instance
-                       RetIt,            // Return PC
-                       ArgsN,            // Only args, no locals in stack
-                       RetsN,            // Returns num
-                       IsTailCall        // For tail-call
-    );
+    EXPECTED_TRY(StackMgr.pushFrame(Func.getModule(), // Module instance
+                                    RetIt,            // Return PC
+                                    ArgsN,     // Only args, no locals in stack
+                                    RetsN,     // Returns num
+                                    IsTailCall // For tail-call
+                                    ));
 
     // Prepare arguments.
     Span<ValVariant> Args = StackMgr.getTopSpan(ArgsN);
@@ -218,12 +218,13 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
     // Push frame.
     // The PC must -1 here because in the interpreter mode execution, the PC
     // will increase after the callee return.
-    StackMgr.pushFrame(Func.getModule(),           // Module instance
-                       RetIt - 1,                  // Return PC
-                       ArgsN + Func.getLocalNum(), // Arguments num + local num
-                       RetsN,                      // Returns num
-                       IsTailCall                  // For tail-call
-    );
+    EXPECTED_TRY(StackMgr.pushFrame(
+        Func.getModule(),           // Module instance
+        RetIt - 1,                  // Return PC
+        ArgsN + Func.getLocalNum(), // Arguments num + local num
+        RetsN,                      // Returns num
+        IsTailCall                  // For tail-call
+        ));
 
     // For native function case, the continuation will be the start of the
     // function body.

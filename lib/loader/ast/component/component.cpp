@@ -41,7 +41,15 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
 }
 
 Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
-                                   std::optional<uint64_t> Bound) {
+                                   std::optional<uint64_t> Bound,
+                                   uint32_t Depth) {
+  if (unlikely(Depth >= MaxComponentNestingDepth)) {
+    spdlog::error("component nesting depth exceeded limit of {}"sv,
+                  MaxComponentNestingDepth);
+    return logLoadError(ErrCode::Value::MalformedSection, FMgr.getLastOffset(),
+                        ASTNodeAttr::Component);
+  }
+
   auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return E;
@@ -94,8 +102,9 @@ Expect<void> Loader::loadComponent(AST::Component::Component &Comp,
                        .map_error(ReportError));
       break;
     case 0x04:
-      EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::ComponentSection>())
-                       .map_error(ReportError));
+      EXPECTED_TRY(
+          loadSection(Sec.emplace<AST::Component::ComponentSection>(), Depth)
+              .map_error(ReportError));
       break;
     case 0x05:
       EXPECTED_TRY(loadSection(Sec.emplace<AST::Component::InstanceSection>())

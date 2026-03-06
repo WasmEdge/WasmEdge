@@ -23,11 +23,12 @@
 #include "../spec/hostfunc.h"
 #include "../spec/spectest.h"
 
+#include <gtest/gtest.h>
+
 #include <array>
 #include <chrono>
 #include <cstdint>
 #include <functional>
-#include <gtest/gtest.h>
 #include <map>
 #include <memory>
 #include <string>

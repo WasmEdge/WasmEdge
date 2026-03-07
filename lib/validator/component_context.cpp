@@ -88,5 +88,16 @@ bool ComponentContext::Context::AddImportedName(
   ImportedNames.insert(UniForm);
   return true;
 }
+bool ComponentContext::Context::addExportName(
+    const ComponentName &Name) noexcept {
+  std::string ExportName(Name.getOriginalName());
+
+  if (ExportedNames.count(ExportName) > 0) {
+    return false; 
+  }
+
+  ExportedNames.insert(ExportName);
+  return true;
+}
 } // namespace Validator
 } // namespace WasmEdge

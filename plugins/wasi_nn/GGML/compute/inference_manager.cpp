@@ -41,7 +41,7 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
                      llama_batch &Batch, int &NPos,
                      bool IsLogits = false) noexcept {
   // End the inference if the context is full.
-  uint32_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
+  uint32_t NCtx = llama_n_ctx(GraphRef.LlamaContext);
   if (NPos + static_cast<uint32_t>(Tokens.size()) > NCtx) {
     LOG_INFO(
         GraphRef.EnableLog,
@@ -65,7 +65,7 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
               IsLogits && I + NEval >= static_cast<int>(Tokens.size()));
 
     // Decode the batch.
-    auto Status = llama_decode(GraphRef.LlamaContext.get(), Batch);
+    auto Status = llama_decode(GraphRef.LlamaContext, Batch);
     if (Status == 1) {
       RET_ERROR(
           ErrNo::RuntimeError,
@@ -113,7 +113,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
   }
 
   // Get the context size.
-  const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext.get());
+  const uint64_t NCtx = llama_n_ctx(GraphRef.LlamaContext);
   // Minus 4 for the special tokens. (Such as <BOS>, <EOS>, ... tokens.)
   const uint64_t MaxTokensListSize = NCtx - 4;
   // Return value.
@@ -142,7 +142,7 @@ ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
 // Clear the context and reset the sampler.
 void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext"sv)
-  llama_memory_clear(llama_get_memory(GraphRef.LlamaContext.get()), true);
+  llama_memory_clear(llama_get_memory(GraphRef.LlamaContext), true);
   common_sampler_reset(CxtRef.LlamaSampler);
   CxtRef.NPos = 0;
   CxtRef.LlamaOutputs.clear();
@@ -154,7 +154,7 @@ void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
 Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding"sv)
 
-  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
+  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel);
   // Add SEP if not present.
   if (CxtRef.LlamaInputs.size() > 0 &&
       CxtRef.LlamaInputs.back() != llama_vocab_sep(Vocab)) {
@@ -181,7 +181,7 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
   }
 
   // Main prediction loop.
-  const int32_t NEmbd = llama_model_n_embd(GraphRef.LlamaModel.get());
+  const int32_t NEmbd = llama_model_n_embd(GraphRef.LlamaModel);
   std::vector<float> Embeddings(NEmbd);
 
   for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
@@ -190,10 +190,10 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
     }
 
     // Try to get sequence embeddings.
-    auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext.get(),
+    auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext,
                                           CxtRef.LlamaBatch.seq_id[I][0]);
     if (Embd == nullptr) {
-      Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), I);
+      Embd = llama_get_embeddings_ith(GraphRef.LlamaContext, I);
       if (Embd == nullptr) {
         LOG_ERROR("getEmbedding: failed to get embeddings for token {}"sv, I);
         continue;
@@ -211,7 +211,7 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
       std::vector<uint8_t>(EmbeddingString.begin(), EmbeddingString.end());
 
   if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext.get(), /* Sampler */ nullptr);
+    common_perf_print(GraphRef.LlamaContext, /* Sampler */ nullptr);
   }
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding...Done"sv)
@@ -223,21 +223,19 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
                    bool IsSingleTokenMode) noexcept {
   // Use idx = -1 to sample the next token.
   const llama_token Id = common_sampler_sample(
-      CxtRef.LlamaSampler, GraphRef.LlamaContext.get(), /* idx */ -1);
+      CxtRef.LlamaSampler, GraphRef.LlamaContext, /* idx */ -1);
   common_sampler_accept(CxtRef.LlamaSampler, Id, /* accept_grammar */ true);
 
   // Save the output token.
   CxtRef.LlamaOutputTokens.emplace_back(Id);
-  std::string OutputString =
-      common_token_to_piece(GraphRef.LlamaContext.get(), Id);
+  std::string OutputString = common_token_to_piece(GraphRef.LlamaContext, Id);
   CxtRef.LlamaOutputs.insert(CxtRef.LlamaOutputs.end(), OutputString.begin(),
                              OutputString.end());
   // In single token mode, we do not handle StreamStdout and ReversePrompt.
   if (!IsSingleTokenMode) {
     // When setting StreamStdout, we print the output to stdout.
     if (CxtRef.Conf.StreamStdout) {
-      fmt::print("{}"sv,
-                 common_token_to_piece(GraphRef.LlamaContext.get(), Id));
+      fmt::print("{}"sv, common_token_to_piece(GraphRef.LlamaContext, Id));
       std::fflush(stdout);
     }
     // Break if reverse prompt is found.
@@ -249,7 +247,7 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
     }
   }
   // Deal with end of text token.
-  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
+  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel);
   // Only stop on EOS if GraphRef.Params.sampling.ignore_eos is false.
   if (!GraphRef.Params.sampling.ignore_eos &&
       llama_vocab_is_eog(Vocab, common_sampler_last(CxtRef.LlamaSampler))) {

@@ -67,7 +67,6 @@ jobs:
           key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-non-release.outputs.version }}-${{ hashFiles('.github/workflows/reusable-build-on-macos.yml') }}
           restore-keys: |
             homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-non-release.outputs.version }}-
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-
       - name: Install or link lld and cmake - non-release
         if: ${{ !inputs.release }}
         run: |
@@ -103,7 +102,6 @@ jobs:
           key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-release.outputs.version }}-${{ hashFiles('.github/workflows/reusable-build-on-macos.yml') }}
           restore-keys: |
             homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-release.outputs.version }}-
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-
       - name: Install or link lld and cmake - release
         if: ${{ inputs.release }}
         run: |

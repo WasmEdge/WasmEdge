@@ -75,7 +75,9 @@ namespace WasmEdge::LLVM {
 
 class Core {
 public:
-  static inline void init() noexcept { std::call_once(Once, initOnce); }
+  static inline void init(LLVMContextRef C) noexcept {
+    std::call_once(Once, initOnce, C);
+  }
 
   static inline const unsigned int NotIntrinsic = 0;
   static inline unsigned int Ceil = 0;
@@ -150,7 +152,7 @@ public:
 
 private:
   static inline std::once_flag Once;
-  static inline void initOnce() noexcept {
+  static inline void initOnce(LLVMContextRef C) noexcept {
     using namespace std::literals;
 #if LLVM_VERSION_MAJOR < 17
     LLVMInitializeCore(LLVMGetGlobalPassRegistry());
@@ -228,7 +230,7 @@ private:
     StrictFP = getEnumAttributeKind("strictfp"sv);
     UWTable = getEnumAttributeKind("uwtable"sv);
 
-    InvariantGroup = getMetadataKind("invariant.group"sv);
+    InvariantGroup = getMetadataKind(C, "invariant.group"sv);
   }
 
   template <typename... ArgsT>
@@ -246,8 +248,10 @@ private:
   static unsigned int getEnumAttributeKind(std::string_view Name) noexcept {
     return LLVMGetEnumAttributeKindForName(Name.data(), Name.size());
   }
-  static unsigned int getMetadataKind(std::string_view Name) noexcept {
-    return LLVMGetMDKindID(Name.data(), static_cast<unsigned int>(Name.size()));
+  static unsigned int getMetadataKind(LLVMContextRef C,
+                                      std::string_view Name) noexcept {
+    return LLVMGetMDKindIDInContext(C, Name.data(),
+                                    static_cast<unsigned int>(Name.size()));
   }
 };
 

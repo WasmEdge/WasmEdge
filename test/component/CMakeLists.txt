@@ -5,6 +5,7 @@ wasmedge_add_executable(componentTests
   spectest.cpp
   componet_nameparser.cpp
   componentvalidatortest.cpp
+  componentNestingTest.cpp
 )
 
 add_test(componentTests componentTests)

@@ -294,7 +294,8 @@ private:
 
   // Load component.
   Expect<void> loadComponent(AST::Component::Component &Comp,
-                             std::optional<uint64_t> Bound = std::nullopt);
+                             std::optional<uint64_t> Bound = std::nullopt,
+                             uint32_t Depth = 0);
   /// @}
 
   /// \name Load AST section node helper functions
@@ -419,7 +420,8 @@ private:
   Expect<void> loadSection(AST::Component::CoreModuleSection &Sec);
   Expect<void> loadSection(AST::Component::CoreInstanceSection &Sec);
   Expect<void> loadSection(AST::Component::CoreTypeSection &Sec);
-  Expect<void> loadSection(AST::Component::ComponentSection &Sec);
+  Expect<void> loadSection(AST::Component::ComponentSection &Sec,
+                           uint32_t Depth = 0);
   Expect<void> loadSection(AST::Component::InstanceSection &Sec);
   Expect<void> loadSection(AST::Component::AliasSection &Sec);
   Expect<void> loadSection(AST::Component::TypeSection &Sec);
@@ -514,6 +516,11 @@ private:
   const Executable::IntrinsicsTable *IntrinsicsTable;
   std::recursive_mutex Mutex;
   bool HasDataSection;
+  // Limit chosen to prevent native stack overflow during recursive parsing.
+  // Each nested loadComponent call adds ~2KB to the C++ call stack; 100 levels
+  // uses ~200KB which is well within default thread stack sizes (1-8MB) while
+  // still being far beyond any realistic component nesting in practice.
+  static constexpr uint32_t MaxComponentNestingDepth = 100;
 
   /// Input data type enumeration.
   enum class InputType : uint8_t { WASM, UniversalWASM, SharedLibrary };

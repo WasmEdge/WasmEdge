@@ -381,9 +381,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       }
     }
     // Push ctrl frame ([t1*], [t2*])
-    const AST::Instruction *From = Instr.getOpCode() == OpCode::Loop
-                                       ? &Instr
-                                       : &Instr + Instr.getJumpEnd();
+    const AST::Instruction *From = nullptr;
+    if (Instr.getOpCode() == OpCode::Loop) {
+      From = &Instr;
+    } else if (Instr.getOpCode() == OpCode::Try_table) {
+      From = &Instr + Instr.getTryCatch().JumpEnd;
+    } else {
+      From = &Instr + Instr.getJumpEnd();
+    }
     pushCtrl(T1, T2, From, Instr.getOpCode());
     if (Instr.getOpCode() == OpCode::If &&
         Instr.getJumpElse() == Instr.getJumpEnd()) {

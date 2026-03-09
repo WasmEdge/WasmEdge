@@ -339,6 +339,10 @@ Expect<void> Loader::loadInstruction(AST::Instruction &Instr) {
       auto &Desc = Instr.getTryCatch().Catch[I];
       // Read the catch flag.
       EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
+      if (unlikely(Flag > 0x03U)) {
+        return logLoadError(ErrCode::Value::MalformedCatchFlags,
+                            FMgr.getLastOffset(), ASTNodeAttr::Instruction);
+      }
       Desc.IsRef = (Flag & 0x01U) ? true : false;
       Desc.IsAll = (Flag & 0x02U) ? true : false;
       if (!Desc.IsAll) {

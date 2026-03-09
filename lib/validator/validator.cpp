@@ -67,6 +67,12 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
 
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {
+  const bool MeasureColdStart =
+      Stat && Conf.getStatisticsConfigure().isColdStartMeasuring();
+  if (MeasureColdStart) {
+    Stat->startRecordColdStartValidate();
+  }
+  auto Res = [this, &Mod]() -> Expect<void> {
   // https://webassembly.github.io/spec/core/valid/modules.html
   Checker.reset(true);
 
@@ -174,6 +180,11 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
   // Set the validated flag.
   const_cast<AST::Module &>(Mod).setIsValidated();
   return {};
+  }();
+  if (MeasureColdStart) {
+    Stat->stopRecordColdStartValidate();
+  }
+  return Res;
 }
 
 // Validate Sub type. See "include/validator/validator.h".

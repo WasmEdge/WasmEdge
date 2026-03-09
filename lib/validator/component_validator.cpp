@@ -15,12 +15,21 @@ using namespace std::literals;
 
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
+  const bool MeasureColdStart =
+      Stat && Conf.getStatisticsConfigure().isColdStartMeasuring();
+  if (MeasureColdStart) {
+    Stat->startRecordColdStartValidate();
+  }
   spdlog::warn("Component Model Validation is in active development."sv);
   CompCtx.reset();
-  return validateComponent(Comp).and_then([&]() {
+  auto Res = validateComponent(Comp).and_then([&]() {
     const_cast<AST::Component::Component &>(Comp).setIsValidated();
     return Expect<void>{};
   });
+  if (MeasureColdStart) {
+    Stat->stopRecordColdStartValidate();
+  }
+  return Res;
 }
 
 Expect<void>

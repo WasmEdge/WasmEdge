@@ -16,7 +16,12 @@ namespace Executor {
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
                             const AST::Module &Mod) {
-  return instantiate(StoreMgr, Mod).map_error([this](auto E) {
+  const bool MeasureColdStart =
+      Stat && Conf.getStatisticsConfigure().isColdStartMeasuring();
+  if (MeasureColdStart) {
+    Stat->startRecordColdStartInstantiate();
+  }
+  auto Res = instantiate(StoreMgr, Mod).map_error([this](auto E) {
     // If Statistics is enabled, then dump it here.
     // When there is an error happened, the following execution will not
     // execute.
@@ -25,6 +30,10 @@ Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
     }
     return E;
   });
+  if (MeasureColdStart) {
+    Stat->stopRecordColdStartInstantiate();
+  }
+  return Res;
 }
 
 /// Register a named WASM module. See "include/executor/executor.h".
@@ -58,7 +67,16 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
 Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,
                                const AST::Component::Component &Comp) {
-  return instantiate(StoreMgr, Comp);
+  const bool MeasureColdStart =
+      Stat && Conf.getStatisticsConfigure().isColdStartMeasuring();
+  if (MeasureColdStart) {
+    Stat->startRecordColdStartInstantiate();
+  }
+  auto Res = instantiate(StoreMgr, Comp);
+  if (MeasureColdStart) {
+    Stat->stopRecordColdStartInstantiate();
+  }
+  return Res;
 }
 
 /// Register a named Component. See "include/executor/executor.h".

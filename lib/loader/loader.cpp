@@ -68,74 +68,88 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
-
-  // Set path and check the header.
-  EXPECTED_TRY(FMgr.setPath(FilePath).map_error([&FilePath](auto E) {
-    spdlog::error(E);
-    spdlog::error(ErrInfo::InfoFile(FilePath));
-    return E;
-  }));
-
-  auto ReportError = [&FilePath](auto E) {
-    spdlog::error(ErrInfo::InfoFile(FilePath));
-    return E;
-  };
-
-  switch (FMgr.getHeaderType()) {
-  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
-  // shared-library-WASM.
-  case FileMgr::FileHeader::ELF:
-  case FileMgr::FileHeader::DLL:
-  case FileMgr::FileHeader::MachO_32:
-  case FileMgr::FileHeader::MachO_64: {
-    // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
-    WASMType = InputType::SharedLibrary;
-    FMgr.reset();
-    std::shared_ptr<SharedLibrary> Library = std::make_shared<SharedLibrary>();
-    EXPECTED_TRY(Library->load(FilePath).map_error(ReportError));
-    EXPECTED_TRY(auto Version, Library->getVersion().map_error(ReportError));
-    if (Version != AOT::kBinaryVersion) {
-      spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, Version));
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(ErrCode::Value::MalformedVersion);
-    }
-
-    EXPECTED_TRY(auto Code, Library->getWasm().map_error(ReportError));
-    // Set the binary and load module.
-    // Not to use parseModule() here to keep the `WASMType` value.
-    EXPECTED_TRY(FMgr.setCode(Code).map_error(ReportError));
-    EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
-    if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
-        likely(!!Ptr)) {
-      if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-        // If the configure is set to force interpreter mode, not to load the
-        // AOT related data.
-        EXPECTED_TRY(loadExecutable(**Ptr, Library).map_error(ReportError));
-      }
-    } else {
-      spdlog::error("Component Module is not supported in AOT."sv);
-      spdlog::error(ErrInfo::InfoFile(FilePath));
-      return Unexpect(ErrCode::Value::IllegalGrammar);
-    }
-    return Unit;
+  const bool MeasureColdStart =
+      Stat && Conf.getStatisticsConfigure().isColdStartMeasuring();
+  if (MeasureColdStart) {
+    Stat->startRecordColdStartLoad();
   }
-  default: {
-    // Universal WASM, WASM, or other cases. Load and parse the module directly.
-    WASMType = InputType::WASM;
-    EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
-    if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
-        likely(!!Ptr)) {
-      if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-        // If the configure is set to force interpreter mode, not to set the
-        // symbol.
-        if (auto &Symbol = (*Ptr)->getSymbol()) {
-          *Symbol = IntrinsicsTable;
+  auto Res = [this, &FilePath]()
+      -> Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                             std::unique_ptr<AST::Module>>> {
+    // Set path and check the header.
+    EXPECTED_TRY(FMgr.setPath(FilePath).map_error([&FilePath](auto E) {
+      spdlog::error(E);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return E;
+    }));
+
+    auto ReportError = [&FilePath](auto E) {
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return E;
+    };
+
+    switch (FMgr.getHeaderType()) {
+    // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
+    // shared-library-WASM.
+    case FileMgr::FileHeader::ELF:
+    case FileMgr::FileHeader::DLL:
+    case FileMgr::FileHeader::MachO_32:
+    case FileMgr::FileHeader::MachO_64: {
+      // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
+      WASMType = InputType::SharedLibrary;
+      FMgr.reset();
+      std::shared_ptr<SharedLibrary> Library =
+          std::make_shared<SharedLibrary>();
+      EXPECTED_TRY(Library->load(FilePath).map_error(ReportError));
+      EXPECTED_TRY(auto Version, Library->getVersion().map_error(ReportError));
+      if (Version != AOT::kBinaryVersion) {
+        spdlog::error(ErrInfo::InfoMismatch(AOT::kBinaryVersion, Version));
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(ErrCode::Value::MalformedVersion);
+      }
+
+      EXPECTED_TRY(auto Code, Library->getWasm().map_error(ReportError));
+      // Set the binary and load module.
+      // Not to use parseModule() here to keep the `WASMType` value.
+      EXPECTED_TRY(FMgr.setCode(Code).map_error(ReportError));
+      EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
+      if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
+          likely(!!Ptr)) {
+        if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+          // If the configure is set to force interpreter mode, not to load the
+          // AOT related data.
+          EXPECTED_TRY(loadExecutable(**Ptr, Library).map_error(ReportError));
+        }
+      } else {
+        spdlog::error("Component Module is not supported in AOT."sv);
+        spdlog::error(ErrInfo::InfoFile(FilePath));
+        return Unexpect(ErrCode::Value::IllegalGrammar);
+      }
+      return Unit;
+    }
+    default: {
+      // Universal WASM, WASM, or other cases. Load and parse the module
+      // directly.
+      WASMType = InputType::WASM;
+      EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
+      if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
+          likely(!!Ptr)) {
+        if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+          // If the configure is set to force interpreter mode, not to set the
+          // symbol.
+          if (auto &Symbol = (*Ptr)->getSymbol()) {
+            *Symbol = IntrinsicsTable;
+          }
         }
       }
+      return Unit;
     }
-    return Unit;
+    }
+  }();
+  if (MeasureColdStart) {
+    Stat->stopRecordColdStartLoad();
   }
-  }
+  return Res;
 }
 
 // Parse module or component from byte code. See "include/loader/loader.h".
@@ -143,27 +157,40 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
-  EXPECTED_TRY(FMgr.setCode(Code));
-  switch (FMgr.getHeaderType()) {
-  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
-  // shared-library-WASM.
-  case FileMgr::FileHeader::ELF:
-  case FileMgr::FileHeader::DLL:
-  case FileMgr::FileHeader::MachO_32:
-  case FileMgr::FileHeader::MachO_64:
-    spdlog::error("Might an invalid wasm file"sv);
-    spdlog::error(ErrCode::Value::MalformedMagic);
-    spdlog::error(
-        "    The AOT compiled WASM shared library is not supported for loading "
-        "from memory. Please use the universal WASM binary or pure WASM, or "
-        "load the AOT compiled WASM shared library from file."sv);
-    return Unexpect(ErrCode::Value::MalformedMagic);
-  default:
-    break;
+  const bool MeasureColdStart =
+      Stat && Conf.getStatisticsConfigure().isColdStartMeasuring();
+  if (MeasureColdStart) {
+    Stat->startRecordColdStartLoad();
   }
-  // For malformed header checking, handle in the module loading.
-  WASMType = InputType::WASM;
-  return loadUnit();
+  auto Res = [this, &Code]()
+      -> Expect<std::variant<std::unique_ptr<AST::Component::Component>,
+                             std::unique_ptr<AST::Module>>> {
+    EXPECTED_TRY(FMgr.setCode(Code));
+    switch (FMgr.getHeaderType()) {
+    // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
+    // shared-library-WASM.
+    case FileMgr::FileHeader::ELF:
+    case FileMgr::FileHeader::DLL:
+    case FileMgr::FileHeader::MachO_32:
+    case FileMgr::FileHeader::MachO_64:
+      spdlog::error("Might an invalid wasm file"sv);
+      spdlog::error(ErrCode::Value::MalformedMagic);
+      spdlog::error(
+          "    The AOT compiled WASM shared library is not supported for "
+          "loading from memory. Please use the universal WASM binary or pure "
+          "WASM, or load the AOT compiled WASM shared library from file."sv);
+      return Unexpect(ErrCode::Value::MalformedMagic);
+    default:
+      break;
+    }
+    // For malformed header checking, handle in the module loading.
+    WASMType = InputType::WASM;
+    return loadUnit();
+  }();
+  if (MeasureColdStart) {
+    Stat->stopRecordColdStartLoad();
+  }
+  return Res;
 }
 
 // Parse module from file path. See "include/loader/loader.h".

@@ -16,6 +16,7 @@
 
 #include "ast/module.h"
 #include "common/configure.h"
+#include "common/statistics.h"
 #include "validator/component_context.h"
 #include "validator/formchecker.h"
 
@@ -27,7 +28,9 @@ namespace Validator {
 /// Validator flow control class.
 class Validator {
 public:
-  Validator(const Configure &Conf) noexcept : Conf(Conf) {}
+  Validator(const Configure &Conf,
+            Statistics::Statistics *S = nullptr) noexcept
+      : Conf(Conf), Stat(S) {}
   ~Validator() noexcept = default;
 
   /// Validate AST::Module.
@@ -128,6 +131,8 @@ private:
   static inline const uint32_t LIMIT_MEMORYTYPE = 1U << 16;
   /// Proposal configure
   const Configure Conf;
+  /// Statistics
+  Statistics::Statistics *Stat = nullptr;
   /// Formal checker
   FormChecker Checker;
   /// Context for Component validation

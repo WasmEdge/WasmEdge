@@ -18,6 +18,7 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errinfo.h"
+#include "common/statistics.h"
 #include "loader/filemgr.h"
 #include "loader/serialize.h"
 #include "loader/shared_library.h"
@@ -217,8 +218,9 @@ inline ASTNodeAttr NodeAttrFromAST<AST::Component::FutureTy>() noexcept {
 class Loader {
 public:
   Loader(const Configure &Conf,
-         const Executable::IntrinsicsTable *IT = nullptr) noexcept
-      : Conf(Conf), Ser(Conf), IntrinsicsTable(IT) {}
+         const Executable::IntrinsicsTable *IT = nullptr,
+         Statistics::Statistics *S = nullptr) noexcept
+      : Conf(Conf), Ser(Conf), IntrinsicsTable(IT), Stat(S) {}
   ~Loader() noexcept = default;
 
   /// Load data from file path.
@@ -511,6 +513,7 @@ private:
   const Serializer Ser;
   FileMgr FMgr;
   const Executable::IntrinsicsTable *IntrinsicsTable;
+  Statistics::Statistics *Stat = nullptr;
   std::recursive_mutex Mutex;
   bool HasDataSection;
 

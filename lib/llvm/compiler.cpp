@@ -5869,10 +5869,9 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   std::unique_lock Lock(Mutex);
   spdlog::info("compile start"sv);
 
-  LLVM::Core::init();
-
   LLVM::Data D;
   auto LLContext = D.extract().getLLContext();
+  LLVM::Core::init(LLContext.unwrap());
   auto &LLModule = D.extract().LLModule;
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);

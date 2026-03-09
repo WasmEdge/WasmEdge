@@ -30,7 +30,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
   }
 
   // Reset and push a dummy frame into stack.
-  StackMgr.pushFrame(nullptr, AST::InstrView::iterator(), 0, 0);
+  EXPECTED_TRY(StackMgr.pushFrame(nullptr, AST::InstrView::iterator(), 0, 0));
 
   // Push arguments.
   const auto &PTypes = Func.getFuncType().getParamTypes();

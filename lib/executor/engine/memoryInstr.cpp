@@ -3,6 +3,8 @@
 
 #include "executor/executor.h"
 
+#include <cstring>
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -72,17 +74,39 @@ Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
   uint64_t Dst = extractAddr(StackMgr.pop(), AddrType1);
 
   // Replace mem[Dst : Dst + Len] with mem[Src : Src + Len].
-  EXPECTED_TRY(auto Data,
-               MemInstSrc.getBytes(Src, Len).map_error([&Instr](auto E) {
-                 spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
-                                                        Instr.getOffset()));
-                 return E;
-               }));
-  return MemInstDst.setBytes(Data, Dst, 0, Len).map_error([&Instr](auto E) {
-    spdlog::error(
-        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-    return E;
-  });
+  // When source and destination are the same memory instance, overlapping
+  // regions require memmove semantics per the Wasm spec.
+  if (&MemInstSrc == &MemInstDst) {
+    // Same memory: validate bounds, then use memmove for overlap safety.
+    EXPECTED_TRY(MemInstSrc.getBytes(Src, Len).map_error([&Instr](auto E) {
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return E;
+    }));
+    EXPECTED_TRY(MemInstDst.getBytes(Dst, Len).map_error([&Instr](auto E) {
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return E;
+    }));
+    if (likely(Len > 0)) {
+      std::memmove(MemInstDst.getDataPtr() + Dst, MemInstSrc.getDataPtr() + Src,
+                   Len);
+    }
+    return {};
+  } else {
+    // Different memories: no overlap possible, use the existing path.
+    EXPECTED_TRY(auto Data,
+                 MemInstSrc.getBytes(Src, Len).map_error([&Instr](auto E) {
+                   spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(),
+                                                          Instr.getOffset()));
+                   return E;
+                 }));
+    return MemInstDst.setBytes(Data, Dst, 0, Len).map_error([&Instr](auto E) {
+      spdlog::error(
+          ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+      return E;
+    });
+  }
 }
 
 Expect<void>

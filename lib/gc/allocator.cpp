@@ -183,30 +183,40 @@ bool Allocator::manualCollect(Span<uint8_t *const> Stack) noexcept {
   }
   NextGC.store(std::chrono::steady_clock::now() + std::chrono::seconds(1),
                std::memory_order_release);
+  // Conservative root scanning: intentionally reads data that may be
+  // concurrently modified by execution threads. Suppress TSan for these reads.
+  TSAN_IGNORE_READS_BEGIN();
   for (const auto &Val : Stack) {
     markGray(getPointer(Val));
   }
+  TSAN_IGNORE_READS_END();
   {
     std::unique_lock<std::mutex> Locker(StackMutex);
+    TSAN_IGNORE_READS_BEGIN();
     for (auto V : Stacks) {
       for (const auto &Val : *V) {
         markGray(getPointer(Val));
       }
     }
+    TSAN_IGNORE_READS_END();
   }
   {
     std::unique_lock<std::mutex> Locker(HeapMutex);
+    TSAN_IGNORE_READS_BEGIN();
     for (auto T : Heaps) {
       for (const auto &Ref : T->Refs) {
         markGray(getPointer(Ref));
       }
     }
+    TSAN_IGNORE_READS_END();
   }
   {
     std::unique_lock<std::mutex> Locker(GlobalMutex);
+    TSAN_IGNORE_READS_BEGIN();
     for (auto G : Globals) {
       markGray(getPointer(G->Value));
     }
+    TSAN_IGNORE_READS_END();
   }
   CurrentGCState.store(GCState::MarkingGray, std::memory_order_release);
   std::unique_lock<std::mutex> Locker(GCMutex);
@@ -230,31 +240,39 @@ void Allocator::autoCollect(Span<uint8_t *const> Stack) noexcept {
   }
   NextGC.store(std::chrono::steady_clock::now() + std::chrono::seconds(1),
                std::memory_order_release);
-  // mark root gray
+  // Conservative root scanning (see manualCollect for rationale).
+  TSAN_IGNORE_READS_BEGIN();
   for (const auto &Val : Stack) {
     markGray(getPointer(Val));
   }
+  TSAN_IGNORE_READS_END();
   {
     std::unique_lock<std::mutex> Locker(StackMutex);
+    TSAN_IGNORE_READS_BEGIN();
     for (auto V : Stacks) {
       for (const auto &Val : *V) {
         markGray(getPointer(Val));
       }
     }
+    TSAN_IGNORE_READS_END();
   }
   {
     std::unique_lock<std::mutex> Locker(HeapMutex);
+    TSAN_IGNORE_READS_BEGIN();
     for (auto T : Heaps) {
       for (const auto &Ref : T->Refs) {
         markGray(getPointer(Ref));
       }
     }
+    TSAN_IGNORE_READS_END();
   }
   {
     std::unique_lock<std::mutex> Locker(GlobalMutex);
+    TSAN_IGNORE_READS_BEGIN();
     for (auto G : Globals) {
       markGray(getPointer(G->Value));
     }
+    TSAN_IGNORE_READS_END();
   }
   CurrentGCState.store(GCState::MarkingGray, std::memory_order_release);
   GCCV.notify_all();

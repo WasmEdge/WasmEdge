@@ -1167,4 +1167,129 @@ TEST(InstructionTest, LoadSIMDInstruction) {
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
+
+TEST(InstructionTest, LoadTryTable) {
+  std::vector<uint8_t> Vec;
+
+  // 14. Test try_table instructions.
+  //
+  //   1.  Load try_table with all valid catch flags (0x00-0x03).
+  //   2.  Load try_table with invalid catch flag 0x04.
+  //   3.  Load try_table with invalid catch flag 0xFF.
+
+  Vec = {
+      0x00U, 0x61U, 0x73U, 0x6DU, // Magic
+      0x01U, 0x00U, 0x00U, 0x00U, // Version
+
+      // --- Type section ---
+      0x01U,               // Section ID: Type
+      0x04U,               // Content size = 4
+      0x01U,               // Vector length = 1
+      0x60U, 0x00U, 0x00U, // FuncType: () -> ()
+
+      // --- Function section ---
+      0x03U, // Section ID: Function
+      0x02U, // Content size = 2
+      0x01U, // Vector length = 1
+      0x00U, // Type index = 0
+
+      // --- Tag section ---
+      0x0DU,        // Section ID: Tag
+      0x03U,        // Content size = 3
+      0x01U,        // Vector length = 1
+      0x00U, 0x00U, // Exception kind = 0, type index = 0
+
+      // --- Code section ---
+      0x0AU,               // Section ID: Code
+      0x12U,               // Content size = 18
+      0x01U,               // Vector length = 1
+      0x10U,               // Code segment size = 16
+      0x00U,               // Local vec(0)
+      0x1FU,               // OpCode Try_table
+      0x40U,               // Block type: void
+      0x04U,               // 4 catch clauses
+      0x00U, 0x00U, 0x00U, // catch (flag=0x00): tag_idx=0, label_idx=0
+      0x01U, 0x00U, 0x00U, // catch_ref (flag=0x01): tag_idx=0, label_idx=0
+      0x02U, 0x00U,        // catch_all (flag=0x02): label_idx=0
+      0x03U, 0x00U,        // catch_all_ref (flag=0x03): label_idx=0
+      0x0BU,               // OpCode End (try_table block)
+      0x0BU                // Expression End
+  };
+  EXPECT_TRUE(Ldr.parseModule(Vec));
+
+  Vec = {
+      0x00U, 0x61U, 0x73U, 0x6DU, // Magic
+      0x01U, 0x00U, 0x00U, 0x00U, // Version
+
+      // --- Type section ---
+      0x01U,               // Section ID: Type
+      0x04U,               // Content size = 4
+      0x01U,               // Vector length = 1
+      0x60U, 0x00U, 0x00U, // FuncType: () -> ()
+
+      // --- Function section ---
+      0x03U, // Section ID: Function
+      0x02U, // Content size = 2
+      0x01U, // Vector length = 1
+      0x00U, // Type index = 0
+
+      // --- Tag section ---
+      0x0DU,        // Section ID: Tag
+      0x03U,        // Content size = 3
+      0x01U,        // Vector length = 1
+      0x00U, 0x00U, // Exception kind = 0, type index = 0
+
+      // --- Code section ---
+      0x0AU,               // Section ID: Code
+      0x0BU,               // Content size = 11
+      0x01U,               // Vector length = 1
+      0x09U,               // Code segment size = 9
+      0x00U,               // Local vec(0)
+      0x1FU,               // OpCode Try_table
+      0x40U,               // Block type: void
+      0x01U,               // 1 catch clause
+      0x04U, 0x00U, 0x00U, // INVALID flag=0x04, tag_idx=0, label_idx=0
+      0x0BU,               // OpCode End (try_table block)
+      0x0BU                // Expression End
+  };
+  EXPECT_FALSE(Ldr.parseModule(Vec));
+
+  Vec = {
+      0x00U, 0x61U, 0x73U, 0x6DU, // Magic
+      0x01U, 0x00U, 0x00U, 0x00U, // Version
+
+      // --- Type section ---
+      0x01U,               // Section ID: Type
+      0x04U,               // Content size = 4
+      0x01U,               // Vector length = 1
+      0x60U, 0x00U, 0x00U, // FuncType: () -> ()
+
+      // --- Function section ---
+      0x03U, // Section ID: Function
+      0x02U, // Content size = 2
+      0x01U, // Vector length = 1
+      0x00U, // Type index = 0
+
+      // --- Tag section ---
+      0x0DU,        // Section ID: Tag
+      0x03U,        // Content size = 3
+      0x01U,        // Vector length = 1
+      0x00U, 0x00U, // Exception kind = 0, type index = 0
+
+      // --- Code section ---
+      0x0AU,               // Section ID: Code
+      0x0BU,               // Content size = 11
+      0x01U,               // Vector length = 1
+      0x09U,               // Code segment size = 9
+      0x00U,               // Local vec(0)
+      0x1FU,               // OpCode Try_table
+      0x40U,               // Block type: void
+      0x01U,               // 1 catch clause
+      0xFFU, 0x00U, 0x00U, // INVALID flag=0xFF, tag_idx=0, label_idx=0
+      0x0BU,               // OpCode End (try_table block)
+      0x0BU                // Expression End
+  };
+  EXPECT_FALSE(Ldr.parseModule(Vec));
+}
+
 } // namespace

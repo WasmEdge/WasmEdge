@@ -14,16 +14,17 @@
 ///
 //===----------------------------------------------------------------------===//
 
+#include "helper.h"
+#include "hostfunc_c.h"
 #include "wasmedge/wasmedge.h"
 
 #include "../spec/spectest.h"
-#include "helper.h"
-#include "hostfunc_c.h"
+
+#include <gtest/gtest.h>
 
 #include <array>
 #include <cstdint>
 #include <functional>
-#include <gtest/gtest.h>
 #include <string>
 #include <string_view>
 #include <utility>

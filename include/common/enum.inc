@@ -932,6 +932,8 @@ E(MalformedTable, 0x011B, "malformed table")
 E(MalformedMemoryOpFlags, 0x011C, "malformed memop flags")
 // Malformed limit flag (Mem64 proposal).
 E(MalformedLimitFlags, 0x011D, "malformed limits flags")
+// Malformed catch flag (Exception-handling proposal).
+E(MalformedCatchFlags, 0x011E, "malformed catch flags")
 // @}
 
 // Component model load phase

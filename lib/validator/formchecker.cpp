@@ -458,9 +458,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
       }
     }
     // Push ctrl frame ([t1*], [t2*])
-    const AST::Instruction *From = Instr.getOpCode() == OpCode::Loop
-                                       ? &Instr
-                                       : &Instr + Instr.getJumpEnd();
+    const AST::Instruction *From = nullptr;
+    if (Instr.getOpCode() == OpCode::Loop) {
+      From = &Instr;
+    } else if (Instr.getOpCode() == OpCode::Try_table) {
+      From = &Instr + Instr.getTryCatch().JumpEnd;
+    } else {
+      From = &Instr + Instr.getJumpEnd();
+    }
     pushCtrl(T1, T2, From, Instr.getOpCode());
     if (Instr.getOpCode() == OpCode::If &&
         Instr.getJumpElse() == Instr.getJumpEnd()) {
@@ -947,14 +952,17 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Ref__cast_null: {
     EXPECTED_TRY(validate(Instr.getValType()));
     EXPECTED_TRY(auto Type, popType());
-    if (!Type.has_value() || !Type->isRefType()) {
-      // For getting bottom valtype here, matching must fail.
+    if (Type.has_value() && !Type->isRefType()) {
+      // The trap occurs when the got type is not a reference type.
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(
           ErrInfo::InfoMismatch(Instr.getValType(), VTypeToAST(Type)));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
-    if (!AST::TypeMatcher::matchType(Types, toTopHeapType(*Type),
+    // When Type is nullopt (unreachable/bottom type), the bottom type matches
+    // any target type, so skip the type matching check.
+    if (Type.has_value() &&
+        !AST::TypeMatcher::matchType(Types, toTopHeapType(*Type),
                                      Instr.getValType())) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(*Type, Instr.getValType()));

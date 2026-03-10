@@ -150,7 +150,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::U32: {
       const uint32_t Value =
           static_cast<uint32_t>(std::stol(Opt.Args.value()[I + 1]));
-      FuncArgs.emplace_back(Value);
+      FuncArgs.emplace_back(ValVariant(Value));
       FuncArgTypes.emplace_back(TCode);
       break;
     }
@@ -158,19 +158,19 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::U64: {
       const uint64_t Value =
           static_cast<uint64_t>(std::stoll(Opt.Args.value()[I + 1]));
-      FuncArgs.emplace_back(Value);
+      FuncArgs.emplace_back(ValVariant(Value));
       FuncArgTypes.emplace_back(TCode);
       break;
     }
     case ComponentTypeCode::F32: {
       const float Value = std::stof(Opt.Args.value()[I + 1]);
-      FuncArgs.emplace_back(Value);
+      FuncArgs.emplace_back(ValVariant(Value));
       FuncArgTypes.emplace_back(TCode);
       break;
     }
     case ComponentTypeCode::F64: {
       const double Value = std::stod(Opt.Args.value()[I + 1]);
-      FuncArgs.emplace_back(Value);
+      FuncArgs.emplace_back(ValVariant(Value));
       FuncArgTypes.emplace_back(TCode);
       break;
     }

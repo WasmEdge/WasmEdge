@@ -200,7 +200,8 @@ WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 /// \param ReturnList the value types list of returns. NULL if the length is 0.
 /// \param ReturnLen the ReturnList buffer length.
 ///
-/// \returns pointer to context, NULL if failed.
+/// \returns pointer to context, NULL if failed or if a type list is NULL with
+/// a non-zero length.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
 WasmEdge_FunctionTypeCreate(const WasmEdge_ValType *ParamList,
                             const uint32_t ParamLen,

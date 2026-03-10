@@ -590,9 +590,14 @@ TEST(APICoreTest, String) {
   EXPECT_EQ(Str8.Buf, nullptr);
   char Buf[256];
   EXPECT_EQ(WasmEdge_StringCopy(Str3, nullptr, 0), 0U);
+  EXPECT_EQ(WasmEdge_StringCopy(Str3, nullptr, 10), 0U);
   EXPECT_EQ(WasmEdge_StringCopy(Str3, Buf, 5), 5U);
   EXPECT_EQ(std::strncmp(Str3.Buf, Buf, 5), 0);
   EXPECT_EQ(WasmEdge_StringCopy(Str3, Buf, 256), 11U);
+  WasmEdge_String NullStr = WasmEdge_StringWrap(nullptr, 5);
+  std::memset(Buf, 'x', 256);
+  EXPECT_EQ(WasmEdge_StringCopy(NullStr, Buf, 256), 0U);
+  EXPECT_EQ(Buf[0], '\0');
   WasmEdge_StringDelete(Str1);
   WasmEdge_StringDelete(Str2);
   WasmEdge_StringDelete(Str3);
@@ -774,6 +779,10 @@ TEST(APICoreTest, FunctionType) {
   EXPECT_EQ(WasmEdge_FunctionTypeGetParameters(FType, Buf1, 6), 0U);
   EXPECT_EQ(WasmEdge_FunctionTypeGetReturns(FType, Buf1, 6), 0U);
   WasmEdge_FunctionTypeDelete(FType);
+
+  EXPECT_EQ(WasmEdge_FunctionTypeCreate(nullptr, 3, nullptr, 0), nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeCreate(nullptr, 0, nullptr, 3), nullptr);
+  EXPECT_EQ(WasmEdge_FunctionTypeCreate(nullptr, 3, nullptr, 3), nullptr);
 }
 
 TEST(APICoreTest, TableType) {

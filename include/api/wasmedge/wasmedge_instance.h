@@ -171,8 +171,11 @@ WasmEdge_ModuleInstanceWASIGetNativeHandler(
 /// This function will initialize the wasmedge_process host module with the
 /// parameters.
 ///
-/// \param AllowedCmds the allowed commands white list. NULL if the
-/// length is 0.
+/// If \p AllowedCmds is NULL and \p CmdsLen is greater than 0, the commands
+/// are ignored.
+///
+/// \param AllowedCmds the allowed commands white list. NULL if the length is
+/// 0.
 /// \param CmdsLen the length of the allowed commands white list.
 /// \param AllowAll the boolean value to allow all commands. `false` is
 /// suggested. If this value is `true`, the allowed commands white list will not

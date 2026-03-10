@@ -97,6 +97,8 @@ WasmEdge_PluginLoadWithDefaultPaths(void) WASMEDGE_CAPI_NOEXCEPT;
 /// For the given directory path, this function will load the plug-ins under the
 /// directory recursively.
 ///
+/// If \p Path is NULL, this function does nothing.
+///
 /// \param Path the path to plug-in file or directory.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_PluginLoadFromPath(const char *Path) WASMEDGE_CAPI_NOEXCEPT;
@@ -197,6 +199,9 @@ WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
 /// This function will initialize the wasi_nn plug-in with the preloads string
 /// list. Only available after loading the wasi_nn plug-in and before creating
 /// the module instance from the plug-in.
+///
+/// If \p NNPreloads is NULL and \p PreloadsLen is greater than 0, the preloads
+/// are ignored.
 ///
 /// \param NNPreloads the preload string list. NULL if the length is 0.
 /// \param PreloadsLen the length of the preload list.

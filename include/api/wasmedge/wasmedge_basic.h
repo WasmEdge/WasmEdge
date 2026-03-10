@@ -221,7 +221,8 @@ WasmEdge_StringIsEqual(const WasmEdge_String Str1,
 /// \param Buf the buffer to fill the string content.
 /// \param Len the buffer length.
 ///
-/// \returns the copied length of string.
+/// \returns the copied length of string. 0 if \p Buf is NULL or \p Str
+/// contains a NULL buffer.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_StringCopy(const WasmEdge_String Str, char *Buf,
                     const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;

@@ -794,18 +794,28 @@ WasmEdge_StringIsEqual(const WasmEdge_String Str1,
   if (Str1.Length != Str2.Length) {
     return false;
   }
+  if (Str1.Length == 0) {
+    return true;
+  }
+  if (!Str1.Buf || !Str2.Buf) {
+    return false;
+  }
   return std::equal(Str1.Buf, Str1.Buf + Str1.Length, Str2.Buf);
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StringCopy(const WasmEdge_String Str,
                                                   char *Buf,
                                                   const uint32_t Len) noexcept {
-  uint32_t RealLength = std::min(Len, Str.Length);
-  if (Buf) {
-    std::memset(Buf, 0, Len);
-    if (RealLength > 0) {
-      std::copy_n(Str.Buf, RealLength, Buf);
+  if (!Buf || !Str.Buf) {
+    if (Buf && Len > 0) {
+      std::memset(Buf, 0, Len);
     }
+    return 0;
+  }
+  uint32_t RealLength = std::min(Len, Str.Length);
+  std::memset(Buf, 0, Len);
+  if (RealLength > 0) {
+    std::copy_n(Str.Buf, RealLength, Buf);
   }
   return RealLength;
 }
@@ -1371,18 +1381,23 @@ WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *WasmEdge_FunctionTypeCreate(
     const WasmEdge_ValType *ParamList, const uint32_t ParamLen,
     const WasmEdge_ValType *ReturnList, const uint32_t ReturnLen) noexcept {
   try {
+    if ((!ParamList && ParamLen > 0) || (!ReturnList && ReturnLen > 0)) {
+      spdlog::error("WasmEdge_FunctionTypeCreate: null type list "
+                    "with non-zero length"sv);
+      return nullptr;
+    }
     auto *Cxt = new WasmEdge::AST::FunctionType;
     if (ParamLen > 0) {
       Cxt->getParamTypes().resize(ParamLen);
-    }
-    for (uint32_t I = 0; I < ParamLen; I++) {
-      Cxt->getParamTypes()[I] = genValType(ParamList[I]);
+      for (uint32_t I = 0; I < ParamLen; I++) {
+        Cxt->getParamTypes()[I] = genValType(ParamList[I]);
+      }
     }
     if (ReturnLen > 0) {
       Cxt->getReturnTypes().resize(ReturnLen);
-    }
-    for (uint32_t I = 0; I < ReturnLen; I++) {
-      Cxt->getReturnTypes()[I] = genValType(ReturnList[I]);
+      for (uint32_t I = 0; I < ReturnLen; I++) {
+        Cxt->getReturnTypes()[I] = genValType(ReturnList[I]);
+      }
     }
     return toFuncTypeCxt(Cxt);
   } catch (...) {
@@ -1403,9 +1418,11 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_FunctionTypeGetParameters(
     const WasmEdge_FunctionTypeContext *Cxt, WasmEdge_ValType *List,
     const uint32_t Len) noexcept {
   if (Cxt) {
-    for (uint32_t I = 0;
-         I < fromFuncTypeCxt(Cxt)->getParamTypes().size() && I < Len; I++) {
-      List[I] = genWasmEdge_ValType(fromFuncTypeCxt(Cxt)->getParamTypes()[I]);
+    if (List) {
+      for (uint32_t I = 0;
+           I < fromFuncTypeCxt(Cxt)->getParamTypes().size() && I < Len; I++) {
+        List[I] = genWasmEdge_ValType(fromFuncTypeCxt(Cxt)->getParamTypes()[I]);
+      }
     }
     return static_cast<uint32_t>(fromFuncTypeCxt(Cxt)->getParamTypes().size());
   }
@@ -1424,9 +1441,12 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_FunctionTypeGetReturns(
     const WasmEdge_FunctionTypeContext *Cxt, WasmEdge_ValType *List,
     const uint32_t Len) noexcept {
   if (Cxt) {
-    for (uint32_t I = 0;
-         I < fromFuncTypeCxt(Cxt)->getReturnTypes().size() && I < Len; I++) {
-      List[I] = genWasmEdge_ValType(fromFuncTypeCxt(Cxt)->getReturnTypes()[I]);
+    if (List) {
+      for (uint32_t I = 0;
+           I < fromFuncTypeCxt(Cxt)->getReturnTypes().size() && I < Len; I++) {
+        List[I] =
+            genWasmEdge_ValType(fromFuncTypeCxt(Cxt)->getReturnTypes()[I]);
+      }
     }
     return static_cast<uint32_t>(fromFuncTypeCxt(Cxt)->getReturnTypes().size());
   }
@@ -1920,7 +1940,7 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt [[maybe_unused]],
               return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
             });
       },
-      EmptyThen, Cxt);
+      EmptyThen, Cxt, InPath, OutPath);
 #else
   return genWasmEdge_Result(ErrCode::Value::AOTDisabled);
 #endif
@@ -1954,7 +1974,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
               return Cxt->CodeGen.codegen(Data, std::move(Result), OutputPath);
             });
       },
-      EmptyThen, Cxt);
+      EmptyThen, Cxt, OutPath);
 #else
   return genWasmEdge_Result(ErrCode::Value::AOTDisabled);
 #endif
@@ -1992,8 +2012,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromFile(
       [&]() {
         return fromLoaderCxt(Cxt)->parseModule(std::filesystem::absolute(Path));
       },
-      [&](auto &&Res) { *Module = toASTModCxt((*Res).release()); }, Cxt,
-      Module);
+      [&](auto &&Res) { *Module = toASTModCxt((*Res).release()); }, Cxt, Module,
+      Path);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBuffer(
@@ -2378,7 +2398,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceWASIGetNativeHandler(
     const WasmEdge_ModuleInstanceContext *Cxt, int32_t Fd,
     uint64_t *NativeHandler) noexcept {
-  if (!Cxt) {
+  if (!Cxt || !NativeHandler) {
     return 1;
   }
   auto *WasiMod =
@@ -2416,9 +2436,14 @@ WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
           WasmEdge::Plugin::Plugin::find("wasmedge_process"sv)) {
     PO::ArgumentParser Parser;
     Plugin->registerOptions(Parser);
-    Parser.set_raw_value<std::vector<std::string>>(
-        "allow-command"sv,
-        std::vector<std::string>(AllowedCmds, AllowedCmds + CmdsLen));
+    if (AllowedCmds) {
+      Parser.set_raw_value<std::vector<std::string>>(
+          "allow-command"sv,
+          std::vector<std::string>(AllowedCmds, AllowedCmds + CmdsLen));
+    } else if (CmdsLen > 0) {
+      spdlog::error("WasmEdge_ModuleInstanceInitWasmEdgeProcess: "
+                    "null AllowedCmds with non-zero CmdsLen"sv);
+    }
     if (AllowAll) {
       Parser.set_raw_value("allow-command-all"sv);
     }
@@ -3169,7 +3194,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromFile(
         return Cxt->VM.registerModule(genStrView(ModuleName),
                                       std::filesystem::absolute(Path));
       },
-      EmptyThen, Cxt);
+      EmptyThen, Cxt, Path);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromBuffer(
@@ -3220,8 +3245,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromFile(
                                      genStrView(FuncName), ParamPair.first,
                                      ParamPair.second);
         },
-        [&](auto Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
-        Cxt);
+        [&](auto Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt,
+        Path);
   } catch (...) {
     return handleCAPIError();
   }
@@ -3282,7 +3307,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
     const WasmEdge_Value *Params, const uint32_t ParamLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
-    if (Cxt) {
+    if (Cxt && Path) {
       return new WasmEdge_Async(Cxt->VM.asyncRunWasmFile(
           std::filesystem::absolute(Path), genStrView(FuncName),
           ParamPair.first, ParamPair.second));
@@ -3339,7 +3364,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMLoadWasmFromFile(
     WasmEdge_VMContext *Cxt, const char *Path) noexcept {
   return wrap(
       [&]() { return Cxt->VM.loadWasm(std::filesystem::absolute(Path)); },
-      EmptyThen, Cxt);
+      EmptyThen, Cxt, Path);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
@@ -3770,7 +3795,11 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) noexcept {
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_PluginLoadFromPath(const char *Path) noexcept {
-  WasmEdge::Plugin::Plugin::load(Path);
+  if (Path) {
+    WasmEdge::Plugin::Plugin::load(Path);
+  } else {
+    spdlog::error("WasmEdge_PluginLoadFromPath: null Path"sv);
+  }
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPluginsLength(void) noexcept {
@@ -3856,9 +3885,14 @@ WasmEdge_PluginInitWASINN(const char *const *NNPreloads,
     if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
       PO::ArgumentParser Parser;
       Plugin->registerOptions(Parser);
-      Parser.set_raw_value<std::vector<std::string>>(
-          "nn-preload"sv,
-          std::vector<std::string>(NNPreloads, NNPreloads + PreloadsLen));
+      if (NNPreloads) {
+        Parser.set_raw_value<std::vector<std::string>>(
+            "nn-preload"sv,
+            std::vector<std::string>(NNPreloads, NNPreloads + PreloadsLen));
+      } else if (PreloadsLen > 0) {
+        spdlog::error("WasmEdge_PluginInitWASINN: "
+                      "null NNPreloads with non-zero PreloadsLen"sv);
+      }
     }
   } catch (...) {
     handleCAPIError();

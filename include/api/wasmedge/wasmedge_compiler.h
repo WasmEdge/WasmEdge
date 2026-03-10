@@ -29,8 +29,8 @@ extern "C" {
 /// delete it.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_CompilerContext *
-WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_CompilerContext *WasmEdge_CompilerCreate(
+    const WasmEdge_ConfigureContext *ConfCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Compile the input WASM from the file path.
 ///
@@ -45,7 +45,7 @@ WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt, const char *InPath,
-                         const char *OutPath);
+                         const char *OutPath) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Compile the input WASM from a WasmEdge_Bytes.
 ///
@@ -61,7 +61,7 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt, const char *InPath,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_CompilerCompileFromBytes(WasmEdge_CompilerContext *Cxt,
                                   const WasmEdge_Bytes Bytes,
-                                  const char *OutPath);
+                                  const char *OutPath) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_CompilerContext.
 ///
@@ -70,7 +70,7 @@ WasmEdge_CompilerCompileFromBytes(WasmEdge_CompilerContext *Cxt,
 ///
 /// \param Cxt the WasmEdge_CompilerContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt);
+WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge AOT compiler functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -93,10 +93,9 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt);
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_LoaderParseFromBuffer(WasmEdge_LoaderContext *Cxt,
-                               WasmEdge_ASTModuleContext **Module,
-                               const uint8_t *Buf, const uint32_t BufLen);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_LoaderParseFromBuffer(
+    WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
+    const uint8_t *Buf, const uint32_t BufLen) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge loader functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

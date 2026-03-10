@@ -41,7 +41,7 @@ extern "C" {
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
     WasmEdge_CompilerContext *Cxt, const uint8_t *InBuffer,
-    const uint64_t InBufferLen, const char *OutPath);
+    const uint64_t InBufferLen, const char *OutPath) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge AOT compiler functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -66,10 +66,9 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_VMRegisterModuleFromBuffer(WasmEdge_VMContext *Cxt,
-                                    const WasmEdge_String ModuleName,
-                                    const uint8_t *Buf, const uint32_t BufLen);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromBuffer(
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const uint8_t *Buf, const uint32_t BufLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate the WASM module from a buffer and invoke a function by name.
 ///
@@ -100,7 +99,8 @@ WasmEdge_VMRegisterModuleFromBuffer(WasmEdge_VMContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
     WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+    const uint32_t ParamLen, WasmEdge_Value *Returns,
+    const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate the WASM module from a buffer and asynchronous invoke a function
 /// by name.
@@ -133,7 +133,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
     WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen);
+    const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Load the WASM module from a buffer.
 ///
@@ -154,7 +154,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMLoadWasmFromBuffer(WasmEdge_VMContext *Cxt, const uint8_t *Buf,
-                              const uint32_t BufLen);
+                              const uint32_t BufLen) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

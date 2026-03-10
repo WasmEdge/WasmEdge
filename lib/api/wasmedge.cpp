@@ -308,7 +308,7 @@ inline WasmEdge_Result handleCAPIError() noexcept {
 }
 
 template <typename T, typename U, typename... CxtT>
-inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *...Cxts) {
+inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *...Cxts) noexcept {
   if (isContext(Cxts...)) {
     try {
       if (auto Res = Proc()) {
@@ -491,19 +491,19 @@ extern "C" {
 
 // >>>>>>>> WasmEdge version functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT const char *WasmEdge_VersionGet(void) {
+WASMEDGE_CAPI_EXPORT const char *WasmEdge_VersionGet(void) noexcept {
   return WASMEDGE_VERSION;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VersionGetMajor(void) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VersionGetMajor(void) noexcept {
   return WASMEDGE_VERSION_MAJOR;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VersionGetMinor(void) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VersionGetMinor(void) noexcept {
   return WASMEDGE_VERSION_MINOR;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VersionGetPatch(void) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VersionGetPatch(void) noexcept {
   return WASMEDGE_VERSION_PATCH;
 }
 
@@ -511,17 +511,20 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VersionGetPatch(void) {
 
 // >>>>>>>> WasmEdge logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetErrorLevel(void) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetErrorLevel(void) noexcept {
   WasmEdge::Log::setErrorLoggingLevel();
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetDebugLevel(void) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetDebugLevel(void) noexcept {
   WasmEdge::Log::setDebugLoggingLevel();
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_LogOff(void) { WasmEdge::Log::setLogOff(); }
+WASMEDGE_CAPI_EXPORT void WasmEdge_LogOff(void) noexcept {
+  WasmEdge::Log::setLogOff();
+}
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetLevel(WasmEdge_LogLevel Level) {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_LogSetLevel(WasmEdge_LogLevel Level) noexcept {
   switch (Level) {
   case WasmEdge_LogLevel_Trace:
     WasmEdge::Log::setTraceLoggingLevel();
@@ -545,7 +548,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LogSetLevel(WasmEdge_LogLevel Level) {
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback) {
+WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback) noexcept {
   if (Callback) {
     WasmEdge::Log::setLoggingCallback(
         [Callback](const spdlog::details::log_msg &Msg) {
@@ -572,82 +575,84 @@ WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback) {
 
 // >>>>>>>> WasmEdge valtype functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenI32(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenI32(void) noexcept {
   return genWasmEdge_ValType(ValType(TypeCode::I32));
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenI64(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenI64(void) noexcept {
   return genWasmEdge_ValType(ValType(TypeCode::I64));
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenF32(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenF32(void) noexcept {
   return genWasmEdge_ValType(ValType(TypeCode::F32));
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenF64(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenF64(void) noexcept {
   return genWasmEdge_ValType(ValType(TypeCode::F64));
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenV128(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenV128(void) noexcept {
   return genWasmEdge_ValType(ValType(TypeCode::V128));
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenFuncRef(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ValType
+WasmEdge_ValTypeGenFuncRef(void) noexcept {
   return genWasmEdge_ValType(ValType(TypeCode::FuncRef));
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ValType WasmEdge_ValTypeGenExternRef(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ValType
+WasmEdge_ValTypeGenExternRef(void) noexcept {
   return genWasmEdge_ValType(ValType(TypeCode::ExternRef));
 }
 
 WASMEDGE_CAPI_EXPORT bool
 WasmEdge_ValTypeIsEqual(const WasmEdge_ValType ValType1,
-                        const WasmEdge_ValType ValType2) {
+                        const WasmEdge_ValType ValType2) noexcept {
   return genValType(ValType1) == genValType(ValType2);
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsI32(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsI32(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).getCode() == WasmEdge::TypeCode::I32;
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsI64(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsI64(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).getCode() == WasmEdge::TypeCode::I64;
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsF32(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsF32(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).getCode() == WasmEdge::TypeCode::F32;
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsF64(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsF64(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).getCode() == WasmEdge::TypeCode::F64;
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsV128(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsV128(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).getCode() == WasmEdge::TypeCode::V128;
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsFuncRef(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsFuncRef(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).isFuncRefType();
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsExternRef(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsExternRef(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).isExternRefType();
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsRef(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsRef(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).isRefType();
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ValTypeIsRefNull(const WasmEdge_ValType ValType) {
+WasmEdge_ValTypeIsRefNull(const WasmEdge_ValType ValType) noexcept {
   return genValType(ValType).isNullableRefType();
 }
 
@@ -655,69 +660,79 @@ WasmEdge_ValTypeIsRefNull(const WasmEdge_ValType ValType) {
 
 // >>>>>>>> WasmEdge value functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenI32(const int32_t Val) {
-  return genWasmEdge_Value(Val);
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenI64(const int64_t Val) {
-  return genWasmEdge_Value(Val);
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenF32(const float Val) {
-  return genWasmEdge_Value(Val);
-}
-
-WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenF64(const double Val) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Value
+WasmEdge_ValueGenI32(const int32_t Val) noexcept {
   return genWasmEdge_Value(Val);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
-WasmEdge_ValueGenV128(const ::int128_t Val) {
+WasmEdge_ValueGenI64(const int64_t Val) noexcept {
+  return genWasmEdge_Value(Val);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Value
+WasmEdge_ValueGenF32(const float Val) noexcept {
+  return genWasmEdge_Value(Val);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Value
+WasmEdge_ValueGenF64(const double Val) noexcept {
+  return genWasmEdge_Value(Val);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Value
+WasmEdge_ValueGenV128(const ::int128_t Val) noexcept {
   return genWasmEdge_Value(to_WasmEdge_128_t<WasmEdge::int128_t>(Val));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Value
-WasmEdge_ValueGenFuncRef(const WasmEdge_FunctionInstanceContext *Cxt) {
+WasmEdge_ValueGenFuncRef(const WasmEdge_FunctionInstanceContext *Cxt) noexcept {
   return genWasmEdge_Value(WasmEdge::RefVariant(fromFuncCxt(Cxt)),
                            TypeCode::FuncRef);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_ValueGenExternRef(void *Ref) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Value
+WasmEdge_ValueGenExternRef(void *Ref) noexcept {
   return genWasmEdge_Value(WasmEdge::RefVariant(Ref), TypeCode::ExternRef);
 }
 
-WASMEDGE_CAPI_EXPORT int32_t WasmEdge_ValueGetI32(const WasmEdge_Value Val) {
+WASMEDGE_CAPI_EXPORT int32_t
+WasmEdge_ValueGetI32(const WasmEdge_Value Val) noexcept {
   return WasmEdge::ValVariant::wrap<int32_t>(
              to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
       .get<int32_t>();
 }
 
-WASMEDGE_CAPI_EXPORT int64_t WasmEdge_ValueGetI64(const WasmEdge_Value Val) {
+WASMEDGE_CAPI_EXPORT int64_t
+WasmEdge_ValueGetI64(const WasmEdge_Value Val) noexcept {
   return WasmEdge::ValVariant::wrap<int64_t>(
              to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
       .get<int64_t>();
 }
 
-WASMEDGE_CAPI_EXPORT float WasmEdge_ValueGetF32(const WasmEdge_Value Val) {
+WASMEDGE_CAPI_EXPORT float
+WasmEdge_ValueGetF32(const WasmEdge_Value Val) noexcept {
   return WasmEdge::ValVariant::wrap<float>(
              to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
       .get<float>();
 }
 
-WASMEDGE_CAPI_EXPORT double WasmEdge_ValueGetF64(const WasmEdge_Value Val) {
+WASMEDGE_CAPI_EXPORT double
+WasmEdge_ValueGetF64(const WasmEdge_Value Val) noexcept {
   return WasmEdge::ValVariant::wrap<double>(
              to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
       .get<double>();
 }
 
 WASMEDGE_CAPI_EXPORT ::int128_t
-WasmEdge_ValueGetV128(const WasmEdge_Value Val) {
+WasmEdge_ValueGetV128(const WasmEdge_Value Val) noexcept {
   return to_int128_t(WasmEdge::ValVariant::wrap<WasmEdge::int128_t>(
                          to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
                          .get<WasmEdge::int128_t>());
 }
 
-WASMEDGE_CAPI_EXPORT bool WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) {
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) noexcept {
   return WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
              to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
       .get<WasmEdge::RefVariant>()
@@ -725,7 +740,7 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) {
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionInstanceContext *
-WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) {
+WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) noexcept {
   return toFuncCxt(WasmEdge::retrieveFuncRef(
       WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
@@ -734,7 +749,7 @@ WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) {
 }
 
 WASMEDGE_CAPI_EXPORT void *
-WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
+WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) noexcept {
   return &WasmEdge::retrieveExternRef<uint32_t>(
       WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
           to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
@@ -746,7 +761,7 @@ WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) {
 // >>>>>>>> WasmEdge string functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
-WasmEdge_StringCreateByCString(const char *Str) {
+WasmEdge_StringCreateByCString(const char *Str) noexcept {
   if (Str) {
     return WasmEdge_StringCreateByBuffer(
         Str, static_cast<uint32_t>(std::strlen(Str)));
@@ -755,7 +770,7 @@ WasmEdge_StringCreateByCString(const char *Str) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
-WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len) {
+WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len) noexcept {
   try {
     if (Buf && Len) {
       char *Str = new char[Len];
@@ -768,13 +783,14 @@ WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len) {
   return WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_StringWrap(const char *Buf,
-                                                         const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT WasmEdge_String
+WasmEdge_StringWrap(const char *Buf, const uint32_t Len) noexcept {
   return WasmEdge_String{/* Length */ Len, /* Buf */ Buf};
 }
 
-WASMEDGE_CAPI_EXPORT bool WasmEdge_StringIsEqual(const WasmEdge_String Str1,
-                                                 const WasmEdge_String Str2) {
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_StringIsEqual(const WasmEdge_String Str1,
+                       const WasmEdge_String Str2) noexcept {
   if (Str1.Length != Str2.Length) {
     return false;
   }
@@ -783,7 +799,7 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_StringIsEqual(const WasmEdge_String Str1,
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StringCopy(const WasmEdge_String Str,
                                                   char *Buf,
-                                                  const uint32_t Len) {
+                                                  const uint32_t Len) noexcept {
   uint32_t RealLength = std::min(Len, Str.Length);
   if (Buf) {
     std::memset(Buf, 0, Len);
@@ -794,7 +810,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_StringCopy(const WasmEdge_String Str,
   return RealLength;
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_StringDelete(WasmEdge_String Str) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_StringDelete(WasmEdge_String Str) noexcept {
   if (Str.Buf) {
     delete[] Str.Buf;
   }
@@ -804,8 +820,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StringDelete(WasmEdge_String Str) {
 
 // >>>>>>>> WasmEdge bytes functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Bytes WasmEdge_BytesCreate(const uint8_t *Buf,
-                                                         const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Bytes
+WasmEdge_BytesCreate(const uint8_t *Buf, const uint32_t Len) noexcept {
   try {
     if (Buf && Len) {
       uint8_t *Str = new uint8_t[Len];
@@ -818,12 +834,12 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Bytes WasmEdge_BytesCreate(const uint8_t *Buf,
   return WasmEdge_Bytes{/* Length */ 0, /* Buf */ nullptr};
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Bytes WasmEdge_BytesWrap(const uint8_t *Buf,
-                                                       const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Bytes
+WasmEdge_BytesWrap(const uint8_t *Buf, const uint32_t Len) noexcept {
   return WasmEdge_Bytes{/* Length */ Len, /* Buf */ Buf};
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_BytesDelete(WasmEdge_Bytes Bytes) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_BytesDelete(WasmEdge_Bytes Bytes) noexcept {
   if (Bytes.Buf) {
     delete[] Bytes.Buf;
   }
@@ -833,7 +849,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_BytesDelete(WasmEdge_Bytes Bytes) {
 
 // >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT bool WasmEdge_ResultOK(const WasmEdge_Result Res) {
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ResultOK(const WasmEdge_Result Res) noexcept {
   if (WasmEdge_ResultGetCategory(Res) == WasmEdge_ErrCategory_WASM &&
       (static_cast<WasmEdge::ErrCode::Value>(WasmEdge_ResultGetCode(Res)) ==
            WasmEdge::ErrCode::Value::Success ||
@@ -846,23 +863,23 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ResultOK(const WasmEdge_Result Res) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ResultGen(
-    const enum WasmEdge_ErrCategory Category, const uint32_t Code) {
+    const enum WasmEdge_ErrCategory Category, const uint32_t Code) noexcept {
   return WasmEdge_Result{/* Code */ (static_cast<uint32_t>(Category) << 24) +
                          (Code & 0x00FFFFFFU)};
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_ResultGetCode(const WasmEdge_Result Res) {
+WasmEdge_ResultGetCode(const WasmEdge_Result Res) noexcept {
   return Res.Code & 0x00FFFFFFU;
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ErrCategory
-WasmEdge_ResultGetCategory(const WasmEdge_Result Res) {
+WasmEdge_ResultGetCategory(const WasmEdge_Result Res) noexcept {
   return static_cast<WasmEdge_ErrCategory>(Res.Code >> 24);
 }
 
 WASMEDGE_CAPI_EXPORT const char *
-WasmEdge_ResultGetMessage(const WasmEdge_Result Res) {
+WasmEdge_ResultGetMessage(const WasmEdge_Result Res) noexcept {
   if (WasmEdge_ResultGetCategory(Res) != WasmEdge_ErrCategory_WASM) {
     return WasmEdge::ErrCodeStr[WasmEdge::ErrCode::Value::UserDefError].data();
   }
@@ -875,7 +892,8 @@ WasmEdge_ResultGetMessage(const WasmEdge_Result Res) {
 
 // >>>>>>>> WasmEdge configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ConfigureContext *WasmEdge_ConfigureCreate(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ConfigureContext *
+WasmEdge_ConfigureCreate(void) noexcept {
   try {
     return new WasmEdge_ConfigureContext;
   } catch (...) {
@@ -886,7 +904,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_ConfigureContext *WasmEdge_ConfigureCreate(void) {
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureAddProposal(WasmEdge_ConfigureContext *Cxt,
-                              const enum WasmEdge_Proposal Prop) {
+                              const enum WasmEdge_Proposal Prop) noexcept {
   if (Cxt) {
     Cxt->Conf.addProposal(static_cast<WasmEdge::Proposal>(Prop));
   }
@@ -894,7 +912,7 @@ WasmEdge_ConfigureAddProposal(WasmEdge_ConfigureContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureRemoveProposal(WasmEdge_ConfigureContext *Cxt,
-                                 const enum WasmEdge_Proposal Prop) {
+                                 const enum WasmEdge_Proposal Prop) noexcept {
   if (Cxt) {
     Cxt->Conf.removeProposal(static_cast<WasmEdge::Proposal>(Prop));
   }
@@ -902,7 +920,7 @@ WasmEdge_ConfigureRemoveProposal(WasmEdge_ConfigureContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT bool
 WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
-                              const enum WasmEdge_Proposal Prop) {
+                              const enum WasmEdge_Proposal Prop) noexcept {
   if (Cxt) {
     return Cxt->Conf.hasProposal(static_cast<WasmEdge::Proposal>(Prop));
   }
@@ -911,14 +929,15 @@ WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetWASMStandard(WasmEdge_ConfigureContext *Cxt,
-                                  const enum WasmEdge_Standard Std) {
+                                  const enum WasmEdge_Standard Std) noexcept {
   if (Cxt) {
     Cxt->Conf.setWASMStandard(static_cast<WasmEdge::Standard>(Std));
   }
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureAddHostRegistration(
-    WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host) {
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_HostRegistration Host) noexcept {
   if (Cxt) {
     Cxt->Conf.addHostRegistration(
         static_cast<WasmEdge::HostRegistration>(Host));
@@ -926,7 +945,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureAddHostRegistration(
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureRemoveHostRegistration(
-    WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host) {
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_HostRegistration Host) noexcept {
   if (Cxt) {
     Cxt->Conf.removeHostRegistration(
         static_cast<WasmEdge::HostRegistration>(Host));
@@ -935,7 +955,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureRemoveHostRegistration(
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureHasHostRegistration(
     const WasmEdge_ConfigureContext *Cxt,
-    const enum WasmEdge_HostRegistration Host) {
+    const enum WasmEdge_HostRegistration Host) noexcept {
   if (Cxt) {
     return Cxt->Conf.hasHostRegistration(
         static_cast<WasmEdge::HostRegistration>(Host));
@@ -945,14 +965,14 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureHasHostRegistration(
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
-                                   const uint64_t Page) {
+                                   const uint64_t Page) noexcept {
   if (Cxt) {
     Cxt->Conf.getRuntimeConfigure().setMaxMemoryPage(Page);
   }
 }
 
-WASMEDGE_CAPI_EXPORT uint64_t
-WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
+WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getRuntimeConfigure().getMaxMemoryPage();
   }
@@ -961,7 +981,7 @@ WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
-                                      const bool IsForceInterpreter) {
+                                      const bool IsForceInterpreter) noexcept {
   if (Cxt) {
     Cxt->Conf.getRuntimeConfigure().setForceInterpreter(IsForceInterpreter);
   }
@@ -969,22 +989,22 @@ WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetAllowAFUNIX(WasmEdge_ConfigureContext *Cxt,
-                                 const bool EnableAFUNIX) {
+                                 const bool EnableAFUNIX) noexcept {
   if (Cxt) {
     Cxt->Conf.getRuntimeConfigure().setAllowAFUNIX(EnableAFUNIX);
   }
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt) {
+WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getRuntimeConfigure().isAllowAFUNIX();
   }
   return false;
 }
 
-WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt) {
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureIsForceInterpreter(
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getRuntimeConfigure().isForceInterpreter();
   }
@@ -993,7 +1013,7 @@ WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureCompilerSetOptimizationLevel(
     WasmEdge_ConfigureContext *Cxt,
-    const enum WasmEdge_CompilerOptimizationLevel Level) {
+    const enum WasmEdge_CompilerOptimizationLevel Level) noexcept {
   if (Cxt) {
     Cxt->Conf.getCompilerConfigure().setOptimizationLevel(
         static_cast<WasmEdge::CompilerConfigure::OptimizationLevel>(Level));
@@ -1002,7 +1022,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureCompilerSetOptimizationLevel(
 
 WASMEDGE_CAPI_EXPORT enum WasmEdge_CompilerOptimizationLevel
 WasmEdge_ConfigureCompilerGetOptimizationLevel(
-    const WasmEdge_ConfigureContext *Cxt) {
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<WasmEdge_CompilerOptimizationLevel>(
         Cxt->Conf.getCompilerConfigure().getOptimizationLevel());
@@ -1012,7 +1032,7 @@ WasmEdge_ConfigureCompilerGetOptimizationLevel(
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureCompilerSetOutputFormat(
     WasmEdge_ConfigureContext *Cxt,
-    const enum WasmEdge_CompilerOutputFormat Format) {
+    const enum WasmEdge_CompilerOutputFormat Format) noexcept {
   if (Cxt) {
     Cxt->Conf.getCompilerConfigure().setOutputFormat(
         static_cast<WasmEdge::CompilerConfigure::OutputFormat>(Format));
@@ -1021,7 +1041,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureCompilerSetOutputFormat(
 
 WASMEDGE_CAPI_EXPORT enum WasmEdge_CompilerOutputFormat
 WasmEdge_ConfigureCompilerGetOutputFormat(
-    const WasmEdge_ConfigureContext *Cxt) {
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<WasmEdge_CompilerOutputFormat>(
         Cxt->Conf.getCompilerConfigure().getOutputFormat());
@@ -1031,14 +1051,14 @@ WasmEdge_ConfigureCompilerGetOutputFormat(
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
-                                    const bool IsDump) {
+                                    const bool IsDump) noexcept {
   if (Cxt) {
     Cxt->Conf.getCompilerConfigure().setDumpIR(IsDump);
   }
 }
 
-WASMEDGE_CAPI_EXPORT bool
-WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt) {
+WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsDumpIR(
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getCompilerConfigure().isDumpIR();
   }
@@ -1047,30 +1067,29 @@ WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
-                                           const bool IsGeneric) {
+                                           const bool IsGeneric) noexcept {
   if (Cxt) {
     Cxt->Conf.getCompilerConfigure().setGenericBinary(IsGeneric);
   }
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsGenericBinary(
-    const WasmEdge_ConfigureContext *Cxt) {
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getCompilerConfigure().isGenericBinary();
   }
   return false;
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_ConfigureCompilerSetInterruptible(WasmEdge_ConfigureContext *Cxt,
-                                           const bool IsInterruptible) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureCompilerSetInterruptible(
+    WasmEdge_ConfigureContext *Cxt, const bool IsInterruptible) noexcept {
   if (Cxt) {
     Cxt->Conf.getCompilerConfigure().setInterruptible(IsInterruptible);
   }
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsInterruptible(
-    const WasmEdge_ConfigureContext *Cxt) {
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getCompilerConfigure().isInterruptible();
   }
@@ -1078,14 +1097,14 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureCompilerIsInterruptible(
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ConfigureStatisticsSetInstructionCounting(
-    WasmEdge_ConfigureContext *Cxt, const bool IsCount) {
+    WasmEdge_ConfigureContext *Cxt, const bool IsCount) noexcept {
   if (Cxt) {
     Cxt->Conf.getStatisticsConfigure().setInstructionCounting(IsCount);
   }
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsInstructionCounting(
-    const WasmEdge_ConfigureContext *Cxt) {
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getStatisticsConfigure().isInstructionCounting();
   }
@@ -1094,14 +1113,14 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsInstructionCounting(
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
-                                             const bool IsMeasure) {
+                                             const bool IsMeasure) noexcept {
   if (Cxt) {
     Cxt->Conf.getStatisticsConfigure().setCostMeasuring(IsMeasure);
   }
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
-    const WasmEdge_ConfigureContext *Cxt) {
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getStatisticsConfigure().isCostMeasuring();
   }
@@ -1110,14 +1129,14 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
-                                             const bool IsMeasure) {
+                                             const bool IsMeasure) noexcept {
   if (Cxt) {
     Cxt->Conf.getStatisticsConfigure().setTimeMeasuring(IsMeasure);
   }
 }
 
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
-    const WasmEdge_ConfigureContext *Cxt) {
+    const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->Conf.getStatisticsConfigure().isTimeMeasuring();
   }
@@ -1125,7 +1144,7 @@ WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) {
+WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) noexcept {
   delete Cxt;
 }
 
@@ -1134,7 +1153,7 @@ WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) {
 // >>>>>>>> WasmEdge statistics functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_StatisticsContext *
-WasmEdge_StatisticsCreate(void) {
+WasmEdge_StatisticsCreate(void) noexcept {
   try {
     return toStatCxt(new WasmEdge::Statistics::Statistics);
   } catch (...) {
@@ -1143,24 +1162,24 @@ WasmEdge_StatisticsCreate(void) {
   }
 }
 
-WASMEDGE_CAPI_EXPORT uint64_t
-WasmEdge_StatisticsGetInstrCount(const WasmEdge_StatisticsContext *Cxt) {
+WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_StatisticsGetInstrCount(
+    const WasmEdge_StatisticsContext *Cxt) noexcept {
   if (Cxt) {
     return fromStatCxt(Cxt)->getInstrCount();
   }
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT double
-WasmEdge_StatisticsGetInstrPerSecond(const WasmEdge_StatisticsContext *Cxt) {
+WASMEDGE_CAPI_EXPORT double WasmEdge_StatisticsGetInstrPerSecond(
+    const WasmEdge_StatisticsContext *Cxt) noexcept {
   if (Cxt) {
     return fromStatCxt(Cxt)->getInstrPerSecond();
   }
   return 0.0;
 }
 
-WASMEDGE_CAPI_EXPORT uint64_t
-WasmEdge_StatisticsGetTotalCost(const WasmEdge_StatisticsContext *Cxt) {
+WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_StatisticsGetTotalCost(
+    const WasmEdge_StatisticsContext *Cxt) noexcept {
   if (Cxt) {
     return fromStatCxt(Cxt)->getTotalCost();
   }
@@ -1169,7 +1188,8 @@ WasmEdge_StatisticsGetTotalCost(const WasmEdge_StatisticsContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_StatisticsSetCostTable(WasmEdge_StatisticsContext *Cxt,
-                                uint64_t *CostArr, const uint32_t Len) {
+                                uint64_t *CostArr,
+                                const uint32_t Len) noexcept {
   if (Cxt) {
     fromStatCxt(Cxt)->setCostTable(genSpan(CostArr, Len));
   }
@@ -1177,21 +1197,21 @@ WasmEdge_StatisticsSetCostTable(WasmEdge_StatisticsContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_StatisticsSetCostLimit(WasmEdge_StatisticsContext *Cxt,
-                                const uint64_t Limit) {
+                                const uint64_t Limit) noexcept {
   if (Cxt) {
     fromStatCxt(Cxt)->setCostLimit(Limit);
   }
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_StatisticsClear(WasmEdge_StatisticsContext *Cxt) {
+WasmEdge_StatisticsClear(WasmEdge_StatisticsContext *Cxt) noexcept {
   if (Cxt) {
     fromStatCxt(Cxt)->clear();
   }
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt) {
+WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt) noexcept {
   delete fromStatCxt(Cxt);
 }
 
@@ -1199,8 +1219,8 @@ WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt) {
 
 // >>>>>>>> WasmEdge AST module functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_ASTModuleListImportsLength(const WasmEdge_ASTModuleContext *Cxt) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListImportsLength(
+    const WasmEdge_ASTModuleContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<uint32_t>(
         fromASTModCxt(Cxt)->getImportSection().getContent().size());
@@ -1210,7 +1230,7 @@ WasmEdge_ASTModuleListImportsLength(const WasmEdge_ASTModuleContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListImports(
     const WasmEdge_ASTModuleContext *Cxt,
-    const WasmEdge_ImportTypeContext **Imports, const uint32_t Len) {
+    const WasmEdge_ImportTypeContext **Imports, const uint32_t Len) noexcept {
   if (Cxt) {
     const auto &ImpSec = fromASTModCxt(Cxt)->getImportSection().getContent();
     if (Imports) {
@@ -1223,8 +1243,8 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListImports(
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_ASTModuleListExportsLength(const WasmEdge_ASTModuleContext *Cxt) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListExportsLength(
+    const WasmEdge_ASTModuleContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<uint32_t>(
         fromASTModCxt(Cxt)->getExportSection().getContent().size());
@@ -1234,7 +1254,7 @@ WasmEdge_ASTModuleListExportsLength(const WasmEdge_ASTModuleContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListExports(
     const WasmEdge_ASTModuleContext *Cxt,
-    const WasmEdge_ExportTypeContext **Exports, const uint32_t Len) {
+    const WasmEdge_ExportTypeContext **Exports, const uint32_t Len) noexcept {
   if (Cxt) {
     const auto &ExpSec = fromASTModCxt(Cxt)->getExportSection().getContent();
     if (Exports) {
@@ -1248,7 +1268,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ASTModuleListExports(
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) {
+WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) noexcept {
   std::unique_ptr<WasmEdge::AST::Module> Own(fromASTModCxt(Cxt));
 }
 
@@ -1257,7 +1277,7 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) {
 // >>>>>>>> WasmEdge limit functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_LimitContext *
-WasmEdge_LimitCreate(const uint64_t Min, const bool Is64Bit) {
+WasmEdge_LimitCreate(const uint64_t Min, const bool Is64Bit) noexcept {
   try {
     return toLimitCxt(new WasmEdge::AST::Limit(Min, Is64Bit));
   } catch (...) {
@@ -1268,7 +1288,7 @@ WasmEdge_LimitCreate(const uint64_t Min, const bool Is64Bit) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_LimitContext *
 WasmEdge_LimitCreateWithMax(const uint64_t Min, const uint64_t Max,
-                            const bool Is64Bit, const bool IsShared) {
+                            const bool Is64Bit, const bool IsShared) noexcept {
   try {
     return toLimitCxt(new WasmEdge::AST::Limit(Min, Max, Is64Bit, IsShared));
   } catch (...) {
@@ -1278,7 +1298,7 @@ WasmEdge_LimitCreateWithMax(const uint64_t Min, const uint64_t Max,
 }
 
 WASMEDGE_CAPI_EXPORT uint64_t
-WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt) {
+WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt) noexcept {
   if (Cxt) {
     return fromLimitCxt(Cxt)->getMin();
   }
@@ -1286,7 +1306,7 @@ WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT uint64_t
-WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt) {
+WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt) noexcept {
   if (Cxt) {
     return fromLimitCxt(Cxt)->getMax();
   }
@@ -1294,7 +1314,7 @@ WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt) {
+WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt) noexcept {
   if (Cxt) {
     return fromLimitCxt(Cxt)->hasMax();
   }
@@ -1302,7 +1322,7 @@ WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt) {
+WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt) noexcept {
   if (Cxt) {
     return fromLimitCxt(Cxt)->isShared();
   }
@@ -1310,7 +1330,7 @@ WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT bool
-WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt) {
+WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt) noexcept {
   if (Cxt) {
     return fromLimitCxt(Cxt)->is64();
   }
@@ -1319,7 +1339,7 @@ WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT bool
 WasmEdge_LimitIsEqual(const WasmEdge_LimitContext *Cxt1,
-                      const WasmEdge_LimitContext *Cxt2) {
+                      const WasmEdge_LimitContext *Cxt2) noexcept {
   if (Cxt1 && Cxt2) {
     const auto *Lim1 = fromLimitCxt(Cxt1);
     const auto *Lim2 = fromLimitCxt(Cxt2);
@@ -1338,7 +1358,8 @@ WasmEdge_LimitIsEqual(const WasmEdge_LimitContext *Cxt1,
   return false;
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt) {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt) noexcept {
   delete fromLimitCxt(Cxt);
 }
 
@@ -1348,7 +1369,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *WasmEdge_FunctionTypeCreate(
     const WasmEdge_ValType *ParamList, const uint32_t ParamLen,
-    const WasmEdge_ValType *ReturnList, const uint32_t ReturnLen) {
+    const WasmEdge_ValType *ReturnList, const uint32_t ReturnLen) noexcept {
   try {
     auto *Cxt = new WasmEdge::AST::FunctionType;
     if (ParamLen > 0) {
@@ -1371,16 +1392,16 @@ WASMEDGE_CAPI_EXPORT WasmEdge_FunctionTypeContext *WasmEdge_FunctionTypeCreate(
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_FunctionTypeGetParametersLength(
-    const WasmEdge_FunctionTypeContext *Cxt) {
+    const WasmEdge_FunctionTypeContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<uint32_t>(fromFuncTypeCxt(Cxt)->getParamTypes().size());
   }
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
-                                   WasmEdge_ValType *List, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_FunctionTypeGetParameters(
+    const WasmEdge_FunctionTypeContext *Cxt, WasmEdge_ValType *List,
+    const uint32_t Len) noexcept {
   if (Cxt) {
     for (uint32_t I = 0;
          I < fromFuncTypeCxt(Cxt)->getParamTypes().size() && I < Len; I++) {
@@ -1391,17 +1412,17 @@ WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_FunctionTypeGetReturnsLength(
+    const WasmEdge_FunctionTypeContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<uint32_t>(fromFuncTypeCxt(Cxt)->getReturnTypes().size());
   }
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
-                                WasmEdge_ValType *List, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_FunctionTypeGetReturns(
+    const WasmEdge_FunctionTypeContext *Cxt, WasmEdge_ValType *List,
+    const uint32_t Len) noexcept {
   if (Cxt) {
     for (uint32_t I = 0;
          I < fromFuncTypeCxt(Cxt)->getReturnTypes().size() && I < Len; I++) {
@@ -1413,7 +1434,7 @@ WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt) {
+WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt) noexcept {
   delete fromFuncTypeCxt(Cxt);
 }
 
@@ -1423,7 +1444,7 @@ WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_TableTypeContext *
 WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
-                         const WasmEdge_LimitContext *Limit) {
+                         const WasmEdge_LimitContext *Limit) noexcept {
   try {
     WasmEdge::ValType RT = genValType(RefType);
     if (Limit && RT.isRefType()) {
@@ -1437,7 +1458,7 @@ WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ValType
-WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt) {
+WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt) noexcept {
   if (Cxt) {
     return genWasmEdge_ValType(fromTabTypeCxt(Cxt)->getRefType());
   }
@@ -1445,7 +1466,7 @@ WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_LimitContext *
-WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt) {
+WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt) noexcept {
   if (Cxt) {
     return toLimitCxt(&fromTabTypeCxt(Cxt)->getLimit());
   }
@@ -1453,7 +1474,7 @@ WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt) {
+WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt) noexcept {
   delete fromTabTypeCxt(Cxt);
 }
 
@@ -1462,7 +1483,7 @@ WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt) {
 // >>>>>>>> WasmEdge memory type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryTypeContext *
-WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit) {
+WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit) noexcept {
   try {
     if (Limit) {
       return toMemTypeCxt(new WasmEdge::AST::MemoryType(*fromLimitCxt(Limit)));
@@ -1474,7 +1495,7 @@ WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit) {
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_LimitContext *
-WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt) {
+WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt) noexcept {
   if (Cxt) {
     return toLimitCxt(&fromMemTypeCxt(Cxt)->getLimit());
   }
@@ -1482,7 +1503,7 @@ WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) {
+WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) noexcept {
   delete fromMemTypeCxt(Cxt);
 }
 
@@ -1491,7 +1512,7 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt) {
 // >>>>>>>> WasmEdge tag type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
-WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt) {
+WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt) noexcept {
   if (Cxt) {
     const auto &CompType = fromTagTypeCxt(Cxt)->getDefType().getCompositeType();
     if (CompType.isFunc()) {
@@ -1507,7 +1528,7 @@ WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_GlobalTypeContext *
 WasmEdge_GlobalTypeCreate(const WasmEdge_ValType ValType,
-                          const enum WasmEdge_Mutability Mut) {
+                          const enum WasmEdge_Mutability Mut) noexcept {
   try {
     return toGlobTypeCxt(new WasmEdge::AST::GlobalType(
         genValType(ValType), static_cast<WasmEdge::ValMut>(Mut)));
@@ -1518,15 +1539,15 @@ WasmEdge_GlobalTypeCreate(const WasmEdge_ValType ValType,
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ValType
-WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt) {
+WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt) noexcept {
   if (Cxt) {
     return genWasmEdge_ValType(fromGlobTypeCxt(Cxt)->getValType());
   }
   return WasmEdge_ValTypeGenI32();
 }
 
-WASMEDGE_CAPI_EXPORT enum WasmEdge_Mutability
-WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt) {
+WASMEDGE_CAPI_EXPORT enum WasmEdge_Mutability WasmEdge_GlobalTypeGetMutability(
+    const WasmEdge_GlobalTypeContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<WasmEdge_Mutability>(fromGlobTypeCxt(Cxt)->getValMut());
   }
@@ -1534,7 +1555,7 @@ WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt) {
+WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt) noexcept {
   delete fromGlobTypeCxt(Cxt);
 }
 
@@ -1543,7 +1564,8 @@ WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt) {
 // >>>>>>>> WasmEdge import type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT enum WasmEdge_ExternalType
-WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt) {
+WasmEdge_ImportTypeGetExternalType(
+    const WasmEdge_ImportTypeContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<WasmEdge_ExternalType>(
         fromImpTypeCxt(Cxt)->getExternalType());
@@ -1551,8 +1573,8 @@ WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt) {
   return WasmEdge_ExternalType_Function;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_String
-WasmEdge_ImportTypeGetModuleName(const WasmEdge_ImportTypeContext *Cxt) {
+WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ImportTypeGetModuleName(
+    const WasmEdge_ImportTypeContext *Cxt) noexcept {
   if (Cxt) {
     auto StrView = fromImpTypeCxt(Cxt)->getModuleName();
     return WasmEdge_String{/* Length */ static_cast<uint32_t>(StrView.length()),
@@ -1561,8 +1583,8 @@ WasmEdge_ImportTypeGetModuleName(const WasmEdge_ImportTypeContext *Cxt) {
   return WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_String
-WasmEdge_ImportTypeGetExternalName(const WasmEdge_ImportTypeContext *Cxt) {
+WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ImportTypeGetExternalName(
+    const WasmEdge_ImportTypeContext *Cxt) noexcept {
   if (Cxt) {
     auto StrView = fromImpTypeCxt(Cxt)->getExternalName();
     return WasmEdge_String{/* Length */ static_cast<uint32_t>(StrView.length()),
@@ -1572,8 +1594,9 @@ WasmEdge_ImportTypeGetExternalName(const WasmEdge_ImportTypeContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
-WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                   const WasmEdge_ImportTypeContext *Cxt) {
+WasmEdge_ImportTypeGetFunctionType(
+    const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_ImportTypeContext *Cxt) noexcept {
   if (ASTCxt && Cxt &&
       fromImpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Function) {
@@ -1587,8 +1610,9 @@ WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_TableTypeContext *
-WasmEdge_ImportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                const WasmEdge_ImportTypeContext *Cxt) {
+WasmEdge_ImportTypeGetTableType(
+    const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_ImportTypeContext *Cxt) noexcept {
   if (ASTCxt && Cxt &&
       fromImpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Table) {
     return toTabTypeCxt(&fromImpTypeCxt(Cxt)->getExternalTableType());
@@ -1597,8 +1621,9 @@ WasmEdge_ImportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_MemoryTypeContext *
-WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                 const WasmEdge_ImportTypeContext *Cxt) {
+WasmEdge_ImportTypeGetMemoryType(
+    const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_ImportTypeContext *Cxt) noexcept {
   if (ASTCxt && Cxt &&
       fromImpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Memory) {
@@ -1609,7 +1634,7 @@ WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_TagTypeContext *
 WasmEdge_ImportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
-                              const WasmEdge_ImportTypeContext *Cxt) {
+                              const WasmEdge_ImportTypeContext *Cxt) noexcept {
   if (ASTCxt && Cxt &&
       fromImpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Tag) {
     return toTagTypeCxt(&fromImpTypeCxt(Cxt)->getExternalTagType());
@@ -1618,8 +1643,9 @@ WasmEdge_ImportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_GlobalTypeContext *
-WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                 const WasmEdge_ImportTypeContext *Cxt) {
+WasmEdge_ImportTypeGetGlobalType(
+    const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_ImportTypeContext *Cxt) noexcept {
   if (ASTCxt && Cxt &&
       fromImpTypeCxt(Cxt)->getExternalType() ==
           WasmEdge::ExternalType::Global) {
@@ -1633,7 +1659,8 @@ WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
 // >>>>>>>> WasmEdge export type functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT enum WasmEdge_ExternalType
-WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt) {
+WasmEdge_ExportTypeGetExternalType(
+    const WasmEdge_ExportTypeContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<WasmEdge_ExternalType>(
         fromExpTypeCxt(Cxt)->getExternalType());
@@ -1641,8 +1668,8 @@ WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt) {
   return WasmEdge_ExternalType_Function;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_String
-WasmEdge_ExportTypeGetExternalName(const WasmEdge_ExportTypeContext *Cxt) {
+WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ExportTypeGetExternalName(
+    const WasmEdge_ExportTypeContext *Cxt) noexcept {
   if (Cxt) {
     auto StrView = fromExpTypeCxt(Cxt)->getExternalName();
     return WasmEdge_String{/* Length */ static_cast<uint32_t>(StrView.length()),
@@ -1652,8 +1679,9 @@ WasmEdge_ExportTypeGetExternalName(const WasmEdge_ExportTypeContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
-WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                   const WasmEdge_ExportTypeContext *Cxt) {
+WasmEdge_ExportTypeGetFunctionType(
+    const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_ExportTypeContext *Cxt) noexcept {
   try {
     if (ASTCxt && Cxt &&
         fromExpTypeCxt(Cxt)->getExternalType() ==
@@ -1697,8 +1725,9 @@ WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_TableTypeContext *
-WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                const WasmEdge_ExportTypeContext *Cxt) {
+WasmEdge_ExportTypeGetTableType(
+    const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_ExportTypeContext *Cxt) noexcept {
   try {
     if (ASTCxt && Cxt &&
         fromExpTypeCxt(Cxt)->getExternalType() ==
@@ -1734,8 +1763,9 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_MemoryTypeContext *
-WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                 const WasmEdge_ExportTypeContext *Cxt) {
+WasmEdge_ExportTypeGetMemoryType(
+    const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_ExportTypeContext *Cxt) noexcept {
   try {
     if (ASTCxt && Cxt &&
         fromExpTypeCxt(Cxt)->getExternalType() ==
@@ -1772,7 +1802,7 @@ WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_TagTypeContext *
 WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
-                              const WasmEdge_ExportTypeContext *Cxt) {
+                              const WasmEdge_ExportTypeContext *Cxt) noexcept {
   if (ASTCxt && Cxt &&
       fromExpTypeCxt(Cxt)->getExternalType() == WasmEdge::ExternalType::Tag) {
     // `external_index` = `tag_type_index` + `import_tag_nums`
@@ -1795,8 +1825,9 @@ WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_GlobalTypeContext *
-WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                 const WasmEdge_ExportTypeContext *Cxt) {
+WasmEdge_ExportTypeGetGlobalType(
+    const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_ExportTypeContext *Cxt) noexcept {
   try {
     if (ASTCxt && Cxt &&
         fromExpTypeCxt(Cxt)->getExternalType() ==
@@ -1839,7 +1870,7 @@ WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_CompilerContext *
 WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
-                        [[maybe_unused]]) {
+                        [[maybe_unused]]) noexcept {
 #ifdef WASMEDGE_USE_LLVM
   try {
     // Set force interpreter here to load instructions of function body
@@ -1862,9 +1893,10 @@ WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
 #endif
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
-    WasmEdge_CompilerContext *Cxt [[maybe_unused]],
-    const char *InPath [[maybe_unused]], const char *OutPath [[maybe_unused]]) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result
+WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt [[maybe_unused]],
+                         const char *InPath [[maybe_unused]],
+                         const char *OutPath [[maybe_unused]]) noexcept {
 #ifdef WASMEDGE_USE_LLVM
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
@@ -1896,7 +1928,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompile(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
     WasmEdge_CompilerContext *Cxt, const uint8_t *InBuffer,
-    const uint64_t InBufferLen, const char *OutPath) {
+    const uint64_t InBufferLen, const char *OutPath) noexcept {
   return WasmEdge_CompilerCompileFromBytes(
       Cxt, WasmEdge_BytesWrap(InBuffer, static_cast<uint32_t>(InBufferLen)),
       OutPath);
@@ -1905,7 +1937,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
     WasmEdge_CompilerContext *Cxt [[maybe_unused]],
     const WasmEdge_Bytes Bytes [[maybe_unused]],
-    const char *OutPath [[maybe_unused]]) {
+    const char *OutPath [[maybe_unused]]) noexcept {
 #ifdef WASMEDGE_USE_LLVM
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
@@ -1929,7 +1961,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) {
+WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) noexcept {
   delete Cxt;
 }
 
@@ -1938,7 +1970,7 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) {
 // >>>>>>>> WasmEdge loader functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
-WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) {
+WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) noexcept {
   try {
     if (ConfCxt) {
       return toLoaderCxt(new WasmEdge::Loader::Loader(
@@ -1955,7 +1987,7 @@ WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromFile(
     WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
-    const char *Path) {
+    const char *Path) noexcept {
   return wrap(
       [&]() {
         return fromLoaderCxt(Cxt)->parseModule(std::filesystem::absolute(Path));
@@ -1966,14 +1998,14 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromFile(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBuffer(
     WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
-    const uint8_t *Buf, const uint32_t BufLen) {
+    const uint8_t *Buf, const uint32_t BufLen) noexcept {
   return WasmEdge_LoaderParseFromBytes(Cxt, Module,
                                        WasmEdge_BytesWrap(Buf, BufLen));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBytes(
     WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
-    const WasmEdge_Bytes Bytes) {
+    const WasmEdge_Bytes Bytes) noexcept {
   return wrap(
       [&]() {
         return fromLoaderCxt(Cxt)->parseModule(
@@ -1985,7 +2017,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBytes(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderSerializeASTModule(
     WasmEdge_LoaderContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
-    WasmEdge_Bytes *Buf) {
+    WasmEdge_Bytes *Buf) noexcept {
   return wrap(
       [&]() {
         return fromLoaderCxt(Cxt)->serializeModule(*fromASTModCxt(ASTCxt));
@@ -2000,7 +2032,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderSerializeASTModule(
       Cxt, ASTCxt, Buf);
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) noexcept {
   delete fromLoaderCxt(Cxt);
 }
 
@@ -2009,7 +2042,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_LoaderDelete(WasmEdge_LoaderContext *Cxt) {
 // >>>>>>>> WasmEdge validator functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ValidatorContext *
-WasmEdge_ValidatorCreate(const WasmEdge_ConfigureContext *ConfCxt) {
+WasmEdge_ValidatorCreate(const WasmEdge_ConfigureContext *ConfCxt) noexcept {
   try {
     if (ConfCxt) {
       return toValidatorCxt(new WasmEdge::Validator::Validator(ConfCxt->Conf));
@@ -2023,9 +2056,9 @@ WasmEdge_ValidatorCreate(const WasmEdge_ConfigureContext *ConfCxt) {
   }
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_ValidatorValidate(WasmEdge_ValidatorContext *Cxt,
-                           const WasmEdge_ASTModuleContext *ModuleCxt) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ValidatorValidate(
+    WasmEdge_ValidatorContext *Cxt,
+    const WasmEdge_ASTModuleContext *ModuleCxt) noexcept {
   return wrap(
       [&]() {
         return fromValidatorCxt(Cxt)->validate(*fromASTModCxt(ModuleCxt));
@@ -2034,7 +2067,7 @@ WasmEdge_ValidatorValidate(WasmEdge_ValidatorContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt) {
+WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt) noexcept {
   delete fromValidatorCxt(Cxt);
 }
 
@@ -2044,7 +2077,7 @@ WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *
 WasmEdge_ExecutorCreate(const WasmEdge_ConfigureContext *ConfCxt,
-                        WasmEdge_StatisticsContext *StatCxt) {
+                        WasmEdge_StatisticsContext *StatCxt) noexcept {
   try {
     if (ConfCxt) {
       if (StatCxt) {
@@ -2070,7 +2103,8 @@ WasmEdge_ExecutorCreate(const WasmEdge_ConfigureContext *ConfCxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInstantiate(
     WasmEdge_ExecutorContext *Cxt, WasmEdge_ModuleInstanceContext **ModuleCxt,
-    WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt) {
+    WasmEdge_StoreContext *StoreCxt,
+    const WasmEdge_ASTModuleContext *ASTCxt) noexcept {
   return wrap(
       [&]() {
         return fromExecutorCxt(Cxt)->instantiateModule(*fromStoreCxt(StoreCxt),
@@ -2083,7 +2117,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInstantiate(
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegister(
     WasmEdge_ExecutorContext *Cxt, WasmEdge_ModuleInstanceContext **ModuleCxt,
     WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt,
-    const WasmEdge_String ModuleName) {
+    const WasmEdge_String ModuleName) noexcept {
   return wrap(
       [&]() {
         return fromExecutorCxt(Cxt)->registerModule(*fromStoreCxt(StoreCxt),
@@ -2096,7 +2130,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegister(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegisterImport(
     WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
-    const WasmEdge_ModuleInstanceContext *ImportCxt) {
+    const WasmEdge_ModuleInstanceContext *ImportCxt) noexcept {
   return wrap(
       [&]() {
         return fromExecutorCxt(Cxt)->registerModule(*fromStoreCxt(StoreCxt),
@@ -2105,11 +2139,11 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegisterImport(
       EmptyThen, Cxt, StoreCxt, ImportCxt);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
-                        const WasmEdge_FunctionInstanceContext *FuncCxt,
-                        const WasmEdge_Value *Params, const uint32_t ParamLen,
-                        WasmEdge_Value *Returns, const uint32_t ReturnLen) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvoke(
+    WasmEdge_ExecutorContext *Cxt,
+    const WasmEdge_FunctionInstanceContext *FuncCxt,
+    const WasmEdge_Value *Params, const uint32_t ParamLen,
+    WasmEdge_Value *Returns, const uint32_t ReturnLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     return wrap(
@@ -2129,7 +2163,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *
 WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
                              const WasmEdge_FunctionInstanceContext *FuncCxt,
                              const WasmEdge_Value *Params,
-                             const uint32_t ParamLen) {
+                             const uint32_t ParamLen) noexcept {
   try {
     if (Cxt && FuncCxt) {
       auto ParamPair = genParamPair(Params, ParamLen);
@@ -2143,7 +2177,7 @@ WasmEdge_ExecutorAsyncInvoke(WasmEdge_ExecutorContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt) {
+WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt) noexcept {
   delete fromExecutorCxt(Cxt);
 }
 
@@ -2151,7 +2185,8 @@ WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt) {
 
 // >>>>>>>> WasmEdge store functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT WasmEdge_StoreContext *WasmEdge_StoreCreate(void) {
+WASMEDGE_CAPI_EXPORT WasmEdge_StoreContext *
+WasmEdge_StoreCreate(void) noexcept {
   try {
     return toStoreCxt(new WasmEdge::Runtime::StoreManager);
   } catch (...) {
@@ -2162,7 +2197,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_StoreContext *WasmEdge_StoreCreate(void) {
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
 WasmEdge_StoreFindModule(const WasmEdge_StoreContext *Cxt,
-                         const WasmEdge_String Name) {
+                         const WasmEdge_String Name) noexcept {
   if (Cxt) {
     return toModCxt(fromStoreCxt(Cxt)->findModule(genStrView(Name)));
   }
@@ -2170,7 +2205,7 @@ WasmEdge_StoreFindModule(const WasmEdge_StoreContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt) {
+WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt) noexcept {
   if (Cxt) {
     return fromStoreCxt(Cxt)->getModuleListSize();
   }
@@ -2179,7 +2214,7 @@ WasmEdge_StoreListModuleLength(const WasmEdge_StoreContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
-                         WasmEdge_String *Names, const uint32_t Len) {
+                         WasmEdge_String *Names, const uint32_t Len) noexcept {
   if (Cxt) {
     return fromStoreCxt(Cxt)->getModuleList(
         [&](auto &Map) { return fillMap(Map, Names, Len); });
@@ -2187,7 +2222,8 @@ WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt) {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt) noexcept {
   delete fromStoreCxt(Cxt);
 }
 
@@ -2196,7 +2232,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_StoreDelete(WasmEdge_StoreContext *Cxt) {
 // >>>>>>>> WasmEdge module instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName) {
+WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName) noexcept {
   try {
     return toModCxt(new WasmEdge::Runtime::Instance::ModuleInstance(
         genStrView(ModuleName)));
@@ -2211,7 +2247,7 @@ WasmEdge_ModuleInstanceCreateWASIWithFds(
     const char *const *Args, const uint32_t ArgLen, const char *const *Envs,
     const uint32_t EnvLen, const char *const *Preopens,
     const uint32_t PreopenLen, const int32_t StdInFd, const int32_t StdOutFd,
-    const int32_t StdErrFd) {
+    const int32_t StdErrFd) noexcept {
   try {
     auto WasiMod = std::make_unique<WasmEdge::Host::WasiModule>();
     WasmEdge_ModuleInstanceInitWASIWithFds(
@@ -2230,7 +2266,7 @@ WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
                                   const char *const *Envs,
                                   const uint32_t EnvLen,
                                   const char *const *Preopens,
-                                  const uint32_t PreopenLen) {
+                                  const uint32_t PreopenLen) noexcept {
   try {
     auto WasiMod = std::make_unique<WasmEdge::Host::WasiModule>();
     WasmEdge_ModuleInstanceInitWASI(toModCxt(WasiMod.get()), Args, ArgLen, Envs,
@@ -2245,7 +2281,7 @@ WasmEdge_ModuleInstanceCreateWASI(const char *const *Args,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
 WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
                                       void *HostData,
-                                      void (*Finalizer)(void *)) {
+                                      void (*Finalizer)(void *)) noexcept {
   try {
     return toModCxt(new WasmEdge::Runtime::Instance::ModuleInstance(
         genStrView(ModuleName), HostData, Finalizer));
@@ -2258,7 +2294,7 @@ WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String ModuleName,
 WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASI(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
-    const char *const *Preopens, const uint32_t PreopenLen) {
+    const char *const *Preopens, const uint32_t PreopenLen) noexcept {
   if (!Cxt) {
     return;
   }
@@ -2297,7 +2333,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASIWithFds(
     WasmEdge_ModuleInstanceContext *Cxt, const char *const *Args,
     const uint32_t ArgLen, const char *const *Envs, const uint32_t EnvLen,
     const char *const *Preopens, const uint32_t PreopenLen,
-    const int32_t StdInFd, const int32_t StdOutFd, const int32_t StdErrFd) {
+    const int32_t StdInFd, const int32_t StdOutFd,
+    const int32_t StdErrFd) noexcept {
   if (!Cxt) {
     return;
   }
@@ -2340,7 +2377,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceInitWASIWithFds(
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceWASIGetNativeHandler(
     const WasmEdge_ModuleInstanceContext *Cxt, int32_t Fd,
-    uint64_t *NativeHandler) {
+    uint64_t *NativeHandler) noexcept {
   if (!Cxt) {
     return 1;
   }
@@ -2358,7 +2395,7 @@ WasmEdge_ModuleInstanceWASIGetNativeHandler(
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
-    const WasmEdge_ModuleInstanceContext *Cxt) {
+    const WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   if (!Cxt) {
     return EXIT_FAILURE;
   }
@@ -2373,7 +2410,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceWASIGetExitCode(
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
                                            const uint32_t CmdsLen,
-                                           const bool AllowAll) {
+                                           const bool AllowAll) noexcept {
   using namespace std::literals::string_view_literals;
   if (const auto *Plugin =
           WasmEdge::Plugin::Plugin::find("wasmedge_process"sv)) {
@@ -2389,7 +2426,7 @@ WasmEdge_ModuleInstanceInitWasmEdgeProcess(const char *const *AllowedCmds,
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ModuleInstanceGetModuleName(
-    const WasmEdge_ModuleInstanceContext *Cxt) {
+    const WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   if (Cxt) {
     auto StrView = fromModCxt(Cxt)->getModuleName();
     return WasmEdge_String{/* Length */ static_cast<uint32_t>(StrView.length()),
@@ -2398,8 +2435,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_String WasmEdge_ModuleInstanceGetModuleName(
   return WasmEdge_String{/* Length */ 0, /* Buf */ nullptr};
 }
 
-WASMEDGE_CAPI_EXPORT void *
-WasmEdge_ModuleInstanceGetHostData(const WasmEdge_ModuleInstanceContext *Cxt) {
+WASMEDGE_CAPI_EXPORT void *WasmEdge_ModuleInstanceGetHostData(
+    const WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getHostData();
   }
@@ -2408,7 +2445,7 @@ WasmEdge_ModuleInstanceGetHostData(const WasmEdge_ModuleInstanceContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
 WasmEdge_ModuleInstanceFindFunction(const WasmEdge_ModuleInstanceContext *Cxt,
-                                    const WasmEdge_String Name) {
+                                    const WasmEdge_String Name) noexcept {
   if (Cxt) {
     return toFuncCxt(fromModCxt(Cxt)->findFuncExports(genStrView(Name)));
   }
@@ -2417,7 +2454,7 @@ WasmEdge_ModuleInstanceFindFunction(const WasmEdge_ModuleInstanceContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
 WasmEdge_ModuleInstanceFindTable(const WasmEdge_ModuleInstanceContext *Cxt,
-                                 const WasmEdge_String Name) {
+                                 const WasmEdge_String Name) noexcept {
   if (Cxt) {
     return toTabCxt(fromModCxt(Cxt)->findTableExports(genStrView(Name)));
   }
@@ -2426,7 +2463,7 @@ WasmEdge_ModuleInstanceFindTable(const WasmEdge_ModuleInstanceContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
 WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  const WasmEdge_String Name) {
+                                  const WasmEdge_String Name) noexcept {
   if (Cxt) {
     return toMemCxt(fromModCxt(Cxt)->findMemoryExports(genStrView(Name)));
   }
@@ -2435,7 +2472,7 @@ WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_TagInstanceContext *
 WasmEdge_ModuleInstanceFindTag(const WasmEdge_ModuleInstanceContext *Cxt,
-                               const WasmEdge_String Name) {
+                               const WasmEdge_String Name) noexcept {
   if (Cxt) {
     return toTagCxt(fromModCxt(Cxt)->findTagExports(genStrView(Name)));
   }
@@ -2444,7 +2481,7 @@ WasmEdge_ModuleInstanceFindTag(const WasmEdge_ModuleInstanceContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_GlobalInstanceContext *
 WasmEdge_ModuleInstanceFindGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  const WasmEdge_String Name) {
+                                  const WasmEdge_String Name) noexcept {
   if (Cxt) {
     return toGlobCxt(fromModCxt(Cxt)->findGlobalExports(genStrView(Name)));
   }
@@ -2452,7 +2489,7 @@ WasmEdge_ModuleInstanceFindGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListFunctionLength(
-    const WasmEdge_ModuleInstanceContext *Cxt) {
+    const WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getFuncExportNum();
   }
@@ -2462,7 +2499,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListFunctionLength(
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ModuleInstanceListFunction(const WasmEdge_ModuleInstanceContext *Cxt,
                                     WasmEdge_String *Names,
-                                    const uint32_t Len) {
+                                    const uint32_t Len) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getFuncExports(
         [&](auto &Map) { return fillMap(Map, Names, Len); });
@@ -2471,16 +2508,16 @@ WasmEdge_ModuleInstanceListFunction(const WasmEdge_ModuleInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListTableLength(
-    const WasmEdge_ModuleInstanceContext *Cxt) {
+    const WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getTableExportNum();
   }
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_ModuleInstanceListTable(const WasmEdge_ModuleInstanceContext *Cxt,
-                                 WasmEdge_String *Names, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListTable(
+    const WasmEdge_ModuleInstanceContext *Cxt, WasmEdge_String *Names,
+    const uint32_t Len) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getTableExports(
         [&](auto &Map) { return fillMap(Map, Names, Len); });
@@ -2489,16 +2526,16 @@ WasmEdge_ModuleInstanceListTable(const WasmEdge_ModuleInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListMemoryLength(
-    const WasmEdge_ModuleInstanceContext *Cxt) {
+    const WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getMemoryExportNum();
   }
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_ModuleInstanceListMemory(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  WasmEdge_String *Names, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListMemory(
+    const WasmEdge_ModuleInstanceContext *Cxt, WasmEdge_String *Names,
+    const uint32_t Len) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getMemoryExports(
         [&](auto &Map) { return fillMap(Map, Names, Len); });
@@ -2507,16 +2544,16 @@ WasmEdge_ModuleInstanceListMemory(const WasmEdge_ModuleInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListTagLength(
-    const WasmEdge_ModuleInstanceContext *Cxt) {
+    const WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getTagExportNum();
   }
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_ModuleInstanceListTag(const WasmEdge_ModuleInstanceContext *Cxt,
-                               WasmEdge_String *Names, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListTag(
+    const WasmEdge_ModuleInstanceContext *Cxt, WasmEdge_String *Names,
+    const uint32_t Len) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getTagExports(
         [&](auto &Map) { return fillMap(Map, Names, Len); });
@@ -2525,16 +2562,16 @@ WasmEdge_ModuleInstanceListTag(const WasmEdge_ModuleInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListGlobalLength(
-    const WasmEdge_ModuleInstanceContext *Cxt) {
+    const WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getGlobalExportNum();
   }
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_ModuleInstanceListGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
-                                  WasmEdge_String *Names, const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_ModuleInstanceListGlobal(
+    const WasmEdge_ModuleInstanceContext *Cxt, WasmEdge_String *Names,
+    const uint32_t Len) noexcept {
   if (Cxt) {
     return fromModCxt(Cxt)->getGlobalExports(
         [&](auto &Map) { return fillMap(Map, Names, Len); });
@@ -2542,10 +2579,9 @@ WasmEdge_ModuleInstanceListGlobal(const WasmEdge_ModuleInstanceContext *Cxt,
   return 0;
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_ModuleInstanceAddFunction(WasmEdge_ModuleInstanceContext *Cxt,
-                                   const WasmEdge_String Name,
-                                   WasmEdge_FunctionInstanceContext *FuncCxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddFunction(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_FunctionInstanceContext *FuncCxt) noexcept {
   if (Cxt && FuncCxt) {
     fromModCxt(Cxt)->addHostFunc(
         genStrView(Name),
@@ -2554,10 +2590,9 @@ WasmEdge_ModuleInstanceAddFunction(WasmEdge_ModuleInstanceContext *Cxt,
   }
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_ModuleInstanceAddTable(WasmEdge_ModuleInstanceContext *Cxt,
-                                const WasmEdge_String Name,
-                                WasmEdge_TableInstanceContext *TableCxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddTable(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_TableInstanceContext *TableCxt) noexcept {
   if (Cxt && TableCxt) {
     fromModCxt(Cxt)->addHostTable(
         genStrView(Name),
@@ -2566,10 +2601,9 @@ WasmEdge_ModuleInstanceAddTable(WasmEdge_ModuleInstanceContext *Cxt,
   }
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_ModuleInstanceAddMemory(WasmEdge_ModuleInstanceContext *Cxt,
-                                 const WasmEdge_String Name,
-                                 WasmEdge_MemoryInstanceContext *MemoryCxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddMemory(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_MemoryInstanceContext *MemoryCxt) noexcept {
   if (Cxt && MemoryCxt) {
     fromModCxt(Cxt)->addHostMemory(
         genStrView(Name),
@@ -2578,10 +2612,9 @@ WasmEdge_ModuleInstanceAddMemory(WasmEdge_ModuleInstanceContext *Cxt,
   }
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_ModuleInstanceAddGlobal(WasmEdge_ModuleInstanceContext *Cxt,
-                                 const WasmEdge_String Name,
-                                 WasmEdge_GlobalInstanceContext *GlobalCxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddGlobal(
+    WasmEdge_ModuleInstanceContext *Cxt, const WasmEdge_String Name,
+    WasmEdge_GlobalInstanceContext *GlobalCxt) noexcept {
   if (Cxt && GlobalCxt) {
     fromModCxt(Cxt)->addHostGlobal(
         genStrView(Name),
@@ -2591,7 +2624,7 @@ WasmEdge_ModuleInstanceAddGlobal(WasmEdge_ModuleInstanceContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_ModuleInstanceDelete(WasmEdge_ModuleInstanceContext *Cxt) {
+WasmEdge_ModuleInstanceDelete(WasmEdge_ModuleInstanceContext *Cxt) noexcept {
   delete fromModCxt(Cxt);
 }
 
@@ -2602,7 +2635,7 @@ WasmEdge_ModuleInstanceDelete(WasmEdge_ModuleInstanceContext *Cxt) {
 WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
 WasmEdge_FunctionInstanceCreate(const WasmEdge_FunctionTypeContext *Type,
                                 WasmEdge_HostFunc_t HostFunc, void *Data,
-                                const uint64_t Cost) {
+                                const uint64_t Cost) noexcept {
   try {
     if (Type && HostFunc) {
       return toFuncCxt(new WasmEdge::Runtime::Instance::FunctionInstance(
@@ -2619,7 +2652,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_FunctionInstanceContext *
 WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
                                        WasmEdge_WrapFunc_t WrapFunc,
                                        void *Binding, void *Data,
-                                       const uint64_t Cost) {
+                                       const uint64_t Cost) noexcept {
   try {
     if (Type && WrapFunc) {
       return toFuncCxt(new WasmEdge::Runtime::Instance::FunctionInstance(
@@ -2634,15 +2667,15 @@ WasmEdge_FunctionInstanceCreateBinding(const WasmEdge_FunctionTypeContext *Type,
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
 WasmEdge_FunctionInstanceGetFunctionType(
-    const WasmEdge_FunctionInstanceContext *Cxt) {
+    const WasmEdge_FunctionInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return toFuncTypeCxt(&fromFuncCxt(Cxt)->getFuncType());
   }
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT extern const void *
-WasmEdge_FunctionInstanceGetData(const WasmEdge_FunctionInstanceContext *Cxt) {
+WASMEDGE_CAPI_EXPORT extern const void *WasmEdge_FunctionInstanceGetData(
+    const WasmEdge_FunctionInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return reinterpret_cast<CAPIHostFunc *>(&fromFuncCxt(Cxt)->getHostFunc())
         ->getData();
@@ -2650,8 +2683,8 @@ WasmEdge_FunctionInstanceGetData(const WasmEdge_FunctionInstanceContext *Cxt) {
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT void
-WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_FunctionInstanceDelete(
+    WasmEdge_FunctionInstanceContext *Cxt) noexcept {
   delete fromFuncCxt(Cxt);
 }
 
@@ -2660,7 +2693,8 @@ WasmEdge_FunctionInstanceDelete(WasmEdge_FunctionInstanceContext *Cxt) {
 // >>>>>>>> WasmEdge table instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_TableInstanceContext *
-WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType) {
+WasmEdge_TableInstanceCreate(
+    const WasmEdge_TableTypeContext *TabType) noexcept {
   try {
     if (TabType) {
       const AST::TableType &TType = *fromTabTypeCxt(TabType);
@@ -2678,7 +2712,7 @@ WasmEdge_TableInstanceCreate(const WasmEdge_TableTypeContext *TabType) {
 
 WASMEDGE_CAPI_EXPORT extern WasmEdge_TableInstanceContext *
 WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
-                                     const WasmEdge_Value Value) {
+                                     const WasmEdge_Value Value) noexcept {
   try {
     if (TabType) {
       // Comparison of the value types needs the module instance to retrieve the
@@ -2710,16 +2744,17 @@ WasmEdge_TableInstanceCreateWithInit(const WasmEdge_TableTypeContext *TabType,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_TableTypeContext *
-WasmEdge_TableInstanceGetTableType(const WasmEdge_TableInstanceContext *Cxt) {
+WasmEdge_TableInstanceGetTableType(
+    const WasmEdge_TableInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return toTabTypeCxt(&fromTabCxt(Cxt)->getTableType());
   }
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value *Data, const uint64_t Offset) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceGetData(
+    const WasmEdge_TableInstanceContext *Cxt, WasmEdge_Value *Data,
+    const uint64_t Offset) noexcept {
   return wrap([&]() { return fromTabCxt(Cxt)->getRefAddr(Offset); },
               [&Data, &Cxt](auto &&Res) {
                 *Data = genWasmEdge_Value(
@@ -2728,9 +2763,9 @@ WasmEdge_TableInstanceGetData(const WasmEdge_TableInstanceContext *Cxt,
               Cxt, Data);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
-                              WasmEdge_Value Data, const uint64_t Offset) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceSetData(
+    WasmEdge_TableInstanceContext *Cxt, WasmEdge_Value Data,
+    const uint64_t Offset) noexcept {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         // Comparison of the value types needs the module instance to retrieve
@@ -2760,8 +2795,8 @@ WasmEdge_TableInstanceSetData(WasmEdge_TableInstanceContext *Cxt,
       EmptyThen, Cxt);
 }
 
-WASMEDGE_CAPI_EXPORT uint64_t
-WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt) {
+WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_TableInstanceGetSize(
+    const WasmEdge_TableInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return fromTabCxt(Cxt)->getSize();
   }
@@ -2769,7 +2804,7 @@ WasmEdge_TableInstanceGetSize(const WasmEdge_TableInstanceContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceGrow(
-    WasmEdge_TableInstanceContext *Cxt, const uint64_t Size) {
+    WasmEdge_TableInstanceContext *Cxt, const uint64_t Size) noexcept {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         if (fromTabCxt(Cxt)->growTable(Size)) {
@@ -2783,7 +2818,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_TableInstanceGrow(
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt) {
+WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt) noexcept {
   delete fromTabCxt(Cxt);
 }
 
@@ -2792,7 +2827,8 @@ WasmEdge_TableInstanceDelete(WasmEdge_TableInstanceContext *Cxt) {
 // >>>>>>>> WasmEdge memory instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
-WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType) {
+WasmEdge_MemoryInstanceCreate(
+    const WasmEdge_MemoryTypeContext *MemType) noexcept {
   try {
     if (MemType) {
       return toMemCxt(new WasmEdge::Runtime::Instance::MemoryInstance(
@@ -2806,7 +2842,7 @@ WasmEdge_MemoryInstanceCreate(const WasmEdge_MemoryTypeContext *MemType) {
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_MemoryTypeContext *
 WasmEdge_MemoryInstanceGetMemoryType(
-    const WasmEdge_MemoryInstanceContext *Cxt) {
+    const WasmEdge_MemoryInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return toMemTypeCxt(&fromMemCxt(Cxt)->getMemoryType());
   }
@@ -2815,7 +2851,7 @@ WasmEdge_MemoryInstanceGetMemoryType(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
     const WasmEdge_MemoryInstanceContext *Cxt, uint8_t *Data,
-    const uint64_t Offset, const uint64_t Length) {
+    const uint64_t Offset, const uint64_t Length) noexcept {
   return wrap([&]() { return fromMemCxt(Cxt)->getBytes(Offset, Length); },
               [&](auto &&Res) { std::copy_n((*Res).begin(), Length, Data); },
               Cxt, Data);
@@ -2823,7 +2859,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGetData(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
     WasmEdge_MemoryInstanceContext *Cxt, const uint8_t *Data,
-    const uint64_t Offset, const uint64_t Length) {
+    const uint64_t Offset, const uint64_t Length) noexcept {
   return wrap(
       [&]() {
         return fromMemCxt(Cxt)->setBytes(genSpan(Data, Length), Offset, 0,
@@ -2835,7 +2871,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceSetData(
 WASMEDGE_CAPI_EXPORT uint8_t *
 WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
                                   const uint64_t Offset,
-                                  const uint64_t Length) {
+                                  const uint64_t Length) noexcept {
   if (Cxt) {
     const auto S = fromMemCxt(Cxt)->getSpan<uint8_t>(Offset, Length);
     if (S.size() == Length) {
@@ -2847,7 +2883,7 @@ WasmEdge_MemoryInstanceGetPointer(WasmEdge_MemoryInstanceContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
     const WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Offset,
-    const uint64_t Length) {
+    const uint64_t Length) noexcept {
   if (Cxt) {
     const auto S = fromMemCxt(Cxt)->getSpan<const uint8_t>(Offset, Length);
     if (S.size() == Length) {
@@ -2857,8 +2893,8 @@ WASMEDGE_CAPI_EXPORT const uint8_t *WasmEdge_MemoryInstanceGetPointerConst(
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT uint64_t
-WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
+WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_MemoryInstanceGetPageSize(
+    const WasmEdge_MemoryInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return fromMemCxt(Cxt)->getPageSize();
   }
@@ -2866,7 +2902,7 @@ WasmEdge_MemoryInstanceGetPageSize(const WasmEdge_MemoryInstanceContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGrowPage(
-    WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Page) {
+    WasmEdge_MemoryInstanceContext *Cxt, const uint64_t Page) noexcept {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         if (fromMemCxt(Cxt)->growPage(Page)) {
@@ -2881,7 +2917,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_MemoryInstanceGrowPage(
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt) {
+WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt) noexcept {
   delete fromMemCxt(Cxt);
 }
 
@@ -2890,7 +2926,8 @@ WasmEdge_MemoryInstanceDelete(WasmEdge_MemoryInstanceContext *Cxt) {
 // >>>>>>>> WasmEdge tag instance functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_TagTypeContext *
-WasmEdge_TagInstanceGetTagType(const WasmEdge_TagInstanceContext *Cxt) {
+WasmEdge_TagInstanceGetTagType(
+    const WasmEdge_TagInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return toTagTypeCxt(&fromTagCxt(Cxt)->getTagType());
   }
@@ -2903,7 +2940,7 @@ WasmEdge_TagInstanceGetTagType(const WasmEdge_TagInstanceContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_GlobalInstanceContext *
 WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
-                              const WasmEdge_Value Value) {
+                              const WasmEdge_Value Value) noexcept {
   try {
     if (GlobType) {
       // Comparison of the value types needs the module instance to retrieve the
@@ -2948,15 +2985,15 @@ WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *GlobType,
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_GlobalTypeContext *
 WasmEdge_GlobalInstanceGetGlobalType(
-    const WasmEdge_GlobalInstanceContext *Cxt) {
+    const WasmEdge_GlobalInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return toGlobTypeCxt(&fromGlobCxt(Cxt)->getGlobalType());
   }
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Value
-WasmEdge_GlobalInstanceGetValue(const WasmEdge_GlobalInstanceContext *Cxt) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Value WasmEdge_GlobalInstanceGetValue(
+    const WasmEdge_GlobalInstanceContext *Cxt) noexcept {
   if (Cxt) {
     return genWasmEdge_Value(fromGlobCxt(Cxt)->getValue(),
                              fromGlobCxt(Cxt)->getGlobalType().getValType());
@@ -2967,7 +3004,7 @@ WasmEdge_GlobalInstanceGetValue(const WasmEdge_GlobalInstanceContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_GlobalInstanceSetValue(
-    WasmEdge_GlobalInstanceContext *Cxt, const WasmEdge_Value Value) {
+    WasmEdge_GlobalInstanceContext *Cxt, const WasmEdge_Value Value) noexcept {
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
         const auto &GlobType = fromGlobCxt(Cxt)->getGlobalType();
@@ -3014,7 +3051,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_GlobalInstanceSetValue(
 }
 
 WASMEDGE_CAPI_EXPORT void
-WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt) {
+WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt) noexcept {
   delete fromGlobCxt(Cxt);
 }
 
@@ -3022,8 +3059,8 @@ WasmEdge_GlobalInstanceDelete(WasmEdge_GlobalInstanceContext *Cxt) {
 
 // >>>>>>>> WasmEdge calling frame functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *
-WasmEdge_CallingFrameGetExecutor(const WasmEdge_CallingFrameContext *Cxt) {
+WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *WasmEdge_CallingFrameGetExecutor(
+    const WasmEdge_CallingFrameContext *Cxt) noexcept {
   if (Cxt) {
     return toExecutorCxt(fromCallFrameCxt(Cxt)->getExecutor());
   }
@@ -3032,7 +3069,7 @@ WasmEdge_CallingFrameGetExecutor(const WasmEdge_CallingFrameContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
 WasmEdge_CallingFrameGetModuleInstance(
-    const WasmEdge_CallingFrameContext *Cxt) {
+    const WasmEdge_CallingFrameContext *Cxt) noexcept {
   if (Cxt) {
     return toModCxt(fromCallFrameCxt(Cxt)->getModule());
   }
@@ -3041,7 +3078,7 @@ WasmEdge_CallingFrameGetModuleInstance(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_MemoryInstanceContext *
 WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
-                                       const uint32_t Idx) {
+                                       const uint32_t Idx) noexcept {
   if (Cxt) {
     return toMemCxt(fromCallFrameCxt(Cxt)->getMemoryByIndex(Idx));
   }
@@ -3052,28 +3089,30 @@ WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
 
 // >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncWait(const WasmEdge_Async *Cxt) {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_AsyncWait(const WasmEdge_Async *Cxt) noexcept {
   if (Cxt) {
     Cxt->Async.wait();
   }
 }
 
-WASMEDGE_CAPI_EXPORT bool WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
-                                                uint64_t Milliseconds) {
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
+                      uint64_t Milliseconds) noexcept {
   if (Cxt) {
     return Cxt->Async.waitFor(std::chrono::milliseconds(Milliseconds));
   }
   return false;
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncCancel(WasmEdge_Async *Cxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncCancel(WasmEdge_Async *Cxt) noexcept {
   if (Cxt) {
     Cxt->Async.cancel();
   }
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_AsyncGetReturnsLength(const WasmEdge_Async *Cxt) {
+WasmEdge_AsyncGetReturnsLength(const WasmEdge_Async *Cxt) noexcept {
   if (Cxt) {
     if (auto Res = Cxt->Async.get()) {
       return static_cast<uint32_t>((*Res).size());
@@ -3084,13 +3123,13 @@ WasmEdge_AsyncGetReturnsLength(const WasmEdge_Async *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_AsyncGet(const WasmEdge_Async *Cxt, WasmEdge_Value *Returns,
-                  const uint32_t ReturnLen) {
+                  const uint32_t ReturnLen) noexcept {
   return wrap(
       [&]() { return Cxt->Async.get(); },
       [&](auto Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); }, Cxt);
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncDelete(WasmEdge_Async *Cxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncDelete(WasmEdge_Async *Cxt) noexcept {
   delete Cxt;
 }
 
@@ -3100,7 +3139,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_AsyncDelete(WasmEdge_Async *Cxt) {
 
 WASMEDGE_CAPI_EXPORT WasmEdge_VMContext *
 WasmEdge_VMCreate(const WasmEdge_ConfigureContext *ConfCxt,
-                  WasmEdge_StoreContext *StoreCxt) {
+                  WasmEdge_StoreContext *StoreCxt) noexcept {
   try {
     if (ConfCxt) {
       if (StoreCxt) {
@@ -3124,7 +3163,7 @@ WasmEdge_VMCreate(const WasmEdge_ConfigureContext *ConfCxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromFile(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
-    const char *Path) {
+    const char *Path) noexcept {
   return wrap(
       [&]() {
         return Cxt->VM.registerModule(genStrView(ModuleName),
@@ -3135,14 +3174,14 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromFile(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromBuffer(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
-    const uint8_t *Buf, const uint32_t BufLen) {
+    const uint8_t *Buf, const uint32_t BufLen) noexcept {
   return WasmEdge_VMRegisterModuleFromBytes(Cxt, ModuleName,
                                             WasmEdge_BytesWrap(Buf, BufLen));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromBytes(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
-    const WasmEdge_Bytes Bytes) {
+    const WasmEdge_Bytes Bytes) noexcept {
   return wrap(
       [&]() {
         return Cxt->VM.registerModule(genStrView(ModuleName),
@@ -3153,7 +3192,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromBytes(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromASTModule(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
-    const WasmEdge_ASTModuleContext *ASTCxt) {
+    const WasmEdge_ASTModuleContext *ASTCxt) noexcept {
   return wrap(
       [&]() {
         return Cxt->VM.registerModule(genStrView(ModuleName),
@@ -3163,7 +3202,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromASTModule(
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
-    WasmEdge_VMContext *Cxt, const WasmEdge_ModuleInstanceContext *ImportCxt) {
+    WasmEdge_VMContext *Cxt,
+    const WasmEdge_ModuleInstanceContext *ImportCxt) noexcept {
   return wrap([&]() { return Cxt->VM.registerModule(*fromModCxt(ImportCxt)); },
               EmptyThen, Cxt, ImportCxt);
 }
@@ -3171,7 +3211,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromFile(
     WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,
     const WasmEdge_Value *Params, const uint32_t ParamLen,
-    WasmEdge_Value *Returns, const uint32_t ReturnLen) {
+    WasmEdge_Value *Returns, const uint32_t ReturnLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     return wrap(
@@ -3191,7 +3231,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
     WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns,
-    const uint32_t ReturnLen) {
+    const uint32_t ReturnLen) noexcept {
   return WasmEdge_VMRunWasmFromBytes(Cxt, WasmEdge_BytesWrap(Buf, BufLen),
                                      FuncName, Params, ParamLen, Returns,
                                      ReturnLen);
@@ -3201,7 +3241,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromBytes(
     WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns,
-    const uint32_t ReturnLen) {
+    const uint32_t ReturnLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     return wrap(
@@ -3221,7 +3261,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
     WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns,
-    const uint32_t ReturnLen) {
+    const uint32_t ReturnLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     return wrap(
@@ -3239,7 +3279,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
     WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,
-    const WasmEdge_Value *Params, const uint32_t ParamLen) {
+    const WasmEdge_Value *Params, const uint32_t ParamLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     if (Cxt) {
@@ -3256,7 +3296,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
 WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
     WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen) {
+    const uint32_t ParamLen) noexcept {
   return WasmEdge_VMAsyncRunWasmFromBytes(Cxt, WasmEdge_BytesWrap(Buf, BufLen),
                                           FuncName, Params, ParamLen);
 }
@@ -3264,7 +3304,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
 WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBytes(
     WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen) {
+    const uint32_t ParamLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     if (Cxt) {
@@ -3281,7 +3321,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBytes(
 WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromASTModule(
     WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen) {
+    const uint32_t ParamLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     if (Cxt && ASTCxt) {
@@ -3295,46 +3335,47 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromASTModule(
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMLoadWasmFromFile(
+    WasmEdge_VMContext *Cxt, const char *Path) noexcept {
   return wrap(
       [&]() { return Cxt->VM.loadWasm(std::filesystem::absolute(Path)); },
       EmptyThen, Cxt);
 }
 
-WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMLoadWasmFromBuffer(
-    WasmEdge_VMContext *Cxt, const uint8_t *Buf, const uint32_t BufLen) {
+WASMEDGE_CAPI_EXPORT WasmEdge_Result
+WasmEdge_VMLoadWasmFromBuffer(WasmEdge_VMContext *Cxt, const uint8_t *Buf,
+                              const uint32_t BufLen) noexcept {
   return WasmEdge_VMLoadWasmFromBytes(Cxt, WasmEdge_BytesWrap(Buf, BufLen));
 }
 
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMLoadWasmFromBytes(WasmEdge_VMContext *Cxt,
-                             const WasmEdge_Bytes Bytes) {
+                             const WasmEdge_Bytes Bytes) noexcept {
   return wrap(
       [&]() { return Cxt->VM.loadWasm(genSpan(Bytes.Buf, Bytes.Length)); },
       EmptyThen, Cxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMLoadWasmFromASTModule(
-    WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt) {
+    WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt) noexcept {
   return wrap([&]() { return Cxt->VM.loadWasm(*fromASTModCxt(ASTCxt)); },
               EmptyThen, Cxt, ASTCxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_VMValidate(WasmEdge_VMContext *Cxt) {
+WasmEdge_VMValidate(WasmEdge_VMContext *Cxt) noexcept {
   return wrap([&]() { return Cxt->VM.validate(); }, EmptyThen, Cxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
-WasmEdge_VMInstantiate(WasmEdge_VMContext *Cxt) {
+WasmEdge_VMInstantiate(WasmEdge_VMContext *Cxt) noexcept {
   return wrap([&]() { return Cxt->VM.instantiate(); }, EmptyThen, Cxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_VMExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
                    const WasmEdge_Value *Params, const uint32_t ParamLen,
-                   WasmEdge_Value *Returns, const uint32_t ReturnLen) {
+                   WasmEdge_Value *Returns, const uint32_t ReturnLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     return wrap(
@@ -3353,7 +3394,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMExecuteRegistered(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen, WasmEdge_Value *Returns,
-    const uint32_t ReturnLen) {
+    const uint32_t ReturnLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     return wrap(
@@ -3370,7 +3411,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMExecuteRegistered(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Async *
 WasmEdge_VMAsyncExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
-                        const WasmEdge_Value *Params, const uint32_t ParamLen) {
+                        const WasmEdge_Value *Params,
+                        const uint32_t ParamLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     if (Cxt) {
@@ -3386,7 +3428,7 @@ WasmEdge_VMAsyncExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
 WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen) {
+    const uint32_t ParamLen) noexcept {
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     if (Cxt) {
@@ -3402,7 +3444,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *Cxt,
-                           const WasmEdge_String FuncName) {
+                           const WasmEdge_String FuncName) noexcept {
   try {
     if (Cxt) {
       const auto FuncList = Cxt->VM.getFunctionList();
@@ -3421,7 +3463,7 @@ WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *Cxt,
 WASMEDGE_CAPI_EXPORT const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
                                      const WasmEdge_String ModuleName,
-                                     const WasmEdge_String FuncName) {
+                                     const WasmEdge_String FuncName) noexcept {
   if (Cxt) {
     const auto *ModInst =
         Cxt->VM.getStoreManager().findModule(genStrView(ModuleName));
@@ -3435,14 +3477,14 @@ WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     Cxt->VM.cleanup();
   }
 }
 
-void WasmEdge_VMForceDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
-                                            const WasmEdge_String ModuleName) {
+void WasmEdge_VMForceDeleteRegisteredModule(
+    const WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName) noexcept {
   if (!Cxt || !ModuleName.Buf) {
     return; // Invalid input
   }
@@ -3464,7 +3506,7 @@ void WasmEdge_VMForceDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt) {
+WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt) noexcept {
   try {
     if (Cxt) {
       return static_cast<uint32_t>(Cxt->VM.getFunctionList().size());
@@ -3477,7 +3519,8 @@ WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
     const WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
-    const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len) {
+    const WasmEdge_FunctionTypeContext **FuncTypes,
+    const uint32_t Len) noexcept {
   if (Cxt) {
     // Not to use VM::getFunctionList() here because not to allocate the
     // returned function name strings.
@@ -3506,8 +3549,9 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
-WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
-                                  const enum WasmEdge_HostRegistration Reg) {
+WasmEdge_VMGetImportModuleContext(
+    const WasmEdge_VMContext *Cxt,
+    const enum WasmEdge_HostRegistration Reg) noexcept {
   if (Cxt) {
     return toModCxt(
         Cxt->VM.getImportModule(static_cast<WasmEdge::HostRegistration>(Reg)));
@@ -3516,7 +3560,7 @@ WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_VMListRegisteredModuleLength(const WasmEdge_VMContext *Cxt) {
+WasmEdge_VMListRegisteredModuleLength(const WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     return Cxt->VM.getStoreManager().getModuleListSize();
   }
@@ -3524,7 +3568,8 @@ WasmEdge_VMListRegisteredModuleLength(const WasmEdge_VMContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMListRegisteredModule(
-    const WasmEdge_VMContext *Cxt, WasmEdge_String *Names, const uint32_t Len) {
+    const WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
+    const uint32_t Len) noexcept {
   if (Cxt) {
     return Cxt->VM.getStoreManager().getModuleList(
         [&](auto &Map) { return fillMap(Map, Names, Len); });
@@ -3534,7 +3579,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMListRegisteredModule(
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
 WasmEdge_VMGetRegisteredModule(const WasmEdge_VMContext *Cxt,
-                               const WasmEdge_String ModuleName) {
+                               const WasmEdge_String ModuleName) noexcept {
   if (Cxt) {
     return toModCxt(
         Cxt->VM.getStoreManager().findModule(genStrView(ModuleName)));
@@ -3543,7 +3588,7 @@ WasmEdge_VMGetRegisteredModule(const WasmEdge_VMContext *Cxt,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_ModuleInstanceContext *
-WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt) {
+WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     return toModCxt(Cxt->VM.getActiveModule());
   }
@@ -3551,7 +3596,7 @@ WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_StoreContext *
-WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt) {
+WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     return toStoreCxt(&Cxt->VM.getStoreManager());
   }
@@ -3559,7 +3604,7 @@ WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_LoaderContext *
-WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt) {
+WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     return toLoaderCxt(&Cxt->VM.getLoader());
   }
@@ -3567,7 +3612,7 @@ WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ValidatorContext *
-WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt) {
+WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     return toValidatorCxt(&Cxt->VM.getValidator());
   }
@@ -3575,7 +3620,7 @@ WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ExecutorContext *
-WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt) {
+WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     return toExecutorCxt(&Cxt->VM.getExecutor());
   }
@@ -3583,14 +3628,14 @@ WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_StatisticsContext *
-WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt) {
+WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     return toStatCxt(&Cxt->VM.getStatistics());
   }
   return nullptr;
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) noexcept {
   delete Cxt;
 }
 
@@ -3600,7 +3645,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) {
 
 #if WASMEDGE_OS_WINDOWS
 WASMEDGE_CAPI_EXPORT const char **
-WasmEdge_Driver_ArgvCreate(int Argc, const wchar_t *Argv[]) {
+WasmEdge_Driver_ArgvCreate(int Argc, const wchar_t *Argv[]) noexcept {
   try {
     const Span<const wchar_t *> Args(Argv, static_cast<size_t>(Argc));
     const size_t PointerArraySize = static_cast<size_t>(Argc) * sizeof(char *);
@@ -3634,12 +3679,14 @@ WasmEdge_Driver_ArgvCreate(int Argc, const wchar_t *Argv[]) {
   }
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_Driver_ArgvDelete(const char *Argv[]) {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_Driver_ArgvDelete(const char *Argv[]) noexcept {
   std::unique_ptr<char[]> Buffer(reinterpret_cast<char *>(Argv));
   Buffer.reset();
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void) {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void) noexcept {
 #if WINAPI_PARTITION_DESKTOP
   winapi::SetConsoleOutputCP(winapi::CP_UTF8_);
 #endif
@@ -3647,38 +3694,69 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void) {
 #endif
 
 WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Compiler(int Argc,
-                                                  const char *Argv[]) {
-  return WasmEdge::Driver::UniTool(Argc, Argv,
-                                   WasmEdge::Driver::ToolType::Compiler);
+                                                  const char *Argv[]) noexcept {
+  try {
+    return WasmEdge::Driver::UniTool(Argc, Argv,
+                                     WasmEdge::Driver::ToolType::Compiler);
+  } catch (...) {
+    handleCAPIError();
+    return EXIT_FAILURE;
+  }
 }
 
-WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc, const char *Argv[]) {
-  return WasmEdge::Driver::UniTool(Argc, Argv,
-                                   WasmEdge::Driver::ToolType::Tool);
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_Tool(int Argc,
+                                              const char *Argv[]) noexcept {
+  try {
+    return WasmEdge::Driver::UniTool(Argc, Argv,
+                                     WasmEdge::Driver::ToolType::Tool);
+  } catch (...) {
+    handleCAPIError();
+    return EXIT_FAILURE;
+  }
 }
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
-WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_WasiNNRPCServer(int Argc,
-                                                         const char *Argv[]) {
-  // UniTool does not support ToolType::WasiNNRPCServer yet (to avoid #ifdef
-  // hell)
-  return WasmEdge::Driver::WasiNNRPCServer(Argc, Argv);
+WASMEDGE_CAPI_EXPORT int
+WasmEdge_Driver_WasiNNRPCServer(int Argc, const char *Argv[]) noexcept {
+  try {
+    return WasmEdge::Driver::WasiNNRPCServer(Argc, Argv);
+  } catch (...) {
+    handleCAPIError();
+    return EXIT_FAILURE;
+  }
 }
 #endif
 
-WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_UniTool(int Argc, const char *Argv[]) {
-  return WasmEdge::Driver::UniTool(Argc, Argv, WasmEdge::Driver::ToolType::All);
+WASMEDGE_CAPI_EXPORT int WasmEdge_Driver_UniTool(int Argc,
+                                                 const char *Argv[]) noexcept {
+  try {
+    return WasmEdge::Driver::UniTool(Argc, Argv,
+                                     WasmEdge::Driver::ToolType::All);
+  } catch (...) {
+    handleCAPIError();
+    return EXIT_FAILURE;
+  }
 }
 
 #ifdef WASMEDGE_BUILD_FUZZING
 WASMEDGE_CAPI_EXPORT extern "C" int
-WasmEdge_Driver_FuzzTool(const uint8_t *Data, size_t Size) {
-  return WasmEdge::Driver::FuzzTool(Data, Size);
+WasmEdge_Driver_FuzzTool(const uint8_t *Data, size_t Size) noexcept {
+  try {
+    return WasmEdge::Driver::FuzzTool(Data, Size);
+  } catch (...) {
+    handleCAPIError();
+    return EXIT_FAILURE;
+  }
 }
 
-WASMEDGE_CAPI_EXPORT extern "C" int WasmEdge_Driver_FuzzPO(const uint8_t *Data,
-                                                           size_t Size) {
-  return WasmEdge::Driver::FuzzPO(Data, Size);
+WASMEDGE_CAPI_EXPORT extern "C" int
+WasmEdge_Driver_FuzzPO(const uint8_t *Data, size_t Size) noexcept {
+  try {
+    return WasmEdge::Driver::FuzzPO(Data, Size);
+  } catch (...) {
+    handleCAPIError();
+    return EXIT_FAILURE;
+  }
 }
 #endif
 
@@ -3686,20 +3764,21 @@ WASMEDGE_CAPI_EXPORT extern "C" int WasmEdge_Driver_FuzzPO(const uint8_t *Data,
 
 // >>>>>>>> WasmEdge Plugin functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) {
+WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) noexcept {
   WasmEdge::Plugin::Plugin::loadFromDefaultPaths();
 }
 
-WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadFromPath(const char *Path) {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_PluginLoadFromPath(const char *Path) noexcept {
   WasmEdge::Plugin::Plugin::load(Path);
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPluginsLength(void) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPluginsLength(void) noexcept {
   return static_cast<uint32_t>(WasmEdge::Plugin::Plugin::plugins().size());
 }
 
-WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPlugins(WasmEdge_String *Names,
-                                                         const uint32_t Len) {
+WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPlugins(
+    WasmEdge_String *Names, const uint32_t Len) noexcept {
   auto PList = WasmEdge::Plugin::Plugin::plugins();
   if (Names) {
     for (uint32_t I = 0; I < Len && I < PList.size(); I++) {
@@ -3712,12 +3791,12 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPlugins(WasmEdge_String *Names,
 }
 
 WASMEDGE_CAPI_EXPORT const WasmEdge_PluginContext *
-WasmEdge_PluginFind(const WasmEdge_String Name) {
+WasmEdge_PluginFind(const WasmEdge_String Name) noexcept {
   return toPluginCxt(WasmEdge::Plugin::Plugin::find(genStrView(Name)));
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_String
-WasmEdge_PluginGetPluginName(const WasmEdge_PluginContext *Cxt) {
+WasmEdge_PluginGetPluginName(const WasmEdge_PluginContext *Cxt) noexcept {
   if (Cxt) {
     const char *Name = fromPluginCxt(Cxt)->name();
     return WasmEdge_String{
@@ -3728,7 +3807,7 @@ WasmEdge_PluginGetPluginName(const WasmEdge_PluginContext *Cxt) {
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t
-WasmEdge_PluginListModuleLength(const WasmEdge_PluginContext *Cxt) {
+WasmEdge_PluginListModuleLength(const WasmEdge_PluginContext *Cxt) noexcept {
   if (Cxt) {
     return static_cast<uint32_t>(fromPluginCxt(Cxt)->modules().size());
   }
@@ -3737,7 +3816,7 @@ WasmEdge_PluginListModuleLength(const WasmEdge_PluginContext *Cxt) {
 
 WASMEDGE_CAPI_EXPORT uint32_t
 WasmEdge_PluginListModule(const WasmEdge_PluginContext *Cxt,
-                          WasmEdge_String *Names, const uint32_t Len) {
+                          WasmEdge_String *Names, const uint32_t Len) noexcept {
   if (Cxt) {
     auto MList = fromPluginCxt(Cxt)->modules();
     if (Names) {
@@ -3754,7 +3833,7 @@ WasmEdge_PluginListModule(const WasmEdge_PluginContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT WasmEdge_ModuleInstanceContext *
 WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
-                            const WasmEdge_String ModuleName) {
+                            const WasmEdge_String ModuleName) noexcept {
   try {
     if (Cxt) {
       if (const auto *PMod =
@@ -3771,7 +3850,7 @@ WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *Cxt,
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_PluginInitWASINN(const char *const *NNPreloads,
-                          const uint32_t PreloadsLen) {
+                          const uint32_t PreloadsLen) noexcept {
   try {
     using namespace std::literals::string_view_literals;
     if (const auto *Plugin = WasmEdge::Plugin::Plugin::find("wasi_nn"sv)) {
@@ -3791,7 +3870,7 @@ WasmEdge_PluginInitWASINN(const char *const *NNPreloads,
 // >>>>>>>> WasmEdge Experimental functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ExecutorExperimentalRegisterPreHostFunction(
-    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *)) {
+    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *)) noexcept {
   if (!Cxt) {
     return;
   }
@@ -3799,7 +3878,7 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ExecutorExperimentalRegisterPreHostFunction(
 }
 
 WASMEDGE_CAPI_EXPORT void WasmEdge_ExecutorExperimentalRegisterPostHostFunction(
-    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *)) {
+    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *)) noexcept {
   if (!Cxt) {
     return;
   }

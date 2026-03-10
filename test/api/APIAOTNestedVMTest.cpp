@@ -38,6 +38,11 @@ template <typename R, typename... A> struct TryWrap<R (*)(A...)> {
     return [Name, Fn](A... Args) { return _Try(Name, Fn(Args...)); };
   }
 };
+template <typename R, typename... A> struct TryWrap<R (*)(A...) noexcept> {
+  static auto wrap(const char *Name, R (*Fn)(A...) noexcept) {
+    return [Name, Fn](A... Args) { return _Try(Name, Fn(Args...)); };
+  }
+};
 /// C++ error checking macro
 #define TRY(fn) TryWrap<decltype(&fn)>::wrap(#fn, &fn)
 

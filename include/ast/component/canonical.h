@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 #pragma once
 
+#include "ast/component/valtype.h"
 #include "common/span.h"
 
 #include <cstdint>
@@ -44,6 +45,7 @@ public:
     PostReturn = 0x05,
     Async = 0x06,
     Callback = 0x07,
+    AlwaysTaskReturn = 0x08,
   };
 
   CanonOpt() noexcept : Code(OptCode::Encode_UTF8), Idx(0) {}
@@ -193,12 +195,22 @@ public:
     Opts = std::move(List);
   }
 
+  Span<const LabelValType> getResultList() const noexcept { return ResultList; }
+  void setResultList(std::vector<LabelValType> &&R) noexcept {
+    ResultList = std::move(R);
+  }
+  void setResultList(const ComponentValType &VT) noexcept {
+    ResultList.clear();
+    ResultList.emplace_back(VT);
+  }
+
 private:
   OpCode Code;
   bool IsAsync;
   uint32_t Idx, TargetIdx;
   uint32_t I32;
   std::vector<CanonOpt> Opts;
+  std::vector<LabelValType> ResultList;
 };
 
 } // namespace Component

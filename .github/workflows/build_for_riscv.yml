@@ -78,13 +78,13 @@ jobs:
           gcc-riscv64-linux-gnu g++-riscv64-linux-gnu \
           zlib1g-dev:riscv64
 
-        # llvm-18-dev:riscv64 cannot be installed via apt-get because its
-        # dependency chain pulls in python3.12-minimal:riscv64, whose postinst
-        # script tries to execute /usr/bin/python3.12 (a riscv64 binary) on
-        # the x86_64 host, causing "Exec format error".
+        # llvm-20-dev:riscv64 cannot be installed via apt-get because its
+        # dependency chain pulls in python3-minimal:riscv64, whose postinst
+        # script tries to execute a riscv64 binary on the x86_64 host,
+        # causing "Exec format error".
         # Workaround: download the packages and extract without running postinst.
         apt-get install -y -d --no-install-recommends \
-          llvm-18-dev:riscv64 liblld-18-dev:riscv64
+          llvm-20-dev:riscv64 liblld-20-dev:riscv64
         for deb in /var/cache/apt/archives/*_riscv64.deb; do
           dpkg-deb -x "$deb" /
         done
@@ -98,7 +98,7 @@ jobs:
           -DWASMEDGE_BUILD_TOOLS=ON \
           -DWASMEDGE_BUILD_SHARED_LIB=ON \
           -DWASMEDGE_USE_LLVM=ON \
-          -DLLVM_DIR=/usr/lib/riscv64-linux-gnu/cmake/llvm-18 \
+          -DLLVM_DIR=/usr/lib/riscv64-linux-gnu/cmake/llvm-20 \
           .
         cmake --build build -j $(nproc)
 
@@ -164,8 +164,8 @@ jobs:
         # Install riscv64 LLVM/LLD runtime libraries (these do NOT depend on
         # python3:riscv64, so apt-get install works without postinst issues)
         apt-get install -y --no-install-recommends \
-          libllvm18:riscv64 \
-          liblld-18:riscv64 \
+          libllvm20:riscv64 \
+          liblld-20:riscv64 \
           zlib1g:riscv64
 
         # Create symlinks so QEMU sysroot can find multi-arch libraries.

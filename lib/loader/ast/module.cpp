@@ -3,7 +3,6 @@
 
 #include "loader/aot_section.h"
 #include "loader/loader.h"
-#include "loader/shared_library.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -42,10 +41,9 @@ Expect<void> Loader::loadModule(AST::Module &Mod,
     } else {
       if (Res.error() == ErrCode::Value::UnexpectedEnd) {
         break;
-      } else {
-        return logLoadError(Res.error(), FMgr.getLastOffset(),
-                            ASTNodeAttr::Module);
       }
+      return logLoadError(Res.error(), FMgr.getLastOffset(),
+                          ASTNodeAttr::Module);
     }
 
     // Sections except the custom section should be unique and in order.
@@ -54,8 +52,8 @@ Expect<void> Loader::loadModule(AST::Module &Mod,
         Secs.pop_back();
       }
       if (Secs.empty()) {
-        return logLoadError(ErrCode::Value::JunkSection, FMgr.getLastOffset(),
-                            ASTNodeAttr::Module);
+        return logLoadError(ErrCode::Value::SectionOutOfOrder,
+                            FMgr.getLastOffset(), ASTNodeAttr::Module);
       }
       Secs.pop_back();
     }

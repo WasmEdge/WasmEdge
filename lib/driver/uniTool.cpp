@@ -23,6 +23,12 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
       PO::Description("Wasmedge runtime tool subcommand"sv));
   PO::SubCommand CompilerSubCommand(
       PO::Description("Wasmedge compiler subcommand"sv));
+  PO::SubCommand ParseSubCommand(
+      PO::Description("Wasmedge  parse tool subcommand"sv));
+  PO::SubCommand InstantiateSubCommand(
+      PO::Description("Wasmedge instantiate tool subcommand"sv));
+  PO::SubCommand ValidateSubCommand(
+      PO::Description("Wasmedge validate tool subcommand"sv));
   struct DriverToolOptions ToolOptions;
   struct DriverCompilerOptions CompilerOptions;
 
@@ -36,6 +42,15 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
 
     Parser.begin_subcommand(ToolSubCommand, "run"sv);
     ToolOptions.add_option(Parser);
+    Parser.end_subcommand();
+    Parser.begin_subcommand(ParseSubCommand, "parse"sv);
+    ToolOptions.add_parse_options(Parser);
+    Parser.end_subcommand();
+    Parser.begin_subcommand(InstantiateSubCommand, "instantiate"sv);
+    ToolOptions.add_instantiate_options(Parser);
+    Parser.end_subcommand();
+    Parser.begin_subcommand(ValidateSubCommand, "validate"sv);
+    ToolOptions.add_validate_options(Parser);
     Parser.end_subcommand();
   } else if (ToolSelect == ToolType::Tool) {
     ToolOptions.add_option(Parser);
@@ -78,6 +93,16 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   } else if (CompilerSubCommand.is_selected() ||
              ToolSelect == ToolType::Compiler) {
     return Compiler(CompilerOptions);
+  } else if (ParseSubCommand.is_selected()) {
+    return ParseTool(ToolOptions);
+  }
+
+  else if (ValidateSubCommand.is_selected()) {
+    return ValidateTool(ToolOptions);
+  }
+
+  else if (InstantiateSubCommand.is_selected()) {
+    return InstantiateTool(ToolOptions);
   } else {
     return Tool(ToolOptions);
   }

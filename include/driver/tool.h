@@ -266,6 +266,9 @@ public:
 };
 
 int Tool(struct DriverToolOptions &Opt) noexcept;
+int ParseTool(struct DriverToolOptions &Opt) noexcept;
+int ValidateTool(struct DriverToolOptions &Opt) noexcept;
+int InstantiateTool(struct DriverToolOptions &Opt) noexcept;
 
 } // namespace Driver
 } // namespace WasmEdge

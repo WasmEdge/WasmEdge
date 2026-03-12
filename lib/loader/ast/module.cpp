@@ -54,8 +54,8 @@ Expect<void> Loader::loadModule(AST::Module &Mod,
         Secs.pop_back();
       }
       if (Secs.empty()) {
-        return logLoadError(ErrCode::Value::JunkSection, FMgr.getLastOffset(),
-                            ASTNodeAttr::Module);
+        return logLoadError(ErrCode::Value::SectionOutOfOrder,
+                            FMgr.getLastOffset(), ASTNodeAttr::Module);
       }
       Secs.pop_back();
     }

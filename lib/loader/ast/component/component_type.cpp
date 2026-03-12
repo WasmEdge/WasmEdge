@@ -293,10 +293,18 @@ Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
     return {};
   }
   case 0x01: {
+    EXPECTED_TRY(uint8_t NextFlag, FMgr.readByte().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
+    }));
+    if (NextFlag != 0x00) {
+      return logLoadError(ErrCode::Value::MalformedDefType,
+                          FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
+    }
     std::vector<AST::Component::LabelValType> ResultList;
-    EXPECTED_TRY(loadVec<AST::Component::FuncType>(
-        ResultList,
-        [this](AST::Component::LabelValType &LV) { return loadType(LV); }));
+    // The only accepted counts of resultlist is 0 here, but it may be extended in the future.
+    // EXPECTED_TRY(loadVec<AST::Component::FuncType>(
+    //     ResultList,
+    //     [this](AST::Component::LabelValType &LV) { return loadType(LV); }));
     Ty.setResultList(std::move(ResultList));
     return {};
   }

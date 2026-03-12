@@ -888,6 +888,8 @@ E(SectionSizeMismatch, 0x0106, "section size mismatch")
 E(LengthOutOfBounds, 0x0107, "length out of bounds")
 // Junk sections
 E(JunkSection, 0x0108, "unexpected content after last section")
+// Section out of order
+E(SectionOutOfOrder, 0x011F, "section out of order")
 // Incompatible function and code section
 E(IncompatibleFuncCode, 0x0109,
   "function and code section have inconsistent lengths")

@@ -936,6 +936,40 @@ E(MalformedLimitFlags, 0x011D, "malformed limits flags")
 E(MalformedCatchFlags, 0x011E, "malformed catch flags")
 // @}
 
+// Text format load phase
+// @{
+// Unexpected token in WAT
+E(WatUnexpectedToken, 0x0150, "unexpected token")
+// Illegal character in WAT
+E(WatIllegalCharacter, 0x0151, "illegal character")
+// Mismatching block label
+E(WatMismatchingLabel, 0x0152, "mismatching label")
+// Inline function type mismatch
+E(WatInlineFuncType, 0x0153, "inline function type")
+// Duplicate identifier
+E(WatDuplicateId, 0x0154, "duplicate identifier")
+// Unknown identifier
+E(WatUnknownId, 0x0155, "unknown identifier")
+// Malformed number literal
+E(WatMalformedNumber, 0x0156, "malformed number literal")
+// Alignment must be a power of two
+E(WatAlignmentPow2, 0x0157, "alignment must be a power of two")
+// Malformed string literal
+E(WatMalformedString, 0x0158, "malformed string literal")
+// Unexpected end of input
+E(WatUnexpectedEnd, 0x0159, "unexpected end of input")
+// Duplicate func identifier
+E(WatDuplicateFunc, 0x015A, "duplicate func")
+// Duplicate table identifier
+E(WatDuplicateTable, 0x015B, "duplicate table")
+// Duplicate memory identifier
+E(WatDuplicateMemory, 0x015C, "duplicate memory")
+// Duplicate global identifier
+E(WatDuplicateGlobal, 0x015D, "duplicate global")
+// Duplicate local identifier
+E(WatDuplicateLocal, 0x015E, "duplicate local")
+// @}
+
 // Component model load phase
 // @{
 // Malformed sort

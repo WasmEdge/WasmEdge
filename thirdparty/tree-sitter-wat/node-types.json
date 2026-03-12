@@ -1,0 +1,2088 @@
+[
+  {
+    "type": "annotation",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "float",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "int",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        },
+        {
+          "type": "reserved",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "array_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "mut_type",
+          "named": true
+        },
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "packed_type",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "block_block",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "block_sig",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "block_if",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "block_sig",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "block_instr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "block_block",
+          "named": true
+        },
+        {
+          "type": "block_if",
+          "named": true
+        },
+        {
+          "type": "block_loop",
+          "named": true
+        },
+        {
+          "type": "block_try_table",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "block_loop",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "block_sig",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "block_sig",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "result",
+          "named": true
+        },
+        {
+          "type": "type_use",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "block_try_table",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "block_sig",
+          "named": true
+        },
+        {
+          "type": "catch_clause",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "catch_clause",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "data",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "elem",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "export",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "field",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "mut_type",
+          "named": true
+        },
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "packed_type",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "folded_instr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "align",
+          "named": true
+        },
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "block_sig",
+          "named": true
+        },
+        {
+          "type": "catch_clause",
+          "named": true
+        },
+        {
+          "type": "float",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "heap_type",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "int",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        },
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "offset",
+          "named": true
+        },
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "result",
+          "named": true
+        },
+        {
+          "type": "type_use",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "func",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "inline_export",
+          "named": true
+        },
+        {
+          "type": "inline_import",
+          "named": true
+        },
+        {
+          "type": "local",
+          "named": true
+        },
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        },
+        {
+          "type": "result",
+          "named": true
+        },
+        {
+          "type": "type_use",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "func_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "result",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "global",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "inline_export",
+          "named": true
+        },
+        {
+          "type": "inline_import",
+          "named": true
+        },
+        {
+          "type": "mut_type",
+          "named": true
+        },
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "heap_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "import",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "import_func",
+          "named": true
+        },
+        {
+          "type": "import_global",
+          "named": true
+        },
+        {
+          "type": "import_memory",
+          "named": true
+        },
+        {
+          "type": "import_table",
+          "named": true
+        },
+        {
+          "type": "import_tag",
+          "named": true
+        },
+        {
+          "type": "name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "import_func",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "result",
+          "named": true
+        },
+        {
+          "type": "type_use",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "import_global",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "mut_type",
+          "named": true
+        },
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "import_memory",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "memory_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "import_table",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "table_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "import_tag",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "type_use",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "inline_export",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "inline_import",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "name",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "limits",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "nat",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "local",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "memory",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "inline_export",
+          "named": true
+        },
+        {
+          "type": "inline_import",
+          "named": true
+        },
+        {
+          "type": "memory_type",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "memory_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "limits",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "module",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "annotation",
+          "named": true
+        },
+        {
+          "type": "data",
+          "named": true
+        },
+        {
+          "type": "elem",
+          "named": true
+        },
+        {
+          "type": "export",
+          "named": true
+        },
+        {
+          "type": "func",
+          "named": true
+        },
+        {
+          "type": "global",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "import",
+          "named": true
+        },
+        {
+          "type": "memory",
+          "named": true
+        },
+        {
+          "type": "rec",
+          "named": true
+        },
+        {
+          "type": "start",
+          "named": true
+        },
+        {
+          "type": "table",
+          "named": true
+        },
+        {
+          "type": "tag",
+          "named": true
+        },
+        {
+          "type": "type_definition",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "mut_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "packed_type",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "name",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "string",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "numtype",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "packed_type",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "param",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "plain_instr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "align",
+          "named": true
+        },
+        {
+          "type": "float",
+          "named": true
+        },
+        {
+          "type": "heap_type",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "int",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        },
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "offset",
+          "named": true
+        },
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "result",
+          "named": true
+        },
+        {
+          "type": "type_use",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "rec",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_definition",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "ref_type_full",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "heap_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "ref_type_short",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "reftype",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "ref_type_full",
+          "named": true
+        },
+        {
+          "type": "ref_type_short",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "result",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "numtype",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "vectype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "root",
+    "named": true,
+    "root": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "annotation",
+          "named": true
+        },
+        {
+          "type": "data",
+          "named": true
+        },
+        {
+          "type": "elem",
+          "named": true
+        },
+        {
+          "type": "export",
+          "named": true
+        },
+        {
+          "type": "func",
+          "named": true
+        },
+        {
+          "type": "global",
+          "named": true
+        },
+        {
+          "type": "import",
+          "named": true
+        },
+        {
+          "type": "memory",
+          "named": true
+        },
+        {
+          "type": "module",
+          "named": true
+        },
+        {
+          "type": "rec",
+          "named": true
+        },
+        {
+          "type": "start",
+          "named": true
+        },
+        {
+          "type": "table",
+          "named": true
+        },
+        {
+          "type": "tag",
+          "named": true
+        },
+        {
+          "type": "type_definition",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "start",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "struct_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "field",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "sub_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "array_type",
+          "named": true
+        },
+        {
+          "type": "func_type",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        },
+        {
+          "type": "struct_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "table",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "block_instr",
+          "named": true
+        },
+        {
+          "type": "folded_instr",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "inline_export",
+          "named": true
+        },
+        {
+          "type": "inline_import",
+          "named": true
+        },
+        {
+          "type": "plain_instr",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        },
+        {
+          "type": "table_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "table_type",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "limits",
+          "named": true
+        },
+        {
+          "type": "reftype",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "tag",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "inline_export",
+          "named": true
+        },
+        {
+          "type": "inline_import",
+          "named": true
+        },
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "result",
+          "named": true
+        },
+        {
+          "type": "type_use",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_definition",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "array_type",
+          "named": true
+        },
+        {
+          "type": "func_type",
+          "named": true
+        },
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "struct_type",
+          "named": true
+        },
+        {
+          "type": "sub_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "type_use",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        },
+        {
+          "type": "nat",
+          "named": true
+        },
+        {
+          "type": "param",
+          "named": true
+        },
+        {
+          "type": "result",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "(",
+    "named": false
+  },
+  {
+    "type": ")",
+    "named": false
+  },
+  {
+    "type": "0x0",
+    "named": false
+  },
+  {
+    "type": "align",
+    "named": true
+  },
+  {
+    "type": "any",
+    "named": false
+  },
+  {
+    "type": "any.convert_extern",
+    "named": false
+  },
+  {
+    "type": "anyref",
+    "named": false
+  },
+  {
+    "type": "array",
+    "named": false
+  },
+  {
+    "type": "array.copy",
+    "named": false
+  },
+  {
+    "type": "array.fill",
+    "named": false
+  },
+  {
+    "type": "array.get",
+    "named": false
+  },
+  {
+    "type": "array.get_s",
+    "named": false
+  },
+  {
+    "type": "array.get_u",
+    "named": false
+  },
+  {
+    "type": "array.init_data",
+    "named": false
+  },
+  {
+    "type": "array.init_elem",
+    "named": false
+  },
+  {
+    "type": "array.len",
+    "named": false
+  },
+  {
+    "type": "array.new",
+    "named": false
+  },
+  {
+    "type": "array.new_data",
+    "named": false
+  },
+  {
+    "type": "array.new_default",
+    "named": false
+  },
+  {
+    "type": "array.new_elem",
+    "named": false
+  },
+  {
+    "type": "array.new_fixed",
+    "named": false
+  },
+  {
+    "type": "array.set",
+    "named": false
+  },
+  {
+    "type": "arrayref",
+    "named": false
+  },
+  {
+    "type": "atomic.fence",
+    "named": false
+  },
+  {
+    "type": "block",
+    "named": false
+  },
+  {
+    "type": "block_comment",
+    "named": true,
+    "extra": true
+  },
+  {
+    "type": "br",
+    "named": false
+  },
+  {
+    "type": "br_if",
+    "named": false
+  },
+  {
+    "type": "br_on_cast",
+    "named": false
+  },
+  {
+    "type": "br_on_cast_fail",
+    "named": false
+  },
+  {
+    "type": "br_on_non_null",
+    "named": false
+  },
+  {
+    "type": "br_on_null",
+    "named": false
+  },
+  {
+    "type": "br_table",
+    "named": false
+  },
+  {
+    "type": "call",
+    "named": false
+  },
+  {
+    "type": "call_indirect",
+    "named": false
+  },
+  {
+    "type": "call_ref",
+    "named": false
+  },
+  {
+    "type": "catch",
+    "named": false
+  },
+  {
+    "type": "catch_all",
+    "named": false
+  },
+  {
+    "type": "catch_all_ref",
+    "named": false
+  },
+  {
+    "type": "catch_ref",
+    "named": false
+  },
+  {
+    "type": "data",
+    "named": false
+  },
+  {
+    "type": "data.drop",
+    "named": false
+  },
+  {
+    "type": "declare",
+    "named": false
+  },
+  {
+    "type": "drop",
+    "named": false
+  },
+  {
+    "type": "elem",
+    "named": false
+  },
+  {
+    "type": "elem.drop",
+    "named": false
+  },
+  {
+    "type": "else",
+    "named": false
+  },
+  {
+    "type": "end",
+    "named": false
+  },
+  {
+    "type": "eq",
+    "named": false
+  },
+  {
+    "type": "eqref",
+    "named": false
+  },
+  {
+    "type": "export",
+    "named": false
+  },
+  {
+    "type": "extern",
+    "named": false
+  },
+  {
+    "type": "extern.convert_any",
+    "named": false
+  },
+  {
+    "type": "externref",
+    "named": false
+  },
+  {
+    "type": "f32",
+    "named": false
+  },
+  {
+    "type": "f32.const",
+    "named": false
+  },
+  {
+    "type": "f64",
+    "named": false
+  },
+  {
+    "type": "f64.const",
+    "named": false
+  },
+  {
+    "type": "field",
+    "named": false
+  },
+  {
+    "type": "final",
+    "named": false
+  },
+  {
+    "type": "float",
+    "named": true
+  },
+  {
+    "type": "func",
+    "named": false
+  },
+  {
+    "type": "funcref",
+    "named": false
+  },
+  {
+    "type": "global",
+    "named": false
+  },
+  {
+    "type": "global.get",
+    "named": false
+  },
+  {
+    "type": "global.set",
+    "named": false
+  },
+  {
+    "type": "i16",
+    "named": false
+  },
+  {
+    "type": "i31",
+    "named": false
+  },
+  {
+    "type": "i31.get_s",
+    "named": false
+  },
+  {
+    "type": "i31.get_u",
+    "named": false
+  },
+  {
+    "type": "i31ref",
+    "named": false
+  },
+  {
+    "type": "i32",
+    "named": false
+  },
+  {
+    "type": "i32.const",
+    "named": false
+  },
+  {
+    "type": "i64",
+    "named": false
+  },
+  {
+    "type": "i64.const",
+    "named": false
+  },
+  {
+    "type": "i8",
+    "named": false
+  },
+  {
+    "type": "identifier",
+    "named": true
+  },
+  {
+    "type": "if",
+    "named": false
+  },
+  {
+    "type": "import",
+    "named": false
+  },
+  {
+    "type": "int",
+    "named": true
+  },
+  {
+    "type": "item",
+    "named": false
+  },
+  {
+    "type": "line_comment",
+    "named": true,
+    "extra": true
+  },
+  {
+    "type": "local",
+    "named": false
+  },
+  {
+    "type": "local.get",
+    "named": false
+  },
+  {
+    "type": "local.set",
+    "named": false
+  },
+  {
+    "type": "local.tee",
+    "named": false
+  },
+  {
+    "type": "loop",
+    "named": false
+  },
+  {
+    "type": "memory",
+    "named": false
+  },
+  {
+    "type": "memory.atomic.notify",
+    "named": false
+  },
+  {
+    "type": "memory.atomic.wait32",
+    "named": false
+  },
+  {
+    "type": "memory.atomic.wait64",
+    "named": false
+  },
+  {
+    "type": "memory.copy",
+    "named": false
+  },
+  {
+    "type": "memory.fill",
+    "named": false
+  },
+  {
+    "type": "memory.grow",
+    "named": false
+  },
+  {
+    "type": "memory.init",
+    "named": false
+  },
+  {
+    "type": "memory.size",
+    "named": false
+  },
+  {
+    "type": "module",
+    "named": false
+  },
+  {
+    "type": "mut",
+    "named": false
+  },
+  {
+    "type": "nat",
+    "named": true
+  },
+  {
+    "type": "noextern",
+    "named": false
+  },
+  {
+    "type": "nofunc",
+    "named": false
+  },
+  {
+    "type": "none",
+    "named": false
+  },
+  {
+    "type": "nop",
+    "named": false
+  },
+  {
+    "type": "null",
+    "named": false
+  },
+  {
+    "type": "nullexternref",
+    "named": false
+  },
+  {
+    "type": "nullfuncref",
+    "named": false
+  },
+  {
+    "type": "nullref",
+    "named": false
+  },
+  {
+    "type": "offset",
+    "named": false
+  },
+  {
+    "type": "offset",
+    "named": true
+  },
+  {
+    "type": "param",
+    "named": false
+  },
+  {
+    "type": "rec",
+    "named": false
+  },
+  {
+    "type": "ref",
+    "named": false
+  },
+  {
+    "type": "ref.as_non_null",
+    "named": false
+  },
+  {
+    "type": "ref.cast",
+    "named": false
+  },
+  {
+    "type": "ref.func",
+    "named": false
+  },
+  {
+    "type": "ref.is_null",
+    "named": false
+  },
+  {
+    "type": "ref.null",
+    "named": false
+  },
+  {
+    "type": "ref.test",
+    "named": false
+  },
+  {
+    "type": "reserved",
+    "named": true
+  },
+  {
+    "type": "result",
+    "named": false
+  },
+  {
+    "type": "return",
+    "named": false
+  },
+  {
+    "type": "return_call",
+    "named": false
+  },
+  {
+    "type": "return_call_indirect",
+    "named": false
+  },
+  {
+    "type": "return_call_ref",
+    "named": false
+  },
+  {
+    "type": "select",
+    "named": false
+  },
+  {
+    "type": "shared",
+    "named": false
+  },
+  {
+    "type": "start",
+    "named": false
+  },
+  {
+    "type": "string",
+    "named": true
+  },
+  {
+    "type": "struct",
+    "named": false
+  },
+  {
+    "type": "struct.get",
+    "named": false
+  },
+  {
+    "type": "struct.get_s",
+    "named": false
+  },
+  {
+    "type": "struct.get_u",
+    "named": false
+  },
+  {
+    "type": "struct.new",
+    "named": false
+  },
+  {
+    "type": "struct.new_default",
+    "named": false
+  },
+  {
+    "type": "struct.set",
+    "named": false
+  },
+  {
+    "type": "structref",
+    "named": false
+  },
+  {
+    "type": "sub",
+    "named": false
+  },
+  {
+    "type": "table",
+    "named": false
+  },
+  {
+    "type": "table.copy",
+    "named": false
+  },
+  {
+    "type": "table.fill",
+    "named": false
+  },
+  {
+    "type": "table.get",
+    "named": false
+  },
+  {
+    "type": "table.grow",
+    "named": false
+  },
+  {
+    "type": "table.init",
+    "named": false
+  },
+  {
+    "type": "table.set",
+    "named": false
+  },
+  {
+    "type": "table.size",
+    "named": false
+  },
+  {
+    "type": "tag",
+    "named": false
+  },
+  {
+    "type": "then",
+    "named": false
+  },
+  {
+    "type": "throw",
+    "named": false
+  },
+  {
+    "type": "throw_ref",
+    "named": false
+  },
+  {
+    "type": "try_table",
+    "named": false
+  },
+  {
+    "type": "type",
+    "named": false
+  },
+  {
+    "type": "unreachable",
+    "named": false
+  },
+  {
+    "type": "v128.const",
+    "named": false
+  },
+  {
+    "type": "v128.load",
+    "named": false
+  },
+  {
+    "type": "v128.store",
+    "named": false
+  },
+  {
+    "type": "vectype",
+    "named": true
+  }
+]

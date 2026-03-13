@@ -31,6 +31,7 @@
 #include <map>
 #include <memory>
 #include <unordered_map>
+#include <variant>
 
 namespace {
 
@@ -283,17 +284,92 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"wasm-3.0-relaxed-simd"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-simd"sv, WasmEdge::Standard::WASM_3},
     {"threads"sv, WasmEdge::Standard::WASM_2, {Proposal::Threads}},
+    // Component model only supports interpreter mode currently.
+    {"component-model"sv,
+     WasmEdge::Standard::WASM_3,
+     {Proposal::Component},
+     {},
+     WasmEdge::SpecTest::TestMode::Interpreter},
 };
+
+struct ComponentModelSupport {
+  bool Load;
+  bool Validate;
+  bool Instantiate;
+  bool Execute;
+};
+
+// clang-format off
+std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
+    // | Folder | Test table: {load, validate, instantiate, execute} |
+    // ---------------------------------------------------------------
+    // Folder: the directory name of tests.
+    // Test table: the testing status of load, validate, instantiate and execute.
+    {"adapt",                   {true, false, false, false}},
+    {"alias",                   {true, false, false, false}},
+    {"big",                     {true, false, false, false}},
+    {"definedtypes",            {true, false, false, false}},
+    {"empty",                   {true, false, false, false}},
+    {"example",                 {true, false, false, false}},
+    {"export",                  {true, false, false, false}},
+    {"export-ascription",       {true, false, false, false}},
+    {"export-introduces-alias", {true, false, false, false}},
+    {"func",                    {false, false, false, false}},
+    {"import",                  {true, false, false, false}},
+    {"imports-exports",         {true, false, false, false}},
+    {"inline-exports",          {true, false, false, false}},
+    {"instance-types",          {true, false, false, false}},
+    {"instantiate",             {true, false, false, false}},
+    {"invalid",                 {true, false, false, false}},
+    {"link",                    {true, false, false, false}},
+    {"lots-of-aliases",         {true, false, false, false}},
+    {"lower",                   {true, false, false, false}},
+    {"memory64",                {true, false, false, false}},
+    {"module-link",             {true, false, false, false}},
+    {"more-flags",              {true, false, false, false}},
+    {"naming",                  {true, false, false, false}},
+    {"nested-modules",          {true, false, false, false}},
+    {"resources",               {true, false, false, false}},
+    {"tags",                    {true, false, false, false}},
+    {"type-export-restrictions",{true, false, false, false}},
+    {"types",                   {true, false, false, false}},
+    {"very-nested",             {true, false, false, false}},
+    {"virtualize",              {true, false, false, false}},
+    {"wrong-order",             {false, false, false, false}},
+};
+// clang-format on
+
+bool checkComponentSupported(std::string_view Folder, WasmEdge::WasmPhase P) {
+  auto It = ComponentModelFolders.find(std::string(Folder));
+  if (It == ComponentModelFolders.end()) {
+    return false;
+  }
+  switch (P) {
+  case WasmEdge::WasmPhase::Loading:
+    return It->second.Load;
+  case WasmEdge::WasmPhase::Validation:
+    return It->second.Validate;
+  case WasmEdge::WasmPhase::Instantiation:
+    return It->second.Instantiate;
+  case WasmEdge::WasmPhase::Execution:
+    return It->second.Execute;
+  default:
+    return false;
+  }
+}
 
 } // namespace
 
 namespace WasmEdge {
 
-std::vector<std::string>
-SpecTest::enumerate(const SpecTest::TestMode Mode) const {
+std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
+                                             bool IncludeComponent) const {
   std::vector<std::string> Cases;
   for (const auto &Proposal : TestsuiteProposals) {
     if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
+      if (!IncludeComponent && Proposal.Path == "component-model"sv) {
+        continue;
+      }
       const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
       for (const auto &Subdir :
            std::filesystem::directory_iterator(ProposalRoot)) {
@@ -644,11 +720,13 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       (TestsuiteRoot / Proposal / UnitName / (std::string(UnitName) + ".json"s))
           .string();
 
+  const bool IsComponent = (Proposal == "component-model"sv);
+
   simdjson::dom::parser Parser;
   simdjson::dom::element Doc = Parser.load(TestFileName);
 
   std::map<std::string, std::string> Alias;
-  std::map<std::string, std::unique_ptr<AST::Module>> ASTMap;
+  std::map<std::string, SpecTest::WasmUnit> ASTMap;
   std::string LastModName;
 
   // Helper function to get module name.
@@ -667,6 +745,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   // Helper function to check result of invocation.
   auto Invoke = [&](const simdjson::dom::object &Action,
                     const simdjson::dom::array &Expected, uint64_t LineNumber) {
+    if (IsComponent) {
+      // TODO: Component model invocation not yet supported.
+      return;
+    }
     const auto ModName = GetModuleName(Action);
     const std::string_view Field = Action["field"];
     simdjson::dom::array Args = Action["args"];
@@ -688,6 +770,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   auto InvokeEither = [&](const simdjson::dom::object &Action,
                           const simdjson::dom::array &Eithers,
                           uint64_t LineNumber) {
+    if (IsComponent) {
+      // TODO: Component model invocation not yet supported.
+      return;
+    }
     const auto ModName = GetModuleName(Action);
     const std::string_view Field = Action["field"];
     simdjson::dom::array Args = Action["args"];
@@ -714,6 +800,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   // Helper function to get values.
   auto Get = [&](const simdjson::dom::object &Action,
                  const simdjson::dom::array &Expected, uint64_t LineNumber) {
+    if (IsComponent) {
+      // TODO: Component model get not yet supported.
+      return;
+    }
     const auto ModName = GetModuleName(Action);
     std::string_view Field = Action["field"];
     const auto Returns = parseExpectedList(Expected);
@@ -728,6 +818,9 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
 
   // Helper function to check trap on loading.
   auto TrapLoad = [&](const std::string &FileName, const std::string &Text) {
+    if (IsComponent && !checkComponentSupported(UnitName, WasmPhase::Loading)) {
+      return;
+    }
     if (auto Res = onLoad(FileName)) {
       EXPECT_TRUE(false);
     } else {
@@ -741,6 +834,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   // Helper function to check trap on validation.
   auto TrapValidate = [&](const std::string &FileName,
                           const std::string &Text) {
+    if (IsComponent &&
+        !checkComponentSupported(UnitName, WasmPhase::Validation)) {
+      return;
+    }
     if (auto Res = onValidate(FileName); Res) {
       EXPECT_TRUE(false);
     } else {
@@ -754,6 +851,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   // Helper function to check trap on instantiation.
   auto TrapInstantiate = [&](const std::string &FileName,
                              const std::string &Text) {
+    if (IsComponent &&
+        !checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
+      return;
+    }
     if (auto Res = onInstantiate(FileName); Res) {
       EXPECT_TRUE(false);
     } else {
@@ -768,6 +869,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
   // Helper function to check trap on invocation.
   auto TrapInvoke = [&](const simdjson::dom::object &Action,
                         const std::string &Text, uint64_t LineNumber) {
+    if (IsComponent) {
+      // TODO: Component model invocation not yet supported.
+      return;
+    }
     const auto ModName = GetModuleName(Action);
     const std::string_view Field = Action["field"];
     simdjson::dom::array Args = Action["args"];
@@ -780,17 +885,17 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
                   WasmEdge::WasmPhase::Execution);
       EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]))
-          << "spec " << ModName << "/" << std::string(Field) << " should work"
-          << "\n\terror should be: \"" << Text << "\""
-          << "\n\tbut got: \"" << WasmEdge::ErrCodeStr[Res.error().getEnum()]
-          << "\"";
+          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
     }
   };
 
   // Helper function to check exception on invocation.
   auto ExceptionInvoke = [&](const simdjson::dom::object &Action,
                              uint64_t LineNumber) {
+    if (IsComponent) {
+      // TODO: Component model invocation not yet supported.
+      return;
+    }
     const auto ModName = GetModuleName(Action);
     const std::string_view Field = Action["field"];
     simdjson::dom::array Args = Action["args"];
@@ -837,6 +942,11 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
           // Instantiate the anonymous module.
           LastModName.clear();
         }
+        if (IsComponent &&
+            !checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
+          // Skip instantiation for unsupported component model tests.
+          return;
+        }
         if (onModule(LastModName, FilePath)) {
           EXPECT_TRUE(true);
         } else {
@@ -850,12 +960,15 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         const auto FilePath =
             (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
         const uint64_t LineNumber = Cmd["line"];
+        if (IsComponent &&
+            !checkComponentSupported(UnitName, WasmPhase::Validation)) {
+          // Skip validation for unsupported component model tests.
+          return;
+        }
         if (auto Res = onModuleDefine(std::string(FilePath)); Res) {
           if (!Cmd["name"].get(ASTName)) {
-            // Module definition has name. Store the AST module.
             ASTMap.emplace(std::string(ASTName), std::move(*Res));
           }
-          // TODO: maybe should handle the anonymous AST module in the future.
           EXPECT_TRUE(true);
         } else {
           EXPECT_NE(LineNumber, LineNumber);
@@ -863,6 +976,10 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         return;
       }
       case CommandID::ModuleInstance: {
+        if (IsComponent) {
+          // TODO: implement this when component model instantiation supported.
+          return;
+        }
         std::string_view ModName = Cmd["name"];
         std::string_view ASTName = Cmd["definition"];
         const uint64_t LineNumber = Cmd["line"];
@@ -874,7 +991,7 @@ void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
         if (auto It = Alias.find(std::string(ModName)); It != Alias.end()) {
           ModName = It->second;
         }
-        if (onInstanceFromDef(std::string(ModName), *(ASTDef->second).get())) {
+        if (onInstanceFromDef(std::string(ModName), ASTDef->second)) {
           EXPECT_TRUE(true);
         } else {
           EXPECT_NE(LineNumber, LineNumber);

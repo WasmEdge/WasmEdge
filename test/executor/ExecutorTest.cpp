@@ -65,17 +65,29 @@ TEST_P(CoreTest, TestSuites) {
     return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
   };
   T.onModuleDefine =
-      [&VM](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+      [&VM](const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
     Loader::Loader &Loader = VM.getLoader();
     Validator::Validator &Validator = VM.getValidator();
-    EXPECTED_TRY(auto ASTMod, Loader.parseModule(FileName));
-    EXPECTED_TRY(Validator.validate(*ASTMod.get()));
-    return ASTMod;
+    EXPECTED_TRY(auto ASTUnit, Loader.parseWasmUnit(FileName));
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(ASTUnit)) {
+      auto &ASTMod = std::get<std::unique_ptr<AST::Module>>(ASTUnit);
+      EXPECTED_TRY(Validator.validate(*ASTMod.get()));
+    } else {
+      auto &ASTComp =
+          std::get<std::unique_ptr<AST::Component::Component>>(ASTUnit);
+      EXPECTED_TRY(Validator.validate(*ASTComp.get()));
+    }
+    return std::move(ASTUnit);
   };
   T.onInstanceFromDef = [&VM](const std::string &ModName,
-                              const AST::Module &ASTMod) -> Expect<void> {
-    return VM.registerModule(ModName, ASTMod);
+                              const SpecTest::WasmUnit &Unit) -> Expect<void> {
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(Unit)) {
+      return VM.registerModule(ModName,
+                               *std::get<std::unique_ptr<AST::Module>>(Unit));
+    } else {
+      // TODO: implement this when component model instantiation supported.
+      return {};
+    }
   };
   T.onInstantiate = [&VM](const std::string &FileName) -> Expect<void> {
     return VM.loadWasm(FileName)

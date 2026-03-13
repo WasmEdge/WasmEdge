@@ -5457,3 +5457,88 @@ TEST(WasiTest, PointerAlignment) {
     }
   }
 }
+
+TEST(WasiTest, SocketOpsRightsChecks) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+  std::array<WasmEdge::ValVariant, 1> Errno;
+
+  Env.init({}, "test"s, {}, {});
+
+  WasmEdge::Host::WasiSockOpenV1 WasiSockOpen(Env);
+  WasmEdge::Host::WasiFdFdstatSetRights WasiFdFdstatSetRights(Env);
+  WasmEdge::Host::WasiSockBindV1 WasiSockBind(Env);
+  WasmEdge::Host::WasiSockListenV1 WasiSockListen(Env);
+  WasmEdge::Host::WasiSockConnectV1 WasiSockConnect(Env);
+  WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+
+  const uint32_t FdPtr = 0;
+  const uint32_t AddressPtr = 16;
+  const std::array<uint8_t, 4> Address{127, 0, 0, 1};
+
+  // Open a socket — it starts with SOCK_BIND right.
+  EXPECT_TRUE(WasiSockOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+          static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  int32_t SockFd = -1;
+  EXPECT_TRUE(MemInst.loadValue(SockFd, FdPtr));
+
+  // Remove SOCK_BIND right from the socket using fdFdstatSetRights.
+  // Keep all other socket rights except SOCK_BIND.
+  const uint64_t RightsWithoutBind = static_cast<uint64_t>(
+      __WASI_RIGHTS_SOCK_OPEN | __WASI_RIGHTS_SOCK_CLOSE |
+      __WASI_RIGHTS_SOCK_RECV | __WASI_RIGHTS_SOCK_RECV_FROM |
+      __WASI_RIGHTS_SOCK_SEND | __WASI_RIGHTS_SOCK_SEND_TO |
+      __WASI_RIGHTS_SOCK_SHUTDOWN | __WASI_RIGHTS_POLL_FD_READWRITE |
+      __WASI_RIGHTS_FD_FDSTAT_SET_FLAGS | __WASI_RIGHTS_FD_READ |
+      __WASI_RIGHTS_FD_WRITE);
+
+  EXPECT_TRUE(WasiFdFdstatSetRights.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{SockFd, RightsWithoutBind,
+                                                  RightsWithoutBind},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  // sockBind should fail with NOTCAPABLE since SOCK_BIND right was removed.
+  writeAddress(MemInst, Address, AddressPtr);
+  EXPECT_TRUE(
+      WasiSockBind.run(CallFrame,
+                       std::initializer_list<WasmEdge::ValVariant>{
+                           SockFd, AddressPtr, static_cast<uint32_t>(12345)},
+                       Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTCAPABLE);
+
+  // sockListen should fail with NOTCAPABLE since SOCK_BIND right was removed.
+  EXPECT_TRUE(WasiSockListen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{SockFd, INT32_C(1)}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTCAPABLE);
+
+  // sockConnect should fail with NOTCAPABLE since SOCK_BIND right was removed.
+  writeAddress(MemInst, Address, AddressPtr);
+  EXPECT_TRUE(
+      WasiSockConnect.run(CallFrame,
+                          std::initializer_list<WasmEdge::ValVariant>{
+                              SockFd, AddressPtr, static_cast<uint32_t>(12345)},
+                          Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOTCAPABLE);
+
+  // Clean up: close the socket.
+  EXPECT_TRUE(WasiFdClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{SockFd}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  Env.fini();
+}

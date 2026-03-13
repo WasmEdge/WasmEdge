@@ -183,22 +183,9 @@ struct DriverToolOptions {
   PO::List<std::string> ForbiddenPlugins;
   PO::Option<std::string> LogLevel;
 
-  void add_option(PO::ArgumentParser &Parser) noexcept {
-    Parser.add_option(SoName)
-        .add_option(Args)
-        .add_option("reactor"sv, Reactor)
-        .add_option("dir"sv, Dir)
-        .add_option("env"sv, Env)
-        .add_option("enable-instruction-count"sv, ConfEnableInstructionCounting)
-        .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
-        .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
-        .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
-        .add_option("enable-jit"sv, ConfEnableJIT)
-        .add_option("enable-coredump"sv, ConfEnableCoredump)
-        .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
-        .add_option("force-interpreter"sv, ConfForceInterpreter)
-        .add_option("allow-af-unix"sv, ConfAFUNIX)
-        .add_option("wasm-1"sv, PropWASM1)
+private:
+  void add_proposal_options(PO::ArgumentParser &Parser) noexcept {
+    Parser.add_option("wasm-1"sv, PropWASM1)
         .add_option("wasm-2"sv, PropWASM2)
         .add_option("wasm-3"sv, PropWASM3)
         .add_option("disable-import-export-mut-globals"sv, PropMutGlobals)
@@ -227,19 +214,61 @@ struct DriverToolOptions {
         .add_option("disable-memory64"sv, PropMemory64)
         .add_option("enable-threads"sv, PropThreads)
         .add_option("enable-component"sv, PropComponent)
-        .add_option("enable-all"sv, PropAll)
-        .add_option("time-limit"sv, TimeLim)
-        .add_option("gas-limit"sv, GasLim)
-        .add_option("memory-page-limit"sv, MemLim)
-        .add_option("forbidden-plugin"sv, ForbiddenPlugins)
-        .add_option("log-level"sv, LogLevel);
+        .add_option("enable-all"sv, PropAll);
+  }
+
+  void add_global_options(PO::ArgumentParser &Parser) noexcept {
+    Parser.add_option(SoName)
+        .add_option("log-level"sv, LogLevel)
+        .add_option("forbidden-plugin"sv, ForbiddenPlugins);
+  }
+
+public:
+  void add_parse_options(PO::ArgumentParser &Parser) noexcept {
+    add_global_options(Parser);
+    add_proposal_options(Parser);
 
     Plugin::Plugin::loadFromDefaultPaths();
     Plugin::Plugin::addPluginOptions(Parser);
   }
+
+  void add_validate_options(PO::ArgumentParser &Parser) noexcept {
+    add_parse_options(Parser);
+  }
+
+  void add_instantiate_options(PO::ArgumentParser &Parser) noexcept {
+    add_validate_options(Parser);
+
+    Parser.add_option("dir"sv, Dir)
+        .add_option("env"sv, Env)
+        .add_option("reactor"sv, Reactor);
+
+    Parser.add_option("memory-page-limit"sv, MemLim);
+  }
+
+  void add_option(PO::ArgumentParser &Parser) noexcept {
+    add_instantiate_options(Parser);
+
+    // pure Execution and Profiling flags
+    Parser.add_option(Args)
+        .add_option("enable-instruction-count"sv, ConfEnableInstructionCounting)
+        .add_option("enable-gas-measuring"sv, ConfEnableGasMeasuring)
+        .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
+        .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
+        .add_option("enable-jit"sv, ConfEnableJIT)
+        .add_option("enable-coredump"sv, ConfEnableCoredump)
+        .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
+        .add_option("force-interpreter"sv, ConfForceInterpreter)
+        .add_option("allow-af-unix"sv, ConfAFUNIX)
+        .add_option("time-limit"sv, TimeLim)
+        .add_option("gas-limit"sv, GasLim);
+  }
 };
 
 int Tool(struct DriverToolOptions &Opt) noexcept;
+int ParseTool(struct DriverToolOptions &Opt) noexcept;
+int ValidateTool(struct DriverToolOptions &Opt) noexcept;
+int InstantiateTool(struct DriverToolOptions &Opt) noexcept;
 
 } // namespace Driver
 } // namespace WasmEdge

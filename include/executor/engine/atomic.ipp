@@ -15,10 +15,9 @@ namespace Executor {
 template <typename T>
 TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
-                                   const AST::Instruction &Instr) {
-  ValVariant RawTimeout = StackMgr.pop();
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                                   const AST::Instruction &Instr) noexcept {
+  auto [RawTimeout, RawValue, RawAddress] =
+      StackMgr.popsPeekTop<ValVariant, ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -31,23 +30,22 @@ TypeT<T> Executor::runAtomicWaitOp(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::UnalignedAtomicAccess);
   }
 
-  int64_t Timeout = RawTimeout.get<int64_t>();
-
-  return atomicWait<T>(MemInst, Address, RawValue.get<T>(), Timeout)
+  return atomicWait<T>(MemInst, Address, RawValue.get<T>(),
+                       RawTimeout.get<int64_t>())
       .map_error([&Instr](auto E) {
         spdlog::error(E);
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       })
-      .map([&](auto V) { RawAddress = emplaceAddr(V, AddrType); });
+      .map([&](auto V) { StackMgr.emplaceTop(emplaceAddr(V, AddrType)); });
 }
 
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
                                    Runtime::Instance::MemoryInstance &MemInst,
-                                   const AST::Instruction &Instr) {
-  ValVariant &RawAddress = StackMgr.getTop();
+                                   const AST::Instruction &Instr) noexcept {
+  ValVariant RawAddress = StackMgr.peekTop<ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -70,16 +68,15 @@ TypeT<T> Executor::runAtomicLoadOp(Runtime::StackManager &StackMgr,
   }
 
   EndianValue<I> Return = AtomicObj->load();
-  RawAddress.emplace<T>(static_cast<T>(Return.le()));
+  StackMgr.emplaceTop<T>(static_cast<T>(Return.le()));
   return {};
 }
 
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicStoreOp(Runtime::StackManager &StackMgr,
                                     Runtime::Instance::MemoryInstance &MemInst,
-                                    const AST::Instruction &Instr) {
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant RawAddress = StackMgr.pop();
+                                    const AST::Instruction &Instr) noexcept {
+  auto [RawValue, RawAddress] = StackMgr.pops<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -125,9 +122,8 @@ T runAtomicOp(std::atomic<T> *AtomicObj, T Value, AtomicOp Op [[maybe_unused]],
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr) {
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                                  const AST::Instruction &Instr) noexcept {
+  auto [RawValue, RawAddress] = StackMgr.popsPeekTop<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -154,16 +150,15 @@ TypeT<T> Executor::runAtomicAddOp(Runtime::StackManager &StackMgr,
       AtomicObj, Value,
       [](std::atomic<I> *Obj, I Val) { return Obj->fetch_add(Val); },
       std::plus<I>{});
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  StackMgr.emplaceTop<T>(static_cast<T>(Return));
   return {};
 }
 
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr) {
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                                  const AST::Instruction &Instr) noexcept {
+  auto [RawValue, RawAddress] = StackMgr.popsPeekTop<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -190,16 +185,15 @@ TypeT<T> Executor::runAtomicSubOp(Runtime::StackManager &StackMgr,
       AtomicObj, Value,
       [](std::atomic<I> *Obj, I Val) { return Obj->fetch_sub(Val); },
       std::minus<I>{});
-  RawAddress.emplace<T>(static_cast<T>(Return));
+  StackMgr.emplaceTop<T>(static_cast<T>(Return));
   return {};
 }
 
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
                                  Runtime::Instance::MemoryInstance &MemInst,
-                                 const AST::Instruction &Instr) {
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                                 const AST::Instruction &Instr) noexcept {
+  auto [RawValue, RawAddress] = StackMgr.popsPeekTop<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -223,16 +217,15 @@ TypeT<T> Executor::runAtomicOrOp(Runtime::StackManager &StackMgr,
   EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
   EndianValue<I> Return = AtomicObj->fetch_or(Value.le());
-  RawAddress.emplace<T>(static_cast<T>(Return.le()));
+  StackMgr.emplaceTop<T>(static_cast<T>(Return.le()));
   return {};
 }
 
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr) {
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                                  const AST::Instruction &Instr) noexcept {
+  auto [RawValue, RawAddress] = StackMgr.popsPeekTop<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -256,16 +249,15 @@ TypeT<T> Executor::runAtomicAndOp(Runtime::StackManager &StackMgr,
   EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
   EndianValue<I> Return = AtomicObj->fetch_and(Value.le());
-  RawAddress.emplace<T>(static_cast<T>(Return.le()));
+  StackMgr.emplaceTop<T>(static_cast<T>(Return.le()));
   return {};
 }
 
 template <typename T, typename I>
 TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
                                   Runtime::Instance::MemoryInstance &MemInst,
-                                  const AST::Instruction &Instr) {
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                                  const AST::Instruction &Instr) noexcept {
+  auto [RawValue, RawAddress] = StackMgr.popsPeekTop<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -289,7 +281,7 @@ TypeT<T> Executor::runAtomicXorOp(Runtime::StackManager &StackMgr,
   EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
   EndianValue<I> Return = AtomicObj->fetch_xor(Value.le());
-  RawAddress.emplace<T>(static_cast<T>(Return.le()));
+  StackMgr.emplaceTop<T>(static_cast<T>(Return.le()));
   return {};
 }
 
@@ -297,9 +289,8 @@ template <typename T, typename I>
 TypeT<T>
 Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
                               Runtime::Instance::MemoryInstance &MemInst,
-                              const AST::Instruction &Instr) {
-  ValVariant RawValue = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                              const AST::Instruction &Instr) noexcept {
+  auto [RawValue, RawAddress] = StackMgr.popsPeekTop<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -323,7 +314,7 @@ Executor::runAtomicExchangeOp(Runtime::StackManager &StackMgr,
   EndianValue<I> Value = static_cast<I>(RawValue.get<T>());
 
   EndianValue<I> Return = AtomicObj->exchange(Value.le());
-  RawAddress.emplace<T>(static_cast<T>(Return.le()));
+  StackMgr.emplaceTop<T>(static_cast<T>(Return.le()));
   return {};
 }
 
@@ -331,10 +322,9 @@ template <typename T, typename I>
 TypeT<T>
 Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,
-                                     const AST::Instruction &Instr) {
-  ValVariant RawReplacement = StackMgr.pop();
-  ValVariant RawExpected = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                                     const AST::Instruction &Instr) noexcept {
+  auto [RawReplacement, RawExpected, RawAddress] =
+      StackMgr.popsPeekTop<ValVariant, ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(T)));
@@ -359,7 +349,7 @@ Executor::runAtomicCompareExchangeOp(Runtime::StackManager &StackMgr,
   I Expected = EndianValue<I>(static_cast<I>(RawExpected.get<T>())).le();
 
   AtomicObj->compare_exchange_strong(Expected, Replacement.le());
-  RawAddress.emplace<T>(static_cast<T>(Expected));
+  StackMgr.emplaceTop<T>(static_cast<T>(Expected));
   return {};
 }
 
@@ -374,8 +364,8 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     return Unexpect(ErrCode::Value::ExpectSharedMemory);
   }
 
-  if (auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
-      !AtomicObj) {
+  auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
+  if (!AtomicObj) {
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
@@ -384,9 +374,6 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     Until.emplace(std::chrono::steady_clock::now() +
                   std::chrono::nanoseconds(Timeout));
   }
-
-  auto *AtomicObj = MemInst.getPointer<std::atomic<T> *>(Address);
-  assuming(AtomicObj);
 
   if (AtomicObj->load() != Expected.le()) {
     return static_cast<uint64_t>(1); // NotEqual

@@ -30,7 +30,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
             return E;
           }));
       // Pop result from stack.
-      InitVals.push_back(StackMgr.pop().get<RefVariant>());
+      InitVals.push_back(StackMgr.pop<RefVariant>());
     }
 
     uint64_t Offset = 0;
@@ -47,7 +47,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       // Memory64 proposal is checked in validation phase.
       auto *TabInst = getTabInstByIdx(StackMgr, ElemSeg.getIdx());
       assuming(TabInst);
-      Offset = extractAddr(StackMgr.pop(),
+      Offset = extractAddr(StackMgr.pop<ValVariant>(),
                            TabInst->getTableType().getLimit().getAddrType());
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal
@@ -86,12 +86,10 @@ Expect<void> Executor::initTable(Runtime::StackManager &StackMgr,
 
       // Replace table[Off : Off + n] with elem[0 : n].
       EXPECTED_TRY(
-          TabInst
-              ->setRefs(ElemInst->getRefs(), Off, 0, ElemInst->getRefs().size())
-              .map_error([](auto E) {
-                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
-                return E;
-              }));
+          TabInst->setRefs(ElemInst->getRefs(), Off).map_error([](auto E) {
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
+            return E;
+          }));
 
       // Drop the element instance.
       ElemInst->clear();

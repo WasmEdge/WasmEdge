@@ -3,6 +3,7 @@
 
 #include "common/defines.h"
 #include "common/types.h"
+#include "host/wasi/vinode.h"
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
 #include "runtime/instance/module.h"
@@ -5456,4 +5457,46 @@ TEST(WasiTest, PointerAlignment) {
       Env.fini();
     }
   }
+}
+
+TEST(WasiTest, CanonicalGuest) {
+  using VINode = WasmEdge::Host::WASI::VINode;
+
+  // Single dot should be preserved as-is when it is the only component.
+  EXPECT_EQ(VINode::canonicalGuest("."), ".");
+
+  // Dot-prefixed filenames must be preserved (this was the bug).
+  EXPECT_EQ(VINode::canonicalGuest(".hidden"), ".hidden");
+  EXPECT_EQ(VINode::canonicalGuest(".config"), ".config");
+  EXPECT_EQ(VINode::canonicalGuest(".gitignore"), ".gitignore");
+
+  // Dot-prefixed filename as a middle component must be preserved.
+  EXPECT_EQ(VINode::canonicalGuest("a/.hidden/b"), "a/.hidden/b");
+
+  // Dot-prefixed filename as second component must be preserved (regression).
+  EXPECT_EQ(VINode::canonicalGuest("a/.hidden"), "a/.hidden");
+  EXPECT_EQ(VINode::canonicalGuest("a/.config"), "a/.config");
+
+  // Double dot with no parent to pop returns empty string.
+  EXPECT_EQ(VINode::canonicalGuest(".."), "");
+
+  // Double dot pops the preceding component.
+  EXPECT_EQ(VINode::canonicalGuest("a/../b"), "b");
+
+  // Single dot as a second component after one part is stripped.
+  EXPECT_EQ(VINode::canonicalGuest("a/./b"), "a/b");
+  EXPECT_EQ(VINode::canonicalGuest("a/."), "a");
+
+  // Leading slashes are stripped.
+  EXPECT_EQ(VINode::canonicalGuest("/a/b"), "a/b");
+  EXPECT_EQ(VINode::canonicalGuest("///a"), "a");
+
+  // Empty path returns empty string.
+  EXPECT_EQ(VINode::canonicalGuest(""), "");
+
+  // Simple path without dots.
+  EXPECT_EQ(VINode::canonicalGuest("a/b/c"), "a/b/c");
+
+  // Multiple consecutive slashes are collapsed.
+  EXPECT_EQ(VINode::canonicalGuest("a///b"), "a/b");
 }

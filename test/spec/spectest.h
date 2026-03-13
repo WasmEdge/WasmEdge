@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "ast/component/component.h"
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errcode.h"
@@ -27,6 +28,7 @@
 #include <string_view>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -63,7 +65,8 @@ public:
   explicit SpecTest(std::filesystem::path Root)
       : TestsuiteRoot(std::move(Root)) {}
 
-  std::vector<std::string> enumerate(const TestMode Mode) const;
+  std::vector<std::string> enumerate(const TestMode Mode,
+                                     bool IncludeComponent = true) const;
   std::tuple<std::string_view, WasmEdge::Configure, std::string>
   resolve(std::string_view Params) const;
   bool compare(const std::pair<std::string, std::string> &Expected,
@@ -85,12 +88,16 @@ public:
   using ValidateCallback = Expect<void>(const std::string &FileName);
   std::function<ValidateCallback> onValidate;
 
+  using WasmUnit =
+      std::variant<std::unique_ptr<AST::Component::Component>,
+                   std::unique_ptr<AST::Module>>;
+
   using ModuleDefineCallback =
-      Expect<std::unique_ptr<AST::Module>>(const std::string &FileName);
+      Expect<WasmUnit>(const std::string &FileName);
   std::function<ModuleDefineCallback> onModuleDefine;
 
-  using InstanceFromDefCallback = Expect<void>(const std::string &ModName,
-                                               const AST::Module &ASTMod);
+  using InstanceFromDefCallback =
+      Expect<void>(const std::string &ModName, const WasmUnit &Unit);
   std::function<InstanceFromDefCallback> onInstanceFromDef;
 
   using InstantiateCallback = Expect<void>(const std::string &FileName);

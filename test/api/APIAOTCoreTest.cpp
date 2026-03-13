@@ -120,10 +120,9 @@ TEST_P(CoreCompileTest, TestSuites) {
   };
   T.onModuleDefine =
       [&VM, &Compile](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+          const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
     return Compile(FileName).and_then(
-        [&VM](const std::string &SOFileName)
-            -> Expect<std::unique_ptr<AST::Module>> {
+        [&VM](const std::string &SOFileName) -> Expect<SpecTest::WasmUnit> {
           WasmEdge_LoaderContext *LoadCxt = WasmEdge_VMGetLoaderContext(VM);
           WasmEdge_ValidatorContext *ValidCxt =
               WasmEdge_VMGetValidatorContext(VM);
@@ -141,10 +140,12 @@ TEST_P(CoreCompileTest, TestSuites) {
               reinterpret_cast<AST::Module *>(ASTMod));
         });
   };
-  T.onInstanceFromDef = [&VM](const std::string &ModName,
-                              const AST::Module &ASTMod) -> Expect<void> {
+  T.onInstanceFromDef =
+      [&VM](const std::string &ModName,
+            const SpecTest::WasmUnit &Unit) -> Expect<void> {
+    const auto &ASTMod = std::get<std::unique_ptr<AST::Module>>(Unit);
     const WasmEdge_ASTModuleContext *ASTModCxt =
-        reinterpret_cast<const WasmEdge_ASTModuleContext *>(&ASTMod);
+        reinterpret_cast<const WasmEdge_ASTModuleContext *>(ASTMod.get());
     WasmEdge_String ModStr = WasmEdge_StringWrap(
         ModName.data(), static_cast<uint32_t>(ModName.length()));
     WasmEdge_Result Res =
@@ -257,7 +258,8 @@ TEST_P(CoreCompileTest, TestSuites) {
 // Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, CoreCompileTest,
-    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT,
+                                   /*IncludeComponent=*/false)));
 
 } // namespace
 

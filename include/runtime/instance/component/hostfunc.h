@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 #pragma once
 
-#include "ast/type.h"
+#include "ast/component/type.h"
 #include "common/symbol.h"
 #include "common/types.h"
 
@@ -15,23 +15,29 @@ namespace Runtime {
 namespace Instance {
 namespace Component {
 
+/// Base class for component host functions using component value types
 class HostFunctionBase {
 public:
   HostFunctionBase() = default;
   virtual ~HostFunctionBase() = default;
 
-  /// Run host function body.
+  /// Run host function body with component value types.
   virtual Expect<void> run(Span<const ComponentValVariant> Args,
                            Span<ComponentValVariant> Rets) = 0;
 
-  /// Getter of function type.
-  const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
-  AST::FunctionType &getFuncType() noexcept { return FuncType; }
+  /// Getter of component function type (uses component value types).
+  const AST::Component::FuncType &getComponentFuncType() const noexcept {
+    return CompFuncType;
+  }
+  AST::Component::FuncType &getComponentFuncType() noexcept {
+    return CompFuncType;
+  }
 
 protected:
-  AST::FunctionType FuncType;
+  AST::Component::FuncType CompFuncType;
 };
 
+/// Helper templates for converting between ComponentValVariant and C++ types
 template <typename ArgT> struct convert {
   static ArgT run(const ComponentValVariant &V) {
     return std::get<ValVariant>(V).template get<ArgT>();
@@ -239,15 +245,22 @@ protected:
   }
 
   void initializeFuncType() {
-    auto &FuncType = getFuncType();
+    auto &FuncType = getComponentFuncType();
     using F = FuncTraits<decltype(&T::body)>;
     using ArgsT = typename F::ArgsT;
-    FuncType.getParamTypes().reserve(F::ArgsN);
-    pushValType<ArgsT>(std::make_index_sequence<F::ArgsN>());
+    // Initialize parameter types with component value types
+    std::vector<AST::Component::LabelValType> Params;
+    Params.reserve(F::ArgsN);
+    pushParamTypes<ArgsT>(Params, std::make_index_sequence<F::ArgsN>());
+    FuncType.setParamList(std::move(Params));
+
+    // Initialize return types with component value types
     if constexpr (F::hasReturn) {
-      FuncType.getReturnTypes().reserve(F::RetsN);
       using RetsT = typename F::RetsT;
-      pushRetType<RetsT>(std::make_index_sequence<F::RetsN>());
+      std::vector<AST::Component::LabelValType> Rets;
+      Rets.reserve(F::RetsN);
+      pushReturnTypes<RetsT>(Rets, std::make_index_sequence<F::RetsN>());
+      FuncType.setResultList(std::move(Rets));
     }
   }
 
@@ -291,17 +304,23 @@ private:
   }
 
   template <typename Tuple, std::size_t... Indices>
-  void pushValType(std::index_sequence<Indices...>) {
-    (FuncType.getParamTypes().push_back(
-         Wit<std::tuple_element_t<Indices, Tuple>>::type()),
-     ...);
+  void pushParamTypes(std::vector<AST::Component::LabelValType> &Params,
+                      std::index_sequence<Indices...>) {
+    // TODO: COMPONENT - Implement proper component type mapping
+    // For now, create empty LabelValType as placeholder
+    if constexpr (sizeof...(Indices) > 0) {
+      Params.resize(sizeof...(Indices));
+    }
   }
 
   template <typename Tuple, std::size_t... Indices>
-  void pushRetType(std::index_sequence<Indices...>) {
-    (FuncType.getReturnTypes().push_back(
-         Wit<std::tuple_element_t<Indices, Tuple>>::type()),
-     ...);
+  void pushReturnTypes(std::vector<AST::Component::LabelValType> &Rets,
+                       std::index_sequence<Indices...>) {
+    // TODO: COMPONENT - Implement proper component type mapping
+    // For now, create empty LabelValType as placeholder
+    if constexpr (sizeof...(Indices) > 0) {
+      Rets.resize(sizeof...(Indices));
+    }
   }
 };
 

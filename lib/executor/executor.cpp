@@ -5,11 +5,24 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "runtime/instance/component/hostfunc.h"
 #include "system/stacktrace.h"
 
 using namespace std::literals;
 
 namespace WasmEdge {
+
+// Implement the custom deleter for HostFunctionBase
+namespace Runtime {
+namespace Instance {
+namespace Component {
+void HostFunctionDeleter::operator()(HostFunctionBase *ptr) const {
+  delete ptr;
+}
+} // namespace Component
+} // namespace Instance
+} // namespace Runtime
+
 namespace Executor {
 
 /// Instantiate a WASM Module. See "include/executor/executor.h".
@@ -221,29 +234,74 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   // const auto &FuncType = FuncInst->getFuncType();
   // const auto PTypes = FuncType.getParamList();
 
-  // Convert the component params into core WASM params.
-  auto *ReallocFuncInst = FuncInst->getAllocFunction();
-  auto *MemInst = FuncInst->getMemoryInstance();
-  std::vector<ValVariant> CoreWASMArgs =
-      convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst);
+  // Handle based on function kind
+  if (FuncInst->isLifted()) {
+    // Lifted function: convert component values to core WASM, invoke, convert
+    // back
+    auto *ReallocFuncInst = FuncInst->getReallocFunction();
+    auto *MemInst = FuncInst->getMemoryInstance();
+    std::vector<ValVariant> CoreWASMArgs =
+        convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst);
 
-  // Call runFunction.
-  auto *CoreFuncInst = FuncInst->getLowerFunction();
-  assuming(CoreFuncInst);
-  const auto &CoreFuncType = CoreFuncInst->getFuncType();
-  // TODO: COMPONENT - check the ABI types between core functype and args.
-  EXPECTED_TRY(auto CoreWASMReturns, invoke(CoreFuncInst, CoreWASMArgs,
-                                            CoreFuncType.getParamTypes()));
+    // Call core function
+    auto *CoreFuncInst = FuncInst->getLowerFunction();
+    assuming(CoreFuncInst);
+    const auto &CoreFuncType = CoreFuncInst->getFuncType();
+    // TODO: COMPONENT - check the ABI types between core functype and args.
+    EXPECTED_TRY(auto CoreWASMReturns, invoke(CoreFuncInst, CoreWASMArgs,
+                                              CoreFuncType.getParamTypes()));
 
-  // Get return values.
-  std::vector<ComponentValType> ReturnTypes;
-  for (const auto &Type : FuncInst->getFuncType().getResultList()) {
-    ReturnTypes.push_back(Type.getValType());
+    // Get return values and convert back to component types
+    std::vector<ComponentValType> ReturnTypes;
+    for (const auto &Type : FuncInst->getFuncType().getResultList()) {
+      ReturnTypes.push_back(Type.getValType());
+    }
+    std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns =
+        convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst);
+    assuming(Returns.size() == ReturnTypes.size());
+
+    // Invoke post-return function for cleanup if specified
+    if (auto *PostReturnFunc = FuncInst->getPostReturnFunction()) {
+      // Post-return is called with the original core WASM arguments
+      // to allow cleanup of any allocated memory
+      const auto &PostReturnType = PostReturnFunc->getFuncType();
+      if (PostReturnType.getParamTypes().size() == CoreWASMArgs.size()) {
+        // Invoke post-return (ignore result, it's for cleanup only)
+        auto PostReturnResult = invoke(PostReturnFunc, CoreWASMArgs,
+                                       PostReturnType.getParamTypes());
+        // Log error if post-return fails, but don't fail the function call
+        if (!PostReturnResult) {
+          spdlog::warn("Post-return function failed, but continuing");
+        }
+      }
+    }
+
+    return Returns;
+  } else if (FuncInst->isHost()) {
+    // Host function: invoke directly with component values
+    auto *HostFunc = FuncInst->getHostFunction();
+    assuming(HostFunc);
+
+    // Prepare return buffer
+    const auto &FuncType = FuncInst->getFuncType();
+    const auto &ResultList = FuncType.getResultList();
+    std::vector<ComponentValVariant> RetVals(ResultList.size());
+
+    // Invoke host function
+    EXPECTED_TRY(HostFunc->run(Params, RetVals));
+
+    // Package results with types
+    std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns;
+    Returns.reserve(ResultList.size());
+    for (size_t I = 0; I < ResultList.size(); ++I) {
+      Returns.emplace_back(std::move(RetVals[I]), ResultList[I].getValType());
+    }
+    return Returns;
+  } else {
+    spdlog::error(ErrCode::Value::FuncNotFound);
+    spdlog::error("    Unknown component function kind"sv);
+    return Unexpect(ErrCode::Value::FuncNotFound);
   }
-  std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns =
-      convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst);
-  assuming(Returns.size() == ReturnTypes.size());
-  return Returns;
 }
 
 } // namespace Executor

@@ -110,8 +110,13 @@ remove_parsed() {
         IFS=$'\n'
         ask_remove $(parse_env)
         if [[ "$IPATH" =~ ".wasmedge" ]]; then
-            ask_remove $(find "$IPATH" -depth -type d -empty -print)
-            ask_remove $(find "$IPATH" -depth -type d -empty -print)
+            # FIX 1: Check if find returns anything before calling ask_remove
+            local empty_dirs
+            empty_dirs=$(find "$IPATH" -depth -type d -empty -print 2>/dev/null)
+            if [ -n "$empty_dirs" ]; then
+                ask_remove $empty_dirs
+            fi
+            # FIX 2: Remove duplicate find call that was causing second empty prompt
             if [ -z "$(ls -A "$IPATH")" ]; then
                 ask_remove "$IPATH"
             fi
@@ -151,6 +156,12 @@ _rm() {
 
 ask_remove() {
     local libs=("$@")
+    
+    # FIX 3: Early return if nothing to remove - prevents infinite loop on empty input
+    if [ ${#libs[@]} -eq 0 ]; then
+        return 0
+    fi
+    
     if [ $ASK == 1 ]; then
         while true; do
             echo "Do you wish to uninstall the following?"
@@ -198,7 +209,7 @@ main() {
     SPECIFIED=0
     local OPTIND
     while getopts "qhp:V-:" OPT; do
-        # support long options: https://stackoverflow.com/a/28466267/519360
+        # support long options: https://stackoverflow.com/a/28466267/519360 
         if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
             OPT="${OPTARG%%=*}"     # extract long option name
             OPTARG="${OPTARG#$OPT}" # extract long option argument (may be empty)

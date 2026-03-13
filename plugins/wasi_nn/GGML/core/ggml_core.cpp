@@ -164,9 +164,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   llama_numa_init(Params.numa);
 
   // Initialize the llama model and context.
-  common_init_result LlamaInit = common_init_from_params(Params);
-  GraphRef.LlamaModel = std::move(LlamaInit.model);
-  GraphRef.LlamaContext = std::move(LlamaInit.context);
+  GraphRef.LlamaInitResult = common_init_from_params(Params);
+  GraphRef.LlamaModel = GraphRef.LlamaInitResult->model();
+  GraphRef.LlamaContext = GraphRef.LlamaInitResult->context();
   if (GraphRef.LlamaModel == nullptr) {
     Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::InvalidArgument, "load: unable to init model."sv)
@@ -183,9 +183,9 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model."sv)
     Params.model = GraphRef.Params.vocoder.model;
     Params.embedding = true;
-    common_init_result TTSInit = common_init_from_params(Params);
-    GraphRef.TTSModel = std::move(TTSInit.model);
-    GraphRef.TTSContext = std::move(TTSInit.context);
+    GraphRef.TTSInitResult = common_init_from_params(Params);
+    GraphRef.TTSModel = GraphRef.TTSInitResult->model();
+    GraphRef.TTSContext = GraphRef.TTSInitResult->context();
     if (GraphRef.TTSModel == nullptr) {
       Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS model."sv)
@@ -223,7 +223,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
 
   // Allocate sampler.
   CxtRef.LlamaSampler =
-      common_sampler_init(GraphRef.LlamaModel.get(), GraphRef.Params.sampling);
+      common_sampler_init(GraphRef.LlamaModel, GraphRef.Params.sampling);
 
   Env.NNContext[ContextId].setReady();
   ContextId = EndianValue(ContextId).le();
@@ -238,7 +238,7 @@ Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Logging for the llama timings.
   if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler);
+    common_perf_print(GraphRef.LlamaContext, CxtRef.LlamaSampler);
   }
 
   // Clear the outputs.
@@ -264,15 +264,13 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
   LOG_DEBUG(IsDebugLog, "unload"sv)
 
   // TODO: Move the resource deallocation into the destructor.
-  if (GraphRef.LlamaModel != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free llama model"sv)
-    GraphRef.LlamaModel.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free llama model...Done"sv)
-  }
-  if (GraphRef.LlamaContext != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free llama context"sv)
-    GraphRef.LlamaContext.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free llama context...Done"sv)
+  if (GraphRef.LlamaInitResult != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free llama init result"sv)
+    GraphRef.LlamaInitResult->free_context();
+    GraphRef.LlamaInitResult = nullptr;
+    GraphRef.LlamaModel = nullptr;
+    GraphRef.LlamaContext = nullptr;
+    LOG_DEBUG(IsDebugLog, "unload: free llama init result...Done"sv)
   }
   if (GraphRef.VisionContext != nullptr) {
     LOG_DEBUG(IsDebugLog, "unload: free mtmd context"sv)
@@ -284,15 +282,13 @@ Expect<ErrNo> unload(WasiNNEnvironment &Env, uint32_t GraphId) noexcept {
     GraphRef.VisionInputChunks.reset();
     LOG_DEBUG(IsDebugLog, "unload: free mtmd chunks...Done"sv)
   }
-  if (GraphRef.TTSModel != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free TTS model"sv)
-    GraphRef.TTSModel.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free TTS model...Done"sv)
-  }
-  if (GraphRef.TTSContext != nullptr) {
-    LOG_DEBUG(IsDebugLog, "unload: free TTS context"sv)
-    GraphRef.TTSContext.reset();
-    LOG_DEBUG(IsDebugLog, "unload: free TTS context...Done"sv)
+  if (GraphRef.TTSInitResult != nullptr) {
+    LOG_DEBUG(IsDebugLog, "unload: free TTS init result"sv)
+    GraphRef.TTSInitResult->free_context();
+    GraphRef.TTSInitResult = nullptr;
+    GraphRef.TTSModel = nullptr;
+    GraphRef.TTSContext = nullptr;
+    LOG_DEBUG(IsDebugLog, "unload: free TTS init result...Done"sv)
   }
   if (!GraphRef.TensorBuftOverrides.empty()) {
     LOG_DEBUG(IsDebugLog, "unload: free tensor buffer overrides"sv)

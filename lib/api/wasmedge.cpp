@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "wasmedge/wasmedge.h"
+#include "wasm/wasm.h"
 
 #include "common/defines.h"
 #include "driver/compiler.h"

@@ -356,29 +356,45 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If not load successfully, the previous status will be reserved.
-  EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
+  Stat.startRecordModuleLoad();
+  auto Result = LoaderEngine.parseWasmUnit(Path);
+  if (!Result) {
+    Stat.stopRecordModuleLoad();
+    return Unexpect(Result);
+  }
+  auto ComponentOrModule = std::move(*Result);
 
   std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
                              [&](auto &C) -> void { Comp = std::move(C); }),
              ComponentOrModule);
   Stage = VMStage::Loaded;
+  Stat.stopRecordModuleLoad();
   return {};
 }
 
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If not load successfully, the previous status will be reserved.
-  EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
+  Stat.startRecordModuleLoad();
+  auto Result = LoaderEngine.parseWasmUnit(Code);
+  if (!Result) {
+    Stat.stopRecordModuleLoad();
+    return Unexpect(Result);
+  }
+  auto ComponentOrModule = std::move(*Result);
 
   std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
                              [&](auto &C) -> void { Comp = std::move(C); }),
              ComponentOrModule);
   Stage = VMStage::Loaded;
+  Stat.stopRecordModuleLoad();
   return {};
 }
 
 Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
+  Stat.startRecordModuleLoad();
   Mod = std::make_unique<AST::Module>(Module);
   Stage = VMStage::Loaded;
+  Stat.stopRecordModuleLoad();
   return {};
 }
 
@@ -423,6 +439,7 @@ Expect<void> VM::unsafeInstantiate() {
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
 
+  Stat.startRecordInstantiation();
   if (Mod) {
     if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
@@ -473,17 +490,28 @@ Expect<void> VM::unsafeInstantiate() {
 #endif
     }
 
-    EXPECTED_TRY(ActiveModInst,
-                 ExecutorEngine.instantiateModule(StoreRef, *Mod));
+    auto ModResult = ExecutorEngine.instantiateModule(StoreRef, *Mod);
+    if (!ModResult) {
+      Stat.stopRecordInstantiation();
+      return Unexpect(ModResult);
+    }
+    ActiveModInst = std::move(*ModResult);
     Stage = VMStage::Instantiated;
+    Stat.stopRecordInstantiation();
     return {};
   } else if (Comp) {
-    EXPECTED_TRY(ActiveCompInst,
-                 ExecutorEngine.instantiateComponent(StoreRef, *Comp));
+    auto CompResult = ExecutorEngine.instantiateComponent(StoreRef, *Comp);
+    if (!CompResult) {
+      Stat.stopRecordInstantiation();
+      return Unexpect(CompResult);
+    }
+    ActiveCompInst = std::move(*CompResult);
     Stage = VMStage::Instantiated;
+    Stat.stopRecordInstantiation();
     return {};
   } else {
     spdlog::error(ErrCode::Value::WrongVMWorkflow);
+    Stat.stopRecordInstantiation();
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
 }

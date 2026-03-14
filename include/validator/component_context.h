@@ -26,9 +26,10 @@ public:
     std::vector<uint32_t> SortIndexSizes;
     std::vector<uint32_t> CoreSortIndexSizes;
     std::unordered_map<std::string, uint32_t> TypeSubstitutions;
-    std::unordered_map<uint32_t,
-                       std::unordered_map<std::string_view,
-                                          const AST::Component::ExternDesc *>>
+    using InstanceExportRecord = std::pair<const AST::Component::Sort *,
+                                           const AST::Component::ExternDesc *>;
+    std::unordered_map<
+        uint32_t, std::unordered_map<std::string_view, InstanceExportRecord>>
         ComponentInstanceExports;
     std::unordered_map<uint32_t,
                        std::unordered_map<std::string_view, ExternalType>>
@@ -145,14 +146,16 @@ public:
     return std::nullopt;
   }
 
+  using InstanceExportRecord = Context::InstanceExportRecord;
+
   void addComponentInstanceExport(uint32_t InstanceIdx,
-                                  const std::string_view &ExportName,
-                                  const AST::Component::ExternDesc &ED) {
+                                  std::string_view ExportName,
+                                  Context::InstanceExportRecord Record) {
     auto &Ctx = getCurrentContext();
-    Ctx.ComponentInstanceExports[InstanceIdx][ExportName] = &ED;
+    Ctx.ComponentInstanceExports[InstanceIdx][ExportName] = Record;
   }
 
-  std::unordered_map<std::string_view, const AST::Component::ExternDesc *>
+  std::unordered_map<std::string_view, Context::InstanceExportRecord>
   getComponentInstanceExports(uint32_t InstanceIdx) const {
     const auto &Ctx = getCurrentContext();
     auto It = Ctx.ComponentInstanceExports.find(InstanceIdx);

@@ -693,9 +693,10 @@ TEST(Component, LoadAndRun_MultiComponentBinary) {
   // clang-format on
 
   ASSERT_TRUE(VM.loadWasm(Vec));
-  // TODO: Fix this for the validator.
-  /*
   ASSERT_TRUE(VM.validate());
+
+  // TODO: Fix this for the instantiate.
+  /*
   ASSERT_TRUE(VM.instantiate());
   */
 }

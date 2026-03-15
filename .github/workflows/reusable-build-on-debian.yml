@@ -24,7 +24,7 @@ jobs:
       image: debian:testing
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
         with:
           egress-policy: audit
 
@@ -54,7 +54,7 @@ jobs:
           cmake --build build --target package
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: WasmEdge-${{ inputs.version }}-debian.tar.gz
           path: build/WasmEdge-${{ inputs.version }}-Linux.tar.gz

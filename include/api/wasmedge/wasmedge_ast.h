@@ -31,8 +31,8 @@ extern "C" {
 /// \param Cxt the WasmEdge_ASTModuleContext.
 ///
 /// \returns length of the imports list.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_ASTModuleListImportsLength(const WasmEdge_ASTModuleContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ASTModuleListImportsLength(
+    const WasmEdge_ASTModuleContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the imports of the AST module.
 ///
@@ -48,15 +48,15 @@ WasmEdge_ASTModuleListImportsLength(const WasmEdge_ASTModuleContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ASTModuleListImports(const WasmEdge_ASTModuleContext *Cxt,
                               const WasmEdge_ImportTypeContext **Imports,
-                              const uint32_t Len);
+                              const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of exports list of the AST module.
 ///
 /// \param Cxt the WasmEdge_ASTModuleContext.
 ///
 /// \returns length of the exports list.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_ASTModuleListExportsLength(const WasmEdge_ASTModuleContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ASTModuleListExportsLength(
+    const WasmEdge_ASTModuleContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the exports of the AST module.
 ///
@@ -72,7 +72,7 @@ WasmEdge_ASTModuleListExportsLength(const WasmEdge_ASTModuleContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ASTModuleListExports(const WasmEdge_ASTModuleContext *Cxt,
                               const WasmEdge_ExportTypeContext **Exports,
-                              const uint32_t Len);
+                              const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_ASTModuleContext.
 ///
@@ -81,7 +81,7 @@ WasmEdge_ASTModuleListExports(const WasmEdge_ASTModuleContext *Cxt,
 ///
 /// \param Cxt the WasmEdge_ASTModuleContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
+WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge AST module functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -98,7 +98,8 @@ WasmEdge_ASTModuleDelete(WasmEdge_ASTModuleContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
-WasmEdge_LimitCreate(const uint64_t Min, const bool Is64Bit);
+WasmEdge_LimitCreate(const uint64_t Min,
+                     const bool Is64Bit) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Creation of the WasmEdge_LimitContext with max value.
 ///
@@ -115,7 +116,8 @@ WasmEdge_LimitCreate(const uint64_t Min, const bool Is64Bit);
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
 WasmEdge_LimitCreateWithMax(const uint64_t Min, const uint64_t Max,
-                            const bool Is64Bit, const bool IsShared);
+                            const bool Is64Bit,
+                            const bool IsShared) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the minimum value from the WasmEdge_LimitContext.
 ///
@@ -123,7 +125,7 @@ WasmEdge_LimitCreateWithMax(const uint64_t Min, const uint64_t Max,
 ///
 /// \returns the minimum value of this limit.
 WASMEDGE_CAPI_EXPORT extern uint64_t
-WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt);
+WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the maximum value from the WasmEdge_LimitContext.
 ///
@@ -132,7 +134,7 @@ WasmEdge_LimitGetMin(const WasmEdge_LimitContext *Cxt);
 /// \returns the maximum value of this limit. Should not be referred if the
 /// limit context is configured as without maximum value.
 WASMEDGE_CAPI_EXPORT extern uint64_t
-WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt);
+WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the has-maximum option from the WasmEdge_LimitContext.
 ///
@@ -141,7 +143,7 @@ WasmEdge_LimitGetMax(const WasmEdge_LimitContext *Cxt);
 /// \returns the boolean value to determine the limit context configured as
 /// having maximum value or not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt);
+WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the shareable option from the WasmEdge_LimitContext.
 ///
@@ -149,7 +151,7 @@ WasmEdge_LimitHasMax(const WasmEdge_LimitContext *Cxt);
 ///
 /// \returns the boolean value to determine the shareable option.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt);
+WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the 64-bit address type option from the WasmEdge_LimitContext.
 ///
@@ -158,7 +160,7 @@ WasmEdge_LimitIsShared(const WasmEdge_LimitContext *Cxt);
 /// \returns the boolean value to determine the limit is 64-bit address type.
 /// `false` if the limit is 32-bit address type.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt);
+WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Compare the two WasmEdge_LimitContext objects.
 ///
@@ -172,7 +174,7 @@ WasmEdge_LimitIs64Bit(const WasmEdge_LimitContext *Cxt);
 /// same, false if not.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_LimitIsEqual(const WasmEdge_LimitContext *Lim1,
-                      const WasmEdge_LimitContext *Lim2);
+                      const WasmEdge_LimitContext *Lim2) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_LimitContext.
 ///
@@ -181,7 +183,7 @@ WasmEdge_LimitIsEqual(const WasmEdge_LimitContext *Lim1,
 ///
 /// \param Cxt the WasmEdge_LimitContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt);
+WasmEdge_LimitDelete(WasmEdge_LimitContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge limit functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -203,7 +205,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_FunctionTypeContext *
 WasmEdge_FunctionTypeCreate(const WasmEdge_ValType *ParamList,
                             const uint32_t ParamLen,
                             const WasmEdge_ValType *ReturnList,
-                            const uint32_t ReturnLen);
+                            const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the parameter types list length from the WasmEdge_FunctionTypeContext.
 ///
@@ -211,7 +213,7 @@ WasmEdge_FunctionTypeCreate(const WasmEdge_ValType *ParamList,
 ///
 /// \returns the parameter types list length.
 WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetParametersLength(
-    const WasmEdge_FunctionTypeContext *Cxt);
+    const WasmEdge_FunctionTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the parameter types list from the WasmEdge_FunctionTypeContext.
 ///
@@ -226,15 +228,16 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetParametersLength(
 /// \returns the actual parameter types list length.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_FunctionTypeGetParameters(const WasmEdge_FunctionTypeContext *Cxt,
-                                   WasmEdge_ValType *List, const uint32_t Len);
+                                   WasmEdge_ValType *List,
+                                   const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the return types list length from the WasmEdge_FunctionTypeContext.
 ///
 /// \param Cxt the WasmEdge_FunctionTypeContext.
 ///
 /// \returns the return types list length.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_FunctionTypeGetReturnsLength(
+    const WasmEdge_FunctionTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the return types list from the WasmEdge_FunctionTypeContext.
 ///
@@ -249,7 +252,8 @@ WasmEdge_FunctionTypeGetReturnsLength(const WasmEdge_FunctionTypeContext *Cxt);
 /// \returns the actual return types list length.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
-                                WasmEdge_ValType *List, const uint32_t Len);
+                                WasmEdge_ValType *List,
+                                const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_FunctionTypeContext.
 ///
@@ -257,8 +261,8 @@ WasmEdge_FunctionTypeGetReturns(const WasmEdge_FunctionTypeContext *Cxt,
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_FunctionTypeContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_FunctionTypeDelete(
+    WasmEdge_FunctionTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge function type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -274,9 +278,9 @@ WasmEdge_FunctionTypeDelete(WasmEdge_FunctionTypeContext *Cxt);
 /// \param Limit the limit struct of the table type.
 ///
 /// \returns pointer to context, NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *
-WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
-                         const WasmEdge_LimitContext *Limit);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *WasmEdge_TableTypeCreate(
+    const WasmEdge_ValType RefType,
+    const WasmEdge_LimitContext *Limit) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the reference type from a table type.
 ///
@@ -284,8 +288,8 @@ WasmEdge_TableTypeCreate(const WasmEdge_ValType RefType,
 ///
 /// \returns the value type of the table type. This value type will must be a
 /// reference type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
-WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_TableTypeGetRefType(
+    const WasmEdge_TableTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the limit context from a table type.
 ///
@@ -293,7 +297,8 @@ WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_LimitContext *
-WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt);
+WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_TableTypeContext.
 ///
@@ -302,7 +307,7 @@ WasmEdge_TableTypeGetLimit(const WasmEdge_TableTypeContext *Cxt);
 ///
 /// \param Cxt the WasmEdge_TableTypeContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt);
+WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge table type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -317,7 +322,8 @@ WasmEdge_TableTypeDelete(WasmEdge_TableTypeContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryTypeContext *
-WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit);
+WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the limit context from a memory type.
 ///
@@ -325,7 +331,8 @@ WasmEdge_MemoryTypeCreate(const WasmEdge_LimitContext *Limit);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_LimitContext *
-WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt);
+WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_MemoryTypeContext.
 ///
@@ -333,8 +340,8 @@ WasmEdge_MemoryTypeGetLimit(const WasmEdge_MemoryTypeContext *Cxt);
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_MemoryTypeContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_MemoryTypeDelete(
+    WasmEdge_MemoryTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge memory type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -346,7 +353,8 @@ WasmEdge_MemoryTypeDelete(WasmEdge_MemoryTypeContext *Cxt);
 ///
 /// \returns pointer to function type context of the tag type, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
-WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt);
+WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge tag type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -363,15 +371,16 @@ WasmEdge_TagTypeGetFunctionType(const WasmEdge_TagTypeContext *Cxt);
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_GlobalTypeContext *
 WasmEdge_GlobalTypeCreate(const WasmEdge_ValType ValType,
-                          const enum WasmEdge_Mutability Mut);
+                          const enum WasmEdge_Mutability Mut)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the value type from a global type.
 ///
 /// \param Cxt the WasmEdge_GlobalTypeContext.
 ///
 /// \returns the value type of the global type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
-WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_GlobalTypeGetValType(
+    const WasmEdge_GlobalTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the mutability from a global type.
 ///
@@ -379,7 +388,8 @@ WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *Cxt);
 ///
 /// \returns the mutability of the global type.
 WASMEDGE_CAPI_EXPORT extern enum WasmEdge_Mutability
-WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt);
+WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_GlobalTypeContext.
 ///
@@ -387,8 +397,8 @@ WasmEdge_GlobalTypeGetMutability(const WasmEdge_GlobalTypeContext *Cxt);
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_GlobalTypeContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_GlobalTypeDelete(
+    WasmEdge_GlobalTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge global type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -400,7 +410,8 @@ WasmEdge_GlobalTypeDelete(WasmEdge_GlobalTypeContext *Cxt);
 ///
 /// \returns the external type of the import type.
 WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ExternalType
-WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt);
+WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the module name from an import type.
 ///
@@ -410,8 +421,8 @@ WasmEdge_ImportTypeGetExternalType(const WasmEdge_ImportTypeContext *Cxt);
 /// \param Cxt the WasmEdge_ImportTypeContext.
 ///
 /// \returns string object. Length will be 0 and Buf will be NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_String
-WasmEdge_ImportTypeGetModuleName(const WasmEdge_ImportTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String WasmEdge_ImportTypeGetModuleName(
+    const WasmEdge_ImportTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external name from an import type.
 ///
@@ -421,8 +432,8 @@ WasmEdge_ImportTypeGetModuleName(const WasmEdge_ImportTypeContext *Cxt);
 /// \param Cxt the WasmEdge_ImportTypeContext.
 ///
 /// \returns string object. Length will be 0 and Buf will be NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_String
-WasmEdge_ImportTypeGetExternalName(const WasmEdge_ImportTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String WasmEdge_ImportTypeGetExternalName(
+    const WasmEdge_ImportTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is function type) from an import type.
 ///
@@ -439,7 +450,8 @@ WasmEdge_ImportTypeGetExternalName(const WasmEdge_ImportTypeContext *Cxt);
 /// import type is not `WasmEdge_ExternalType_Function`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
 WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                   const WasmEdge_ImportTypeContext *Cxt);
+                                   const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is table type) from an import type.
 ///
@@ -456,7 +468,8 @@ WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// type is not `WasmEdge_ExternalType_Table`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
 WasmEdge_ImportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                const WasmEdge_ImportTypeContext *Cxt);
+                                const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is memory type) from an import type.
 ///
@@ -473,7 +486,8 @@ WasmEdge_ImportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// type is not `WasmEdge_ExternalType_Memory`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
 WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                 const WasmEdge_ImportTypeContext *Cxt);
+                                 const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is tag type) from an import type.
 ///
@@ -489,7 +503,8 @@ WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// type is not `WasmEdge_ExternalType_TagType`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_TagTypeContext *
 WasmEdge_ImportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
-                              const WasmEdge_ImportTypeContext *Cxt);
+                              const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is global type) from an import type.
 ///
@@ -506,7 +521,8 @@ WasmEdge_ImportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// type is not `WasmEdge_ExternalType_Global`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
 WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                 const WasmEdge_ImportTypeContext *Cxt);
+                                 const WasmEdge_ImportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge import type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -518,7 +534,8 @@ WasmEdge_ImportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
 ///
 /// \returns the external type of the export type.
 WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ExternalType
-WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt);
+WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external name from an export type.
 ///
@@ -528,8 +545,8 @@ WasmEdge_ExportTypeGetExternalType(const WasmEdge_ExportTypeContext *Cxt);
 /// \param Cxt the WasmEdge_ExportTypeContext.
 ///
 /// \returns string object. Length will be 0 and Buf will be NULL if failed.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_String
-WasmEdge_ExportTypeGetExternalName(const WasmEdge_ExportTypeContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_String WasmEdge_ExportTypeGetExternalName(
+    const WasmEdge_ExportTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is function type) from an export type.
 ///
@@ -546,7 +563,8 @@ WasmEdge_ExportTypeGetExternalName(const WasmEdge_ExportTypeContext *Cxt);
 /// export type is not `WasmEdge_ExternalType_Function`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
 WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                   const WasmEdge_ExportTypeContext *Cxt);
+                                   const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is table type) from an export type.
 ///
@@ -563,7 +581,8 @@ WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// type is not `WasmEdge_ExternalType_Table`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_TableTypeContext *
 WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                const WasmEdge_ExportTypeContext *Cxt);
+                                const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is memory type) from an export type.
 ///
@@ -580,7 +599,8 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// type is not `WasmEdge_ExternalType_Memory`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_MemoryTypeContext *
 WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                 const WasmEdge_ExportTypeContext *Cxt);
+                                 const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is tag type) from an export type.
 ///
@@ -596,7 +616,8 @@ WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// type is not `WasmEdge_ExternalType_Tag`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_TagTypeContext *
 WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
-                              const WasmEdge_ExportTypeContext *Cxt);
+                              const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the external value (which is global type) from an export type.
 ///
@@ -613,7 +634,8 @@ WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// type is not `WasmEdge_ExternalType_Global`.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_GlobalTypeContext *
 WasmEdge_ExportTypeGetGlobalType(const WasmEdge_ASTModuleContext *ASTCxt,
-                                 const WasmEdge_ExportTypeContext *Cxt);
+                                 const WasmEdge_ExportTypeContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge export type functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

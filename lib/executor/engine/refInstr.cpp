@@ -327,7 +327,8 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
   // Copy the value type here due to handling the externalized case.
   auto VT = Val.get<RefVariant>().getType();
   if (VT.isExternalized()) {
-    VT = ValType(TypeCode::Ref, TypeCode::ExternRef);
+    VT = ValType(VT.isNullableRefType() ? TypeCode::RefNull : TypeCode::Ref,
+                 TypeCode::ExternRef);
   }
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {

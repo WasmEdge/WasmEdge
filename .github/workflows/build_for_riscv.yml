@@ -49,7 +49,7 @@ jobs:
     needs: lint
     steps:
     - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+      uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
       with:
         egress-policy: audit
 
@@ -78,13 +78,13 @@ jobs:
           gcc-riscv64-linux-gnu g++-riscv64-linux-gnu \
           zlib1g-dev:riscv64
 
-        # llvm-18-dev:riscv64 cannot be installed via apt-get because its
-        # dependency chain pulls in python3.12-minimal:riscv64, whose postinst
-        # script tries to execute /usr/bin/python3.12 (a riscv64 binary) on
-        # the x86_64 host, causing "Exec format error".
+        # llvm-20-dev:riscv64 cannot be installed via apt-get because its
+        # dependency chain pulls in python3-minimal:riscv64, whose postinst
+        # script tries to execute a riscv64 binary on the x86_64 host,
+        # causing "Exec format error".
         # Workaround: download the packages and extract without running postinst.
         apt-get install -y -d --no-install-recommends \
-          llvm-18-dev:riscv64 liblld-18-dev:riscv64
+          llvm-20-dev:riscv64 liblld-20-dev:riscv64
         for deb in /var/cache/apt/archives/*_riscv64.deb; do
           dpkg-deb -x "$deb" /
         done
@@ -98,7 +98,7 @@ jobs:
           -DWASMEDGE_BUILD_TOOLS=ON \
           -DWASMEDGE_BUILD_SHARED_LIB=ON \
           -DWASMEDGE_USE_LLVM=ON \
-          -DLLVM_DIR=/usr/lib/riscv64-linux-gnu/cmake/llvm-18 \
+          -DLLVM_DIR=/usr/lib/riscv64-linux-gnu/cmake/llvm-20 \
           .
         cmake --build build -j $(nproc)
 
@@ -117,7 +117,7 @@ jobs:
         tar -czf riscv64-artifacts.tar.gz riscv64-artifacts/
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: riscv64-build-artifacts
         path: riscv64-artifacts.tar.gz
@@ -130,7 +130,7 @@ jobs:
     needs: cross_compile
     steps:
     - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+      uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
       with:
         egress-policy: audit
 
@@ -139,7 +139,7 @@ jobs:
         fetch-depth: 0
 
     - name: Download build artifacts
-      uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
       with:
         name: riscv64-build-artifacts
 
@@ -164,8 +164,8 @@ jobs:
         # Install riscv64 LLVM/LLD runtime libraries (these do NOT depend on
         # python3:riscv64, so apt-get install works without postinst issues)
         apt-get install -y --no-install-recommends \
-          libllvm18:riscv64 \
-          liblld-18:riscv64 \
+          libllvm20:riscv64 \
+          liblld-20:riscv64 \
           zlib1g:riscv64
 
         # Create symlinks so QEMU sysroot can find multi-arch libraries.

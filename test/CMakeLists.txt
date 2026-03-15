@@ -73,7 +73,7 @@ add_subdirectory(host/mock)
 add_subdirectory(expected)
 add_subdirectory(span)
 add_subdirectory(po)
-add_subdirectory(memlimit)
+add_subdirectory(meminstance)
 add_subdirectory(errinfo)
 
 if(WASMEDGE_BUILD_COVERAGE)

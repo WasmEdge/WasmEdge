@@ -45,37 +45,44 @@ extern "C" {
 /// Generate the I32 WASM value type.
 ///
 /// \returns WasmEdge_ValType struct with the I32 value type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenI32(void);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
+WasmEdge_ValTypeGenI32(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the I64 WASM value type.
 ///
 /// \returns WasmEdge_ValType struct with the I64 value type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenI64(void);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
+WasmEdge_ValTypeGenI64(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the F32 WASM value type.
 ///
 /// \returns WasmEdge_ValType struct with the F32 value type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenF32(void);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
+WasmEdge_ValTypeGenF32(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the F64 WASM value type.
 ///
 /// \returns WasmEdge_ValType struct with the F64 value type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenF64(void);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
+WasmEdge_ValTypeGenF64(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the V128 WASM value type.
 ///
 /// \returns WasmEdge_ValType struct with the V128 value type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenV128(void);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
+WasmEdge_ValTypeGenV128(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the FuncRef WASM value type.
 ///
 /// \returns WasmEdge_ValType struct with the FuncRef value type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenFuncRef(void);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
+WasmEdge_ValTypeGenFuncRef(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the ExternRef WASM value type.
 ///
 /// \returns WasmEdge_ValType struct with the ExternRef value type.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenExternRef(void);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType
+WasmEdge_ValTypeGenExternRef(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Compare the two WasmEdge_ValType objects.
 ///
@@ -86,7 +93,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_ValTypeGenExternRef(void);
 /// false if not.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ValTypeIsEqual(const WasmEdge_ValType ValType1,
-                        const WasmEdge_ValType ValType2);
+                        const WasmEdge_ValType ValType2) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is an I32 or not.
 ///
@@ -94,7 +101,7 @@ WasmEdge_ValTypeIsEqual(const WasmEdge_ValType ValType1,
 ///
 /// \returns true if the value type is an I32, false if not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsI32(const WasmEdge_ValType ValType);
+WasmEdge_ValTypeIsI32(const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is an I64 or not.
 ///
@@ -102,7 +109,7 @@ WasmEdge_ValTypeIsI32(const WasmEdge_ValType ValType);
 ///
 /// \returns true if the value type is an I64, false if not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsI64(const WasmEdge_ValType ValType);
+WasmEdge_ValTypeIsI64(const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is a F32 or not.
 ///
@@ -110,7 +117,7 @@ WasmEdge_ValTypeIsI64(const WasmEdge_ValType ValType);
 ///
 /// \returns true if the value type is a F32, false if not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsF32(const WasmEdge_ValType ValType);
+WasmEdge_ValTypeIsF32(const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is a F64 or not.
 ///
@@ -118,7 +125,7 @@ WasmEdge_ValTypeIsF32(const WasmEdge_ValType ValType);
 ///
 /// \returns true if the value type is a F64, false if not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsF64(const WasmEdge_ValType ValType);
+WasmEdge_ValTypeIsF64(const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is a V128 or not.
 ///
@@ -126,23 +133,23 @@ WasmEdge_ValTypeIsF64(const WasmEdge_ValType ValType);
 ///
 /// \returns true if the value type is a V128, false if not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsV128(const WasmEdge_ValType ValType);
+WasmEdge_ValTypeIsV128(const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is a FuncRef or not.
 ///
 /// \param ValType the WasmEdge_ValType object to check.
 ///
 /// \returns true if the value type is a FuncRef, false if not.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsFuncRef(const WasmEdge_ValType ValType);
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ValTypeIsFuncRef(
+    const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is an ExternRef or not.
 ///
 /// \param ValType the WasmEdge_ValType object to check.
 ///
 /// \returns true if the value type is an ExternRef, false if not.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsExternRef(const WasmEdge_ValType ValType);
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ValTypeIsExternRef(
+    const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is a Ref (includes nullable and non-nullable) or
 /// not.
@@ -151,15 +158,15 @@ WasmEdge_ValTypeIsExternRef(const WasmEdge_ValType ValType);
 ///
 /// \returns true if the value type is a Ref, false if not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsRef(const WasmEdge_ValType ValType);
+WasmEdge_ValTypeIsRef(const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value type is a nullable Ref or not.
 ///
 /// \param ValType the WasmEdge_ValType object to check.
 ///
 /// \returns true if the value type is a nullable Ref, false if not.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValTypeIsRefNull(const WasmEdge_ValType ValType);
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ValTypeIsRefNull(
+    const WasmEdge_ValType ValType) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge valtype functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -171,7 +178,7 @@ WasmEdge_ValTypeIsRefNull(const WasmEdge_ValType ValType);
 ///
 /// \returns WasmEdge_Value struct with the I32 value.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenI32(const int32_t Val);
+WasmEdge_ValueGenI32(const int32_t Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the I64 WASM value.
 ///
@@ -179,7 +186,7 @@ WasmEdge_ValueGenI32(const int32_t Val);
 ///
 /// \returns WasmEdge_Value struct with the I64 value.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenI64(const int64_t Val);
+WasmEdge_ValueGenI64(const int64_t Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the F32 WASM value.
 ///
@@ -187,7 +194,7 @@ WasmEdge_ValueGenI64(const int64_t Val);
 ///
 /// \returns WasmEdge_Value struct with the F32 value.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenF32(const float Val);
+WasmEdge_ValueGenF32(const float Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the F64 WASM value.
 ///
@@ -195,7 +202,7 @@ WasmEdge_ValueGenF32(const float Val);
 ///
 /// \returns WasmEdge_Value struct with the F64 value.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenF64(const double Val);
+WasmEdge_ValueGenF64(const double Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the V128 WASM value.
 ///
@@ -203,7 +210,7 @@ WasmEdge_ValueGenF64(const double Val);
 ///
 /// \returns WasmEdge_Value struct with the V128 value.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenV128(const int128_t Val);
+WasmEdge_ValueGenV128(const int128_t Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the function reference WASM value.
 ///
@@ -214,8 +221,8 @@ WasmEdge_ValueGenV128(const int128_t Val);
 /// \param Cxt the function instance context to convert to the reference.
 ///
 /// \returns WasmEdge_Value struct with the function reference.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenFuncRef(const WasmEdge_FunctionInstanceContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Value WasmEdge_ValueGenFuncRef(
+    const WasmEdge_FunctionInstanceContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the function reference WASM value.
 ///
@@ -226,7 +233,7 @@ WasmEdge_ValueGenFuncRef(const WasmEdge_FunctionInstanceContext *Cxt);
 ///
 /// \returns WasmEdge_Value struct with the external reference.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Value
-WasmEdge_ValueGenExternRef(void *Ref);
+WasmEdge_ValueGenExternRef(void *Ref) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Retrieve the I32 value from the WASM value.
 ///
@@ -234,7 +241,7 @@ WasmEdge_ValueGenExternRef(void *Ref);
 ///
 /// \returns I32 value in the input struct.
 WASMEDGE_CAPI_EXPORT extern int32_t
-WasmEdge_ValueGetI32(const WasmEdge_Value Val);
+WasmEdge_ValueGetI32(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Retrieve the I64 value from the WASM value.
 ///
@@ -242,7 +249,7 @@ WasmEdge_ValueGetI32(const WasmEdge_Value Val);
 ///
 /// \returns I64 value in the input struct.
 WASMEDGE_CAPI_EXPORT extern int64_t
-WasmEdge_ValueGetI64(const WasmEdge_Value Val);
+WasmEdge_ValueGetI64(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Retrieve the F32 value from the WASM value.
 ///
@@ -250,7 +257,7 @@ WasmEdge_ValueGetI64(const WasmEdge_Value Val);
 ///
 /// \returns F32 value in the input struct.
 WASMEDGE_CAPI_EXPORT extern float
-WasmEdge_ValueGetF32(const WasmEdge_Value Val);
+WasmEdge_ValueGetF32(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Retrieve the F64 value from the WASM value.
 ///
@@ -258,7 +265,7 @@ WasmEdge_ValueGetF32(const WasmEdge_Value Val);
 ///
 /// \returns F64 value in the input struct.
 WASMEDGE_CAPI_EXPORT extern double
-WasmEdge_ValueGetF64(const WasmEdge_Value Val);
+WasmEdge_ValueGetF64(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Retrieve the V128 value from the WASM value.
 ///
@@ -266,7 +273,7 @@ WasmEdge_ValueGetF64(const WasmEdge_Value Val);
 ///
 /// \returns V128 value in the input struct.
 WASMEDGE_CAPI_EXPORT extern int128_t
-WasmEdge_ValueGetV128(const WasmEdge_Value Val);
+WasmEdge_ValueGetV128(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Specify the WASM value is a null reference or not.
 ///
@@ -274,7 +281,7 @@ WasmEdge_ValueGetV128(const WasmEdge_Value Val);
 ///
 /// \returns true if the value is a null reference, false if not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ValueIsNullRef(const WasmEdge_Value Val);
+WasmEdge_ValueIsNullRef(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Retrieve the function instance context from the WASM value.
 ///
@@ -282,7 +289,7 @@ WasmEdge_ValueIsNullRef(const WasmEdge_Value Val);
 ///
 /// \returns pointer to function instance context in the input struct.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionInstanceContext *
-WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val);
+WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Retrieve the external reference from the WASM value.
 ///
@@ -290,7 +297,7 @@ WasmEdge_ValueGetFuncRef(const WasmEdge_Value Val);
 ///
 /// \returns external reference in the input struct.
 WASMEDGE_CAPI_EXPORT extern void *
-WasmEdge_ValueGetExternRef(const WasmEdge_Value Val);
+WasmEdge_ValueGetExternRef(const WasmEdge_Value Val) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge value functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

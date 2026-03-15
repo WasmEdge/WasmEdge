@@ -39,7 +39,8 @@ extern "C" {
 /// functions.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ExecutorExperimentalRegisterPreHostFunction(
-    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *));
+    WasmEdge_ExecutorContext *Cxt, void *Data,
+    void (*Func)(void *)) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Register a host function that will be invoked after executing any host
 /// functions.
@@ -57,7 +58,8 @@ WasmEdge_ExecutorExperimentalRegisterPreHostFunction(
 /// functions.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ExecutorExperimentalRegisterPostHostFunction(
-    WasmEdge_ExecutorContext *Cxt, void *Data, void (*Func)(void *));
+    WasmEdge_ExecutorContext *Cxt, void *Data,
+    void (*Func)(void *)) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge Experimental Functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

@@ -837,7 +837,22 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     }));
   }
   const auto &Sort = Ex.getSortIndex().getSort();
-  if (!Sort.isCore()) {
+  uint32_t Idx = Ex.getSortIndex().getIdx();
+  if (Sort.isCore()) {
+    if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Export: index {} out of bounds for core sort"sv, Idx);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+  } else {
+    if (Idx >= CompCtx.getSortIndexSize(Sort.getSortType())) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Export: index {} out of bounds for sort"sv, Idx);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
     CompCtx.incSortIndexSize(Sort.getSortType());
   }
   return {};

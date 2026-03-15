@@ -13,6 +13,29 @@ namespace Validator {
 
 using namespace std::literals;
 
+// Map ExternDesc::DescType to the corresponding component-level SortType.
+// ExternDesc appears in InstanceType export declarations (externdesc in spec),
+// while SortType is used in sort indices and alias validation. Both encode
+// the kind of definition (func, type, component, instance), but in different
+// enumerations. ValueBound and TypeBound both map to SortType::Type because
+// they are two different type bound forms for the same sort.
+static AST::Component::Sort::SortType
+descTypeToSortType(AST::Component::ExternDesc::DescType DT) noexcept {
+  switch (DT) {
+  case AST::Component::ExternDesc::DescType::FuncType:
+    return AST::Component::Sort::SortType::Func;
+  case AST::Component::ExternDesc::DescType::ValueBound:
+  case AST::Component::ExternDesc::DescType::TypeBound:
+    return AST::Component::Sort::SortType::Type;
+  case AST::Component::ExternDesc::DescType::ComponentType:
+    return AST::Component::Sort::SortType::Component;
+  case AST::Component::ExternDesc::DescType::InstanceType:
+    return AST::Component::Sort::SortType::Instance;
+  default:
+    assumingUnreachable();
+  }
+}
+
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
   spdlog::warn("Component Model Validation is in active development."sv);
@@ -412,6 +435,21 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         }
       }
     }
+    // Add the component exports and bind to the instance index.
+    uint32_t InstanceIdx =
+        CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance);
+    for (const auto &Sec : Comp.getSections()) {
+      if (std::holds_alternative<AST::Component::ExportSection>(Sec)) {
+        const auto &ExpSec = std::get<AST::Component::ExportSection>(Sec);
+        for (const auto &Exp : ExpSec.getContent()) {
+          const AST::Component::ExternDesc *Desc =
+              Exp.getDesc().has_value() ? &Exp.getDesc().value() : nullptr;
+          CompCtx.addComponentInstanceExport(
+              InstanceIdx, Exp.getName(),
+              {&Exp.getSortIndex().getSort(), Desc});
+        }
+      }
+    }
   } else if (Inst.isInlineExport()) {
     // Inline export case.
 
@@ -450,6 +488,14 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         }
       }
     }
+    // Add the inline exports and bind to the instance index.
+    uint32_t InstanceIdx =
+        CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance);
+    for (const auto &Export : Inst.getInlineExports()) {
+      CompCtx.addComponentInstanceExport(
+          InstanceIdx, Export.getName(),
+          {&Export.getSortIdx().getSort(), nullptr});
+    }
   } else {
     assumingUnreachable();
   }
@@ -473,11 +519,13 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
 
-    if (Idx >= CompCtx.getComponentInstanceExportsSize()) {
+    if (Idx >=
+        CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance)) {
       spdlog::error(ErrCode::Value::InvalidIndex);
       spdlog::error(
           "    Alias export: Export index {} exceeds available component instance index {}"sv,
-          Idx, CompCtx.getComponentInstanceExportsSize());
+          Idx,
+          CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Instance));
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
@@ -490,30 +538,11 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::ExportNotFound);
     }
 
-    const auto *ExternDesc = It->second;
-    AST::Component::Sort::SortType ST;
-    switch (ExternDesc->getDescType()) {
-    case AST::Component::ExternDesc::DescType::FuncType:
-      ST = AST::Component::Sort::SortType::Func;
-      break;
-    case AST::Component::ExternDesc::DescType::ValueBound:
-    case AST::Component::ExternDesc::DescType::TypeBound:
-      ST = AST::Component::Sort::SortType::Type;
-      break;
-    case AST::Component::ExternDesc::DescType::ComponentType:
-      ST = AST::Component::Sort::SortType::Component;
-      break;
-    case AST::Component::ExternDesc::DescType::InstanceType:
-      ST = AST::Component::Sort::SortType::Instance;
-      break;
-    case AST::Component::ExternDesc::DescType::CoreType:
-    default:
-      spdlog::error(ErrCode::Value::InvalidTypeReference);
-      spdlog::error(
-          "    Alias export: Unknown mapping mismatch for export '{}'"sv, Name);
-      return Unexpect(ErrCode::Value::InvalidTypeReference);
-    }
-    if (ST != Sort.getSortType()) {
+    const auto &[ExportSort, Desc] = It->second;
+    auto ExportSortType = ExportSort != nullptr
+                              ? ExportSort->getSortType()
+                              : descTypeToSortType(Desc->getDescType());
+    if (ExportSortType != Sort.getSortType()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error("    Alias export: Type mapping mismatch for export '{}'"sv,
                     Name);
@@ -808,7 +837,22 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     }));
   }
   const auto &Sort = Ex.getSortIndex().getSort();
-  if (!Sort.isCore()) {
+  uint32_t Idx = Ex.getSortIndex().getIdx();
+  if (Sort.isCore()) {
+    if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Export: index {} out of bounds for core sort"sv, Idx);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+  } else {
+    if (Idx >= CompCtx.getSortIndexSize(Sort.getSortType())) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    Export: index {} out of bounds for sort"sv, Idx);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
     CompCtx.incSortIndexSize(Sort.getSortType());
   }
   return {};
@@ -852,7 +896,7 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
                                  AST::Component::Sort::SortType::Instance) -
                              1;
           CompCtx.addComponentInstanceExport(InstIdx, Exp.getName(),
-                                             Exp.getExternDesc());
+                                             {nullptr, &Exp.getExternDesc()});
         } else {
           assumingUnreachable();
         }

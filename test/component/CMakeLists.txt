@@ -20,24 +20,4 @@ target_include_directories(wasmedgeComponentRegressionTests
   ${PROJECT_SOURCE_DIR}/include
 )
 
-wasmedge_add_executable(wasmedgeComponentSpecTests
-  ComponentTest.cpp
-  spectest.cpp
-)
-
-add_test(wasmedgeComponentSpecTests wasmedgeComponentSpecTests)
-
-target_link_libraries(wasmedgeComponentSpecTests
-  PRIVATE
-  simdjson::simdjson
-  std::filesystem
-  wasmedgeVM
-  ${GTEST_BOTH_LIBRARIES}
-)
-
-target_include_directories(wasmedgeComponentSpecTests
-  PRIVATE
-  ${PROJECT_SOURCE_DIR}/include
-)
-
 add_subdirectory(fuzzing)

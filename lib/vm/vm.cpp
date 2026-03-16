@@ -449,16 +449,6 @@ Expect<void> VM::unsafeInstantiate() {
     if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
       const bool IsLazyJIT = Conf.getRuntimeConfigure().isEnableLazyJIT();
-      if (IsLazyJIT) {
-        size_t ImportFuncCount = 0;
-        for (const auto &ImpDesc : Mod->getImportSection().getContent()) {
-          if (ImpDesc.getExternalType() == ExternalType::Function) {
-            ++ImportFuncCount;
-          }
-        }
-        LJITState.ImportFuncCount = ImportFuncCount;
-        LJITState.LazyCompiledFuncs.clear();
-      }
       LLVM::Compiler Compiler(Conf);
       Compiler.checkConfigure()
           .map_error([](uint32_t Err) {
@@ -506,6 +496,17 @@ Expect<void> VM::unsafeInstantiate() {
             }
             return ErrCode::Value::Success;
           });
+      if (IsLazyJIT) {
+        size_t ImportFuncCount = 0;
+        for (const auto &ImpDesc : Mod->getImportSection().getContent()) {
+          if (ImpDesc.getExternalType() == ExternalType::Function) {
+            ++ImportFuncCount;
+          }
+        }
+        LJITState.ImportFuncCount = ImportFuncCount;
+        LJITState.LazyCompiledFuncs.clear();
+        LJITState.TotalFuncCount = Mod->getCodeSection().getContent().size();
+      }
 #else
       spdlog::error("LLVM disabled, JIT is unsupported!"sv);
 #endif
@@ -713,6 +714,7 @@ void VM::unsafeCleanup() {
   // clean up lazy JIT state
   LJITState.LazyCompiledFuncs.clear();
   LJITState.ImportFuncCount = 0;
+  LJITState.TotalFuncCount = 0;
 #endif
 }
 

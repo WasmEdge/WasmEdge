@@ -17,6 +17,7 @@
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "llvm/data.h"
+#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge::LLVM {
@@ -47,6 +48,15 @@ public:
 
 private:
   const Configure Conf;
+};
+
+struct LazyJITState {
+  /// Track which functions have been lazy-compiled.
+  std::unordered_set<uint32_t> LazyCompiledFuncs;
+  /// Number of import functions (offset for local function indices).
+  uint32_t ImportFuncCount = 0;
+  /// Number of total functions
+  uint32_t TotalFuncCount = 0;
 };
 
 } // namespace WasmEdge::LLVM

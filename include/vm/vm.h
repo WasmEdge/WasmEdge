@@ -32,6 +32,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -406,6 +407,20 @@ private:
   /// Reference to the store.
   Runtime::StoreManager &StoreRef;
   /// @}
+
+#ifdef WASMEDGE_USE_LLVM
+  struct LazyJITState {
+    /// Track which functions have been lazy-compiled.
+    std::unordered_set<uint32_t> LazyCompiledFuncs;
+    /// Number of import functions (offset for local function indices).
+    uint32_t ImportFuncCount = 0;
+  };
+  LazyJITState LJITState;
+
+  /// Lazy compile a function if lazy JIT mode is enabled and function not yet
+  /// compiled.
+  Expect<void> lazyCompileFunction(uint32_t FuncIdx);
+#endif
 };
 
 } // namespace VM

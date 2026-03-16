@@ -193,7 +193,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               ArgValue, I, "s32"sv,
               [](const std::string &S) {
-                return static_cast<uint32_t>(std::stol(S));
+                return ValVariant(static_cast<uint32_t>(std::stol(S)));
               },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
@@ -204,7 +204,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               ArgValue, I, "u32"sv,
               [](const std::string &S) {
-                return static_cast<uint32_t>(std::stol(S));
+                return ValVariant(static_cast<uint32_t>(std::stol(S)));
               },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
@@ -215,7 +215,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               ArgValue, I, "s64"sv,
               [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoll(S));
+                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
               },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
@@ -226,7 +226,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               ArgValue, I, "u64"sv,
               [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoll(S));
+                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
               },
               FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
@@ -236,8 +236,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::F32: {
       if (!parseNumericArg(
               ArgValue, I, "f32"sv,
-              [](const std::string &S) { return std::stof(S); }, FuncArgs,
-              FuncArgTypes, TCode)) {
+              [](const std::string &S) { return ValVariant(std::stof(S)); },
+              FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -245,8 +245,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::F64: {
       if (!parseNumericArg(
               ArgValue, I, "f64"sv,
-              [](const std::string &S) { return std::stod(S); }, FuncArgs,
-              FuncArgTypes, TCode)) {
+              [](const std::string &S) { return ValVariant(std::stod(S)); },
+              FuncArgs, FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -268,7 +268,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
       if (!parseNumericArg(
               Opt.Args.value()[I], I, "u64"sv,
               [](const std::string &S) {
-                return static_cast<uint64_t>(std::stoll(S));
+                return ValVariant(static_cast<uint64_t>(std::stoll(S)));
               },
               FuncArgs, FuncArgTypes, ComponentTypeCode::U64)) {
         return EXIT_FAILURE;

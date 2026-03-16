@@ -139,6 +139,20 @@ public:
     return unsafeValidate();
   }
 
+  /// Force-set the VM stage to Validated for a loaded component without
+  /// actually running validation. Only used in spec tests and will be removed
+  /// when component-model is fully supported.
+  /// Returns failure if no component is loaded.
+  Expect<void> forceValidateForComponent() {
+    std::unique_lock Lock(Mutex);
+    if (Stage < VMStage::Loaded || !Comp) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
+    Comp->setIsValidated();
+    Stage = VMStage::Validated;
+    return {};
+  }
+
   /// ======= Functions can be called after validated stage. =======
   /// Instantiate validated wasm module.
   Expect<void> instantiate() {

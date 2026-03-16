@@ -202,6 +202,12 @@ public:
   Expect<void> registerPostHostFunction(void *HostData,
                                         std::function<void(void *)> HostFunc);
 
+  /// Register a callback for lazy function compilation
+  void registerLazyCompilationCallback(
+      std::function<Expect<void>(const uint32_t)> Callback) {
+    LazyCompilationHandler = std::move(Callback);
+  }
+
   /// Invoke a WASM function by function instance.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   invoke(const Runtime::Instance::FunctionInstance *FuncInst,
@@ -1137,6 +1143,8 @@ private:
   std::atomic<Runtime::Instance::MemoryInstance *> WaitingMemory = nullptr;
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
+  /// Callback for lazy function compilation
+  std::function<Expect<void>(const uint32_t)> LazyCompilationHandler;
 };
 
 } // namespace Executor

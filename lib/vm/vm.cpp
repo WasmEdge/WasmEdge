@@ -20,6 +20,7 @@
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "validator/validator.h"
+#include <cstddef>
 #include <memory>
 #include <variant>
 
@@ -437,6 +438,17 @@ Expect<void> VM::unsafeInstantiate() {
   if (Mod) {
     if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
+      const bool IsLazyJIT = Conf.getRuntimeConfigure().isEnableLazyJIT();
+      if (IsLazyJIT) {
+        size_t ImportFuncCount = 0;
+        for (const auto &ImpDesc : Mod->getImportSection().getContent()) {
+          if (ImpDesc.getExternalType() == ExternalType::Function) {
+            ++ImportFuncCount;
+          }
+        }
+        LJITState.ImportFuncCount = ImportFuncCount;
+        LJITState.LazyCompiledFuncs.clear();
+      }
       LLVM::Compiler Compiler(Conf);
       Compiler.checkConfigure()
           .map_error([](uint32_t Err) {
@@ -447,7 +459,12 @@ Expect<void> VM::unsafeInstantiate() {
             }
             return ErrCode::Value::Success;
           })
-          .and_then([&]() { return Compiler.compile(*Mod); })
+          .and_then([&]() {
+            if (IsLazyJIT) {
+              return Compiler.compileInfrastructure(*Mod);
+            }
+            return Compiler.compile(*Mod);
+          })
           .map_error([](uint32_t Err) {
             if (Err != ErrCode::Value::Success) {
               spdlog::error("Compilation failed. Error code: {}, use "
@@ -458,7 +475,7 @@ Expect<void> VM::unsafeInstantiate() {
           })
           .and_then([&](auto LLModule) {
             LLVM::JIT JIT(Conf);
-            return JIT.load(std::move(LLModule));
+            return JIT.load(std::move(LLModule), IsLazyJIT);
           })
           .map_error([](uint32_t Err) {
             if (Err != ErrCode::Value::Success) {
@@ -560,6 +577,21 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
   // Find exported function by name.
   Runtime::Instance::FunctionInstance *FuncInst =
       ModInst->findFuncExports(Func);
+
+#ifdef WASMEDGE_USE_LLVM
+  // lazy JIT: compile function on-demand if needed.
+  if (Conf.getRuntimeConfigure().isEnableLazyJIT() && FuncInst &&
+      FuncInst->isWasmFunction()) {
+    uint32_t FuncIdx = ModInst->getFuncIdx(FuncInst);
+    if (FuncIdx != UINT32_MAX) {
+      auto Result = lazyCompileFunction(FuncIdx);
+      if (!Result) {
+        spdlog::warn("Lazy compilation failed for function {}: {}"sv, Func,
+                     Result.error());
+      }
+    }
+  }
+#endif
 
   // Execute function.
   return ExecutorEngine.invoke(FuncInst, Params, ParamTypes)
@@ -667,6 +699,11 @@ void VM::unsafeCleanup() {
   unsafeRegisterPlugInHosts();
   LoaderEngine.reset();
   Stage = VMStage::Inited;
+#ifdef WASMEDGE_USE_LLVM
+  // clean up lazy JIT state
+  LJITState.LazyCompiledFuncs.clear();
+  LJITState.ImportFuncCount = 0;
+#endif
 }
 
 std::vector<std::pair<std::string, const AST::FunctionType &>>
@@ -713,6 +750,104 @@ const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
   }
   return nullptr;
 };
+
+#ifdef WASMEDGE_USE_LLVM
+Expect<void> VM::lazyCompileFunction(uint32_t FuncIdx) {
+  // check if this is a local function (not an import)
+  if (FuncIdx < LJITState.ImportFuncCount) {
+    // import functions cannot be lazy-compiled
+    return {};
+  }
+
+  uint32_t LocalFuncIdx = FuncIdx - LJITState.ImportFuncCount;
+
+  if (LJITState.LazyCompiledFuncs.count(LocalFuncIdx) > 0) {
+    return {};
+  }
+
+  spdlog::info("Lazy compiling function index {} (local {})"sv, FuncIdx,
+               LocalFuncIdx);
+
+  LLVM::Compiler Compiler(Conf);
+  auto ConfigResult = Compiler.checkConfigure();
+  if (!ConfigResult) {
+    spdlog::error("Lazy JIT compiler config failed: {}"sv,
+                  ConfigResult.error());
+    return Unexpect(ConfigResult.error());
+  }
+
+  auto CompileResult = Compiler.compileFunction(*Mod, LocalFuncIdx);
+  if (!CompileResult) {
+    spdlog::error("Lazy JIT function compilation failed: {}"sv,
+                  CompileResult.error());
+    return Unexpect(CompileResult.error());
+  }
+
+  LLVM::JIT JIT(Conf);
+  auto LoadResult = JIT.load(std::move(*CompileResult));
+  if (!LoadResult) {
+    spdlog::error("Lazy JIT load failed: {}"sv, LoadResult.error());
+    return Unexpect(LoadResult.error());
+  }
+
+  auto Exec = std::move(*LoadResult);
+
+  // get the compiled function symbol
+  // in the newly compiled module, import functions are f0..f{ImportFuncCount-1}
+  // and local functions are f{ImportFuncCount}..., so we need to add the offset
+  auto CodeSymbols =
+      Exec->getCodes(LJITState.ImportFuncCount + LocalFuncIdx, 1);
+  if (CodeSymbols.empty() || !CodeSymbols[0]) {
+    spdlog::error("Lazy JIT: failed to get code symbol for function {}"sv,
+                  LocalFuncIdx);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  // initialize the intrinsics table for the new JIT module
+  if (auto IntrinsicsSymbol = Exec->getIntrinsics()) {
+    *IntrinsicsSymbol = &Executor::Executor::Intrinsics;
+  } else {
+    spdlog::error("Lazy JIT: failed to get intrinsics symbol"sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  auto &CodeSegs = Mod->getCodeSection().getContent();
+  if (LocalFuncIdx < CodeSegs.size()) {
+    CodeSegs[LocalFuncIdx].setSymbol(std::move(CodeSymbols[0]));
+  }
+
+  // try to upgrade the function instance to compiled
+  if (ActiveModInst) {
+    auto FuncResult = ActiveModInst->getFuncInst(FuncIdx);
+    if (FuncResult) {
+      auto *FuncInst = *FuncResult;
+      // get the code symbol again from the code segment
+      auto &CodeSeg = CodeSegs[LocalFuncIdx];
+      auto Sym = CodeSeg.getSymbol();
+      if (Sym && FuncInst->isWasmFunction()) {
+        // create a new symbol for the function instance using the same offset
+        auto NewCodeSymbols =
+            Exec->getCodes(LJITState.ImportFuncCount + LocalFuncIdx, 1);
+        if (!NewCodeSymbols.empty() && NewCodeSymbols[0]) {
+          Symbol<Runtime::Instance::FunctionInstance::CompiledFunction>
+              CompiledSym(
+                  reinterpret_cast<
+                      Runtime::Instance::FunctionInstance::CompiledFunction *>(
+                      NewCodeSymbols[0].get()));
+          FuncInst->upgradeToCompiled(std::move(CompiledSym));
+        }
+      }
+    }
+  }
+
+  LJITState.LazyCompiledFuncs.insert(LocalFuncIdx);
+
+  spdlog::info("Lazy compilation completed for function {}"sv, LocalFuncIdx,
+               LJITState.LazyCompiledFuncs.size());
+
+  return {};
+}
+#endif
 
 } // namespace VM
 } // namespace WasmEdge

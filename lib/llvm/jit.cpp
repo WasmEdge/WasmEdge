@@ -6,14 +6,15 @@
 
 #include "data.h"
 #include "llvm.h"
+#include "spdlog/spdlog.h"
 
 namespace LLVM = WasmEdge::LLVM;
 using namespace std::literals;
 
 namespace WasmEdge::LLVM {
 
-JITLibrary::JITLibrary(OrcLLJIT JIT) noexcept
-    : J(std::make_unique<OrcLLJIT>(std::move(JIT)).release()) {}
+JITLibrary::JITLibrary(OrcLLJIT JIT, bool IsLazy) noexcept
+    : J(std::make_unique<OrcLLJIT>(std::move(JIT)).release()), IsLazy(IsLazy) {}
 
 JITLibrary::~JITLibrary() noexcept {
   std::unique_ptr<OrcLLJIT> JIT(std::exchange(J, nullptr));
@@ -55,7 +56,13 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
     if (auto Symbol = J->lookup<void>(Name.c_str())) {
       Result.push_back(createSymbol<void>(*Symbol));
     } else {
-      spdlog::error("{}"sv, Symbol.error().message().string_view());
+      if (IsLazy) {
+        // in lazy JIT mode, not finding a funtion symbol is expected
+        // since fuctions are compiled on demand
+        spdlog::debug("[lazy-jit]: function {} not yet compiled"sv, I + Offset);
+      } else {
+        spdlog::error("{}"sv, Symbol.error().message().string_view());
+      }
       Result.emplace_back();
     }
   }
@@ -63,7 +70,7 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
   return Result;
 }
 
-Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
+Expect<std::shared_ptr<Executable>> JIT::load(Data D, bool IsLazy) noexcept {
   OrcLLJIT J;
   if (auto Res = OrcLLJIT::create(); !Res) {
     spdlog::error("{}"sv, Res.error().message().string_view());
@@ -76,7 +83,8 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
   auto TSContext = D.extract().getTSContext();
 
   if (Conf.getCompilerConfigure().isDumpIR()) {
-    if (auto ErrorMessage = LLModule.printModuleToFile("wasm-jit.ll")) {
+    auto Filename = IsLazy ? "wasm-lazy-jit.ll" : "wasm-jit.ll";
+    if (auto ErrorMessage = LLModule.printModuleToFile(Filename)) {
       spdlog::error("printModuleToFile failed"sv);
     }
   }
@@ -88,6 +96,6 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  return std::make_shared<JITLibrary>(std::move(J));
+  return std::make_shared<JITLibrary>(std::move(J), IsLazy);
 }
 } // namespace WasmEdge::LLVM

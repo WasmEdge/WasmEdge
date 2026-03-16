@@ -81,6 +81,16 @@ void VM::unsafeInitVM() {
   unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();
 
+  // Register the lazy compilation callback if lazy JIT mode is enabled.
+#ifdef WASMEDGE_USE_LLVM
+  if (Conf.getRuntimeConfigure().isEnableLazyJIT()) {
+    ExecutorEngine.registerLazyCompilationCallback(
+        [this](const uint32_t FuncIdx) -> Expect<void> {
+          return lazyCompileFunction(FuncIdx);
+        });
+  }
+#endif
+
   // Register all module instances.
   unsafeRegisterBuiltInHosts();
   unsafeRegisterPlugInHosts();

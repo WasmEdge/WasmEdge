@@ -411,6 +411,8 @@ private:
   /// @}
 
 #ifdef WASMEDGE_USE_LLVM
+  /// \name Lazy JIT.
+  /// @{
   struct LazyJITState {
     /// Track which functions have been lazy-compiled.
     std::unordered_set<uint32_t> LazyCompiledFuncs;
@@ -422,6 +424,7 @@ private:
   /// Lazy compile a function if lazy JIT mode is enabled and function not yet
   /// compiled.
   Expect<void> lazyCompileFunction(uint32_t FuncIdx);
+  /// @}
 #endif
 };
 

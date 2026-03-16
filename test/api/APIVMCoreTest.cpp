@@ -88,8 +88,7 @@ TEST_P(CoreTest, TestSuites) {
     return {};
   };
   T.onModuleDefine =
-      [&VM](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+      [&VM](const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
     WasmEdge_LoaderContext *LoadCxt = WasmEdge_VMGetLoaderContext(VM);
     WasmEdge_ValidatorContext *ValidCxt = WasmEdge_VMGetValidatorContext(VM);
     WasmEdge_ASTModuleContext *ASTMod = nullptr;
@@ -212,7 +211,8 @@ TEST_P(CoreTest, TestSuites) {
 // Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, CoreTest,
-    testing::ValuesIn(T.enumerate(SpecTest::TestMode::Interpreter)));
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::Interpreter,
+                                  /* IncludeComponent */ false)));
 
 std::array<WasmEdge::Byte, 46> AsyncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,

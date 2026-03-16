@@ -119,11 +119,10 @@ TEST_P(CoreCompileTest, TestSuites) {
         });
   };
   T.onModuleDefine =
-      [&VM, &Compile](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+      [&VM,
+       &Compile](const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
     return Compile(FileName).and_then(
-        [&VM](const std::string &SOFileName)
-            -> Expect<std::unique_ptr<AST::Module>> {
+        [&VM](const std::string &SOFileName) -> Expect<SpecTest::WasmUnit> {
           WasmEdge_LoaderContext *LoadCxt = WasmEdge_VMGetLoaderContext(VM);
           WasmEdge_ValidatorContext *ValidCxt =
               WasmEdge_VMGetValidatorContext(VM);
@@ -257,7 +256,8 @@ TEST_P(CoreCompileTest, TestSuites) {
 // Initiate test suite.
 INSTANTIATE_TEST_SUITE_P(
     TestUnit, CoreCompileTest,
-    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT)));
+    testing::ValuesIn(T.enumerate(SpecTest::TestMode::AOT,
+                                  /* IncludeComponent */ false)));
 
 } // namespace
 

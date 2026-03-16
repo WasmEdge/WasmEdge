@@ -52,6 +52,12 @@ TEST_P(CoreTest, TestSuites) {
                      const std::string &FileName) -> Expect<void> {
     if (!ModName.empty()) {
       return VM.registerModule(ModName, FileName);
+    } else if (T.SkipComponentValidation) {
+      // For component-model tests where validation is not yet supported,
+      // skip validation by force-setting the stage as validated.
+      return VM.loadWasm(FileName)
+          .and_then([&VM]() { return VM.forceValidateForComponent(); })
+          .and_then([&VM]() { return VM.instantiate(); });
     } else {
       return VM.loadWasm(FileName)
           .and_then([&VM]() { return VM.validate(); })
@@ -65,13 +71,19 @@ TEST_P(CoreTest, TestSuites) {
     return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
   };
   T.onModuleDefine =
-      [&VM](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+      [&VM](const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
     Loader::Loader &Loader = VM.getLoader();
     Validator::Validator &Validator = VM.getValidator();
-    EXPECTED_TRY(auto ASTMod, Loader.parseModule(FileName));
-    EXPECTED_TRY(Validator.validate(*ASTMod.get()));
-    return ASTMod;
+    EXPECTED_TRY(auto ASTUnit, Loader.parseWasmUnit(FileName));
+    if (std::holds_alternative<std::unique_ptr<AST::Module>>(ASTUnit)) {
+      auto &ASTMod = std::get<std::unique_ptr<AST::Module>>(ASTUnit);
+      EXPECTED_TRY(Validator.validate(*ASTMod.get()));
+    } else if (!T.SkipComponentValidation) {
+      auto &ASTComp =
+          std::get<std::unique_ptr<AST::Component::Component>>(ASTUnit);
+      EXPECTED_TRY(Validator.validate(*ASTComp.get()));
+    }
+    return ASTUnit;
   };
   T.onInstanceFromDef = [&VM](const std::string &ModName,
                               const AST::Module &ASTMod) -> Expect<void> {

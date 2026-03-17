@@ -49,7 +49,7 @@ jobs:
     needs: lint
     steps:
     - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
       with:
         egress-policy: audit
 
@@ -76,16 +76,28 @@ jobs:
         apt-get install -y --no-install-recommends \
           cmake g++ dpkg-dev make \
           gcc-riscv64-linux-gnu g++-riscv64-linux-gnu \
-          zlib1g-dev:riscv64
+          zlib1g-dev:riscv64 libzstd-dev:riscv64 \
+          libffi-dev:riscv64 libedit-dev:riscv64 libxml2-dev:riscv64
 
-        # llvm-20-dev:riscv64 cannot be installed via apt-get because its
-        # dependency chain pulls in python3-minimal:riscv64, whose postinst
-        # script tries to execute a riscv64 binary on the x86_64 host,
-        # causing "Exec format error".
-        # Workaround: download the packages and extract without running postinst.
-        apt-get install -y -d --no-install-recommends \
-          llvm-20-dev:riscv64 liblld-20-dev:riscv64
-        for deb in /var/cache/apt/archives/*_riscv64.deb; do
+        # llvm-20-dev:riscv64 cannot be fully installed because:
+        # 1. python3-minimal:riscv64 postinst tries to run a riscv64 binary
+        # 2. llvm-20/llvm-20-tools pull in libcurl4t64 -> libssh-4, which
+        #    fails when noble-security has a newer Multi-Arch:same version
+        #    of libssh-4:amd64 than what riscv64 ports provide.
+        # Workaround: download only the dev/lib packages needed for
+        # cross-compilation (skip tools), then extract without postinst.
+        mkdir -p /tmp/riscv64-debs && cd /tmp/riscv64-debs
+        apt-get download \
+          llvm-20-dev:riscv64 \
+          llvm-20:riscv64 \
+          llvm-20-runtime:riscv64 \
+          llvm-20-linker-tools:riscv64 \
+          libllvm20:riscv64 \
+          libclang-cpp20:riscv64 \
+          liblld-20-dev:riscv64 \
+          liblld-20:riscv64 \
+          lld-20:riscv64
+        for deb in *.deb; do
           dpkg-deb -x "$deb" /
         done
 
@@ -130,7 +142,7 @@ jobs:
     needs: cross_compile
     steps:
     - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@58077d3c7e43986b6b15fba718e8ea69e387dfcc # v2.15.1
+      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
       with:
         egress-policy: audit
 
@@ -139,7 +151,7 @@ jobs:
         fetch-depth: 0
 
     - name: Download build artifacts
-      uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       with:
         name: riscv64-build-artifacts
 

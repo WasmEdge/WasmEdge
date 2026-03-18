@@ -1075,6 +1075,14 @@ E(ComponentNotImplValidator, 0x02A5,
   "component model (validator) not implemented")
 // Component model duplicate name
 E(ComponentDuplicateName, 0x02A6, "duplicate name in component")
+// Alias unknown export module (instance source for alias is invalid)
+E(AliasUnknownExportModule, 0x02A7, "alias unknown export module")
+// Alias unknown export name (export name not found in instance)
+E(AliasUnknownExportName, 0x02A8, "alias unknown export name")
+// Invalid outer alias count (component depth exceeded)
+E(InvalidOuterAliasCount, 0x02A9, "invalid outer alias count")
+// Index out of bounds
+E(IndexOutOfBounds, 0x02AA, "index out of bounds")
 // @}
 
 // Instantiation phase

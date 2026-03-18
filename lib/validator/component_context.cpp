@@ -3,6 +3,87 @@
 namespace WasmEdge {
 namespace Validator {
 
+using Sort = AST::Component::Sort;
+
+uint32_t
+ComponentContext::Context::getSortIndexSize(Sort::SortType ST) const noexcept {
+  switch (ST) {
+  case Sort::SortType::Func:
+    return FuncCount;
+  case Sort::SortType::Value:
+    return ValueCount;
+  case Sort::SortType::Type:
+    return static_cast<uint32_t>(Types.size());
+  case Sort::SortType::Component:
+    return static_cast<uint32_t>(Components.size());
+  case Sort::SortType::Instance:
+    return static_cast<uint32_t>(Instances.size());
+  default:
+    return 0;
+  }
+}
+
+uint32_t ComponentContext::Context::getCoreSortIndexSize(
+    Sort::CoreSortType ST) const noexcept {
+  switch (ST) {
+  case Sort::CoreSortType::Func:
+    return CoreFuncCount;
+  case Sort::CoreSortType::Table:
+    return CoreTableCount;
+  case Sort::CoreSortType::Memory:
+    return CoreMemoryCount;
+  case Sort::CoreSortType::Global:
+    return CoreGlobalCount;
+  case Sort::CoreSortType::Type:
+    return static_cast<uint32_t>(CoreTypes.size());
+  case Sort::CoreSortType::Module:
+    return static_cast<uint32_t>(CoreModules.size());
+  case Sort::CoreSortType::Instance:
+    return static_cast<uint32_t>(CoreInstances.size());
+  default:
+    return 0;
+  }
+}
+
+uint32_t ComponentContext::incSortIndexSize(Sort::SortType ST) noexcept {
+  switch (ST) {
+  case Sort::SortType::Func:
+    return addFunc();
+  case Sort::SortType::Value:
+    return addValue();
+  case Sort::SortType::Type:
+    return addType();
+  case Sort::SortType::Component:
+    return addComponent();
+  case Sort::SortType::Instance:
+    return addInstance();
+  default:
+    return 0;
+  }
+}
+
+uint32_t
+ComponentContext::incCoreSortIndexSize(Sort::CoreSortType ST) noexcept {
+  switch (ST) {
+  case Sort::CoreSortType::Func:
+    return addCoreFunc();
+  case Sort::CoreSortType::Table:
+    return addCoreTable();
+  case Sort::CoreSortType::Memory:
+    return addCoreMemory();
+  case Sort::CoreSortType::Global:
+    return addCoreGlobal();
+  case Sort::CoreSortType::Type:
+    return addCoreType();
+  case Sort::CoreSortType::Module:
+    return addCoreModule();
+  case Sort::CoreSortType::Instance:
+    return addCoreInstance();
+  default:
+    return 0;
+  }
+}
+
 bool ComponentContext::Context::AddImportedName(
     const ComponentName &Name) noexcept {
   switch (Name.getKind()) {

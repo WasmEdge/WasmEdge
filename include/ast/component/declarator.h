@@ -98,6 +98,19 @@ public:
     Decl.emplace<CoreExportDecl>(std::move(Exp));
   }
 
+  bool isImport() const noexcept {
+    return std::holds_alternative<CoreImportDecl>(Decl);
+  }
+  bool isType() const noexcept {
+    return std::holds_alternative<std::unique_ptr<CoreDefType>>(Decl);
+  }
+  bool isAlias() const noexcept {
+    return std::holds_alternative<CoreAlias>(Decl);
+  }
+  bool isExport() const noexcept {
+    return std::holds_alternative<CoreExportDecl>(Decl);
+  }
+
 private:
   std::variant<CoreImportDecl, std::unique_ptr<CoreDefType>, CoreAlias,
                CoreExportDecl>
@@ -153,10 +166,10 @@ public:
   const Alias &getAlias() const noexcept { return *std::get_if<Alias>(&Decl); }
   void setAlias(Alias &&A) noexcept { Decl.emplace<Alias>(std::move(A)); }
 
-  const ExportDecl &getExport() const noexcept {
+  const ExportDecl &getExportDecl() const noexcept {
     return *std::get_if<ExportDecl>(&Decl);
   }
-  void setExport(ExportDecl &&Exp) noexcept {
+  void setExportDecl(ExportDecl &&Exp) noexcept {
     Decl.emplace<ExportDecl>(std::move(Exp));
   }
 
@@ -183,17 +196,17 @@ private:
 /// AST Component::ComponentDecl node.
 class ComponentDecl {
 public:
-  const ImportDecl &getImport() const noexcept {
+  const ImportDecl &getImportDecl() const noexcept {
     return *std::get_if<ImportDecl>(&Decl);
   }
-  void setImport(ImportDecl &&Imp) noexcept {
+  void setImportDecl(ImportDecl &&Imp) noexcept {
     Decl.emplace<ImportDecl>(std::move(Imp));
   }
 
-  const InstanceDecl &getInstance() const noexcept {
+  const InstanceDecl &getInstanceDecl() const noexcept {
     return *std::get_if<InstanceDecl>(&Decl);
   }
-  void setInstance(InstanceDecl &&Inst) noexcept {
+  void setInstanceDecl(InstanceDecl &&Inst) noexcept {
     Decl.emplace<InstanceDecl>(std::move(Inst));
   }
 

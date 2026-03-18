@@ -144,7 +144,7 @@ Expect<void> Loader::loadDecl(AST::Component::InstanceDecl &Decl) {
   case 0x04: {
     AST::Component::ExportDecl ExpDecl;
     EXPECTED_TRY(loadDecl(ExpDecl).map_error(ReportError));
-    Decl.setExport(std::move(ExpDecl));
+    Decl.setExportDecl(std::move(ExpDecl));
     return {};
   }
   default:
@@ -169,11 +169,11 @@ Expect<void> Loader::loadDecl(AST::Component::ComponentDecl &Decl) {
     FMgr.readByte();
     AST::Component::ImportDecl ImpDecl;
     EXPECTED_TRY(loadDecl(ImpDecl).map_error(ReportError));
-    Decl.setImport(std::move(ImpDecl));
+    Decl.setImportDecl(std::move(ImpDecl));
   } else {
     AST::Component::InstanceDecl InstDecl;
     EXPECTED_TRY(loadDecl(InstDecl).map_error(ReportError));
-    Decl.setInstance(std::move(InstDecl));
+    Decl.setInstanceDecl(std::move(InstDecl));
   }
   return {};
 }

@@ -63,6 +63,20 @@ public:
     Type.emplace<TagType>(std::move(TT));
   }
 
+  bool isFunc() const noexcept {
+    return std::holds_alternative<uint32_t>(Type);
+  }
+  bool isTable() const noexcept {
+    return std::holds_alternative<TableType>(Type);
+  }
+  bool isMemory() const noexcept {
+    return std::holds_alternative<MemoryType>(Type);
+  }
+  bool isGlobal() const noexcept {
+    return std::holds_alternative<GlobalType>(Type);
+  }
+  bool isTag() const noexcept { return std::holds_alternative<TagType>(Type); }
+
 private:
   std::variant<uint32_t, TableType, MemoryType, GlobalType, TagType> Type;
 };

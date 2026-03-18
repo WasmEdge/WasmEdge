@@ -17,6 +17,7 @@
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "llvm/data.h"
+#include <memory>
 #include <unordered_set>
 #include <vector>
 
@@ -57,6 +58,10 @@ struct LazyJITState {
   uint32_t ImportFuncCount = 0;
   /// Number of total functions
   uint32_t TotalFuncCount = 0;
+  /// Pointer to the AST module (non-owning pointer, lifetime managed by caller)
+  const AST::Module *ModulePtr = nullptr;
+  /// Store compiled executables to keep them alive
+  std::vector<std::shared_ptr<Executable>> CompiledExecutables;
 };
 
 } // namespace WasmEdge::LLVM

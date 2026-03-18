@@ -75,6 +75,7 @@ Expect<void> Loader::loadType(AST::Component::CoreDefType &Ty) {
       STypes.back().setTypeIndex(0);
       EXPECTED_TRY(loadType(STypes.back()).map_error(ReportError));
     }
+    Ty.setSubTypes(std::move(STypes));
     return {};
   }
   }

@@ -280,11 +280,6 @@ public:
   /// Getter of statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
-  /// Getter of Lazy JIT state.
-  const LLVM::LazyJITState &getLazyJITState() const noexcept {
-    return LJITState;
-  }
-
 private:
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);
@@ -418,11 +413,20 @@ private:
 #ifdef WASMEDGE_USE_LLVM
   /// \name Lazy JIT.
   /// @{
-  LLVM::LazyJITState LJITState;
+  /// Map from module instance to its lazy JIT state
+  std::unordered_map<const Runtime::Instance::ModuleInstance *,
+                     LLVM::LazyJITState>
+      LazyJITStates;
 
   /// Lazy compile a function if lazy JIT mode is enabled and function not yet
   /// compiled.
-  Expect<void> lazyCompileFunction(uint32_t FuncIdx);
+  Expect<void>
+  lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
+                      uint32_t FuncIdx);
+
+  /// Get or create lazy JIT state for a module instance
+  LLVM::LazyJITState &
+  getLazyJITStateForModule(const Runtime::Instance::ModuleInstance *ModInst);
   /// @}
 #endif
 };

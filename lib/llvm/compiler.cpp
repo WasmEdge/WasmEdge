@@ -9,6 +9,7 @@
 #include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
+#include "spdlog/spdlog.h"
 #include "system/allocator.h"
 
 #include <algorithm>
@@ -3982,12 +3983,15 @@ public:
   }
   void compileAtomicWait(unsigned MemoryIndex, uint64_t MemoryOffset,
                          LLVM::Type TargetType, uint32_t BitWidth) noexcept {
+    spdlog::error("memory_index: {}", MemoryIndex);
     auto Timeout = stackPop();
     auto ExpectedValue = Builder.createZExtOrTrunc(stackPop(), Context.Int64Ty);
     auto Offset = Builder.createZExt(stackPop(), Context.Int64Ty);
     if (MemoryOffset != 0) {
       Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
+    spdlog::error("Check: {}",
+                  Context.MemoryAddrTypes[MemoryIndex].isStructTy());
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     stackPush(Builder.createTrunc(
         Builder.createCall(

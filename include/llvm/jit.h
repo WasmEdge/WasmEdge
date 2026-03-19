@@ -26,7 +26,8 @@ class OrcLLJIT;
 
 class JITLibrary : public Executable {
 public:
-  JITLibrary(OrcLLJIT JIT, bool IsLazy = false) noexcept;
+  JITLibrary(std::shared_ptr<OrcLLJIT> JIT, std::string Prefix = "",
+             bool IsLazy = false) noexcept;
   ~JITLibrary() noexcept override;
 
   Symbol<const IntrinsicsTable *> getIntrinsics() noexcept override;
@@ -35,17 +36,20 @@ public:
 
   std::vector<Symbol<void>> getCodes(size_t Offset,
                                      size_t Size) noexcept override;
+  bool isLazy() const noexcept override { return IsLazy; }
 
-private:
-  OrcLLJIT *J;
+  std::shared_ptr<OrcLLJIT> J;
+  std::string Prefix;
   bool IsLazy;
+  friend class JIT;
 };
 
 class JIT {
 public:
   JIT(const Configure &Conf) noexcept : Conf(Conf) {}
-  Expect<std::shared_ptr<Executable>> load(Data D,
+  Expect<std::shared_ptr<Executable>> load(Data &D,
                                            bool IsLazy = false) noexcept;
+  Expect<void> add(Executable &Exec, Data &D) noexcept;
 
 private:
   const Configure Conf;
@@ -60,8 +64,13 @@ struct LazyJITState {
   uint32_t TotalFuncCount = 0;
   /// Pointer to the AST module (non-owning pointer, lifetime managed by caller)
   const AST::Module *ModulePtr = nullptr;
+  /// Optional owned module (used when VM takes ownership)
+  std::unique_ptr<AST::Module> OwnedModule;
   /// Store compiled executables to keep them alive
-  std::vector<std::shared_ptr<Executable>> CompiledExecutables;
+  std::shared_ptr<Executable> Executable;
+  /// Per-module JIT data and context
+  Data LLData;
+  void *LLContext = nullptr;
 };
 
 } // namespace WasmEdge::LLVM

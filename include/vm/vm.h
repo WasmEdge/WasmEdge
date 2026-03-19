@@ -25,6 +25,8 @@
 
 #include "runtime/instance/module.h"
 #include "runtime/storemgr.h"
+#include "llvm/compiler.h"
+#include "llvm/data.h"
 #include "llvm/jit.h"
 
 #include <cstdint>
@@ -415,6 +417,15 @@ private:
   std::unordered_map<const Runtime::Instance::ModuleInstance *,
                      LLVM::LazyJITState>
       LazyJITStates;
+
+  /// Pending module during instantiation
+  const AST::Module *PendingModule = nullptr;
+  const Runtime::Instance::ModuleInstance *PendingModuleInstance = nullptr;
+  uint32_t PendingImportFuncCount = 0;
+  uint32_t PendingTotalFuncCount = 0;
+  LLVM::Data PendingLLData;
+  void *PendingLLContext = nullptr;
+  std::shared_ptr<Executable> PendingExecutable;
 
   /// Lazy compile a function if lazy JIT mode is enabled and function not yet
   /// compiled.

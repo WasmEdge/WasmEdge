@@ -12,14 +12,24 @@ struct WasmEdge::LLVM::Data::DataContext {
   LLVM::OrcThreadSafeContext getTSContext() noexcept {
     return LLVM::OrcThreadSafeContext(LLContext);
   }
+  void resetModule() noexcept {
+    LLModule = LLVM::Module(getLLContext(), "wasm");
+  }
+  DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
+  DataContext(LLVM::OrcThreadSafeContext &&TSC) noexcept
+      : LLContext(TSC.getContext()), LLModule(getLLContext(), "wasm") {}
 #else
   LLVM::OrcThreadSafeContext TSContext;
   LLVM::Context getLLContext() noexcept { return TSContext.getContext(); }
-  LLVM::OrcThreadSafeContext getTSContext() noexcept {
-    return std::move(TSContext);
+  LLVM::OrcThreadSafeContext &getTSContext() noexcept { return TSContext; }
+  void resetModule() noexcept {
+    LLModule = LLVM::Module(getLLContext(), "wasm");
   }
+  DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
+  DataContext(LLVM::OrcThreadSafeContext &&TSC) noexcept
+      : TSContext(std::move(TSC)), LLModule(getLLContext(), "wasm") {}
 #endif
   LLVM::Module LLModule;
   LLVM::TargetMachine TM;
-  DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
+  std::string Prefix;
 };

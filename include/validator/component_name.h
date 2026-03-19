@@ -32,7 +32,11 @@ enum class ComponentNameKind {
   Method,
   Static,
   InterfaceType,
-  Label
+  Label,
+  Hash,
+  URL,
+  LockedDep,
+  UnlockedDep,
 };
 
 class ComponentName {

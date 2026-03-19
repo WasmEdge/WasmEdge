@@ -63,10 +63,8 @@ public:
     uint32_t TypeIdx = UINT32_MAX;          ///< Core type index (for imports).
   };
 
-  /// core:instance index space entry.
-  struct CoreInstanceEntry {
-    std::unordered_map<std::string, CoreExternInfo> Exports;
-  };
+  /// core:instance export map: name → type info.
+  using CoreInstanceExports = std::unordered_map<std::string, CoreExternInfo>;
 
   /// core:type index space entry.
   struct CoreTypeEntry {
@@ -75,22 +73,22 @@ public:
     std::vector<std::pair<std::string, CoreExternInfo>> ModuleExports;
   };
 
-  /// component index space entry.
-  struct ComponentEntry {
-    const AST::Component::Component *Comp = nullptr;
-  };
-
   /// instance index space entry.
   struct InstanceEntry {
     std::unordered_map<std::string, const AST::Component::ExternDesc *> Exports;
     /// Owned ExternDescs for exports synthesized without explicit descriptors.
     std::vector<std::unique_ptr<AST::Component::ExternDesc>> OwnedDescs;
+    uint64_t TypeSize = 1; ///< Effective type size of this instance.
   };
 
   /// type index space entry.
   struct TypeEntry {
     const AST::Component::InstanceType *InstType = nullptr;
     const AST::Component::ResourceType *ResType = nullptr;
+    bool IsDefValType = false;   ///< True if this type is a DefValType.
+    bool IsFuncType = false;     ///< True if this type is a FuncType.
+    bool IsComponentType = false; ///< True if this type is a ComponentType.
+    uint64_t TypeSize = 1;       ///< Effective type size for limit checking.
   };
 
   // ==========================================================================
@@ -106,16 +104,17 @@ public:
     const Context *Parent;
 
     // --- Core sort index spaces ---
-    std::vector<CoreModuleEntry> CoreModules;     // core:module
-    std::vector<CoreInstanceEntry> CoreInstances; // core:instance
-    std::vector<CoreTypeEntry> CoreTypes;         // core:type
-    uint32_t CoreFuncCount = 0;                   // core:func
-    uint32_t CoreTableCount = 0;                  // core:table
-    uint32_t CoreMemoryCount = 0;                 // core:memory
-    uint32_t CoreGlobalCount = 0;                 // core:global
+    std::vector<CoreModuleEntry> CoreModules;       // core:module
+    std::vector<CoreInstanceExports> CoreInstances; // core:instance
+    std::vector<CoreTypeEntry> CoreTypes;           // core:type
+    std::vector<FuncSig> CoreFuncs;                    // core:func
+    std::vector<const AST::TableType *> CoreTables;    // core:table
+    std::vector<const AST::MemoryType *> CoreMemories; // core:memory
+    std::vector<const AST::GlobalType *> CoreGlobals;  // core:global
+    std::vector<FuncSig> CoreTags;                     // core:tag
 
     // --- Component sort index spaces ---
-    std::vector<ComponentEntry> Components; // component
+    std::vector<const AST::Component::Component *> Components; // component
     std::vector<InstanceEntry> Instances;   // instance
     std::vector<TypeEntry> Types;           // type
     uint32_t FuncCount = 0;                 // func
@@ -125,6 +124,8 @@ public:
     std::unordered_map<std::string, uint32_t> TypeSubstitutions;
     std::unordered_set<std::string> ImportedNames;
     std::unordered_set<std::string> ExportedNames;
+    uint64_t ComponentTypeSize = 1; ///< Effective type size of this component.
+    std::vector<uint64_t> ComponentTypeSizes; ///< Per nested component type sizes.
 
     // Size queries (used by outer alias validation on parent contexts).
     uint32_t getSortIndexSize(AST::Component::Sort::SortType ST) const noexcept;
@@ -148,6 +149,24 @@ public:
   void exitComponent() noexcept {
     assuming(!CompCtxs.empty());
     CompCtxs.pop_back();
+  }
+
+  /// Push a fresh scope for component/instance type validation.
+  /// Uses nullptr Component but keeps parent linkage for outer aliases.
+  void enterTypeScope() noexcept {
+    const Context *Parent = CompCtxs.empty() ? nullptr : &CompCtxs.back();
+    CompCtxs.emplace_back(nullptr, Parent);
+  }
+
+  /// Pop a type validation scope.
+  void exitTypeScope() noexcept {
+    assuming(!CompCtxs.empty());
+    CompCtxs.pop_back();
+  }
+
+  /// Get the number of component nesting levels (for outer alias validation).
+  uint32_t getDepth() const noexcept {
+    return static_cast<uint32_t>(CompCtxs.size());
   }
 
   Context &getCurrentContext() noexcept {
@@ -219,14 +238,14 @@ public:
     return Idx;
   }
 
-  const CoreInstanceEntry &getCoreInstance(uint32_t Idx) const noexcept {
+  const CoreInstanceExports &getCoreInstance(uint32_t Idx) const noexcept {
     return getCurrentContext().CoreInstances.at(Idx);
   }
 
   /// Register an export on an existing core instance.
   void addCoreInstanceExport(uint32_t InstIdx, std::string_view Name,
                              CoreExternInfo Info) {
-    getCurrentContext().CoreInstances.at(InstIdx).Exports[std::string(Name)] =
+    getCurrentContext().CoreInstances.at(InstIdx)[std::string(Name)] =
         std::move(Info);
   }
   void addCoreInstanceExport(uint32_t InstIdx, std::string_view Name,
@@ -267,21 +286,39 @@ public:
 
   // ==========================================================================
   // Index space operations: core:func / core:table / core:memory / core:global
-  //   These are counter-only for now (no per-entry data needed yet).
-  //   Sources: AliasSection, CanonSection (lower/resource)
+  //   Sources: AliasSection (core export), CanonSection (lower/resource),
+  //            CoreInstanceSection (inline export)
   // ==========================================================================
 
-  uint32_t addCoreFunc() noexcept {
-    return getCurrentContext().CoreFuncCount++;
+  uint32_t addCoreFunc(FuncSig Sig = {}) noexcept {
+    auto &V = getCurrentContext().CoreFuncs;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(std::move(Sig));
+    return Idx;
   }
-  uint32_t addCoreTable() noexcept {
-    return getCurrentContext().CoreTableCount++;
+  uint32_t addCoreTable(const AST::TableType *TT = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreTables;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(TT);
+    return Idx;
   }
-  uint32_t addCoreMemory() noexcept {
-    return getCurrentContext().CoreMemoryCount++;
+  uint32_t addCoreMemory(const AST::MemoryType *MT = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreMemories;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(MT);
+    return Idx;
   }
-  uint32_t addCoreGlobal() noexcept {
-    return getCurrentContext().CoreGlobalCount++;
+  uint32_t addCoreGlobal(const AST::GlobalType *GT = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreGlobals;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(GT);
+    return Idx;
+  }
+  uint32_t addCoreTag(FuncSig Sig = {}) noexcept {
+    auto &V = getCurrentContext().CoreTags;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(std::move(Sig));
+    return Idx;
   }
 
   // ==========================================================================
@@ -293,7 +330,7 @@ public:
   uint32_t addComponent(const AST::Component::Component &C) noexcept {
     auto &V = getCurrentContext().Components;
     uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(ComponentEntry{&C});
+    V.push_back(&C);
     return Idx;
   }
 
@@ -301,11 +338,12 @@ public:
   uint32_t addComponent() noexcept {
     auto &V = getCurrentContext().Components;
     uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.emplace_back();
+    V.push_back(nullptr);
     return Idx;
   }
 
-  const ComponentEntry &getComponent(uint32_t Idx) const noexcept {
+  /// Get component pointer at index (nullptr for imported/aliased).
+  const AST::Component::Component *getComponent(uint32_t Idx) const noexcept {
     return getCurrentContext().Components.at(Idx);
   }
 
@@ -354,11 +392,45 @@ public:
     return Idx;
   }
 
-  /// Push an instance type entry. Returns assigned index.
-  uint32_t addType(const AST::Component::InstanceType &IT) noexcept {
+  /// Push a DefValType entry. Returns assigned index.
+  uint32_t addDefValType(uint64_t TSize = 1) noexcept {
     auto &V = getCurrentContext().Types;
     uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(TypeEntry{&IT, nullptr});
+    TypeEntry E;
+    E.IsDefValType = true;
+    E.TypeSize = TSize;
+    V.push_back(E);
+    return Idx;
+  }
+
+  /// Push a FuncType entry. Returns assigned index.
+  uint32_t addFuncType(uint64_t TSize = 1) noexcept {
+    auto &V = getCurrentContext().Types;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    TypeEntry E;
+    E.IsFuncType = true;
+    E.TypeSize = TSize;
+    V.push_back(E);
+    return Idx;
+  }
+
+  /// Push a ComponentType entry. Returns assigned index.
+  uint32_t addComponentType(uint64_t TSize = 1) noexcept {
+    auto &V = getCurrentContext().Types;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    TypeEntry E;
+    E.IsComponentType = true;
+    E.TypeSize = TSize;
+    V.push_back(E);
+    return Idx;
+  }
+
+  /// Push an instance type entry. Returns assigned index.
+  uint32_t addType(const AST::Component::InstanceType &IT,
+                   uint64_t TSize = 1) noexcept {
+    auto &V = getCurrentContext().Types;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(TypeEntry{&IT, nullptr, false, false, false, TSize});
     return Idx;
   }
 
@@ -366,7 +438,7 @@ public:
   uint32_t addType(const AST::Component::ResourceType &RT) noexcept {
     auto &V = getCurrentContext().Types;
     uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(TypeEntry{nullptr, &RT});
+    V.push_back(TypeEntry{nullptr, &RT, false, false, false, 1});
     return Idx;
   }
 

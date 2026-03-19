@@ -27,13 +27,13 @@ uint32_t ComponentContext::Context::getCoreSortIndexSize(
     Sort::CoreSortType ST) const noexcept {
   switch (ST) {
   case Sort::CoreSortType::Func:
-    return CoreFuncCount;
+    return static_cast<uint32_t>(CoreFuncs.size());
   case Sort::CoreSortType::Table:
-    return CoreTableCount;
+    return static_cast<uint32_t>(CoreTables.size());
   case Sort::CoreSortType::Memory:
-    return CoreMemoryCount;
+    return static_cast<uint32_t>(CoreMemories.size());
   case Sort::CoreSortType::Global:
-    return CoreGlobalCount;
+    return static_cast<uint32_t>(CoreGlobals.size());
   case Sort::CoreSortType::Type:
     return static_cast<uint32_t>(CoreTypes.size());
   case Sort::CoreSortType::Module:

@@ -197,24 +197,35 @@ void ComponentName::parse() {
   //                     | 'locked-dep=<' <pkgname> '>' ( ',' <hashname> )?
 
   if (tryRead("unlocked-dep="sv, Next)) {
-    // Not supported yet
+    // unlocked-dep=<pkgnamequery>
+    // Minimal validation: must start with '<' and end with '>'
+    if (Next.size() >= 2 && Next.front() == '<' && Next.back() == '>') {
+      Kind = ComponentNameKind::UnlockedDep;
+    }
     return;
   }
 
   if (tryRead("locked-dep="sv, Next)) {
-    // Not supported yet
+    // locked-dep=<pkgname> (, <hashname>)?
+    if (Next.size() >= 2 && Next.front() == '<' && Next.back() == '>') {
+      Kind = ComponentNameKind::LockedDep;
+    }
     return;
   }
 
   // urlname           ::= 'url=<' <nonbrackets> '>' (',' <hashname>)?
   if (tryRead("url="sv, Next)) {
-    // Not supported yet
+    if (Next.size() >= 2 && Next.front() == '<' && Next.back() == '>') {
+      Kind = ComponentNameKind::URL;
+    }
     return;
   }
 
   // hashname          ::= 'integrity=<' <integrity-metadata> '>'
   if (tryRead("integrity="sv, Next)) {
-    // Not supported yet
+    if (Next.size() >= 2 && Next.front() == '<' && Next.back() == '>') {
+      Kind = ComponentNameKind::Hash;
+    }
     return;
   }
 

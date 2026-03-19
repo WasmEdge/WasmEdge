@@ -120,6 +120,12 @@ private:
   // Expect<void> validate(const AST::Component::ExportDecl &Decl) noexcept;
   Expect<void> validate(const AST::Component::InstanceDecl &Decl) noexcept;
   // Expect<void> validate(const AST::Component::ComponentDecl &Decl) noexcept;
+  // Validate component/instance type declarations with sub-scope.
+  // Returns the computed effective type size on success.
+  Expect<uint64_t>
+  validateComponentTypeDecls(Span<const AST::Component::ComponentDecl> Decls) noexcept;
+  Expect<uint64_t>
+  validateInstanceTypeDecls(Span<const AST::Component::InstanceDecl> Decls) noexcept;
   // types
   // TODO
   /// @}

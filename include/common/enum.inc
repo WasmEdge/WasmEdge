@@ -1083,6 +1083,62 @@ E(AliasUnknownExportName, 0x02A8, "alias unknown export name")
 E(InvalidOuterAliasCount, 0x02A9, "invalid outer alias count")
 // Index out of bounds
 E(IndexOutOfBounds, 0x02AA, "index out of bounds")
+// Cannot have more than 32 flags
+E(TooManyFlags, 0x02AB, "cannot have more than 32 flags")
+// Duplicate record field name
+E(DuplicateRecordField, 0x02AC, "record field name conflicts with previous field name")
+// Duplicate variant case name
+E(DuplicateVariantCase, 0x02B3, "variant case name conflicts with previous case name")
+// Duplicate flag name
+E(DuplicateFlagName, 0x02B4, "flag name conflicts with previous flag name")
+// Duplicate enum tag name
+E(DuplicateEnumTag, 0x02B5, "enum tag name conflicts with previous tag name")
+// Empty name in defined type
+E(DefinedTypeEmptyName, 0x02AD, "name cannot be empty")
+// Variant type must have at least one case
+E(EmptyVariant, 0x02AE, "variant type must have at least one case")
+// Enum type must have at least one variant
+E(EmptyEnum, 0x02B6, "enum type must have at least one variant")
+// Record type must have at least one field
+E(EmptyRecord, 0x02B7, "record type must have at least one field")
+// Flags must have at least one entry
+E(EmptyFlags, 0x02B8, "flags must have at least one entry")
+// Tuple type must have at least one type
+E(EmptyTuple, 0x02B9, "tuple type must have at least one type")
+// Import/export name conflicts with previous name
+E(NameConflict, 0x02AF, "conflicts with previous name")
+// Not a defined type
+E(NotADefinedType, 0x02B0, "not a defined type")
+// Function parameter name cannot be empty
+E(EmptyParamName, 0x02B1, "function parameter name cannot be empty")
+// Core type index out of bounds (within module type)
+E(CoreTypeIndexOOB, 0x02B2, "type index out of bounds")
+// Not a valid export name (extern name is valid but not allowed for exports)
+E(InvalidExportName, 0x02BA, "not a valid export name")
+// Not a valid extern name (name is not a valid component name at all)
+E(InvalidExternName, 0x02BB, "not a valid extern name")
+// Effective type size exceeds the limit
+E(TypeSizeExceeded, 0x02BC, "effective type size exceeds the limit")
+// Unknown function type (type index doesn't point to a function type)
+E(UnknownFuncType, 0x02BD, "unknown function type")
+// Unknown module type (core type index doesn't point to a module type)
+E(UnknownModuleType, 0x02BE, "unknown module type")
+// Unknown instance type (type index doesn't point to an instance type)
+E(UnknownInstanceType, 0x02BF, "unknown instance type")
+// Module index out of bounds
+E(ModuleIndexOOB, 0x02C0, "module index out of bounds")
+// Instance index out of bounds
+E(InstanceIndexOOB, 0x02C1, "instance index out of bounds")
+// Duplicate export name (in core module type)
+E(DuplicateExportName, 0x02C2, "duplicate export name")
+// Duplicate import name (in core module type)
+E(DuplicateImportName, 0x02C3, "duplicate import name")
+// Memory size limit exceeded
+E(MemorySizeLimit, 0x02C4, "memory size must be at most")
+// Conflicts with previous export name (case-insensitive)
+E(ExportNameConflict, 0x02C5, "conflicts with previous export name")
+// Conflicts with previous import name (case-insensitive)
+E(ImportNameConflict, 0x02C6, "conflicts with previous import name")
 // @}
 
 // Instantiation phase

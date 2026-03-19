@@ -277,6 +277,46 @@ public:
     Type.emplace<FutureTy>(std::move(Ty));
   }
 
+  bool isPrimValType() const noexcept {
+    return std::holds_alternative<PrimValType>(Type);
+  }
+  bool isRecord() const noexcept {
+    return std::holds_alternative<RecordTy>(Type);
+  }
+  bool isVariant() const noexcept {
+    return std::holds_alternative<VariantTy>(Type);
+  }
+  bool isList() const noexcept {
+    return std::holds_alternative<ListTy>(Type);
+  }
+  bool isTuple() const noexcept {
+    return std::holds_alternative<TupleTy>(Type);
+  }
+  bool isFlags() const noexcept {
+    return std::holds_alternative<FlagsTy>(Type);
+  }
+  bool isEnum() const noexcept {
+    return std::holds_alternative<EnumTy>(Type);
+  }
+  bool isOption() const noexcept {
+    return std::holds_alternative<OptionTy>(Type);
+  }
+  bool isResult() const noexcept {
+    return std::holds_alternative<ResultTy>(Type);
+  }
+  bool isOwn() const noexcept {
+    return std::holds_alternative<OwnTy>(Type);
+  }
+  bool isBorrow() const noexcept {
+    return std::holds_alternative<BorrowTy>(Type);
+  }
+  bool isStream() const noexcept {
+    return std::holds_alternative<StreamTy>(Type);
+  }
+  bool isFuture() const noexcept {
+    return std::holds_alternative<FutureTy>(Type);
+  }
+
 private:
   std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, FlagsTy,
                EnumTy, OptionTy, ResultTy, OwnTy, BorrowTy, StreamTy, FutureTy>

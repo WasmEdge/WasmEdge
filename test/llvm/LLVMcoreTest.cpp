@@ -109,11 +109,10 @@ TEST_P(NativeCoreTest, TestSuites) {
         .and_then([&VM]() { return VM.validate(); });
   };
   T.onModuleDefine =
-      [&VM, &Compile](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+      [&VM,
+       &Compile](const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
     return Compile(FileName).and_then(
-        [&VM](const std::string &SOFileName)
-            -> Expect<std::unique_ptr<AST::Module>> {
+        [&VM](const std::string &SOFileName) -> Expect<SpecTest::WasmUnit> {
           Loader::Loader &Loader = VM.getLoader();
           Validator::Validator &Validator = VM.getValidator();
           EXPECTED_TRY(auto ASTMod, Loader.parseModule(SOFileName));
@@ -235,11 +234,10 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
         .and_then([&VM]() { return VM.validate(); });
   };
   T.onModuleDefine =
-      [&VM, &Compile](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+      [&VM,
+       &Compile](const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
     return Compile(FileName).and_then(
-        [&VM](const std::string &SOFileName)
-            -> Expect<std::unique_ptr<AST::Module>> {
+        [&VM](const std::string &SOFileName) -> Expect<SpecTest::WasmUnit> {
           Loader::Loader &Loader = VM.getLoader();
           Validator::Validator &Validator = VM.getValidator();
           EXPECTED_TRY(auto ASTMod, Loader.parseModule(SOFileName));
@@ -329,8 +327,7 @@ TEST_P(JITCoreTest, TestSuites) {
     return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
   };
   T.onModuleDefine =
-      [&VM](
-          const std::string &FileName) -> Expect<std::unique_ptr<AST::Module>> {
+      [&VM](const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
     Loader::Loader &Loader = VM.getLoader();
     Validator::Validator &Validator = VM.getValidator();
     EXPECTED_TRY(auto ASTMod, Loader.parseModule(FileName));

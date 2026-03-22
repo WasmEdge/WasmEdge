@@ -22,12 +22,15 @@
 #include "system/allocator.h"
 
 #include <algorithm>
+#include <condition_variable>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 
 namespace WasmEdge {
@@ -373,12 +376,42 @@ public:
   uint8_t *const &getDataPtr() const noexcept { return DataPtr; }
   uint8_t *&getDataPtr() noexcept { return DataPtr; }
 
+  /// Waiter support for atomic wait/notify across threads.
+  struct Waiter {
+    std::mutex Mutex;
+    std::condition_variable Cond;
+    bool Notified = false;
+    Waiter() noexcept = default;
+  };
+
+  std::mutex &getWaiterMapMutex() noexcept { return WaiterMapMutex; }
+
+  std::unordered_multimap<uint64_t, Waiter> &getWaiterMap() noexcept {
+    return WaiterMap;
+  }
+
+  /// Wake all waiters on this memory instance (used by Executor::stop()).
+  void notifyAllWaiters() noexcept {
+    std::unique_lock<std::mutex> Locker(WaiterMapMutex);
+    for (auto &[Addr, W] : WaiterMap) {
+      // Lock the Waiter mutex and notify while holding it. This pairs with
+      // the wait loop which checks StopToken under this same mutex before
+      // entering Cond.wait(). The lock ensures we either:
+      // (a) block until the waiter enters Cond.wait() — then wake it, or
+      // (b) run before the waiter checks StopToken — it will see it set.
+      std::unique_lock<std::mutex> WaiterLocker(W.Mutex);
+      W.Cond.notify_all();
+    }
+  }
+
 private:
   /// \name Data of memory instance.
   /// @{
   AST::MemoryType MemType;
   uint8_t *DataPtr = nullptr;
   uint64_t PageLimit;
+  std::mutex WaiterMapMutex;
+  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
   /// @}
 };
 

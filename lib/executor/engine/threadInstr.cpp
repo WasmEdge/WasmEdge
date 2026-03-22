@@ -54,24 +54,26 @@ Executor::atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
     return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
-  std::unique_lock<decltype(WaiterMapMutex)> Locker(WaiterMapMutex);
+  auto &WaiterMapMtx = MemInst.getWaiterMapMutex();
+  auto &WaiterMap = MemInst.getWaiterMap();
+  std::unique_lock<std::mutex> Locker(WaiterMapMtx);
   uint64_t Total = 0;
   auto Range = WaiterMap.equal_range(Address);
   for (auto Iterator = Range.first; Total < Count && Iterator != Range.second;
        ++Iterator) {
-    if (likely(&MemInst == Iterator->second.MemInst)) {
-      Iterator->second.Cond.notify_all();
-      ++Total;
+    {
+      std::unique_lock<std::mutex> WaiterLocker(Iterator->second.Mutex);
+      Iterator->second.Notified = true;
     }
+    Iterator->second.Cond.notify_all();
+    ++Total;
   }
   return Total;
 }
 
 void Executor::atomicNotifyAll() noexcept {
-  std::unique_lock<decltype(WaiterMapMutex)> Locker(WaiterMapMutex);
-  for (auto Iterator = WaiterMap.begin(); Iterator != WaiterMap.end();
-       ++Iterator) {
-    Iterator->second.Cond.notify_all();
+  if (auto *MemInst = WaitingMemory.load(std::memory_order_acquire)) {
+    MemInst->notifyAllWaiters();
   }
 }
 

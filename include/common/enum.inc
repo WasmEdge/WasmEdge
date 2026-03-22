@@ -971,7 +971,7 @@ E(ComponentNotImplLoader, 0x01AD, "component model (loader) not implemented")
 // Validation phase
 // @{
 // Alignment != natural
-E(InvalidAlignment, 0x0200, "atomic alignment must be equal to natural")
+E(InvalidAlignment, 0x0200, "atomic alignment must be natural")
 // Alignment > natural
 E(AlignmentTooLarge, 0x0201, "alignment must not be larger than natural")
 // Got unexpected type when checking

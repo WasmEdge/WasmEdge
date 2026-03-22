@@ -45,11 +45,44 @@ class CoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreTest, TestSuites) {
   const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
-  WasmEdge::VM::VM VM(Conf);
-  WasmEdge::SpecTestModule SpecTestMod;
-  VM.registerModule(SpecTestMod);
-  T.onModule = [&VM](const std::string &ModName,
-                     const std::string &FileName) -> Expect<void> {
+  const auto &ConfRef = Conf;
+
+  // Define context structure
+  struct TestContext {
+    WasmEdge::VM::VM VM;
+    WasmEdge::SpecTestModule SpecTestMod;
+    TestContext(const WasmEdge::Configure &C) : VM(C) {
+      VM.registerModule(SpecTestMod);
+    }
+  };
+
+  T.onInit = [&ConfRef](SpecTest::ContextHandle Parent,
+                        const std::vector<std::pair<std::string, std::string>>
+                            &SharedModules) -> SpecTest::ContextHandle {
+    // Always create VM with own Store to avoid module name conflicts
+    // from built-in host modules being re-registered in a shared Store.
+    auto *Ctx = new TestContext(ConfRef);
+    if (Parent != nullptr && !SharedModules.empty()) {
+      auto *P = static_cast<TestContext *>(Parent);
+      for (const auto &[ParentName, AliasName] : SharedModules) {
+        const auto *ModInst = P->VM.getStoreManager().findModule(ParentName);
+        if (ModInst != nullptr) {
+          // Register the shared module under the alias name so that
+          // the thread's wasm modules can import it by the expected name.
+          Ctx->VM.registerModule(*ModInst, AliasName);
+        }
+      }
+    }
+    return Ctx;
+  };
+
+  T.onFini = [](SpecTest::ContextHandle Ctx) {
+    delete static_cast<TestContext *>(Ctx);
+  };
+
+  T.onModule = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                  const std::string &FileName) -> Expect<void> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
     if (!ModName.empty()) {
       return VM.registerModule(ModName, FileName);
     } else if (T.SkipComponentValidation) {
@@ -64,14 +97,20 @@ TEST_P(CoreTest, TestSuites) {
           .and_then([&VM]() { return VM.instantiate(); });
     }
   };
-  T.onLoad = [&VM](const std::string &FileName) -> Expect<void> {
+  T.onLoad = [](SpecTest::ContextHandle Ctx,
+                const std::string &FileName) -> Expect<void> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
     return VM.loadWasm(FileName);
   };
-  T.onValidate = [&VM](const std::string &FileName) -> Expect<void> {
+  T.onValidate = [](SpecTest::ContextHandle Ctx,
+                    const std::string &FileName) -> Expect<void> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
     return VM.loadWasm(FileName).and_then([&VM]() { return VM.validate(); });
   };
   T.onModuleDefine =
-      [&VM](const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
+      [](SpecTest::ContextHandle Ctx,
+         const std::string &FileName) -> Expect<SpecTest::WasmUnit> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
     Loader::Loader &Loader = VM.getLoader();
     Validator::Validator &Validator = VM.getValidator();
     EXPECTED_TRY(auto ASTUnit, Loader.parseWasmUnit(FileName));
@@ -85,20 +124,26 @@ TEST_P(CoreTest, TestSuites) {
     }
     return ASTUnit;
   };
-  T.onInstanceFromDef = [&VM](const std::string &ModName,
-                              const AST::Module &ASTMod) -> Expect<void> {
+  T.onInstanceFromDef = [](SpecTest::ContextHandle Ctx,
+                           const std::string &ModName,
+                           const AST::Module &ASTMod) -> Expect<void> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
     return VM.registerModule(ModName, ASTMod);
   };
-  T.onInstantiate = [&VM](const std::string &FileName) -> Expect<void> {
+  T.onInstantiate = [](SpecTest::ContextHandle Ctx,
+                       const std::string &FileName) -> Expect<void> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
     return VM.loadWasm(FileName)
         .and_then([&VM]() { return VM.validate(); })
         .and_then([&VM]() { return VM.instantiate(); });
   };
   // Helper function to call functions.
-  T.onInvoke = [&VM](const std::string &ModName, const std::string &Field,
-                     const std::vector<ValVariant> &Params,
-                     const std::vector<ValType> &ParamTypes)
+  T.onInvoke = [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+                  const std::string &Field,
+                  const std::vector<ValVariant> &Params,
+                  const std::vector<ValType> &ParamTypes)
       -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
     if (!ModName.empty()) {
       // Invoke function of named module. Named modules are registered in Store
       // Manager.
@@ -110,8 +155,10 @@ TEST_P(CoreTest, TestSuites) {
     }
   };
   // Helper function to get values.
-  T.onGet = [&VM](const std::string &ModName, const std::string &Field)
-      -> Expect<std::pair<ValVariant, ValType>> {
+  T.onGet =
+      [](SpecTest::ContextHandle Ctx, const std::string &ModName,
+         const std::string &Field) -> Expect<std::pair<ValVariant, ValType>> {
+    auto &VM = static_cast<TestContext *>(Ctx)->VM;
     // Get module instance.
     const WasmEdge::Runtime::Instance::ModuleInstance *ModInst = nullptr;
     if (ModName.empty()) {

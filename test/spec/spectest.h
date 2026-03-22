@@ -50,6 +50,8 @@ public:
     AssertUnlinkable,
     AssertUninstantiable,
     AssertException,
+    Thread,
+    Wait,
   };
 
   enum class TestMode : uint8_t {
@@ -78,37 +80,62 @@ public:
 
   void run(std::string_view Proposal, std::string_view UnitName);
 
-  using ModuleCallback = Expect<void>(const std::string &Modname,
+  // Opaque handle to an execution context (VM, Executor, etc.)
+  // The concrete test harness defines the pointed-to type.
+  using ContextHandle = void *;
+
+  // Create a new execution context.
+  //   Parent: parent context (nullptr for root context)
+  //   SharedModules: pairs of (export_name, alias_name) for modules
+  //     accessible in this context. The harness should find each module by
+  //     the first name in the parent store and register it under the second
+  //     name in the child store.
+  using InitCallback = ContextHandle(
+      ContextHandle Parent,
+      const std::vector<std::pair<std::string, std::string>> &SharedModules);
+  std::function<InitCallback> onInit;
+
+  // Destroy an execution context and release its resources.
+  using FiniCallback = void(ContextHandle Ctx);
+  std::function<FiniCallback> onFini;
+
+  using ModuleCallback = Expect<void>(ContextHandle Ctx,
+                                      const std::string &Modname,
                                       const std::string &FileName);
   std::function<ModuleCallback> onModule;
 
-  using LoadCallback = Expect<void>(const std::string &FileName);
+  using LoadCallback = Expect<void>(ContextHandle Ctx,
+                                    const std::string &FileName);
   std::function<LoadCallback> onLoad;
 
-  using ValidateCallback = Expect<void>(const std::string &FileName);
+  using ValidateCallback = Expect<void>(ContextHandle Ctx,
+                                        const std::string &FileName);
   std::function<ValidateCallback> onValidate;
 
   using WasmUnit = std::variant<std::unique_ptr<AST::Component::Component>,
                                 std::unique_ptr<AST::Module>>;
 
-  using ModuleDefineCallback = Expect<WasmUnit>(const std::string &FileName);
+  using ModuleDefineCallback = Expect<WasmUnit>(ContextHandle Ctx,
+                                                const std::string &FileName);
   std::function<ModuleDefineCallback> onModuleDefine;
 
-  using InstanceFromDefCallback = Expect<void>(const std::string &ModName,
+  using InstanceFromDefCallback = Expect<void>(ContextHandle Ctx,
+                                               const std::string &ModName,
                                                const AST::Module &ASTMod);
   std::function<InstanceFromDefCallback> onInstanceFromDef;
 
-  using InstantiateCallback = Expect<void>(const std::string &FileName);
+  using InstantiateCallback = Expect<void>(ContextHandle Ctx,
+                                           const std::string &FileName);
   std::function<InstantiateCallback> onInstantiate;
 
   using InvokeCallback = Expect<std::vector<std::pair<ValVariant, ValType>>>(
-      const std::string &ModName, const std::string &Field,
+      ContextHandle Ctx, const std::string &ModName, const std::string &Field,
       const std::vector<ValVariant> &Params,
       const std::vector<ValType> &ParamTypes);
   std::function<InvokeCallback> onInvoke;
 
   using GetCallback = Expect<std::pair<ValVariant, ValType>>(
-      const std::string &ModName, const std::string &Field);
+      ContextHandle Ctx, const std::string &ModName, const std::string &Field);
   std::function<GetCallback> onGet;
 
   // Set by the spec test runner before calling onModule to indicate that
@@ -117,6 +144,10 @@ public:
   bool SkipComponentValidation = false;
 
 private:
+  // Processes the command array for a given context.
+  void processCommands(ContextHandle Ctx, std::string_view Proposal,
+                       std::string_view UnitName, void *CmdArrayPtr);
+
   std::filesystem::path TestsuiteRoot;
 };
 

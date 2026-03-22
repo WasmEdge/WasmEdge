@@ -9,9 +9,11 @@
 #include "data.h"
 #include "llvm.h"
 
+#include <lld/Common/Driver.h>
+
 #include <charconv>
 #include <fstream>
-#include <lld/Common/Driver.h>
+#include <mutex>
 #include <random>
 #include <sstream>
 
@@ -200,6 +202,10 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   }
 
   // link
+  // Serialize LLD invocations: CommonLinkerContext is a global singleton, so
+  // concurrent link() calls from multiple threads would corrupt it.
+  static std::mutex LldMutex;
+  std::lock_guard<std::mutex> Lock(LldMutex);
   bool LinkResult = false;
 #if WASMEDGE_OS_MACOS
   const auto OSVersion = getOSVersion();

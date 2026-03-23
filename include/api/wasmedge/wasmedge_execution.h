@@ -238,6 +238,25 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorRegisterImport(
     WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_ModuleInstanceContext *ImportCxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Register a module instance into a store under the given alias name.
+///
+/// Similar to WasmEdge_ExecutorRegisterImport(), but registers the module
+/// under the provided ModuleName instead of the module's own name. This is
+/// useful for making a module accessible under a different import namespace.
+///
+/// \param Cxt the WasmEdge_ExecutorContext.
+/// \param StoreCxt the WasmEdge_StoreContext to store the module instance.
+/// \param ImportCxt the WasmEdge_ModuleInstanceContext to register.
+/// \param ModuleName the WasmEdge_String of module name to register as.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_ExecutorRegisterImportWithAlias(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+    const WasmEdge_ModuleInstanceContext *ImportCxt,
+    const WasmEdge_String ModuleName) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Invoke a WASM function by the function instance.
 ///
 /// After instantiating a WASM module, developers can get the function instance

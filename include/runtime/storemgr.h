@@ -71,28 +71,37 @@ public:
   /// Reset this store manager and unlink all the registered module instances.
   void reset() noexcept {
     std::shared_lock Lock(Mutex);
-    for (auto &&Pair : NamedMod) {
-      (const_cast<Instance::ModuleInstance *>(Pair.second))->unlinkStore(this);
+    for (auto &&[Name, ModInst] : NamedMod) {
+      (const_cast<Instance::ModuleInstance *>(ModInst))
+          ->unlinkStore(this, Name);
     }
     NamedMod.clear();
   }
 
   /// Register named module into this store.
   Expect<void> registerModule(const Instance::ModuleInstance *ModInst) {
+    return registerModule(ModInst, ModInst->getModuleName());
+  }
+
+  /// Register a module instance into this store under the given alias name.
+  Expect<void> registerModule(const Instance::ModuleInstance *ModInst,
+                              std::string_view Name) {
     std::unique_lock Lock(Mutex);
-    auto Iter = NamedMod.find(ModInst->getModuleName());
+    auto Iter = NamedMod.find(Name);
     if (likely(Iter != NamedMod.cend())) {
       return Unexpect(ErrCode::Value::ModuleNameConflict);
     }
-    NamedMod.emplace(ModInst->getModuleName(), ModInst);
+    NamedMod.emplace(std::string(Name), ModInst);
     // Link the module instance to this store manager.
     (const_cast<Instance::ModuleInstance *>(ModInst))
-        ->linkStore(this, [](StoreManager *Store,
-                             const Instance::ModuleInstance *Inst) {
-          // The unlink callback.
-          std::unique_lock CallbackLock(Store->Mutex);
-          (Store->NamedMod).erase(std::string(Inst->getModuleName()));
-        });
+        ->linkStore(this, Name,
+                    [](const Instance::ModuleInstance::LinkedStoreKey &Key,
+                       const Instance::ModuleInstance *) {
+                      // The unlink callback: erase the alias name from the
+                      // store.
+                      std::unique_lock CallbackLock(Key.first->Mutex);
+                      (Key.first->NamedMod).erase(Key.second);
+                    });
     return {};
   }
 
@@ -103,7 +112,8 @@ public:
     if (Iter == NamedMod.cend()) {
       return Unexpect(ErrCode::Value::UnknownImport);
     }
-    (const_cast<Instance::ModuleInstance *>(Iter->second))->unlinkStore(this);
+    (const_cast<Instance::ModuleInstance *>(Iter->second))
+        ->unlinkStore(this, Name);
     NamedMod.erase(Iter);
     return {};
   }

@@ -172,6 +172,11 @@ public:
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const Runtime::Instance::ModuleInstance &ModInst);
 
+  /// Register an instantiated module under the given alias name.
+  Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
+                              const Runtime::Instance::ModuleInstance &ModInst,
+                              std::string_view Name);
+
   /// Instantiate a Component into an anonymous component instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
   instantiateComponent(Runtime::StoreManager &StoreMgr,

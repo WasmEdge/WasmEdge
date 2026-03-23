@@ -224,6 +224,17 @@ VM::unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst) {
   return ExecutorEngine.registerModule(StoreRef, ModInst);
 }
 
+Expect<void>
+VM::unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst,
+                         std::string_view Name) {
+  if (Stage == VMStage::Instantiated) {
+    // When registering module, instantiated module in store will be reset.
+    // Therefore the instantiation should restart.
+    Stage = VMStage::Validated;
+  }
+  return ExecutorEngine.registerModule(StoreRef, ModInst, Name);
+}
+
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,

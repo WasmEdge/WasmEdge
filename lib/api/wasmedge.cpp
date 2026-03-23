@@ -2139,6 +2139,19 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegisterImport(
       EmptyThen, Cxt, StoreCxt, ImportCxt);
 }
 
+WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorRegisterImportWithAlias(
+    WasmEdge_ExecutorContext *Cxt, WasmEdge_StoreContext *StoreCxt,
+    const WasmEdge_ModuleInstanceContext *ImportCxt,
+    const WasmEdge_String ModuleName) noexcept {
+  return wrap(
+      [&]() {
+        return fromExecutorCxt(Cxt)->registerModule(*fromStoreCxt(StoreCxt),
+                                                    *fromModCxt(ImportCxt),
+                                                    genStrView(ModuleName));
+      },
+      EmptyThen, Cxt, StoreCxt, ImportCxt);
+}
+
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_ExecutorInvoke(
     WasmEdge_ExecutorContext *Cxt,
     const WasmEdge_FunctionInstanceContext *FuncCxt,
@@ -3206,6 +3219,18 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
     const WasmEdge_ModuleInstanceContext *ImportCxt) noexcept {
   return wrap([&]() { return Cxt->VM.registerModule(*fromModCxt(ImportCxt)); },
               EmptyThen, Cxt, ImportCxt);
+}
+
+WASMEDGE_CAPI_EXPORT WasmEdge_Result
+WasmEdge_VMRegisterModuleFromImportWithAlias(
+    WasmEdge_VMContext *Cxt, const WasmEdge_ModuleInstanceContext *ImportCxt,
+    const WasmEdge_String ModuleName) noexcept {
+  return wrap(
+      [&]() {
+        return Cxt->VM.registerModule(*fromModCxt(ImportCxt),
+                                      genStrView(ModuleName));
+      },
+      EmptyThen, Cxt, ImportCxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromFile(

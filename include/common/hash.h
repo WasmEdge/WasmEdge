@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the functions about hashing data.
-/// Currently using rapidhash.
+/// Currently using a5hash.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -19,24 +19,19 @@
 #include "common/errcode.h"
 #include "common/int128.h"
 #include "common/span.h"
-#include "common/variant.h"
 
-#include <array>
 #include <cstdint>
 #include <random>
 #include <string_view>
 #include <type_traits>
 
 namespace WasmEdge::Hash {
-inline constexpr void rapidMum(uint64_t &A, uint64_t &B) noexcept {
+inline constexpr void a5hashMul128(uint64_t A, uint64_t B, uint64_t &RL,
+                                   uint64_t &RH) noexcept {
   uint128_t R = A;
   R *= B;
-  A = static_cast<uint64_t>(R);
-  B = static_cast<uint64_t>(R >> 64);
-}
-inline constexpr uint64_t rapidMix(uint64_t A, uint64_t B) noexcept {
-  rapidMum(A, B);
-  return A ^ B;
+  RL = static_cast<uint64_t>(R);
+  RH = static_cast<uint64_t>(R >> 64);
 }
 
 struct RandomEngine {
@@ -44,41 +39,42 @@ struct RandomEngine {
   RandomEngine() noexcept {
     std::random_device RD;
     std::uniform_int_distribution<uint64_t> Dist(0, UINT64_MAX);
-    Seed = Dist(RD);
+    Seed1 = Seed2 = Dist(RD);
   }
-  RandomEngine(result_type S) noexcept : Seed(S) {}
+  RandomEngine(result_type S) noexcept : Seed1(S), Seed2(S) {}
   static inline constexpr result_type min() noexcept { return 0; }
   static inline constexpr result_type max() noexcept { return UINT64_MAX; }
   result_type operator()() noexcept {
-    Seed += 0x2d358dccaa6c78a5ull;
-    return rapidMix(Seed, Seed ^ 0x8bb84b93962eacc9ull);
+    a5hashMul128(Seed1 + UINT64_C(0x5555555555555555),
+                 Seed2 + UINT64_C(0xAAAAAAAAAAAAAAAA), Seed1, Seed2);
+    return Seed1 ^ Seed2;
   }
-  result_type Seed;
+  result_type Seed1;
+  result_type Seed2;
 };
 
 static inline thread_local RandomEngine RandEngine;
 
 struct Hash {
-  WASMEDGE_EXPORT static uint64_t
-  rapidHash(Span<const std::byte> Data) noexcept;
+  WASMEDGE_EXPORT static uint64_t a5Hash(Span<const std::byte> Data) noexcept;
 
   template <typename CharT>
   inline uint64_t operator()(const CharT *Str) const noexcept {
     std::basic_string_view<CharT> View(Str);
     Span<const CharT> S(View.data(), View.size());
-    return rapidHash(cxx20::as_bytes(S));
+    return a5Hash(cxx20::as_bytes(S));
   }
   template <typename CharT>
   inline uint64_t
   operator()(const std::basic_string<CharT> &Str) const noexcept {
     Span<const CharT> S(Str.data(), Str.size());
-    return rapidHash(cxx20::as_bytes(S));
+    return a5Hash(cxx20::as_bytes(S));
   }
   template <typename CharT>
   inline uint64_t
   operator()(const std::basic_string_view<CharT> &Str) const noexcept {
     Span<const CharT> S(Str.data(), Str.size());
-    return rapidHash(cxx20::as_bytes(S));
+    return a5Hash(cxx20::as_bytes(S));
   }
   template <typename T, std::enable_if_t<std::is_integral_v<std::remove_cv_t<
                             std::remove_reference_t<T>>>> * = nullptr>

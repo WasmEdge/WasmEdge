@@ -3,6 +3,7 @@
 
 wasmedge_add_executable(wasmedgeCommonTests
   int128Test.cpp
+  hashTest.cpp
 )
 
 add_test(wasmedgeCommonTests wasmedgeCommonTests)

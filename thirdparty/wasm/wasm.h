@@ -10,7 +10,7 @@
 #include <assert.h>
 
 #ifndef WASM_API_EXTERN
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(LIBWASM_STATIC)
 #define WASM_API_EXTERN __declspec(dllimport)
 #else
 #define WASM_API_EXTERN
@@ -100,7 +100,7 @@ typedef wasm_byte_vec_t wasm_name_t;
 #define wasm_name wasm_byte_vec
 #define wasm_name_new wasm_byte_vec_new
 #define wasm_name_new_empty wasm_byte_vec_new_empty
-#define wasm_name_new_new_uninitialized wasm_byte_vec_new_uninitialized
+#define wasm_name_new_uninitialized wasm_byte_vec_new_uninitialized
 #define wasm_name_copy wasm_byte_vec_copy
 #define wasm_name_delete wasm_byte_vec_delete
 
@@ -182,7 +182,7 @@ enum wasm_valkind_enum {
   WASM_I64,
   WASM_F32,
   WASM_F64,
-  WASM_ANYREF = 128,
+  WASM_EXTERNREF = 128,
   WASM_FUNCREF,
 };
 
@@ -191,10 +191,10 @@ WASM_API_EXTERN own wasm_valtype_t* wasm_valtype_new(wasm_valkind_t);
 WASM_API_EXTERN wasm_valkind_t wasm_valtype_kind(const wasm_valtype_t*);
 
 static inline bool wasm_valkind_is_num(wasm_valkind_t k) {
-  return k < WASM_ANYREF;
+  return k < WASM_EXTERNREF;
 }
 static inline bool wasm_valkind_is_ref(wasm_valkind_t k) {
-  return k >= WASM_ANYREF;
+  return k >= WASM_EXTERNREF;
 }
 
 static inline bool wasm_valtype_is_num(const wasm_valtype_t* t) {
@@ -247,6 +247,15 @@ WASM_API_EXTERN own wasm_memorytype_t* wasm_memorytype_new(const wasm_limits_t*)
 WASM_API_EXTERN const wasm_limits_t* wasm_memorytype_limits(const wasm_memorytype_t*);
 
 
+// Tag Types
+
+WASM_DECLARE_TYPE(tagtype)
+
+WASM_API_EXTERN own wasm_tagtype_t* wasm_tagtype_new(own wasm_functype_t*);
+
+WASM_API_EXTERN const wasm_functype_t* wasm_tagtype_functype(const wasm_tagtype_t*);
+
+
 // Extern Types
 
 WASM_DECLARE_TYPE(externtype)
@@ -257,6 +266,7 @@ enum wasm_externkind_enum {
   WASM_EXTERN_GLOBAL,
   WASM_EXTERN_TABLE,
   WASM_EXTERN_MEMORY,
+  WASM_EXTERN_TAG,
 };
 
 WASM_API_EXTERN wasm_externkind_t wasm_externtype_kind(const wasm_externtype_t*);
@@ -265,21 +275,25 @@ WASM_API_EXTERN wasm_externtype_t* wasm_functype_as_externtype(wasm_functype_t*)
 WASM_API_EXTERN wasm_externtype_t* wasm_globaltype_as_externtype(wasm_globaltype_t*);
 WASM_API_EXTERN wasm_externtype_t* wasm_tabletype_as_externtype(wasm_tabletype_t*);
 WASM_API_EXTERN wasm_externtype_t* wasm_memorytype_as_externtype(wasm_memorytype_t*);
+WASM_API_EXTERN wasm_externtype_t* wasm_tagtype_as_externtype(wasm_tagtype_t*);
 
 WASM_API_EXTERN wasm_functype_t* wasm_externtype_as_functype(wasm_externtype_t*);
 WASM_API_EXTERN wasm_globaltype_t* wasm_externtype_as_globaltype(wasm_externtype_t*);
 WASM_API_EXTERN wasm_tabletype_t* wasm_externtype_as_tabletype(wasm_externtype_t*);
 WASM_API_EXTERN wasm_memorytype_t* wasm_externtype_as_memorytype(wasm_externtype_t*);
+WASM_API_EXTERN wasm_tagtype_t* wasm_externtype_as_tagtype(wasm_externtype_t*);
 
 WASM_API_EXTERN const wasm_externtype_t* wasm_functype_as_externtype_const(const wasm_functype_t*);
 WASM_API_EXTERN const wasm_externtype_t* wasm_globaltype_as_externtype_const(const wasm_globaltype_t*);
 WASM_API_EXTERN const wasm_externtype_t* wasm_tabletype_as_externtype_const(const wasm_tabletype_t*);
 WASM_API_EXTERN const wasm_externtype_t* wasm_memorytype_as_externtype_const(const wasm_memorytype_t*);
+WASM_API_EXTERN const wasm_externtype_t* wasm_tagtype_as_externtype_const(const wasm_tagtype_t*);
 
 WASM_API_EXTERN const wasm_functype_t* wasm_externtype_as_functype_const(const wasm_externtype_t*);
 WASM_API_EXTERN const wasm_globaltype_t* wasm_externtype_as_globaltype_const(const wasm_externtype_t*);
 WASM_API_EXTERN const wasm_tabletype_t* wasm_externtype_as_tabletype_const(const wasm_externtype_t*);
 WASM_API_EXTERN const wasm_memorytype_t* wasm_externtype_as_memorytype_const(const wasm_externtype_t*);
+WASM_API_EXTERN const wasm_tagtype_t* wasm_externtype_as_tagtype_const(const wasm_externtype_t*);
 
 
 // Import Types
@@ -547,8 +561,8 @@ static inline own wasm_valtype_t* wasm_valtype_new_f64(void) {
   return wasm_valtype_new(WASM_F64);
 }
 
-static inline own wasm_valtype_t* wasm_valtype_new_anyref(void) {
-  return wasm_valtype_new(WASM_ANYREF);
+static inline own wasm_valtype_t* wasm_valtype_new_externref(void) {
+  return wasm_valtype_new(WASM_EXTERNREF);
 }
 static inline own wasm_valtype_t* wasm_valtype_new_funcref(void) {
   return wasm_valtype_new(WASM_FUNCREF);
@@ -708,8 +722,8 @@ static inline void* wasm_val_ptr(const wasm_val_t* val) {
 #define WASM_I64_VAL(i) {.kind = WASM_I64, .of = {.i64 = i}}
 #define WASM_F32_VAL(z) {.kind = WASM_F32, .of = {.f32 = z}}
 #define WASM_F64_VAL(z) {.kind = WASM_F64, .of = {.f64 = z}}
-#define WASM_REF_VAL(r) {.kind = WASM_ANYREF, .of = {.ref = r}}
-#define WASM_INIT_VAL {.kind = WASM_ANYREF, .of = {.ref = NULL}}
+#define WASM_REF_VAL(r) {.kind = WASM_EXTERNREF, .of = {.ref = r}}
+#define WASM_INIT_VAL {.kind = WASM_EXTERNREF, .of = {.ref = NULL}}
 
 
 ///////////////////////////////////////////////////////////////////////////////

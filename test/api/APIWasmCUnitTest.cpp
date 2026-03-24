@@ -68,10 +68,10 @@ TEST(APIWasmCTest, Store) {
 
 TEST(APIWasmCTest, ValType) {
   wasm_valtype_t *valtypes[6] = {
-      wasm_valtype_new(WASM_I32),    wasm_valtype_new(WASM_I64),
-      wasm_valtype_new(WASM_F32),    wasm_valtype_new(WASM_F64),
-      wasm_valtype_new(WASM_ANYREF), wasm_valtype_new(WASM_FUNCREF)};
-  EXPECT_EQ(WASM_ANYREF, wasm_valtype_kind(valtypes[4]));
+      wasm_valtype_new(WASM_I32),       wasm_valtype_new(WASM_I64),
+      wasm_valtype_new(WASM_F32),       wasm_valtype_new(WASM_F64),
+      wasm_valtype_new(WASM_EXTERNREF), wasm_valtype_new(WASM_FUNCREF)};
+  EXPECT_EQ(WASM_EXTERNREF, wasm_valtype_kind(valtypes[4]));
   EXPECT_EQ(WASM_I32, wasm_valtype_kind(nullptr));
   wasm_valtype_vec_t out, copy;
   WASM_DECLARE_TYPE_TEST(valtype, 6, valtypes, out, copy)
@@ -79,13 +79,13 @@ TEST(APIWasmCTest, ValType) {
   EXPECT_EQ(WASM_I64, wasm_valtype_kind(copy.data[1]));
   EXPECT_EQ(WASM_F32, wasm_valtype_kind(copy.data[2]));
   EXPECT_EQ(WASM_F64, wasm_valtype_kind(copy.data[3]));
-  EXPECT_EQ(WASM_ANYREF, wasm_valtype_kind(copy.data[4]));
+  EXPECT_EQ(WASM_EXTERNREF, wasm_valtype_kind(copy.data[4]));
   EXPECT_EQ(WASM_FUNCREF, wasm_valtype_kind(copy.data[5]));
   EXPECT_EQ(WASM_I32, wasm_valtype_kind(out.data[0]));
   EXPECT_EQ(WASM_I64, wasm_valtype_kind(out.data[1]));
   EXPECT_EQ(WASM_F32, wasm_valtype_kind(out.data[2]));
   EXPECT_EQ(WASM_F64, wasm_valtype_kind(out.data[3]));
-  EXPECT_EQ(WASM_ANYREF, wasm_valtype_kind(out.data[4]));
+  EXPECT_EQ(WASM_EXTERNREF, wasm_valtype_kind(out.data[4]));
   EXPECT_EQ(WASM_FUNCREF, wasm_valtype_kind(out.data[5]));
   WASM_DECLARE_VEC_DEL_TEST(valtype, out, copy)
   EXPECT_TRUE(true);
@@ -131,9 +131,9 @@ TEST(APIWasmCTest, FuncType) {
 
 TEST(APIWasmCTest, GlobalType) {
   wasm_valtype_t *valtypes[6] = {
-      wasm_valtype_new(WASM_I32),    wasm_valtype_new(WASM_I64),
-      wasm_valtype_new(WASM_F32),    wasm_valtype_new(WASM_F64),
-      wasm_valtype_new(WASM_ANYREF), wasm_valtype_new(WASM_FUNCREF)};
+      wasm_valtype_new(WASM_I32),       wasm_valtype_new(WASM_I64),
+      wasm_valtype_new(WASM_F32),       wasm_valtype_new(WASM_F64),
+      wasm_valtype_new(WASM_EXTERNREF), wasm_valtype_new(WASM_FUNCREF)};
   wasm_globaltype_t *globaltypes[6] = {
       wasm_globaltype_new(valtypes[0], WASM_CONST),
       wasm_globaltype_new(valtypes[1], WASM_VAR),
@@ -151,7 +151,7 @@ TEST(APIWasmCTest, GlobalType) {
   EXPECT_EQ(WASM_I64, wasm_valtype_kind(wasm_globaltype_content(copy.data[1])));
   EXPECT_EQ(WASM_F32, wasm_valtype_kind(wasm_globaltype_content(copy.data[2])));
   EXPECT_EQ(WASM_F64, wasm_valtype_kind(wasm_globaltype_content(copy.data[3])));
-  EXPECT_EQ(WASM_ANYREF,
+  EXPECT_EQ(WASM_EXTERNREF,
             wasm_valtype_kind(wasm_globaltype_content(copy.data[4])));
   EXPECT_EQ(WASM_FUNCREF,
             wasm_valtype_kind(wasm_globaltype_content(copy.data[5])));
@@ -166,10 +166,10 @@ TEST(APIWasmCTest, GlobalType) {
 }
 
 TEST(APIWasmCTest, TableType) {
-  wasm_valtype_t *valtypes[3] = {wasm_valtype_new(WASM_ANYREF),
+  wasm_valtype_t *valtypes[3] = {wasm_valtype_new(WASM_EXTERNREF),
                                  wasm_valtype_new(WASM_FUNCREF),
                                  wasm_valtype_new(WASM_FUNCREF)};
-  wasm_limits_t limits = {.min = 10, .max = 20};
+  wasm_limits_t limits = {10, 20};
   wasm_tabletype_t *tabletypes[3] = {
       wasm_tabletype_new(valtypes[0], &limits),
       wasm_tabletype_new(valtypes[1], &limits),
@@ -181,7 +181,7 @@ TEST(APIWasmCTest, TableType) {
   EXPECT_EQ(nullptr, wasm_tabletype_limits(nullptr));
   wasm_tabletype_vec_t out, copy;
   WASM_DECLARE_TYPE_TEST(tabletype, 3, tabletypes, out, copy)
-  EXPECT_EQ(WASM_ANYREF,
+  EXPECT_EQ(WASM_EXTERNREF,
             wasm_valtype_kind(wasm_tabletype_element(copy.data[0])));
   EXPECT_EQ(WASM_FUNCREF,
             wasm_valtype_kind(wasm_tabletype_element(copy.data[1])));
@@ -198,7 +198,7 @@ TEST(APIWasmCTest, TableType) {
 }
 
 TEST(APIWasmCTest, MemoryType) {
-  wasm_limits_t limits = {.min = 10, .max = 20};
+  wasm_limits_t limits = {10, 20};
   wasm_memorytype_t *memorytypes[3] = {wasm_memorytype_new(&limits),
                                        wasm_memorytype_new(&limits),
                                        wasm_memorytype_new(&limits)};
@@ -229,8 +229,8 @@ TEST(APIWasmCTest, ExternType) {
   wasm_valtype_t *valtype = wasm_valtype_new(WASM_I64);
   wasm_globaltype_t *globaltype = wasm_globaltype_new(valtype, WASM_VAR);
   // Create tabletype
-  wasm_limits_t limits = {.min = 10, .max = 20};
-  valtype = wasm_valtype_new(WASM_ANYREF);
+  wasm_limits_t limits = {10, 20};
+  valtype = wasm_valtype_new(WASM_EXTERNREF);
   wasm_tabletype_t *tabletype = wasm_tabletype_new(valtype, &limits);
   // Create memorytype
   wasm_memorytype_t *memorytype = wasm_memorytype_new(&limits);
@@ -284,7 +284,7 @@ TEST(APIWasmCTest, ExternType) {
                               ->data[2]));
   EXPECT_EQ(WASM_I64, wasm_valtype_kind(wasm_globaltype_content(
                           wasm_externtype_as_globaltype_const(copy.data[1]))));
-  EXPECT_EQ(WASM_ANYREF,
+  EXPECT_EQ(WASM_EXTERNREF,
             wasm_valtype_kind(wasm_tabletype_element(
                 wasm_externtype_as_tabletype_const(copy.data[2]))));
   EXPECT_EQ(10U, wasm_memorytype_limits(

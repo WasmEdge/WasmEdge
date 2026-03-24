@@ -8,11 +8,12 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <new>
 #include <limits>
 #include <string>
 
 #ifndef WASM_API_EXTERN
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__) && !defined(LIBWASM_STATIC)
 #define WASM_API_EXTERN __declspec(dllimport)
 #else
 #define WASM_API_EXTERN
@@ -265,11 +266,11 @@ struct Limits {
 
 enum class ValKind : uint8_t {
   I32, I64, F32, F64,
-  ANYREF = 128, FUNCREF,
+  EXTERNREF = 128, FUNCREF,
 };
 
-inline bool is_num(ValKind k) { return k < ValKind::ANYREF; }
-inline bool is_ref(ValKind k) { return k >= ValKind::ANYREF; }
+inline bool is_num(ValKind k) { return k < ValKind::EXTERNREF; }
+inline bool is_ref(ValKind k) { return k >= ValKind::EXTERNREF; }
 
 
 class WASM_API_EXTERN ValType {
@@ -293,13 +294,14 @@ public:
 // External Types
 
 enum class ExternKind : uint8_t {
-  FUNC, GLOBAL, TABLE, MEMORY
+  FUNC, GLOBAL, TABLE, MEMORY, TAG
 };
 
 class FuncType;
 class GlobalType;
 class TableType;
 class MemoryType;
+class TagType;
 
 class WASM_API_EXTERN ExternType {
   friend class destroyer;
@@ -318,11 +320,13 @@ public:
   auto global() -> GlobalType*;
   auto table() -> TableType*;
   auto memory() -> MemoryType*;
+  auto tag() -> TagType*;
 
   auto func() const -> const FuncType*;
   auto global() const -> const GlobalType*;
   auto table() const -> const TableType*;
   auto memory() const -> const MemoryType*;
+  auto tag() const -> const TagType*;
 };
 
 
@@ -405,6 +409,24 @@ public:
 };
 
 
+// Tag Types
+
+class WASM_API_EXTERN TagType : public ExternType {
+  friend class destroyer;
+  void destroy();
+
+protected:
+  TagType() = default;
+  ~TagType() = default;
+
+public:
+  static auto make(own<FuncType>&&) -> own<TagType>;
+  auto copy() const -> own<TagType>;
+
+  auto functype() const -> const FuncType*;
+};
+
+
 // Import Types
 
 using Name = vec<byte_t>;
@@ -484,12 +506,12 @@ class Val {
   Val(ValKind kind, impl impl) : kind_(kind), impl_(impl) {}
 
 public:
-  Val() : kind_(ValKind::ANYREF) { impl_.ref = nullptr; }
+  Val() : kind_(ValKind::EXTERNREF) { impl_.ref = nullptr; }
   explicit Val(int32_t i) : kind_(ValKind::I32) { impl_.i32 = i; }
   explicit Val(int64_t i) : kind_(ValKind::I64) { impl_.i64 = i; }
   explicit Val(float32_t z) : kind_(ValKind::F32) { impl_.f32 = z; }
   explicit Val(float64_t z) : kind_(ValKind::F64) { impl_.f64 = z; }
-  explicit Val(own<Ref>&& r) : kind_(ValKind::ANYREF) { impl_.ref = r.release(); }
+  explicit Val(own<Ref>&& r) : kind_(ValKind::EXTERNREF) { impl_.ref = r.release(); }
 
   Val(Val&& that) : kind_(that.kind_), impl_(that.impl_) {
     if (is_ref()) that.impl_.ref = nullptr;

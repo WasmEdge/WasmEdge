@@ -12,6 +12,7 @@
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
+#include "common/configure.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
 #include <string_view>
@@ -218,8 +219,8 @@ private:
   }
 
   void add_global_options(PO::ArgumentParser &Parser) noexcept {
-    Parser.add_option(SoName)
-        .add_option("log-level"sv, LogLevel)
+
+    Parser.add_option("log-level"sv, LogLevel)
         .add_option("forbidden-plugin"sv, ForbiddenPlugins);
   }
 
@@ -227,6 +228,7 @@ public:
   void add_parse_options(PO::ArgumentParser &Parser) noexcept {
     add_global_options(Parser);
     add_proposal_options(Parser);
+    Parser.add_option(SoName);
 
     Plugin::Plugin::loadFromDefaultPaths();
     Plugin::Plugin::addPluginOptions(Parser);
@@ -264,6 +266,7 @@ public:
         .add_option("gas-limit"sv, GasLim);
   }
 };
+Configure CreateConfigure(const struct DriverToolOptions &Opt) noexcept;
 
 int Tool(struct DriverToolOptions &Opt) noexcept;
 int ParseTool(struct DriverToolOptions &Opt) noexcept;

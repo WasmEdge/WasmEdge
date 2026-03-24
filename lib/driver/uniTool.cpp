@@ -24,13 +24,16 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   PO::SubCommand CompilerSubCommand(
       PO::Description("Wasmedge compiler subcommand"sv));
   PO::SubCommand ParseSubCommand(
-      PO::Description("Wasmedge  parse tool subcommand"sv));
+      PO::Description("Wasmedge parse tool subcommand"sv));
   PO::SubCommand InstantiateSubCommand(
       PO::Description("Wasmedge instantiate tool subcommand"sv));
   PO::SubCommand ValidateSubCommand(
       PO::Description("Wasmedge validate tool subcommand"sv));
   struct DriverToolOptions ToolOptions;
   struct DriverCompilerOptions CompilerOptions;
+  struct DriverToolOptions ParseOptions;
+  struct DriverToolOptions InstantiateOptions;
+  struct DriverToolOptions ValidateOptions;
 
   // Construct Parser Subcommands and Options
   if (ToolSelect == ToolType::All) {
@@ -39,21 +42,23 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     Parser.begin_subcommand(CompilerSubCommand, "compile"sv);
     CompilerOptions.add_option(Parser);
     Parser.end_subcommand();
-
     Parser.begin_subcommand(ToolSubCommand, "run"sv);
     ToolOptions.add_option(Parser);
     Parser.end_subcommand();
     Parser.begin_subcommand(ParseSubCommand, "parse"sv);
-    ToolOptions.add_parse_options(Parser);
+    ParseOptions.add_parse_options(Parser);
     Parser.end_subcommand();
     Parser.begin_subcommand(InstantiateSubCommand, "instantiate"sv);
-    ToolOptions.add_instantiate_options(Parser);
+    InstantiateOptions.add_instantiate_options(Parser);
     Parser.end_subcommand();
     Parser.begin_subcommand(ValidateSubCommand, "validate"sv);
-    ToolOptions.add_validate_options(Parser);
+    ValidateOptions.add_validate_options(Parser);
     Parser.end_subcommand();
   } else if (ToolSelect == ToolType::Tool) {
     ToolOptions.add_option(Parser);
+    ParseOptions.add_parse_options(Parser);
+    InstantiateOptions.add_instantiate_options(Parser);
+    ValidateOptions.add_validate_options(Parser);
   } else if (ToolSelect == ToolType::Compiler) {
     CompilerOptions.add_option(Parser);
   } else {
@@ -78,31 +83,33 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     return EXIT_SUCCESS;
   }
 
-  const std::string &Level = ToolOptions.LogLevel.value();
-
-  if (!Log::setLoggingLevelFromString(Level)) {
-    spdlog::warn("Invalid log level: {}. Valid values are: off, trace, debug, "
-                 "info, warning, error, fatal. Falling back to info level.",
-                 Level);
-    Log::setInfoLoggingLevel();
+  if (!ParseSubCommand.is_selected() && !ValidateSubCommand.is_selected() &&
+      !InstantiateSubCommand.is_selected()) {
+    const std::string &Level = ToolOptions.LogLevel.value();
+    if (!Log::setLoggingLevelFromString(Level)) {
+      spdlog::warn(
+          "Invalid log level: {}. Valid values are: off, trace, debug, "
+          "info, warning, error, fatal. Falling back to info level.",
+          Level);
+      Log::setInfoLoggingLevel();
+    }
   }
 
   // Forward Results
-  if (ToolSubCommand.is_selected() || ToolSelect == ToolType::Tool) {
+  if (ToolSubCommand.is_selected() ||
+      (ToolSelect == ToolType::Tool && !ParseSubCommand.is_selected() &&
+       !ValidateSubCommand.is_selected() &&
+       !InstantiateSubCommand.is_selected())) {
     return Tool(ToolOptions);
   } else if (CompilerSubCommand.is_selected() ||
              ToolSelect == ToolType::Compiler) {
     return Compiler(CompilerOptions);
   } else if (ParseSubCommand.is_selected()) {
-    return ParseTool(ToolOptions);
-  }
-
-  else if (ValidateSubCommand.is_selected()) {
-    return ValidateTool(ToolOptions);
-  }
-
-  else if (InstantiateSubCommand.is_selected()) {
-    return InstantiateTool(ToolOptions);
+    return ParseTool(ParseOptions);
+  } else if (ValidateSubCommand.is_selected()) {
+    return ValidateTool(ValidateOptions);
+  } else if (InstantiateSubCommand.is_selected()) {
+    return InstantiateTool(InstantiateOptions);
   } else {
     return Tool(ToolOptions);
   }

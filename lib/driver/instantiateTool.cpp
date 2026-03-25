@@ -4,10 +4,10 @@
 #include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "driver/tool.h"
-#include "host/wasi/wasimodule.h"
 #include "vm/vm.h"
 
 #include <cstdlib>
+#include <string>
 #include <string_view>
 
 using namespace std::literals;
@@ -30,8 +30,23 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
       std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
 
   VM::VM VM(Conf);
-  Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
-      VM.getImportModule(HostRegistration::Wasi));
+
+  for (const auto &ModEntry : Opt.Modules.value()) {
+    auto Pos = ModEntry.find(':');
+    if (Pos == std::string::npos) {
+      spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,
+                    ModEntry);
+      return EXIT_FAILURE;
+    }
+    auto Name = ModEntry.substr(0, Pos);
+    auto Path = std::filesystem::absolute(
+        std::filesystem::u8path(ModEntry.substr(Pos + 1)));
+    if (auto Result = VM.registerModule(Name, Path); !Result) {
+      spdlog::error("Failed to register module \"{}\" from: {}"sv, Name,
+                    Path.u8string());
+      return EXIT_FAILURE;
+    }
+  }
 
   if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
     return EXIT_FAILURE;
@@ -43,25 +58,7 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
     return EXIT_FAILURE;
   }
 
-  WasiMod->init(Opt.Dir.value(),
-                InputPath.filename()
-                    .replace_extension(std::filesystem::u8path("wasm"sv))
-                    .u8string(),
-                Opt.Args.value(), Opt.Env.value());
-
-  if (Opt.Reactor.value()) {
-    auto Functions = VM.getFunctionList();
-    for (const auto &Func : Functions) {
-      if (Func.first == "_initialize") {
-        if (auto Result = VM.execute("_initialize"sv); !Result) {
-          return EXIT_FAILURE;
-        }
-        break;
-      }
-    }
-  }
-
-  spdlog::info("Instantiation succeeded.");
+  spdlog::info("Instantiation succeeded."sv);
   return EXIT_SUCCESS;
 }
 

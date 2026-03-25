@@ -128,6 +128,12 @@ struct DriverToolOptions {
                 "instance. Upper bound can be specified as --memory-page-limit "
                 "`PAGE_COUNT`."sv),
             PO::MetaVar("PAGE_COUNT"sv)),
+        Modules(
+            PO::Description(
+                "Register additional WASM modules for linking. Each module "
+                "can be specified as --module `name:path`, where `name` is "
+                "the import module name and `path` is the WASM file path."sv),
+            PO::MetaVar("MODULES"sv)),
         ForbiddenPlugins(PO::Description("List of plugins to ignore."sv),
                          PO::MetaVar("NAMES"sv)),
         LogLevel(
@@ -181,6 +187,7 @@ struct DriverToolOptions {
   PO::Option<uint64_t> TimeLim;
   PO::List<int> GasLim;
   PO::List<int> MemLim;
+  PO::List<std::string> Modules;
   PO::List<std::string> ForbiddenPlugins;
   PO::Option<std::string> LogLevel;
 
@@ -243,7 +250,7 @@ public:
 
     Parser.add_option("dir"sv, Dir)
         .add_option("env"sv, Env)
-        .add_option("reactor"sv, Reactor);
+        .add_option("module"sv, Modules);
 
     Parser.add_option("memory-page-limit"sv, MemLim);
   }
@@ -263,7 +270,8 @@ public:
         .add_option("force-interpreter"sv, ConfForceInterpreter)
         .add_option("allow-af-unix"sv, ConfAFUNIX)
         .add_option("time-limit"sv, TimeLim)
-        .add_option("gas-limit"sv, GasLim);
+        .add_option("gas-limit"sv, GasLim)
+        .add_option("reactor"sv, Reactor);
   }
 };
 Configure CreateConfigure(const struct DriverToolOptions &Opt) noexcept;

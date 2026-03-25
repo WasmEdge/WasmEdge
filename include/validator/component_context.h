@@ -9,6 +9,7 @@
 
 #include <deque>
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -18,57 +19,67 @@ namespace Validator {
 
 class ComponentContext {
 public:
+  // ==========================================================================
+  // Validation context (one per component scope)
+  // ==========================================================================
+
   struct Context {
+    Context(const AST::Component::Component *C,
+            const Context *P = nullptr) noexcept
+        : Component(C), Parent(P) {}
+
     const AST::Component::Component *Component;
-    std::vector<const AST::Module *> CoreModules;
-    std::vector<const AST::Component::Component *> ChildComponents;
     const Context *Parent;
-    std::vector<uint32_t> SortIndexSizes;
-    std::vector<uint32_t> CoreSortIndexSizes;
-    std::unordered_map<std::string, uint32_t> TypeSubstitutions;
-    std::unordered_map<uint32_t,
-                       std::unordered_map<std::string_view,
-                                          const AST::Component::ExternDesc *>>
-        ComponentInstanceExports;
-    std::unordered_map<uint32_t,
-                       std::unordered_map<std::string_view, ExternalType>>
-        CoreInstanceExports;
+
+    // --- Core sort index spaces ---
+    std::vector<const AST::Module *> CoreModules; // core:module
+    std::vector<std::unordered_map<std::string, ExternalType>>
+        CoreInstances;                                 // core:instance
+    std::vector<const AST::SubType *> CoreTypes;       // core:type
+    uint32_t CoreFuncCount = 0;                        // core:func
+    std::vector<const AST::TableType *> CoreTables;    // core:table
+    std::vector<const AST::MemoryType *> CoreMemories; // core:memory
+    std::vector<const AST::GlobalType *> CoreGlobals;  // core:global
+
+    // --- Component sort index spaces ---
+    std::vector<const AST::Component::Component *> Components; // component
+    std::vector<std::unordered_map<std::string,
+                                   const AST::Component::ExternDesc *>>
+        Instances;           // instance
+    uint32_t TypeCount = 0;  // type
+    uint32_t FuncCount = 0;  // func
+    uint32_t ValueCount = 0; // value
+
+    // --- Type annotations (keyed by type index) ---
     std::unordered_map<uint32_t, const AST::Component::InstanceType *>
-        ComponentInstanceTypes;
+        InstanceTypes;
     std::unordered_map<uint32_t, const AST::Component::ResourceType *>
-        ComponentResourceTypes;
+        ResourceTypes;
+
+    // --- Validation state ---
+    std::unordered_map<std::string, uint32_t> TypeSubstitutions;
     std::unordered_set<std::string> ImportedNames;
     std::unordered_set<std::string> ExportedNames;
 
-    Context(const AST::Component::Component *C,
-            const Context *P = nullptr) noexcept
-        : Component(C), Parent(P), SortIndexSizes(static_cast<uint32_t>(
-                                       AST::Component::Sort::SortType::Max)),
-          CoreSortIndexSizes(
-              static_cast<uint32_t>(AST::Component::Sort::CoreSortType::Max)) {}
-
+    // Size queries (used by outer alias validation on parent contexts).
+    uint32_t getSortIndexSize(AST::Component::Sort::SortType ST) const noexcept;
     uint32_t
-    getSortIndexSize(const AST::Component::Sort::SortType ST) const noexcept {
-      return SortIndexSizes[static_cast<uint32_t>(ST)];
-    }
-
-    uint32_t getCoreSortIndexSize(
-        const AST::Component::Sort::CoreSortType ST) const noexcept {
-      return CoreSortIndexSizes[static_cast<uint32_t>(ST)];
-    }
+    getCoreSortIndexSize(AST::Component::Sort::CoreSortType ST) const noexcept;
 
     bool AddImportedName(const ComponentName &Name) noexcept;
   };
 
+  // ==========================================================================
+  // Context stack management
+  // ==========================================================================
+
   void reset() noexcept { CompCtxs.clear(); }
 
-  void enterComponent(const AST::Component::Component &C) noexcept {
-    const Context *Parent = nullptr;
-    if (!CompCtxs.empty()) {
-      CompCtxs.back().ChildComponents.emplace_back(&C);
-      Parent = &CompCtxs.back();
-    }
-    CompCtxs.emplace_back(&C, Parent);
+  /// Push a new validation scope. Pass a Component for real components,
+  /// or nullptr for componenttype/instancetype type definition scopes.
+  void enterComponent(const AST::Component::Component *C = nullptr) noexcept {
+    const Context *Parent = CompCtxs.empty() ? nullptr : &CompCtxs.back();
+    CompCtxs.emplace_back(C, Parent);
   }
 
   void exitComponent() noexcept {
@@ -80,58 +91,196 @@ public:
     assuming(!CompCtxs.empty());
     return CompCtxs.back();
   }
-
   const Context &getCurrentContext() const noexcept {
     assuming(!CompCtxs.empty());
     return CompCtxs.back();
   }
 
-  void addCoreModule(const AST::Module &M) noexcept {
-    getCurrentContext().CoreModules.emplace_back(&M);
-  }
+  // ==========================================================================
+  // Index space size queries (generic dispatch by sort enum)
+  // ==========================================================================
 
-  const AST::Module &getCoreModule(const uint32_t Index) const noexcept {
-    return *getCurrentContext().CoreModules.at(Index);
-  }
-
-  uint32_t getCoreModuleCount() const noexcept {
-    return static_cast<uint32_t>(getCurrentContext().CoreModules.size());
-  }
-
-  const AST::Component::Component &
-  getComponent(const uint32_t Index) const noexcept {
-    return *getCurrentContext().ChildComponents.at(Index);
-  }
-
-  uint32_t getComponentCount() const noexcept {
-    return static_cast<uint32_t>(getCurrentContext().ChildComponents.size());
-  }
-
-  const Context *getParentContext() const noexcept {
-    return getCurrentContext().Parent;
-  }
-
-  uint32_t
-  getSortIndexSize(const AST::Component::Sort::SortType ST) const noexcept {
+  uint32_t getSortIndexSize(AST::Component::Sort::SortType ST) const noexcept {
     return getCurrentContext().getSortIndexSize(ST);
   }
-
-  uint32_t getCoreSortIndexSize(
-      const AST::Component::Sort::CoreSortType ST) const noexcept {
+  uint32_t
+  getCoreSortIndexSize(AST::Component::Sort::CoreSortType ST) const noexcept {
     return getCurrentContext().getCoreSortIndexSize(ST);
   }
 
-  void incSortIndexSize(const AST::Component::Sort::SortType ST) noexcept {
-    getCurrentContext().SortIndexSizes[static_cast<uint32_t>(ST)]++;
+  // ==========================================================================
+  // Generic index space increment (for dynamic sort values)
+  // ==========================================================================
+
+  uint32_t incSortIndexSize(AST::Component::Sort::SortType ST) noexcept;
+  uint32_t incCoreSortIndexSize(AST::Component::Sort::CoreSortType ST) noexcept;
+
+  // ==========================================================================
+  // core:module
+  // ==========================================================================
+
+  uint32_t addCoreModule(const AST::Module &M) noexcept {
+    auto &V = getCurrentContext().CoreModules;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(&M);
+    return Idx;
   }
 
-  void
-  incCoreSortIndexSize(const AST::Component::Sort::CoreSortType ST) noexcept {
-    getCurrentContext().CoreSortIndexSizes[static_cast<uint32_t>(ST)]++;
+  uint32_t addCoreModule() noexcept {
+    auto &V = getCurrentContext().CoreModules;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(nullptr);
+    return Idx;
   }
+
+  const AST::Module *getCoreModule(uint32_t Idx) const noexcept {
+    return getCurrentContext().CoreModules.at(Idx);
+  }
+
+  // ==========================================================================
+  // core:instance
+  // ==========================================================================
+
+  uint32_t addCoreInstance() noexcept {
+    auto &V = getCurrentContext().CoreInstances;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.emplace_back();
+    return Idx;
+  }
+
+  const std::unordered_map<std::string, ExternalType> &
+  getCoreInstance(uint32_t Idx) const noexcept {
+    return getCurrentContext().CoreInstances.at(Idx);
+  }
+
+  void addCoreInstanceExport(uint32_t InstIdx, std::string_view Name,
+                             ExternalType ET) {
+    getCurrentContext().CoreInstances.at(InstIdx)[std::string(Name)] = ET;
+  }
+
+  // ==========================================================================
+  // core:type / core:func / core:table / core:memory / core:global / core:tag
+  // ==========================================================================
+
+  uint32_t addCoreType(const AST::SubType *ST = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreTypes;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(ST);
+    return Idx;
+  }
+  uint32_t addCoreFunc() noexcept {
+    return getCurrentContext().CoreFuncCount++;
+  }
+
+  uint32_t addCoreTable(const AST::TableType *TT = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreTables;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(TT);
+    return Idx;
+  }
+  uint32_t addCoreMemory(const AST::MemoryType *MT = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreMemories;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(MT);
+    return Idx;
+  }
+  uint32_t addCoreGlobal(const AST::GlobalType *GT = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreGlobals;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(GT);
+    return Idx;
+  }
+
+  // ==========================================================================
+  // component
+  // ==========================================================================
+
+  uint32_t addComponent(const AST::Component::Component &C) noexcept {
+    auto &V = getCurrentContext().Components;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(&C);
+    return Idx;
+  }
+
+  uint32_t addComponent() noexcept {
+    auto &V = getCurrentContext().Components;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(nullptr);
+    return Idx;
+  }
+
+  const AST::Component::Component *getComponent(uint32_t Idx) const noexcept {
+    return getCurrentContext().Components.at(Idx);
+  }
+
+  // ==========================================================================
+  // instance
+  // ==========================================================================
+
+  uint32_t addInstance() noexcept {
+    auto &V = getCurrentContext().Instances;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.emplace_back();
+    return Idx;
+  }
+
+  const std::unordered_map<std::string, const AST::Component::ExternDesc *> &
+  getInstance(uint32_t Idx) const noexcept {
+    return getCurrentContext().Instances.at(Idx);
+  }
+
+  void addInstanceExport(uint32_t InstIdx, std::string_view Name,
+                         const AST::Component::ExternDesc &ED) {
+    getCurrentContext().Instances.at(InstIdx)[std::string(Name)] = &ED;
+  }
+
+  // ==========================================================================
+  // type
+  // ==========================================================================
+
+  uint32_t addType() noexcept { return getCurrentContext().TypeCount++; }
+
+  uint32_t addType(const AST::Component::InstanceType &IT) noexcept {
+    auto &Ctx = getCurrentContext();
+    uint32_t Idx = Ctx.TypeCount++;
+    Ctx.InstanceTypes[Idx] = &IT;
+    return Idx;
+  }
+
+  uint32_t addType(const AST::Component::ResourceType &RT) noexcept {
+    auto &Ctx = getCurrentContext();
+    uint32_t Idx = Ctx.TypeCount++;
+    Ctx.ResourceTypes[Idx] = &RT;
+    return Idx;
+  }
+
+  const AST::Component::InstanceType *
+  getInstanceType(uint32_t Idx) const noexcept {
+    const auto &Ctx = getCurrentContext();
+    auto It = Ctx.InstanceTypes.find(Idx);
+    return It != Ctx.InstanceTypes.end() ? It->second : nullptr;
+  }
+
+  const AST::Component::ResourceType *
+  getResourceType(uint32_t Idx) const noexcept {
+    const auto &Ctx = getCurrentContext();
+    auto It = Ctx.ResourceTypes.find(Idx);
+    return It != Ctx.ResourceTypes.end() ? It->second : nullptr;
+  }
+
+  // ==========================================================================
+  // func / value
+  // ==========================================================================
+
+  uint32_t addFunc() noexcept { return getCurrentContext().FuncCount++; }
+  uint32_t addValue() noexcept { return getCurrentContext().ValueCount++; }
+
+  // ==========================================================================
+  // Validation state
+  // ==========================================================================
 
   void substituteTypeImport(const std::string &ImportName,
-                            const uint32_t TypeIdx) noexcept {
+                            uint32_t TypeIdx) noexcept {
     getCurrentContext().TypeSubstitutions[ImportName] = TypeIdx;
   }
 
@@ -145,107 +294,13 @@ public:
     return std::nullopt;
   }
 
-  void addComponentInstanceExport(uint32_t InstanceIdx,
-                                  const std::string_view &ExportName,
-                                  const AST::Component::ExternDesc &ED) {
-    auto &Ctx = getCurrentContext();
-    Ctx.ComponentInstanceExports[InstanceIdx][ExportName] = &ED;
-  }
-
-  std::unordered_map<std::string_view, const AST::Component::ExternDesc *>
-  getComponentInstanceExports(uint32_t InstanceIdx) const {
-    const auto &Ctx = getCurrentContext();
-    auto It = Ctx.ComponentInstanceExports.find(InstanceIdx);
-    if (It != Ctx.ComponentInstanceExports.end()) {
-      return It->second;
-    }
-    return {};
-  }
-
-  uint32_t getComponentInstanceExportsSize() const {
-    const auto &Exports = getCurrentContext().ComponentInstanceExports;
-    if (Exports.empty()) {
-      return 0;
-    }
-
-    uint32_t MaxIdx = 0;
-    for (const auto &Pair : Exports) {
-      if (Pair.first > MaxIdx) {
-        MaxIdx = Pair.first;
-      }
-    }
-    return MaxIdx + 1;
-  }
-
-  void addCoreInstanceExport(uint32_t InstanceIdx,
-                             const std::string_view &ExportName,
-                             const ExternalType &ET) {
-    auto &Ctx = getCurrentContext();
-    Ctx.CoreInstanceExports[InstanceIdx][ExportName] = ET;
-  }
-
-  std::unordered_map<std::string_view, ExternalType>
-  getCoreInstanceExports(uint32_t InstanceIdx) const {
-    const auto &Ctx = getCurrentContext();
-    auto It = Ctx.CoreInstanceExports.find(InstanceIdx);
-    if (It != Ctx.CoreInstanceExports.end()) {
-      return It->second;
-    }
-    return {};
-  }
-
-  uint32_t getCoreInstanceExportsSize() const {
-    const auto &Exports = getCurrentContext().CoreInstanceExports;
-    if (Exports.empty()) {
-      return 0;
-    }
-
-    uint32_t MaxIdx = 0;
-    for (const auto &Pair : Exports) {
-      if (Pair.first > MaxIdx) {
-        MaxIdx = Pair.first;
-      }
-    }
-    return MaxIdx + 1;
-  }
-
-  void addComponentInstanceType(uint32_t Idx,
-                                const AST::Component::InstanceType &IT) {
-    auto &Ctx = getCurrentContext();
-    Ctx.ComponentInstanceTypes[Idx] = &IT;
-  }
-
-  const AST::Component::InstanceType *
-  getComponentInstanceType(uint32_t Idx) const {
-    const auto &Ctx = getCurrentContext();
-    auto It = Ctx.ComponentInstanceTypes.find(Idx);
-    if (It != Ctx.ComponentInstanceTypes.end()) {
-      return It->second;
-    } else {
-      return nullptr;
-    }
-  }
-
-  void addComponentResourceType(uint32_t Idx,
-                                const AST::Component::ResourceType &IT) {
-    auto &Ctx = getCurrentContext();
-    Ctx.ComponentResourceTypes[Idx] = &IT;
-  }
-
-  const AST::Component::ResourceType *
-  getComponentResourceType(uint32_t Idx) const {
-    const auto &Ctx = getCurrentContext();
-    auto It = Ctx.ComponentResourceTypes.find(Idx);
-
-    if (It != Ctx.ComponentResourceTypes.end()) {
-      return It->second;
-    } else {
-      return nullptr;
-    }
-  }
-
-  bool AddImportedName(const ComponentName &Name) noexcept {
+  bool addImportedName(const ComponentName &Name) noexcept {
     return getCurrentContext().AddImportedName(Name);
+  }
+
+  /// Returns false if the export name already exists (duplicate).
+  bool addExportedName(std::string_view Name) noexcept {
+    return getCurrentContext().ExportedNames.emplace(Name).second;
   }
 
 private:

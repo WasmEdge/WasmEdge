@@ -768,6 +768,7 @@ TEST(ComponentValidatorTest, TypeMismatch) {
   InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
 
   WasmEdge::Configure Conf;
+  Conf.addProposal(Proposal::Component);
   WasmEdge::Validator::Validator Validator(Conf);
   ASSERT_FALSE(Validator.validate(Comp));
 }

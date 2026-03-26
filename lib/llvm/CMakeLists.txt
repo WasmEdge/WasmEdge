@@ -6,7 +6,7 @@ list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(LLVMConfig)
 include(AddLLVM)
 
-find_package(LLD HINTS "${LLD_CMAKE_PATH}" "${LLD_DIR}" "${LLVM_LIBRARY_DIR}/cmake/lld")
+find_package(LLD)
 if(LLD_FOUND)
   list(APPEND CMAKE_MODULE_PATH "${LLD_CMAKE_DIR}")
 endif()

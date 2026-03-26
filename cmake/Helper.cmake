@@ -215,7 +215,7 @@ endfunction()
 if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLVM)
   # Pack the LLVM and lld static libraries.
   find_package(LLVM REQUIRED HINTS "${LLVM_DIR}")
-  find_package(LLD HINTS "${LLVM_DIR}" "${LLD_DIR}")
+  find_package(LLD)
   if(LLD_FOUND)
     get_property(LLD_LIBRARY_DIR TARGET lldELF PROPERTY IMPORTED_LOCATION_RELEASE)
     get_filename_component(LLD_LIBRARY_DIR "${LLD_LIBRARY_DIR}" DIRECTORY)

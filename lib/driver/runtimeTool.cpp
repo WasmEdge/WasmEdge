@@ -299,6 +299,23 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
 
+  for (const auto &ModEntry : Opt.Modules.value()) {
+    auto Pos = ModEntry.find(':');
+    if (Pos == std::string::npos) {
+      spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,
+                    ModEntry);
+      return EXIT_FAILURE;
+    }
+    auto Name = ModEntry.substr(0, Pos);
+    auto Path = std::filesystem::absolute(
+        std::filesystem::u8path(ModEntry.substr(Pos + 1)));
+    if (auto Result = VM.registerModule(Name, Path); !Result) {
+      spdlog::error("Failed to register module \"{}\" from: {}"sv, Name,
+                    Path.u8string());
+      return EXIT_FAILURE;
+    }
+  }
+
   // Load, validate, and instantiate WASM or Component.
   if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {
     return EXIT_FAILURE;

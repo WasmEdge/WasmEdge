@@ -106,7 +106,7 @@ private:
   // Validate component canonical
   Expect<void> validate(const AST::Component::Canonical &Canon) noexcept;
   Expect<void>
-  validateCanonOptions(AST::Component::Canonical::OpCode Code,
+  validateCanonOptions(ComponentCanonOpCode Code,
                        Span<const AST::Component::CanonOpt> Opts) noexcept;
   // Per-opcode canonical built-in validators.
   Expect<void>

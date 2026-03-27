@@ -36,28 +36,16 @@ namespace Component {
 /// AST Component::CanonOpt definition.
 class CanonOpt {
 public:
-  enum class OptCode : uint8_t {
-    Encode_UTF8 = 0x00,
-    Encode_UTF16 = 0x01,
-    Encode_Latin1 = 0x02,
-    Memory = 0x03,
-    Realloc = 0x04,
-    PostReturn = 0x05,
-    Async = 0x06,
-    Callback = 0x07,
-    AlwaysTaskReturn = 0x08,
-  };
+  CanonOpt() noexcept : Code(ComponentCanonOptCode::Encode_UTF8), Idx(0) {}
 
-  CanonOpt() noexcept : Code(OptCode::Encode_UTF8), Idx(0) {}
-
-  OptCode getCode() const noexcept { return Code; }
-  void setCode(const OptCode C) noexcept { Code = C; }
+  ComponentCanonOptCode getCode() const noexcept { return Code; }
+  void setCode(const ComponentCanonOptCode C) noexcept { Code = C; }
 
   uint32_t getIndex() const noexcept { return Idx; }
   void setIndex(const uint32_t I) noexcept { Idx = I; }
 
 private:
-  OptCode Code;
+  ComponentCanonOptCode Code;
   uint32_t Idx;
 };
 
@@ -130,53 +118,10 @@ private:
 
 class Canonical {
 public:
-  // TODO: COMPONENT - move to enum.inc.
-  enum class OpCode : uint8_t {
-    Lift = 0x00,
-    Lower = 0x01,
-    Resource__new = 0x02,
-    Resource__drop = 0x03,
-    Resource__drop_async = 0x07,
-    Resource__rep = 0x04,
-    Backpressure__set = 0x08,
-    Task__return = 0x09,
-    Task__cancel = 0x05,
-    Context__get = 0x0A,
-    Context__set = 0x0B,
-    Yield = 0x0C,
-    Subtask__cancel = 0x06,
-    Subtask__drop = 0x0D,
-    Stream__new = 0x0E,
-    Stream__read = 0x0F,
-    Stream__write = 0x10,
-    Stream__cancel_read = 0x11,
-    Stream__cancel_write = 0x12,
-    Stream__close_readable = 0x13,
-    Stream__close_writable = 0x14,
-    Future__new = 0x15,
-    Future__read = 0x16,
-    Future__write = 0x17,
-    Future__cancel_read = 0x18,
-    Future__cancel_write = 0x19,
-    Future__close_readable = 0x1A,
-    Future__close_writable = 0x1B,
-    Error_context__new = 0x1C,
-    Error_context__debug_message = 0x1D,
-    Error_context__drop = 0x1E,
-    Waitable_set__new = 0x1F,
-    Waitable_set__wait = 0x20,
-    Waitable_set__poll = 0x21,
-    Waitable_set__drop = 0x22,
-    Waitable__join = 0x23,
-    Thread__spawn_ref = 0x40,
-    Thread__spawn_indirect = 0x41,
-    Thread__available_parallelism = 0x42,
-  };
-
   Canonical() noexcept = default;
 
-  OpCode getOpCode() const noexcept { return Code; }
-  void setOpCode(const OpCode C) noexcept { Code = C; }
+  ComponentCanonOpCode getOpCode() const noexcept { return Code; }
+  void setOpCode(const ComponentCanonOpCode C) noexcept { Code = C; }
 
   bool isAsync() const noexcept { return IsAsync; }
   void setAsync(const bool A) noexcept { IsAsync = A; }
@@ -205,7 +150,7 @@ public:
   }
 
 private:
-  OpCode Code;
+  ComponentCanonOpCode Code;
   bool IsAsync;
   uint32_t Idx, TargetIdx;
   uint32_t I32;

@@ -93,7 +93,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CanonSection &CanonSec) {
   for (const auto &Canon : CanonSec.getContent()) {
     switch (Canon.getOpCode()) {
-    case AST::Component::Canonical::OpCode::Lift: {
+    case ComponentCanonOpCode::Lift: {
       // lift wrap a core wasm function to a component function, with proper
       // modification about canonical ABI.
       const auto &Opts = Canon.getOptions();
@@ -101,20 +101,20 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
-        case AST::Component::CanonOpt::OptCode::Encode_UTF8:
-        case AST::Component::CanonOpt::OptCode::Encode_UTF16:
-        case AST::Component::CanonOpt::OptCode::Encode_Latin1:
+        case ComponentCanonOptCode::Encode_UTF8:
+        case ComponentCanonOptCode::Encode_UTF16:
+        case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
           spdlog::error("    incomplete canonincal options"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-        case AST::Component::CanonOpt::OptCode::Memory:
+        case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::Realloc:
+        case ComponentCanonOptCode::Realloc:
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::PostReturn:
-        case AST::Component::CanonOpt::OptCode::Async:
+        case ComponentCanonOptCode::PostReturn:
+        case ComponentCanonOptCode::Async:
           // TODO: incomplete validation of these cases.
         default:
           assumingUnreachable();
@@ -135,7 +135,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
               DType->getFuncType(), FuncInst, MemInst, ReallocFunc));
       break;
     }
-    case AST::Component::Canonical::OpCode::Lower: {
+    case ComponentCanonOpCode::Lower: {
       // lower sends a component function to a core wasm function, with proper
       // modification about canonical ABI.
 
@@ -149,20 +149,20 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
-        case AST::Component::CanonOpt::OptCode::Encode_UTF8:
-        case AST::Component::CanonOpt::OptCode::Encode_UTF16:
-        case AST::Component::CanonOpt::OptCode::Encode_Latin1:
+        case ComponentCanonOptCode::Encode_UTF8:
+        case ComponentCanonOptCode::Encode_UTF16:
+        case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
           spdlog::error("    incomplete canonincal options"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-        case AST::Component::CanonOpt::OptCode::Memory:
+        case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::Realloc:
+        case ComponentCanonOptCode::Realloc:
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::PostReturn:
-        case AST::Component::CanonOpt::OptCode::Async:
+        case ComponentCanonOptCode::PostReturn:
+        case ComponentCanonOptCode::Async:
           // TODO: incomplete validation of these cases.
         default:
           assumingUnreachable();
@@ -175,9 +175,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       CompInst.addCoreFunction(CoreFuncInst);
       break;
     }
-    case AST::Component::Canonical::OpCode::Resource__new:
-    case AST::Component::Canonical::OpCode::Resource__drop:
-    case AST::Component::Canonical::OpCode::Resource__rep:
+    case ComponentCanonOpCode::Resource__new:
+    case ComponentCanonOpCode::Resource__drop:
+    case ComponentCanonOpCode::Resource__rep:
     default:
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
       spdlog::error("    incomplete canonincal"sv);

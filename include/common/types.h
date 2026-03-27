@@ -442,7 +442,7 @@ using ValVariant =
 // ----------------------------------------------------
 //  byte |      0th ~ 3rd       |      4th ~ 7th
 // ------|----------------------|----------------------
-//  code | ComponentValTypeCode |      Type index
+//  code | ComponentTypeCode |      Type index
 // ----------------------------------------------------
 
 /// ComponentValType class definition.

@@ -83,7 +83,7 @@ static inline constexpr auto ExternalTypeStr = []() constexpr {
 #undef Line
 #undef UseExternalType
   };
-  return DenseEnumMap(Array);
+  return SpareEnumMap(Array);
 }();
 
 /// Component Model Value type C++ enumeration class.
@@ -105,6 +105,48 @@ static inline constexpr const auto ComponentTypeCodeStr = []() constexpr {
 #undef UseComponentTypeCode
   };
   return SpareEnumMap(Array);
+}();
+
+/// Component Model Value opcode C++ enumeration class.
+enum class ComponentCanonOpCode : uint8_t {
+#define UseComponentCanonOpCode
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOpCode
+};
+
+static inline constexpr const auto ComponentCanonOpCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ComponentCanonOpCode, std::string_view> Array[] = {
+#define UseComponentCanonOpCode
+#define Line(NAME, VALUE, STRING) {ComponentCanonOpCode::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOpCode
+  };
+  return SpareEnumMap(Array);
+}();
+
+/// Component Model Value Opt code C++ enumeration class.
+enum class ComponentCanonOptCode : uint8_t {
+#define UseComponentCanonOptCode
+#define Line(NAME, VALUE, STRING) NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOptCode
+};
+
+static inline constexpr const auto ComponentCanonOptCodeStr = []() constexpr {
+  using namespace std::literals::string_view_literals;
+  std::pair<ComponentCanonOptCode, std::string_view> Array[] = {
+#define UseComponentCanonOptCode
+#define Line(NAME, VALUE, STRING) {ComponentCanonOptCode::NAME, STRING},
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOptCode
+  };
+  return DenseEnumMap(Array);
 }();
 
 } // namespace WasmEdge

@@ -51,4 +51,22 @@ enum WasmEdge_ComponentTypeCode {
 #undef UseComponentTypeCode
 };
 
+/// Component Model Canonical opcode C enumeration
+enum WasmEdge_ComponentCanonOpCode {
+#define UseComponentCanonOpCode
+#define Line(NAME, VALUE, STRING) WasmEdge_ComponentCanonOpCode_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOpCode
+};
+
+/// Component Model Canonical Opt code C enumeration
+enum WasmEdge_ComponentCanonOptCode {
+#define UseComponentCanonOptCode
+#define Line(NAME, VALUE, STRING) WasmEdge_ComponentCanonOptCode_##NAME = VALUE,
+#include "enum.inc"
+#undef Line
+#undef UseComponentCanonOptCode
+};
+
 #endif // WASMEDGE_C_API_ENUM_TYPES_H

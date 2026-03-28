@@ -37,7 +37,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
     // Multimodal prompt.
     llama_pos NewNPos;
     int32_t Res = mtmd_helper_eval_chunks(
-        GraphRef.VisionContext.get(), GraphRef.LlamaContext.get(),
+        GraphRef.VisionContext.get(), GraphRef.LlamaContext,
         GraphRef.VisionInputChunks.get(), CxtRef.NPos,
         /* seq_id */ 0, static_cast<int32_t>(CxtRef.CurrentBatchSize),
         /* logits_last */ true, &NewNPos);
@@ -81,7 +81,7 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   }
 
   if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler);
+    common_perf_print(GraphRef.LlamaContext, CxtRef.LlamaSampler);
   }
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute...Done"sv)
@@ -113,7 +113,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
       // Multimodal prompt.
       llama_pos NewNPos;
       int32_t Res = mtmd_helper_eval_chunks(
-          GraphRef.VisionContext.get(), GraphRef.LlamaContext.get(),
+          GraphRef.VisionContext.get(), GraphRef.LlamaContext,
           GraphRef.VisionInputChunks.get(), CxtRef.NPos,
           /* seq_id */ 0, static_cast<int32_t>(CxtRef.CurrentBatchSize),
           /* logits_last */ true, &NewNPos);

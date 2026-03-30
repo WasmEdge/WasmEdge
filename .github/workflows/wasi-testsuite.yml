@@ -9,6 +9,7 @@ on:
     branches:
       - master
     paths:
+      - ".github/scripts/wasi-testsuite-adapter.py"
       - ".github/workflows/wasi-testsuite.yml"
       - "lib/host/wasi/**"
       - "include/host/wasi/**"
@@ -17,6 +18,7 @@ on:
     branches:
       - master
     paths:
+      - ".github/scripts/wasi-testsuite-adapter.py"
       - ".github/workflows/wasi-testsuite.yml"
       - "lib/host/wasi/**"
       - "include/host/wasi/**"

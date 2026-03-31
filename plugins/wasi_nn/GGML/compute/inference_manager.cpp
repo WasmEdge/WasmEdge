@@ -82,25 +82,6 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
 
   return ErrNo::Success;
 }
-// Generate output embedding.
-void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
-                          const float *Embeddings) noexcept {
-  // Embedding vector format
-  // | Content                             |
-  // | ----------------------------------- |
-  // | '{"number_embedding": '             |
-  // | n_embedding                         |
-  // | ', "embedding": '                   |
-  // | '['                                 |
-  // | n_embedding*(embedding value %.10f) |
-  // | (n_embedding-1)*(',')               |
-  // | ']'                                 |
-  // | '}'                                 |
-  Embedding =
-      fmt::format(R"({{"n_embedding": {}, )"
-                  R"("embedding": [{:.10}]}})"sv,
-                  NEmbd, fmt::join(Embeddings, Embeddings + NEmbd, ","sv));
-}
 } // namespace
 
 // Evaluate the input tokens. Clear all inputs on success.
@@ -148,74 +129,6 @@ void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
   CxtRef.LlamaOutputs.clear();
   CxtRef.LlamaOutputTokens.clear();
   LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext...Done"sv)
-}
-
-// TODO: Merge into compute.
-Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding"sv)
-
-  const llama_vocab *Vocab = llama_model_get_vocab(GraphRef.LlamaModel.get());
-  // Add SEP if not present.
-  if (CxtRef.LlamaInputs.size() > 0 &&
-      CxtRef.LlamaInputs.back() != llama_vocab_sep(Vocab)) {
-    LOG_WARN(
-        "getEmbedding: last token in the prompt is not SEP, "sv
-        "'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF "sv
-        "header."sv)
-  }
-
-  // Check if the input is too long.
-  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) >
-      GraphRef.Params.n_batch) {
-    RET_ERROR(
-        ErrNo::PromptTooLong,
-        "getEmbedding: the prompt is too long. Your input has {} tokens exceeds batch "sv
-        "size {}. Please reduce the input size or increase your batch-size."sv,
-        CxtRef.LlamaInputs.size(), GraphRef.Params.n_batch)
-  }
-
-  // Evaluate the input tokens.
-  auto ReturnCode = evaluateInput(GraphRef, CxtRef, "getEmbedding"sv);
-  if (ReturnCode != ErrNo::Success) {
-    return ReturnCode;
-  }
-
-  // Main prediction loop.
-  const int32_t NEmbd = llama_model_n_embd(GraphRef.LlamaModel.get());
-  std::vector<float> Embeddings(NEmbd);
-
-  for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
-    if (!CxtRef.LlamaBatch.logits[I]) {
-      continue;
-    }
-
-    // Try to get sequence embeddings.
-    auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext.get(),
-                                          CxtRef.LlamaBatch.seq_id[I][0]);
-    if (Embd == nullptr) {
-      Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), I);
-      if (Embd == nullptr) {
-        LOG_ERROR("getEmbedding: failed to get embeddings for token {}"sv, I);
-        continue;
-      }
-    }
-
-    // Normalize the embeddings.
-    common_embd_normalize(Embd, Embeddings.data(), NEmbd,
-                          static_cast<int32_t>(CxtRef.Conf.EmbdNormalize));
-  }
-
-  std::string EmbeddingString;
-  buildOutputEmbedding(EmbeddingString, NEmbd, Embeddings.data());
-  CxtRef.LlamaOutputs =
-      std::vector<uint8_t>(EmbeddingString.begin(), EmbeddingString.end());
-
-  if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext.get(), /* Sampler */ nullptr);
-  }
-
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding...Done"sv)
-  return ErrNo::Success;
 }
 
 // Sample and get the output token.

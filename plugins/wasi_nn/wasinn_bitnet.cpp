@@ -1782,77 +1782,6 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
                         CxtRef.OutputBatch, CxtRef.NPos, true);
 }
 
-// TODO: Merge into compute.
-Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding"sv)
-
-  const llama_token SepTokenId = llama_token_sep(GraphRef.LlamaModel.get());
-  if (SepTokenId > -1) {
-    if (CxtRef.LlamaInputs.size() > 0 &&
-        CxtRef.LlamaInputs.back() != SepTokenId) {
-      LOG_WARN(
-          "getEmbedding: last token in the prompt is not SEP, "sv
-          "'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF "sv
-          "header."sv)
-    }
-  }
-
-  // Check if the input is too long.
-  if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) >
-      GraphRef.Params.n_batch) {
-    RET_ERROR(
-        ErrNo::PromptTooLong,
-        "getEmbedding: the prompt is too long. Your input has {} tokens exceeds batch "sv
-        "size {}. Please reduce the input size or increase your batch-size."sv,
-        CxtRef.LlamaInputs.size(), GraphRef.Params.n_batch)
-  }
-
-  // Evaluate the input tokens.
-  auto ReturnCode = evaluateInput(GraphRef, CxtRef, "getEmbedding"sv);
-  if (ReturnCode != ErrNo::Success) {
-    return ReturnCode;
-  }
-
-  // Main prediction loop.
-  const struct llama_model *LlamaModel =
-      llama_get_model(GraphRef.LlamaContext.get());
-  const int32_t NEmbd = llama_n_embd(LlamaModel);
-  std::vector<float> Embeddings(NEmbd);
-
-  for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
-    if (!CxtRef.LlamaBatch.logits[I]) {
-      continue;
-    }
-
-    // Try to get sequence embeddings.
-    auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext.get(),
-                                          CxtRef.LlamaBatch.seq_id[I][0]);
-    if (Embd == nullptr) {
-      Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), I);
-      if (Embd == nullptr) {
-        LOG_ERROR("getEmbedding: failed to get embeddings for token {}"sv, I);
-        continue;
-      }
-    }
-
-    // Normalize the embeddings.
-    common_embd_normalize(Embd, Embeddings.data(), NEmbd,
-                          static_cast<int32_t>(CxtRef.Conf.EmbdNormalize));
-  }
-
-  std::string EmbeddingString;
-  buildOutputEmbedding(EmbeddingString, NEmbd, Embeddings.data());
-  CxtRef.LlamaOutputs =
-      std::vector<uint8_t>(EmbeddingString.begin(), EmbeddingString.end());
-
-  if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext.get(), /* Sampler */ nullptr);
-  }
-
-  LOG_DEBUG(GraphRef.EnableDebugLog, "getEmbedding...Done"sv)
-  return ErrNo::Success;
-}
-
 // <<<<<<<< Compute related functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 } // namespace
@@ -2134,7 +2063,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
 
     Env.NNGraph[CxtRef.GraphId].setReady();
-    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: metadata processing...Done");
+    LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: metadata processing...Done"sv);
     return ErrNo::Success;
   }
 
@@ -2212,13 +2141,32 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
 Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "compute");
+  LOG_DEBUG(GraphRef.EnableDebugLog, "compute"sv);
 
   // Clear the context and reset the sampler.
   clearContext(GraphRef, CxtRef);
 
   if (GraphRef.Params.embedding) {
-    return getEmbedding(GraphRef, CxtRef);
+    const llama_token SepTokenId = llama_token_sep(GraphRef.LlamaModel.get());
+    if (SepTokenId > -1) {
+      if (CxtRef.LlamaInputs.size() > 0 &&
+          CxtRef.LlamaInputs.back() != SepTokenId) {
+        LOG_WARN(
+            "compute: last token in the prompt is not SEP, "sv
+            "'tokenizer.ggml.add_eos_token' should be set to 'true' in the GGUF "sv
+            "header."sv)
+      }
+    }
+
+    // Check if the input is too long.
+    if (static_cast<int64_t>(CxtRef.LlamaInputs.size()) >
+        GraphRef.Params.n_batch) {
+      RET_ERROR(
+          ErrNo::PromptTooLong,
+          "compute: the prompt is too long. Your input has {} tokens exceeds batch "sv
+          "size {}. Please reduce the input size or increase your batch-size."sv,
+          CxtRef.LlamaInputs.size(), GraphRef.Params.n_batch)
+    }
   }
 
   // Evaluate the input tokens.
@@ -2229,33 +2177,68 @@ Expect<ErrNo> compute(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
 
   // Main prediction loop.
   LOG_DEBUG(GraphRef.EnableDebugLog, "compute: enter main prediction loop"sv)
-  int64_t NPredict = CxtRef.Conf.NPredict;
-  if (NPredict < 0) {
-    NPredict = INT32_MAX;
-  }
 
-  while (NPredict > 0) {
-    ReturnCode = sampleOutput(GraphRef, CxtRef);
-    if (ReturnCode != ErrNo::Success) {
-      break;
+  if (GraphRef.Params.embedding) {
+    const struct llama_model *LlamaModel =
+        llama_get_model(GraphRef.LlamaContext.get());
+    const int32_t NEmbd = llama_n_embd(LlamaModel);
+    std::vector<float> Embeddings(NEmbd);
+
+    for (int I = 0; I < CxtRef.LlamaBatch.n_tokens; I++) {
+      if (!CxtRef.LlamaBatch.logits[I]) {
+        continue;
+      }
+
+      // Try to get sequence embeddings.
+      auto *Embd = llama_get_embeddings_seq(GraphRef.LlamaContext.get(),
+                                            CxtRef.LlamaBatch.seq_id[I][0]);
+      if (Embd == nullptr) {
+        Embd = llama_get_embeddings_ith(GraphRef.LlamaContext.get(), I);
+        if (Embd == nullptr) {
+          LOG_ERROR("compute: failed to get embeddings for token {}"sv, I);
+          continue;
+        }
+      }
+
+      // Normalize the embeddings.
+      common_embd_normalize(Embd, Embeddings.data(), NEmbd,
+                            static_cast<int32_t>(CxtRef.Conf.EmbdNormalize));
     }
-    NPredict--;
-  }
 
-  if (ReturnCode == ErrNo::EndOfSequence || ReturnCode == ErrNo::ContextFull) {
-    LOG_INFO(GraphRef.EnableLog, "compute finished with status: {}."sv,
-             static_cast<uint32_t>(ReturnCode))
-    return ErrNo::Success;
+    std::string EmbeddingString;
+    buildOutputEmbedding(EmbeddingString, NEmbd, Embeddings.data());
+    CxtRef.LlamaOutputs =
+        std::vector<uint8_t>(EmbeddingString.begin(), EmbeddingString.end());
+  } else {
+    int64_t NPredict = CxtRef.Conf.NPredict;
+    if (NPredict < 0) {
+      NPredict = INT32_MAX;
+    }
+
+    while (NPredict > 0) {
+      ReturnCode = sampleOutput(GraphRef, CxtRef);
+      if (ReturnCode != ErrNo::Success) {
+        break;
+      }
+      NPredict--;
+    }
+
+    if (ReturnCode == ErrNo::EndOfSequence || ReturnCode == ErrNo::ContextFull) {
+      LOG_INFO(GraphRef.EnableLog, "compute finished with status: {}."sv,
+               static_cast<uint32_t>(ReturnCode))
+      return ErrNo::Success;
+    }
+
   }
 
   LOG_DEBUG(GraphRef.EnableDebugLog,
             "compute: enter main prediction loop...Done"sv)
 
   if (GraphRef.EnableLog) {
-    common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler.get());
+    common_perf_print(GraphRef.LlamaContext.get(), GraphRef.Params.embedding ? nullptr : CxtRef.LlamaSampler.get());
   }
 
-  LOG_DEBUG(GraphRef.EnableDebugLog, "compute...Done")
+  LOG_DEBUG(GraphRef.EnableDebugLog, "compute...Done"sv)
   return ReturnCode;
 }
 
@@ -2332,7 +2315,7 @@ Expect<ErrNo> computeSingle(WasiNNEnvironment &Env,
 Expect<ErrNo> finiSingle(WasiNNEnvironment &Env, uint32_t ContextId) noexcept {
   auto &CxtRef = Env.NNContext[ContextId].get<Context>();
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
-  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle");
+  LOG_DEBUG(GraphRef.EnableDebugLog, "finiSingle"sv);
 
   if (GraphRef.EnableLog) {
     common_perf_print(GraphRef.LlamaContext.get(), CxtRef.LlamaSampler.get());
@@ -2394,7 +2377,7 @@ Expect<ErrNo> finalizeExecCtx(WasiNNEnvironment &Env,
 namespace {
 Expect<ErrNo> reportBackendNotSupported() noexcept {
   spdlog::error("[WASI-NN] BitNet backend is not built. Please build with "
-                "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET=ON."sv);
+                "-DWASMEDGE_PLUGIN_WASI_NN_BACKEND=bitnet."sv);
   return ErrNo::InvalidArgument;
 }
 } // namespace

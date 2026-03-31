@@ -18,7 +18,7 @@ namespace Driver {
 int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
 
-  Configure Conf = CreateConfigure(Opt);
+  Configure Conf = createConfigure(Opt);
 
   if (Opt.MemLim.value().size() > 0) {
     Conf.getRuntimeConfigure().setMaxMemoryPage(
@@ -31,7 +31,7 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
 
   VM::VM VM(Conf);
 
-  for (const auto &ModEntry : Opt.Modules.value()) {
+  for (const auto &ModEntry : Opt.LinkedModules.value()) {
     auto Pos = ModEntry.find(':');
     if (Pos == std::string::npos) {
       spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,

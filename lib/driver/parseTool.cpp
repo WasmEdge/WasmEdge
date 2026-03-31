@@ -19,14 +19,14 @@ namespace Driver {
 int ParseTool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
 
-  Configure Conf = CreateConfigure(Opt);
+  Configure Conf = createConfigure(Opt);
   const auto InputPath =
       std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
 
   Loader::Loader Loader(Conf);
   auto Res = Loader.parseModule(InputPath);
   if (!Res) {
-    spdlog::error("Failed to parse WASM module.");
+    spdlog::error("Failed to parse WASM module."sv);
     return EXIT_FAILURE;
   }
   const auto &Mod = **Res;

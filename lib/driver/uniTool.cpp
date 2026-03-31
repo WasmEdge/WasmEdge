@@ -56,11 +56,14 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     Parser.end_subcommand();
   } else if (ToolSelect == ToolType::Tool) {
     ToolOptions.add_option(Parser);
-    ParseOptions.add_parse_options(Parser);
-    InstantiateOptions.add_instantiate_options(Parser);
-    ValidateOptions.add_validate_options(Parser);
   } else if (ToolSelect == ToolType::Compiler) {
     CompilerOptions.add_option(Parser);
+  } else if (ToolSelect == ToolType::Parse) {
+    ParseOptions.add_parse_options(Parser);
+  } else if (ToolSelect == ToolType::Validate) {
+    ValidateOptions.add_validate_options(Parser);
+  } else if (ToolSelect == ToolType::Instantiate) {
+    InstantiateOptions.add_instantiate_options(Parser);
   } else {
     return EXIT_FAILURE;
   }
@@ -89,26 +92,25 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     if (!Log::setLoggingLevelFromString(Level)) {
       spdlog::warn(
           "Invalid log level: {}. Valid values are: off, trace, debug, "
-          "info, warning, error, fatal. Falling back to info level.",
+          "info, warning, error, fatal. Falling back to info level."sv,
           Level);
       Log::setInfoLoggingLevel();
     }
   }
 
   // Forward Results
-  if (ToolSubCommand.is_selected() ||
-      (ToolSelect == ToolType::Tool && !ParseSubCommand.is_selected() &&
-       !ValidateSubCommand.is_selected() &&
-       !InstantiateSubCommand.is_selected())) {
+  if (ToolSubCommand.is_selected() || ToolSelect == ToolType::Tool) {
     return Tool(ToolOptions);
   } else if (CompilerSubCommand.is_selected() ||
              ToolSelect == ToolType::Compiler) {
     return Compiler(CompilerOptions);
-  } else if (ParseSubCommand.is_selected()) {
+  } else if (ParseSubCommand.is_selected() || ToolSelect == ToolType::Parse) {
     return ParseTool(ParseOptions);
-  } else if (ValidateSubCommand.is_selected()) {
+  } else if (ValidateSubCommand.is_selected() ||
+             ToolSelect == ToolType::Validate) {
     return ValidateTool(ValidateOptions);
-  } else if (InstantiateSubCommand.is_selected()) {
+  } else if (InstantiateSubCommand.is_selected() ||
+             ToolSelect == ToolType::Instantiate) {
     return InstantiateTool(InstantiateOptions);
   } else {
     return Tool(ToolOptions);

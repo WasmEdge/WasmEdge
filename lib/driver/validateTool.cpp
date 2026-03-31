@@ -5,7 +5,6 @@
 #include "common/filesystem.h"
 #include "common/spdlog.h"
 #include "driver/tool.h"
-#include "host/wasi/wasimodule.h"
 #include "vm/vm.h"
 
 #include <cstdlib>
@@ -19,7 +18,7 @@ int ValidateTool(struct DriverToolOptions &Opt) noexcept {
 
   std::ios::sync_with_stdio(false);
 
-  Configure Conf = CreateConfigure(Opt);
+  Configure Conf = createConfigure(Opt);
 
   Conf.addHostRegistration(HostRegistration::Wasi);
   const auto InputPath =
@@ -37,7 +36,7 @@ int ValidateTool(struct DriverToolOptions &Opt) noexcept {
     return EXIT_FAILURE;
   }
 
-  spdlog::info("Validation succeeded.");
+  spdlog::info("Validation succeeded."sv);
   return EXIT_SUCCESS;
 }
 } // namespace Driver

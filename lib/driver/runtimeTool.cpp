@@ -241,7 +241,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 int Tool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
 
-  Configure Conf = CreateConfigure(Opt);
+  Configure Conf = createConfigure(Opt);
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
   if (Opt.TimeLim.value() > 0) {
@@ -299,7 +299,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
 
-  for (const auto &ModEntry : Opt.Modules.value()) {
+  for (const auto &ModEntry : Opt.LinkedModules.value()) {
     auto Pos = ModEntry.find(':');
     if (Pos == std::string::npos) {
       spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,

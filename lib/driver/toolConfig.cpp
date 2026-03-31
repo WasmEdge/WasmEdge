@@ -1,10 +1,9 @@
-
-
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/configure.h"
 #include "common/spdlog.h"
+#include "driver/options.h"
 #include "driver/tool.h"
 
 #include <string_view>
@@ -14,16 +13,8 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Driver {
 
-Configure CreateConfigure(const struct DriverToolOptions &Opt) noexcept {
-  // Setup logging
-  const std::string &Level =
-      Opt.LogLevel.value().empty() ? "info" : Opt.LogLevel.value();
-  if (!Log::setLoggingLevelFromString(Level)) {
-    spdlog::warn("Invalid log level: {}. Valid values are: off, trace, debug, "
-                 "info, warning, error, fatal. Falling back to info level.",
-                 Level);
-    Log::setInfoLoggingLevel();
-  }
+Configure
+createProposalConfigure(const struct DriverProposalOptions &Opt) noexcept {
   Configure Conf;
   // WASM standard configuration has the highest priority.
   if (Opt.PropWASM1.value()) {
@@ -67,9 +58,6 @@ Configure CreateConfigure(const struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropRelaxedSIMD.value()) {
     Conf.removeProposal(Proposal::RelaxSIMD);
   }
-  if (Opt.PropExceptionHandling.value()) {
-    Conf.removeProposal(Proposal::ExceptionHandling);
-  }
   if (Opt.PropMemory64.value()) {
     Conf.removeProposal(Proposal::Memory64);
   }
@@ -84,9 +72,6 @@ Configure CreateConfigure(const struct DriverToolOptions &Opt) noexcept {
   }
   if (Opt.PropRelaxedSIMDDeprecated.value()) {
     Conf.addProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropExceptionHandlingDeprecated.value()) {
-    Conf.addProposal(Proposal::ExceptionHandling);
   }
 
   // Handle the proposal removal which has dependency.
@@ -114,13 +99,38 @@ Configure CreateConfigure(const struct DriverToolOptions &Opt) noexcept {
   if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
+  if (Opt.PropAll.value()) {
+    Conf.setWASMStandard(Standard::WASM_3);
+    Conf.addProposal(Proposal::Threads);
+  }
+
+  return Conf;
+}
+
+Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
+  // Setup logging
+  const std::string &Level =
+      Opt.LogLevel.value().empty() ? "info" : Opt.LogLevel.value();
+  if (!Log::setLoggingLevelFromString(Level)) {
+    spdlog::warn("Invalid log level: {}. Valid values are: off, trace, debug, "
+                 "info, warning, error, fatal. Falling back to info level."sv,
+                 Level);
+    Log::setInfoLoggingLevel();
+  }
+
+  Configure Conf = createProposalConfigure(Opt);
+
+  if (Opt.PropExceptionHandling.value()) {
+    Conf.removeProposal(Proposal::ExceptionHandling);
+  }
+  if (Opt.PropExceptionHandlingDeprecated.value()) {
+    Conf.addProposal(Proposal::ExceptionHandling);
+  }
   if (Opt.PropComponent.value()) {
     Conf.addProposal(Proposal::Component);
     spdlog::warn("component model is enabled, this is experimental."sv);
   }
   if (Opt.PropAll.value()) {
-    Conf.setWASMStandard(Standard::WASM_3);
-    Conf.addProposal(Proposal::Threads);
     spdlog::warn("component model is enabled, this is experimental."sv);
     Conf.addProposal(Proposal::Component);
   }

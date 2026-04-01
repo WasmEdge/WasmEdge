@@ -26,6 +26,7 @@ namespace Component {
 //             | 0x01                       => table
 //             | 0x02                       => memory
 //             | 0x03                       => global
+//             | 0x04                       => tag
 //             | 0x10                       => type
 //             | 0x11                       => module
 //             | 0x12                       => instance
@@ -44,6 +45,7 @@ public:
     Table = 0x01,
     Memory = 0x02,
     Global = 0x03,
+    Tag = 0x04,
     Type = 0x10,
     Module = 0x11,
     Instance = 0x12,

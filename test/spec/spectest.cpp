@@ -951,10 +951,25 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
             return;
           }
         }
+        std::string_view FileName = Cmd["filename"];
+        const auto FilePath =
+            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
+        const uint64_t LineNumber = Cmd["line"];
         if (IsComponent) {
           if (!checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
-            // Skip module for unsupported component model tests of
-            // instantiation.
+            if (!checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
+              if (checkComponentSupported(UnitName, WasmPhase::Validation)) {
+                if (!onValidate(Ctx, FilePath)) {
+                  EXPECT_NE(LineNumber, LineNumber);
+                }
+              } else if (checkComponentSupported(UnitName,
+                                                 WasmPhase::Loading)) {
+                if (!onLoad(Ctx, FilePath)) {
+                  EXPECT_NE(LineNumber, LineNumber);
+                }
+              }
+              return;
+            }
             return;
           }
           if (!checkComponentSupported(UnitName, WasmPhase::Validation)) {
@@ -963,10 +978,6 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         } else {
           SkipComponentValidation = false;
         }
-        std::string_view FileName = Cmd["filename"];
-        const auto FilePath =
-            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
-        const uint64_t LineNumber = Cmd["line"];
         std::string LineStr = std::to_string(LineNumber);
         std::string_view TempName;
         if (!Cmd["name"].get(TempName)) {

@@ -50,12 +50,21 @@ jobs:
         if: ${{ !inputs.release }}
         run: |
           brew install llvm ninja wabt grpc
-      - name: Get lld version
+      - name: Check LLVM and LLD version match - non-release
         if: ${{ !inputs.release }}
-        id: lld-version-non-release
+        id: check-versions-non-release
         run: |
-          VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          LLVM_VERSION=$(brew info --json llvm | jq -r '.[0].versions.stable')
+          LLD_VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
+          echo "llvm_version=${LLVM_VERSION}" >> $GITHUB_OUTPUT
+          echo "lld_version=${LLD_VERSION}" >> $GITHUB_OUTPUT
+          echo "Homebrew LLVM version: ${LLVM_VERSION}"
+          echo "WasmEdge/llvm/lld version: ${LLD_VERSION}"
+          if [ "${LLVM_VERSION}" != "${LLD_VERSION}" ]; then
+            echo "::error::LLVM version mismatch: brew llvm=${LLVM_VERSION}, WasmEdge/llvm/lld=${LLD_VERSION}. Please update the WasmEdge/llvm/lld formula to match."
+            exit 1
+          fi
+          echo "Versions match: ${LLVM_VERSION}"
       - name: Cache lld and cmake - non-release
         if: ${{ !inputs.release }}
         id: cache-lld-non-release
@@ -64,9 +73,9 @@ jobs:
           path: |
             ${{ env.BREW_PREFIX }}/Cellar/lld
             ${{ env.BREW_PREFIX }}/Cellar/cmake
-          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-non-release.outputs.version }}-${{ hashFiles('.github/workflows/reusable-build-on-macos.yml') }}
+          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.check-versions-non-release.outputs.lld_version }}
           restore-keys: |
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-non-release.outputs.version }}-
+            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.check-versions-non-release.outputs.lld_version }}
       - name: Install or link lld and cmake - non-release
         if: ${{ !inputs.release }}
         run: |
@@ -85,12 +94,21 @@ jobs:
         if: ${{ inputs.release }}
         run: |
           brew install llvm ninja wabt
-      - name: Get lld version
+      - name: Check LLVM and LLD version match - release
         if: ${{ inputs.release }}
-        id: lld-version-release
+        id: check-versions-release
         run: |
-          VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          LLVM_VERSION=$(brew info --json llvm | jq -r '.[0].versions.stable')
+          LLD_VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
+          echo "llvm_version=${LLVM_VERSION}" >> $GITHUB_OUTPUT
+          echo "lld_version=${LLD_VERSION}" >> $GITHUB_OUTPUT
+          echo "Homebrew LLVM version: ${LLVM_VERSION}"
+          echo "WasmEdge/llvm/lld version: ${LLD_VERSION}"
+          if [ "${LLVM_VERSION}" != "${LLD_VERSION}" ]; then
+            echo "::error::LLVM version mismatch: brew llvm=${LLVM_VERSION}, WasmEdge/llvm/lld=${LLD_VERSION}. Please update the WasmEdge/llvm/lld formula to match."
+            exit 1
+          fi
+          echo "Versions match: ${LLVM_VERSION}"
       - name: Cache lld and cmake - release
         if: ${{ inputs.release }}
         id: cache-lld-release
@@ -99,9 +117,9 @@ jobs:
           path: |
             ${{ env.BREW_PREFIX }}/Cellar/lld
             ${{ env.BREW_PREFIX }}/Cellar/cmake
-          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-release.outputs.version }}-${{ hashFiles('.github/workflows/reusable-build-on-macos.yml') }}
+          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.check-versions-release.outputs.lld_version }}
           restore-keys: |
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-release.outputs.version }}-
+            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.check-versions-release.outputs.lld_version }}
       - name: Install or link lld and cmake - release
         if: ${{ inputs.release }}
         run: |

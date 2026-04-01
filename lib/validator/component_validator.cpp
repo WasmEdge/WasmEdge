@@ -746,27 +746,29 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
     return E;
   }));
 
-  ComponentName CName(Im.getName());
+  EXPECTED_TRY(ComponentName CName,
+               ComponentName::parse(Im.getName()).map_error([](auto E) {
+                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+                 return E;
+               }));
+
+  // Annotated plainnames ([constructor], [method], [static]) can only appear
+  // on func imports.
   switch (CName.getKind()) {
-  case ComponentNameKind::InterfaceType:
-  case ComponentNameKind::Label:
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
+    if (Im.getDesc().getDescType() !=
+        AST::Component::ExternDesc::DescType::FuncType) {
+      spdlog::error(ErrCode::Value::ComponentInvalidName);
+      spdlog::error("    Import: annotated name requires func type"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::ComponentInvalidName);
+    }
     break;
-  case ComponentNameKind::Invalid:
-    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
-    spdlog::error("    Import: Invalid import name"sv);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
   default:
-    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
-    spdlog::error("    Import: Import name kind not supported yet"sv);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
+    break;
   }
-  // TODO: Validation requires that annotated plainnames only occur on func
-  // imports or exports and that the first label of a [constructor],
-  // [method] or [static] matches the plainname of a preceding resource
-  // import or export, respectively, in the same scope (component, component
-  // type or instance type).
 
   // TODO: Validation of [constructor] names requires that the func returns
   // a (result (own $R)), where $R is the resource labeled r.
@@ -775,26 +777,13 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
   // function to be (param "self" (borrow $R)), where $R is the resource
   // labeled r.
 
-  // TODO: Validation of [method] and [static] names ensures that all field
-  // names are disjoint.
-  switch (CName.getKind()) {
-  case ComponentNameKind::Constructor:
-  case ComponentNameKind::Method:
-  case ComponentNameKind::Static:
-  case ComponentNameKind::InterfaceType:
-  case ComponentNameKind::Label:
-    if (!CompCtx.AddImportedName(CName)) {
-      spdlog::error(ErrCode::Value::ComponentDuplicateName);
-      spdlog::error("    Import: Duplicate import name"sv);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-      return Unexpect(ErrCode::Value::ComponentDuplicateName);
-    }
-    break;
-  default:
-    spdlog::error(ErrCode::Value::ComponentNotImplValidator);
-    spdlog::error("    Import: Name is not resolved"sv);
+  // TODO: Validation of [static] names requires the resource name to be
+  // known in the current context.
+  if (!CompCtx.AddImportedName(CName)) {
+    spdlog::error(ErrCode::Value::ComponentDuplicateName);
+    spdlog::error("    Import: Duplicate import name"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-    return Unexpect(ErrCode::Value::ComponentNotImplValidator);
+    return Unexpect(ErrCode::Value::ComponentDuplicateName);
   }
 
   return {};
@@ -807,6 +796,27 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
       return E;
     }));
   }
+
+  // exportname ::= <plainname> | <interfacename>
+  EXPECTED_TRY(ComponentName CName,
+               ComponentName::parse(Ex.getName()).map_error([](auto E) {
+                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+                 return E;
+               }));
+  switch (CName.getKind()) {
+  case ComponentNameKind::Label:
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
+  case ComponentNameKind::InterfaceType:
+    break;
+  default:
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    Export: name kind not valid for exports"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+
   const auto &Sort = Ex.getSortIndex().getSort();
   if (!Sort.isCore()) {
     CompCtx.incSortIndexSize(Sort.getSortType());

@@ -11,6 +11,10 @@ bool ComponentContext::Context::AddImportedName(
   case ComponentNameKind::Static:
   case ComponentNameKind::InterfaceType:
   case ComponentNameKind::Label:
+  case ComponentNameKind::LockedDep:
+  case ComponentNameKind::UnlockedDep:
+  case ComponentNameKind::Url:
+  case ComponentNameKind::Integrity:
     break;
   default:
     return false;

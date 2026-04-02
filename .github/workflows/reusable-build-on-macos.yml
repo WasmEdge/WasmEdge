@@ -40,74 +40,45 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Setup build environment - non-release
-        if: ${{ !inputs.release }}
+      - name: Setup build environment
         run: |
           echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
           brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
           brew tap WasmEdge/llvm
-      - name: Install Homebrew tools - non-release
-        if: ${{ !inputs.release }}
-        run: |
-          brew install llvm ninja wabt grpc
-      - name: Get lld version
-        if: ${{ !inputs.release }}
-        id: lld-version-non-release
-        run: |
-          VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-      - name: Cache lld and cmake - non-release
-        if: ${{ !inputs.release }}
-        id: cache-lld-non-release
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
-        with:
-          path: |
-            ${{ env.BREW_PREFIX }}/Cellar/lld
-            ${{ env.BREW_PREFIX }}/Cellar/cmake
-          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-non-release.outputs.version }}-${{ hashFiles('.github/workflows/reusable-build-on-macos.yml') }}
-          restore-keys: |
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-non-release.outputs.version }}-
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-
-      - name: Install or link lld and cmake - non-release
-        if: ${{ !inputs.release }}
-        run: |
-          if [ "${{ steps.cache-lld-non-release.outputs.cache-hit }}" != "true" ]; then
-            brew install --build-from-source WasmEdge/llvm/lld
-          fi
-          brew link lld || true
-          brew link cmake || true
-      - name: Setup build environment - release
-        if: ${{ inputs.release }}
-        run: |
-          echo "BREW_PREFIX=$(brew --prefix)" >> $GITHUB_ENV
-          brew uninstall cmake # conflict with the one used by WasmEdge/llvm/lld
-          brew tap WasmEdge/llvm
-      - name: Install Homebrew tools - release
-        if: ${{ inputs.release }}
+      - name: Install Homebrew tools
         run: |
           brew install llvm ninja wabt
-      - name: Get lld version
-        if: ${{ inputs.release }}
-        id: lld-version-release
+      - name: Install grpc
+        if: ${{ !inputs.release }}
         run: |
-          VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-      - name: Cache lld and cmake - release
-        if: ${{ inputs.release }}
-        id: cache-lld-release
+          brew install grpc
+      - name: Check LLVM and LLD version match
+        id: check-versions
+        run: |
+          LLVM_VERSION=$(brew info --json llvm | jq -r '.[0].versions.stable')
+          LLD_VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
+          echo "llvm_version=${LLVM_VERSION}" >> $GITHUB_OUTPUT
+          echo "lld_version=${LLD_VERSION}" >> $GITHUB_OUTPUT
+          echo "Homebrew LLVM version: ${LLVM_VERSION}"
+          echo "WasmEdge/llvm/lld version: ${LLD_VERSION}"
+          if [ "${LLVM_VERSION}" != "${LLD_VERSION}" ]; then
+            echo "::error::LLVM version mismatch: brew llvm=${LLVM_VERSION}, WasmEdge/llvm/lld=${LLD_VERSION}. Please update the WasmEdge/llvm/lld formula to match."
+            exit 1
+          fi
+          echo "Versions match: ${LLVM_VERSION}"
+      - name: Cache lld and cmake
+        id: cache-lld
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: |
             ${{ env.BREW_PREFIX }}/Cellar/lld
             ${{ env.BREW_PREFIX }}/Cellar/cmake
-          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-release.outputs.version }}-${{ hashFiles('.github/workflows/reusable-build-on-macos.yml') }}
+          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.check-versions.outputs.lld_version }}
           restore-keys: |
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.lld-version-release.outputs.version }}-
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-
-      - name: Install or link lld and cmake - release
-        if: ${{ inputs.release }}
+            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.check-versions.outputs.lld_version }}
+      - name: Install or link lld and cmake
         run: |
-          if [ "${{ steps.cache-lld-release.outputs.cache-hit }}" != "true" ]; then
+          if [ "${{ steps.cache-lld.outputs.cache-hit }}" != "true" ]; then
             brew install --build-from-source WasmEdge/llvm/lld
           fi
           brew link lld || true

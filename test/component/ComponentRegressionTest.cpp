@@ -1081,12 +1081,8 @@ TEST(ComponentNameParser, Semver) {
   // Invalid versions.
   EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@01.2.3"sv));
   EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@abc"sv));
-  // Package is <label> per spec — allows mixed-case kebab.
-  // NOTE: wasm-tools enforces lowercase here; we follow the spec grammar.
-  // If the spec updates <label> to <words>, change these expectations.
-  EXPECT_TRUE(ComponentName::parse("a:B/c"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:PKG/iface"sv));
-  // "Pkg" is NOT valid kebab (mixed case within fragment).
+  EXPECT_FALSE(ComponentName::parse("a:B/c"sv));
+  EXPECT_FALSE(ComponentName::parse("ns:PKG/iface"sv));
   EXPECT_FALSE(ComponentName::parse("ns:Pkg/iface"sv));
   EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@"sv));
   EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.0.0"sv));

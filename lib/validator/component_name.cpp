@@ -581,13 +581,9 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
       return reportError("nested namespaces not supported yet"sv);
     }
 
-    // NOTE: The spec (Explainer.md:2550) uses <label> here, which allows
-    // mixed-case kebab. The wasm-tools reference implementation enforces
-    // lowercase, and the spec test naming.14.wasm expects rejection of
-    // uppercase packages. We follow the spec grammar; if the spec updates
-    // to <words>, this should be changed to isLowercaseKebabString.
-    if (!tryReadKebab(Next, Package)) {
-      return reportError("invalid package label in interface name"sv);
+    // interfacename ::= <namespace> <words> <projection> ...
+    if (!tryReadKebab(Next, Package) || !isLowercaseKebabString(Package)) {
+      return reportError("invalid package in interface name"sv);
     }
 
     Counter = 0;

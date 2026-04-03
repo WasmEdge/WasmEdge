@@ -724,13 +724,13 @@ Expect<void>
 Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   // TODO: validation specifies
   switch (Canon.getOpCode()) {
-  case AST::Component::Canonical::OpCode::Lift:
+  case ComponentCanonOpCode::Lift:
     CompCtx.incSortIndexSize(AST::Component::Sort::SortType::Func);
     return {};
-  case AST::Component::Canonical::OpCode::Lower:
-  case AST::Component::Canonical::OpCode::Resource__new:
-  case AST::Component::Canonical::OpCode::Resource__drop:
-  case AST::Component::Canonical::OpCode::Resource__rep:
+  case ComponentCanonOpCode::Lower:
+  case ComponentCanonOpCode::Resource__new:
+  case ComponentCanonOpCode::Resource__drop:
+  case ComponentCanonOpCode::Resource__rep:
     CompCtx.incCoreSortIndexSize(AST::Component::Sort::CoreSortType::Func);
     return {};
   default:

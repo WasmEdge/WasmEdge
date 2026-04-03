@@ -98,11 +98,11 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   };
 
   EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
-  auto Code = static_cast<AST::Component::Canonical::OpCode>(Flag);
+  auto Code = static_cast<ComponentCanonOpCode>(Flag);
   switch (Code) {
 
   // 0x00 0x00 f:<core:funcidx> opts:<opts> ft:<typeidx>
-  case AST::Component::Canonical::OpCode::Lift: {
+  case ComponentCanonOpCode::Lift: {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (unlikely(B != 0x00)) {
       return ReportError(ErrCode::Value::MalformedCanonical);
@@ -116,7 +116,7 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   }
 
   // 0x01 0x00 f:<funcidx> opts:<opts>
-  case AST::Component::Canonical::OpCode::Lower: {
+  case ComponentCanonOpCode::Lower: {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (unlikely(B != 0x00)) {
       return ReportError(ErrCode::Value::MalformedCanonical);
@@ -128,35 +128,35 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   }
 
   // typeidx-only opcodes
-  case AST::Component::Canonical::OpCode::Resource__new:
-  case AST::Component::Canonical::OpCode::Resource__drop:
-  case AST::Component::Canonical::OpCode::Resource__drop_async:
-  case AST::Component::Canonical::OpCode::Resource__rep:
-  case AST::Component::Canonical::OpCode::Stream__new:
-  case AST::Component::Canonical::OpCode::Stream__close_readable:
-  case AST::Component::Canonical::OpCode::Stream__close_writable:
-  case AST::Component::Canonical::OpCode::Future__new:
-  case AST::Component::Canonical::OpCode::Future__close_readable:
-  case AST::Component::Canonical::OpCode::Future__close_writable:
-  case AST::Component::Canonical::OpCode::Thread__spawn_ref: {
+  case ComponentCanonOpCode::Resource__new:
+  case ComponentCanonOpCode::Resource__drop:
+  case ComponentCanonOpCode::Resource__drop_async:
+  case ComponentCanonOpCode::Resource__rep:
+  case ComponentCanonOpCode::Stream__new:
+  case ComponentCanonOpCode::Stream__close_readable:
+  case ComponentCanonOpCode::Stream__close_writable:
+  case ComponentCanonOpCode::Future__new:
+  case ComponentCanonOpCode::Future__close_readable:
+  case ComponentCanonOpCode::Future__close_writable:
+  case ComponentCanonOpCode::Thread__spawn_ref: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     C.setIndex(Idx);
     break;
   }
 
   // no-arg opcodes
-  case AST::Component::Canonical::OpCode::Backpressure__set:
-  case AST::Component::Canonical::OpCode::Task__cancel:
-  case AST::Component::Canonical::OpCode::Subtask__drop:
-  case AST::Component::Canonical::OpCode::Error_context__drop:
-  case AST::Component::Canonical::OpCode::Waitable_set__new:
-  case AST::Component::Canonical::OpCode::Waitable_set__drop:
-  case AST::Component::Canonical::OpCode::Waitable__join:
-  case AST::Component::Canonical::OpCode::Thread__available_parallelism:
+  case ComponentCanonOpCode::Backpressure__set:
+  case ComponentCanonOpCode::Task__cancel:
+  case ComponentCanonOpCode::Subtask__drop:
+  case ComponentCanonOpCode::Error_context__drop:
+  case ComponentCanonOpCode::Waitable_set__new:
+  case ComponentCanonOpCode::Waitable_set__drop:
+  case ComponentCanonOpCode::Waitable__join:
+  case ComponentCanonOpCode::Thread__available_parallelism:
     break;
 
   // 0x09 rs:<resultlist> opts:<opts>
-  case AST::Component::Canonical::OpCode::Task__return: {
+  case ComponentCanonOpCode::Task__return: {
     // Load resultlist (same encoding as functype resultlist).
     EXPECTED_TRY(uint8_t RFlag, FMgr.readByte().map_error(ReportError));
     switch (RFlag) {
@@ -185,8 +185,8 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   }
 
   // 0x0a 0x7f i:<u32> and 0x0b 0x7f i:<u32>
-  case AST::Component::Canonical::OpCode::Context__get:
-  case AST::Component::Canonical::OpCode::Context__set: {
+  case ComponentCanonOpCode::Context__get:
+  case ComponentCanonOpCode::Context__set: {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (unlikely(B != 0x7f)) {
       return ReportError(ErrCode::Value::MalformedCanonical);
@@ -197,17 +197,17 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   }
 
   // async?-only opcodes
-  case AST::Component::Canonical::OpCode::Yield:
-  case AST::Component::Canonical::OpCode::Subtask__cancel: {
+  case ComponentCanonOpCode::Yield:
+  case ComponentCanonOpCode::Subtask__cancel: {
     EXPECTED_TRY(LoadAsync());
     break;
   }
 
   // typeidx + opts opcodes
-  case AST::Component::Canonical::OpCode::Stream__read:
-  case AST::Component::Canonical::OpCode::Stream__write:
-  case AST::Component::Canonical::OpCode::Future__read:
-  case AST::Component::Canonical::OpCode::Future__write: {
+  case ComponentCanonOpCode::Stream__read:
+  case ComponentCanonOpCode::Stream__write:
+  case ComponentCanonOpCode::Future__read:
+  case ComponentCanonOpCode::Future__write: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     C.setIndex(Idx);
     EXPECTED_TRY(LoadOpts());
@@ -215,10 +215,10 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   }
 
   // typeidx + async? opcodes
-  case AST::Component::Canonical::OpCode::Stream__cancel_read:
-  case AST::Component::Canonical::OpCode::Stream__cancel_write:
-  case AST::Component::Canonical::OpCode::Future__cancel_read:
-  case AST::Component::Canonical::OpCode::Future__cancel_write: {
+  case ComponentCanonOpCode::Stream__cancel_read:
+  case ComponentCanonOpCode::Stream__cancel_write:
+  case ComponentCanonOpCode::Future__cancel_read:
+  case ComponentCanonOpCode::Future__cancel_write: {
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
     C.setIndex(Idx);
     EXPECTED_TRY(LoadAsync());
@@ -226,15 +226,15 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   }
 
   // opts-only opcodes
-  case AST::Component::Canonical::OpCode::Error_context__new:
-  case AST::Component::Canonical::OpCode::Error_context__debug_message: {
+  case ComponentCanonOpCode::Error_context__new:
+  case ComponentCanonOpCode::Error_context__debug_message: {
     EXPECTED_TRY(LoadOpts());
     break;
   }
 
   // async? + memidx opcodes
-  case AST::Component::Canonical::OpCode::Waitable_set__wait:
-  case AST::Component::Canonical::OpCode::Waitable_set__poll: {
+  case ComponentCanonOpCode::Waitable_set__wait:
+  case ComponentCanonOpCode::Waitable_set__poll: {
     EXPECTED_TRY(LoadAsync());
     EXPECTED_TRY(uint32_t MemIdx, FMgr.readU32().map_error(ReportError));
     C.setIndex(MemIdx);
@@ -242,7 +242,7 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   }
 
   // 0x41 ft:<typeidx> tbl:<core:tableidx>
-  case AST::Component::Canonical::OpCode::Thread__spawn_indirect: {
+  case ComponentCanonOpCode::Thread__spawn_indirect: {
     EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
     C.setIndex(TypeIdx);
     EXPECTED_TRY(uint32_t TblIdx, FMgr.readU32().map_error(ReportError));
@@ -290,7 +290,7 @@ Expect<void> Loader::loadCanonicalOption(AST::Component::CanonOpt &Opt) {
   default:
     return ReportError(ErrCode::Value::UnknownCanonicalOption);
   }
-  Opt.setCode(static_cast<AST::Component::CanonOpt::OptCode>(Flag));
+  Opt.setCode(static_cast<ComponentCanonOptCode>(Flag));
   return {};
 }
 

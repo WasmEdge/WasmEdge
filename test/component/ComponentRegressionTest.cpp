@@ -772,148 +772,124 @@ TEST(ComponentValidatorTest, TypeMismatch) {
   ASSERT_FALSE(Validator.validate(Comp));
 }
 
-TEST(ComponentNameParser, Functions) {
-  {
-    std::string_view Name = "[constructor]MyClass"sv;
-    std::string_view Prefix = "[constructor]"sv;
-    EXPECT_TRUE(Validator::ComponentNameParser::tryRead(Prefix, Name));
-    spdlog::error("Remaining name: {}", Name);
-    EXPECT_EQ(Name, "MyClass");
-  }
-  {
-    std::string_view Name = "[constructor]MyClass"sv;
-    std::string_view Prefix = "[fail]"sv;
-    EXPECT_FALSE(Validator::ComponentNameParser::tryRead(Prefix, Name));
-    EXPECT_EQ(Name, "[constructor]MyClass");
-  }
-}
-
-TEST(ComponentNameParser, Kebab) {
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("A"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("abc-def-ghi"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-DEF-GHI"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-def-GHI"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-123"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC123-G45H"sv));
-
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a1"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1-b-2-c-3"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B1"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B-1"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B-1-C-2-D-3"sv));
-  EXPECT_TRUE(
-      Validator::ComponentNameParser::isKebabString("a11-B11-123-ABC-abc"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1-c"sv));
-
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abcDefGhi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abc_def_ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abc def ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc-Fef-Ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("ABC123-G45h"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc--Ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc-"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("-Ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1-abc"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString(""sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("中文字"sv));
-
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1-a"sv));
-
-  EXPECT_TRUE(
-      Validator::ComponentNameParser::isLowercaseKebabString("abc-def-ghi"sv));
-  EXPECT_TRUE(
-      Validator::ComponentNameParser::isLowercaseKebabString("abc-123"sv));
-
-  EXPECT_FALSE(
-      Validator::ComponentNameParser::isLowercaseKebabString("aBc-def-ghi"sv));
-  EXPECT_FALSE(
-      Validator::ComponentNameParser::isLowercaseKebabString("ABC-def-ghi"sv));
-
-  {
-    std::string_view Input = "abc-def-ghi/rest-of-string"sv;
-    std::string_view Output;
-    EXPECT_TRUE(Validator::ComponentNameParser::tryReadKebab(Input, Output));
-    EXPECT_EQ(Output, "abc-def-ghi"sv);
-    EXPECT_EQ(Input, "/rest-of-string"sv);
-
-    EXPECT_TRUE(Validator::ComponentNameParser::readUntil(Input, '/', Output));
-    EXPECT_EQ(Input, "rest-of-string"sv);
-    EXPECT_EQ(Output, ""sv);
-    EXPECT_TRUE(Validator::ComponentNameParser::tryReadKebab(Input, Output));
-    EXPECT_EQ(Output, "rest-of-string"sv);
-    EXPECT_TRUE(Validator::ComponentNameParser::isEOF(Input));
-  }
-}
-
 TEST(ComponentNameParser, Parse) {
+  using namespace Validator;
   {
-    std::string_view Name = "[constructor]my-class"sv;
-    Validator::ComponentName CName(Name);
-    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Constructor);
-    EXPECT_EQ(CName.getDetails().Constructor.Label, "my-class"sv);
-    EXPECT_EQ(CName.getNoTagName(), "my-class"sv);
-    EXPECT_EQ(CName.getOriginalName(), "[constructor]my-class"sv);
+    auto CName = ComponentName::parse("[constructor]my-class"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Constructor);
+    EXPECT_EQ(CName->getDetail().get<ConstructorDetail>().Label, "my-class"sv);
+    EXPECT_EQ(CName->getNoTagName(), "my-class"sv);
+    EXPECT_EQ(CName->getOriginalName(), "[constructor]my-class"sv);
   }
   {
-    std::string_view Name = "[method]my-resource.my-method"sv;
-    Validator::ComponentName CName(Name);
-    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Method);
-    EXPECT_EQ(CName.getDetails().Method.Resource, "my-resource"sv);
-    EXPECT_EQ(CName.getDetails().Method.Method, "my-method"sv);
-    EXPECT_EQ(CName.getNoTagName(), "my-resource.my-method"sv);
-    EXPECT_EQ(CName.getOriginalName(), "[method]my-resource.my-method"sv);
+    auto CName = ComponentName::parse("[method]my-resource.my-method"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Method);
+    EXPECT_EQ(CName->getDetail().get<MethodDetail>().Resource, "my-resource"sv);
+    EXPECT_EQ(CName->getDetail().get<MethodDetail>().Method, "my-method"sv);
+    EXPECT_EQ(CName->getNoTagName(), "my-resource.my-method"sv);
+    EXPECT_EQ(CName->getOriginalName(), "[method]my-resource.my-method"sv);
   }
   {
-    std::string_view Name = "[static]my-resource.my-method"sv;
-    Validator::ComponentName CName(Name);
-    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Static);
-    EXPECT_EQ(CName.getDetails().Static.Resource, "my-resource"sv);
-    EXPECT_EQ(CName.getDetails().Static.Method, "my-method"sv);
-    EXPECT_EQ(CName.getNoTagName(), "my-resource.my-method"sv);
-    EXPECT_EQ(CName.getOriginalName(), "[static]my-resource.my-method"sv);
+    auto CName = ComponentName::parse("[static]my-resource.my-method"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Static);
+    EXPECT_EQ(CName->getDetail().get<StaticDetail>().Resource, "my-resource"sv);
+    EXPECT_EQ(CName->getDetail().get<StaticDetail>().Method, "my-method"sv);
+    EXPECT_EQ(CName->getNoTagName(), "my-resource.my-method"sv);
+    EXPECT_EQ(CName->getOriginalName(), "[static]my-resource.my-method"sv);
   }
   {
-    std::string_view Name = "name-space:a-label/projection-label@1.2.3"sv;
-    Validator::ComponentName CName(Name);
-    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
-    EXPECT_EQ(CName.getDetails().Interface.Namespace, "name-space"sv);
-    EXPECT_EQ(CName.getDetails().Interface.Package, "a-label"sv);
-    EXPECT_EQ(CName.getDetails().Interface.Interface, "projection-label"sv);
-    EXPECT_EQ(CName.getDetails().Interface.Projection, ""sv);
-    EXPECT_EQ(CName.getDetails().Interface.Version, "1.2.3"sv);
+    auto CName =
+        ComponentName::parse("name-space:a-label/projection-label@1.2.3"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::InterfaceType);
+    auto &D = CName->getDetail().get<InterfaceDetail>();
+    EXPECT_EQ(D.Namespace, "name-space"sv);
+    EXPECT_EQ(D.Package, "a-label"sv);
+    EXPECT_EQ(D.Interface, "projection-label"sv);
+    EXPECT_EQ(D.Version, "1.2.3"sv);
   }
+  // Invalid names
+  EXPECT_FALSE(ComponentName::parse("[constructor]"sv));
+  EXPECT_FALSE(ComponentName::parse("[method]"sv));
+  EXPECT_FALSE(ComponentName::parse("[method]resource"sv));
+  EXPECT_FALSE(ComponentName::parse("[unknown]label"sv));
+  EXPECT_FALSE(ComponentName::parse(""sv));
+  EXPECT_FALSE(ComponentName::parse("123-abc"sv));
+  // Valid labels
+  {
+    auto CName = ComponentName::parse("simple-label"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Label);
+  }
+  {
+    auto CName = ComponentName::parse("A"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Label);
+  }
+}
+
+TEST(ComponentNameParser, KebabLabel) {
+  using namespace Validator;
+  // Valid mixed-case kebab labels
+  EXPECT_TRUE(ComponentName::parse("a"sv));
+  EXPECT_TRUE(ComponentName::parse("a1"sv));
+  EXPECT_TRUE(ComponentName::parse("a-1"sv));
+  EXPECT_TRUE(ComponentName::parse("a-1-b-2-c-3"sv));
+  EXPECT_TRUE(ComponentName::parse("a-1-c"sv));
+  EXPECT_TRUE(ComponentName::parse("abc-def-ghi"sv));
+  EXPECT_TRUE(ComponentName::parse("A"sv));
+  EXPECT_TRUE(ComponentName::parse("B"sv));
+  EXPECT_TRUE(ComponentName::parse("B1"sv));
+  EXPECT_TRUE(ComponentName::parse("B-1"sv));
+  EXPECT_TRUE(ComponentName::parse("B-1-C-2-D-3"sv));
+  EXPECT_TRUE(ComponentName::parse("ABC-DEF-GHI"sv));
+  EXPECT_TRUE(ComponentName::parse("ABC-def-GHI"sv));
+  EXPECT_TRUE(ComponentName::parse("ABC-123"sv));
+  EXPECT_TRUE(ComponentName::parse("ABC123-G45H"sv));
+  EXPECT_TRUE(ComponentName::parse("a11-B11-123-ABC-abc"sv));
+
+  // Invalid kebab labels
+  EXPECT_FALSE(ComponentName::parse("abcDefGhi"sv));   // camelCase
+  EXPECT_FALSE(ComponentName::parse("abc_def_ghi"sv)); // snake_case
+  EXPECT_FALSE(ComponentName::parse("abc def ghi"sv)); // spaces
+  EXPECT_FALSE(ComponentName::parse("Abc-Fef-Ghi"sv)); // titleCase fragments
+  EXPECT_FALSE(ComponentName::parse("ABC123-G45h"sv)); // mixed within acronym
+  EXPECT_FALSE(ComponentName::parse("Abc--Ghi"sv));    // double hyphen
+  EXPECT_FALSE(ComponentName::parse("Abc-"sv));        // trailing hyphen
+  EXPECT_FALSE(ComponentName::parse("-Ghi"sv));        // leading hyphen
+  EXPECT_FALSE(ComponentName::parse("1-abc"sv));       // starts with digit
+  EXPECT_FALSE(ComponentName::parse(""sv));            // empty
+  EXPECT_FALSE(ComponentName::parse("1"sv));           // digit only
+  EXPECT_FALSE(ComponentName::parse("1-a"sv));         // digit start
+
+  // Non-ASCII
+  EXPECT_FALSE(ComponentName::parse("中文字"sv));
 }
 
 TEST(ComponentNameParser, StronglyUniqueBasicCases) {
   using namespace Validator;
   ComponentContext::Context Ctx(nullptr);
 
-  auto add = [&](std::string_view S) {
-    ComponentName CN(S);
-    return Ctx.AddImportedName(CN);
+  auto add = [&](std::string_view S) -> bool {
+    auto CN = ComponentName::parse(S);
+    if (!CN.has_value())
+      return false;
+    return Ctx.AddImportedName(*CN);
   };
 
-  // Accept set: all should be strongly-unique together.
   EXPECT_TRUE(add("foo"sv));
   EXPECT_TRUE(add("foo-bar"sv));
   EXPECT_TRUE(add("[constructor]foo"sv));
   EXPECT_TRUE(add("[method]foo.bar"sv));
   EXPECT_TRUE(add("[method]foo.baz"sv));
 
-  // Reject additions against the accepted set above.
-  // Duplicate label
   EXPECT_FALSE(add("foo"sv));
-  // Normalized duplicate of kebab label (foo-BAR -> foo-bar)
   EXPECT_FALSE(add("foo-BAR"sv));
-  // Normalized duplicate of constructor label
   EXPECT_FALSE(add("[constructor]foo-BAR"sv));
-  // l vs [*]l.l conflict
   EXPECT_FALSE(add("[method]foo.foo"sv));
-  // Normalized duplicate of method (foo.BAR -> foo.bar)
   EXPECT_FALSE(add("[method]foo.BAR"sv));
 }
 
@@ -921,20 +897,245 @@ TEST(ComponentNameParser, StronglyUnique) {
   using namespace Validator;
   ComponentContext::Context Ctx(nullptr);
 
-  auto add = [&](std::string_view S) {
-    ComponentName CN(S);
-    return Ctx.AddImportedName(CN);
+  auto add = [&](std::string_view S) -> bool {
+    auto CN = ComponentName::parse(S);
+    if (!CN.has_value())
+      return false;
+    return Ctx.AddImportedName(*CN);
   };
 
-  // Accept set: all should be strongly-unique together.
   EXPECT_TRUE(add("[method]foo.abc"sv));
   EXPECT_TRUE(add("[constructor]foo"sv));
   EXPECT_TRUE(add("foo-bar"sv));
   EXPECT_TRUE(add("foo"sv));
 
-  // Reject additions against the accepted set above.
   EXPECT_FALSE(add("[method]foo"sv));
   EXPECT_FALSE(add("[static]foo.abc"sv));
+}
+
+TEST(ComponentNameParser, LockedDep) {
+  using namespace Validator;
+
+  // Valid: no version, no integrity.
+  {
+    auto CName = ComponentName::parse("locked-dep=<my-registry:sqlite>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::LockedDep);
+    auto &D = CName->getDetail().get<LockedDepDetail>();
+    EXPECT_EQ(D.Namespace, "my-registry"sv);
+    EXPECT_EQ(D.Package, "sqlite"sv);
+    EXPECT_EQ(D.Version, ""sv);
+    EXPECT_EQ(D.Integrity, ""sv);
+  }
+  // Valid: with version.
+  {
+    auto CName =
+        ComponentName::parse("locked-dep=<my-registry:sqlite@1.2.3>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::LockedDep);
+    auto &D = CName->getDetail().get<LockedDepDetail>();
+    EXPECT_EQ(D.Namespace, "my-registry"sv);
+    EXPECT_EQ(D.Package, "sqlite"sv);
+    EXPECT_EQ(D.Version, "1.2.3"sv);
+    EXPECT_EQ(D.Integrity, ""sv);
+  }
+  // Valid: with version and integrity.
+  {
+    auto CName = ComponentName::parse(
+        "locked-dep=<my-registry:sqlite@1.2.3>,integrity=<sha256-H8BRh8j>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::LockedDep);
+    auto &D = CName->getDetail().get<LockedDepDetail>();
+    EXPECT_EQ(D.Namespace, "my-registry"sv);
+    EXPECT_EQ(D.Package, "sqlite"sv);
+    EXPECT_EQ(D.Version, "1.2.3"sv);
+    EXPECT_EQ(D.Integrity, "sha256-H8BRh8j"sv);
+  }
+  // Invalid cases.
+  EXPECT_FALSE(ComponentName::parse("locked-dep=my-registry:sqlite"sv));
+  EXPECT_FALSE(ComponentName::parse("locked-dep=<MY-REG:sqlite>"sv));
+  EXPECT_FALSE(ComponentName::parse("locked-dep=<:sqlite>"sv));
+  EXPECT_FALSE(ComponentName::parse("locked-dep=<my-registry:>"sv));
+  EXPECT_FALSE(ComponentName::parse(
+      "locked-dep=<my-registry:sqlite>,integrity=<md5-abc>"sv));
+}
+
+TEST(ComponentNameParser, UnlockedDep) {
+  using namespace Validator;
+
+  // Valid: no verrange.
+  {
+    auto CName = ComponentName::parse("unlocked-dep=<my-registry:sqlite>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
+    auto &D = CName->getDetail().get<UnlockedDepDetail>();
+    EXPECT_EQ(D.Namespace, "my-registry"sv);
+    EXPECT_EQ(D.Package, "sqlite"sv);
+    EXPECT_EQ(D.VersionRange, ""sv);
+  }
+  // Valid: wildcard verrange.
+  {
+    auto CName = ComponentName::parse("unlocked-dep=<my-registry:sqlite@*>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
+    auto &D = CName->getDetail().get<UnlockedDepDetail>();
+    EXPECT_EQ(D.Package, "sqlite"sv);
+  }
+  // Valid: lower bound.
+  {
+    auto CName = ComponentName::parse(
+        "unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
+  }
+  // Valid: upper bound.
+  {
+    auto CName = ComponentName::parse(
+        "unlocked-dep=<my-registry:imagemagick@{<2.0.0}>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
+  }
+  // Valid: both bounds.
+  {
+    auto CName = ComponentName::parse(
+        "unlocked-dep=<my-registry:imagemagick@{>=1.0.0 <2.0.0}>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
+  }
+  // Invalid cases.
+  EXPECT_FALSE(ComponentName::parse("unlocked-dep=<MY-REG:sqlite>"sv));
+  EXPECT_FALSE(ComponentName::parse("unlocked-dep=my-registry:sqlite"sv));
+  EXPECT_FALSE(ComponentName::parse("unlocked-dep=<:sqlite>"sv));
+  EXPECT_FALSE(ComponentName::parse("unlocked-dep=<my-registry:>"sv));
+  EXPECT_FALSE(
+      ComponentName::parse("unlocked-dep=<my-registry:sqlite@{>=bad}>"sv));
+}
+
+TEST(ComponentNameParser, UrlName) {
+  using namespace Validator;
+
+  // Valid: simple URL.
+  {
+    auto CName =
+        ComponentName::parse("url=<https://mycdn.com/my-component.wasm>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Url);
+    auto &D = CName->getDetail().get<UrlDetail>();
+    EXPECT_EQ(D.Url, "https://mycdn.com/my-component.wasm"sv);
+    EXPECT_EQ(D.Integrity, ""sv);
+  }
+  // Valid: URL with integrity.
+  {
+    auto CName = ComponentName::parse(
+        "url=<./other-component.wasm>,integrity=<sha256-X9ArH3k>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Url);
+    auto &D = CName->getDetail().get<UrlDetail>();
+    EXPECT_EQ(D.Url, "./other-component.wasm"sv);
+    EXPECT_EQ(D.Integrity, "sha256-X9ArH3k"sv);
+  }
+  // Valid: empty URL (nonbrackets = [^<>]*).
+  {
+    auto CName = ComponentName::parse("url=<>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Url);
+  }
+  // Invalid: no angle brackets.
+  EXPECT_FALSE(ComponentName::parse("url=https://example.com"sv));
+  // Invalid: bad integrity.
+  EXPECT_FALSE(
+      ComponentName::parse("url=<https://example.com>,integrity=<md5-abc>"sv));
+}
+
+TEST(ComponentNameParser, IntegrityName) {
+  using namespace Validator;
+
+  // Valid.
+  {
+    auto CName = ComponentName::parse("integrity=<sha256-abc123>"sv);
+    ASSERT_TRUE(CName.has_value());
+    EXPECT_EQ(CName->getKind(), ComponentNameKind::Integrity);
+    EXPECT_EQ(CName->getDetail().get<IntegrityDetail>().Integrity,
+              "sha256-abc123"sv);
+  }
+  // Invalid: unsupported algorithm.
+  EXPECT_FALSE(ComponentName::parse("integrity=<md5-abc>"sv));
+  // Invalid: empty.
+  EXPECT_FALSE(ComponentName::parse("integrity=<>"sv));
+}
+
+TEST(ComponentNameParser, Semver) {
+  using namespace Validator;
+
+  // Valid semver via interface names.
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1.2.3"sv));
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.1.0"sv));
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1.2.3-beta.1"sv));
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1.2.3+build"sv));
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1.2.3-beta.1+build.42"sv));
+  // Valid canonversion.
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1"sv));
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.1"sv));
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.0.1"sv));
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@42"sv));
+  // Invalid versions.
+  EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@01.2.3"sv));
+  EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@abc"sv));
+  EXPECT_FALSE(ComponentName::parse("a:B/c"sv));
+  EXPECT_FALSE(ComponentName::parse("ns:PKG/iface"sv));
+  EXPECT_FALSE(ComponentName::parse("ns:Pkg/iface"sv));
+  EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@"sv));
+  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.0.0"sv));
+  EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@0"sv));
+}
+
+TEST(ComponentNameParser, SpecExamples) {
+  using namespace Validator;
+
+  // Examples from Explainer.md
+  EXPECT_EQ(ComponentName::parse("custom-hook"sv)->getKind(),
+            ComponentNameKind::Label);
+  EXPECT_EQ(ComponentName::parse("wasi:http/handler"sv)->getKind(),
+            ComponentNameKind::InterfaceType);
+  EXPECT_EQ(ComponentName::parse("url=<https://mycdn.com/my-component.wasm>"sv)
+                ->getKind(),
+            ComponentNameKind::Url);
+  EXPECT_EQ(ComponentName::parse(
+                "url=<./other-component.wasm>,integrity=<sha256-X9ArH3k>"sv)
+                ->getKind(),
+            ComponentNameKind::Url);
+  EXPECT_EQ(
+      ComponentName::parse(
+          "locked-dep=<my-registry:sqlite@1.2.3>,integrity=<sha256-H8BRh8j>"sv)
+          ->getKind(),
+      ComponentNameKind::LockedDep);
+  EXPECT_EQ(
+      ComponentName::parse("unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv)
+          ->getKind(),
+      ComponentNameKind::UnlockedDep);
+  EXPECT_EQ(ComponentName::parse("integrity=<sha256-Y3BsI4l>"sv)->getKind(),
+            ComponentNameKind::Integrity);
+  EXPECT_EQ(ComponentName::parse("get-JSON"sv)->getKind(),
+            ComponentNameKind::Label);
+}
+
+TEST(ComponentNameParser, StronglyUniqueWithNewKinds) {
+  using namespace Validator;
+  ComponentContext::Context Ctx(nullptr);
+
+  auto add = [&](std::string_view S) -> bool {
+    auto CN = ComponentName::parse(S);
+    if (!CN.has_value())
+      return false;
+    return Ctx.AddImportedName(*CN);
+  };
+
+  EXPECT_TRUE(add("foo"sv));
+  EXPECT_TRUE(add("locked-dep=<my-registry:sqlite@1.2.3>"sv));
+  EXPECT_TRUE(add("unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv));
+  EXPECT_TRUE(add("url=<https://example.com/pkg.wasm>"sv));
+  EXPECT_TRUE(add("integrity=<sha256-abc123>"sv));
+  EXPECT_TRUE(add("wasi:http/handler"sv));
 }
 
 } // namespace

@@ -427,7 +427,7 @@ private:
     std::unique_ptr<LLVM::Compiler::CompileContext,
                     LLVM::Compiler::CompileContextDeleter>
         LLContext;
-    std::shared_ptr<Executable> Executable;
+    std::shared_ptr<Executable> Exec;
   };
 
   LazyJITPendingState Pending;

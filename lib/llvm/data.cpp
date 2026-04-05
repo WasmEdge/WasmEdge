@@ -8,8 +8,6 @@
 namespace LLVM = WasmEdge::LLVM;
 
 LLVM::Data::Data() noexcept : Context(std::make_unique<DataContext>()) {}
-LLVM::Data::Data(LLVM::OrcThreadSafeContext &&TSC) noexcept
-    : Context(std::make_unique<DataContext>(std::move(TSC))) {}
 
 LLVM::Data::~Data() noexcept {}
 

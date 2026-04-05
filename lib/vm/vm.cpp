@@ -286,7 +286,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
           return ErrCode::Value::Success;
         })
         .and_then([&](auto Exec) {
-          Pending.Executable = Exec;
+          Pending.Exec = Exec;
           return LoaderEngine.loadExecutable(const_cast<AST::Module &>(Module),
                                              std::move(Exec));
         })
@@ -602,7 +602,7 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto Module) {
-              Pending.Executable = Module;
+              Pending.Exec = Module;
               return LoaderEngine.loadExecutable(*Mod, std::move(Module));
             })
             .map_error([](uint32_t Err) {
@@ -646,7 +646,7 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto Module) {
-              Pending.Executable = Module;
+              Pending.Exec = Module;
               return LoaderEngine.loadExecutable(*Mod, std::move(Module));
             })
             .map_error([](uint32_t Err) {
@@ -698,7 +698,7 @@ Expect<void> VM::unsafeInstantiate() {
       State.ModulePtr = State.OwnedModule.get();
       State.LLData = std::move(Pending.LLData);
       State.LLContext = std::move(Pending.LLContext);
-      State.Executable = std::move(Pending.Executable);
+      State.Exec = std::move(Pending.Exec);
     }
 #endif
     Stage = VMStage::Instantiated;
@@ -1027,16 +1027,16 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   *LLDataPtr = std::move(*CompileResult);
   LLVM::JIT JIT(Conf);
   std::shared_ptr<Executable> Exec;
-  if (StatePtr && StatePtr->Executable) {
-    Exec = StatePtr->Executable;
-  } else if (!StatePtr && Pending.Executable) {
-    Exec = Pending.Executable;
+  if (StatePtr && StatePtr->Exec) {
+    Exec = StatePtr->Exec;
+  } else if (!StatePtr && Pending.Exec) {
+    Exec = Pending.Exec;
   }
 
   if (Exec) {
-    if (auto AddRes = JIT.add(*Exec, *LLDataPtr); !AddRes) {
-      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, AddRes.error());
-      return Unexpect(AddRes.error());
+    if (auto Address = JIT.add(*Exec, *LLDataPtr); !Address) {
+      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, Address.error());
+      return Unexpect(Address.error());
     }
   } else {
     auto LoadResult = JIT.load(*LLDataPtr, true);
@@ -1047,9 +1047,9 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     }
     Exec = *LoadResult;
     if (StatePtr) {
-      StatePtr->Executable = Exec;
+      StatePtr->Exec = Exec;
     } else {
-      Pending.Executable = Exec;
+      Pending.Exec = Exec;
     }
   }
 

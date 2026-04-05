@@ -69,7 +69,7 @@ struct LazyJITState {
   /// Optional owned module (used when VM takes ownership)
   std::unique_ptr<AST::Module> OwnedModule;
   /// Store compiled executables to keep them alive
-  std::shared_ptr<Executable> Executable;
+  std::shared_ptr<Executable> Exec;
   /// Per-module JIT data and context
   Data LLData;
   /// Pointer to the LLVM context.

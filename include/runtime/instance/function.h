@@ -118,7 +118,7 @@ public:
   }
 
   /// Upgrade from WasmFunction to CompiledFunction.
-  bool upgradeToCompiled(Symbol<CompiledFunction> Sym) noexcept {
+  bool unsafeUpgradeToCompiled(Symbol<CompiledFunction> Sym) noexcept {
     if (!isWasmFunction()) {
       return false;
     }

@@ -16,6 +16,7 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errcode.h"
+#include "llvm/compiler.h"
 #include "llvm/data.h"
 #include <memory>
 #include <unordered_set>
@@ -38,6 +39,7 @@ public:
                                      size_t Size) noexcept override;
   bool isLazy() const noexcept override { return IsLazy; }
 
+private:
   std::shared_ptr<OrcLLJIT> J;
   std::string Prefix;
   bool IsLazy;
@@ -70,7 +72,9 @@ struct LazyJITState {
   std::shared_ptr<Executable> Executable;
   /// Per-module JIT data and context
   Data LLData;
-  void *LLContext = nullptr;
+  /// Pointer to the LLVM context.
+  std::unique_ptr<Compiler::CompileContext, Compiler::CompileContextDeleter>
+      LLContext;
 };
 
 } // namespace WasmEdge::LLVM

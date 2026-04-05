@@ -4003,7 +4003,7 @@ public:
   }
   void compileAtomicWait(unsigned MemoryIndex, uint64_t MemoryOffset,
                          LLVM::Type TargetType, uint32_t BitWidth) noexcept {
-    spdlog::error("memory_index: {}", MemoryIndex);
+    spdlog::error("[lazyjit] memory_index: {}", MemoryIndex);
     auto Timeout = stackPop();
     auto ExpectedValue = Builder.createZExtOrTrunc(stackPop(), Context.Int64Ty);
     auto Offset = Builder.createZExt(stackPop(), Context.Int64Ty);
@@ -6492,7 +6492,9 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
   return {};
 }
 
-Expect<std::pair<LLVM::Data, LLVM::Compiler::CompileContext *>>
+Expect<std::pair<LLVM::Data,
+                 std::unique_ptr<LLVM::Compiler::CompileContext,
+                                 LLVM::Compiler::CompileContextDeleter>>>
 LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
                                       std::string Prefix) noexcept {
   Data D;
@@ -6504,7 +6506,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
   }
 
   std::unique_lock Lock(Mutex);
-  spdlog::info("[lazy-jit]: compile infrastructure start"sv);
+  spdlog::info("[lazyjit]: compile infrastructure start"sv);
 
   auto LLContext = D.extract().getLLContext();
   LLVM::Core::init(LLContext.unwrap());
@@ -6512,10 +6514,11 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
-  CompileContext *Context = new CompileContext(
-      LLContext, LLModule, Conf.getCompilerConfigure().isGenericBinary(),
-      D.getPrefix());
-  this->Context = Context;
+  std::unique_ptr<CompileContext, CompileContextDeleter> Context(
+      new CompileContext(LLContext, LLModule,
+                         Conf.getCompilerConfigure().isGenericBinary(),
+                         D.getPrefix()));
+  this->Context = Context.get();
 
   // Compile Function Types
   compile(Module.getTypeSection());
@@ -6533,10 +6536,9 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
   // Compile ExportSection
   compile(Module.getExportSection());
 
-  spdlog::info("[lazy-jit]: infrastructure compilation done"sv);
-
   // Set initializer for constant value
-  if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
+  auto IntrinsicsName = fmt::format("{}intrinsics"sv, D.getPrefix());
+  if (auto IntrinsicsTable = LLModule.getNamedGlobal(IntrinsicsName.c_str())) {
     IntrinsicsTable.setInitializer(
         LLVM::Value::getConstNull(IntrinsicsTable.getType()));
     IntrinsicsTable.setGlobalConstant(false);
@@ -6546,16 +6548,21 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
         static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax));
     LLModule.addGlobal(
         IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
-        LLVM::Value::getConstNull(IntrinsicsTableTy), "intrinsics");
+        LLVM::Value::getConstNull(IntrinsicsTableTy), IntrinsicsName.c_str());
   }
 
-  return Expect<std::pair<Data, CompileContext *>>{
-      std::pair<Data, CompileContext *>{std::move(D), Context}};
+  spdlog::info("[lazyjit]: infrastructure compilation done"sv);
+
+  return Expect<
+      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>{
+      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>{
+          std::move(D), std::move(Context)}};
 }
 
-Expect<Data> Compiler::compileFunction(Data &&LLData, CompileContext *Context,
-                                       const AST::Module &Module,
-                                       uint32_t FuncIndex) noexcept {
+Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
+                                             CompileContext *Context,
+                                             const AST::Module &Module,
+                                             uint32_t FuncIndex) noexcept {
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
@@ -6563,7 +6570,7 @@ Expect<Data> Compiler::compileFunction(Data &&LLData, CompileContext *Context,
   }
 
   std::unique_lock Lock(Mutex);
-  spdlog::debug("[lazy-jit]: compile function {} start"sv, FuncIndex);
+  spdlog::debug("[lazyjit]: compile function {} start"sv, FuncIndex);
 
   auto LLContext = LLData.extract().getLLContext();
   LLVM::Core::init(LLContext.unwrap());
@@ -6575,8 +6582,9 @@ Expect<Data> Compiler::compileFunction(Data &&LLData, CompileContext *Context,
   Context->LLModule = LLModule;
 
   // Clear module-bound state if reusing the context
-  Context->Functions.clear();
+  Context->CompositeTypes.clear();
   Context->FunctionWrappers.clear();
+  Context->Functions.clear();
   Context->MemoryAddrTypes.clear();
   Context->TableAddrTypes.clear();
   Context->Globals.clear();
@@ -6597,11 +6605,6 @@ Expect<Data> Compiler::compileFunction(Data &&LLData, CompileContext *Context,
   Context->Trap.Fn.addFnAttr(Context->NoInline);
   Context->compileTrap();
 
-  LLModule.addGlobal(
-      Context->Int32Ty, true, LLVMExternalLinkage,
-      LLVM::Value::getConstInt(Context->Int32Ty, AOT::kBinaryVersion),
-      fmt::format("{}version"sv, Context->Prefix).c_str());
-
   // Re-compile infrastructure for the fresh module
   // compile types first (needed for function type lookup)
   compile(Module.getTypeSection());
@@ -6621,10 +6624,10 @@ Expect<Data> Compiler::compileFunction(Data &&LLData, CompileContext *Context,
   // compile only the requested function body
   EXPECTED_TRY(compileFunctionBody(FuncIndex));
 
-  spdlog::info("[lazy-jit]: verify function {} start"sv, FuncIndex);
+  spdlog::info("[lazyjit]: verify function {} start"sv, FuncIndex);
   LLModule.verify(LLVMPrintMessageAction);
 
-  spdlog::info("[lazy-jit]: optimize function {} start"sv, FuncIndex);
+  spdlog::info("[lazyjit]: optimize function {} start"sv, FuncIndex);
   auto &TM = LLData.extract().TM;
   {
     auto Triple = LLModule.getTarget();
@@ -6693,25 +6696,12 @@ Expect<Data> Compiler::compileFunction(Data &&LLData, CompileContext *Context,
 #endif
   }
 
-  // set initializer for constant value
-  if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
-    IntrinsicsTable.setInitializer(
-        LLVM::Value::getConstNull(IntrinsicsTable.getType()));
-    IntrinsicsTable.setGlobalConstant(false);
-  } else {
-    auto IntrinsicsTableTy = LLVM::Type::getArrayType(
-        LLContext.getInt8Ty().getPointerTo(),
-        static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax));
-    LLModule.addGlobal(
-        IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
-        LLVM::Value::getConstNull(IntrinsicsTableTy), "intrinsics");
-  }
-
-  spdlog::debug("[lazy-jit]: compile function {} done"sv, FuncIndex);
+  spdlog::debug("[lazyjit]: compile function {} done"sv, FuncIndex);
   return Expect<Data>{std::move(LLData)};
 }
 
-void Compiler::cleanupContext(CompileContext *Context) noexcept {
+void LLVM::Compiler::CompileContextDeleter::operator()(
+    CompileContext *Context) const noexcept {
   delete Context;
 }
 } // namespace LLVM

@@ -418,20 +418,25 @@ private:
                      LLVM::LazyJITState>
       LazyJITStates;
 
-  /// Pending module during instantiation
-  const AST::Module *PendingModule = nullptr;
-  const Runtime::Instance::ModuleInstance *PendingModuleInstance = nullptr;
-  uint32_t PendingImportFuncCount = 0;
-  uint32_t PendingTotalFuncCount = 0;
-  LLVM::Data PendingLLData;
-  void *PendingLLContext = nullptr;
-  std::shared_ptr<Executable> PendingExecutable;
+  struct LazyJITPendingState {
+    const AST::Module *Module = nullptr;
+    const Runtime::Instance::ModuleInstance *ModuleInstance = nullptr;
+    uint32_t ImportFuncCount = 0;
+    uint32_t TotalFuncCount = 0;
+    LLVM::Data LLData;
+    std::unique_ptr<LLVM::Compiler::CompileContext,
+                    LLVM::Compiler::CompileContextDeleter>
+        LLContext;
+    std::shared_ptr<Executable> Executable;
+  };
+
+  LazyJITPendingState Pending;
 
   /// Lazy compile a function if lazy JIT mode is enabled and function not yet
   /// compiled.
   Expect<void>
-  lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
-                      uint32_t FuncIdx);
+  unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
+                            uint32_t FuncIdx);
 
   /// Get or create lazy JIT state for a module instance
   LLVM::LazyJITState &

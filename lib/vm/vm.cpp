@@ -87,7 +87,7 @@ void VM::unsafeInitVM() {
     ExecutorEngine.registerLazyCompilationCallback(
         [this](const Runtime::Instance::ModuleInstance *ModInst,
                const uint32_t FuncIdx) -> Expect<void> {
-          return lazyCompileFunction(ModInst, FuncIdx);
+          return unsafeLazyCompileFunction(ModInst, FuncIdx);
         });
   }
 #endif
@@ -272,10 +272,10 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
           return ErrCode::Value::Success;
         })
         .and_then([&](auto LLModule) {
-          PendingLLData = std::move(LLModule.first);
-          PendingLLContext = LLModule.second;
+          Pending.LLData = std::move(LLModule.first);
+          Pending.LLContext = std::move(LLModule.second);
           LLVM::JIT JIT(Conf);
-          return JIT.load(PendingLLData, true);
+          return JIT.load(Pending.LLData, true);
         })
         .map_error([](uint32_t Err) {
           if (Err != ErrCode::Value::Success) {
@@ -286,7 +286,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
           return ErrCode::Value::Success;
         })
         .and_then([&](auto Exec) {
-          PendingExecutable = Exec;
+          Pending.Executable = Exec;
           return LoaderEngine.loadExecutable(const_cast<AST::Module &>(Module),
                                              std::move(Exec));
         })
@@ -305,10 +305,10 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
         ++ImportFuncCount;
       }
     }
-    PendingModule = &Module;
-    PendingModuleInstance = nullptr;
-    PendingImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
-    PendingTotalFuncCount =
+    Pending.Module = &Module;
+    Pending.ModuleInstance = nullptr;
+    Pending.ImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
+    Pending.TotalFuncCount =
         static_cast<uint32_t>(Module.getCodeSection().getContent().size());
   }
 #endif
@@ -317,7 +317,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   auto ModInstResult = ExecutorEngine.registerModule(StoreRef, Module, Name);
 
 #ifdef WASMEDGE_USE_LLVM
-  PendingModule = nullptr;
+  Pending.Module = nullptr;
 #endif
 
   EXPECTED_TRY(auto ModInst, std::move(ModInstResult));
@@ -327,15 +327,14 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   if (Conf.getRuntimeConfigure().isEnableLazyJIT() && !RegModInsts.empty()) {
     auto *RegisteredModInst = RegModInsts.back().get();
     auto &State = LazyJITStates[RegisteredModInst];
-    State.ImportFuncCount = PendingImportFuncCount;
+    State.ImportFuncCount = Pending.ImportFuncCount;
     State.LazyCompiledFuncs.clear();
-    State.TotalFuncCount = PendingTotalFuncCount;
-    State.ModulePtr = &Module;
-    State.LLData = std::move(PendingLLData);
-    State.LLContext = PendingLLContext;
-    PendingLLContext = nullptr;
-    PendingModule = nullptr;
-    PendingModuleInstance = nullptr;
+    State.TotalFuncCount = Pending.TotalFuncCount;
+    State.ModulePtr = Pending.Module;
+    State.LLData = std::move(Pending.LLData);
+    State.LLContext = std::move(Pending.LLContext);
+    Pending.Module = nullptr;
+    Pending.ModuleInstance = nullptr;
   }
 #endif
 
@@ -589,10 +588,10 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto LLModule) {
-              PendingLLData = std::move(LLModule.first);
-              PendingLLContext = LLModule.second;
+              Pending.LLData = std::move(LLModule.first);
+              Pending.LLContext = std::move(LLModule.second);
               LLVM::JIT JIT(Conf);
-              return JIT.load(PendingLLData, true);
+              return JIT.load(Pending.LLData, true);
             })
             .map_error([](uint32_t Err) {
               if (Err != ErrCode::Value::Success) {
@@ -603,7 +602,7 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto Module) {
-              PendingExecutable = Module;
+              Pending.Executable = Module;
               return LoaderEngine.loadExecutable(*Mod, std::move(Module));
             })
             .map_error([](uint32_t Err) {
@@ -647,7 +646,7 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto Module) {
-              PendingExecutable = Module;
+              Pending.Executable = Module;
               return LoaderEngine.loadExecutable(*Mod, std::move(Module));
             })
             .map_error([](uint32_t Err) {
@@ -672,10 +671,10 @@ Expect<void> VM::unsafeInstantiate() {
           ++ImportFuncCount;
         }
       }
-      PendingModule = Mod.get();
-      PendingModuleInstance = nullptr;
-      PendingImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
-      PendingTotalFuncCount =
+      Pending.Module = Mod.get();
+      Pending.ModuleInstance = nullptr;
+      Pending.ImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
+      Pending.TotalFuncCount =
           static_cast<uint32_t>(Mod->getCodeSection().getContent().size());
     }
 #endif
@@ -683,8 +682,8 @@ Expect<void> VM::unsafeInstantiate() {
     auto ActiveModInstResult = ExecutorEngine.instantiateModule(StoreRef, *Mod);
 
 #ifdef WASMEDGE_USE_LLVM
-    PendingModule = nullptr;
-    PendingModuleInstance = nullptr;
+    Pending.Module = nullptr;
+    Pending.ModuleInstance = nullptr;
 #endif
 
     EXPECTED_TRY(ActiveModInst, std::move(ActiveModInstResult));
@@ -692,15 +691,14 @@ Expect<void> VM::unsafeInstantiate() {
 #ifdef WASMEDGE_USE_LLVM
     if (Conf.getRuntimeConfigure().isEnableLazyJIT()) {
       auto &State = LazyJITStates[ActiveModInst.get()];
-      State.ImportFuncCount = PendingImportFuncCount;
+      State.ImportFuncCount = Pending.ImportFuncCount;
       State.LazyCompiledFuncs.clear();
-      State.TotalFuncCount = PendingTotalFuncCount;
+      State.TotalFuncCount = Pending.TotalFuncCount;
       State.OwnedModule = std::move(Mod);
       State.ModulePtr = State.OwnedModule.get();
-      State.LLData = std::move(PendingLLData);
-      State.LLContext = PendingLLContext;
-      PendingLLContext = nullptr;
-      State.Executable = std::move(PendingExecutable);
+      State.LLData = std::move(Pending.LLData);
+      State.LLContext = std::move(Pending.LLContext);
+      State.Executable = std::move(Pending.Executable);
     }
 #endif
     Stage = VMStage::Instantiated;
@@ -784,7 +782,7 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
       FuncInst->isWasmFunction()) {
     uint32_t FuncIdx = ModInst->getFuncIdx(FuncInst);
     if (FuncIdx != UINT32_MAX) {
-      auto Result = lazyCompileFunction(ModInst, FuncIdx);
+      auto Result = unsafeLazyCompileFunction(ModInst, FuncIdx);
       if (!Result) {
         spdlog::warn("Lazy compilation failed for function {}: {}"sv, Func,
                      Result.error());
@@ -900,11 +898,8 @@ void VM::unsafeCleanup() {
   LoaderEngine.reset();
   Stage = VMStage::Inited;
 #ifdef WASMEDGE_USE_LLVM
-  // clean up lazy JIT states
-  for (auto &It : LazyJITStates) {
-    LLVM::Compiler::cleanupContext(
-        static_cast<LLVM::Compiler::CompileContext *>(It.second.LLContext));
-  }
+  // LazyJITStates.clear() will automatically clean up all unique_ptr
+  // LLContexts.
   LazyJITStates.clear();
 #endif
 }
@@ -961,8 +956,8 @@ VM::getLazyJITStateForModule(const Runtime::Instance::ModuleInstance *ModInst) {
 }
 
 Expect<void>
-VM::lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
-                        uint32_t FuncIdx) {
+VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
+                              uint32_t FuncIdx) {
   if (!ModInst) {
     spdlog::error("Lazy JIT: null module instance"sv);
     return Unexpect(ErrCode::Value::WrongInstanceAddress);
@@ -971,7 +966,9 @@ VM::lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   uint32_t ImportFuncCount = 0;
   const AST::Module *ModulePtr = nullptr;
   LLVM::Data *LLDataPtr = nullptr;
-  void **LLContextPtr = nullptr;
+  std::unique_ptr<LLVM::Compiler::CompileContext,
+                  LLVM::Compiler::CompileContextDeleter> *LLContextPtr =
+      nullptr;
   LLVM::LazyJITState *StatePtr = nullptr;
 
   auto It = LazyJITStates.find(ModInst);
@@ -980,14 +977,14 @@ VM::lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     ImportFuncCount = StatePtr->ImportFuncCount;
     ModulePtr = StatePtr->ModulePtr;
     LLDataPtr = &StatePtr->LLData;
-    LLContextPtr = (void **)&StatePtr->LLContext;
-  } else if (PendingModule && (PendingModuleInstance == nullptr ||
-                               PendingModuleInstance == ModInst)) {
-    PendingModuleInstance = ModInst;
-    ImportFuncCount = PendingImportFuncCount;
-    ModulePtr = PendingModule;
-    LLDataPtr = &PendingLLData;
-    LLContextPtr = &PendingLLContext;
+    LLContextPtr = &StatePtr->LLContext;
+  } else if (Pending.Module && (Pending.ModuleInstance == nullptr ||
+                                Pending.ModuleInstance == ModInst)) {
+    Pending.ModuleInstance = ModInst;
+    ImportFuncCount = Pending.ImportFuncCount;
+    ModulePtr = Pending.Module;
+    LLDataPtr = &Pending.LLData;
+    LLContextPtr = &Pending.LLContext;
   } else {
     return {};
   }
@@ -1002,13 +999,14 @@ VM::lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     return {};
   }
 
-  spdlog::info("Lazy compiling function index {} (local {}) for module {}"sv,
-               FuncIdx, LocalFuncIdx, static_cast<const void *>(ModInst));
+  spdlog::info(
+      "[lazyjit]: Lazy compiling function index {} (local {}) for module {}"sv,
+      FuncIdx, LocalFuncIdx, static_cast<const void *>(ModInst));
 
   LLVM::Compiler Compiler(Conf);
   auto ConfigResult = Compiler.checkConfigure();
   if (!ConfigResult) {
-    spdlog::error("Lazy JIT compiler config failed: {}"sv,
+    spdlog::error("[lazyjit]: Lazy JIT compiler config failed: {}"sv,
                   ConfigResult.error());
     return Unexpect(ConfigResult.error());
   }
@@ -1018,10 +1016,10 @@ VM::lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   }
   auto CompileResult = Compiler.compileFunction(
       std::move(*LLDataPtr),
-      static_cast<LLVM::Compiler::CompileContext *>(*LLContextPtr), *ModulePtr,
-      LocalFuncIdx);
+      static_cast<LLVM::Compiler::CompileContext *>(LLContextPtr->get()),
+      *ModulePtr, LocalFuncIdx);
   if (!CompileResult) {
-    spdlog::error("Lazy JIT function compilation failed: {}"sv,
+    spdlog::error("[lazyjit]: Lazy JIT function compilation failed: {}"sv,
                   CompileResult.error());
     return Unexpect(CompileResult.error());
   }
@@ -1031,46 +1029,47 @@ VM::lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   std::shared_ptr<Executable> Exec;
   if (StatePtr && StatePtr->Executable) {
     Exec = StatePtr->Executable;
-  } else if (!StatePtr && PendingExecutable) {
-    Exec = PendingExecutable;
+  } else if (!StatePtr && Pending.Executable) {
+    Exec = Pending.Executable;
   }
 
   if (Exec) {
     if (auto AddRes = JIT.add(*Exec, *LLDataPtr); !AddRes) {
-      spdlog::error("Lazy JIT add failed: {}"sv, AddRes.error());
+      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, AddRes.error());
       return Unexpect(AddRes.error());
     }
   } else {
     auto LoadResult = JIT.load(*LLDataPtr, true);
     if (!LoadResult) {
-      spdlog::error("Lazy JIT load failed: {}"sv, LoadResult.error());
+      spdlog::error("[lazyjit]: Lazy JIT load failed: {}"sv,
+                    LoadResult.error());
       return Unexpect(LoadResult.error());
     }
     Exec = *LoadResult;
     if (StatePtr) {
       StatePtr->Executable = Exec;
     } else {
-      PendingExecutable = Exec;
+      Pending.Executable = Exec;
     }
   }
 
   if (auto IntrinsicsSymbol = Exec->getIntrinsics()) {
     *IntrinsicsSymbol = &Executor::Executor::Intrinsics;
   } else {
-    spdlog::error("Lazy JIT: failed to get intrinsics symbol"sv);
+    spdlog::error("[lazyjit]: failed to get intrinsics symbol"sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   auto CodeSymbols = Exec->getCodes(ImportFuncCount + LocalFuncIdx, 1);
   if (CodeSymbols.empty() || !CodeSymbols[0]) {
-    spdlog::error("Lazy JIT: failed to get code symbol for function {}"sv,
+    spdlog::error("[lazyjit]: failed to get code symbol for function {}"sv,
                   LocalFuncIdx);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   auto FuncResult = ModInst->getFuncInst(FuncIdx);
   if (!FuncResult) {
-    spdlog::error("Lazy JIT: failed to get function instance for index {}"sv,
+    spdlog::error("[lazyjit]: failed to get function instance for index {}"sv,
                   FuncIdx);
     return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
@@ -1080,7 +1079,7 @@ VM::lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     Symbol<Runtime::Instance::FunctionInstance::CompiledFunction> CompiledSym(
         reinterpret_cast<Runtime::Instance::FunctionInstance::CompiledFunction
                              *>(CodeSymbols[0].get()));
-    FuncInst->upgradeToCompiled(std::move(CompiledSym));
+    FuncInst->unsafeUpgradeToCompiled(std::move(CompiledSym));
   }
 
   if (StatePtr) {

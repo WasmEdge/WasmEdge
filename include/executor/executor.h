@@ -1149,6 +1149,21 @@ private:
   std::function<Expect<void>(const Runtime::Instance::ModuleInstance *,
                              const uint32_t)>
       LazyCompilationHandler;
+
+  /// Helper function for checking lazy compilation.
+  Expect<void> checkLazyCompilation(
+      const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
+    if (FuncInst->isWasmFunction() && !FuncInst->isCompiledFunction() &&
+        LazyCompilationHandler) {
+      if (const auto *TargetModInst = FuncInst->getModule()) {
+        uint32_t TargetFuncIdx = TargetModInst->getFuncIdx(FuncInst);
+        if (TargetFuncIdx != UINT32_MAX) {
+          return LazyCompilationHandler(TargetModInst, TargetFuncIdx);
+        }
+      }
+    }
+    return {};
+  }
 };
 
 } // namespace Executor

@@ -35,17 +35,20 @@ public:
   Expect<Data> compile(const AST::Module &Module) noexcept;
 
   struct CompileContext;
+  struct CompileContextDeleter {
+    void operator()(CompileContext *Context) const noexcept;
+  };
 
   /// Compile only the infrastructure (types, imports, globals, etc.) without
   /// function bodies.
-  Expect<std::pair<Data, Compiler::CompileContext *>>
+  Expect<
+      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>
   compileInfrastructure(const AST::Module &Module,
                         std::string Prefix = "") noexcept;
   /// Compile a single function by index.
   Expect<Data> compileFunction(Data &&LLData, CompileContext *Context,
                                const AST::Module &Module,
                                uint32_t FuncIndex) noexcept;
-  static void cleanupContext(CompileContext *Context) noexcept;
 
 private:
   void compile(const AST::ImportSection &ImportSection) noexcept;

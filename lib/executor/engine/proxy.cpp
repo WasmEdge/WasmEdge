@@ -123,15 +123,7 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
                                  const uint32_t FuncIdx, const ValVariant *Args,
                                  ValVariant *Rets) noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
-  if (FuncInst->isWasmFunction() && !FuncInst->isCompiledFunction() &&
-      LazyCompilationHandler) {
-    if (const auto *TargetModInst = FuncInst->getModule()) {
-      uint32_t TargetFuncIdx = TargetModInst->getFuncIdx(FuncInst);
-      if (TargetFuncIdx != UINT32_MAX) {
-        EXPECTED_TRY(LazyCompilationHandler(TargetModInst, TargetFuncIdx));
-      }
-    }
-  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -177,15 +169,7 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
 
-  if (FuncInst->isWasmFunction() && !FuncInst->isCompiledFunction() &&
-      LazyCompilationHandler) {
-    if (const auto *TargetModInst = FuncInst->getModule()) {
-      uint32_t TargetFuncIdx = TargetModInst->getFuncIdx(FuncInst);
-      if (TargetFuncIdx != UINT32_MAX) {
-        EXPECTED_TRY(LazyCompilationHandler(TargetModInst, TargetFuncIdx));
-      }
-    }
-  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
   bool IsMatch = false;
   if (FuncInst->getModule()) {
@@ -232,15 +216,7 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
     return Unexpect(ErrCode::Value::AccessNullFunc);
   }
 
-  if (FuncInst->isWasmFunction() && !FuncInst->isCompiledFunction() &&
-      LazyCompilationHandler) {
-    if (const auto *TargetModInst = FuncInst->getModule()) {
-      uint32_t TargetFuncIdx = TargetModInst->getFuncIdx(FuncInst);
-      if (TargetFuncIdx != UINT32_MAX) {
-        EXPECTED_TRY(LazyCompilationHandler(TargetModInst, TargetFuncIdx));
-      }
-    }
-  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
@@ -674,15 +650,7 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
-  if (FuncInst->isWasmFunction() && !FuncInst->isCompiledFunction() &&
-      LazyCompilationHandler) {
-    if (const auto *TargetModInst = FuncInst->getModule()) {
-      uint32_t TargetFuncIdx = TargetModInst->getFuncIdx(FuncInst);
-      if (TargetFuncIdx != UINT32_MAX) {
-        EXPECTED_TRY(LazyCompilationHandler(TargetModInst, TargetFuncIdx));
-      }
-    }
-  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
@@ -695,15 +663,7 @@ Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
   const auto *FuncInst = retrieveFuncRef(Ref);
   assuming(FuncInst);
 
-  if (FuncInst->isWasmFunction() && !FuncInst->isCompiledFunction() &&
-      LazyCompilationHandler) {
-    if (const auto *TargetModInst = FuncInst->getModule()) {
-      uint32_t TargetFuncIdx = TargetModInst->getFuncIdx(FuncInst);
-      if (TargetFuncIdx != UINT32_MAX) {
-        EXPECTED_TRY(LazyCompilationHandler(TargetModInst, TargetFuncIdx));
-      }
-    }
-  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
 
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;

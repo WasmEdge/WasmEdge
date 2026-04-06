@@ -6553,10 +6553,11 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
 
   spdlog::info("[lazyjit]: infrastructure compilation done"sv);
 
+  this->Context = nullptr;
   return Expect<
       std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>{
       std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>{
-          std::move(D), std::move(Context)}};
+          std::move(D), std::move(NewContext)}};
 }
 
 Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,

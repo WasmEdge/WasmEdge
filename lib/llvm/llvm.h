@@ -2071,7 +2071,7 @@ public:
   }
 #if LLVM_VERSION_MAJOR >= 21
   OrcThreadSafeContext(Context &C) noexcept
-      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.release())) {}
+      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.unwrap())) {}
 #else
   Context getContext() noexcept {
     return LLVMOrcThreadSafeContextGetContext(Ref);

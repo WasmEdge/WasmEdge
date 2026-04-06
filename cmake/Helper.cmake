@@ -33,6 +33,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     /wd4819 # file contains a character not in current code page
     /wd4127 # conditional expression is constant
     /wd4611 # interaction between '_setjmp' and C++ object destruction is non-portable
+    /bigobj # for large object files
   )
 else()
   list(APPEND WASMEDGE_CFLAGS

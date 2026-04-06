@@ -6497,11 +6497,11 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
-  std::unique_ptr<CompileContext, CompileContextDeleter> Context(
+  std::unique_ptr<CompileContext, CompileContextDeleter> NewContext(
       new CompileContext(LLContext, LLModule,
                          Conf.getCompilerConfigure().isGenericBinary(),
                          D.getPrefix()));
-  this->Context = Context.get();
+  this->Context = NewContext.get();
 
   // Compile Function Types
   compile(Module.getTypeSection());
@@ -6543,7 +6543,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
 }
 
 Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
-                                             CompileContext *Context,
+                                             CompileContext *NewContext,
                                              const AST::Module &Module,
                                              uint32_t FuncIndex) noexcept {
   // Check the module is validated.
@@ -6561,7 +6561,7 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
-  this->Context = Context;
+  this->Context = NewContext;
   Context->LLModule = LLModule;
 
   // Clear module-bound state if reusing the context

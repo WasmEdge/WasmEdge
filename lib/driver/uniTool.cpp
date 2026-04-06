@@ -46,24 +46,24 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     ToolOptions.add_option(Parser);
     Parser.end_subcommand();
     Parser.begin_subcommand(ParseSubCommand, "parse"sv);
-    ParseOptions.add_parse_options(Parser);
+    ParseOptions.addParserOptions(Parser);
     Parser.end_subcommand();
     Parser.begin_subcommand(InstantiateSubCommand, "instantiate"sv);
-    InstantiateOptions.add_instantiate_options(Parser);
+    InstantiateOptions.addLinkerOptions(Parser);
     Parser.end_subcommand();
     Parser.begin_subcommand(ValidateSubCommand, "validate"sv);
-    ValidateOptions.add_validate_options(Parser);
+    ValidateOptions.addParserOptions(Parser);
     Parser.end_subcommand();
   } else if (ToolSelect == ToolType::Tool) {
     ToolOptions.add_option(Parser);
   } else if (ToolSelect == ToolType::Compiler) {
     CompilerOptions.add_option(Parser);
   } else if (ToolSelect == ToolType::Parse) {
-    ParseOptions.add_parse_options(Parser);
+    ParseOptions.addParserOptions(Parser);
   } else if (ToolSelect == ToolType::Validate) {
-    ValidateOptions.add_validate_options(Parser);
+    ValidateOptions.addParserOptions(Parser);
   } else if (ToolSelect == ToolType::Instantiate) {
-    InstantiateOptions.add_instantiate_options(Parser);
+    InstantiateOptions.addLinkerOptions(Parser);
   } else {
     return EXIT_FAILURE;
   }

@@ -64,7 +64,8 @@ struct DriverCompilerOptions : public DriverProposalOptions {
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
         .add_option("generic-binary"sv, ConfGenericBinary);
     add_proposal_options(Parser);
-    // TODO: EXCEPTION - enable the option.
+    // TODO: Move exception handling option into add_proposal_options after
+    // AOT mode of exception handling proposal is ready.
     // Parser.add_option("disable-exception-handling"sv, PropExceptionHandling)
     Parser.add_option("optimize"sv, PropOptimizationLevel);
   }

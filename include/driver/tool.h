@@ -43,6 +43,8 @@ struct DriverToolOptions : public DriverProposalOptions {
                 "Environ variables. Each variable can be specified as --env "
                 "`NAME=VALUE`."sv),
             PO::MetaVar("ENVS"sv)),
+        // TODO: Move PropExceptionHandling into add_proposal_options after
+        // AOT mode of exception handling proposal is ready.
         PropExceptionHandling(
             PO::Description("Disable Exception handling proposal"sv)),
         PropExceptionHandlingDeprecated(PO::Description(
@@ -124,14 +126,14 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::Option<std::string> LogLevel;
 
 private:
-  void add_global_options(PO::ArgumentParser &Parser) noexcept {
+  void addGlobalOptions(PO::ArgumentParser &Parser) noexcept {
     Parser.add_option("log-level"sv, LogLevel)
         .add_option("forbidden-plugin"sv, ForbiddenPlugins);
   }
 
 public:
-  void add_parse_options(PO::ArgumentParser &Parser) noexcept {
-    add_global_options(Parser);
+  void addParserOptions(PO::ArgumentParser &Parser) noexcept {
+    addGlobalOptions(Parser);
     add_proposal_options(Parser);
     Parser.add_option("disable-exception-handling"sv, PropExceptionHandling)
         .add_option("enable-exception-handling"sv,
@@ -143,22 +145,17 @@ public:
     Plugin::Plugin::addPluginOptions(Parser);
   }
 
-  void add_validate_options(PO::ArgumentParser &Parser) noexcept {
-    add_parse_options(Parser);
-  }
-
-  void add_instantiate_options(PO::ArgumentParser &Parser) noexcept {
-    add_validate_options(Parser);
+  void addLinkerOptions(PO::ArgumentParser &Parser) noexcept {
+    addParserOptions(Parser);
 
     Parser.add_option("dir"sv, Dir)
         .add_option("env"sv, Env)
-        .add_option("module"sv, LinkedModules);
-
-    Parser.add_option("memory-page-limit"sv, MemLim);
+        .add_option("module"sv, LinkedModules)
+        .add_option("memory-page-limit"sv, MemLim);
   }
 
   void add_option(PO::ArgumentParser &Parser) noexcept {
-    add_instantiate_options(Parser);
+    addLinkerOptions(Parser);
 
     // pure Execution and Profiling flags
     Parser.add_option(Args)

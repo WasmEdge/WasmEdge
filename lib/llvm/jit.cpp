@@ -100,7 +100,7 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
 }
 
 Expect<void> JIT::add(Executable &Exec, Data &D) noexcept {
-  auto *Lib = static_cast<JITLibrary *>(&Exec);
+  auto *Lib = dynamic_cast<JITLibrary *>(&Exec);
   auto &LLModule = D.extract().LLModule;
   auto &TSContext = D.extract().getTSContext();
 

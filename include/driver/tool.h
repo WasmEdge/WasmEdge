@@ -133,7 +133,7 @@ struct DriverToolOptions {
             PO::Description(
                 "Set logging level. Valid values: off, trace, debug, info, "
                 "warning, error, fatal. Default is info."sv),
-            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string("info"))) {}
+            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string())) {}
 
   PO::Option<std::string> SoName;
   PO::List<std::string> Args;

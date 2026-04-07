@@ -16,7 +16,14 @@
 namespace WasmEdge {
 namespace Driver {
 
-enum class ToolType : char { All, Compiler, Tool };
+enum class ToolType : char {
+  All,
+  Compiler,
+  Tool,
+  Parse,
+  Validate,
+  Instantiate
+};
 
 int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept;
 

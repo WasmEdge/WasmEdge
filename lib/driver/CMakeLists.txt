@@ -7,6 +7,10 @@ set(SOURCES
   fuzzTool.cpp
   fuzzPO.cpp
   uniTool.cpp
+  validateTool.cpp
+  parseTool.cpp
+  instantiateTool.cpp
+  toolConfig.cpp
 )
 
 if(WASMEDGE_BUILD_WASI_NN_RPC)

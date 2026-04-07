@@ -186,16 +186,16 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringCreateByBuffer(const char *Buf,
                               const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Create the WasmEdge_String wraps to the buffer.
+/// Create a WasmEdge_String that wraps the buffer.
 ///
-/// This function creates a `WasmEdge_String` object which wraps to the input
+/// This function creates a `WasmEdge_String` object which wraps the input
 /// buffer. The caller should guarantee the life cycle of the input buffer, and
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 ///
-/// \param Buf the buffer to copy into the WasmEdge_String object.
+/// \param Buf the buffer to wrap into the WasmEdge_String object.
 /// \param Len the buffer length.
 ///
-/// \returns string object refer to the input buffer with its length.
+/// \returns string object referring to the input buffer with its length.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringWrap(const char *Buf, const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
@@ -212,7 +212,7 @@ WasmEdge_StringIsEqual(const WasmEdge_String Str1,
 
 /// Copy the content of WasmEdge_String object to the buffer.
 ///
-/// This function copy at most `Len` characters from the `WasmEdge_String`
+/// This function copies at most `Len` characters from the `WasmEdge_String`
 /// object to the destination buffer. If the string length is less than `Len`
 /// characters long, the remainder of the buffer is filled with `\0' characters.
 /// Otherwise, the destination is not terminated.
@@ -253,16 +253,16 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Bytes
 WasmEdge_BytesCreate(const uint8_t *Buf,
                      const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Create the WasmEdge_Bytes wraps to the buffer.
+/// Create a WasmEdge_Bytes that wraps the buffer.
 ///
-/// This function creates a `WasmEdge_Bytes` object which wraps to the input
+/// This function creates a `WasmEdge_Bytes` object which wraps the input
 /// buffer. The caller should guarantee the life cycle of the input buffer, and
 /// should __NOT__ call the `WasmEdge_BytesDelete`.
 ///
 /// \param Buf the buffer to wrap to the WasmEdge_Bytes object.
 /// \param Len the buffer length.
 ///
-/// \returns bytes object refer to the input buffer with its length.
+/// \returns bytes object referring to the input buffer with its length.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Bytes
 WasmEdge_BytesWrap(const uint8_t *Buf,
                    const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
@@ -292,7 +292,7 @@ WasmEdge_ResultOK(const WasmEdge_Result Res) WASMEDGE_CAPI_NOEXCEPT;
 /// Generate the result with code.
 ///
 /// \param Category the WasmEdge_ErrCategory to specify the error category.
-/// \param Code the 24-bit length error code. The data exceeds 24 bits will be
+/// \param Code the 24-bit length error code. Data exceeding 24 bits will be
 /// stripped.
 ///
 /// \returns WasmEdge_Result struct with the given data.

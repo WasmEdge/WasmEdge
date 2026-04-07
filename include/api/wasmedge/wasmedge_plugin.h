@@ -210,7 +210,7 @@ WasmEdge_PluginInitWASINN(const char *const *NNPreloads,
 WASMEDGE_CAPI_PLUGIN_EXPORT extern const WasmEdge_PluginDescriptor *
 WasmEdge_Plugin_GetDescriptor(void);
 
-// <<<<<<<< WasmEdge Pluginfunctions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< WasmEdge Plugin functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef __cplusplus
 } /// extern "C"

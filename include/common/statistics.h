@@ -55,7 +55,7 @@ public:
            std::chrono::duration<double>(getWasmExecTime()).count();
   }
 
-  /// Setter and setter of cost table.
+  /// Getter and setter of cost table.
   void setCostTable(Span<const uint64_t> NewTable) {
     CostTab.assign(NewTable.begin(), NewTable.end());
     if (unlikely(CostTab.size() < UINT16_MAX + 1)) {

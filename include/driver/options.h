@@ -94,7 +94,7 @@ struct DriverProposalOptions {
   PO::Option<PO::Toggle> PropThreads;
   PO::Option<PO::Toggle> PropAll;
 
-  void add_proposal_options(PO::ArgumentParser &Parser) noexcept {
+  void addProposalOptions(PO::ArgumentParser &Parser) noexcept {
     Parser.add_option("wasm-1"sv, PropWASM1)
         .add_option("wasm-2"sv, PropWASM2)
         .add_option("wasm-3"sv, PropWASM3)

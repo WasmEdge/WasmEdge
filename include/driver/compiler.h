@@ -53,7 +53,7 @@ struct DriverCompilerOptions : public DriverProposalOptions {
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
   PO::Option<std::string> PropOptimizationLevel;
 
-  void add_option(PO::ArgumentParser &Parser) noexcept {
+  void addOptions(PO::ArgumentParser &Parser) noexcept {
     Parser.add_option(WasmName)
         .add_option(SoName)
         .add_option("dump"sv, ConfDumpIR)
@@ -63,8 +63,8 @@ struct DriverCompilerOptions : public DriverProposalOptions {
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
         .add_option("generic-binary"sv, ConfGenericBinary);
-    add_proposal_options(Parser);
-    // TODO: Move exception handling option into add_proposal_options after
+    addProposalOptions(Parser);
+    // TODO: Move exception handling option into addProposalOptions after
     // AOT mode of exception handling proposal is ready.
     // Parser.add_option("disable-exception-handling"sv, PropExceptionHandling)
     Parser.add_option("optimize"sv, PropOptimizationLevel);

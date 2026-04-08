@@ -43,7 +43,7 @@ struct DriverToolOptions : public DriverProposalOptions {
                 "Environ variables. Each variable can be specified as --env "
                 "`NAME=VALUE`."sv),
             PO::MetaVar("ENVS"sv)),
-        // TODO: Move PropExceptionHandling into add_proposal_options after
+        // TODO: Move PropExceptionHandling into addProposalOptions after
         // AOT mode of exception handling proposal is ready.
         PropExceptionHandling(
             PO::Description("Disable Exception handling proposal"sv)),
@@ -134,19 +134,19 @@ private:
 public:
   void addParserOptions(PO::ArgumentParser &Parser) noexcept {
     addGlobalOptions(Parser);
-    add_proposal_options(Parser);
+    addProposalOptions(Parser);
     Parser.add_option("disable-exception-handling"sv, PropExceptionHandling)
         .add_option("enable-exception-handling"sv,
                     PropExceptionHandlingDeprecated)
-        .add_option("enable-component"sv, PropComponent);
-    Parser.add_option(SoName);
-
-    Plugin::Plugin::loadFromDefaultPaths();
-    Plugin::Plugin::addPluginOptions(Parser);
+        .add_option("enable-component"sv, PropComponent)
+        .add_option(SoName);
   }
 
   void addLinkerOptions(PO::ArgumentParser &Parser) noexcept {
     addParserOptions(Parser);
+
+    Plugin::Plugin::loadFromDefaultPaths();
+    Plugin::Plugin::addPluginOptions(Parser);
 
     Parser.add_option("dir"sv, Dir)
         .add_option("env"sv, Env)
@@ -154,7 +154,7 @@ public:
         .add_option("memory-page-limit"sv, MemLim);
   }
 
-  void add_option(PO::ArgumentParser &Parser) noexcept {
+  void addOptions(PO::ArgumentParser &Parser) noexcept {
     addLinkerOptions(Parser);
 
     // pure Execution and Profiling flags

@@ -37,13 +37,13 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
 
   // Construct Parser Subcommands and Options
   if (ToolSelect == ToolType::All) {
-    ToolOptions.add_option(Parser);
+    ToolOptions.addOptions(Parser);
 
     Parser.begin_subcommand(CompilerSubCommand, "compile"sv);
-    CompilerOptions.add_option(Parser);
+    CompilerOptions.addOptions(Parser);
     Parser.end_subcommand();
     Parser.begin_subcommand(ToolSubCommand, "run"sv);
-    ToolOptions.add_option(Parser);
+    ToolOptions.addOptions(Parser);
     Parser.end_subcommand();
     Parser.begin_subcommand(ParseSubCommand, "parse"sv);
     ParseOptions.addParserOptions(Parser);
@@ -55,9 +55,9 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     ValidateOptions.addParserOptions(Parser);
     Parser.end_subcommand();
   } else if (ToolSelect == ToolType::Tool) {
-    ToolOptions.add_option(Parser);
+    ToolOptions.addOptions(Parser);
   } else if (ToolSelect == ToolType::Compiler) {
-    CompilerOptions.add_option(Parser);
+    CompilerOptions.addOptions(Parser);
   } else if (ToolSelect == ToolType::Parse) {
     ParseOptions.addParserOptions(Parser);
   } else if (ToolSelect == ToolType::Validate) {

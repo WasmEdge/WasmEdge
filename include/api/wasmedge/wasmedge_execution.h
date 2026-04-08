@@ -195,10 +195,10 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInstantiate(
 /// registered into the store, and the other modules can import the exported
 /// instances for linking when instantiation. Developers SHOULD guarantee the
 /// life cycle of this output module instance, or the error will occur when in
-/// execution after the module instance being destroyed if it has been imported
+/// execution after the module instance is destroyed if it has been imported
 /// by other modules. That is, developers have the responsibility to delete the
 /// output module instance even though the store being destroyed. When the
-/// module instance is deleted, it will be unregistered to the store
+/// module instance is deleted, it will be unregistered from the store
 /// automatically.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
@@ -223,8 +223,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorRegister(
 /// After calling this function, the existing module instance will be registered
 /// into the store, and the other modules can import the exported instances for
 /// linking when instantiation. Developers SHOULD guarantee the life cycle of
-/// this existing module instance, or the error will occur when in execution
-/// after the module instance being destroyed if it has been imported by other
+/// this existing module instance, or the error will occur during execution
+/// after the module instance is destroyed if it has been imported by other
 /// modules. When the module instance is deleted, it will be unregistered to the
 /// store automatically.
 ///
@@ -279,7 +279,7 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
                         WasmEdge_Value *Returns,
                         const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Asynchronous invoke a WASM function by the function instance.
+/// Asynchronously invoke a WASM function by the function instance.
 ///
 /// After instantiating a WASM module, developers can get the function instance
 /// context from the module instance. Then developers can invoke the function
@@ -374,7 +374,7 @@ WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
 /// If there are module instances registered into this store context, they will
-/// be automatically un-link to this store context.
+/// be automatically unlinked from this store context.
 ///
 /// \param Cxt the WasmEdge_StoreContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
@@ -435,15 +435,15 @@ WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
 
 // >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Wait a WasmEdge_Async execution.
+/// Wait for a WasmEdge_Async execution.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_AsyncWait(const WasmEdge_Async *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Wait a WasmEdge_Async execution with timeout.
+/// Wait for a WasmEdge_Async execution with timeout.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 /// \param Milliseconds times to wait.
 ///
 /// \returns Result of waiting, true for execution ended, false for timeout
@@ -454,19 +454,19 @@ WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
 
 /// Cancel a WasmEdge_Async execution.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_AsyncCancel(WasmEdge_Async *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Wait and get the return list length of the WasmEdge_Async execution.
 ///
-/// This function will wait until the execution finished and return the return
+/// This function will wait until the execution finishes and return the return
 /// value list length of the executed function. This function will return 0 if
-/// the `Cxt` is NULL, the execution was failed, or the execution was canceled.
+/// the `Cxt` is NULL, the execution failed, or the execution was canceled.
 /// Developers can call the `WasmEdge_AsyncGet` to get the execution status and
 /// the return values.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 ///
 /// \returns the return list length of the executed function.
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_AsyncGetReturnsLength(
@@ -474,12 +474,12 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_AsyncGetReturnsLength(
 
 /// Wait and get the result of WasmEdge_Async execution.
 ///
-/// This function will wait until the execution finished and return the
+/// This function will wait until the execution finishes and return the
 /// execution status and the return values.
 /// If the `Returns` buffer length is smaller than the arity of the function,
 /// the overflowed return values will be discarded.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 /// \param [out] Returns the WasmEdge_Value buffer to fill the return values.
 /// \param ReturnLen the return buffer length.
 ///
@@ -494,7 +494,7 @@ WasmEdge_AsyncGet(const WasmEdge_Async *Cxt, WasmEdge_Value *Returns,
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
 ///
-/// \param Cxt the WasmEdge_ASync to destroy.
+/// \param Cxt the WasmEdge_Async to destroy.
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_AsyncDelete(WasmEdge_Async *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 

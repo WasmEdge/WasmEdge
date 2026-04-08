@@ -30,7 +30,7 @@ extern "C" {
 /// Creation of the WasmEdge_ModuleInstanceContext.
 ///
 /// Create a module instance context with exported module name for host
-/// instances. Developer can use this API to create a module instance for
+/// instances. Developers can use this API to create a module instance for
 /// collecting host functions, tables, memories, tags, and globals.
 /// The caller owns the object and should call `WasmEdge_ModuleInstanceDelete`
 /// to destroy it.
@@ -47,8 +47,8 @@ WasmEdge_ModuleInstanceCreate(const WasmEdge_String ModuleName)
 ///
 /// Create a module instance context with exported module name, host data, and
 /// host data finalizer for host instances. Developer can use this API to create
-/// a module instance for collecting host functions, tables, memories, and
-/// globals. When this created module instance being destroyed, the host data
+/// a module instance for collecting host functions, tables, memories, tags, and
+/// globals. When this created module instance is destroyed, the host data
 /// finalizer will be invoked. The caller owns the object and should call
 /// `WasmEdge_ModuleInstanceDelete` to destroy it.
 ///
@@ -836,7 +836,7 @@ WasmEdge_MemoryInstanceGetMemoryType(const WasmEdge_MemoryInstanceContext *Cxt)
 /// \param [out] Data the result data buffer of copying destination.
 /// \param Offset the data start offset in the memory instance.
 /// \param Length the requested data length. If the `Offset + Length` is larger
-/// than the data size in the memory instance, this function will failed.
+/// than the data size in the memory instance, this function will fail.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
@@ -851,7 +851,7 @@ WasmEdge_MemoryInstanceGetData(const WasmEdge_MemoryInstanceContext *Cxt,
 /// \param Data the data buffer to copy.
 /// \param Offset the data start offset in the memory instance.
 /// \param Length the data buffer length. If the `Offset + Length` is larger
-/// than the data size in the memory instance, this function will failed.
+/// than the data size in the memory instance, this function will fail.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.

@@ -35,7 +35,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_CompilerContext *WasmEdge_CompilerCreate(
 /// Compile the input WASM from the file path.
 ///
 /// The compiler compiles the WASM from file path for the ahead-of-time mode and
-/// store the result to the output file path.
+/// stores the result to the output file path.
 ///
 /// \param Cxt the WasmEdge_CompilerContext.
 /// \param InPath the input WASM file path.

@@ -147,7 +147,7 @@ Expect<ErrNo> AOTInductor::run(std::vector<at::Tensor> In,
 }
 
 PyModelBackend guessPyModelBackendType(const std::string_view &Model) {
-  // TODO: Add more model type detection when we supporet more OS.
+  // TODO: Add more model type detection when we support more OS.
   // ex .dll, .dylib, etc.
   if (Model.substr(0, 8) == "preload:"sv) {
     if (Model.substr(Model.size() - 3, 3) == ".so"sv) {

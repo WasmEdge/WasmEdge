@@ -87,7 +87,7 @@ void VM::unsafeInitVM() {
 
 void VM::unsafeLoadBuiltInHosts() {
   // Load the built-in host modules from configuration.
-  // TODO: This will be extended for the versionlized WASI in the future.
+  // TODO: This will be extended for the versionalized WASI in the future.
   BuiltInModInsts.clear();
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =

@@ -8,7 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the `Expected` wrappers.
+/// This file contains the error code class, error category, and Unexpect
+/// helpers.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

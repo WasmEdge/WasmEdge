@@ -392,20 +392,34 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     return static_cast<uint64_t>(1); // NotEqual
   }
 
-  decltype(WaiterMap)::iterator WaiterIterator;
+  auto &WaiterMapMtx = MemInst.getWaiterMapMutex();
+  auto &WaiterMap = MemInst.getWaiterMap();
+
+  std::remove_reference_t<decltype(WaiterMap)>::iterator WaiterIterator;
   {
-    std::unique_lock<decltype(WaiterMapMutex)> Locker(WaiterMapMutex);
-    WaiterIterator = WaiterMap.emplace(Address, &MemInst);
+    std::unique_lock<std::mutex> Locker(WaiterMapMtx);
+    WaiterIterator = WaiterMap.emplace(std::piecewise_construct,
+                                       std::forward_as_tuple(Address),
+                                       std::forward_as_tuple());
   }
 
+  WaitingMemory.store(&MemInst, std::memory_order_release);
   cxx20::scope_exit ScopeExitHolder([&]() noexcept {
-    std::unique_lock<decltype(WaiterMapMutex)> Locker(WaiterMapMutex);
+    WaitingMemory.store(nullptr, std::memory_order_release);
+    std::unique_lock<std::mutex> Locker(WaiterMapMtx);
     WaiterMap.erase(WaiterIterator);
   });
 
   while (true) {
     std::unique_lock<decltype(WaiterIterator->second.Mutex)> Locker(
         WaiterIterator->second.Mutex);
+    // Check StopToken while holding the Waiter mutex, before entering wait.
+    // This pairs with notifyAllWaiters() which acquires+releases this mutex
+    // before calling notify_all(), ensuring we either see StopToken here or
+    // get woken by the subsequent notify_all().
+    if (unlikely(StopToken.load(std::memory_order_acquire) != 0)) {
+      return Unexpect(ErrCode::Value::Interrupted);
+    }
     std::cv_status WaitResult = std::cv_status::no_timeout;
     if (!Until) {
       WaiterIterator->second.Cond.wait(Locker);
@@ -415,7 +429,9 @@ Executor::atomicWait(Runtime::Instance::MemoryInstance &MemInst,
     if (unlikely(StopToken.load(std::memory_order_relaxed) != 0)) {
       return Unexpect(ErrCode::Value::Interrupted);
     }
-    if (likely(AtomicObj->load() != Expected.le())) {
+    if (WaiterIterator->second.Notified) {
+      // Woken by memory.atomic.notify — return "ok" per the spec,
+      // regardless of the current memory value.
       return static_cast<uint64_t>(0); // ok
     }
     if (WaitResult == std::cv_status::timeout) {

@@ -542,7 +542,7 @@ TEST(APICoreTest, Value) {
   Val = WasmEdge_ValueGenF64(-std::numeric_limits<double>::infinity());
   EXPECT_EQ(WasmEdge_ValueGetF64(Val),
             -std::numeric_limits<double>::infinity());
-#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) || \
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
     (defined(__riscv) && __riscv_xlen == 64)
   Val = WasmEdge_ValueGenV128(static_cast<int128_t>(INT64_MAX) * 2 + 1);
   EXPECT_EQ(WasmEdge_ValueGetV128(Val),
@@ -596,6 +596,11 @@ TEST(APICoreTest, String) {
   WasmEdge_StringDelete(Str1);
   WasmEdge_StringDelete(Str2);
   WasmEdge_StringDelete(Str3);
+
+  // Boundary check for empty string
+  WasmEdge_String EmptyStr = WasmEdge_StringCreateByCString("");
+  EXPECT_TRUE(WasmEdge_StringIsEqual(EmptyStr, WasmEdge_StringWrap("", 0)));
+  WasmEdge_StringDelete(EmptyStr);
 }
 
 TEST(APICoreTest, Bytes) {
@@ -1537,7 +1542,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   WasmEdge_ExecutorDelete(nullptr);
   EXPECT_TRUE(true);
 
-  // Register import object
+  // Register module instance
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
   EXPECT_NE(HostMod, nullptr);
   WasmEdge_ModuleInstanceContext *HostModWrap =
@@ -1563,6 +1568,34 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_ExecutorRegisterImport(ExecCxt, Store, HostModWrap)));
   WasmEdge_ModuleInstanceDelete(HostMod2);
+
+  // Register module instance with alias name
+  WasmEdge_ModuleInstanceContext *HostModAlias =
+      createExternModule("extern-alias");
+  EXPECT_NE(HostModAlias, nullptr);
+  WasmEdge_String AliasName = WasmEdge_StringCreateByCString("alias-name");
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ExecutorRegisterImportWithAlias(
+                             nullptr, Store, HostModAlias, AliasName)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ExecutorRegisterImportWithAlias(
+                             ExecCxt, nullptr, HostModAlias, AliasName)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_ExecutorRegisterImportWithAlias(
+                             ExecCxt, Store, nullptr, AliasName)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_ExecutorRegisterImportWithAlias(
+      ExecCxt, Store, HostModAlias, AliasName)));
+  // The module should be findable by alias name
+  EXPECT_NE(WasmEdge_StoreFindModule(Store, AliasName), nullptr);
+  // Name conflict with alias name
+  WasmEdge_String AliasName2 = WasmEdge_StringCreateByCString("alias-name");
+  WasmEdge_ModuleInstanceContext *HostModAlias2 =
+      createExternModule("extern-alias2");
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
+                         WasmEdge_ExecutorRegisterImportWithAlias(
+                             ExecCxt, Store, HostModAlias2, AliasName2)));
+  WasmEdge_StringDelete(AliasName);
+  WasmEdge_StringDelete(AliasName2);
 
   // Register wasm module
   WasmEdge_String ModName = WasmEdge_StringCreateByCString("module");
@@ -1829,6 +1862,8 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   WasmEdge_ModuleInstanceDelete(ModRegCxt);
   WasmEdge_ModuleInstanceDelete(HostMod);
   WasmEdge_ModuleInstanceDelete(HostModWrap);
+  WasmEdge_ModuleInstanceDelete(HostModAlias);
+  WasmEdge_ModuleInstanceDelete(HostModAlias2);
 }
 
 TEST(APICoreTest, Store) {
@@ -3183,6 +3218,30 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
                          WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
 
+  // VM register module from import with alias name
+  WasmEdge_ModuleInstanceContext *HostModAlias =
+      createExternModule("vm-alias-src");
+  EXPECT_NE(HostModAlias, nullptr);
+  WasmEdge_String AliasName = WasmEdge_StringCreateByCString("vm-alias-name");
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
+                         WasmEdge_VMRegisterModuleFromImportWithAlias(
+                             nullptr, HostModAlias, AliasName)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_WrongVMWorkflow,
+      WasmEdge_VMRegisterModuleFromImportWithAlias(VM, nullptr, AliasName)));
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImportWithAlias(
+      VM, HostModAlias, AliasName)));
+  // The module should be findable by alias name
+  WasmEdge_StoreContext *VMStore = WasmEdge_VMGetStoreContext(VM);
+  EXPECT_NE(WasmEdge_StoreFindModule(VMStore, AliasName), nullptr);
+  // Name conflict with alias name
+  WasmEdge_ModuleInstanceContext *HostModAlias2 =
+      createExternModule("vm-alias-src2");
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
+                         WasmEdge_VMRegisterModuleFromImportWithAlias(
+                             VM, HostModAlias2, AliasName)));
+  WasmEdge_StringDelete(AliasName);
+
   // VM register module from file
   ModName = WasmEdge_StringCreateByCString("reg-wasm-file");
   EXPECT_TRUE(
@@ -3392,16 +3451,16 @@ TEST(APICoreTest, VM) {
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
 
   // VM get registered module
-  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 18U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 20), 0U);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, nullptr, 20), 18U);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 1), 18U);
   EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
   EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), ""sv);
   std::memset(Names, 0, sizeof(WasmEdge_String) * 20);
-  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 17U);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModule(VM, Names, 20), 18U);
   EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
   EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "reg-wasm-ast"sv);
   EXPECT_EQ(std::string_view(Names[2].Buf, Names[2].Length),
@@ -3700,6 +3759,8 @@ TEST(APICoreTest, VM) {
 
   WasmEdge_ASTModuleDelete(Mod);
   WasmEdge_ModuleInstanceDelete(HostMod);
+  WasmEdge_ModuleInstanceDelete(HostModAlias);
+  WasmEdge_ModuleInstanceDelete(HostModAlias2);
   WasmEdge_StoreDelete(Store);
   WasmEdge_VMDelete(VM);
 }

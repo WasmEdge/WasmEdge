@@ -37,15 +37,18 @@ extern "C" {
 ///
 /// \returns Allocated argument vector.
 WASMEDGE_CAPI_EXPORT extern const char **
-WasmEdge_Driver_ArgvCreate(int Argc, const wchar_t *Argv[]);
+WasmEdge_Driver_ArgvCreate(int Argc,
+                           const wchar_t *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the argument vector
 ///
 /// \param Argv the argument vector.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_Driver_ArgvDelete(const char *Argv[]);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_Driver_ArgvDelete(const char *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set console output code page to UTF-8 on windows.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void) WASMEDGE_CAPI_NOEXCEPT;
 #endif
 
 /// Entrypoint for the compiler tool.
@@ -57,8 +60,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void);
 /// \param Argv the argument vector.
 ///
 /// \returns the execution status.
-WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Compiler(int Argc,
-                                                         const char *Argv[]);
+WASMEDGE_CAPI_EXPORT extern int
+WasmEdge_Driver_Compiler(int Argc, const char *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Entrypoint for the runtime tool.
 ///
@@ -69,8 +72,8 @@ WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Compiler(int Argc,
 /// \param Argv the argument vector.
 ///
 /// \returns the execution status.
-WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
-                                                     const char *Argv[]);
+WASMEDGE_CAPI_EXPORT extern int
+WasmEdge_Driver_Tool(int Argc, const char *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 /// Entrypoint for the WASI-NN RPC server tool.
@@ -83,7 +86,8 @@ WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_Tool(int Argc,
 ///
 /// \returns the execution status.
 WASMEDGE_CAPI_EXPORT extern int
-WasmEdge_Driver_WasiNNRPCServer(int Argc, const char *Argv[]);
+WasmEdge_Driver_WasiNNRPCServer(int Argc,
+                                const char *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 #endif
 
 /// Entrypoint for the unified tool.
@@ -95,8 +99,8 @@ WasmEdge_Driver_WasiNNRPCServer(int Argc, const char *Argv[]);
 /// \param Argv the argument vector.
 ///
 /// \returns the execution status.
-WASMEDGE_CAPI_EXPORT extern int WasmEdge_Driver_UniTool(int Argc,
-                                                        const char *Argv[]);
+WASMEDGE_CAPI_EXPORT extern int
+WasmEdge_Driver_UniTool(int Argc, const char *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge Driver functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

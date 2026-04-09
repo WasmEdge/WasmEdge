@@ -54,6 +54,19 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
   });
 }
 
+/// Register an instantiated module under an alias name.
+Expect<void>
+Executor::registerModule(Runtime::StoreManager &StoreMgr,
+                         const Runtime::Instance::ModuleInstance &ModInst,
+                         std::string_view Name) {
+  return StoreMgr.registerModule(&ModInst, Name).map_error([](auto E) {
+    E = ErrCode::Value::ModuleNameConflict;
+    spdlog::error(E);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return E;
+  });
+}
+
 /// Instantiate a Component. See "include/executor/executor.h".
 Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
 Executor::instantiateComponent(Runtime::StoreManager &StoreMgr,

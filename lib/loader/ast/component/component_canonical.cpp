@@ -73,41 +73,61 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   // async? ::= 0x00 => ϵ
   //          | 0x01 => async
 
+  // Helper: load async? flag.
+  auto LoadAsync = [this, &ReportError, &C]() -> Expect<void> {
+    EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
+    if (B == 0x00) {
+      C.setAsync(false);
+    } else if (B == 0x01) {
+      C.setAsync(true);
+    } else {
+      return ReportError(ErrCode::Value::MalformedCanonical);
+    }
+    return {};
+  };
+
+  // Helper: load opts (vec of canonopt).
+  auto LoadOpts = [this, &C]() -> Expect<void> {
+    std::vector<AST::Component::CanonOpt> Opts;
+    EXPECTED_TRY(loadVec<AST::Component::Canonical>(
+        Opts, [this](AST::Component::CanonOpt &Opt) {
+          return loadCanonicalOption(Opt);
+        }));
+    C.setOptions(std::move(Opts));
+    return {};
+  };
+
   EXPECTED_TRY(uint8_t Flag, FMgr.readByte().map_error(ReportError));
   auto Code = static_cast<AST::Component::Canonical::OpCode>(Flag);
   switch (Code) {
+
+  // 0x00 0x00 f:<core:funcidx> opts:<opts> ft:<typeidx>
   case AST::Component::Canonical::OpCode::Lift: {
     EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (unlikely(B != 0x00)) {
       return ReportError(ErrCode::Value::MalformedCanonical);
     }
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
-    std::vector<AST::Component::CanonOpt> Opts;
-    EXPECTED_TRY(loadVec<AST::Component::Canonical>(
-        Opts, [this](AST::Component::CanonOpt &Opt) {
-          return loadCanonicalOption(Opt);
-        }));
-    EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
     C.setIndex(Idx);
-    C.setOptions(std::move(Opts));
+    EXPECTED_TRY(LoadOpts());
+    EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
     C.setTargetIndex(TypeIdx);
     break;
   }
+
+  // 0x01 0x00 f:<funcidx> opts:<opts>
   case AST::Component::Canonical::OpCode::Lower: {
-    EXPECTED_TRY(auto B, FMgr.readByte().map_error(ReportError));
+    EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
     if (unlikely(B != 0x00)) {
       return ReportError(ErrCode::Value::MalformedCanonical);
     }
     EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
-    std::vector<AST::Component::CanonOpt> Opts;
-    EXPECTED_TRY(loadVec<AST::Component::Canonical>(
-        Opts, [this](AST::Component::CanonOpt &Opt) {
-          return loadCanonicalOption(Opt);
-        }));
     C.setIndex(Idx);
-    C.setOptions(std::move(Opts));
+    EXPECTED_TRY(LoadOpts());
     break;
   }
+
+  // typeidx-only opcodes
   case AST::Component::Canonical::OpCode::Resource__new:
   case AST::Component::Canonical::OpCode::Resource__drop:
   case AST::Component::Canonical::OpCode::Resource__drop_async:
@@ -123,6 +143,8 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
     C.setIndex(Idx);
     break;
   }
+
+  // no-arg opcodes
   case AST::Component::Canonical::OpCode::Backpressure__set:
   case AST::Component::Canonical::OpCode::Task__cancel:
   case AST::Component::Canonical::OpCode::Subtask__drop:
@@ -130,7 +152,104 @@ Expect<void> Loader::loadCanonical(AST::Component::Canonical &C) {
   case AST::Component::Canonical::OpCode::Waitable_set__new:
   case AST::Component::Canonical::OpCode::Waitable_set__drop:
   case AST::Component::Canonical::OpCode::Waitable__join:
+  case AST::Component::Canonical::OpCode::Thread__available_parallelism:
     break;
+
+  // 0x09 rs:<resultlist> opts:<opts>
+  case AST::Component::Canonical::OpCode::Task__return: {
+    // Load resultlist (same encoding as functype resultlist).
+    EXPECTED_TRY(uint8_t RFlag, FMgr.readByte().map_error(ReportError));
+    switch (RFlag) {
+    case 0x00: {
+      ComponentValType VT;
+      EXPECTED_TRY(loadType(VT).map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+        return E;
+      }));
+      C.setResultList(VT);
+      break;
+    }
+    case 0x01: {
+      std::vector<AST::Component::LabelValType> ResultList;
+      EXPECTED_TRY(loadVec<AST::Component::Canonical>(
+          ResultList,
+          [this](AST::Component::LabelValType &LV) { return loadType(LV); }));
+      C.setResultList(std::move(ResultList));
+      break;
+    }
+    default:
+      return ReportError(ErrCode::Value::MalformedCanonical);
+    }
+    EXPECTED_TRY(LoadOpts());
+    break;
+  }
+
+  // 0x0a 0x7f i:<u32> and 0x0b 0x7f i:<u32>
+  case AST::Component::Canonical::OpCode::Context__get:
+  case AST::Component::Canonical::OpCode::Context__set: {
+    EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error(ReportError));
+    if (unlikely(B != 0x7f)) {
+      return ReportError(ErrCode::Value::MalformedCanonical);
+    }
+    EXPECTED_TRY(uint32_t Val, FMgr.readU32().map_error(ReportError));
+    C.setConstVal(Val);
+    break;
+  }
+
+  // async?-only opcodes
+  case AST::Component::Canonical::OpCode::Yield:
+  case AST::Component::Canonical::OpCode::Subtask__cancel: {
+    EXPECTED_TRY(LoadAsync());
+    break;
+  }
+
+  // typeidx + opts opcodes
+  case AST::Component::Canonical::OpCode::Stream__read:
+  case AST::Component::Canonical::OpCode::Stream__write:
+  case AST::Component::Canonical::OpCode::Future__read:
+  case AST::Component::Canonical::OpCode::Future__write: {
+    EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
+    C.setIndex(Idx);
+    EXPECTED_TRY(LoadOpts());
+    break;
+  }
+
+  // typeidx + async? opcodes
+  case AST::Component::Canonical::OpCode::Stream__cancel_read:
+  case AST::Component::Canonical::OpCode::Stream__cancel_write:
+  case AST::Component::Canonical::OpCode::Future__cancel_read:
+  case AST::Component::Canonical::OpCode::Future__cancel_write: {
+    EXPECTED_TRY(uint32_t Idx, FMgr.readU32().map_error(ReportError));
+    C.setIndex(Idx);
+    EXPECTED_TRY(LoadAsync());
+    break;
+  }
+
+  // opts-only opcodes
+  case AST::Component::Canonical::OpCode::Error_context__new:
+  case AST::Component::Canonical::OpCode::Error_context__debug_message: {
+    EXPECTED_TRY(LoadOpts());
+    break;
+  }
+
+  // async? + memidx opcodes
+  case AST::Component::Canonical::OpCode::Waitable_set__wait:
+  case AST::Component::Canonical::OpCode::Waitable_set__poll: {
+    EXPECTED_TRY(LoadAsync());
+    EXPECTED_TRY(uint32_t MemIdx, FMgr.readU32().map_error(ReportError));
+    C.setIndex(MemIdx);
+    break;
+  }
+
+  // 0x41 ft:<typeidx> tbl:<core:tableidx>
+  case AST::Component::Canonical::OpCode::Thread__spawn_indirect: {
+    EXPECTED_TRY(uint32_t TypeIdx, FMgr.readU32().map_error(ReportError));
+    C.setIndex(TypeIdx);
+    EXPECTED_TRY(uint32_t TblIdx, FMgr.readU32().map_error(ReportError));
+    C.setTargetIndex(TblIdx);
+    break;
+  }
+
   default:
     return ReportError(ErrCode::Value::MalformedCanonical);
   }

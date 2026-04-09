@@ -78,9 +78,9 @@ public:
   virtual ~ModuleInstance() noexcept {
     // When destroying this module instance, call the callbacks to unlink to the
     // store managers.
-    for (auto &&Pair : LinkedStore) {
-      assuming(Pair.second);
-      Pair.second(Pair.first, this);
+    for (auto &&[Key, Callback] : LinkedStore) {
+      assuming(Callback);
+      Callback(Key, this);
     }
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
@@ -513,19 +513,21 @@ protected:
   /// @}
 
   friend class Runtime::StoreManager;
-  using BeforeModuleDestroyCallback = void(StoreManager *Store,
+  using LinkedStoreKey = std::pair<StoreManager *, std::string>;
+  using BeforeModuleDestroyCallback = void(const LinkedStoreKey &Key,
                                            const ModuleInstance *Mod);
-  void linkStore(StoreManager *Store, BeforeModuleDestroyCallback Callback) {
+  void linkStore(StoreManager *Store, std::string_view Name,
+                 BeforeModuleDestroyCallback Callback) {
     // Link to store when registration.
     std::unique_lock Lock(Mutex);
-    LinkedStore.insert_or_assign(Store, Callback);
+    LinkedStore.insert_or_assign(LinkedStoreKey{Store, std::string(Name)},
+                                 Callback);
   }
 
-  void unlinkStore(StoreManager *Store) {
-    // Unlink to store. Call by the store manager when the store manager being
-    // destroyed before this module instance.
+  void unlinkStore(StoreManager *Store, std::string_view Name) {
+    // Unlink a specific (Store, Name) entry.
     std::unique_lock Lock(Mutex);
-    LinkedStore.erase(Store);
+    LinkedStore.erase(LinkedStoreKey{Store, std::string(Name)});
   }
 
   /// Mutex.
@@ -574,8 +576,9 @@ protected:
   /// Imported WASI module instance when instantiation.
   const ModuleInstance *WASIModInst = nullptr;
 
-  /// Linked store.
-  std::map<StoreManager *, std::function<BeforeModuleDestroyCallback>>
+  /// Linked store. Key is (StoreManager*, RegisteredName) to support
+  /// the same module registered under multiple alias names.
+  std::map<LinkedStoreKey, std::function<BeforeModuleDestroyCallback>>
       LinkedStore;
 
   /// External data and its finalizer function pointer.

@@ -48,7 +48,7 @@ jobs:
     needs: lint
     steps:
     - name: Harden the runner (Audit all outbound calls)
-      uses: step-security/harden-runner@a90bcbc6539c36a85cdfeb73f7e2f433735f215b # v2.15.0
+      uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
       with:
         egress-policy: audit
 
@@ -59,7 +59,7 @@ jobs:
       run: |
         git config --global --add safe.directory $(pwd)
     - name: Cache s390x apt packages
-      uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
       with:
         path: .s390x-apt-cache
         key: s390x-apt-${{ runner.os }}-jammy-llvm18

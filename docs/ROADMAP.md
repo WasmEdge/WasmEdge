@@ -33,7 +33,6 @@ Last Updated: Q1 / 2026
 
 | Theme    | Description | Timeline | Assignee |
 | ---      | ----------- | -------- | -------- |
-
 | Document | WasmEdge documentation refactoring | Q1 / 2026 | [@q82419](https://github.com/q82419) |
 | Proposal | [Component Model completion](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q2 / 2026 | [@q82419](https://github.com/q82419) |
 | Proposal | [Component Model canonical section refactoring](https://github.com/WasmEdge/WasmEdge/issues/4334) | Q2 / 2026 | [@q82419](https://github.com/q82419) |

@@ -67,6 +67,11 @@ public:
     std::unique_lock Lock(Mutex);
     return unsafeRegisterModule(ModInst);
   }
+  Expect<void> registerModule(const Runtime::Instance::ModuleInstance &ModInst,
+                              std::string_view Name) {
+    std::unique_lock Lock(Mutex);
+    return unsafeRegisterModule(ModInst, Name);
+  }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -137,6 +142,20 @@ public:
   Expect<void> validate() {
     std::unique_lock Lock(Mutex);
     return unsafeValidate();
+  }
+
+  /// Force-set the VM stage to Validated for a loaded component without
+  /// actually running validation. Only used in spec tests and will be removed
+  /// when component-model is fully supported.
+  /// Returns failure if no component is loaded.
+  Expect<void> forceValidateForComponent() {
+    std::unique_lock Lock(Mutex);
+    if (Stage < VMStage::Loaded || !Comp) {
+      return Unexpect(ErrCode::Value::WrongVMWorkflow);
+    }
+    Comp->setIsValidated();
+    Stage = VMStage::Validated;
+    return {};
   }
 
   /// ======= Functions can be called after validated stage. =======
@@ -269,6 +288,9 @@ private:
                                     const AST::Module &Module);
   Expect<void>
   unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst);
+  Expect<void>
+  unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst,
+                       std::string_view Name);
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,

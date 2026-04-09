@@ -32,7 +32,7 @@ extern "C" {
 ///
 /// \returns pointer to the context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ConfigureContext *
-WasmEdge_ConfigureCreate(void);
+WasmEdge_ConfigureCreate(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Add a proposal setting into the WasmEdge_ConfigureContext.
 ///
@@ -52,9 +52,9 @@ WasmEdge_ConfigureCreate(void);
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to add the proposal value.
 /// \param Prop the proposal value.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureAddProposal(WasmEdge_ConfigureContext *Cxt,
-                              const enum WasmEdge_Proposal Prop);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddProposal(
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_Proposal Prop) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Remove a proposal setting in the WasmEdge_ConfigureContext.
 ///
@@ -62,9 +62,9 @@ WasmEdge_ConfigureAddProposal(WasmEdge_ConfigureContext *Cxt,
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to remove the proposal.
 /// \param Prop the proposal value.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureRemoveProposal(WasmEdge_ConfigureContext *Cxt,
-                                 const enum WasmEdge_Proposal Prop);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveProposal(
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_Proposal Prop) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Check if a proposal setting exists in the WasmEdge_ConfigureContext or not.
 ///
@@ -74,9 +74,9 @@ WasmEdge_ConfigureRemoveProposal(WasmEdge_ConfigureContext *Cxt,
 /// \param Prop the proposal value.
 ///
 /// \returns true if the proposal setting exists, false if not.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
-                              const enum WasmEdge_Proposal Prop);
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasProposal(
+    const WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_Proposal Prop) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the WASM standard in the WasmEdge_ConfigureContext.
 ///
@@ -87,9 +87,9 @@ WasmEdge_ConfigureHasProposal(const WasmEdge_ConfigureContext *Cxt,
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to check the proposal value.
 /// \param Std the standard value.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureSetWASMStandard(WasmEdge_ConfigureContext *Cxt,
-                                  const enum WasmEdge_Standard Std);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetWASMStandard(
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_Standard Std) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Add a built-in host registration setting into WasmEdge_ConfigureContext.
 ///
@@ -108,7 +108,8 @@ WasmEdge_ConfigureSetWASMStandard(WasmEdge_ConfigureContext *Cxt,
 /// \param Cxt the WasmEdge_ConfigureContext to add built-in host registration.
 /// \param Host the built-in host registration value.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddHostRegistration(
-    WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host);
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_HostRegistration Host) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Remove a built-in host registration setting in the
 /// WasmEdge_ConfigureContext.
@@ -119,7 +120,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureAddHostRegistration(
 /// pre-registration.
 /// \param Host the built-in host registration value.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
-    WasmEdge_ConfigureContext *Cxt, const enum WasmEdge_HostRegistration Host);
+    WasmEdge_ConfigureContext *Cxt,
+    const enum WasmEdge_HostRegistration Host) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Check if a built-in host registration setting exists in the
 /// WasmEdge_ConfigureContext or not.
@@ -133,7 +135,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureRemoveHostRegistration(
 /// not.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
     const WasmEdge_ConfigureContext *Cxt,
-    const enum WasmEdge_HostRegistration Host);
+    const enum WasmEdge_HostRegistration Host) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the page limit of memory instances.
 ///
@@ -145,7 +147,7 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
 /// \param Page the maximum page count.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
-                                   const uint64_t Page);
+                                   const uint64_t Page) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the setting of the page limit of memory instances.
 ///
@@ -155,8 +157,8 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 /// setting.
 ///
 /// \returns the page count limitation value.
-WASMEDGE_CAPI_EXPORT extern uint64_t
-WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the force interpreter mode execution option.
 ///
@@ -165,9 +167,9 @@ WasmEdge_ConfigureGetMaxMemoryPage(const WasmEdge_ConfigureContext *Cxt);
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsForceInterpreter the boolean value to determine to forcibly run
 /// WASM in interpreter mode or not.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
-                                      const bool IsForceInterpreter);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetForceInterpreter(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool IsForceInterpreter) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the force interpreter mode execution option.
 ///
@@ -177,8 +179,8 @@ WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
 ///
 /// \returns the boolean value to determine to forcibly run WASM in interpreter
 /// mode or not.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsForceInterpreter(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the option of enabling/disabling AF_UNIX support in the WASI socket.
 ///
@@ -187,9 +189,9 @@ WasmEdge_ConfigureIsForceInterpreter(const WasmEdge_ConfigureContext *Cxt);
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param EnableAFUNIX the boolean value to determine to enable
 /// the AF_UNIX support in the WASI socket or not.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureSetAllowAFUNIX(WasmEdge_ConfigureContext *Cxt,
-                                 const bool EnableAFUNIX);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetAllowAFUNIX(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool EnableAFUNIX) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the AllowAFUNIX option.
 ///
@@ -199,8 +201,8 @@ WasmEdge_ConfigureSetAllowAFUNIX(WasmEdge_ConfigureContext *Cxt,
 ///
 /// \returns the boolean value to determine to enable AF_UNIX support in the
 /// WASI socket or not.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsAllowAFUNIX(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the optimization level of the AOT compiler.
 ///
@@ -210,7 +212,7 @@ WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt);
 /// \param Level the AOT compiler optimization level.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOptimizationLevel(
     WasmEdge_ConfigureContext *Cxt,
-    const enum WasmEdge_CompilerOptimizationLevel Level);
+    const enum WasmEdge_CompilerOptimizationLevel Level) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the optimization level of the AOT compiler.
 ///
@@ -221,7 +223,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOptimizationLevel(
 /// \returns the AOT compiler optimization level.
 WASMEDGE_CAPI_EXPORT extern enum WasmEdge_CompilerOptimizationLevel
 WasmEdge_ConfigureCompilerGetOptimizationLevel(
-    const WasmEdge_ConfigureContext *Cxt);
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the output binary format of the AOT compiler.
 ///
@@ -231,7 +233,7 @@ WasmEdge_ConfigureCompilerGetOptimizationLevel(
 /// \param Format the AOT compiler output binary format.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOutputFormat(
     WasmEdge_ConfigureContext *Cxt,
-    const enum WasmEdge_CompilerOutputFormat Format);
+    const enum WasmEdge_CompilerOutputFormat Format) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the output binary format of the AOT compiler.
 ///
@@ -241,7 +243,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetOutputFormat(
 ///
 /// \returns the AOT compiler output binary format.
 WASMEDGE_CAPI_EXPORT extern enum WasmEdge_CompilerOutputFormat
-WasmEdge_ConfigureCompilerGetOutputFormat(const WasmEdge_ConfigureContext *Cxt);
+WasmEdge_ConfigureCompilerGetOutputFormat(const WasmEdge_ConfigureContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the dump IR option of the AOT compiler.
 ///
@@ -252,7 +255,7 @@ WasmEdge_ConfigureCompilerGetOutputFormat(const WasmEdge_ConfigureContext *Cxt);
 /// compilation in AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
-                                    const bool IsDump);
+                                    const bool IsDump) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the dump IR option of the AOT compiler.
 ///
@@ -262,8 +265,8 @@ WasmEdge_ConfigureCompilerSetDumpIR(WasmEdge_ConfigureContext *Cxt,
 ///
 /// \returns the boolean value to determine to dump IR or not when compilation
 /// in AOT compiler.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsDumpIR(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the generic binary option of the AOT compiler.
 ///
@@ -271,10 +274,10 @@ WasmEdge_ConfigureCompilerIsDumpIR(const WasmEdge_ConfigureContext *Cxt);
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsGeneric the boolean value to determine to generate the generic
-/// binary or not when compilation in AOT compiler.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
-                                           const bool IsGeneric);
+/// binary or not during compilation in the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetGenericBinary(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool IsGeneric) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the generic binary option of the AOT compiler.
 ///
@@ -283,9 +286,9 @@ WasmEdge_ConfigureCompilerSetGenericBinary(WasmEdge_ConfigureContext *Cxt,
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to generate the generic binary or
-/// not when compilation in AOT compiler.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ConfigureCompilerIsGenericBinary(const WasmEdge_ConfigureContext *Cxt);
+/// not during compilation in the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsGenericBinary(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the interruptible option of the AOT compiler.
 ///
@@ -293,10 +296,10 @@ WasmEdge_ConfigureCompilerIsGenericBinary(const WasmEdge_ConfigureContext *Cxt);
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsInterruptible the boolean value to determine to generate
-/// interruptible binary or not when compilation in AOT compiler.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureCompilerSetInterruptible(WasmEdge_ConfigureContext *Cxt,
-                                           const bool IsInterruptible);
+/// interruptible binary or not during compilation in the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetInterruptible(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool IsInterruptible) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the interruptible option of the AOT compiler.
 ///
@@ -305,9 +308,9 @@ WasmEdge_ConfigureCompilerSetInterruptible(WasmEdge_ConfigureContext *Cxt,
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to generate interruptible binary or
-/// not when compilation in AOT compiler.
-WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_ConfigureCompilerIsInterruptible(const WasmEdge_ConfigureContext *Cxt);
+/// not during compilation in the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsInterruptible(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the instruction counting option for the statistics.
 ///
@@ -315,10 +318,10 @@ WasmEdge_ConfigureCompilerIsInterruptible(const WasmEdge_ConfigureContext *Cxt);
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsCount the boolean value to determine to support instruction
-/// counting when execution or not after compilation by the AOT compiler.
+/// counting during execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureStatisticsSetInstructionCounting(
-    WasmEdge_ConfigureContext *Cxt, const bool IsCount);
+    WasmEdge_ConfigureContext *Cxt, const bool IsCount) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the instruction counting option for the statistics.
 ///
@@ -330,7 +333,7 @@ WasmEdge_ConfigureStatisticsSetInstructionCounting(
 /// execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ConfigureStatisticsIsInstructionCounting(
-    const WasmEdge_ConfigureContext *Cxt);
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the cost measuring option for the statistics.
 ///
@@ -338,10 +341,10 @@ WasmEdge_ConfigureStatisticsIsInstructionCounting(
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsMeasure the boolean value to determine to support cost measuring
-/// when execution or not after compilation by the AOT compiler.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
-                                             const bool IsMeasure);
+/// during execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureStatisticsSetCostMeasuring(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool IsMeasure) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the cost measuring option for the statistics.
 ///
@@ -352,18 +355,18 @@ WasmEdge_ConfigureStatisticsSetCostMeasuring(WasmEdge_ConfigureContext *Cxt,
 /// \returns the boolean value to determine to support cost measuring when
 /// execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
-    const WasmEdge_ConfigureContext *Cxt);
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the time measuring option for the statistics.
 ///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-/// \param IsMeasure the boolean value to determine to support time when
-/// execution or not after compilation by the AOT compiler.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
-                                             const bool IsMeasure);
+/// \param IsMeasure the boolean value to determine to support time measuring
+/// during execution or not after compilation by the AOT compiler.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureStatisticsSetTimeMeasuring(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool IsMeasure) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the time measuring option for the statistics.
 ///
@@ -374,7 +377,7 @@ WasmEdge_ConfigureStatisticsSetTimeMeasuring(WasmEdge_ConfigureContext *Cxt,
 /// \returns the boolean value to determine to support time measuring when
 /// execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
-    const WasmEdge_ConfigureContext *Cxt);
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_ConfigureContext.
 ///
@@ -385,7 +388,7 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsTimeMeasuring(
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt);
+WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -398,31 +401,31 @@ WasmEdge_ConfigureDelete(WasmEdge_ConfigureContext *Cxt);
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_StatisticsContext *
-WasmEdge_StatisticsCreate(void);
+WasmEdge_StatisticsCreate(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the instruction count in execution.
 ///
 /// \param Cxt the WasmEdge_StatisticsContext to get data.
 ///
 /// \returns the instruction count in total execution.
-WASMEDGE_CAPI_EXPORT extern uint64_t
-WasmEdge_StatisticsGetInstrCount(const WasmEdge_StatisticsContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_StatisticsGetInstrCount(
+    const WasmEdge_StatisticsContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the instruction count per second in execution.
 ///
 /// \param Cxt the WasmEdge_StatisticsContext to get data.
 ///
 /// \returns the instruction count per second.
-WASMEDGE_CAPI_EXPORT extern double
-WasmEdge_StatisticsGetInstrPerSecond(const WasmEdge_StatisticsContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern double WasmEdge_StatisticsGetInstrPerSecond(
+    const WasmEdge_StatisticsContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the total cost in execution.
 ///
 /// \param Cxt the WasmEdge_StatisticsContext to get data.
 ///
 /// \returns the total cost.
-WASMEDGE_CAPI_EXPORT extern uint64_t
-WasmEdge_StatisticsGetTotalCost(const WasmEdge_StatisticsContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_StatisticsGetTotalCost(
+    const WasmEdge_StatisticsContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the costs of instructions.
 ///
@@ -431,7 +434,8 @@ WasmEdge_StatisticsGetTotalCost(const WasmEdge_StatisticsContext *Cxt);
 /// \param Len the length of the cost table array.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_StatisticsSetCostTable(WasmEdge_StatisticsContext *Cxt,
-                                uint64_t *CostArr, const uint32_t Len);
+                                uint64_t *CostArr,
+                                const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the cost limit in execution.
 ///
@@ -442,13 +446,13 @@ WasmEdge_StatisticsSetCostTable(WasmEdge_StatisticsContext *Cxt,
 /// \param Limit the cost limit.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_StatisticsSetCostLimit(WasmEdge_StatisticsContext *Cxt,
-                                const uint64_t Limit);
+                                const uint64_t Limit) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Clear all data in the WasmEdge_StatisticsContext.
 ///
 /// \param Cxt the WasmEdge_StatisticsContext to clear.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_StatisticsClear(WasmEdge_StatisticsContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_StatisticsClear(
+    WasmEdge_StatisticsContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_StatisticsContext.
 ///
@@ -456,8 +460,8 @@ WasmEdge_StatisticsClear(WasmEdge_StatisticsContext *Cxt);
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_StatisticsContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_StatisticsDelete(WasmEdge_StatisticsContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_StatisticsDelete(
+    WasmEdge_StatisticsContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge statistics functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

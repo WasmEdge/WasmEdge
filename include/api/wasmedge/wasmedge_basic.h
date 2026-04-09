@@ -33,6 +33,12 @@
 #define WASMEDGE_CAPI_PLUGIN_EXPORT __attribute__((visibility("default")))
 #endif // _WIN32
 
+#ifdef __cplusplus
+#define WASMEDGE_CAPI_NOEXCEPT noexcept
+#else
+#define WASMEDGE_CAPI_NOEXCEPT
+#endif
+
 #if !defined(__cplusplus) &&                                                   \
     (!defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L)
 #include <stdbool.h>
@@ -86,35 +92,41 @@ extern "C" {
 /// The returned string must __NOT__ be destroyed.
 ///
 /// \returns NULL-terminated C string of version.
-WASMEDGE_CAPI_EXPORT extern const char *WasmEdge_VersionGet(void);
+WASMEDGE_CAPI_EXPORT extern const char *
+WasmEdge_VersionGet(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the major version value of the WasmEdge C API.
 ///
 /// \returns Value of the major version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMajor(void);
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_VersionGetMajor(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the minor version value of the WasmEdge C API.
 ///
 /// \returns Value of the minor version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetMinor(void);
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_VersionGetMinor(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the patch version value of the WasmEdge C API.
 ///
 /// \returns Value of the patch version.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VersionGetPatch(void);
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_VersionGetPatch(void) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge version functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> WasmEdge logging functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 /// Set the logging system to filter to error level.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetErrorLevel(void);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_LogSetErrorLevel(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the logging system to filter to debug level.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetDebugLevel(void);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_LogSetDebugLevel(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the logging system off.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogOff(void);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogOff(void) WASMEDGE_CAPI_NOEXCEPT;
 
 typedef enum WasmEdge_LogLevel {
   WasmEdge_LogLevel_Trace,
@@ -125,7 +137,8 @@ typedef enum WasmEdge_LogLevel {
   WasmEdge_LogLevel_Critical,
 } WasmEdge_LogLevel;
 
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_LogSetLevel(WasmEdge_LogLevel Level);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_LogSetLevel(WasmEdge_LogLevel Level) WASMEDGE_CAPI_NOEXCEPT;
 
 typedef struct WasmEdge_LogMessage {
   WasmEdge_String Message;
@@ -138,7 +151,7 @@ typedef struct WasmEdge_LogMessage {
 typedef void (*WasmEdge_LogCallback_t)(const WasmEdge_LogMessage *Message);
 
 WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback);
+WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge logging functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -157,7 +170,7 @@ WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback);
 /// \returns string object. Length will be 0 and Buf will be NULL if failed or
 /// the input string is a NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
-WasmEdge_StringCreateByCString(const char *Str);
+WasmEdge_StringCreateByCString(const char *Str) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Creation of the WasmEdge_String with the buffer and its length.
 ///
@@ -170,20 +183,21 @@ WasmEdge_StringCreateByCString(const char *Str);
 /// \returns string object. Length will be 0 and Buf will be NULL if failed or
 /// the input buffer is a NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
-WasmEdge_StringCreateByBuffer(const char *Buf, const uint32_t Len);
+WasmEdge_StringCreateByBuffer(const char *Buf,
+                              const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Create the WasmEdge_String wraps to the buffer.
+/// Create a WasmEdge_String that wraps the buffer.
 ///
-/// This function creates a `WasmEdge_String` object which wraps to the input
+/// This function creates a `WasmEdge_String` object which wraps the input
 /// buffer. The caller should guarantee the life cycle of the input buffer, and
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 ///
-/// \param Buf the buffer to copy into the WasmEdge_String object.
+/// \param Buf the buffer to wrap into the WasmEdge_String object.
 /// \param Len the buffer length.
 ///
-/// \returns string object refer to the input buffer with its length.
+/// \returns string object referring to the input buffer with its length.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
-WasmEdge_StringWrap(const char *Buf, const uint32_t Len);
+WasmEdge_StringWrap(const char *Buf, const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Compare the two WasmEdge_String objects.
 ///
@@ -193,11 +207,12 @@ WasmEdge_StringWrap(const char *Buf, const uint32_t Len);
 /// \returns true if the content of two WasmEdge_String objects are the same,
 /// false if not.
 WASMEDGE_CAPI_EXPORT extern bool
-WasmEdge_StringIsEqual(const WasmEdge_String Str1, const WasmEdge_String Str2);
+WasmEdge_StringIsEqual(const WasmEdge_String Str1,
+                       const WasmEdge_String Str2) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Copy the content of WasmEdge_String object to the buffer.
 ///
-/// This function copy at most `Len` characters from the `WasmEdge_String`
+/// This function copies at most `Len` characters from the `WasmEdge_String`
 /// object to the destination buffer. If the string length is less than `Len`
 /// characters long, the remainder of the buffer is filled with `\0' characters.
 /// Otherwise, the destination is not terminated.
@@ -208,7 +223,8 @@ WasmEdge_StringIsEqual(const WasmEdge_String Str1, const WasmEdge_String Str2);
 ///
 /// \returns the copied length of string.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_StringCopy(const WasmEdge_String Str, char *Buf, const uint32_t Len);
+WasmEdge_StringCopy(const WasmEdge_String Str, char *Buf,
+                    const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_String.
 ///
@@ -216,7 +232,8 @@ WasmEdge_StringCopy(const WasmEdge_String Str, char *Buf, const uint32_t Len);
 /// will be released and the object should __NOT__ be used.
 ///
 /// \param Str the WasmEdge_String object to destroy.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_StringDelete(WasmEdge_String Str);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_StringDelete(WasmEdge_String Str) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge string functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -233,20 +250,22 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_StringDelete(WasmEdge_String Str);
 /// \returns bytes object. Length will be 0 and Buf will be NULL if failed or
 /// the input buffer is a NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Bytes
-WasmEdge_BytesCreate(const uint8_t *Buf, const uint32_t Len);
+WasmEdge_BytesCreate(const uint8_t *Buf,
+                     const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Create the WasmEdge_Bytes wraps to the buffer.
+/// Create a WasmEdge_Bytes that wraps the buffer.
 ///
-/// This function creates a `WasmEdge_Bytes` object which wraps to the input
+/// This function creates a `WasmEdge_Bytes` object which wraps the input
 /// buffer. The caller should guarantee the life cycle of the input buffer, and
 /// should __NOT__ call the `WasmEdge_BytesDelete`.
 ///
 /// \param Buf the buffer to wrap to the WasmEdge_Bytes object.
 /// \param Len the buffer length.
 ///
-/// \returns bytes object refer to the input buffer with its length.
+/// \returns bytes object referring to the input buffer with its length.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Bytes
-WasmEdge_BytesWrap(const uint8_t *Buf, const uint32_t Len);
+WasmEdge_BytesWrap(const uint8_t *Buf,
+                   const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_Bytes.
 ///
@@ -254,7 +273,8 @@ WasmEdge_BytesWrap(const uint8_t *Buf, const uint32_t Len);
 /// will be released and the object should __NOT__ be used.
 ///
 /// \param Bytes the WasmEdge_Bytes object to destroy.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_BytesDelete(WasmEdge_Bytes Bytes);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_BytesDelete(WasmEdge_Bytes Bytes) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge bytes functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -266,18 +286,19 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_BytesDelete(WasmEdge_Bytes Bytes);
 ///
 /// \returns true if the error code is WasmEdge_Result_Success or
 /// WasmEdge_Result_Terminate, false for others.
-WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ResultOK(const WasmEdge_Result Res);
+WASMEDGE_CAPI_EXPORT extern bool
+WasmEdge_ResultOK(const WasmEdge_Result Res) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Generate the result with code.
 ///
 /// \param Category the WasmEdge_ErrCategory to specify the error category.
-/// \param Code the 24-bit length error code. The data exceeds 24 bits will be
+/// \param Code the 24-bit length error code. Data exceeding 24 bits will be
 /// stripped.
 ///
 /// \returns WasmEdge_Result struct with the given data.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_ResultGen(const enum WasmEdge_ErrCategory Category,
-                   const uint32_t Code);
+                   const uint32_t Code) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the result code.
 ///
@@ -285,7 +306,7 @@ WasmEdge_ResultGen(const enum WasmEdge_ErrCategory Category,
 ///
 /// \returns result code (24-bit size data) in the WasmEdge_Result struct.
 WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_ResultGetCode(const WasmEdge_Result Res);
+WasmEdge_ResultGetCode(const WasmEdge_Result Res) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the error category.
 ///
@@ -293,7 +314,7 @@ WasmEdge_ResultGetCode(const WasmEdge_Result Res);
 ///
 /// \returns error category in the WasmEdge_Result struct.
 WASMEDGE_CAPI_EXPORT extern enum WasmEdge_ErrCategory
-WasmEdge_ResultGetCategory(const WasmEdge_Result Res);
+WasmEdge_ResultGetCategory(const WasmEdge_Result Res) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the result message.
 ///
@@ -305,7 +326,7 @@ WasmEdge_ResultGetCategory(const WasmEdge_Result Res);
 ///
 /// \returns NULL-terminated C string of the corresponding error message.
 WASMEDGE_CAPI_EXPORT extern const char *
-WasmEdge_ResultGetMessage(const WasmEdge_Result Res);
+WasmEdge_ResultGetMessage(const WasmEdge_Result Res) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge result functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

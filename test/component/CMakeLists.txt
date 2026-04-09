@@ -1,21 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-wasmedge_add_executable(componentTests
-  spectest.cpp
-  componet_nameparser.cpp
-  componentvalidatortest.cpp
+wasmedge_setup_simdjson()
+
+wasmedge_add_executable(wasmedgeComponentRegressionTests
+  ComponentRegressionTest.cpp
 )
 
-add_test(componentTests componentTests)
+add_test(wasmedgeComponentRegressionTests wasmedgeComponentRegressionTests)
 
-target_link_libraries(componentTests
+target_link_libraries(wasmedgeComponentRegressionTests
   PRIVATE
   wasmedgeVM
   ${GTEST_BOTH_LIBRARIES}
 )
 
-target_include_directories(componentTests
+target_include_directories(wasmedgeComponentRegressionTests
   PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )

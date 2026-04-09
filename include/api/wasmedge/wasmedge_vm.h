@@ -39,7 +39,7 @@ extern "C" {
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_VMContext *
 WasmEdge_VMCreate(const WasmEdge_ConfigureContext *ConfCxt,
-                  WasmEdge_StoreContext *StoreCxt);
+                  WasmEdge_StoreContext *StoreCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Register and instantiate WASM into the store in VM from a WASM file.
 ///
@@ -59,7 +59,7 @@ WasmEdge_VMCreate(const WasmEdge_ConfigureContext *ConfCxt,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMRegisterModuleFromFile(WasmEdge_VMContext *Cxt,
                                   const WasmEdge_String ModuleName,
-                                  const char *Path);
+                                  const char *Path) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Register and instantiate WASM into the store in VM from a WasmEdge_Bytes.
 ///
@@ -76,10 +76,9 @@ WasmEdge_VMRegisterModuleFromFile(WasmEdge_VMContext *Cxt,
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_VMRegisterModuleFromBytes(WasmEdge_VMContext *Cxt,
-                                   const WasmEdge_String ModuleName,
-                                   const WasmEdge_Bytes Bytes);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromBytes(
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_Bytes Bytes) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate and register an AST Module into a named module instance in VM.
 ///
@@ -98,9 +97,9 @@ WasmEdge_VMRegisterModuleFromBytes(WasmEdge_VMContext *Cxt,
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_VMRegisterModuleFromASTModule(WasmEdge_VMContext *Cxt,
-                                       const WasmEdge_String ModuleName,
-                                       const WasmEdge_ASTModuleContext *ASTCxt);
+WasmEdge_VMRegisterModuleFromASTModule(
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_ASTModuleContext *ASTCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Register a module instance into the store in VM with exporting its module
 /// name.
@@ -109,11 +108,11 @@ WasmEdge_VMRegisterModuleFromASTModule(WasmEdge_VMContext *Cxt,
 /// into the store context in this VM, and the other modules can import the
 /// exported instances for linking when instantiation. Developers SHOULD
 /// guarantee the life cycle of this existing module instance, or the error will
-/// occur when in execution after the module instance being destroyed if it has
+/// occur during execution after the module instance is destroyed if it has
 /// been imported by other modules. That is, developers should call the
 /// `WasmEdge_ModuleInstanceDelete` if this existing module instance will not be
 /// used anymore or after the deletion of this VM. When the module instance is
-/// deleted, it will be unregistered to the store context in this VM
+/// deleted, it will be unregistered from the store context in this VM
 /// automatically.
 ///
 /// This function is thread-safe.
@@ -124,7 +123,24 @@ WasmEdge_VMRegisterModuleFromASTModule(WasmEdge_VMContext *Cxt,
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
-    WasmEdge_VMContext *Cxt, const WasmEdge_ModuleInstanceContext *ImportCxt);
+    WasmEdge_VMContext *Cxt,
+    const WasmEdge_ModuleInstanceContext *ImportCxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Register a module instance into the VM under the given alias name.
+///
+/// Similar to WasmEdge_VMRegisterModuleFromImport(), but registers the module
+/// under the provided ModuleName instead of the module's own name.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param ImportCxt the WasmEdge_ModuleInstanceContext to register.
+/// \param ModuleName the WasmEdge_String of module name to register as.
+///
+/// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
+/// message.
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_VMRegisterModuleFromImportWithAlias(
+    WasmEdge_VMContext *Cxt, const WasmEdge_ModuleInstanceContext *ImportCxt,
+    const WasmEdge_String ModuleName) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate the WASM module from a WASM file and invoke a function by name.
 ///
@@ -151,7 +167,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromFile(
     WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,
     const WasmEdge_Value *Params, const uint32_t ParamLen,
-    WasmEdge_Value *Returns, const uint32_t ReturnLen);
+    WasmEdge_Value *Returns, const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate the WASM module from a WasmEdge_Bytes and invoke a function by
 /// name.
@@ -176,10 +192,12 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromFile(
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBytes(
-    WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
-    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
+WasmEdge_VMRunWasmFromBytes(WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
+                            const WasmEdge_String FuncName,
+                            const WasmEdge_Value *Params,
+                            const uint32_t ParamLen, WasmEdge_Value *Returns,
+                            const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate the WASM module from a WasmEdge AST Module and invoke a function
 /// by name.
@@ -208,9 +226,10 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBytes(
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
     WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+    const uint32_t ParamLen, WasmEdge_Value *Returns,
+    const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Instantiate the WASM module from a WASM file and asynchronous invoke a
+/// Instantiate the WASM module from a WASM file and asynchronously invoke a
 /// function by name.
 ///
 /// This is the function to invoke a WASM function rapidly.
@@ -234,12 +253,14 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
 ///
 /// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
 /// `WasmEdge_AsyncDelete` to destroy this object.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
-    WasmEdge_VMContext *Cxt, const char *Path, const WasmEdge_String FuncName,
-    const WasmEdge_Value *Params, const uint32_t ParamLen);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *
+WasmEdge_VMAsyncRunWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path,
+                                const WasmEdge_String FuncName,
+                                const WasmEdge_Value *Params,
+                                const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Instantiate the WASM module from a WasmEdge_Bytes and asynchronous invoke a
-/// function by name.
+/// Instantiate the WASM module from a WasmEdge_Bytes and asynchronously invoke
+/// a function by name.
 ///
 /// This is the function to invoke a WASM function rapidly.
 /// Load and instantiate the WASM module from a WasmEdge_Bytes, and then invoke
@@ -265,9 +286,9 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBytes(
     WasmEdge_VMContext *Cxt, const WasmEdge_Bytes Bytes,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen);
+    const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Instantiate the WASM module from a WasmEdge AST Module and asynchronous
+/// Instantiate the WASM module from a WasmEdge AST Module and asynchronously
 /// invoke a function by name.
 ///
 /// This is the function to invoke a WASM function rapidly.
@@ -293,11 +314,10 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBytes(
 /// \returns WasmEdge_Async. Call `WasmEdge_AsyncGet` for the result, and call
 /// `WasmEdge_AsyncDelete` to destroy this object.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *
-WasmEdge_VMAsyncRunWasmFromASTModule(WasmEdge_VMContext *Cxt,
-                                     const WasmEdge_ASTModuleContext *ASTCxt,
-                                     const WasmEdge_String FuncName,
-                                     const WasmEdge_Value *Params,
-                                     const uint32_t ParamLen);
+WasmEdge_VMAsyncRunWasmFromASTModule(
+    WasmEdge_VMContext *Cxt, const WasmEdge_ASTModuleContext *ASTCxt,
+    const WasmEdge_String FuncName, const WasmEdge_Value *Params,
+    const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Load the WASM module from a WASM file.
 ///
@@ -313,7 +333,8 @@ WasmEdge_VMAsyncRunWasmFromASTModule(WasmEdge_VMContext *Cxt,
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path);
+WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt,
+                            const char *Path) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Load the WASM module from a WasmEdge_Bytes.
 ///
@@ -330,7 +351,7 @@ WasmEdge_VMLoadWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path);
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMLoadWasmFromBytes(WasmEdge_VMContext *Cxt,
-                             const WasmEdge_Bytes Bytes);
+                             const WasmEdge_Bytes Bytes) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Load the WASM module from loaded WasmEdge AST Module.
 ///
@@ -347,9 +368,9 @@ WasmEdge_VMLoadWasmFromBytes(WasmEdge_VMContext *Cxt,
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
-WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_VMLoadWasmFromASTModule(WasmEdge_VMContext *Cxt,
-                                 const WasmEdge_ASTModuleContext *ASTCxt);
+WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMLoadWasmFromASTModule(
+    WasmEdge_VMContext *Cxt,
+    const WasmEdge_ASTModuleContext *ASTCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Validate the WASM module loaded into the VM context.
 ///
@@ -366,7 +387,7 @@ WasmEdge_VMLoadWasmFromASTModule(WasmEdge_VMContext *Cxt,
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_VMValidate(WasmEdge_VMContext *Cxt);
+WasmEdge_VMValidate(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate the validated WASM module in the VM context.
 ///
@@ -384,7 +405,7 @@ WasmEdge_VMValidate(WasmEdge_VMContext *Cxt);
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
-WasmEdge_VMInstantiate(WasmEdge_VMContext *Cxt);
+WasmEdge_VMInstantiate(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Invoke a WASM function by name.
 ///
@@ -412,7 +433,8 @@ WasmEdge_VMInstantiate(WasmEdge_VMContext *Cxt);
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
                    const WasmEdge_Value *Params, const uint32_t ParamLen,
-                   WasmEdge_Value *Returns, const uint32_t ReturnLen);
+                   WasmEdge_Value *Returns,
+                   const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Invoke a WASM function by its module name and function name.
 ///
@@ -437,9 +459,10 @@ WasmEdge_VMExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMExecuteRegistered(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen, WasmEdge_Value *Returns, const uint32_t ReturnLen);
+    const uint32_t ParamLen, WasmEdge_Value *Returns,
+    const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Asynchronous invoke a WASM function by name.
+/// Asynchronously invoke a WASM function by name.
 ///
 /// This is the final step to invoke a WASM function step by step.
 /// After instantiating a WASM module in the VM context, the WASM module is
@@ -460,9 +483,10 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMExecuteRegistered(
 /// `WasmEdge_AsyncDelete` to destroy this object.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *
 WasmEdge_VMAsyncExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
-                        const WasmEdge_Value *Params, const uint32_t ParamLen);
+                        const WasmEdge_Value *Params,
+                        const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Asynchronous invoke a WASM function by its module name and function name.
+/// Asynchronously invoke a WASM function by its module name and function name.
 ///
 /// After registering a WASM module in the VM context, you can repeatedly call
 /// this function to invoke exported WASM functions by their module names and
@@ -481,7 +505,7 @@ WasmEdge_VMAsyncExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
     WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
-    const uint32_t ParamLen);
+    const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the function type by function name.
 ///
@@ -492,8 +516,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
 /// loaded. For getting the function type of functions in registered WASM
 /// modules with module names, please use `WasmEdge_VMGetFunctionTypeRegistered`
 /// instead.
-/// The returned function type context are linked to the context owned by the VM
-/// context, and the caller should __NOT__ call the
+/// The returned function type contexts are linked to the context owned by the
+/// VM context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to destroy it.
 ///
 /// This function is thread-safe.
@@ -504,15 +528,16 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
 /// \returns the function type. NULL if the function not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
 WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *Cxt,
-                           const WasmEdge_String FuncName);
+                           const WasmEdge_String FuncName)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the function type by function name.
 ///
 /// After registering a WASM module in the VM context, you can call this
 /// function to get the function type by the functions' exported module names
 /// and function names until the VM context is reset.
-/// The returned function type context are linked to the context owned by the VM
-/// context, and the caller should __NOT__ call the
+/// The returned function type contexts are linked to the context owned by the
+/// VM context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to destroy it.
 ///
 /// This function is thread-safe.
@@ -523,9 +548,9 @@ WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *Cxt,
 ///
 /// \returns the function type. NULL if the function not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_FunctionTypeContext *
-WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
-                                     const WasmEdge_String ModuleName,
-                                     const WasmEdge_String FuncName);
+WasmEdge_VMGetFunctionTypeRegistered(
+    const WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_String FuncName) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Reset of WasmEdge_VMContext.
 ///
@@ -536,7 +561,8 @@ WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext to reset.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of exported function list.
 ///
@@ -545,8 +571,8 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt);
 /// \param Cxt the WasmEdge_VMContext.
 ///
 /// \returns length of exported function list.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VMGetFunctionListLength(
+    const WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the exported function list.
 ///
@@ -571,9 +597,11 @@ WasmEdge_VMGetFunctionListLength(const WasmEdge_VMContext *Cxt);
 /// \param Len the buffer length.
 ///
 /// \returns actual exported function list size.
-WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VMGetFunctionList(
-    const WasmEdge_VMContext *Cxt, WasmEdge_String *Names,
-    const WasmEdge_FunctionTypeContext **FuncTypes, const uint32_t Len);
+WASMEDGE_CAPI_EXPORT extern uint32_t
+WasmEdge_VMGetFunctionList(const WasmEdge_VMContext *Cxt,
+                           WasmEdge_String *Names,
+                           const WasmEdge_FunctionTypeContext **FuncTypes,
+                           const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Forcibly delete a registered module from the VM context.
 ///
@@ -586,9 +614,9 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VMGetFunctionList(
 ///
 /// \param Cxt the WasmEdge_VMContext to delete the module from.
 /// \param ModuleName the name of the module to delete.
-WASMEDGE_CAPI_EXPORT extern void
-WasmEdge_VMForceDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
-                                       const WasmEdge_String ModuleName);
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMForceDeleteRegisteredModule(
+    const WasmEdge_VMContext *Cxt,
+    const WasmEdge_String ModuleName) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the module instance corresponding to the WasmEdge_HostRegistration
 /// settings.
@@ -616,7 +644,8 @@ WasmEdge_VMForceDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
 /// \returns pointer to the module instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ModuleInstanceContext *
 WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
-                                  const enum WasmEdge_HostRegistration Reg);
+                                  const enum WasmEdge_HostRegistration Reg)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the current instantiated module in VM.
 ///
@@ -631,7 +660,8 @@ WasmEdge_VMGetImportModuleContext(const WasmEdge_VMContext *Cxt,
 ///
 /// \returns pointer to the module instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
-WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt);
+WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the registered module in VM by the module name.
 ///
@@ -649,7 +679,8 @@ WasmEdge_VMGetActiveModule(const WasmEdge_VMContext *Cxt);
 /// \returns pointer to the module instance context. NULL if not found.
 WASMEDGE_CAPI_EXPORT extern const WasmEdge_ModuleInstanceContext *
 WasmEdge_VMGetRegisteredModule(const WasmEdge_VMContext *Cxt,
-                               const WasmEdge_String ModuleName);
+                               const WasmEdge_String ModuleName)
+    WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of registered module list in the WasmEdge_VMContext.
 ///
@@ -658,8 +689,8 @@ WasmEdge_VMGetRegisteredModule(const WasmEdge_VMContext *Cxt,
 /// \param Cxt the WasmEdge_VMContext.
 ///
 /// \returns length of registered module list.
-WASMEDGE_CAPI_EXPORT extern uint32_t
-WasmEdge_VMListRegisteredModuleLength(const WasmEdge_VMContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_VMListRegisteredModuleLength(
+    const WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the registered module names in the WasmEdge_VMContext.
 ///
@@ -680,7 +711,8 @@ WasmEdge_VMListRegisteredModuleLength(const WasmEdge_VMContext *Cxt);
 /// \returns actual registered module list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_VMListRegisteredModule(const WasmEdge_VMContext *Cxt,
-                                WasmEdge_String *Names, const uint32_t Len);
+                                WasmEdge_String *Names,
+                                const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the store context used in the WasmEdge_VMContext.
 ///
@@ -694,7 +726,7 @@ WasmEdge_VMListRegisteredModule(const WasmEdge_VMContext *Cxt,
 ///
 /// \returns pointer to the store context.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_StoreContext *
-WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt);
+WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the loader context used in the WasmEdge_VMContext.
 ///
@@ -708,7 +740,7 @@ WasmEdge_VMGetStoreContext(WasmEdge_VMContext *Cxt);
 ///
 /// \returns pointer to the loader context.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_LoaderContext *
-WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt);
+WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the validator context used in the WasmEdge_VMContext.
 ///
@@ -722,7 +754,7 @@ WasmEdge_VMGetLoaderContext(WasmEdge_VMContext *Cxt);
 ///
 /// \returns pointer to the validator context.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ValidatorContext *
-WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt);
+WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the executor context used in the WasmEdge_VMContext.
 ///
@@ -736,7 +768,7 @@ WasmEdge_VMGetValidatorContext(WasmEdge_VMContext *Cxt);
 ///
 /// \returns pointer to the executor context.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ExecutorContext *
-WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt);
+WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the statistics context used in the WasmEdge_VMContext.
 ///
@@ -750,7 +782,7 @@ WasmEdge_VMGetExecutorContext(WasmEdge_VMContext *Cxt);
 ///
 /// \returns pointer to the statistics context.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_StatisticsContext *
-WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt);
+WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Deletion of the WasmEdge_VMContext.
 ///
@@ -758,7 +790,8 @@ WasmEdge_VMGetStatisticsContext(WasmEdge_VMContext *Cxt);
 /// __NOT__ be used.
 ///
 /// \param Cxt the WasmEdge_VMContext to destroy.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMDelete(WasmEdge_VMContext *Cxt);
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_VMDelete(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

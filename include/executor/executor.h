@@ -29,7 +29,6 @@
 #include "runtime/storemgr.h"
 
 #include <atomic>
-#include <condition_variable>
 #include <csignal>
 #include <cstdint>
 #include <functional>
@@ -171,6 +170,11 @@ public:
   /// Register an instantiated module into a named module instance.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const Runtime::Instance::ModuleInstance &ModInst);
+
+  /// Register an instantiated module under the given alias name.
+  Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
+                              const Runtime::Instance::ModuleInstance &ModInst,
+                              std::string_view Name);
 
   /// Instantiate a Component into an anonymous component instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
@@ -1123,24 +1127,14 @@ private:
   static thread_local std::array<uint32_t, 256> StackTrace;
   static thread_local size_t StackTraceSize;
 
-  /// Waiter struct for atomic instructions
-  struct Waiter {
-    std::mutex Mutex;
-    std::condition_variable Cond;
-    Runtime::Instance::MemoryInstance *MemInst;
-    Waiter(Runtime::Instance::MemoryInstance *Inst) noexcept : MemInst(Inst) {}
-  };
-  /// Waiter map mutex
-  std::mutex WaiterMapMutex;
-  /// Waiter multimap
-  std::unordered_multimap<uint64_t, Waiter> WaiterMap;
-
   /// WasmEdge configuration
   const Configure Conf;
   /// Executor statistics
   Statistics::Statistics *Stat;
   /// Stop Execution
   std::atomic_uint32_t StopToken = 0;
+  /// Memory instance this Executor is currently waiting on (for stop()).
+  std::atomic<Runtime::Instance::MemoryInstance *> WaitingMemory = nullptr;
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
 };

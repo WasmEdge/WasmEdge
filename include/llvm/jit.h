@@ -43,6 +43,8 @@ private:
   std::shared_ptr<OrcLLJIT> J;
   std::string Prefix;
   bool IsLazy;
+  /// Per lazy-compiled IR chunk (ORC JITDylib); main dylib holds infrastructure.
+  std::vector<void *> LazyIRDylibs;
   friend class JIT;
 };
 
@@ -51,7 +53,10 @@ public:
   JIT(const Configure &Conf) noexcept : Conf(Conf) {}
   Expect<std::shared_ptr<Executable>> load(Data &D,
                                            bool IsLazy = false) noexcept;
-  Expect<void> add(Executable &Exec, Data &D) noexcept;
+  /// Resolves the wasm function symbol in the new lazy JITDylib only (global
+  /// index: imports + local index).
+  Expect<void *> add(Executable &Exec, Data &D,
+                     uint32_t GlobalFuncIndex) noexcept;
 
 private:
   const Configure Conf;

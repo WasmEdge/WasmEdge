@@ -1026,12 +1026,12 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   LLVM::WasmFunctionCodeAddress CompiledCodePtr = nullptr;
 
   if (Exec) {
-    auto AddRes = JIT.add(*Exec, *LLDataPtr, FuncIdx);
-    if (!AddRes) {
-      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, AddRes.error());
-      return Unexpect(AddRes.error());
+    auto Address = JIT.add(*Exec, *LLDataPtr, FuncIdx);
+    if (!Address) {
+      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, Address.error());
+      return Unexpect(Address.error());
     }
-    CompiledCodePtr = *AddRes;
+    CompiledCodePtr = Address.value();
   } else {
     auto LoadResult = JIT.load(*LLDataPtr, true);
     if (!LoadResult) {

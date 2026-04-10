@@ -6140,8 +6140,8 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
               } else {
                 auto F = Context->FunctionWrappers[J];
                 Context->FunctionWrappers.push_back(F);
-                auto A =
-                    Context->LLModule.get().addAlias(WrapperTy, F, Name.c_str());
+                auto A = Context->LLModule.get().addAlias(WrapperTy, F,
+                                                          Name.c_str());
                 A.setLinkage(LLVMExternalLinkage);
                 A.setVisibility(LLVMProtectedVisibility);
                 A.setDSOLocal(true);

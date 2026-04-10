@@ -338,6 +338,7 @@ Executor::runRefTestOp(const Runtime::Instance::ModuleInstance *ModInst,
         Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
     // Reference must not be nullptr here because the null references are typed
     // with the least abstract heap type.
+    assuming(Inst);
     if (Inst->getModule()) {
       GotTypeList = Inst->getModule()->getTypeList();
     }

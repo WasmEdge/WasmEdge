@@ -1033,7 +1033,7 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     Exec = Pending.Exec;
   }
 
-  void *CompiledCodePtr = nullptr;
+  LLVM::WasmFunctionCodeAddress CompiledCodePtr = nullptr;
 
   if (Exec) {
     auto AddRes = JIT.add(*Exec, *LLDataPtr, FuncIdx);

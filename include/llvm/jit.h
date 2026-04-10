@@ -23,6 +23,12 @@
 #include <vector>
 
 namespace WasmEdge::LLVM {
+
+/// Address of JIT- or AOT-generated machine code for a wasm function. Not a
+/// typed C++ function pointer; wasm signatures vary and calls go through the
+/// executor.
+using WasmFunctionCodeAddress = void *;
+
 class OrcLLJIT;
 
 class JITLibrary : public Executable {
@@ -55,8 +61,8 @@ public:
                                            bool IsLazy = false) noexcept;
   /// Resolves the wasm function symbol in the new lazy JITDylib only (global
   /// index: imports + local index).
-  Expect<void *> add(Executable &Exec, Data &D,
-                     uint32_t GlobalFuncIndex) noexcept;
+  Expect<WasmFunctionCodeAddress>
+  add(Executable &Exec, Data &D, uint32_t GlobalFuncIndex) noexcept;
 
 private:
   const Configure Conf;

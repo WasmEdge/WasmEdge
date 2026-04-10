@@ -210,8 +210,23 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
     // Push local variables into the stack.
     for (auto &Def : Func.getLocals()) {
-      for (uint32_t I = 0; I < Def.first; I++) {
-        StackMgr.push(ValueFromType(Def.second));
+      if (Def.second.isRefType() && !Def.second.isAbsHeapType()) {
+        // For non-abstract heap types (concrete type indices), convert the
+        // null ref to the abstract heap type so that ref.cast/ref.test won't
+        // dereference a null pointer when checking the type.
+        const auto &CompType =
+            (*Func.getModule()->getType(Def.second.getTypeIndex()))
+                ->getCompositeType();
+        auto BotTypeCode =
+            CompType.isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
+        RefVariant InitVal(ValType(TypeCode::RefNull, BotTypeCode));
+        for (uint32_t I = 0; I < Def.first; I++) {
+          StackMgr.push(InitVal);
+        }
+      } else {
+        for (uint32_t I = 0; I < Def.first; I++) {
+          StackMgr.push(ValueFromType(Def.second));
+        }
       }
     }
 

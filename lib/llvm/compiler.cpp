@@ -42,8 +42,9 @@ static LLVM::Type
 toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
            const WasmEdge::AST::FunctionType &FuncType) noexcept;
 static LLVM::Value
-toLLVMConstantZero(LLVM::Context LLContext,
-                   const WasmEdge::ValType &ValType) noexcept;
+toLLVMConstantZero(LLVM::Context LLContext, const WasmEdge::ValType &ValType,
+                   WasmEdge::Span<const WasmEdge::AST::CompositeType *const>
+                       CompositeTypes) noexcept;
 static std::vector<LLVM::Value> unpackStruct(LLVM::Builder &Builder,
                                              LLVM::Value Struct) noexcept;
 class FunctionCompiler;
@@ -482,8 +483,9 @@ static LLVM::Type toLLVMType(LLVM::Context LLContext, LLVM::Type ExecCtxPtrTy,
   return LLVM::Type::getFunctionType(RetTy, ArgsTy);
 }
 
-static LLVM::Value toLLVMConstantZero(LLVM::Context LLContext,
-                                      const ValType &ValType) noexcept {
+static LLVM::Value toLLVMConstantZero(
+    LLVM::Context LLContext, const ValType &ValType,
+    Span<const AST::CompositeType *const> CompositeTypes) noexcept {
   switch (ValType.getCode()) {
   case TypeCode::I32:
     return LLVM::Value::getConstNull(LLContext.getInt32Ty());
@@ -492,8 +494,21 @@ static LLVM::Value toLLVMConstantZero(LLVM::Context LLContext,
   case TypeCode::Ref:
   case TypeCode::RefNull: {
     std::array<uint8_t, 16> Data{};
-    const auto Raw = ValType.getRawData();
-    std::copy(Raw.begin(), Raw.end(), Data.begin());
+    if (ValType.isAbsHeapType()) {
+      // Abstract heap types are already fine for null refs.
+      const auto Raw = ValType.getRawData();
+      std::copy(Raw.begin(), Raw.end(), Data.begin());
+    } else {
+      // For non-abstract heap types (concrete type indices), convert to the
+      // abstract heap type so that ref.cast/ref.test won't dereference a null
+      // pointer when checking the type.
+      assuming(ValType.getTypeIndex() < CompositeTypes.size());
+      const auto *CompType = CompositeTypes[ValType.getTypeIndex()];
+      assuming(CompType != nullptr);
+      WasmEdge::ValType VType =
+          CompType->isFunc() ? TypeCode::NullFuncRef : TypeCode::NullRef;
+      std::copy_n(VType.getRawData().cbegin(), 8, Data.begin());
+    }
     return LLVM::Value::getConstVector8(LLContext, Data);
   }
   case TypeCode::V128:
@@ -543,7 +558,9 @@ public:
       for (const auto &Type : Locals) {
         LLVM::Type Ty = toLLVMType(LLContext, Type);
         LLVM::Value ArgPtr = Builder.createAlloca(Ty);
-        Builder.createStore(toLLVMConstantZero(LLContext, Type), ArgPtr);
+        Builder.createStore(
+            toLLVMConstantZero(LLContext, Type, Context.CompositeTypes),
+            ArgPtr);
         Local.emplace_back(Ty, ArgPtr);
       }
     }

@@ -68,8 +68,8 @@ public:
     Future = Promise.get_future();
     detail::runDetachedWithLargeStack(
         [FPtr, P = std::move(Promise),
-         Tuple = std::tuple(
-             &TargetInst, std::forward<ArgsT>(Args)...)]() mutable {
+         Tuple =
+             std::tuple(&TargetInst, std::forward<ArgsT>(Args)...)]() mutable {
           P.set_value(std::apply(FPtr, Tuple));
         });
   }

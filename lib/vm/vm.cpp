@@ -1033,11 +1033,15 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     Exec = Pending.Exec;
   }
 
+  void *CompiledCodePtr = nullptr;
+
   if (Exec) {
-    if (auto Address = JIT.add(*Exec, *LLDataPtr); !Address) {
-      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, Address.error());
-      return Unexpect(Address.error());
+    auto AddRes = JIT.add(*Exec, *LLDataPtr, FuncIdx);
+    if (!AddRes) {
+      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, AddRes.error());
+      return Unexpect(AddRes.error());
     }
+    CompiledCodePtr = *AddRes;
   } else {
     auto LoadResult = JIT.load(*LLDataPtr, true);
     if (!LoadResult) {
@@ -1051,19 +1055,19 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     } else {
       Pending.Exec = Exec;
     }
+    auto CodeSymbols = Exec->getCodes(ImportFuncCount + LocalFuncIdx, 1);
+    if (CodeSymbols.empty() || !CodeSymbols[0]) {
+      spdlog::error("[lazyjit]: failed to get code symbol for function {}"sv,
+                    LocalFuncIdx);
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    CompiledCodePtr = CodeSymbols[0].get();
   }
 
   if (auto IntrinsicsSymbol = Exec->getIntrinsics()) {
     *IntrinsicsSymbol = &Executor::Executor::Intrinsics;
   } else {
     spdlog::error("[lazyjit]: failed to get intrinsics symbol"sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  auto CodeSymbols = Exec->getCodes(ImportFuncCount + LocalFuncIdx, 1);
-  if (CodeSymbols.empty() || !CodeSymbols[0]) {
-    spdlog::error("[lazyjit]: failed to get code symbol for function {}"sv,
-                  LocalFuncIdx);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1078,7 +1082,7 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   if (FuncInst->isWasmFunction()) {
     Symbol<Runtime::Instance::FunctionInstance::CompiledFunction> CompiledSym(
         reinterpret_cast<Runtime::Instance::FunctionInstance::CompiledFunction
-                             *>(CodeSymbols[0].get()));
+                             *>(CompiledCodePtr));
     FuncInst->unsafeUpgradeToCompiled(std::move(CompiledSym));
   }
 

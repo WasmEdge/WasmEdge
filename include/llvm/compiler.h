@@ -53,7 +53,8 @@ public:
 private:
   void compile(const AST::ImportSection &ImportSection) noexcept;
   void compile(const AST::ExportSection &ExportSection) noexcept;
-  void compile(const AST::TypeSection &TypeSection) noexcept;
+  void compile(const AST::TypeSection &TypeSection,
+               bool DeclarationsOnly = false) noexcept;
   void compile(const AST::GlobalSection &GlobalSection) noexcept;
   void compile(const AST::MemorySection &MemorySection,
                const AST::DataSection &DataSection) noexcept;

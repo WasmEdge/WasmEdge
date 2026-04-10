@@ -6074,7 +6074,8 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   return Expect<Data>{std::move(D)};
 }
 
-void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
+void Compiler::compile(const AST::TypeSection &TypeSec,
+                       bool DeclarationsOnly) noexcept {
   auto WrapperTy =
       LLVM::Type::getFunctionType(Context->VoidTy,
                                   {Context->ExecCtxPtrTy, Context->Int8PtrTy,
@@ -6104,14 +6105,31 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
             if (OldFuncType == CompType.getFuncType()) {
               Unique = false;
               Context->CompositeTypes.push_back(Context->CompositeTypes[J]);
-              auto F = Context->FunctionWrappers[J];
-              Context->FunctionWrappers.push_back(F);
-              auto A =
-                  Context->LLModule.get().addAlias(WrapperTy, F, Name.c_str());
-              A.setLinkage(LLVMExternalLinkage);
-              A.setVisibility(LLVMProtectedVisibility);
-              A.setDSOLocal(true);
-              A.setDLLStorageClass(LLVMDLLExportStorageClass);
+              if (DeclarationsOnly) {
+                auto FDecl = Context->LLModule.get().addFunction(
+                    WrapperTy, LLVMExternalLinkage, Name.c_str());
+                FDecl.setVisibility(LLVMProtectedVisibility);
+                FDecl.setDSOLocal(true);
+                FDecl.setDLLStorageClass(LLVMDLLExportStorageClass);
+                FDecl.addFnAttr(Context->NoStackArgProbe);
+                FDecl.addFnAttr(Context->StrictFP);
+                FDecl.addFnAttr(Context->UWTable);
+                FDecl.addParamAttr(0, Context->ReadOnly);
+                FDecl.addParamAttr(0, Context->NoAlias);
+                FDecl.addParamAttr(1, Context->NoAlias);
+                FDecl.addParamAttr(2, Context->NoAlias);
+                FDecl.addParamAttr(3, Context->NoAlias);
+                Context->FunctionWrappers.push_back(FDecl);
+              } else {
+                auto F = Context->FunctionWrappers[J];
+                Context->FunctionWrappers.push_back(F);
+                auto A =
+                    Context->LLModule.get().addAlias(WrapperTy, F, Name.c_str());
+                A.setLinkage(LLVMExternalLinkage);
+                A.setVisibility(LLVMProtectedVisibility);
+                A.setDSOLocal(true);
+                A.setDLLStorageClass(LLVMDLLExportStorageClass);
+              }
               break;
             }
           }
@@ -6137,42 +6155,45 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         F.addParamAttr(2, Context->NoAlias);
         F.addParamAttr(3, Context->NoAlias);
 
-        LLVM::Builder Builder(Context->LLContext);
-        Builder.positionAtEnd(
-            LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+        if (!DeclarationsOnly) {
+          LLVM::Builder Builder(Context->LLContext);
+          Builder.positionAtEnd(
+              LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
 
-        auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy,
-                              CompType.getFuncType());
-        auto RTy = FTy.getReturnType();
-        std::vector<LLVM::Type> FPTy(FTy.getNumParams());
-        FTy.getParamTypes(FPTy);
+          auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy,
+                                CompType.getFuncType());
+          auto RTy = FTy.getReturnType();
+          std::vector<LLVM::Type> FPTy(FTy.getNumParams());
+          FTy.getParamTypes(FPTy);
 
-        const size_t ArgCount = FPTy.size() - 1;
-        auto ExecCtxPtr = F.getFirstParam();
-        auto RawFunc = LLVM::FunctionCallee{
-            FTy, Builder.createBitCast(ExecCtxPtr.getNextParam(),
-                                       FTy.getPointerTo())};
-        auto RawArgs = ExecCtxPtr.getNextParam().getNextParam();
-        auto RawRets = RawArgs.getNextParam();
+          const size_t ArgCount = FPTy.size() - 1;
+          auto ExecCtxPtr = F.getFirstParam();
+          auto RawFunc = LLVM::FunctionCallee{
+              FTy, Builder.createBitCast(ExecCtxPtr.getNextParam(),
+                                         FTy.getPointerTo())};
+          auto RawArgs = ExecCtxPtr.getNextParam().getNextParam();
+          auto RawRets = RawArgs.getNextParam();
 
-        std::vector<LLVM::Value> Args;
-        Args.reserve(FTy.getNumParams());
-        Args.push_back(ExecCtxPtr);
-        for (size_t J = 0; J < ArgCount; ++J) {
-          Args.push_back(Builder.createValuePtrLoad(
-              FPTy[J + 1], RawArgs, Context->Int8Ty, J * kValSize));
+          std::vector<LLVM::Value> Args;
+          Args.reserve(FTy.getNumParams());
+          Args.push_back(ExecCtxPtr);
+          for (size_t J = 0; J < ArgCount; ++J) {
+            Args.push_back(Builder.createValuePtrLoad(
+                FPTy[J + 1], RawArgs, Context->Int8Ty, J * kValSize));
+          }
+
+          auto Ret = Builder.createCall(RawFunc, Args);
+          if (RTy.isVoidTy()) {
+            // nothing to do
+          } else if (RTy.isStructTy()) {
+            auto Rets = unpackStruct(Builder, Ret);
+            Builder.createArrayPtrStore(Rets, RawRets, Context->Int8Ty,
+                                        kValSize);
+          } else {
+            Builder.createValuePtrStore(Ret, RawRets, Context->Int8Ty);
+          }
+          Builder.createRetVoid();
         }
-
-        auto Ret = Builder.createCall(RawFunc, Args);
-        if (RTy.isVoidTy()) {
-          // nothing to do
-        } else if (RTy.isStructTy()) {
-          auto Rets = unpackStruct(Builder, Ret);
-          Builder.createArrayPtrStore(Rets, RawRets, Context->Int8Ty, kValSize);
-        } else {
-          Builder.createValuePtrStore(Ret, RawRets, Context->Int8Ty);
-        }
-        Builder.createRetVoid();
       }
       // Copy wrapper, param and return lists to module instance.
       Context->FunctionWrappers.push_back(F);
@@ -6193,10 +6214,12 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         F.addParamAttr(2, Context->NoAlias);
         F.addParamAttr(3, Context->NoAlias);
 
-        LLVM::Builder Builder(Context->LLContext);
-        Builder.positionAtEnd(
-            LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
-        Builder.createRetVoid();
+        if (!DeclarationsOnly) {
+          LLVM::Builder Builder(Context->LLContext);
+          Builder.positionAtEnd(
+              LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+          Builder.createRetVoid();
+        }
       }
       Context->FunctionWrappers.push_back(F);
     }
@@ -6591,7 +6614,7 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
 
   // Re-compile infrastructure for the fresh module
   // compile types first (needed for function type lookup)
-  compile(Module.getTypeSection());
+  compile(Module.getTypeSection(), true);
   // compile imports to get the correct function offset
   compile(Module.getImportSection());
   // compile globals (may be needed by function body)
@@ -6610,75 +6633,7 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
 
   spdlog::info("[lazyjit]: verify function {} start"sv, FuncIndex);
   LLModule.verify(LLVMPrintMessageAction);
-
-  spdlog::info("[lazyjit]: optimize function {} start"sv, FuncIndex);
-  auto &TM = LLData.extract().TM;
-  {
-    auto Triple = LLModule.getTarget();
-    auto [TheTarget, ErrorMessage] = LLVM::Target::getFromTriple(Triple);
-    if (ErrorMessage) {
-      spdlog::error("getFromTriple failed:{}"sv, ErrorMessage.string_view());
-      return Unexpect(ErrCode::Value::IllegalPath);
-    } else {
-      std::string CPUName;
-#if defined(__riscv) && __riscv_xlen == 64
-      CPUName = "generic-rv64"s;
-#else
-      if (!Conf.getCompilerConfigure().isGenericBinary()) {
-        CPUName = LLVM::getHostCPUName().string_view();
-      } else {
-        CPUName = "generic"s;
-      }
-#endif
-
-      TM = LLVM::TargetMachine::create(
-          TheTarget, Triple, CPUName.c_str(),
-          LLVM::getHostCPUFeatures().unwrap(),
-          toLLVMCodeGenLevel(
-              Conf.getCompilerConfigure().getOptimizationLevel()),
-          LLVMRelocPIC, LLVMCodeModelDefault);
-    }
-
-#if LLVM_VERSION_MAJOR >= 13
-    auto PBO = LLVM::PassBuilderOptions::create();
-    if (auto Error = PBO.runPasses(
-            LLModule,
-            toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel()),
-            TM)) {
-      spdlog::error("{}"sv, Error.message().string_view());
-    }
-#else
-    auto FP = LLVM::PassManager::createForModule(LLModule);
-    auto MP = LLVM::PassManager::create();
-
-    TM.addAnalysisPasses(MP);
-    TM.addAnalysisPasses(FP);
-    {
-      auto PMB = LLVM::PassManagerBuilder::create();
-      auto [OptLevel, SizeLevel] =
-          toLLVMLevel(Conf.getCompilerConfigure().getOptimizationLevel());
-      PMB.setOptLevel(OptLevel);
-      PMB.setSizeLevel(SizeLevel);
-      PMB.populateFunctionPassManager(FP);
-      PMB.populateModulePassManager(MP);
-    }
-    switch (Conf.getCompilerConfigure().getOptimizationLevel()) {
-    case CompilerConfigure::OptimizationLevel::O0:
-    case CompilerConfigure::OptimizationLevel::O1:
-      FP.addTailCallEliminationPass();
-      break;
-    default:
-      break;
-    }
-
-    FP.initializeFunctionPassManager();
-    for (auto Fn = LLModule.getFirstFunction(); Fn; Fn = Fn.getNextFunction()) {
-      FP.runFunctionPassManager(Fn);
-    }
-    FP.finalizeFunctionPassManager();
-    MP.runPassManager(LLModule);
-#endif
-  }
+  spdlog::info("[lazyjit]: verify function {} done"sv, FuncIndex);
 
   spdlog::debug("[lazyjit]: compile function {} done"sv, FuncIndex);
   return Expect<Data>{std::move(LLData)};

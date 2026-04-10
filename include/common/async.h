@@ -16,9 +16,46 @@
 #include "errcode.h"
 
 #include <future>
+#include <memory>
 #include <thread>
+#if defined(__APPLE__) || defined(__linux__)
+#include <pthread.h>
+#endif
 
 namespace WasmEdge {
+namespace detail {
+
+template <typename Fn> void runDetachedWithLargeStack(Fn &&Func) {
+#if defined(__APPLE__) || defined(__linux__)
+  using FnBox = std::decay_t<Fn>;
+  auto *const BoxPtr = new FnBox(std::forward<Fn>(Func));
+  pthread_attr_t Attr;
+  pthread_attr_init(&Attr);
+  constexpr size_t StackBytes = 8U * 1024U * 1024U;
+  pthread_attr_setstacksize(&Attr, StackBytes);
+  pthread_t Th;
+  const int Err = pthread_create(
+      &Th, &Attr,
+      +[](void *Arg) -> void * {
+        std::unique_ptr<FnBox> Box(static_cast<FnBox *>(Arg));
+        (*Box)();
+        return nullptr;
+      },
+      BoxPtr);
+  pthread_attr_destroy(&Attr);
+  if (Err != 0) {
+    std::thread([Held = std::unique_ptr<FnBox>(BoxPtr)]() mutable {
+      (*Held)();
+    }).detach();
+    return;
+  }
+  pthread_detach(Th);
+#else
+  std::thread(std::forward<Fn>(Func)).detach();
+#endif
+}
+
+} // namespace detail
 
 /// Async execution flow class
 template <typename T> class Async {
@@ -29,13 +66,12 @@ public:
       : StopFunc([&TargetInst]() { TargetInst.stop(); }) {
     std::promise<T> Promise;
     Future = Promise.get_future();
-    Thread =
-        std::thread([FPtr, P = std::move(Promise),
-                     Tuple = std::tuple(
-                         &TargetInst, std::forward<ArgsT>(Args)...)]() mutable {
+    detail::runDetachedWithLargeStack(
+        [FPtr, P = std::move(Promise),
+         Tuple = std::tuple(
+             &TargetInst, std::forward<ArgsT>(Args)...)]() mutable {
           P.set_value(std::apply(FPtr, Tuple));
         });
-    Thread.detach();
   }
   Async(const Async &) noexcept = delete;
   Async(Async &&Other) noexcept : Async() { swap(*this, Other); }

@@ -33,7 +33,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   double PrevRepeatPenalty = GraphRef.Params.sampling.penalty_repeat;
   double PrevPresencePenalty = GraphRef.Params.sampling.penalty_present;
   double PrevFrequencyPenalty = GraphRef.Params.sampling.penalty_freq;
-  std::string PrevGrammar = GraphRef.Params.sampling.grammar;
+  std::string PrevGrammar =
+      common_grammar_value(GraphRef.Params.sampling.grammar);
   uint32_t PrevSeed = GraphRef.Params.sampling.seed;
 
   try {
@@ -259,13 +260,19 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonAuto<bool>(Doc, "timing-per-token",
                         GraphRef.Params.sampling.timing_per_token);
 
-    parseJsonWithCastAuto<std::string_view>(Doc, "grammar",
-                                            GraphRef.Params.sampling.grammar);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "grammar", [&GraphRef](const std::string_view &Grammar) -> bool {
+          GraphRef.Params.sampling.grammar =
+              common_grammar(COMMON_GRAMMAR_TYPE_USER, std::string(Grammar));
+          return true;
+        });
     parseJsonWithProcessorAuto<std::string_view>(
         Doc, "json-schema",
         [&GraphRef](const std::string_view &JsonSchema) -> bool {
           GraphRef.Params.sampling.grammar =
-              json_schema_to_grammar(nlohmann::ordered_json::parse(JsonSchema));
+              common_grammar(COMMON_GRAMMAR_TYPE_OUTPUT_FORMAT,
+                             json_schema_to_grammar(
+                                 nlohmann::ordered_json::parse(JsonSchema)));
           return true;
         });
     parseJsonWithCastAuto<int64_t>(Doc, "seed", GraphRef.Params.sampling.seed);
@@ -299,8 +306,12 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithCastAuto<std::string_view>(Doc, "image", ConfRef.ImagePath);
     parseJsonAuto<bool>(Doc, "always-regenerate-image-embd",
                         ConfRef.AlwaysRegenerateImageEmbd);
-    parseJsonWithCastAuto<std::string_view>(Doc, "model-alias",
-                                            GraphRef.Params.model_alias);
+    parseJsonWithProcessorAuto<std::string_view>(
+        Doc, "model-alias",
+        [&GraphRef](const std::string_view &ModelAlias) -> bool {
+          GraphRef.Params.model_alias.emplace(ModelAlias);
+          return true;
+        });
     parseJsonWithCastAuto<std::string_view>(Doc, "model-url",
                                             GraphRef.Params.model.url);
     parseJsonWithCastAuto<std::string_view>(Doc, "hf-token",
@@ -318,9 +329,11 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     parseJsonWithCastAuto<std::string_view>(Doc, "input-suffix",
                                             GraphRef.Params.input_suffix);
     parseJsonWithCastAuto<std::string_view>(
-        Doc, "lookup-cache-static", GraphRef.Params.lookup_cache_static);
+        Doc, "lookup-cache-static",
+        GraphRef.Params.speculative.lookup_cache_static);
     parseJsonWithCastAuto<std::string_view>(
-        Doc, "lookup-cache-dynamic", GraphRef.Params.lookup_cache_dynamic);
+        Doc, "lookup-cache-dynamic",
+        GraphRef.Params.speculative.lookup_cache_dynamic);
     parseJsonWithCastAuto<std::string_view>(Doc, "logits-file",
                                             GraphRef.Params.logits_file);
     parseJsonAuto<bool>(Doc, "lora-init-without-apply",
@@ -540,7 +553,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
        PrevRepeatPenalty != GraphRef.Params.sampling.penalty_repeat ||
        PrevPresencePenalty != GraphRef.Params.sampling.penalty_present ||
        PrevFrequencyPenalty != GraphRef.Params.sampling.penalty_freq ||
-       PrevGrammar != GraphRef.Params.sampling.grammar ||
+       PrevGrammar != common_grammar_value(GraphRef.Params.sampling.grammar) ||
        PrevSeed != GraphRef.Params.sampling.seed)) {
     *IsSamplerUpdated = true;
   }

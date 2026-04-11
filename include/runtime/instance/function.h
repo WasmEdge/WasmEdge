@@ -126,6 +126,14 @@ public:
     return true;
   }
 
+  bool unsafeReplaceCompiledSymbol(Symbol<CompiledFunction> Sym) noexcept {
+    if (auto *P = std::get_if<Symbol<CompiledFunction>>(&Data)) {
+      *P = std::move(Sym);
+      return true;
+    }
+    return false;
+  }
+
 private:
   struct WasmFunction {
     const std::vector<std::pair<uint32_t, ValType>> Locals;

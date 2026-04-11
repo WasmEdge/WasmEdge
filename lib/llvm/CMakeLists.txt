@@ -61,6 +61,7 @@ else()
     ${CMAKE_THREAD_LIBS_INIT}
     LINK_COMPONENTS
     core
+    linker
     lto
     native
     nativecodegen

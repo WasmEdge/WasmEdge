@@ -33,10 +33,15 @@
 #include <memory>
 #include <shared_mutex>
 #include <string>
+#include <unordered_set>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+namespace llvm {
+class Module;
+}
 
 namespace WasmEdge {
 namespace VM {
@@ -419,6 +424,7 @@ private:
       LazyJITStates;
 
   struct LazyJITPendingState {
+    ~LazyJITPendingState();
     const AST::Module *Module = nullptr;
     const Runtime::Instance::ModuleInstance *ModuleInstance = nullptr;
     uint32_t ImportFuncCount = 0;
@@ -428,6 +434,8 @@ private:
                     LLVM::Compiler::CompileContextDeleter>
         LLContext;
     std::shared_ptr<Executable> Exec;
+    std::unique_ptr<llvm::Module> CumulativeModule;
+    std::unordered_set<uint32_t> LazyCompileInProgress;
   };
 
   LazyJITPendingState Pending;

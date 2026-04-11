@@ -64,7 +64,8 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
   // For the exception handler, remove the inactive handlers caused by the
   // branches.
-  if (likely(RetIt)) {
+  const auto Instrs = Func.getInstrs();
+  if (likely(RetIt) && RetIt != Instrs.begin()) {
     StackMgr.removeInactiveHandler(RetIt - 1);
   }
 
@@ -242,7 +243,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
 
     // For native function case, the continuation will be the start of the
     // function body.
-    return Func.getInstrs().begin();
+    return Instrs.begin();
   }
 }
 

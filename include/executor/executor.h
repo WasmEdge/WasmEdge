@@ -957,6 +957,18 @@ public:
   Expect<void> proxyCall(Runtime::StackManager &StackMgr,
                          const uint32_t FuncIdx, const ValVariant *Args,
                          ValVariant *Rets) noexcept;
+  Expect<void> proxyReturnCall(Runtime::StackManager &StackMgr,
+                               const uint32_t FuncIdx, const ValVariant *Args,
+                               ValVariant *Rets) noexcept;
+  Expect<void> proxyReturnCallIndirect(Runtime::StackManager &StackMgr,
+                                       const uint32_t TableIdx,
+                                       const uint32_t FuncTypeIdx,
+                                       const uint32_t FuncIdx,
+                                       const ValVariant *Args,
+                                       ValVariant *Rets) noexcept;
+  Expect<void> proxyReturnCallRef(Runtime::StackManager &StackMgr,
+                                    const RefVariant Ref, const ValVariant *Args,
+                                    ValVariant *Rets) noexcept;
   Expect<void> proxyCallIndirect(Runtime::StackManager &StackMgr,
                                  const uint32_t TableIdx,
                                  const uint32_t FuncTypeIdx,

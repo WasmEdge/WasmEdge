@@ -3,6 +3,7 @@
 
 #include "vm/vm.h"
 
+#include "ast/instruction.h"
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "common/types.h"
@@ -24,10 +25,30 @@
 #include <memory>
 #include <variant>
 
+#ifdef WASMEDGE_USE_LLVM
+#include <llvm/IR/Module.h>
+#endif
+
 namespace WasmEdge {
 namespace VM {
 
 namespace {
+
+struct LazyJitCompileMark {
+  std::unordered_set<uint32_t> *Set;
+  uint32_t Idx;
+  LazyJitCompileMark(std::unordered_set<uint32_t> *S, uint32_t I) noexcept
+      : Set(S), Idx(I) {
+    if (Set) {
+      Set->insert(Idx);
+    }
+  }
+  ~LazyJitCompileMark() {
+    if (Set) {
+      Set->erase(Idx);
+    }
+  }
+};
 
 template <typename T> struct VisitUnit {
   using MT = std::function<T(std::unique_ptr<AST::Module> &)>;
@@ -274,6 +295,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
         .and_then([&](auto LLModule) {
           Pending.LLData = std::move(LLModule.first);
           Pending.LLContext = std::move(LLModule.second);
+          Pending.CumulativeModule = LLVM::cloneModuleForLazyJIT(Pending.LLData);
           LLVM::JIT JIT(Conf);
           return JIT.load(Pending.LLData, true);
         })
@@ -333,6 +355,8 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
     State.ModulePtr = Pending.Module;
     State.LLData = std::move(Pending.LLData);
     State.LLContext = std::move(Pending.LLContext);
+    State.Exec = std::move(Pending.Exec);
+    State.CumulativeModule = std::move(Pending.CumulativeModule);
     Pending.Module = nullptr;
     Pending.ModuleInstance = nullptr;
   }
@@ -580,6 +604,8 @@ Expect<void> VM::unsafeInstantiate() {
             .and_then([&](auto LLModule) {
               Pending.LLData = std::move(LLModule.first);
               Pending.LLContext = std::move(LLModule.second);
+              Pending.CumulativeModule =
+                  LLVM::cloneModuleForLazyJIT(Pending.LLData);
               LLVM::JIT JIT(Conf);
               return JIT.load(Pending.LLData, true);
             })
@@ -689,6 +715,7 @@ Expect<void> VM::unsafeInstantiate() {
       State.LLData = std::move(Pending.LLData);
       State.LLContext = std::move(Pending.LLContext);
       State.Exec = std::move(Pending.Exec);
+      State.CumulativeModule = std::move(Pending.CumulativeModule);
     }
 #endif
     Stage = VMStage::Instantiated;
@@ -772,10 +799,9 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
       FuncInst->isWasmFunction()) {
     uint32_t FuncIdx = ModInst->getFuncIdx(FuncInst);
     if (FuncIdx != UINT32_MAX) {
-      auto Result = unsafeLazyCompileFunction(ModInst, FuncIdx);
-      if (!Result) {
-        spdlog::warn("Lazy compilation failed for function {}: {}"sv, Func,
-                     Result.error());
+      if (auto Result = unsafeLazyCompileFunction(ModInst, FuncIdx);
+          !Result) {
+        return Unexpect(Result.error());
       }
     }
   }
@@ -989,9 +1015,41 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     return {};
   }
 
+  std::unordered_set<uint32_t> *InProgress = nullptr;
+  if (StatePtr) {
+    InProgress = &StatePtr->LazyCompileInProgress;
+  } else {
+    InProgress = &Pending.LazyCompileInProgress;
+  }
+  if (InProgress->count(LocalFuncIdx)) {
+    return {};
+  }
+  LazyJitCompileMark CompileMark(InProgress, LocalFuncIdx);
+
   spdlog::info(
       "[lazyjit]: Lazy compiling function index {} (local {}) for module {}"sv,
       FuncIdx, LocalFuncIdx, static_cast<const void *>(ModInst));
+
+  if (ModulePtr &&
+      LocalFuncIdx < ModulePtr->getCodeSection().getContent().size()) {
+    for (const auto &Instr :
+         ModulePtr->getCodeSection().getContent()[LocalFuncIdx]
+             .getExpr()
+             .getInstrs()) {
+      if (Instr.getOpCode() != OpCode::Return_call) {
+        continue;
+      }
+      const uint32_t T = Instr.getTargetIndex();
+      if (T < ImportFuncCount) {
+        continue;
+      }
+      const uint32_t TLocal = T - ImportFuncCount;
+      if (TLocal == LocalFuncIdx) {
+        continue;
+      }
+      EXPECTED_TRY(unsafeLazyCompileFunction(ModInst, T));
+    }
+  }
 
   LLVM::Compiler Compiler(Conf);
   auto ConfigResult = Compiler.checkConfigure();
@@ -1061,19 +1119,21 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  auto FuncResult = ModInst->getFuncInst(FuncIdx);
-  if (!FuncResult) {
-    spdlog::error("[lazyjit]: failed to get function instance for index {}"sv,
-                  FuncIdx);
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
-  }
+  {
+    auto FuncResult = ModInst->getFuncInst(FuncIdx);
+    if (!FuncResult) {
+      spdlog::error("[lazyjit]: failed to get function instance for index {}"sv,
+                    FuncIdx);
+      return Unexpect(ErrCode::Value::WrongInstanceAddress);
+    }
 
-  auto *FuncInst = *FuncResult;
-  if (FuncInst->isWasmFunction()) {
-    Symbol<Runtime::Instance::FunctionInstance::CompiledFunction> CompiledSym(
-        reinterpret_cast<Runtime::Instance::FunctionInstance::CompiledFunction
-                             *>(CompiledCodePtr));
-    FuncInst->unsafeUpgradeToCompiled(std::move(CompiledSym));
+    auto *FuncInst = *FuncResult;
+    if (FuncInst->isWasmFunction()) {
+      Symbol<Runtime::Instance::FunctionInstance::CompiledFunction> CompiledSym(
+          reinterpret_cast<Runtime::Instance::FunctionInstance::CompiledFunction
+                               *>(CompiledCodePtr));
+      FuncInst->unsafeUpgradeToCompiled(std::move(CompiledSym));
+    }
   }
 
   if (StatePtr) {
@@ -1086,6 +1146,10 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
 
   return {};
 }
+#endif
+
+#ifdef WASMEDGE_USE_LLVM
+VM::LazyJITPendingState::~LazyJITPendingState() = default;
 #endif
 
 } // namespace VM

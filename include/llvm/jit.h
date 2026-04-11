@@ -19,10 +19,18 @@
 #include "llvm/compiler.h"
 #include "llvm/data.h"
 #include <memory>
+#include <mutex>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
+namespace llvm {
+class Module;
+}
+
 namespace WasmEdge::LLVM {
+
+class Module;
 
 /// Address of JIT- or AOT-generated machine code for a wasm function. Not a
 /// typed C++ function pointer; wasm signatures vary and calls go through the
@@ -49,9 +57,7 @@ private:
   std::shared_ptr<OrcLLJIT> J;
   std::string Prefix;
   bool IsLazy;
-  /// Per lazy-compiled IR chunk (ORC JITDylib); main dylib holds
-  /// infrastructure.
-  std::vector<void *> LazyIRDylibs;
+  mutable std::mutex LazyAddMutex;
   friend class JIT;
 };
 
@@ -60,6 +66,10 @@ public:
   JIT(const Configure &Conf) noexcept : Conf(Conf) {}
   Expect<std::shared_ptr<Executable>> load(Data &D,
                                            bool IsLazy = false) noexcept;
+  Expect<std::shared_ptr<Executable>> loadModule(OrcThreadSafeContext &TSContext,
+                                                 Module &&LLModule,
+                                                 std::string_view Prefix,
+                                                 bool IsLazy = false) noexcept;
   /// Resolves the wasm function symbol in the new lazy JITDylib only (global
   /// index: imports + local index).
   Expect<WasmFunctionCodeAddress> add(Executable &Exec, Data &D,
@@ -69,9 +79,21 @@ private:
   const Configure Conf;
 };
 
+std::unique_ptr<llvm::Module> cloneModuleForLazyJIT(Data &D) noexcept;
+bool linkLazyModuleIntoCumulative(llvm::Module &Cumulative,
+                                  std::unique_ptr<llvm::Module> Lazy,
+                                  unsigned LinkFlags = 0) noexcept;
+Expect<std::shared_ptr<Executable>>
+lazyJITReloadAfterLink(llvm::Module &Cumulative, Data &LazyData,
+                       const Configure &Conf,
+                       uint32_t GlobalFuncIndex) noexcept;
+
 struct LazyJITState {
+  ~LazyJITState();
   /// Track which functions have been lazy-compiled.
   std::unordered_set<uint32_t> LazyCompiledFuncs;
+  /// Functions currently being lazy-compiled (detect mutual tail-call cycles).
+  std::unordered_set<uint32_t> LazyCompileInProgress;
   /// Number of import functions (offset for local function indices).
   uint32_t ImportFuncCount = 0;
   /// Number of total functions
@@ -87,6 +109,8 @@ struct LazyJITState {
   /// Pointer to the LLVM context.
   std::unique_ptr<Compiler::CompileContext, Compiler::CompileContextDeleter>
       LLContext;
+  /// Merged LLVM IR for lazy JIT (infrastructure plus linked lazy chunks).
+  std::unique_ptr<llvm::Module> CumulativeModule;
 };
 
 } // namespace WasmEdge::LLVM

@@ -198,6 +198,9 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
     FuncTypeIdx++;
   }
   for (size_t I = 0; I < CodeSegs.size(); ++I) {
+    if (Exec->isLazy() && !CodeSymbols[I]) {
+      continue;
+    }
     CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));
   }
   Mod.setSymbol(std::move(IntrinsicsSymbol));

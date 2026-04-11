@@ -4416,12 +4416,69 @@ private:
             ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
+    const auto &RetTypes = FuncType.getReturnTypes();
 
     std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
     Args[0] = F.Fn.getFirstParam();
     for (size_t I = 0; I < ParamTypes.size(); ++I) {
       const size_t J = ParamTypes.size() - 1 - I;
       Args[J + 1] = stackPop();
+    }
+
+    if (IsLazyJIT) {
+      auto &CalleeFn = std::get<1>(Context.Functions[FuncIndex]);
+      if (CalleeFn.Fn.countBasicBlocks() > 0) {
+        auto Ret = Builder.createCall(Function, Args);
+        auto Ty = Ret.getType();
+        if (Ty.isVoidTy()) {
+          Builder.createRetVoid();
+        } else {
+          Builder.createRet(Ret);
+        }
+        return;
+      }
+      const size_t ArgSize = ParamTypes.size();
+      const size_t RetSize = RetTypes.size();
+
+      LLVM::Value ArgsArray = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value RetsArray = Builder.createArray(RetSize, kValSize);
+
+      if (ArgSize > 0) {
+        std::vector<LLVM::Value> CallArgs(Args.begin() + 1, Args.end());
+        Builder.createArrayPtrStore(Span<LLVM::Value>(CallArgs), ArgsArray,
+                                    Context.Int8Ty, kValSize);
+      }
+
+      Builder.createCall(
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kReturnCall,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy,
+                  {Context.Int32Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  false)),
+          {LLContext.getInt32(FuncIndex), ArgsArray, RetsArray});
+
+      if (RetSize == 0) {
+        Builder.createRetVoid();
+      } else {
+        auto RTy = toLLVMRetsType(LLContext, RetTypes);
+        std::vector<LLVM::Value> RetsVec;
+        if (RetSize == 1) {
+          RetsVec.push_back(
+              Builder.createValuePtrLoad(RTy, RetsArray, Context.Int8Ty));
+        } else {
+          RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, RetsArray,
+                                               Context.Int8Ty, kValSize);
+        }
+        auto Ty = F.Ty.getReturnType();
+        if (Ty.isStructTy()) {
+          Builder.createAggregateRet(RetsVec);
+        } else {
+          assuming(RetsVec.size() == 1);
+          Builder.createRet(RetsVec[0]);
+        }
+      }
+      return;
     }
 
     auto Ret = Builder.createCall(Function, Args);
@@ -4451,6 +4508,36 @@ private:
     for (size_t I = 0; I < ArgSize; ++I) {
       const size_t J = ArgSize - I;
       ArgsVec[J] = stackPop();
+    }
+
+    if (IsLazyJIT) {
+      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      Builder.createArrayPtrStore(
+          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          kValSize);
+
+      Builder.createCall(
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kReturnCallIndirect,
+              LLVM::Type::getFunctionType(Context.VoidTy,
+                                          {Context.Int32Ty, Context.Int32Ty,
+                                           Context.Int32Ty, Context.Int8PtrTy,
+                                           Context.Int8PtrTy},
+                                          false)),
+          {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
+           FuncIndex, Args, Rets});
+
+      if (RetSize == 0) {
+        Builder.createRetVoid();
+      } else if (RetSize == 1) {
+        Builder.createRet(
+            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
+      } else {
+        Builder.createAggregateRet(Builder.createArrayPtrLoad(
+            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
+      }
+      return;
     }
 
     {
@@ -4629,6 +4716,34 @@ private:
     for (size_t I = 0; I < ArgSize; ++I) {
       const size_t J = ArgSize - I;
       ArgsVec[J] = stackPop();
+    }
+
+    if (IsLazyJIT) {
+      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
+      Builder.createArrayPtrStore(
+          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          kValSize);
+
+      Builder.createCall(
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kReturnCallRef,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy,
+                  {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  false)),
+          {Ref, Args, Rets});
+
+      if (RetSize == 0) {
+        Builder.createRetVoid();
+      } else if (RetSize == 1) {
+        Builder.createRet(
+            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
+      } else {
+        Builder.createAggregateRet(Builder.createArrayPtrLoad(
+            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
+      }
+      return;
     }
 
     {
@@ -6599,6 +6714,7 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
   Context->IntrinsicsTable = LLModule.addGlobal(
       Context->IntrinsicsTablePtrTy, true, LLVMExternalLinkage, LLVM::Value(),
       fmt::format("{}intrinsics"sv, Context->Prefix).c_str());
+  Context->IntrinsicsTable.setInitializer(LLVM::Value());
   Context->Trap.Ty =
       LLVM::Type::getFunctionType(Context->VoidTy, {Context->Int32Ty});
   Context->Trap.Fn =

@@ -17,7 +17,7 @@ endif()
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 
 # WasmEdge CAPI and so versions.
-set(WASMEDGE_CAPI_VERSION "0.1.0" CACHE STRING "WasmEdge C API library version")
+set(WASMEDGE_CAPI_VERSION "0.1.1" CACHE STRING "WasmEdge C API library version")
 set(WASMEDGE_CAPI_SOVERSION "0" CACHE STRING "WasmEdge C API library soversion")
 
 # Set cpack package version.

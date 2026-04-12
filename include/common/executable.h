@@ -78,6 +78,7 @@ public:
     kMemAtomicWait,
     kTableGetFuncSymbol,
     kRefGetFuncSymbol,
+    kFuncGetFuncSymbol,
     kReturnCall,
     kReturnCallIndirect,
     kReturnCallRef,

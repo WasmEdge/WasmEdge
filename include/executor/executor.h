@@ -1099,6 +1099,8 @@ public:
                                          const uint32_t FuncIdx) noexcept;
   Expect<void *> proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
                                        const RefVariant Ref) noexcept;
+  Expect<void *> proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                        const uint32_t FuncIdx) noexcept;
   /// @}
 
   /// Callbacks for compiled modules

@@ -785,6 +785,7 @@ public:
   inline void addCallSiteAttribute(const Attribute &A) noexcept;
   inline void setMetadata(Context &C, unsigned int KindID,
                           Metadata Node) noexcept;
+  inline void setMustTailCall() noexcept;
 
   Value getFirstParam() noexcept { return LLVMGetFirstParam(Ref); }
   Value getNextParam() noexcept { return LLVMGetNextParam(Ref); }
@@ -1034,6 +1035,14 @@ void Value::addCallSiteAttribute(const Attribute &A) noexcept {
 void Value::setMetadata(Context &C, unsigned int KindID,
                         Metadata Node) noexcept {
   LLVMSetMetadata(Ref, KindID, LLVMMetadataAsValue(C.unwrap(), Node.unwrap()));
+}
+
+void Value::setMustTailCall() noexcept {
+#if LLVM_VERSION_MAJOR >= 15
+  LLVMSetTailCallKind(Ref, LLVMTailCallKindMustTail);
+#else
+  LLVMSetTailCall(Ref, true);
+#endif
 }
 
 static inline Message getDefaultTargetTriple() noexcept {

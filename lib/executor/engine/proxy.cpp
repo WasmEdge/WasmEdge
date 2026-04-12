@@ -107,6 +107,7 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kMemAtomicWait, proxyMemAtomicWait),
     ENTRY(kTableGetFuncSymbol, proxyTableGetFuncSymbol),
     ENTRY(kRefGetFuncSymbol, proxyRefGetFuncSymbol),
+    ENTRY(kFuncGetFuncSymbol, proxyFuncGetFuncSymbol),
     ENTRY(kReturnCall, proxyReturnCall),
     ENTRY(kReturnCallIndirect, proxyReturnCallIndirect),
     ENTRY(kReturnCallRef, proxyReturnCallRef),
@@ -165,7 +166,7 @@ Expect<void> Executor::proxyReturnCall(Runtime::StackManager &StackMgr,
 
   auto Instrs = FuncInst->getInstrs();
   EXPECTED_TRY(auto StartIt,
-               enterFunction(StackMgr, *FuncInst, Instrs.end(), true));
+               enterFunction(StackMgr, *FuncInst, Instrs.end(), false));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
@@ -225,7 +226,7 @@ Expect<void> Executor::proxyReturnCallIndirect(
 
   auto Instrs = FuncInst->getInstrs();
   EXPECTED_TRY(auto StartIt,
-               enterFunction(StackMgr, *FuncInst, Instrs.end(), true));
+               enterFunction(StackMgr, *FuncInst, Instrs.end(), false));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
@@ -257,7 +258,7 @@ Expect<void> Executor::proxyReturnCallRef(Runtime::StackManager &StackMgr,
 
   auto Instrs = FuncInst->getInstrs();
   EXPECTED_TRY(auto StartIt,
-               enterFunction(StackMgr, *FuncInst, Instrs.end(), true));
+               enterFunction(StackMgr, *FuncInst, Instrs.end(), false));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
@@ -784,6 +785,19 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
 Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
                                                const RefVariant Ref) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
+  assuming(FuncInst);
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  if (unlikely(!FuncInst->isCompiledFunction())) {
+    return nullptr;
+  }
+  return FuncInst->getSymbol().get();
+}
+
+Expect<void *> Executor::proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                                const uint32_t FuncIdx) noexcept {
+  const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   assuming(FuncInst);
 
   EXPECTED_TRY(checkLazyCompilation(FuncInst));

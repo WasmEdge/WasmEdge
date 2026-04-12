@@ -4426,17 +4426,32 @@ private:
     }
 
     if (IsLazyJIT) {
-      auto &CalleeFn = std::get<1>(Context.Functions[FuncIndex]);
-      if (CalleeFn.Fn.countBasicBlocks() > 0) {
-        auto Ret = Builder.createCall(Function, Args);
-        auto Ty = Ret.getType();
-        if (Ty.isVoidTy()) {
-          Builder.createRetVoid();
-        } else {
-          Builder.createRet(Ret);
-        }
-        return;
+      auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.not_null");
+      auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.is_null");
+      auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
+
+      auto FPtr = Builder.createCall(
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
+              LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                          {Context.Int32Ty}, false)),
+          {LLContext.getInt32(FuncIndex)});
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
+          NotNullBB, IsNullBB);
+      Builder.positionAtEnd(NotNullBB);
+
+      auto Ret = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), Args);
+      Ret.setMustTailCall();
+      auto Ty = Ret.getType();
+      if (Ty.isVoidTy()) {
+        Builder.createRetVoid();
+      } else {
+        Builder.createRet(Ret);
       }
+
+      Builder.positionAtEnd(IsNullBB);
+
       const size_t ArgSize = ParamTypes.size();
       const size_t RetSize = RetTypes.size();
 
@@ -4451,7 +4466,7 @@ private:
 
       Builder.createCall(
           Context.getIntrinsic(
-              Builder, Executable::Intrinsics::kReturnCall,
+              Builder, Executable::Intrinsics::kCall,
               LLVM::Type::getFunctionType(
                   Context.VoidTy,
                   {Context.Int32Ty, Context.Int8PtrTy, Context.Int8PtrTy},
@@ -4470,8 +4485,8 @@ private:
           RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, RetsArray,
                                                Context.Int8Ty, kValSize);
         }
-        auto Ty = F.Ty.getReturnType();
-        if (Ty.isStructTy()) {
+        auto RetTy = F.Ty.getReturnType();
+        if (RetTy.isStructTy()) {
           Builder.createAggregateRet(RetsVec);
         } else {
           assuming(RetsVec.size() == 1);
@@ -4482,6 +4497,7 @@ private:
     }
 
     auto Ret = Builder.createCall(Function, Args);
+    Ret.setMustTailCall();
     auto Ty = Ret.getType();
     if (Ty.isVoidTy()) {
       Builder.createRetVoid();
@@ -4510,36 +4526,6 @@ private:
       ArgsVec[J] = stackPop();
     }
 
-    if (IsLazyJIT) {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
-      Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
-          kValSize);
-
-      Builder.createCall(
-          Context.getIntrinsic(
-              Builder, Executable::Intrinsics::kReturnCallIndirect,
-              LLVM::Type::getFunctionType(Context.VoidTy,
-                                          {Context.Int32Ty, Context.Int32Ty,
-                                           Context.Int32Ty, Context.Int8PtrTy,
-                                           Context.Int8PtrTy},
-                                          false)),
-          {LLContext.getInt32(TableIndex), LLContext.getInt32(FuncTypeIndex),
-           FuncIndex, Args, Rets});
-
-      if (RetSize == 0) {
-        Builder.createRetVoid();
-      } else if (RetSize == 1) {
-        Builder.createRet(
-            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
-      } else {
-        Builder.createAggregateRet(Builder.createArrayPtrLoad(
-            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
-      }
-      return;
-    }
-
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
@@ -4556,6 +4542,7 @@ private:
 
       auto FPtrRet =
           Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
+      FPtrRet.setMustTailCall();
       if (RetSize == 0) {
         Builder.createRetVoid();
       } else {
@@ -4718,34 +4705,6 @@ private:
       ArgsVec[J] = stackPop();
     }
 
-    if (IsLazyJIT) {
-      LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
-      Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
-          kValSize);
-
-      Builder.createCall(
-          Context.getIntrinsic(
-              Builder, Executable::Intrinsics::kReturnCallRef,
-              LLVM::Type::getFunctionType(
-                  Context.VoidTy,
-                  {Context.Int64x2Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                  false)),
-          {Ref, Args, Rets});
-
-      if (RetSize == 0) {
-        Builder.createRetVoid();
-      } else if (RetSize == 1) {
-        Builder.createRet(
-            Builder.createValuePtrLoad(RTy, Rets, Context.Int8Ty));
-      } else {
-        Builder.createAggregateRet(Builder.createArrayPtrLoad(
-            RetSize, RTy, Rets, Context.Int8Ty, kValSize));
-      }
-      return;
-    }
-
     {
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
@@ -4760,6 +4719,7 @@ private:
 
       auto FPtrRet =
           Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
+      FPtrRet.setMustTailCall();
       if (RetSize == 0) {
         Builder.createRetVoid();
       } else {

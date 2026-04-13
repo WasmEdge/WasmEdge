@@ -33,9 +33,10 @@ stringToInteger(ConvResultT (&Conv)(const char *, char **, int),
   auto SavedErrNo = std::exchange(errno, 0);
   const auto Result = Conv(CStr, &EndPtr, 10);
   std::swap(SavedErrNo, errno);
-  if (EndPtr == CStr) {
+  if (EndPtr == CStr || *EndPtr != '\0') {
     return cxx20::unexpected<Error>(std::in_place, ErrCode::InvalidArgument,
-                                    ""s);
+                                    "invalid integer value: "s +
+                                        std::move(Value));
   }
   auto InsideRange = [](auto WiderResult) constexpr noexcept {
     using WiderResultT = decltype(WiderResult);
@@ -49,7 +50,9 @@ stringToInteger(ConvResultT (&Conv)(const char *, char **, int),
     }
   };
   if (SavedErrNo == ERANGE || !InsideRange(Result)) {
-    return cxx20::unexpected<Error>(std::in_place, ErrCode::OutOfRange, ""s);
+    return cxx20::unexpected<Error>(std::in_place, ErrCode::OutOfRange,
+                                    "integer value out of range: "s +
+                                        std::move(Value));
   }
   return static_cast<ResultT>(Result);
 }
@@ -64,12 +67,15 @@ stringToFloating(ConvResultT (&Conv)(const char *, char **),
   auto SavedErrNo = std::exchange(errno, 0);
   const auto Result = Conv(CStr, &EndPtr);
   std::swap(SavedErrNo, errno);
-  if (EndPtr == CStr) {
+  if (EndPtr == CStr || *EndPtr != '\0') {
     return cxx20::unexpected<Error>(std::in_place, ErrCode::InvalidArgument,
-                                    ""s);
+                                    "invalid floating-point value: "s +
+                                        std::move(Value));
   }
   if (SavedErrNo == ERANGE) {
-    return cxx20::unexpected<Error>(std::in_place, ErrCode::OutOfRange, ""s);
+    return cxx20::unexpected<Error>(std::in_place, ErrCode::OutOfRange,
+                                    "floating-point value out of range: "s +
+                                        std::move(Value));
   }
   return Result;
 }

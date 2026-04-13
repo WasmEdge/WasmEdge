@@ -30,8 +30,6 @@
 #include <iterator>
 #include <map>
 #include <memory>
-#include <mutex>
-#include <string>
 #include <thread>
 #include <unordered_map>
 #include <variant>
@@ -40,13 +38,6 @@ namespace {
 
 using namespace std::literals;
 using namespace WasmEdge;
-
-// processCommands may run concurrently on the host (main + thread commands).
-// Google Test EXPECT_* is not thread-safe; SpecTest member SkipComponentValidation
-// is shared. Protect EXPECT_* and SkipComponentValidation only; do not hold the
-// mutex across onInvoke/onGet/onModule/... or wasm may block (e.g. atomic.wait)
-// while other threads need the lock for assertions.
-std::recursive_mutex SpecTestRunCommandMutex;
 
 // Preprocessing for set up aliasing.
 void resolveRegister(std::map<std::string, std::string> &Alias,
@@ -788,10 +779,9 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
 
     // Invoke function of named module. Named modules are registered in Store
     // Manager. Anonymous modules are instantiated in VM.
-    auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
-                          Params.second);
-    std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
-    if (Res) {
+    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
+                            Params.second)) {
+      // Check value.
       EXPECT_TRUE(compares(Returns, *Res));
     } else {
       EXPECT_NE(LineNumber, LineNumber);
@@ -814,19 +804,17 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
 
     // Invoke function of named module. Named modules are registered in Store
     // Manager. Anonymous modules are instantiated in VM.
-    auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
-                        Params.second);
-    if (Res) {
+    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
+                            Params.second)) {
+      // Check value.
       for (auto &Maybe : Returns) {
         if (compares(Maybe, *Res)) {
           return;
         }
       }
-      std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
       EXPECT_TRUE(compares(Returns[0], *Res))
           << "This is One of available returns.";
     } else {
-      std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
       EXPECT_NE(LineNumber, LineNumber);
     }
   };
@@ -842,9 +830,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     std::string_view Field = Action["field"];
     const auto Returns = parseExpectedList(Expected);
 
-    auto Res = onGet(Ctx, ModName, std::string(Field));
-    std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
-    if (Res) {
+    if (auto Res = onGet(Ctx, ModName, std::string(Field))) {
+      // Check value.
       EXPECT_TRUE(compare(Returns[0], *Res));
     } else {
       EXPECT_NE(LineNumber, LineNumber);
@@ -856,9 +843,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     if (IsComponent && !checkComponentSupported(UnitName, WasmPhase::Loading)) {
       return;
     }
-    auto Res = onLoad(Ctx, FileName);
-    std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
-    if (Res) {
+    if (auto Res = onLoad(Ctx, FileName)) {
       EXPECT_TRUE(false);
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
@@ -875,9 +860,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         !checkComponentSupported(UnitName, WasmPhase::Validation)) {
       return;
     }
-    auto Res = onValidate(Ctx, FileName);
-    std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
-    if (Res) {
+    if (auto Res = onValidate(Ctx, FileName); Res) {
       EXPECT_TRUE(false);
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
@@ -894,9 +877,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         !checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
       return;
     }
-    auto Res = onInstantiate(Ctx, FileName);
-    std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
-    if (Res) {
+    if (auto Res = onInstantiate(Ctx, FileName); Res) {
       EXPECT_TRUE(false);
     } else {
       EXPECT_TRUE(
@@ -920,10 +901,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     simdjson::dom::array Args = Action["args"];
     const auto Params = parseValueList(Args);
 
-    auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
-                        Params.second);
-    std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
-    if (Res) {
+    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
+                            Params.second)) {
       EXPECT_NE(LineNumber, LineNumber);
     } else {
       EXPECT_TRUE(Res.error().getErrCodePhase() ==
@@ -937,7 +916,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
   auto ExceptionInvoke = [&](const simdjson::dom::object &Action,
                              uint64_t LineNumber) {
     if (IsComponent) {
-      std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
+      // Component model invocation for exception not yet supported.
       EXPECT_NE(LineNumber, LineNumber);
       return;
     }
@@ -946,10 +925,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     simdjson::dom::array Args = Action["args"];
     const auto Params = parseValueList(Args);
 
-    auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
-                        Params.second);
-    std::lock_guard<std::recursive_mutex> ExpectLock(SpecTestRunCommandMutex);
-    if (Res) {
+    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
+                            Params.second)) {
       EXPECT_NE(LineNumber, LineNumber);
     } else {
       EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UncaughtException);
@@ -977,31 +954,23 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         const auto FilePath =
             (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
         const uint64_t LineNumber = Cmd["line"];
-        {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
-          SkipComponentValidation = false;
-        }
+        // Reset the flag for each module command to avoid stale state
+        // from prior test entries.
+        SkipComponentValidation = false;
         if (IsComponent) {
           if (!checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
             if (checkComponentSupported(UnitName, WasmPhase::Validation)) {
               if (!onValidate(Ctx, FilePath)) {
-                std::lock_guard<std::recursive_mutex> HarnessLock(
-                    SpecTestRunCommandMutex);
                 EXPECT_NE(LineNumber, LineNumber);
               }
             } else if (checkComponentSupported(UnitName, WasmPhase::Loading)) {
               if (!onLoad(Ctx, FilePath)) {
-                std::lock_guard<std::recursive_mutex> HarnessLock(
-                    SpecTestRunCommandMutex);
                 EXPECT_NE(LineNumber, LineNumber);
               }
             }
             return;
           }
           if (!checkComponentSupported(UnitName, WasmPhase::Validation)) {
-            std::lock_guard<std::recursive_mutex> HarnessLock(
-                SpecTestRunCommandMutex);
             SkipComponentValidation = true;
           }
         }
@@ -1021,12 +990,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
           LastModName.clear();
         }
         if (onModule(Ctx, LastModName, FilePath)) {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
           EXPECT_TRUE(true);
         } else {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
           EXPECT_NE(LineNumber, LineNumber);
         }
         return;
@@ -1042,23 +1007,15 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
           // Skip loading for unsupported component model tests.
           return;
         }
-        {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
-          SkipComponentValidation =
-              IsComponent &&
-              !checkComponentSupported(UnitName, WasmPhase::Validation);
-        }
+        SkipComponentValidation =
+            IsComponent &&
+            !checkComponentSupported(UnitName, WasmPhase::Validation);
         if (auto Res = onModuleDefine(Ctx, std::string(FilePath)); Res) {
           if (!Cmd["name"].get(ASTName)) {
             ASTMap.emplace(std::string(ASTName), std::move(*Res));
           }
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
           EXPECT_TRUE(true);
         } else {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
           EXPECT_NE(LineNumber, LineNumber);
         }
         return;
@@ -1068,15 +1025,13 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         std::string_view ASTName = Cmd["definition"];
         const uint64_t LineNumber = Cmd["line"];
         if (IsComponent) {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
+          // The component model spec tests currently have no module_instance
+          // commands. Fail explicitly if one is encountered.
           EXPECT_NE(LineNumber, LineNumber);
           return;
         }
         auto ASTDef = ASTMap.find(std::string(ASTName));
         if (ASTDef == ASTMap.end()) {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
           EXPECT_NE(LineNumber, LineNumber);
           return;
         }
@@ -1085,12 +1040,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         }
         auto &ASTMod = *std::get<std::unique_ptr<AST::Module>>(ASTDef->second);
         if (onInstanceFromDef(Ctx, std::string(ModName), ASTMod)) {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
           EXPECT_TRUE(true);
         } else {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
           EXPECT_NE(LineNumber, LineNumber);
         }
         return;
@@ -1127,11 +1078,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
           }
         }
 
-        {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
-          EXPECT_TRUE(false);
-        }
+        EXPECT_TRUE(false);
         return;
       }
       case CommandID::AssertTrap: {
@@ -1189,11 +1136,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
           ExceptionInvoke(Action, LineNumber);
           return;
         }
-        {
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
-          EXPECT_TRUE(false);
-        }
+        EXPECT_TRUE(false);
         return;
       }
       case CommandID::Thread: {
@@ -1246,28 +1189,13 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         // Create child context with shared module mapping.
         auto ChildCtx = onInit(Ctx, SharedModules);
 
-        // simdjson::dom::array handles point into the parent parser's tape; they
-        // are not safe to use concurrently from worker threads. Serialize to an
-        // owned JSON string and re-parse inside the thread with a local parser.
-        std::string ThreadCmdsJson = simdjson::minify(ThreadCmds);
-
+        // Spawn thread with child context.
         auto ThreadNameStr = std::string(ThreadName);
         ThreadMap.emplace(
             ThreadNameStr,
             std::thread([this, ChildCtx, P = std::string(Proposal),
-                         U = std::string(UnitName),
-                         ThreadCmdsJson = std::move(ThreadCmdsJson)]() {
-              simdjson::dom::parser ThreadParser;
-              simdjson::padded_string Padded(ThreadCmdsJson);
-              simdjson::dom::element ThreadDoc = ThreadParser.parse(Padded);
-              simdjson::dom::array Cmds;
-              if (ThreadDoc.get_array().get(Cmds)) {
-                std::lock_guard<std::recursive_mutex> ExpectLock(
-                    SpecTestRunCommandMutex);
-                EXPECT_TRUE(false) << "thread commands: expected JSON array";
-                onFini(ChildCtx);
-                return;
-              }
+                         U = std::string(UnitName), ThreadCmds]() {
+              simdjson::dom::array Cmds = ThreadCmds;
               processCommands(ChildCtx, P, U, &Cmds);
               onFini(ChildCtx);
             }));
@@ -1283,8 +1211,6 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
           ThreadMap.erase(It);
         } else {
           const uint64_t LineNumber = Cmd["line"];
-          std::lock_guard<std::recursive_mutex> HarnessLock(
-              SpecTestRunCommandMutex);
           EXPECT_NE(LineNumber, LineNumber)
               << "Wait for unknown thread: " << ThreadName;
         }
@@ -1293,11 +1219,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
       default:;
       }
     }
-    {
-      std::lock_guard<std::recursive_mutex> HarnessLock(
-          SpecTestRunCommandMutex);
-      EXPECT_TRUE(false);
-    }
+    // Unknown command.
+    EXPECT_TRUE(false);
   };
 
   // Iterate commands.

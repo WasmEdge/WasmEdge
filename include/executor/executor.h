@@ -967,8 +967,8 @@ public:
                                        const ValVariant *Args,
                                        ValVariant *Rets) noexcept;
   Expect<void> proxyReturnCallRef(Runtime::StackManager &StackMgr,
-                                    const RefVariant Ref, const ValVariant *Args,
-                                    ValVariant *Rets) noexcept;
+                                  const RefVariant Ref, const ValVariant *Args,
+                                  ValVariant *Rets) noexcept;
   Expect<void> proxyCallIndirect(Runtime::StackManager &StackMgr,
                                  const uint32_t TableIdx,
                                  const uint32_t FuncTypeIdx,

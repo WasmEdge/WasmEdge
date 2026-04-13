@@ -8,7 +8,6 @@
 #include "llvm.h"
 #include "spdlog/spdlog.h"
 
-#include <mutex>
 #include <llvm-c/Core.h>
 #include <llvm-c/Error.h>
 #include <llvm-c/LLJIT.h>
@@ -21,6 +20,7 @@
 #include <llvm/Linker/Linker.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Transforms/Utils/Cloning.h>
+#include <mutex>
 
 #include <fmt/format.h>
 

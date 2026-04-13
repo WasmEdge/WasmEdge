@@ -295,7 +295,8 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
         .and_then([&](auto LLModule) {
           Pending.LLData = std::move(LLModule.first);
           Pending.LLContext = std::move(LLModule.second);
-          Pending.CumulativeModule = LLVM::cloneModuleForLazyJIT(Pending.LLData);
+          Pending.CumulativeModule =
+              LLVM::cloneModuleForLazyJIT(Pending.LLData);
           LLVM::JIT JIT(Conf);
           return JIT.load(Pending.LLData, true);
         })
@@ -799,8 +800,7 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
       FuncInst->isWasmFunction()) {
     uint32_t FuncIdx = ModInst->getFuncIdx(FuncInst);
     if (FuncIdx != UINT32_MAX) {
-      if (auto Result = unsafeLazyCompileFunction(ModInst, FuncIdx);
-          !Result) {
+      if (auto Result = unsafeLazyCompileFunction(ModInst, FuncIdx); !Result) {
         return Unexpect(Result.error());
       }
     }
@@ -1032,10 +1032,10 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
 
   if (ModulePtr &&
       LocalFuncIdx < ModulePtr->getCodeSection().getContent().size()) {
-    for (const auto &Instr :
-         ModulePtr->getCodeSection().getContent()[LocalFuncIdx]
-             .getExpr()
-             .getInstrs()) {
+    for (const auto &Instr : ModulePtr->getCodeSection()
+                                 .getContent()[LocalFuncIdx]
+                                 .getExpr()
+                                 .getInstrs()) {
       if (Instr.getOpCode() != OpCode::Return_call) {
         continue;
       }

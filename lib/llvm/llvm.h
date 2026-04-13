@@ -71,6 +71,23 @@ LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
 #define __x86_64__ 1
 #endif
 
+#if LLVM_VERSION_MAJOR < 17
+typedef enum {
+  LLVMTailCallKindNone = 0,
+  LLVMTailCallKindTail = 1,
+  LLVMTailCallKindMustTail = 2,
+  LLVMTailCallKindNoTail = 3,
+} LLVMTailCallKind;
+
+LLVMTailCallKind LLVMGetTailCallKind(LLVMValueRef Call) {
+  return (LLVMTailCallKind)unwrap<CallInst>(Call)->getTailCallKind();
+}
+
+void LLVMSetTailCallKind(LLVMValueRef Call, LLVMTailCallKind kind) {
+  unwrap<CallInst>(Call)->setTailCallKind((CallInst::TailCallKind)kind);
+}
+#endif
+
 namespace WasmEdge::LLVM {
 
 class Core {
@@ -1038,11 +1055,7 @@ void Value::setMetadata(Context &C, unsigned int KindID,
 }
 
 void Value::setMustTailCall() noexcept {
-#if LLVM_VERSION_MAJOR >= 15
   LLVMSetTailCallKind(Ref, LLVMTailCallKindMustTail);
-#else
-  LLVMSetTailCall(Ref, true);
-#endif
 }
 
 static inline Message getDefaultTargetTriple() noexcept {

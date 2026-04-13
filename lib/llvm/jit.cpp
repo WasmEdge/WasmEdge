@@ -176,7 +176,7 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
     void *Addr = nullptr;
     auto AddrOrErr = LJ->lookup(*MainJD, Name);
     if (AddrOrErr) {
-      Addr = (*AddrOrErr).toPtr<void *>();
+      Addr = (*AddrOrErr).template toPtr<void *>();
     } else {
       if (!IsLazy) {
         spdlog::error("{}"sv, llvm::toString(AddrOrErr.takeError()));
@@ -256,7 +256,7 @@ JIT::loadModule(OrcThreadSafeContext &TSContext, Module &&LLModule,
 
 Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
                                          uint32_t GlobalFuncIndex) noexcept {
-  auto *Lib = dynamic_cast<JITLibrary *>(&Exec);
+  auto *Lib = static_cast<JITLibrary *>(&Exec);
   if (!Lib) {
     spdlog::error("JIT::add: executable is not a JITLibrary"sv);
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -284,6 +284,6 @@ Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
     spdlog::error("{}"sv, llvm::toString(AddrOrErr.takeError()));
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  return (*AddrOrErr).toPtr<void *>();
+  return (*AddrOrErr).template toPtr<void *>();
 }
 } // namespace WasmEdge::LLVM

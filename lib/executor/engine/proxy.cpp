@@ -149,9 +149,9 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
 }
 
 Expect<void> Executor::proxyReturnCall(Runtime::StackManager &StackMgr,
-                                         const uint32_t FuncIdx,
-                                         const ValVariant *Args,
-                                         ValVariant *Rets) noexcept {
+                                       const uint32_t FuncIdx,
+                                       const ValVariant *Args,
+                                       ValVariant *Rets) noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   EXPECTED_TRY(checkLazyCompilation(FuncInst));
   const auto &FuncType = FuncInst->getFuncType();
@@ -175,10 +175,12 @@ Expect<void> Executor::proxyReturnCall(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void> Executor::proxyReturnCallIndirect(
-    Runtime::StackManager &StackMgr, const uint32_t TableIdx,
-    const uint32_t FuncTypeIdx, const uint32_t FuncIdx, const ValVariant *Args,
-    ValVariant *Rets) noexcept {
+Expect<void> Executor::proxyReturnCallIndirect(Runtime::StackManager &StackMgr,
+                                               const uint32_t TableIdx,
+                                               const uint32_t FuncTypeIdx,
+                                               const uint32_t FuncIdx,
+                                               const ValVariant *Args,
+                                               ValVariant *Rets) noexcept {
   const auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
   assuming(TabInst);
 
@@ -795,8 +797,9 @@ Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
   return FuncInst->getSymbol().get();
 }
 
-Expect<void *> Executor::proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
-                                                const uint32_t FuncIdx) noexcept {
+Expect<void *>
+Executor::proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                 const uint32_t FuncIdx) noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   assuming(FuncInst);
 

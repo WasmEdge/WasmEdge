@@ -4450,8 +4450,8 @@ private:
       auto FPtr = Builder.createCall(
           Context.getIntrinsic(
               Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(),
-                                          {Context.Int32Ty}, false)),
+              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
+                                          false)),
           {LLContext.getInt32(FuncIndex)});
       Builder.createCondBr(
           Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),

@@ -132,15 +132,15 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
 /// under the provided ModuleName instead of the module's own name.
 ///
 /// \param Cxt the WasmEdge_VMContext.
-/// \param ImportCxt the WasmEdge_ModuleInstanceContext to register.
 /// \param ModuleName the WasmEdge_String of module name to register as.
+/// \param ImportCxt the WasmEdge_ModuleInstanceContext to register.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMRegisterModuleFromImportWithAlias(
-    WasmEdge_VMContext *Cxt, const WasmEdge_ModuleInstanceContext *ImportCxt,
-    const WasmEdge_String ModuleName) WASMEDGE_CAPI_NOEXCEPT;
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_ModuleInstanceContext *ImportCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate the WASM module from a WASM file and invoke a function by name.
 ///

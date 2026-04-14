@@ -64,13 +64,13 @@ public:
   }
   Expect<void>
   registerModule(const Runtime::Instance::ModuleInstance &ModInst) {
-    std::unique_lock Lock(Mutex);
-    return unsafeRegisterModule(ModInst);
+    return registerModule(ModInst.getModuleName(), ModInst);
   }
-  Expect<void> registerModule(const Runtime::Instance::ModuleInstance &ModInst,
-                              std::string_view Name) {
+  Expect<void>
+  registerModule(std::string_view Name,
+                 const Runtime::Instance::ModuleInstance &ModInst) {
     std::unique_lock Lock(Mutex);
-    return unsafeRegisterModule(ModInst, Name);
+    return unsafeRegisterModule(Name, ModInst);
   }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
@@ -287,10 +287,8 @@ private:
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const AST::Module &Module);
   Expect<void>
-  unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst);
-  Expect<void>
-  unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst,
-                       std::string_view Name);
+  unsafeRegisterModule(std::string_view Name,
+                       const Runtime::Instance::ModuleInstance &ModInst);
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,

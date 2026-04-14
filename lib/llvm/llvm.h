@@ -72,6 +72,8 @@ LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
 #endif
 
 #if LLVM_VERSION_MAJOR < 17
+#include <llvm/IR/Instructions.h>
+#include <llvm/Support/CBindingWrapping.h>
 typedef enum {
   LLVMTailCallKindNone = 0,
   LLVMTailCallKindTail = 1,
@@ -80,13 +82,13 @@ typedef enum {
 } LLVMTailCallKind;
 
 LLVMTailCallKind LLVMGetTailCallKind(LLVMValueRef Call) {
-  return (LLVMTailCallKind)llvm::unwrap<llvm::CallInst>(Call)
-      ->getTailCallKind();
+  return static_cast<LLVMTailCallKind>(
+      llvm::unwrap<llvm::CallInst>(Call)->getTailCallKind());
 }
 
 void LLVMSetTailCallKind(LLVMValueRef Call, LLVMTailCallKind kind) {
   llvm::unwrap<llvm::CallInst>(Call)->setTailCallKind(
-      (llvm::CallInst::TailCallKind)kind);
+      static_cast<llvm::CallInst::TailCallKind>(kind));
 }
 #endif
 

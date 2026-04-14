@@ -215,18 +215,8 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 }
 
 Expect<void>
-VM::unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
-  return ExecutorEngine.registerModule(StoreRef, ModInst);
-}
-
-Expect<void>
-VM::unsafeRegisterModule(const Runtime::Instance::ModuleInstance &ModInst,
-                         std::string_view Name) {
+VM::unsafeRegisterModule(std::string_view Name,
+                         const Runtime::Instance::ModuleInstance &ModInst) {
   if (Stage == VMStage::Instantiated) {
     // When registering module, instantiated module in store will be reset.
     // Therefore the instantiation should restart.

@@ -69,7 +69,7 @@ TEST_P(CoreTest, TestSuites) {
         if (ModInst != nullptr) {
           // Register the shared module under the alias name so that
           // the thread's wasm modules can import it by the expected name.
-          Ctx->VM.registerModule(*ModInst, AliasName);
+          Ctx->VM.registerModule(AliasName, *ModInst);
         }
       }
     }

@@ -102,7 +102,7 @@ TEST_P(NativeCoreTest, TestSuites) {
       for (const auto &[ParentName, AliasName] : SharedModules) {
         const auto *ModInst = P->VM.getStoreManager().findModule(ParentName);
         if (ModInst != nullptr) {
-          Ctx->VM.registerModule(*ModInst, AliasName);
+          Ctx->VM.registerModule(AliasName, *ModInst);
         }
       }
     }
@@ -272,7 +272,7 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
       for (const auto &[ParentName, AliasName] : SharedModules) {
         const auto *ModInst = P->VM.getStoreManager().findModule(ParentName);
         if (ModInst != nullptr) {
-          Ctx->VM.registerModule(*ModInst, AliasName);
+          Ctx->VM.registerModule(AliasName, *ModInst);
         }
       }
     }
@@ -417,7 +417,7 @@ TEST_P(JITCoreTest, TestSuites) {
       for (const auto &[ParentName, AliasName] : SharedModules) {
         const auto *ModInst = P->VM.getStoreManager().findModule(ParentName);
         if (ModInst != nullptr) {
-          Ctx->VM.registerModule(*ModInst, AliasName);
+          Ctx->VM.registerModule(AliasName, *ModInst);
         }
       }
     }

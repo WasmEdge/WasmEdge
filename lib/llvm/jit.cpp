@@ -2,7 +2,6 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "llvm/jit.h"
-#include "common/spdlog.h"
 
 #include "data.h"
 #include "llvm.h"
@@ -29,12 +28,9 @@ using namespace std::literals;
 
 namespace {
 
-llvm::orc::LLJIT *unwrapLLJIT(LLVMOrcLLJITRef R) noexcept {
-  return reinterpret_cast<llvm::orc::LLJIT *>(R);
-}
-
-llvm::orc::JITDylib *unwrapJD(LLVMOrcJITDylibRef R) noexcept {
-  return reinterpret_cast<llvm::orc::JITDylib *>(R);
+std::string errorToString(LLVM::Error &&E) noexcept {
+  auto Msg = E.message();
+  return std::string(Msg.string_view());
 }
 
 void prepareLazyModuleForLink(llvm::Module &Cumulative,
@@ -142,7 +138,7 @@ JITLibrary::getIntrinsics() noexcept {
           fmt::format("{}intrinsics"sv, Prefix).c_str())) {
     return createSymbol<const IntrinsicsTable *>(*Symbol);
   } else {
-    spdlog::error("{}"sv, Symbol.error().message().string_view());
+    spdlog::error("{}"sv, errorToString(std::move(Symbol.error())));
     return {};
   }
 }
@@ -156,7 +152,7 @@ JITLibrary::getTypes(size_t Size) noexcept {
     if (auto Symbol = J->lookup<Wrapper>(Name.c_str())) {
       Result.push_back(createSymbol<Wrapper>(*Symbol));
     } else {
-      spdlog::error("{}"sv, Symbol.error().message().string_view());
+      spdlog::error("{}"sv, errorToString(std::move(Symbol.error())));
       Result.emplace_back();
     }
   }
@@ -168,20 +164,18 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
                                                size_t Size) noexcept {
   std::vector<Symbol<void>> Result;
   Result.reserve(Size);
-  auto *LJ = unwrapLLJIT(J->unwrap());
-  auto *MainJD = unwrapJD(LLVMOrcLLJITGetMainJITDylib(J->unwrap()));
-
   for (size_t I = 0; I < Size; ++I) {
     const std::string Name = fmt::format("{}f{}"sv, Prefix, I + Offset);
     void *Addr = nullptr;
-    auto AddrOrErr = LJ->lookup(*MainJD, Name);
+    auto AddrOrErr = J->lookup<void *>(Name.c_str());
     if (AddrOrErr) {
-      Addr = (*AddrOrErr).template toPtr<void *>();
+      Addr = *AddrOrErr;
     } else {
       if (!IsLazy) {
-        spdlog::error("{}"sv, llvm::toString(AddrOrErr.takeError()));
+        spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));
       } else {
-        llvm::consumeError(AddrOrErr.takeError());
+        // Just consume the error if it's lazy (it might not be compiled yet)
+        (void)AddrOrErr.error();
       }
     }
     if (Addr) {
@@ -266,8 +260,6 @@ Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
   auto &TSContext = D.extract().getTSContext();
 
   LLVMOrcJITDylibRef MainJDRef = LLVMOrcLLJITGetMainJITDylib(Lib->J->unwrap());
-  auto *MainJD = unwrapJD(MainJDRef);
-  auto *LJ = unwrapLLJIT(Lib->J->unwrap());
 
   if (auto Err = Lib->J->addLLVMIRModule(
           OrcJITDylib(MainJDRef),
@@ -279,11 +271,11 @@ Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
   const std::string SymName =
       fmt::format("{}f{}"sv, D.getPrefix(), GlobalFuncIndex);
 
-  auto AddrOrErr = LJ->lookup(*MainJD, SymName);
+  auto AddrOrErr = Lib->J->lookup<void *>(SymName.c_str());
   if (!AddrOrErr) {
-    spdlog::error("{}"sv, llvm::toString(AddrOrErr.takeError()));
+    spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  return (*AddrOrErr).template toPtr<void *>();
+  return *AddrOrErr;
 }
 } // namespace WasmEdge::LLVM

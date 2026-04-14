@@ -140,7 +140,7 @@ jobs:
       # DO NOT skip the whole job to prevent descending jobs to be skipped
       - if: ${{ needs.paths-filter.outputs.ci-image-base == 'true' }}
         name: Bake and Push
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7.0.0
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           files: utils/docker/docker-bake.ci-image-base.hcl
           push: ${{ github.event_name != 'pull_request' }}
@@ -172,7 +172,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Bake and Push
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7.0.0
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           # Point to your new HCL file here
           files: utils/docker/docker-bake.alpine-base.hcl
@@ -222,7 +222,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Bake and Push
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7.0.0
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           files: utils/docker/docker-bake.ubuntu.hcl
           targets: ${{ matrix.targets }}
@@ -280,7 +280,7 @@ jobs:
           password: ${{ secrets.DOCKER_ACCESS_TOKEN }}
 
       - name: Bake and Push
-        uses: docker/bake-action@82490499d2e5613fcead7e128237ef0b0ea210f7 # v7.0.0
+        uses: docker/bake-action@a66e1c87e2eca0503c343edf1d208c716d54b8a8 # v7.1.0
         with:
           files: utils/docker/docker-bake.manylinux.hcl
           targets: ${{ matrix.targets }}

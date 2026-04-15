@@ -47,7 +47,6 @@ Expect<void>
 Executor::registerModule(Runtime::StoreManager &StoreMgr,
                          const Runtime::Instance::ModuleInstance &ModInst) {
   return StoreMgr.registerModule(&ModInst).map_error([](auto E) {
-    E = ErrCode::Value::ModuleNameConflict;
     spdlog::error(E);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
@@ -60,7 +59,6 @@ Executor::registerModule(Runtime::StoreManager &StoreMgr,
                          const Runtime::Instance::ModuleInstance &ModInst,
                          std::string_view Name) {
   return StoreMgr.registerModule(&ModInst, Name).map_error([](auto E) {
-    E = ErrCode::Value::ModuleNameConflict;
     spdlog::error(E);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
@@ -87,7 +85,6 @@ Expect<void> Executor::registerComponent(
     Runtime::StoreManager &StoreMgr,
     const Runtime::Instance::ComponentInstance &CompInst) {
   return StoreMgr.registerComponent(&CompInst).map_error([](auto E) {
-    E = ErrCode::Value::ModuleNameConflict;
     spdlog::error(E);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return E;

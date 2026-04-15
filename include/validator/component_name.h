@@ -66,6 +66,10 @@ using ComponentNameDetail =
             InterfaceDetail, LockedDepDetail, UnlockedDepDetail, UrlDetail,
             IntegrityDetail>;
 
+/// Returns true if Input is a valid kebab-case label per the Component Model
+/// spec: `label ::= <first-fragment> ( '-' <fragment> )*`
+bool isKebabString(std::string_view Input);
+
 class ComponentName {
   const std::string_view OriName;
   std::string_view NoTagName;

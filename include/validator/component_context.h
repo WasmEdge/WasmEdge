@@ -45,10 +45,10 @@ public:
     std::vector<const AST::Component::Component *> Components; // component
     std::vector<std::unordered_map<std::string,
                                    const AST::Component::ExternDesc *>>
-        Instances;           // instance
-    uint32_t TypeCount = 0;  // type
-    uint32_t FuncCount = 0;  // func
-    uint32_t ValueCount = 0; // value
+        Instances;                                      // instance
+    std::vector<const AST::Component::DefType *> Types; // type
+    uint32_t FuncCount = 0;                             // func
+    uint32_t ValueCount = 0;                            // value
 
     // --- Type annotations (keyed by type index) ---
     std::unordered_map<uint32_t, const AST::Component::InstanceType *>
@@ -85,6 +85,12 @@ public:
   void exitComponent() noexcept {
     assuming(!CompCtxs.empty());
     CompCtxs.pop_back();
+  }
+
+  /// Returns true if the current scope is a type definition scope
+  /// (componenttype or instancetype), not a real component scope.
+  bool isTypeDefinitionScope() const noexcept {
+    return !CompCtxs.empty() && CompCtxs.back().Component == nullptr;
   }
 
   Context &getCurrentContext() noexcept {
@@ -238,20 +244,32 @@ public:
   // type
   // ==========================================================================
 
-  uint32_t addType() noexcept { return getCurrentContext().TypeCount++; }
-
-  uint32_t addType(const AST::Component::InstanceType &IT) noexcept {
+  uint32_t addType(const AST::Component::DefType *DT = nullptr) noexcept {
     auto &Ctx = getCurrentContext();
-    uint32_t Idx = Ctx.TypeCount++;
-    Ctx.InstanceTypes[Idx] = &IT;
+    uint32_t Idx = static_cast<uint32_t>(Ctx.Types.size());
+    Ctx.Types.push_back(DT);
+    if (DT != nullptr) {
+      if (DT->isInstanceType()) {
+        Ctx.InstanceTypes[Idx] = &DT->getInstanceType();
+      }
+      if (DT->isResourceType()) {
+        Ctx.ResourceTypes[Idx] = &DT->getResourceType();
+      }
+    }
     return Idx;
   }
 
-  uint32_t addType(const AST::Component::ResourceType &RT) noexcept {
-    auto &Ctx = getCurrentContext();
-    uint32_t Idx = Ctx.TypeCount++;
-    Ctx.ResourceTypes[Idx] = &RT;
-    return Idx;
+  const AST::Component::DefType *getDefType(uint32_t Idx) const noexcept {
+    const auto &Ctx = getCurrentContext();
+    if (Idx < Ctx.Types.size()) {
+      return Ctx.Types[Idx];
+    }
+    return nullptr;
+  }
+
+  bool isResourceType(uint32_t Idx) const noexcept {
+    const auto &Ctx = getCurrentContext();
+    return Ctx.ResourceTypes.find(Idx) != Ctx.ResourceTypes.end();
   }
 
   const AST::Component::InstanceType *

@@ -6,12 +6,24 @@
 #include "validator/component_name.h"
 #include "validator/validator.h"
 
+#include <algorithm>
+#include <unordered_set>
 #include <variant>
 
 namespace WasmEdge {
 namespace Validator {
 
 using namespace std::literals;
+
+namespace {
+std::string toLowerStr(std::string_view SV) {
+  std::string Result(SV);
+  std::transform(
+      Result.begin(), Result.end(), Result.begin(),
+      [](unsigned char C) { return static_cast<char>(std::tolower(C)); });
+  return Result;
+}
+} // namespace
 
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
@@ -647,12 +659,15 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
       CompCtx.addCoreType(&ST);
     }
   } else if (DType.isModuleType()) {
+    // Module types are validated with an initially-empty type index space.
+    CompCtx.enterComponent();
     for (const auto &Decl : DType.getModuleType()) {
       EXPECTED_TRY(validate(Decl).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
         return E;
       }));
     }
+    CompCtx.exitComponent();
     // Module type also gets an entry in core:type (nullptr — not a SubType).
     CompCtx.addCoreType();
   } else {
@@ -663,77 +678,25 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::DefType &DType) noexcept {
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+    return E;
+  };
+
   if (DType.isDefValType()) {
-    // TODO: Validation of valtype requires the typeidx to refer to a
-    // defvaltype.
-    // TODO: Validation of own and borrow requires the typeidx to refer to a
-    // resource type.
-    CompCtx.addType();
+    EXPECTED_TRY(validate(DType.getDefValType()).map_error(ReportError));
   } else if (DType.isFuncType()) {
-    // TODO: Validation of functype rejects any transitive use of borrow in
-    // a result type. Similarly, validation of components and component
-    // types rejects any transitive use of borrow in an exported value type.
-    CompCtx.addType();
+    EXPECTED_TRY(validate(DType.getFuncType()).map_error(ReportError));
   } else if (DType.isComponentType()) {
-    // Component types are validated with an initially-empty index space.
-    CompCtx.enterComponent();
-    for (const auto &Decl : DType.getComponentType().getDecl()) {
-      if (Decl.isImportDecl()) {
-        EXPECTED_TRY(validate(Decl.getImport()).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-          return E;
-        }));
-      } else if (Decl.isInstanceDecl()) {
-        EXPECTED_TRY(validate(Decl.getInstance()).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-          return E;
-        }));
-      } else {
-        assumingUnreachable();
-      }
-    }
-    CompCtx.exitComponent();
-    // TODO: Validation rejects resourcetype type definitions inside
-    // componenttype and instancetype.
-    CompCtx.addType();
+    EXPECTED_TRY(validate(DType.getComponentType()).map_error(ReportError));
   } else if (DType.isInstanceType()) {
-    // Instance types are validated with an initially-empty index space.
-    CompCtx.enterComponent();
-    for (const auto &Decl : DType.getInstanceType().getDecl()) {
-      if (Decl.isCoreType()) {
-        EXPECTED_TRY(validate(*Decl.getCoreType()).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-          return E;
-        }));
-      } else if (Decl.isType()) {
-        EXPECTED_TRY(validate(*Decl.getType()).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-          return E;
-        }));
-      } else if (Decl.isAlias()) {
-        EXPECTED_TRY(validate(Decl.getAlias()).map_error([](auto E) {
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-          return E;
-        }));
-        const auto &Sort = Decl.getAlias().getSort();
-        if (Sort.isCore()) {
-          CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
-        } else {
-          CompCtx.incSortIndexSize(Sort.getSortType());
-        }
-      } else if (Decl.isExportDecl()) {
-        // TODO: validate export declarations within instance types.
-      } else {
-        assumingUnreachable();
-      }
-    }
-    CompCtx.exitComponent();
-    CompCtx.addType(DType.getInstanceType());
+    EXPECTED_TRY(validate(DType.getInstanceType()).map_error(ReportError));
   } else if (DType.isResourceType()) {
-    CompCtx.addType(DType.getResourceType());
+    EXPECTED_TRY(validate(DType.getResourceType()).map_error(ReportError));
   } else {
     assumingUnreachable();
   }
+  CompCtx.addType(&DType);
   return {};
 }
 
@@ -879,8 +842,30 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     CompCtx.addFunc();
     break;
   case AST::Component::ExternDesc::DescType::ValueBound:
+    CompCtx.addValue();
+    break;
   case AST::Component::ExternDesc::DescType::TypeBound:
-    CompCtx.addType();
+    if (Desc.isEqType()) {
+      // (type (eq i)) — alias type i
+      uint32_t RefIdx = Desc.getTypeIndex();
+      if (RefIdx >=
+          CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type)) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error("    ExternDesc: eq type bound index {} out of bounds"sv,
+                      RefIdx);
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+      // Create alias: propagate resource property if referenced type is
+      // resource
+      uint32_t NewIdx = CompCtx.addType();
+      if (CompCtx.isResourceType(RefIdx)) {
+        CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
+      }
+    } else {
+      // (type (sub resource)) — fresh abstract resource type
+      uint32_t NewIdx = CompCtx.addType();
+      CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
+    }
     break;
   case AST::Component::ExternDesc::DescType::ComponentType:
     CompCtx.addComponent();
@@ -941,6 +926,383 @@ Expect<void>
 Validator::validate(const AST::Component::InstanceDecl &) noexcept {
   // TODO
   return {};
+}
+
+Expect<void> Validator::validate(const ComponentValType &VT) noexcept {
+  if (VT.getCode() == ComponentTypeCode::TypeIndex) {
+    uint32_t Idx = VT.getTypeIndex();
+    if (Idx >= CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type)) {
+      spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
+      spdlog::error("    ComponentValType: type index {} out of bounds"sv, Idx);
+      return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
+    }
+    const auto *DT = CompCtx.getDefType(Idx);
+    if (DT != nullptr && !DT->isDefValType() && !DT->isResourceType()) {
+      spdlog::error(ErrCode::Value::NotADefinedType);
+      spdlog::error(
+          "    ComponentValType: type index {} is not a defined value type"sv,
+          Idx);
+      return Unexpect(ErrCode::Value::NotADefinedType);
+    }
+  }
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::DefValType &DVT) noexcept {
+  if (DVT.isOwnTy()) {
+    uint32_t Idx = DVT.getOwn().Idx;
+    if (Idx >= CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type)) {
+      spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
+      spdlog::error("    DefValType: own type index {} out of bounds"sv, Idx);
+      return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
+    }
+    if (!CompCtx.isResourceType(Idx)) {
+      spdlog::error(ErrCode::Value::NotADefinedType);
+      spdlog::error(
+          "    DefValType: own type index {} does not refer to a resource type"sv,
+          Idx);
+      return Unexpect(ErrCode::Value::NotADefinedType);
+    }
+  } else if (DVT.isBorrowTy()) {
+    uint32_t Idx = DVT.getBorrow().Idx;
+    if (Idx >= CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type)) {
+      spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
+      spdlog::error("    DefValType: borrow type index {} out of bounds"sv,
+                    Idx);
+      return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
+    }
+    if (!CompCtx.isResourceType(Idx)) {
+      spdlog::error(ErrCode::Value::NotADefinedType);
+      spdlog::error(
+          "    DefValType: borrow type index {} does not refer to a resource type"sv,
+          Idx);
+      return Unexpect(ErrCode::Value::NotADefinedType);
+    }
+  } else if (DVT.isRecordTy()) {
+    const auto &Rec = DVT.getRecord();
+    if (Rec.LabelTypes.empty()) {
+      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      spdlog::error("    DefValType: record must have at least one field"sv);
+      return Unexpect(ErrCode::Value::InvalidTypeReference);
+    }
+    std::unordered_set<std::string> Seen;
+    for (const auto &LT : Rec.LabelTypes) {
+      if (LT.getLabel().empty()) {
+        spdlog::error(ErrCode::Value::NameCannotBeEmpty);
+        return Unexpect(ErrCode::Value::NameCannotBeEmpty);
+      }
+      if (!isKebabString(LT.getLabel())) {
+        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(
+            "    DefValType: record field '{}' is not valid kebab-case"sv,
+            LT.getLabel());
+        return Unexpect(ErrCode::Value::ComponentInvalidName);
+      }
+      if (!Seen.insert(toLowerStr(LT.getLabel())).second) {
+        spdlog::error(ErrCode::Value::RecordFieldNameConflicts);
+        spdlog::error("    DefValType: duplicate record field '{}'"sv,
+                      LT.getLabel());
+        return Unexpect(ErrCode::Value::RecordFieldNameConflicts);
+      }
+      EXPECTED_TRY(validate(LT.getValType()));
+    }
+  } else if (DVT.isVariantTy()) {
+    const auto &Var = DVT.getVariant();
+    if (Var.Cases.empty()) {
+      spdlog::error(ErrCode::Value::VariantMustHaveCase);
+      return Unexpect(ErrCode::Value::VariantMustHaveCase);
+    }
+    std::unordered_set<std::string> Seen;
+    for (const auto &C : Var.Cases) {
+      if (C.first.empty()) {
+        spdlog::error(ErrCode::Value::NameCannotBeEmpty);
+        return Unexpect(ErrCode::Value::NameCannotBeEmpty);
+      }
+      if (!isKebabString(C.first)) {
+        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(
+            "    DefValType: variant case '{}' is not valid kebab-case"sv,
+            C.first);
+        return Unexpect(ErrCode::Value::ComponentInvalidName);
+      }
+      if (!Seen.insert(toLowerStr(C.first)).second) {
+        spdlog::error(ErrCode::Value::VariantCaseNameConflicts);
+        spdlog::error("    DefValType: duplicate variant case '{}'"sv, C.first);
+        return Unexpect(ErrCode::Value::VariantCaseNameConflicts);
+      }
+      if (C.second.has_value()) {
+        EXPECTED_TRY(validate(*C.second));
+      }
+    }
+  } else if (DVT.isTupleTy()) {
+    if (DVT.getTuple().Types.empty()) {
+      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      spdlog::error("    DefValType: tuple must have at least one element"sv);
+      return Unexpect(ErrCode::Value::InvalidTypeReference);
+    }
+    for (const auto &T : DVT.getTuple().Types) {
+      EXPECTED_TRY(validate(T));
+    }
+  } else if (DVT.isListTy()) {
+    EXPECTED_TRY(validate(DVT.getList().ValTy));
+  } else if (DVT.isOptionTy()) {
+    EXPECTED_TRY(validate(DVT.getOption().ValTy));
+  } else if (DVT.isResultTy()) {
+    const auto &R = DVT.getResult();
+    if (R.ValTy.has_value()) {
+      EXPECTED_TRY(validate(*R.ValTy));
+    }
+    if (R.ErrTy.has_value()) {
+      EXPECTED_TRY(validate(*R.ErrTy));
+    }
+  } else if (DVT.isFlagsTy()) {
+    const auto &Flags = DVT.getFlags();
+    if (Flags.Labels.empty()) {
+      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      spdlog::error("    DefValType: flags must have at least one label"sv);
+      return Unexpect(ErrCode::Value::InvalidTypeReference);
+    }
+    if (Flags.Labels.size() > 32) {
+      spdlog::error(ErrCode::Value::CannotHaveMoreThan32Flags);
+      return Unexpect(ErrCode::Value::CannotHaveMoreThan32Flags);
+    }
+    std::unordered_set<std::string> Seen;
+    for (const auto &L : Flags.Labels) {
+      if (L.empty()) {
+        spdlog::error(ErrCode::Value::NameCannotBeEmpty);
+        return Unexpect(ErrCode::Value::NameCannotBeEmpty);
+      }
+      if (!isKebabString(L)) {
+        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(
+            "    DefValType: flags label '{}' is not valid kebab-case"sv, L);
+        return Unexpect(ErrCode::Value::ComponentInvalidName);
+      }
+      if (!Seen.insert(toLowerStr(L)).second) {
+        spdlog::error(ErrCode::Value::FlagNameConflicts);
+        spdlog::error("    DefValType: duplicate flags label '{}'"sv, L);
+        return Unexpect(ErrCode::Value::FlagNameConflicts);
+      }
+    }
+  } else if (DVT.isEnumTy()) {
+    const auto &Enm = DVT.getEnum();
+    if (Enm.Labels.empty()) {
+      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      spdlog::error("    DefValType: enum must have at least one label"sv);
+      return Unexpect(ErrCode::Value::InvalidTypeReference);
+    }
+    std::unordered_set<std::string> Seen;
+    for (const auto &L : Enm.Labels) {
+      if (L.empty()) {
+        spdlog::error(ErrCode::Value::NameCannotBeEmpty);
+        return Unexpect(ErrCode::Value::NameCannotBeEmpty);
+      }
+      if (!isKebabString(L)) {
+        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(
+            "    DefValType: enum label '{}' is not valid kebab-case"sv, L);
+        return Unexpect(ErrCode::Value::ComponentInvalidName);
+      }
+      if (!Seen.insert(toLowerStr(L)).second) {
+        spdlog::error(ErrCode::Value::EnumTagNameConflicts);
+        spdlog::error("    DefValType: duplicate enum label '{}'"sv, L);
+        return Unexpect(ErrCode::Value::EnumTagNameConflicts);
+      }
+    }
+  } else if (DVT.isStreamTy()) {
+    if (DVT.getStream().ValTy.has_value()) {
+      EXPECTED_TRY(validate(*DVT.getStream().ValTy));
+    }
+  } else if (DVT.isFutureTy()) {
+    if (DVT.getFuture().ValTy.has_value()) {
+      EXPECTED_TRY(validate(*DVT.getFuture().ValTy));
+    }
+  }
+  return {};
+}
+
+Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
+  // Validate param names: kebab-case + unique
+  std::unordered_set<std::string_view> ParamNames;
+  for (const auto &P : FT.getParamList()) {
+    if (!P.getLabel().empty()) {
+      if (!isKebabString(P.getLabel())) {
+        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(
+            "    FuncType: parameter name '{}' is not valid kebab-case"sv,
+            P.getLabel());
+        return Unexpect(ErrCode::Value::ComponentInvalidName);
+      }
+      if (!ParamNames.insert(P.getLabel()).second) {
+        spdlog::error(ErrCode::Value::ComponentDuplicateName);
+        spdlog::error("    FuncType: duplicate parameter name '{}'"sv,
+                      P.getLabel());
+        return Unexpect(ErrCode::Value::ComponentDuplicateName);
+      }
+    }
+    EXPECTED_TRY(validate(P.getValType()));
+  }
+  // Reject transitive use of borrow in results
+  for (const auto &R : FT.getResultList()) {
+    EXPECTED_TRY(validate(R.getValType()));
+    if (containsBorrow(R.getValType())) {
+      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      spdlog::error(
+          "    FuncType: borrow type not allowed in function results"sv);
+      return Unexpect(ErrCode::Value::InvalidTypeReference);
+    }
+  }
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::InstanceType &IT) noexcept {
+  // Instance types are validated with an initially-empty index space.
+  CompCtx.enterComponent();
+  for (const auto &Decl : IT.getDecl()) {
+    if (Decl.isCoreType()) {
+      EXPECTED_TRY(validate(*Decl.getCoreType()).map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+        return E;
+      }));
+    } else if (Decl.isType()) {
+      EXPECTED_TRY(validate(*Decl.getType()).map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+        return E;
+      }));
+    } else if (Decl.isAlias()) {
+      EXPECTED_TRY(validate(Decl.getAlias()).map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+        return E;
+      }));
+      const auto &Sort = Decl.getAlias().getSort();
+      if (Sort.isCore()) {
+        CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+      } else {
+        CompCtx.incSortIndexSize(Sort.getSortType());
+      }
+    } else if (Decl.isExportDecl()) {
+      // TODO: validate export declarations within instance types.
+    } else {
+      assumingUnreachable();
+    }
+  }
+  CompCtx.exitComponent();
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::ComponentType &CT) noexcept {
+  // Component types are validated with an initially-empty index space.
+  CompCtx.enterComponent();
+  for (const auto &Decl : CT.getDecl()) {
+    if (Decl.isImportDecl()) {
+      EXPECTED_TRY(validate(Decl.getImport()).map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+        return E;
+      }));
+    } else if (Decl.isInstanceDecl()) {
+      EXPECTED_TRY(validate(Decl.getInstance()).map_error([](auto E) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+        return E;
+      }));
+    } else {
+      assumingUnreachable();
+    }
+  }
+  CompCtx.exitComponent();
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::ResourceType &RT) noexcept {
+  // Resource types are not allowed inside componenttype/instancetype scopes.
+  if (CompCtx.isTypeDefinitionScope()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error("    ResourceType: resource types cannot be defined inside "
+                  "componenttype or instancetype"sv);
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  if (RT.getDestructor().has_value()) {
+    uint32_t DtorIdx = *RT.getDestructor();
+    if (DtorIdx >= CompCtx.getCoreSortIndexSize(
+                       AST::Component::Sort::CoreSortType::Func)) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "    ResourceType: destructor core func index {} out of bounds"sv,
+          DtorIdx);
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    // TODO(GAP-C-1): validate destructor has core type [i32] -> []
+  }
+  return {};
+}
+
+bool Validator::containsBorrow(const ComponentValType &VT) const noexcept {
+  if (VT.getCode() == ComponentTypeCode::Borrow) {
+    return true;
+  }
+  if (VT.getCode() != ComponentTypeCode::TypeIndex) {
+    return false;
+  }
+  uint32_t Idx = VT.getTypeIndex();
+  const auto *DT = CompCtx.getDefType(Idx);
+  if (DT == nullptr || !DT->isDefValType()) {
+    return false;
+  }
+  return containsBorrow(DT->getDefValType());
+}
+
+bool Validator::containsBorrow(
+    const AST::Component::DefValType &DVT) const noexcept {
+  if (DVT.isBorrowTy()) {
+    return true;
+  }
+  if (DVT.isRecordTy()) {
+    for (const auto &F : DVT.getRecord().LabelTypes) {
+      if (containsBorrow(F.getValType())) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (DVT.isVariantTy()) {
+    for (const auto &C : DVT.getVariant().Cases) {
+      if (C.second.has_value() && containsBorrow(*C.second)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (DVT.isListTy()) {
+    return containsBorrow(DVT.getList().ValTy);
+  }
+  if (DVT.isTupleTy()) {
+    for (const auto &T : DVT.getTuple().Types) {
+      if (containsBorrow(T)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (DVT.isOptionTy()) {
+    return containsBorrow(DVT.getOption().ValTy);
+  }
+  if (DVT.isResultTy()) {
+    const auto &R = DVT.getResult();
+    return (R.ValTy.has_value() && containsBorrow(*R.ValTy)) ||
+           (R.ErrTy.has_value() && containsBorrow(*R.ErrTy));
+  }
+  if (DVT.isStreamTy()) {
+    return DVT.getStream().ValTy.has_value() &&
+           containsBorrow(*DVT.getStream().ValTy);
+  }
+  if (DVT.isFutureTy()) {
+    return DVT.getFuture().ValTy.has_value() &&
+           containsBorrow(*DVT.getFuture().ValTy);
+  }
+  return false; // PrimValType, OwnTy, FlagsTy, EnumTy
 }
 
 } // namespace Validator

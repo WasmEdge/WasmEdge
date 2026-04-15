@@ -277,6 +277,44 @@ public:
     Type.emplace<FutureTy>(std::move(Ty));
   }
 
+  bool isPrimValType() const noexcept {
+    return std::holds_alternative<PrimValType>(Type);
+  }
+  bool isRecordTy() const noexcept {
+    return std::holds_alternative<RecordTy>(Type);
+  }
+  bool isVariantTy() const noexcept {
+    return std::holds_alternative<VariantTy>(Type);
+  }
+  bool isListTy() const noexcept {
+    return std::holds_alternative<ListTy>(Type);
+  }
+  bool isTupleTy() const noexcept {
+    return std::holds_alternative<TupleTy>(Type);
+  }
+  bool isFlagsTy() const noexcept {
+    return std::holds_alternative<FlagsTy>(Type);
+  }
+  bool isEnumTy() const noexcept {
+    return std::holds_alternative<EnumTy>(Type);
+  }
+  bool isOptionTy() const noexcept {
+    return std::holds_alternative<OptionTy>(Type);
+  }
+  bool isResultTy() const noexcept {
+    return std::holds_alternative<ResultTy>(Type);
+  }
+  bool isOwnTy() const noexcept { return std::holds_alternative<OwnTy>(Type); }
+  bool isBorrowTy() const noexcept {
+    return std::holds_alternative<BorrowTy>(Type);
+  }
+  bool isStreamTy() const noexcept {
+    return std::holds_alternative<StreamTy>(Type);
+  }
+  bool isFutureTy() const noexcept {
+    return std::holds_alternative<FutureTy>(Type);
+  }
+
 private:
   std::variant<PrimValType, RecordTy, VariantTy, ListTy, TupleTy, FlagsTy,
                EnumTy, OptionTy, ResultTy, OwnTy, BorrowTy, StreamTy, FutureTy>

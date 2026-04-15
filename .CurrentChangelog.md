@@ -6,30 +6,23 @@ Features:
   * Due to the breaking change of API, bump the `SOVERSION` to `0.1.1`.
   * Due to the breaking change of API, bump the plug-in `API_VERSION` to `5`.
 * [Memory64]
-  * feat: initial support of wasm memory64 proposal
-  * feat(misc): introduce addr_t for address type
-  * feat: completion of wasm memory64 proposal in interpreter
-  * feat(compiler): implement memory64 proposal in AOT/JIT
+  * feat: support wasm memory64 proposal in interpreter and AOT/JIT
   * feat(api): introduce limit context to replace limit struct
-  * feat(misc): remove the addr_t type and use uint64_t instead
 * [CAPI]
-  * feat(runtime): add registerModule with alias name across API layers
+  * feat(api): add registerModule with alias name across API layers
 * [Component Model]
-  * feat(validator): add ComponentName class and parsing logic
-  * feat(validator): enhance component name handling with duplicate name checks
-  * feat(validator): implement AddImportedName logic in ComponentContext
-  * feat(component,loader): complete the loader implementation of canonical
-  * feat(validator): rewrite ComponentNameParser with full spec coverage
+  * feat(loader): complete the loader implementation of canonical
+  * feat(validator): implement ComponentName parsing and validation with full spec coverage
 * [WASI-NN]
-  * feat(WASI-NN, piper): update the WASI-NN Piper plugin due to upstream changes (#4443)
-  * feat(wasi-nn, ggml): support HIP backend for llama.cpp (#4552)
+  * feat(wasi-nn,piper): update the WASI-NN Piper plugin due to upstream changes (#4443)
+  * feat(wasi-nn,ggml): support HIP backend for llama.cpp (#4552)
   * feat(wasi-nn,ggml): upgrade llama.cpp version to b8757
 * [Tools]
   * feat(cli): add CLI option to control logging level (#4525)
 * [Misc]
   * feat(hash): upgrade rapidhash to v3 Nano variant (#4734)
   * feat(android): remove gradle-wrapper.jar and bootstrap wrapper (#4505)
-  * feat(examples/android): move app from utils to examples (#4499)
+  * feat(android): move app from utils to examples (#4499)
   * feat(docker): add libpiper to plugin-deps image
 
 Fixed issues:
@@ -42,9 +35,9 @@ Fixed issues:
   * fix(api): fix parameter order of VM RegisterModuleFromImportWithAlias
 * [Component Model]
   * fix(component): return ValVariant for numeric argument parsing in ToolOnComponent (#4716)
-  * fix(driver): update ToolOnComponent to use ValVariant for argument types (#4704)
+  * fix(component): update ToolOnComponent to use ValVariant for argument types (#4704)
   * fix(component,loader): missed set data in loading core deftype
-  * fix(validator): enforce lowercase package name per spec PR #630
+  * fix(component,validator): enforce lowercase package name per spec PR #630
 * [Validator]
   * fix(validator): wrong jump end offset of try_table
   * fix(validator): handle unreachable type in ref.test/ref.cast validation (#4669)
@@ -57,8 +50,8 @@ Fixed issues:
   * fix(executor): use memmove semantics for same-memory memory.copy (#4671)
   * fix(executor): preserve heap type when externalizing references (#4536)
   * fix(executor): synchronize HostFuncHandler callback invocation (#4508)
-  * fix: correct memory.init error log logic (#4582)
-  * fix: only memory address apply the uint64_t, the indices of memories still are uint32_t
+  * fix(executor): correct memory.init error log logic (#4582)
+  * fix(executor): only memory address apply the uint64_t, the indices of memories still are uint32_t
   * fix(executor): ref type for uninit values in table (#4764)
   * fix(executor): normalize null ref types for locals and AOT
   * fix(executor): prevent silent override of error code in registerModule() & registerComponent() (#4777)
@@ -67,7 +60,7 @@ Fixed issues:
 * [AOT]
   * fix(llvm): serialize LLD linker invocations with mutex
   * fix(compiler): error on LLVM-22 (#4696)
-  * fix(AOT): align the NaN propagation order in {f32x4,f64x2}.max/min with the interpreter mode (#4522)
+  * fix(aot): align the NaN propagation order in {f32x4,f64x2}.max/min with the interpreter mode (#4522)
 * [Tools]
   * fix(cli): handle invalid numeric arguments gracefully (#4602)
   * fix(tools): handle exported function not found case in reactor mode (#4647)
@@ -75,16 +68,16 @@ Fixed issues:
 * [WASI]
   * fix(wasi): resolve 100% CPU usage on macOS due to clock mismatch (#4470)
   * fix(wasi): return ERRNO BADF error when try to sync a directory (#4572)
-  * fix: refactor Poller context handling to use pointer instead of wrapper (#4509)
+  * fix(wasi): refactor Poller context handling to use pointer instead of wrapper (#4509)
 * [WASI-NN]
-  * fix(WASI-NN/bitnet): out-of-bounds array access in unload() function (#4531)
+  * fix(wasi-nn,bitnet): out-of-bounds array access in unload() function (#4531)
   * fix(wasi-nn): disable shallow clone for BitNet dependency (#4638)
   * fix(wasi-nn): install espeak-ng-data for Piper backend tests in CI (#4634)
 * [Plugin]
-  * fix(plugin/process): correct timeout unit conversion (#4678)
-  * fix(plugins/ffmpeg): clamp guest-provided lengths when copying FFmpeg C strings (#4478)
-  * fix(plugin/zlib): standardize missing memory instance handling (#4506)
-  * fix(utils/ffmpeg): remove duplicate directory creation check (#4484)
+  * fix(plugin,process): correct timeout unit conversion (#4678)
+  * fix(plugin,ffmpeg): clamp guest-provided lengths when copying FFmpeg C strings (#4478)
+  * fix(plugin,zlib): standardize missing memory instance handling (#4506)
+  * fix(plugin,ffmpeg): remove duplicate directory creation check (#4484)
 * [Docker]
   * fix(docker): build libpiper statically (#4565)
   * fix(docker): build libpiper statically in install script (#4535)

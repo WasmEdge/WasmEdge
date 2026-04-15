@@ -178,7 +178,10 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
         // already dynamic typed into the top abstract heap type.
         auto *Inst =
             Val.get<RefVariant>().getPtr<Runtime::Instance::CompositeBase>();
-        assuming(Inst);
+        if (unlikely(!Inst)) {
+          return Unexpect(ErrCode::Value::WrongInstanceAddress);
+        }
+
         // The ModInst may be nullptr only in the independent host function
         // instance. Therefore the module instance here must not be nullptr
         // because the independent host function instance cannot be imported and

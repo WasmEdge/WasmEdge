@@ -1,4 +1,4 @@
-### 0.17.0-alpha.2 (2026-04-10)
+### 0.17.0-alpha.3 (2026-04-15)
 
 Features:
 
@@ -23,6 +23,7 @@ Features:
 * [WASI-NN]
   * feat(WASI-NN, piper): update the WASI-NN Piper plugin due to upstream changes (#4443)
   * feat(wasi-nn, ggml): support HIP backend for llama.cpp (#4552)
+  * feat(wasi-nn,ggml): upgrade llama.cpp version to b8757
 * [Tools]
   * feat(cli): add CLI option to control logging level (#4525)
 * [Misc]
@@ -38,6 +39,7 @@ Fixed issues:
   * fix(api): add exception handlers at C API boundary
   * fix(api): guard WasmEdge_StringCopy against null Buf (#4686)
   * fix(api): typo and grammar error in WasmEdge C API docs (#4763)
+  * fix(api): fix parameter order of VM RegisterModuleFromImportWithAlias
 * [Component Model]
   * fix(component): return ValVariant for numeric argument parsing in ToolOnComponent (#4716)
   * fix(driver): update ToolOnComponent to use ValVariant for argument types (#4704)
@@ -59,6 +61,7 @@ Fixed issues:
   * fix: only memory address apply the uint64_t, the indices of memories still are uint32_t
   * fix(executor): ref type for uninit values in table (#4764)
   * fix(executor): normalize null ref types for locals and AOT
+  * fix(executor): prevent silent override of error code in registerModule() & registerComponent() (#4777)
 * [Runtime]
   * fix(runtime): use unique_lock in StoreManager::reset() to prevent data race (#4771)
 * [AOT]
@@ -126,17 +129,20 @@ CI:
   * ci(dependabot): bump github/codeql-action from 4.31.9 to 4.35.1
   * ci(dependabot): bump codecov/codecov-action from 5.5.2 to 6.0.0 (#4750)
   * ci(dependabot): bump actions/cache from 5.0.1 to 5.0.4
-  * ci(dependabot): bump cachix/install-nix-action from 31.9.0 to 31.10.3 (#4749)
+  * ci(dependabot): bump cachix/install-nix-action from 31.9.0 to 31.10.4
   * ci(dependabot): bump vedantmgoyal9/winget-releaser (#4721)
   * ci(dependabot): bump dorny/paths-filter from 3.0.2 to 4.0.1 (#4718)
   * ci(dependabot): bump actions/download-artifact from 8.0.0 to 8.0.1 (#4717)
-  * ci(dependabot): bump step-security/harden-runner from 2.14.0 to 2.16.1 (#4761)
+  * ci(dependabot): bump step-security/harden-runner from 2.14.0 to 2.17.0
   * ci(dependabot): bump the docker group with 3 updates (#4697)
   * ci(dependabot): bump docker/login-action from 3.6.0 to 4.1.0 in the docker group (#4760)
+  * ci(dependabot): bump docker/bake-action from 7.0.0 to 7.1.0 in the docker group (#4780)
   * ci(dependabot): bump the upload-and-download-artifact group with 2 updates (#4689)
+  * ci(dependabot): bump actions/upload-artifact from 7.0.0 to 7.0.1
   * ci(dependabot): bump crazy-max/ghaction-chocolatey from 3.4.0 to 4.0.0 (#4652)
   * ci(dependabot): bump actions/setup-python from 6.1.0 to 6.2.0 (#4555)
   * ci(dependabot): bump actions/checkout from 6.0.1 to 6.0.2 (#4556)
+  * ci(dependabot): bump actions/github-script from 8.0.0 to 9.0.0 (#4783)
 * [Runner]
   * ci(riscv): enable RISC-V cross-compilation CI (#4542)
   * ci: guard reusable workflows and jobs to avoid empty matrix jobs (#4668)
@@ -150,12 +156,48 @@ CI:
   * refactor(ci): optimize workflows (#4544)
   * fix(ci): cache lld pre-built on macOS workflow (#4753)
   * fix(ci): new content for wasi-testsuite (#4751)
+  * fix(ci): update SOVERSION for openwrt build (#4792)
 
 Thank all the contributors who made this release possible!
 
-Asmit Kumar Rai, Barry, Digo, Divyansh Khatri, Han-Wen Tsao, hydai, Kajal Jotwani, Karan Lokchandani, Khushi-Singh, LFsWang, Lîm Tsú-thuàn, Meet Jain, Parship Chowdhury, Piyush Kumar, Samarth Jain, SANCHIT KUMAR, Sankalp Jha, Shen-Ta Hsieh(BestSteve), Sourav Kumar, SriramB, Tushar Gupta, Vikas_pal8923, Vishal Malyan, Wang-Yang, Li, Yi Liu, Yi-Ying He
+Asmit Kumar Rai, Barry, Digo, Divyansh Khatri, grorge, Han-Wen Tsao, hydai, Kajal Jotwani, Karan Lokchandani, Khushi-Singh, LFsWang, Lîm Tsú-thuàn, Meet Jain, Mrinal Chaturvedi, Parship Chowdhury, Piyush Kumar, Samarth Jain, SANCHIT KUMAR, Sankalp Jha, Shen-Ta Hsieh(BestSteve), Sourav Kumar, SriramB, Tushar Gupta, Vikas_pal8923, Vishal Malyan, Wang-Yang, Li, Yi Liu, Yi-Ying He
 
-If you want to build from source, please use WasmEdge-0.17.0-alpha.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.17.0-alpha.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.16.2 (2026-04-14)
+
+This is the hot fix for 0.16.x versions.
+
+Fixed issues:
+
+* fix: refactor Poller context handling to use pointer instead of wrapper (#4509)
+* fix(validator): wrong jump end offset of try_table
+* fix(api): guard WasmEdge_StringCopy against null Buf (#4686)
+* fix(cli): handle invalid numeric arguments gracefully (#4602)
+* fix(compiler): error on LLVM-22 (#4696)
+* fix(executor): ref type for uninit values in table (#4764)
+* fix(executor): normalize null ref types for locals and AOT (#4772)
+* fix(test): disable LTO in tensorflow plugin tests of manylinux (#4766)
+* fix(test): split poll socket tests to isolate flaky cycle 2 (#4747)
+
+Tests:
+
+* test: add C-API boundary test for empty strings
+
+CI:
+
+* fix(ci): fix riscv CI fail
+* fix(ci): dependency installation on riscv (#4722)
+* fix(ci): cache lld pre-built on macOS workflow (#4753)
+* fix(ci): new content for wasi-testsuite (#4751)
+* refactor(ci): optimize workflows (#4544)
+* Bumped CI dependencies
+
+Thank all the contributors who made this release possible!
+
+Divyansh Khatri, Karan Lokchandani, Meet Jain, SANCHIT KUMAR, SriramB, Vishal Malyan, Wang-Yang Li, Yi-Ying He, hydai, piyush kumar
+
+If you want to build from source, please use WasmEdge-0.16.2-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.16.1 (2026-01-06)
 

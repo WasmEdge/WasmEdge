@@ -874,8 +874,8 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     CompCtx.addInstance();
     const auto *IT = CompCtx.getInstanceType(Desc.getTypeIndex());
     if (IT != nullptr) {
-      auto InstDecls = IT->getDecl();
-      for (auto &InstDecl : InstDecls) {
+      const auto &InstDecls = IT->getDecl();
+      for (const auto &InstDecl : InstDecls) {
         if (InstDecl.isCoreType()) {
           spdlog::debug("CoreDefType found"sv);
           // TODO

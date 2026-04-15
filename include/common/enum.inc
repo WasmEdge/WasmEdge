@@ -1077,6 +1077,29 @@ E(ComponentNotImplValidator, 0x02A5,
 E(ComponentDuplicateName, 0x02A6, "duplicate name in component")
 // Component model invalid name
 E(ComponentInvalidName, 0x02A7, "invalid component name")
+// DefValType: own/borrow does not reference a resource type
+E(NotADefinedType, 0x02A8, "not a defined type")
+// DefValType: own/borrow type index out of bounds
+E(DefTypeIndexOutOfBounds, 0x02A9, "index out of bounds")
+// DefValType: name cannot be empty
+E(NameCannotBeEmpty, 0x02AA, "name cannot be empty")
+// DefValType: cannot have more than 32 flags
+E(CannotHaveMoreThan32Flags, 0x02AB, "cannot have more than 32 flags")
+// DefValType: record field name conflicts
+E(RecordFieldNameConflicts, 0x02AC,
+  "record field name conflicts with previous field name")
+// DefValType: variant case name conflicts
+E(VariantCaseNameConflicts, 0x02AD,
+  "variant case name conflicts with previous case name")
+// DefValType: flag name conflicts
+E(FlagNameConflicts, 0x02AE,
+  "flag name conflicts with previous flag name")
+// DefValType: enum tag name conflicts
+E(EnumTagNameConflicts, 0x02AF,
+  "enum tag name conflicts with previous tag name")
+// DefValType: type must have at least one case/field/element
+E(VariantMustHaveCase, 0x02B0,
+  "variant type must have at least one case")
 // @}
 
 // Instantiation phase

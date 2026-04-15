@@ -1075,6 +1075,8 @@ E(ComponentNotImplValidator, 0x02A5,
   "component model (validator) not implemented")
 // Component model duplicate name
 E(ComponentDuplicateName, 0x02A6, "duplicate name in component")
+// Component model invalid name
+E(ComponentInvalidName, 0x02A7, "invalid component name")
 // @}
 
 // Instantiation phase

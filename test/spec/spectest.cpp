@@ -316,20 +316,20 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"alias",                   {true, false, false, false}},
     {"big",                     {true, false, false, false}},
     {"definedtypes",            {true, false, false, false}},
-    {"empty",                   {true, false, false, false}},
-    {"example",                 {true, false, false, false}},
+    {"empty",                   {true, true,  true,  false}},
+    {"example",                 {true, true,  true,  false}},
     {"export",                  {true, false, false, false}},
     {"export-ascription",       {true, false, false, false}},
-    {"export-introduces-alias", {true, false, false, false}},
+    {"export-introduces-alias", {true, true,  true,  false}},
     {"func",                    {false, false, false, false}},
     {"import",                  {true, false, false, false}},
     {"imports-exports",         {true, false, false, false}},
-    {"inline-exports",          {true, false, false, false}},
-    {"instance-types",          {true, false, false, false}},
+    {"inline-exports",          {true, true,  true,  false}},
+    {"instance-types",          {true, true,  true,  false}},
     {"instantiate",             {true, false, false, false}},
     {"invalid",                 {true, false, false, false}},
-    {"link",                    {true, false, false, false}},
-    {"lots-of-aliases",         {true, false, false, false}},
+    {"link",                    {true, true,  true,  false}},
+    {"lots-of-aliases",         {true, true,  true,  false}},
     {"lower",                   {true, false, false, false}},
     {"memory64",                {true, false, false, false}},
     {"module-link",             {true, false, false, false}},
@@ -951,22 +951,30 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
             return;
           }
         }
+        std::string_view FileName = Cmd["filename"];
+        const auto FilePath =
+            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
+        const uint64_t LineNumber = Cmd["line"];
+        // Reset the flag for each module command to avoid stale state
+        // from prior test entries.
+        SkipComponentValidation = false;
         if (IsComponent) {
           if (!checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
-            // Skip module for unsupported component model tests of
-            // instantiation.
+            if (checkComponentSupported(UnitName, WasmPhase::Validation)) {
+              if (!onValidate(Ctx, FilePath)) {
+                EXPECT_NE(LineNumber, LineNumber);
+              }
+            } else if (checkComponentSupported(UnitName, WasmPhase::Loading)) {
+              if (!onLoad(Ctx, FilePath)) {
+                EXPECT_NE(LineNumber, LineNumber);
+              }
+            }
             return;
           }
           if (!checkComponentSupported(UnitName, WasmPhase::Validation)) {
             SkipComponentValidation = true;
           }
-        } else {
-          SkipComponentValidation = false;
         }
-        std::string_view FileName = Cmd["filename"];
-        const auto FilePath =
-            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
-        const uint64_t LineNumber = Cmd["line"];
         std::string LineStr = std::to_string(LineNumber);
         std::string_view TempName;
         if (!Cmd["name"].get(TempName)) {

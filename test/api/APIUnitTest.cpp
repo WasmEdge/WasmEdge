@@ -3225,12 +3225,12 @@ TEST(APICoreTest, VM) {
   WasmEdge_String AliasName = WasmEdge_StringCreateByCString("vm-alias-name");
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
                          WasmEdge_VMRegisterModuleFromImportWithAlias(
-                             nullptr, HostModAlias, AliasName)));
+                             nullptr, AliasName, HostModAlias)));
   EXPECT_TRUE(isErrMatch(
       WasmEdge_ErrCode_WrongVMWorkflow,
-      WasmEdge_VMRegisterModuleFromImportWithAlias(VM, nullptr, AliasName)));
+      WasmEdge_VMRegisterModuleFromImportWithAlias(VM, AliasName, nullptr)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImportWithAlias(
-      VM, HostModAlias, AliasName)));
+      VM, AliasName, HostModAlias)));
   // The module should be findable by alias name
   WasmEdge_StoreContext *VMStore = WasmEdge_VMGetStoreContext(VM);
   EXPECT_NE(WasmEdge_StoreFindModule(VMStore, AliasName), nullptr);
@@ -3239,7 +3239,7 @@ TEST(APICoreTest, VM) {
       createExternModule("vm-alias-src2");
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_ModuleNameConflict,
                          WasmEdge_VMRegisterModuleFromImportWithAlias(
-                             VM, HostModAlias2, AliasName)));
+                             VM, AliasName, HostModAlias2)));
   WasmEdge_StringDelete(AliasName);
 
   // VM register module from file

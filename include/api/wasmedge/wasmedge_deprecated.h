@@ -30,7 +30,7 @@ extern "C" {
 /// `WasmEdge_CompilerCompileFromBytes()` API in the future.
 ///
 /// The compiler compiles the WASM from the given buffer for the
-/// ahead-of-time mode and store the result to the output file path.
+/// ahead-of-time mode and stores the result to the output file path.
 ///
 /// \param Cxt the WasmEdge_CompilerContext.
 /// \param InBuffer the input WASM binary buffer.
@@ -102,8 +102,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
     const uint32_t ParamLen, WasmEdge_Value *Returns,
     const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Instantiate the WASM module from a buffer and asynchronous invoke a function
-/// by name.
+/// Instantiate the WASM module from a buffer and asynchronously invoke a
+/// function by name.
 ///
 /// CAUTION: This function will be deprecated and replaced by
 /// `WasmEdge_VMAsyncRunWasmFromBytes()` API in the future.

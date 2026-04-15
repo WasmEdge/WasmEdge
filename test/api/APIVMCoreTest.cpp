@@ -75,8 +75,8 @@ TEST_P(CoreTest, TestSuites) {
         if (ModInst != nullptr) {
           WasmEdge_String AliasNameStr =
               WasmEdge_StringCreateByCString(AliasName.c_str());
-          WasmEdge_VMRegisterModuleFromImportWithAlias(Ctx->VM, ModInst,
-                                                       AliasNameStr);
+          WasmEdge_VMRegisterModuleFromImportWithAlias(Ctx->VM, AliasNameStr,
+                                                       ModInst);
           WasmEdge_StringDelete(AliasNameStr);
         }
       }

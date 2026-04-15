@@ -108,11 +108,11 @@ WasmEdge_VMRegisterModuleFromASTModule(
 /// into the store context in this VM, and the other modules can import the
 /// exported instances for linking when instantiation. Developers SHOULD
 /// guarantee the life cycle of this existing module instance, or the error will
-/// occur when in execution after the module instance being destroyed if it has
+/// occur during execution after the module instance is destroyed if it has
 /// been imported by other modules. That is, developers should call the
 /// `WasmEdge_ModuleInstanceDelete` if this existing module instance will not be
 /// used anymore or after the deletion of this VM. When the module instance is
-/// deleted, it will be unregistered to the store context in this VM
+/// deleted, it will be unregistered from the store context in this VM
 /// automatically.
 ///
 /// This function is thread-safe.
@@ -132,15 +132,15 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
 /// under the provided ModuleName instead of the module's own name.
 ///
 /// \param Cxt the WasmEdge_VMContext.
-/// \param ImportCxt the WasmEdge_ModuleInstanceContext to register.
 /// \param ModuleName the WasmEdge_String of module name to register as.
+/// \param ImportCxt the WasmEdge_ModuleInstanceContext to register.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
 /// message.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMRegisterModuleFromImportWithAlias(
-    WasmEdge_VMContext *Cxt, const WasmEdge_ModuleInstanceContext *ImportCxt,
-    const WasmEdge_String ModuleName) WASMEDGE_CAPI_NOEXCEPT;
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_ModuleInstanceContext *ImportCxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Instantiate the WASM module from a WASM file and invoke a function by name.
 ///
@@ -229,7 +229,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromASTModule(
     const uint32_t ParamLen, WasmEdge_Value *Returns,
     const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Instantiate the WASM module from a WASM file and asynchronous invoke a
+/// Instantiate the WASM module from a WASM file and asynchronously invoke a
 /// function by name.
 ///
 /// This is the function to invoke a WASM function rapidly.
@@ -259,8 +259,8 @@ WasmEdge_VMAsyncRunWasmFromFile(WasmEdge_VMContext *Cxt, const char *Path,
                                 const WasmEdge_Value *Params,
                                 const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Instantiate the WASM module from a WasmEdge_Bytes and asynchronous invoke a
-/// function by name.
+/// Instantiate the WASM module from a WasmEdge_Bytes and asynchronously invoke
+/// a function by name.
 ///
 /// This is the function to invoke a WASM function rapidly.
 /// Load and instantiate the WASM module from a WasmEdge_Bytes, and then invoke
@@ -288,7 +288,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBytes(
     const WasmEdge_String FuncName, const WasmEdge_Value *Params,
     const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Instantiate the WASM module from a WasmEdge AST Module and asynchronous
+/// Instantiate the WASM module from a WasmEdge AST Module and asynchronously
 /// invoke a function by name.
 ///
 /// This is the function to invoke a WASM function rapidly.
@@ -462,7 +462,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMExecuteRegistered(
     const uint32_t ParamLen, WasmEdge_Value *Returns,
     const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Asynchronous invoke a WASM function by name.
+/// Asynchronously invoke a WASM function by name.
 ///
 /// This is the final step to invoke a WASM function step by step.
 /// After instantiating a WASM module in the VM context, the WASM module is
@@ -486,7 +486,7 @@ WasmEdge_VMAsyncExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
                         const WasmEdge_Value *Params,
                         const uint32_t ParamLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Asynchronous invoke a WASM function by its module name and function name.
+/// Asynchronously invoke a WASM function by its module name and function name.
 ///
 /// After registering a WASM module in the VM context, you can repeatedly call
 /// this function to invoke exported WASM functions by their module names and
@@ -516,8 +516,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncExecuteRegistered(
 /// loaded. For getting the function type of functions in registered WASM
 /// modules with module names, please use `WasmEdge_VMGetFunctionTypeRegistered`
 /// instead.
-/// The returned function type context are linked to the context owned by the VM
-/// context, and the caller should __NOT__ call the
+/// The returned function type contexts are linked to the context owned by the
+/// VM context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to destroy it.
 ///
 /// This function is thread-safe.
@@ -536,8 +536,8 @@ WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *Cxt,
 /// After registering a WASM module in the VM context, you can call this
 /// function to get the function type by the functions' exported module names
 /// and function names until the VM context is reset.
-/// The returned function type context are linked to the context owned by the VM
-/// context, and the caller should __NOT__ call the
+/// The returned function type contexts are linked to the context owned by the
+/// VM context, and the caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete` to destroy it.
 ///
 /// This function is thread-safe.

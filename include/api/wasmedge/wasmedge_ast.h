@@ -44,7 +44,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ASTModuleListImportsLength(
 /// types are not needed.
 /// \param Len the buffer length.
 ///
-/// \returns actual exported function list size.
+/// \returns actual import list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ASTModuleListImports(const WasmEdge_ASTModuleContext *Cxt,
                               const WasmEdge_ImportTypeContext **Imports,
@@ -68,7 +68,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ASTModuleListExportsLength(
 /// types are not needed.
 /// \param Len the buffer length.
 ///
-/// \returns actual exported function list size.
+/// \returns actual export list size.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_ASTModuleListExports(const WasmEdge_ASTModuleContext *Cxt,
                               const WasmEdge_ExportTypeContext **Exports,
@@ -110,8 +110,8 @@ WasmEdge_LimitCreate(const uint64_t Min,
 /// \param Max the maximum of this limit.
 /// \param Is64Bit determine the 64-bit address type of this limit. `false` for
 /// the 32-bit address type.
-/// \param IsShared determine the shareable of this limit when using in memory
-/// type. For the table type using, this configuration should be `false`.
+/// \param IsShared determine the shareability of this limit when used in memory
+/// type. For table type usage, this configuration should be `false`.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_LimitContext *
@@ -286,7 +286,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_TableTypeContext *WasmEdge_TableTypeCreate(
 ///
 /// \param Cxt the WasmEdge_TableTypeContext.
 ///
-/// \returns the value type of the table type. This value type will must be a
+/// \returns the value type of the table type. This value type must be a
 /// reference type.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ValType WasmEdge_TableTypeGetRefType(
     const WasmEdge_TableTypeContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
@@ -438,7 +438,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_String WasmEdge_ImportTypeGetExternalName(
 /// Get the external value (which is function type) from an import type.
 ///
 /// The import type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The function type context links to the function type in the import type
 /// context and the AST module context. The caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete`.
@@ -456,7 +456,7 @@ WasmEdge_ImportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// Get the external value (which is table type) from an import type.
 ///
 /// The import type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The table type context links to the table type in the import type context
 /// and the AST module context. The caller should __NOT__ call the
 /// `WasmEdge_TableTypeDelete`.
@@ -474,7 +474,7 @@ WasmEdge_ImportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// Get the external value (which is memory type) from an import type.
 ///
 /// The import type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The memory type context links to the memory type in the import type context
 /// and the AST module context. The caller should __NOT__ call the
 /// `WasmEdge_MemoryTypeDelete`.
@@ -492,7 +492,7 @@ WasmEdge_ImportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// Get the external value (which is tag type) from an import type.
 ///
 /// The import type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The tag type context links to the tag type in the import type context
 /// and the AST module context.
 ///
@@ -509,7 +509,7 @@ WasmEdge_ImportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// Get the external value (which is global type) from an import type.
 ///
 /// The import type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The global type context links to the global type in the import type context
 /// and the AST module context. The caller should __NOT__ call the
 /// `WasmEdge_GlobalTypeDelete`.
@@ -551,7 +551,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_String WasmEdge_ExportTypeGetExternalName(
 /// Get the external value (which is function type) from an export type.
 ///
 /// The export type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The function type context links to the function type in the export type
 /// context and the AST module context. The caller should __NOT__ call the
 /// `WasmEdge_FunctionTypeDelete`.
@@ -569,7 +569,7 @@ WasmEdge_ExportTypeGetFunctionType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// Get the external value (which is table type) from an export type.
 ///
 /// The export type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The table type context links to the table type in the export type context
 /// and the AST module context. The caller should __NOT__ call the
 /// `WasmEdge_TableTypeDelete`.
@@ -587,7 +587,7 @@ WasmEdge_ExportTypeGetTableType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// Get the external value (which is memory type) from an export type.
 ///
 /// The export type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The memory type context links to the memory type in the export type context
 /// and the AST module context. The caller should __NOT__ call the
 /// `WasmEdge_MemoryTypeDelete`.
@@ -605,7 +605,7 @@ WasmEdge_ExportTypeGetMemoryType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// Get the external value (which is tag type) from an export type.
 ///
 /// The export type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The tag type context links to the tag type in the export type context
 /// and the AST module context.
 ///
@@ -622,7 +622,7 @@ WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
 /// Get the external value (which is global type) from an export type.
 ///
 /// The export type context should be the one queried from the AST module
-/// context, or this function will cause unexpected error.
+/// context, or this function will cause unexpected errors.
 /// The global type context links to the global type in the export type context
 /// and the AST module context. The caller should __NOT__ call the
 /// `WasmEdge_GlobalTypeDelete`.

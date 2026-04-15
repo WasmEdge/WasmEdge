@@ -34,8 +34,12 @@ public:
       : TabType(TType),
         Refs(TType.getLimit().getMin(), RefVariant(TType.getRefType())),
         InitValue(RefVariant(TType.getRefType())) {
-    // The reftype should a nullable reference because of no init ref.
+    // The reftype should be a nullable reference because of no init ref.
+    // This constructor only handles abstract heap types correctly for null
+    // refs. For concrete type indices, the caller should use the two-arg
+    // constructor with a properly initialized RefVariant.
     assuming(TType.getRefType().isNullableRefType());
+    assuming(TType.getRefType().isAbsHeapType());
   }
   TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
       : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),

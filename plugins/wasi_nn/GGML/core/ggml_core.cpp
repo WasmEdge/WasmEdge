@@ -87,7 +87,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   GraphRef.Conf.StreamStdout = false;
   GraphRef.Conf.EmbdNormalize =
       static_cast<EmbdNormalizeType>(CommonParamsDefault.embd_normalize);
-  GraphRef.Conf.NPredict = GraphRef.Params.n_ctx;
+  GraphRef.Conf.NPredict = GraphRef.Params.n_predict;
   GraphRef.Conf.ReversePrompt = ""sv;
   GraphRef.Conf.ImagePath = ""sv;
 
@@ -164,13 +164,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   llama_numa_init(Params.numa);
 
   // Initialize the llama model and context.
-  common_init_result LlamaInit = common_init_from_params(Params);
-  GraphRef.LlamaModel = std::move(LlamaInit.model);
-  GraphRef.LlamaContext = std::move(LlamaInit.context);
+  llama_model_params ModelParams = common_model_params_to_llama(Params);
+  GraphRef.LlamaModel = llama_model_ptr(
+      llama_model_load_from_file(Params.model.path.c_str(), ModelParams));
   if (GraphRef.LlamaModel == nullptr) {
     Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::InvalidArgument, "load: unable to init model."sv)
   }
+  GraphRef.LlamaContext = llama_context_ptr(llama_init_from_model(
+      GraphRef.LlamaModel.get(), common_context_params_to_llama(Params)));
   if (GraphRef.LlamaContext == nullptr) {
     Env.deleteGraph(GId.raw());
     RET_ERROR(ErrNo::InvalidArgument, "load: unable to init context."sv)
@@ -183,13 +185,15 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
     LOG_DEBUG(GraphRef.EnableDebugLog, "load: initialize TTS model."sv)
     Params.model = GraphRef.Params.vocoder.model;
     Params.embedding = true;
-    common_init_result TTSInit = common_init_from_params(Params);
-    GraphRef.TTSModel = std::move(TTSInit.model);
-    GraphRef.TTSContext = std::move(TTSInit.context);
+    llama_model_params TTSModelParams = common_model_params_to_llama(Params);
+    GraphRef.TTSModel = llama_model_ptr(
+        llama_model_load_from_file(Params.model.path.c_str(), TTSModelParams));
     if (GraphRef.TTSModel == nullptr) {
       Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS model."sv)
     }
+    GraphRef.TTSContext = llama_context_ptr(llama_init_from_model(
+        GraphRef.TTSModel.get(), common_context_params_to_llama(Params)));
     if (GraphRef.TTSContext == nullptr) {
       Env.deleteGraph(GId.raw());
       RET_ERROR(ErrNo::InvalidArgument, "load: unable to init TTS context."sv)

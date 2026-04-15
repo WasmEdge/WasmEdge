@@ -3223,12 +3223,12 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromImport(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
 WasmEdge_VMRegisterModuleFromImportWithAlias(
-    WasmEdge_VMContext *Cxt, const WasmEdge_ModuleInstanceContext *ImportCxt,
-    const WasmEdge_String ModuleName) noexcept {
+    WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName,
+    const WasmEdge_ModuleInstanceContext *ImportCxt) noexcept {
   return wrap(
       [&]() {
-        return Cxt->VM.registerModule(*fromModCxt(ImportCxt),
-                                      genStrView(ModuleName));
+        return Cxt->VM.registerModule(genStrView(ModuleName),
+                                      *fromModCxt(ImportCxt));
       },
       EmptyThen, Cxt, ImportCxt);
 }

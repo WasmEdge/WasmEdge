@@ -2,9 +2,8 @@
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 if(WASMEDGE_USE_LLVM)
-  add_subdirectory(llvm)
   add_subdirectory(aot)
-  add_subdirectory(vm)
+  add_subdirectory(llvm)
 endif()
 add_subdirectory(common)
 add_subdirectory(system)
@@ -14,6 +13,7 @@ add_subdirectory(loader)
 add_subdirectory(validator)
 add_subdirectory(executor)
 add_subdirectory(host)
+add_subdirectory(vm)
 add_subdirectory(driver)
 if(WASMEDGE_BUILD_SHARED_LIB OR WASMEDGE_BUILD_STATIC_LIB OR WASMEDGE_BUILD_TOOLS)
   add_subdirectory(api)

@@ -31,6 +31,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <string_view>
@@ -381,6 +382,7 @@ private:
   Statistics::Statistics Stat;
   VMStage Stage;
   mutable std::shared_mutex Mutex;
+  mutable std::recursive_mutex LazyMutex;
   /// @}
 
   /// \name VM components.

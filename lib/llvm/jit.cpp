@@ -33,49 +33,6 @@ std::string errorToString(LLVM::Error &&E) noexcept {
   return std::string(Msg.string_view());
 }
 
-void prepareLazyModuleForLink(llvm::Module &Cumulative,
-                              llvm::Module &Lazy) noexcept {
-  Lazy.setDataLayout(Cumulative.getDataLayout());
-  Lazy.setTargetTriple(Cumulative.getTargetTriple());
-
-  if (llvm::NamedMDNode *Old = Lazy.getModuleFlagsMetadata()) {
-    Lazy.eraseNamedMetadata(Old);
-  }
-}
-
-void pruneLazyModuleForCumulativeLink(llvm::Module &Cumulative,
-                                      llvm::Module &Lazy,
-                                      std::string_view Prefix,
-                                      uint32_t GlobalFuncIndex,
-                                      bool &NeedOverrideFromSrc) noexcept {
-  const std::string KeepFn = fmt::format("{}f{}"sv, Prefix, GlobalFuncIndex);
-  NeedOverrideFromSrc = false;
-  if (llvm::GlobalValue *GV = Cumulative.getNamedValue(KeepFn)) {
-    if (auto *OldF = llvm::dyn_cast<llvm::Function>(GV)) {
-      if (OldF->use_empty()) {
-        OldF->eraseFromParent();
-      } else {
-        NeedOverrideFromSrc = true;
-      }
-    }
-  }
-  llvm::SmallVector<llvm::Function *, 64> Remove;
-  for (llvm::Function &F : llvm::make_early_inc_range(Lazy)) {
-    if (!F.hasName()) {
-      continue;
-    }
-    if (F.getName() == KeepFn) {
-      continue;
-    }
-    if (Cumulative.getNamedValue(F.getName())) {
-      Remove.push_back(&F);
-    }
-  }
-  for (llvm::Function *F : Remove) {
-    F->eraseFromParent();
-  }
-}
-
 } // namespace
 
 namespace WasmEdge::LLVM {
@@ -88,42 +45,6 @@ std::unique_ptr<llvm::Module> cloneModuleForLazyJIT(Data &D) noexcept {
     return nullptr;
   }
   return llvm::CloneModule(*llvm::unwrap(LM.unwrap()));
-}
-
-bool linkLazyModuleIntoCumulative(llvm::Module &Cumulative,
-                                  std::unique_ptr<llvm::Module> Lazy,
-                                  unsigned LinkFlags) noexcept {
-  llvm::Linker L(Cumulative);
-  return L.linkInModule(std::move(Lazy), LinkFlags);
-}
-
-Expect<std::shared_ptr<Executable>>
-lazyJITReloadAfterLink(llvm::Module &Cumulative, Data &LazyData,
-                       const Configure &Conf,
-                       uint32_t GlobalFuncIndex) noexcept {
-  auto &TS = LazyData.extract().getTSContext();
-  const std::string_view Prefix = LazyData.getPrefix();
-  LLVMModuleRef Released = LazyData.extract().LLModule.release();
-  std::unique_ptr<llvm::Module> LazyMod(llvm::unwrap(Released));
-  if (!LazyMod) {
-    spdlog::error("[lazyjit]: missing lazy LLVM module"sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-  prepareLazyModuleForLink(Cumulative, *LazyMod);
-  bool NeedOverrideFromSrc = false;
-  pruneLazyModuleForCumulativeLink(Cumulative, *LazyMod, Prefix,
-                                   GlobalFuncIndex, NeedOverrideFromSrc);
-  unsigned LinkFlags = NeedOverrideFromSrc ? llvm::Linker::OverrideFromSrc : 0;
-  if (linkLazyModuleIntoCumulative(Cumulative, std::move(LazyMod), LinkFlags)) {
-    spdlog::error("[lazyjit]: link lazy IR into cumulative module failed"sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-  LazyData.resetModule();
-
-  auto MergedForJit = llvm::CloneModule(Cumulative);
-  LLVM::Module WMod(llvm::wrap(MergedForJit.release()));
-  JIT JITEngine(Conf);
-  return JITEngine.loadModule(TS, std::move(WMod), Prefix, true);
 }
 
 JITLibrary::JITLibrary(std::shared_ptr<LLVM::OrcLLJIT> JIT, std::string P,
@@ -202,7 +123,7 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
   auto &TSContext = D.extract().getTSContext();
 
   if (Conf.getCompilerConfigure().isDumpIR()) {
-    auto Filename = IsLazy ? "wasm-lazy-jit.ll" : "wasm-jit.ll";
+    const auto *Filename = IsLazy ? "wasm-lazy-jit.ll" : "wasm-jit.ll";
     if (auto ErrorMessage = LLModule.printModuleToFile(Filename)) {
       spdlog::error("printModuleToFile failed"sv);
     }
@@ -218,34 +139,6 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
   return std::make_shared<JITLibrary>(
       std::make_shared<OrcLLJIT>(std::move(*Result)),
       std::string(D.getPrefix()), IsLazy);
-}
-
-Expect<std::shared_ptr<Executable>>
-JIT::loadModule(OrcThreadSafeContext &TSContext, Module &&LLModule,
-                std::string_view Prefix, bool IsLazy) noexcept {
-  auto Result = OrcLLJIT::create();
-  if (!Result) {
-    spdlog::error("{}"sv, Result.error().message().string_view());
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  if (Conf.getCompilerConfigure().isDumpIR()) {
-    auto Filename = IsLazy ? "wasm-lazy-jit.ll" : "wasm-jit.ll";
-    if (auto ErrorMessage = LLModule.printModuleToFile(Filename)) {
-      spdlog::error("printModuleToFile failed"sv);
-    }
-  }
-
-  auto MainJD = Result->getMainJITDylib();
-  if (auto Err = Result->addLLVMIRModule(
-          MainJD, OrcThreadSafeModule(std::move(LLModule), TSContext))) {
-    spdlog::error("{}"sv, Err.message().string_view());
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  return std::make_shared<JITLibrary>(
-      std::make_shared<OrcLLJIT>(std::move(*Result)), std::string(Prefix),
-      IsLazy);
 }
 
 Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,

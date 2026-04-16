@@ -66,11 +66,9 @@ public:
   JIT(const Configure &Conf) noexcept : Conf(Conf) {}
   Expect<std::shared_ptr<Executable>> load(Data &D,
                                            bool IsLazy = false) noexcept;
-  Expect<std::shared_ptr<Executable>>
-  loadModule(OrcThreadSafeContext &TSContext, Module &&LLModule,
-             std::string_view Prefix, bool IsLazy = false) noexcept;
-  /// Resolves the wasm function symbol in the new lazy JITDylib only (global
-  /// index: imports + local index).
+
+  /// Resolves the wasm function symbol in the new lazy JITDylib only
+  /// (global index: imports + local index).
   Expect<WasmFunctionCodeAddress> add(Executable &Exec, Data &D,
                                       uint32_t GlobalFuncIndex) noexcept;
 
@@ -79,13 +77,6 @@ private:
 };
 
 std::unique_ptr<llvm::Module> cloneModuleForLazyJIT(Data &D) noexcept;
-bool linkLazyModuleIntoCumulative(llvm::Module &Cumulative,
-                                  std::unique_ptr<llvm::Module> Lazy,
-                                  unsigned LinkFlags = 0) noexcept;
-Expect<std::shared_ptr<Executable>>
-lazyJITReloadAfterLink(llvm::Module &Cumulative, Data &LazyData,
-                       const Configure &Conf,
-                       uint32_t GlobalFuncIndex) noexcept;
 
 struct LazyJITState {
   ~LazyJITState();

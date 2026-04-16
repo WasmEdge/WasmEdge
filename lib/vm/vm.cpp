@@ -221,6 +221,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 #ifdef WASMEDGE_USE_LLVM
   if (Conf.getRuntimeConfigure().isEnableLazyJIT() && !RegModInsts.empty()) {
+    std::unique_lock Lock(LazyMutex);
     auto *RegisteredModInst = RegModInsts.back().get();
     auto &State = LazyJITStates[RegisteredModInst];
     State.OwnedModule = std::move(Module);
@@ -245,6 +246,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 #ifdef WASMEDGE_USE_LLVM
   if (Conf.getRuntimeConfigure().isEnableLazyJIT() && !RegModInsts.empty()) {
+    std::unique_lock Lock(LazyMutex);
     auto *RegisteredModInst = RegModInsts.back().get();
     auto &State = LazyJITStates[RegisteredModInst];
     State.OwnedModule = std::move(Module);
@@ -293,6 +295,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
           return ErrCode::Value::Success;
         })
         .and_then([&](auto LLModule) {
+          std::unique_lock Lock(LazyMutex);
           Pending.LLData = std::move(LLModule.first);
           Pending.LLContext = std::move(LLModule.second);
           Pending.CumulativeModule =
@@ -309,6 +312,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
           return ErrCode::Value::Success;
         })
         .and_then([&](auto Exec) {
+          std::unique_lock Lock(LazyMutex);
           Pending.Exec = Exec;
           return LoaderEngine.loadExecutable(const_cast<AST::Module &>(Module),
                                              std::move(Exec));
@@ -322,6 +326,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
           return ErrCode::Value::Success;
         });
 
+    std::unique_lock Lock(LazyMutex);
     size_t ImportFuncCount = 0;
     for (const auto &ImpDesc : Module.getImportSection().getContent()) {
       if (ImpDesc.getExternalType() == ExternalType::Function) {
@@ -340,7 +345,10 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   auto ModInstResult = ExecutorEngine.registerModule(StoreRef, Module, Name);
 
 #ifdef WASMEDGE_USE_LLVM
-  Pending.Module = nullptr;
+  {
+    std::unique_lock Lock(LazyMutex);
+    Pending.Module = nullptr;
+  }
 #endif
 
   EXPECTED_TRY(auto ModInst, std::move(ModInstResult));
@@ -348,6 +356,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 #ifdef WASMEDGE_USE_LLVM
   if (Conf.getRuntimeConfigure().isEnableLazyJIT() && !RegModInsts.empty()) {
+    std::unique_lock Lock(LazyMutex);
     auto *RegisteredModInst = RegModInsts.back().get();
     auto &State = LazyJITStates[RegisteredModInst];
     State.ImportFuncCount = Pending.ImportFuncCount;
@@ -603,6 +612,7 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto LLModule) {
+              std::unique_lock Lock(LazyMutex);
               Pending.LLData = std::move(LLModule.first);
               Pending.LLContext = std::move(LLModule.second);
               Pending.CumulativeModule =
@@ -619,7 +629,10 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto Module) {
-              Pending.Exec = Module;
+              {
+                std::unique_lock Lock(LazyMutex);
+                Pending.Exec = Module;
+              }
               return LoaderEngine.loadExecutable(*Mod, std::move(Module));
             })
             .map_error([](uint32_t Err) {
@@ -663,7 +676,10 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto Module) {
-              Pending.Exec = Module;
+              {
+                std::unique_lock Lock(LazyMutex);
+                Pending.Exec = Module;
+              }
               return LoaderEngine.loadExecutable(*Mod, std::move(Module));
             })
             .map_error([](uint32_t Err) {
@@ -682,6 +698,7 @@ Expect<void> VM::unsafeInstantiate() {
 
 #ifdef WASMEDGE_USE_LLVM
     if (Conf.getRuntimeConfigure().isEnableLazyJIT()) {
+      std::unique_lock Lock(LazyMutex);
       size_t ImportFuncCount = 0;
       for (const auto &ImpDesc : Mod->getImportSection().getContent()) {
         if (ImpDesc.getExternalType() == ExternalType::Function) {
@@ -699,14 +716,18 @@ Expect<void> VM::unsafeInstantiate() {
     auto ActiveModInstResult = ExecutorEngine.instantiateModule(StoreRef, *Mod);
 
 #ifdef WASMEDGE_USE_LLVM
-    Pending.Module = nullptr;
-    Pending.ModuleInstance = nullptr;
+    {
+      std::unique_lock Lock(LazyMutex);
+      Pending.Module = nullptr;
+      Pending.ModuleInstance = nullptr;
+    }
 #endif
 
     EXPECTED_TRY(ActiveModInst, std::move(ActiveModInstResult));
 
 #ifdef WASMEDGE_USE_LLVM
     if (Conf.getRuntimeConfigure().isEnableLazyJIT()) {
+      std::unique_lock Lock(LazyMutex);
       auto &State = LazyJITStates[ActiveModInst.get()];
       State.ImportFuncCount = Pending.ImportFuncCount;
       State.LazyCompiledFuncs.clear();
@@ -916,7 +937,10 @@ void VM::unsafeCleanup() {
 #ifdef WASMEDGE_USE_LLVM
   // LazyJITStates.clear() will automatically clean up all unique_ptr
   // LLContexts.
-  LazyJITStates.clear();
+  {
+    std::unique_lock Lock(LazyMutex);
+    LazyJITStates.clear();
+  }
 #endif
 }
 
@@ -968,6 +992,7 @@ const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
 #ifdef WASMEDGE_USE_LLVM
 LLVM::LazyJITState &
 VM::getLazyJITStateForModule(const Runtime::Instance::ModuleInstance *ModInst) {
+  std::unique_lock Lock(LazyMutex);
   return LazyJITStates[ModInst];
 }
 
@@ -979,6 +1004,7 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
 
+  std::unique_lock Lock(LazyMutex);
   uint32_t ImportFuncCount = 0;
   const AST::Module *ModulePtr = nullptr;
   LLVM::Data *LLDataPtr = nullptr;

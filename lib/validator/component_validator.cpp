@@ -90,6 +90,27 @@ void populateInstanceFromType(ComponentContext &Ctx, uint32_t InstIdx,
     if (ED.getDescType() ==
         AST::Component::ExternDesc::DescType::InstanceType) {
       NestedIT = Ctx.getInstanceType(ED.getTypeIndex());
+      // Fallback: when IT is being processed inside a
+      // componenttype/instancetype scope, nested inline InstanceTypes live
+      // in IT's own local type-index space rather than the current scope's
+      // typestate. Walk IT's type-declaring decls to locate the N-th one.
+      if (NestedIT == nullptr) {
+        uint32_t TargetIdx = ED.getTypeIndex();
+        uint32_t LocalIdx = 0;
+        for (const auto &LocalDecl : IT.getDecl()) {
+          if (!LocalDecl.isType()) {
+            continue;
+          }
+          if (LocalIdx == TargetIdx) {
+            const auto *LocalDT = LocalDecl.getType();
+            if (LocalDT != nullptr && LocalDT->isInstanceType()) {
+              NestedIT = &LocalDT->getInstanceType();
+            }
+            break;
+          }
+          LocalIdx++;
+        }
+      }
     }
     Ctx.addInstanceExport(InstIdx, Exp.getName(), *ST, NestedIT);
   }
@@ -666,6 +687,37 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
   return {};
 }
 
+Expect<void> Validator::validate(const AST::Component::CoreAlias &A) noexcept {
+  // CoreAlias is always an outer alias.
+  uint32_t Ct = A.getComponentJump();
+  uint32_t Idx = A.getIndex();
+
+  uint32_t OutLinkCompCnt = 0;
+  const auto *TargetCtx = &CompCtx.getCurrentContext();
+  while (Ct > OutLinkCompCnt && TargetCtx != nullptr) {
+    TargetCtx = TargetCtx->Parent;
+    OutLinkCompCnt++;
+  }
+  if (TargetCtx == nullptr) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    CoreAlias: outer count {} exceeds enclosing component count {}"sv,
+        Ct, OutLinkCompCnt);
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+
+  const auto &Sort = A.getSort();
+  if (Sort.isCore()) {
+    if (Idx >= TargetCtx->getCoreSortIndexSize(Sort.getCoreSortType())) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    CoreAlias: outer index {} out of bounds"sv, Idx);
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+  }
+  return {};
+}
+
 Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
   const auto &Sort = Alias.getSort();
   switch (Alias.getTargetType()) {
@@ -849,7 +901,7 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
     }
   } else if (DType.isModuleType()) {
     // Module types are validated with an initially-empty type index space.
-    CompCtx.enterComponent();
+    CompCtx.enterTypeDefinition();
     for (const auto &Decl : DType.getModuleType()) {
       EXPECTED_TRY(validate(Decl).map_error([](auto E) {
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
@@ -1128,19 +1180,248 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
 }
 
 Expect<void>
-Validator::validate(const AST::Component::CoreModuleDecl &) noexcept {
-  // TODO
-  return {};
-}
-
-Expect<void> Validator::validate(const AST::Component::ImportDecl &) noexcept {
-  // TODO
+Validator::validate(const AST::Component::CoreImportDesc &Desc) noexcept {
+  if (Desc.isFunc()) {
+    uint32_t TypeIdx = Desc.getTypeIndex();
+    if (TypeIdx >= CompCtx.getCoreSortIndexSize(
+                       AST::Component::Sort::CoreSortType::Type)) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error("    CoreImportDesc: func type index {} out of bounds"sv,
+                    TypeIdx);
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    CompCtx.addCoreFunc();
+  } else if (Desc.isTable()) {
+    CompCtx.addCoreTable();
+  } else if (Desc.isMemory()) {
+    CompCtx.addCoreMemory();
+  } else if (Desc.isGlobal()) {
+    CompCtx.addCoreGlobal();
+  } else if (Desc.isTag()) {
+    CompCtx.addCoreTag();
+  } else {
+    assumingUnreachable();
+  }
   return {};
 }
 
 Expect<void>
-Validator::validate(const AST::Component::InstanceDecl &) noexcept {
-  // TODO
+Validator::validate(const AST::Component::CoreImportDecl &Decl) noexcept {
+  return validate(Decl.getImportDesc());
+}
+
+Expect<void>
+Validator::validate(const AST::Component::CoreExportDecl &Decl) noexcept {
+  return validate(Decl.getImportDesc());
+}
+
+Expect<void>
+Validator::validate(const AST::Component::CoreModuleDecl &Decl) noexcept {
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
+    return E;
+  };
+
+  if (Decl.isImport()) {
+    EXPECTED_TRY(validate(Decl.getImport()).map_error(ReportError));
+  } else if (Decl.isType()) {
+    EXPECTED_TRY(validate(*Decl.getType()).map_error(ReportError));
+  } else if (Decl.isAlias()) {
+    EXPECTED_TRY(validate(Decl.getAlias()).map_error(ReportError));
+  } else if (Decl.isExport()) {
+    EXPECTED_TRY(validate(Decl.getExport()).map_error(ReportError));
+  } else {
+    assumingUnreachable();
+  }
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
+  // Validate the extern descriptor (also increments sort index spaces).
+  EXPECTED_TRY(validate(Decl.getExternDesc()).map_error([](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    return E;
+  }));
+
+  // Parse and validate the import name.
+  EXPECTED_TRY(ComponentName CName,
+               ComponentName::parse(Decl.getName()).map_error([](auto E) {
+                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+                 return E;
+               }));
+
+  // Annotated plainnames can only appear on func imports.
+  switch (CName.getKind()) {
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
+    if (Decl.getExternDesc().getDescType() !=
+        AST::Component::ExternDesc::DescType::FuncType) {
+      spdlog::error(ErrCode::Value::ComponentInvalidName);
+      spdlog::error("    ImportDecl: annotated name requires func type"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      return Unexpect(ErrCode::Value::ComponentInvalidName);
+    }
+    break;
+  default:
+    break;
+  }
+
+  // Check import name uniqueness.
+  if (!CompCtx.addImportedName(CName)) {
+    spdlog::error(ErrCode::Value::ComponentDuplicateName);
+    spdlog::error("    ImportDecl: Duplicate import name"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    return Unexpect(ErrCode::Value::ComponentDuplicateName);
+  }
+
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
+  // Increment sort index spaces based on the extern descriptor type.
+  // Full ExternDesc validation (type index bounds) is deferred because
+  // ExportDecls inside nested InstanceTypes reference type indices from
+  // the defining scope, not the InstanceType's own scope.
+  const auto &Desc = Decl.getExternDesc();
+  switch (Desc.getDescType()) {
+  case AST::Component::ExternDesc::DescType::CoreType:
+    CompCtx.addCoreType();
+    break;
+  case AST::Component::ExternDesc::DescType::FuncType:
+    CompCtx.addFunc();
+    break;
+  case AST::Component::ExternDesc::DescType::ValueBound:
+    CompCtx.addValue();
+    break;
+  case AST::Component::ExternDesc::DescType::TypeBound: {
+    uint32_t NewIdx = CompCtx.addType();
+    if (!Desc.isEqType()) {
+      // (type (sub resource)) — fresh abstract resource type
+      CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
+    } else {
+      // (type (eq i)) — propagate resource property if in bounds
+      uint32_t RefIdx = Desc.getTypeIndex();
+      if (RefIdx <
+              CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type) &&
+          CompCtx.isResourceType(RefIdx)) {
+        CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
+      }
+    }
+    break;
+  }
+  case AST::Component::ExternDesc::DescType::ComponentType:
+    CompCtx.addComponent();
+    break;
+  case AST::Component::ExternDesc::DescType::InstanceType: {
+    // Populate the new instance slot with the referenced InstanceType's
+    // exports so a subsequent `alias export` against this slot can resolve
+    // its sub-exports (mirrors the ExternDesc-for-imports handling).
+    uint32_t InstIdx = CompCtx.addInstance();
+    const auto *IT = CompCtx.getInstanceType(Desc.getTypeIndex());
+    if (IT != nullptr) {
+      populateInstanceFromType(CompCtx, InstIdx, *IT);
+    }
+    break;
+  }
+  default:
+    assumingUnreachable();
+  }
+
+  // Check export name uniqueness.
+  if (!CompCtx.addExportedName(Decl.getName())) {
+    spdlog::error(ErrCode::Value::ComponentDuplicateName);
+    spdlog::error("    ExportDecl: Duplicate export name '{}'"sv,
+                  Decl.getName());
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+    return Unexpect(ErrCode::Value::ComponentDuplicateName);
+  }
+
+  // exportname ::= <plainname> | <interfacename>
+  EXPECTED_TRY(ComponentName CName,
+               ComponentName::parse(Decl.getName()).map_error([](auto E) {
+                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+                 return E;
+               }));
+  switch (CName.getKind()) {
+  case ComponentNameKind::Label:
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
+  case ComponentNameKind::InterfaceType:
+    break;
+  default:
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    ExportDecl: name kind not valid for exports"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::InstanceDecl &Decl) noexcept {
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+    return E;
+  };
+
+  if (Decl.isCoreType()) {
+    EXPECTED_TRY(validate(*Decl.getCoreType()).map_error(ReportError));
+  } else if (Decl.isType()) {
+    EXPECTED_TRY(validate(*Decl.getType()).map_error(ReportError));
+  } else if (Decl.isAlias()) {
+    EXPECTED_TRY(validate(Decl.getAlias()).map_error(ReportError));
+    const auto &A = Decl.getAlias();
+    const auto &Sort = A.getSort();
+    if (Sort.isCore()) {
+      CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+    } else {
+      uint32_t NewInstIdx = CompCtx.incSortIndexSize(Sort.getSortType());
+      // When aliasing an instance export that is itself an instance,
+      // propagate the source instance's export table into the new slot so
+      // subsequent `alias export` on this slot can resolve nested exports
+      // (mirrors the AliasSection handling).
+      if (Sort.getSortType() == AST::Component::Sort::SortType::Instance &&
+          A.getTargetType() == AST::Component::Alias::TargetType::Export) {
+        const auto SrcInstIdx = A.getExport().first;
+        const auto &SrcName = A.getExport().second;
+        const auto &SrcExports = CompCtx.getInstance(SrcInstIdx);
+        auto It = SrcExports.find(std::string(SrcName));
+        if (It != SrcExports.end()) {
+          if (It->second.IT != nullptr) {
+            populateInstanceFromType(CompCtx, NewInstIdx, *It->second.IT);
+          } else if (It->second.NestedInstIdx.has_value()) {
+            const auto &NestedExports =
+                CompCtx.getInstance(*It->second.NestedInstIdx);
+            for (const auto &[Name, IE] : NestedExports) {
+              CompCtx.addInstanceExport(NewInstIdx, Name, IE.ST, IE.IT,
+                                        IE.NestedInstIdx);
+            }
+          }
+        }
+      }
+    }
+  } else if (Decl.isExportDecl()) {
+    EXPECTED_TRY(validate(Decl.getExport()).map_error(ReportError));
+  } else {
+    assumingUnreachable();
+  }
+  return {};
+}
+
+Expect<void>
+Validator::validate(const AST::Component::ComponentDecl &Decl) noexcept {
+  if (Decl.isImportDecl()) {
+    EXPECTED_TRY(validate(Decl.getImport()));
+  } else if (Decl.isInstanceDecl()) {
+    EXPECTED_TRY(validate(Decl.getInstance()));
+  } else {
+    assumingUnreachable();
+  }
   return {};
 }
 
@@ -1375,34 +1656,9 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::InstanceType &IT) noexcept {
   // Instance types are validated with an initially-empty index space.
-  CompCtx.enterComponent();
+  CompCtx.enterTypeDefinition();
   for (const auto &Decl : IT.getDecl()) {
-    if (Decl.isCoreType()) {
-      EXPECTED_TRY(validate(*Decl.getCoreType()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-        return E;
-      }));
-    } else if (Decl.isType()) {
-      EXPECTED_TRY(validate(*Decl.getType()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-        return E;
-      }));
-    } else if (Decl.isAlias()) {
-      EXPECTED_TRY(validate(Decl.getAlias()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-        return E;
-      }));
-      const auto &Sort = Decl.getAlias().getSort();
-      if (Sort.isCore()) {
-        CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
-      } else {
-        CompCtx.incSortIndexSize(Sort.getSortType());
-      }
-    } else if (Decl.isExportDecl()) {
-      // TODO: validate export declarations within instance types.
-    } else {
-      assumingUnreachable();
-    }
+    EXPECTED_TRY(validate(Decl));
   }
   CompCtx.exitComponent();
   return {};
@@ -1411,21 +1667,12 @@ Validator::validate(const AST::Component::InstanceType &IT) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::ComponentType &CT) noexcept {
   // Component types are validated with an initially-empty index space.
-  CompCtx.enterComponent();
+  CompCtx.enterTypeDefinition();
   for (const auto &Decl : CT.getDecl()) {
-    if (Decl.isImportDecl()) {
-      EXPECTED_TRY(validate(Decl.getImport()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-        return E;
-      }));
-    } else if (Decl.isInstanceDecl()) {
-      EXPECTED_TRY(validate(Decl.getInstance()).map_error([](auto E) {
-        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
-        return E;
-      }));
-    } else {
-      assumingUnreachable();
-    }
+    EXPECTED_TRY(validate(Decl).map_error([](auto E) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+      return E;
+    }));
   }
   CompCtx.exitComponent();
   return {};

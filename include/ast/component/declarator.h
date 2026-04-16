@@ -98,6 +98,19 @@ public:
     Decl.emplace<CoreExportDecl>(std::move(Exp));
   }
 
+  bool isImport() const noexcept {
+    return std::holds_alternative<CoreImportDecl>(Decl);
+  }
+  bool isType() const noexcept {
+    return std::holds_alternative<std::unique_ptr<CoreDefType>>(Decl);
+  }
+  bool isAlias() const noexcept {
+    return std::holds_alternative<CoreAlias>(Decl);
+  }
+  bool isExport() const noexcept {
+    return std::holds_alternative<CoreExportDecl>(Decl);
+  }
+
 private:
   std::variant<CoreImportDecl, std::unique_ptr<CoreDefType>, CoreAlias,
                CoreExportDecl>

@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 if(WASMEDGE_USE_LLVM)
-  add_subdirectory(aot)
   add_subdirectory(llvm)
+  add_subdirectory(aot)
   add_subdirectory(vm)
 endif()
 add_subdirectory(common)

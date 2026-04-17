@@ -246,8 +246,8 @@ TEST(WasiSockTest, SocketUDP_4V1) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -456,8 +456,8 @@ TEST(WasiSockTest, SocketUDP_4V2) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -671,8 +671,8 @@ TEST(WasiSockTest, SocketUDP_6) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -933,8 +933,8 @@ TEST(WasiSockTest, SocketUDP_4_Fallback) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -1077,8 +1077,8 @@ TEST(WasiSockTest, SocketUDP_6_Fallback) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
@@ -1689,8 +1689,8 @@ TEST(WasiTest, UNIX_Socket) {
 
     WasiSockSendTo.run(CallFrame,
                        std::array<WasmEdge::ValVariant, 7>{
-                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr,
-                           INT32_C(Port), UINT32_C(0), SendtoRetPtr},
+                           FdClient, MsgInPackPtr, UINT32_C(1), AddrPtr, Port,
+                           UINT32_C(0), SendtoRetPtr},
                        Errno);
 
     if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)

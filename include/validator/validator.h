@@ -120,8 +120,15 @@ private:
   // Expect<void> validate(const AST::Component::ExportDecl &Decl) noexcept;
   Expect<void> validate(const AST::Component::InstanceDecl &Decl) noexcept;
   // Expect<void> validate(const AST::Component::ComponentDecl &Decl) noexcept;
-  // types
-  // TODO
+  // Validate component value types and type definitions
+  Expect<void> validate(const ComponentValType &VT) noexcept;
+  Expect<void> validate(const AST::Component::DefValType &DVT) noexcept;
+  Expect<void> validate(const AST::Component::FuncType &FT) noexcept;
+  Expect<void> validate(const AST::Component::InstanceType &IT) noexcept;
+  Expect<void> validate(const AST::Component::ComponentType &CT) noexcept;
+  Expect<void> validate(const AST::Component::ResourceType &RT) noexcept;
+  bool containsBorrow(const ComponentValType &VT) const noexcept;
+  bool containsBorrow(const AST::Component::DefValType &DVT) const noexcept;
   /// @}
 
   /// Memory page limit for WASM32 and WASM64

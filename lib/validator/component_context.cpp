@@ -13,7 +13,7 @@ ComponentContext::Context::getSortIndexSize(Sort::SortType ST) const noexcept {
   case Sort::SortType::Value:
     return ValueCount;
   case Sort::SortType::Type:
-    return TypeCount;
+    return static_cast<uint32_t>(Types.size());
   case Sort::SortType::Component:
     return static_cast<uint32_t>(Components.size());
   case Sort::SortType::Instance:

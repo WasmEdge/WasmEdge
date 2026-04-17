@@ -540,11 +540,6 @@ public:
 };
 } // namespace std
 
-#include <type_traits>
-namespace std {
-template <> struct is_class<WasmEdge::uint128> : std::true_type {};
-} // namespace std
-
 namespace WasmEdge {
 // If there is a built-in type __int128, then use it directly
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \

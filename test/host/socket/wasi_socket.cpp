@@ -460,9 +460,10 @@ TEST(WasiSockTest, SocketUDP_4V2) {
                            UINT32_C(0), SendtoRetPtr},
                        Errno);
 
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
-      GTEST_SKIP();
+    const auto SendErrno = Errno[0].get<int32_t>();
+    if (SendErrno == __WASI_ERRNO_ACCES || SendErrno == __WASI_ERRNO_PERM)
+      GTEST_SKIP() << "sock_send_to blocked with WASI errno=" << SendErrno;
+    ASSERT_EQ(SendErrno, __WASI_ERRNO_SUCCESS);
     uint32_t MaxMsgBufLen = 100;
     auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
     std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
@@ -675,9 +676,10 @@ TEST(WasiSockTest, SocketUDP_6) {
                            UINT32_C(0), SendtoRetPtr},
                        Errno);
 
-    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
-    if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
-      GTEST_SKIP();
+    const auto SendErrno = Errno[0].get<int32_t>();
+    if (SendErrno == __WASI_ERRNO_ACCES || SendErrno == __WASI_ERRNO_PERM)
+      GTEST_SKIP() << "sock_send_to blocked with WASI errno=" << SendErrno;
+    ASSERT_EQ(SendErrno, __WASI_ERRNO_SUCCESS);
 
     uint32_t MaxMsgBufLen = 100;
     auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
@@ -1693,11 +1695,13 @@ TEST(WasiTest, UNIX_Socket) {
                            UINT32_C(0), SendtoRetPtr},
                        Errno);
 
-    if (Errno[0].get<int32_t>() != __WASI_ERRNO_SUCCESS)
-      GTEST_SKIP();
+    const auto SendErrno = Errno[0].get<int32_t>();
+    if (SendErrno == __WASI_ERRNO_ACCES || SendErrno == __WASI_ERRNO_PERM)
+      GTEST_SKIP() << "sock_send_to blocked with WASI errno=" << SendErrno;
+    ASSERT_EQ(SendErrno, __WASI_ERRNO_SUCCESS);
     uint32_t MaxMsgBufLen = 100;
     auto MsgBuf = MemInst.getSpan<char>(MsgOutPtr, MaxMsgBufLen);
-    std::fill_n(MsgBuf.data(), AddrBuf.size(), 0x00);
+    std::fill_n(MsgBuf.data(), MsgBuf.size(), 0x00);
 
     auto *MsgOutPack = MemInst.getPointer<__wasi_ciovec_t *>(MsgOutPackPtr);
     MsgOutPack->buf = WasmEdge::EndianValue(MsgOutPtr).le();

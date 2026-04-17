@@ -340,6 +340,7 @@ private:
 ///              | 0x01 lt*:vec(<labelvaltype>) => (result lt)*
 
 // functype   ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
+//              | 0x43 ps:<paramlist> rs:<resultlist> => (func async ps rs)
 // paramlist  ::= lt*:vec(<labelvaltype>)             => (param lt)*
 // resultlist ::= 0x00 t:<valtype> => (result t)
 //              | 0x01 0x00        => ϵ
@@ -378,8 +379,12 @@ public:
     return static_cast<uint32_t>(ResultList.size());
   }
 
+  bool isAsync() const noexcept { return IsAsync; }
+  void setAsync(bool A) noexcept { IsAsync = A; }
+
 private:
   std::vector<LabelValType> ParamList, ResultList;
+  bool IsAsync = false;
 };
 
 // =============================================================================

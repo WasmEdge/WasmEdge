@@ -9,9 +9,9 @@
 #pragma once
 
 #include "po/error.h"
-#include <fmt/format.h>
 #include <algorithm>
 #include <cstdint>
+#include <fmt/format.h>
 #include <string>
 #include <utility>
 

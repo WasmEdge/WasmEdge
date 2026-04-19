@@ -8,6 +8,8 @@
 #include "common/hash.h"
 #include "data.h"
 #include "llvm.h"
+#include "loader/serialize.h"
+#include "wat/parser.h"
 
 #include <lld/Common/Driver.h>
 
@@ -515,6 +517,18 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
   if (OutputPath.empty()) {
     spdlog::error("output failed: empty output path"sv);
     return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  // If WasmData is WAT text, serialize it to WASM binary so the embedded data
+  // is always valid WASM.
+  std::vector<Byte> WasmBinary;
+  if (WAT::maybeWAT(WasmData)) {
+    std::string_view Source(reinterpret_cast<const char *>(WasmData.data()),
+                            WasmData.size());
+    EXPECTED_TRY(auto Mod, WAT::parseWat(Source, Conf));
+    Loader::Serializer Ser(Conf);
+    EXPECTED_TRY(WasmBinary, Ser.serializeModule(Mod));
+    WasmData = WasmBinary;
   }
 
   auto LLContext = D.extract().getLLContext();

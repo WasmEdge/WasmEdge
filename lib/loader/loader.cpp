@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include "aot/version.h"
+#include "wat/parser.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -69,12 +70,26 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
 Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
 
-  // Set path and check the header.
+  // Detect WAT text over the mapped bytes, avoiding a full read just for
+  // detection: maybeWAT rejects a WASM/AOT binary after its first page.
   EXPECTED_TRY(FMgr.setPath(FilePath).map_error([&FilePath](auto E) {
     spdlog::error(E);
     spdlog::error(ErrInfo::InfoFile(FilePath));
     return E;
   }));
+
+  if (WAT::maybeWAT(FMgr.getSpan())) {
+    auto Bytes = FMgr.getSpan();
+    std::string_view Source(reinterpret_cast<const char *>(Bytes.data()),
+                            Bytes.size());
+    EXPECTED_TRY(auto Mod,
+                 WAT::parseWat(Source, Conf).map_error([&FilePath](auto E) {
+                   spdlog::error(E);
+                   spdlog::error(ErrInfo::InfoFile(FilePath));
+                   return E;
+                 }));
+    return std::make_unique<AST::Module>(std::move(Mod));
+  }
 
   auto ReportError = [&FilePath](auto E) {
     spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -140,6 +155,15 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
+
+  // Check if the buffer contains WAT text.
+  if (WAT::maybeWAT(Code)) {
+    std::string_view Source(reinterpret_cast<const char *>(Code.data()),
+                            Code.size());
+    EXPECTED_TRY(auto Mod, WAT::parseWat(Source, Conf));
+    return std::make_unique<AST::Module>(std::move(Mod));
+  }
+
   EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled

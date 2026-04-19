@@ -49,6 +49,15 @@ public:
         Data(std::in_place_type_t<WasmFunction>(), Locs, Expr) {
     assuming(ModInst);
   }
+  /// Constructor for native function with pre-optimized instructions (move).
+  FunctionInstance(const ModuleInstance *Mod, const uint32_t TIdx,
+                   const AST::FunctionType &Type,
+                   Span<const std::pair<uint32_t, ValType>> Locs,
+                   AST::InstrVec &&OptInstrs) noexcept
+      : CompositeBase(Mod, TIdx), FuncType(Type),
+        Data(std::in_place_type_t<WasmFunction>(), Locs, std::move(OptInstrs)) {
+    assuming(ModInst);
+  }
   /// Constructor for compiled function.
   FunctionInstance(const ModuleInstance *Mod, const uint32_t TIdx,
                    const AST::FunctionType &Type,
@@ -144,6 +153,17 @@ private:
       // FIXME: Modify the capacity to prevent connecting 2 vectors.
       Instrs.reserve(Expr.size() + 1);
       Instrs.assign(Expr.begin(), Expr.end());
+    }
+    WasmFunction(Span<const std::pair<uint32_t, ValType>> Locs,
+                 AST::InstrVec &&OptInstrs) noexcept
+        : Locals(Locs.begin(), Locs.end()),
+          LocalNum(
+              std::accumulate(Locals.begin(), Locals.end(), UINT32_C(0),
+                              [](uint32_t N, const auto &Pair) -> uint32_t {
+                                return N + Pair.first;
+                              })),
+          Instrs(std::move(OptInstrs)) {
+      Instrs.reserve(Instrs.size() + 1);
     }
   };
 

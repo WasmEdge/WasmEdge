@@ -8,6 +8,7 @@
 #include "common/enum_errcode.hpp"
 #include "common/errcode.h"
 #include "common/types.h"
+#include "executor/engine/const_fold.h"
 #include "host/wasi/wasimodule.h"
 #include "plugin/plugin.h"
 #include "llvm/compiler.h"
@@ -22,6 +23,7 @@
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "validator/validator.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <memory>
@@ -662,6 +664,33 @@ Expect<void> VM::unsafeInstantiate() {
       }
     }
 #endif
+
+    // IPCP runs only when the module will be interpreted (no AOT or JIT
+    // symbol). If a symbol is present, instantiation takes the symbol-backed
+    // path in function.cpp and never reads the optimized InstrVec.
+    if (!Mod->getSymbol()) {
+      using OL = CompilerConfigure::OptimizationLevel;
+      const auto Level = Conf.getCompilerConfigure().getOptimizationLevel();
+      if (Level != OL::O0) {
+        uint32_t Steps = 4000000;
+        uint32_t Depth = 500;
+        switch (Level) {
+        case OL::O1:
+          Steps = 100000;
+          Depth = 8;
+          break;
+        case OL::O2:
+        case OL::Os:
+        case OL::Oz:
+          Steps = 1000000;
+          Depth = 50;
+          break;
+        default:
+          break;
+        }
+        Executor::optimizeModuleConstantExpressions(*Mod, Steps, Depth);
+      }
+    }
 
     EXPECTED_TRY(ActiveModInst,
                  ExecutorEngine.instantiateModule(StoreRef, *Mod));

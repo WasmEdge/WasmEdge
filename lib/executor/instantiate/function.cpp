@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "executor/engine/const_fold.h"
 #include "executor/executor.h"
 
 #include <cstdint>
@@ -34,13 +35,19 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
           std::move(Symbol));
     }
   } else {
-    // Iterate through the code segments to instantiate function instances.
+    // At O0, skip constant folding to preserve debuggability.
+    const bool DoFold = Conf.getCompilerConfigure().getOptimizationLevel() !=
+                        CompilerConfigure::OptimizationLevel::O0;
     for (uint32_t I = 0; I < CodeSegs.size(); ++I) {
-      // Create and add the function instance to the module instance.
+      auto Src = CodeSegs[I].getExpr().getInstrs();
+      AST::InstrVec OptInstrs(Src.begin(), Src.end());
+      if (DoFold) {
+        optimizeConstantExpressions(OptInstrs);
+      }
       ModInst.addFunc(
           TypeIdxs[I],
           (*ModInst.getType(TypeIdxs[I]))->getCompositeType().getFuncType(),
-          CodeSegs[I].getLocals(), CodeSegs[I].getExpr().getInstrs());
+          CodeSegs[I].getLocals(), std::move(OptInstrs));
     }
   }
   return {};

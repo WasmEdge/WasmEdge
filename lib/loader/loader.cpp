@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include "aot/version.h"
+#include "wat/parser.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -81,6 +82,19 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     return E;
   };
 
+  // Find WAT text in the mapped bytes. A full read only for this test is not
+  // necessary, because maybeWAT reads only the leading whitespace and comments.
+  // The text format loader is experimental, so it is on only by request.
+  // Without it, the text goes to the binary loader.
+  if (Conf.isEnableWAT() && WAT::maybeWAT(FMgr.getSpan())) {
+    // Reset the file manager after the conversion, because the parser reads
+    // the mapped file. A later parse then starts from a clean state.
+    auto Res = parseWatUnit(FMgr.getSpan()).map_error(ReportError);
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, std::move(Res));
+    return Mod;
+  }
+
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
@@ -135,11 +149,34 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   }
 }
 
+// Convert the WAT text Code into a module.
+Expect<std::unique_ptr<AST::Module>>
+Loader::parseWatUnit(Span<const uint8_t> Code) {
+  // The text is a WASM module, so the input type is WASM.
+  WASMType = InputType::WASM;
+  EXPECTED_TRY(auto Mod, WAT::parseWat(Code, Conf).map_error([](auto E) {
+    spdlog::error(E);
+    return E;
+  }));
+  return std::make_unique<AST::Module>(std::move(Mod));
+}
+
 // Parse module or component from byte code. See "include/loader/loader.h".
 Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
+
+  // Find if the buffer holds WAT text. The text format loader is
+  // experimental, so it is on only by request.
+  if (Conf.isEnableWAT() && WAT::maybeWAT(Code)) {
+    // Drop the state of an earlier parse, which can still hold a mapped
+    // file.
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, parseWatUnit(Code));
+    return Mod;
+  }
+
   EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled

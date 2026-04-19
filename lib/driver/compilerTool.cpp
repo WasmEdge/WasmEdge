@@ -30,6 +30,10 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
 #ifdef WASMEDGE_USE_LLVM
 
   Configure Conf = createProposalConfigure(Opt);
+  if (Opt.EnableWAT.value()) {
+    Conf.setEnableWAT(true);
+    spdlog::warn("WAT text format input is enabled, this is experimental."sv);
+  }
 
   if (Opt.PropOptimizationLevel.value() == "0") {
     Conf.getCompilerConfigure().setOptimizationLevel(

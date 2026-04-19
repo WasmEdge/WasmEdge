@@ -1,0 +1,18 @@
+{
+  "grammars": [
+    {
+      "name": "wat",
+      "scope": "source.wat",
+      "path": ".",
+      "file-types": [
+        "wat"
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "Apache-2.0",
+    "description": "WebAssembly Text Format grammar for tree-sitter"
+  },
+  "bindings": {}
+}

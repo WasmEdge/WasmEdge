@@ -797,14 +797,6 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     }
   }
 
-  // Validate the optional type ascription.
-  if (Ex.getDesc().has_value()) {
-    EXPECTED_TRY(validate(*Ex.getDesc()).map_error([](auto E) {
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-      return E;
-    }));
-  }
-
   // exportname ::= <plainname> | <interfacename>
   EXPECTED_TRY(ComponentName CName,
                ComponentName::parse(Ex.getName()).map_error([](auto E) {
@@ -825,8 +817,10 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     return Unexpect(ErrCode::Value::ComponentInvalidName);
   }
 
-  // Exports introduce a new index that aliases the exported definition.
-  if (!Sort.isCore()) {
+  // Binary.md:405-408 — all exports (of all sorts) introduce a new index.
+  if (Sort.isCore()) {
+    CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+  } else {
     CompCtx.incSortIndexSize(Sort.getSortType());
   }
   return {};
@@ -836,7 +830,9 @@ Expect<void>
 Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
   switch (Desc.getDescType()) {
   case AST::Component::ExternDesc::DescType::CoreType:
-    CompCtx.addCoreType();
+    // Binary.md:233 — externdesc CoreType is `(core module (type i))`,
+    // which belongs to core:module, not core:type.
+    CompCtx.addCoreModule();
     break;
   case AST::Component::ExternDesc::DescType::FuncType:
     CompCtx.addFunc();

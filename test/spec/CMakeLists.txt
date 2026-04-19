@@ -9,7 +9,7 @@ message(STATUS "Downloading the WASM spec test suite")
 FetchContent_Declare(
   wasmedge_unit_test
   GIT_REPOSITORY https://github.com/WasmEdge/wasmedge-spectest
-  GIT_TAG        e1b86257eac83f3bfa643814d593e7651d5f4c28  # wasm-core-20260322
+  GIT_TAG        f7762c1278059cbde84125ccaaef500e661faffc  # wasm-core-20260421
 )
 FetchContent_MakeAvailable(wasmedge_unit_test)
 message(STATUS "Downloading the WASM spec test suite -- done")
@@ -45,13 +45,41 @@ endforeach()
 
 wasmedge_add_library(wasmedgeTestSpec
   spectest.cpp
+  wast_parser.cpp
+  json_parser.cpp
 )
 
 target_link_libraries(wasmedgeTestSpec
   PRIVATE
   simdjson::simdjson
+  wasmedgeWat
+  wasmedgeLoader
   PUBLIC
   std::filesystem
   wasmedgeCommon
   ${GTEST_BOTH_LIBRARIES}
+)
+
+target_include_directories(wasmedgeTestSpec
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}/lib/wat
+  ${WASMEDGE_TREE_SITTER_INCLUDE_DIR}
+)
+
+add_executable(wast2wat EXCLUDE_FROM_ALL
+  wast2wat.cpp
+  wast_parser.cpp
+)
+
+target_link_libraries(wast2wat
+  PRIVATE
+  wasmedgeWat
+  wasmedgeCommon
+  std::filesystem
+)
+
+target_include_directories(wast2wat
+  PRIVATE
+  ${PROJECT_SOURCE_DIR}/lib/wat
+  ${WASMEDGE_TREE_SITTER_INCLUDE_DIR}
 )

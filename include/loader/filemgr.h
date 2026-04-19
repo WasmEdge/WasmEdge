@@ -101,6 +101,13 @@ public:
   /// Get remain size.
   uint64_t getRemainSize() const noexcept { return Size - Pos; }
 
+  /// View the whole underlying buffer (mapped file or set code) without moving
+  /// the read cursor; empty if no data. Used for WAT text detection.
+  Span<const Byte> getSpan() const noexcept {
+    return Data != nullptr ? Span<const Byte>(Data, static_cast<size_t>(Size))
+                           : Span<const Byte>();
+  }
+
   /// Jump the content with size (size + content).
   Expect<void> jumpContent();
 

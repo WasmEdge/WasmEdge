@@ -55,6 +55,7 @@ WasmEdge_ConfigureContext *createConf(const Configure &Conf) {
   WasmEdge_ConfigureSetRunMode(
       Cxt,
       static_cast<WasmEdge_RunMode>(Conf.getRuntimeConfigure().getRunMode()));
+  WasmEdge_ConfigureSetEnableWAT(Cxt, Conf.isEnableWAT());
   return Cxt;
 }
 
@@ -65,7 +66,7 @@ ErrCode convResult(WasmEdge_Result Res) {
 std::pair<ValVariant, ValType> convToVal(const WasmEdge_Value &CVal) {
   std::array<uint8_t, 8> R;
   std::copy_n(CVal.Type.Data, 8, R.begin());
-#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) || \
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
     (defined(__riscv) && __riscv_xlen == 64)
   return std::make_pair(ValVariant(CVal.Value), ValType(R));
 #else
@@ -78,7 +79,7 @@ std::pair<ValVariant, ValType> convToVal(const WasmEdge_Value &CVal) {
 WasmEdge_Value convFromVal(const ValVariant &Val, const ValType &Type) {
   WasmEdge_Value CVal;
   std::copy_n(Type.getRawData().cbegin(), 8, CVal.Type.Data);
-#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) || \
+#if defined(__x86_64__) || defined(__aarch64__) || defined(__s390x__) ||       \
     (defined(__riscv) && __riscv_xlen == 64)
   CVal.Value = Val.get<WasmEdge::uint128_t>();
 #else

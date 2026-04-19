@@ -281,6 +281,81 @@ TEST(ModuleTest, LoadNativeLibraryMagicNotInAOTMode) {
   }
 }
 
+// The text format input is experimental. The loader reads WAT text from a
+// buffer and from a file only with the EnableWAT flag. Without it, the text
+// goes to the binary loader, which rejects the magic header.
+TEST(ModuleTest, LoadTextFormatNeedsFlag) {
+  const std::string_view Text = "(module (func (export \"f\")))"sv;
+  const WasmEdge::Span<const uint8_t> Bytes(
+      reinterpret_cast<const uint8_t *>(Text.data()), Text.size());
+  const ScopedTempFile Artifact("wasmedgeLoaderTextFormat", ".wat"sv);
+  {
+    std::ofstream Fout(Artifact.get(), std::ios::out | std::ios::binary);
+    ASSERT_TRUE(Fout);
+    Fout.write(Text.data(), static_cast<std::streamsize>(Text.size()));
+  }
+
+  auto Res = Ldr.parseModule(Bytes);
+  EXPECT_FALSE(Res);
+  if (!Res) {
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::MalformedMagic);
+  }
+  Res = Ldr.parseModule(Artifact.get());
+  EXPECT_FALSE(Res);
+  if (!Res) {
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::MalformedMagic);
+  }
+
+  WasmEdge::Configure TextConf;
+  TextConf.setEnableWAT(true);
+  WasmEdge::Loader::Loader TextLdr(TextConf);
+  Res = TextLdr.parseModule(Bytes);
+  EXPECT_TRUE(Res);
+  if (Res) {
+    EXPECT_EQ((*Res)->getExportSection().getContent().size(), 1U);
+  }
+  Res = TextLdr.parseModule(Artifact.get());
+  EXPECT_TRUE(Res);
+  if (Res) {
+    EXPECT_EQ((*Res)->getExportSection().getContent().size(), 1U);
+  }
+}
+
+// One Loader parses several inputs in a row. A WAT parse must not leave the
+// state of an earlier parse behind, and a binary parse after a WAT parse must
+// still work.
+TEST(ModuleTest, LoadTextFormatKeepsLoaderState) {
+  const std::string_view Text = "(module (func (export \"f\")))"sv;
+  const WasmEdge::Span<const uint8_t> TextBytes(
+      reinterpret_cast<const uint8_t *>(Text.data()), Text.size());
+  const std::vector<uint8_t> Binary = {0x00U, 0x61U, 0x73U, 0x6DU,
+                                       0x01U, 0x00U, 0x00U, 0x00U};
+  const ScopedTempFile Artifact("wasmedgeLoaderTextState", ".wat"sv);
+  {
+    std::ofstream Fout(Artifact.get(), std::ios::out | std::ios::binary);
+    ASSERT_TRUE(Fout);
+    Fout.write(Text.data(), static_cast<std::streamsize>(Text.size()));
+  }
+
+  WasmEdge::Configure TextConf;
+  TextConf.setEnableWAT(true);
+  WasmEdge::Loader::Loader TextLdr(TextConf);
+
+  // A file parse, then a buffer parse, then a binary parse, on one Loader.
+  EXPECT_TRUE(TextLdr.parseModule(Artifact.get()));
+  EXPECT_TRUE(TextLdr.parseModule(TextBytes));
+  EXPECT_TRUE(TextLdr.parseModule(WasmEdge::Span<const uint8_t>(Binary)));
+  EXPECT_TRUE(TextLdr.parseModule(Artifact.get()));
+  // A malformed binary after a WAT parse reports its own error, and not an
+  // error of the earlier input.
+  const std::vector<uint8_t> Bad = {0x00U, 0x61U, 0x73U, 0x6DU};
+  auto Res = TextLdr.parseModule(WasmEdge::Span<const uint8_t>(Bad));
+  EXPECT_FALSE(Res);
+  if (!Res) {
+    EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UnexpectedEnd);
+  }
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

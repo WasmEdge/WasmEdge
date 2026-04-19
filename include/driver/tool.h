@@ -46,6 +46,8 @@ struct DriverToolOptions : public DriverProposalOptions {
             PO::MetaVar("ENVS"sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
+        EnableWAT(PO::Description(
+            "Enable WAT text format input, this is experimental"sv)),
         ConfEnableInstructionCounting(PO::Description(
             "Enable generating code for counting Wasm instructions executed."sv)),
         ConfEnableGasMeasuring(PO::Description(
@@ -107,6 +109,7 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::List<std::string> Dir;
   PO::List<std::string> Env;
   PO::Option<PO::Toggle> PropComponent;
+  PO::Option<PO::Toggle> EnableWAT;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
@@ -134,7 +137,9 @@ public:
   void addParserOptions(PO::ArgumentParser &Parser) noexcept {
     addGlobalOptions(Parser);
     addProposalOptions(Parser);
-    Parser.add_option("enable-component"sv, PropComponent).add_option(SoName);
+    Parser.add_option("enable-component"sv, PropComponent)
+        .add_option("enable-wat"sv, EnableWAT)
+        .add_option(SoName);
   }
 
   void addLinkerOptions(PO::ArgumentParser &Parser) noexcept {

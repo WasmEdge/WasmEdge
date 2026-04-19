@@ -137,6 +137,29 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureHasHostRegistration(
     const WasmEdge_ConfigureContext *Cxt,
     const enum WasmEdge_HostRegistration Host) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the experimental WebAssembly text format input flag.
+///
+/// When the flag is on, the loader accepts WAT text input in addition to a
+/// binary module. This feature is experimental, and the default is off.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set.
+/// \param IsEnable true to enable the text format input.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetEnableWAT(WasmEdge_ConfigureContext *Cxt,
+                               const bool IsEnable) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the experimental WebAssembly text format input flag.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to check.
+///
+/// \returns true if the text format input is on, false if not.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsEnableWAT(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the page limit of memory instances.
 ///
 /// Limit the page count (64KiB per page) in memory instances.

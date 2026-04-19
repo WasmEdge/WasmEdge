@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include "aot/version.h"
+#include "wat/parser.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -69,12 +70,33 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
 Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
 
-  // Set path and check the header.
+  // Find WAT text in the mapped bytes. A full read only for this test is not
+  // necessary, because maybeWAT rejects a WASM binary or an AOT binary after
+  // the first page. The text format loader is experimental, so it is on only
+  // by request. Without it, the text goes to the binary loader.
   EXPECTED_TRY(FMgr.setPath(FilePath).map_error([&FilePath](auto E) {
     spdlog::error(E);
     spdlog::error(ErrInfo::InfoFile(FilePath));
     return E;
   }));
+
+  if (Conf.isEnableWAT() && WAT::maybeWAT(FMgr.getSpan())) {
+    // The text is a WASM module, so the input type is WASM. Reset the file
+    // manager after the conversion, because Source points into the mapped
+    // file. A later parse then starts from a clean state.
+    WASMType = InputType::WASM;
+    auto Bytes = FMgr.getSpan();
+    std::string_view Source(reinterpret_cast<const char *>(Bytes.data()),
+                            Bytes.size());
+    auto Res = WAT::parseWat(Source, Conf).map_error([&FilePath](auto E) {
+      spdlog::error(E);
+      spdlog::error(ErrInfo::InfoFile(FilePath));
+      return E;
+    });
+    FMgr.reset();
+    EXPECTED_TRY(auto Mod, std::move(Res));
+    return std::make_unique<AST::Module>(std::move(Mod));
+  }
 
   auto ReportError = [&FilePath](auto E) {
     spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -140,6 +162,20 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
+
+  // Find if the buffer holds WAT text. The text format loader is
+  // experimental, so it is on only by request.
+  if (Conf.isEnableWAT() && WAT::maybeWAT(Code)) {
+    // The text is a WASM module, so the input type is WASM. Drop the state
+    // of an earlier parse, which can still hold a mapped file.
+    WASMType = InputType::WASM;
+    FMgr.reset();
+    std::string_view Source(reinterpret_cast<const char *>(Code.data()),
+                            Code.size());
+    EXPECTED_TRY(auto Mod, WAT::parseWat(Source, Conf));
+    return std::make_unique<AST::Module>(std::move(Mod));
+  }
+
   EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled

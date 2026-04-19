@@ -686,8 +686,8 @@ OFD(I32x4__relaxed_trunc_f64x2_u_zero, "i32x4.relaxed_trunc_f64x2_u_zero", 0xFD,
     260)
 OFD(F32x4__relaxed_madd, "f32x4.relaxed_madd", 0xFD, 261)
 OFD(F32x4__relaxed_nmadd, "f32x4.relaxed_nmadd", 0xFD, 262)
-OFD(F64x2__relaxed_madd, "f32x4.relaxed_madd", 0xFD, 263)
-OFD(F64x2__relaxed_nmadd, "f32x4.relaxed_nmadd", 0xFD, 264)
+OFD(F64x2__relaxed_madd, "f64x2.relaxed_madd", 0xFD, 263)
+OFD(F64x2__relaxed_nmadd, "f64x2.relaxed_nmadd", 0xFD, 264)
 OFD(I8x16__relaxed_laneselect, "i8x16.relaxed_laneselect", 0xFD, 265)
 OFD(I16x8__relaxed_laneselect, "i16x8.relaxed_laneselect", 0xFD, 266)
 OFD(I32x4__relaxed_laneselect, "i32x4.relaxed_laneselect", 0xFD, 267)
@@ -913,7 +913,7 @@ E(MalformedElemType, 0x0112, "malformed element type")
 // Malformed reference type (Ref-types proposal)
 E(MalformedRefType, 0x0113, "malformed reference type")
 // Invalid utf-8 encoding
-E(MalformedUTF8, 0x0114, "malformed UTF-8 encoding")
+E(MalformedUTF8, 0x0114, "malformed UTF-8")
 // Invalid too large integer
 E(IntegerTooLarge, 0x0115, "integer too large")
 // Invalid presentation too long integer
@@ -934,6 +934,51 @@ E(MalformedMemoryOpFlags, 0x011C, "malformed memop flags")
 E(MalformedLimitFlags, 0x011D, "malformed limits flags")
 // Malformed catch flag (Exception-handling proposal).
 E(MalformedCatchFlags, 0x011E, "malformed catch flags")
+// @}
+
+// Text format load phase
+// @{
+// Lexical errors
+E(WatIllegalCharacter, 0x0150, "illegal character")
+E(WatUnexpectedToken, 0x0151, "unexpected token")
+E(WatUnknownOperator, 0x0152, "unknown operator")
+E(WatUnexpectedEnd, 0x0153, "unexpected end of input")
+E(WatUnclosedString, 0x0154, "unclosed string")
+E(WatUnclosedAnnotation, 0x0155, "unclosed annotation")
+E(WatEmptyAnnotationId, 0x0156, "empty annotation id")
+E(WatEmptyIdentifier, 0x0157, "empty identifier")
+// Literal and constant errors
+E(WatMalformedNumber, 0x0158, "malformed number literal")
+E(WatMalformedString, 0x0159, "malformed string literal")
+E(WatConstantOutOfRange, 0x015A, "constant out of range")
+E(WatI32ConstOutOfRange, 0x015B, "i32 constant out of range")
+E(WatI32Constant, 0x015C, "i32 constant")
+E(WatI8ConstOutOfRange, 0x015D, "i8 constant out of range")
+E(WatAlignmentPow2, 0x015E, "alignment")
+// SIMD lane errors
+E(WatInvalidLaneLength, 0x015F, "invalid lane length")
+E(WatWrongLaneCount, 0x0160, "wrong number of lane literals")
+// Identifier errors
+E(WatDuplicateId, 0x0161, "duplicate identifier")
+E(WatDuplicateFunc, 0x0162, "duplicate func")
+E(WatDuplicateTable, 0x0163, "duplicate table")
+E(WatDuplicateMemory, 0x0164, "duplicate memory")
+E(WatDuplicateGlobal, 0x0165, "duplicate global")
+E(WatDuplicateLocal, 0x0166, "duplicate local")
+E(WatDuplicateField, 0x0167, "duplicate field")
+E(WatUnknownId, 0x0168, "unknown identifier")
+E(WatUnknownLabel, 0x0169, "unknown label")
+E(WatUnknownType, 0x016A, "unknown type")
+// Structure and ordering errors
+E(WatImportAfterFunc, 0x016B, "import after function")
+E(WatImportAfterTable, 0x016C, "import after table")
+E(WatImportAfterMemory, 0x016D, "import after memory")
+E(WatImportAfterGlobal, 0x016E, "import after global")
+E(WatMultipleStart, 0x016F, "multiple start sections")
+E(WatResultBeforeParam, 0x0170, "result before parameter")
+E(WatMismatchingLabel, 0x0171, "mismatching label")
+E(WatInlineFuncType, 0x0172, "inline function type")
+E(WatNonEmptyTagResult, 0x0173, "non-empty tag result type")
 // @}
 
 // Component model load phase

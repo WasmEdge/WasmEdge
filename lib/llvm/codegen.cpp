@@ -8,6 +8,8 @@
 #include "common/hash.h"
 #include "data.h"
 #include "llvm.h"
+#include "loader/serialize.h"
+#include "wat/parser.h"
 
 #include <lld/Common/Driver.h>
 
@@ -511,6 +513,18 @@ namespace WasmEdge::LLVM {
 
 Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
                               std::filesystem::path OutputPath) noexcept {
+  // If WasmData is WAT text (not WASM binary), serialize it to WASM binary
+  // so that the embedded data in the output is always valid WASM.
+  std::vector<Byte> WasmBinary;
+  if (WAT::maybeWAT(WasmData)) {
+    std::string_view Source(reinterpret_cast<const char *>(WasmData.data()),
+                            WasmData.size());
+    EXPECTED_TRY(auto Mod, WAT::parseWat(Source, Conf));
+    Loader::Serializer Ser(Conf);
+    EXPECTED_TRY(WasmBinary, Ser.serializeModule(Mod));
+    WasmData = WasmBinary;
+  }
+
   auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;
   auto &TM = D.extract().TM;

@@ -18,18 +18,19 @@
 #include "common/errcode.h"
 #include "common/hash.h"
 #include "common/spdlog.h"
+#include "json_parser.h"
+#include "wast_parser.h"
 
-#include "simdjson.h"
 #include <gtest/gtest.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <fstream>
+#include <deque>
 #include <iterator>
-#include <map>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <unordered_map>
 #include <variant>
@@ -39,207 +40,18 @@ namespace {
 using namespace std::literals;
 using namespace WasmEdge;
 
-// Preprocessing for set up aliasing.
-void resolveRegister(std::map<std::string, std::string> &Alias,
-                     simdjson::dom::array &CmdArray) {
-  std::string_view OrgName;
-  uint64_t LastModLine = 0;
-  for (const simdjson::dom::object &Cmd : CmdArray) {
-    std::string_view CmdType = Cmd["type"];
-    if (CmdType == "module"sv) {
-      // Record last module in order
-      if (Cmd["name"].get(OrgName)) {
-        OrgName = {};
-      }
-      LastModLine = Cmd["line"];
-    } else if (CmdType == "register"sv) {
-      std::string_view NewNameStr = Cmd["as"];
-      std::string_view Value;
-      if (!Cmd["name"].get(Value)) {
-        // Register command records the original name. Set aliasing.
-        Alias.emplace(std::string(Value), std::string(NewNameStr));
-      } else {
-        // Register command does not record the original name. Get name from the
-        // module.
-        if (OrgName.empty()) {
-          // Module has no origin name. Alias to the latest anonymous module.
-          Alias.emplace(std::to_string(LastModLine), NewNameStr);
-        } else {
-          // Module has origin name. Replace to aliased one.
-          Alias.emplace(std::string(OrgName), NewNameStr);
-        }
-      }
-    }
-  }
-}
-
-SpecTest::CommandID resolveCommand(std::string_view Name) {
-  static const std::unordered_map<std::string_view, SpecTest::CommandID,
-                                  Hash::Hash>
-      CommandMapping = {
-          {"module"sv, SpecTest::CommandID::Module},
-          {"module_definition"sv, SpecTest::CommandID::ModuleDefinition},
-          {"module_instance"sv, SpecTest::CommandID::ModuleInstance},
-          {"action"sv, SpecTest::CommandID::Action},
-          {"register"sv, SpecTest::CommandID::Register},
-          {"assert_return"sv, SpecTest::CommandID::AssertReturn},
-          {"assert_trap"sv, SpecTest::CommandID::AssertTrap},
-          {"assert_exhaustion"sv, SpecTest::CommandID::AssertExhaustion},
-          {"assert_malformed"sv, SpecTest::CommandID::AssertMalformed},
-          {"assert_invalid"sv, SpecTest::CommandID::AssertInvalid},
-          {"assert_unlinkable"sv, SpecTest::CommandID::AssertUnlinkable},
-          {"assert_uninstantiable"sv,
-           SpecTest::CommandID::AssertUninstantiable},
-          {"assert_exception"sv, SpecTest::CommandID::AssertException},
-          {"thread"sv, SpecTest::CommandID::Thread},
-          {"wait"sv, SpecTest::CommandID::Wait},
+enum class V128Shape { I8x16, I16x8, I32x4, I64x2, F32x4, F64x2, Unknown };
+static const auto &V128ShapeMap() {
+  static const std::unordered_map<std::string_view, V128Shape, Hash::Hash> Map =
+      {
+          {"i8x16"sv, V128Shape::I8x16}, {"i16x8"sv, V128Shape::I16x8},
+          {"i32x4"sv, V128Shape::I32x4}, {"i64x2"sv, V128Shape::I64x2},
+          {"f32x4"sv, V128Shape::F32x4}, {"f64x2"sv, V128Shape::F64x2},
       };
-  if (auto Iter = CommandMapping.find(Name); Iter != CommandMapping.end()) {
-    return Iter->second;
-  }
-  return SpecTest::CommandID::Unknown;
+  return Map;
 }
 
-template <typename T, size_t N = sizeof(T)>
-static void parseSIMDLanes(WasmEdge::uint128_t &V128,
-                           const simdjson::dom::array &ValueNodeArray) {
-  assuming(16 / N == ValueNodeArray.size());
-  T V[16 / N];
-  size_t I = 0;
-  for (std::string_view X : ValueNodeArray) {
-    V[I] = static_cast<T>(std::stoull(std::string(X)));
-    I++;
-  }
-  if constexpr (Endian::native == Endian::big) {
-    std::reverse(V, V + 16 / N);
-  }
-  std::memcpy(&V128, &V, 16);
-}
-
-// Helper function to parse parameters from json to vector of value.
-std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::ValType>>
-parseValueList(const simdjson::dom::array &Args) {
-  std::vector<WasmEdge::ValVariant> Result;
-  std::vector<WasmEdge::ValType> ResultTypes;
-  Result.reserve(Args.size());
-  ResultTypes.reserve(Args.size());
-  for (const simdjson::dom::object &Element : Args) {
-    std::string_view Type = Element["type"];
-    simdjson::dom::element Value = Element["value"];
-    if (Value.type() == simdjson::dom::element_type::ARRAY) {
-      simdjson::dom::array ValueNodeArray = Value;
-      WasmEdge::uint128_t V128;
-      std::string_view LaneType = Element["lane_type"];
-      if (LaneType == "i64"sv || LaneType == "f64"sv) {
-        parseSIMDLanes<uint64_t>(V128, ValueNodeArray);
-      } else if (LaneType == "i32"sv || LaneType == "f32"sv) {
-        parseSIMDLanes<uint32_t>(V128, ValueNodeArray);
-      } else if (LaneType == "i16"sv) {
-        parseSIMDLanes<uint16_t>(V128, ValueNodeArray);
-      } else if (LaneType == "i8"sv) {
-        parseSIMDLanes<uint8_t>(V128, ValueNodeArray);
-      } else {
-        assumingUnreachable();
-      }
-      Result.emplace_back(V128);
-      ResultTypes.emplace_back(WasmEdge::TypeCode::V128);
-    } else if (Value.type() == simdjson::dom::element_type::STRING) {
-      std::string_view ValueStr = Value;
-      if (Type == "externref"sv || Type == "anyref"sv) {
-        WasmEdge::TypeCode Code = Type == "externref"sv
-                                      ? WasmEdge::TypeCode::ExternRef
-                                      : WasmEdge::TypeCode::AnyRef;
-        if (Value == "null"sv) {
-          Result.emplace_back(WasmEdge::RefVariant(Code));
-        } else {
-          // ExternRef and AnyRef are non-opaque references. Add 0x1 uint32_t
-          // prefix in this case to present non-null.
-          Result.emplace_back(WasmEdge::RefVariant(
-              Code, reinterpret_cast<void *>(std::stoul(std::string(ValueStr)) +
-                                             0x100000000ULL)));
-        }
-        ResultTypes.emplace_back(Code);
-      } else if (Type == "funcref"sv) {
-        if (Value == "null"sv) {
-          Result.emplace_back(
-              WasmEdge::RefVariant(WasmEdge::TypeCode::FuncRef));
-        } else {
-          // Not support input value of opaque references for testing.
-          assumingUnreachable();
-        }
-        ResultTypes.emplace_back(WasmEdge::TypeCode::FuncRef);
-      } else if (Type == "i32"sv) {
-        Result.emplace_back(
-            static_cast<uint32_t>(std::stoul(std::string(ValueStr))));
-        ResultTypes.emplace_back(WasmEdge::TypeCode::I32);
-      } else if (Type == "f32"sv) {
-        Result.emplace_back(
-            static_cast<uint32_t>(std::stoul(std::string(ValueStr))));
-        ResultTypes.emplace_back(WasmEdge::TypeCode::F32);
-      } else if (Type == "i64"sv) {
-        Result.emplace_back(
-            static_cast<uint64_t>(std::stoull(std::string(ValueStr))));
-        ResultTypes.emplace_back(WasmEdge::TypeCode::I64);
-      } else if (Type == "f64"sv) {
-        Result.emplace_back(
-            static_cast<uint64_t>(std::stoull(std::string(ValueStr))));
-        ResultTypes.emplace_back(WasmEdge::TypeCode::F64);
-      } else {
-        assumingUnreachable();
-      }
-    } else {
-      assumingUnreachable();
-    }
-  }
-  return {Result, ResultTypes};
-}
-
-// Helper function to parse parameters from json to vector of string pair.
-std::vector<std::pair<std::string, std::string>>
-parseExpectedList(const simdjson::dom::array &Args) {
-  std::vector<std::pair<std::string, std::string>> Result;
-  Result.reserve(Args.size());
-  for (const simdjson::dom::object &Element : Args) {
-    std::string_view Type = Element["type"];
-    simdjson::dom::element Value;
-    auto NoValue = Element["value"].get(Value);
-    if (NoValue) {
-      // Only marked the result type, not check the opaque result reference
-      // value.
-      Result.emplace_back(std::string(Type), "");
-    } else {
-      if (Value.type() == simdjson::dom::element_type::ARRAY) {
-        simdjson::dom::array ValueNodeArray = Value;
-        std::string StrValue;
-        std::string_view LaneType = Element["lane_type"];
-        for (std::string_view X : ValueNodeArray) {
-          StrValue += std::string(X);
-          StrValue += ' ';
-        }
-        StrValue.pop_back();
-        Result.emplace_back(std::string(Type) + std::string(LaneType),
-                            std::move(StrValue));
-      } else if (Value.type() == simdjson::dom::element_type::STRING) {
-        std::string_view ValueStr = Value;
-        Result.emplace_back(std::string(Type), std::string(ValueStr));
-      } else {
-        assumingUnreachable();
-      }
-    }
-  }
-  return Result;
-}
-
-std::vector<std::vector<std::pair<std::string, std::string>>>
-parseEithersList(const simdjson::dom::array &Args) {
-  std::vector<std::vector<std::pair<std::string, std::string>>> Result;
-  Result.reserve(Args.size());
-  for (auto &Maybe : parseExpectedList(Args)) {
-    Result.emplace_back(
-        std::vector<std::pair<std::string, std::string>>{Maybe});
-  }
-  return Result;
-}
+enum class LaneKind { F32, F64, I8, I16, I32, I64, Unknown };
 
 struct TestsuiteProposal {
   TestsuiteProposal(
@@ -302,12 +114,14 @@ struct ComponentModelSupport {
   bool Validate;
   bool Instantiate;
   bool Execute;
+  bool WatParsing = false;
 };
 
 // clang-format off
 // Used for labeling the status of component model support of each test folder.
 // Would be deleted when component model is fully supported.
-std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
+std::unordered_map<std::string, ComponentModelSupport, Hash::Hash>
+    ComponentModelFolders = {
     // | Folder | Test table: {load, validate, instantiate, execute} |
     // ---------------------------------------------------------------
     // Folder: the directory name of tests.
@@ -370,28 +184,37 @@ bool checkComponentSupported(std::string_view Folder, WasmEdge::WasmPhase P) {
 
 namespace WasmEdge {
 
-std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Mode,
+std::vector<std::string> SpecTest::enumerate(const SpecTest::TestMode Modes,
                                              bool IncludeComponent) const {
   std::vector<std::string> Cases;
+  std::string Ext = (this->Mode == ParserMode::Wast) ? ".wast"s : ".json"s;
   for (const auto &Proposal : TestsuiteProposals) {
-    if (static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Mode)) {
-      if (!IncludeComponent && Proposal.Path == "component-model"sv) {
-        continue;
-      }
-      const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
-      for (const auto &Subdir :
-           std::filesystem::directory_iterator(ProposalRoot)) {
-        const auto SubdirPath = Subdir.path();
-        const auto UnitName = SubdirPath.filename().u8string();
-        const auto UnitJson = UnitName + ".json"s;
-        if (std::filesystem::is_regular_file(SubdirPath / UnitJson)) {
-          Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
-        }
+    if (!(static_cast<uint8_t>(Proposal.Mode) & static_cast<uint8_t>(Modes))) {
+      continue;
+    }
+    if (!IncludeComponent && Proposal.Path == "component-model"sv) {
+      continue;
+    }
+    // WAST mode does not support component-model tests.
+    if (this->Mode == ParserMode::Wast &&
+        Proposal.Path == "component-model"sv) {
+      continue;
+    }
+    const std::filesystem::path ProposalRoot = TestsuiteRoot / Proposal.Path;
+    if (!std::filesystem::exists(ProposalRoot)) {
+      continue;
+    }
+    for (const auto &Subdir :
+         std::filesystem::directory_iterator(ProposalRoot)) {
+      const auto SubdirPath = Subdir.path();
+      const auto UnitName = SubdirPath.filename().u8string();
+      const auto UnitFile = UnitName + Ext;
+      if (std::filesystem::is_regular_file(SubdirPath / UnitFile)) {
+        Cases.push_back(std::string(Proposal.Path) + ' ' + UnitName);
       }
     }
   }
   std::sort(Cases.begin(), Cases.end());
-
   return Cases;
 }
 
@@ -408,304 +231,390 @@ SpecTest::resolve(std::string_view Params) const {
       MatchedProposal.Path, MatchedProposal.Conf, Params.substr(Pos + 1)};
 }
 
-bool SpecTest::compare(const std::pair<std::string, std::string> &Expected,
-                       const std::pair<ValVariant, ValType> &Got) const {
-  const auto &TypeStr = Expected.first;
-  const auto &ValStr = Expected.second;
+bool SpecTest::compareResult(const Wast::Result &Expected,
+                             const std::pair<ValVariant, ValType> &Got) const {
+  const auto Code = Expected.Type.getCode();
+  // For reference types, ValType stores the outer code as Ref/RefNull and the
+  // actual heap kind in getHeapTypeCode(). Use the heap type code for dispatch
+  // on reference types.
+  const auto HTCode = Expected.Type.getHeapTypeCode();
 
-  auto IsRefMatch = [&ValStr](const WasmEdge::RefVariant &R) {
-    if (ValStr == "null"sv) {
-      // If explicitly expected a `null`, the reference must be null.
-      return R.isNull();
-    }
-    if (ValStr == ""sv) {
-      // Opaque expected reference. Always true.
+  auto IsRefMatch = [&Expected](const WasmEdge::RefVariant &R) {
+    // Opaque reference check: only type matters, any value is fine.
+    if (Expected.OpaqueRef) {
       return true;
     }
-    // Explicitly expected the reference value.
-    return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(
-               R.getPtr<void>())) == static_cast<uint32_t>(std::stoul(ValStr));
+    // Check if the expected value is null.
+    if (Expected.Value.get<RefVariant>().isNull()) {
+      return R.isNull();
+    }
+    // Non-null: compare pointer values (for externref with numeric values).
+    auto ExpPtr = reinterpret_cast<uintptr_t>(
+        Expected.Value.get<RefVariant>().getPtr<void>());
+    auto GotPtr = reinterpret_cast<uintptr_t>(R.getPtr<void>());
+    return static_cast<uint32_t>(ExpPtr) == static_cast<uint32_t>(GotPtr);
   };
 
-  bool IsV128 = (std::string_view(TypeStr).substr(0, 4) == "v128"sv);
-  if (!IsV128 && ValStr.substr(0, 4) == "nan:"sv) {
-    // Handle NaN case
-    // TODO: nan:canonical and nan:arithmetic
-    if (TypeStr == "f32"sv) {
-      if (Got.second.getCode() != TypeCode::F32) {
-        return false;
-      }
-      return std::isnan(Got.first.get<float>());
-    } else if (TypeStr == "f64"sv) {
-      if (Got.second.getCode() != TypeCode::F64) {
-        return false;
-      }
-      return std::isnan(Got.first.get<double>());
-    }
-  } else if (TypeStr == "ref"sv) {
-    // "ref" fits all reference types.
-    if (!Got.second.isRefType()) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "anyref"sv) {
-    // "anyref" fits all internal reference types.
-    if (!Got.second.isRefType() || Got.second.isExternRefType()) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "eqref"sv) {
-    // "eqref" fits eqref, structref, arrayref, i31ref, and nullref.
-    if (!Got.second.isRefType()) {
-      return false;
-    }
-    switch (Got.second.getHeapTypeCode()) {
-    case TypeCode::EqRef:
-    case TypeCode::I31Ref:
-    case TypeCode::StructRef:
-    case TypeCode::ArrayRef:
-    case TypeCode::NullRef:
-      break;
-    default:
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "structref"sv) {
-    // "structref" structref and nullref.
-    if (!Got.second.isRefType()) {
-      return false;
-    }
-    switch (Got.second.getHeapTypeCode()) {
-    case TypeCode::StructRef:
-    case TypeCode::NullRef:
-      break;
-    default:
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "arrayref"sv) {
-    // "arrayref" arrayref and nullref.
-    if (!Got.second.isRefType()) {
-      return false;
-    }
-    switch (Got.second.getHeapTypeCode()) {
-    case TypeCode::ArrayRef:
-    case TypeCode::NullRef:
-      break;
-    default:
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "i31ref"sv) {
-    // "i31ref" i31ref and nullref.
-    if (!Got.second.isRefType()) {
-      return false;
-    }
-    switch (Got.second.getHeapTypeCode()) {
-    case TypeCode::I31Ref:
-    case TypeCode::NullRef:
-      break;
-    default:
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "nullref"sv) {
-    if (!Got.second.isRefType() ||
-        Got.second.getHeapTypeCode() != TypeCode::NullRef) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "funcref"sv) {
-    // "funcref" fits funcref and nullfuncref.
-    if (!Got.second.isFuncRefType()) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "nullfuncref"sv) {
-    if (!Got.second.isRefType() ||
-        Got.second.getHeapTypeCode() != TypeCode::NullFuncRef) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "externref"sv) {
-    // "externref" fits externref and nullexternref.
-    if (!Got.second.isExternRefType()) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "nullexternref"sv) {
-    if (!Got.second.isRefType() ||
-        Got.second.getHeapTypeCode() != TypeCode::NullExternRef) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "exnref"sv) {
-    // "exnref" fits exnref and nullexnref.
-    if (!Got.second.isRefType() ||
-        (Got.second.getHeapTypeCode() != TypeCode::ExnRef &&
-         Got.second.getHeapTypeCode() != TypeCode::NullExnRef)) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "nullexnref"sv) {
-    if (!Got.second.isRefType() ||
-        Got.second.getHeapTypeCode() != TypeCode::NullExnRef) {
-      return false;
-    }
-    return IsRefMatch(Got.first.get<RefVariant>());
-  } else if (TypeStr == "i32"sv) {
+  // Scalar numeric types: direct bit comparison.
+  switch (Code) {
+  case TypeCode::I32:
     if (Got.second.getCode() != TypeCode::I32) {
       return false;
     }
-    return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
-  } else if (TypeStr == "f32"sv) {
+    return Got.first.get<uint32_t>() == Expected.Value.get<uint32_t>();
+  case TypeCode::F32:
     if (Got.second.getCode() != TypeCode::F32) {
       return false;
     }
-    // Compare the 32-bit pattern
-    return Got.first.get<uint32_t>() == uint32_t(std::stoul(ValStr));
-  } else if (TypeStr == "i64"sv) {
+    // Handle NaN
+    if (Expected.NaN != Wast::Result::NaNPattern::None) {
+      if (!std::isnan(Got.first.get<float>())) {
+        return false;
+      }
+      if (Expected.NaN == Wast::Result::NaNPattern::Canonical) {
+        uint32_t Bits = Got.first.get<uint32_t>();
+        return (Bits & 0x7FFFFFFFU) == 0x7FC00000U;
+      }
+      return true;
+    }
+    return Got.first.get<uint32_t>() == Expected.Value.get<uint32_t>();
+  case TypeCode::I64:
     if (Got.second.getCode() != TypeCode::I64) {
       return false;
     }
-    return Got.first.get<uint64_t>() == uint64_t(std::stoull(ValStr));
-  } else if (TypeStr == "f64"sv) {
+    return Got.first.get<uint64_t>() == Expected.Value.get<uint64_t>();
+  case TypeCode::F64:
     if (Got.second.getCode() != TypeCode::F64) {
       return false;
     }
-    // Compare the 64-bit pattern
-    return Got.first.get<uint64_t>() == uint64_t(std::stoull(ValStr));
-  } else if (IsV128) {
-    std::vector<std::string_view> Parts;
-    std::string_view Ev = ValStr;
+    // Handle NaN
+    if (Expected.NaN != Wast::Result::NaNPattern::None) {
+      if (!std::isnan(Got.first.get<double>())) {
+        return false;
+      }
+      if (Expected.NaN == Wast::Result::NaNPattern::Canonical) {
+        uint64_t Bits = Got.first.get<uint64_t>();
+        return (Bits & 0x7FFFFFFFFFFFFFFFULL) == 0x7FF8000000000000ULL;
+      }
+      return true;
+    }
+    return Got.first.get<uint64_t>() == Expected.Value.get<uint64_t>();
+  default:
+    break;
+  }
+
+  // Reference type handling. Dispatch on heap type code since getCode()
+  // returns Ref/RefNull for all reference types.
+  if (Expected.Type.isRefType()) {
+    // Handle bare (ref.null) — matches any null reference regardless of type.
+    if (Expected.AnyNullRef) {
+      if (!Got.second.isRefType()) {
+        return false;
+      }
+      return Got.first.get<RefVariant>().isNull();
+    }
+    switch (HTCode) {
+    case TypeCode::AnyRef:
+      // "anyref" fits all internal reference types.
+      if (!Got.second.isRefType() || Got.second.isExternRefType()) {
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::EqRef:
+      // "eqref" fits eqref, structref, arrayref, i31ref, and nullref.
+      if (!Got.second.isRefType()) {
+        return false;
+      }
+      switch (Got.second.getHeapTypeCode()) {
+      case TypeCode::EqRef:
+      case TypeCode::I31Ref:
+      case TypeCode::StructRef:
+      case TypeCode::ArrayRef:
+      case TypeCode::NullRef:
+        break;
+      default:
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::StructRef:
+      // "structref" fits structref and nullref.
+      if (!Got.second.isRefType()) {
+        return false;
+      }
+      switch (Got.second.getHeapTypeCode()) {
+      case TypeCode::StructRef:
+      case TypeCode::NullRef:
+        break;
+      default:
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::ArrayRef:
+      // "arrayref" fits arrayref and nullref.
+      if (!Got.second.isRefType()) {
+        return false;
+      }
+      switch (Got.second.getHeapTypeCode()) {
+      case TypeCode::ArrayRef:
+      case TypeCode::NullRef:
+        break;
+      default:
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::I31Ref:
+      // "i31ref" fits i31ref and nullref.
+      if (!Got.second.isRefType()) {
+        return false;
+      }
+      switch (Got.second.getHeapTypeCode()) {
+      case TypeCode::I31Ref:
+      case TypeCode::NullRef:
+        break;
+      default:
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::NullRef:
+      // "nullref" (none) is the bottom type for internal refs.
+      // It matches any internal reference type (any, eq, i31, struct, array,
+      // none).
+      if (!Got.second.isRefType() || Got.second.isExternRefType()) {
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::FuncRef:
+      // "funcref" fits funcref and nullfuncref.
+      if (!Got.second.isFuncRefType()) {
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::NullFuncRef:
+      // "nullfuncref" (nofunc) is the bottom type for func refs.
+      // It matches funcref and nullfuncref.
+      if (!Got.second.isFuncRefType()) {
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::ExternRef:
+      // "externref" fits externref and nullexternref.
+      if (!Got.second.isExternRefType()) {
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::NullExternRef:
+      // "nullexternref" (noextern) is the bottom type for extern refs.
+      // It matches externref and nullexternref.
+      if (!Got.second.isExternRefType()) {
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::ExnRef:
+      // "exnref" fits exnref and nullexnref.
+      if (!Got.second.isRefType() ||
+          (Got.second.getHeapTypeCode() != TypeCode::ExnRef &&
+           Got.second.getHeapTypeCode() != TypeCode::NullExnRef)) {
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    case TypeCode::NullExnRef:
+      // "nullexnref" (noexn) is the bottom type for exn refs.
+      // It matches exnref and nullexnref.
+      if (!Got.second.isRefType() ||
+          (Got.second.getHeapTypeCode() != TypeCode::ExnRef &&
+           Got.second.getHeapTypeCode() != TypeCode::NullExnRef)) {
+        return false;
+      }
+      return IsRefMatch(Got.first.get<RefVariant>());
+    default:
+      return false;
+    }
+  }
+
+  // V128 type.
+  if (Code == TypeCode::V128) {
     if (Got.second.getCode() != TypeCode::V128) {
       return false;
     }
-    for (std::string::size_type Begin = 0, End = Ev.find(' ');
-         Begin != std::string::npos;
-         Begin = 1 + End, End = Ev.find(' ', Begin)) {
-      Parts.push_back(Ev.substr(Begin, End - Begin));
-      if (End == std::string::npos) {
-        break;
-      }
+    std::string_view Shape = Expected.V128Shape;
+    // Determine lane type from shape string (e.g., "f32x4" -> "f32").
+    // The shape format is "<type>x<count>".
+    auto ShIt = V128ShapeMap().find(Shape);
+    auto ShK =
+        (ShIt != V128ShapeMap().end()) ? ShIt->second : V128Shape::Unknown;
+    LaneKind LK = LaneKind::Unknown;
+    switch (ShK) {
+    case V128Shape::F32x4:
+      LK = LaneKind::F32;
+      break;
+    case V128Shape::F64x2:
+      LK = LaneKind::F64;
+      break;
+    case V128Shape::I8x16:
+      LK = LaneKind::I8;
+      break;
+    case V128Shape::I16x8:
+      LK = LaneKind::I16;
+      break;
+    case V128Shape::I32x4:
+      LK = LaneKind::I32;
+      break;
+    case V128Shape::I64x2:
+      LK = LaneKind::I64;
+      break;
+    default:
+      // Unknown shape or empty — fall back to raw 128-bit comparison.
+      return Got.first.get<uint128_t>() == Expected.Value.get<uint128_t>();
     }
-    std::string_view LaneType = std::string_view(TypeStr).substr(4);
-    if (LaneType == "f32") {
-      float VF[4];
-      uint32_t VI[4];
-      std::memcpy(VF, &Got.first.get<uint128_t>(), 16);
-      std::memcpy(VI, &Got.first.get<uint128_t>(), 16);
+
+    switch (LK) {
+    case LaneKind::F32: {
+      float GotF[4], ExpF[4];
+      uint32_t GotI[4], ExpI[4];
+      std::memcpy(GotF, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(GotI, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(ExpF, &Expected.Value.get<uint128_t>(), 16);
+      std::memcpy(ExpI, &Expected.Value.get<uint128_t>(), 16);
       if constexpr (Endian::native == Endian::big) {
-        std::reverse(VI, VI + 4);
-        std::reverse(VF, VF + 4);
+        std::reverse(GotI, GotI + 4);
+        std::reverse(GotF, GotF + 4);
+        std::reverse(ExpI, ExpI + 4);
+        std::reverse(ExpF, ExpF + 4);
       }
       for (size_t I = 0; I < 4; ++I) {
-        if (Parts[I].substr(0, 4) == "nan:"sv) {
-          if (!std::isnan(VF[I])) {
+        if (I < Expected.V128LaneNaN.size() &&
+            Expected.V128LaneNaN[I] != Wast::Result::NaNPattern::None) {
+          if (!std::isnan(GotF[I])) {
             return false;
           }
+          if (Expected.V128LaneNaN[I] == Wast::Result::NaNPattern::Canonical) {
+            if ((GotI[I] & 0x7FFFFFFFU) != 0x7FC00000U) {
+              return false;
+            }
+          }
         } else {
-          const uint32_t V1 = VI[I];
-          const uint32_t V2 =
-              static_cast<uint32_t>(std::stoul(std::string(Parts[I])));
-          if (V1 != V2) {
+          if (GotI[I] != ExpI[I]) {
             return false;
           }
         }
       }
-    } else if (LaneType == "f64") {
-      double VF[2];
-      uint64_t VI[2];
-      std::memcpy(VF, &Got.first.get<uint128_t>(), 16);
-      std::memcpy(VI, &Got.first.get<uint128_t>(), 16);
+      return true;
+    }
+    case LaneKind::F64: {
+      double GotF[2], ExpF[2];
+      uint64_t GotI[2], ExpI[2];
+      std::memcpy(GotF, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(GotI, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(ExpF, &Expected.Value.get<uint128_t>(), 16);
+      std::memcpy(ExpI, &Expected.Value.get<uint128_t>(), 16);
       if constexpr (Endian::native == Endian::big) {
-        std::reverse(VI, VI + 2);
-        std::reverse(VF, VF + 2);
+        std::reverse(GotI, GotI + 2);
+        std::reverse(GotF, GotF + 2);
+        std::reverse(ExpI, ExpI + 2);
+        std::reverse(ExpF, ExpF + 2);
       }
       for (size_t I = 0; I < 2; ++I) {
-        if (Parts[I].substr(0, 4) == "nan:"sv) {
-          if (!std::isnan(VF[I])) {
+        if (I < Expected.V128LaneNaN.size() &&
+            Expected.V128LaneNaN[I] != Wast::Result::NaNPattern::None) {
+          if (!std::isnan(GotF[I])) {
             return false;
           }
+          if (Expected.V128LaneNaN[I] == Wast::Result::NaNPattern::Canonical) {
+            if ((GotI[I] & 0x7FFFFFFFFFFFFFFFULL) != 0x7FF8000000000000ULL) {
+              return false;
+            }
+          }
         } else {
-          const uint64_t V1 = VI[I];
-          const uint64_t V2 = std::stoull(std::string(Parts[I]));
-          if (V1 != V2) {
+          if (GotI[I] != ExpI[I]) {
             return false;
           }
         }
       }
-    } else if (LaneType == "i8") {
-      uint8_t V[16];
-      std::memcpy(V, &Got.first.get<uint128_t>(), 16);
+      return true;
+    }
+    case LaneKind::I8: {
+      uint8_t GotV[16], ExpV[16];
+      std::memcpy(GotV, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(ExpV, &Expected.Value.get<uint128_t>(), 16);
       if constexpr (Endian::native == Endian::big) {
-        std::reverse(V, V + 16);
+        std::reverse(GotV, GotV + 16);
+        std::reverse(ExpV, ExpV + 16);
       }
       for (size_t I = 0; I < 16; ++I) {
-        const uint8_t V1 = V[I];
-        const uint8_t V2 =
-            static_cast<uint8_t>(std::stoul(std::string(Parts[I])));
-        if (V1 != V2) {
+        if (GotV[I] != ExpV[I]) {
           return false;
         }
       }
-    } else if (LaneType == "i16") {
-      uint16_t V[8];
-      std::memcpy(V, &Got.first.get<uint128_t>(), 16);
+      return true;
+    }
+    case LaneKind::I16: {
+      uint16_t GotV[8], ExpV[8];
+      std::memcpy(GotV, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(ExpV, &Expected.Value.get<uint128_t>(), 16);
       if constexpr (Endian::native == Endian::big) {
-        std::reverse(V, V + 8);
+        std::reverse(GotV, GotV + 8);
+        std::reverse(ExpV, ExpV + 8);
       }
       for (size_t I = 0; I < 8; ++I) {
-        const uint16_t V1 = V[I];
-        const uint16_t V2 =
-            static_cast<uint16_t>(std::stoul(std::string(Parts[I])));
-        if (V1 != V2) {
+        if (GotV[I] != ExpV[I]) {
           return false;
         }
       }
-    } else if (LaneType == "i32") {
-      uint32_t V[4];
-      std::memcpy(V, &Got.first.get<uint128_t>(), 16);
+      return true;
+    }
+    case LaneKind::I32: {
+      uint32_t GotV[4], ExpV[4];
+      std::memcpy(GotV, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(ExpV, &Expected.Value.get<uint128_t>(), 16);
       if constexpr (Endian::native == Endian::big) {
-        std::reverse(V, V + 4);
+        std::reverse(GotV, GotV + 4);
+        std::reverse(ExpV, ExpV + 4);
       }
       for (size_t I = 0; I < 4; ++I) {
-        const uint32_t V1 = V[I];
-        const uint32_t V2 =
-            static_cast<uint32_t>(std::stoul(std::string(Parts[I])));
-        if (V1 != V2) {
+        if (GotV[I] != ExpV[I]) {
           return false;
         }
       }
-    } else if (LaneType == "i64") {
-      uint64_t V[2];
-      std::memcpy(V, &Got.first.get<uint128_t>(), 16);
+      return true;
+    }
+    case LaneKind::I64: {
+      uint64_t GotV[2], ExpV[2];
+      std::memcpy(GotV, &Got.first.get<uint128_t>(), 16);
+      std::memcpy(ExpV, &Expected.Value.get<uint128_t>(), 16);
       if constexpr (Endian::native == Endian::big) {
-        std::reverse(V, V + 2);
+        std::reverse(GotV, GotV + 2);
+        std::reverse(ExpV, ExpV + 2);
       }
       for (size_t I = 0; I < 2; ++I) {
-        const uint64_t V1 = V[I];
-        const uint64_t V2 = std::stoull(std::string(Parts[I]));
-        if (V1 != V2) {
+        if (GotV[I] != ExpV[I]) {
           return false;
         }
       }
-    } else {
-      return false;
+      return true;
     }
-    return true;
+    default:
+      break;
+    }
   }
+
   return false;
 }
 
-bool SpecTest::compares(
-    const std::vector<std::pair<std::string, std::string>> &Expected,
+bool SpecTest::compareResults(
+    const std::vector<Wast::ResultOrEither> &Expected,
     const std::vector<std::pair<ValVariant, ValType>> &Got) const {
   if (Expected.size() != Got.size()) {
     return false;
   }
   for (size_t I = 0; I < Expected.size(); ++I) {
-    if (!compare(Expected[I], Got[I])) {
+    bool Matched = false;
+    for (const auto &Alt : Expected[I].Alternatives) {
+      if (compareResult(Alt, Got[I])) {
+        Matched = true;
+        break;
+      }
+    }
+    if (!Matched) {
       return false;
     }
   }
@@ -722,518 +631,640 @@ bool SpecTest::stringContains(std::string_view Expected,
   return true;
 }
 
-void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
-  spdlog::info("{} {}"sv, Proposal, UnitName);
-  auto TestFileName =
-      (TestsuiteRoot / Proposal / UnitName / (std::string(UnitName) + ".json"s))
-          .string();
-
-  simdjson::dom::parser Parser;
-  simdjson::dom::element Doc = Parser.load(TestFileName);
-
-  simdjson::dom::array CmdArray;
-  if (!Doc["commands"].get(CmdArray)) {
-    // Create root context (no parent, no shared modules).
-    auto Ctx = onInit(nullptr, {});
-    processCommands(Ctx, Proposal, UnitName, &CmdArray);
-    onFini(Ctx);
-  }
-}
-
-void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
-                               std::string_view UnitName, void *CmdArrayPtr) {
-  simdjson::dom::array CmdArray =
-      *static_cast<simdjson::dom::array *>(CmdArrayPtr);
-  const bool IsComponent = (Proposal == "component-model"sv);
-
-  std::map<std::string, std::string> Alias;
-  std::map<std::string, SpecTest::WasmUnit> ASTMap;
+void SpecTest::executeCommands(Span<const Wast::ScriptCommand> Commands,
+                               const Configure &Conf, bool IsComponent,
+                               ContextHandle RootCtx, std::string TestFile) {
+  std::unordered_map<std::string, std::string, Hash::Hash> Alias;
+  std::unordered_map<std::string, SpecTest::WasmUnit, Hash::Hash> ASTMap;
   std::string LastModName;
-  std::map<std::string, std::thread> ThreadMap;
+  uint32_t LastModLine = 0;
+  std::unordered_map<std::string, std::thread, Hash::Hash> ThreadMap;
 
-  // Helper function to get module name.
-  auto GetModuleName = [&](const simdjson::dom::object &Action) -> std::string {
-    std::string_view ModName;
-    if (!Action["module"].get(ModName)) {
-      if (auto It = Alias.find(std::string(ModName)); It != Alias.end()) {
-        // If module name is aliased, use the aliased name.
+  // Stable storage for resolved file paths (string_view lifetime).
+  std::deque<std::string> ResolvedPaths;
+
+  // For component-model tests, extract the unit name (last path component)
+  // for use with checkComponentSupported().
+  std::string UnitName;
+  if (IsComponent) {
+    std::filesystem::path PF{TestFile};
+    UnitName = PF.filename().u8string();
+  }
+
+  // Helper: resolve source for onParse. Returns (source_view, ModuleType).
+  // For file-based modules, resolves the full path and stores it for lifetime.
+  auto resolveSource = [&](const Wast::ScriptCommand &Cmd)
+      -> std::pair<std::string_view, Wast::ModuleType> {
+    if (Cmd.ModType == Wast::ModuleType::TextFile ||
+        Cmd.ModType == Wast::ModuleType::BinaryFile) {
+      auto Path = std::filesystem::u8path(TestFile).parent_path() /
+                  std::string(Cmd.ModuleSource);
+      ResolvedPaths.push_back(Path.string());
+      return {ResolvedPaths.back(), Cmd.ModType};
+    }
+    return {Cmd.ModuleSource, Cmd.ModType};
+  };
+
+  // Preprocessing: resolve register aliases.
+  for (const auto &Cmd : Commands) {
+    if (Cmd.Type == Wast::CommandType::Module ||
+        Cmd.Type == Wast::CommandType::ModuleDefinition ||
+        Cmd.Type == Wast::CommandType::ModuleInstance) {
+      if (Cmd.ModuleName) {
+        LastModName = std::string(*Cmd.ModuleName);
+      } else {
+        LastModName.clear();
+      }
+      LastModLine = Cmd.Line;
+    } else if (Cmd.Type == Wast::CommandType::Register) {
+      if (Cmd.ModuleName) {
+        Alias.emplace(std::string(*Cmd.ModuleName),
+                      std::string(Cmd.RegisterName));
+      } else if (!LastModName.empty()) {
+        Alias.emplace(LastModName, std::string(Cmd.RegisterName));
+      } else {
+        Alias.emplace(std::to_string(LastModLine),
+                      std::string(Cmd.RegisterName));
+      }
+    }
+  }
+
+  // Reset tracking state for command execution.
+  LastModName.clear();
+  LastModLine = 0;
+
+  // Helper to resolve module name for actions.
+  auto GetModuleName = [&](const Wast::Action &Act) -> std::string {
+    if (Act.ModuleName) {
+      std::string MN(Act.ModuleName.value());
+      if (auto It = Alias.find(MN); It != Alias.end()) {
         return It->second;
       }
-      return std::string(ModName);
+      return MN;
     }
     return LastModName;
   };
 
-  // Helper function to check result of invocation.
-  auto Invoke = [&](const simdjson::dom::object &Action,
-                    const simdjson::dom::array &Expected, uint64_t LineNumber) {
-    if (IsComponent) {
-      // TODO: Component model invocation not yet supported.
-      return;
-    }
-    const auto ModName = GetModuleName(Action);
-    const std::string_view Field = Action["field"];
-    simdjson::dom::array Args = Action["args"];
-    const auto Params = parseValueList(Args);
-    const auto Returns = parseExpectedList(Expected);
-
-    // Invoke function of named module. Named modules are registered in Store
-    // Manager. Anonymous modules are instantiated in VM.
-    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
-                            Params.second)) {
-      // Check value.
-      EXPECT_TRUE(compares(Returns, *Res));
-    } else {
-      EXPECT_NE(LineNumber, LineNumber);
-    }
-  };
-
-  // Helper function to check one of matched results of invocation.
-  auto InvokeEither = [&](const simdjson::dom::object &Action,
-                          const simdjson::dom::array &Eithers,
-                          uint64_t LineNumber) {
-    if (IsComponent) {
-      // TODO: Component model invocation not yet supported.
-      return;
-    }
-    const auto ModName = GetModuleName(Action);
-    const std::string_view Field = Action["field"];
-    simdjson::dom::array Args = Action["args"];
-    const auto Params = parseValueList(Args);
-    const auto Returns = parseEithersList(Eithers);
-
-    // Invoke function of named module. Named modules are registered in Store
-    // Manager. Anonymous modules are instantiated in VM.
-    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
-                            Params.second)) {
-      // Check value.
-      for (auto &Maybe : Returns) {
-        if (compares(Maybe, *Res)) {
-          return;
-        }
-      }
-      EXPECT_TRUE(compares(Returns[0], *Res))
-          << "This is One of available returns.";
-    } else {
-      EXPECT_NE(LineNumber, LineNumber);
-    }
-  };
-
-  // Helper function to get values.
-  auto Get = [&](const simdjson::dom::object &Action,
-                 const simdjson::dom::array &Expected, uint64_t LineNumber) {
-    if (IsComponent) {
-      // TODO: Component model get not yet supported.
-      return;
-    }
-    const auto ModName = GetModuleName(Action);
-    std::string_view Field = Action["field"];
-    const auto Returns = parseExpectedList(Expected);
-
-    if (auto Res = onGet(Ctx, ModName, std::string(Field))) {
-      // Check value.
-      EXPECT_TRUE(compare(Returns[0], *Res));
-    } else {
-      EXPECT_NE(LineNumber, LineNumber);
-    }
-  };
-
-  // Helper function to check trap on loading.
-  auto TrapLoad = [&](const std::string &FileName, const std::string &Text) {
-    if (IsComponent && !checkComponentSupported(UnitName, WasmPhase::Loading)) {
-      return;
-    }
-    if (auto Res = onLoad(Ctx, FileName)) {
-      EXPECT_TRUE(false);
-    } else {
-      EXPECT_TRUE(Res.error().getErrCodePhase() ==
-                  WasmEdge::WasmPhase::Loading);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
-    }
-  };
-
-  // Helper function to check trap on validation.
-  auto TrapValidate = [&](const std::string &FileName,
-                          const std::string &Text) {
-    if (IsComponent &&
-        !checkComponentSupported(UnitName, WasmPhase::Validation)) {
-      return;
-    }
-    if (auto Res = onValidate(Ctx, FileName); Res) {
-      EXPECT_TRUE(false);
-    } else {
-      EXPECT_TRUE(Res.error().getErrCodePhase() ==
-                  WasmEdge::WasmPhase::Validation);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
-    }
-  };
-
-  // Helper function to check trap on instantiation.
-  auto TrapInstantiate = [&](const std::string &FileName,
-                             const std::string &Text) {
-    if (IsComponent &&
-        !checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
-      return;
-    }
-    if (auto Res = onInstantiate(Ctx, FileName); Res) {
-      EXPECT_TRUE(false);
-    } else {
-      EXPECT_TRUE(
-          Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Instantiation ||
-          Res.error().getErrCodePhase() == WasmEdge::WasmPhase::Execution);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
-    }
-  };
-
-  // Helper function to check trap on invocation.
-  auto TrapInvoke = [&](const simdjson::dom::object &Action,
-                        const std::string &Text, uint64_t LineNumber) {
-    if (IsComponent &&
-        !checkComponentSupported(UnitName, WasmPhase::Execution)) {
-      // TODO: Component model invocation not yet supported.
-      return;
-    }
-    const auto ModName = GetModuleName(Action);
-    const std::string_view Field = Action["field"];
-    simdjson::dom::array Args = Action["args"];
-    const auto Params = parseValueList(Args);
-
-    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
-                            Params.second)) {
-      EXPECT_NE(LineNumber, LineNumber);
-    } else {
-      EXPECT_TRUE(Res.error().getErrCodePhase() ==
-                  WasmEdge::WasmPhase::Execution);
-      EXPECT_TRUE(
-          stringContains(Text, WasmEdge::ErrCodeStr[Res.error().getEnum()]));
-    }
-  };
-
-  // Helper function to check exception on invocation.
-  auto ExceptionInvoke = [&](const simdjson::dom::object &Action,
-                             uint64_t LineNumber) {
-    if (IsComponent) {
-      // Component model invocation for exception not yet supported.
-      EXPECT_NE(LineNumber, LineNumber);
-      return;
-    }
-    const auto ModName = GetModuleName(Action);
-    const std::string_view Field = Action["field"];
-    simdjson::dom::array Args = Action["args"];
-    const auto Params = parseValueList(Args);
-
-    if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
-                            Params.second)) {
-      EXPECT_NE(LineNumber, LineNumber);
-    } else {
-      EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UncaughtException);
-    }
-  };
-
-  // Preprocessing register command.
-  resolveRegister(Alias, CmdArray);
-
-  // Command processing. Return true for expected result.
-  auto RunCommand = [&](const simdjson::dom::object &Cmd) {
-    std::string_view TypeField;
-
-    if (!Cmd["type"].get(TypeField)) {
-      switch (resolveCommand(TypeField)) {
-      case SpecTest::CommandID::Module: {
-        std::string_view ModType;
-        if (!Cmd["module_type"].get(ModType)) {
-          if (ModType != "binary"sv) {
-            // TODO: Wat is not supported in WasmEdge yet.
-            return;
-          }
-        }
-        std::string_view FileName = Cmd["filename"];
-        const auto FilePath =
-            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
-        const uint64_t LineNumber = Cmd["line"];
-        // Reset the flag for each module command to avoid stale state
-        // from prior test entries.
-        SkipComponentValidation = false;
-        if (IsComponent) {
-          if (!checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
-            if (checkComponentSupported(UnitName, WasmPhase::Validation)) {
-              if (!onValidate(Ctx, FilePath)) {
-                EXPECT_NE(LineNumber, LineNumber);
-              }
-            } else if (checkComponentSupported(UnitName, WasmPhase::Loading)) {
-              if (!onLoad(Ctx, FilePath)) {
-                EXPECT_NE(LineNumber, LineNumber);
-              }
-            }
-            return;
-          }
-          if (!checkComponentSupported(UnitName, WasmPhase::Validation)) {
-            SkipComponentValidation = true;
-          }
-        }
-        std::string LineStr = std::to_string(LineNumber);
-        std::string_view TempName;
-        if (!Cmd["name"].get(TempName)) {
-          // Module has name. Register module with module name.
-          if (auto It = Alias.find(std::string(TempName)); It != Alias.end()) {
-            LastModName = It->second;
-          } else {
-            LastModName = TempName;
-          }
-        } else if (auto It = Alias.find(LineStr); It != Alias.end()) {
-          LastModName = It->second;
-        } else {
-          // Instantiate the anonymous module.
-          LastModName.clear();
-        }
-        if (onModule(Ctx, LastModName, FilePath)) {
-          EXPECT_TRUE(true);
-        } else {
-          EXPECT_NE(LineNumber, LineNumber);
-        }
-        return;
-      }
-      case CommandID::ModuleDefinition: {
-        std::string_view ASTName;
-        std::string_view FileName = Cmd["filename"];
-        const auto FilePath =
-            (TestsuiteRoot / Proposal / UnitName / FileName).u8string();
-        const uint64_t LineNumber = Cmd["line"];
-        if (IsComponent &&
-            !checkComponentSupported(UnitName, WasmPhase::Loading)) {
-          // Skip loading for unsupported component model tests.
-          return;
-        }
-        SkipComponentValidation =
-            IsComponent &&
-            !checkComponentSupported(UnitName, WasmPhase::Validation);
-        if (auto Res = onModuleDefine(Ctx, std::string(FilePath)); Res) {
-          if (!Cmd["name"].get(ASTName)) {
-            ASTMap.emplace(std::string(ASTName), std::move(*Res));
-          }
-          EXPECT_TRUE(true);
-        } else {
-          EXPECT_NE(LineNumber, LineNumber);
-        }
-        return;
-      }
-      case CommandID::ModuleInstance: {
-        std::string_view ModName = Cmd["name"];
-        std::string_view ASTName = Cmd["definition"];
-        const uint64_t LineNumber = Cmd["line"];
-        if (IsComponent) {
-          // The component model spec tests currently have no module_instance
-          // commands. Fail explicitly if one is encountered.
-          EXPECT_NE(LineNumber, LineNumber);
-          return;
-        }
-        auto ASTDef = ASTMap.find(std::string(ASTName));
-        if (ASTDef == ASTMap.end()) {
-          EXPECT_NE(LineNumber, LineNumber);
-          return;
-        }
-        if (auto It = Alias.find(std::string(ModName)); It != Alias.end()) {
+  // Execute commands.
+  for (const auto &Cmd : Commands) {
+    switch (Cmd.Type) {
+    case Wast::CommandType::Module: {
+      std::string ModName;
+      if (Cmd.ModuleName) {
+        ModName = std::string(*Cmd.ModuleName);
+        if (auto It = Alias.find(ModName); It != Alias.end()) {
           ModName = It->second;
         }
-        auto &ASTMod = *std::get<std::unique_ptr<AST::Module>>(ASTDef->second);
-        if (onInstanceFromDef(Ctx, std::string(ModName), ASTMod)) {
-          EXPECT_TRUE(true);
+      } else {
+        std::string LineStr = std::to_string(Cmd.Line);
+        if (auto It = Alias.find(LineStr); It != Alias.end()) {
+          ModName = It->second;
+        }
+      }
+      LastModName = ModName;
+      LastModLine = Cmd.Line;
+
+      // Reset per-command; only set for components missing validation support.
+      SkipComponentValidation = false;
+
+      if (IsComponent &&
+          !checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
+        // Instantiation not supported: fall back to validate or load.
+        auto [Source, Type] = resolveSource(Cmd);
+        auto ParseRes = onParse(RootCtx, Source, Type, Conf);
+        if (!ParseRes) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "Module parse failed: "
+              << WasmEdge::ErrCodeStr[ParseRes.error().getEnum()];
+          break;
+        }
+        if (checkComponentSupported(UnitName, WasmPhase::Validation)) {
+          auto ValRes = onValidate(RootCtx, *ParseRes);
+          if (!ValRes) {
+            ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+                << "Module validate failed: "
+                << WasmEdge::ErrCodeStr[ValRes.error().getEnum()];
+          }
+        }
+        break;
+      }
+      SkipComponentValidation =
+          IsComponent &&
+          !checkComponentSupported(UnitName, WasmPhase::Validation);
+
+      auto [Source, Type] = resolveSource(Cmd);
+
+      // onParse
+      auto ParseRes = onParse(RootCtx, Source, Type, Conf);
+      if (!ParseRes) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "Module parse failed: "
+            << WasmEdge::ErrCodeStr[ParseRes.error().getEnum()];
+        break;
+      }
+
+      // onValidate (skip if component validation unsupported)
+      if (!SkipComponentValidation) {
+        auto ValRes = onValidate(RootCtx, *ParseRes);
+        if (!ValRes) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "Module validate failed: "
+              << WasmEdge::ErrCodeStr[ValRes.error().getEnum()];
+          break;
+        }
+      }
+
+      // onInstantiate
+      auto InstRes = onInstantiate(RootCtx, ModName, *ParseRes);
+      if (!InstRes) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "Module instantiate failed: "
+            << WasmEdge::ErrCodeStr[InstRes.error().getEnum()];
+      }
+      break;
+    }
+    case Wast::CommandType::ModuleDefinition: {
+      std::string ModName;
+      if (Cmd.ModuleName) {
+        ModName = std::string(*Cmd.ModuleName);
+        if (auto It = Alias.find(ModName); It != Alias.end()) {
+          ModName = It->second;
+        }
+      } else {
+        std::string LineStr = std::to_string(Cmd.Line);
+        if (auto It = Alias.find(LineStr); It != Alias.end()) {
+          ModName = It->second;
+        }
+      }
+      LastModName = ModName;
+      LastModLine = Cmd.Line;
+
+      // Reset per-command; only set for components missing validation support.
+      SkipComponentValidation = false;
+
+      if (IsComponent &&
+          !checkComponentSupported(UnitName, WasmPhase::Loading)) {
+        break;
+      }
+      SkipComponentValidation =
+          IsComponent &&
+          !checkComponentSupported(UnitName, WasmPhase::Validation);
+
+      auto [Source, Type] = resolveSource(Cmd);
+
+      // onParse
+      auto ParseRes = onParse(RootCtx, Source, Type, Conf);
+      if (!ParseRes) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "Module define parse failed: "
+            << WasmEdge::ErrCodeStr[ParseRes.error().getEnum()];
+        break;
+      }
+
+      // onValidate
+      if (!SkipComponentValidation) {
+        auto ValRes = onValidate(RootCtx, *ParseRes);
+        if (!ValRes) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "Module define validate failed: "
+              << WasmEdge::ErrCodeStr[ValRes.error().getEnum()];
+          break;
+        }
+      }
+
+      // Store in ASTMap for later instantiation.
+      if (Cmd.ModuleName) {
+        ASTMap.emplace(std::string(*Cmd.ModuleName), std::move(*ParseRes));
+      }
+      break;
+    }
+    case Wast::CommandType::ModuleInstance: {
+      if (IsComponent) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "Unexpected module_instance for component";
+        break;
+      }
+      std::string ModName;
+      if (Cmd.ModuleName) {
+        ModName = std::string(*Cmd.ModuleName);
+        if (auto It = Alias.find(ModName); It != Alias.end()) {
+          ModName = It->second;
+        }
+      }
+      LastModName = ModName;
+      LastModLine = Cmd.Line;
+
+      if (Cmd.DefinitionName) {
+        auto ASTDef = ASTMap.find(std::string(*Cmd.DefinitionName));
+        if (ASTDef != ASTMap.end()) {
+          if (auto Res = onInstantiate(RootCtx, ModName, ASTDef->second)) {
+            // success
+          } else {
+            ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+                << "Module instance failed: "
+                << WasmEdge::ErrCodeStr[Res.error().getEnum()];
+          }
         } else {
-          EXPECT_NE(LineNumber, LineNumber);
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "Module definition not found: " << *Cmd.DefinitionName;
         }
-        return;
+      } else {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "Module instance missing definition name";
       }
-      case CommandID::Action: {
-        const simdjson::dom::object &Action = Cmd["action"];
-        const simdjson::dom::array &Expected = Cmd["expected"];
-        const uint64_t LineNumber = Cmd["line"];
-        Invoke(Action, Expected, LineNumber);
-        return;
+      break;
+    }
+    case Wast::CommandType::Register: {
+      // Already handled in preprocessing.
+      break;
+    }
+    case Wast::CommandType::Action: {
+      if (IsComponent) {
+        break;
       }
-      case CommandID::Register: {
-        // Preprocessed. Ignore this.
-        return;
+      if (!Cmd.Act) {
+        break;
       }
-      case CommandID::AssertReturn: {
-        const uint64_t LineNumber = Cmd["line"];
-        const simdjson::dom::object &Action = Cmd["action"];
-        const std::string_view ActType = Action["type"];
-        simdjson::dom::array Exp, Either;
+      const auto &Act = *Cmd.Act;
+      const auto ModName = GetModuleName(Act);
+      if (Act.Type == Wast::ActionType::Invoke) {
+        if (auto Res = onInvoke(RootCtx, ModName, std::string(Act.FieldName),
+                                Act.Args, Act.ArgTypes)) {
+          // success
+        } else {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line) << "Action invoke failed";
+        }
+      } else {
+        if (auto Res = onGet(RootCtx, ModName, std::string(Act.FieldName))) {
+          // success
+        } else {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line) << "Action get failed";
+        }
+      }
+      break;
+    }
+    case Wast::CommandType::AssertReturn: {
+      if (IsComponent) {
+        break;
+      }
+      if (!Cmd.Act) {
+        break;
+      }
+      const auto &Act = *Cmd.Act;
+      const auto ModName = GetModuleName(Act);
 
-        if (Cmd["expected"].get(Exp) == simdjson::error_code::SUCCESS) {
-          if (ActType == "invoke"sv) {
-            Invoke(Action, Exp, LineNumber);
-            return;
-          } else if (ActType == "get"sv) {
-            Get(Action, Exp, LineNumber);
-            return;
+      if (Act.Type == Wast::ActionType::Invoke) {
+        auto Res = onInvoke(RootCtx, ModName, std::string(Act.FieldName),
+                            Act.Args, Act.ArgTypes);
+        if (!Res) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "assert_return invoke failed: "
+              << WasmEdge::ErrCodeStr[Res.error().getEnum()];
+          break;
+        }
+        EXPECT_TRUE(compareResults(Cmd.Expected, *Res))
+            << TestFile << ":" << Cmd.Line << ": assert_return mismatch";
+      } else {
+        auto Res = onGet(RootCtx, ModName, std::string(Act.FieldName));
+        if (!Res) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "assert_return get failed";
+          break;
+        }
+        if (!Cmd.Expected.empty()) {
+          std::vector<std::pair<ValVariant, ValType>> GotVec = {*Res};
+          EXPECT_TRUE(compareResults(Cmd.Expected, GotVec))
+              << TestFile << ":" << Cmd.Line << ": assert_return get mismatch";
+        }
+      }
+      break;
+    }
+    case Wast::CommandType::AssertTrap: {
+      if (Cmd.Act) {
+        if (IsComponent &&
+            !checkComponentSupported(UnitName, WasmPhase::Execution)) {
+          break;
+        }
+        const auto &Act = *Cmd.Act;
+        const auto ModName = GetModuleName(Act);
+        auto Res = onInvoke(RootCtx, ModName, std::string(Act.FieldName),
+                            Act.Args, Act.ArgTypes);
+        if (Res) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "assert_trap expected trap";
+        } else {
+          EXPECT_TRUE(Res.error().getErrCodePhase() ==
+                      WasmEdge::WasmPhase::Execution)
+              << TestFile << ":" << Cmd.Line << ": assert_trap wrong phase";
+          EXPECT_TRUE(
+              stringContains(std::string(Cmd.ExpectedMessage),
+                             WasmEdge::ErrCodeStr[Res.error().getEnum()]))
+              << TestFile << ":" << Cmd.Line
+              << ": assert_trap message mismatch";
+        }
+      } else if (!Cmd.ModuleSource.empty()) {
+        // Trap on module instantiation: onParse -> onValidate -> onInstantiate
+        auto [Source, Type] = resolveSource(Cmd);
+
+        auto ParseRes = onParse(RootCtx, Source, Type, Conf);
+        if (!ParseRes) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "assert_trap parse unexpectedly failed: "
+              << WasmEdge::ErrCodeStr[ParseRes.error().getEnum()];
+          break;
+        }
+        auto ValRes = onValidate(RootCtx, *ParseRes);
+        if (!ValRes) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "assert_trap validate unexpectedly failed: "
+              << WasmEdge::ErrCodeStr[ValRes.error().getEnum()];
+          break;
+        }
+        auto InstRes = onInstantiate(RootCtx, "", *ParseRes);
+        if (InstRes) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "assert_trap expected trap";
+        } else {
+          EXPECT_TRUE(InstRes.error().getErrCodePhase() ==
+                          WasmEdge::WasmPhase::Instantiation ||
+                      InstRes.error().getErrCodePhase() ==
+                          WasmEdge::WasmPhase::Execution)
+              << TestFile << ":" << Cmd.Line << ": assert_trap wrong phase";
+        }
+      }
+      break;
+    }
+    case Wast::CommandType::AssertExhaustion: {
+      // TODO: Add stack overflow mechanism.
+      break;
+    }
+    case Wast::CommandType::AssertInvalid: {
+      if (IsComponent && Cmd.ModType != Wast::ModuleType::BinaryFile &&
+          Cmd.ModType != Wast::ModuleType::Binary) {
+        break;
+      }
+      if (IsComponent &&
+          !checkComponentSupported(UnitName, WasmPhase::Validation)) {
+        break;
+      }
+
+      auto [Source, Type] = resolveSource(Cmd);
+
+      // onParse
+      auto ParseRes = onParse(RootCtx, Source, Type, Conf);
+      if (!ParseRes) {
+        // WAT parser may catch validation errors during loading.
+        EXPECT_TRUE(ParseRes.error().getErrCodePhase() ==
+                        WasmEdge::WasmPhase::Validation ||
+                    ParseRes.error().getErrCodePhase() ==
+                        WasmEdge::WasmPhase::Loading)
+            << TestFile << ":" << Cmd.Line << ": assert_invalid wrong phase: "
+            << WasmEdge::ErrCodeStr[ParseRes.error().getEnum()];
+        if (!Cmd.ExpectedMessage.empty()) {
+          EXPECT_TRUE(
+              stringContains(std::string(Cmd.ExpectedMessage),
+                             WasmEdge::ErrCodeStr[ParseRes.error().getEnum()]))
+              << TestFile << ":" << Cmd.Line
+              << ": assert_invalid message mismatch";
+        }
+        break;
+      }
+
+      // onValidate - expect failure here
+      auto ValRes = onValidate(RootCtx, *ParseRes);
+      if (ValRes) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "assert_invalid expected failure";
+      } else {
+        EXPECT_TRUE(ValRes.error().getErrCodePhase() ==
+                        WasmEdge::WasmPhase::Validation ||
+                    ValRes.error().getErrCodePhase() ==
+                        WasmEdge::WasmPhase::Loading)
+            << TestFile << ":" << Cmd.Line << ": assert_invalid wrong phase: "
+            << WasmEdge::ErrCodeStr[ValRes.error().getEnum()];
+        if (!Cmd.ExpectedMessage.empty()) {
+          EXPECT_TRUE(
+              stringContains(std::string(Cmd.ExpectedMessage),
+                             WasmEdge::ErrCodeStr[ValRes.error().getEnum()]))
+              << TestFile << ":" << Cmd.Line
+              << ": assert_invalid message mismatch";
+        }
+      }
+      break;
+    }
+    case Wast::CommandType::AssertMalformed: {
+      if (IsComponent && Cmd.ModType != Wast::ModuleType::BinaryFile &&
+          Cmd.ModType != Wast::ModuleType::Binary) {
+        break;
+      }
+      if (IsComponent &&
+          !checkComponentSupported(UnitName, WasmPhase::Loading)) {
+        break;
+      }
+
+      auto [Source, Type] = resolveSource(Cmd);
+
+      // onParse only - expect failure
+      auto ParseRes = onParse(RootCtx, Source, Type, Conf);
+      if (ParseRes) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "assert_malformed expected failure";
+      } else {
+        // Accept loading or validation phase errors (WAT parser may report
+        // validation errors during parsing).
+        EXPECT_TRUE(ParseRes.error().getErrCodePhase() ==
+                        WasmEdge::WasmPhase::Loading ||
+                    ParseRes.error().getErrCodePhase() ==
+                        WasmEdge::WasmPhase::Validation)
+            << TestFile << ":" << Cmd.Line << ": assert_malformed wrong phase: "
+            << WasmEdge::ErrCodeStr[ParseRes.error().getEnum()];
+        if (!Cmd.ExpectedMessage.empty()) {
+          EXPECT_TRUE(
+              stringContains(std::string(Cmd.ExpectedMessage),
+                             WasmEdge::ErrCodeStr[ParseRes.error().getEnum()]))
+              << TestFile << ":" << Cmd.Line
+              << ": assert_malformed message mismatch";
+        }
+      }
+      break;
+    }
+    case Wast::CommandType::AssertUnlinkable:
+    case Wast::CommandType::AssertUninstantiable: {
+      if (IsComponent &&
+          !checkComponentSupported(UnitName, WasmPhase::Instantiation)) {
+        break;
+      }
+
+      auto [Source, Type] = resolveSource(Cmd);
+
+      // onParse -> onValidate -> onInstantiate, expect error at instantiate.
+      auto ParseRes = onParse(RootCtx, Source, Type, Conf);
+      if (!ParseRes) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "assert_unlinkable/uninstantiable parse unexpectedly failed: "
+            << WasmEdge::ErrCodeStr[ParseRes.error().getEnum()];
+        break;
+      }
+      auto ValRes = onValidate(RootCtx, *ParseRes);
+      if (!ValRes) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "assert_unlinkable/uninstantiable validate unexpectedly failed: "
+            << WasmEdge::ErrCodeStr[ValRes.error().getEnum()];
+        break;
+      }
+      auto InstRes = onInstantiate(RootCtx, "", *ParseRes);
+      if (InstRes) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "assert_unlinkable/uninstantiable expected failure";
+      } else {
+        EXPECT_TRUE(InstRes.error().getErrCodePhase() ==
+                        WasmEdge::WasmPhase::Instantiation ||
+                    InstRes.error().getErrCodePhase() ==
+                        WasmEdge::WasmPhase::Execution)
+            << TestFile << ":" << Cmd.Line
+            << ": assert_unlinkable/uninstantiable wrong phase";
+        EXPECT_TRUE(
+            stringContains(std::string(Cmd.ExpectedMessage),
+                           WasmEdge::ErrCodeStr[InstRes.error().getEnum()]))
+            << TestFile << ":" << Cmd.Line
+            << ": assert_unlinkable/uninstantiable message mismatch";
+      }
+      break;
+    }
+    case Wast::CommandType::AssertException: {
+      if (IsComponent) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "assert_exception not supported for components";
+        break;
+      }
+      if (Cmd.Act) {
+        const auto &Act = *Cmd.Act;
+        const auto ModName = GetModuleName(Act);
+        auto Res = onInvoke(RootCtx, ModName, std::string(Act.FieldName),
+                            Act.Args, Act.ArgTypes);
+        if (Res) {
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "assert_exception expected exception";
+        } else {
+          EXPECT_EQ(Res.error(), WasmEdge::ErrCode::Value::UncaughtException)
+              << TestFile << ":" << Cmd.Line
+              << ": assert_exception wrong error";
+        }
+      }
+      break;
+    }
+    case Wast::CommandType::Thread: {
+      if (!onInit) {
+        break;
+      }
+      std::string ThreadName;
+      if (Cmd.ModuleName) {
+        ThreadName = std::string(*Cmd.ModuleName);
+      }
+
+      if (ThreadMap.find(ThreadName) != ThreadMap.end()) {
+        ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+            << "Duplicate thread name: " << ThreadName;
+        break;
+      }
+
+      // Pre-scan thread sub-commands for register entries to determine
+      // alias names for shared modules.
+      std::unordered_map<std::string, std::string, Hash::Hash>
+          SharedRegisterMap;
+      for (const auto &SubCmd : Cmd.SubCommands) {
+        if (SubCmd.Type == Wast::CommandType::Register && SubCmd.ModuleName) {
+          SharedRegisterMap.emplace(std::string(*SubCmd.ModuleName),
+                                    std::string(SubCmd.RegisterName));
+        }
+      }
+
+      std::vector<std::pair<std::string, std::string>> SharedModules;
+      for (const auto &[OrigName, AliasName] : Cmd.SharedModules) {
+        std::string ParentName = OrigName;
+        if (auto It = Alias.find(OrigName); It != Alias.end()) {
+          ParentName = It->second;
+        }
+        std::string FinalAlias = AliasName;
+        if (FinalAlias.empty()) {
+          if (auto It = SharedRegisterMap.find(OrigName);
+              It != SharedRegisterMap.end()) {
+            FinalAlias = It->second;
+          } else {
+            FinalAlias = ParentName;
           }
-        } else if (Cmd["either"].get(Either) == simdjson::error_code::SUCCESS) {
-          if (ActType == "invoke"sv) {
-            InvokeEither(Action, Either, LineNumber);
-            return;
-          }
         }
+        SharedModules.emplace_back(std::move(ParentName),
+                                   std::move(FinalAlias));
+      }
 
-        EXPECT_TRUE(false);
-        return;
-      }
-      case CommandID::AssertTrap: {
-        const simdjson::dom::object &Action = Cmd["action"];
-        const std::string_view Text = Cmd["text"];
-        const uint64_t LineNumber = Cmd["line"];
-        TrapInvoke(Action, std::string(Text), LineNumber);
-        return;
-      }
-      case CommandID::AssertExhaustion: {
-        // TODO: Add stack overflow mechanism.
-        return;
-      }
-      case CommandID::AssertMalformed: {
-        const std::string_view ModType = Cmd["module_type"];
-        if (ModType != "binary"sv) {
-          // TODO: Wat is not supported in WasmEdge yet.
-          return;
-        }
-        const std::string_view Name = Cmd["filename"];
-        const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        const std::string_view Text = Cmd["text"];
-        TrapLoad(Filename, std::string(Text));
-        return;
-      }
-      case CommandID::AssertInvalid: {
-        const std::string_view ModType = Cmd["module_type"];
-        if (ModType != "binary"sv) {
-          // TODO: Wat is not supported in WasmEdge yet.
-          return;
-        }
-        const std::string_view Name = Cmd["filename"];
-        const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        const std::string_view Text = Cmd["text"];
-        TrapValidate(Filename, std::string(Text));
-        return;
-      }
-      case CommandID::AssertUnlinkable:
-      case CommandID::AssertUninstantiable: {
-        const std::string_view Name = Cmd["filename"];
-        const auto Filename =
-            (TestsuiteRoot / Proposal / UnitName / Name).u8string();
-        const std::string_view Text = Cmd["text"];
-        TrapInstantiate(Filename, std::string(Text));
-        return;
-      }
-      case CommandID::AssertException: {
-        const simdjson::dom::object &Action = Cmd["action"];
-        const std::string_view ActType = Action["type"];
-        const uint64_t LineNumber = Cmd["line"];
-        // TODO: Check expected exception type
-        if (ActType == "invoke"sv) {
-          ExceptionInvoke(Action, LineNumber);
-          return;
-        }
-        EXPECT_TRUE(false);
-        return;
-      }
-      case CommandID::Thread: {
-        if (!onInit) {
-          // Thread support not wired — skip.
-          return;
-        }
-        std::string_view ThreadName = Cmd["name"];
-        simdjson::dom::array ThreadCmds = Cmd["commands"];
+      auto ChildCtx = onInit(RootCtx, SharedModules);
 
-        // Build shared module mapping: (parentStoreName, threadAliasName).
-        // Pre-scan the thread's commands for register entries to determine
-        // the alias names. The shared field tells us which modules to share,
-        // and the register commands inside the thread tell us what names
-        // to register them under.
-        std::map<std::string, std::string> SharedRegisterMap;
-        for (const simdjson::dom::object &SubCmd : ThreadCmds) {
-          std::string_view SubType;
-          if (!SubCmd["type"].get(SubType) && SubType == "register"sv) {
-            std::string_view RegName, RegAs;
-            if (!SubCmd["name"].get(RegName) && !SubCmd["as"].get(RegAs)) {
-              SharedRegisterMap.emplace(std::string(RegName),
-                                        std::string(RegAs));
-            }
-          }
-        }
-
-        std::vector<std::pair<std::string, std::string>> SharedModules;
-        simdjson::dom::array SharedArray;
-        if (!Cmd["shared"].get(SharedArray)) {
-          for (const simdjson::dom::object &SharedEntry : SharedArray) {
-            std::string_view ModRef = SharedEntry["module"];
-            std::string OrigName(ModRef);
-            // Resolve parent store name through alias.
-            std::string ParentName = OrigName;
-            if (auto It = Alias.find(OrigName); It != Alias.end()) {
-              ParentName = It->second;
-            }
-            // Find alias name from thread's register commands.
-            std::string AliasName = ParentName;
-            if (auto It = SharedRegisterMap.find(OrigName);
-                It != SharedRegisterMap.end()) {
-              AliasName = It->second;
-            }
-            SharedModules.emplace_back(std::move(ParentName),
-                                       std::move(AliasName));
-          }
-        }
-
-        // Create child context with shared module mapping.
-        auto ChildCtx = onInit(Ctx, SharedModules);
-
-        // Spawn thread with child context.
-        auto ThreadNameStr = std::string(ThreadName);
-        ThreadMap.emplace(
-            ThreadNameStr,
-            std::thread([this, ChildCtx, P = std::string(Proposal),
-                         U = std::string(UnitName), ThreadCmds]() {
-              simdjson::dom::array Cmds = ThreadCmds;
-              processCommands(ChildCtx, P, U, &Cmds);
-              onFini(ChildCtx);
-            }));
-        return;
-      }
-      case CommandID::Wait: {
-        std::string_view ThreadName = Cmd["thread"];
-        auto It = ThreadMap.find(std::string(ThreadName));
+      ThreadMap.emplace(
+          ThreadName, std::thread([this, ChildCtx, SubCmds = Cmd.SubCommands,
+                                   Conf, IsComponent, TestFile]() mutable {
+            executeCommands(SubCmds, Conf, IsComponent, ChildCtx, TestFile);
+            onFini(ChildCtx);
+          }));
+      break;
+    }
+    case Wast::CommandType::Wait: {
+      if (Cmd.ThreadName) {
+        auto It = ThreadMap.find(std::string(*Cmd.ThreadName));
         if (It != ThreadMap.end()) {
           if (It->second.joinable()) {
             It->second.join();
           }
           ThreadMap.erase(It);
         } else {
-          const uint64_t LineNumber = Cmd["line"];
-          EXPECT_NE(LineNumber, LineNumber)
-              << "Wait for unknown thread: " << ThreadName;
+          ADD_FAILURE_AT(TestFile.c_str(), Cmd.Line)
+              << "Wait for unknown thread: " << *Cmd.ThreadName;
         }
-        return;
       }
-      default:;
-      }
+      break;
     }
-    // Unknown command.
-    EXPECT_TRUE(false);
-  };
-
-  // Iterate commands.
-  for (const simdjson::dom::object &Cmd : CmdArray) {
-    RunCommand(Cmd);
+    }
   }
-
   // Safety: join any threads not explicitly waited on.
   for (auto &[Name, Thread] : ThreadMap) {
     if (Thread.joinable()) {
       Thread.join();
     }
   }
+}
+
+void SpecTest::run(std::string_view Proposal, std::string_view UnitName) {
+  const auto [ProposalPath, Conf, UName] =
+      resolve(std::string(Proposal) + " " + std::string(UnitName));
+  auto RootCtx = onInit(nullptr, {});
+  bool IsComp = ProposalPath.find("component-model") != std::string_view::npos;
+
+  if (Mode == ParserMode::Json) {
+    auto JsonPath =
+        TestsuiteRoot / ProposalPath / UName / (std::string(UName) + ".json");
+    auto ScriptResult = Wast::parseJson(JsonPath);
+    if (!ScriptResult) {
+      onFini(RootCtx);
+      GTEST_SKIP() << "Failed to parse JSON: " << JsonPath;
+    }
+    executeCommands(ScriptResult->Commands, Conf, IsComp, RootCtx,
+                    JsonPath.u8string());
+  } else {
+    spdlog::info("{} {}"sv, Proposal, UnitName);
+    auto WastPath =
+        TestsuiteRoot / ProposalPath / UName / (std::string(UName) + ".wast"s);
+    auto ScriptResult = Wast::parseWast(WastPath);
+    if (!ScriptResult) {
+      spdlog::error("Failed to parse WAST file: {}"sv, WastPath.u8string());
+      ADD_FAILURE_AT(WastPath.u8string().c_str(), 1)
+          << "Failed to parse WAST: " << WastPath.u8string();
+      onFini(RootCtx);
+      return;
+    }
+    executeCommands(ScriptResult->Commands, Conf, IsComp, RootCtx,
+                    WastPath.u8string());
+  }
+  onFini(RootCtx);
 }
 
 } // namespace WasmEdge

@@ -13,6 +13,18 @@ target_link_libraries(wasmedgeExecutorCoreTests
   wasmedgeVM
 )
 
+wasmedge_add_executable(wasmedgeWastExecutorCoreTests
+  WastExecutorTest.cpp
+)
+
+add_test(wasmedgeWastExecutorCoreTests wasmedgeWastExecutorCoreTests)
+
+target_link_libraries(wasmedgeWastExecutorCoreTests
+  PRIVATE
+  wasmedgeTestSpec
+  wasmedgeVM
+)
+
 wasmedge_add_executable(wasmedgeExecutorRegressionTests
   ExecutorRegressionTest.cpp
 )

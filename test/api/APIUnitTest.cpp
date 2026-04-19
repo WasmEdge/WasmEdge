@@ -1512,6 +1512,77 @@ TEST(APICoreTest, Compiler) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
+TEST(APICoreTest, CompilerWat) {
+  // The compiled output of WAT text must load with the configuration that
+  // compiled it, also when that configuration has fewer proposals.
+  struct Case {
+    std::string_view Name;
+    WasmEdge_Standard Std;
+    std::string_view Source;
+    int32_t Expected;
+  };
+  const Case Cases[] = {
+      {"elem"sv, WasmEdge_Standard_WASM_1,
+       "(module (table 1 funcref) (elem (i32.const 0) $f)\n"
+       "  (func $f (result i32) (i32.const 7))\n"
+       "  (func (export \"f\") (result i32)\n"
+       "    (call_indirect (result i32) (i32.const 0))))"sv,
+       7},
+      {"data"sv, WasmEdge_Standard_WASM_1,
+       "(module (memory 1) (data (i32.const 0) \"x\")\n"
+       "  (func (export \"f\") (result i32)\n"
+       "    (i32.load8_u (i32.const 0))))"sv,
+       120},
+      {"passive-elem"sv, WasmEdge_Standard_WASM_2,
+       "(module (table 1 funcref) (elem $e func $f)\n"
+       "  (func $f (result i32) (i32.const 9))\n"
+       "  (func (export \"f\") (result i32)\n"
+       "    (table.init $e (i32.const 0) (i32.const 0) (i32.const 1))\n"
+       "    (call_indirect (result i32) (i32.const 0))))"sv,
+       9},
+  };
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("f");
+  for (const auto &C : Cases) {
+    SCOPED_TRACE(C.Name);
+    WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+    WasmEdge_ConfigureSetWASMStandard(Conf, C.Std);
+    WasmEdge_ConfigureSetEnableWAT(Conf, true);
+    WasmEdge_ConfigureCompilerSetOutputFormat(
+        Conf, WasmEdge_CompilerOutputFormat_Wasm);
+    WasmEdge_CompilerContext *Compiler = WasmEdge_CompilerCreate(Conf);
+    const auto WatPath = fmt::format("compiler_wat_{}.wat"sv, C.Name);
+    const auto OutPath = fmt::format("compiler_wat_{}_aot.wasm"sv, C.Name);
+    const auto BufOutPath =
+        fmt::format("compiler_wat_{}_buf_aot.wasm"sv, C.Name);
+    {
+      std::ofstream WatFile(WatPath, std::ios::binary);
+      WatFile << C.Source;
+    }
+    EXPECT_TRUE(WasmEdge_ResultOK(
+        WasmEdge_CompilerCompile(Compiler, WatPath.c_str(), OutPath.c_str())));
+    EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBytes(
+        Compiler,
+        WasmEdge_BytesWrap(reinterpret_cast<const uint8_t *>(C.Source.data()),
+                           static_cast<uint32_t>(C.Source.size())),
+        BufOutPath.c_str())));
+    WasmEdge_CompilerDelete(Compiler);
+
+    WasmEdge_ConfigureSetEnableWAT(Conf, false);
+    WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_AOT);
+    for (const auto &Path : {OutPath, BufOutPath}) {
+      SCOPED_TRACE(Path);
+      WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+      WasmEdge_Value R[1] = {WasmEdge_ValueGenI32(0)};
+      EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromFile(
+          VM, Path.c_str(), FuncName, nullptr, 0, R, 1)));
+      EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), C.Expected);
+      WasmEdge_VMDelete(VM);
+    }
+    WasmEdge_ConfigureDelete(Conf);
+  }
+  WasmEdge_StringDelete(FuncName);
+}
+
 // Skip APICoreTest.RunModes on riscv64 builds. The test compiles a WASM to a
 // native shared library and then loads it back via dlopen. Under
 // qemu-riscv64-static (used by the riscv64 quick test suite in CI) the

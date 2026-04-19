@@ -112,6 +112,7 @@ private:
   void pushType(VType);
   void pushTypes(Span<const VType> Input);
   void pushTypes(Span<const ValType> Input);
+  Expect<void> checkCtrlStackNotEmpty() const;
   Expect<VType> popType();
   Expect<VType> popType(ValType E);
   Expect<void> popTypes(Span<const ValType> Input);

@@ -520,6 +520,13 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
     spdlog::error("output failed: empty output path"sv);
     return Unexpect(ErrCode::Value::IllegalPath);
   }
+  // The output embeds WasmData, so it must be the binary format. For WAT
+  // text, the caller passes the result of Loader::serializeIfWat.
+  if (WasmData.size() < 4 || WasmData[0] != 0x00 || WasmData[1] != 0x61 ||
+      WasmData[2] != 0x73 || WasmData[3] != 0x6D) {
+    spdlog::error("output failed: the input is not a WASM binary"sv);
+    return Unexpect(ErrCode::Value::MalformedMagic);
+  }
 
   auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;

@@ -364,10 +364,24 @@ Expect<void> Loader::loadType(AST::Component::ResourceType &Ty) {
   //                => (resource (rep i32) (dtor f)?)
   //                | 0x3e 0x7f f:<funcidx> cb?:<funcidx>?
   //                => (resource (rep i32) (dtor async f (callback cb)?))
+  //                | 0x3f 0x7e f?:<funcidx>?
+  //                => (resource (rep i64) (dtor f)?)                    🐘
+  //                | 0x3e 0x7e f:<funcidx> cb?:<funcidx>?
+  //                => (resource (rep i64) (dtor async f (callback cb)?)) 🐘
 
   // The prefix `0x3F` or `0x3E` has been loaded in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte().map_error(ReportError));
-  if (B != 0x7f) {
+  if (B == 0x7f) {
+    // i32 rep — always supported.
+  } else if (B == 0x7e) {
+    // i64 rep — memory64 proposal required.
+    if (!Conf.hasProposal(Proposal::Memory64)) {
+      return logNeedProposal(ErrCode::Value::MalformedDefType,
+                             Proposal::Memory64, FMgr.getLastOffset(),
+                             ASTNodeAttr::Comp_ResourceType);
+    }
+    Ty.setAddrI64(true);
+  } else {
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
                         ASTNodeAttr::Comp_ResourceType);
   }

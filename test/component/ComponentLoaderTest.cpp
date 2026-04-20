@@ -433,4 +433,84 @@ TEST(ComponentLoaderTest, MalformedResultList) {
   EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedDefType);
 }
 
+TEST(ComponentLoaderTest, I64ResourceRepNeedsMemory64) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  // Default Configure enables Memory64; explicitly disable it for this test.
+  Conf.removeProposal(WasmEdge::Proposal::Memory64);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Resource type 0x3f 0x7e (sync dtor, i64 rep) with no destructor.
+  //   preamble + 0x07 0x04 (type sec, size 4) + 0x01 (1 type) +
+  //   0x3f 0x7e 0x00 (resource sync, i64 rep, no dtor)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01,
+      0x00, 0x07, 0x04, 0x01, 0x3f, 0x7e, 0x00,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), WasmEdge::ErrCode::Value::MalformedDefType);
+}
+
+TEST(ComponentLoaderTest, I64ResourceRepWithMemory64) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  // Memory64 proposal is enabled by default.
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Same payload as the previous test.
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01,
+      0x00, 0x07, 0x04, 0x01, 0x3f, 0x7e, 0x00,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  ASSERT_EQ((*Comp)->getSections().size(), 1U);
+  const auto &Sec = std::get<WasmEdge::AST::Component::TypeSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  ASSERT_TRUE(Sec.getContent()[0].isResourceType());
+  EXPECT_TRUE(Sec.getContent()[0].getResourceType().isAddrI64());
+}
+
+TEST(ComponentLoaderTest, AsyncI64ResourceRepWithMemory64) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  // Memory64 proposal is enabled by default.
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // Resource type 0x3e 0x7e (async dtor, i64 rep) with dtor funcidx 0 and no
+  // callback:
+  //   preamble + 0x07 0x05 (type sec, size 5) + 0x01 (1 type) +
+  //   0x3e 0x7e 0x00 (resource async, i64 rep, dtor funcidx 0) +
+  //   0x00          (no callback via loadOption absent marker)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x3e, 0x7e, 0x00, 0x00,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  ASSERT_EQ((*Comp)->getSections().size(), 1U);
+  const auto &Sec = std::get<WasmEdge::AST::Component::TypeSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  ASSERT_TRUE(Sec.getContent()[0].isResourceType());
+  const auto &RT = Sec.getContent()[0].getResourceType();
+  EXPECT_TRUE(RT.isAddrI64());
+  // For async dtor, the destructor funcidx is mandatory.
+  ASSERT_TRUE(RT.getDestructor().has_value());
+  EXPECT_EQ(*RT.getDestructor(), 0U);
+  // Callback is absent in this payload.
+  EXPECT_FALSE(RT.getCallback().has_value());
+}
+
 } // namespace

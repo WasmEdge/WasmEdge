@@ -1100,6 +1100,11 @@ E(EnumTagNameConflicts, 0x02AF,
 // DefValType: type must have at least one case/field/element
 E(VariantMustHaveCase, 0x02B0,
   "variant type must have at least one case")
+// Export ascription is not a supertype of the inferred externdesc
+E(ExportAscriptionIncompatible, 0x02B1,
+  "ascribed type of export is not compatible")
+// Instance argument is missing an export the import type requires
+E(InstanceMissingExpectedExport, 0x02B2, "missing expected export")
 // @}
 
 // Instantiation phase

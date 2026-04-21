@@ -319,9 +319,9 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"empty",                   {true, true,  true,  false}},
     {"example",                 {true, true,  true,  false}},
     {"export",                  {true, false, false, false}},
-    {"export-ascription",       {true, false, false, false}},
+    {"export-ascription",       {true, true,  false, false}},
     {"export-introduces-alias", {true, true,  true,  false}},
-    {"func",                    {false, false, false, false}},
+    {"func",                    {true, false, false, false}},
     {"import",                  {true, false, false, false}},
     {"imports-exports",         {true, false, false, false}},
     {"inline-exports",          {true, true,  true,  false}},
@@ -342,7 +342,6 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"types",                   {true, false, false, false}},
     {"very-nested",             {true, false, false, false}},
     {"virtualize",              {true, false, false, false}},
-    {"wrong-order",             {false, false, false, false}},
 };
 // clang-format on
 

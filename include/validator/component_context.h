@@ -43,8 +43,15 @@ public:
 
     // --- Component sort index spaces ---
     std::vector<const AST::Component::Component *> Components; // component
-    std::vector<std::unordered_map<std::string,
-                                   const AST::Component::ExternDesc *>>
+    // Instance exports: name → {sort, optional resolved InstanceType,
+    // optional nested instance idx} so alias-export and ascription subtype
+    // checks can follow chains without re-deriving from ExternDesc.
+    struct InstanceExport {
+      AST::Component::Sort::SortType ST;
+      const AST::Component::InstanceType *IT;
+      std::optional<uint32_t> NestedInstIdx;
+    };
+    std::vector<std::unordered_map<std::string, InstanceExport>>
         Instances;                                      // instance
     std::vector<const AST::Component::DefType *> Types; // type
     uint32_t FuncCount = 0;                             // func
@@ -230,14 +237,20 @@ public:
     return Idx;
   }
 
-  const std::unordered_map<std::string, const AST::Component::ExternDesc *> &
+  using InstanceExport = Context::InstanceExport;
+
+  const std::unordered_map<std::string, InstanceExport> &
   getInstance(uint32_t Idx) const noexcept {
     return getCurrentContext().Instances.at(Idx);
   }
 
-  void addInstanceExport(uint32_t InstIdx, std::string_view Name,
-                         const AST::Component::ExternDesc &ED) {
-    getCurrentContext().Instances.at(InstIdx)[std::string(Name)] = &ED;
+  void addInstanceExport(
+      uint32_t InstIdx, std::string_view Name,
+      AST::Component::Sort::SortType ST,
+      const AST::Component::InstanceType *IT = nullptr,
+      std::optional<uint32_t> NestedInstIdx = std::nullopt) noexcept {
+    getCurrentContext().Instances.at(InstIdx)[std::string(Name)] = {
+        ST, IT, NestedInstIdx};
   }
 
   // ==========================================================================

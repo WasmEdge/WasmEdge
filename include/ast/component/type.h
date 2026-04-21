@@ -340,6 +340,7 @@ private:
 ///              | 0x01 lt*:vec(<labelvaltype>) => (result lt)*
 
 // functype   ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
+//              | 0x43 ps:<paramlist> rs:<resultlist> => (func async ps rs)
 // paramlist  ::= lt*:vec(<labelvaltype>)             => (param lt)*
 // resultlist ::= 0x00 t:<valtype> => (result t)
 //              | 0x01 0x00        => ϵ
@@ -378,8 +379,12 @@ public:
     return static_cast<uint32_t>(ResultList.size());
   }
 
+  bool isAsync() const noexcept { return IsAsync; }
+  void setAsync(bool A) noexcept { IsAsync = A; }
+
 private:
   std::vector<LabelValType> ParamList, ResultList;
+  bool IsAsync = false;
 };
 
 // =============================================================================
@@ -422,6 +427,10 @@ private:
 //                => (resource (rep i32) (dtor f)?)
 //                | 0x3e 0x7f f:<funcidx> cb?:<funcidx>?
 //                => (resource (rep i32) (dtor async f (callback cb)?))
+//                | 0x3f 0x7e f?:<funcidx>?
+//                => (resource (rep i64) (dtor f)?)                      🐘
+//                | 0x3e 0x7e f:<funcidx> cb?:<funcidx>?
+//                => (resource (rep i64) (dtor async f (callback cb)?))  🐘
 
 /// AST Component::ResourceType node.
 class ResourceType {
@@ -436,9 +445,15 @@ public:
   std::optional<uint32_t> &getDestructor() noexcept { return Dtor; }
   std::optional<uint32_t> &getCallback() noexcept { return DtorCallback; }
 
+  bool isAddrI64() const noexcept { return AddrI64; }
+  void setAddrI64(bool V) noexcept { AddrI64 = V; }
+
 private:
   // Destructor is sync or not. True for sync, false for async.
   bool DtorSync;
+  // Resource address width. False = i32 (0x7f), true = i64 (0x7e, memory64
+  // proposal).
+  bool AddrI64 = false;
   // Destructor function index.
   std::optional<uint32_t> Dtor;
   // Destructor callback function index.

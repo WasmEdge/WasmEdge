@@ -21,3 +21,18 @@ target_link_libraries(wasmedgeDriverToolTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedge_shared
 )
+
+wasmedge_add_executable(wasmedgeDriverParseToolTests
+  parseToolTest.cpp
+)
+
+add_test(NAME wasmedgeDriverParseToolTests
+  COMMAND wasmedgeDriverParseToolTests
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+)
+
+target_link_libraries(wasmedgeDriverParseToolTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedge_shared
+)

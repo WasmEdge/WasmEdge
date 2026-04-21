@@ -1032,17 +1032,17 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
       spdlog::error("    Export: sort index {} out of bounds"sv, Idx);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
   } else {
     if (Idx >= CompCtx.getSortIndexSize(Sort.getSortType())) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(ErrCode::Value::DefTypeIndexOutOfBounds);
       spdlog::error("    Export: sort index {} out of bounds"sv, Idx);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
   }
 
@@ -1058,6 +1058,15 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   }
 
   // exportname ::= <plainname> | <interfacename>
+  // The `relative-url=` prefix is not part of the extern-name grammar — reject
+  // before the plainname parser turns it into a generic "invalid label".
+  if (Ex.getName().rfind("relative-url="sv, 0) == 0) {
+    spdlog::error(ErrCode::Value::InvalidExternName);
+    spdlog::error("    Export: name '{}' is not a valid extern name"sv,
+                  Ex.getName());
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+    return Unexpect(ErrCode::Value::InvalidExternName);
+  }
   EXPECTED_TRY(ComponentName CName,
                ComponentName::parse(Ex.getName()).map_error([](auto E) {
                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
@@ -1071,10 +1080,10 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   case ComponentNameKind::InterfaceType:
     break;
   default:
-    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(ErrCode::Value::InvalidExportName);
     spdlog::error("    Export: name kind not valid for exports"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::ComponentInvalidName);
+    return Unexpect(ErrCode::Value::InvalidExportName);
   }
 
   // Binary.md:405-408 — all exports (of all sorts) introduce a new index.
@@ -1340,6 +1349,15 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
   }
 
   // exportname ::= <plainname> | <interfacename>
+  // The `relative-url=` prefix is not part of the extern-name grammar — reject
+  // before the plainname parser turns it into a generic "invalid label".
+  if (Decl.getName().rfind("relative-url="sv, 0) == 0) {
+    spdlog::error(ErrCode::Value::InvalidExternName);
+    spdlog::error("    ExportDecl: name '{}' is not a valid extern name"sv,
+                  Decl.getName());
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+    return Unexpect(ErrCode::Value::InvalidExternName);
+  }
   EXPECTED_TRY(ComponentName CName,
                ComponentName::parse(Decl.getName()).map_error([](auto E) {
                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
@@ -1353,10 +1371,10 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
   case ComponentNameKind::InterfaceType:
     break;
   default:
-    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(ErrCode::Value::InvalidExportName);
     spdlog::error("    ExportDecl: name kind not valid for exports"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::ComponentInvalidName);
+    return Unexpect(ErrCode::Value::InvalidExportName);
   }
 
   return {};

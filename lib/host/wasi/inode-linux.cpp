@@ -1532,8 +1532,10 @@ WasiExpect<void> Poller::Timer::create() noexcept {
     Event.sigev_value.sival_int = Notify.Fd;
     Event.sigev_notify_attributes = nullptr;
 
-    if (unlikely(::fcntl(Fd, F_SETFD, O_NONBLOCK | FD_CLOEXEC) != 0 ||
-                 ::fcntl(Notify.Fd, F_SETFD, O_NONBLOCK | FD_CLOEXEC) != 0 ||
+    if (unlikely(::fcntl(Fd, F_SETFD, FD_CLOEXEC) != 0 ||
+                 ::fcntl(Fd, F_SETFL, O_NONBLOCK) != 0 ||
+                 ::fcntl(Notify.Fd, F_SETFD, FD_CLOEXEC) != 0 ||
+                 ::fcntl(Notify.Fd, F_SETFL, O_NONBLOCK) != 0 ||
                  ::timer_create(toClockId(Clock), &Event, &TId) < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }

@@ -89,7 +89,7 @@ TEST(ComponentValidatorTest, TypeMismatch) {
 }
 
 // =============================================================================
-// DefValType validation tests (GAP-T-1, GAP-T-2)
+// DefValType validation tests
 // =============================================================================
 
 TEST(ComponentValidatorTest, OwnMustReferenceResourceType) {

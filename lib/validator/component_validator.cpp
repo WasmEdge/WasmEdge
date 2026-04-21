@@ -48,8 +48,11 @@ descTypeToSortType(AST::Component::ExternDesc::DescType DT) noexcept {
   }
 }
 
-// Shallow sort-kind match between a Sort and an ExternDesc (GAP-I-2: no
-// recursive structural subtype; just kind compatibility).
+// Shallow sort-kind match between a Sort and an ExternDesc. The spec's
+// instantiation / export-ascription rules require the supplied sortidx to be
+// a subtype of the externdesc. Here we only enforce that the kind agrees;
+// deep structural subtyping (record fields, func signatures, etc.) is not
+// yet implemented and is the main remaining correctness gap at these sites.
 bool sortMatchesDescType(const AST::Component::Sort &S,
                          AST::Component::ExternDesc::DescType DT) noexcept {
   auto Mapped = descTypeToSortType(DT);
@@ -76,13 +79,13 @@ void populateInstanceFromType(ComponentContext &Ctx, uint32_t InstIdx,
     const auto &ED = Exp.getExternDesc();
     auto ST = descTypeToSortType(ED.getDescType());
     if (!ST.has_value()) {
-      // GAP-I-3: InstanceExport::ST cannot represent a `(core module)` export
-      // (its SortType field is component-side only). Skip rather than crash;
-      // the entry stays unrecorded until InstanceExport gains a core-sort
-      // variant.
+      // The InstanceExport::ST field is component-side only and has no
+      // variant for `(core module)`. Skip the export rather than crash;
+      // follow-up: extend InstanceExport to carry a core-sort alternative
+      // so nested alias lookups through a core-module export can resolve.
       spdlog::debug(
           "    populateInstanceFromType: skipping `(core module)` export "
-          "'{}' (GAP-I-3)"sv,
+          "'{}'"sv,
           Exp.getName());
       continue;
     }
@@ -119,7 +122,9 @@ void populateInstanceFromType(ComponentContext &Ctx, uint32_t InstIdx,
 // Returns the first export in `RequiredIT` missing from the instance at
 // `ProvidedInstIdx`, or whose stored SortType doesn't match the required
 // sort kind. nullopt ⇒ Provided is a sort-kind subtype of RequiredIT.
-// GAP-I-2: deep externdesc subtype not yet compared.
+// Only the sort kind is compared; deep structural subtype between the
+// required externdesc and the provided export's inferred type is not yet
+// implemented.
 std::optional<std::string>
 findMissingRequiredExport(const ComponentContext &Ctx, uint32_t ProvidedInstIdx,
                           const AST::Component::InstanceType &RequiredIT) {
@@ -135,11 +140,12 @@ findMissingRequiredExport(const ComponentContext &Ctx, uint32_t ProvidedInstIdx,
     }
     auto RequiredST = descTypeToSortType(Exp.getExternDesc().getDescType());
     if (!RequiredST.has_value()) {
-      // GAP-I-3: `(core module)` required-export cannot be compared against
-      // InstanceExport::ST; skip the check symmetrically with
-      // populateInstanceFromType.
+      // `(core module)` required-exports can't be compared against
+      // InstanceExport::ST (component-side only). Skip symmetrically with
+      // populateInstanceFromType; will be revisited when InstanceExport
+      // gains a core-sort variant.
       spdlog::debug("    findMissingRequiredExport: skipping `(core module)` "
-                    "required-export '{}' (GAP-I-3)"sv,
+                    "required-export '{}'"sv,
                     Exp.getName());
       continue;
     }
@@ -153,8 +159,9 @@ findMissingRequiredExport(const ComponentContext &Ctx, uint32_t ProvidedInstIdx,
 // Resolve a type index in `Comp`'s own type index space to an InstanceType.
 // Returns nullptr when the index does not refer to an inline InstanceType
 // definition — callers treat nullptr as "no required shape" and fall back
-// to inferred exports. GAP-B6: TypeBound imports and outer-alias type
-// imports currently fall through to nullptr.
+// to inferred exports. TypeBound imports and outer-alias type imports
+// currently fall through to nullptr; a more complete resolver would walk
+// the alias chain to recover the underlying InstanceType.
 const AST::Component::InstanceType *
 resolveChildInstanceType(const AST::Component::Component &Comp,
                          uint32_t TypeIdx) {
@@ -236,6 +243,11 @@ Validator::validate(const AST::Component::Component &Comp) noexcept {
 
 Expect<void>
 Validator::validateComponent(const AST::Component::Component &Comp) noexcept {
+  // Validation enters a fresh component scope and walks sections in their
+  // binary order. The per-sort index spaces are built incrementally as
+  // definitions are validated, so sortidx references in later sections
+  // only resolve against entries already introduced. Custom sections are
+  // ignored. Nested components recurse through this same function.
   auto ReportError = [](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return E;
@@ -345,7 +357,9 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
                                         IE.NestedInstIdx);
             }
           }
-          // GAP-ED-1: IT==nullptr && no NestedInstIdx; no source to copy.
+          // Source instance has neither a resolved InstanceType nor a
+          // NestedInstIdx (e.g. ascription by a cross-scope type index we
+          // cannot resolve yet). Leave the new slot's export table empty.
         }
       }
     }
@@ -366,7 +380,6 @@ Validator::validate(const AST::Component::TypeSection &TypeSec) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::CanonSection &CanonSec) noexcept {
-  // TODO: Validation prevents duplicate or conflicting canonopt.
   for (const auto &C : CanonSec.getContent()) {
     EXPECTED_TRY(validate(C).map_error([](auto E) {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Canon));
@@ -378,20 +391,25 @@ Validator::validate(const AST::Component::CanonSection &CanonSec) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::StartSection &) noexcept {
-  // TODO: Validation requires f have functype with param arity and types
-  // matching arg* and result arity r.
-
-  // TODO: Validation appends the result types of f to the value index space
-  // (making them available for reference by subsequent definitions).
-
-  // TODO: In addition to the type-compatibility checks mentioned above, the
-  // validation rules for value definitions additionally require that each
-  // value is consumed exactly once. Thus, during validation, each value has
-  // an associated "consumed" boolean flag. When a value is first added to
-  // the value index space (via import, instance, alias or start), the flag
-  // is clear. When a value is used (via export, instantiate or start), the
-  // flag is set. After validating the last definition of a component,
-  // validation requires all values' flags are set.
+  // The start section is stubbed. A conformant implementation performs:
+  //
+  //   1. `f` is in bounds of the component func index space.
+  //   2. `f`'s functype matches the start's arguments: param arity equals
+  //      |arg*|, each arg's value-type is a subtype of the corresponding
+  //      param, and the function's result arity equals `r`.
+  //   3. Each argument consumes a value from the value index space — its
+  //      "consumed" flag must be currently clear and is set after
+  //      consumption. Values are linear: each must be consumed exactly
+  //      once over the lifetime of a component.
+  //   4. The function's result types are appended to the value index
+  //      space as fresh values with consumed=false, so later definitions
+  //      can reference them.
+  //   5. After the component's final definition, every value's consumed
+  //      flag must be set.
+  //
+  // Value-linearity tracking (the "consumed" flag) is not yet wired into
+  // the validator at all, so start validation is deferred until that
+  // machinery is added.
   return {};
 }
 
@@ -437,7 +455,10 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
     }
     // Get the import descriptors of the module to instantiate.
     const auto *Mod = CompCtx.getCoreModule(ModIdx);
-    // TODO(GAP-CI-1): use module type info for imported/aliased modules.
+    // TODO: use core:moduletype info (not the raw AST) so arg checking also
+    // applies to imported/aliased modules, not just modules defined inline.
+    // This also unlocks structural subtype checks of each supplied argument
+    // against the corresponding core import's type.
     if (Mod != nullptr) {
       const auto &ImportDescs = Mod->getImportSection().getContent();
       auto Args = Inst.getInstantiateArgs();
@@ -533,8 +554,9 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     }
     // Get the imports of the component to instantiate.
     const auto *Comp = CompCtx.getComponent(CompIdx);
-    // TODO(GAP-I-1): use component type info instead of raw AST for
-    // imported/aliased components. For now, only check inline components.
+    // TODO: use componenttype info (not the raw AST) so arg checking also
+    // applies to imported/aliased components. For now, arg checking only
+    // runs when the component being instantiated is defined inline.
     if (Comp != nullptr) {
       // Prepare the import descriptor map.
       std::unordered_map<std::string, const AST::Component::ExternDesc *>
@@ -567,8 +589,9 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         const auto &ImportDesc = *It->second;
         const auto &Sort = ArgIt->getIndex().getSort();
         const uint32_t Idx = ArgIt->getIndex().getIdx();
-        // Binary.md:233 — externdesc only admits `core module` on the core
-        // side, so any other core sort can't satisfy any import.
+        // The externdesc grammar only admits `core module` on the core side
+        // (other core sorts don't appear as importable externdescs), so any
+        // other core sort can't satisfy a component import.
         if (Sort.isCore() && Sort.getCoreSortType() !=
                                  AST::Component::Sort::CoreSortType::Module) {
           spdlog::error(ErrCode::Value::ArgTypeMismatch);
@@ -605,8 +628,11 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
             spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
             return Unexpect(ErrCode::Value::InvalidIndex);
           }
-          // GAP-I-2: sort-kind-only subtype; check required-export presence
-          // when the import asks for an InstanceType.
+          // Partial step toward structural subtype: when the import asks
+          // for an InstanceType, check that every export required by the
+          // import's declared InstanceType is present on the provided
+          // instance. Field-level subtype of each matching export is still
+          // pending.
           if (ImportDesc.getDescType() ==
                   AST::Component::ExternDesc::DescType::InstanceType &&
               Sort.getSortType() == AST::Component::Sort::SortType::Instance) {
@@ -700,8 +726,11 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
       if (Sort.getSortType() == AST::Component::Sort::SortType::Instance) {
         NestedIdx = Idx;
       }
-      // GAP-I-2: IT not forwarded; NestedInstIdx suffices for alias chains.
-      // TODO: reject duplicate inline-export names (strongly-unique).
+      // No resolved InstanceType is forwarded here; NestedInstIdx is
+      // enough for subsequent alias-export lookups to chase into the
+      // source instance.
+      // TODO: reject duplicate inline-export names — the spec requires
+      // inline-export names on an instance to be strongly-unique.
       CompCtx.addInstanceExport(InstanceIdx, Export.getName(),
                                 Sort.getSortType(), nullptr, NestedIdx);
     }
@@ -967,7 +996,25 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::Canonical &Canon) noexcept {
-  // TODO: validation specifies
+  // Canonical definitions are only validated structurally here — we just
+  // update the appropriate index space. A conformant implementation also
+  // needs to check, per opcode:
+  //
+  //   * canon lift:   `type` indexes a func type; `f` indexes a core func
+  //                   whose signature is the Canonical-ABI flattening of
+  //                   that func type under the supplied options;
+  //                   options are well-formed (at most one string-encoding,
+  //                   memory/realloc required when the ABI needs them,
+  //                   post-return forbidden under async, callback only
+  //                   under async, etc.).
+  //   * canon lower:  `f` indexes a component func; produces a core func
+  //                   whose signature is the Canonical-ABI flattening of
+  //                   `f`'s type under the supplied options.
+  //   * resource.new/drop/rep: `T` indexes a resource type defined in the
+  //                   current component; synthesizes a core func with the
+  //                   appropriate `T.rep` signature.
+  //
+  // None of that is wired up yet; only the index-space bookkeeping is.
   switch (Canon.getOpCode()) {
   case AST::Component::Canonical::OpCode::Lift:
     CompCtx.addFunc();
@@ -986,6 +1033,17 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
 }
 
 Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
+  // Validation steps:
+  //   1. Validate the externdesc and introduce the imported entity into
+  //      its sort's index space.
+  //   2. Parse the import name per the structured import-name grammar.
+  //   3. Enforce the annotated-name constraints ([constructor]/[method]/
+  //      [static] only on func imports).
+  //   4. Reject duplicate import names (strongly-unique across imports).
+  //
+  // The per-annotated-name structural checks (constructor result type,
+  // method `self` param, static resource name in scope) are not yet
+  // implemented and tracked as follow-ups below.
   EXPECTED_TRY(validate(Im.getDesc()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
     return E;
@@ -1035,7 +1093,18 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
 }
 
 Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
-  // Check export name uniqueness.
+  // Validation steps:
+  //   1. Export name is strongly-unique across exports.
+  //   2. `sortidx` is in-bounds and (for core sorts) must be `core module`.
+  //   3. If an `externdesc` ascription is present, it must be a supertype
+  //      of the inferred externdesc of the `sortidx` (kind-only check for
+  //      now; structural subtype is a follow-up).
+  //   4. The export name parses under the export-name grammar.
+  //   5. The export introduces a new index aliasing the definition in the
+  //      component's own index space for its sort.
+  //
+  // Not yet enforced: transitive resource-avoidance in exported types;
+  // flipping the "consumed" flag for value exports.
   if (!CompCtx.addExportedName(Ex.getName())) {
     spdlog::error(ErrCode::Value::ComponentDuplicateName);
     spdlog::error("    Export: Duplicate export name '{}'"sv, Ex.getName());
@@ -1047,7 +1116,8 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   const auto &Sort = Ex.getSortIndex().getSort();
   uint32_t Idx = Ex.getSortIndex().getIdx();
   if (Sort.isCore()) {
-    // Binary.md:405-406 — only `core module` is a legal core export.
+    // The externdesc grammar permits only `core module` as a component-level
+    // core export — no other core sort is exportable from a component.
     if (Sort.getCoreSortType() != AST::Component::Sort::CoreSortType::Module) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
@@ -1070,8 +1140,11 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     }
   }
 
-  // Binary.md:405-408 — ascribed externdesc kind must match the sortidx
-  // sort. GAP-I-2: deep structural externdesc subtype still pending.
+  // If an externdesc ascription is present, the spec requires it to be a
+  // supertype of the inferred externdesc of the sortidx. For now we only
+  // enforce that the ascription's kind matches the sortidx's sort; full
+  // structural subtype between ascription and inferred type is not yet
+  // implemented.
   if (Ex.getDesc().has_value() &&
       !sortMatchesDescType(Sort, Ex.getDesc()->getDescType())) {
     spdlog::error(ErrCode::Value::ExportAscriptionIncompatible);
@@ -1087,7 +1160,10 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     return E;
   }));
 
-  // Binary.md:405-408 — all exports (of all sorts) introduce a new index.
+  // Every export introduces a new index that aliases the exported
+  // definition in the component's own index space for that sort. For
+  // instance-sort exports we also copy/build the export table so that a
+  // later alias-export against this slot can resolve its sub-exports.
   if (Sort.isCore()) {
     CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
   } else {
@@ -1117,8 +1193,11 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
       if (IT != nullptr) {
         populateInstanceFromType(CompCtx, NewIdx, *IT);
       } else {
-        // GAP-ED-1: unresolvable ascription or no ascription; copy inferred
-        // exports so alias-export on this slot still resolves.
+        // Either no ascription, or the ascription's type index didn't
+        // resolve to an inline InstanceType here (cross-scope type-index
+        // resolution is not yet implemented). Copy the source instance's
+        // inferred exports so a later alias-export on this slot can still
+        // find them.
         const auto &SrcExports = CompCtx.getInstance(Idx);
         for (const auto &[Name, IE] : SrcExports) {
           CompCtx.addInstanceExport(NewIdx, Name, IE.ST, IE.IT,
@@ -1132,10 +1211,23 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
+  // Validating an externdesc introduces a new entry into the index space
+  // matching the descriptor's sort:
+  //   * core module (CoreType) → core:module
+  //   * func                   → func
+  //   * value                  → value (consumed=false; not yet tracked)
+  //   * type (eq i)            → type aliased to i (resource property
+  //                              propagated when i refers to a resource)
+  //   * type (sub resource)    → fresh abstract resource type
+  //   * component / instance   → component / instance
+  //
+  // TODO: validate referenced typeidx kinds against the declared sort
+  // (functype / componenttype / instancetype / core:moduletype) and,
+  // transitively, the contents of any component/instance type bodies.
   switch (Desc.getDescType()) {
   case AST::Component::ExternDesc::DescType::CoreType:
-    // Binary.md:233 — externdesc CoreType is `(core module (type i))`,
-    // which belongs to core:module, not core:type.
+    // The CoreType externdesc is `(core module (type i))`, so it introduces
+    // a new core module index, not a core type.
     CompCtx.addCoreModule();
     break;
   case AST::Component::ExternDesc::DescType::FuncType:
@@ -1176,16 +1268,17 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     if (IT != nullptr) {
       populateInstanceFromType(CompCtx, InstIdx, *IT);
     }
-    // GAP-ED-1: when IT is nullptr the type index may reference a type in
-    // an outer scope (e.g. inside componenttype/instancetype definitions);
-    // outer-scope type-index resolution is not yet implemented.
+    // If the type index didn't resolve to an inline InstanceType here, it
+    // may reference a type in an outer scope (e.g. inside
+    // componenttype/instancetype bodies). Outer-scope type-index
+    // resolution is not yet implemented, so the instance is left with an
+    // empty export table.
     break;
   }
   default:
     assumingUnreachable();
   }
 
-  // TODO: Validate the type index
   return {};
 }
 
@@ -1311,8 +1404,8 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
   const auto &Desc = Decl.getExternDesc();
   switch (Desc.getDescType()) {
   case AST::Component::ExternDesc::DescType::CoreType:
-    // Binary.md:233 — externdesc CoreType is `(core module (type i))`,
-    // which belongs to core:module, not core:type.
+    // The CoreType externdesc is `(core module (type i))`, so it introduces
+    // a new core module index, not a core type.
     CompCtx.addCoreModule();
     break;
   case AST::Component::ExternDesc::DescType::FuncType:
@@ -1701,7 +1794,10 @@ Validator::validate(const AST::Component::ResourceType &RT) noexcept {
           DtorIdx);
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
-    // TODO(GAP-C-1): validate destructor has core type [i32] -> []
+    // TODO: validate that the destructor's core func type is `[i32] -> []`
+    // (or `[i64] -> []` when the resource rep is i64). This requires
+    // tracking the signature of each core func, which the validator does
+    // not yet do.
   }
   return {};
 }

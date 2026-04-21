@@ -1065,4 +1065,446 @@ TEST(ComponentValidatorTest, InstanceInlineExportDuplicateName) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
+// =============================================================================
+// Canonical built-in validation tests (GAP-C-1 .. GAP-C-5)
+// =============================================================================
+
+// Helper: build a Component with a single ResourceType in type index 0.
+inline AST::Component::Component makeCompWithLocalResource() {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType{});
+  return Comp;
+}
+
+// Helper: append a CanonSection with a single canonical to the component.
+inline AST::Component::CanonSection &
+appendCanonSection(AST::Component::Component &Comp) {
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CanonSection>();
+  return std::get<AST::Component::CanonSection>(Comp.getSections().back());
+}
+
+inline AST::Component::CanonOpt mkOpt(AST::Component::CanonOpt::OptCode Code,
+                                      uint32_t Idx = 0) {
+  AST::Component::CanonOpt O;
+  O.setCode(Code);
+  O.setIndex(Idx);
+  return O;
+}
+
+// Helper: build a Component with an imported component func (func index 0).
+inline AST::Component::Component makeCompWithImportedFunc() {
+  AST::Component::Component Comp;
+  // Need a FuncType at type index 0.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+  // Import a func of that type.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "f";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+  return Comp;
+}
+
+// Helper: build a Component with a resource (type 0), a FuncType (type 1),
+// and a core func allocated via resource.new 0 (core func index 0).
+inline AST::Component::Component makeCompWithCoreFuncAndFuncType() {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  // Type 0: ResourceType (local).
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType{});
+  // Type 1: FuncType.
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+  // Canon section: allocate core func 0 via resource.new 0.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CanonSection>();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical ResNew;
+  ResNew.setOpCode(AST::Component::Canonical::OpCode::Resource__new);
+  ResNew.setIndex(0); // resource at type 0
+  CanonSec.getContent().emplace_back(std::move(ResNew));
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, CanonResourceNew_OnLocalResource_Passes) {
+  auto Comp = makeCompWithLocalResource();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__new);
+  C.setIndex(0); // type index 0 = local resource
+  CanonSec.getContent().emplace_back(std::move(C));
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceNew_TypeIndexOutOfBounds_Fails) {
+  AST::Component::Component Comp;
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__new);
+  C.setIndex(0); // no type section → index 0 is out of bounds
+  CanonSec.getContent().emplace_back(std::move(C));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceNew_TypeIsNotResource_Fails) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  // Type 0: FuncType, not a resource.
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__new);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceNew_OnImportedResource_Fails) {
+  // resource.new requires a LOCAL resource; imported resources are rejected.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "r";
+  ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__new);
+  C.setIndex(0); // imported resource at type 0
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceRep_OnLocalResource_Passes) {
+  auto Comp = makeCompWithLocalResource();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__rep);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceRep_TypeIndexOutOfBounds_Fails) {
+  AST::Component::Component Comp;
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__rep);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceRep_TypeIsNotResource_Fails) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__rep);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceRep_OnImportedResource_Fails) {
+  // resource.rep requires a LOCAL resource; imported resources are rejected.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "r";
+  ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__rep);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceDrop_OnLocalResource_Passes) {
+  auto Comp = makeCompWithLocalResource();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__drop);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceDrop_OnImportedResource_Passes) {
+  // Import a resource via a type import bound to (sub resource).
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "r";
+  ImpSec.getContent().back().getDesc().setTypeBound(); // (sub resource)
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__drop);
+  C.setIndex(0); // the imported type now occupies type index 0
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceDrop_TypeIsNotResource_Fails) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__drop);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceDrop_TypeIndexOutOfBounds_Fails) {
+  AST::Component::Component Comp;
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__drop);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceDropAsync_OnLocalResource_Passes) {
+  auto Comp = makeCompWithLocalResource();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__drop_async);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceNew_RejectsOptions) {
+  auto Comp = makeCompWithLocalResource();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__new);
+  C.setIndex(0);
+  C.setOptions({mkOpt(AST::Component::CanonOpt::OptCode::Encode_UTF8)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonResourceDrop_RejectsOptions) {
+  auto Comp = makeCompWithLocalResource();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Resource__drop);
+  C.setIndex(0);
+  C.setOptions({mkOpt(AST::Component::CanonOpt::OptCode::Memory, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLower_ValidFuncIndex_Passes) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Lower);
+  C.setIndex(0); // component func 0 exists
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLower_FuncIndexOutOfBounds_Fails) {
+  AST::Component::Component Comp;
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Lower);
+  C.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLower_RejectsPostReturn) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Lower);
+  C.setIndex(0);
+  C.setOptions({mkOpt(AST::Component::CanonOpt::OptCode::PostReturn, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLower_RejectsCallback) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Lower);
+  C.setIndex(0);
+  // Async included to satisfy structural rule;
+  // site-whitelist should still reject callback on Lower.
+  C.setOptions({mkOpt(AST::Component::CanonOpt::OptCode::Async),
+                mkOpt(AST::Component::CanonOpt::OptCode::Callback, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLower_RejectsAlwaysTaskReturn) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Lower);
+  C.setIndex(0);
+  // Async included to satisfy structural rule;
+  // site-whitelist should still reject always-task-return on Lower.
+  C.setOptions({mkOpt(AST::Component::CanonOpt::OptCode::Async),
+                mkOpt(AST::Component::CanonOpt::OptCode::AlwaysTaskReturn)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLower_ReallocWithoutMemory_Fails) {
+  auto Comp = makeCompWithImportedFunc();
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Lower);
+  C.setIndex(0);
+  C.setOptions({mkOpt(AST::Component::CanonOpt::OptCode::Realloc, 0)});
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLift_CoreFuncIndexOutOfBounds_Fails) {
+  // No core funcs; index 0 is out of bounds.
+  AST::Component::Component Comp;
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical C;
+  C.setOpCode(AST::Component::Canonical::OpCode::Lift);
+  C.setIndex(0);
+  C.setTargetIndex(0);
+  CanonSec.getContent().emplace_back(std::move(C));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLift_TypeIndexOutOfBounds_Fails) {
+  // Fixture provides core func 0 and types 0 (resource), 1 (func). Target
+  // index 2 is out of bounds.
+  auto Comp = makeCompWithCoreFuncAndFuncType();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(AST::Component::Canonical::OpCode::Lift);
+  Lift.setIndex(0);       // core func 0 exists
+  Lift.setTargetIndex(2); // no type at index 2
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLift_TargetIsNotFuncType_Fails) {
+  // Target type 0 is a ResourceType, not a FuncType.
+  auto Comp = makeCompWithCoreFuncAndFuncType();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(AST::Component::Canonical::OpCode::Lift);
+  Lift.setIndex(0);
+  Lift.setTargetIndex(0); // type 0 is ResourceType
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLift_Valid_Passes) {
+  // Happy path: core func 0 + FuncType at type 1.
+  auto Comp = makeCompWithCoreFuncAndFuncType();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(AST::Component::Canonical::OpCode::Lift);
+  Lift.setIndex(0);
+  Lift.setTargetIndex(1); // type 1 is FuncType
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLift_WithPostReturn_Passes) {
+  // post-return is a Lift-only option; exercise the happy path.
+  auto Comp = makeCompWithCoreFuncAndFuncType();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(AST::Component::Canonical::OpCode::Lift);
+  Lift.setIndex(0);
+  Lift.setTargetIndex(1);
+  // post-return points to core func 0 (the resource.new result from the
+  // fixture).
+  Lift.setOptions({mkOpt(AST::Component::CanonOpt::OptCode::PostReturn, 0)});
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
 } // namespace

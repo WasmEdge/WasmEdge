@@ -105,6 +105,20 @@ private:
   Expect<void> validate(const AST::Component::DefType &DType) noexcept;
   // Validate component canonical
   Expect<void> validate(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonOptions(AST::Component::Canonical::OpCode Code,
+                       Span<const AST::Component::CanonOpt> Opts) noexcept;
+  // Per-opcode canonical built-in validators.
+  Expect<void>
+  validateCanonLift(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonLower(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonResourceNew(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonResourceRep(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonResourceDrop(const AST::Component::Canonical &Canon) noexcept;
   // Validate component import
   Expect<void> validate(const AST::Component::Import &Im) noexcept;
   // Validate component export

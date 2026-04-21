@@ -9,7 +9,7 @@ uint32_t
 ComponentContext::Context::getSortIndexSize(Sort::SortType ST) const noexcept {
   switch (ST) {
   case Sort::SortType::Func:
-    return FuncCount;
+    return static_cast<uint32_t>(Funcs.size());
   case Sort::SortType::Value:
     return ValueCount;
   case Sort::SortType::Type:
@@ -27,7 +27,7 @@ uint32_t ComponentContext::Context::getCoreSortIndexSize(
     Sort::CoreSortType ST) const noexcept {
   switch (ST) {
   case Sort::CoreSortType::Func:
-    return CoreFuncCount;
+    return static_cast<uint32_t>(CoreFuncs.size());
   case Sort::CoreSortType::Table:
     return static_cast<uint32_t>(CoreTables.size());
   case Sort::CoreSortType::Memory:

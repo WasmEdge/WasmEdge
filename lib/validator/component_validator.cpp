@@ -198,6 +198,30 @@ resolveChildInstanceType(const AST::Component::Component &Comp,
   }
   return nullptr;
 }
+
+// Validate that a name may appear at an export position: reject the
+// `relative-url=` prefix (not part of the extern-name grammar) and any
+// plainname/interfacename kind that isn't allowed on an export.
+Expect<void> validateExportName(std::string_view Name) noexcept {
+  if (Name.rfind("relative-url="sv, 0) == 0) {
+    spdlog::error(ErrCode::Value::InvalidExternName);
+    spdlog::error("    Export name '{}' is not a valid extern name"sv, Name);
+    return Unexpect(ErrCode::Value::InvalidExternName);
+  }
+  EXPECTED_TRY(ComponentName CName, ComponentName::parse(Name));
+  switch (CName.getKind()) {
+  case ComponentNameKind::Label:
+  case ComponentNameKind::Constructor:
+  case ComponentNameKind::Method:
+  case ComponentNameKind::Static:
+  case ComponentNameKind::InterfaceType:
+    return {};
+  default:
+    spdlog::error(ErrCode::Value::InvalidExportName);
+    spdlog::error("    Export name '{}' kind is not valid for exports"sv, Name);
+    return Unexpect(ErrCode::Value::InvalidExportName);
+  }
+}
 } // namespace
 
 Expect<void>
@@ -1058,33 +1082,10 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   }
 
   // exportname ::= <plainname> | <interfacename>
-  // The `relative-url=` prefix is not part of the extern-name grammar — reject
-  // before the plainname parser turns it into a generic "invalid label".
-  if (Ex.getName().rfind("relative-url="sv, 0) == 0) {
-    spdlog::error(ErrCode::Value::InvalidExternName);
-    spdlog::error("    Export: name '{}' is not a valid extern name"sv,
-                  Ex.getName());
+  EXPECTED_TRY(validateExportName(Ex.getName()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::InvalidExternName);
-  }
-  EXPECTED_TRY(ComponentName CName,
-               ComponentName::parse(Ex.getName()).map_error([](auto E) {
-                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-                 return E;
-               }));
-  switch (CName.getKind()) {
-  case ComponentNameKind::Label:
-  case ComponentNameKind::Constructor:
-  case ComponentNameKind::Method:
-  case ComponentNameKind::Static:
-  case ComponentNameKind::InterfaceType:
-    break;
-  default:
-    spdlog::error(ErrCode::Value::InvalidExportName);
-    spdlog::error("    Export: name kind not valid for exports"sv);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::InvalidExportName);
-  }
+    return E;
+  }));
 
   // Binary.md:405-408 — all exports (of all sorts) introduce a new index.
   if (Sort.isCore()) {
@@ -1227,7 +1228,7 @@ Validator::validate(const AST::Component::CoreExportDecl &Decl) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::CoreModuleDecl &Decl) noexcept {
   auto ReportError = [](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreDefType));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_CoreModule));
     return E;
   };
 
@@ -1247,18 +1248,17 @@ Validator::validate(const AST::Component::CoreModuleDecl &Decl) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
-  // Validate the extern descriptor (also increments sort index spaces).
-  EXPECTED_TRY(validate(Decl.getExternDesc()).map_error([](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Import));
     return E;
-  }));
+  };
+
+  // Validate the extern descriptor (also increments sort index spaces).
+  EXPECTED_TRY(validate(Decl.getExternDesc()).map_error(ReportError));
 
   // Parse and validate the import name.
   EXPECTED_TRY(ComponentName CName,
-               ComponentName::parse(Decl.getName()).map_error([](auto E) {
-                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-                 return E;
-               }));
+               ComponentName::parse(Decl.getName()).map_error(ReportError));
 
   // Annotated plainnames can only appear on func imports.
   switch (CName.getKind()) {
@@ -1269,7 +1269,7 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
         AST::Component::ExternDesc::DescType::FuncType) {
       spdlog::error(ErrCode::Value::ComponentInvalidName);
       spdlog::error("    ImportDecl: annotated name requires func type"sv);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Import));
       return Unexpect(ErrCode::Value::ComponentInvalidName);
     }
     break;
@@ -1281,7 +1281,7 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
   if (!CompCtx.addImportedName(CName)) {
     spdlog::error(ErrCode::Value::ComponentDuplicateName);
     spdlog::error("    ImportDecl: Duplicate import name"sv);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Import));
     return Unexpect(ErrCode::Value::ComponentDuplicateName);
   }
 
@@ -1290,6 +1290,20 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
+  // Check export name uniqueness before mutating the index spaces so a
+  // duplicate or malformed name doesn't widen the scope's sort counts.
+  if (!CompCtx.addExportedName(Decl.getName())) {
+    spdlog::error(ErrCode::Value::ComponentDuplicateName);
+    spdlog::error("    ExportDecl: Duplicate export name '{}'"sv,
+                  Decl.getName());
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
+    return Unexpect(ErrCode::Value::ComponentDuplicateName);
+  }
+  EXPECTED_TRY(validateExportName(Decl.getName()).map_error([](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
+    return E;
+  }));
+
   // Increment sort index spaces based on the extern descriptor type.
   // Full ExternDesc validation (type index bounds) is deferred because
   // ExportDecls inside nested InstanceTypes reference type indices from
@@ -1297,7 +1311,9 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
   const auto &Desc = Decl.getExternDesc();
   switch (Desc.getDescType()) {
   case AST::Component::ExternDesc::DescType::CoreType:
-    CompCtx.addCoreType();
+    // Binary.md:233 — externdesc CoreType is `(core module (type i))`,
+    // which belongs to core:module, not core:type.
+    CompCtx.addCoreModule();
     break;
   case AST::Component::ExternDesc::DescType::FuncType:
     CompCtx.addFunc();
@@ -1339,51 +1355,13 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
     assumingUnreachable();
   }
 
-  // Check export name uniqueness.
-  if (!CompCtx.addExportedName(Decl.getName())) {
-    spdlog::error(ErrCode::Value::ComponentDuplicateName);
-    spdlog::error("    ExportDecl: Duplicate export name '{}'"sv,
-                  Decl.getName());
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::ComponentDuplicateName);
-  }
-
-  // exportname ::= <plainname> | <interfacename>
-  // The `relative-url=` prefix is not part of the extern-name grammar — reject
-  // before the plainname parser turns it into a generic "invalid label".
-  if (Decl.getName().rfind("relative-url="sv, 0) == 0) {
-    spdlog::error(ErrCode::Value::InvalidExternName);
-    spdlog::error("    ExportDecl: name '{}' is not a valid extern name"sv,
-                  Decl.getName());
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::InvalidExternName);
-  }
-  EXPECTED_TRY(ComponentName CName,
-               ComponentName::parse(Decl.getName()).map_error([](auto E) {
-                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-                 return E;
-               }));
-  switch (CName.getKind()) {
-  case ComponentNameKind::Label:
-  case ComponentNameKind::Constructor:
-  case ComponentNameKind::Method:
-  case ComponentNameKind::Static:
-  case ComponentNameKind::InterfaceType:
-    break;
-  default:
-    spdlog::error(ErrCode::Value::InvalidExportName);
-    spdlog::error("    ExportDecl: name kind not valid for exports"sv);
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::InvalidExportName);
-  }
-
   return {};
 }
 
 Expect<void>
 Validator::validate(const AST::Component::InstanceDecl &Decl) noexcept {
   auto ReportError = [](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Instance));
     return E;
   };
 
@@ -1433,10 +1411,15 @@ Validator::validate(const AST::Component::InstanceDecl &Decl) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ComponentDecl &Decl) noexcept {
+  auto ReportError = [](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Component));
+    return E;
+  };
+
   if (Decl.isImportDecl()) {
-    EXPECTED_TRY(validate(Decl.getImport()));
+    EXPECTED_TRY(validate(Decl.getImport()).map_error(ReportError));
   } else if (Decl.isInstanceDecl()) {
-    EXPECTED_TRY(validate(Decl.getInstance()));
+    EXPECTED_TRY(validate(Decl.getInstance()).map_error(ReportError));
   } else {
     assumingUnreachable();
   }
@@ -1676,7 +1659,10 @@ Validator::validate(const AST::Component::InstanceType &IT) noexcept {
   // Instance types are validated with an initially-empty index space.
   CompCtx.enterTypeDefinition();
   for (const auto &Decl : IT.getDecl()) {
-    EXPECTED_TRY(validate(Decl));
+    EXPECTED_TRY(validate(Decl).map_error([](auto E) {
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_DefType));
+      return E;
+    }));
   }
   CompCtx.exitComponent();
   return {};

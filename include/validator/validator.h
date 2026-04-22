@@ -98,7 +98,7 @@ private:
   Expect<void> validate(const AST::Component::CoreInstance &Inst) noexcept;
   Expect<void> validate(const AST::Component::Instance &Inst) noexcept;
   // Validate component core:alias and alias
-  // Expect<void> validate(const AST::Component::CoreAlias &Alias) noexcept;
+  Expect<void> validate(const AST::Component::CoreAlias &Alias) noexcept;
   Expect<void> validate(const AST::Component::Alias &Alias) noexcept;
   // Validate component core:deftype and deftype
   Expect<void> validate(const AST::Component::CoreDefType &DType) noexcept;
@@ -110,16 +110,16 @@ private:
   // Validate component export
   Expect<void> validate(const AST::Component::Export &Ex) noexcept;
   // Validate component descs
-  // Expect<void> validate(const AST::Component::CoreImportDesc &Desc) noexcept;
+  Expect<void> validate(const AST::Component::CoreImportDesc &Desc) noexcept;
   Expect<void> validate(const AST::Component::ExternDesc &Desc) noexcept;
-  // decls
-  // Expect<void> validate(const AST::Component::CoreImportDecl &Decl) noexcept;
-  // Expect<void> validate(const AST::Component::CoreExportDecl &Decl) noexcept;
+  // Validate component decls
+  Expect<void> validate(const AST::Component::CoreImportDecl &Decl) noexcept;
+  Expect<void> validate(const AST::Component::CoreExportDecl &Decl) noexcept;
   Expect<void> validate(const AST::Component::CoreModuleDecl &Decl) noexcept;
   Expect<void> validate(const AST::Component::ImportDecl &Decl) noexcept;
-  // Expect<void> validate(const AST::Component::ExportDecl &Decl) noexcept;
+  Expect<void> validate(const AST::Component::ExportDecl &Decl) noexcept;
   Expect<void> validate(const AST::Component::InstanceDecl &Decl) noexcept;
-  // Expect<void> validate(const AST::Component::ComponentDecl &Decl) noexcept;
+  Expect<void> validate(const AST::Component::ComponentDecl &Decl) noexcept;
   // Validate component value types and type definitions
   Expect<void> validate(const ComponentValType &VT) noexcept;
   Expect<void> validate(const AST::Component::DefValType &DVT) noexcept;

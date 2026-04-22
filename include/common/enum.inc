@@ -1092,19 +1092,21 @@ E(RecordFieldNameConflicts, 0x02AC,
 E(VariantCaseNameConflicts, 0x02AD,
   "variant case name conflicts with previous case name")
 // DefValType: flag name conflicts
-E(FlagNameConflicts, 0x02AE,
-  "flag name conflicts with previous flag name")
+E(FlagNameConflicts, 0x02AE, "flag name conflicts with previous flag name")
 // DefValType: enum tag name conflicts
 E(EnumTagNameConflicts, 0x02AF,
   "enum tag name conflicts with previous tag name")
 // DefValType: type must have at least one case/field/element
-E(VariantMustHaveCase, 0x02B0,
-  "variant type must have at least one case")
+E(VariantMustHaveCase, 0x02B0, "variant type must have at least one case")
 // Export ascription is not a supertype of the inferred externdesc
 E(ExportAscriptionIncompatible, 0x02B1,
   "ascribed type of export is not compatible")
 // Instance argument is missing an export the import type requires
 E(InstanceMissingExpectedExport, 0x02B2, "missing expected export")
+// Export name is syntactically valid but not allowed in an export position
+E(InvalidExportName, 0x02B3, "not a valid export name")
+// Extern (import/export) name fails the extern-name grammar
+E(InvalidExternName, 0x02B4, "not a valid extern name")
 // @}
 
 // Instantiation phase

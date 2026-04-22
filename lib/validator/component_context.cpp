@@ -34,6 +34,8 @@ uint32_t ComponentContext::Context::getCoreSortIndexSize(
     return static_cast<uint32_t>(CoreMemories.size());
   case Sort::CoreSortType::Global:
     return static_cast<uint32_t>(CoreGlobals.size());
+  case Sort::CoreSortType::Tag:
+    return CoreTagCount;
   case Sort::CoreSortType::Type:
     return static_cast<uint32_t>(CoreTypes.size());
   case Sort::CoreSortType::Module:
@@ -73,6 +75,8 @@ ComponentContext::incCoreSortIndexSize(Sort::CoreSortType ST) noexcept {
     return addCoreMemory();
   case Sort::CoreSortType::Global:
     return addCoreGlobal();
+  case Sort::CoreSortType::Tag:
+    return addCoreTag();
   case Sort::CoreSortType::Type:
     return addCoreType();
   case Sort::CoreSortType::Module:

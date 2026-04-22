@@ -98,8 +98,10 @@ Expect<void> Loader::loadType(AST::Component::DefType &Ty) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_DefType);
   }));
   switch (Flag) {
-  case 0x40: {
+  case 0x40:
+  case 0x43: {
     AST::Component::FuncType FT;
+    FT.setAsync(Flag == 0x43);
     EXPECTED_TRY(loadType(FT).map_error(ReportError));
     Ty.setFuncType(std::move(FT));
     return {};
@@ -266,11 +268,12 @@ Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
   ///              | 0x01 lt*:vec(<labelvaltype>) => (result lt)*
 
   // functype   ::= 0x40 ps:<paramlist> rs:<resultlist> => (func ps rs)
+  //              | 0x43 ps:<paramlist> rs:<resultlist> => (func async ps rs)
   // paramlist  ::= lt*:vec(<labelvaltype>)             => (param lt)*
   // resultlist ::= 0x00 t:<valtype> => (result t)
   //              | 0x01 0x00        => ϵ
 
-  // The prefix `0x40` has been loaded in the parent scope.
+  // The prefix `0x40` or `0x43` has been loaded in the parent scope.
 
   // Load the param list.
   std::vector<AST::Component::LabelValType> ParamList;
@@ -294,11 +297,24 @@ Expect<void> Loader::loadType(AST::Component::FuncType &Ty) {
     return {};
   }
   case 0x01: {
-    std::vector<AST::Component::LabelValType> ResultList;
-    EXPECTED_TRY(loadVec<AST::Component::FuncType>(
-        ResultList,
-        [this](AST::Component::LabelValType &LV) { return loadType(LV); }));
-    Ty.setResultList(std::move(ResultList));
+    // Original multi-return grammar (reserved for future extension):
+    //   std::vector<AST::Component::LabelValType> ResultList;
+    //   EXPECTED_TRY(loadVec<AST::Component::FuncType>(
+    //       ResultList,
+    //       [this](AST::Component::LabelValType &LV) { return loadType(LV);
+    //       }));
+    //   Ty.setResultList(std::move(ResultList));
+    //   return {};
+
+    // Current spec: resultlist ::= 0x01 0x00 => ε
+    EXPECTED_TRY(uint8_t B, FMgr.readByte().map_error([this](auto E) {
+      return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
+    }));
+    if (B != 0x00) {
+      return logLoadError(ErrCode::Value::MalformedDefType,
+                          FMgr.getLastOffset(), ASTNodeAttr::Comp_FuncType);
+    }
+    Ty.setResultList(std::vector<AST::Component::LabelValType>{});
     return {};
   }
   default:
@@ -348,10 +364,24 @@ Expect<void> Loader::loadType(AST::Component::ResourceType &Ty) {
   //                => (resource (rep i32) (dtor f)?)
   //                | 0x3e 0x7f f:<funcidx> cb?:<funcidx>?
   //                => (resource (rep i32) (dtor async f (callback cb)?))
+  //                | 0x3f 0x7e f?:<funcidx>?
+  //                => (resource (rep i64) (dtor f)?)                    🐘
+  //                | 0x3e 0x7e f:<funcidx> cb?:<funcidx>?
+  //                => (resource (rep i64) (dtor async f (callback cb)?)) 🐘
 
   // The prefix `0x3F` or `0x3E` has been loaded in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte().map_error(ReportError));
-  if (B != 0x7f) {
+  if (B == 0x7f) {
+    // i32 rep — always supported.
+  } else if (B == 0x7e) {
+    // i64 rep — memory64 proposal required.
+    if (!Conf.hasProposal(Proposal::Memory64)) {
+      return logNeedProposal(ErrCode::Value::MalformedDefType,
+                             Proposal::Memory64, FMgr.getLastOffset(),
+                             ASTNodeAttr::Comp_ResourceType);
+    }
+    Ty.setAddrI64(true);
+  } else {
     return logLoadError(ErrCode::Value::MalformedDefType, FMgr.getLastOffset(),
                         ASTNodeAttr::Comp_ResourceType);
   }

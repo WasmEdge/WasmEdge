@@ -93,6 +93,7 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
 
   // Set llama log callback.
   llama_log_set(llamaLogCallback, &GraphRef);
+  mtmd_helper_log_set(llamaLogCallback, &GraphRef);
 
   // If the graph builder length > 1, the data of builder[1] is the metadata.
   if (Builders.size() > 1) {

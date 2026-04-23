@@ -19,6 +19,7 @@ namespace Validator {
 namespace {
 
 static constexpr uint32_t MaxSubtypeDepth = 63;
+static constexpr uint64_t MaxTableSize = 10000000;
 
 // TODO: make the super type depth table instead of recursively querying.
 Expect<void>
@@ -277,11 +278,13 @@ Expect<void> Validator::validate(const AST::TableType &Tab) {
     return E;
   }));
   uint64_t Range = getMaxAddress(Lim.getAddrType());
+  if (Lim.getAddrType() == AddressType::I32) {
+    Range = std::min(Range, MaxTableSize);
+  }
   if (Lim.getMin() > Range || (Lim.hasMax() && Lim.getMax() > Range)) {
-    // Since spec test has no related error message, use this error instead.
-    auto Code = Conf.hasProposal(Proposal::Memory64)
-                    ? ErrCode::Value::InvalidTableSize64
-                    : ErrCode::Value::InvalidLimit;
+    auto Code = (Lim.getAddrType() == AddressType::I32)
+                    ? ErrCode::Value::InvalidTableSize
+                    : ErrCode::Value::InvalidTableSize64;
     spdlog::error(Code);
     spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));

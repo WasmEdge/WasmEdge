@@ -1056,6 +1056,8 @@ E(InvalidMemPages64, 0x0228, "memory size")
 E(InvalidTableSize64, 0x0229, "table size")
 // Offset out of range (Mem64 proposal)
 E(InvalidOffset, 0x022A, "offset out of range")
+// Table size > 10^7
+E(InvalidTableSize, 0x022B, "table size must be at most 10000000 elements")
 // @}
 
 // Component model validation phase

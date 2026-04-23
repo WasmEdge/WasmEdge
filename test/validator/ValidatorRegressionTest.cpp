@@ -309,6 +309,23 @@ TEST_F(ValidatorRegressionTest, RefCastAfterUnreachable) {
   EXPECT_TRUE(ValidationResult);
 }
 
+TEST_F(ValidatorRegressionTest, InvalidTableSize) {
+  // Module with a table of size 10,000,001
+  std::vector<WasmEdge::Byte> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // Header
+      0x04, 0x07, 0x01,                               // Table section, size 7, 1 table
+      0x70, 0x00,                                     // funcref, no max
+      0x81, 0xAD, 0xE2, 0x04                          // 10000001 (LEB128)
+  };
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidTableSize);
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

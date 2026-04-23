@@ -40,6 +40,7 @@ public:
     std::vector<const AST::TableType *> CoreTables;    // core:table
     std::vector<const AST::MemoryType *> CoreMemories; // core:memory
     std::vector<const AST::GlobalType *> CoreGlobals;  // core:global
+    uint32_t CoreTagCount = 0;                         // core:tag
 
     // --- Component sort index spaces ---
     std::vector<const AST::Component::Component *> Components; // component
@@ -82,11 +83,17 @@ public:
 
   void reset() noexcept { CompCtxs.clear(); }
 
-  /// Push a new validation scope. Pass a Component for real components,
-  /// or nullptr for componenttype/instancetype type definition scopes.
-  void enterComponent(const AST::Component::Component *C = nullptr) noexcept {
+  /// Push a new validation scope for a real component.
+  void enterComponent(const AST::Component::Component *C) noexcept {
     const Context *Parent = CompCtxs.empty() ? nullptr : &CompCtxs.back();
     CompCtxs.emplace_back(C, Parent);
+  }
+
+  /// Push a new validation scope for a type definition
+  /// (componenttype, instancetype, or moduletype).
+  void enterTypeDefinition() noexcept {
+    const Context *Parent = CompCtxs.empty() ? nullptr : &CompCtxs.back();
+    CompCtxs.emplace_back(nullptr, Parent);
   }
 
   void exitComponent() noexcept {
@@ -203,6 +210,7 @@ public:
     V.push_back(GT);
     return Idx;
   }
+  uint32_t addCoreTag() noexcept { return getCurrentContext().CoreTagCount++; }
 
   // ==========================================================================
   // component

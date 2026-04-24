@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Serializer class, which serialize
-/// a AST Module into a buffer.
+/// This file contains the declaration of the Serializer class, which serializes
+/// an AST Module into a buffer.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -195,7 +195,7 @@ private:
   serializeFN(NumType Num, std::vector<uint8_t> &OutVec) const noexcept {
     std::make_unsigned_t<IntType> Buf = 0;
     std::memcpy(&Buf, &Num, sizeof(NumType));
-    // Forcing convert into little endian.
+    // Force conversion into little endian.
     for (uint32_t I = 0; I < sizeof(NumType); I++) {
       OutVec.push_back(static_cast<uint8_t>(Buf & 0xFFU));
       Buf = Buf >> 8;

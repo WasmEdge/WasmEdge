@@ -56,5 +56,6 @@ target_link_libraries(wasmedgeLoader
   PUBLIC
   wasmedgeCommon
   wasmedgeLoaderFileMgr
+  wasmedgeWat
   std::filesystem
 )

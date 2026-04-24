@@ -21,7 +21,9 @@
 #include "common/configure.h"
 #include "common/errcode.h"
 #include "common/filesystem.h"
+#include "common/span.h"
 #include "common/types.h"
+#include "wast.h"
 
 #include <functional>
 #include <string>
@@ -64,6 +66,8 @@ public:
     All = 0x07U,
   };
 
+  enum class ParserMode { Json, Wast };
+
   explicit SpecTest(std::filesystem::path Root)
       : TestsuiteRoot(std::move(Root)) {}
 
@@ -71,11 +75,11 @@ public:
                                      bool IncludeComponent = true) const;
   std::tuple<std::string_view, WasmEdge::Configure, std::string>
   resolve(std::string_view Params) const;
-  bool compare(const std::pair<std::string, std::string> &Expected,
-               const std::pair<ValVariant, ValType> &Got) const;
+  bool compareResult(const Wast::Result &Expected,
+                     const std::pair<ValVariant, ValType> &Got) const;
   bool
-  compares(const std::vector<std::pair<std::string, std::string>> &Expected,
-           const std::vector<std::pair<ValVariant, ValType>> &Got) const;
+  compareResults(const std::vector<Wast::ResultOrEither> &Expected,
+                 const std::vector<std::pair<ValVariant, ValType>> &Got) const;
   bool stringContains(std::string_view Expected, std::string_view Got) const;
 
   void run(std::string_view Proposal, std::string_view UnitName);
@@ -99,33 +103,24 @@ public:
   using FiniCallback = void(ContextHandle Ctx);
   std::function<FiniCallback> onFini;
 
-  using ModuleCallback = Expect<void>(ContextHandle Ctx,
-                                      const std::string &Modname,
-                                      const std::string &FileName);
-  std::function<ModuleCallback> onModule;
-
-  using LoadCallback = Expect<void>(ContextHandle Ctx,
-                                    const std::string &FileName);
-  std::function<LoadCallback> onLoad;
-
-  using ValidateCallback = Expect<void>(ContextHandle Ctx,
-                                        const std::string &FileName);
-  std::function<ValidateCallback> onValidate;
-
   using WasmUnit = std::variant<std::unique_ptr<AST::Component::Component>,
                                 std::unique_ptr<AST::Module>>;
 
-  using ModuleDefineCallback = Expect<WasmUnit>(ContextHandle Ctx,
-                                                const std::string &FileName);
-  std::function<ModuleDefineCallback> onModuleDefine;
+  // Parse source (WAT text, binary bytes, or file path) into a WasmUnit.
+  using ParseCallback = Expect<WasmUnit>(ContextHandle Ctx,
+                                         std::string_view Source,
+                                         Wast::ModuleType Type,
+                                         const Configure &Conf);
+  std::function<ParseCallback> onParse;
 
-  using InstanceFromDefCallback = Expect<void>(ContextHandle Ctx,
-                                               const std::string &ModName,
-                                               const AST::Module &ASTMod);
-  std::function<InstanceFromDefCallback> onInstanceFromDef;
+  // Validate a parsed WasmUnit.
+  using ValidateCallback = Expect<void>(ContextHandle Ctx, WasmUnit &Unit);
+  std::function<ValidateCallback> onValidate;
 
+  // Instantiate a WasmUnit, optionally registering it under ModName.
   using InstantiateCallback = Expect<void>(ContextHandle Ctx,
-                                           const std::string &FileName);
+                                           const std::string &ModName,
+                                           const WasmUnit &Unit);
   std::function<InstantiateCallback> onInstantiate;
 
   using InvokeCallback = Expect<std::vector<std::pair<ValVariant, ValType>>>(
@@ -138,15 +133,19 @@ public:
       ContextHandle Ctx, const std::string &ModName, const std::string &Field);
   std::function<GetCallback> onGet;
 
-  // Set by the spec test runner before calling onModule to indicate that
-  // component validation should be skipped. Only used in spec tests and will
-  // be removed when component-model is fully supported.
+  ParserMode Mode = ParserMode::Json;
+
+  // Indicates that the current module is a component whose validation is not
+  // yet supported by WasmEdge. When set, callbacks should skip real validation
+  // and force-mark the component as validated so instantiation can proceed.
+  // Will be removed when the component model is fully supported.
   bool SkipComponentValidation = false;
 
 private:
-  // Processes the command array for a given context.
-  void processCommands(ContextHandle Ctx, std::string_view Proposal,
-                       std::string_view UnitName, void *CmdArrayPtr);
+  // Execute parsed WAST/JSON commands against a context.
+  void executeCommands(Span<const Wast::ScriptCommand> Commands,
+                       const Configure &Conf, bool IsComponent,
+                       ContextHandle RootCtx, std::string TestFile);
 
   std::filesystem::path TestsuiteRoot;
 };

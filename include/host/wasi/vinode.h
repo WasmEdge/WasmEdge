@@ -34,7 +34,7 @@ public:
   /// @param[in] Node System INode.
   VINode(INode Node);
 
-  /// Create a orphan VINode.
+  /// Create an orphan VINode.
   ///
   /// @param[in] Node System INode.
   /// @param[in] FRB The desired rights of the VINode.

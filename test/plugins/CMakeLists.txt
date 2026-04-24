@@ -99,5 +99,46 @@ if(WASMEDGE_PLUGIN_ZLIB)
   add_subdirectory(wasmedge_zlib)
 endif()
 
+# Test fixtures
+add_subdirectory(fixtures)
+
 # Plug-in unit tests.
 add_subdirectory(unittest)
+
+# Plugin Loader Integration Tests
+wasmedge_add_executable(wasmedgePluginLoaderTests
+  plugin_loader_test.cpp
+)
+
+target_include_directories(wasmedgePluginLoaderTests
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/include
+  $<TARGET_PROPERTY:wasmedgePlugin,INCLUDE_DIRECTORIES>
+)
+
+target_link_libraries(wasmedgePluginLoaderTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+)
+
+if(WASMEDGE_LINK_PLUGINS_STATIC)
+  target_link_libraries(wasmedgePluginLoaderTests
+    PRIVATE
+    wasmedgeCAPI
+  )
+else()
+  target_link_libraries(wasmedgePluginLoaderTests
+    PRIVATE
+    wasmedge_shared
+  )
+endif()
+
+add_dependencies(wasmedgePluginLoaderTests
+  wasmedgePluginTestModuleC
+  wasmedgePluginTestModuleCPP
+  wasmedgePluginTestIncomplete
+  wasmedgePluginTestVersionMismatch
+)
+
+add_test(wasmedgePluginLoaderTests wasmedgePluginLoaderTests)

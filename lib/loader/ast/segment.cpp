@@ -130,7 +130,7 @@ Expect<void> Loader::loadSegment(AST::ElementSegment &ElemSeg) {
     break;
 
   default:
-    // TODO: Correctness the error code once there's spec test.
+    // TODO: Correct the error code once there's spec test.
     return logLoadError(ErrCode::Value::IllegalGrammar, FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Element);
   }
@@ -338,7 +338,7 @@ Expect<void> Loader::loadSegment(AST::DataSegment &DataSeg) {
     break;
   }
   default:
-    // TODO: Correctness the error code once there's spec test.
+    // TODO: Correct the error code once there's spec test.
     return logLoadError(ErrCode::Value::IllegalGrammar, FMgr.getLastOffset(),
                         ASTNodeAttr::Seg_Data);
   }

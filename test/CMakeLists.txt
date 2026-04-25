@@ -20,14 +20,23 @@ else()
   else()
     add_compile_options(
       ${WASMEDGE_CFLAGS}
-      -Wno-language-extension-token
       -Wno-missing-noreturn
-      -Wno-shift-sign-overflow
       -Wno-undef
-      -Wno-unused-member-function
       $<$<COMPILE_LANGUAGE:CXX>:-Wno-zero-as-null-pointer-constant>
       -Wno-deprecated
     )
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+      add_compile_options(
+        -Wno-language-extension-token
+        -Wno-shift-sign-overflow
+        -Wno-unused-member-function
+      )
+      if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+        add_compile_options(
+          -Wno-suggest-destructor-override
+        )
+      endif()
+    endif()
     if(WIN32)
       add_compile_options(
         -Wno-padded
@@ -38,7 +47,6 @@ else()
     endif()
     if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
       add_compile_options(
-        -Wno-suggest-destructor-override
         $<$<COMPILE_LANGUAGE:CXX>:-Wno-suggest-override>
       )
     endif()

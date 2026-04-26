@@ -44,7 +44,17 @@ public:
   VM() = delete;
   VM(const Configure &Conf);
   VM(const Configure &Conf, Runtime::StoreManager &S);
-  ~VM() = default;
+  ~VM() {
+    if (ActiveModInst) {
+      auto *RawMod = ActiveModInst.release();
+      if (RawMod) {
+        RawMod->terminate();
+      }
+    }
+    cleanupModInstContainer(RegModInsts);
+    cleanupModInstContainer(BuiltInModInsts);
+    cleanupModInstContainer(PlugInModInsts);
+  }
 
   /// ======= Functions can be called before instantiated stage. =======
   /// Register wasm modules and host modules.

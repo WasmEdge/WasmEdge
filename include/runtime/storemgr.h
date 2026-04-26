@@ -137,6 +137,12 @@ private:
 
   /// Collect the instantiation failed module.
   void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
+    if (FailedMod) {
+      auto *OldMod = FailedMod.release();
+      if (OldMod) {
+        OldMod->terminate();
+      }
+    }
     FailedMod = std::move(Mod);
   }
 

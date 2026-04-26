@@ -44,7 +44,17 @@ public:
   VM() = delete;
   VM(const Configure &Conf);
   VM(const Configure &Conf, Runtime::StoreManager &S);
-  ~VM() = default;
+  ~VM() {
+    if (ActiveModInst) {
+      auto *RawMod = ActiveModInst.release();
+      if (RawMod) {
+        RawMod->terminate();
+      }
+    }
+    cleanupModInstContainer(RegModInsts);
+    cleanupModInstContainer(BuiltInModInsts);
+    cleanupModInstContainer(PlugInModInsts);
+  }
 
   /// ======= Functions can be called before the instantiated stage. =======
   /// Register wasm modules and host modules.
@@ -71,6 +81,12 @@ public:
                  const Runtime::Instance::ModuleInstance &ModInst) {
     std::unique_lock Lock(Mutex);
     return unsafeRegisterModule(Name, ModInst);
+  }
+
+  /// Unregister a named module instance.
+  Expect<void> unregisterModule(std::string_view Name) {
+    std::unique_lock Lock(Mutex);
+    return unsafeUnregisterModule(Name);
   }
 
   /// Rapidly load, validate, instantiate, and run wasm function.
@@ -282,6 +298,23 @@ public:
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
 private:
+  template <typename T> void cleanupModInstContainer(T &Container) {
+    for (auto &Item : Container) {
+      using TargetPtr = std::unique_ptr<Runtime::Instance::ModuleInstance>;
+
+      if constexpr (std::is_same_v<T, std::vector<TargetPtr>>) {
+        if (auto *ModInst = Item.release()) {
+          ModInst->terminate();
+        }
+      } else {
+        if (auto *ModInst = Item.second.release()) {
+          ModInst->terminate();
+        }
+      }
+    }
+    Container.clear();
+  }
+
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);
   Expect<void> unsafeRegisterModule(std::string_view Name,
@@ -291,6 +324,8 @@ private:
   Expect<void>
   unsafeRegisterModule(std::string_view Name,
                        const Runtime::Instance::ModuleInstance &ModInst);
+
+  Expect<void> unsafeUnregisterModule(std::string_view Name);
 
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
@@ -393,7 +428,9 @@ private:
   std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
   std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;
   /// Registered module instances by user.
-  std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInsts;
+  std::unordered_map<std::string,
+                     std::unique_ptr<Runtime::Instance::ModuleInstance>>
+      RegModInsts;
   /// Built-in module instances mapped to the configurations. For WASI.
   std::unordered_map<HostRegistration,
                      std::unique_ptr<Runtime::Instance::ModuleInstance>>

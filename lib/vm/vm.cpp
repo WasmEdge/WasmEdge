@@ -88,7 +88,7 @@ void VM::unsafeInitVM() {
 void VM::unsafeLoadBuiltInHosts() {
   // Load the built-in host modules from configuration.
   // TODO: This will be extended for the versionlized WASI in the future.
-  BuiltInModInsts.clear();
+  cleanupModInstContainer(BuiltInModInsts);
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
         std::make_unique<Host::WasiModule>();
@@ -99,7 +99,7 @@ void VM::unsafeLoadBuiltInHosts() {
 void VM::unsafeLoadPlugInHosts() {
   // Load the plugins and mock them if not found.
   using namespace std::literals::string_view_literals;
-  PlugInModInsts.clear();
+  cleanupModInstContainer(PlugInModInsts);
 
   PlugInModInsts.push_back(
       createPluginModule<Host::WasiNNModuleMock>("wasi_nn"sv, "wasi_nn"sv));
@@ -677,13 +677,16 @@ void VM::unsafeCleanup() {
     Comp.reset();
   }
   if (ActiveModInst) {
-    ActiveModInst.reset();
+    auto *RawMod = ActiveModInst.release();
+    if (RawMod) {
+      RawMod->terminate();
+    }
   }
   if (ActiveCompInst) {
     ActiveCompInst.reset();
   }
   StoreRef.reset();
-  RegModInsts.clear();
+  cleanupModInstContainer(RegModInsts);
   Stat.clear();
   unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();

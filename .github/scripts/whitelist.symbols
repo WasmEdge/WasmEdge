@@ -226,6 +226,7 @@ WasmEdge_VMAsyncRunWasmFromFile
 WasmEdge_VMCleanup
 WasmEdge_VMCreate
 WasmEdge_VMDelete
+WasmEdge_VMDeleteRegisteredModule
 WasmEdge_VMExecute
 WasmEdge_VMExecuteRegistered
 WasmEdge_VMForceDeleteRegisteredModule

@@ -76,15 +76,20 @@ public:
                  std::function<void(void *)> Finalizer = nullptr)
       : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {}
   virtual ~ModuleInstance() noexcept {
-    // When destroying this module instance, call the callbacks to unlink to the
-    // store managers.
-    for (auto &&[Key, Callback] : LinkedStore) {
-      assuming(Callback);
-      Callback(Key, this);
-    }
+    unlinkAllStores();
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
     }
+    for (auto *Provider : DependencyList) {
+      if (Provider) {
+        Provider->decrementInDegree();
+      }
+    }
+  }
+
+  void terminate() noexcept {
+    this->resetSelfDegree();
+    this->tryToDelete();
   }
 
   std::string_view getModuleName() const noexcept {
@@ -530,6 +535,53 @@ protected:
     LinkedStore.erase(LinkedStoreKey{Store, std::string(Name)});
   }
 
+  void unlinkAllStores() noexcept {
+    if (LinkedStore.empty()) {
+      return;
+    }
+    // When destroying this module instance, call the callbacks to unlink to the
+    // store managers.
+    for (auto &&[Key, Callback] : LinkedStore) {
+      assuming(Callback);
+      Callback(Key, this);
+    }
+    LinkedStore.clear();
+  }
+
+  void incrementInDegree() noexcept {
+    InDegree.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  void decrementInDegree() noexcept {
+    if (InDegree.fetch_sub(1, std::memory_order_acq_rel) == 1 &&
+        SelfDegree.load(std::memory_order_acquire) == 0) {
+      delete this;
+    }
+  }
+
+  void linkDependency(ModuleInstance &Provider) {
+    std::unique_lock Lock(Mutex);
+    auto It =
+        std::find(DependencyList.begin(), DependencyList.end(), &Provider);
+    if (It != DependencyList.end()) {
+      return;
+    }
+    DependencyList.push_back(&Provider);
+    Provider.incrementInDegree();
+  }
+
+  void resetSelfDegree() noexcept {
+    unlinkAllStores();
+    SelfDegree.store(0, std::memory_order_release);
+  }
+
+  void tryToDelete() noexcept {
+    if (SelfDegree.load(std::memory_order_acquire) == 0 &&
+        InDegree.load(std::memory_order_acquire) == 0) {
+      delete this;
+    }
+  }
+
   /// Mutex.
   mutable std::shared_mutex Mutex;
 
@@ -584,6 +636,15 @@ protected:
   /// External data and its finalizer function pointer.
   void *HostData;
   std::function<void(void *)> HostDataFinalizer;
+
+  /// In-degree of the reference counting. Represents the number of
+  /// moduleimporting this instance.
+  std::atomic<uint32_t> InDegree{0};
+  /// Self-degree of the reference counting. 1 if this instance is held by
+  /// somebody, 0 otherwise.
+  std::atomic<uint32_t> SelfDegree{1};
+  /// Dependency list of the provider module instances.
+  std::vector<Instance::ModuleInstance *> DependencyList;
 };
 
 } // namespace Instance

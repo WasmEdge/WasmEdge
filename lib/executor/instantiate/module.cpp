@@ -67,13 +67,21 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
-  EXPECTED_TRY(instantiate(
-                   [&StoreMgr](std::string_view ModName)
-                       -> const WasmEdge::Runtime::Instance::ModuleInstance * {
-                     return StoreMgr.findModule(ModName);
-                   },
-                   *ModInst, ImportSec)
-                   .map_error(ReportError(ASTNodeAttr::Sec_Import)));
+  EXPECTED_TRY(
+      instantiate(
+          [&StoreMgr, &ModInst](std::string_view ModName)
+              -> const WasmEdge::Runtime::Instance::ModuleInstance * {
+            const auto *Found = StoreMgr.findModule(ModName);
+            if (Found) {
+              auto *Target =
+                  const_cast<WasmEdge::Runtime::Instance::ModuleInstance *>(
+                      Found);
+              ModInst->linkDependency(*Target);
+            }
+            return Found;
+          },
+          *ModInst, ImportSec)
+          .map_error(ReportError(ASTNodeAttr::Sec_Import)));
 
   // Instantiate Functions in module. (FunctionSec, CodeSec)
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();

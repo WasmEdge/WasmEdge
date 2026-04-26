@@ -159,7 +159,7 @@ void VM::unsafeInitVM() {
 void VM::unsafeLoadBuiltInHosts() {
   // Load the built-in host modules from configuration.
   // TODO: This will be extended for versioned WASI in the future.
-  BuiltInModInsts.clear();
+  cleanupModInstContainer(BuiltInModInsts);
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
         std::make_unique<Host::WasiModule>();
@@ -170,7 +170,7 @@ void VM::unsafeLoadBuiltInHosts() {
 void VM::unsafeLoadPlugInHosts() {
   // Load the plugins and mock them if not found.
   using namespace std::literals::string_view_literals;
-  PlugInModInsts.clear();
+  cleanupModInstContainer(PlugInModInsts);
 
   PlugInModInsts.push_back(
       createPluginModule<Host::WasiNNModuleMock>("wasi_nn"sv, "wasi_nn"sv));
@@ -344,13 +344,55 @@ VM::unsafeRegisterModule(std::string_view Name,
   return ExecutorEngine.registerModule(StoreRef, ModInst, Name);
 }
 
+Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
+  auto RegMapIt = RegModMap.find(std::string(Name));
+  if (RegMapIt != RegModMap.end()) {
+    size_t ModInstIdx = RegMapIt->second[1];
+
+    if (ModInstIdx < RegModInsts.size()) {
+      auto *ModInst = RegModInsts[ModInstIdx].release();
+      if (ModInst) {
+        ModInst->terminate();
+      }
+    }
+
+    RegModMap.erase(RegMapIt);
+
+    return {};
+  }
+  for (auto It = BuiltInModInsts.begin(); It != BuiltInModInsts.end(); ++It) {
+    if (It->second && It->second->getModuleName() == Name) {
+      auto *ModInst = It->second.release();
+      BuiltInModInsts.erase(It);
+
+      if (ModInst) {
+        ModInst->terminate();
+      }
+      return {};
+    }
+  }
+  for (auto It = PlugInModInsts.begin(); It != PlugInModInsts.end(); ++It) {
+    if (*It && (*It)->getModuleName() == Name) {
+      auto *ModInst = It->release();
+      PlugInModInsts.erase(It);
+
+      if (ModInst) {
+        ModInst->terminate();
+      }
+      return {};
+    }
+  }
+
+  return {};
+}
+
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
+    // When running another module, the instantiated module in the store will
+    // be reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   // Load wasm unit.
@@ -373,8 +415,8 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
+    // When running another module, the instantiated module in the store will
+    // be reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   // Load wasm unit.
@@ -397,8 +439,8 @@ VM::unsafeRunWasmFile(const AST::Component::Component &Component,
                       std::string_view, Span<const ValVariant>,
                       Span<const ValType>) {
   if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
+    // When running another module, the instantiated module in the store will
+    // be reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   EXPECTED_TRY(ValidatorEngine.validate(Component));
@@ -411,8 +453,8 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
+    // When running another module, the instantiated module in the store will
+    // be reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   EXPECTED_TRY(ValidatorEngine.validate(Module));
@@ -814,13 +856,16 @@ void VM::unsafeCleanup() {
     Comp.reset();
   }
   if (ActiveModInst) {
-    ActiveModInst.reset();
+    auto *RawMod = ActiveModInst.release();
+    if (RawMod) {
+      RawMod->terminate();
+    }
   }
   if (ActiveCompInst) {
     ActiveCompInst.reset();
   }
   StoreRef.reset();
-  RegModInsts.clear();
+  cleanupModInstContainer(RegModInsts);
   RegASTModules.clear();
   RegModMap.clear();
   Stat.clear();
@@ -955,10 +1000,10 @@ Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
     return {};
   }
 
-  spdlog::debug(
-      "[lazy-jit]: Lazy compiling batch ({} local funcs) for wasm entry local "
-      "{}, module ID: {}"sv,
-      BatchLocals.size(), LocalFuncIdx, ID);
+  spdlog::debug("[lazy-jit]: Lazy compiling batch ({} local funcs) for wasm "
+                "entry local "
+                "{}, module ID: {}"sv,
+                BatchLocals.size(), LocalFuncIdx, ID);
 
   LLVM::Compiler Compiler(Conf);
   auto ConfigResult = Compiler.checkConfigure();

@@ -32,3 +32,7 @@ if(WASMEDGE_USE_LLVM)
     ${LLD_INCLUDE_DIRS}
   )
 endif()
+
+if(MSVC)
+  target_compile_options(wasmedgeVM PRIVATE "/bigobj")
+endif()

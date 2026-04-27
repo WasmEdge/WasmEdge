@@ -47,6 +47,7 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
   //   4.  Load loop with invalid operations.
   //   5.  Load block with instructions.
   //   6.  Load loop with instructions.
+  //   7.  Load invalid loop with non-canonical multi-byte SLEB128 blocktype.
 
   Vec = {
       0x0AU, // Code section
@@ -131,6 +132,19 @@ TEST(InstructionTest, LoadBlockControlInstruction) {
       0x0BU                // Expression End.
   };
   EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+
+  Vec = {
+      0x0AU,        // Code section
+      0x09U,        // Content size = 9
+      0x01U,        // Vector length = 1
+      0x07U,        // Code segment size = 7
+      0x00U,        // Local vec(0)
+      0x03U,        // OpCode Loop.
+      0xC0U, 0x40U, // Non-canonical SLEB128 blocktype.
+      0x0BU,        // OpCode End.
+      0x0BU         // Expression End.
+  };
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
 
 TEST(InstructionTest, LoadIfElseControlInstruction) {

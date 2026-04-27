@@ -164,7 +164,28 @@ Expect<void> Executor::runVectorAddOp(ValVariant &Val1,
                                       const ValVariant &Val2) const {
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
-  V1 += Val2.get<VT>();
+  const VT &V2 = Val2.get<VT>();
+  if constexpr (std::is_floating_point_v<T>) {
+    // LLVM models fadd as commutative at the IR level, so after
+    // inlining/LTO it can swap the operands and emit the equivalent
+    // of `fadd dst, V2, V1`. On ARM64 / SSE2 the first NaN operand's
+    // payload propagates, so a swap silently changes which NaN is
+    // observed -- diverging from other engines (e.g. Wasmtime) for
+    // `f32x4.add` / `f64x2.add` over NaN inputs.
+    //
+    // Pin the operand order by adding lane-by-lane through a
+    // general-register barrier: the empty asm clobbers prevent the
+    // optimizer from re-vectorising or re-ordering the scalar adds.
+    constexpr size_t Lanes = sizeof(VT) / sizeof(T);
+    for (size_t I = 0; I < Lanes; ++I) {
+      T Lhs = V1[I];
+      T Rhs = V2[I];
+      asm volatile("" : "+r"(Lhs), "+r"(Rhs));
+      V1[I] = Lhs + Rhs;
+    }
+  } else {
+    V1 += V2;
+  }
 
   return {};
 }
@@ -226,7 +247,22 @@ Expect<void> Executor::runVectorMulOp(ValVariant &Val1,
                                       const ValVariant &Val2) const {
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
-  V1 *= Val2.get<VT>();
+  const VT &V2 = Val2.get<VT>();
+  if constexpr (std::is_floating_point_v<T>) {
+    // See the comment in runVectorAddOp: pin operand order via a
+    // lane-by-lane scalar multiply with a register barrier so the
+    // optimizer cannot swap operands and change the NaN payload
+    // propagated by fmul.
+    constexpr size_t Lanes = sizeof(VT) / sizeof(T);
+    for (size_t I = 0; I < Lanes; ++I) {
+      T Lhs = V1[I];
+      T Rhs = V2[I];
+      asm volatile("" : "+r"(Lhs), "+r"(Rhs));
+      V1[I] = Lhs * Rhs;
+    }
+  } else {
+    V1 *= V2;
+  }
 
   return {};
 }

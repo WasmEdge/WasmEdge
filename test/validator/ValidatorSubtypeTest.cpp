@@ -16,6 +16,7 @@
 #include "common/spdlog.h"
 #include "vm/vm.h"
 
+#include <array>
 #include <gtest/gtest.h>
 #include <vector>
 
@@ -255,6 +256,113 @@ TEST_F(ValidatorSubtypeTest, ExactMaxSubtypeDepth) {
 
   auto ValidationResult = ValidEngine->validate(**Result);
   EXPECT_TRUE(ValidationResult);
+}
+
+TEST_F(ValidatorSubtypeTest, RejectMismatchedActiveElementRefType) {
+  // Module: (module
+  //   (type $t0 (sub (func)))
+  //   (type $t1 (sub final $t0 (func)))
+  //   (import "env" "f" (func (type $t0)))
+  //   (table 1 (ref null $t1))
+  //   (elem (table 0) (i32.const 0) (ref $t0) (ref.func 0)))
+  //
+  // The element segment's ref type (ref $t0) must be a subtype of the
+  // table's element type (ref null $t1). Since $t0 is a supertype of $t1
+  // (not a subtype), validation must fail with TypeCheckFailed.
+  std::array<WasmEdge::Byte, 54> Wasm = {
+      // Preamble
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      // Type section: 2 types
+      //   type 0: (sub (func))             -- non-final, no super
+      //   type 1: (sub final 0 (func))     -- final, supertype 0
+      0x01, 0x0c, 0x02, 0x50, 0x00, 0x60, 0x00, 0x00, 0x4f, 0x01, 0x00, 0x60,
+      0x00, 0x00,
+      // Import section: "env"."f" func of type 0
+      0x02, 0x09, 0x01, 0x03, 0x65, 0x6e, 0x76, // "env"
+      0x01, 0x66,                               // "f"
+      0x00, 0x00,                               // func kind, typeidx 0
+      // Table section: 1 table of type (ref null 1), min 1
+      0x04, 0x05, 0x01, 0x63, 0x01, // reftype: ref null, typeindex 1
+      0x00, 0x01,                   // limits: min=1, no max
+      // Element section: 1 active segment, table 0, offset i32.const 0,
+      //   reftype (ref 0), init [ref.func 0]
+      0x09, 0x0c, 0x01,
+      0x06,             // form 6: active, tableidx, offset, reftype, vec(expr)
+      0x00,             // tableidx 0
+      0x41, 0x00, 0x0b, // offset: i32.const 0, end
+      0x64, 0x00,       // reftype: (ref 0)
+      0x01,             // 1 init expr
+      0xd2, 0x00, 0x0b, // ref.func 0, end
+  };
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorSubtypeTest, ActiveElemTypedFuncrefAssert) {
+  // Module: (module
+  //   (type $t0 (func (param i32)))
+  //   (type $t1 (func))
+  //   (func $f0 (type $t1))
+  //   (func $f1 (type $t0) (local.get 0) (drop))
+  //   (func $f2 (type $t1)
+  //     (call_ref $t1 (table.get 0 (i32.const 0))))
+  //   (table 1 (ref null $t1))
+  //   (elem (table 0) (i32.const 0) func $f1)   ;; implicit funcref
+  //   (export "trigger" (func $f2)))
+  std::array<WasmEdge::Byte, 74> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02,
+      0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x03, 0x04, 0x03, 0x01,
+      0x00, 0x01, 0x04, 0x05, 0x01, 0x63, 0x01, 0x00, 0x01, 0x07, 0x0b,
+      0x01, 0x07, 0x74, 0x72, 0x69, 0x67, 0x67, 0x65, 0x72, 0x00, 0x02,
+      0x09, 0x07, 0x01, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x01, 0x0a, 0x13,
+      0x03, 0x02, 0x00, 0x0b, 0x05, 0x00, 0x20, 0x00, 0x1a, 0x0b, 0x08,
+      0x00, 0x41, 0x00, 0x25, 0x00, 0x14, 0x01, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(),
+            WasmEdge::ErrCode::Value::TypeCheckFailed);
+}
+
+TEST_F(ValidatorSubtypeTest, ActiveElemTypedFuncrefTrap) {
+  // Module: (module
+  //   (type $t0 (func))
+  //   (type $t1 (func (param (ref $t0))))
+  //   (type $t2 (sub final $t1 (func (param funcref))))
+  //   (type $t3 (func))
+  //   (func $f0 (type $t1) (call_ref $t0 (local.get 0)))
+  //   (func $f1 (type $t2) (local.get 0) (drop))
+  //   (func $f2 (type $t0))
+  //   (func $f3 (type $t3)
+  //     (call_ref $t2 (ref.null func) (table.get 0 (i32.const 0))))
+  //   (table 1 (ref null $t2))
+  //   (elem (table 0) (i32.const 0) func $f0)   ;; implicit funcref
+  //   (export "trigger" (func $f3)))
+  std::array<WasmEdge::Byte, 95> Wasm = {
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x13, 0x04, 0x60,
+      0x00, 0x00, 0x60, 0x01, 0x64, 0x00, 0x00, 0x4f, 0x01, 0x01, 0x60, 0x01,
+      0x70, 0x00, 0x60, 0x00, 0x00, 0x03, 0x05, 0x04, 0x01, 0x02, 0x00, 0x03,
+      0x04, 0x05, 0x01, 0x63, 0x02, 0x00, 0x01, 0x07, 0x0b, 0x01, 0x07, 0x74,
+      0x72, 0x69, 0x67, 0x67, 0x65, 0x72, 0x00, 0x03, 0x09, 0x07, 0x01, 0x00,
+      0x41, 0x00, 0x0b, 0x01, 0x00, 0x0a, 0x1c, 0x04, 0x06, 0x00, 0x20, 0x00,
+      0x14, 0x00, 0x0b, 0x05, 0x00, 0x20, 0x00, 0x1a, 0x0b, 0x02, 0x00, 0x0b,
+      0x0a, 0x00, 0xd0, 0x70, 0x41, 0x00, 0x25, 0x00, 0x14, 0x02, 0x0b};
+
+  auto Result = LoadEngine->parseModule(Wasm);
+  ASSERT_TRUE(Result);
+
+  auto ValidationResult = ValidEngine->validate(**Result);
+  EXPECT_FALSE(ValidationResult);
+  EXPECT_EQ(ValidationResult.error(), WasmEdge::ErrCode::Value::InvalidSubType);
 }
 
 } // namespace

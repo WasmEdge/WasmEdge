@@ -11,8 +11,71 @@
 #include <utility>
 #include <vector>
 
+#if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
+#include <pthread.h>
+#elif WASMEDGE_OS_WINDOWS
+#include "system/winapi.h"
+#endif
+
 namespace WasmEdge {
 namespace Executor {
+namespace {
+
+constexpr size_t StackGuardSize = 64 * 1024;
+
+uintptr_t computeThreadStackLimit() noexcept {
+  uint8_t Marker;
+  auto *Fallback = const_cast<uint8_t *>(
+      reinterpret_cast<const uint8_t *>(&Marker) - StackGuardSize);
+
+  uint8_t *StackLow = nullptr;
+  size_t StackSize = 0;
+  size_t GuardSize = 0;
+
+#if WASMEDGE_OS_LINUX
+  pthread_attr_t Attr;
+  if (pthread_getattr_np(pthread_self(), &Attr) == 0) {
+    void *StackBase = nullptr;
+    if (pthread_attr_getstack(&Attr, &StackBase, &StackSize) == 0) {
+      if (pthread_attr_getguardsize(&Attr, &GuardSize) != 0) {
+        GuardSize = 0;
+      }
+      StackLow = static_cast<uint8_t *>(StackBase);
+    }
+    pthread_attr_destroy(&Attr);
+  }
+#elif WASMEDGE_OS_MACOS
+  auto Thread = pthread_self();
+  auto *StackHigh = static_cast<uint8_t *>(pthread_get_stackaddr_np(Thread));
+  StackSize = pthread_get_stacksize_np(Thread);
+  if (StackHigh != nullptr && StackSize > 0) {
+    StackLow = StackHigh - StackSize;
+  }
+#elif WASMEDGE_OS_WINDOWS
+  winapi::ULONG_PTR_ WinStackLow = 0;
+  winapi::ULONG_PTR_ WinStackHigh = 0;
+  winapi::GetCurrentThreadStackLimits(&WinStackLow, &WinStackHigh);
+  if (WinStackHigh > WinStackLow) {
+    StackSize = static_cast<size_t>(WinStackHigh - WinStackLow);
+    StackLow = reinterpret_cast<uint8_t *>(WinStackLow);
+  }
+#endif
+
+  if (StackLow != nullptr && StackSize > 0) {
+    const size_t GuardMargin = GuardSize + StackGuardSize;
+    const size_t Margin = StackSize < GuardMargin ? StackSize : GuardMargin;
+    return reinterpret_cast<uintptr_t>(StackLow + Margin);
+  }
+
+  return reinterpret_cast<uintptr_t>(Fallback);
+}
+
+uintptr_t queryThreadStackLimit() noexcept {
+  static thread_local uintptr_t ThreadStackLimit = computeThreadStackLimit();
+  return ThreadStackLimit;
+}
+
+} // namespace
 
 Executor::SavedThreadLocal::SavedThreadLocal(
     Executor &Ex, Runtime::StackManager &StackMgr,
@@ -25,6 +88,7 @@ Executor::SavedThreadLocal::SavedThreadLocal(
 
   SavedExecutionContext = ExecutionContext;
   ExecutionContext.StopToken = &Ex.StopToken;
+  ExecutionContext.StackLimit = queryThreadStackLimit();
   ExecutionContext.Memories = ModInst->MemoryPtrs.data();
   ExecutionContext.Globals = ModInst->GlobalPtrs.data();
   if (Ex.Stat) {

@@ -453,6 +453,21 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
+    // Reject duplicate argument names on an instantiate expression. The
+    // spec requires argument names to be strongly-unique per instantiation.
+    {
+      std::unordered_set<std::string_view> SeenArgs;
+      for (const auto &Arg : Inst.getInstantiateArgs()) {
+        if (!SeenArgs.insert(Arg.getName()).second) {
+          spdlog::error(ErrCode::Value::ComponentDuplicateName);
+          spdlog::error("    CoreInstance: Duplicate argument name '{}'"sv,
+                        Arg.getName());
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
+          return Unexpect(ErrCode::Value::ComponentDuplicateName);
+        }
+      }
+    }
+
     // Get the import descriptors of the module to instantiate.
     const auto *Mod = CompCtx.getCoreModule(ModIdx);
     // TODO: use core:moduletype info (not the raw AST) so arg checking also
@@ -492,7 +507,16 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
     uint32_t InstanceIdx = CompCtx.addCoreInstance();
 
     // Check the core:sort index bound and register the inline exports.
+    // Inline-export names on a core instance must be strongly-unique.
+    std::unordered_set<std::string_view> SeenExports;
     for (const auto &Export : Inst.getInlineExports()) {
+      if (!SeenExports.insert(Export.getName()).second) {
+        spdlog::error(ErrCode::Value::ComponentDuplicateName);
+        spdlog::error("    CoreInstance: Duplicate inline-export name '{}'"sv,
+                      Export.getName());
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
+        return Unexpect(ErrCode::Value::ComponentDuplicateName);
+      }
       const auto &Sort = Export.getSortIdx().getSort();
       uint32_t Idx = Export.getSortIdx().getIdx();
       assuming(Sort.isCore());
@@ -552,6 +576,21 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
+    // Reject duplicate argument names on an instantiate expression. The
+    // spec requires argument names to be strongly-unique per instantiation.
+    {
+      std::unordered_set<std::string_view> SeenArgs;
+      for (const auto &Arg : Inst.getInstantiateArgs()) {
+        if (!SeenArgs.insert(Arg.getName()).second) {
+          spdlog::error(ErrCode::Value::ComponentDuplicateName);
+          spdlog::error("    Instance: Duplicate argument name '{}'"sv,
+                        Arg.getName());
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+          return Unexpect(ErrCode::Value::ComponentDuplicateName);
+        }
+      }
+    }
+
     // Get the imports of the component to instantiate.
     const auto *Comp = CompCtx.getComponent(CompIdx);
     // TODO: use componenttype info (not the raw AST) so arg checking also
@@ -689,7 +728,16 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     // Check the sort index bound of the inline exports, then record each
     // export on the new instance with a NestedInstIdx fallback so alias
     // chains through inline-export instances can follow the source.
+    // Inline-export names on a component instance must be strongly-unique.
+    std::unordered_set<std::string_view> SeenExports;
     for (const auto &Export : Inst.getInlineExports()) {
+      if (!SeenExports.insert(Export.getName()).second) {
+        spdlog::error(ErrCode::Value::ComponentDuplicateName);
+        spdlog::error("    Instance: Duplicate inline-export name '{}'"sv,
+                      Export.getName());
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+        return Unexpect(ErrCode::Value::ComponentDuplicateName);
+      }
       const auto &Sort = Export.getSortIdx().getSort();
       uint32_t Idx = Export.getSortIdx().getIdx();
       if (Sort.isCore()) {
@@ -729,8 +777,6 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
       // No resolved InstanceType is forwarded here; NestedInstIdx is
       // enough for subsequent alias-export lookups to chase into the
       // source instance.
-      // TODO: reject duplicate inline-export names — the spec requires
-      // inline-export names on an instance to be strongly-unique.
       CompCtx.addInstanceExport(InstanceIdx, Export.getName(),
                                 Sort.getSortType(), nullptr, NestedIdx);
     }
@@ -928,11 +974,22 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         return Unexpect(ErrCode::Value::InvalidIndex);
       }
       if (Sort.getSortType() == AST::Component::Sort::SortType::Type) {
+        // Narrow spec rule: forbid outer-aliasing a resource type directly.
+        // Resource types are generative, so aliasing them across a component
+        // boundary would leak a specific instance's resource into another
+        // component's type index space.
+        //
+        // TODO: broaden to wasm-tools' full free-variable rule — forbid
+        // outer-aliasing *any* type whose transitive free variables include
+        // resources defined on the far side of a crossed component boundary.
+        // Implementing that needs a free-variable walker over type bodies,
+        // which is tracked alongside the Phase 3/4 type-handle work
+        // (GAP-TH-1, GAP-EX-5).
         if (TargetCtx->ResourceTypes.find(Idx) !=
             TargetCtx->ResourceTypes.end()) {
           spdlog::error(ErrCode::Value::InvalidTypeReference);
           spdlog::error(
-              "    Alias outer: Cannot outer-alias a resource type at index {}. Resource types are generative."sv,
+              "    Alias outer: Cannot outer-alias resource type at index {}"sv,
               Idx);
           return Unexpect(ErrCode::Value::InvalidTypeReference);
         }

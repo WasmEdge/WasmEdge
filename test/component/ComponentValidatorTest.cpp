@@ -948,4 +948,121 @@ TEST(ComponentValidatorTest, CoreModuleTypeValidImportExport) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
+// =============================================================================
+// Duplicate-name validation tests for instances/instantiate
+// =============================================================================
+
+TEST(ComponentValidatorTest, CoreInstanceInstantiateDuplicateArgName) {
+  // (core module $M)    ;; empty core module
+  // (core instance (instantiate $M (with "m" (instance 0))
+  //                                (with "m" (instance 0))))  ;; FAIL: dup arg
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreModuleSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
+  auto &CoreInstSec =
+      std::get<AST::Component::CoreInstanceSection>(Comp.getSections()[1]);
+
+  CoreInstSec.getContent().emplace_back();
+  AST::Component::InstantiateArg<uint32_t> Arg1;
+  Arg1.getName() = "m";
+  Arg1.getIndex() = 0;
+  AST::Component::InstantiateArg<uint32_t> Arg2;
+  Arg2.getName() = "m";
+  Arg2.getIndex() = 0;
+  CoreInstSec.getContent().back().setInstantiateArgs(
+      0U, {std::move(Arg1), std::move(Arg2)});
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, InstanceInstantiateDuplicateArgName) {
+  // (component $C (import "f" (func)))
+  // (import "g" (func))
+  // (instance (instantiate $C (with "f" (func 0))
+  //                           (with "f" (func 0))))  ;; FAIL: dup arg
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+  auto &CompSec =
+      std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  auto &InstSec =
+      std::get<AST::Component::InstanceSection>(Comp.getSections()[2]);
+
+  // Inner component with `(import "f" (func))`.
+  CompSec.getContent() = std::make_unique<AST::Component::Component>();
+  CompSec.getContent()->getSections().emplace_back();
+  CompSec.getContent()
+      ->getSections()
+      .back()
+      .emplace<AST::Component::ImportSection>();
+  auto &InnerImpSec = std::get<AST::Component::ImportSection>(
+      CompSec.getContent()->getSections().back());
+  InnerImpSec.getContent().emplace_back();
+  InnerImpSec.getContent().back().getName() = "f";
+  InnerImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // Outer `(import "g" (func))` -> func 0.
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "g";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // Instantiate component 0 with two args named "f".
+  InstSec.getContent().emplace_back();
+  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg1;
+  Arg1.getName() = "f";
+  Arg1.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  Arg1.getIndex().setIdx(0);
+  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg2;
+  Arg2.getName() = "f";
+  Arg2.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  Arg2.getIndex().setIdx(0);
+  InstSec.getContent().back().setInstantiateArgs(
+      0U, {std::move(Arg1), std::move(Arg2)});
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, InstanceInlineExportDuplicateName) {
+  // (import "g" (func))                       ;; func 0
+  // (instance (export "x" (func 0))
+  //           (export "x" (func 0)))           ;; FAIL: duplicate export name
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[0]);
+  auto &InstSec =
+      std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
+
+  // import "g" (func) -> func 0
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "g";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  // Inline-export instance with two exports both named "x".
+  AST::Component::InlineExport E1;
+  E1.getName() = "x";
+  E1.getSortIdx().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  E1.getSortIdx().setIdx(0);
+  AST::Component::InlineExport E2;
+  E2.getName() = "x";
+  E2.getSortIdx().getSort().setSortType(AST::Component::Sort::SortType::Func);
+  E2.getSortIdx().setIdx(0);
+  InstSec.getContent().emplace_back();
+  InstSec.getContent().back().setInlineExports({std::move(E1), std::move(E2)});
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
 } // namespace

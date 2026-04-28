@@ -86,6 +86,7 @@ set(WASMEDGE_CAPI_HEADERS
 
 # Object library of the C API wrapper.
 wasmedge_add_library(wasmedgeCAPI OBJECT
+  wasm_c.cpp
   wasmedge.cpp
 )
 
@@ -106,6 +107,7 @@ target_include_directories(wasmedgeCAPI
   PUBLIC
   ${PROJECT_BINARY_DIR}/include/api
   ${PROJECT_SOURCE_DIR}/include/api
+  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
 )
 
 if(WASMEDGE_BUILD_SHARED_LIB)
@@ -182,6 +184,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
       COMMAND ${CMAKE_AR} -static -o libwasmedge.a ${WASMEDGE_STATIC_LIB_LIBTOOL_FILES} $<TARGET_OBJECTS:wasmedgeCAPI>
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
+      COMMAND_EXPAND_LISTS
     )
   else()
     add_custom_command(OUTPUT "libwasmedge.a"
@@ -191,6 +194,7 @@ if(WASMEDGE_BUILD_STATIC_LIB)
       COMMAND ${CMAKE_COMMAND} -E remove_directory objs
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
       DEPENDS ${WASMEDGE_STATIC_LIB_DEPS} wasmedgeCAPI
+      COMMAND_EXPAND_LISTS
     )
   endif()
 

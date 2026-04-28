@@ -1511,6 +1511,25 @@ static void sigevCallback(union sigval Value) noexcept {
   const uint64_t One = 1;
   ::write(Value.sival_int, &One, sizeof(One));
 }
+
+WasiExpect<void> setTimerPipeFlags(int Fd) noexcept {
+  const int FdFlags = ::fcntl(Fd, F_GETFD);
+  if (unlikely(FdFlags < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  const int StatusFlags = ::fcntl(Fd, F_GETFL);
+  if (unlikely(StatusFlags < 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  if (unlikely(::fcntl(Fd, F_SETFD, FdFlags | FD_CLOEXEC) != 0 ||
+               ::fcntl(Fd, F_SETFL, StatusFlags | O_NONBLOCK) != 0)) {
+    return WasiUnexpect(fromErrNo(errno));
+  }
+
+  return {};
+}
 } // namespace
 
 WasiExpect<void> Poller::Timer::create() noexcept {
@@ -1532,11 +1551,10 @@ WasiExpect<void> Poller::Timer::create() noexcept {
     Event.sigev_value.sival_int = Notify.Fd;
     Event.sigev_notify_attributes = nullptr;
 
-    if (unlikely(::fcntl(Fd, F_SETFD, FD_CLOEXEC) != 0 ||
-                 ::fcntl(Fd, F_SETFL, O_NONBLOCK) != 0 ||
-                 ::fcntl(Notify.Fd, F_SETFD, FD_CLOEXEC) != 0 ||
-                 ::fcntl(Notify.Fd, F_SETFL, O_NONBLOCK) != 0 ||
-                 ::timer_create(toClockId(Clock), &Event, &TId) < 0)) {
+    EXPECTED_TRY(setTimerPipeFlags(Fd));
+    EXPECTED_TRY(setTimerPipeFlags(Notify.Fd));
+
+    if (unlikely(::timer_create(toClockId(Clock), &Event, &TId) < 0)) {
       return WasiUnexpect(fromErrNo(errno));
     }
   }

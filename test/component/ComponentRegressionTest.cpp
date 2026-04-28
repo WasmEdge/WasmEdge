@@ -904,4 +904,37 @@ TEST(Component, ExportAscriptionSortKindMismatchRejected) {
   ASSERT_FALSE(VM.validate());
 }
 
+TEST(Component, Load_InlineExportWithDiscriminator) {
+  // This test addresses Issue #4714 where inline exports in component
+  // instances failed to parse due to a missing discriminator byte.
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // Minimal component binary:
+  // (component
+  //   (type (func))
+  //   (import "f" (func (type 0)))
+  //   (instance (export "hello" (func 0)))
+  // )
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, // Preamble (Component)
+
+      0x07, 0x05, 0x01, // Type section: ID 0x07, Size 0x05, Count 0x01
+      0x40, 0x00, 0x01, 0x00, // Func type: 0x40, 0 params, empty results
+
+      0x0a, 0x06, 0x01, // Import section: ID 0x0a, Size 0x06, Count 0x01
+      0x00, 0x01, 0x66, // Name: Disc 0x00, Len 1, "f"
+      0x01, 0x00,       // Desc: Func (0x01), Type 0
+
+      0x05, 0x0c, 0x01, // Instance section: ID 0x05, Size 0x0c, Count 0x01
+      0x01,             // InstExpr: Inline exports (0x01)
+      0x01,             // Vector count: 1
+      0x00, 0x05, 0x68, 0x65, 0x6c, 0x6c, 0x6f, // Export name: Disc 0x00, Len 5, "hello"
+      0x01, 0x00 // SortIdx: Sort func (0x01), Index 0
+  };
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+}
+
 } // namespace

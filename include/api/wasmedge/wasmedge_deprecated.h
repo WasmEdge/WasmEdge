@@ -156,6 +156,17 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result
 WasmEdge_VMLoadWasmFromBuffer(WasmEdge_VMContext *Cxt, const uint8_t *Buf,
                               const uint32_t BufLen) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Forcibly delete a registered module from the VM context.
+///
+/// CAUTION: This function is deprecated and replaced by
+/// `WasmEdge_VMDeleteRegisteredModule()` API.
+///
+/// \param Cxt the WasmEdge_VMContext to delete the module from.
+/// \param ModuleName the name of the module to delete.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_VMForceDeleteRegisteredModule(
+    const WasmEdge_VMContext *Cxt,
+    const WasmEdge_String ModuleName) WASMEDGE_CAPI_NOEXCEPT;
+
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 #ifdef __cplusplus

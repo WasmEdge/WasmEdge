@@ -684,12 +684,36 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
-  // Tests for force interpreter.
+  // Tests for force interpreter (deprecated API).
+  // Pre-set to JIT so the SetForceInterpreter(true) flip is observable; the
+  // default run mode is Interpreter, which would make IsForceInterpreter()
+  // already true.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
   WasmEdge_ConfigureSetForceInterpreter(ConfNull, true);
   EXPECT_EQ(WasmEdge_ConfigureIsForceInterpreter(Conf), false);
   WasmEdge_ConfigureSetForceInterpreter(Conf, true);
   EXPECT_NE(WasmEdge_ConfigureIsForceInterpreter(ConfNull), true);
   EXPECT_EQ(WasmEdge_ConfigureIsForceInterpreter(Conf), true);
+  // Tests for run mode (round-trip).
+  WasmEdge_ConfigureSetRunMode(ConfNull, WasmEdge_RunMode_JIT);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(ConfNull),
+            WasmEdge_RunMode_Interpreter);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_JIT);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_AOT);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_AOT);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_Interpreter);
+  // Cross-API consistency with deprecated SetForceInterpreter /
+  // IsForceInterpreter.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
+  EXPECT_FALSE(WasmEdge_ConfigureIsForceInterpreter(Conf));
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
+  EXPECT_TRUE(WasmEdge_ConfigureIsForceInterpreter(Conf));
+  WasmEdge_ConfigureSetForceInterpreter(Conf, true);
+  EXPECT_EQ(WasmEdge_ConfigureGetRunMode(Conf), WasmEdge_RunMode_Interpreter);
+  // Reset to a deterministic mode for the rest of the test.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
   // Tests for AOT compiler configurations.
   WasmEdge_ConfigureCompilerSetOptimizationLevel(
       ConfNull, WasmEdge_CompilerOptimizationLevel_Os);
@@ -1357,6 +1381,8 @@ TEST(APICoreTest, Compiler) {
   P[0] = WasmEdge_ValueGenI32(20);
   R[0] = WasmEdge_ValueGenI32(0);
   WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+  // Test the AOT mode of the universal WASM.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_AOT);
   WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
   EXPECT_NE(VM, nullptr);
   WasmEdge_VMRunWasmFromFile(VM, "fib_aot4.wasm", FuncName, P, 1, R, 1);
@@ -1373,6 +1399,77 @@ TEST(APICoreTest, Compiler) {
   WasmEdge_StringDelete(FuncName);
 
   WasmEdge_CompilerDelete(Compiler);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(APICoreTest, RunModes) {
+  // Exercise the WasmEdge_RunMode behaviours and fallback paths.
+  //
+  // Compile fib to a native shared library (.so / .dylib / .dll) and load it
+  // under each RunMode. In Interpreter and JIT modes the loader extracts the
+  // embedded WASM bytes and dlcloses the library before any AOT function
+  // symbol is resolved; in AOT mode the existing dlopen-and-link behaviour is
+  // kept. Then verify that AOT mode on a plain .wasm with no AOT section
+  // falls back to interpreter execution with a warning.
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_ConfigureCompilerSetOutputFormat(
+      Conf, WasmEdge_CompilerOutputFormat_Native);
+  WasmEdge_CompilerContext *Compiler = WasmEdge_CompilerCreate(Conf);
+  EXPECT_NE(Compiler, nullptr);
+  const char *SharedLibPath = "fib_runmode_aot" WASMEDGE_LIB_EXTENSION;
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBuffer(
+      Compiler, FibonacciWasm.data(), FibonacciWasm.size(), SharedLibPath)));
+  WasmEdge_CompilerDelete(Compiler);
+
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
+  WasmEdge_Value P[1] = {WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value R[1] = {WasmEdge_ValueGenI32(0)};
+
+  // Interpreter mode: dlopen → extract embedded WASM bytes → dlclose →
+  // interpret.
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_Interpreter);
+  WasmEdge_VMContext *VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  WasmEdge_VMDelete(VM);
+
+  // JIT mode: dlopen → extract bytes → dlclose → JIT-compile → run.
+  R[0] = WasmEdge_ValueGenI32(0);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_JIT);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  WasmEdge_VMDelete(VM);
+
+  // AOT mode: keep library handle alive, run the embedded native code.
+  R[0] = WasmEdge_ValueGenI32(0);
+  WasmEdge_ConfigureSetRunMode(Conf, WasmEdge_RunMode_AOT);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(
+      WasmEdge_VMRunWasmFromFile(VM, SharedLibPath, FuncName, P, 1, R, 1)));
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  WasmEdge_VMDelete(VM);
+
+  // AOT mode on a plain .wasm with no AOT section: emit a warning and fall
+  // back to interpreter execution. Use the in-memory FibonacciWasm buffer to
+  // exercise the no-AOT path.
+  R[0] = WasmEdge_ValueGenI32(0);
+  VM = WasmEdge_VMCreate(Conf, nullptr);
+  EXPECT_NE(VM, nullptr);
+  EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBytes(
+      VM,
+      WasmEdge_BytesWrap(FibonacciWasm.data(),
+                         static_cast<uint32_t>(FibonacciWasm.size())),
+      FuncName, P, 1, R, 1)));
+  EXPECT_EQ(WasmEdge_ValueGetI32(R[0]), 10946);
+  WasmEdge_VMDelete(VM);
+
+  WasmEdge_StringDelete(FuncName);
   WasmEdge_ConfigureDelete(Conf);
 }
 #endif

@@ -115,10 +115,9 @@ public:
   RuntimeConfigure() noexcept = default;
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
-        EnableJIT(RHS.EnableJIT.load(std::memory_order_relaxed)),
+        Mode(RHS.Mode.load(std::memory_order_relaxed)),
         EnableCoredump(RHS.EnableCoredump.load(std::memory_order_relaxed)),
         CoredumpWasmgdb(RHS.CoredumpWasmgdb.load(std::memory_order_relaxed)),
-        ForceInterpreter(RHS.ForceInterpreter.load(std::memory_order_relaxed)),
         AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
 
   void setMaxMemoryPage(const uint64_t Page) noexcept {
@@ -129,12 +128,12 @@ public:
     return MaxMemPage.load(std::memory_order_relaxed);
   }
 
-  void setEnableJIT(bool IsEnableJIT) noexcept {
-    EnableJIT.store(IsEnableJIT, std::memory_order_relaxed);
+  void setRunMode(RunMode M) noexcept {
+    Mode.store(M, std::memory_order_relaxed);
   }
 
-  bool isEnableJIT() const noexcept {
-    return EnableJIT.load(std::memory_order_relaxed);
+  RunMode getRunMode() const noexcept {
+    return Mode.load(std::memory_order_relaxed);
   }
 
   void setEnableCoredump(bool IsEnableCoredump) noexcept {
@@ -153,14 +152,6 @@ public:
     return CoredumpWasmgdb.load(std::memory_order_relaxed);
   }
 
-  void setForceInterpreter(bool IsForceInterpreter) noexcept {
-    ForceInterpreter.store(IsForceInterpreter, std::memory_order_relaxed);
-  }
-
-  bool isForceInterpreter() const noexcept {
-    return ForceInterpreter.load(std::memory_order_relaxed);
-  }
-
   void setAllowAFUNIX(bool IsAllowAFUNIX) noexcept {
     AllowAFUNIX.store(IsAllowAFUNIX, std::memory_order_relaxed);
   }
@@ -171,10 +162,9 @@ public:
 
 private:
   std::atomic<uint64_t> MaxMemPage = 65536;
-  std::atomic<bool> EnableJIT = false;
+  std::atomic<RunMode> Mode = RunMode::Interpreter;
   std::atomic<bool> EnableCoredump = false;
   std::atomic<bool> CoredumpWasmgdb = false;
-  std::atomic<bool> ForceInterpreter = false;
   std::atomic<bool> AllowAFUNIX = false;
 };
 

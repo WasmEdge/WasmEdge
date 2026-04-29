@@ -25,12 +25,26 @@ namespace WasmEdge::Loader {
 
 // Open so file. See "include/loader/shared_library.h".
 Expect<void> SharedLibrary::load(const std::filesystem::path &Path) noexcept {
+  // Temporary diagnostic for the riscv64-QEMU dlopen-after-link visibility
+  // issue. Logs the file state immediately before dlopen, and again after
+  // a failure, to determine whether the file disappears between
+  // outputNativeLibrary's "codegen done" and the dlopen call.
+  spdlog::info("DIAG[D] before dlopen: Path={}, exists={}, size={}"sv,
+               Path.u8string(), std::filesystem::exists(Path),
+               std::filesystem::exists(Path) ? std::filesystem::file_size(Path)
+                                             : UINT64_C(0));
 #if WASMEDGE_OS_WINDOWS
   Handle = winapi::LoadLibraryExW(Path.c_str(), nullptr, 0);
 #else
   Handle = ::dlopen(Path.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
   if (!Handle) {
+    spdlog::info("DIAG[E] dlopen returned NULL: post_call_exists={}, "
+                 "post_call_size={}"sv,
+                 std::filesystem::exists(Path),
+                 std::filesystem::exists(Path)
+                     ? std::filesystem::file_size(Path)
+                     : UINT64_C(0));
     spdlog::error(ErrCode::Value::IllegalPath);
 #if WASMEDGE_OS_WINDOWS
     const auto Code = winapi::GetLastError();

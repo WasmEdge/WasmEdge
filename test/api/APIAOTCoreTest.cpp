@@ -42,7 +42,10 @@ class CoreCompileTest : public testing::TestWithParam<std::string> {};
 class CoreCompileArrayTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreCompileTest, TestSuites) {
-  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  // C API AOT spec test: opt into RunMode::AOT so the runtime load
+  // step uses the produced .so as AOT under the new default mode.
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   const auto &ConfRef = Conf;
 
   // Define context structure for C API AOT

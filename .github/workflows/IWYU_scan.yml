@@ -79,7 +79,7 @@ jobs:
     - name: Install requirements
       run: |
         dnf update -y
-        dnf install -y cmake ninja-build llvm19 llvm19-devel lld19-devel clang19 git file rpm-build dpkg-dev clang19-devel spdlog-devel
+        dnf install -y cmake ninja-build llvm19 llvm19-devel lld19 lld19-devel clang19 git file rpm-build dpkg-dev clang19-devel spdlog-devel
         curl -L -O https://github.com/include-what-you-use/include-what-you-use/archive/refs/tags/0.23.zip
         unzip 0.23.zip
         patch -p1 -d include-what-you-use-0.23 <<EOF

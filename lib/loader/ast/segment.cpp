@@ -263,10 +263,9 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
     CodeSeg.getLocals().push_back(std::make_pair(LocalCnt, LocalType));
   }
 
-  if (!Conf.getRuntimeConfigure().isForceInterpreter() &&
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::AOT &&
       WASMType != InputType::WASM) {
-    // For the AOT mode and not force interpreter in configure, skip the
-    // function body.
+    // In AOT run mode with an AOT artifact, skip parsing the function body.
     FMgr.seek(ExprSizeBound);
   } else {
     // Read function body with expected expression size.

@@ -261,9 +261,29 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
 #endif
   );
 
+  // Temporary diagnostic for investigating riscv64-QEMU dlopen-after-link
+  // visibility. Logs link result, output path, and post-link file state so
+  // we can see whether lld actually wrote the .so before destroy() and
+  // before "codegen done" is logged.
+  spdlog::info("DIAG[A] lld::elf::link returned: LinkResult={}, "
+               "OutputPath={}, exists_before_destroy={}, "
+               "size_before_destroy={}"sv,
+               LinkResult, OutputPath.u8string(),
+               std::filesystem::exists(OutputPath),
+               LinkResult && std::filesystem::exists(OutputPath)
+                   ? std::filesystem::file_size(OutputPath)
+                   : UINT64_C(0));
+
 #if LLVM_VERSION_MAJOR >= 14
   lld::CommonLinkerContext::destroy();
 #endif
+
+  spdlog::info("DIAG[B] after CommonLinkerContext::destroy: "
+               "exists_after_destroy={}, size_after_destroy={}"sv,
+               std::filesystem::exists(OutputPath),
+               std::filesystem::exists(OutputPath)
+                   ? std::filesystem::file_size(OutputPath)
+                   : UINT64_C(0));
 
   if (LinkResult) {
     std::error_code Error;
@@ -274,6 +294,12 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
     std::filesystem::remove(LibPath, Error);
 #endif
 
+    spdlog::info("DIAG[C] just before \"codegen done\": "
+                 "exists_final={}, size_final={}"sv,
+                 std::filesystem::exists(OutputPath),
+                 std::filesystem::exists(OutputPath)
+                     ? std::filesystem::file_size(OutputPath)
+                     : UINT64_C(0));
     spdlog::info("codegen done"sv);
   } else {
     spdlog::error("link error"sv);

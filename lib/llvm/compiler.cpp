@@ -9,6 +9,7 @@
 #include "common/spdlog.h"
 #include "data.h"
 #include "llvm.h"
+#include "spdlog/spdlog.h"
 #include "system/allocator.h"
 
 #include <algorithm>
@@ -16,6 +17,7 @@
 #include <cinttypes>
 #include <cstdint>
 #include <cstdlib>
+#include <functional>
 #include <limits>
 #include <memory>
 #include <numeric>
@@ -128,7 +130,7 @@ static inline LLVMCodeGenOptLevel toLLVMCodeGenLevel(
 
 struct LLVM::Compiler::CompileContext {
   LLVM::Context LLContext;
-  LLVM::Module &LLModule;
+  std::reference_wrapper<LLVM::Module> LLModule;
   LLVM::Attribute Cold;
   LLVM::Attribute NoAlias;
   LLVM::Attribute NoInline;
@@ -205,10 +207,11 @@ struct LLVM::Compiler::CompileContext {
   std::vector<LLVM::Type> MemoryAddrTypes;
   std::vector<LLVM::Type> TableAddrTypes;
   std::vector<LLVM::Type> Globals;
+  std::string Prefix;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
-  CompileContext(LLVM::Context C, LLVM::Module &M,
-                 bool IsGenericBinary) noexcept
+  CompileContext(LLVM::Context C, LLVM::Module &M, bool IsGenericBinary,
+                 std::string_view P = ""sv) noexcept
       : LLContext(C), LLModule(M),
         Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
         NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
@@ -256,14 +259,14 @@ struct LLVM::Compiler::CompileContext {
             })),
         ExecCtxPtrTy(ExecCtxTy.getPointerTo()),
         IntrinsicsTableTy(LLVM::Type::getArrayType(
-            Int8PtrTy,
+            Int8Ty.getPointerTo(),
             static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax))),
-        IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
-        IntrinsicsTable(LLModule.addGlobal(IntrinsicsTablePtrTy, true,
-                                           LLVMExternalLinkage, LLVM::Value(),
-                                           "intrinsics")) {
+        IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()), Prefix(P),
+        IntrinsicsTable(LLModule.get().addGlobal(
+            IntrinsicsTablePtrTy, true, LLVMExternalLinkage, LLVM::Value(),
+            fmt::format("{}intrinsics"sv, Prefix).c_str())) {
     Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
-    Trap.Fn = LLModule.addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
+    Trap.Fn = LLModule.get().addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
     Trap.Fn.setDSOLocal(true);
     Trap.Fn.addFnAttr(NoStackArgProbe);
     Trap.Fn.addFnAttr(StrictFP);
@@ -272,9 +275,10 @@ struct LLVM::Compiler::CompileContext {
     Trap.Fn.addFnAttr(Cold);
     Trap.Fn.addFnAttr(NoInline);
 
-    LLModule.addGlobal(Int32Ty, true, LLVMExternalLinkage,
-                       LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion),
-                       "version");
+    LLModule.get().addGlobal(
+        Int32Ty, true, LLVMExternalLinkage,
+        LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion),
+        fmt::format("{}version"sv, Prefix).c_str());
 
     if (!IsGenericBinary) {
       SubtargetFeatures = LLVM::getHostCPUFeatures();
@@ -313,18 +317,7 @@ struct LLVM::Compiler::CompileContext {
       }
     }
 
-    {
-      // create trap
-      LLVM::Builder Builder(LLContext);
-      Builder.positionAtEnd(
-          LLVM::BasicBlock::create(LLContext, Trap.Fn, "entry"));
-      auto FnTy = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
-      auto CallTrap = Builder.createCall(
-          getIntrinsic(Builder, Executable::Intrinsics::kTrap, FnTy),
-          {Trap.Fn.getFirstParam()});
-      CallTrap.addCallSiteAttribute(NoReturn);
-      Builder.createUnreachable();
-    }
+    compileTrap();
   }
   LLVM::Value getMemory(LLVM::Builder &Builder, LLVM::Value ExecCtx,
                         uint32_t Index) noexcept {
@@ -393,6 +386,17 @@ struct LLVM::Compiler::CompileContext {
                                    LLContext.getInt64(Value));
     auto Ptr = Builder.createBitCast(VPtr, PtrPtrTy);
     return {Ty, Builder.createLoad(PtrTy, Ptr)};
+  }
+  void compileTrap() noexcept {
+    LLVM::Builder Builder(LLContext);
+    Builder.positionAtEnd(
+        LLVM::BasicBlock::create(LLContext, Trap.Fn, "entry"));
+    auto FnTy = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
+    auto CallTrap = Builder.createCall(
+        getIntrinsic(Builder, Executable::Intrinsics::kTrap, FnTy),
+        {Trap.Fn.getFirstParam()});
+    CallTrap.addCallSiteAttribute(NoReturn);
+    Builder.createUnreachable();
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
   resolveBlockType(const BlockType &BType) const noexcept {
@@ -544,9 +548,10 @@ public:
   FunctionCompiler(LLVM::Compiler::CompileContext &Context,
                    LLVM::FunctionCallee F, Span<const ValType> Locals,
                    bool Interruptible, bool InstructionCounting,
-                   bool GasMeasuring) noexcept
+                   bool GasMeasuring, bool IsLazyJIT) noexcept
       : Context(Context), LLContext(Context.LLContext),
-        Interruptible(Interruptible), F(F), Builder(LLContext) {
+        Interruptible(Interruptible), IsLazyJIT(IsLazyJIT), F(F),
+        Builder(LLContext) {
     if (F.Fn) {
       Builder.positionAtEnd(LLVM::BasicBlock::create(LLContext, F.Fn, "entry"));
       ExecCtx = Builder.createLoad(Context.ExecCtxTy, F.Fn.getFirstParam());
@@ -3998,12 +4003,15 @@ public:
   }
   void compileAtomicWait(unsigned MemoryIndex, uint64_t MemoryOffset,
                          LLVM::Type TargetType, uint32_t BitWidth) noexcept {
+    spdlog::error("[lazyjit] memory_index: {}", MemoryIndex);
     auto Timeout = stackPop();
     auto ExpectedValue = Builder.createZExtOrTrunc(stackPop(), Context.Int64Ty);
     auto Offset = Builder.createZExt(stackPop(), Context.Int64Ty);
     if (MemoryOffset != 0) {
       Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
+    spdlog::error("Check: {}",
+                  Context.MemoryAddrTypes[MemoryIndex].isStructTy());
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     stackPush(Builder.createTrunc(
         Builder.createCall(
@@ -4259,6 +4267,7 @@ private:
             ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
+    const auto &RetTypes = FuncType.getReturnTypes();
 
     std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
     Args[0] = F.Fn.getFirstParam();
@@ -4267,16 +4276,61 @@ private:
       Args[J + 1] = stackPop();
     }
 
-    auto Ret = Builder.createCall(Function, Args);
-    auto Ty = Ret.getType();
-    if (Ty.isVoidTy()) {
-      // nothing to do
-    } else if (Ty.isStructTy()) {
-      for (auto Val : unpackStruct(Builder, Ret)) {
-        stackPush(Val);
+    if (IsLazyJIT) {
+      // For Lazy JIT, use the kCall intrinsic to invoke the function.
+      // This avoids direct symbols to uncompiled functions.
+      const size_t ArgSize = ParamTypes.size();
+      const size_t RetSize = RetTypes.size();
+
+      LLVM::Value ArgsArray = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value RetsArray = Builder.createArray(RetSize, kValSize);
+
+      // Store arguments
+      if (ArgSize > 0) {
+        // Args[0] is ExecCtx, so we skip it.
+        std::vector<LLVM::Value> CallArgs(Args.begin() + 1, Args.end());
+        Builder.createArrayPtrStore(Span<LLVM::Value>(CallArgs), ArgsArray,
+                                    Context.Int8Ty, kValSize);
+      }
+
+      // Call kCall intrinsic
+      Builder.createCall(
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kCall,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy,
+                  {Context.Int32Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  false)),
+          {LLContext.getInt32(FuncIndex), ArgsArray, RetsArray});
+
+      // Load return values
+      if (RetSize > 0) {
+        std::vector<LLVM::Value> RetsVec;
+        auto RTy = toLLVMRetsType(LLContext, RetTypes);
+        if (RetSize == 1) {
+          RetsVec.push_back(
+              Builder.createValuePtrLoad(RTy, RetsArray, Context.Int8Ty));
+        } else {
+          RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, RetsArray,
+                                               Context.Int8Ty, kValSize);
+        }
+
+        for (auto &Val : RetsVec) {
+          stackPush(Val);
+        }
       }
     } else {
-      stackPush(Ret);
+      auto Ret = Builder.createCall(Function, Args);
+      auto Ty = Ret.getType();
+      if (Ty.isVoidTy()) {
+        // nothing to do
+      } else if (Ty.isStructTy()) {
+        for (auto Val : unpackStruct(Builder, Ret)) {
+          stackPush(Val);
+        }
+      } else {
+        stackPush(Ret);
+      }
     }
   }
 
@@ -4379,6 +4433,7 @@ private:
             ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
+    const auto &RetTypes = FuncType.getReturnTypes();
 
     std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
     Args[0] = F.Fn.getFirstParam();
@@ -4387,7 +4442,79 @@ private:
       Args[J + 1] = stackPop();
     }
 
+    if (IsLazyJIT) {
+      auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.not_null");
+      auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.is_null");
+      auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
+
+      auto FPtr = Builder.createCall(
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
+              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
+                                          false)),
+          {LLContext.getInt32(FuncIndex)});
+      Builder.createCondBr(
+          Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
+          NotNullBB, IsNullBB);
+      Builder.positionAtEnd(NotNullBB);
+
+      auto Ret = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), Args);
+      Ret.setMustTailCall();
+      auto Ty = Ret.getType();
+      if (Ty.isVoidTy()) {
+        Builder.createRetVoid();
+      } else {
+        Builder.createRet(Ret);
+      }
+
+      Builder.positionAtEnd(IsNullBB);
+
+      const size_t ArgSize = ParamTypes.size();
+      const size_t RetSize = RetTypes.size();
+
+      LLVM::Value ArgsArray = Builder.createArray(ArgSize, kValSize);
+      LLVM::Value RetsArray = Builder.createArray(RetSize, kValSize);
+
+      if (ArgSize > 0) {
+        std::vector<LLVM::Value> CallArgs(Args.begin() + 1, Args.end());
+        Builder.createArrayPtrStore(Span<LLVM::Value>(CallArgs), ArgsArray,
+                                    Context.Int8Ty, kValSize);
+      }
+
+      Builder.createCall(
+          Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kCall,
+              LLVM::Type::getFunctionType(
+                  Context.VoidTy,
+                  {Context.Int32Ty, Context.Int8PtrTy, Context.Int8PtrTy},
+                  false)),
+          {LLContext.getInt32(FuncIndex), ArgsArray, RetsArray});
+
+      if (RetSize == 0) {
+        Builder.createRetVoid();
+      } else {
+        auto RTy = toLLVMRetsType(LLContext, RetTypes);
+        std::vector<LLVM::Value> RetsVec;
+        if (RetSize == 1) {
+          RetsVec.push_back(
+              Builder.createValuePtrLoad(RTy, RetsArray, Context.Int8Ty));
+        } else {
+          RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, RetsArray,
+                                               Context.Int8Ty, kValSize);
+        }
+        auto RetTy = F.Ty.getReturnType();
+        if (RetTy.isStructTy()) {
+          Builder.createAggregateRet(RetsVec);
+        } else {
+          assuming(RetsVec.size() == 1);
+          Builder.createRet(RetsVec[0]);
+        }
+      }
+      return;
+    }
+
     auto Ret = Builder.createCall(Function, Args);
+    Ret.setMustTailCall();
     auto Ty = Ret.getType();
     if (Ty.isVoidTy()) {
       Builder.createRetVoid();
@@ -4432,6 +4559,7 @@ private:
 
       auto FPtrRet =
           Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
+      FPtrRet.setMustTailCall();
       if (RetSize == 0) {
         Builder.createRetVoid();
       } else {
@@ -4608,6 +4736,7 @@ private:
 
       auto FPtrRet =
           Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), ArgsVec);
+      FPtrRet.setMustTailCall();
       if (RetSize == 0) {
         Builder.createRetVoid();
       } else {
@@ -5854,6 +5983,7 @@ private:
     Control &operator=(const Control &) = default;
     Control &operator=(Control &&) = default;
   };
+  bool IsLazyJIT;
   std::vector<Control> ControlStack;
   LLVM::FunctionCallee F;
   LLVM::Value ExecCtx;
@@ -6036,7 +6166,8 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   return Expect<Data>{std::move(D)};
 }
 
-void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
+void Compiler::compile(const AST::TypeSection &TypeSec,
+                       bool DeclarationsOnly) noexcept {
   auto WrapperTy =
       LLVM::Type::getFunctionType(Context->VoidTy,
                                   {Context->ExecCtxPtrTy, Context->Int8PtrTy,
@@ -6053,7 +6184,8 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
   // Iterate and compile types.
   for (size_t I = 0; I < Size; ++I) {
     const auto &CompType = SubTypes[I].getCompositeType();
-    const auto Name = fmt::format("t{}"sv, Context->CompositeTypes.size());
+    const auto Name =
+        fmt::format("{}t{}"sv, Context->Prefix, Context->CompositeTypes.size());
     if (CompType.isFunc()) {
       // Check function type is unique
       {
@@ -6065,13 +6197,31 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
             if (OldFuncType == CompType.getFuncType()) {
               Unique = false;
               Context->CompositeTypes.push_back(Context->CompositeTypes[J]);
-              auto F = Context->FunctionWrappers[J];
-              Context->FunctionWrappers.push_back(F);
-              auto A = Context->LLModule.addAlias(WrapperTy, F, Name.c_str());
-              A.setLinkage(LLVMExternalLinkage);
-              A.setVisibility(LLVMProtectedVisibility);
-              A.setDSOLocal(true);
-              A.setDLLStorageClass(LLVMDLLExportStorageClass);
+              if (DeclarationsOnly) {
+                auto FDecl = Context->LLModule.get().addFunction(
+                    WrapperTy, LLVMExternalLinkage, Name.c_str());
+                FDecl.setVisibility(LLVMProtectedVisibility);
+                FDecl.setDSOLocal(true);
+                FDecl.setDLLStorageClass(LLVMDLLExportStorageClass);
+                FDecl.addFnAttr(Context->NoStackArgProbe);
+                FDecl.addFnAttr(Context->StrictFP);
+                FDecl.addFnAttr(Context->UWTable);
+                FDecl.addParamAttr(0, Context->ReadOnly);
+                FDecl.addParamAttr(0, Context->NoAlias);
+                FDecl.addParamAttr(1, Context->NoAlias);
+                FDecl.addParamAttr(2, Context->NoAlias);
+                FDecl.addParamAttr(3, Context->NoAlias);
+                Context->FunctionWrappers.push_back(FDecl);
+              } else {
+                auto F = Context->FunctionWrappers[J];
+                Context->FunctionWrappers.push_back(F);
+                auto A = Context->LLModule.get().addAlias(WrapperTy, F,
+                                                          Name.c_str());
+                A.setLinkage(LLVMExternalLinkage);
+                A.setVisibility(LLVMProtectedVisibility);
+                A.setDSOLocal(true);
+                A.setDLLStorageClass(LLVMDLLExportStorageClass);
+              }
               break;
             }
           }
@@ -6082,8 +6232,8 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
       }
 
       // Create Wrapper
-      auto F = Context->LLModule.addFunction(WrapperTy, LLVMExternalLinkage,
-                                             Name.c_str());
+      auto F = Context->LLModule.get().addFunction(
+          WrapperTy, LLVMExternalLinkage, Name.c_str());
       {
         F.setVisibility(LLVMProtectedVisibility);
         F.setDSOLocal(true);
@@ -6097,49 +6247,52 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         F.addParamAttr(2, Context->NoAlias);
         F.addParamAttr(3, Context->NoAlias);
 
-        LLVM::Builder Builder(Context->LLContext);
-        Builder.positionAtEnd(
-            LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+        if (!DeclarationsOnly) {
+          LLVM::Builder Builder(Context->LLContext);
+          Builder.positionAtEnd(
+              LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
 
-        auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy,
-                              CompType.getFuncType());
-        auto RTy = FTy.getReturnType();
-        std::vector<LLVM::Type> FPTy(FTy.getNumParams());
-        FTy.getParamTypes(FPTy);
+          auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy,
+                                CompType.getFuncType());
+          auto RTy = FTy.getReturnType();
+          std::vector<LLVM::Type> FPTy(FTy.getNumParams());
+          FTy.getParamTypes(FPTy);
 
-        const size_t ArgCount = FPTy.size() - 1;
-        auto ExecCtxPtr = F.getFirstParam();
-        auto RawFunc = LLVM::FunctionCallee{
-            FTy, Builder.createBitCast(ExecCtxPtr.getNextParam(),
-                                       FTy.getPointerTo())};
-        auto RawArgs = ExecCtxPtr.getNextParam().getNextParam();
-        auto RawRets = RawArgs.getNextParam();
+          const size_t ArgCount = FPTy.size() - 1;
+          auto ExecCtxPtr = F.getFirstParam();
+          auto RawFunc = LLVM::FunctionCallee{
+              FTy, Builder.createBitCast(ExecCtxPtr.getNextParam(),
+                                         FTy.getPointerTo())};
+          auto RawArgs = ExecCtxPtr.getNextParam().getNextParam();
+          auto RawRets = RawArgs.getNextParam();
 
-        std::vector<LLVM::Value> Args;
-        Args.reserve(FTy.getNumParams());
-        Args.push_back(ExecCtxPtr);
-        for (size_t J = 0; J < ArgCount; ++J) {
-          Args.push_back(Builder.createValuePtrLoad(
-              FPTy[J + 1], RawArgs, Context->Int8Ty, J * kValSize));
+          std::vector<LLVM::Value> Args;
+          Args.reserve(FTy.getNumParams());
+          Args.push_back(ExecCtxPtr);
+          for (size_t J = 0; J < ArgCount; ++J) {
+            Args.push_back(Builder.createValuePtrLoad(
+                FPTy[J + 1], RawArgs, Context->Int8Ty, J * kValSize));
+          }
+
+          auto Ret = Builder.createCall(RawFunc, Args);
+          if (RTy.isVoidTy()) {
+            // nothing to do
+          } else if (RTy.isStructTy()) {
+            auto Rets = unpackStruct(Builder, Ret);
+            Builder.createArrayPtrStore(Rets, RawRets, Context->Int8Ty,
+                                        kValSize);
+          } else {
+            Builder.createValuePtrStore(Ret, RawRets, Context->Int8Ty);
+          }
+          Builder.createRetVoid();
         }
-
-        auto Ret = Builder.createCall(RawFunc, Args);
-        if (RTy.isVoidTy()) {
-          // nothing to do
-        } else if (RTy.isStructTy()) {
-          auto Rets = unpackStruct(Builder, Ret);
-          Builder.createArrayPtrStore(Rets, RawRets, Context->Int8Ty, kValSize);
-        } else {
-          Builder.createValuePtrStore(Ret, RawRets, Context->Int8Ty);
-        }
-        Builder.createRetVoid();
       }
       // Copy wrapper, param and return lists to module instance.
       Context->FunctionWrappers.push_back(F);
     } else {
       // Non function type case. Create empty wrapper.
-      auto F = Context->LLModule.addFunction(WrapperTy, LLVMExternalLinkage,
-                                             Name.c_str());
+      auto F = Context->LLModule.get().addFunction(
+          WrapperTy, LLVMExternalLinkage, Name.c_str());
       {
         F.setVisibility(LLVMProtectedVisibility);
         F.setDSOLocal(true);
@@ -6153,10 +6306,12 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
         F.addParamAttr(2, Context->NoAlias);
         F.addParamAttr(3, Context->NoAlias);
 
-        LLVM::Builder Builder(Context->LLContext);
-        Builder.positionAtEnd(
-            LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
-        Builder.createRetVoid();
+        if (!DeclarationsOnly) {
+          LLVM::Builder Builder(Context->LLContext);
+          Builder.positionAtEnd(
+              LLVM::BasicBlock::create(Context->LLContext, F, "entry"));
+          Builder.createRetVoid();
+        }
       }
       Context->FunctionWrappers.push_back(F);
     }
@@ -6184,9 +6339,9 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
           toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
       auto F = LLVM::FunctionCallee{
-          FTy,
-          Context->LLModule.addFunction(FTy, LLVMInternalLinkage,
-                                        fmt::format("f{}"sv, FuncID).c_str())};
+          FTy, Context->LLModule.get().addFunction(
+                   FTy, LLVMInternalLinkage,
+                   fmt::format("{}f{}"sv, Context->Prefix, FuncID).c_str())};
       F.Fn.setDSOLocal(true);
       F.Fn.addFnAttr(Context->NoStackArgProbe);
       F.Fn.addFnAttr(Context->StrictFP);
@@ -6313,9 +6468,10 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
     const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
     const auto FuncID = Context->Functions.size();
     auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
-    LLVM::FunctionCallee F = {FTy, Context->LLModule.addFunction(
-                                       FTy, LLVMExternalLinkage,
-                                       fmt::format("f{}"sv, FuncID).c_str())};
+    LLVM::FunctionCallee F = {
+        FTy, Context->LLModule.get().addFunction(
+                 FTy, LLVMExternalLinkage,
+                 fmt::format("{}f{}"sv, Context->Prefix, FuncID).c_str())};
     F.Fn.setVisibility(LLVMProtectedVisibility);
     F.Fn.setDSOLocal(true);
     F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
@@ -6342,7 +6498,8 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
     FunctionCompiler FC(*Context, F, Locals,
                         Conf.getCompilerConfigure().isInterruptible(),
                         Conf.getStatisticsConfigure().isInstructionCounting(),
-                        Conf.getStatisticsConfigure().isCostMeasuring());
+                        Conf.getStatisticsConfigure().isCostMeasuring(),
+                        Conf.getRuntimeConfigure().isEnableLazyJIT());
     auto Type = Context->resolveBlockType(T);
     EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
     F.Fn.eliminateUnreachableBlocks();
@@ -6350,5 +6507,234 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
   return {};
 }
 
+void Compiler::compileFunctionDeclarations(
+    const AST::FunctionSection &FunctionSec,
+    const AST::CodeSection &CodeSec) noexcept {
+  const auto &TypeIdxs = FunctionSec.getContent();
+  const auto &CodeSegs = CodeSec.getContent();
+  assuming(TypeIdxs.size() == CodeSegs.size());
+
+  for (size_t I = 0; I < CodeSegs.size(); ++I) {
+    const auto &TypeIdx = TypeIdxs[I];
+    const auto &Code = CodeSegs[I];
+    assuming(TypeIdx < Context->CompositeTypes.size());
+    assuming(Context->CompositeTypes[TypeIdx]->isFunc());
+    const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
+    const auto FuncID = Context->Functions.size();
+    auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
+    LLVM::FunctionCallee F = {
+        FTy, Context->LLModule.get().addFunction(
+                 FTy, LLVMExternalLinkage,
+                 fmt::format("{}f{}"sv, Context->Prefix, FuncID).c_str())};
+    F.Fn.setVisibility(LLVMProtectedVisibility);
+    F.Fn.setDSOLocal(true);
+    F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
+    F.Fn.addFnAttr(Context->NoStackArgProbe);
+    F.Fn.addFnAttr(Context->StrictFP);
+    F.Fn.addFnAttr(Context->UWTable);
+    F.Fn.addParamAttr(0, Context->ReadOnly);
+    F.Fn.addParamAttr(0, Context->NoAlias);
+
+    Context->Functions.emplace_back(TypeIdx, F, &Code);
+  }
+}
+
+Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
+  // Find the function in the Functions list
+  // LocalFuncIndex is relative to the defined functions (not imports)
+  uint32_t ImportCount = 0;
+  for (const auto &[T, F, Code] : Context->Functions) {
+    if (!Code) {
+      ImportCount++;
+    }
+  }
+
+  uint32_t GlobalFuncIndex = ImportCount + LocalFuncIndex;
+  if (GlobalFuncIndex >= Context->Functions.size()) {
+    spdlog::error("[lazy-jit]: function index {} out of range"sv,
+                  LocalFuncIndex);
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  auto &[T, F, Code] = Context->Functions[GlobalFuncIndex];
+  if (!Code) {
+    spdlog::error("[lazy-jit]: cannot compile import function {}"sv,
+                  LocalFuncIndex);
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
+  // Check if already compiled (function has basic blocks)
+  if (F.Fn.countBasicBlocks() > 0) {
+    spdlog::debug("[lazy-jit]: function {} already compiled"sv, LocalFuncIndex);
+    return {};
+  }
+
+  spdlog::debug("[lazy-jit]: compiling function {}"sv, LocalFuncIndex);
+
+  std::vector<ValType> Locals;
+  for (const auto &Local : Code->getLocals()) {
+    for (unsigned I = 0; I < Local.first; ++I) {
+      Locals.push_back(Local.second);
+    }
+  }
+
+  FunctionCompiler FC(*Context, F, Locals,
+                      Conf.getCompilerConfigure().isInterruptible(),
+                      Conf.getStatisticsConfigure().isInstructionCounting(),
+                      Conf.getStatisticsConfigure().isCostMeasuring(),
+                      Conf.getRuntimeConfigure().isEnableLazyJIT());
+  auto Type = Context->resolveBlockType(T);
+  EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
+  F.Fn.eliminateUnreachableBlocks();
+
+  return {};
+}
+
+Expect<std::pair<LLVM::Data,
+                 std::unique_ptr<LLVM::Compiler::CompileContext,
+                                 LLVM::Compiler::CompileContextDeleter>>>
+LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
+                                      std::string Prefix) noexcept {
+  Data D;
+  D.setPrefix(Prefix);
+  // Check the module is validated.
+  if (unlikely(!Module.getIsValidated())) {
+    spdlog::error(ErrCode::Value::NotValidated);
+    return Unexpect(ErrCode::Value::NotValidated);
+  }
+
+  std::unique_lock Lock(Mutex);
+  spdlog::info("[lazyjit]: compile infrastructure start"sv);
+
+  auto LLContext = D.extract().getLLContext();
+  LLVM::Core::init(LLContext.unwrap());
+  auto &LLModule = D.extract().LLModule;
+  LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
+  LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
+
+  std::unique_ptr<CompileContext, CompileContextDeleter> NewContext(
+      new CompileContext(LLContext, LLModule,
+                         Conf.getCompilerConfigure().isGenericBinary(),
+                         D.getPrefix()));
+  this->Context = NewContext.get();
+
+  // Compile Function Types
+  compile(Module.getTypeSection());
+  // Compile ImportSection
+  compile(Module.getImportSection());
+  // Compile GlobalSection
+  compile(Module.getGlobalSection());
+  // Compile MemorySection (MemorySec, DataSec)
+  compile(Module.getMemorySection(), Module.getDataSection());
+  // Compile TableSection (TableSec, ElemSec)
+  compile(Module.getTableSection(), Module.getElementSection());
+  // Create function declarations without compiling bodies
+  compileFunctionDeclarations(Module.getFunctionSection(),
+                              Module.getCodeSection());
+  // Compile ExportSection
+  compile(Module.getExportSection());
+
+  // Set initializer for constant value
+  auto IntrinsicsName = fmt::format("{}intrinsics"sv, D.getPrefix());
+  if (auto IntrinsicsTable = LLModule.getNamedGlobal(IntrinsicsName.c_str())) {
+    IntrinsicsTable.setInitializer(
+        LLVM::Value::getConstNull(IntrinsicsTable.getType()));
+    IntrinsicsTable.setGlobalConstant(false);
+  } else {
+    auto IntrinsicsTableTy = LLVM::Type::getArrayType(
+        LLContext.getInt8Ty().getPointerTo(),
+        static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax));
+    LLModule.addGlobal(
+        IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
+        LLVM::Value::getConstNull(IntrinsicsTableTy), IntrinsicsName.c_str());
+  }
+
+  spdlog::info("[lazyjit]: infrastructure compilation done"sv);
+
+  this->Context = nullptr;
+  return Expect<
+      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>{
+      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>{
+          std::move(D), std::move(NewContext)}};
+}
+
+Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
+                                             CompileContext *NewContext,
+                                             const AST::Module &Module,
+                                             uint32_t FuncIndex) noexcept {
+  // Check the module is validated.
+  if (unlikely(!Module.getIsValidated())) {
+    spdlog::error(ErrCode::Value::NotValidated);
+    return Unexpect(ErrCode::Value::NotValidated);
+  }
+
+  std::unique_lock Lock(Mutex);
+  spdlog::debug("[lazyjit]: compile function {} start"sv, FuncIndex);
+
+  auto LLContext = LLData.extract().getLLContext();
+  LLVM::Core::init(LLContext.unwrap());
+  auto &LLModule = LLData.extract().LLModule;
+  LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
+  LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
+
+  this->Context = NewContext;
+  Context->LLModule = LLModule;
+
+  // Clear module-bound state if reusing the context
+  Context->CompositeTypes.clear();
+  Context->FunctionWrappers.clear();
+  Context->Functions.clear();
+  Context->MemoryAddrTypes.clear();
+  Context->TableAddrTypes.clear();
+  Context->Globals.clear();
+
+  Context->IntrinsicsTable = LLModule.addGlobal(
+      Context->IntrinsicsTablePtrTy, true, LLVMExternalLinkage, LLVM::Value(),
+      fmt::format("{}intrinsics"sv, Context->Prefix).c_str());
+  Context->IntrinsicsTable.setInitializer(LLVM::Value());
+  Context->Trap.Ty =
+      LLVM::Type::getFunctionType(Context->VoidTy, {Context->Int32Ty});
+  Context->Trap.Fn =
+      LLModule.addFunction(Context->Trap.Ty, LLVMPrivateLinkage, "trap");
+  Context->Trap.Fn.setDSOLocal(true);
+  Context->Trap.Fn.addFnAttr(Context->NoStackArgProbe);
+  Context->Trap.Fn.addFnAttr(Context->StrictFP);
+  Context->Trap.Fn.addFnAttr(Context->UWTable);
+  Context->Trap.Fn.addFnAttr(Context->NoReturn);
+  Context->Trap.Fn.addFnAttr(Context->Cold);
+  Context->Trap.Fn.addFnAttr(Context->NoInline);
+  Context->compileTrap();
+
+  // Re-compile infrastructure for the fresh module
+  // compile types first (needed for function type lookup)
+  compile(Module.getTypeSection(), true);
+  // compile imports to get the correct function offset
+  compile(Module.getImportSection());
+  // compile globals (may be needed by function body)
+  compile(Module.getGlobalSection());
+  // compile memory
+  compile(Module.getMemorySection(), Module.getDataSection());
+  // compile table
+  compile(Module.getTableSection(), Module.getElementSection());
+
+  // create all function declarations
+  compileFunctionDeclarations(Module.getFunctionSection(),
+                              Module.getCodeSection());
+
+  // compile only the requested function body
+  EXPECTED_TRY(compileFunctionBody(FuncIndex));
+
+  spdlog::info("[lazyjit]: verify function {} start"sv, FuncIndex);
+  LLModule.verify(LLVMPrintMessageAction);
+  spdlog::info("[lazyjit]: verify function {} done"sv, FuncIndex);
+
+  spdlog::debug("[lazyjit]: compile function {} done"sv, FuncIndex);
+  return Expect<Data>{std::move(LLData)};
+}
+
+void LLVM::Compiler::CompileContextDeleter::operator()(
+    CompileContext *Context) const noexcept {
+  delete Context;
+}
 } // namespace LLVM
 } // namespace WasmEdge

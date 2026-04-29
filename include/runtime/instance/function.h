@@ -117,6 +117,23 @@ public:
     return *std::get_if<std::unique_ptr<HostFunctionBase>>(&Data)->get();
   }
 
+  /// Upgrade from WasmFunction to CompiledFunction.
+  bool unsafeUpgradeToCompiled(Symbol<CompiledFunction> Sym) noexcept {
+    if (!isWasmFunction()) {
+      return false;
+    }
+    Data = std::move(Sym);
+    return true;
+  }
+
+  bool unsafeReplaceCompiledSymbol(Symbol<CompiledFunction> Sym) noexcept {
+    if (auto *P = std::get_if<Symbol<CompiledFunction>>(&Data)) {
+      *P = std::move(Sym);
+      return true;
+    }
+    return false;
+  }
+
 private:
   struct WasmFunction {
     const std::vector<std::pair<uint32_t, ValType>> Locals;

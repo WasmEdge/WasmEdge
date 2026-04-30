@@ -7,6 +7,7 @@
 #include "wasinntypes.h"
 
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+#include "GGML/compute/async_context.h"
 #include "wasinntypes.h"
 #include <ggml.h>
 #include <list>
@@ -87,6 +88,8 @@ public:
   int32_t NPos = 0;
   // Configs:
   LocalConfig Conf;
+  // Async execution state for non-blocking compute lifecycle.
+  AsyncContext Async;
 };
 #else
 struct Graph {};

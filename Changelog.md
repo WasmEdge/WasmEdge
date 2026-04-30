@@ -1,3 +1,23 @@
+### 0.16.3 (2026-05-04)
+
+This is the bug fix for the 0.16.x versions.
+
+Fixed issues:
+
+* fix(validator): use matchType for active element segment reftype (#4814)
+* fix(loader): reject non-canonical multi-byte SLEB128 blocktype (#4817)
+
+CI:
+
+* fix(ci): bump Fedora IWYU toolchain to llvm19 + IWYU 0.23 (#4827)
+* Bumped CI dependencies
+
+Thank all the contributors who made this release possible!
+
+harukiki97, hydai, Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.16.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.16.2 (2026-04-14)
 
 This is the hot fix for 0.16.x versions.

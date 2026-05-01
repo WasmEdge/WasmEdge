@@ -6204,3 +6204,208 @@ TEST(WasiTest, PointerAlignment) {
     }
   }
 }
+
+// Test that sock_accept with NONBLOCK flag sets the flag on the accepted
+// socket (not the listening socket). This is a regression test for the bug
+// where fcntl(Fd, F_SETFL, ...) was called on the listening socket fd instead
+// of fcntl(NewFd, F_SETFL, ...) on the newly accepted socket fd.
+TEST(WasiTest, SockAcceptNonblockFlag) {
+  std::atomic_bool ServerReady(false);
+  std::atomic_bool ServerDone(false);
+  std::atomic_bool AcceptedFdIsNonblock(false);
+  std::mutex Mutex;
+  std::condition_variable ServerReadyCv;
+  std::condition_variable ServerDoneCv;
+  const std::array<uint8_t, 128> Address{1, 0, 127, 0, 0, 1};
+  const uint32_t Port = 18100;
+
+  // Server thread: open, bind, listen, accept with NONBLOCK, verify flag
+  std::thread Server([&]() {
+    WasmEdge::Host::WASI::Environ Env;
+    WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+    Mod.addHostMemory(
+        "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                      WasmEdge::AST::MemoryType(1)));
+    auto *MemInstPtr = Mod.findMemoryExports("memory");
+    ASSERT_TRUE(MemInstPtr != nullptr);
+    auto &MemInst = *MemInstPtr;
+    WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+    WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+    WasmEdge::Host::WasiFdFdstatGet WasiFdFdstatGet(Env);
+    WasmEdge::Host::WasiSockAcceptV2 WasiSockAccept(Env);
+    WasmEdge::Host::WasiSockBindV2 WasiSockBind(Env);
+    WasmEdge::Host::WasiSockListenV2 WasiSockListen(Env);
+    WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+    WasmEdge::Host::WasiSockSetOpt WasiSockSetOpt(Env);
+
+    std::array<WasmEdge::ValVariant, 1> Errno;
+    const uint32_t FdPtr = 0;
+    const uint32_t SrvAddressPtr = 4;
+    const int32_t Backlog = 1;
+
+    Env.init({}, "test"s, {}, {});
+
+    int32_t ServerFd = -1;
+
+    // open socket
+    EXPECT_TRUE(WasiSockOpen.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+            static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    EXPECT_TRUE((MemInst.loadValue(ServerFd, FdPtr)));
+
+    // set socket options (SO_REUSEADDR)
+    const uint32_t SockOptionsPtr = 0;
+    const uint32_t OneVal = 1;
+    MemInst.storeValue(OneVal, SockOptionsPtr);
+    EXPECT_TRUE(WasiSockSetOpt.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            ServerFd, static_cast<uint32_t>(__WASI_SOCK_OPT_LEVEL_SOL_SOCKET),
+            static_cast<uint32_t>(__WASI_SOCK_OPT_SO_REUSEADDR),
+            static_cast<uint32_t>(SockOptionsPtr),
+            static_cast<uint32_t>(sizeof(OneVal))},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // bind port
+    writeAddress(MemInst, Address, SrvAddressPtr);
+    EXPECT_TRUE(WasiSockBind.run(CallFrame,
+                                 std::initializer_list<WasmEdge::ValVariant>{
+                                     ServerFd, SrvAddressPtr, Port},
+                                 Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // listen
+    EXPECT_TRUE(WasiSockListen.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ServerFd, Backlog}, Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // Signal that server is ready for connection
+    {
+      std::lock_guard<std::mutex> Lock(Mutex);
+      ServerReady.store(true);
+    }
+    ServerReadyCv.notify_one();
+
+    // accept with NONBLOCK flag via the V2 API: (Fd, FsFlags, RoFdPtr)
+    EXPECT_TRUE(WasiSockAccept.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            ServerFd, static_cast<uint32_t>(__WASI_FDFLAGS_NONBLOCK), FdPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    int32_t ConnectionFd = -1;
+    EXPECT_TRUE((MemInst.loadValue(ConnectionFd, FdPtr)));
+
+    // Use FdFdstatGet to verify the accepted socket has NONBLOCK flag.
+    // The FdStatPtr must be properly aligned for __wasi_fdstat_t.
+    const uint32_t FdStatPtr =
+        static_cast<uint32_t>(alignof(__wasi_fdstat_t) * 2);
+    writeDummyMemoryContent(MemInst);
+    EXPECT_TRUE(WasiFdFdstatGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{ConnectionFd, FdStatPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // Read the fdstat and check that NONBLOCK is set on the accepted fd.
+    auto *FdStat = MemInst.getPointer<const __wasi_fdstat_t *>(FdStatPtr);
+    ASSERT_NE(FdStat, nullptr);
+    __wasi_fdflags_t Flags = WasmEdge::EndianValue(FdStat->fs_flags).le();
+    AcceptedFdIsNonblock.store((Flags & __WASI_FDFLAGS_NONBLOCK) != 0);
+    EXPECT_TRUE((Flags & __WASI_FDFLAGS_NONBLOCK) != 0)
+        << "Accepted socket should have NONBLOCK flag set, but fs_flags = "
+        << Flags;
+
+    // close accepted connection
+    EXPECT_TRUE(WasiFdClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ConnectionFd},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    // close server socket
+    EXPECT_TRUE(WasiFdClose.run(
+        CallFrame, std::initializer_list<WasmEdge::ValVariant>{ServerFd},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    Env.fini();
+
+    // Signal that server is done
+    {
+      std::lock_guard<std::mutex> Lock(Mutex);
+      ServerDone.store(true);
+    }
+    ServerDoneCv.notify_one();
+  });
+
+  // Client side: wait for server, then connect to trigger accept
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  WasmEdge::Host::WasiFdClose WasiFdClose(Env);
+  WasmEdge::Host::WasiSockConnectV2 WasiSockConnect(Env);
+  WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+
+  std::array<WasmEdge::ValVariant, 1> Errno;
+  const uint32_t FdPtr = 0;
+  const uint32_t ClientAddressPtr = 4;
+
+  Env.init({}, "test"s, {}, {});
+
+  // open client socket
+  EXPECT_TRUE(WasiSockOpen.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+          static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_STREAM), FdPtr},
+      Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  int32_t ClientFd;
+  EXPECT_TRUE((MemInst.loadValue(ClientFd, FdPtr)));
+
+  // Wait for server to be ready
+  {
+    std::unique_lock<std::mutex> Lock(Mutex);
+    ServerReadyCv.wait(Lock, [&]() { return ServerReady.load(); });
+  }
+
+  // connect to server to trigger the accept
+  writeAddress(MemInst, Address, ClientAddressPtr);
+  EXPECT_TRUE(WasiSockConnect.run(CallFrame,
+                                  std::initializer_list<WasmEdge::ValVariant>{
+                                      ClientFd, ClientAddressPtr, Port},
+                                  Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  // Wait for server to finish verification
+  {
+    std::unique_lock<std::mutex> Lock(Mutex);
+    ServerDoneCv.wait(Lock, [&]() { return ServerDone.load(); });
+  }
+
+  // close client socket
+  EXPECT_TRUE(WasiFdClose.run(
+      CallFrame, std::initializer_list<WasmEdge::ValVariant>{ClientFd}, Errno));
+  EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+  Env.fini();
+  Server.join();
+
+  EXPECT_TRUE(AcceptedFdIsNonblock.load())
+      << "The accepted socket fd should have NONBLOCK flag when "
+         "sock_accept is called with __WASI_FDFLAGS_NONBLOCK";
+}

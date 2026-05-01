@@ -9,6 +9,8 @@
 #include <string>
 #include <string_view>
 
+#include <chrono>
+
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 #include "wasi_ephemeral_nn.grpc.pb.h"
 
@@ -748,5 +750,190 @@ WasiNNFinalizeExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
   }
 }
 
+// --- Async compute extensions (PR #3) ---
+
+Expect<WASINN::ErrNo>
+WasiNNComputeAsync::bodyImpl(const Runtime::CallingFrame &Frame,
+                             uint32_t ContextId) {
+  Env.setEnviron(&Frame);
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (Env.NNRPCChannel != nullptr) {
+    spdlog::error(
+        "[WASI-NN] RPC client is not implemented for compute_async"sv);
+    return WASINN::ErrNo::UnsupportedOperation;
+  }
+#endif
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (MemInst == nullptr) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  if (Env.NNContext.size() <= ContextId ||
+      !Env.NNContext[ContextId].isReady()) {
+    spdlog::error("[WASI-NN] compute_async: Context ID {} does not exist."sv,
+                  ContextId);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  auto GraphId = Env.NNContext[ContextId].getGraphId();
+  assuming(Env.NNGraph.size() > GraphId);
+  if (!Env.NNGraph[GraphId].isReady()) {
+    spdlog::error(
+        "[WASI-NN] compute_async: Graph ID {} for context ID {} does not "sv
+        "exist or has released."sv,
+        GraphId, ContextId);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  if (Env.NNContext[ContextId].getBackend() != WASINN::Backend::GGML) {
+    spdlog::error(
+        "[WASI-NN] compute_async: Only GGML backend supports "sv
+        "async compute."sv);
+    return WASINN::ErrNo::UnsupportedOperation;
+  }
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+  // Host-level re-entrancy guard. The backend has its own guard in
+  // compute_engine.cpp, but we reject early here to avoid unnecessary
+  // dispatch overhead.
+  auto &CxtRef = Env.NNContext[ContextId].get<WASINN::GGML::Context>();
+  auto Phase = CxtRef.Async.poll();
+  if (Phase == WASINN::GGML::AsyncContext::Phase::PromptEval ||
+      Phase == WASINN::GGML::AsyncContext::Phase::Generating) {
+    spdlog::error(
+        "[WASI-NN] compute_async: Context ID {} already has an active "sv
+        "computation."sv,
+        ContextId);
+    return WASINN::ErrNo::Busy;
+  }
+
+  // Dispatch to the GGML backend. After PR #2, compute() calls
+  // Async.launch() and returns ErrNo::Success immediately.
+  return WASINN::GGML::compute(Env, ContextId);
+#else
+  return WASINN::ErrNo::UnsupportedOperation;
+#endif
+}
+
+Expect<uint32_t>
+WasiNNComputePoll::bodyImpl(const Runtime::CallingFrame &Frame,
+                            uint32_t ContextId) {
+  Env.setEnviron(&Frame);
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (Env.NNRPCChannel != nullptr) {
+    spdlog::error(
+        "[WASI-NN] RPC client is not implemented for compute_poll"sv);
+    return static_cast<uint32_t>(WASINN::ErrNo::UnsupportedOperation);
+  }
+#endif
+
+  if (Env.NNContext.size() <= ContextId ||
+      !Env.NNContext[ContextId].isReady()) {
+    spdlog::error("[WASI-NN] compute_poll: Context ID {} does not exist."sv,
+                  ContextId);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
+  if (Env.NNContext[ContextId].getBackend() != WASINN::Backend::GGML) {
+    spdlog::error(
+        "[WASI-NN] compute_poll: Only GGML backend supports "sv
+        "async compute."sv);
+    return static_cast<uint32_t>(WASINN::ErrNo::UnsupportedOperation);
+  }
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+  auto &CxtRef = Env.NNContext[ContextId].get<WASINN::GGML::Context>();
+  return static_cast<uint32_t>(CxtRef.Async.poll());
+#else
+  return static_cast<uint32_t>(WASINN::ErrNo::UnsupportedOperation);
+#endif
+}
+
+Expect<WASINN::ErrNo>
+WasiNNComputeCancel::bodyImpl(const Runtime::CallingFrame &Frame,
+                              uint32_t ContextId) {
+  Env.setEnviron(&Frame);
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (Env.NNRPCChannel != nullptr) {
+    spdlog::error(
+        "[WASI-NN] RPC client is not implemented for compute_cancel"sv);
+    return WASINN::ErrNo::UnsupportedOperation;
+  }
+#endif
+
+  if (Env.NNContext.size() <= ContextId ||
+      !Env.NNContext[ContextId].isReady()) {
+    spdlog::error("[WASI-NN] compute_cancel: Context ID {} does not exist."sv,
+                  ContextId);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  if (Env.NNContext[ContextId].getBackend() != WASINN::Backend::GGML) {
+    spdlog::error(
+        "[WASI-NN] compute_cancel: Only GGML backend supports "sv
+        "async compute."sv);
+    return WASINN::ErrNo::UnsupportedOperation;
+  }
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+  auto &CxtRef = Env.NNContext[ContextId].get<WASINN::GGML::Context>();
+  CxtRef.Async.cancel();
+  return WASINN::ErrNo::Success;
+#else
+  return WASINN::ErrNo::UnsupportedOperation;
+#endif
+}
+
+Expect<WASINN::ErrNo>
+WasiNNComputeWait::bodyImpl(const Runtime::CallingFrame &Frame,
+                            uint32_t ContextId, uint32_t TimeoutMs) {
+  Env.setEnviron(&Frame);
+#ifdef WASMEDGE_BUILD_WASI_NN_RPC
+  if (Env.NNRPCChannel != nullptr) {
+    spdlog::error(
+        "[WASI-NN] RPC client is not implemented for compute_wait"sv);
+    return WASINN::ErrNo::UnsupportedOperation;
+  }
+#endif
+
+  if (Env.NNContext.size() <= ContextId ||
+      !Env.NNContext[ContextId].isReady()) {
+    spdlog::error("[WASI-NN] compute_wait: Context ID {} does not exist."sv,
+                  ContextId);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+
+  if (Env.NNContext[ContextId].getBackend() != WASINN::Backend::GGML) {
+    spdlog::error(
+        "[WASI-NN] compute_wait: Only GGML backend supports "sv
+        "async compute."sv);
+    return WASINN::ErrNo::UnsupportedOperation;
+  }
+
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+  auto &CxtRef = Env.NNContext[ContextId].get<WASINN::GGML::Context>();
+
+  // No active computation — nothing to wait on.
+  if (!CxtRef.Async.ComputeFuture.valid()) {
+    return WASINN::ErrNo::Success;
+  }
+
+  if (TimeoutMs == 0) {
+    // TimeoutMs == 0: block indefinitely until computation completes.
+    CxtRef.Async.ComputeFuture.wait();
+  } else {
+    if (!CxtRef.Async.waitFor(std::chrono::milliseconds(TimeoutMs))) {
+      return WASINN::ErrNo::Busy;
+    }
+  }
+
+  // Computation finished — propagate the result ErrNo.
+  return CxtRef.Async.ComputeFuture.get();
+#else
+  return WASINN::ErrNo::UnsupportedOperation;
+#endif
+}
+
 } // namespace Host
 } // namespace WasmEdge
+

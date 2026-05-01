@@ -186,5 +186,56 @@ private:
                                  uint32_t Context);
 };
 
+// --- Async compute extensions (PR #3) ---
+
+class WasiNNComputeAsync : public WasiNN<WasiNNComputeAsync> {
+public:
+  WasiNNComputeAsync(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Context) {
+    return bodyImpl(Frame, Context).map(castErrNo);
+  }
+
+private:
+  Expect<WASINN::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
+                                 uint32_t Context);
+};
+
+class WasiNNComputePoll : public WasiNN<WasiNNComputePoll> {
+public:
+  WasiNNComputePoll(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Context) {
+    return bodyImpl(Frame, Context);
+  }
+
+private:
+  Expect<uint32_t> bodyImpl(const Runtime::CallingFrame &Frame,
+                            uint32_t Context);
+};
+
+class WasiNNComputeCancel : public WasiNN<WasiNNComputeCancel> {
+public:
+  WasiNNComputeCancel(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Context) {
+    return bodyImpl(Frame, Context).map(castErrNo);
+  }
+
+private:
+  Expect<WASINN::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
+                                 uint32_t Context);
+};
+
+class WasiNNComputeWait : public WasiNN<WasiNNComputeWait> {
+public:
+  WasiNNComputeWait(WASINN::WasiNNEnvironment &HostEnv) : WasiNN(HostEnv) {}
+  Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t Context,
+                        uint32_t TimeoutMs) {
+    return bodyImpl(Frame, Context, TimeoutMs).map(castErrNo);
+  }
+
+private:
+  Expect<WASINN::ErrNo> bodyImpl(const Runtime::CallingFrame &Frame,
+                                 uint32_t Context, uint32_t TimeoutMs);
+};
+
 } // namespace Host
 } // namespace WasmEdge

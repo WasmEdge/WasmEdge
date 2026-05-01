@@ -24,6 +24,11 @@ WasiNNModule::WasiNNModule() : ModuleInstance("wasi_ephemeral_nn") {
   addHostFunc("unload", std::make_unique<WasiNNUnload>(Env));
   addHostFunc("finalize_execution_context",
               std::make_unique<WasiNNFinalizeExecCtx>(Env));
+  // Async compute extensions (PR #3).
+  addHostFunc("compute_async", std::make_unique<WasiNNComputeAsync>(Env));
+  addHostFunc("compute_poll", std::make_unique<WasiNNComputePoll>(Env));
+  addHostFunc("compute_cancel", std::make_unique<WasiNNComputeCancel>(Env));
+  addHostFunc("compute_wait", std::make_unique<WasiNNComputeWait>(Env));
 }
 
 } // namespace Host

@@ -221,6 +221,14 @@ Expect<ErrNo> getEmbedding(Graph &GraphRef, Context &CxtRef) noexcept {
 // Sample and get the output token.
 ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
                    bool IsSingleTokenMode) noexcept {
+  // Check for cooperative cancellation before doing any work. The relaxed
+  // load is intentional: a stale read costs at most one extra token, and
+  // avoiding an acquire fence on every iteration keeps the hot path lean.
+  if (CxtRef.Async.CancelRequested.load(std::memory_order_relaxed)) {
+    LOG_INFO(GraphRef.EnableLog, "sampleOutput: cancelled by caller."sv)
+    return ErrNo::EndOfSequence;
+  }
+
   // Use idx = -1 to sample the next token.
   const llama_token Id = common_sampler_sample(
       CxtRef.LlamaSampler, GraphRef.LlamaContext.get(), /* idx */ -1);
@@ -228,6 +236,11 @@ ErrNo sampleOutput(Graph &GraphRef, Context &CxtRef,
 
   // Save the output token.
   CxtRef.LlamaOutputTokens.emplace_back(Id);
+
+  // Update progress counter for async pollers. Relaxed ordering is
+  // sufficient—the Phase release fence in AsyncContext guarantees
+  // visibility when the poller observes a terminal phase.
+  CxtRef.Async.Stats.TokensGenerated.fetch_add(1, std::memory_order_relaxed);
   std::string OutputString =
       common_token_to_piece(GraphRef.LlamaContext.get(), Id);
   CxtRef.LlamaOutputs.insert(CxtRef.LlamaOutputs.end(), OutputString.begin(),

@@ -539,10 +539,16 @@ public:
   WasiExpect<void> sockBind(__wasi_address_family_t AddressFamily,
                             Span<const uint8_t> Address,
                             uint16_t Port) noexcept {
+    if (!can(__WASI_RIGHTS_SOCK_BIND)) {
+      return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+    }
     return Node.sockBind(AddressFamily, Address, Port);
   }
 
   WasiExpect<void> sockListen(int32_t Backlog) noexcept {
+    if (!can(__WASI_RIGHTS_SOCK_BIND)) {
+      return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+    }
     return Node.sockListen(Backlog);
   }
 
@@ -551,6 +557,9 @@ public:
   WasiExpect<void> sockConnect(__wasi_address_family_t AddressFamily,
                                Span<const uint8_t> Address,
                                uint16_t Port) noexcept {
+    if (!can(__WASI_RIGHTS_SOCK_BIND)) {
+      return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
+    }
     return Node.sockConnect(AddressFamily, Address, Port);
   }
 

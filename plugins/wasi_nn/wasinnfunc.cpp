@@ -6,6 +6,7 @@
 
 #include "common/spdlog.h"
 
+#include <chrono>
 #include <string>
 #include <string_view>
 
@@ -563,6 +564,39 @@ WasiNNCompute::bodyImpl(const Runtime::CallingFrame &Frame,
     return WASINN::ErrNo::InvalidArgument;
   }
 
+  // --- [WASI-NN][Async] Sync-Wrap: drain in-flight async task (GGML only) ---
+#ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+  if (Env.NNContext[ContextId].getBackend() == WASINN::Backend::GGML) {
+    auto &CxtRef = Env.NNContext[ContextId].get<WASINN::GGML::Context>();
+    auto Phase = CxtRef.Async.poll();
+    using AsyncPhase = WASINN::GGML::AsyncContext::Phase;
+    if (Phase == AsyncPhase::PromptEval || Phase == AsyncPhase::Generating) {
+      spdlog::info(
+          "[WASI-NN][Async] compute: Context {} has in-flight async task "
+          "(phase={}). Blocking until completion."sv,
+          ContextId, static_cast<uint32_t>(Phase));
+      // Block indefinitely: 0ms timeout on a valid future waits for ready.
+      CxtRef.Async.waitFor(std::chrono::milliseconds(0));
+      // Spin-wait for the phase to reach a terminal state.
+      while (!CxtRef.Async.isTerminal()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+      // Retrieve the result from the completed async task.
+      auto AsyncResult = CxtRef.Async.ComputeFuture.get();
+      spdlog::info(
+          "[WASI-NN][Async] compute: Drained in-flight async task for "
+          "context {}. Result: {}."sv,
+          ContextId, static_cast<uint32_t>(AsyncResult));
+      // Reset the async state so compute() can proceed cleanly.
+      CxtRef.Async.reset();
+      if (AsyncResult != WASINN::ErrNo::Success) {
+        return AsyncResult;
+      }
+    }
+  }
+#endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
+
+  // --- Dispatch to the backend ---
   switch (const auto Backend = Env.NNContext[ContextId].getBackend()) {
 #define EACH(B)                                                                \
   case WASINN::Backend::B:                                                     \

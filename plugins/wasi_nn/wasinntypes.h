@@ -15,7 +15,11 @@ enum class ErrNo : uint32_t {
   InvalidArgument = 1,      // Caller module passed an invalid argument.
   InvalidEncoding = 2,      // Invalid encoding.
   MissingMemory = 3,        // Caller module is missing a memory export.
-  Busy = 4,                 // Device or resource busy.
+  Busy = 4,                 // Device or resource busy. Also serves as the
+                             // async re-entrancy guard for the GGML backend:
+                             // returned when compute/compute_async is called
+                             // while a background inference task is already
+                             // in-flight (Phase == PromptEval | Generating).
   RuntimeError = 5,         // Runtime Error.
   UnsupportedOperation = 6, // Unsupported Operation.
   TooLarge = 7,             // Too Large.

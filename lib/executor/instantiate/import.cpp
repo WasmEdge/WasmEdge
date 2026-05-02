@@ -191,9 +191,10 @@ Expect<void> Executor::instantiate(
             if (ExtName == *Iter) {
               auto *ImpInstV2 =
                   ImpModInst->findFuncExports(std::string(*Iter) + "_v2");
-              if (!AST::TypeMatcher::matchType(
-                      ModInst.getTypeList(), *ExpDefType.getTypeIndex(),
-                      ImpModInst->getTypeList(), ImpInst->getTypeIndex())) {
+              if (ImpInstV2 != nullptr &&
+                  AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
+                                              ImpModInst->getTypeList(),
+                                              ImpInstV2->getTypeIndex())) {
                 // Try to match the new version
                 ImpInst = ImpInstV2;
                 IsMatchV2 = true;

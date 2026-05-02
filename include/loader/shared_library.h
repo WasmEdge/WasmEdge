@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the declaration of the SharedLibrary, which holds handle
-/// to loaded library.
+/// to a loaded library.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

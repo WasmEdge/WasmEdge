@@ -141,7 +141,7 @@ public:
   // Set by the spec test runner before calling onModule to indicate that
   // component validation should be skipped. Only used in spec tests and will
   // be removed when component-model is fully supported.
-  bool SkipComponentValidation = false;
+  static thread_local bool SkipComponentValidation;
 
 private:
   // Processes the command array for a given context.

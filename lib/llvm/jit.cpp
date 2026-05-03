@@ -86,15 +86,7 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
 
 namespace WasmEdge::LLVM {
 
-LazyJITState::~LazyJITState() = default;
 
-std::unique_ptr<llvm::Module> cloneModuleForLazyJIT(Data &D) noexcept {
-  auto &LM = D.extract().LLModule;
-  if (!LM) {
-    return nullptr;
-  }
-  return llvm::CloneModule(*llvm::unwrap(LM.unwrap()));
-}
 
 JITLibrary::JITLibrary(std::shared_ptr<LLVM::OrcLLJIT> JIT, std::string P,
                        bool IsLazy) noexcept

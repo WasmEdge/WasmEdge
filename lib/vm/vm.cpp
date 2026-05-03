@@ -36,26 +36,7 @@ namespace VM {
 
 namespace {
 
-struct LazyJitBatchCompileMark {
-  std::unordered_set<uint32_t> *Set;
-  std::vector<uint32_t> Indices;
-  LazyJitBatchCompileMark(std::unordered_set<uint32_t> *S,
-                          std::vector<uint32_t> V) noexcept
-      : Set(S), Indices(std::move(V)) {
-    if (Set) {
-      for (uint32_t I : Indices) {
-        Set->insert(I);
-      }
-    }
-  }
-  ~LazyJitBatchCompileMark() {
-    if (Set) {
-      for (uint32_t I : Indices) {
-        Set->erase(I);
-      }
-    }
-  }
-};
+
 
 void collectLazyCallGraphBatch(uint32_t LocalSeed, const AST::Module *ModulePtr,
                                uint32_t ImportFuncCount,
@@ -353,8 +334,6 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
           std::unique_lock Lock(LazyMutex);
           Pending.LLData = std::move(LLModule.first);
           Pending.LLContext = std::move(LLModule.second);
-          Pending.CumulativeModule =
-              LLVM::cloneModuleForLazyJIT(Pending.LLData);
           LLVM::JIT JIT(Conf);
           return JIT.load(Pending.LLData, true);
         })
@@ -391,20 +370,12 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
     Pending.Module = &Module;
     Pending.ModuleInstance = nullptr;
     Pending.ImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
-    Pending.TotalFuncCount =
-        static_cast<uint32_t>(Module.getCodeSection().getContent().size());
   }
 #endif
 
   // Instantiate and register module.
   auto ModInstResult = ExecutorEngine.registerModule(StoreRef, Module, Name);
 
-#ifdef WASMEDGE_USE_LLVM
-  {
-    std::unique_lock Lock(LazyMutex);
-    Pending.Module = nullptr;
-  }
-#endif
 
   EXPECTED_TRY(auto ModInst, std::move(ModInstResult));
   RegModInsts.push_back(std::move(ModInst));
@@ -416,12 +387,10 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
     auto &State = LazyJITStates[RegisteredModInst];
     State.ImportFuncCount = Pending.ImportFuncCount;
     State.LazyCompiledFuncs.clear();
-    State.TotalFuncCount = Pending.TotalFuncCount;
     State.ModulePtr = Pending.Module;
     State.LLData = std::move(Pending.LLData);
     State.LLContext = std::move(Pending.LLContext);
     State.Exec = std::move(Pending.Exec);
-    State.CumulativeModule = std::move(Pending.CumulativeModule);
     Pending.Module = nullptr;
     Pending.ModuleInstance = nullptr;
   }
@@ -670,8 +639,6 @@ Expect<void> VM::unsafeInstantiate() {
               std::unique_lock Lock(LazyMutex);
               Pending.LLData = std::move(LLModule.first);
               Pending.LLContext = std::move(LLModule.second);
-              Pending.CumulativeModule =
-                  LLVM::cloneModuleForLazyJIT(Pending.LLData);
               LLVM::JIT JIT(Conf);
               return JIT.load(Pending.LLData, true);
             })
@@ -763,20 +730,11 @@ Expect<void> VM::unsafeInstantiate() {
       Pending.Module = Mod.get();
       Pending.ModuleInstance = nullptr;
       Pending.ImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
-      Pending.TotalFuncCount =
-          static_cast<uint32_t>(Mod->getCodeSection().getContent().size());
     }
 #endif
 
     auto ActiveModInstResult = ExecutorEngine.instantiateModule(StoreRef, *Mod);
 
-#ifdef WASMEDGE_USE_LLVM
-    {
-      std::unique_lock Lock(LazyMutex);
-      Pending.Module = nullptr;
-      Pending.ModuleInstance = nullptr;
-    }
-#endif
 
     EXPECTED_TRY(ActiveModInst, std::move(ActiveModInstResult));
 
@@ -786,13 +744,13 @@ Expect<void> VM::unsafeInstantiate() {
       auto &State = LazyJITStates[ActiveModInst.get()];
       State.ImportFuncCount = Pending.ImportFuncCount;
       State.LazyCompiledFuncs.clear();
-      State.TotalFuncCount = Pending.TotalFuncCount;
       State.OwnedModule = std::move(Mod);
       State.ModulePtr = State.OwnedModule.get();
       State.LLData = std::move(Pending.LLData);
       State.LLContext = std::move(Pending.LLContext);
       State.Exec = std::move(Pending.Exec);
-      State.CumulativeModule = std::move(Pending.CumulativeModule);
+      Pending.Module = nullptr;
+      Pending.ModuleInstance = nullptr;
     }
 #endif
     Stage = VMStage::Instantiated;
@@ -1045,11 +1003,6 @@ const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
 };
 
 #ifdef WASMEDGE_USE_LLVM
-LLVM::LazyJITState &
-VM::getLazyJITStateForModule(const Runtime::Instance::ModuleInstance *ModInst) {
-  std::unique_lock Lock(LazyMutex);
-  return LazyJITStates[ModInst];
-}
 
 Expect<void>
 VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
@@ -1107,18 +1060,7 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     return {};
   }
 
-  std::unordered_set<uint32_t> *InProgress = nullptr;
-  if (StatePtr) {
-    InProgress = &StatePtr->LazyCompileInProgress;
-  } else {
-    InProgress = &Pending.LazyCompileInProgress;
-  }
-  for (uint32_t L : BatchLocals) {
-    if (InProgress->count(L) != 0) {
-      return {};
-    }
-  }
-  LazyJitBatchCompileMark CompileMark(InProgress, BatchLocals);
+
 
   spdlog::info(
       "[lazyjit]: Lazy compiling batch ({} local funcs) for wasm entry local "

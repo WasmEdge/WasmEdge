@@ -6667,9 +6667,10 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
                           Span<const uint32_t>(One, 1));
 }
 
-Expect<LLVM::Data> Compiler::compileFunctions(
-    Data &&LLData, CompileContext *NewContext, const AST::Module &Module,
-    Span<const uint32_t> LocalFuncIndices) noexcept {
+Expect<LLVM::Data>
+Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
+                           const AST::Module &Module,
+                           Span<const uint32_t> LocalFuncIndices) noexcept {
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     return Unexpect(ErrCode::Value::NotValidated);
@@ -6685,7 +6686,8 @@ Expect<LLVM::Data> Compiler::compileFunctions(
   std::sort(Sorted.begin(), Sorted.end());
   Sorted.erase(std::unique(Sorted.begin(), Sorted.end()), Sorted.end());
 
-  spdlog::debug("[lazyjit]: compile functions batch ({}) start"sv, Sorted.size());
+  spdlog::debug("[lazyjit]: compile functions batch ({}) start"sv,
+                Sorted.size());
 
   auto LLContext = LLData.extract().getLLContext();
   LLVM::Core::init(LLContext.unwrap());
@@ -6737,7 +6739,8 @@ Expect<LLVM::Data> Compiler::compileFunctions(
   LLModule.verify(LLVMPrintMessageAction);
   spdlog::info("[lazyjit]: verify batch ({} funcs) done"sv, Sorted.size());
 
-  spdlog::debug("[lazyjit]: compile functions batch ({}) done"sv, Sorted.size());
+  spdlog::debug("[lazyjit]: compile functions batch ({}) done"sv,
+                Sorted.size());
   return Expect<Data>{std::move(LLData)};
 }
 

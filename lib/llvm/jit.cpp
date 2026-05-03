@@ -73,8 +73,7 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
   LLVMOrcLLJITBuilderSetJITTargetMachineBuilder(Builder, JTMB);
 
   LLVM::OrcLLJIT Result;
-  if (LLVMErrorRef CreateErr =
-          LLVMOrcCreateLLJIT(&Result.unwrap(), Builder)) {
+  if (LLVMErrorRef CreateErr = LLVMOrcCreateLLJIT(&Result.unwrap(), Builder)) {
     LLVM::ErrorMessage Msg(LLVMGetErrorMessage(CreateErr));
     spdlog::error("[lazy-jit]: LLVMOrcCreateLLJIT failed: {}"sv,
                   Msg.string_view());
@@ -202,9 +201,9 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
       std::string(D.getPrefix()), IsLazy);
 }
 
-Expect<std::vector<WasmFunctionCodeAddress>> JIT::add(
-    Executable &Exec, Data &D,
-    Span<const uint32_t> GlobalFuncIndices) noexcept {
+Expect<std::vector<WasmFunctionCodeAddress>>
+JIT::add(Executable &Exec, Data &D,
+         Span<const uint32_t> GlobalFuncIndices) noexcept {
   auto *Lib = static_cast<JITLibrary *>(&Exec);
   if (!Lib) {
     spdlog::error("JIT::add: executable is not a JITLibrary"sv);
@@ -246,8 +245,7 @@ Expect<std::vector<WasmFunctionCodeAddress>> JIT::add(
 Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
                                          uint32_t GlobalFuncIndex) noexcept {
   const uint32_t One[1] = {GlobalFuncIndex};
-  auto Batch =
-      add(Exec, D, Span<const uint32_t>(One, 1));
+  auto Batch = add(Exec, D, Span<const uint32_t>(One, 1));
   if (!Batch) {
     return Unexpect(Batch.error());
   }
@@ -267,8 +265,7 @@ Expect<std::vector<WasmFunctionCodeAddress>> JIT::lookupWasmFunctionSymbols(
   std::vector<WasmFunctionCodeAddress> Addresses;
   Addresses.reserve(GlobalFuncIndices.size());
   for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {
-    const std::string SymName =
-        fmt::format("{}f{}"sv, Prefix, GlobalFuncIndex);
+    const std::string SymName = fmt::format("{}f{}"sv, Prefix, GlobalFuncIndex);
     auto AddrOrErr = Lib->J->lookup<void *>(SymName.c_str());
     if (!AddrOrErr) {
       spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));

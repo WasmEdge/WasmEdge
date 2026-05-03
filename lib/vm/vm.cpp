@@ -36,6 +36,7 @@ namespace VM {
 
 namespace {
 
+#ifdef WASMEDGE_USE_LLVM
 void collectLazyCallGraphBatch(uint32_t LocalSeed, const AST::Module *ModulePtr,
                                uint32_t ImportFuncCount,
                                const std::unordered_set<uint32_t> &LazyCompiled,
@@ -83,6 +84,7 @@ void collectLazyCallGraphBatch(uint32_t LocalSeed, const AST::Module *ModulePtr,
 
   std::sort(OutSortedLocals.begin(), OutSortedLocals.end());
 }
+#endif
 
 template <typename T> struct VisitUnit {
   using MT = std::function<T(std::unique_ptr<AST::Module> &)>;

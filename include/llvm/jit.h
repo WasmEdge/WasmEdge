@@ -89,7 +89,6 @@ private:
   const Configure Conf;
 };
 
-
 struct LazyJITState {
   LazyJITState() = default;
   /// Track which functions have been lazy-compiled.
@@ -108,7 +107,6 @@ struct LazyJITState {
   /// Pointer to the LLVM context.
   std::unique_ptr<Compiler::CompileContext, Compiler::CompileContextDeleter>
       LLContext;
-
 };
 
 } // namespace WasmEdge::LLVM

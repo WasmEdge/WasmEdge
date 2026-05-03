@@ -2273,10 +2273,10 @@ public:
     return LLVMOrcLLJITGetIRTransformLayer(Ref);
   }
 
+  static inline LLVMOrcLLJITBuilderRef getBuilder() noexcept;
+
 private:
   LLVMOrcLLJITRef Ref = nullptr;
-
-  static inline LLVMOrcLLJITBuilderRef getBuilder() noexcept;
 };
 
 } // namespace WasmEdge::LLVM

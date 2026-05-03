@@ -11,12 +11,15 @@
 #include <llvm-c/Error.h>
 #include <llvm-c/LLJIT.h>
 #include <llvm-c/Orc.h>
+#include <llvm-c/Target.h>
+#include <llvm-c/TargetMachine.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/Config/llvm-config.h>
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Linker/Linker.h>
+#include <llvm/Support/CodeGen.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <mutex>
@@ -31,6 +34,53 @@ namespace {
 std::string errorToString(LLVM::Error &&E) noexcept {
   auto Msg = E.message();
   return std::string(Msg.string_view());
+}
+
+static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
+  LLVMOrcLLJITBuilderRef Builder = LLVM::OrcLLJIT::getBuilder();
+  if (!Builder) {
+    Builder = LLVMOrcCreateLLJITBuilder();
+  }
+
+  LLVMTargetRef TheTarget = nullptr;
+  LLVM::Message Triple(LLVMGetDefaultTargetTriple());
+  char *TripleErr = nullptr;
+  if (LLVMGetTargetFromTriple(Triple.string_view().data(), &TheTarget,
+                              &TripleErr)) {
+    spdlog::error("[lazy-jit]: getTargetFromTriple failed: {}"sv,
+                  TripleErr ? TripleErr : "");
+    LLVMDisposeMessage(TripleErr);
+    LLVMOrcDisposeLLJITBuilder(Builder);
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
+  }
+
+  LLVM::Message CPU(LLVMGetHostCPUName());
+  LLVM::Message Features(LLVMGetHostCPUFeatures());
+
+  LLVMTargetMachineRef TM = LLVMCreateTargetMachine(
+      TheTarget, Triple.string_view().data(), CPU.string_view().data(),
+      Features.string_view().data(), LLVMCodeGenLevelNone, LLVMRelocDefault,
+      LLVMCodeModelJITDefault);
+
+  if (!TM) {
+    spdlog::error("[lazy-jit]: createTargetMachine failed"sv);
+    LLVMOrcDisposeLLJITBuilder(Builder);
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
+  }
+
+  LLVMOrcJITTargetMachineBuilderRef JTMB =
+      LLVMOrcJITTargetMachineBuilderCreateFromTargetMachine(TM);
+  LLVMOrcLLJITBuilderSetJITTargetMachineBuilder(Builder, JTMB);
+
+  LLVM::OrcLLJIT Result;
+  if (LLVMErrorRef CreateErr =
+          LLVMOrcCreateLLJIT(&Result.unwrap(), Builder)) {
+    LLVM::ErrorMessage Msg(LLVMGetErrorMessage(CreateErr));
+    spdlog::error("[lazy-jit]: LLVMOrcCreateLLJIT failed: {}"sv,
+                  Msg.string_view());
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
+  }
+  return Result;
 }
 
 } // namespace
@@ -113,10 +163,21 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
 }
 
 Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
-  auto Result = OrcLLJIT::create();
-  if (!Result) {
-    spdlog::error("{}"sv, Result.error().message().string_view());
-    return Unexpect(ErrCode::Value::HostFuncError);
+  OrcLLJIT LLJITInstance;
+  if (IsLazy) {
+    auto R = createTunedLazyLLJIT();
+    if (!R) {
+      spdlog::error("[lazy-jit]: failed to create LLJIT"sv);
+      return Unexpect(R.error());
+    }
+    LLJITInstance = std::move(*R);
+  } else {
+    auto R = OrcLLJIT::create();
+    if (!R) {
+      spdlog::error("{}"sv, R.error().message().string_view());
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    LLJITInstance = std::move(*R);
   }
 
   auto &LLModule = D.extract().LLModule;
@@ -129,25 +190,31 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
     }
   }
 
-  auto MainJD = Result->getMainJITDylib();
-  if (auto Err = Result->addLLVMIRModule(
+  auto MainJD = LLJITInstance.getMainJITDylib();
+  if (auto Err = LLJITInstance.addLLVMIRModule(
           MainJD, OrcThreadSafeModule(LLModule.release(), TSContext))) {
     spdlog::error("{}"sv, Err.message().string_view());
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   return std::make_shared<JITLibrary>(
-      std::make_shared<OrcLLJIT>(std::move(*Result)),
+      std::make_shared<OrcLLJIT>(std::move(LLJITInstance)),
       std::string(D.getPrefix()), IsLazy);
 }
 
-Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
-                                         uint32_t GlobalFuncIndex) noexcept {
+Expect<std::vector<WasmFunctionCodeAddress>> JIT::add(
+    Executable &Exec, Data &D,
+    Span<const uint32_t> GlobalFuncIndices) noexcept {
   auto *Lib = static_cast<JITLibrary *>(&Exec);
   if (!Lib) {
     spdlog::error("JIT::add: executable is not a JITLibrary"sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
+  if (GlobalFuncIndices.empty()) {
+    spdlog::error("JIT::add: empty function index list"sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+
   std::lock_guard<std::mutex> Lock(Lib->LazyAddMutex);
   auto &LLModule = D.extract().LLModule;
   auto &TSContext = D.extract().getTSContext();
@@ -161,14 +228,54 @@ Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  const std::string SymName =
-      fmt::format("{}f{}"sv, D.getPrefix(), GlobalFuncIndex);
+  std::vector<WasmFunctionCodeAddress> Addresses;
+  Addresses.reserve(GlobalFuncIndices.size());
+  for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {
+    const std::string SymName =
+        fmt::format("{}f{}"sv, D.getPrefix(), GlobalFuncIndex);
+    auto AddrOrErr = Lib->J->lookup<void *>(SymName.c_str());
+    if (!AddrOrErr) {
+      spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Addresses.push_back(*AddrOrErr);
+  }
+  return Addresses;
+}
 
-  auto AddrOrErr = Lib->J->lookup<void *>(SymName.c_str());
-  if (!AddrOrErr) {
-    spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));
+Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
+                                         uint32_t GlobalFuncIndex) noexcept {
+  const uint32_t One[1] = {GlobalFuncIndex};
+  auto Batch =
+      add(Exec, D, Span<const uint32_t>(One, 1));
+  if (!Batch) {
+    return Unexpect(Batch.error());
+  }
+  return (*Batch)[0];
+}
+
+Expect<std::vector<WasmFunctionCodeAddress>> JIT::lookupWasmFunctionSymbols(
+    Executable &Exec, std::string_view Prefix,
+    Span<const uint32_t> GlobalFuncIndices) noexcept {
+  auto *Lib = static_cast<JITLibrary *>(&Exec);
+  if (!Lib) {
+    spdlog::error("JIT::lookupWasmFunctionSymbols: not a JITLibrary"sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  return *AddrOrErr;
+
+  std::lock_guard<std::mutex> Lock(Lib->LazyAddMutex);
+  std::vector<WasmFunctionCodeAddress> Addresses;
+  Addresses.reserve(GlobalFuncIndices.size());
+  for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {
+    const std::string SymName =
+        fmt::format("{}f{}"sv, Prefix, GlobalFuncIndex);
+    auto AddrOrErr = Lib->J->lookup<void *>(SymName.c_str());
+    if (!AddrOrErr) {
+      spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));
+      return Unexpect(ErrCode::Value::HostFuncError);
+    }
+    Addresses.push_back(*AddrOrErr);
+  }
+  return Addresses;
 }
 } // namespace WasmEdge::LLVM

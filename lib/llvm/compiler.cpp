@@ -6662,14 +6662,30 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
                                              CompileContext *NewContext,
                                              const AST::Module &Module,
                                              uint32_t FuncIndex) noexcept {
-  // Check the module is validated.
+  const uint32_t One[1] = {FuncIndex};
+  return compileFunctions(std::move(LLData), NewContext, Module,
+                          Span<const uint32_t>(One, 1));
+}
+
+Expect<LLVM::Data> Compiler::compileFunctions(
+    Data &&LLData, CompileContext *NewContext, const AST::Module &Module,
+    Span<const uint32_t> LocalFuncIndices) noexcept {
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     return Unexpect(ErrCode::Value::NotValidated);
   }
+  if (unlikely(LocalFuncIndices.empty())) {
+    spdlog::error("[lazyjit]: compileFunctions with empty index list"sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
 
   std::unique_lock Lock(Mutex);
-  spdlog::debug("[lazyjit]: compile function {} start"sv, FuncIndex);
+  std::vector<uint32_t> Sorted(LocalFuncIndices.begin(),
+                               LocalFuncIndices.end());
+  std::sort(Sorted.begin(), Sorted.end());
+  Sorted.erase(std::unique(Sorted.begin(), Sorted.end()), Sorted.end());
+
+  spdlog::debug("[lazyjit]: compile functions batch ({}) start"sv, Sorted.size());
 
   auto LLContext = LLData.extract().getLLContext();
   LLVM::Core::init(LLContext.unwrap());
@@ -6680,7 +6696,6 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
   this->Context = NewContext;
   Context->LLModule = LLModule;
 
-  // Clear module-bound state if reusing the context
   Context->CompositeTypes.clear();
   Context->FunctionWrappers.clear();
   Context->Functions.clear();
@@ -6705,30 +6720,24 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
   Context->Trap.Fn.addFnAttr(Context->NoInline);
   Context->compileTrap();
 
-  // Re-compile infrastructure for the fresh module
-  // compile types first (needed for function type lookup)
   compile(Module.getTypeSection(), true);
-  // compile imports to get the correct function offset
   compile(Module.getImportSection());
-  // compile globals (may be needed by function body)
   compile(Module.getGlobalSection());
-  // compile memory
   compile(Module.getMemorySection(), Module.getDataSection());
-  // compile table
   compile(Module.getTableSection(), Module.getElementSection());
 
-  // create all function declarations
   compileFunctionDeclarations(Module.getFunctionSection(),
                               Module.getCodeSection());
 
-  // compile only the requested function body
-  EXPECTED_TRY(compileFunctionBody(FuncIndex));
+  for (uint32_t FuncIndex : Sorted) {
+    EXPECTED_TRY(compileFunctionBody(FuncIndex));
+  }
 
-  spdlog::info("[lazyjit]: verify function {} start"sv, FuncIndex);
+  spdlog::info("[lazyjit]: verify batch ({} funcs) start"sv, Sorted.size());
   LLModule.verify(LLVMPrintMessageAction);
-  spdlog::info("[lazyjit]: verify function {} done"sv, FuncIndex);
+  spdlog::info("[lazyjit]: verify batch ({} funcs) done"sv, Sorted.size());
 
-  spdlog::debug("[lazyjit]: compile function {} done"sv, FuncIndex);
+  spdlog::debug("[lazyjit]: compile functions batch ({}) done"sv, Sorted.size());
   return Expect<Data>{std::move(LLData)};
 }
 

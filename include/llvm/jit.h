@@ -16,6 +16,7 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errcode.h"
+#include "common/span.h"
 #include "llvm/compiler.h"
 #include "llvm/data.h"
 #include <memory>
@@ -71,6 +72,17 @@ public:
   /// (global index: imports + local index).
   Expect<WasmFunctionCodeAddress> add(Executable &Exec, Data &D,
                                       uint32_t GlobalFuncIndex) noexcept;
+
+  /// Adds one LLVM IR module and resolves many wasm function symbols.
+  Expect<std::vector<WasmFunctionCodeAddress>>
+  add(Executable &Exec, Data &D,
+      Span<const uint32_t> GlobalFuncIndices) noexcept;
+
+  /// Look up already-loaded symbols (no IR add). Same index convention as
+  /// \c add .
+  Expect<std::vector<WasmFunctionCodeAddress>>
+  lookupWasmFunctionSymbols(Executable &Exec, std::string_view Prefix,
+                            Span<const uint32_t> GlobalFuncIndices) noexcept;
 
 private:
   const Configure Conf;

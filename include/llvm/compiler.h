@@ -50,6 +50,12 @@ public:
                                const AST::Module &Module,
                                uint32_t FuncIndex) noexcept;
 
+  /// Compile multiple function bodies in one LLVM module for lazy JIT.
+  /// \p LocalFuncIndices are indices of defined functions (not imports).
+  Expect<Data> compileFunctions(Data &&LLData, CompileContext *Context,
+                                const AST::Module &Module,
+                                Span<const uint32_t> LocalFuncIndices) noexcept;
+
 private:
   void compile(const AST::ImportSection &ImportSection) noexcept;
   void compile(const AST::ExportSection &ExportSection) noexcept;

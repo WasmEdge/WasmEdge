@@ -21,9 +21,11 @@
 #include "host/mock/wasmedge_tensorflow_module.h"
 #include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "validator/validator.h"
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <variant>
+#include <vector>
 
 #ifdef WASMEDGE_USE_LLVM
 #include <llvm/IR/Module.h>
@@ -34,21 +36,74 @@ namespace VM {
 
 namespace {
 
-struct LazyJitCompileMark {
+struct LazyJitBatchCompileMark {
   std::unordered_set<uint32_t> *Set;
-  uint32_t Idx;
-  LazyJitCompileMark(std::unordered_set<uint32_t> *S, uint32_t I) noexcept
-      : Set(S), Idx(I) {
+  std::vector<uint32_t> Indices;
+  LazyJitBatchCompileMark(std::unordered_set<uint32_t> *S,
+                          std::vector<uint32_t> V) noexcept
+      : Set(S), Indices(std::move(V)) {
     if (Set) {
-      Set->insert(Idx);
+      for (uint32_t I : Indices) {
+        Set->insert(I);
+      }
     }
   }
-  ~LazyJitCompileMark() {
+  ~LazyJitBatchCompileMark() {
     if (Set) {
-      Set->erase(Idx);
+      for (uint32_t I : Indices) {
+        Set->erase(I);
+      }
     }
   }
 };
+
+void collectLazyCallGraphBatch(uint32_t LocalSeed, const AST::Module *ModulePtr,
+                               uint32_t ImportFuncCount,
+                               const std::unordered_set<uint32_t> &LazyCompiled,
+                               std::vector<uint32_t> &OutSortedLocals) {
+  OutSortedLocals.clear();
+  if (!ModulePtr) {
+    return;
+  }
+  const auto &CodeSec = ModulePtr->getCodeSection().getContent();
+  const uint32_t DefinedCount = static_cast<uint32_t>(CodeSec.size());
+
+  if (LocalSeed >= DefinedCount || LazyCompiled.count(LocalSeed)) {
+    return;
+  }
+
+  std::vector<uint8_t> Visited(DefinedCount, 0);
+  std::vector<uint32_t> Stack;
+  Stack.reserve(64);
+
+  Visited[LocalSeed] = 1;
+  Stack.push_back(LocalSeed);
+  OutSortedLocals.push_back(LocalSeed);
+
+  while (!Stack.empty()) {
+    const uint32_t L = Stack.back();
+    Stack.pop_back();
+
+    for (const auto &Instr : CodeSec[L].getExpr().getInstrs()) {
+      const auto Op = Instr.getOpCode();
+      if (Op == OpCode::Call || Op == OpCode::Return_call ||
+          Op == OpCode::Ref__func) {
+        const uint32_t Target = Instr.getTargetIndex();
+        if (Target >= ImportFuncCount) {
+          const uint32_t LocalIdx = Target - ImportFuncCount;
+          if (LocalIdx < DefinedCount && !Visited[LocalIdx] &&
+              !LazyCompiled.count(LocalIdx)) {
+            Visited[LocalIdx] = 1;
+            Stack.push_back(LocalIdx);
+            OutSortedLocals.push_back(LocalIdx);
+          }
+        }
+      }
+    }
+  }
+
+  std::sort(OutSortedLocals.begin(), OutSortedLocals.end());
+}
 
 template <typename T> struct VisitUnit {
   using MT = std::function<T(std::unique_ptr<AST::Module> &)>;
@@ -1041,41 +1096,34 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     return {};
   }
 
+  const std::unordered_set<uint32_t> EmptyCompiledSet;
+  const std::unordered_set<uint32_t> &CompiledSet =
+      StatePtr ? StatePtr->LazyCompiledFuncs : EmptyCompiledSet;
+
+  std::vector<uint32_t> BatchLocals;
+  collectLazyCallGraphBatch(LocalFuncIdx, ModulePtr, ImportFuncCount,
+                            CompiledSet, BatchLocals);
+  if (BatchLocals.empty()) {
+    return {};
+  }
+
   std::unordered_set<uint32_t> *InProgress = nullptr;
   if (StatePtr) {
     InProgress = &StatePtr->LazyCompileInProgress;
   } else {
     InProgress = &Pending.LazyCompileInProgress;
   }
-  if (InProgress->count(LocalFuncIdx)) {
-    return {};
-  }
-  LazyJitCompileMark CompileMark(InProgress, LocalFuncIdx);
-
-  spdlog::info(
-      "[lazyjit]: Lazy compiling function index {} (local {}) for module {}"sv,
-      FuncIdx, LocalFuncIdx, static_cast<const void *>(ModInst));
-
-  if (ModulePtr &&
-      LocalFuncIdx < ModulePtr->getCodeSection().getContent().size()) {
-    for (const auto &Instr : ModulePtr->getCodeSection()
-                                 .getContent()[LocalFuncIdx]
-                                 .getExpr()
-                                 .getInstrs()) {
-      if (Instr.getOpCode() != OpCode::Return_call) {
-        continue;
-      }
-      const uint32_t T = Instr.getTargetIndex();
-      if (T < ImportFuncCount) {
-        continue;
-      }
-      const uint32_t TLocal = T - ImportFuncCount;
-      if (TLocal == LocalFuncIdx) {
-        continue;
-      }
-      EXPECTED_TRY(unsafeLazyCompileFunction(ModInst, T));
+  for (uint32_t L : BatchLocals) {
+    if (InProgress->count(L) != 0) {
+      return {};
     }
   }
+  LazyJitBatchCompileMark CompileMark(InProgress, BatchLocals);
+
+  spdlog::info(
+      "[lazyjit]: Lazy compiling batch ({} local funcs) for wasm entry local "
+      "{}, module {}"sv,
+      BatchLocals.size(), LocalFuncIdx, static_cast<const void *>(ModInst));
 
   LLVM::Compiler Compiler(Conf);
   auto ConfigResult = Compiler.checkConfigure();
@@ -1088,10 +1136,11 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   if (!LLDataPtr->hasModule()) {
     LLDataPtr->resetModule();
   }
-  auto CompileResult = Compiler.compileFunction(
+  auto CompileResult = Compiler.compileFunctions(
       std::move(*LLDataPtr),
       static_cast<LLVM::Compiler::CompileContext *>(LLContextPtr->get()),
-      *ModulePtr, LocalFuncIdx);
+      *ModulePtr,
+      WasmEdge::Span<const uint32_t>(BatchLocals.data(), BatchLocals.size()));
   if (!CompileResult) {
     spdlog::error("[lazyjit]: Lazy JIT function compilation failed: {}"sv,
                   CompileResult.error());
@@ -1107,15 +1156,22 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     Exec = Pending.Exec;
   }
 
-  LLVM::WasmFunctionCodeAddress CompiledCodePtr = nullptr;
+  std::vector<uint32_t> BatchGlobal;
+  BatchGlobal.reserve(BatchLocals.size());
+  for (uint32_t L : BatchLocals) {
+    BatchGlobal.push_back(ImportFuncCount + L);
+  }
 
+  std::vector<LLVM::WasmFunctionCodeAddress> ResolvedAddresses;
   if (Exec) {
-    auto Address = JIT.add(*Exec, *LLDataPtr, FuncIdx);
-    if (!Address) {
-      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, Address.error());
-      return Unexpect(Address.error());
+    auto AddrRes = JIT.add(
+        *Exec, *LLDataPtr,
+        WasmEdge::Span<const uint32_t>(BatchGlobal.data(), BatchGlobal.size()));
+    if (!AddrRes) {
+      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, AddrRes.error());
+      return Unexpect(AddrRes.error());
     }
-    CompiledCodePtr = Address.value();
+    ResolvedAddresses = std::move(*AddrRes);
   } else {
     auto LoadResult = JIT.load(*LLDataPtr, true);
     if (!LoadResult) {
@@ -1129,13 +1185,20 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     } else {
       Pending.Exec = Exec;
     }
-    auto CodeSymbols = Exec->getCodes(ImportFuncCount + LocalFuncIdx, 1);
-    if (CodeSymbols.empty() || !CodeSymbols[0]) {
-      spdlog::error("[lazyjit]: failed to get code symbol for function {}"sv,
-                    LocalFuncIdx);
-      return Unexpect(ErrCode::Value::HostFuncError);
+    auto LkRes = JIT.lookupWasmFunctionSymbols(
+        *Exec, LLDataPtr->getPrefix(),
+        WasmEdge::Span<const uint32_t>(BatchGlobal.data(), BatchGlobal.size()));
+    if (!LkRes) {
+      spdlog::error("[lazyjit]: Lazy JIT symbol resolution failed: {}"sv,
+                    LkRes.error());
+      return Unexpect(LkRes.error());
     }
-    CompiledCodePtr = CodeSymbols[0].get();
+    ResolvedAddresses = std::move(*LkRes);
+  }
+
+  if (ResolvedAddresses.size() != BatchLocals.size()) {
+    spdlog::error("[lazyjit]: Lazy JIT address count mismatch"sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
   }
 
   if (auto IntrinsicsSymbol = Exec->getIntrinsics()) {
@@ -1145,11 +1208,14 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  {
-    auto FuncResult = ModInst->getFuncInst(FuncIdx);
+  for (size_t I = 0; I < BatchLocals.size(); ++I) {
+    const uint32_t L = BatchLocals[I];
+    const uint32_t WasmFuncIdx = ImportFuncCount + L;
+    LLVM::WasmFunctionCodeAddress CompiledCodePtr = ResolvedAddresses[I];
+    auto FuncResult = ModInst->getFuncInst(WasmFuncIdx);
     if (!FuncResult) {
       spdlog::error("[lazyjit]: failed to get function instance for index {}"sv,
-                    FuncIdx);
+                    WasmFuncIdx);
       return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
 
@@ -1163,12 +1229,16 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   }
 
   if (StatePtr) {
-    StatePtr->LazyCompiledFuncs.insert(LocalFuncIdx);
+    for (uint32_t L : BatchLocals) {
+      StatePtr->LazyCompiledFuncs.insert(L);
+    }
   }
 
   spdlog::info(
-      "Lazy compilation completed for function {}, total compiled: {}"sv,
-      LocalFuncIdx, StatePtr ? StatePtr->LazyCompiledFuncs.size() : 1);
+      "Lazy compilation completed for batch of {} functions, total compiled: "
+      "{}"sv,
+      BatchLocals.size(),
+      StatePtr ? StatePtr->LazyCompiledFuncs.size() : BatchLocals.size());
 
   return {};
 }

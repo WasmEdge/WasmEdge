@@ -33,6 +33,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     /wd4819 # file contains a character not in current code page
     /wd4127 # conditional expression is constant
     /wd4611 # interaction between '_setjmp' and C++ object destruction is non-portable
+    /bigobj # for large object files
   )
 else()
   list(APPEND WASMEDGE_CFLAGS
@@ -225,7 +226,7 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
   endif()
   execute_process(
     COMMAND ${LLVM_BINARY_DIR}/bin/llvm-config --libs --link-static
-    core lto native nativecodegen option passes support orcjit transformutils all-targets
+    core linker lto native nativecodegen option passes support orcjit transformutils all-targets
     OUTPUT_VARIABLE WASMEDGE_LLVM_LINK_LIBS_NAME
   )
   string(REPLACE "-l" "" WASMEDGE_LLVM_LINK_LIBS_NAME "${WASMEDGE_LLVM_LINK_LIBS_NAME}")

@@ -17,3 +17,13 @@ LLVM::Data &LLVM::Data::operator=(LLVM::Data &&RHS) noexcept {
   swap(Context, RHS.Context);
   return *this;
 }
+bool LLVM::Data::hasModule() const noexcept {
+  return static_cast<bool>(Context->LLModule);
+}
+void LLVM::Data::resetModule() noexcept { Context->resetModule(); }
+void LLVM::Data::setPrefix(std::string_view P) noexcept {
+  Context->Prefix = std::string(P);
+}
+std::string_view LLVM::Data::getPrefix() const noexcept {
+  return Context->Prefix;
+}

@@ -71,6 +71,27 @@ LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
 #define __x86_64__ 1
 #endif
 
+#if LLVM_VERSION_MAJOR < 17
+#include <llvm/IR/Instructions.h>
+#include <llvm/Support/CBindingWrapping.h>
+typedef enum {
+  LLVMTailCallKindNone = 0,
+  LLVMTailCallKindTail = 1,
+  LLVMTailCallKindMustTail = 2,
+  LLVMTailCallKindNoTail = 3,
+} LLVMTailCallKind;
+
+LLVMTailCallKind LLVMGetTailCallKind(LLVMValueRef Call) {
+  return static_cast<LLVMTailCallKind>(
+      llvm::unwrap<llvm::CallInst>(Call)->getTailCallKind());
+}
+
+void LLVMSetTailCallKind(LLVMValueRef Call, LLVMTailCallKind kind) {
+  llvm::unwrap<llvm::CallInst>(Call)->setTailCallKind(
+      static_cast<llvm::CallInst::TailCallKind>(kind));
+}
+#endif
+
 namespace WasmEdge::LLVM {
 
 class Core {
@@ -785,6 +806,7 @@ public:
   inline void addCallSiteAttribute(const Attribute &A) noexcept;
   inline void setMetadata(Context &C, unsigned int KindID,
                           Metadata Node) noexcept;
+  inline void setMustTailCall() noexcept;
 
   Value getFirstParam() noexcept { return LLVMGetFirstParam(Ref); }
   Value getNextParam() noexcept { return LLVMGetNextParam(Ref); }
@@ -1034,6 +1056,10 @@ void Value::addCallSiteAttribute(const Attribute &A) noexcept {
 void Value::setMetadata(Context &C, unsigned int KindID,
                         Metadata Node) noexcept {
   LLVMSetMetadata(Ref, KindID, LLVMMetadataAsValue(C.unwrap(), Node.unwrap()));
+}
+
+void Value::setMustTailCall() noexcept {
+  LLVMSetTailCallKind(Ref, LLVMTailCallKindMustTail);
 }
 
 static inline Message getDefaultTargetTriple() noexcept {
@@ -2071,7 +2097,7 @@ public:
   }
 #if LLVM_VERSION_MAJOR >= 21
   OrcThreadSafeContext(Context &C) noexcept
-      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.release())) {}
+      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.unwrap())) {}
 #else
   Context getContext() noexcept {
     return LLVMOrcThreadSafeContextGetContext(Ref);
@@ -2247,10 +2273,10 @@ public:
     return LLVMOrcLLJITGetIRTransformLayer(Ref);
   }
 
+  static inline LLVMOrcLLJITBuilderRef getBuilder() noexcept;
+
 private:
   LLVMOrcLLJITRef Ref = nullptr;
-
-  static inline LLVMOrcLLJITBuilderRef getBuilder() noexcept;
 };
 
 } // namespace WasmEdge::LLVM

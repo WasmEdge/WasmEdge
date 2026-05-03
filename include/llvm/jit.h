@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: 2019-2026 Second State INC
 
 //===-- wasmedge/llvm/jit.h - JIT Engine class definition -----------------===//
 //
@@ -16,15 +16,34 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errcode.h"
+#include "common/span.h"
+#include "llvm/compiler.h"
 #include "llvm/data.h"
+#include <memory>
+#include <mutex>
+#include <string_view>
+#include <unordered_set>
 #include <vector>
 
+namespace llvm {
+class Module;
+}
+
 namespace WasmEdge::LLVM {
+
+class Module;
+
+/// Address of JIT- or AOT-generated machine code for a wasm function. Not a
+/// typed C++ function pointer; wasm signatures vary and calls go through the
+/// executor.
+using WasmFunctionCodeAddress = void *;
+
 class OrcLLJIT;
 
 class JITLibrary : public Executable {
 public:
-  JITLibrary(OrcLLJIT JIT) noexcept;
+  JITLibrary(std::shared_ptr<OrcLLJIT> JIT, std::string Prefix = "",
+             bool IsLazy = false) noexcept;
   ~JITLibrary() noexcept override;
 
   Symbol<const IntrinsicsTable *> getIntrinsics() noexcept override;
@@ -33,18 +52,61 @@ public:
 
   std::vector<Symbol<void>> getCodes(size_t Offset,
                                      size_t Size) noexcept override;
+  bool isLazy() const noexcept override { return IsLazy; }
+  void setPrefix(std::string Prefix) noexcept { this->Prefix = Prefix; }
 
 private:
-  OrcLLJIT *J;
+  std::shared_ptr<OrcLLJIT> J;
+  std::string Prefix;
+  bool IsLazy;
+  mutable std::mutex LazyAddMutex;
+  friend class JIT;
 };
 
 class JIT {
 public:
   JIT(const Configure &Conf) noexcept : Conf(Conf) {}
-  Expect<std::shared_ptr<Executable>> load(Data D) noexcept;
+  Expect<std::shared_ptr<Executable>> load(Data &D,
+                                           bool IsLazy = false) noexcept;
+
+  /// Resolves the wasm function symbol in the new lazy JITDylib only
+  /// (global index: imports + local index).
+  Expect<WasmFunctionCodeAddress> add(Executable &Exec, Data &D,
+                                      uint32_t GlobalFuncIndex) noexcept;
+
+  /// Adds one LLVM IR module and resolves many wasm function symbols.
+  Expect<std::vector<WasmFunctionCodeAddress>>
+  add(Executable &Exec, Data &D,
+      Span<const uint32_t> GlobalFuncIndices) noexcept;
+
+  /// Look up already-loaded symbols (no IR add). Same index convention as
+  /// \c add .
+  Expect<std::vector<WasmFunctionCodeAddress>>
+  lookupWasmFunctionSymbols(Executable &Exec, std::string_view Prefix,
+                            Span<const uint32_t> GlobalFuncIndices) noexcept;
 
 private:
   const Configure Conf;
+};
+
+struct LazyJITState {
+  LazyJITState() = default;
+  /// Track which functions have been lazy-compiled.
+  std::unordered_set<uint32_t> LazyCompiledFuncs;
+
+  /// Number of import functions (offset for local function indices).
+  uint32_t ImportFuncCount = 0;
+  /// Pointer to the AST module (non-owning pointer, lifetime managed by caller)
+  const AST::Module *ModulePtr = nullptr;
+  /// Optional owned module (used when VM takes ownership)
+  std::unique_ptr<AST::Module> OwnedModule;
+  /// Store compiled executables to keep them alive
+  std::shared_ptr<Executable> Exec;
+  /// Per-module JIT data and context
+  Data LLData;
+  /// Pointer to the LLVM context.
+  std::unique_ptr<Compiler::CompileContext, Compiler::CompileContextDeleter>
+      LLContext;
 };
 
 } // namespace WasmEdge::LLVM

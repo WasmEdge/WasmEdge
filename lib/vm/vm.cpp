@@ -36,8 +36,6 @@ namespace VM {
 
 namespace {
 
-
-
 void collectLazyCallGraphBatch(uint32_t LocalSeed, const AST::Module *ModulePtr,
                                uint32_t ImportFuncCount,
                                const std::unordered_set<uint32_t> &LazyCompiled,
@@ -375,7 +373,6 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
   // Instantiate and register module.
   auto ModInstResult = ExecutorEngine.registerModule(StoreRef, Module, Name);
-
 
   EXPECTED_TRY(auto ModInst, std::move(ModInstResult));
   RegModInsts.push_back(std::move(ModInst));
@@ -735,7 +732,6 @@ Expect<void> VM::unsafeInstantiate() {
 
     auto ActiveModInstResult = ExecutorEngine.instantiateModule(StoreRef, *Mod);
 
-
     EXPECTED_TRY(ActiveModInst, std::move(ActiveModInstResult));
 
 #ifdef WASMEDGE_USE_LLVM
@@ -1059,8 +1055,6 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   if (BatchLocals.empty()) {
     return {};
   }
-
-
 
   spdlog::info(
       "[lazyjit]: Lazy compiling batch ({} local funcs) for wasm entry local "

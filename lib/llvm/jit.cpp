@@ -86,8 +86,6 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
 
 namespace WasmEdge::LLVM {
 
-
-
 JITLibrary::JITLibrary(std::shared_ptr<LLVM::OrcLLJIT> JIT, std::string P,
                        bool IsLazy) noexcept
     : J(std::move(JIT)), Prefix(std::move(P)), IsLazy(IsLazy) {}

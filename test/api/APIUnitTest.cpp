@@ -1275,6 +1275,20 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_CompilerCompile(Compiler, "not_exist.wasm",
                                                   "not_exist_aot.wasm")));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IllegalPath,
+      WasmEdge_CompilerCompile(Compiler, nullptr, "not_exist_aot.wasm")));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompile(Compiler, TPath, nullptr)));
+  // "" must match nullptr behavior.
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IllegalPath,
+      WasmEdge_CompilerCompile(Compiler, "", "not_exist_aot.wasm")));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompile(Compiler, TPath, "")));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IllegalPath,
+      WasmEdge_CompilerCompile(Compiler, nullptr, nullptr)));
   // Parse failed
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_UnexpectedEnd,
                          WasmEdge_CompilerCompile(
@@ -1331,6 +1345,12 @@ TEST(APICoreTest, Compiler) {
   }
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_CompilerCompileFromBuffer(
       Compiler, Data.data(), Data.size(), "test_aot" WASMEDGE_LIB_EXTENSION)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompileFromBuffer(
+                             Compiler, Data.data(), Data.size(), nullptr)));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_CompilerCompileFromBuffer(
+                             Compiler, Data.data(), Data.size(), "")));
   // Check the header of the output files.
   OutFile.open("test_aot" WASMEDGE_LIB_EXTENSION, std::ios::binary);
   EXPECT_TRUE(OutFile.read(reinterpret_cast<char *>(Buf), 4));
@@ -1405,6 +1425,9 @@ TEST(APICoreTest, Loader) {
                          WasmEdge_LoaderParseFromFile(Loader, nullptr, TPath)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_LoaderParseFromFile(Loader, ModPtr, "file")));
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                 WasmEdge_LoaderParseFromFile(Loader, ModPtr, nullptr)));
   EXPECT_TRUE(
       isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
                  WasmEdge_LoaderParseFromFile(nullptr, nullptr, TPath)));
@@ -2685,6 +2708,12 @@ TEST(APICoreTest, Async) {
   // VM nullptr case
   Async = WasmEdge_VMAsyncRunWasmFromFile(nullptr, TPath, FuncName, P, 2);
   EXPECT_EQ(Async, nullptr);
+  // File path nullptr case
+  Async = WasmEdge_VMAsyncRunWasmFromFile(VM, nullptr, FuncName, P, 2);
+  EXPECT_NE(Async, nullptr);
+  EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath, WasmEdge_AsyncGet(Async, R, 2)));
+  WasmEdge_AsyncDelete(Async);
   // File path not found case
   Async = WasmEdge_VMAsyncRunWasmFromFile(VM, "no_file", FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
@@ -3251,6 +3280,9 @@ TEST(APICoreTest, VM) {
       isErrMatch(WasmEdge_ErrCode_IllegalPath,
                  WasmEdge_VMRegisterModuleFromFile(VM, ModName, "no_file")));
   EXPECT_TRUE(
+      isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                 WasmEdge_VMRegisterModuleFromFile(VM, ModName, nullptr)));
+  EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromFile(VM, ModName, TPath)));
   WasmEdge_StringDelete(ModName);
 
@@ -3304,6 +3336,9 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(isErrMatch(
       WasmEdge_ErrCode_IllegalPath,
       WasmEdge_VMRunWasmFromFile(VM, "no_file", FuncName, P, 2, R, 2)));
+  EXPECT_TRUE(isErrMatch(
+      WasmEdge_ErrCode_IllegalPath,
+      WasmEdge_VMRunWasmFromFile(VM, nullptr, FuncName, P, 2, R, 2)));
   // Function type mismatch
   EXPECT_TRUE(
       isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
@@ -3473,6 +3508,8 @@ TEST(APICoreTest, VM) {
                          WasmEdge_VMLoadWasmFromFile(nullptr, TPath)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
                          WasmEdge_VMLoadWasmFromFile(VM, "file")));
+  EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_IllegalPath,
+                         WasmEdge_VMLoadWasmFromFile(VM, nullptr)));
 
   // VM load wasm from buffer
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromBuffer(
@@ -3770,6 +3807,8 @@ TEST(APICoreTest, Plugin) {
   WasmEdge_String Names[15];
 
   // Load from the specific path
+  EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
+  WasmEdge_PluginLoadFromPath(nullptr);
   EXPECT_EQ(WasmEdge_PluginListPluginsLength(), 0U);
   WasmEdge_PluginLoadFromPath(
       "../plugins/unittest/" WASMEDGE_LIB_PREFIX

@@ -1449,6 +1449,11 @@ WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
 WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::HANDLE_
     WASMEDGE_WINAPI_WINAPI_CC GetCurrentThread(WasmEdge::winapi::VOID_);
 
+WASMEDGE_WINAPI_SYMBOL_IMPORT WasmEdge::winapi::VOID_
+    WASMEDGE_WINAPI_WINAPI_CC GetCurrentThreadStackLimits(
+        WasmEdge::winapi::ULONG_PTR_ *LowLimit,
+        WasmEdge::winapi::ULONG_PTR_ *HighLimit);
+
 WASMEDGE_WINAPI_SYMBOL_IMPORT
 WasmEdge::winapi::BOOL_ WASMEDGE_WINAPI_WINAPI_CC
 GetProcessTimes(WasmEdge::winapi::HANDLE_ hProcess,
@@ -1487,6 +1492,7 @@ namespace WasmEdge::winapi {
 using ::AdjustTokenPrivileges;
 using ::GetCurrentProcess;
 using ::GetCurrentThread;
+using ::GetCurrentThreadStackLimits;
 using ::GetProcessTimes;
 using ::GetThreadTimes;
 using ::LookupPrivilegeValueW;

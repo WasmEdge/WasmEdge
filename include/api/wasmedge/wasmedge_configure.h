@@ -160,26 +160,30 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Set the force interpreter mode execution option.
+/// Set the run mode for module execution.
+///
+/// Selects the engine used to execute a WebAssembly module: interpreter
+/// (default), JIT, or AOT. Only `WasmEdge_RunMode_AOT` will load AOT custom
+/// sections from universal WASM, or `dlopen` shared-library WASM artifacts;
+/// in the other modes, AOT data is ignored, and shared-library inputs are
+/// re-loaded as plain WASM after extracting their embedded bytes.
 ///
 /// This function is thread-safe.
 ///
-/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-/// \param IsForceInterpreter the boolean value to determine to forcibly run
-/// WASM in interpreter mode or not.
-WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetForceInterpreter(
+/// \param Cxt the WasmEdge_ConfigureContext to set the run mode.
+/// \param Mode the WasmEdge_RunMode value.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetRunMode(
     WasmEdge_ConfigureContext *Cxt,
-    const bool IsForceInterpreter) WASMEDGE_CAPI_NOEXCEPT;
+    const enum WasmEdge_RunMode Mode) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Get the force interpreter mode execution option.
+/// Get the run mode setting.
 ///
 /// This function is thread-safe.
 ///
-/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+/// \param Cxt the WasmEdge_ConfigureContext to query.
 ///
-/// \returns the boolean value to determine to forcibly run WASM in interpreter
-/// mode or not.
-WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsForceInterpreter(
+/// \returns the configured WasmEdge_RunMode (interpreter when Cxt is NULL).
+WASMEDGE_CAPI_EXPORT extern enum WasmEdge_RunMode WasmEdge_ConfigureGetRunMode(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Set the option of enabling/disabling AF_UNIX support in the WASI socket.

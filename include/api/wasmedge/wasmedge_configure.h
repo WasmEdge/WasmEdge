@@ -274,7 +274,7 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsDumpIR(
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsGeneric the boolean value to determine to generate the generic
-/// binary or not when compilation in AOT compiler.
+/// binary or not during compilation in the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetGenericBinary(
     WasmEdge_ConfigureContext *Cxt,
     const bool IsGeneric) WASMEDGE_CAPI_NOEXCEPT;
@@ -286,7 +286,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetGenericBinary(
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to generate the generic binary or
-/// not when compilation in AOT compiler.
+/// not during compilation in the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsGenericBinary(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
@@ -296,7 +296,7 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsGenericBinary(
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsInterruptible the boolean value to determine to generate
-/// interruptible binary or not when compilation in AOT compiler.
+/// interruptible binary or not during compilation in the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetInterruptible(
     WasmEdge_ConfigureContext *Cxt,
     const bool IsInterruptible) WASMEDGE_CAPI_NOEXCEPT;
@@ -308,7 +308,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureCompilerSetInterruptible(
 /// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
 ///
 /// \returns the boolean value to determine to generate interruptible binary or
-/// not when compilation in AOT compiler.
+/// not during compilation in the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsInterruptible(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
@@ -318,7 +318,7 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureCompilerIsInterruptible(
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsCount the boolean value to determine to support instruction
-/// counting when execution or not after compilation by the AOT compiler.
+/// counting during execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_ConfigureStatisticsSetInstructionCounting(
     WasmEdge_ConfigureContext *Cxt, const bool IsCount) WASMEDGE_CAPI_NOEXCEPT;
@@ -341,7 +341,7 @@ WasmEdge_ConfigureStatisticsIsInstructionCounting(
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
 /// \param IsMeasure the boolean value to determine to support cost measuring
-/// when execution or not after compilation by the AOT compiler.
+/// during execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureStatisticsSetCostMeasuring(
     WasmEdge_ConfigureContext *Cxt,
     const bool IsMeasure) WASMEDGE_CAPI_NOEXCEPT;
@@ -362,8 +362,8 @@ WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureStatisticsIsCostMeasuring(
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
-/// \param IsMeasure the boolean value to determine to support time when
-/// execution or not after compilation by the AOT compiler.
+/// \param IsMeasure the boolean value to determine to support time measuring
+/// during execution or not after compilation by the AOT compiler.
 WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureStatisticsSetTimeMeasuring(
     WasmEdge_ConfigureContext *Cxt,
     const bool IsMeasure) WASMEDGE_CAPI_NOEXCEPT;

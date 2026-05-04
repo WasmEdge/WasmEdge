@@ -70,7 +70,7 @@ public:
 
   /// Reset this store manager and unlink all the registered module instances.
   void reset() noexcept {
-    std::shared_lock Lock(Mutex);
+    std::unique_lock Lock(Mutex);
     for (auto &&[Name, ModInst] : NamedMod) {
       (const_cast<Instance::ModuleInstance *>(ModInst))
           ->unlinkStore(this, Name);

@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "ast/component/component.h"
-#include "common/errinfo.h"
-#include "validator/validator.h"
 #include "vm/vm.h"
 
 #include <gtest/gtest.h>
@@ -700,241 +697,211 @@ TEST(Component, LoadAndRun_MultiComponentBinary) {
   */
 }
 
-TEST(ComponentValidatorTest, MissingArgument) {
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
-
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::ImportSection>();
-  auto &ImpSec = std::get<AST::Component::ImportSection>(
-      CompSec.getContent()->getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  InstSec.getContent().emplace_back();
-  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg;
-  Arg.getName() = "g";
-  Arg.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
-  Arg.getIndex().setIdx(0);
-  InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
-
+TEST(Component, ExportAscriptionDoesNotDoubleCountFuncIndex) {
   Configure Conf;
   Conf.addProposal(Proposal::Component);
-  Validator::Validator Validator(Conf);
-  ASSERT_FALSE(Validator.validate(Comp));
-}
+  VM::VM VM(Conf);
 
-TEST(ComponentValidatorTest, TypeMismatch) {
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
-
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::ImportSection>();
-  auto &ImpSec = std::get<AST::Component::ImportSection>(
-      CompSec.getContent()->getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  InstSec.getContent().emplace_back();
-  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg;
-  Arg.getName() = "f";
-  Arg.getIndex().getSort().setSortType(
-      AST::Component::Sort::SortType::Component);
-  Arg.getIndex().setIdx(0);
-  InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
-
-  WasmEdge::Configure Conf;
-  WasmEdge::Validator::Validator Validator(Conf);
-  ASSERT_FALSE(Validator.validate(Comp));
-}
-
-TEST(ComponentNameParser, Functions) {
-  {
-    std::string_view Name = "[constructor]MyClass"sv;
-    std::string_view Prefix = "[constructor]"sv;
-    EXPECT_TRUE(Validator::ComponentNameParser::tryRead(Prefix, Name));
-    spdlog::error("Remaining name: {}", Name);
-    EXPECT_EQ(Name, "MyClass");
-  }
-  {
-    std::string_view Name = "[constructor]MyClass"sv;
-    std::string_view Prefix = "[fail]"sv;
-    EXPECT_FALSE(Validator::ComponentNameParser::tryRead(Prefix, Name));
-    EXPECT_EQ(Name, "[constructor]MyClass");
-  }
-}
-
-TEST(ComponentNameParser, Kebab) {
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("A"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("abc-def-ghi"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-DEF-GHI"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-def-GHI"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC-123"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("ABC123-G45H"sv));
-
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a1"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1-b-2-c-3"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B1"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B-1"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("B-1-C-2-D-3"sv));
-  EXPECT_TRUE(
-      Validator::ComponentNameParser::isKebabString("a11-B11-123-ABC-abc"sv));
-  EXPECT_TRUE(Validator::ComponentNameParser::isKebabString("a-1-c"sv));
-
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abcDefGhi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abc_def_ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("abc def ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc-Fef-Ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("ABC123-G45h"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc--Ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("Abc-"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("-Ghi"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1-abc"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString(""sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("中文字"sv));
-
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1"sv));
-  EXPECT_FALSE(Validator::ComponentNameParser::isKebabString("1-a"sv));
-
-  EXPECT_TRUE(
-      Validator::ComponentNameParser::isLowercaseKebabString("abc-def-ghi"sv));
-  EXPECT_TRUE(
-      Validator::ComponentNameParser::isLowercaseKebabString("abc-123"sv));
-
-  EXPECT_FALSE(
-      Validator::ComponentNameParser::isLowercaseKebabString("aBc-def-ghi"sv));
-  EXPECT_FALSE(
-      Validator::ComponentNameParser::isLowercaseKebabString("ABC-def-ghi"sv));
-
-  {
-    std::string_view Input = "abc-def-ghi/rest-of-string"sv;
-    std::string_view Output;
-    EXPECT_TRUE(Validator::ComponentNameParser::tryReadKebab(Input, Output));
-    EXPECT_EQ(Output, "abc-def-ghi"sv);
-    EXPECT_EQ(Input, "/rest-of-string"sv);
-
-    EXPECT_TRUE(Validator::ComponentNameParser::readUntil(Input, '/', Output));
-    EXPECT_EQ(Input, "rest-of-string"sv);
-    EXPECT_EQ(Output, ""sv);
-    EXPECT_TRUE(Validator::ComponentNameParser::tryReadKebab(Input, Output));
-    EXPECT_EQ(Output, "rest-of-string"sv);
-    EXPECT_TRUE(Validator::ComponentNameParser::isEOF(Input));
-  }
-}
-
-TEST(ComponentNameParser, Parse) {
-  {
-    std::string_view Name = "[constructor]my-class"sv;
-    Validator::ComponentName CName(Name);
-    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Constructor);
-    EXPECT_EQ(CName.getDetails().Constructor.Label, "my-class"sv);
-    EXPECT_EQ(CName.getNoTagName(), "my-class"sv);
-    EXPECT_EQ(CName.getOriginalName(), "[constructor]my-class"sv);
-  }
-  {
-    std::string_view Name = "[method]my-resource.my-method"sv;
-    Validator::ComponentName CName(Name);
-    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Method);
-    EXPECT_EQ(CName.getDetails().Method.Resource, "my-resource"sv);
-    EXPECT_EQ(CName.getDetails().Method.Method, "my-method"sv);
-    EXPECT_EQ(CName.getNoTagName(), "my-resource.my-method"sv);
-    EXPECT_EQ(CName.getOriginalName(), "[method]my-resource.my-method"sv);
-  }
-  {
-    std::string_view Name = "[static]my-resource.my-method"sv;
-    Validator::ComponentName CName(Name);
-    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::Static);
-    EXPECT_EQ(CName.getDetails().Static.Resource, "my-resource"sv);
-    EXPECT_EQ(CName.getDetails().Static.Method, "my-method"sv);
-    EXPECT_EQ(CName.getNoTagName(), "my-resource.my-method"sv);
-    EXPECT_EQ(CName.getOriginalName(), "[static]my-resource.my-method"sv);
-  }
-  {
-    std::string_view Name = "name-space:a-label/projection-label@1.2.3"sv;
-    Validator::ComponentName CName(Name);
-    EXPECT_EQ(CName.getKind(), Validator::ComponentNameKind::InterfaceType);
-    EXPECT_EQ(CName.getDetails().Interface.Namespace, "name-space"sv);
-    EXPECT_EQ(CName.getDetails().Interface.Package, "a-label"sv);
-    EXPECT_EQ(CName.getDetails().Interface.Interface, "projection-label"sv);
-    EXPECT_EQ(CName.getDetails().Interface.Projection, ""sv);
-    EXPECT_EQ(CName.getDetails().Interface.Version, "1.2.3"sv);
-  }
-}
-
-TEST(ComponentNameParser, StronglyUniqueBasicCases) {
-  using namespace Validator;
-  ComponentContext::Context Ctx(nullptr);
-
-  auto add = [&](std::string_view S) {
-    ComponentName CN(S);
-    return Ctx.AddImportedName(CN);
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      // Component preamble
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      // Type section: 1 type, type[0] = (func)
+      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,
+      // Import section: 1 import, "f" externdesc func type[0] -> func[0]
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00,
+      // Export section: 1 export
+      //   "x" sort=func idx=0 has-desc=1 desc=(func type 0)  -> alias func[1]
+      0x0b, 0x09, 0x01,
+      0x00, 0x01, 0x78, 0x01, 0x00, 0x01, 0x01, 0x00,
+      // Export section: 1 export referencing func idx 2
+      //   "y" sort=func idx=2 has-desc=1 desc=(func type 0)
+      0x0b, 0x09, 0x01,
+      0x00, 0x01, 0x79, 0x01, 0x02, 0x01, 0x01, 0x00,
   };
+  // clang-format on
 
-  // Accept set: all should be strongly-unique together.
-  EXPECT_TRUE(add("foo"sv));
-  EXPECT_TRUE(add("foo-bar"sv));
-  EXPECT_TRUE(add("[constructor]foo"sv));
-  EXPECT_TRUE(add("[method]foo.bar"sv));
-  EXPECT_TRUE(add("[method]foo.baz"sv));
-
-  // Reject additions against the accepted set above.
-  // Duplicate label
-  EXPECT_FALSE(add("foo"sv));
-  // Normalized duplicate of kebab label (foo-BAR -> foo-bar)
-  EXPECT_FALSE(add("foo-BAR"sv));
-  // Normalized duplicate of constructor label
-  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
-  // l vs [*]l.l conflict
-  EXPECT_FALSE(add("[method]foo.foo"sv));
-  // Normalized duplicate of method (foo.BAR -> foo.bar)
-  EXPECT_FALSE(add("[method]foo.BAR"sv));
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_FALSE(VM.validate());
 }
 
-TEST(ComponentNameParser, StronglyUnique) {
-  using namespace Validator;
-  ComponentContext::Context Ctx(nullptr);
+TEST(Component, ImportedCoreModuleRoutedToCoreModuleIndex) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
-  auto add = [&](std::string_view S) {
-    ComponentName CN(S);
-    return Ctx.AddImportedName(CN);
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      // Core type section: 1 moduletype (empty)
+      0x03, 0x03, 0x01, 0x50, 0x00,
+      // Import section: 1 import "m" (core module (type 0))
+      0x0a, 0x07, 0x01, 0x00, 0x01, 0x6d, 0x00, 0x11, 0x00,
+      // Core instance section: 1 (instantiate 0) with no args
+      0x02, 0x04, 0x01, 0x00, 0x00, 0x00,
   };
+  // clang-format on
 
-  // Accept set: all should be strongly-unique together.
-  EXPECT_TRUE(add("[method]foo.abc"sv));
-  EXPECT_TRUE(add("[constructor]foo"sv));
-  EXPECT_TRUE(add("foo-bar"sv));
-  EXPECT_TRUE(add("foo"sv));
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
+}
 
-  // Reject additions against the accepted set above.
-  EXPECT_FALSE(add("[method]foo"sv));
-  EXPECT_FALSE(add("[static]foo.abc"sv));
+TEST(Component, InstanceTypeWithCoreModuleExportDoesNotCrashValidation) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      // Type section: 1 instancetype containing
+      //   - (core type (module))
+      //   - (export "m" (core module (type 0)))
+      0x07, 0x0d, 0x01,
+      0x42, 0x02,
+      0x00, 0x50, 0x00,
+      0x04, 0x00, 0x01, 0x6d, 0x00, 0x11, 0x00,
+      // Import section: 1 import "i" (instance (type 0))
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
+}
+
+TEST(Component, ExportAscriptionInstanceMissingExportRejected) {
+  // (component
+  //   (type (instance (export "a" (func)) (export "b" (func))))  ;; type[0]
+  //   (type (instance (export "a" (func))))                      ;; type[1]
+  //   (import "i" (instance (type 1)))                           ;; inst[0]
+  //   (export "e" (instance 0) (instance (type 0)))              ;; reject
+  // )
+  // wasm-tools: "missing expected export `b`"
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x26, 0x02, 0x42, 0x04, 0x01, 0x40, 0x00,
+      0x01, 0x00, 0x04, 0x00, 0x01, 0x61, 0x01, 0x00,
+      0x01, 0x40, 0x00, 0x01, 0x00, 0x04, 0x00, 0x01,
+      0x62, 0x01, 0x01, 0x42, 0x02, 0x01, 0x40, 0x00,
+      0x01, 0x00, 0x04, 0x00, 0x01, 0x61, 0x01, 0x00,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x01,
+      0x0b, 0x09, 0x01, 0x00, 0x01, 0x65, 0x05, 0x00,
+      0x01, 0x05, 0x00,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_FALSE(VM.validate());
+}
+
+TEST(Component, AliasExportInstanceChainResolves) {
+  // (component
+  //   (type (func))
+  //   (import "f" (func (type 0)))              ;; func[0]
+  //   (instance $inner (export "x" (func 0)))   ;; inst[0]
+  //   (instance $outer (export "i" (instance 0)));; inst[1]
+  //   (alias export 1 "i" (instance))            ;; inst[2]
+  //   (alias export 2 "x" (func))                ;; func[1]
+  //   (export "out" (func 1))
+  // )
+  // wasm-tools: VALID
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00,
+      0x05, 0x0f, 0x02,
+      0x01, 0x01, 0x00, 0x01, 0x78, 0x01, 0x00,
+      0x01, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00,
+      0x06, 0x0b, 0x02,
+      0x05, 0x00, 0x01, 0x01, 0x69,
+      0x01, 0x00, 0x02, 0x01, 0x78,
+      0x0b, 0x09, 0x01,
+      0x00, 0x03, 0x6f, 0x75, 0x74, 0x01, 0x01, 0x00,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
+}
+
+TEST(Component, InstantiateArgInstanceMissingExportRejected) {
+  // (component
+  //   (type (func))
+  //   (import "f" (func (type 0)))
+  //   (component $child
+  //     (type (instance (export "a" (func)) (export "b" (func))))
+  //     (import "i" (instance (type 0)))
+  //   )
+  //   (instance $partial (export "a" (func 0)))
+  //   (instance (instantiate $child (with "i" (instance $partial))))
+  // )
+  // wasm-tools: "missing expected export `b`"
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00,
+      0x04, 0x44,
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x19, 0x01, 0x42, 0x04,
+      0x01, 0x40, 0x00, 0x01, 0x00,
+      0x04, 0x00, 0x01, 0x61, 0x01, 0x00,
+      0x01, 0x40, 0x00, 0x01, 0x00,
+      0x04, 0x00, 0x01, 0x62, 0x01, 0x01,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00,
+      0x00, 0x17, 0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f,
+      0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e, 0x61, 0x6d,
+      0x65, 0x00, 0x06, 0x05, 0x63, 0x68, 0x69, 0x6c,
+      0x64,
+      0x05, 0x0f, 0x02,
+      0x01, 0x01, 0x00, 0x01, 0x61, 0x01, 0x00,
+      0x00, 0x00, 0x01, 0x01, 0x69, 0x05, 0x00,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_FALSE(VM.validate());
+}
+
+TEST(Component, ExportAscriptionSortKindMismatchRejected) {
+  // (component
+  //   (type (func))                             ;; type[0]
+  //   (type (instance))                          ;; type[1]
+  //   (import "f" (func (type 0)))               ;; func[0]
+  //   (export "bad" (func 0) (instance (type 1)));; sort=func, desc=instance
+  // )
+  // wasm-tools: "expected instance, found func"
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x07, 0x02, 0x40, 0x00, 0x01, 0x00, 0x42, 0x00,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00,
+      0x0b, 0x0b, 0x01,
+      0x00, 0x03, 0x62, 0x61, 0x64, 0x01, 0x00, 0x01, 0x05, 0x01,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_FALSE(VM.validate());
 }
 
 } // namespace

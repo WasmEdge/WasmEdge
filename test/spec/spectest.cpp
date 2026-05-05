@@ -337,7 +337,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"naming",                  {true, false, false, false}},
     {"nested-modules",          {true, false, false, false}},
     {"resources",               {true, false, false, false}},
-    {"tags",                    {true, false, false, false}},
+    {"tags",                    {true, true,  false, false}},
     {"type-export-restrictions",{true, false, false, false}},
     {"types",                   {true, false, false, false}},
     {"very-nested",             {true, false, false, false}},

@@ -4804,10 +4804,9 @@ private:
     Stack.back() = Builder.createBitCast(Op(V), Context.Int64x2Ty);
   }
   void compileVectorAbs(LLVM::Type VectorTy) noexcept {
-    compileVectorOp(VectorTy, [this, VectorTy](auto V) noexcept {
-      auto Zero = LLVM::Value::getConstNull(VectorTy);
-      auto C = Builder.createICmpSLT(V, Zero);
-      return Builder.createSelect(C, Builder.createNeg(V), V);
+    compileVectorOp(VectorTy, [this](auto V) noexcept {
+      return Builder.createIntrinsic(LLVM::Core::Abs, {V.getType()},
+                                     {V, LLContext.getFalse()});
     });
   }
   void compileVectorNeg(LLVM::Type VectorTy) noexcept {
@@ -5036,26 +5035,26 @@ private:
   }
   void compileVectorVectorSMin(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
-      auto C = Builder.createICmpSLE(LHS, RHS);
-      return Builder.createSelect(C, LHS, RHS);
+      return Builder.createIntrinsic(LLVM::Core::SMin, {LHS.getType()},
+                                     {LHS, RHS});
     });
   }
   void compileVectorVectorUMin(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
-      auto C = Builder.createICmpULE(LHS, RHS);
-      return Builder.createSelect(C, LHS, RHS);
+      return Builder.createIntrinsic(LLVM::Core::UMin, {LHS.getType()},
+                                     {LHS, RHS});
     });
   }
   void compileVectorVectorSMax(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
-      auto C = Builder.createICmpSGE(LHS, RHS);
-      return Builder.createSelect(C, LHS, RHS);
+      return Builder.createIntrinsic(LLVM::Core::SMax, {LHS.getType()},
+                                     {LHS, RHS});
     });
   }
   void compileVectorVectorUMax(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
-      auto C = Builder.createICmpUGE(LHS, RHS);
-      return Builder.createSelect(C, LHS, RHS);
+      return Builder.createIntrinsic(LLVM::Core::UMax, {LHS.getType()},
+                                     {LHS, RHS});
     });
   }
   void compileVectorVectorUAvgr(LLVM::Type VectorTy) noexcept {

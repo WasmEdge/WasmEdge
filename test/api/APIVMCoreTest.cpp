@@ -311,7 +311,7 @@ TEST(AsyncExecute, InterruptTest) {
   WasmEdge_VMDelete(VM);
 }
 
-TEST(WasmEdgeVM, ForceDeleteRegisteredModule) {
+TEST(WasmEdgeVM, DeleteRegisteredModule) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
 
@@ -325,8 +325,7 @@ TEST(WasmEdgeVM, ForceDeleteRegisteredModule) {
   EXPECT_TRUE(WasmEdge_ResultOK(Res));
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount + 1);
 
-  // Force delete
-  WasmEdge_VMForceDeleteRegisteredModule(VMCxt, ModuleName);
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
 
   // Added check to ensure module is no longer accessible
@@ -341,7 +340,7 @@ TEST(WasmEdgeVM, ForceDeleteRegisteredModule) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
-TEST(WasmEdgeVM, ForceDeleteNonExistentModule) {
+TEST(WasmEdgeVM, DeleteNonExistentModule) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
   uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
@@ -349,7 +348,7 @@ TEST(WasmEdgeVM, ForceDeleteNonExistentModule) {
       WasmEdge_StringCreateByCString("nonexistent_module");
 
   // Try deleting a module that doesn’t exist — should not crash
-  WasmEdge_VMForceDeleteRegisteredModule(VMCxt, ModuleName);
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt),
             originalCount); // No change
 
@@ -359,16 +358,16 @@ TEST(WasmEdgeVM, ForceDeleteNonExistentModule) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
-TEST(WasmEdgeVM, ForceDeleteInvalidInput) {
+TEST(WasmEdgeVM, DeleteInvalidInput) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
   WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
   WasmEdge_String EmptyName = WasmEdge_StringCreateByCString("");
 
   // Test null VM context, should not crash
-  WasmEdge_VMForceDeleteRegisteredModule(nullptr, ModuleName);
+  WasmEdge_VMDeleteRegisteredModule(nullptr, ModuleName);
   // Test empty module name, should not crash
-  WasmEdge_VMForceDeleteRegisteredModule(VMCxt, EmptyName);
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, EmptyName);
   uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
 

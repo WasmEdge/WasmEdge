@@ -88,7 +88,9 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   case FileMgr::FileHeader::DLL:
   case FileMgr::FileHeader::MachO_32:
   case FileMgr::FileHeader::MachO_64: {
-    // AOT compiled shared-library-WASM cases. Use ldmgr to load the module.
+    // Open the shared library long enough to validate its WasmEdge AOT
+    // version and extract the embedded WASM bytes. Whether the native
+    // handle stays alive depends on the configured RunMode.
     WASMType = InputType::SharedLibrary;
     FMgr.reset();
     std::shared_ptr<SharedLibrary> Library = std::make_shared<SharedLibrary>();
@@ -101,17 +103,21 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     }
 
     EXPECTED_TRY(auto Code, Library->getWasm().map_error(ReportError));
-    // Set the binary and load module.
-    // Not to use parseModule() here to keep the `WASMType` value.
+
+    if (Conf.getRuntimeConfigure().getRunMode() != RunMode::AOT) {
+      // Non-AOT mode: drop the native handle now and re-parse the embedded
+      // WASM bytes as plain WASM. No AOT function symbol from the shared
+      // library is resolved or called.
+      Library.reset();
+      return parseWasmUnit(Code);
+    }
+
+    // AOT mode: keep the library alive and load executable symbols.
     EXPECTED_TRY(FMgr.setCode(Code).map_error(ReportError));
     EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
     if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
         likely(!!Ptr)) {
-      if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-        // If the configure is set to force interpreter mode, not to load the
-        // AOT related data.
-        EXPECTED_TRY(loadExecutable(**Ptr, Library).map_error(ReportError));
-      }
+      EXPECTED_TRY(loadExecutable(**Ptr, Library).map_error(ReportError));
     } else {
       spdlog::error("Component Module is not supported in AOT."sv);
       spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -121,19 +127,10 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   }
   default: {
     // Universal WASM, WASM, or other cases. Load and parse the module directly.
+    // The intrinsics-table pointer (if any executable is loaded) is patched
+    // inside loadExecutable, so no symbol manipulation is needed here.
     WASMType = InputType::WASM;
-    EXPECTED_TRY(auto Unit, loadUnit().map_error(ReportError));
-    if (auto Ptr = std::get_if<std::unique_ptr<AST::Module>>(&Unit);
-        likely(!!Ptr)) {
-      if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-        // If the configure is set to force interpreter mode, not to set the
-        // symbol.
-        if (auto &Symbol = (*Ptr)->getSymbol()) {
-          *Symbol = IntrinsicsTable;
-        }
-      }
-    }
-    return Unit;
+    return loadUnit().map_error(ReportError);
   }
   }
 }
@@ -196,18 +193,23 @@ Loader::loadUnit() {
     auto Mod = std::make_unique<AST::Module>();
     Mod->getMagic() = WasmMagic;
     Mod->getVersion() = Ver;
-    if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+    if (Conf.getRuntimeConfigure().getRunMode() == RunMode::AOT) {
       EXPECTED_TRY(loadModuleAOT(Mod->getAOTSection()));
     }
     // Seek to the position after the binary header.
     FMgr.seek(8);
     EXPECTED_TRY(loadModule(*Mod));
 
-    // Load library from AOT Section for the universal WASM case.
-    // For the force interpreter mode, skip this.
-    if (!Conf.getRuntimeConfigure().isForceInterpreter() &&
-        WASMType == InputType::UniversalWASM) {
-      EXPECTED_TRY(loadUniversalWASM(*Mod));
+    // Load library from AOT Section for the universal WASM case only when the
+    // configured run mode is AOT.
+    if (Conf.getRuntimeConfigure().getRunMode() == RunMode::AOT) {
+      if (WASMType == InputType::UniversalWASM) {
+        EXPECTED_TRY(loadUniversalWASM(*Mod));
+      } else if (WASMType == InputType::WASM) {
+        // AOT requested on a plain .wasm with no AOT artifact.
+        spdlog::warn("AOT was requested but the input has no AOT artifact, "
+                     "falling back to interpreter."sv);
+      }
     }
     return Mod;
   } else if (Ver == ComponentVersion) {

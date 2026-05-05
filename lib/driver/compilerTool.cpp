@@ -143,8 +143,9 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
         WasmEdge::CompilerConfigure::OptimizationLevel::O2);
   }
 
-  // Set force interpreter here to load instructions of function body forcibly.
-  Conf.getRuntimeConfigure().setForceInterpreter(true);
+  // Set interpreter run mode here so the loader reads function bodies fully
+  // (the AOT compiler needs the parsed instructions, not AOT symbols).
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::Interpreter);
 
   std::filesystem::path InputPath =
       std::filesystem::absolute(std::filesystem::u8path(Opt.WasmName.value()));

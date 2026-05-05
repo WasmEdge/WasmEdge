@@ -10,6 +10,8 @@
 #include "host/wasi/wasimodule.h"
 #include "vm/vm.h"
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -22,6 +24,23 @@ using namespace std::literals;
 
 namespace WasmEdge {
 namespace Driver {
+
+namespace {
+RunMode parseRunModeArg(std::string_view S) noexcept {
+  std::string Lower(S);
+  std::transform(Lower.begin(), Lower.end(), Lower.begin(),
+                 [](unsigned char C) -> char {
+                   return static_cast<char>(std::tolower(C));
+                 });
+  if (Lower == "jit") {
+    return RunMode::JIT;
+  }
+  if (Lower == "aot") {
+    return RunMode::AOT;
+  }
+  // Default to interpreter on any unrecognised value.
+  return RunMode::Interpreter;
+}
 
 // Helper template to parse numeric arguments and catch conversion exceptions
 template <typename Converter, typename ValVec, typename TypeVec, typename TC>
@@ -43,6 +62,7 @@ bool parseNumericArg(const std::string &Value, size_t ParamIndex,
     return false;
   }
 }
+} // namespace
 
 static int
 ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
@@ -51,6 +71,14 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
              const AST::FunctionType &FuncType) noexcept {
   std::vector<ValVariant> FuncArgs;
   std::vector<ValType> FuncArgTypes;
+
+  const size_t Expected = FuncType.getParamTypes().size();
+  const size_t Got = Opt.Args.value().size() - 1;
+  if (Got < Expected) {
+    spdlog::error("function `{}` expects {} argument(s), got {}"sv, FuncName,
+                  Expected, Got);
+    return EXIT_FAILURE;
+  }
 
   for (size_t I = 0;
        I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
@@ -181,6 +209,14 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
                 const AST::Component::FuncType &FuncType) noexcept {
   std::vector<ComponentValVariant> FuncArgs;
   std::vector<ComponentValType> FuncArgTypes;
+
+  const size_t Expected = FuncType.getParamList().size();
+  const size_t Got = Opt.Args.value().size() - 1;
+  if (Got < Expected) {
+    spdlog::error("function `{}` expects {} argument(s), got {}"sv, FuncName,
+                  Expected, Got);
+    return EXIT_FAILURE;
+  }
 
   for (size_t I = 0;
        I < FuncType.getParamList().size() && I + 1 < Opt.Args.value().size();
@@ -452,8 +488,25 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
   }
-  if (Opt.ConfEnableJIT.value()) {
-    Conf.getRuntimeConfigure().setEnableJIT(true);
+  // Determine the effective run mode.
+  // Precedence: --run-mode > deprecated --enable-jit / --force-interpreter.
+  RunMode RunModeFromFlag = RunMode::Interpreter;
+  if (!Opt.ConfRunMode.value().empty()) {
+    if (Opt.ConfEnableJIT.value() || Opt.ConfForceInterpreter.value()) {
+      spdlog::warn("--run-mode overrides deprecated --enable-jit / "
+                   "--force-interpreter."sv);
+    }
+    RunModeFromFlag = parseRunModeArg(Opt.ConfRunMode.value());
+  } else if (Opt.ConfEnableJIT.value()) {
+    spdlog::warn("--enable-jit is deprecated, use --run-mode=jit instead."sv);
+    RunModeFromFlag = RunMode::JIT;
+  } else if (Opt.ConfForceInterpreter.value()) {
+    spdlog::warn("--force-interpreter is deprecated, use "
+                 "--run-mode=interpreter instead."sv);
+    RunModeFromFlag = RunMode::Interpreter;
+  }
+  Conf.getRuntimeConfigure().setRunMode(RunModeFromFlag);
+  if (RunModeFromFlag == RunMode::JIT) {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }
@@ -462,9 +515,6 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   }
   if (Opt.ConfCoredumpWasmgdb.value()) {
     Conf.getRuntimeConfigure().setCoredumpWasmgdb(true);
-  }
-  if (Opt.ConfForceInterpreter.value()) {
-    Conf.getRuntimeConfigure().setForceInterpreter(true);
   }
   if (Opt.ConfAFUNIX.value()) {
     Conf.getRuntimeConfigure().setAllowAFUNIX(true);

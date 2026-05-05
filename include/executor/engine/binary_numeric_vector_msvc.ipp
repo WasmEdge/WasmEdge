@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "executor/engine/vector_helper.h"
 #include "executor/executor.h"
 
 namespace WasmEdge {
@@ -244,6 +245,7 @@ Expect<void> Executor::runVectorAddOp(ValVariant &Val1,
   for (size_t I = 0; I < V1.size(); ++I) {
     V1[I] += V2[I];
   }
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -284,6 +286,7 @@ Expect<void> Executor::runVectorSubOp(ValVariant &Val1,
   for (size_t I = 0; I < V1.size(); ++I) {
     V1[I] -= V2[I];
   }
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -323,6 +326,7 @@ Expect<void> Executor::runVectorMulOp(ValVariant &Val1,
   for (size_t I = 0; I < V1.size(); ++I) {
     V1[I] *= V2[I];
   }
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -336,6 +340,7 @@ Expect<void> Executor::runVectorDivOp(ValVariant &Val1,
   for (size_t I = 0; I < V1.size(); ++I) {
     V1[I] /= V2[I];
   }
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -387,6 +392,7 @@ Expect<void> Executor::runVectorFMinOp(ValVariant &Val1,
       }
     }
   }
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -411,6 +417,7 @@ Expect<void> Executor::runVectorFMaxOp(ValVariant &Val1,
       }
     }
   }
+  detail::vectorCanonicalize(V1);
 
   return {};
 }

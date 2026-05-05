@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "executor/engine/vector_helper.h"
 #include "executor/executor.h"
 
 #include <cmath>
@@ -12,7 +13,9 @@ template <typename T>
 TypeN<T> Executor::runAddOp(ValVariant &Val1, const ValVariant &Val2) const {
   // Integer case: Return the result of (v1 + v2) modulo 2^N.
   // Floating case: NaN, inf, and zeros are handled.
-  Val1.get<T>() += Val2.get<T>();
+  T &V1 = Val1.get<T>();
+  V1 += Val2.get<T>();
+  detail::canonicalize(V1);
   return {};
 }
 
@@ -20,7 +23,9 @@ template <typename T>
 TypeN<T> Executor::runSubOp(ValVariant &Val1, const ValVariant &Val2) const {
   // Integer case: Return the result of (v1 - v2) modulo 2^N.
   // Floating case: NaN, inf, and zeros are handled.
-  Val1.get<T>() -= Val2.get<T>();
+  T &V1 = Val1.get<T>();
+  V1 -= Val2.get<T>();
+  detail::canonicalize(V1);
   return {};
 }
 
@@ -28,7 +33,9 @@ template <typename T>
 TypeN<T> Executor::runMulOp(ValVariant &Val1, const ValVariant &Val2) const {
   // Integer case: Return the result of (v1 * v2) modulo 2^N.
   // Floating case: NaN, inf, and zeros are handled.
-  Val1.get<T>() *= Val2.get<T>();
+  T &V1 = Val1.get<T>();
+  V1 *= Val2.get<T>();
+  detail::canonicalize(V1);
   return {};
 }
 
@@ -63,6 +70,7 @@ TypeT<T> Executor::runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
   // Integer case: truncated toward zero.
   // Floating case: +-0.0, NaN, and Inf case are handled.
   V1 /= V2;
+  detail::canonicalize(V1);
   return {};
 }
 
@@ -160,18 +168,7 @@ TypeF<T> Executor::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
     if (!std::isnan(Z1)) {
       Z1 = Z2;
     }
-    // Set the most significant bit of the payload to 1.
-    if constexpr (sizeof(T) == sizeof(uint32_t)) {
-      uint32_t I32;
-      std::memcpy(&I32, &Z1, sizeof(T));
-      I32 |= static_cast<uint32_t>(0x01U) << 22;
-      std::memcpy(&Z1, &I32, sizeof(T));
-    } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
-      uint64_t I64;
-      std::memcpy(&I64, &Z1, sizeof(T));
-      I64 |= static_cast<uint64_t>(0x01U) << 51;
-      std::memcpy(&Z1, &I64, sizeof(T));
-    }
+    detail::canonicalize(Z1);
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
     // If both z1 and z2 are zeroes of opposite signs, then return -0.0.
@@ -192,18 +189,7 @@ TypeF<T> Executor::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
     if (!std::isnan(Z1)) {
       Z1 = Z2;
     }
-    // Set the most significant bit of the payload to 1.
-    if constexpr (sizeof(T) == sizeof(uint32_t)) {
-      uint32_t I32;
-      std::memcpy(&I32, &Z1, sizeof(T));
-      I32 |= static_cast<uint32_t>(0x01U) << 22;
-      std::memcpy(&Z1, &I32, sizeof(T));
-    } else if constexpr (sizeof(T) == sizeof(uint64_t)) {
-      uint64_t I64;
-      std::memcpy(&I64, &Z1, sizeof(T));
-      I64 |= static_cast<uint64_t>(0x01U) << 51;
-      std::memcpy(&Z1, &I64, sizeof(T));
-    }
+    detail::canonicalize(Z1);
   } else if (Z1 == kZero && Z2 == kZero &&
              std::signbit(Z1) != std::signbit(Z2)) {
     // If both z1 and z2 are zeroes of opposite signs, then return +0.0.

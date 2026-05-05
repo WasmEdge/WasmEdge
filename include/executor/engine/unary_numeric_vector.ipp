@@ -3,6 +3,7 @@
 
 #include "common/endian.h"
 #include "common/roundeven.h"
+#include "executor/engine/vector_helper.h"
 #include "executor/executor.h"
 
 namespace WasmEdge {
@@ -157,6 +158,7 @@ Expect<void> Executor::runVectorSqrtOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 8) {
     Result = VT{std::sqrt(Result[0]), std::sqrt(Result[1])};
   }
+  detail::vectorCanonicalize(Result);
   return {};
 }
 
@@ -218,9 +220,11 @@ inline Expect<void> Executor::runVectorDemoteOp(ValVariant &Val) const {
       Endian::native == Endian::little
           ? floatx4_t{static_cast<float>(V[0]), static_cast<float>(V[1]), 0, 0}
           : floatx4_t{0, 0, static_cast<float>(V[1]), static_cast<float>(V[0])};
-  Val.emplace<floatx4_t>(V2);
+  auto Result = V2;
+  detail::vectorCanonicalize(Result);
+  Val.emplace<floatx4_t>(Result);
   uint128_t Tmp;
-  std::memcpy(&Tmp, &V2, sizeof(V2));
+  std::memcpy(&Tmp, &Result, sizeof(Result));
   return {};
 }
 
@@ -228,7 +232,9 @@ inline Expect<void> Executor::runVectorPromoteOp(ValVariant &Val) const {
   const auto V = Val.get<floatx4_t>();
   const auto V2 = Endian::native == Endian::little ? doublex2_t{V[0], V[1]}
                                                    : doublex2_t{V[3], V[2]};
-  Val.emplace<doublex2_t>(V2);
+  auto Result = V2;
+  detail::vectorCanonicalize(Result);
+  Val.emplace<doublex2_t>(Result);
   return {};
 }
 
@@ -328,6 +334,7 @@ Expect<void> Executor::runVectorCeilOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 8) {
     Result = VT{std::ceil(Result[0]), std::ceil(Result[1])};
   }
+  detail::vectorCanonicalize(Result);
   return {};
 }
 
@@ -341,6 +348,7 @@ Expect<void> Executor::runVectorFloorOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 8) {
     Result = VT{std::floor(Result[0]), std::floor(Result[1])};
   }
+  detail::vectorCanonicalize(Result);
   return {};
 }
 
@@ -354,6 +362,7 @@ Expect<void> Executor::runVectorTruncOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 8) {
     Result = VT{std::trunc(Result[0]), std::trunc(Result[1])};
   }
+  detail::vectorCanonicalize(Result);
   return {};
 }
 
@@ -367,6 +376,7 @@ Expect<void> Executor::runVectorNearestOp(ValVariant &Val) const {
   } else if constexpr (sizeof(T) == 8) {
     Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1])};
   }
+  detail::vectorCanonicalize(Result);
   return {};
 }
 

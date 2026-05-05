@@ -165,6 +165,7 @@ Expect<void> Executor::runVectorAddOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   V1 += Val2.get<VT>();
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -196,6 +197,7 @@ Expect<void> Executor::runVectorSubOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   V1 -= Val2.get<VT>();
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -227,6 +229,7 @@ Expect<void> Executor::runVectorMulOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   V1 *= Val2.get<VT>();
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -237,6 +240,7 @@ Expect<void> Executor::runVectorDivOp(ValVariant &Val1,
   using VT [[gnu::vector_size(16)]] = T;
   VT &V1 = Val1.get<VT>();
   V1 /= Val2.get<VT>();
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -277,6 +281,7 @@ Expect<void> Executor::runVectorFMinOp(ValVariant &Val1,
   R = detail::vectorSelect(V1 == V1, R, V1);
   R = detail::vectorSelect(V2 == V2, R, V2);
   V1 = R;
+  detail::vectorCanonicalize(V1);
 
   return {};
 }
@@ -294,6 +299,7 @@ Expect<void> Executor::runVectorFMaxOp(ValVariant &Val1,
   R = detail::vectorSelect(V1 == V1, R, V1);
   R = detail::vectorSelect(V2 == V2, R, V2);
   V1 = R;
+  detail::vectorCanonicalize(V1);
 
   return {};
 }

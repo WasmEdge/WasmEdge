@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/roundeven.h"
+#include "executor/engine/vector_helper.h"
 #include "executor/executor.h"
 
 #include <cmath>
@@ -86,27 +87,37 @@ template <typename T> TypeF<T> Executor::runNegOp(ValVariant &Val) const {
 }
 
 template <typename T> TypeF<T> Executor::runCeilOp(ValVariant &Val) const {
-  Val.get<T>() = std::ceil(Val.get<T>());
+  T &Fp = Val.get<T>();
+  Fp = std::ceil(Fp);
+  detail::canonicalize(Fp);
   return {};
 }
 
 template <typename T> TypeF<T> Executor::runFloorOp(ValVariant &Val) const {
-  Val.get<T>() = std::floor(Val.get<T>());
+  T &Fp = Val.get<T>();
+  Fp = std::floor(Fp);
+  detail::canonicalize(Fp);
   return {};
 }
 
 template <typename T> TypeF<T> Executor::runTruncOp(ValVariant &Val) const {
-  Val.get<T>() = std::trunc(Val.get<T>());
+  T &Fp = Val.get<T>();
+  Fp = std::trunc(Fp);
+  detail::canonicalize(Fp);
   return {};
 }
 
 template <typename T> TypeF<T> Executor::runNearestOp(ValVariant &Val) const {
-  Val.get<T>() = WasmEdge::roundeven(Val.get<T>());
+  T &Fp = Val.get<T>();
+  Fp = WasmEdge::roundeven(Fp);
+  detail::canonicalize(Fp);
   return {};
 }
 
 template <typename T> TypeF<T> Executor::runSqrtOp(ValVariant &Val) const {
-  Val.get<T>() = std::sqrt(Val.get<T>());
+  T &Fp = Val.get<T>();
+  Fp = std::sqrt(Fp);
+  detail::canonicalize(Fp);
   return {};
 }
 

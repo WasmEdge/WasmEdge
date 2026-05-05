@@ -86,6 +86,17 @@ unsigned char consumer_wasm[] = {
     0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
 unsigned int consumer_wasm_len = 70;
 
+WasmEdge_Result DummyAdd(void *Data,
+                         const WasmEdge_CallingFrameContext *CallFrameCxt,
+                         const WasmEdge_Value *In, WasmEdge_Value *Out) {
+  (void)Data;
+  (void)CallFrameCxt;
+
+  Out[0] = WasmEdge_ValueGenI32(WasmEdge_ValueGetI32(In[0]) +
+                                WasmEdge_ValueGetI32(In[1]));
+  return WasmEdge_Result_Success;
+}
+
 namespace {
 using namespace std::literals;
 using namespace WasmEdge;
@@ -755,6 +766,227 @@ TEST(WasmEdgeVM, DeleteSharedStoreWithDependency) {
   WasmEdge_StringDelete(PName);
   WasmEdge_StringDelete(CName);
   WasmEdge_StringDelete(FuncName);
+}
+
+TEST(WasmEdgeVM, DeleteHostProviderFromSingleVM) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_StoreContext *Store1 = WasmEdge_VMGetStoreContext(VM1);
+  WasmEdge_StoreContext *Store2 = WasmEdge_VMGetStoreContext(VM2);
+
+  WasmEdge_String PName1 = WasmEdge_StringCreateByCString("provider");
+  WasmEdge_String CName1 = WasmEdge_StringCreateByCString("consumer_1");
+  WasmEdge_String CName2 = WasmEdge_StringCreateByCString("consumer_2");
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("call_add");
+  WasmEdge_Result Res;
+
+  // Create a own host provider module
+  WasmEdge_ModuleInstanceContext *HostMod_P1 =
+      WasmEdge_ModuleInstanceCreate(PName1);
+
+  WasmEdge_ValType ParamTypes[2] = {WasmEdge_ValTypeGenI32(),
+                                    WasmEdge_ValTypeGenI32()};
+  WasmEdge_ValType RetTypes[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(ParamTypes, 2, RetTypes, 1);
+  WasmEdge_FunctionInstanceContext *HostFunc =
+      WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0);
+
+  WasmEdge_String AddFuncName = WasmEdge_StringCreateByCString("add_func");
+  WasmEdge_ModuleInstanceAddFunction(HostMod_P1, AddFuncName, HostFunc);
+
+  // Register the same host provider module in two VM
+  Res = WasmEdge_VMRegisterModuleFromImport(VM1, HostMod_P1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMRegisterModuleFromImport(VM2, HostMod_P1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Register consumer modules linked to the host provider module in two VM
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VM1, CName1, consumer_wasm,
+                                            consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VM2, CName2, consumer_wasm,
+                                            consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Only delete the record of the host provider module in VM1, the module
+  // instance should still be alive
+  WasmEdge_VMDeleteRegisteredModule(VM1, PName1);
+
+  // We can't find the module in VM1
+  EXPECT_EQ(WasmEdge_StoreFindModule(Store1, PName1), nullptr);
+
+  // We still can execute functions from the host provider module in VM1
+  WasmEdge_Value Params[2] = {WasmEdge_ValueGenI32(10),
+                              WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value Returns[1];
+  Res = WasmEdge_VMExecuteRegistered(VM1, CName1, FuncName, Params, 2, Returns,
+                                     1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+  // We still can find module in VM2
+  EXPECT_NE(WasmEdge_StoreFindModule(Store2, PName1), nullptr);
+
+  // Cleanup
+  WasmEdge_ModuleInstanceDelete(HostMod_P1);
+  WasmEdge_StringDelete(PName1);
+  WasmEdge_StringDelete(CName1);
+  WasmEdge_StringDelete(CName2);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_VMDelete(VM1);
+  WasmEdge_VMDelete(VM2);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, DeleteHostModuleBorrowerVM) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_StoreContext *Store2 = WasmEdge_VMGetStoreContext(VM2);
+
+  WasmEdge_String PName1 = WasmEdge_StringCreateByCString("provider");
+  WasmEdge_String CName1 = WasmEdge_StringCreateByCString("consumer_1");
+  WasmEdge_String CName2 = WasmEdge_StringCreateByCString("consumer_2");
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("call_add");
+  WasmEdge_Result Res;
+
+  // Create a own host provider module
+  WasmEdge_ModuleInstanceContext *HostMod_P1 =
+      WasmEdge_ModuleInstanceCreate(PName1);
+
+  WasmEdge_ValType ParamTypes[2] = {WasmEdge_ValTypeGenI32(),
+                                    WasmEdge_ValTypeGenI32()};
+  WasmEdge_ValType RetTypes[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(ParamTypes, 2, RetTypes, 1);
+  WasmEdge_FunctionInstanceContext *HostFunc =
+      WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0);
+
+  WasmEdge_String AddFuncName = WasmEdge_StringCreateByCString("add_func");
+  WasmEdge_ModuleInstanceAddFunction(HostMod_P1, AddFuncName, HostFunc);
+
+  // Register the same host provider module in two VM
+  Res = WasmEdge_VMRegisterModuleFromImport(VM1, HostMod_P1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMRegisterModuleFromImport(VM2, HostMod_P1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Register consumer modules linked to the host provider module in two VM
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VM1, CName1, consumer_wasm,
+                                            consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VM2, CName2, consumer_wasm,
+                                            consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Delete VM1 entirely.
+  // This will destroy StoreMgr_1 and consumer_1, decrementing provider's
+  // In-Degree.
+  WasmEdge_VMDelete(VM1);
+
+  // We still can find the host provider module in VM2's store
+  EXPECT_NE(WasmEdge_StoreFindModule(Store2, PName1), nullptr);
+
+  // We still can execute functions from the host provider module via VM2
+  WasmEdge_Value Params[2] = {WasmEdge_ValueGenI32(10),
+                              WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value Returns[1];
+  Res = WasmEdge_VMExecuteRegistered(VM2, CName2, FuncName, Params, 2, Returns,
+                                     1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+  // Cleanup
+  WasmEdge_ModuleInstanceDelete(HostMod_P1);
+  WasmEdge_StringDelete(PName1);
+  WasmEdge_StringDelete(CName1);
+  WasmEdge_StringDelete(CName2);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_StringDelete(AddFuncName);
+  WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_VMDelete(VM2);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, DeleteHostModuleWithDeferredDeletion) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  // VM1 and VM2 have independent stores
+  WasmEdge_VMContext *VM1 = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_VMContext *VM2 = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_StoreContext *Store1 = WasmEdge_VMGetStoreContext(VM1);
+  WasmEdge_StoreContext *Store2 = WasmEdge_VMGetStoreContext(VM2);
+
+  WasmEdge_String PName1 = WasmEdge_StringCreateByCString("provider");
+  WasmEdge_String CName1 = WasmEdge_StringCreateByCString("consumer_1");
+  WasmEdge_String CName2 = WasmEdge_StringCreateByCString("consumer_2");
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("call_add");
+  WasmEdge_Result Res;
+
+  // Create a own host provider module
+  WasmEdge_ModuleInstanceContext *HostMod_P1 =
+      WasmEdge_ModuleInstanceCreate(PName1);
+
+  WasmEdge_ValType ParamTypes[2] = {WasmEdge_ValTypeGenI32(),
+                                    WasmEdge_ValTypeGenI32()};
+  WasmEdge_ValType RetTypes[1] = {WasmEdge_ValTypeGenI32()};
+  WasmEdge_FunctionTypeContext *FType =
+      WasmEdge_FunctionTypeCreate(ParamTypes, 2, RetTypes, 1);
+  WasmEdge_FunctionInstanceContext *HostFunc =
+      WasmEdge_FunctionInstanceCreate(FType, DummyAdd, nullptr, 0);
+
+  WasmEdge_String AddFuncName = WasmEdge_StringCreateByCString("add_func");
+  WasmEdge_ModuleInstanceAddFunction(HostMod_P1, AddFuncName, HostFunc);
+
+  // Register the same host provider module in two VM
+  Res = WasmEdge_VMRegisterModuleFromImport(VM1, HostMod_P1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMRegisterModuleFromImport(VM2, HostMod_P1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Register consumer modules linked to the host provider module in two VM
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VM1, CName1, consumer_wasm,
+                                            consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VM2, CName2, consumer_wasm,
+                                            consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Host releases the ownership of the provider module
+  WasmEdge_ModuleInstanceDelete(HostMod_P1);
+
+  // Module should be unlinked from both stores
+  EXPECT_EQ(WasmEdge_StoreFindModule(Store1, PName1), nullptr);
+  EXPECT_EQ(WasmEdge_StoreFindModule(Store2, PName1), nullptr);
+
+  // Consumers should still work via deferred deletion
+  WasmEdge_Value Params[2] = {WasmEdge_ValueGenI32(10),
+                              WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value Returns[1];
+
+  // Test execution in VM1
+  Res = WasmEdge_VMExecuteRegistered(VM1, CName1, FuncName, Params, 2, Returns,
+                                     1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+  // Test execution in VM2
+  Res = WasmEdge_VMExecuteRegistered(VM2, CName2, FuncName, Params, 2, Returns,
+                                     1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+  // Cleanup
+  WasmEdge_StringDelete(PName1);
+  WasmEdge_StringDelete(CName1);
+  WasmEdge_StringDelete(CName2);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_StringDelete(AddFuncName);
+  WasmEdge_FunctionTypeDelete(FType);
+  WasmEdge_VMDelete(VM1);
+  WasmEdge_VMDelete(VM2);
+  WasmEdge_ConfigureDelete(Conf);
 }
 
 } // namespace

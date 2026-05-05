@@ -72,6 +72,14 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
   std::vector<ValVariant> FuncArgs;
   std::vector<ValType> FuncArgTypes;
 
+  const size_t Expected = FuncType.getParamTypes().size();
+  const size_t Got = Opt.Args.value().size() - 1;
+  if (Got < Expected) {
+    spdlog::error("function `{}` expects {} argument(s), got {}"sv, FuncName,
+                  Expected, Got);
+    return EXIT_FAILURE;
+  }
+
   for (size_t I = 0;
        I < FuncType.getParamTypes().size() && I + 1 < Opt.Args.value().size();
        ++I) {
@@ -201,6 +209,14 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
                 const AST::Component::FuncType &FuncType) noexcept {
   std::vector<ComponentValVariant> FuncArgs;
   std::vector<ComponentValType> FuncArgTypes;
+
+  const size_t Expected = FuncType.getParamList().size();
+  const size_t Got = Opt.Args.value().size() - 1;
+  if (Got < Expected) {
+    spdlog::error("function `{}` expects {} argument(s), got {}"sv, FuncName,
+                  Expected, Got);
+    return EXIT_FAILURE;
+  }
 
   for (size_t I = 0;
        I < FuncType.getParamList().size() && I + 1 < Opt.Args.value().size();

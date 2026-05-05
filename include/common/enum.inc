@@ -824,6 +824,14 @@ H(Wasi)
 #undef H
 #endif // UseHostRegistration
 
+#ifdef UseRunMode
+#define R Line
+R(Interpreter)
+R(JIT)
+R(AOT)
+#undef R
+#endif // UseRunMode
+
 // enum_errcode.h
 
 #ifdef UseErrCategory

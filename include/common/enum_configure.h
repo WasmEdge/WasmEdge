@@ -68,4 +68,14 @@ enum WasmEdge_CompilerOutputFormat {
   WasmEdge_CompilerOutputFormat_Wasm
 };
 
+/// Run mode C enumeration. Selects the engine used to execute a WebAssembly
+/// module: interpreter (default), JIT, or AOT.
+enum WasmEdge_RunMode {
+#define UseRunMode
+#define Line(NAME) WasmEdge_RunMode_##NAME,
+#include "enum.inc"
+#undef Line
+#undef UseRunMode
+};
+
 #endif // WASMEDGE_C_API_ENUM_CONFIGURE_H

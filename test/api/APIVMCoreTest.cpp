@@ -30,6 +30,62 @@
 #include <utility>
 #include <vector>
 
+/// Binary Wasm module (Provider V1):
+///
+/// (module
+///   (func $add (param i32 i32) (result i32)
+///     local.get 0
+///     local.get 1
+///     i32.add)
+///   (export "add_func" (func $add))
+/// )
+unsigned char provider_1_wasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0c, 0x01,
+    0x08, 0x61, 0x64, 0x64, 0x5f, 0x66, 0x75, 0x6e, 0x63, 0x00, 0x00, 0x0a,
+    0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b};
+unsigned int provider_1_wasm_len = 46;
+
+/// Binary Wasm module (Provider V2):
+/// Adds 100 to the sum of two integers.
+///
+/// (module
+///   (func $add (param i32 i32) (result i32)
+///     local.get 0
+///     local.get 1
+///     i32.add
+///     i32.const 100
+///     i32.add)
+///   (export "add_func" (func $add))
+/// )
+unsigned char provider_2_wasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07,
+    0x01, 0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01,
+    0x00, 0x07, 0x0c, 0x01, 0x08, 0x61, 0x64, 0x64, 0x5f, 0x66,
+    0x75, 0x6e, 0x63, 0x00, 0x00, 0x0a, 0x0d, 0x01, 0x0b, 0x00,
+    0x20, 0x00, 0x20, 0x01, 0x6a, 0x41, 0xe4, 0x00, 0x6a, 0x0b};
+unsigned int provider_2_wasm_len = 50;
+
+/// Binary Wasm module (Consumer):
+/// Imports the add function from the provider and calls it.
+///
+/// (module
+///   (import "provider" "add_func" (func $add (param i32 i32) (result i32)))
+///
+///   (func (export "call_add") (param i32 i32) (result i32)
+///    local.get 0
+///    local.get 1
+///    call $add)
+/// )
+unsigned char consumer_wasm[] = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x15, 0x01, 0x08, 0x70, 0x72, 0x6f,
+    0x76, 0x69, 0x64, 0x65, 0x72, 0x08, 0x61, 0x64, 0x64, 0x5f, 0x66, 0x75,
+    0x6e, 0x63, 0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0c, 0x01, 0x08,
+    0x63, 0x61, 0x6c, 0x6c, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x01, 0x0a, 0x0a,
+    0x01, 0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b};
+unsigned int consumer_wasm_len = 70;
+
 namespace {
 using namespace std::literals;
 using namespace WasmEdge;
@@ -374,6 +430,147 @@ TEST(WasmEdgeVM, DeleteInvalidInput) {
   // Cleanup
   WasmEdge_StringDelete(ModuleName);
   WasmEdge_StringDelete(EmptyName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, DeleteProviderModule) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
+  WasmEdge_Result Res;
+
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("call_add");
+  WasmEdge_Value Params[2] = {WasmEdge_ValueGenI32(10),
+                              WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value Returns[1];
+
+  // Register Provider 1
+  WasmEdge_String PName = WasmEdge_StringCreateByCString("provider");
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VMCxt, PName, provider_1_wasm,
+                                            provider_1_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Register Consumer 1 Linked to Provider 1
+  WasmEdge_String CName1 = WasmEdge_StringCreateByCString("consumer_1");
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VMCxt, CName1, consumer_wasm,
+                                            consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+
+  // Delete Provider 1 (It Becomes Zombie)
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, PName);
+  EXPECT_EQ(WasmEdge_StoreFindModule(StoreCxt, PName), nullptr);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount - 1);
+
+  // Test Consumer 1 still works (Calling Zombie Provider 1)
+  Res = WasmEdge_VMExecuteRegistered(VMCxt, CName1, FuncName, Params, 2,
+                                     Returns, 1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+  // Register Provider 2 with the same name
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VMCxt, PName, provider_2_wasm,
+                                            provider_2_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
+
+  // Register Consumer 2 Linked to Provider 2
+  WasmEdge_String CName2 = WasmEdge_StringCreateByCString("consumer_2");
+  WasmEdge_VMRegisterModuleFromBuffer(VMCxt, CName2, consumer_wasm,
+                                      consumer_wasm_len);
+
+  // Unregister Provder 2
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, PName);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
+
+  // Test Consumer 2 uses Provider 2 (Result 130)
+  Res = WasmEdge_VMExecuteRegistered(VMCxt, CName2, FuncName, Params, 2,
+                                     Returns, 1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 130);
+
+  // Cleanup Consumer 1 and Consumer 2
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, CName1);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount - 1);
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, CName2);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount - 2);
+
+  // Cleanup
+  WasmEdge_StringDelete(PName);
+  WasmEdge_StringDelete(CName1);
+  WasmEdge_StringDelete(CName2);
+  WasmEdge_StringDelete(FuncName);
+  WasmEdge_VMDelete(VMCxt);
+  WasmEdge_ConfigureDelete(Conf);
+}
+
+TEST(WasmEdgeVM, DeleteProviderModuleWithAnonymousConsumer) {
+  WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
+  WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
+  WasmEdge_StoreContext *StoreCxt = WasmEdge_VMGetStoreContext(VMCxt);
+
+  WasmEdge_String FuncName = WasmEdge_StringCreateByCString("call_add");
+  WasmEdge_Value Params[2] = {WasmEdge_ValueGenI32(10),
+                              WasmEdge_ValueGenI32(20)};
+  WasmEdge_Value Returns[1];
+  WasmEdge_Result Res;
+
+  // Register Provider 1
+  WasmEdge_String PName = WasmEdge_StringCreateByCString("provider");
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VMCxt, PName, provider_1_wasm,
+                                            provider_1_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Instantiate Anonymous Consumer 1 Links to Provider 1
+  Res = WasmEdge_VMLoadWasmFromBuffer(VMCxt, consumer_wasm, consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMValidate(VMCxt);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMInstantiate(VMCxt);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
+
+  // Unregister Provider 1 (It becomes Zombie)
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, PName);
+  EXPECT_EQ(WasmEdge_StoreFindModule(StoreCxt, PName), nullptr);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount - 1);
+
+  // Consumer 1 should still work (Result 30)
+  Res = WasmEdge_VMExecute(VMCxt, FuncName, Params, 2, Returns, 1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 30);
+
+  // Register Provider 2 with the same name
+  Res = WasmEdge_VMRegisterModuleFromBuffer(VMCxt, PName, provider_2_wasm,
+                                            provider_2_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
+
+  // Instantiate Anonymous Consumer 2
+  // This replaces Consumer 1 as the "Active Module" and links to Provider 2
+  Res = WasmEdge_VMLoadWasmFromBuffer(VMCxt, consumer_wasm, consumer_wasm_len);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMValidate(VMCxt);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  Res = WasmEdge_VMInstantiate(VMCxt);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+
+  // Unregister Provider 2 (It becomes Zombie)
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, PName);
+  EXPECT_EQ(WasmEdge_StoreFindModule(StoreCxt, PName), nullptr);
+  EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount - 1);
+
+  // Consumer 2 should still work (Result 130)
+  Res = WasmEdge_VMExecute(VMCxt, FuncName, Params, 2, Returns, 1);
+  EXPECT_TRUE(WasmEdge_ResultOK(Res));
+  EXPECT_EQ(WasmEdge_ValueGetI32(Returns[0]), 130);
+
+  // Cleanup
+  WasmEdge_StringDelete(PName);
+  WasmEdge_StringDelete(FuncName);
   WasmEdge_VMDelete(VMCxt);
   WasmEdge_ConfigureDelete(Conf);
 }

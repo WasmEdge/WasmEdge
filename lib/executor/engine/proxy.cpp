@@ -208,6 +208,9 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
                                     const ValVariant *Args,
                                     ValVariant *Rets) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
+  if (unlikely(FuncInst == nullptr)) {
+    return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());

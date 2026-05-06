@@ -77,7 +77,7 @@ TEST_F(FFmpegTest, AVDictionary) {
           FuncInst->getHostFunc());
 
   {
-    // Store the string length of Key and value in below Pointers.
+    // Store the string lengths of Key and value in the pointers below.
     uint32_t KeyLenPtr = UINT32_C(56);
     uint32_t ValueLenPtr = UINT32_C(60);
     uint32_t DictId = readUInt32(MemInst, DictPtr);
@@ -111,7 +111,7 @@ TEST_F(FFmpegTest, AVDictionary) {
           FuncInst->getHostFunc());
 
   {
-    // Store the string of Key and value in below Buffer Pointers.
+    // Store the strings of Key and value in the buffer pointers below.
     uint32_t KeyBufPtr = UINT32_C(36);
     uint32_t ValueBufPtr = UINT32_C(40);
     uint32_t DictId = readUInt32(MemInst, DictPtr);

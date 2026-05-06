@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the declaration of the validator class, which controls
-/// flow of WASM validation.
+/// the flow of WASM validation.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

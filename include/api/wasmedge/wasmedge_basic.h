@@ -168,7 +168,7 @@ WasmEdge_LogSetCallback(WasmEdge_LogCallback_t Callback) WASMEDGE_CAPI_NOEXCEPT;
 /// object.
 ///
 /// \returns string object. Length will be 0 and Buf will be NULL if failed or
-/// the input string is a NULL.
+/// the input string is NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringCreateByCString(const char *Str) WASMEDGE_CAPI_NOEXCEPT;
 
@@ -181,7 +181,7 @@ WasmEdge_StringCreateByCString(const char *Str) WASMEDGE_CAPI_NOEXCEPT;
 /// \param Len the buffer length.
 ///
 /// \returns string object. Length will be 0 and Buf will be NULL if failed or
-/// the input buffer is a NULL.
+/// the input buffer is NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_String
 WasmEdge_StringCreateByBuffer(const char *Buf,
                               const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
@@ -189,7 +189,7 @@ WasmEdge_StringCreateByBuffer(const char *Buf,
 /// Create a WasmEdge_String that wraps the buffer.
 ///
 /// This function creates a `WasmEdge_String` object which wraps the input
-/// buffer. The caller should guarantee the life cycle of the input buffer, and
+/// buffer. The caller should guarantee the lifetime of the input buffer, and
 /// should __NOT__ call the `WasmEdge_StringDelete`.
 ///
 /// \param Buf the buffer to wrap into the WasmEdge_String object.
@@ -204,7 +204,7 @@ WasmEdge_StringWrap(const char *Buf, const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
 /// \param Str1 the first WasmEdge_String object to compare.
 /// \param Str2 the second WasmEdge_String object to compare.
 ///
-/// \returns true if the content of two WasmEdge_String objects are the same,
+/// \returns true if the contents of two WasmEdge_String objects are the same,
 /// false if not.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_StringIsEqual(const WasmEdge_String Str1,
@@ -221,7 +221,7 @@ WasmEdge_StringIsEqual(const WasmEdge_String Str1,
 /// \param Buf the buffer to fill the string content.
 /// \param Len the buffer length.
 ///
-/// \returns the copied length of string.
+/// \returns the copied string length.
 WASMEDGE_CAPI_EXPORT extern uint32_t
 WasmEdge_StringCopy(const WasmEdge_String Str, char *Buf,
                     const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
@@ -248,7 +248,7 @@ WasmEdge_StringDelete(WasmEdge_String Str) WASMEDGE_CAPI_NOEXCEPT;
 /// \param Len the buffer length.
 ///
 /// \returns bytes object. Length will be 0 and Buf will be NULL if failed or
-/// the input buffer is a NULL.
+/// the input buffer is NULL.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_Bytes
 WasmEdge_BytesCreate(const uint8_t *Buf,
                      const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
@@ -256,7 +256,7 @@ WasmEdge_BytesCreate(const uint8_t *Buf,
 /// Create a WasmEdge_Bytes that wraps the buffer.
 ///
 /// This function creates a `WasmEdge_Bytes` object which wraps the input
-/// buffer. The caller should guarantee the life cycle of the input buffer, and
+/// buffer. The caller should guarantee the lifetime of the input buffer, and
 /// should __NOT__ call the `WasmEdge_BytesDelete`.
 ///
 /// \param Buf the buffer to wrap to the WasmEdge_Bytes object.
@@ -280,7 +280,7 @@ WasmEdge_BytesDelete(WasmEdge_Bytes Bytes) WASMEDGE_CAPI_NOEXCEPT;
 
 // >>>>>>>> WasmEdge result functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Check the result is a success or not.
+/// Check whether the result is a success.
 ///
 /// \param Res the WasmEdge_Result struct.
 ///

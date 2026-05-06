@@ -8,8 +8,8 @@
 namespace WasmEdge {
 namespace Host {
 
-/// \brief read a c string from memory and check if it is null terminated
-/// \param memory memory instance from wasm runtime
+/// \brief Read a C string from memory and check whether it is null terminated.
+/// \param memory memory instance from the wasm runtime.
 /// \param ptr the wasm32 buffer pointer
 /// \return
 WasmEdge::Expect<const char *>

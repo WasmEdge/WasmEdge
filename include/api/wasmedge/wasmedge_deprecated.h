@@ -47,18 +47,18 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_CompilerCompileFromBuffer(
 
 // >>>>>>>> WasmEdge VM functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Register and instantiate WASM into the store in VM from a buffer.
+/// Register and instantiate WASM into the store in the VM from a buffer.
 ///
 /// CAUTION: This function will be deprecated and replaced by
 /// `WasmEdge_VMRegisterModuleFromBytes()` API in the future.
 ///
 /// Load a WASM module from a buffer, and register all exported instances and
-/// instantiate them into the store into the VM with their exported name and
+/// instantiate them into the store in the VM with their exported name and
 /// module name.
 ///
 /// This function is thread-safe.
 ///
-/// \param Cxt the WasmEdge_VMContext which contains the store.
+/// \param Cxt the WasmEdge_VMContext that contains the store.
 /// \param ModuleName the WasmEdge_String of module name for all exported
 /// instances.
 /// \param Buf the buffer of WASM binary.
@@ -75,13 +75,13 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRegisterModuleFromBuffer(
 /// CAUTION: This function will be deprecated and replaced by
 /// `WasmEdge_VMRunWasmFromBytes()` API in the future.
 ///
-/// This is the function to invoke a WASM function rapidly.
+/// Invoke a WASM function rapidly.
 /// Load and instantiate the WASM module from a buffer, and then invoke a
 /// function by name and parameters. If the `Returns` buffer length is smaller
 /// than the arity of the function, the overflowed return values will be
 /// discarded.
-/// After calling this function, a new anonymous module instance owned by VM is
-/// instantiated, and the old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by the VM
+/// is instantiated, and the old one will be destroyed.
 ///
 /// This function is thread-safe.
 ///
@@ -108,13 +108,13 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_VMRunWasmFromBuffer(
 /// CAUTION: This function will be deprecated and replaced by
 /// `WasmEdge_VMAsyncRunWasmFromBytes()` API in the future.
 ///
-/// This is the function to invoke a WASM function rapidly.
+/// Invoke a WASM function rapidly.
 /// Load and instantiate the WASM module from a buffer, and then invoke a
 /// function by name and parameters. If the `Returns` buffer length is smaller
 /// than the arity of the function, the overflowed return values will be
 /// discarded.
-/// After calling this function, a new anonymous module instance owned by VM is
-/// instantiated, and the old one will be destroyed.
+/// After calling this function, a new anonymous module instance owned by the VM
+/// is instantiated, and the old one will be destroyed.
 ///
 /// The caller owns the object and should call `WasmEdge_AsyncDelete` to destroy
 /// it.
@@ -140,7 +140,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromBuffer(
 /// CAUTION: This function will be deprecated and replaced by
 /// `WasmEdge_VMLoadWasmFromBytes()` API in the future.
 ///
-/// This is the first step to invoke a WASM function step by step.
+/// This is the first step for step-by-step WASM function invocation.
 /// Load and parse the WASM module from a buffer. You can then call
 /// `WasmEdge_VMValidate` for the next step.
 ///

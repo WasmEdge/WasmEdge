@@ -16,7 +16,7 @@ endif()
 
 # WasmEdge plug-in: wasm-bpf.
 if(WASMEDGE_PLUGIN_WASM_BPF)
-  # Only Linux systems support wasm_bpf now.
+  # wasm_bpf is currently supported only on Linux systems.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     add_subdirectory(wasm_bpf)
   else()
@@ -31,7 +31,7 @@ endif()
 
 # WasmEdge plug-in: Image.
 if(WASMEDGE_PLUGIN_IMAGE)
-  # Only Linux and MacOS support wasmedge_image now.
+  # wasmedge_image is currently supported only on Linux and macOS.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
     add_subdirectory(wasmedge_image)
   else()
@@ -46,7 +46,7 @@ endif()
 
 # WasmEdge plug-in: OpenCV-mini.
 if(WASMEDGE_PLUGIN_OPENCVMINI)
-  # Only Linux and MacOS support wasmedge_opencvmini now.
+  # wasmedge_opencvmini is currently supported only on Linux and macOS.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
     add_subdirectory(wasmedge_opencvmini)
   else()
@@ -56,7 +56,7 @@ endif()
 
 # WasmEdge plug-in: Process.
 if(WASMEDGE_PLUGIN_PROCESS)
-  # Only Linux systems support wasmedge_process now.
+  # wasmedge_process is currently supported only on Linux systems.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux")
     add_subdirectory(wasmedge_process)
   else()
@@ -66,7 +66,7 @@ endif()
 
 # WasmEdge plug-in: Stable-diffusion.
 if(WASMEDGE_PLUGIN_STABLEDIFFUSION)
-  # Only Linux and MacOS support wasmedge_stablediffusion now.
+  # wasmedge_stablediffusion is currently supported only on Linux and macOS.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
     add_subdirectory(wasmedge_stablediffusion)
   else()
@@ -76,7 +76,7 @@ endif()
 
 # WasmEdge plug-in: TensorFlow.
 if(WASMEDGE_PLUGIN_TENSORFLOW)
-  # Only Linux and MacOS support wasmedge_tensorflow now.
+  # wasmedge_tensorflow is currently supported only on Linux and macOS.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
     add_subdirectory(wasmedge_tensorflow)
   else()
@@ -86,7 +86,7 @@ endif()
 
 # WasmEdge plug-in: TensorFlow-Lite.
 if(WASMEDGE_PLUGIN_TENSORFLOWLITE)
-  # Only Linux and MacOS support wasmedge_tensorflowlite now.
+  # wasmedge_tensorflowlite is currently supported only on Linux and macOS.
   if(CMAKE_SYSTEM_NAME MATCHES "Linux|Darwin")
     add_subdirectory(wasmedge_tensorflowlite)
   else()

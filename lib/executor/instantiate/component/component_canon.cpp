@@ -49,7 +49,7 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
       break;
     }
     default: {
-      // Other types don't need conversion
+      // Other types do not need conversion.
       const ValVariant &Val = std::get<ValVariant>(Vals[I++]);
       CoreVals.push_back(Val);
       break;
@@ -94,8 +94,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
   for (const auto &Canon : CanonSec.getContent()) {
     switch (Canon.getOpCode()) {
     case AST::Component::Canonical::OpCode::Lift: {
-      // lift wrap a core wasm function to a component function, with proper
-      // modification about canonical ABI.
+      // Lift wraps a core Wasm function to a component function with proper
+      // canonical ABI modification.
       const auto &Opts = Canon.getOptions();
       Runtime::Instance::MemoryInstance *MemInst = nullptr;
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
@@ -123,8 +123,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
 
       const auto *DType = CompInst.getType(Canon.getTargetIndex());
       if (unlikely(!DType->isFuncType())) {
-        // It doesn't make sense if one tries to lift an instance not a
-        // function, so unlikely happen.
+        // It does not make sense to lift an instance that is not a function, so
+        // this is unlikely to happen.
         spdlog::error(ErrCode::Value::InvalidCanonOption);
         spdlog::error("    Cannot lift a non-function"sv);
         return Unexpect(ErrCode::Value::InvalidCanonOption);
@@ -136,8 +136,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       break;
     }
     case AST::Component::Canonical::OpCode::Lower: {
-      // lower sends a component function to a core wasm function, with proper
-      // modification about canonical ABI.
+      // Lower sends a component function to a core Wasm function with proper
+      // canonical ABI modification.
 
       // TODO: COMPONENT - Currently the component functions are from `lifting`,
       // therefore there is a core function instance under the component

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading Instruction nodes.
+/// This file contains unit tests for loading instruction nodes.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -401,7 +401,7 @@ TEST(InstructionTest, LoadBrTableControlInstruction) {
       0x03U, // Vector length = 3
       0x01U, // vec[0]
       0x02U  // vec[1]
-             // Missed vec[2] and label index
+             // Missing vec[2] and label index
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
@@ -468,7 +468,7 @@ TEST(InstructionTest, LoadCallControlInstruction) {
       0x11U, // OpCode Call_indirect.
       0xFFU, 0xFFU, 0xFFU,
       0xFFU, 0x0FU // Type index.
-                   // 0x00U  // Missed table index.
+                   // 0x00U  // Missing table index.
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -532,7 +532,8 @@ TEST(InstructionTest, LoadParametricInstruction) {
   //
   //   1.  Load valid select_t instruction with value type list.
   //   2.  Load invalid empty value type list.
-  //   3.  Load invalid unexpected end of value type list.
+  //   3.  Load invalid select_t instruction with unexpected end of value type
+  //       list.
   //   4.  Load invalid value type list without SIMD proposal.
 
   Vec = {
@@ -692,7 +693,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
       0x02U, // Code segment size = 2
       0x00U, // Local vec(0)
       0x40U  // OpCode Memory__grow.
-             // 0x00  // Missed checking byte
+             // 0x00  // Missing checking byte
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -755,7 +756,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
       0x00U, // Local vec(0)
       0xFCU,
       0x08U // OpCode Memory__init.
-            // 0x00  // Missed data index
+            // 0x00  // Missing data index
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -767,7 +768,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
       0x00U, // Local vec(0)
       0xFCU,
       0x0AU // OpCode Memory__copy.
-            // 0x01U, 0x02U  // Missed source and target index
+            // 0x01U, 0x02U  // Missing source and target index
   };
   EXPECT_FALSE(LdrMultiMem.parseModule(prefixedVec(Vec)));
 
@@ -779,7 +780,7 @@ TEST(InstructionTest, LoadMemoryInstruction) {
       0x00U, // Local vec(0)
       0x28U, // OpCode I32__load.
       0x40U  // Align specifies memory index.
-             // 0x01U  // Missed memory index
+             // 0x01U  // Missing memory index
   };
   EXPECT_FALSE(LdrMultiMem.parseModule(prefixedVec(Vec)));
 }
@@ -793,8 +794,8 @@ TEST(InstructionTest, LoadConstInstruction) {
   //   2.  Load I64 const numeric instruction.
   //   3.  Load F32 const numeric instruction.
   //   4.  Load F64 const numeric instruction.
-  //   5.  Load invalid unexpected end of F32 const numeric instruction.
-  //   6.  Load invalid unexpected end of F64 const numeric instruction.
+  //   5.  Load invalid F32 const numeric instruction with unexpected end.
+  //   6.  Load invalid F64 const numeric instruction with unexpected end.
 
   Vec = {
       0x0AU,               // Code section
@@ -854,7 +855,7 @@ TEST(InstructionTest, LoadConstInstruction) {
       0x43U, // OpCode F32__const.
       0xDAU,
       0x0FU // F32 -3.1415926
-            // 0x49U, 0xC0U  // Missed 2 bytes
+            // 0x49U, 0xC0U  // Missing 2 bytes
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -867,7 +868,7 @@ TEST(InstructionTest, LoadConstInstruction) {
       0x44U, // OpCode F64__const.
       0x18U, 0x2DU, 0x44U,
       0x54U, 0xFBU // F64 -3.1415926535897932
-                   // 0x21U, 0x09U, 0xC0U  // Missed 3 bytes
+                   // 0x21U, 0x09U, 0xC0U  // Missing 3 bytes
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
@@ -1089,13 +1090,13 @@ TEST(InstructionTest, LoadSIMDInstruction) {
 
   // 13. Test SIMD instructions.
   //
-  //   1.  Load invalid unexpected end memory align of V128__load.
-  //   2.  Load invalid unexpected end memory offset of V128__load.
-  //   3.  Load invalid unexpected end memory align of V128__load8_lane.
-  //   4.  Load invalid unexpected end memory offset of V128__load8_lane.
-  //   5.  Load invalid unexpected end lane index of V128__load8_lane.
-  //   6.  Load invalid unexpected end value list of I8x16__shuffle.
-  //   7.  Load invalid unexpected end lane index of I8x16__extract_lane_s.
+  //   1.  Load invalid V128__load with unexpected end of memory align.
+  //   2.  Load invalid V128__load with unexpected end of memory offset.
+  //   3.  Load invalid V128__load8_lane with unexpected end of memory align.
+  //   4.  Load invalid V128__load8_lane with unexpected end of memory offset.
+  //   5.  Load invalid V128__load8_lane with unexpected end of lane index.
+  //   6.  Load invalid I8x16__shuffle with unexpected end of value list.
+  //   7.  Load invalid I8x16__extract_lane_s with unexpected end of lane index.
 
   Vec = {
       0x0AU,       // Code section
@@ -1116,7 +1117,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0xFDU, 0x00U, // OpCode V128__load.
       0xFFU, 0xFFU, 0xFFU,
       0xFFU, 0x0FU // Align
-                   // 0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Missed Offset
+                   // 0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Missing offset
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -1139,7 +1140,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0xFDU, 0x54U, // OpCode V128__load8_lane.
       0xFFU, 0xFFU, 0xFFU,
       0xFFU, 0x0FU // Align
-                   // 0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Missed Offset
+                   // 0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Missing offset
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -1154,7 +1155,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0xFFU, 0x0FU, // Align
       0xFEU, 0xFFU, 0xFFU,
       0xFFU, 0x0FU // Offset
-                   // 0x22U  // Missed lane index
+                   // 0x22U  // Missing lane index
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -1167,7 +1168,7 @@ TEST(InstructionTest, LoadSIMDInstruction) {
       0xFDU, 0x0DU, // OpCode I8x16__shuffle.
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU,
       0xFFU, 0xFFU, 0xFFU, 0xFFU // Value list
-      // 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU // Missed 7 bytes
+      // 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0xFFU // Missing 7 bytes
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 

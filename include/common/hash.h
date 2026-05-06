@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about hashing data.
+/// This file contains functions for hashing data.
 /// Currently using rapidhash.
 ///
 //===----------------------------------------------------------------------===//

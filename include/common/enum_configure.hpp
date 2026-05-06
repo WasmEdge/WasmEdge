@@ -8,7 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of configure related C++ enumerations.
+/// This file contains the definitions of configuration-related C++
+/// enumerations.
 ///
 //===----------------------------------------------------------------------===//
 

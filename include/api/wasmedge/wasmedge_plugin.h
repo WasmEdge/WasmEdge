@@ -86,8 +86,8 @@ extern "C" {
 /// The default paths are:
 ///   1. The environment variable "WASMEDGE_PLUGIN_PATH".
 ///   2. The "../plugin/" directory related to the WasmEdge installation path.
-///   3. The "wasmedge/" directory under the library path if the WasmEdge is
-///      installed under the "/usr".
+///   3. The "wasmedge/" directory under the library path if WasmEdge is
+///      installed under "/usr".
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_PluginLoadWithDefaultPaths(void) WASMEDGE_CAPI_NOEXCEPT;
 
@@ -109,7 +109,7 @@ WasmEdge_PluginListPluginsLength(void) WASMEDGE_CAPI_NOEXCEPT;
 
 /// List the loaded plug-ins with their names.
 ///
-/// The returned plug-in names filled into the `Names` array are owned by the
+/// The returned plug-in names stored in the `Names` array are owned by the
 /// internal WasmEdge plug-in storage, and the caller should __NOT__ call the
 /// `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the loaded
@@ -159,7 +159,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_PluginListModuleLength(
 
 /// List the modules in the plug-in context with their names.
 ///
-/// The returned module names filled into the `Names` array are owned by the
+/// The returned module names stored in the `Names` array are owned by the
 /// internal WasmEdge plug-in storage, and the caller should __NOT__ call the
 /// `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the loaded
@@ -204,7 +204,7 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_PluginInitWASINN(const char *const *NNPreloads,
                           const uint32_t PreloadsLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Implement by plugins for returning the plugin descriptor.
+/// Implemented by plugins to return the plugin descriptor.
 ///
 /// \returns the plugin descriptor.
 WASMEDGE_CAPI_PLUGIN_EXPORT extern const WasmEdge_PluginDescriptor *

@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the software exception handler for various operating
-/// system.
+/// systems.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

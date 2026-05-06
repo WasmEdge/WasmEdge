@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains helper to call Windows API.
+/// This file contains helpers for calling the Windows API.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

@@ -13,17 +13,17 @@
 namespace WasmEdge {
 namespace Host {
 
-/// Perform a bpf buffer poll. If the map is not opened, it will be opened.
+/// Perform a BPF buffer poll. If the map is not opened, it will be opened.
 ///
-/// \param fd the map fd for bpf buffer.
-/// \param sample_func callback function. When things are polled, it will be
+/// \param fd the map fd for the BPF buffer.
+/// \param sample_func callback function. When data is polled, it will be
 /// invoked.
-/// \param ctx user customized variable.
+/// \param ctx user-customized variable.
 /// \param data data buffer that will be used to store the polled data.
-/// \param max_size How many bytes can be put at data.
-/// \param timeout_ms how many milliseconds can be waited.
+/// \param max_size how many bytes can be put in data.
+/// \param timeout_ms how many milliseconds to wait.
 ///
-/// \return On success, return 0. On error, return error code.
+/// \return 0 on success, error code on failure.
 class BpfBufferPoll : public WasmEdge::Runtime::HostFunction<BpfBufferPoll> {
 public:
   BpfBufferPoll(state_t state) : state(state) {}

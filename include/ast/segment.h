@@ -25,7 +25,7 @@ namespace AST {
 /// Segment's base class.
 class Segment {
 public:
-  /// Getter of expression.
+  /// Getter for expression.
   const Expression &getExpr() const noexcept { return Expr; }
   Expression &getExpr() noexcept { return Expr; }
 
@@ -37,7 +37,7 @@ protected:
 /// AST GlobalSegment node.
 class GlobalSegment : public Segment {
 public:
-  /// Getter of global type.
+  /// Getter for global type.
   const GlobalType &getGlobalType() const noexcept { return Global; }
   GlobalType &getGlobalType() noexcept { return Global; }
 
@@ -54,22 +54,22 @@ public:
   /// Element mode enumeration.
   enum class ElemMode : uint8_t { Passive, Active, Declarative };
 
-  /// Getter and setter of element mode.
+  /// Getter and setter for element mode.
   ElemMode getMode() const noexcept { return Mode; }
   void setMode(ElemMode EMode) noexcept { Mode = EMode; }
 
-  /// Getter of reference type.
+  /// Getter for reference type.
   const ValType &getRefType() const noexcept { return Type; }
   void setRefType(const ValType &RType) noexcept {
     assuming(RType.isRefType());
     Type = RType;
   }
 
-  /// Getter of table index.
+  /// Getter for table index.
   uint32_t getIdx() const noexcept { return TableIdx; }
   void setIdx(uint32_t Idx) noexcept { TableIdx = Idx; }
 
-  /// Getter of initialization expressions.
+  /// Getter for initialization expressions.
   Span<const Expression> getInitExprs() const noexcept { return InitExprs; }
   std::vector<Expression> &getInitExprs() noexcept { return InitExprs; }
 
@@ -86,7 +86,7 @@ private:
 /// AST TableSegment node.
 class TableSegment : public Segment {
 public:
-  /// Getter of table type.
+  /// Getter for table type.
   const TableType &getTableType() const noexcept { return TType; }
   TableType &getTableType() noexcept { return TType; }
 
@@ -100,11 +100,11 @@ private:
 /// AST CodeSegment node.
 class CodeSegment : public Segment {
 public:
-  /// Getter and setter of segment size.
+  /// Getter and setter for segment size.
   uint32_t getSegSize() const noexcept { return SegSize; }
   void setSegSize(uint32_t Size) noexcept { SegSize = Size; }
 
-  /// Getter of locals vector.
+  /// Getter for locals vector.
   Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
     return Locals;
   }
@@ -112,7 +112,7 @@ public:
     return Locals;
   }
 
-  /// Getter and setter of compiled symbol.
+  /// Getter and setter for compiled symbol.
   const auto &getSymbol() const noexcept { return FuncSymbol; }
   void setSymbol(Symbol<void> S) noexcept { FuncSymbol = std::move(S); }
 
@@ -131,15 +131,15 @@ public:
   /// Data mode enumeration.
   enum class DataMode : uint8_t { Passive, Active };
 
-  /// Getter and setter of data mode.
+  /// Getter and setter for data mode.
   DataMode getMode() const noexcept { return Mode; }
   void setMode(DataMode DMode) noexcept { Mode = DMode; }
 
-  /// Getter and setter of memory index.
+  /// Getter and setter for memory index.
   uint32_t getIdx() const noexcept { return MemoryIdx; }
   void setIdx(uint32_t Idx) noexcept { MemoryIdx = Idx; }
 
-  /// Getter of data.
+  /// Getter for data.
   Span<const Byte> getData() const noexcept { return Data; }
   std::vector<Byte> &getData() noexcept { return Data; }
 

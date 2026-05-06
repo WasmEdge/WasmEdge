@@ -15,9 +15,9 @@ Expect<std::pair<std::vector<Byte>, std::vector<Byte>>> Loader::loadPreamble() {
   // version   ::= 0x0a 0x00
   // layer     ::= 0x01 0x00
 
-  // The combination of version and layer is corresponding to the version of
-  // core wasm.
-  // The core module has same magic but the different version:
+  // The combination of version and layer corresponds to the version of core
+  // wasm.
+  // The core module has the same magic but a different version:
   // 0x01 0x00 0x00 0x00
   auto Magic = FMgr.readBytes(4);
   if (!Magic) {

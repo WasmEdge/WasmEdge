@@ -580,7 +580,7 @@ TEST(SerializeInstructionTest, SerializeReferenceInstruction) {
   //   2.  Serialize invalid reference type without Ref-Types proposal.
   //   3.  Serialize Ref_as_non_null instruction with valid type index.
   //   4.  Serialize Ref_as_non_null instruction without Func-Ref proposal.
-  //   5.  Serializs Ref__eq instruction.
+  //   5.  Serialize Ref__eq instruction.
   //   6.  Serialize Ref__i31 instruction.
   //   7.  Serialize Ref__test instruction.
   //   8.  Serialize Ref__test_null instruction.

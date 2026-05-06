@@ -68,7 +68,7 @@ public:
     }
   }
 
-  /// Getter and setter of limit mode.
+  /// Getter and setter for limit mode.
   bool hasMax() const noexcept { return static_cast<uint8_t>(Type) & 0x01U; }
   bool isShared() const noexcept { return static_cast<uint8_t>(Type) & 0x02U; }
   bool is32() const noexcept { return static_cast<uint8_t>(Type) < 0x04U; }
@@ -78,11 +78,11 @@ public:
   }
   void setType(LimitType TargetType) noexcept { Type = TargetType; }
 
-  /// Getter and setter of min value.
+  /// Getter and setter for min value.
   uint64_t getMin() const noexcept { return Min; }
   void setMin(uint64_t Val) noexcept { Min = Val; }
 
-  /// Getter and setter of max value.
+  /// Getter and setter for max value.
   uint64_t getMax() const noexcept { return Max; }
   void setMax(uint64_t Val) noexcept { Max = Val; }
 
@@ -119,19 +119,19 @@ public:
     return !(LHS == RHS);
   }
 
-  /// Getter of param types.
+  /// Getter for param types.
   const std::vector<ValType> &getParamTypes() const noexcept {
     return ParamTypes;
   }
   std::vector<ValType> &getParamTypes() noexcept { return ParamTypes; }
 
-  /// Getter of return types.
+  /// Getter for return types.
   const std::vector<ValType> &getReturnTypes() const noexcept {
     return ReturnTypes;
   }
   std::vector<ValType> &getReturnTypes() noexcept { return ReturnTypes; }
 
-  /// Getter and setter of symbol.
+  /// Getter and setter for symbol.
   const auto &getSymbol() const noexcept { return WrapSymbol; }
   void setSymbol(Symbol<Executable::Wrapper> S) noexcept {
     WrapSymbol = std::move(S);
@@ -153,11 +153,11 @@ public:
   FieldType() noexcept = default;
   FieldType(const ValType &Type, ValMut Mut) noexcept : Type(Type), Mut(Mut) {}
 
-  /// Getter and setter of storage type.
+  /// Getter and setter for storage type.
   const ValType &getStorageType() const noexcept { return Type; }
   void setStorageType(const ValType &VType) noexcept { Type = VType; }
 
-  /// Getter and setter of value mutation.
+  /// Getter and setter for value mutation.
   ValMut getValMut() const noexcept { return Mut; }
   void setValMut(ValMut VMut) noexcept { Mut = VMut; }
 
@@ -177,7 +177,7 @@ public:
   CompositeType(const FunctionType &FT) noexcept
       : Type(TypeCode::Func), FType(FT) {}
 
-  /// Getter of content.
+  /// Getter for content.
   const FunctionType &getFuncType() const noexcept {
     return *std::get_if<FunctionType>(&FType);
   }
@@ -188,7 +188,7 @@ public:
     return *std::get_if<std::vector<FieldType>>(&FType);
   }
 
-  /// Setter of content.
+  /// Setter for content.
   void setArrayType(FieldType &&FT) noexcept {
     Type = TypeCode::Array;
     FType = std::vector<FieldType>{std::move(FT)};
@@ -202,10 +202,10 @@ public:
     FType = std::move(FT);
   }
 
-  /// Getter of content type.
+  /// Getter for content type.
   TypeCode getContentTypeCode() const noexcept { return Type; }
 
-  /// Checker if is a function type.
+  /// Check whether this is a function type.
   bool isFunc() const noexcept { return (Type == TypeCode::Func); }
 
   /// Expand the composite type to its reference.
@@ -239,11 +239,11 @@ public:
       : IsFinal(true), CompType(FT), RecTypeInfo(std::nullopt),
         TypeIndex(std::nullopt) {}
 
-  /// Getter and setter of final flag.
+  /// Getter and setter for final flag.
   bool isFinal() const noexcept { return IsFinal; }
   void setFinal(bool F) noexcept { IsFinal = F; }
 
-  /// Getter of type index vector.
+  /// Getter for type index vector.
   Span<const uint32_t> getSuperTypeIndices() const noexcept {
     return SuperTypeIndices;
   }
@@ -251,7 +251,7 @@ public:
     return SuperTypeIndices;
   }
 
-  /// Getter of composite type.
+  /// Getter for composite type.
   const CompositeType &getCompositeType() const noexcept { return CompType; }
   CompositeType &getCompositeType() noexcept { return CompType; }
 
@@ -261,7 +261,7 @@ public:
     uint32_t RecTypeSize;
   };
 
-  /// Getter of recursive type information.
+  /// Getter for recursive type information.
   std::optional<RecInfo> getRecursiveInfo() const noexcept {
     return RecTypeInfo;
   }
@@ -269,7 +269,7 @@ public:
     RecTypeInfo = RecInfo{Index, Size};
   }
 
-  /// Getter of type index information in a module.
+  /// Getter for type index information in a module.
   std::optional<uint32_t> getTypeIndex() const noexcept { return TypeIndex; }
   void setTypeIndex(uint32_t Index) noexcept { TypeIndex = Index; }
 
@@ -296,13 +296,13 @@ private:
 /// AST Type match helper class.
 class TypeMatcher {
 public:
-  /// Validator: Match 2 defined types in the same module.
+  /// Validator: Match two defined types in the same module.
   static bool matchType(Span<const SubType *const> TypeList, uint32_t ExpIdx,
                         uint32_t GotIdx) noexcept {
     return matchType(TypeList, ExpIdx, TypeList, GotIdx);
   }
 
-  /// Validator: Match 2 composite types in the same module.
+  /// Validator: Match two composite types in the same module.
   static bool matchType(Span<const SubType *const> TypeList,
                         const CompositeType &Exp,
                         const CompositeType &Got) noexcept {
@@ -310,12 +310,12 @@ public:
                                   const FieldType &GotFieldType) -> bool {
       bool IsMatch = false;
       if (ExpFieldType.getValMut() == GotFieldType.getValMut()) {
-        // For both const or both var: Got storage type should match the
-        // expected storage type.
+        // If both are const or both are var, the got storage type should match
+        // the expected storage type.
         IsMatch = matchType(TypeList, ExpFieldType.getStorageType(),
                             GotFieldType.getStorageType());
         if (ExpFieldType.getValMut() == ValMut::Var) {
-          // If both var: and vice versa.
+          // If both are var, the reverse should also match.
           IsMatch &= matchType(TypeList, GotFieldType.getStorageType(),
                                ExpFieldType.getStorageType());
         }
@@ -358,13 +358,13 @@ public:
     }
   }
 
-  /// Validator: Match 2 value types in the same module.
+  /// Validator: Match two value types in the same module.
   static bool matchType(Span<const SubType *const> TypeList, const ValType &Exp,
                         const ValType &Got) noexcept {
     return matchType(TypeList, Exp, TypeList, Got);
   }
 
-  /// Validator: Match 2 type lists in the same module.
+  /// Validator: Match two type lists in the same module.
   static bool matchTypes(Span<const SubType *const> TypeList,
                          Span<const ValType> Exp,
                          Span<const ValType> Got) noexcept {
@@ -379,7 +379,7 @@ public:
     return true;
   }
 
-  /// Matcher: Match 2 defined types.
+  /// Matcher: Match two defined types.
   static bool matchType(Span<const SubType *const> ExpTypeList, uint32_t ExpIdx,
                         Span<const SubType *const> GotTypeList,
                         uint32_t GotIdx) noexcept {
@@ -398,7 +398,7 @@ public:
     return false;
   }
 
-  /// Matcher: Match 2 value types.
+  /// Matcher: Match two value types.
   static bool matchType(Span<const SubType *const> ExpTypeList,
                         const ValType &Exp,
                         Span<const SubType *const> GotTypeList,
@@ -453,7 +453,7 @@ public:
   }
 
 private:
-  /// Matcher: Helper for checking the equivalent of 2 defined types.
+  /// Matcher: Helper for checking the equivalence of two defined types.
   static bool isDefTypeEqual(Span<const SubType *const> LHSList,
                              uint32_t LHSIdx,
                              Span<const SubType *const> RHSList,
@@ -464,8 +464,8 @@ private:
     }
     const auto *LHSType = LHSList[LHSIdx];
     const auto *RHSType = RHSList[RHSIdx];
-    // For GC proposal, a single subtype can be seemed as a self-recursive type.
-    // That is, `(rec (type $t1 (func (param (ref $t1)))))` and
+    // For GC proposal, a single subtype can be treated as a self-recursive
+    // type. That is, `(rec (type $t1 (func (param (ref $t1)))))` and
     //               `(type $t1 (func (param (ref $t1))))` are the same.
     // Therefore, use the subtype length for the recursive type size.
     const uint32_t LRecSize = LHSType->getRecursiveInfo().has_value()
@@ -475,7 +475,8 @@ private:
                                   ? RHSType->getRecursiveInfo()->RecTypeSize
                                   : 1U;
     if (LRecSize != RRecSize) {
-      // 2 recursive type sizes are different. Must not be the same.
+      // The two recursive type sizes are different, so they must not be the
+      // same.
       return false;
     }
     if (LRecSize > 1) {
@@ -495,7 +496,7 @@ private:
     }
   }
 
-  /// Matcher: Helper for checking the equivalent of 2 recursive types.
+  /// Matcher: Helper for checking the equivalence of two recursive types.
   static bool isRecTypeEqual(Span<const SubType *const> LHSList,
                              uint32_t LStartIdx,
                              Span<const SubType *const> RHSList,
@@ -508,7 +509,7 @@ private:
         if (LType.getCode() != RType.getCode()) {
           return false;
         }
-        // Check the index is the recursive type internal index or not.
+        // Check whether the index is the recursive type internal index.
         auto LIdx = LType.getTypeIndex();
         auto RIdx = RType.getTypeIndex();
         assuming(LIdx < LHSList.size() && RIdx < RHSList.size());
@@ -517,12 +518,12 @@ private:
         bool IsRInSelfRecType =
             (RIdx >= RStartIdx && RIdx < RStartIdx + RecSize);
         if (IsLInSelfRecType != IsRInSelfRecType) {
-          // If the one index is the recursive type internal index but the other
+          // If one index is the recursive type internal index but the other
           // isn't, the value types must be different.
           return false;
         }
         if (IsLInSelfRecType) {
-          // For both are internal indices of the recursive types, the internal
+          // If both are internal indices of the recursive types, the internal
           // indices must be the same.
           if (LIdx - LStartIdx == RIdx - RStartIdx) {
             return true;
@@ -530,7 +531,7 @@ private:
             return false;
           }
         }
-        // For neither are internal indices, keep checking the equivalent of the
+        // If neither is an internal index, keep checking the equivalence of the
         // defined types.
         return isDefTypeEqual(LHSList, LIdx, RHSList, RIdx);
       } else {
@@ -628,7 +629,7 @@ private:
     return true;
   }
 
-  /// Matcher: Helper for matching 2 type codes.
+  /// Matcher: Helper for matching two type codes.
   static bool matchTypeCode(TypeCode Exp, TypeCode Got) noexcept {
     // Handle the equal cases first.
     if (Exp == Got) {
@@ -687,7 +688,7 @@ public:
       : Lim(MinVal, MaxVal, false, Shared) {}
   MemoryType(const Limit &L) noexcept : Lim(L) {}
 
-  /// Getter of limit.
+  /// Getter for limit.
   const Limit &getLimit() const noexcept { return Lim; }
   Limit &getLimit() noexcept { return Lim; }
 
@@ -718,14 +719,14 @@ public:
     assuming(Type.isRefType());
   }
 
-  /// Getter of reference type.
+  /// Getter for reference type.
   const ValType &getRefType() const noexcept { return Type; }
   void setRefType(const ValType &RType) noexcept {
     assuming(RType.isRefType());
     Type = RType;
   }
 
-  /// Getter of limit.
+  /// Getter for limit.
   const Limit &getLimit() const noexcept { return Lim; }
   Limit &getLimit() noexcept { return Lim; }
 
@@ -745,11 +746,11 @@ public:
   GlobalType(const ValType &VType, ValMut VMut) noexcept
       : Type(VType), Mut(VMut) {}
 
-  /// Getter and setter of value type.
+  /// Getter and setter for value type.
   const ValType &getValType() const noexcept { return Type; }
   void setValType(const ValType &VType) noexcept { Type = VType; }
 
-  /// Getter and setter of value mutation.
+  /// Getter and setter for value mutation.
   ValMut getValMut() const noexcept { return Mut; }
   void setValMut(ValMut VMut) noexcept { Mut = VMut; }
 
@@ -767,15 +768,15 @@ public:
   TagType(const uint32_t TIdx, const SubType *S) noexcept
       : TypeIdx(TIdx), Type(S) {}
 
-  /// Getter and setter of TypeIdx.
+  /// Getter and setter for TypeIdx.
   uint32_t getTypeIdx() const noexcept { return TypeIdx; }
   void setTypeIdx(uint32_t TIdx) noexcept { TypeIdx = TIdx; }
 
-  // Getter and setter of Defined Type.
+  // Getter and setter for Defined Type.
   const SubType &getDefType() const noexcept { return *Type; }
   void setDefType(const SubType *DefType) noexcept { Type = DefType; }
 
-  // Getter of the size of value that is associated with the tag.
+  // Getter for the size of the value associated with the tag.
   uint32_t getAssocValSize() const noexcept {
     if (Type && Type->getCompositeType().isFunc()) {
       return static_cast<uint32_t>(

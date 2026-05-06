@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Symbol, which holds the handle to
-/// the loaded shared library.
+/// This file contains the declaration of Symbol, which holds the handle to the
+/// loaded shared library.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -19,7 +19,7 @@
 namespace WasmEdge {
 class Executable;
 
-/// Holder class for library symbol
+/// Holder class for a library symbol.
 template <typename T = void> class Symbol {
 private:
   friend class Executable;

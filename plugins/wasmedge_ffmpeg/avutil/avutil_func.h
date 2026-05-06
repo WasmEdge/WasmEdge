@@ -34,7 +34,7 @@ public:
   Expect<int32_t> body(const Runtime::CallingFrame &Frame);
 };
 
-// Option funcs.
+// Option functions.
 class AVOptSetBin : public HostFunction<AVOptSetBin> {
 public:
   using HostFunction::HostFunction;

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file is the definition class of Compiler class.
+/// This file defines the Compiler class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

@@ -55,7 +55,7 @@ openState(Algorithm Alg, OptionalRef<const KeyVariant> OptKeyVariant,
               [OptOptions](const auto &Key) -> WasiCryptoExpect<StateVariant> {
                 using InKeyType = std::decay_t<decltype(Key)>;
                 if constexpr (!std::is_same_v<InKeyType, RequiredKeyType>) {
-                  // Key type not same.
+                  // Key types do not match.
                   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
                 } else {
                   // Key type fitted.

@@ -197,7 +197,7 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     }
     return EXIT_SUCCESS;
   } else {
-    // It indicates that the execution of wasm has been aborted
+    // It indicates that the execution of wasm has been aborted.
     return 128 + SIGABRT;
   }
 }
@@ -350,7 +350,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 
     return EXIT_SUCCESS;
   } else {
-    // It indicates that the execution of wasm has been aborted
+    // It indicates that the execution of wasm has been aborted.
     return 128 + SIGABRT;
   }
 }
@@ -560,7 +560,8 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       }
     }
 
-    // if HasStart but not Valid, insert _start to enter reactor mode
+    // If HasStart is true but Valid is false, insert _start to enter reactor
+    // mode.
     if (HasStart && !Valid) {
       Opt.Args.value().insert(Opt.Args.value().begin(), "_start");
     }
@@ -592,7 +593,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getExitCode());
     } else {
-      // It indicates that the execution of wasm has been aborted
+      // It indicates that the execution of wasm has been aborted.
       return 128 + SIGABRT;
     }
   } else {
@@ -632,8 +633,8 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         return EXIT_FAILURE;
       }
 
-      // If found initialize function and it's not being called explicitly,
-      // invoke it first.
+      // If the initialize function was found and is not being called
+      // explicitly, invoke it first.
       if (HasInit && FuncName != InitFunc) {
         auto AsyncResult = VM.asyncExecute(InitFunc);
         if (Timeout.has_value()) {

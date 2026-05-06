@@ -986,25 +986,25 @@ TEST(APICoreTest, ImportType) {
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[16]);
   EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "dummy"sv);
 
-  // Import type get external type
+  // Get the external type from an import type.
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(nullptr),
             WasmEdge_ExternalType_Function);
   EXPECT_EQ(WasmEdge_ImportTypeGetExternalType(ImpTypes[13]),
             WasmEdge_ExternalType_Memory);
 
-  // Import type get module name
+  // Get the module name from an import type.
   Name = WasmEdge_ImportTypeGetModuleName(nullptr);
   EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
   Name = WasmEdge_ImportTypeGetModuleName(ImpTypes[0]);
   EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "extern"sv);
 
-  // Import type get external name
+  // Get the external name from an import type.
   Name = WasmEdge_ImportTypeGetExternalName(nullptr);
   EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
   Name = WasmEdge_ImportTypeGetExternalName(ImpTypes[0]);
   EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-add"sv);
 
-  // Import type get function type
+  // Get the function type from an import type.
   EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetFunctionType(nullptr, ImpTypes[4]), nullptr);
@@ -1017,7 +1017,7 @@ TEST(APICoreTest, ImportType) {
                 WasmEdge_ImportTypeGetFunctionType(Mod, ImpTypes[4])),
             1U);
 
-  // Import type get table type
+  // Get the table type from an import type.
   EXPECT_EQ(WasmEdge_ImportTypeGetTableType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetTableType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetTableType(nullptr, ImpTypes[11]), nullptr);
@@ -1032,7 +1032,7 @@ TEST(APICoreTest, ImportType) {
       Lim));
   WasmEdge_LimitDelete(Lim);
 
-  // Import type get memory type
+  // Get the memory type from an import type.
   EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetMemoryType(nullptr, ImpTypes[13]), nullptr);
@@ -1045,7 +1045,7 @@ TEST(APICoreTest, ImportType) {
       Lim));
   WasmEdge_LimitDelete(Lim);
 
-  // Import type get tag type
+  // Get the tag type from an import type.
   EXPECT_EQ(WasmEdge_ImportTypeGetTagType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetTagType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetTagType(nullptr, ImpTypes[15]), nullptr);
@@ -1064,7 +1064,7 @@ TEST(APICoreTest, ImportType) {
           WasmEdge_ImportTypeGetTagType(Mod, ImpTypes[15]))),
       0U);
 
-  // Import type get global type
+  // Get the global type from an import type.
   EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ImportTypeGetGlobalType(nullptr, ImpTypes[7]), nullptr);
@@ -1183,19 +1183,19 @@ TEST(APICoreTest, ExportType) {
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[18]);
   EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "glob-const-f32"sv);
 
-  // Export type get external type
+  // Get the external type from an export type.
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(nullptr),
             WasmEdge_ExternalType_Function);
   EXPECT_EQ(WasmEdge_ExportTypeGetExternalType(ExpTypes[18]),
             WasmEdge_ExternalType_Global);
 
-  // Export type get external name
+  // Get the external name from an export type.
   Name = WasmEdge_ExportTypeGetExternalName(nullptr);
   EXPECT_EQ(std::string_view(Name.Buf, Name.Length), ""sv);
   Name = WasmEdge_ExportTypeGetExternalName(ExpTypes[0]);
   EXPECT_EQ(std::string_view(Name.Buf, Name.Length), "func-1"sv);
 
-  // Export type get function type
+  // Get the function type from an export type.
   EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetFunctionType(nullptr, ExpTypes[4]), nullptr);
@@ -1208,7 +1208,7 @@ TEST(APICoreTest, ExportType) {
                 WasmEdge_ExportTypeGetFunctionType(Mod, ExpTypes[4])),
             1U);
 
-  // Export type get table type
+  // Get the table type from an export type.
   EXPECT_EQ(WasmEdge_ExportTypeGetTableType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetTableType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetTableType(nullptr, ExpTypes[12]), nullptr);
@@ -1223,7 +1223,7 @@ TEST(APICoreTest, ExportType) {
       Lim));
   WasmEdge_LimitDelete(Lim);
 
-  // Export type get memory type
+  // Get the memory type from an export type.
   EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetMemoryType(nullptr, ExpTypes[13]), nullptr);
@@ -1236,7 +1236,7 @@ TEST(APICoreTest, ExportType) {
       Lim));
   WasmEdge_LimitDelete(Lim);
 
-  // Export type get tag type
+  // Get the tag type from an export type.
   EXPECT_EQ(WasmEdge_ExportTypeGetTagType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetTagType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetTagType(nullptr, ExpTypes[14]), nullptr);
@@ -1255,7 +1255,7 @@ TEST(APICoreTest, ExportType) {
           WasmEdge_ExportTypeGetTagType(Mod, ExpTypes[14]))),
       0U);
 
-  // Export type get global type
+  // Get the global type from an export type.
   EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(Mod, nullptr), nullptr);
   EXPECT_EQ(WasmEdge_ExportTypeGetGlobalType(nullptr, ExpTypes[18]), nullptr);
@@ -1287,7 +1287,7 @@ TEST(APICoreTest, Compiler) {
   EXPECT_TRUE(true);
   Compiler = WasmEdge_CompilerCreate(Conf);
 
-  // Prepare TPath
+  // Prepare TPath.
   hexToFile(TestWasm, TPath);
   // Compile file for universal WASM output format
   EXPECT_TRUE(WasmEdge_ResultOK(
@@ -1500,9 +1500,9 @@ TEST(APICoreTest, Loader) {
   EXPECT_TRUE(true);
   Loader = WasmEdge_LoaderCreate(Conf);
 
-  // Prepare TPath
+  // Prepare TPath.
   hexToFile(TestWasm, TPath);
-  // Parse from file
+  // Parse from a file.
   Mod = nullptr;
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, ModPtr, TPath)));
@@ -1571,7 +1571,7 @@ TEST(APICoreTest, Validator) {
   EXPECT_TRUE(true);
   Validator = WasmEdge_ValidatorCreate(Conf);
 
-  // Prepare TPath
+  // Prepare TPath.
   hexToFile(TestWasm, TPath);
   // Load and parse file
   WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
@@ -1601,7 +1601,7 @@ TEST(APICoreTest, ExecutorWithStatistics) {
   WasmEdge_ConfigureStatisticsSetCostMeasuring(Conf, true);
   WasmEdge_ConfigureStatisticsSetTimeMeasuring(Conf, true);
 
-  // Prepare TPath
+  // Prepare TPath.
   hexToFile(TestWasm, TPath);
   // Load and validate file
   WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
@@ -1804,16 +1804,16 @@ TEST(APICoreTest, ExecutorWithStatistics) {
       isErrMatch(WasmEdge_ErrCode_FuncSigMismatch,
                  WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, R, 2)));
   P[0] = WasmEdge_ValueGenI32(123);
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, R, 1)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, nullptr, 0)));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_ExecutorInvoke(ExecCxt, FuncCxt, P, 2, nullptr, 1)));
 
@@ -1992,7 +1992,7 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(WasmEdge_StoreListModule(Store, nullptr, 15), 0U);
   EXPECT_EQ(WasmEdge_StoreListModule(Store, Names, 15), 0U);
 
-  // Prepare TPath
+  // Prepare TPath.
   hexToFile(TestWasm, TPath);
   // Register host module and instantiate wasm module
   WasmEdge_ModuleInstanceContext *HostMod = createExternModule("extern");
@@ -2028,7 +2028,7 @@ TEST(APICoreTest, Store) {
   EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), "extern"sv);
   EXPECT_EQ(std::string_view(Names[1].Buf, Names[1].Length), "module"sv);
 
-  // Module instance get module name
+  // Get the module name from a module instance.
   Names[0] = WasmEdge_ModuleInstanceGetModuleName(nullptr);
   EXPECT_EQ(std::string_view(Names[0].Buf, Names[0].Length), ""sv);
   Names[0] = WasmEdge_ModuleInstanceGetModuleName(ModCxt);
@@ -2181,7 +2181,7 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(FuncCxt, nullptr);
   WasmEdge_FunctionTypeDelete(FuncType);
 
-  // Function instance get function type
+  // Get the function type from a function instance.
   EXPECT_EQ(WasmEdge_FunctionTypeGetParametersLength(
                 WasmEdge_FunctionInstanceGetFunctionType(FuncCxt)),
             2U);
@@ -2220,7 +2220,7 @@ TEST(APICoreTest, Instance) {
   WasmEdge_TableTypeDelete(TabType);
   EXPECT_NE(TabCxt, nullptr);
 
-  // Table instance get table type
+  // Get the table type from a table instance.
   EXPECT_TRUE(WasmEdge_ValTypeIsExternRef(WasmEdge_TableTypeGetRefType(
       WasmEdge_TableInstanceGetTableType(TabCxt))));
   EXPECT_EQ(WasmEdge_TableInstanceGetTableType(nullptr), nullptr);
@@ -2239,7 +2239,7 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_TableOutOfBounds,
                          WasmEdge_TableInstanceSetData(TabCxt, Val, 15)));
 
-  // Table instance get data
+  // Get data from a table instance.
   Val = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_TableInstanceGetData(TabCxt, &Val, 5)));
@@ -2251,7 +2251,7 @@ TEST(APICoreTest, Instance) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_TableOutOfBounds,
                          WasmEdge_TableInstanceGetData(TabCxt, &Val, 15)));
 
-  // Table instance get size and grow
+  // Get the size of a table instance and grow it.
   EXPECT_EQ(WasmEdge_TableInstanceGetSize(TabCxt), 10U);
   EXPECT_EQ(WasmEdge_TableInstanceGetSize(nullptr), 0U);
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
@@ -2330,7 +2330,7 @@ TEST(APICoreTest, Instance) {
   WasmEdge_MemoryTypeDelete(MemType);
   EXPECT_NE(MemCxt, nullptr);
 
-  // Memory instance get memory type
+  // Get the memory type from a memory instance.
   EXPECT_NE(WasmEdge_MemoryInstanceGetMemoryType(MemCxt), nullptr);
   EXPECT_EQ(WasmEdge_MemoryInstanceGetMemoryType(nullptr), nullptr);
 
@@ -2357,7 +2357,7 @@ TEST(APICoreTest, Instance) {
       WasmEdge_ErrCode_MemoryOutOfBounds,
       WasmEdge_MemoryInstanceSetData(MemCxt, DataSet.data(), 65530, 10)));
 
-  // Memory instance get data
+  // Get data from a memory instance.
   std::vector<uint8_t> DataGet;
   DataGet.resize(10);
   EXPECT_TRUE(WasmEdge_ResultOK(
@@ -2381,7 +2381,7 @@ TEST(APICoreTest, Instance) {
       WasmEdge_ErrCode_MemoryOutOfBounds,
       WasmEdge_MemoryInstanceGetData(MemCxt, DataGet.data(), 65530, 10)));
 
-  // Memory instance get pointer
+  // Get a pointer from a memory instance.
   EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(nullptr, 100, 10));
   EXPECT_NE(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 100, 10));
   EXPECT_EQ(nullptr, WasmEdge_MemoryInstanceGetPointer(MemCxt, 65536, 10));
@@ -2396,7 +2396,7 @@ TEST(APICoreTest, Instance) {
       std::equal(DataSet.cbegin(), DataSet.cend(),
                  WasmEdge_MemoryInstanceGetPointerConst(MemCxt, 100, 10)));
 
-  // Memory instance get size and grow
+  // Get the size of a memory instance and grow it.
   EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(MemCxt), 1U);
   EXPECT_EQ(WasmEdge_MemoryInstanceGetPageSize(nullptr), 0U);
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
@@ -2445,7 +2445,7 @@ TEST(APICoreTest, Instance) {
   EXPECT_NE(GlobCCxt, nullptr);
   EXPECT_NE(GlobVCxt, nullptr);
 
-  // Global instance get global type
+  // Get the global type from a global instance.
   EXPECT_TRUE(WasmEdge_ValTypeIsI64(WasmEdge_GlobalTypeGetValType(
       WasmEdge_GlobalInstanceGetGlobalType(GlobCCxt))));
   EXPECT_TRUE(WasmEdge_ValTypeIsI64(WasmEdge_GlobalTypeGetValType(
@@ -2458,7 +2458,7 @@ TEST(APICoreTest, Instance) {
             WasmEdge_Mutability_Var);
   EXPECT_EQ(WasmEdge_GlobalInstanceGetGlobalType(nullptr), nullptr);
 
-  // Global instance get value
+  // Get a value from a global instance.
   Val = WasmEdge_GlobalInstanceGetValue(GlobCCxt);
   EXPECT_EQ(WasmEdge_ValueGetI64(Val), 55555555555LL);
   Val = WasmEdge_GlobalInstanceGetValue(GlobVCxt);
@@ -2715,7 +2715,7 @@ TEST(APICoreTest, ModuleInstance) {
   EXPECT_EQ(WasmEdge_ModuleInstanceWASIGetExitCode(nullptr), EXIT_FAILURE);
   WasmEdge_ModuleInstanceDelete(HostMod);
 
-  // Initialize WASI in VM.
+  // Initialize WASI in the VM.
   Conf = WasmEdge_ConfigureCreate();
   WasmEdge_ConfigureAddHostRegistration(Conf, WasmEdge_HostRegistration_Wasi);
   VM = WasmEdge_VMCreate(Conf, nullptr);
@@ -2750,13 +2750,13 @@ TEST(APICoreTest, Async) {
   P[0] = WasmEdge_ValueGenI32(123);
   P[1] = WasmEdge_ValueGenI32(456);
 
-  // Prepare TPath
+  // Prepare TPath.
   hexToFile(TestWasm, TPath);
-  // WASM from file
+  // WASM from a file.
   std::vector<uint8_t> Buf;
   EXPECT_TRUE(readToVector(TPath, Buf));
 
-  // Load and validate to wasm AST
+  // Load and validate to a Wasm AST.
   WasmEdge_ASTModuleContext *Mod = loadModule(nullptr, TPath);
   EXPECT_NE(Mod, nullptr);
   EXPECT_TRUE(validateModule(nullptr, Mod));
@@ -2777,7 +2777,7 @@ TEST(APICoreTest, Async) {
   // Async get returns length
   EXPECT_EQ(WasmEdge_AsyncGetReturnsLength(nullptr), 0);
 
-  // Async run from file
+  // Async run from a file.
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   // Success case
@@ -2832,7 +2832,7 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
                          WasmEdge_AsyncGet(Async, R, 2)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
@@ -2843,12 +2843,12 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncRunWasmFromFile(VM, TPath, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
@@ -2916,7 +2916,7 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
                          WasmEdge_AsyncGet(Async, R, 2)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   Async = WasmEdge_VMAsyncRunWasmFromBuffer(
@@ -2928,13 +2928,13 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncRunWasmFromBuffer(
       VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncRunWasmFromBuffer(
       VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
@@ -2993,7 +2993,7 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
                          WasmEdge_AsyncGet(Async, R, 2)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
@@ -3004,12 +3004,12 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncRunWasmFromASTModule(VM, Mod, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
@@ -3087,7 +3087,7 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
                          WasmEdge_AsyncGet(Async, R, 2)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
@@ -3098,12 +3098,12 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncExecute(VM, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
@@ -3169,7 +3169,7 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
                          WasmEdge_AsyncGet(Async, R, 2)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
@@ -3180,12 +3180,12 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   Async = WasmEdge_VMAsyncExecuteRegistered(VM, ModName, FuncName, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
@@ -3246,7 +3246,7 @@ TEST(APICoreTest, Async) {
                          WasmEdge_AsyncGet(Async, R, 2)));
   WasmEdge_AsyncDelete(Async);
   P[0] = WasmEdge_ValueGenI32(123);
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
@@ -3257,12 +3257,12 @@ TEST(APICoreTest, Async) {
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
   EXPECT_EQ(0, WasmEdge_ValueGetI32(R[1]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[1].Type));
-  // Discard result
+  // Discard result.
   Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 0)));
   WasmEdge_AsyncDelete(Async);
-  // Discard result
+  // Discard result.
   Async = WasmEdge_ExecutorAsyncInvoke(Exec, FuncInst, P, 2);
   EXPECT_NE(Async, nullptr);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_AsyncGet(Async, nullptr, 1)));
@@ -3289,13 +3289,13 @@ TEST(APICoreTest, VM) {
   WasmEdge_Value P[10], R[10];
   const WasmEdge_FunctionTypeContext *FuncTypes[15];
 
-  // Prepare TPath
+  // Prepare TPath.
   hexToFile(TestWasm, TPath);
-  // WASM from file
+  // WASM from a file.
   std::vector<uint8_t> Buf;
   EXPECT_TRUE(readToVector(TPath, Buf));
 
-  // Load and validate to wasm AST
+  // Load and validate to a Wasm AST.
   WasmEdge_ASTModuleContext *Mod = loadModule(Conf, TPath);
   EXPECT_NE(Mod, nullptr);
   EXPECT_TRUE(validateModule(Conf, Mod));
@@ -3351,7 +3351,7 @@ TEST(APICoreTest, VM) {
                              VM, AliasName, HostModAlias2)));
   WasmEdge_StringDelete(AliasName);
 
-  // VM register module from file
+  // Register a module in the VM from a file.
   ModName = WasmEdge_StringCreateByCString("reg-wasm-file");
   EXPECT_TRUE(
       isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
@@ -3398,7 +3398,7 @@ TEST(APICoreTest, VM) {
   P[0] = WasmEdge_ValueGenI32(123);
   P[1] = WasmEdge_ValueGenI32(456);
 
-  // VM run wasm from file
+  // Run Wasm in the VM from a file.
   R[0] = WasmEdge_ValueGenI32(0);
   R[1] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(
@@ -3435,16 +3435,16 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(
       isErrMatch(WasmEdge_ErrCode_FuncNotFound,
                  WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName2, P, 2, R, 1)));
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 2, R, 1)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 2, nullptr, 0)));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMRunWasmFromFile(VM, TPath, FuncName, P, 2, nullptr, 1)));
 
@@ -3493,18 +3493,18 @@ TEST(APICoreTest, VM) {
                          WasmEdge_VMRunWasmFromBuffer(
                              VM, Buf.data(), static_cast<uint32_t>(Buf.size()),
                              FuncName2, P, 2, R, 2)));
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
       VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2, R,
       1)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
       VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2,
       nullptr, 0)));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRunWasmFromBuffer(
       VM, Buf.data(), static_cast<uint32_t>(Buf.size()), FuncName, P, 2,
       nullptr, 1)));
@@ -3546,20 +3546,20 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(isErrMatch(
       WasmEdge_ErrCode_FuncNotFound,
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName2, P, 2, R, 2)));
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, R, 1)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 0)));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMRunWasmFromASTModule(VM, Mod, FuncName, P, 2, nullptr, 1)));
 
-  // VM get registered module
+  // Get a registered module from the VM.
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VM), 18U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_VMListRegisteredModule(nullptr, Names, 20), 0U);
@@ -3576,7 +3576,7 @@ TEST(APICoreTest, VM) {
             "reg-wasm-buffer"sv);
   EXPECT_EQ(std::string_view(Names[3].Buf, Names[3].Length), "reg-wasm-file"sv);
 
-  // VM load wasm from file
+  // Load Wasm in the VM from a file.
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMLoadWasmFromFile(VM, TPath)));
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_WrongVMWorkflow,
                          WasmEdge_VMLoadWasmFromFile(nullptr, TPath)));
@@ -3668,15 +3668,15 @@ TEST(APICoreTest, VM) {
   // Function not found
   EXPECT_TRUE(isErrMatch(WasmEdge_ErrCode_FuncNotFound,
                          WasmEdge_VMExecute(VM, FuncName2, P, 2, R, 2)));
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMExecute(VM, FuncName, P, 2, R, 1)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VM, FuncName, P, 2, nullptr, 0)));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMExecute(VM, FuncName, P, 2, nullptr, 1)));
 
@@ -3724,20 +3724,20 @@ TEST(APICoreTest, VM) {
   EXPECT_TRUE(isErrMatch(
       WasmEdge_ErrCode_FuncNotFound,
       WasmEdge_VMExecuteRegistered(VM, ModName, FuncName2, P, 2, R, 2)));
-  // Discard result
+  // Discard result.
   R[0] = WasmEdge_ValueGenI32(0);
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, R, 1)));
   EXPECT_EQ(246, WasmEdge_ValueGetI32(R[0]));
   EXPECT_TRUE(WasmEdge_ValTypeIsI32(R[0].Type));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, nullptr, 0)));
-  // Discard result
+  // Discard result.
   EXPECT_TRUE(WasmEdge_ResultOK(
       WasmEdge_VMExecuteRegistered(VM, ModName, FuncName, P, 2, nullptr, 1)));
 
-  // VM get function type
+  // Get the function type from the VM.
   WasmEdge_VMCleanup(VM);
   EXPECT_TRUE(
       WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromImport(VM, HostMod)));
@@ -3748,7 +3748,7 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMGetFunctionType(nullptr, FuncName), nullptr);
   EXPECT_EQ(WasmEdge_VMGetFunctionType(VM, FuncName2), nullptr);
 
-  // VM get function type registered
+  // Get the function type of a registered function from the VM.
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMRegisterModuleFromBytes(
       VM, ModName,
       WasmEdge_BytesWrap(Buf.data(), static_cast<uint32_t>(Buf.size())))));
@@ -3766,7 +3766,7 @@ TEST(APICoreTest, VM) {
   WasmEdge_StringDelete(ModName);
   WasmEdge_StringDelete(ModName2);
 
-  // VM get function list
+  // Get the function list from the VM.
   EXPECT_EQ(WasmEdge_VMGetFunctionListLength(VM), 11U);
   EXPECT_EQ(WasmEdge_VMGetFunctionListLength(nullptr), 0U);
   EXPECT_EQ(WasmEdge_VMGetFunctionList(nullptr, Names, FuncTypes, 15), 0U);
@@ -3811,7 +3811,7 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(std::string_view(Names[9].Buf, Names[9].Length), "func-host-sub"sv);
   EXPECT_EQ(std::string_view(Names[10].Buf, Names[10].Length), "func-mul-2"sv);
 
-  // VM get active module
+  // Get the active module from the VM.
   EXPECT_NE(WasmEdge_VMGetActiveModule(VM), nullptr);
   EXPECT_EQ(
       WasmEdge_ModuleInstanceListFunctionLength(WasmEdge_VMGetActiveModule(VM)),
@@ -3829,7 +3829,7 @@ TEST(APICoreTest, VM) {
   WasmEdge_VMCleanup(nullptr);
   EXPECT_TRUE(true);
 
-  // VM get pre-registered module (WASI)
+  // Get the pre-registered WASI module from the VM.
   EXPECT_NE(
       WasmEdge_VMGetImportModuleContext(VM, WasmEdge_HostRegistration_Wasi),
       nullptr);
@@ -3837,7 +3837,7 @@ TEST(APICoreTest, VM) {
                                               WasmEdge_HostRegistration_Wasi),
             nullptr);
 
-  // VM get registered module (plug-ins)
+  // Get a registered plug-in module from the VM.
   ModName = WasmEdge_StringCreateByCString("wasi_ephemeral_nn");
   EXPECT_NE(WasmEdge_VMGetRegisteredModule(VM, ModName), nullptr);
   EXPECT_EQ(WasmEdge_VMGetRegisteredModule(nullptr, ModName), nullptr);
@@ -3846,23 +3846,23 @@ TEST(APICoreTest, VM) {
   EXPECT_EQ(WasmEdge_VMGetRegisteredModule(VM, ModName), nullptr);
   WasmEdge_StringDelete(ModName);
 
-  // VM get store
+  // Get the store from the VM.
   EXPECT_EQ(WasmEdge_VMGetStoreContext(VM), Store);
   EXPECT_EQ(WasmEdge_VMGetStoreContext(nullptr), nullptr);
 
-  // VM get loader
+  // Get the loader from the VM.
   EXPECT_NE(WasmEdge_VMGetLoaderContext(VM), nullptr);
   EXPECT_EQ(WasmEdge_VMGetLoaderContext(nullptr), nullptr);
 
-  // VM get validator
+  // Get the validator from the VM.
   EXPECT_NE(WasmEdge_VMGetValidatorContext(VM), nullptr);
   EXPECT_EQ(WasmEdge_VMGetValidatorContext(nullptr), nullptr);
 
-  // VM get executor
+  // Get the executor from the VM.
   EXPECT_NE(WasmEdge_VMGetExecutorContext(VM), nullptr);
   EXPECT_EQ(WasmEdge_VMGetExecutorContext(nullptr), nullptr);
 
-  // VM get statistics
+  // Get statistics from the VM.
   EXPECT_NE(WasmEdge_VMGetStatisticsContext(VM), nullptr);
   EXPECT_EQ(WasmEdge_VMGetStatisticsContext(nullptr), nullptr);
 

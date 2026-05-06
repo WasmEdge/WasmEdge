@@ -26,10 +26,11 @@ using namespace std::literals;
 
 namespace {
 
-// XXX: Setup a socket with address ::1 to test if IPv6 is available.
-//      It prevent system call like sysctl net.ipv6.conf.all.disable_ipv6
-//      However The port used in TEST can not be same as TrySetUpIPV6Socket
-//      Because It do not set up SO_REUSEADDR=1 may cause test into fail.
+// XXX: Set up a socket with address ::1 to test if IPv6 is available.
+//      It prevents system calls like sysctl net.ipv6.conf.all.disable_ipv6.
+//      However, the port used in TEST cannot be the same as
+//      TrySetUpIPV6Socket because it does not set up SO_REUSEADDR=1 and may
+//      cause the test to fail.
 bool TrySetUpIPV6Socket() {
   bool State = false;
 

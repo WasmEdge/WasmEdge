@@ -130,7 +130,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
   bool IsReachEnd = false;
   // Read opcode until the End code of the top block.
   do {
-    // Read the opcode and check if error.
+    // Read the opcode and check for errors.
     uint64_t Offset = FMgr.getOffset();
     EXPECTED_TRY(OpCode Code, loadOpCode().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Instruction);
@@ -153,7 +153,7 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
       }
     };
 
-    // Process the instruction which contains a block.
+    // Process the instruction that contains a block.
     switch (Code) {
     case OpCode::Block:
     case OpCode::Loop:
@@ -193,7 +193,8 @@ Expect<AST::InstrVec> Loader::loadInstrSeq(std::optional<uint64_t> SizeBound) {
           Instrs[Pos].setJumpEnd(Cnt - Pos);
           if (BackOp == OpCode::If) {
             if (Instrs[Pos].getJumpElse() == 0) {
-              // If block without else. Set the else jump the same as end jump.
+              // For an if block without an else branch, set the else jump to
+              // the end jump.
               Instrs[Pos].setJumpElse(Cnt - Pos);
             } else {
               const uint32_t ElsePos = Pos + Instrs[Pos].getJumpElse();

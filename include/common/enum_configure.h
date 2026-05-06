@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/common/enum_configure.h - Configure related enumerations -===//
+//===-- wasmedge/common/enum_configure.h - Configuration-related enums ----===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of configure related enumerations.
+/// This file contains the definitions of configuration-related enumerations.
 ///
 //===----------------------------------------------------------------------===//
 

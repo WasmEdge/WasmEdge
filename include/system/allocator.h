@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the memory allocator for various operating system.
+/// This file contains the memory allocator for various operating systems.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

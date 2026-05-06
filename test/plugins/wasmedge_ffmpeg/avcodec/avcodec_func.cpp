@@ -12,7 +12,7 @@ namespace WasmEdge {
 namespace Host {
 namespace WasmEdgeFFmpeg {
 
-// TODO: Commented functions need to be tested.
+// TODO: Commented functions need tests.
 
 TEST_F(FFmpegTest, AVCodecFunc) {
   ASSERT_TRUE(AVCodecMod != nullptr);
@@ -270,7 +270,7 @@ TEST_F(FFmpegTest, AVCodecFunc) {
     EXPECT_EQ(Result[0].get<int32_t>(), 0);
   }
 
-  // TODO: Need FormatCtxId To test this func.
+  // TODO: Need FormatCtxId to test this function.
   //  FuncInst = AVCodecMod->findFuncExports(
   //      "wasmedge_ffmpeg_avcodec_avcodec_parameters_copy");
   //  EXPECT_NE(FuncInst, nullptr);

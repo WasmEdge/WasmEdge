@@ -13,7 +13,7 @@ int main(int argc, const char *const argv[]) {
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(ConfCxt, NULL);
   WasmEdge_ConfigureDelete(ConfCxt);
 
-  /* The envs. */
+  /* The environment variables. */
   const char EnvStrs[] = {
       'E', 'N', 'V', '1', '=', 'V', 'A', 'L', '1', '\0',
       // ENV1=VAL1
@@ -31,11 +31,12 @@ int main(int argc, const char *const argv[]) {
     return 1;
   }
 
-  /* Set the envs and args. */
+  /* Set the environment variables and arguments. */
   WasmEdge_ModuleInstanceContext *WasiCxt =
       WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_Wasi);
 
-  /* Init WASI with env, args, preopens, and fd redirection */
+  /* Initialize WASI with environment variables, arguments, preopens, and fd
+     redirection. */
   WasmEdge_ModuleInstanceInitWASIWithFds(WasiCxt, argv, argc, Envs, 3, NULL,
                                          0,            // No preopens
                                          STDIN_FILENO, // fd_in = 0 (stdin)

@@ -20,7 +20,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
   // into the component model index space.
   for (const auto &Expr : CoreInstSec.getContent()) {
     if (Expr.isInstantiateModule()) {
-      // Instantiate with args case.
+      // Instantiate-with-arguments case.
       // Create an import manager to implement the isolation of imports.
       Runtime::Instance::ComponentImportManager ImportMgr;
       for (const auto &Arg : Expr.getInstantiateArgs()) {
@@ -72,7 +72,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         }
       }
 
-      // Add this core module instance into the component instance index space.
+      // Add this core module instance to the component instance index space.
       CompInst.addCoreModuleInstance(std::move(Mod));
     }
   }
@@ -218,7 +218,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         }
       }
 
-      // Add this component instance into the component instance index space.
+      // Add this component instance to the component instance index space.
       CompInst.addComponentInstance(std::move(Comp));
     }
   }

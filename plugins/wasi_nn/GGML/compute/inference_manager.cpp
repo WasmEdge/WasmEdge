@@ -12,7 +12,7 @@ namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
 namespace {
 
-// Fill tokens (smaller than batch size) into a batch with position data.
+// Fill a batch with tokens (smaller than batch size) and position data.
 void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
                llama_batch &Batch, int &NPos, bool IsLogit = false) {
   assuming(GraphRef.Params.n_batch >= static_cast<int64_t>(Tokens.size()));
@@ -27,7 +27,7 @@ void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
     Batch.logits[I] = false;
   }
 
-  // Logits of sampling or end of inputs.
+  // Logits for sampling or the end of inputs.
   if (IsLogit) {
     Batch.logits[Tokens.size() - 1] = true;
   }
@@ -36,7 +36,7 @@ void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
   NPos += static_cast<int>(Tokens.size());
 }
 
-// Evaluate tokens. Construct the tokens into batch and decode.
+// Evaluate tokens. Construct the batch from tokens and decode.
 ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
                      llama_batch &Batch, int &NPos,
                      bool IsLogits = false) noexcept {
@@ -51,7 +51,7 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
     return ErrNo::ContextFull;
   }
 
-  // Loop for decode batch. Split tokens into batch size length.
+  // Loop for decoding batches. Split tokens by batch size.
   for (int I = 0; I < static_cast<int>(Tokens.size());
        I += static_cast<int>(GraphRef.Params.n_batch)) {
     int NEval = static_cast<int>(Tokens.size()) - I;
@@ -103,7 +103,7 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
 }
 } // namespace
 
-// Evaluate the input tokens. Clean all inputs if succeeded.
+// Evaluate the input tokens. Clear all inputs on success.
 ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                     std::string_view LogPrefix) noexcept {
   // Check if the input is set before setting up the context.

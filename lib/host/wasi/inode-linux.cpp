@@ -218,7 +218,7 @@ WasiExpect<void> INode::fdAllocate(__wasi_filesize_t Offset,
                                    __wasi_filesize_t Len) const noexcept {
   if (auto Res = ::posix_fallocate(Fd, Offset, Len); unlikely(Res != 0)) {
     // https://man7.org/linux/man-pages/man3/posix_fallocate.3.html
-    // posix_fallocate will not set errno, use return the value directly.
+    // posix_fallocate will not set errno, so use the return value directly.
     return WasiUnexpect(fromErrNo(Res));
   }
 
@@ -975,8 +975,8 @@ static VarAddrT sockAddressAssignHelper(__wasi_address_family_t AddrFamily,
     auto &ServerAddrUN = Addr.emplace<sockaddr_un>();
 
     ServerAddrUN.sun_family = AF_UNIX;
-    // The length of sockaddr_un::sun_path is depend on cruuent system
-    // We should always check the size of it.
+    // The length of sockaddr_un::sun_path depends on the current system.
+    // We should always check its size.
     assuming(Address.size() >= sizeof(sockaddr_un::sun_path));
     std::memcpy(&ServerAddrUN.sun_path, Address.data(),
                 sizeof(sockaddr_un::sun_path));
@@ -1098,7 +1098,7 @@ WasiExpect<void> INode::sockRecvFrom(Span<Span<uint8_t>> RiData,
     switch (SockAddr.ss_family) {
     case AF_UNSPEC: {
       spdlog::warn("remote address unavailable"sv);
-      // if ss_family is AF_UNSPEC, the access of the other members are
+      // If ss_family is AF_UNSPEC, accessing the other members is
       // undefined.
       break;
     }
@@ -1494,8 +1494,8 @@ WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
     SysFlags |= TFD_TIMER_ABSTIME;
   }
-  // Zero timeout has a special meaning. When the itimerspec is set to 0, then
-  // it will disarm timer.
+  // Zero timeout has a special meaning. When itimerspec is set to 0, it will
+  // disarm the timer.
   Timeout = std::max<__wasi_timestamp_t>(Timeout, 1U);
   itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
   if (auto Res = ::timerfd_settime(Fd, SysFlags, &Spec, nullptr);
@@ -1571,8 +1571,8 @@ WasiExpect<void> Poller::Timer::setTime(__wasi_timestamp_t Timeout,
   if (Flags & __WASI_SUBCLOCKFLAGS_SUBSCRIPTION_CLOCK_ABSTIME) {
     SysFlags |= TIMER_ABSTIME;
   }
-  // Zero timeout has a special meaning. When the itimerspec is set to 0, then
-  // it will disarm timer.
+  // Zero timeout has a special meaning. When itimerspec is set to 0, it will
+  // disarm the timer.
   Timeout = std::max<__wasi_timestamp_t>(Timeout, 1U);
   itimerspec Spec{toTimespec(0), toTimespec(Timeout)};
   if (auto Res = ::timer_settime(*TimerId.Id, SysFlags, &Spec, nullptr);

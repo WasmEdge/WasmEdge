@@ -8,7 +8,7 @@ curl -s -L -O --remote-name-all https://www.openssl.org/source/openssl-1.1.1n.ta
 echo "40dceb51a4f6a5275bde0e6bf20ef4b91bfc32ed57c0552e2e8e15463372b17a openssl-1.1.1n.tar.gz" | sha256sum -c
 tar -xf openssl-1.1.1n.tar.gz
 cd ./openssl-1.1.1n
-# OpenSSL configure need newer perl
+# Configuring OpenSSL requires newer Perl.
 curl -s -L -O --remote-name-all https://www.cpan.org/src/5.0/perl-5.34.0.tar.gz
 tar -xf perl-5.34.0.tar.gz
 cd perl-5.34.0

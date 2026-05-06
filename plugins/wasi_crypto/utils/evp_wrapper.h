@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of OpenSSL evp relative function.
+/// This file contains the definitions of OpenSSL EVP-related functions.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -55,7 +55,7 @@ using EcdsaSigPtr = OpenSSLUniquePtr<ECDSA_SIG, ECDSA_SIG_free>;
 using RsaPtr = OpenSSLUniquePtr<RSA, RSA_free>;
 
 /// OpenSSL functions always return 1 for success and 0/NULL for failure. This
-/// is used to reduce repeating checking.
+/// is used to reduce repeated checks.
 #ifdef NDEBUG
 #define opensslCheck(Cond)                                                     \
   do {                                                                         \
@@ -114,13 +114,13 @@ WasiCryptoExpect<std::vector<uint8_t>> i2dEcdsaSig(ECDSA_SIG *Sig);
 // Transform raw represent ecdsa ( r | s) to ECDSA_SIG. Need to check `nullptr`.
 ECDSA_SIG *o2iEcdsaSig(Span<const uint8_t> Encoded);
 
-// Transform ECDSA_SIG to raw represent ( r | s).
+// Transform ECDSA_SIG to raw representation (r | s).
 WasiCryptoExpect<std::vector<uint8_t>> i2oEcdsaSig(ECDSA_SIG *Sig);
 
-// This is a wrapper for EVP_PKEY, since EVP_PKEY inner use lock to guarantee
-// thread-safe `EVP_PKEY_up_ref` (you will find them in crypto/evp/p_lib.c in
-// OpenSSL v1.1.1), use shared_ptr for `EVP_PKEY` is wasted.
-// It only provide limits function to correct use.
+// This is a wrapper for EVP_PKEY. Since EVP_PKEY internally uses locks to
+// guarantee thread-safe `EVP_PKEY_up_ref` (you will find them in
+// crypto/evp/p_lib.c in OpenSSL v1.1.1), using shared_ptr for `EVP_PKEY` is
+// wasteful. It only provides limited functions for correct use.
 class SharedEvpPkey {
 public:
   SharedEvpPkey(EvpPkeyPtr Pkey) noexcept : Pkey(Pkey.release()) {}
@@ -128,7 +128,8 @@ public:
 
   SharedEvpPkey(const SharedEvpPkey &Rhs) noexcept;
   SharedEvpPkey(SharedEvpPkey &&Rhs) noexcept;
-  // Assigning to existing SharedEvpPkey is not thread-safe, delete them.
+  // Assigning to an existing SharedEvpPkey is not thread-safe, so delete the
+  // assignment operators.
   SharedEvpPkey &operator=(const SharedEvpPkey &Rhs) noexcept = delete;
   SharedEvpPkey &operator=(SharedEvpPkey &&Rhs) noexcept = delete;
 

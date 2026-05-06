@@ -44,7 +44,7 @@ public:
       : Padding(Padding), Stride(Stride), Dilation(Dilation), Groups(Groups) {
 
     if (InChannels % Groups != 0) {
-      // InChannels must be divisible by Groups
+      // InChannels must be divisible by Groups.
       assumingUnreachable();
     }
     double Scale = std::sqrt(1.0 / (InChannels * KernelSize * KernelSize));

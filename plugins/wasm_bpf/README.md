@@ -1,25 +1,26 @@
 # wasm_bpf Plugin
 
-This plugin added six host functions that give you Wasm application access to eBPF.
+This plugin adds six host functions that give Wasm applications access to eBPF.
 
-Six functions are listed here. And all of them are in the module `wasm_bpf`, if you loaded this plugin.
+The six functions are listed here. All of them are in the `wasm_bpf` module when
+this plugin is loaded.
 
 ```c
-/// lookup a bpf map fd by name.
+/// look up a BPF map fd by name.
 i32 wasm_bpf_map_fd_by_name(u64 obj, u32 name);
-/// detach and close a bpf program.
+/// detach and close a BPF program.
 i32 wasm_close_bpf_object(u64 obj);
-/// CO-RE load a bpf object into the kernel.
+/// CO-RE load a BPF object into the kernel.
 u64 wasm_load_bpf_object(u32 obj_buf, u32 obj_buf_sz);
-/// attach a bpf program to a kernel hook.
+/// attach a BPF program to a kernel hook.
 i32 wasm_attach_bpf_program(u64 obj, u32 name,
                             u32 attach_target);
-/// poll a bpf buffer, and call a wasm callback indicated by sample_func.
-/// the first time to call this function will open and create a bpf buffer.
+/// poll a BPF buffer and call a Wasm callback indicated by sample_func.
+/// the first call to this function will open and create a BPF buffer.
 i32 wasm_bpf_buffer_poll(u64 program, i32 fd, u32 sample_func,
                          u32 ctx, u32 data, i32 max_size,
                          i32 timeout_ms);
-/// lookup, update, delete, and get_next_key operations on a bpf map.
+/// perform lookup, update, delete, and get_next_key operations on a BPF map.
 i32 wasm_bpf_map_operate(u64 fd, i32 cmd, u32 key, u32 value,
                          u32 next_key, u64 flags);
 ```

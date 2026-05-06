@@ -134,7 +134,7 @@ public:
 
 TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   using namespace std::literals::string_view_literals;
-  // Test loading and attaching a bpf program, and polling buffer
+  // Test loading and attaching a BPF program and polling a buffer.
   auto module = createModule();
   ASSERT_TRUE(module);
 
@@ -153,10 +153,10 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   namespace fs = std::filesystem;
   auto bpfObject = getAssertsPath() / "bootstrap.bpf.o";
 
-  // Ensure the bpf object we need exists
+  // Ensure the BPF object we need exists.
   EXPECT_TRUE(fs::exists(bpfObject));
 
-  // Read the bpf object into wasm memory
+  // Read the BPF object into Wasm memory.
   std::ifstream bpfObjStream(bpfObject);
   EXPECT_TRUE(bpfObjStream.is_open());
   EXPECT_TRUE(bpfObjStream.good());
@@ -165,11 +165,11 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
       std::istreambuf_iterator<char>());
   EXPECT_FALSE(bpfObjectBytes.empty());
 
-  // Fill bpf object into memory
+  // Fill memory with the BPF object.
   const uint32_t bpfObjectMemoryOffset = 1;
   fillMemContent(memoryInstRef, bpfObjectMemoryOffset, bpfObjectBytes);
 
-  // Fill `handle_exec`, the bpf function name, into memory
+  // Write `handle_exec`, the BPF function name, to memory.
   const uint32_t targetHandleExecNameMemoryOffset =
       bpfObjectMemoryOffset + static_cast<uint32_t>(bpfObjectBytes.size());
   const std::string targetHandleExecName("handle_exec");
@@ -181,7 +181,7 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   fillMemContent(memoryInstRef, targetHandleExecNameMemoryOffset,
                  targetHandleExecNameBytes);
 
-  // Fill `handle_exit`, the bpf function name, into memory
+  // Write `handle_exit`, the BPF function name, to memory.
   const uint32_t targetHandleExitNameMemoryOffset =
       targetHandleExecNameMemoryOffset +
       static_cast<uint32_t>(targetHandleExecNameBytes.size());
@@ -204,7 +204,7 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   std::copy(mapName.begin(), mapName.end(), mapNameBytes.begin());
   fillMemContent(memoryInstRef, mapNameMemoryOffset, mapNameBytes);
 
-  // Prepare a memory area for storing polled things
+  // Prepare a memory area for storing polled items.
   const uint32_t bufferPollMemoryOffset =
       mapNameMemoryOffset + static_cast<uint32_t>(mapNameBytes.size());
   const uint32_t bufferPollSize = 1024;
@@ -280,13 +280,13 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
   auto mapFd = mapFdResult[0].get<int32_t>();
   EXPECT_GE(mapFd, 0);
 
-  // In the following several steps we will prepare for polling
-  // Create an instance of the polling callback function
+  // In the following steps we prepare for polling.
+  // Create an instance of the polling callback function.
   moduleInst.addHostFunc("__polling_callback_hostfunc"sv,
                          std::make_unique<PollCallbackFunction>());
   auto *callbackFuncInst =
       moduleInst.findFuncExports("__polling_callback_hostfunc");
-  // Create a function table, and fill the callback function into it
+  // Create a function table and fill it with the callback function.
   auto funcTableInst =
       std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
           WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1));
@@ -348,7 +348,7 @@ struct hist {
 } __attribute__((packed));
 
 TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
-  // Test loading and attaching a bpf program, and polling buffer
+  // Test loading and attaching a BPF program and polling a buffer.
   auto module = createModule();
   ASSERT_TRUE(module);
 
@@ -366,10 +366,10 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
   namespace fs = std::filesystem;
   auto bpfObject = getAssertsPath() / "runqlat.bpf.o";
 
-  // Ensure the bpf object we need exists
+  // Ensure the BPF object we need exists.
   EXPECT_TRUE(fs::exists(bpfObject));
 
-  // Read the bpf object into wasm memory
+  // Read the BPF object into Wasm memory.
   std::ifstream bpfObjStream(bpfObject);
   EXPECT_TRUE(bpfObjStream.is_open());
   EXPECT_TRUE(bpfObjStream.good());
@@ -377,15 +377,15 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
       (std::istreambuf_iterator<char>(bpfObjStream)),
       std::istreambuf_iterator<char>());
   EXPECT_FALSE(bpfObjectBytes.empty());
-  // Offset to put things into memory
+  // Offset used to place data in memory.
   uint32_t nextOffset = 1;
 
-  // Put the bpf object into memory
+  // Put the BPF object in memory.
   const uint32_t bpfObjectMemoryOffset = nextOffset;
   fillMemContent(memoryInstRef, bpfObjectMemoryOffset, bpfObjectBytes);
   nextOffset += static_cast<uint32_t>(bpfObjectBytes.size());
 
-  // Fill strings that will be used into memory
+  // Write the strings to memory.
   std::array<const char *, 5> strings = {
       "hists",                                            // Map name
       "sched_wakeup", "sched_wakeup_new", "sched_switch", // Program names
@@ -482,7 +482,7 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
         callResult));
     return callResult[0].get<int32_t>();
   };
-  // Three helper functions that will be used
+  // Three helper functions used below.
   auto mapGetNextKey = [&](int32_t fd, uint32_t lookupKey,
                            uint32_t nextKey) -> int32_t {
     // lookupKey is the last element -> returns -1
@@ -508,7 +508,7 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
                           3, // BPF_MAP_DELETE_ELEM
                           key, 0, 0, 0);
   };
-  // Three helper functions to make read & write more convenient
+  // Three helper functions that make reading and writing more convenient.
   auto readU32 = [&](uint32_t offset) -> uint32_t {
     const auto *ptr = memoryInstRef.getPointer<const uint32_t *>(offset);
     EXPECT_NE(ptr, nullptr);

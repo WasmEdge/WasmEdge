@@ -26,7 +26,7 @@ Expect<void> Executor::instantiate(Runtime::Instance::ModuleInstance &ModInst,
 
   // Iterate through the memory types to instantiate memory instances.
   for (const auto &MemType : MemSec.getContent()) {
-    // Create and add the memory instance into the module instance.
+    // Create and add the memory instance to the module instance.
     ModInst.addMemory(MemType, Conf.getRuntimeConfigure().getMaxMemoryPage());
     const auto Index = ModInst.getMemoryNum() - 1;
     Runtime::Instance::MemoryInstance *MemInst = *ModInst.getMemory(Index);

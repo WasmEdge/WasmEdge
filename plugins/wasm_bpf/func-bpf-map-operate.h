@@ -11,9 +11,9 @@
 namespace WasmEdge {
 namespace Host {
 
-/// Perform bpf map operations on a specified bpf map through map fd.
+/// Perform BPF map operations on a specified BPF map through a map fd.
 ///
-/// Return zero if succeed, others if error
+/// Returns zero on success; other values indicate errors.
 class BpfMapOperate : public WasmEdge::Runtime::HostFunction<BpfMapOperate> {
 public:
   BpfMapOperate(state_t state) : state(state) {}

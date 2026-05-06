@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains a class for mapping spare enum value to data.
+/// This file contains a class for mapping spare enum values to data.
 ///
 //===----------------------------------------------------------------------===//
 

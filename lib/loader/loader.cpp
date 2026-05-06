@@ -82,7 +82,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   };
 
   switch (FMgr.getHeaderType()) {
-  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
+  // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
   case FileMgr::FileHeader::ELF:
   case FileMgr::FileHeader::DLL:
@@ -142,7 +142,7 @@ Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
   EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
-  // Filter out the Windows .dll, MacOS .dylib, or Linux .so AOT compiled
+  // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled
   // shared-library-WASM.
   case FileMgr::FileHeader::ELF:
   case FileMgr::FileHeader::DLL:

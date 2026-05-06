@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the declaration of the Component node class, which is the
-/// component module node in AST.
+/// component module node in the AST.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -53,22 +53,22 @@ class Component {
                    ImportSection, ExportSection>;
 
 public:
-  /// Getter of magic vector.
+  /// Getter for magic vector.
   const std::vector<Byte> &getMagic() const noexcept { return Magic; }
   std::vector<Byte> &getMagic() noexcept { return Magic; }
 
-  /// Getter of version vector.
+  /// Getter for version vector.
   const std::vector<Byte> &getVersion() const noexcept { return Version; }
   std::vector<Byte> &getVersion() noexcept { return Version; }
 
-  /// Getter of layer vector.
+  /// Getter for layer vector.
   const std::vector<Byte> &getLayer() const noexcept { return Layer; }
   std::vector<Byte> &getLayer() noexcept { return Layer; }
 
   std::vector<Section> &getSections() noexcept { return Secs; }
   Span<const Section> getSections() const noexcept { return Secs; }
 
-  /// Getter and setter of validated flag.
+  /// Getter and setter for validated flag.
   bool getIsValidated() const noexcept { return IsValidated; }
   void setIsValidated(bool V = true) noexcept { IsValidated = V; }
 

@@ -53,7 +53,7 @@ static const uint32_t RESULT_VALUE_KEY = 0x7890;
 
 TEST(WasmBpfTest, SimpleMapTest) {
   using namespace std::string_view_literals;
-  // Test loading and attaching a bpf program, and some operations of maps
+  // Test loading and attaching a BPF program and some map operations.
   auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
   ASSERT_NE(module, nullptr);
 
@@ -72,10 +72,10 @@ TEST(WasmBpfTest, SimpleMapTest) {
   namespace fs = std::filesystem;
   auto bpfObject = getAssertsPath() / "simple_map.bpf.o";
 
-  // Ensure the bpf object we need exists
+  // Ensure the BPF object we need exists.
   ASSERT_TRUE(fs::exists(bpfObject));
 
-  // Read the bpf object into wasm memory
+  // Read the BPF object into Wasm memory.
   std::ifstream bpfObjStream(bpfObject);
   ASSERT_TRUE(bpfObjStream.is_open());
   ASSERT_TRUE(bpfObjStream.good());
@@ -83,15 +83,15 @@ TEST(WasmBpfTest, SimpleMapTest) {
       (std::istreambuf_iterator<char>(bpfObjStream)),
       std::istreambuf_iterator<char>());
   ASSERT_FALSE(bpfObjectBytes.empty());
-  // Offset to put things into memory
+  // Offset used to place data in memory.
   uint32_t nextOffset = 1;
 
-  // Put the bpf object into memory
+  // Put the BPF object in memory.
   const uint32_t bpfObjectMemoryOffset = nextOffset;
   fillMemContent(memoryInstRef, bpfObjectMemoryOffset, bpfObjectBytes);
   nextOffset += static_cast<uint32_t>(bpfObjectBytes.size());
 
-  // Fill strings that will be used into memory
+  // Write the strings to memory.
   std::array<const char *, 3> strings = {
       "test_map",     // Map name
       "sched_wakeup", // Program names
@@ -202,7 +202,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
                           key, value, 0, 0);
   };
 
-  // Helper functions to make read & write more convenient
+  // Helper functions that make reading and writing more convenient.
   auto readU64 = [&](uint32_t offset) -> uint64_t {
     const auto *ptr = memoryInstRef.getPointer<const uint64_t *>(offset);
     EXPECT_NE(ptr, nullptr);
@@ -220,8 +220,8 @@ TEST(WasmBpfTest, SimpleMapTest) {
     *ptr = val;
   };
 
-  // Generate two numbers, which will be stored in the map and calculated the
-  // summation by the ebpf program
+  // Generate two numbers, which will be stored in the map and summed by the
+  // eBPF program.
   std::mt19937 randGen;
   randGen.seed(std::random_device()());
   std::uniform_int_distribution<uint64_t> intDist(0,
@@ -229,7 +229,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
   uint64_t num1 = intDist(randGen);
   uint64_t num2 = intDist(randGen);
 
-  // Prepare for wasm memory which is used to store numbers
+  // Prepare Wasm memory to store numbers.
   const uint32_t numOffset1 = nextOffset;
   nextOffset += 8;
   const uint32_t numOffset2 = nextOffset;
@@ -257,16 +257,16 @@ TEST(WasmBpfTest, SimpleMapTest) {
 
   writeU64(resultOffset, 0);
 
-  // Write the add values into the map
+  // Write the addend values into the map.
   ASSERT_EQ(mapUpdateElem(mapFd, num1KeyOffset, numOffset1), 0);
   ASSERT_EQ(mapUpdateElem(mapFd, num2KeyOffset, numOffset2), 0);
 
-  // Write the indicating key
-  // Arbitrary values are correct. We only care the existence of the
-  // indicating key
+  // Write the indicator key.
+  // Arbitrary values are correct. We only care about the existence of the
+  // indicator key.
   ASSERT_EQ(mapUpdateElem(mapFd, indicatingKeyOffset, numOffset1), 0);
 
-  // Sleep for 1s and wait for the ebpf program to process..
+  // Sleep for 1s and wait for the eBPF program to process.
   std::this_thread::sleep_for(std::chrono::seconds(2));
 
   // Read the result and check it

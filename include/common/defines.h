@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains macro defines that tweak wasmedge internal.
+/// This file contains macro definitions that tweak WasmEdge internals.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

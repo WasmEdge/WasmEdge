@@ -133,7 +133,7 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  // Get the name of model
+  // Get the model name.
   auto Name = MemInst->getPointer<const uint32_t *>(NamePtr);
   if (unlikely(Name == nullptr)) {
     spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);
@@ -158,7 +158,7 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
-  // Get the model
+  // Get the model.
   std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);
   if (Env.mdGet(ModelName, *GraphId)) {
     return WASINN::ErrNo::Success;
@@ -183,14 +183,14 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  // Get the name of model
+  // Get the model name.
   auto Name = MemInst->getPointer<const uint32_t *>(NamePtr);
   if (unlikely(Name == nullptr)) {
     spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  // Get the config of model
+  // Get the model config.
   auto Config = MemInst->getPointer<const uint32_t *>(ConfigPtr);
   if (unlikely(Config == nullptr)) {
     spdlog::error(
@@ -218,7 +218,7 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
-  // Get the model
+  // Get the model.
   std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);
   std::vector<uint8_t> ModelConfig(reinterpret_cast<const uint8_t *>(Config),
                                    reinterpret_cast<const uint8_t *>(Config) +

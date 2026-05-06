@@ -30,14 +30,14 @@ public:
              !Val.get<RefVariant>().isNull());
   }
 
-  /// Getter of global type.
+  /// Getter for global type.
   const AST::GlobalType &getGlobalType() const noexcept { return GlobType; }
 
-  /// Getter of value.
+  /// Getter for value.
   const ValVariant &getValue() const noexcept { return Value; }
   ValVariant &getValue() noexcept { return Value; }
 
-  /// Setter of value.
+  /// Setter for value.
   void setValue(const ValVariant &Val) noexcept { Value = Val; }
 
 private:

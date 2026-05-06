@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of caching compiled WASM.
+/// This file contains unit tests for caching compiled WASM.
 ///
 //===----------------------------------------------------------------------===//
 

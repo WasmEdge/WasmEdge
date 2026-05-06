@@ -25,7 +25,7 @@ public:
   TagInstance(const AST::TagType &T, const AST::SubType *F) noexcept
       : TgType(T.getTypeIdx(), F) {}
 
-  /// Getter of tag type.
+  /// Getter for tag type.
   const AST::TagType &getTagType() const noexcept { return TgType; }
 
 private:

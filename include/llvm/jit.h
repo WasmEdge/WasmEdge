@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file is the definition class of JIT engine class.
+/// This file defines the JIT engine class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

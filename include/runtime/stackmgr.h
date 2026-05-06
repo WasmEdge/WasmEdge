@@ -57,29 +57,29 @@ public:
   }
   ~StackManager() = default;
 
-  /// Getter of stack size.
+  /// Getter for stack size.
   size_t size() const noexcept { return ValueStack.size(); }
 
-  /// Unsafe getter of top entry of stack.
+  /// Unsafe getter for the top entry of the stack.
   Value &getTop() { return ValueStack.back(); }
 
-  /// Unsafe getter of top N-th value entry of stack.
+  /// Unsafe getter for the N-th value entry from the top of the stack.
   Value &getTopN(uint32_t Offset) noexcept {
     assuming(0 < Offset && Offset <= ValueStack.size());
     return ValueStack[ValueStack.size() - Offset];
   }
 
-  /// Unsafe getter of top N value entries of stack.
+  /// Unsafe getter for the top N value entries of the stack.
   Span<Value> getTopSpan(uint32_t N) {
     return Span<Value>(ValueStack.end() - N, N);
   }
 
-  /// Push a new value entry to stack.
+  /// Push a new value entry to the stack.
   template <typename T> void push(T &&Val) {
     ValueStack.push_back(std::forward<T>(Val));
   }
 
-  /// Push a vector of value to stack
+  /// Push a vector of values to the stack.
   void pushValVec(const std::vector<Value> &ValVec) {
     ValueStack.insert(ValueStack.end(), ValVec.begin(), ValVec.end());
   }
@@ -100,7 +100,7 @@ public:
     return Vec;
   }
 
-  /// Push a new frame entry to stack.
+  /// Push a new frame entry to the stack.
   void pushFrame(const Instance::ModuleInstance *Module,
                  AST::InstrView::iterator From, uint32_t LocalNum = 0,
                  uint32_t Arity = 0, bool IsTailCall = false) noexcept {
@@ -221,7 +221,7 @@ public:
   }
 
 private:
-  /// \name Data of stack manager.
+  /// \name Data of the stack manager.
   /// @{
   std::vector<Value> ValueStack;
   std::vector<Frame> FrameStack;

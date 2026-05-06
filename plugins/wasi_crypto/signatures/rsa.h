@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of rsa and related classes.
+/// This file contains the declaration of RSA and related classes.
 ///
 //===----------------------------------------------------------------------===//
 

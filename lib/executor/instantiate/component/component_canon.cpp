@@ -26,8 +26,12 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
       assuming(MemInst != nullptr);
       std::string_view Str = std::get<std::string>(Vals[I++]);
       uint32_t StrSize = static_cast<uint32_t>(Str.size());
+      // realloc(old_ptr=0, old_size=0, alignment=1, new_size=StrSize)
+      // Alignment = 1 for UTF-8 strings (CanonicalABI spec L2432).
+      // TODO: When UTF-16 or Latin1+UTF16 encoding support is added,
+      // alignment should be 2 (CanonicalABI spec L2438, L2446).
       std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
-                                          ValVariant(0), ValVariant(StrSize)};
+                                          ValVariant(1), ValVariant(StrSize)};
       std::vector<ValType> ReallocTypes =
           RFuncInst->getFuncType().getParamTypes();
       auto AllocRes = invoke(RFuncInst, ReallocArgs, ReallocTypes);

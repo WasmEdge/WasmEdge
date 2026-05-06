@@ -52,36 +52,50 @@ jobs:
         if: ${{ !inputs.release }}
         run: |
           brew install grpc
-      - name: Check LLVM and LLD version match
-        id: check-versions
+      - name: Resolve matching lld formula
+        id: resolve-lld
         run: |
           LLVM_VERSION=$(brew info --json llvm | jq -r '.[0].versions.stable')
           LLD_VERSION=$(brew info --json WasmEdge/llvm/lld | jq -r '.[0].versions.stable')
-          echo "llvm_version=${LLVM_VERSION}" >> $GITHUB_OUTPUT
-          echo "lld_version=${LLD_VERSION}" >> $GITHUB_OUTPUT
           echo "Homebrew LLVM version: ${LLVM_VERSION}"
           echo "WasmEdge/llvm/lld version: ${LLD_VERSION}"
-          if [ "${LLVM_VERSION}" != "${LLD_VERSION}" ]; then
-            echo "::error::LLVM version mismatch: brew llvm=${LLVM_VERSION}, WasmEdge/llvm/lld=${LLD_VERSION}. Please update the WasmEdge/llvm/lld formula to match."
-            exit 1
+          if [ "${LLVM_VERSION}" = "${LLD_VERSION}" ]; then
+            LLD_FORMULA="WasmEdge/llvm/lld"
+            LLD_KEG="lld"
+            echo "Versions match: ${LLVM_VERSION}"
+          else
+            OLDER=$(printf '%s\n%s\n' "${LLVM_VERSION}" "${LLD_VERSION}" | sort -V | head -n1)
+            if [ "${OLDER}" = "${LLD_VERSION}" ]; then
+              echo "Homebrew LLVM (${LLVM_VERSION}) is newer than WasmEdge/llvm/lld (${LLD_VERSION}). Please update the WasmEdge/llvm/lld formula to match."
+              exit 1
+            fi
+            LLD_FORMULA="WasmEdge/llvm/lld@${LLVM_VERSION}"
+            LLD_KEG="lld@${LLVM_VERSION}"
+            echo "Homebrew LLVM (${LLVM_VERSION}) is older than WasmEdge/llvm/lld (${LLD_VERSION}); pinning to ${LLD_FORMULA}"
           fi
-          echo "Versions match: ${LLVM_VERSION}"
+          echo "llvm_version=${LLVM_VERSION}" >> $GITHUB_OUTPUT
+          echo "lld_formula=${LLD_FORMULA}" >> $GITHUB_OUTPUT
+          echo "lld_keg=${LLD_KEG}" >> $GITHUB_OUTPUT
       - name: Cache lld and cmake
         id: cache-lld
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
-            ${{ env.BREW_PREFIX }}/Cellar/lld
+            ${{ env.BREW_PREFIX }}/Cellar/${{ steps.resolve-lld.outputs.lld_keg }}
             ${{ env.BREW_PREFIX }}/Cellar/cmake
-          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.check-versions.outputs.lld_version }}
+          key: homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.resolve-lld.outputs.llvm_version }}
           restore-keys: |
-            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.check-versions.outputs.lld_version }}
+            homebrew-cellar-lld-${{ runner.os }}-${{ matrix.arch }}-${{ steps.resolve-lld.outputs.llvm_version }}
       - name: Install or link lld and cmake
+        env:
+          LLD_FORMULA: ${{ steps.resolve-lld.outputs.lld_formula }}
+          LLD_KEG: ${{ steps.resolve-lld.outputs.lld_keg }}
+          CACHE_HIT: ${{ steps.cache-lld.outputs.cache-hit }}
         run: |
-          if [ "${{ steps.cache-lld.outputs.cache-hit }}" != "true" ]; then
-            brew install --build-from-source WasmEdge/llvm/lld
+          if [ "${CACHE_HIT}" != "true" ]; then
+            brew install --build-from-source "${LLD_FORMULA}"
           fi
-          brew link lld || true
+          brew link "${LLD_KEG}" || true
           brew link cmake || true
       - name: Set environment variables for release
         if: ${{ inputs.release }}
@@ -89,6 +103,8 @@ jobs:
           echo "BUILD_TESTS=OFF" | tee -a $GITHUB_ENV
           echo "BUILD_TYPE=Release" | tee -a $GITHUB_ENV
       - name: Build WasmEdge
+        env:
+          LLD_KEG: ${{ steps.resolve-lld.outputs.lld_keg }}
         run: |
           export CC=clang
           export CXX=clang++
@@ -96,7 +112,7 @@ jobs:
           mkdir -p output
           cmake -Bbuild -GNinja -DCMAKE_BUILD_TYPE=$BUILD_TYPE \
             -DLLVM_DIR:PATH="$(brew --prefix)/opt/llvm/lib/cmake/llvm" \
-            -DLLD_DIR:PATH="$(brew --prefix)/opt/lld/lib/cmake/lld" \
+            -DLLD_DIR:PATH="$(brew --prefix)/opt/${LLD_KEG}/lib/cmake/lld" \
             -DWASMEDGE_BUILD_TESTS=$BUILD_TESTS \
             -DWASMEDGE_LINK_LLVM_STATIC=ON \
             -DWASMEDGE_BUILD_PACKAGE="TGZ" \

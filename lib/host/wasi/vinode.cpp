@@ -393,7 +393,7 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
         return Buffer;
       }
 
-      __wasi_filestat_t Filestat;
+      __wasi_filestat_t Filestat {};
       if (auto Res = Fd->Node.pathFilestatGet(std::string(Part), Filestat);
           unlikely(!Res)) {
         if (LastPart) {

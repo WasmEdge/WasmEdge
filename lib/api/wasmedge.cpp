@@ -2662,7 +2662,12 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_ModuleInstanceAddGlobal(
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_ModuleInstanceDelete(WasmEdge_ModuleInstanceContext *Cxt) noexcept {
-  delete fromModCxt(Cxt);
+  if (Cxt) {
+    auto *Mod = fromModCxt(Cxt);
+    if (Mod) {
+      Mod->terminate();
+    }
+  }
 }
 
 // <<<<<<<< WasmEdge module instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -3532,8 +3537,9 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) noexcept {
   }
 }
 
-void WasmEdge_VMForceDeleteRegisteredModule(
-    const WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName) noexcept {
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_VMDeleteRegisteredModule(const WasmEdge_VMContext *Cxt,
+                                  const WasmEdge_String ModuleName) noexcept {
   if (!Cxt || !ModuleName.Buf) {
     return; // Invalid input
   }
@@ -3545,13 +3551,21 @@ void WasmEdge_VMForceDeleteRegisteredModule(
     return; // Invalid store context
   }
 
+  // Unregister from VM
+  (const_cast<WasmEdge_VMContext *>(Cxt)->VM)
+      .unregisterModule(genStrView(ModuleName));
+
   const WasmEdge_ModuleInstanceContext *ModInst =
       WasmEdge_StoreFindModule(StoreCxt, ModuleName);
   if (ModInst) {
+    // Unregister from StoreManager
     fromStoreCxt(StoreCxt)->unregisterModule(genStrView(ModuleName));
-    WasmEdge_ModuleInstanceDelete(
-        const_cast<WasmEdge_ModuleInstanceContext *>(ModInst));
   }
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_VMForceDeleteRegisteredModule(
+    const WasmEdge_VMContext *Cxt, const WasmEdge_String ModuleName) noexcept {
+  WasmEdge_VMDeleteRegisteredModule(Cxt, ModuleName);
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t

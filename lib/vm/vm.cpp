@@ -88,7 +88,7 @@ void VM::unsafeInitVM() {
 void VM::unsafeLoadBuiltInHosts() {
   // Load the built-in host modules from configuration.
   // TODO: This will be extended for the versionlized WASI in the future.
-  BuiltInModInsts.clear();
+  cleanupModInstContainer(BuiltInModInsts);
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
         std::make_unique<Host::WasiModule>();
@@ -99,7 +99,7 @@ void VM::unsafeLoadBuiltInHosts() {
 void VM::unsafeLoadPlugInHosts() {
   // Load the plugins and mock them if not found.
   using namespace std::literals::string_view_literals;
-  PlugInModInsts.clear();
+  cleanupModInstContainer(PlugInModInsts);
 
   PlugInModInsts.push_back(
       createPluginModule<Host::WasiNNModuleMock>("wasi_nn"sv, "wasi_nn"sv));
@@ -210,7 +210,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   // Instantiate and register module.
   EXPECTED_TRY(auto ModInst,
                ExecutorEngine.registerModule(StoreRef, Module, Name));
-  RegModInsts.push_back(std::move(ModInst));
+  RegModInsts.emplace(std::string(Name), std::move(ModInst));
   return {};
 }
 
@@ -223,6 +223,40 @@ VM::unsafeRegisterModule(std::string_view Name,
     Stage = VMStage::Validated;
   }
   return ExecutorEngine.registerModule(StoreRef, ModInst, Name);
+}
+
+Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
+  auto RegIt = RegModInsts.find(std::string(Name));
+  if (RegIt != RegModInsts.end()) {
+    auto *Mod = RegIt->second.release();
+    RegModInsts.erase(RegIt);
+    if (Mod) {
+      Mod->terminate();
+    }
+    return {};
+  }
+  for (auto It = BuiltInModInsts.begin(); It != BuiltInModInsts.end(); ++It) {
+    if (It->second && It->second->getModuleName() == Name) {
+      auto *Mod = It->second.release();
+      BuiltInModInsts.erase(It);
+      if (Mod) {
+        Mod->terminate();
+      }
+      return {};
+    }
+  }
+  for (auto It = PlugInModInsts.begin(); It != PlugInModInsts.end(); ++It) {
+    if (*It && (*It)->getModuleName() == Name) {
+      auto *Mod = It->release();
+      PlugInModInsts.erase(It);
+      if (Mod) {
+        Mod->terminate();
+      }
+      return {};
+    }
+  }
+
+  return {};
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -645,13 +679,16 @@ void VM::unsafeCleanup() {
     Comp.reset();
   }
   if (ActiveModInst) {
-    ActiveModInst.reset();
+    auto *RawMod = ActiveModInst.release();
+    if (RawMod) {
+      RawMod->terminate();
+    }
   }
   if (ActiveCompInst) {
     ActiveCompInst.reset();
   }
   StoreRef.reset();
-  RegModInsts.clear();
+  cleanupModInstContainer(RegModInsts);
   Stat.clear();
   unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();

@@ -69,11 +69,42 @@ detect_libcudart() {
 }
 
 _realpath() {
-	[[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+	# Properly resolve relative paths to absolute paths
+	local path="$1"
+	if [[ "$path" = /* ]]; then
+		echo "$path"
+	else
+		# Use cd and pwd to resolve the absolute path, including handling .. and .
+		# This works even if the directory doesn't exist yet by resolving the parent
+		local dir
+		local base
+		if [[ "$path" == */* ]]; then
+			dir="${path%/*}"
+			base="${path##*/}"
+		else
+			dir="."
+			base="$path"
+		fi
+		
+		# Handle cases where dir is empty (path was "filename")
+		[[ "$dir" == "$path" ]] && dir="."
+		
+		# Get absolute path of parent directory
+		local abs_dir
+		abs_dir="$(cd "$dir" 2>/dev/null && pwd)" || abs_dir="$(cd "$dir" 2>/dev/null && pwd -P)" || abs_dir="$PWD/$dir"
+		
+		if [[ "$base" == "." ]] || [[ "$base" == ".." ]]; then
+			# If base is . or .., we need to resolve it
+			echo "$(cd "$path" 2>/dev/null && pwd)" || echo "$abs_dir/$base"
+		else
+			echo "$abs_dir/$base"
+		fi
+	fi
 }
 
 _downloader() {
 	local url=$1
+	local original_pwd="$PWD"
 	if ! command -v curl &>/dev/null; then
 		if ! command -v wget &>/dev/null; then
 			error "Cannot find wget or curl"
@@ -83,9 +114,9 @@ _downloader() {
 			wget -c --directory-prefix="$TMP_DIR" "$url"
 		fi
 	else
-		pushd "$TMP_DIR"
+		pushd "$TMP_DIR" >/dev/null 2>&1
 		curl --progress-bar -L -OC0 "$url"
-		popd
+		popd >/dev/null 2>&1
 	fi
 }
 
@@ -222,7 +253,7 @@ check_os_arch() {
 		'Windows_NT' | MINGW*)
 			error "Detected ${OS} - currently unsupported"
 			eprintf "Please download WasmEdge manually from the release page:"
-			eprintf "https://github.com/WasmEdge/WasmEdge/releases/latest"
+			eprintf "https://github.com/WasmEdge/WasmEdge/releases/latest  "
 			exit 1
 			;;
 		*)
@@ -244,66 +275,106 @@ BY_PASS_CUDA_VERSION="0"
 BY_PASS_CUDART="0"
 
 set_ENV() {
+	# POSIX/Bash version
 	ENV="#!/bin/sh
-	# wasmedge shell setup
-	# affix colons on either side of \$PATH to simplify matching
-	case ":\"\${PATH}\":" in
-		*:\"$1/bin\":*)
-			;;
-		*)
-			# Prepending path in case a system-installed wasmedge needs to be overridden
-			if [ -n \"\${PATH}\" ]; then
-				export PATH=\"$1/bin\":\$PATH
-			else
-				export PATH=\"$1/bin\"
-		fi
-		;;
+# wasmedge shell setup
+# affix colons on either side of \$PATH to simplify matching
+case \":\${PATH}:\" in
+    *:\"$1/bin\":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed wasmedge needs to be overridden
+        if [ -n \"\${PATH}\" ]; then
+            export PATH=\"$1/bin\":\$PATH
+        else
+            export PATH=\"$1/bin\"
+        fi
+        ;;
 esac
-case ":\"\${"$_LD_LIBRARY_PATH_"}\":" in
-	*:\"$1/lib\":*)
-		;;
-	*)
-		# Prepending path in case a system-installed wasmedge libs needs to be overridden
-		if [ -n \"\${"$_LD_LIBRARY_PATH_"}\" ]; then
-			export $_LD_LIBRARY_PATH_=\"$1/lib\":\$$_LD_LIBRARY_PATH_
-		else
-			export $_LD_LIBRARY_PATH_=\"$1/lib\"
-		fi
-		;;
+case \":\${${_LD_LIBRARY_PATH_}}:\" in
+    *:\"$1/lib\":*)
+        ;;
+    *)
+        # Prepending path in case a system-installed wasmedge libs needs to be overridden
+        if [ -n \"\${${_LD_LIBRARY_PATH_}}\" ]; then
+            export ${_LD_LIBRARY_PATH_}=\"$1/lib\":\$${_LD_LIBRARY_PATH_}
+        else
+            export ${_LD_LIBRARY_PATH_}=\"$1/lib\"
+        fi
+        ;;
 esac
-case ":\"\${"LIBRARY_PATH"}\":" in
-	*:\"$1/lib\":*)
-		;;
-	*)
-		if [ -n \"\${LIBRARY_PATH}\" ]; then
-			export LIBRARY_PATH=\"$1/lib\":\$LIBRARY_PATH
-		else
-			export LIBRARY_PATH=\"$1/lib\"
-		fi
-		;;
+case \":\${LIBRARY_PATH}:\" in
+    *:\"$1/lib\":*)
+        ;;
+    *)
+        if [ -n \"\${LIBRARY_PATH}\" ]; then
+            export LIBRARY_PATH=\"$1/lib\":\$LIBRARY_PATH
+        else
+            export LIBRARY_PATH=\"$1/lib\"
+        fi
+        ;;
 esac
-case ":\"\${"C_INCLUDE_PATH"}\":" in
-	*:\"$1/include\":*)
-		;;
-	*)
-		if [ -n \"\${C_INCLUDE_PATH}\" ]; then
-			export C_INCLUDE_PATH=\"$1/include\":\$C_INCLUDE_PATH
-		else
-			export C_INCLUDE_PATH=\"$1/include\"
-		fi
-		;;
+case \":\${C_INCLUDE_PATH}:\" in
+    *:\"$1/include\":*)
+        ;;
+    *)
+        if [ -n \"\${C_INCLUDE_PATH}\" ]; then
+            export C_INCLUDE_PATH=\"$1/include\":\$C_INCLUDE_PATH
+        else
+            export C_INCLUDE_PATH=\"$1/include\"
+        fi
+        ;;
 esac
-case ":\"\${"CPLUS_INCLUDE_PATH"}\":" in
-	*:\"$1/include\":*)
-		;;
-	*)
-		if [ -n \"\${CPLUS_INCLUDE_PATH}\" ]; then
-			export CPLUS_INCLUDE_PATH=\"$1/include\":\$CPLUS_INCLUDE_PATH
-		else
-			export CPLUS_INCLUDE_PATH=\"$1/include\"
-		fi
-		;;
+case \":\${CPLUS_INCLUDE_PATH}:\" in
+    *:\"$1/include\":*)
+        ;;
+    *)
+        if [ -n \"\${CPLUS_INCLUDE_PATH}\" ]; then
+            export CPLUS_INCLUDE_PATH=\"$1/include\":\$CPLUS_INCLUDE_PATH
+        else
+            export CPLUS_INCLUDE_PATH=\"$1/include\"
+        fi
+        ;;
 esac"
+
+	# Fish version
+	ENV_FISH="#!/usr/bin/env fish
+
+# wasmedge shell setup for Fish
+function _wasmedge_prepend_path
+    set -l var_name \$argv[1]
+    set -l new_path \$argv[2]
+    
+    # Get current value - check universal, global, or inherited from environment
+    set -l current_path \"\"
+    if set -q -U \$var_name
+        set current_path \$\$var_name
+    else if set -q -g \$var_name
+        set current_path \$\$var_name
+    else if test -n \"\$$var_name\"
+        # Variable exists in environment but not as universal/global in fish
+        set current_path \"\$$var_name\"
+    end
+    
+    # Check if new_path is already in current_path
+    if test -n \"\$current_path\"
+        if not contains \$new_path (string split \":\" \$current_path)
+            set -gx \$var_name \"\$new_path:\$current_path\"
+        end
+    else
+        # If current_path is empty, just set to new_path
+        # (but this shouldn't happen for PATH as it should be inherited)
+        set -gx \$var_name \"\$new_path\"
+    end
+end
+
+_wasmedge_prepend_path PATH \"$1/bin\"
+_wasmedge_prepend_path ${_LD_LIBRARY_PATH_} \"$1/lib\"
+_wasmedge_prepend_path LIBRARY_PATH \"$1/lib\"
+_wasmedge_prepend_path C_INCLUDE_PATH \"$1/include\"
+_wasmedge_prepend_path CPLUS_INCLUDE_PATH \"$1/include\"
+
+functions -e _wasmedge_prepend_path"
 }
 
 usage() {
@@ -365,7 +436,7 @@ ${RED}
 	1. Please check --help for the correct usage.
 	2. Make a trace by re-running the installer with the -V flag if the issue persists.
 	3. Submit the reproduction steps and full trace log to the issue tracker
-https://github.com/WasmEdge/WasmEdge/issues/new?template=bug_report.yml
+https://github.com/WasmEdge/WasmEdge/issues/new?template=bug_report.yml  
 ${NC}
 EOF
 }
@@ -471,12 +542,12 @@ get_wasmedge_ggml_plugin() {
 			info "CUDA version is not detected from nvcc: Use the CPU version."
 			info "If you want to install cuda-11 or cuda-12 version manually, you can specify the following options:"
 			info "Use options '-c 11' (a.k.a. '--ggmlcuda=11') or '-c 12' (a.k.a. '--ggmlcuda=12')"
-			info "Please refer to the document for more information: https://wasmedge.org/docs/contribute/installer_v2/"
+			info "Please refer to the document for more information: https://wasmedge.org/docs/contribute/installer_v2/  "
 		elif [ "${cudart}" == "0" ]; then
 			info "libcudart.so is not found in the default installation path of CUDA: Use the CPU version."
 			info "If you want to install cuda-11 or cuda-12 version manually, you can specify the following options:"
 			info "Use options '-c 11' (a.k.a. '--ggmlcuda=11') or '-c 12' (a.k.a. '--ggmlcuda=12')"
-			info "Please refer to the document for more information: https://wasmedge.org/docs/contribute/installer_v2/"
+			info "Please refer to the document for more information: https://wasmedge.org/docs/contribute/installer_v2/  "
 			cuda="" # Reset cuda detection result because of the libcudart.so is not found.
 		fi
 
@@ -496,7 +567,7 @@ get_wasmedge_ggml_plugin() {
 		_downloader "https://github.com/WasmEdge/WasmEdge/releases/download/$VERSION/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-$VERSION-$RELEASE_PKG"
 	else
 		info "Use ${GGML_BUILD_NUMBER} GGML plugin"
-		_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/releases/download/${GGML_BUILD_NUMBER}/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
+		_downloader "https://github.com/second-state/WASI-NN-GGML-PLUGIN-REGISTRY/releases/download/$GGML_BUILD_NUMBER/WasmEdge-plugin-wasi_nn-ggml${CUDA_EXT}${NOAVX_EXT}-${VERSION}-${RELEASE_PKG}"
 	fi
 
 	local TMP_PLUGIN_DIR="${TMP_DIR}/${IPKG}/plugin"
@@ -529,7 +600,7 @@ main() {
 	local OPTIND
 	OPTLIST="e:h:l:v:p:b:c:o:a:t:V-:"
 	while getopts $OPTLIST OPT; do
-		# support long options: https://stackoverflow.com/a/28466267/519360
+		# support long options: https://stackoverflow.com/a/28466267/519360  
 		if [ "$OPT" = "-" ]; then   # long option: reformulate OPT and OPTARG
 			OPT="${OPTARG%%=*}"     # extract long option name
 			OPTARG="${OPTARG#$OPT}" # extract long option argument (may be empty)
@@ -607,15 +678,22 @@ main() {
 	# Setup the plugin folder if the installation path is not in the system path
 	[[ "$IPATH" =~ ^"/usr" ]] || mkdir -p "$IPATH/plugin"
 
+	# Write POSIX env file
 	echo "$ENV" >"$IPATH/env"
 	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env"
 
-	local _source="source \"$IPATH/env\""
+	# Write Fish env file
+	echo "$ENV_FISH" >"$IPATH/env.fish"
+	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env.fish"
+
+	# Update .profile for POSIX shells
+	local _source="[ -f \"$IPATH/env\" ] && source \"$IPATH/env\""
 	local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
 	if [ "$_grep" = "" ]; then
 		[ -f "$__HOME__/.profile" ] && echo "$_source" >>"$__HOME__/.profile"
 	fi
 
+	# Detect shell and update appropriate rc files
 	local _shell_ _shell_rc
 	_shell_="${SHELL#${SHELL%/*}/}"
 	_shell_rc=".""$_shell_""rc"
@@ -640,11 +718,27 @@ main() {
 				echo "$_source" >>"$__HOME__/.profile"
 			fi
 		fi
+	elif [[ "$_shell_" =~ "fish" ]]; then
+		# Fish shell configuration
+		local _fish_source="source \"$IPATH/env.fish\""
+		local _fish_config="$__HOME__/.config/fish/config.fish"
+		
+		# Ensure fish config directory exists
+		mkdir -p "$__HOME__/.config/fish"
+		
+		local _grep_fish=$(cat "$_fish_config" 2>/dev/null | grep "$IPATH/env.fish")
+		if [ "$_grep_fish" = "" ]; then
+			[ ! -f "$_fish_config" ] && touch "$_fish_config"
+			echo "$_fish_source" >>"$_fish_config"
+		fi
 	fi
 
-	local _grep=$(cat "$__HOME__/$_shell_rc" | grep "$IPATH/env")
-	if [ "$_grep" = "" ]; then
-		[ -f "$__HOME__/$_shell_rc" ] && echo "$_source" >>"$__HOME__/$_shell_rc"
+	# Also update shell rc file for POSIX shells
+	if [[ ! "$_shell_" =~ "fish" ]]; then
+		local _grep=$(cat "$__HOME__/$_shell_rc" 2>/dev/null | grep "$IPATH/env")
+		if [ "$_grep" = "" ]; then
+			[ -f "$__HOME__/$_shell_rc" ] && echo "$_source" >>"$__HOME__/$_shell_rc"
+		fi
 	fi
 
 	if [ -d "$IPATH" ]; then
@@ -673,7 +767,10 @@ end_message() {
 			echo "${GREEN}WasmEdge binaries accessible${NC}"
 			;;
 		*)
-			echo "${GREEN}source $IPATH/env${NC} to use wasmedge binaries"
+			echo "${GREEN}source $IPATH/env${NC} to use wasmedge binaries in sh/bash/zsh"
+			if [ -f "$IPATH/env.fish" ]; then
+				echo "${GREEN}source $IPATH/env.fish${NC} to use wasmedge binaries in fish"
+			fi
 			;;
 	esac
 }

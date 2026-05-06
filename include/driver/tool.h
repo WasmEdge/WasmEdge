@@ -183,8 +183,8 @@ struct DriverToolOptions {
   PO::Option<std::string> ConfRunMode;
   PO::Option<PO::Toggle> ConfAFUNIX;
   PO::Option<uint64_t> TimeLim;
-  PO::List<int> GasLim;
-  PO::List<int> MemLim;
+  PO::List<uint64_t> GasLim;
+  PO::List<uint64_t> MemLim;
   PO::List<std::string> ForbiddenPlugins;
   PO::Option<std::string> LogLevel;
 

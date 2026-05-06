@@ -10,9 +10,12 @@
 
 #include "po/error.h"
 #include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <fmt/format.h>
 #include <string>
+#include <string_view>
+#include <type_traits>
 #include <utility>
 
 namespace WasmEdge {
@@ -29,6 +32,21 @@ inline cxx20::expected<ResultT, Error>
 stringToInteger(ConvResultT (&Conv)(const char *, char **, int),
                 std::string Value) noexcept {
   using namespace std::literals;
+  // strtoul / strtoull silently wrap a leading '-' to a large unsigned value
+  // without setting ERANGE. Reject negatives explicitly when the target type
+  // is unsigned so users see a range error instead of an unintended limit.
+  if constexpr (std::is_unsigned_v<ResultT>) {
+    std::string_view Trimmed(Value);
+    while (!Trimmed.empty() &&
+           std::isspace(static_cast<unsigned char>(Trimmed.front()))) {
+      Trimmed.remove_prefix(1);
+    }
+    if (!Trimmed.empty() && Trimmed.front() == '-') {
+      return cxx20::unexpected<Error>(
+          std::in_place, ErrCode::OutOfRange,
+          fmt::format("integer value out of range: {}", Value));
+    }
+  }
   char *EndPtr;
   const char *CStr = Value.c_str();
   auto SavedErrNo = std::exchange(errno, 0);

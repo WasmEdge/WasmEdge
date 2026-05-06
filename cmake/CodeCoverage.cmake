@@ -207,7 +207,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_Fortran_COMPILER_ID STREQUAL "GNU
     link_libraries(gcov)
 endif()
 
-# Defines a target for running and collection code coverage information
+# Defines a target for running and collecting code coverage information
 # Builds dependencies, runs the given executable and outputs reports.
 # NOTE! The executable should always have a ZERO as exit code otherwise
 # the coverage generation will not complete.
@@ -365,7 +365,7 @@ function(setup_target_for_coverage_lcov)
 
 endfunction() # setup_target_for_coverage_lcov
 
-# Defines a target for running and collection code coverage information
+# Defines a target for running and collecting code coverage information
 # Builds dependencies, runs the given executable and outputs reports.
 # NOTE! The executable should always have a ZERO as exit code otherwise
 # the coverage generation will not complete.
@@ -457,7 +457,7 @@ function(setup_target_for_coverage_gcovr_xml)
     )
 endfunction() # setup_target_for_coverage_gcovr_xml
 
-# Defines a target for running and collection code coverage information
+# Defines a target for running and collecting code coverage information
 # Builds dependencies, runs the given executable and outputs reports.
 # NOTE! The executable should always have a ZERO as exit code otherwise
 # the coverage generation will not complete.
@@ -560,7 +560,7 @@ function(setup_target_for_coverage_gcovr_html)
 
 endfunction() # setup_target_for_coverage_gcovr_html
 
-# Defines a target for running and collection code coverage information
+# Defines a target for running and collecting code coverage information
 # Builds dependencies, runs the given executable and outputs reports.
 # NOTE! The executable should always have a ZERO as exit code otherwise
 # the coverage generation will not complete.

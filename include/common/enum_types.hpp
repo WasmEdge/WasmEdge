@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of WASM types related C++ enumerations.
+/// This file contains the definitions of WASM type-related C++ enumerations.
 ///
 //===----------------------------------------------------------------------===//
 

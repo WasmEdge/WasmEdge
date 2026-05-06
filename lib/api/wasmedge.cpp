@@ -212,7 +212,8 @@ inline WasmEdge_Value genWasmEdge_Value(const ValVariant &Val,
 // vector.
 inline std::pair<std::vector<ValVariant>, std::vector<ValType>>
 genParamPair(const WasmEdge_Value *Val, const uint32_t Len) {
-  // The nullable value in reference types checking is handled in executor.
+  // Nullable-value handling for reference-type checking is delegated to the
+  // executor.
   std::vector<ValVariant> VVec;
   std::vector<ValType> TVec;
   if (Val == nullptr) {
@@ -325,7 +326,7 @@ inline WasmEdge_Result wrap(T &&Proc, U &&Then, CxtT *...Cxts) noexcept {
   }
 }
 
-// Helper function of retrieving exported maps.
+// Helper function for retrieving exported maps.
 template <typename T>
 inline uint32_t fillMap(const std::map<std::string, T *, std::less<>> &Map,
                         WasmEdge_String *Names, const uint32_t Len) noexcept {
@@ -1838,7 +1839,7 @@ WasmEdge_ExportTypeGetTagType(const WasmEdge_ASTModuleContext *ASTCxt,
         ExtIdx--;
       }
     }
-    // Get the tag type
+    // Get the tag type.
     const auto &TagDescs = fromASTModCxt(ASTCxt)->getTagSection().getContent();
     if (ExtIdx >= TagDescs.size()) {
       return nullptr;
@@ -3571,7 +3572,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_VMGetFunctionList(
     const WasmEdge_FunctionTypeContext **FuncTypes,
     const uint32_t Len) noexcept {
   if (Cxt) {
-    // Not to use VM::getFunctionList() here because not to allocate the
+    // Do not use VM::getFunctionList() here because it would allocate the
     // returned function name strings.
     const auto *ModInst = Cxt->VM.getActiveModule();
     if (ModInst != nullptr) {

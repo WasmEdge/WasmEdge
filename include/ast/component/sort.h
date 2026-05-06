@@ -19,8 +19,8 @@ namespace WasmEdge {
 namespace AST {
 namespace Component {
 
-/// NOTE: The `sort` may be the `core:sort` case. Therefore it's more convenient
-/// to implement the `sort` and `core:sort` into a struct.
+/// NOTE: The `sort` may be the `core:sort` case. Therefore, it is more
+/// convenient to implement `sort` and `core:sort` in a single struct.
 
 // core:sort ::= 0x00                       => func
 //             | 0x01                       => table

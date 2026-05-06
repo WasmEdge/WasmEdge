@@ -331,7 +331,7 @@ TEST(WasmEdgeProcessTest, Run) {
   // Return value.
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
-  // Test: Run function failed to run "c++" without allowing all commands.
+  // Test: Run function fails to run "c++" without allowing all commands.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().Name = "c++";
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
@@ -345,7 +345,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(std::equal(ProcMod->getEnv().StdErr.begin(),
                          ProcMod->getEnv().StdErr.end(), ErrStr.begin()));
 
-  // Test: Run function successfully to run "c++" with allowing all commands.
+  // Test: Run function successfully to run "c++" while allowing all commands.
   ProcMod->getEnv().AllowedAll = true;
   ProcMod->getEnv().Name = "c++";
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
@@ -353,7 +353,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(ProcMod->getEnv().StdOut.size() == 0);
   EXPECT_TRUE(ProcMod->getEnv().StdErr.size() > 0);
 
-  // Test: Run function successfully to run "c++" with allowing this command.
+  // Test: Run function successfully to run "c++" while allowing this command.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().AllowedCmd.insert("c++");
   ProcMod->getEnv().Name = "c++";
@@ -362,7 +362,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(ProcMod->getEnv().StdOut.size() == 0);
   EXPECT_TRUE(ProcMod->getEnv().StdErr.size() > 0);
 
-  // Test: Run function successfully to run "/bin/echo" with allowing this
+  // Test: Run function successfully to run "/bin/echo" while allowing this
   // command.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().AllowedCmd.clear();

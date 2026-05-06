@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains a class for mapping enum value to data.
+/// This file contains a class for mapping enum values to data.
 ///
 //===----------------------------------------------------------------------===//
 

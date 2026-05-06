@@ -16,7 +16,7 @@ namespace Validator {
 
 namespace {
 
-// Helper function for printing error log of index out of range.
+// Helper function for printing an error log for an index out of range.
 auto logOutOfRange(ErrCode Code, ErrInfo::IndexCategory Cate, uint32_t Idx,
                    uint32_t Bound) {
   spdlog::error(Code);
@@ -114,7 +114,7 @@ void FormChecker::addMemory(const AST::MemoryType &Mem) {
 }
 
 void FormChecker::addGlobal(const AST::GlobalType &Glob, const bool IsImport) {
-  // Type in global is confirmed in loading phase.
+  // The global type is confirmed in the loading phase.
   Globals.emplace_back(Glob.getValType(), Glob.getValMut());
   if (IsImport) {
     NumImportGlobals++;
@@ -171,9 +171,9 @@ Expect<void> FormChecker::checkInstrs(AST::InstrView Instrs) {
 
 Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   // Note: The instructions and their immediates have passed proposal
-  // configuration checking in loader phase.
+  // configuration checking in the loader phase.
 
-  // Helper lambda for checking the valid table index.
+  // Helper lambda for checking whether the table index is valid.
   auto checkTableIdx = [this](const uint32_t Idx) -> Expect<void> {
     if (unlikely(Idx >= Tables.size())) {
       return logOutOfRange(ErrCode::Value::InvalidTableIdx,
@@ -183,7 +183,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   };
 
-  // Helper lambda for checking the valid memory index.
+  // Helper lambda for checking whether the memory index is valid.
   auto checkMemIdx = [this](const uint32_t Idx) -> Expect<void> {
     if (unlikely(Idx >= Mems.size())) {
       return logOutOfRange(ErrCode::Value::InvalidMemoryIdx,
@@ -193,7 +193,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   };
 
-  // Helper lambda for checking the valid data index.
+  // Helper lambda for checking whether the data index is valid.
   auto checkDataIdx = [this](const uint32_t Idx) -> Expect<void> {
     if (unlikely(Idx >= Datas.size())) {
       return logOutOfRange(ErrCode::Value::InvalidDataIdx,
@@ -203,7 +203,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   };
 
-  // Helper lambda for checking the valid elem index.
+  // Helper lambda for checking whether the element index is valid.
   auto checkElemIdx = [this](const uint32_t Idx) -> Expect<void> {
     if (unlikely(Idx >= Elems.size())) {
       return logOutOfRange(ErrCode::Value::InvalidElemIdx,
@@ -213,7 +213,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   };
 
-  // Helper lambda for checking the valid tag index.
+  // Helper lambda for checking whether the tag index is valid.
   auto checkTagIdx = [this](const uint32_t Idx) -> Expect<void> {
     if (unlikely(Idx >= Tags.size())) {
       return logOutOfRange(ErrCode::Value::InvalidTagIdx,
@@ -240,7 +240,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     }
   };
 
-  // Helper lambda for checking and resolve the block type.
+  // Helper lambda for checking and resolving the block type.
   auto checkBlockType = [this, checkDefinedType](std::vector<ValType> &Buffer,
                                                  const BlockType &BType)
       -> Expect<std::pair<Span<const ValType>, Span<const ValType>>> {
@@ -266,16 +266,16 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   auto checkCtrlStackDepth = [this](uint32_t N) -> Expect<uint32_t> {
     // Check the control stack for at least N + 1 frames.
     if (N >= CtrlStack.size()) {
-      // Branch out of stack.
+      // Branch out of the stack.
       return logOutOfRange(ErrCode::Value::InvalidLabelIdx,
                            ErrInfo::IndexCategory::Label, N,
                            static_cast<uint32_t>(CtrlStack.size()));
     }
-    // Return the index of the last N element.
+    // Return the index of the N-th element from the end.
     return static_cast<uint32_t>(CtrlStack.size()) - UINT32_C(1) - N;
   };
 
-  // Helper lambda for checking lane index and perform transformation.
+  // Helper lambda for checking lane index and performing transformation.
   auto checkLaneAndTrans = [this,
                             &Instr](uint32_t N, Span<const ValType> Take,
                                     Span<const ValType> Put) -> Expect<void> {
@@ -287,12 +287,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return StackTrans(Take, Put);
   };
 
-  // Helper lambda for checking memory alignment and perform transformation.
+  // Helper lambda for checking memory alignment and performing transformation.
   auto checkMemArgAndTrans = [this, checkMemIdx,
                               &Instr](uint32_t N, Span<const ValType> Take,
                                       Span<const ValType> Put,
                                       bool CheckLane = false) -> Expect<void> {
-    // The first arg always is `addr_type`, presents the memory offset.
+    // The first arg is always `addr_type`, representing the memory offset.
     // This helper will automatically add the first arg, therefore the caller
     // should set the input type list without the memory offset arg.
 
@@ -303,14 +303,14 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                     Instr.getOpCode() <= OpCode::I64__atomic__rmw32__cmpxchg_u;
     if (Instr.getMemoryAlign() > 31 ||
         (!IsAtomic && (1UL << Instr.getMemoryAlign()) > (N >> 3UL))) {
-      // 2 ^ align needs to <= N / 8
+      // 2 ^ align must be <= N / 8.
       spdlog::error(ErrCode::Value::AlignmentTooLarge);
       spdlog::error(ErrInfo::InfoMismatch(static_cast<uint8_t>(N >> 3),
                                           Instr.getMemoryAlign()));
       return Unexpect(ErrCode::Value::AlignmentTooLarge);
     }
     if (IsAtomic && (1UL << Instr.getMemoryAlign()) != (N >> 3UL)) {
-      // 2 ^ align needs to == N / 8
+      // 2 ^ align must be == N / 8.
       spdlog::error(ErrCode::Value::InvalidAlignment);
       spdlog::error(ErrInfo::InfoMismatch(static_cast<uint8_t>(N >> 3),
                                           Instr.getMemoryAlign()));
@@ -336,7 +336,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     return {};
   };
 
-  // Helper lambda for checking value types matching.
+  // Helper lambda for checking value type matching.
   auto checkTypesMatching = [this](Span<const ValType> Exp,
                                    Span<const ValType> Got) -> Expect<void> {
     if (!AST::TypeMatcher::matchTypes(Types, Exp, Got)) {
@@ -435,7 +435,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         if (!C.IsAll) {
           // Check tag index.
           EXPECTED_TRY(checkTagIdx(C.TagIndex));
-          // Result type of tag index are checked in tag section.
+          // Result types of tag indices are checked in the tag section.
         }
         EXPECTED_TRY(auto D, checkCtrlStackDepth(C.LabelIndex));
         pushCtrl({}, getLabelTypes(CtrlStack[D]), &Instr + TryDesc.JumpEnd,
@@ -526,12 +526,12 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     const auto LabelTableSize = static_cast<uint32_t>(LabelTable.size() - 1);
     EXPECTED_TRY(auto M,
                  checkCtrlStackDepth(LabelTable[LabelTableSize].TargetIndex));
-    // M is the last M element of control stack.
+    // M is the M-th element from the end of the control stack.
     auto MTypes = getLabelTypes(CtrlStack[M]);
     for (uint32_t LabelIdx = 0; LabelIdx < LabelTableSize; ++LabelIdx) {
       const uint32_t L = LabelTable[LabelIdx].TargetIndex;
       EXPECTED_TRY(auto N, checkCtrlStackDepth(L));
-      // N is the last N element of control stack.
+      // N is the N-th element from the end of the control stack.
       const auto NTypes = getLabelTypes(CtrlStack[N]);
       if (MTypes.size() != NTypes.size()) {
         return checkTypesMatching(MTypes, NTypes);
@@ -543,9 +543,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
         const uint32_t Idx = IdxN - 1;
         // Cannot use popTypes() here because we need the popped value.
         EXPECTED_TRY(auto Type, popType(NTypes[Idx]));
-        // Have to check is `unreachableVType` occurred for the case of
-        // `unreachable` instruction appeared before the `br_table`
-        // instruction.
+        // Check whether `unreachableVType` occurred when an `unreachable`
+        // instruction appeared before the `br_table` instruction.
         if (CtrlStack.back().IsUnreachable) {
           TypeBuf[Idx] = unreachableVType();
         } else {
@@ -619,7 +618,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                            ErrInfo::IndexCategory::Function, N,
                            static_cast<uint32_t>(Funcs.size()));
     }
-    // Due to validation when adding functions, Type[Funcs[N]] must be a
+    // Because functions were validated when added, Type[Funcs[N]] must be a
     // function type.
     auto &FuncType = Types[Funcs[N]]->getCompositeType().getFuncType();
     return StackTrans(FuncType.getParamTypes(), FuncType.getReturnTypes());
@@ -650,7 +649,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
                                    static_cast<uint32_t>(Funcs.size())));
       return Unexpect(ErrCode::Value::InvalidFuncIdx);
     }
-    // Due to validation when adding functions, Type[Funcs[N]] must be a
+    // Because functions were validated when added, Type[Funcs[N]] must be a
     // function type.
     auto &FType = Types[Funcs[N]]->getCompositeType().getFuncType();
     EXPECTED_TRY(checkTypesMatching(Returns, FType.getReturnTypes()));
@@ -771,7 +770,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     const auto &FType = CompType->getFieldTypes()[Instr.getSourceIndex()];
     if (unlikely(Instr.getOpCode() == OpCode::Struct__get &&
                  FType.getStorageType().isPackType())) {
-      // For a packed type, the `_s` or `_u` in instruction is required.
+      // For a packed type, the `_s` or `_u` in the instruction is required.
       spdlog::error(ErrCode::Value::InvalidPackedField);
       return Unexpect(ErrCode::Value::InvalidPackedField);
     } else if (unlikely(Instr.getOpCode() != OpCode::Struct__get &&
@@ -889,7 +888,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     const auto &FType = CompType->getFieldTypes()[0];
     if (unlikely(Instr.getOpCode() == OpCode::Array__get &&
                  FType.getStorageType().isPackType())) {
-      // For a packed type, the `_s` or `_u` in instruction is required.
+      // For a packed type, the `_s` or `_u` in the instruction is required.
       spdlog::error(ErrCode::Value::InvalidPackedArray);
       return Unexpect(ErrCode::Value::InvalidPackedArray);
     } else if (unlikely(Instr.getOpCode() != OpCode::Array__get &&
@@ -953,7 +952,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     EXPECTED_TRY(validate(Instr.getValType()));
     EXPECTED_TRY(auto Type, popType());
     if (Type.has_value() && !Type->isRefType()) {
-      // The trap occurs when the got type is not a reference type.
+      // The trap occurs when the actual type is not a reference type.
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(
           ErrInfo::InfoMismatch(Instr.getValType(), VTypeToAST(Type)));
@@ -1153,7 +1152,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Table__init:
     EXPECTED_TRY(checkTableIdx(Instr.getTargetIndex()));
     EXPECTED_TRY(checkElemIdx(Instr.getSourceIndex()));
-    // Check is the reference types matched.
+    // Check whether the reference types match.
     if (!AST::TypeMatcher::matchType(Types,
                                      Tables[Instr.getTargetIndex()].second,
                                      Elems[Instr.getSourceIndex()])) {
@@ -1171,7 +1170,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
   case OpCode::Table__copy: {
     EXPECTED_TRY(checkTableIdx(Instr.getTargetIndex()));
     EXPECTED_TRY(checkTableIdx(Instr.getSourceIndex()));
-    // Check is the reference types matched.
+    // Check whether the reference types match.
     if (!AST::TypeMatcher::matchType(Types,
                                      Tables[Instr.getTargetIndex()].second,
                                      Tables[Instr.getSourceIndex()].second)) {
@@ -1520,7 +1519,7 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
 
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
-    // Check all lane index < 32 by masking
+    // Check that all lane indices are less than 32 by masking.
     const uint128_t Mask = (uint128_t(0xe0e0e0e0e0e0e0e0U) << 64U) |
                            uint128_t(0xe0e0e0e0e0e0e0e0U);
     const uint128_t Result = Instr.getNum().get<uint128_t>() & Mask;
@@ -2062,7 +2061,7 @@ Expect<VType> FormChecker::popType(ValType E) {
   }
 
   if (!AST::TypeMatcher::matchType(Types, E, *Type)) {
-    // Expect value on value stack is not matched
+    // The expected value on the value stack does not match.
     spdlog::error(ErrCode::Value::TypeCheckFailed);
     spdlog::error(ErrInfo::InfoMismatch(VTypeToAST(E), VTypeToAST(Type)));
     return Unexpect(ErrCode::Value::TypeCheckFailed);
@@ -2093,12 +2092,12 @@ Expect<FormChecker::CtrlFrame> FormChecker::popCtrl() {
   }
   EXPECTED_TRY(popTypes(CtrlStack.back().EndTypes));
   if (ValStack.size() != CtrlStack.back().Height) {
-    // Value stack size not matched.
+    // Value stack size does not match.
     spdlog::error(ErrCode::Value::TypeCheckFailed);
     spdlog::error("    Value stack underflow."sv);
     return Unexpect(ErrCode::Value::TypeCheckFailed);
   }
-  // When popping a frame, reset the inited locals during this frame.
+  // When popping a frame, reset the locals initialized during this frame.
   for (size_t I = CtrlStack.back().InitedLocal; I < LocalInits.size(); I++) {
     Locals[LocalInits[I]].IsInit = false;
   }

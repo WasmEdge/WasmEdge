@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/driver/tool.h - Tool entrypoint --------------------------===//
+//===-- wasmedge/driver/tool.h - Tool entry point -------------------------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the entrypoint for the tooling executable.
+/// This file contains the entry point for the tooling executable.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

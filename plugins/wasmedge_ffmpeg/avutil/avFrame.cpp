@@ -266,7 +266,7 @@ AVFrameColorTransferCharacteristic::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   AVColorTransferCharacteristic const Characteristic = AvFrame->color_trc;
 
-  // Can use the binding as well. Currently, Commented the binding.
+  // The binding can be used as well. Currently, the binding is commented out.
   return static_cast<int32_t>(Characteristic);
 }
 

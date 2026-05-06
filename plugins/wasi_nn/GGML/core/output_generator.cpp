@@ -24,7 +24,7 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}"sv, Index)
 
-  // Use index 1 for the metadata of the outputs.
+  // Use index 1 for output metadata.
   if (Index == 1) {
     std::string Metadata = buildOutputMetadata(CxtRef);
     std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
@@ -50,7 +50,7 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto &GraphRef = Env.NNGraph[CxtRef.GraphId].get<Graph>();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}"sv, Index)
 
-  // Use index 1 for the metadata of the outputs.
+  // Use index 1 for output metadata.
   if (Index == 1) {
     std::string Metadata = buildOutputMetadata(CxtRef);
     std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());

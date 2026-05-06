@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the detection helper for endian.
+/// This file contains the endianness detection helper.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

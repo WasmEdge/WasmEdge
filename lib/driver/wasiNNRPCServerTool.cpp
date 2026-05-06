@@ -37,7 +37,7 @@ int WasiNNRPCServer(int Argc, const char *Argv[]) noexcept {
   Log::setInfoLoggingLevel();
   setenv("_WASI_NN_RPCSERVER", "1", 1); // wasi_nn plugin checks this env var
 
-  // Parse the args
+  // Parse the arguments.
   PO::Option<std::string> NNRPCURI(
       PO::Description("Specify NN RPC URI to serve (\"unix://...\")"sv),
       PO::MetaVar("URI"sv), PO::DefaultValue(std::string("")));

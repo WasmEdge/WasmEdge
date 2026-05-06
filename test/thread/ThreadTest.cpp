@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains tests for running Executor in parallel multithread way.
+/// This file contains tests for running Executor in parallel.
 ///
 //===----------------------------------------------------------------------===//
 

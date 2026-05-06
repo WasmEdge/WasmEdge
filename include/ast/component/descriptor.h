@@ -21,9 +21,9 @@ namespace WasmEdge {
 namespace AST {
 namespace Component {
 
-/// NOTE: The `ImportDesc` in AST implemented the fully import with name and
-/// module name in a class. Therefore create a `CoreImportDesc` class with
-/// only the import descriptions for component model.
+/// NOTE: The `ImportDesc` in AST implements the full import with name and
+/// module name in one class. Therefore, create a `CoreImportDesc` class with
+/// only the import descriptions for the component model.
 
 /// AST Component::CoreImportDesc node.
 class CoreImportDesc {
@@ -98,7 +98,7 @@ private:
 /// preceding type definition.
 ///
 /// NOTE:
-/// One just need to consider Java's `? extends T` in mind.
+/// Think of Java's `? extends T`.
 ///
 /// 1. optional `some i` as `(eq i)`
 /// 2. optional `none` as `sub`, i.e. Subresource

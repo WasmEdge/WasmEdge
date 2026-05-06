@@ -59,7 +59,7 @@ void writeFatPointer(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
   writeUInt32(MemInst, PtrSize, Ptr);
 }
 
-// TODO: unit tests for every functions.
+// TODO: add unit tests for every function.
 
 TEST(WasmEdgeStableDiffusionTest, ModuleFunctions) {
   // Create the stable diffusion module instance.

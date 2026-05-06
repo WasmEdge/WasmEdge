@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains helper to collect calling stacks for various operating
-/// system.
+/// This file contains helpers for collecting calling stacks for various
+/// operating systems.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

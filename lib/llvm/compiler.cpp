@@ -893,7 +893,7 @@ public:
       // Reference Instructions
       case OpCode::Ref__null: {
         std::array<uint8_t, 16> Buf = {0};
-        // For null references, the dynamic type down scaling is needed.
+        // For null references, dynamic type downscaling is needed.
         ValType VType;
         if (Instr.getValType().isAbsHeapType()) {
           switch (Instr.getValType().getHeapTypeCode()) {
@@ -5877,9 +5877,9 @@ namespace WasmEdge {
 namespace LLVM {
 
 Expect<void> Compiler::checkConfigure() noexcept {
-  // Note: Although the exception handling proposal and memory64 proposal is not
+  // Note: Although the Exception Handling and Memory64 proposals are not
   // implemented in AOT yet, we should not trap here because the default
-  // configuration becomes WASM 3.0 which contains these proposals.
+  // configuration has become WASM 3.0, which contains these proposals.
   if (Conf.hasProposal(Proposal::ExceptionHandling)) {
     spdlog::warn("Proposal Exception Handling is not yet supported in WasmEdge "
                  "AOT/JIT. The compilation will be trapped when related data "
@@ -5895,7 +5895,7 @@ Expect<void> Compiler::checkConfigure() noexcept {
 }
 
 Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
-  // Check the module is validated.
+  // Check that the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     return Unexpect(ErrCode::Value::NotValidated);
@@ -5933,11 +5933,11 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   compile(Module.getMemorySection(), Module.getDataSection());
   // Compile TableSection (TableSec, ElemSec)
   compile(Module.getTableSection(), Module.getElementSection());
-  // compile Functions in module. (FunctionSec, CodeSec)
+  // Compile functions in the module. (FunctionSec, CodeSec)
   EXPECTED_TRY(compile(Module.getFunctionSection(), Module.getCodeSection()));
-  // Compile ExportSection
+  // Compile ExportSection.
   compile(Module.getExportSection());
-  // StartSection is not required to compile
+  // StartSection is not required for compilation.
 
   spdlog::info("verify start"sv);
   LLModule.verify(LLVMPrintMessageAction);
@@ -6055,7 +6055,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec) noexcept {
     const auto &CompType = SubTypes[I].getCompositeType();
     const auto Name = fmt::format("t{}"sv, Context->CompositeTypes.size());
     if (CompType.isFunc()) {
-      // Check function type is unique
+      // Check that the function type is unique.
       {
         bool Unique = true;
         for (size_t J = 0; J < I; ++J) {
@@ -6170,7 +6170,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
     // Get data from import description.
     const auto &ExtType = ImpDesc.getExternalType();
 
-    // Add the imports into module instance.
+    // Add the imports to the module instance.
     switch (ExtType) {
     case ExternalType::Function: // Function type index
     {

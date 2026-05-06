@@ -8,7 +8,7 @@ namespace Loader {
 
 // Load binary of TableSegment node. See "include/loader/loader.h".
 Expect<void> Loader::loadSegment(AST::TableSegment &TabSeg) {
-  // Check the first byte is the reftype in table type or not.
+  // Check whether the first byte is the reftype in table type.
   EXPECTED_TRY(uint8_t CheckByte, FMgr.peekByte().map_error([this](auto E) {
     return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Seg_Table);
   }));
@@ -251,7 +251,7 @@ Expect<void> Loader::loadSegment(AST::CodeSegment &CodeSeg) {
   uint32_t TotalLocalCnt = 0;
   for (uint32_t I = 0; I < VecCnt; ++I) {
     EXPECTED_TRY(uint32_t LocalCnt, FMgr.readU32().map_error(ReportError));
-    // Total local variables should not more than 2^32. Capped at 2^26.
+    // Total local variables should not exceed 2^32. Capped at 2^26.
     if (UINT32_C(67108864) - TotalLocalCnt < LocalCnt) {
       return logLoadError(ErrCode::Value::TooManyLocals, FMgr.getLastOffset(),
                           ASTNodeAttr::Seg_Code);

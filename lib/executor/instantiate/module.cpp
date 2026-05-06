@@ -16,7 +16,7 @@ namespace Executor {
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
                       std::optional<std::string_view> Name) {
-  // Check the module is validated.
+  // Check that the module is validated.
   if (unlikely(!Mod.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -26,7 +26,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Create the stack manager.
   Runtime::StackManager StackMgr;
 
-  // Check is module name duplicated when trying to registration.
+  // Check whether the module name is duplicated during registration.
   if (Name.has_value()) {
     const auto *FindModInst = StoreMgr.findModule(Name.value());
     if (FindModInst != nullptr) {
@@ -36,7 +36,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     }
   }
 
-  // Insert the module instance to store manager and retrieve instance.
+  // Insert the module instance into the store manager and retrieve it.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst;
   if (Name.has_value()) {
     ModInst = std::make_unique<Runtime::Instance::ModuleInstance>(Name.value());
@@ -144,7 +144,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Pop Frame.
   StackMgr.popFrame();
 
-  // For the named modules, register it into the store.
+  // For a named module, register it in the store.
   if (Name.has_value()) {
     StoreMgr.registerModule(ModInst.get());
   }

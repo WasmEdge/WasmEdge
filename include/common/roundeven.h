@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/common/roundeven.h - rounding to nearest integer ---------===//
+//===-- wasmedge/common/roundeven.h - rounding to the nearest integer -----===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the helper function for rounding to nearest integer.
+/// This file contains the helper function for rounding to the nearest integer.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

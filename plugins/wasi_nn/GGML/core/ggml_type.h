@@ -31,10 +31,10 @@ enum class EmbdNormalizeType : int32_t {
 };
 
 struct LocalConfig {
-  // Configurations which can be changed in every contexts.
-  // The graph handles a default config and parsed from metadata when loading.
-  // The context inherits a copy from graph when creating, and can be modified
-  // when parsing metadata in set_input.
+  // Configuration values that can be changed in every context.
+  // The graph holds a default config parsed from metadata during loading.
+  // The context inherits a copy from the graph during creation and can be
+  // modified when parsing metadata in set_input.
   bool StreamStdout = false;
   EmbdNormalizeType EmbdNormalize = EmbdNormalizeType::Euclidean;
   int64_t NPredict;
@@ -75,11 +75,11 @@ public:
   // Llama outputs:
   std::vector<uint8_t> LlamaOutputs;
   std::vector<llama_token> LlamaOutputTokens;
-  // Data for computing:
+  // Data for computation:
   bool ComputeSingleStarted = false;
   struct common_sampler *LlamaSampler = nullptr;
-  // Handle the batch in the context to prevent from reallocation in every
-  // computing.
+  // Handle the batch in the context to prevent reallocation during every
+  // computation.
   struct llama_batch LlamaBatch;
   struct llama_batch OutputBatch;
   int64_t CurrentBatchSize = 0;
@@ -118,7 +118,7 @@ namespace {
 // Macro for logging error message.
 #define LOG_ERROR(...) spdlog::error("[WASI-NN] GGML backend: "sv __VA_ARGS__);
 
-// Macro for logging error message and return.
+// Macro for logging an error message and returning.
 #define RET_ERROR(Error, ...)                                                  \
   spdlog::error("[WASI-NN] GGML backend: "sv __VA_ARGS__);                     \
   return Error;

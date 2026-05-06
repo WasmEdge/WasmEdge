@@ -284,7 +284,7 @@ getHandlePath(HANDLE_ Handle) noexcept {
 
 inline WasiExpect<std::filesystem::path>
 getRelativePath(HANDLE_ Handle, std::string_view Path) noexcept {
-  // Check if the path is a directory or not
+  // Check whether the path is a directory.
   EXPECTED_TRY(forceDirectory(Handle));
   EXPECTED_TRY(auto FullPath, getHandlePath(Handle));
 
@@ -1104,10 +1104,10 @@ WasiExpect<void> INode::fdReaddir(Span<uint8_t> Buffer,
       break;
     }
     if (!FindNextResult) {
-      // Check if there no more files left or if an error has been encountered
+      // Check whether there are no more files left or an error was encountered.
       if (DWORD_ Code = GetLastError();
           unlikely(Code != ERROR_NO_MORE_FILES_)) {
-        // The FindNextFileW() function has failed
+        // The FindNextFileW() function failed.
         return WasiUnexpect(detail::fromLastError(Code));
       }
       break;
@@ -2263,8 +2263,7 @@ void Poller::read(const INode &Node, TriggerType Trigger,
 
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||
       Trigger != TriggerType::Level) {
-    // Windows does not support polling other then socket, and only with level
-    // triggering.
+    // Windows supports polling only sockets, and only with level triggering.
     error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_READ);
     return;
   }
@@ -2336,8 +2335,7 @@ void Poller::write(const INode &Node, TriggerType Trigger,
   }
   if (Node.Type != HandleHolder::HandleType::NormalSocket ||
       Trigger != TriggerType::Level) {
-    // Windows does not support polling other then socket, and only with level
-    // triggering.
+    // Windows supports polling only sockets, and only with level triggering.
     error(UserData, __WASI_ERRNO_NOSYS, __WASI_EVENTTYPE_FD_WRITE);
     return;
   }

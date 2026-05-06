@@ -80,7 +80,7 @@ public:
                     uint32_t SrcMatKey);
 };
 
-/// This is not `cv::normalize`, refers to:
+/// This is not `cv::normalize`; refer to:
 /// https://github.com/WasmEdge/WasmEdge/commit/77051da4995d7318d91a82102a72ce2557151764#diff-3333d926ca87cf4285bfcd6deae45ee310307be66fca8a4ca6f0f8a946743fccR50-R54
 class WasmEdgeOpenCVMiniNormalize
     : public WasmEdgeOpenCVMini<class WasmEdgeOpenCVMiniNormalize> {

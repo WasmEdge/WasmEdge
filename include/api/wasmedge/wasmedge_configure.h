@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about configuration and statistics settings
+/// This file contains functions for configuration and statistics settings
 /// in WasmEdge C API.
 ///
 //===----------------------------------------------------------------------===//
@@ -34,11 +34,11 @@ extern "C" {
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ConfigureContext *
 WasmEdge_ConfigureCreate(void) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Add a proposal setting into the WasmEdge_ConfigureContext.
+/// Add a proposal setting to the WasmEdge_ConfigureContext.
 ///
-/// For turning on a specific WASM proposal in VM, loader, or compiler contexts,
-/// etc., you can set the proposal value into the WasmEdge_ConfigureContext and
-/// create the VM, loader, or compiler contexts, etc. with this context.
+/// To turn on a specific WASM proposal in the VM, loader, or compiler contexts,
+/// etc., set the proposal value in the WasmEdge_ConfigureContext and create the
+/// VM, loader, or compiler contexts, etc. with this context.
 ///
 /// ```c
 /// WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
@@ -91,7 +91,7 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetWASMStandard(
     WasmEdge_ConfigureContext *Cxt,
     const enum WasmEdge_Standard Std) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Add a built-in host registration setting into WasmEdge_ConfigureContext.
+/// Add a built-in host registration setting to the WasmEdge_ConfigureContext.
 ///
 /// For turning on the Wasi support in `WasmEdge_VMContext`, you can set the
 /// built-in host registration value into the `WasmEdge_ConfigureContext` and

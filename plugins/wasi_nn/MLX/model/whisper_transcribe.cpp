@@ -155,7 +155,7 @@ mx::array stft(const mx::array &X, const mx::array &Window, int NPerseg = 256,
 }
 
 mx::array melFilters(int NMels) {
-  // Load precomputed mel filters from file
+  // Load precomputed mel filters from a file.
   if (NMels != 80 && NMels != 128) {
     spdlog::error("Unsupported number of mel filters: " +
                   std::to_string(NMels));
@@ -287,7 +287,7 @@ decodeWithFallback(std::shared_ptr<whisper::Whisper> Model,
   return Result;
 }
 
-// Word-level timestamp functions
+// Word-level timestamp functions.
 void addWordTimestamps(std::vector<TranscribeSegment> &Segments,
                        std::shared_ptr<whisper::Whisper> Model,
                        std::unique_ptr<whisper::Tokenizer> &Tokenizer,
@@ -296,8 +296,8 @@ void addWordTimestamps(std::vector<TranscribeSegment> &Segments,
                        const std::string &AppendPunctuations,
                        float LastSpeechTimestamp) {
 
-  // This is a simplified implementation
-  // Full implementation would use cross-attention patterns and DTW
+  // This is a simplified implementation.
+  // A full implementation would use cross-attention patterns and DTW.
   for (auto &Segment : Segments) {
     if (!Segment.Tokens.empty()) {
       float Duration = Segment.End - Segment.Start;

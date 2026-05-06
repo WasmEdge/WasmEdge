@@ -332,8 +332,8 @@ mx::array ApplyTimestampRules::apply(const mx::array &Logits,
     }
   }
 
-  // If sum of probability over timestamps is above any other token, sample
-  // timestamp
+  // If the sum of probabilities over timestamps is above any other token,
+  // sample the timestamp.
   mx::array MaskArray = mx::array(MaskVec.data(), LogitsShape, mx::float32);
   mx::array Logprobs = Logits - mx::logsumexp(Logits, -1, true);
 

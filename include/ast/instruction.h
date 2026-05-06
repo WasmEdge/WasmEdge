@@ -108,29 +108,29 @@ public:
     return *this;
   }
 
-  /// Getter of OpCode.
+  /// Getter for OpCode.
   OpCode getOpCode() const noexcept { return Code; }
 
-  /// Getter of Offset.
+  /// Getter for Offset.
   uint32_t getOffset() const noexcept { return Offset; }
 
-  /// Getter and setter of block type.
+  /// Getter and setter for block type.
   const BlockType &getBlockType() const noexcept { return Data.Blocks.ResType; }
   BlockType &getBlockType() noexcept { return Data.Blocks.ResType; }
 
-  /// Getter and setter of jump count to End instruction.
+  /// Getter and setter for jump count to End instruction.
   uint32_t getJumpEnd() const noexcept { return Data.Blocks.JumpEnd; }
   void setJumpEnd(const uint32_t Cnt) noexcept { Data.Blocks.JumpEnd = Cnt; }
 
-  /// Getter and setter of jump count to Else instruction.
+  /// Getter and setter for jump count to Else instruction.
   uint32_t getJumpElse() const noexcept { return Data.Blocks.JumpElse; }
   void setJumpElse(const uint32_t Cnt) noexcept { Data.Blocks.JumpElse = Cnt; }
 
-  /// Getter and setter of value type.
+  /// Getter and setter for value type.
   const ValType &getValType() const noexcept { return Data.VType; }
   void setValType(const ValType &VType) noexcept { Data.VType = VType; }
 
-  /// Getter and setter of label list.
+  /// Getter and setter for label list.
   void setLabelListSize(uint32_t Size) {
     reset();
     if (Size > 0) {
@@ -150,23 +150,23 @@ public:
         Flags.IsAllocLabelList ? Data.BrTable.LabelListSize : 0);
   }
 
-  /// Getter and setter of expression end for End instruction.
+  /// Getter and setter for expression end for End instruction.
   bool isExprLast() const noexcept { return Data.EndFlags.IsExprLast; }
   void setExprLast(bool Last = true) noexcept {
     Data.EndFlags.IsExprLast = Last;
   }
 
-  /// Getter and setter of try block end for End instruction.
+  /// Getter and setter for the try block end for End instruction.
   bool isTryBlockLast() const noexcept { return Data.EndFlags.IsTryBlockLast; }
   void setTryBlockLast(bool Last = true) noexcept {
     Data.EndFlags.IsTryBlockLast = Last;
   }
 
-  /// Getter and setter of Jump for Br* instruction.
+  /// Getter and setter for Jump for Br* instructions.
   const JumpDescriptor &getJump() const noexcept { return Data.Jump; }
   JumpDescriptor &getJump() noexcept { return Data.Jump; }
 
-  /// Getter and setter of selecting value types list.
+  /// Getter and setter for the selected value type list.
   void setValTypeListSize(uint32_t Size) {
     reset();
     if (Size > 0) {
@@ -184,31 +184,31 @@ public:
                          Data.SelectT.ValTypeListSize);
   }
 
-  /// Getter and setter of target index.
+  /// Getter and setter for target index.
   uint32_t getTargetIndex() const noexcept { return Data.Indices.TargetIdx; }
   uint32_t &getTargetIndex() noexcept { return Data.Indices.TargetIdx; }
 
-  /// Getter and setter of source index.
+  /// Getter and setter for source index.
   uint32_t getSourceIndex() const noexcept { return Data.Indices.SourceIdx; }
   uint32_t &getSourceIndex() noexcept { return Data.Indices.SourceIdx; }
 
-  /// Getter and setter of stack offset.
+  /// Getter and setter for stack offset.
   uint32_t getStackOffset() const noexcept { return Data.Indices.StackOffset; }
   uint32_t &getStackOffset() noexcept { return Data.Indices.StackOffset; }
 
-  /// Getter and setter of memory alignment.
+  /// Getter and setter for memory alignment.
   uint32_t getMemoryAlign() const noexcept { return Data.Memories.MemAlign; }
   uint32_t &getMemoryAlign() noexcept { return Data.Memories.MemAlign; }
 
-  /// Getter of memory offset.
+  /// Getter for memory offset.
   uint64_t getMemoryOffset() const noexcept { return Data.Memories.MemOffset; }
   uint64_t &getMemoryOffset() noexcept { return Data.Memories.MemOffset; }
 
-  /// Getter of memory lane.
+  /// Getter for memory lane.
   uint8_t getMemoryLane() const noexcept { return Flags.MemLane; }
   uint8_t &getMemoryLane() noexcept { return Flags.MemLane; }
 
-  /// Getter and setter of the constant value.
+  /// Getter and setter for the constant value.
   ValVariant getNum() const noexcept {
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
@@ -229,7 +229,7 @@ public:
 #endif
   }
 
-  /// Getter and setter of BrCast info for Br_cast instructions.
+  /// Getter and setter for BrCast info for Br_cast instructions.
   void setBrCast(uint32_t LabelIdx) {
     reset();
     Data.BrCast = new BrCastDescriptor();
@@ -239,7 +239,7 @@ public:
   const BrCastDescriptor &getBrCast() const noexcept { return *Data.BrCast; }
   BrCastDescriptor &getBrCast() noexcept { return *Data.BrCast; }
 
-  /// Getter and setter of try block info for try_table instruction.
+  /// Getter and setter for try block info for try_table instruction.
   void setTryCatch() {
     reset();
     Data.TryCatch = new TryDescriptor();
@@ -310,10 +310,9 @@ private:
       uint32_t TargetIdx;
       uint32_t MemAlign;
       uint64_t MemOffset;
-      // Due to keeping the size of inner data union as 16-bytes, and not to
-      // allocate this struct because the memory instructions may be in high
-      // density in instruction sequences, we should move out the `MemLane`
-      // member out of this struct.
+      // To keep the inner data union at 16 bytes and avoid allocating this
+      // struct (memory instructions may have high density in instruction
+      // sequences), the `MemLane` member is kept outside this struct.
     } Memories;
     // Type 8: Num.
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \

@@ -52,7 +52,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
       enterFunction(StackMgr, Func, Func.getInstrs().end())
           .and_then([&](AST::InstrView::iterator StartIt) {
             // If not terminated, execute the instructions in interpreter mode.
-            // For the entering AOT or host functions, the `StartIt` is equal to
+            // For the entered AOT or host functions, `StartIt` is equal to
             // the end of instruction list, therefore the execution will return
             // immediately.
             return execute(StackMgr, StartIt, Func.getInstrs().end());
@@ -68,7 +68,7 @@ Executor::runFunction(Runtime::StackManager &StackMgr,
     Stat->stopRecordWasm();
   }
 
-  // If Statistics is enabled, then dump it here.
+  // If statistics are enabled, dump them here.
   if (Stat) {
     Stat->dumpToLog(Conf);
   }
@@ -255,7 +255,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       return {};
     case OpCode::Select:
     case OpCode::Select_t: {
-      // Pop the i32 value and select values from stack.
+      // Pop the i32 value and select values from the stack.
       ValVariant CondVal = StackMgr.pop();
       ValVariant Val2 = StackMgr.pop();
       ValVariant Val1 = StackMgr.pop();
@@ -2091,7 +2091,7 @@ Expect<void> Executor::execute(Runtime::StackManager &StackMgr,
       if (Conf.getStatisticsConfigure().isInstructionCounting()) {
         Stat->incInstrCount();
       }
-      // Add cost. Note: if-else case should be processed additionally.
+      // Add cost. Note: if-else cases should be processed additionally.
       if (Conf.getStatisticsConfigure().isCostMeasuring()) {
         if (unlikely(!Stat->addInstrCost(Code))) {
           const AST::Instruction &Instr = *PC;

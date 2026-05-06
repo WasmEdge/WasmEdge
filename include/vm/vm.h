@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file is the definition class of VM class.
+/// This file defines the VM class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -46,7 +46,7 @@ public:
   VM(const Configure &Conf, Runtime::StoreManager &S);
   ~VM() = default;
 
-  /// ======= Functions can be called before instantiated stage. =======
+  /// ======= Functions can be called before the instantiated stage. =======
   /// Register wasm modules and host modules.
   Expect<void> registerModule(std::string_view Name,
                               const std::filesystem::path &Path) {
@@ -109,7 +109,7 @@ public:
                    Span<const ValVariant> Params = {},
                    Span<const ValType> ParamTypes = {});
 
-  /// Let runtimeTool can check which arguments should be prepared.
+  /// Let runtimeTool check which arguments should be prepared.
   bool holdsModule() {
     if (ActiveModInst) {
       return true;
@@ -137,7 +137,7 @@ public:
     return unsafeLoadWasm(Module);
   }
 
-  /// ======= Functions can be called after loaded stage. =======
+  /// ======= Functions can be called after the loaded stage. =======
   /// Validate loaded wasm module.
   Expect<void> validate() {
     std::unique_lock Lock(Mutex);
@@ -158,14 +158,14 @@ public:
     return {};
   }
 
-  /// ======= Functions can be called after validated stage. =======
+  /// ======= Functions can be called after the validated stage. =======
   /// Instantiate validated wasm module.
   Expect<void> instantiate() {
     std::unique_lock Lock(Mutex);
     return unsafeInstantiate();
   }
 
-  /// ======= Functions can be called after instantiated stage. =======
+  /// ======= Functions can be called after the instantiated stage. =======
   /// Execute wasm with given input.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view Func, Span<const ValVariant> Params = {},
@@ -174,7 +174,7 @@ public:
     return unsafeExecute(Func, Params, ParamTypes);
   }
 
-  /// Execute function of registered module with given input.
+  /// Execute a function of a registered module with the given input.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   execute(std::string_view ModName, std::string_view Func,
           Span<const ValVariant> Params = {},
@@ -183,7 +183,7 @@ public:
     return unsafeExecute(ModName, Func, Params, ParamTypes);
   }
 
-  /// Execute component function with given input.
+  /// Execute a component function with the given input.
   Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
   executeComponent(std::string_view Func,
                    Span<const ComponentValVariant> Params = {},
@@ -192,7 +192,7 @@ public:
     return unsafeExecuteComponent(Func, Params, ParamTypes);
   }
 
-  /// Execute function of registered component with given input.
+  /// Execute a function of a registered component with the given input.
   Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
   executeComponent(std::string_view CompName, std::string_view Func,
                    Span<const ComponentValVariant> Params = {},
@@ -201,24 +201,26 @@ public:
     return unsafeExecuteComponent(CompName, Func, Params, ParamTypes);
   }
 
-  /// Asynchronous execute wasm with given input.
+  /// Asynchronously execute Wasm with the given input.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
   asyncExecute(std::string_view Func, Span<const ValVariant> Params = {},
                Span<const ValType> ParamTypes = {});
 
-  /// Asynchronous execute function of registered module with given input.
+  /// Asynchronously execute a function of a registered module with the given
+  /// input.
   Async<Expect<std::vector<std::pair<ValVariant, ValType>>>>
   asyncExecute(std::string_view ModName, std::string_view Func,
                Span<const ValVariant> Params = {},
                Span<const ValType> ParamTypes = {});
 
-  /// Asynchronous execute component function with given input.
+  /// Asynchronously execute a component function with the given input.
   Async<Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>>
   asyncExecuteComponent(std::string_view Func,
                         Span<const ComponentValVariant> Params = {},
                         Span<const ComponentValType> ParamTypes = {});
 
-  /// Asynchronous execute function of registered component with given input.
+  /// Asynchronously execute a function of a registered component with the given
+  /// input.
   Async<Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>>
   asyncExecuteComponent(std::string_view ModName, std::string_view Func,
                         Span<const ComponentValVariant> Params = {},
@@ -261,22 +263,22 @@ public:
     return unsafeGetActiveModule();
   }
 
-  /// Getter of store set in VM.
+  /// Getter for the store set in the VM.
   Runtime::StoreManager &getStoreManager() noexcept { return StoreRef; }
   const Runtime::StoreManager &getStoreManager() const noexcept {
     return StoreRef;
   }
 
-  /// Getter of loader in VM.
+  /// Getter for the loader in the VM.
   Loader::Loader &getLoader() noexcept { return LoaderEngine; }
 
-  /// Getter of validator in VM.
+  /// Getter for the validator in the VM.
   Validator::Validator &getValidator() noexcept { return ValidatorEngine; }
 
-  /// Getter of executor in VM.
+  /// Getter for the executor in the VM.
   Executor::Executor &getExecutor() noexcept { return ExecutorEngine; }
 
-  /// Getter of statistics.
+  /// Getter for statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
 private:

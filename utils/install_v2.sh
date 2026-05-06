@@ -251,7 +251,7 @@ set_ENV() {
 		*:\"$1/bin\":*)
 			;;
 		*)
-			# Prepending path in case a system-installed wasmedge needs to be overridden
+			# Prepend the path in case a system-installed wasmedge needs to be overridden
 			if [ -n \"\${PATH}\" ]; then
 				export PATH=\"$1/bin\":\$PATH
 			else
@@ -263,7 +263,7 @@ case ":\"\${"$_LD_LIBRARY_PATH_"}\":" in
 	*:\"$1/lib\":*)
 		;;
 	*)
-		# Prepending path in case a system-installed wasmedge libs needs to be overridden
+		# Prepend the path in case system-installed wasmedge libraries need to be overridden
 		if [ -n \"\${"$_LD_LIBRARY_PATH_"}\" ]; then
 			export $_LD_LIBRARY_PATH_=\"$1/lib\":\$$_LD_LIBRARY_PATH_
 		else
@@ -604,7 +604,7 @@ main() {
 	set_ENV "$IPATH"
 	mkdir -p "$IPATH"
 	mkdir -p "$TMP_DIR"
-	# Setup the plugin folder if the installation path is not in the system path
+	# Set up the plugin folder if the installation path is not in the system path
 	[[ "$IPATH" =~ ^"/usr" ]] || mkdir -p "$IPATH/plugin"
 
 	echo "$ENV" >"$IPATH/env"

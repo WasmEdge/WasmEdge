@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file is the definition class of Plugin class.
+/// This file defines the Plugin class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

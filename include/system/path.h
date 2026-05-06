@@ -8,7 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains helper to get system path for various operating system.
+/// This file contains helpers for getting system paths for various operating
+/// systems.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

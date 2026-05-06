@@ -212,7 +212,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   const auto SDKVersion = getSDKVersion();
 #if LLVM_VERSION_MAJOR >= 14
   // LLVM 14 replaces the older mach_o lld implementation with the new one.
-  // So we need to change the namespace after LLVM 14.x released.
+  // So we need to change the namespace after LLVM 14.x was released.
   // Reference: https://reviews.llvm.org/D114842
   LinkResult = lld::macho::link(
 #else

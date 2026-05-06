@@ -61,7 +61,7 @@ TypeT<T> Executor::runDivOp(const AST::Instruction &Instr, ValVariant &Val1,
   }
   // Else, return the result of v1 / v2.
   // Integer case: truncated toward zero.
-  // Floating case: +-0.0, NaN, and Inf case are handled.
+  // Floating case: +-0.0, NaN, and Inf cases are handled.
   V1 /= V2;
   return {};
 }
@@ -79,9 +79,9 @@ TypeI<T> Executor::runRemOp(const AST::Instruction &Instr, ValVariant &Val1,
         {ValTypeFromType<T>(), ValTypeFromType<T>()}, std::is_signed_v<T>));
     return Unexpect(ErrCode::Value::DivideByZero);
   }
-  // Else, return the i1 % i2. Signed case is handled.
+  // Otherwise, return i1 % i2. Signed cases are handled.
   if (std::is_signed_v<T> && I2 == static_cast<T>(-1)) {
-    // Signed Integer case: If signed(v2) is -1, then the result 0.
+    // Signed integer case: If signed(v2) is -1, then the result is 0.
     I1 = 0;
   } else {
     I1 %= I2;
@@ -177,7 +177,7 @@ TypeF<T> Executor::runMinOp(ValVariant &Val1, const ValVariant &Val2) const {
     // If both z1 and z2 are zeroes of opposite signs, then return -0.0.
     Z1 = -kZero;
   } else {
-    // Else return the min of z1 and z2. (Inf case are handled.)
+    // Otherwise, return the min of z1 and z2. (Inf cases are handled.)
     Z1 = std::min(Z1, Z2);
   }
   return {};
@@ -209,7 +209,7 @@ TypeF<T> Executor::runMaxOp(ValVariant &Val1, const ValVariant &Val2) const {
     // If both z1 and z2 are zeroes of opposite signs, then return +0.0.
     Z1 = kZero;
   } else {
-    // Else return the max of z1 and z2. (Inf case are handled.)
+    // Otherwise, return the max of z1 and z2. (Inf cases are handled.)
     Z1 = std::max(Z1, Z2);
   }
   return {};

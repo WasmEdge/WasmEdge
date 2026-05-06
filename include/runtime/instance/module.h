@@ -87,10 +87,7 @@ public:
     }
   }
 
-  void terminate() noexcept {
-    this->resetSelfDegree();
-    this->tryToDelete();
-  }
+  void terminate() noexcept { this->resetSelfDegree(); }
 
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
@@ -553,9 +550,8 @@ protected:
   }
 
   void decrementInDegree() noexcept {
-    if (InDegree.fetch_sub(1, std::memory_order_acq_rel) == 1 &&
-        SelfDegree.load(std::memory_order_acquire) == 0) {
-      delete this;
+    if (InDegree.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      this->tryToDelete();
     }
   }
 
@@ -573,6 +569,7 @@ protected:
   void resetSelfDegree() noexcept {
     unlinkAllStores();
     SelfDegree.store(0, std::memory_order_release);
+    this->tryToDelete();
   }
 
   void tryToDelete() noexcept {

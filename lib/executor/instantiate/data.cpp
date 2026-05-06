@@ -34,7 +34,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       // Memory64 proposal is checked in validation phase.
       auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
       assuming(MemInst);
-      Offset = extractAddr(StackMgr.pop(),
+      Offset = extractAddr(StackMgr.pop<ValVariant>(),
                            MemInst->getMemoryType().getLimit().getAddrType());
 
       // Check boundary unless ReferenceTypes or BulkMemoryOperations proposal

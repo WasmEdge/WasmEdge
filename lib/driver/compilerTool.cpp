@@ -117,10 +117,15 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   if (Opt.PropThreads.value()) {
     Conf.addProposal(Proposal::Threads);
   }
+  if (Opt.PropGC.value()) {
+    Conf.addProposal(Proposal::GC);
+    spdlog::warn("GC proposal is enabled, this is experimental."sv);
+  }
   if (Opt.PropAll.value()) {
     Conf.setWASMStandard(Standard::WASM_3);
     Conf.removeProposal(Proposal::ExceptionHandling);
     Conf.addProposal(Proposal::Threads);
+    Conf.addProposal(Proposal::GC);
   }
 
   if (Opt.PropOptimizationLevel.value() == "0") {

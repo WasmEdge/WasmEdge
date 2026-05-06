@@ -6,6 +6,7 @@ set(SOURCES
   runtimeTool.cpp
   fuzzTool.cpp
   fuzzPO.cpp
+  fuzzWAT.cpp
   uniTool.cpp
 )
 

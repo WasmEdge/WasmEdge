@@ -113,3 +113,61 @@ INSTANTIATE_TEST_SUITE_P(
       }
       return Name;
     });
+
+struct UnsignedParam {
+  bool R;
+  std::vector<uint64_t> C;
+  std::vector<const char *> Args;
+  UnsignedParam(bool R, std::vector<uint64_t> C, std::vector<const char *> Args)
+      : R(R), C(std::move(C)), Args(std::move(Args)) {}
+  UnsignedParam(bool R, std::vector<const char *> Args)
+      : R(R), Args(std::move(Args)) {}
+};
+
+class UnsignedListOptions : public ::testing::TestWithParam<UnsignedParam> {
+public:
+  UnsignedListOptions() : C(Description("c option"sv), ZeroOrMore()) {
+    Parser.add_option("c"sv, C);
+  }
+  List<uint64_t> C;
+  ArgumentParser Parser;
+};
+
+TEST_P(UnsignedListOptions, Test) {
+  auto P = GetParam();
+  EXPECT_EQ(P.R, Parser.parse(stdout, static_cast<int>(P.Args.size()),
+                              P.Args.data()));
+  if (P.R) {
+    EXPECT_EQ(P.C.size(), C.value().size());
+    for (size_t I = 0; I < P.C.size(); ++I) {
+      SCOPED_TRACE(I);
+      EXPECT_EQ(P.C[I], C.value()[I]);
+    }
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    InstantiationName, UnsignedListOptions,
+    testing::Values(
+        UnsignedParam(true, {0ULL}, {"test", "--c=0"}),
+        UnsignedParam(true, {1ULL}, {"test", "--c=1"}),
+        UnsignedParam(true, {9999999999ULL}, {"test", "--c=9999999999"}),
+        UnsignedParam(true, {UINT64_MAX}, {"test", "--c=18446744073709551615"}),
+        UnsignedParam(false, {"test", "--c=-1"}),
+        UnsignedParam(false, {"test", "--c=18446744073709551616"}),
+        UnsignedParam(false, {"test", "--c=abc"}),
+        UnsignedParam(false, {"test", "--c=1.5"}),
+        UnsignedParam(false, {"test", "--c=1abc"})),
+    [](const testing::TestParamInfo<UnsignedListOptions::ParamType> &Info) {
+      std::string Name;
+      for (const auto &Arg : Info.param.Args) {
+        Name += Arg;
+        Name += ' ';
+      }
+      Name.pop_back();
+      for (auto &Ch : Name) {
+        if (!std::isalnum(Ch))
+          Ch = '_';
+      }
+      return Name;
+    });

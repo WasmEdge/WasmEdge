@@ -466,12 +466,10 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   }
   if (Opt.GasLim.value().size() > 0) {
     Conf.getStatisticsConfigure().setCostMeasuring(true);
-    Conf.getStatisticsConfigure().setCostLimit(
-        static_cast<uint32_t>(Opt.GasLim.value().back()));
+    Conf.getStatisticsConfigure().setCostLimit(Opt.GasLim.value().back());
   }
   if (Opt.MemLim.value().size() > 0) {
-    Conf.getRuntimeConfigure().setMaxMemoryPage(
-        static_cast<uint32_t>(Opt.MemLim.value().back()));
+    Conf.getRuntimeConfigure().setMaxMemoryPage(Opt.MemLim.value().back());
   }
   if (Opt.ConfEnableAllStatistics.value()) {
     Conf.getStatisticsConfigure().setInstructionCounting(true);

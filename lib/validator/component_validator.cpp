@@ -1053,40 +1053,390 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::Canonical &Canon) noexcept {
-  // Canonical definitions are only validated structurally here — we just
-  // update the appropriate index space. A conformant implementation also
-  // needs to check, per opcode:
-  //
-  //   * canon lift:   `type` indexes a func type; `f` indexes a core func
-  //                   whose signature is the Canonical-ABI flattening of
-  //                   that func type under the supplied options;
-  //                   options are well-formed (at most one string-encoding,
-  //                   memory/realloc required when the ABI needs them,
-  //                   post-return forbidden under async, callback only
-  //                   under async, etc.).
-  //   * canon lower:  `f` indexes a component func; produces a core func
-  //                   whose signature is the Canonical-ABI flattening of
-  //                   `f`'s type under the supplied options.
-  //   * resource.new/drop/rep: `T` indexes a resource type defined in the
-  //                   current component; synthesizes a core func with the
-  //                   appropriate `T.rep` signature.
-  //
-  // None of that is wired up yet; only the index-space bookkeeping is.
   switch (Canon.getOpCode()) {
   case AST::Component::Canonical::OpCode::Lift:
-    CompCtx.addFunc();
-    return {};
+    return validateCanonLift(Canon);
   case AST::Component::Canonical::OpCode::Lower:
+    return validateCanonLower(Canon);
   case AST::Component::Canonical::OpCode::Resource__new:
-  case AST::Component::Canonical::OpCode::Resource__drop:
+    return validateCanonResourceNew(Canon);
   case AST::Component::Canonical::OpCode::Resource__rep:
-    CompCtx.addCoreFunc();
-    return {};
+    return validateCanonResourceRep(Canon);
+  case AST::Component::Canonical::OpCode::Resource__drop:
+  case AST::Component::Canonical::OpCode::Resource__drop_async:
+    return validateCanonResourceDrop(Canon);
   default:
     spdlog::error(ErrCode::Value::ComponentNotImplValidator);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::ComponentNotImplValidator);
   }
+}
+
+Expect<void> Validator::validateCanonOptions(
+    AST::Component::Canonical::OpCode Code,
+    Span<const AST::Component::CanonOpt> Opts) noexcept {
+  using OptCode = AST::Component::CanonOpt::OptCode;
+  using CanonOp = AST::Component::Canonical::OpCode;
+
+  // Only canon lift/lower accept canonical options. Any other built-in
+  // (resource.new/rep/drop, drop_async, ...) must be invoked without options.
+  if (Code != CanonOp::Lift && Code != CanonOp::Lower && !Opts.empty()) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    canonical options are not allowed for this canon built-in"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+
+  bool HasEncoding = false;
+  bool HasMemory = false;
+  bool HasRealloc = false;
+  bool HasPostReturn = false;
+  bool HasAsync = false;
+  bool HasCallback = false;
+  bool HasAlwaysTaskReturn = false;
+  uint32_t ReallocIdx = 0;
+  uint32_t CallbackIdx = 0;
+  uint32_t PostReturnIdx = 0;
+  uint32_t MemoryIdx = 0;
+
+  auto RejectDup = [&](const char *Name) -> Expect<void> {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error("    canonical option '{}' appears more than once"sv, Name);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  };
+  auto RejectSite = [&](const char *Name) -> Expect<void> {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    canonical option '{}' is not allowed in this canon built-in"sv,
+        Name);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  };
+
+  for (const auto &Opt : Opts) {
+    switch (Opt.getCode()) {
+    case OptCode::Encode_UTF8:
+    case OptCode::Encode_UTF16:
+    case OptCode::Encode_Latin1:
+      if (HasEncoding) {
+        return RejectDup("string-encoding");
+      }
+      HasEncoding = true;
+      break;
+    case OptCode::Memory:
+      if (HasMemory) {
+        return RejectDup("memory");
+      }
+      HasMemory = true;
+      MemoryIdx = Opt.getIndex();
+      break;
+    case OptCode::Realloc:
+      if (HasRealloc) {
+        return RejectDup("realloc");
+      }
+      HasRealloc = true;
+      ReallocIdx = Opt.getIndex();
+      break;
+    case OptCode::PostReturn:
+      if (Code != CanonOp::Lift) {
+        return RejectSite("post-return");
+      }
+      if (HasPostReturn) {
+        return RejectDup("post-return");
+      }
+      HasPostReturn = true;
+      PostReturnIdx = Opt.getIndex();
+      break;
+    case OptCode::Async:
+      if (HasAsync) {
+        return RejectDup("async");
+      }
+      HasAsync = true;
+      break;
+    case OptCode::Callback:
+      if (Code != CanonOp::Lift) {
+        return RejectSite("callback");
+      }
+      if (HasCallback) {
+        return RejectDup("callback");
+      }
+      HasCallback = true;
+      CallbackIdx = Opt.getIndex();
+      break;
+    case OptCode::AlwaysTaskReturn:
+      if (Code != CanonOp::Lift) {
+        return RejectSite("always-task-return");
+      }
+      if (HasAlwaysTaskReturn) {
+        return RejectDup("always-task-return");
+      }
+      HasAlwaysTaskReturn = true;
+      break;
+    default:
+      spdlog::error(ErrCode::Value::UnknownCanonicalOption);
+      spdlog::error("    unknown canonical option code 0x{:02x}"sv,
+                    static_cast<unsigned>(Opt.getCode()));
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+      return Unexpect(ErrCode::Value::UnknownCanonicalOption);
+    }
+  }
+
+  // Structural rules.
+  if (HasPostReturn && HasAsync) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    canonical options 'post-return' and 'async' are mutually exclusive"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+  if (HasCallback && !HasAsync) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error("    canonical option 'callback' requires 'async'"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+  if (HasAlwaysTaskReturn && !HasAsync) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    canonical option 'always-task-return' requires 'async'"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+  if (HasRealloc && !HasMemory) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    canonical option 'realloc' requires 'memory' to also be specified"sv);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+
+  // Index bounds checks. Core func signature body checks (realloc/callback)
+  // deferred as GAP-C-5b once getCoreFunc signatures are populated.
+  if (HasMemory &&
+      MemoryIdx >= CompCtx.getCoreSortIndexSize(
+                       AST::Component::Sort::CoreSortType::Memory)) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canonical option 'memory': core memory index {} out of bounds"sv,
+        MemoryIdx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  const uint32_t CoreFuncSpaceSize =
+      CompCtx.getCoreSortIndexSize(AST::Component::Sort::CoreSortType::Func);
+  if (HasRealloc && ReallocIdx >= CoreFuncSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canonical option 'realloc': core func index {} out of bounds"sv,
+        ReallocIdx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  if (HasCallback && CallbackIdx >= CoreFuncSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canonical option 'callback': core func index {} out of bounds"sv,
+        CallbackIdx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  if (HasPostReturn && PostReturnIdx >= CoreFuncSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canonical option 'post-return': core func index {} out of bounds"sv,
+        PostReturnIdx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  return {};
+}
+
+Expect<void>
+Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
+  const uint32_t CoreFuncIdx = Canon.getIndex();
+  const uint32_t CoreFuncSpaceSize =
+      CompCtx.getCoreSortIndexSize(AST::Component::Sort::CoreSortType::Func);
+  // 1. Core func index bounds.
+  if (CoreFuncIdx >= CoreFuncSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canon lift: core func index {} exceeds core func index space size {}"sv,
+        CoreFuncIdx, CoreFuncSpaceSize);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  const uint32_t TypeIdx = Canon.getTargetIndex();
+  const uint32_t TypeSpaceSize =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+  // 2. Target type index bounds.
+  if (TypeIdx >= TypeSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canon lift: type index {} exceeds type index space size {}"sv,
+        TypeIdx, TypeSpaceSize);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  // 3. Target type must be a component FuncType.
+  const auto *DT = CompCtx.getDefType(TypeIdx);
+  if (DT == nullptr) {
+    // Unresolved slot: the index was registered by an import or outer alias
+    // but the concrete definition has not been filled in yet.
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error(
+        "    canon lift: target type index {} is an unresolved type slot"sv,
+        TypeIdx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  if (!DT->isFuncType()) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error(
+        "    canon lift: target type index {} does not reference a component func type"sv,
+        TypeIdx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  // 4. Validate canonical options (Lift site allows all).
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  // 5. Allocate component func, binding the resolved FuncType. Full ABI
+  // signature match (flat_lifted) deferred as GAP-C-1b.
+  CompCtx.addFunc(&DT->getFuncType());
+  return {};
+}
+
+Expect<void>
+Validator::validateCanonLower(const AST::Component::Canonical &Canon) noexcept {
+  const uint32_t FuncIdx = Canon.getIndex();
+  const uint32_t FuncSpaceSize =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Func);
+  // 1. Component func index bounds.
+  if (FuncIdx >= FuncSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canon lower: component func index {} exceeds func index space size {}"sv,
+        FuncIdx, FuncSpaceSize);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  // 2. Validate canonical options (per-site rules for Lower).
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  // 3. Allocate the resulting core func. Full ABI signature synthesis
+  // (flatten_functype for lower) deferred as GAP-C-2b.
+  CompCtx.addCoreFunc();
+  return {};
+}
+
+Expect<void> Validator::validateCanonResourceNew(
+    const AST::Component::Canonical &Canon) noexcept {
+  const uint32_t Idx = Canon.getIndex();
+  const uint32_t TypeSpaceSize =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+  // 1. Type index bounds.
+  if (Idx >= TypeSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canon resource.new: type index {} exceeds type index space size {}"sv,
+        Idx, TypeSpaceSize);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  // 2. Type must be a resource type.
+  if (!CompCtx.isResourceType(Idx)) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error(
+        "    canon resource.new: type index {} does not reference a resource"sv,
+        Idx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  // 3. Resource must be locally defined.
+  if (!CompCtx.isLocalResource(Idx)) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error(
+        "    canon resource.new: type index {} is not locally defined (imported or outer-aliased resources are not allowed)"sv,
+        Idx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  // 4. Validate canonical options.
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  // 5. Allocate the resulting core func. Full signature tracking deferred.
+  CompCtx.addCoreFunc();
+  return {};
+}
+
+Expect<void> Validator::validateCanonResourceRep(
+    const AST::Component::Canonical &Canon) noexcept {
+  const uint32_t Idx = Canon.getIndex();
+  const uint32_t TypeSpaceSize =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+  // 1. Type index bounds.
+  if (Idx >= TypeSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canon resource.rep: type index {} exceeds type index space size {}"sv,
+        Idx, TypeSpaceSize);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  // 2. Type must be a resource type.
+  if (!CompCtx.isResourceType(Idx)) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error(
+        "    canon resource.rep: type index {} does not reference a resource"sv,
+        Idx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  // 3. Resource must be locally defined.
+  if (!CompCtx.isLocalResource(Idx)) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error(
+        "    canon resource.rep: type index {} is not locally defined (imported or outer-aliased resources are not allowed)"sv,
+        Idx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  // 4. Validate canonical options.
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  // 5. Allocate the resulting core func. Full signature tracking deferred.
+  CompCtx.addCoreFunc();
+  return {};
+}
+
+Expect<void> Validator::validateCanonResourceDrop(
+    const AST::Component::Canonical &Canon) noexcept {
+  const uint32_t Idx = Canon.getIndex();
+  const uint32_t TypeSpaceSize =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+  // 1. Type index bounds.
+  if (Idx >= TypeSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    canon resource.drop: type index {} exceeds type index space size {}"sv,
+        Idx, TypeSpaceSize);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+  // 2. Type must be a resource type.
+  if (!CompCtx.isResourceType(Idx)) {
+    spdlog::error(ErrCode::Value::InvalidTypeReference);
+    spdlog::error(
+        "    canon resource.drop: type index {} does not reference a resource"sv,
+        Idx);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidTypeReference);
+  }
+  // 3. resource.drop accepts both local and imported resources — no locality
+  // check.
+  // 4. Validate canonical options.
+  EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
+  // 5. Allocate the resulting core func. Full signature tracking deferred.
+  CompCtx.addCoreFunc();
+  return {};
 }
 
 Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
@@ -1306,13 +1656,13 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
       }
       // Create alias: propagate resource property if referenced type is
       // resource
-      uint32_t NewIdx = CompCtx.addType();
+      uint32_t NewIdx = CompCtx.addTypeImported(nullptr);
       if (CompCtx.isResourceType(RefIdx)) {
         CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
       }
     } else {
       // (type (sub resource)) — fresh abstract resource type
-      uint32_t NewIdx = CompCtx.addType();
+      uint32_t NewIdx = CompCtx.addTypeImported(nullptr);
       CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
     }
     break;
@@ -1472,7 +1822,7 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
     CompCtx.addValue();
     break;
   case AST::Component::ExternDesc::DescType::TypeBound: {
-    uint32_t NewIdx = CompCtx.addType();
+    uint32_t NewIdx = CompCtx.addTypeImported(nullptr);
     if (!Desc.isEqType()) {
       // (type (sub resource)) — fresh abstract resource type
       CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;

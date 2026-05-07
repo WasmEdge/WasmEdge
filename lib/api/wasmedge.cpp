@@ -188,6 +188,11 @@ inline ValType genValType(const WasmEdge_ValType &T) noexcept {
   return ValType(R);
 }
 
+inline std::filesystem::path genPath(const char *Path) {
+  return (Path && *Path) ? std::filesystem::absolute(Path)
+                         : std::filesystem::path();
+}
+
 // Helper functions for returning a WasmEdge_ValType by WasmEdge::ValType.
 inline WasmEdge_ValType genWasmEdge_ValType(const ValType &T) noexcept {
   WasmEdge_ValType VT;
@@ -1924,8 +1929,8 @@ WasmEdge_CompilerCompile(WasmEdge_CompilerContext *Cxt [[maybe_unused]],
 #ifdef WASMEDGE_USE_LLVM
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        std::filesystem::path InputPath = std::filesystem::absolute(InPath);
-        std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
+        std::filesystem::path InputPath = genPath(InPath);
+        std::filesystem::path OutputPath = genPath(OutPath);
         std::vector<WasmEdge::Byte> Data;
         std::unique_ptr<WasmEdge::AST::Module> Module;
         return Cxt->Compiler.checkConfigure()
@@ -1965,7 +1970,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_CompilerCompileFromBytes(
 #ifdef WASMEDGE_USE_LLVM
   return wrap(
       [&]() -> WasmEdge::Expect<void> {
-        std::filesystem::path OutputPath = std::filesystem::absolute(OutPath);
+        std::filesystem::path OutputPath = genPath(OutPath);
         auto Data = genSpan(Bytes.Buf, Bytes.Length);
         std::unique_ptr<WasmEdge::AST::Module> Module;
         return Cxt->Load.parseModule(Data)
@@ -2012,12 +2017,9 @@ WasmEdge_LoaderCreate(const WasmEdge_ConfigureContext *ConfCxt) noexcept {
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromFile(
     WasmEdge_LoaderContext *Cxt, WasmEdge_ASTModuleContext **Module,
     const char *Path) noexcept {
-  return wrap(
-      [&]() {
-        return fromLoaderCxt(Cxt)->parseModule(std::filesystem::absolute(Path));
-      },
-      [&](auto &&Res) { *Module = toASTModCxt((*Res).release()); }, Cxt,
-      Module);
+  return wrap([&]() { return fromLoaderCxt(Cxt)->parseModule(genPath(Path)); },
+              [&](auto &&Res) { *Module = toASTModCxt((*Res).release()); }, Cxt,
+              Module);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_LoaderParseFromBuffer(
@@ -3203,8 +3205,7 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRegisterModuleFromFile(
     const char *Path) noexcept {
   return wrap(
       [&]() {
-        return Cxt->VM.registerModule(genStrView(ModuleName),
-                                      std::filesystem::absolute(Path));
+        return Cxt->VM.registerModule(genStrView(ModuleName), genPath(Path));
       },
       EmptyThen, Cxt);
 }
@@ -3265,9 +3266,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMRunWasmFromFile(
     auto ParamPair = genParamPair(Params, ParamLen);
     return wrap(
         [&]() {
-          return Cxt->VM.runWasmFile(std::filesystem::absolute(Path),
-                                     genStrView(FuncName), ParamPair.first,
-                                     ParamPair.second);
+          return Cxt->VM.runWasmFile(genPath(Path), genStrView(FuncName),
+                                     ParamPair.first, ParamPair.second);
         },
         [&](auto Res) { fillWasmEdge_ValueArr(*Res, Returns, ReturnLen); },
         Cxt);
@@ -3332,9 +3332,9 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromFile(
   try {
     auto ParamPair = genParamPair(Params, ParamLen);
     if (Cxt) {
-      return new WasmEdge_Async(Cxt->VM.asyncRunWasmFile(
-          std::filesystem::absolute(Path), genStrView(FuncName),
-          ParamPair.first, ParamPair.second));
+      return new WasmEdge_Async(
+          Cxt->VM.asyncRunWasmFile(genPath(Path), genStrView(FuncName),
+                                   ParamPair.first, ParamPair.second));
     }
   } catch (...) {
     handleCAPIError();
@@ -3386,9 +3386,8 @@ WASMEDGE_CAPI_EXPORT WasmEdge_Async *WasmEdge_VMAsyncRunWasmFromASTModule(
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result WasmEdge_VMLoadWasmFromFile(
     WasmEdge_VMContext *Cxt, const char *Path) noexcept {
-  return wrap(
-      [&]() { return Cxt->VM.loadWasm(std::filesystem::absolute(Path)); },
-      EmptyThen, Cxt);
+  return wrap([&]() { return Cxt->VM.loadWasm(genPath(Path)); }, EmptyThen,
+              Cxt);
 }
 
 WASMEDGE_CAPI_EXPORT WasmEdge_Result
@@ -3819,7 +3818,8 @@ WASMEDGE_CAPI_EXPORT void WasmEdge_PluginLoadWithDefaultPaths(void) noexcept {
 
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_PluginLoadFromPath(const char *Path) noexcept {
-  WasmEdge::Plugin::Plugin::load(Path);
+  // Not genPath(): this is noexcept and absolute() can throw.
+  WasmEdge::Plugin::Plugin::load(std::filesystem::path(Path ? Path : ""));
 }
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPluginsLength(void) noexcept {

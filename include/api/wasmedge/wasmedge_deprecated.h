@@ -158,6 +158,40 @@ WasmEdge_VMLoadWasmFromBuffer(WasmEdge_VMContext *Cxt, const uint8_t *Buf,
 
 // <<<<<<<< WasmEdge VM functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> WasmEdge Configure functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+/// Set the force interpreter mode execution option.
+///
+/// CAUTION: This function will be deprecated and replaced by
+/// `WasmEdge_ConfigureSetRunMode()` API in the future. Use
+/// `WasmEdge_ConfigureSetRunMode(Cxt, WasmEdge_RunMode_Interpreter)` instead.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the boolean value.
+/// \param IsForceInterpreter the boolean value to determine to forcibly run
+/// WASM in interpreter mode or not. Passing `false` is a no-op.
+WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetForceInterpreter(
+    WasmEdge_ConfigureContext *Cxt,
+    const bool IsForceInterpreter) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the force interpreter mode execution option.
+///
+/// CAUTION: This function will be deprecated and replaced by
+/// `WasmEdge_ConfigureGetRunMode()` API in the future. Use
+/// `WasmEdge_ConfigureGetRunMode(Cxt) == WasmEdge_RunMode_Interpreter`
+/// instead.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the boolean value.
+///
+/// \returns true when the configured run mode is interpreter; false otherwise.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsForceInterpreter(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+// <<<<<<<< WasmEdge Configure functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 #ifdef __cplusplus
 } /// extern "C"
 #endif

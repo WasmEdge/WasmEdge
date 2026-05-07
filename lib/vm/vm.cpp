@@ -425,7 +425,8 @@ Expect<void> VM::unsafeInstantiate() {
   }
 
   if (Mod) {
-    if (Conf.getRuntimeConfigure().isEnableJIT() && !Mod->getSymbol()) {
+    if (Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT &&
+        !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
       LLVM::Compiler Compiler(Conf);
       Compiler.checkConfigure()
@@ -470,7 +471,8 @@ Expect<void> VM::unsafeInstantiate() {
             return ErrCode::Value::Success;
           });
 #else
-      spdlog::error("LLVM disabled, JIT is unsupported!"sv);
+      spdlog::warn("JIT was requested but WasmEdge was built without LLVM, "
+                   "falling back to interpreter."sv);
 #endif
     }
 

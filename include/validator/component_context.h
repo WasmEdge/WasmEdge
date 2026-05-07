@@ -36,18 +36,27 @@ public:
     std::vector<std::unordered_map<std::string, ExternalType>>
         CoreInstances;                                 // core:instance
     std::vector<const AST::SubType *> CoreTypes;       // core:type
-    uint32_t CoreFuncCount = 0;                        // core:func
+    std::vector<const AST::SubType *> CoreFuncs;       // core:func
     std::vector<const AST::TableType *> CoreTables;    // core:table
     std::vector<const AST::MemoryType *> CoreMemories; // core:memory
     std::vector<const AST::GlobalType *> CoreGlobals;  // core:global
+    uint32_t CoreTagCount = 0;                         // core:tag
 
     // --- Component sort index spaces ---
     std::vector<const AST::Component::Component *> Components; // component
-    std::vector<std::unordered_map<std::string,
-                                   const AST::Component::ExternDesc *>>
-        Instances;           // instance
-    uint32_t TypeCount = 0;  // type
-    uint32_t FuncCount = 0;  // func
+    // Instance exports: name → {sort, optional resolved InstanceType,
+    // optional nested instance idx} so alias-export and ascription subtype
+    // checks can follow chains without re-deriving from ExternDesc.
+    struct InstanceExport {
+      AST::Component::Sort::SortType ST;
+      const AST::Component::InstanceType *IT;
+      std::optional<uint32_t> NestedInstIdx;
+    };
+    std::vector<std::unordered_map<std::string, InstanceExport>>
+        Instances;                                      // instance
+    std::vector<const AST::Component::DefType *> Types; // type
+    std::vector<const AST::Component::FuncType *>
+        Funcs;               // func (element i = FuncType* or nullptr)
     uint32_t ValueCount = 0; // value
 
     // --- Type annotations (keyed by type index) ---
@@ -55,6 +64,11 @@ public:
         InstanceTypes;
     std::unordered_map<uint32_t, const AST::Component::ResourceType *>
         ResourceTypes;
+
+    // Type indices that refer to locally-defined resources (not imported / not
+    // aliased from an outer scope). Required by canon resource.new /
+    // resource.rep, which are only valid for locally-defined resources.
+    std::unordered_set<uint32_t> DefinedResources;
 
     // --- Validation state ---
     std::unordered_map<std::string, uint32_t> TypeSubstitutions;
@@ -75,16 +89,28 @@ public:
 
   void reset() noexcept { CompCtxs.clear(); }
 
-  /// Push a new validation scope. Pass a Component for real components,
-  /// or nullptr for componenttype/instancetype type definition scopes.
-  void enterComponent(const AST::Component::Component *C = nullptr) noexcept {
+  /// Push a new validation scope for a real component.
+  void enterComponent(const AST::Component::Component *C) noexcept {
     const Context *Parent = CompCtxs.empty() ? nullptr : &CompCtxs.back();
     CompCtxs.emplace_back(C, Parent);
+  }
+
+  /// Push a new validation scope for a type definition
+  /// (componenttype, instancetype, or moduletype).
+  void enterTypeDefinition() noexcept {
+    const Context *Parent = CompCtxs.empty() ? nullptr : &CompCtxs.back();
+    CompCtxs.emplace_back(nullptr, Parent);
   }
 
   void exitComponent() noexcept {
     assuming(!CompCtxs.empty());
     CompCtxs.pop_back();
+  }
+
+  /// Returns true if the current scope is a type definition scope
+  /// (componenttype or instancetype), not a real component scope.
+  bool isTypeDefinitionScope() const noexcept {
+    return !CompCtxs.empty() && CompCtxs.back().Component == nullptr;
   }
 
   Context &getCurrentContext() noexcept {
@@ -168,8 +194,15 @@ public:
     V.push_back(ST);
     return Idx;
   }
-  uint32_t addCoreFunc() noexcept {
-    return getCurrentContext().CoreFuncCount++;
+  uint32_t addCoreFunc(const AST::SubType *ST = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreFuncs;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(ST);
+    return Idx;
+  }
+  const AST::SubType *getCoreFunc(uint32_t Idx) const noexcept {
+    const auto &V = getCurrentContext().CoreFuncs;
+    return Idx < V.size() ? V[Idx] : nullptr;
   }
 
   uint32_t addCoreTable(const AST::TableType *TT = nullptr) noexcept {
@@ -190,6 +223,7 @@ public:
     V.push_back(GT);
     return Idx;
   }
+  uint32_t addCoreTag() noexcept { return getCurrentContext().CoreTagCount++; }
 
   // ==========================================================================
   // component
@@ -224,34 +258,55 @@ public:
     return Idx;
   }
 
-  const std::unordered_map<std::string, const AST::Component::ExternDesc *> &
+  using InstanceExport = Context::InstanceExport;
+
+  const std::unordered_map<std::string, InstanceExport> &
   getInstance(uint32_t Idx) const noexcept {
     return getCurrentContext().Instances.at(Idx);
   }
 
-  void addInstanceExport(uint32_t InstIdx, std::string_view Name,
-                         const AST::Component::ExternDesc &ED) {
-    getCurrentContext().Instances.at(InstIdx)[std::string(Name)] = &ED;
+  void addInstanceExport(
+      uint32_t InstIdx, std::string_view Name,
+      AST::Component::Sort::SortType ST,
+      const AST::Component::InstanceType *IT = nullptr,
+      std::optional<uint32_t> NestedInstIdx = std::nullopt) noexcept {
+    getCurrentContext().Instances.at(InstIdx)[std::string(Name)] = {
+        ST, IT, NestedInstIdx};
   }
 
   // ==========================================================================
   // type
   // ==========================================================================
 
-  uint32_t addType() noexcept { return getCurrentContext().TypeCount++; }
-
-  uint32_t addType(const AST::Component::InstanceType &IT) noexcept {
-    auto &Ctx = getCurrentContext();
-    uint32_t Idx = Ctx.TypeCount++;
-    Ctx.InstanceTypes[Idx] = &IT;
-    return Idx;
+  uint32_t addType(const AST::Component::DefType *DT = nullptr) noexcept {
+    return addTypeImpl(DT, /*IsLocal=*/true);
   }
 
-  uint32_t addType(const AST::Component::ResourceType &RT) noexcept {
-    auto &Ctx = getCurrentContext();
-    uint32_t Idx = Ctx.TypeCount++;
-    Ctx.ResourceTypes[Idx] = &RT;
-    return Idx;
+  /// Like addType but marks the resource as imported rather than locally
+  /// defined. Used for resource type imports and outer-alias resources.
+  uint32_t addTypeImported(const AST::Component::DefType *DT) noexcept {
+    return addTypeImpl(DT, /*IsLocal=*/false);
+  }
+
+  const AST::Component::DefType *getDefType(uint32_t Idx) const noexcept {
+    const auto &Ctx = getCurrentContext();
+    if (Idx < Ctx.Types.size()) {
+      return Ctx.Types[Idx];
+    }
+    return nullptr;
+  }
+
+  bool isResourceType(uint32_t Idx) const noexcept {
+    const auto &Ctx = getCurrentContext();
+    return Ctx.ResourceTypes.find(Idx) != Ctx.ResourceTypes.end();
+  }
+
+  /// Returns true iff the type index is a resource defined in the current
+  /// scope (not imported, not an outer-alias). Required for canon
+  /// resource.new and resource.rep validation.
+  bool isLocalResource(uint32_t Idx) const noexcept {
+    const auto &Ctx = getCurrentContext();
+    return Ctx.DefinedResources.find(Idx) != Ctx.DefinedResources.end();
   }
 
   const AST::Component::InstanceType *
@@ -272,7 +327,16 @@ public:
   // func / value
   // ==========================================================================
 
-  uint32_t addFunc() noexcept { return getCurrentContext().FuncCount++; }
+  uint32_t addFunc(const AST::Component::FuncType *FT = nullptr) noexcept {
+    auto &V = getCurrentContext().Funcs;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(FT);
+    return Idx;
+  }
+  const AST::Component::FuncType *getFunc(uint32_t Idx) const noexcept {
+    const auto &V = getCurrentContext().Funcs;
+    return Idx < V.size() ? V[Idx] : nullptr;
+  }
   uint32_t addValue() noexcept { return getCurrentContext().ValueCount++; }
 
   // ==========================================================================
@@ -304,6 +368,24 @@ public:
   }
 
 private:
+  uint32_t addTypeImpl(const AST::Component::DefType *DT,
+                       bool IsLocal) noexcept {
+    auto &Ctx = getCurrentContext();
+    uint32_t Idx = static_cast<uint32_t>(Ctx.Types.size());
+    Ctx.Types.push_back(DT);
+    if (DT != nullptr) {
+      if (DT->isInstanceType()) {
+        Ctx.InstanceTypes[Idx] = &DT->getInstanceType();
+      } else if (DT->isResourceType()) {
+        Ctx.ResourceTypes[Idx] = &DT->getResourceType();
+        if (IsLocal) {
+          Ctx.DefinedResources.insert(Idx);
+        }
+      }
+    }
+    return Idx;
+  }
+
   std::deque<Context> CompCtxs;
 };
 

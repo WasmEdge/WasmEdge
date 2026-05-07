@@ -110,6 +110,10 @@ struct DriverToolOptions {
             PO::Description("Enable coredump for wasm-gdb to debug"sv)),
         ConfForceInterpreter(
             PO::Description("Forcibly run WASM in interpreter mode."sv)),
+        ConfRunMode(PO::Description("Set execution mode. Valid values: "
+                                    "interpreter, jit, aot. "
+                                    "Default is interpreter."sv),
+                    PO::MetaVar("MODE"sv), PO::DefaultValue(std::string())),
         ConfAFUNIX(PO::Description("Enable UNIX domain sockets"sv)),
         TimeLim(
             PO::Description(
@@ -176,6 +180,7 @@ struct DriverToolOptions {
   PO::Option<PO::Toggle> ConfEnableCoredump;
   PO::Option<PO::Toggle> ConfCoredumpWasmgdb;
   PO::Option<PO::Toggle> ConfForceInterpreter;
+  PO::Option<std::string> ConfRunMode;
   PO::Option<PO::Toggle> ConfAFUNIX;
   PO::Option<uint64_t> TimeLim;
   PO::List<int> GasLim;
@@ -197,6 +202,7 @@ struct DriverToolOptions {
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
         .add_option("force-interpreter"sv, ConfForceInterpreter)
+        .add_option("run-mode"sv, ConfRunMode)
         .add_option("allow-af-unix"sv, ConfAFUNIX)
         .add_option("wasm-1"sv, PropWASM1)
         .add_option("wasm-2"sv, PropWASM2)

@@ -985,10 +985,33 @@ WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
 }
 
 WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetRunMode(WasmEdge_ConfigureContext *Cxt,
+                             const enum WasmEdge_RunMode Mode) noexcept {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setRunMode(
+        static_cast<WasmEdge::RunMode>(Mode));
+  }
+}
+
+WASMEDGE_CAPI_EXPORT enum WasmEdge_RunMode
+WasmEdge_ConfigureGetRunMode(const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return static_cast<WasmEdge_RunMode>(
+        Cxt->Conf.getRuntimeConfigure().getRunMode());
+  }
+  return WasmEdge_RunMode_Interpreter;
+}
+
+WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetForceInterpreter(WasmEdge_ConfigureContext *Cxt,
                                       const bool IsForceInterpreter) noexcept {
   if (Cxt) {
-    Cxt->Conf.getRuntimeConfigure().setForceInterpreter(IsForceInterpreter);
+    if (IsForceInterpreter) {
+      Cxt->Conf.getRuntimeConfigure().setRunMode(
+          WasmEdge::RunMode::Interpreter);
+    }
+    // Passing `false` is a no-op, preserving the historical "don't force"
+    // semantic.
   }
 }
 
@@ -1011,7 +1034,8 @@ WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt) noexcept {
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureIsForceInterpreter(
     const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {
-    return Cxt->Conf.getRuntimeConfigure().isForceInterpreter();
+    return Cxt->Conf.getRuntimeConfigure().getRunMode() ==
+           WasmEdge::RunMode::Interpreter;
   }
   return false;
 }
@@ -1882,11 +1906,11 @@ WasmEdge_CompilerCreate(const WasmEdge_ConfigureContext *ConfCxt
     // forcibly.
     if (ConfCxt) {
       WasmEdge::Configure CopyConf(ConfCxt->Conf);
-      CopyConf.getRuntimeConfigure().setForceInterpreter(true);
+      CopyConf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::Interpreter);
       return new WasmEdge_CompilerContext(CopyConf);
     } else {
       WasmEdge::Configure CopyConf;
-      CopyConf.getRuntimeConfigure().setForceInterpreter(true);
+      CopyConf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::Interpreter);
       return new WasmEdge_CompilerContext(CopyConf);
     }
   } catch (...) {

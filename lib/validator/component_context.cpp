@@ -9,11 +9,11 @@ uint32_t
 ComponentContext::Context::getSortIndexSize(Sort::SortType ST) const noexcept {
   switch (ST) {
   case Sort::SortType::Func:
-    return FuncCount;
+    return static_cast<uint32_t>(Funcs.size());
   case Sort::SortType::Value:
     return ValueCount;
   case Sort::SortType::Type:
-    return TypeCount;
+    return static_cast<uint32_t>(Types.size());
   case Sort::SortType::Component:
     return static_cast<uint32_t>(Components.size());
   case Sort::SortType::Instance:
@@ -27,13 +27,15 @@ uint32_t ComponentContext::Context::getCoreSortIndexSize(
     Sort::CoreSortType ST) const noexcept {
   switch (ST) {
   case Sort::CoreSortType::Func:
-    return CoreFuncCount;
+    return static_cast<uint32_t>(CoreFuncs.size());
   case Sort::CoreSortType::Table:
     return static_cast<uint32_t>(CoreTables.size());
   case Sort::CoreSortType::Memory:
     return static_cast<uint32_t>(CoreMemories.size());
   case Sort::CoreSortType::Global:
     return static_cast<uint32_t>(CoreGlobals.size());
+  case Sort::CoreSortType::Tag:
+    return CoreTagCount;
   case Sort::CoreSortType::Type:
     return static_cast<uint32_t>(CoreTypes.size());
   case Sort::CoreSortType::Module:
@@ -73,6 +75,8 @@ ComponentContext::incCoreSortIndexSize(Sort::CoreSortType ST) noexcept {
     return addCoreMemory();
   case Sort::CoreSortType::Global:
     return addCoreGlobal();
+  case Sort::CoreSortType::Tag:
+    return addCoreTag();
   case Sort::CoreSortType::Type:
     return addCoreType();
   case Sort::CoreSortType::Module:

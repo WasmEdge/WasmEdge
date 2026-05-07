@@ -84,8 +84,14 @@ TEST_P(CoreTest, TestSuites) {
                   const std::string &FileName) -> Expect<void> {
     auto &VM = static_cast<TestContext *>(Ctx)->VM;
     if (!ModName.empty()) {
-      return VM.registerModule(ModName, FileName);
-    } else if (T.SkipComponentValidation) {
+      // registerModule only supports core wasm modules. If it fails (e.g.
+      // because the file is a component), fall back to
+      // load/validate/instantiate.
+      if (auto Res = VM.registerModule(ModName, FileName); Res) {
+        return {};
+      }
+    }
+    if (T.SkipComponentValidation) {
       // For component-model tests where validation is not yet supported,
       // skip validation by force-setting the stage as validated.
       return VM.loadWasm(FileName)

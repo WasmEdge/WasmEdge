@@ -200,28 +200,30 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
     CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));
   }
   Mod.setSymbol(std::move(IntrinsicsSymbol));
-  if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-    // If the configure is set to force interpreter mode, not to set the
-    // symbol.
-    if (auto &Symbol = Mod.getSymbol()) {
-      *Symbol = IntrinsicsTable;
-    }
+  // loadExecutable is reached only when native code is being prepared (AOT
+  // load or JIT compile). Patch the intrinsics-table pointer embedded in
+  // the produced executable so the native code can call back into the
+  // runtime.
+  if (auto &Symbol = Mod.getSymbol()) {
+    *Symbol = IntrinsicsTable;
   }
 
   return {};
 }
 
 Expect<void> Loader::loadUniversalWASM(AST::Module &Mod) {
-  if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::AOT) {
     auto Exec = std::make_shared<AOTSection>();
     if (auto Res = Exec->load(Mod.getAOTSection()); unlikely(!Res)) {
-      spdlog::error("    AOT section -- library load failed:{} , use "
-                    "interpreter mode instead.",
-                    Res.error());
+      spdlog::warn("AOT was requested but loading the AOT section failed: "
+                   "{}, falling back to interpreter."sv,
+                   Res.error());
     } else {
       if (loadExecutable(Mod, Exec)) {
         return {};
       }
+      spdlog::warn("AOT was requested but linking the AOT executable failed, "
+                   "falling back to interpreter."sv);
     }
   }
 

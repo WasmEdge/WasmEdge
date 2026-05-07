@@ -173,7 +173,7 @@ std::unique_ptr<bpf_buffer> bpf_buffer__new(bpf_map *events) {
 int32_t wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
   return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
-/// \brief load all bpf programs and maps in a object file.
+/// \brief load all bpf programs and maps in an object file.
 int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
                                           size_t obj_buf_sz) {
   auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, nullptr);

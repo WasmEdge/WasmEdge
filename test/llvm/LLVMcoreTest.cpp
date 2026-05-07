@@ -49,7 +49,11 @@ class CustomWasmCoreTest : public testing::TestWithParam<std::string> {};
 class JITCoreTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(NativeCoreTest, TestSuites) {
-  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  // Native AOT spec test: explicitly opt into RunMode::AOT so the runtime
+  // load step uses the produced .so as AOT, instead of falling back to
+  // interpreter under the new default mode.
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   const auto &ConfRef = Conf;
 
   // Define context structure
@@ -221,7 +225,11 @@ TEST_P(NativeCoreTest, TestSuites) {
 }
 
 TEST_P(CustomWasmCoreTest, TestSuites) {
-  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  // Universal-WASM AOT spec test: produced files are .aot.wasm (universal
+  // WASM with an AOT custom section). Opt into RunMode::AOT so the
+  // runtime load step actually loads the AOT section.
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   const auto &ConfRef = Conf;
 
   // Define context structure
@@ -391,7 +399,11 @@ TEST_P(CustomWasmCoreTest, TestSuites) {
 }
 
 TEST_P(JITCoreTest, TestSuites) {
-  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::JIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      WasmEdge::CompilerConfigure::OptimizationLevel::O0);
+  Conf.getCompilerConfigure().setDumpIR(true);
   const auto &ConfRef = Conf;
 
   // Define context structure
@@ -406,12 +418,7 @@ TEST_P(JITCoreTest, TestSuites) {
   T.onInit = [&ConfRef](SpecTest::ContextHandle Parent,
                         const std::vector<std::pair<std::string, std::string>>
                             &SharedModules) -> SpecTest::ContextHandle {
-    WasmEdge::Configure CopyConf = ConfRef;
-    CopyConf.getRuntimeConfigure().setEnableJIT(true);
-    CopyConf.getCompilerConfigure().setOptimizationLevel(
-        WasmEdge::CompilerConfigure::OptimizationLevel::O0);
-    CopyConf.getCompilerConfigure().setDumpIR(true);
-    auto *Ctx = new TestContext(CopyConf);
+    auto *Ctx = new TestContext(ConfRef);
     if (Parent != nullptr && !SharedModules.empty()) {
       auto *P = static_cast<TestContext *>(Parent);
       for (const auto &[ParentName, AliasName] : SharedModules) {
@@ -540,6 +547,7 @@ TEST(AsyncRunWsmFile, NativeInterruptTest) {
   Conf.getCompilerConfigure().setInterruptible(true);
   Conf.getCompilerConfigure().setOutputFormat(
       CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
 
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::Loader::Loader Loader(Conf);
@@ -581,6 +589,7 @@ TEST(AsyncExecute, NativeInterruptTest) {
   Conf.getCompilerConfigure().setInterruptible(true);
   Conf.getCompilerConfigure().setOutputFormat(
       CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
 
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::Loader::Loader Loader(Conf);
@@ -625,6 +634,7 @@ TEST(AsyncRunWsmFile, CustomWasmInterruptTest) {
   Conf.getCompilerConfigure().setInterruptible(true);
   Conf.getCompilerConfigure().setOutputFormat(
       CompilerConfigure::OutputFormat::Wasm);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
 
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::Loader::Loader Loader(Conf);
@@ -666,6 +676,7 @@ TEST(AsyncExecute, CustomWasmInterruptTest) {
   Conf.getCompilerConfigure().setInterruptible(true);
   Conf.getCompilerConfigure().setOutputFormat(
       CompilerConfigure::OutputFormat::Wasm);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
 
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::Loader::Loader Loader(Conf);
@@ -738,21 +749,20 @@ TEST(Configure, ConfigureTest) {
 //   )
 // )
 TEST(SIMDNaN, F32x4MaxNaNHandling) {
-  // clang-format off
   std::array<WasmEdge::Byte, 88> SIMDNaNTestWasm{
-      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60,
-      0x00, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x07, 0x16, 0x01, 0x12, 0x74,
-      0x65, 0x73, 0x74, 0x5f, 0x66, 0x33, 0x32, 0x78, 0x34, 0x5f, 0x6d, 0x61,
-      0x78, 0x5f, 0x6e, 0x61, 0x6e, 0x00, 0x00, 0x0a, 0x2b, 0x01, 0x29, 0x00,
-      0xfd, 0x0c, 0x01, 0x00, 0xc0, 0x7f, 0x01, 0x00, 0xc0, 0x7f, 0x01, 0x00,
-      0xc0, 0x7f, 0x01, 0x00, 0xc0, 0x7f, 0xfd, 0x0c, 0x00, 0x00, 0xc0, 0x7f,
-      0x00, 0x00, 0xc0, 0x7f, 0x00, 0x00, 0xc0, 0x7f, 0x00, 0x00, 0xc0, 0x7f,
-      0xfd, 0xe9, 0x01, 0x0b};
-  // clang-format on
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+      0x60, 0x00, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x07, 0x16, 0x01,
+      0x12, 0x74, 0x65, 0x73, 0x74, 0x5f, 0x66, 0x33, 0x32, 0x78, 0x34,
+      0x5f, 0x6d, 0x61, 0x78, 0x5f, 0x6e, 0x61, 0x6e, 0x00, 0x00, 0x0a,
+      0x2b, 0x01, 0x29, 0x00, 0xfd, 0x0c, 0x01, 0x00, 0xc0, 0x7f, 0x01,
+      0x00, 0xc0, 0x7f, 0x01, 0x00, 0xc0, 0x7f, 0x01, 0x00, 0xc0, 0x7f,
+      0xfd, 0x0c, 0x00, 0x00, 0xc0, 0x7f, 0x00, 0x00, 0xc0, 0x7f, 0x00,
+      0x00, 0xc0, 0x7f, 0x00, 0x00, 0xc0, 0x7f, 0xfd, 0xe9, 0x01, 0x0b};
 
   WasmEdge::Configure Conf;
   Conf.getCompilerConfigure().setOutputFormat(
       CompilerConfigure::OutputFormat::Native);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
 
   WasmEdge::VM::VM VM(Conf);
   WasmEdge::Loader::Loader Loader(Conf);

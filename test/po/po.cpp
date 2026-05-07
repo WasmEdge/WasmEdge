@@ -93,7 +93,13 @@ INSTANTIATE_TEST_SUITE_P(
         Param(true, true, 0, {0}, {}, {"test", "-c", "-a"}),
         Param(true, true, 0, {1}, {}, {"test", "-c", "1", "-a"}),
         Param(true, false, 0, {2}, {"1", "-a"}, {"test", "-c", "2", "1", "-a"}),
-        Param(true, true, 0, {2, 1}, {}, {"test", "-c", "2", "-c", "1", "-a"})),
+        Param(true, true, 0, {2, 1}, {}, {"test", "-c", "2", "-c", "1", "-a"}),
+        Param(false, {"test", "--b=1abc"}),
+        Param(false, {"test", "--b_option=1abc"}),
+        Param(false, {"test", "-b", "1abc"}), Param(false, {"test", "--b=1.5"}),
+        Param(false, {"test", "-c", "42xyz"}),
+        Param(false, {"test", "--b=99999999999999999999"}),
+        Param(false, {"test", "--b="})),
     [](const testing::TestParamInfo<GeneralOptions::ParamType> &Info) {
       std::string Name;
       for (const auto &Arg : Info.param.Args) {

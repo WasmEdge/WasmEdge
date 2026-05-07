@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <iterator>
 
-// Error logging of file manager need to be handled in caller.
+// Error logging of file manager needs to be handled by the caller.
 
 namespace WasmEdge {
 
@@ -336,7 +336,7 @@ Expect<std::string> FileMgr::readName() {
     }
 
     for (uint32_t J = 0; J < N && Valid; ++J) {
-      // N bytes needs to match 10xxxxxx
+      // N bytes need to match 10xxxxxx
       if ((Str.data()[I + J + 1] & '\xC0') != '\x80') {
         Valid = false;
       }
@@ -404,7 +404,7 @@ Expect<void> FileMgr::readBytes(Span<Byte> Buffer) {
   if (unlikely(Status != ErrCode::Value::Success)) {
     return Unexpect(Status);
   }
-  // The adjustment of `LastPos` should be handled by caller.
+  // The adjustment of `LastPos` should be handled by the caller.
   auto SizeToRead = Buffer.size();
   if (likely(SizeToRead > 0)) {
     // Check if exceed the data boundary.

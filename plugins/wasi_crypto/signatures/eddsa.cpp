@@ -35,7 +35,20 @@ Eddsa::PublicKey::import(Span<const uint8_t> Encoded,
 }
 
 WasiCryptoExpect<void> Eddsa::PublicKey::verify() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  size_t Size = PkSize;
+  std::vector<uint8_t> Raw(PkSize);
+
+  ensureOrReturn(EVP_PKEY_get_raw_public_key(Ctx.get(), Raw.data(), &Size),
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  EvpMdCtxPtr VerifyCtx{EVP_MD_CTX_create()};
+  opensslCheck(VerifyCtx);
+  ensureOrReturn(EVP_DigestVerifyInit(VerifyCtx.get(), nullptr, nullptr,
+                                      nullptr, Ctx.get()),
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  return {};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>> Eddsa::PublicKey::exportData(

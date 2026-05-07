@@ -82,7 +82,19 @@ public:
     }
 
     WasiCryptoExpect<void> verify() const noexcept {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+      const EC_KEY *EcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
+      ensureOrReturn(EcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+      const EC_GROUP *Group = EC_KEY_get0_group(EcCtx);
+      ensureOrReturn(Group, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+      ensureOrReturn(EC_GROUP_get_curve_name(Group) == CurveNid,
+                     __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+      ensureOrReturn(EC_KEY_get0_public_key(EcCtx),
+                     __WASI_CRYPTO_ERRNO_INVALID_KEY);
+      ensureOrReturn(EC_KEY_check_key(EcCtx), __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+      return {};
     }
 
   protected:

@@ -201,8 +201,8 @@ WasiCryptoExpect<std::vector<uint8_t>> Eddsa::Signature::exportData(
 
 WasiCryptoExpect<void>
 Eddsa::SignState::update(Span<const uint8_t> Input) noexcept {
-  // Notice: Ecdsa is oneshot in OpenSSL, we need a cache for updating instead
-  // of calling `EVP_DigestSignUpdate`.
+  // Notice: EdDSA is one-shot in OpenSSL, so we need a cache for updating
+  // instead of calling `EVP_DigestSignUpdate`.
   std::scoped_lock Lock{Ctx->Mutex};
 
   Ctx->Data.insert(Ctx->Data.end(), Input.begin(), Input.end());

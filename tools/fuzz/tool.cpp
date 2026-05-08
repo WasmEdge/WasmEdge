@@ -4,7 +4,7 @@
 #include "wasmedge/wasmedge.h"
 #include <stddef.h>
 
-/// Entrypoint for the fuzz tool.
+/// Entry point for the fuzz tool.
 WASMEDGE_CAPI_EXPORT extern "C" int
 WasmEdge_Driver_FuzzTool(const uint8_t *Data, size_t Size);
 

@@ -30,7 +30,7 @@ namespace Component {
 /// AST Component::CoreModuleSection node.
 class CoreModuleSection : public Section {
 public:
-  /// Getter of content.
+  /// Getter for content.
   const Module &getContent() const noexcept { return Content; }
   Module &getContent() noexcept { return Content; }
 
@@ -44,7 +44,7 @@ private:
 /// AST Component::CoreInstanceSection node.
 class CoreInstanceSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   Span<const CoreInstance> getContent() const noexcept { return Content; }
   std::vector<CoreInstance> &getContent() noexcept { return Content; }
 
@@ -58,7 +58,7 @@ private:
 /// AST Component::CoreTypeSection node.
 class CoreTypeSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   Span<const CoreDefType> getContent() const noexcept { return Content; }
   std::vector<CoreDefType> &getContent() noexcept { return Content; }
 
@@ -74,7 +74,7 @@ class Component;
 /// AST Component::ComponentSection node.
 class ComponentSection : public Section {
 public:
-  /// Getter of content.
+  /// Getter for content.
   const Component &getContent() const noexcept { return *Content; }
   std::unique_ptr<Component> &getContent() noexcept { return Content; }
 
@@ -88,7 +88,7 @@ private:
 /// AST Component::InstanceSection node.
 class InstanceSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   Span<const Instance> getContent() const noexcept { return Content; }
   std::vector<Instance> &getContent() noexcept { return Content; }
 
@@ -102,7 +102,7 @@ private:
 /// AST Component::AliasSection node.
 class AliasSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   Span<const Alias> getContent() const noexcept { return Content; }
   std::vector<Alias> &getContent() noexcept { return Content; }
 
@@ -116,7 +116,7 @@ private:
 /// AST Component::TypeSection node.
 class TypeSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   Span<const DefType> getContent() const noexcept { return Content; }
   std::vector<DefType> &getContent() noexcept { return Content; }
 
@@ -130,7 +130,7 @@ private:
 /// AST Component::CanonSection node.
 class CanonSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   Span<const Canonical> getContent() const noexcept { return Content; }
   std::vector<Canonical> &getContent() noexcept { return Content; }
 
@@ -144,7 +144,7 @@ private:
 /// AST Component::StartSection node.
 class StartSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   const Start &getContent() const noexcept { return Content; }
   Start &getContent() noexcept { return Content; }
 
@@ -158,7 +158,7 @@ private:
 /// AST Component::ImportSection node.
 class ImportSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   Span<const Import> getContent() const noexcept { return Content; }
   std::vector<Import> &getContent() noexcept { return Content; }
 
@@ -172,7 +172,7 @@ private:
 /// AST Component::ExportSection node.
 class ExportSection : public Section {
 public:
-  /// Getter of content module.
+  /// Getter for content module.
   Span<const Export> getContent() const noexcept { return Content; }
   std::vector<Export> &getContent() noexcept { return Content; }
 

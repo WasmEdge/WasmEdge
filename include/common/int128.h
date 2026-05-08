@@ -18,7 +18,7 @@
 #pragma intrinsic(_BitScanReverse64)
 #include <immintrin.h>
 #endif
-// We have to detect for those environments who don't support __int128 type
+// We have to detect those environments that don't support __int128 type
 // natively.
 #include "endian.h"
 

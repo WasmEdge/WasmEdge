@@ -22,7 +22,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     uint64_t Offset = 0;
     // Initialize memory if the data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
-      // Run initialize expression.
+      // Run the initialization expression.
       EXPECTED_TRY(runExpression(StackMgr, DataSeg.getExpr().getInstrs())
                        .map_error([](auto E) {
                          spdlog::error(
@@ -50,7 +50,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       }
     }
 
-    // Create and add the data instance into the module instance.
+    // Create and add the data instance to the module instance.
     ModInst.addData(Offset, DataSeg.getData());
   }
   return {};
@@ -59,12 +59,12 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
 // Initialize memory with Data section. See "include/executor/executor.h".
 Expect<void> Executor::initMemory(Runtime::StackManager &StackMgr,
                                   const AST::DataSection &DataSec) {
-  // initialize memory.
+  // Initialize memory.
   uint32_t Idx = 0;
   for (const auto &DataSeg : DataSec.getContent()) {
     // Initialize memory if data mode is active.
     if (DataSeg.getMode() == AST::DataSegment::DataMode::Active) {
-      // Memory and data index are checked in validation phase.
+      // Memory and data indices are checked in the validation phase.
       auto *MemInst = getMemInstByIdx(StackMgr, DataSeg.getIdx());
       assuming(MemInst);
       auto *DataInst = getDataInstByIdx(StackMgr, Idx);

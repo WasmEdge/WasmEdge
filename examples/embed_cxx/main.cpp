@@ -18,7 +18,7 @@ void run_fib_wasm() {
   WasmEdge_Value Returns[1];
   /* Function name. */
   WasmEdge_String FuncName = WasmEdge_StringCreateByCString("fib");
-  /* Run the WASM function from file. */
+  /* Run the WASM function from a file. */
   WasmEdge_Result Res = WasmEdge_VMRunWasmFromFile(
       VMCxt, "fibonacci.wasm", FuncName, Params, 1, Returns, 1);
 

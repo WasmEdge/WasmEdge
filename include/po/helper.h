@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/po/helper.h - Helper for Initialize Option ---------------===//
+//===-- wasmedge/po/helper.h - Helper for Initializing Options ------------===//
 //
 // Part of the WasmEdge Project.
 //

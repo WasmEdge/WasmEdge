@@ -341,8 +341,7 @@ bool checkAudioRIFF(const std::string_view Buf, const std::string_view Format) {
 
 bool loadWAV(Span<const uint8_t> Buf, std::vector<float> &PCMF32,
              std::vector<std::vector<float>> &PCMF32s, bool Stereo) {
-  // Not to use the helper function in examples of whisper.cpp to prevent from
-  // copy.
+  // Do not use the helper function from whisper.cpp examples to avoid copying.
   drwav WAV;
   const uint32_t ConstSampleRate = 16000;
 
@@ -856,7 +855,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   // Set whisper log callback.
   whisper_log_set(WhisperLogCallback, &GraphRef);
 
-  // If the graph builder length > 1, the data of builder[1] is the metadata.
+  // If the graph builder length is greater than 1, builder[1] contains the
+  // metadata.
   if (Builders.size() > 1) {
     const std::string Metadata(reinterpret_cast<char *>(Builders[1].data()),
                                Builders[1].size());

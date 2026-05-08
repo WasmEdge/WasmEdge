@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about driving WasmEdge tools in WasmEdge C
+/// This file contains functions for driving WasmEdge tools in the WasmEdge C
 /// API.
 ///
 //===----------------------------------------------------------------------===//
@@ -51,9 +51,9 @@ WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void) WASMEDGE_CAPI_NOEXCEPT;
 #endif
 
-/// Entrypoint for the compiler tool.
+/// Entry point for the compiler tool.
 ///
-/// This function provides an entrypoint to the WasmEdge AOT compiler tool with
+/// This function provides an entry point to the WasmEdge AOT compiler tool with
 /// the command line arguments.
 ///
 /// \param Argc the argument count.
@@ -63,9 +63,9 @@ WasmEdge_Driver_SetConsoleOutputCPtoUTF8(void) WASMEDGE_CAPI_NOEXCEPT;
 WASMEDGE_CAPI_EXPORT extern int
 WasmEdge_Driver_Compiler(int Argc, const char *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Entrypoint for the runtime tool.
+/// Entry point for the runtime tool.
 ///
-/// This function provides an entrypoint to the WasmEdge runtime tool with the
+/// This function provides an entry point to the WasmEdge runtime tool with the
 /// command line arguments.
 ///
 /// \param Argc the argument count.
@@ -76,10 +76,10 @@ WASMEDGE_CAPI_EXPORT extern int
 WasmEdge_Driver_Tool(int Argc, const char *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
-/// Entrypoint for the WASI-NN RPC server tool.
+/// Entry point for the WASI-NN RPC server tool.
 ///
-/// This function provides an entrypoint to the WasmEdge WASI-NN RPC server tool
-/// with the command line arguments.
+/// This function provides an entry point to the WasmEdge WASI-NN RPC server
+/// tool with the command line arguments.
 ///
 /// \param Argc the argument count.
 /// \param Argv the argument vector.
@@ -90,9 +90,9 @@ WasmEdge_Driver_WasiNNRPCServer(int Argc,
                                 const char *Argv[]) WASMEDGE_CAPI_NOEXCEPT;
 #endif
 
-/// Entrypoint for the unified tool.
+/// Entry point for the unified tool.
 ///
-/// This function provides an entrypoint to the WasmEdge unified tool with the
+/// This function provides an entry point to the WasmEdge unified tool with the
 /// command line arguments.
 ///
 /// \param Argc the argument count.

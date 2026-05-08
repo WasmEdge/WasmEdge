@@ -100,7 +100,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(const Runtime::CallingFrame &) {
   Env.StdErr.clear();
   Env.ExitCode = static_cast<uint32_t>(-1);
 
-  // Check white list of commands.
+  // Check the command allowlist.
   if (!Env.AllowedAll &&
       Env.AllowedCmd.find(Env.Name) == Env.AllowedCmd.end()) {
     std::string Msg = "Permission denied: Command \"";
@@ -142,7 +142,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(const Runtime::CallingFrame &) {
     return Env.ExitCode;
   }
 
-  // Create a child process for executing command.
+  // Create a child process for executing a command.
   pid_t PID = fork();
   if (PID == -1) {
     // Create process failed.
@@ -272,7 +272,7 @@ Expect<uint32_t> WasmEdgeProcessRun::body(const Runtime::CallingFrame &) {
       usleep(Env.DEFAULT_POLLTIME * 1000);
     }
 
-    // Read remained stdout and stderr.
+    // Read remaining stdout and stderr.
     do {
       RBytes = read(FDStdOut[0], Buf, sizeof(Buf));
       if (RBytes > 0) {

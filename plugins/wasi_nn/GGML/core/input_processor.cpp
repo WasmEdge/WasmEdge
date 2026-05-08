@@ -36,14 +36,14 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
 
 #ifndef __APPLE__
-    // XXX: Due to the limitation of WASI-NN proposal, this is a workaround
-    // for non-macOS devices. However, if the model params is updated in
-    // Config stage, then, we don't encourage to use this to avoid the model
-    // reloading.
+    // XXX: Because of the limitation in the WASI-NN proposal, this is a
+    // workaround for non-macOS devices. However, if the model params are
+    // updated in the configuration stage, we do not recommend using this to
+    // avoid reloading the model.
     {
       if (IsModelParamsUpdated || GraphRef.LlamaModel == nullptr) {
-        // The llama model may be nullptr if set_input with updated model params
-        // last time. Therefore besides the model params updated, we should
+        // The llama model may be nullptr if set_input updated the model params
+        // last time. Therefore, in addition to updated model params, we should
         // reload the llama model if the model is nullptr.
         LOG_INFO(GraphRef.EnableLog,
                  "setInput: Reload model due to parameters change."sv)
@@ -70,7 +70,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
 #endif
 
-    // Some changes of context parameters will require the context to be
+    // Some changes to context parameters will require the context to be
     // reloaded.
     if (IsContextParamsUpdated || GraphRef.LlamaContext == nullptr) {
       LOG_INFO(GraphRef.EnableLog,
@@ -85,7 +85,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
     }
 
-    // Some changes of sampling parameters will require the sampler to be
+    // Some changes to sampling parameters will require the sampler to be
     // reallocated.
     if (IsSamplerParamsUpdated || CxtRef.LlamaSampler == nullptr) {
       LOG_INFO(GraphRef.EnableLog,
@@ -101,7 +101,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
       }
     }
 
-    // Check that is batch size changed.
+    // Check whether the batch size changed.
     if (CxtRef.CurrentBatchSize != GraphRef.Params.n_batch) {
       llama_batch_free(CxtRef.LlamaBatch);
       CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
@@ -114,7 +114,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     return ErrNo::Success;
   }
 
-  // Check the graph is valid after reloading during previous set_input.
+  // Check that the graph is valid after reloading during the previous
+  // set_input.
   if (!Env.NNGraph[CxtRef.GraphId].isReady()) {
     RET_ERROR(
         ErrNo::InvalidArgument,
@@ -137,7 +138,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
   auto Base64ImagePos = findBase64ImagePayload(Prompt);
 
   if (Base64ImagePos.has_value() || CxtRef.Conf.ImagePath != ""sv) {
-    // First check the projection model is given.
+    // First check whether the projection model is provided.
     if (GraphRef.Params.mmproj.path == ""sv) {
       RET_ERROR(
           ErrNo::InvalidArgument,
@@ -241,7 +242,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: tokenize the mtmd prompt...Done"sv)
 
-    // Get the number of input tokens (for the metadata).
+    // Get the number of input tokens for the metadata.
     CxtRef.LlamaNInputs = 0;
     for (size_t ChunkIndex = 0;
          ChunkIndex < mtmd_input_chunks_size(GraphRef.VisionInputChunks.get());
@@ -262,7 +263,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
     LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize tts prompt...Done"sv)
 
-    // Get the number of input tokens (for the metadata).
+    // Get the number of input tokens for the metadata.
     CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   } else {
     // Text only prompt.
@@ -272,11 +273,12 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "setInput: tokenize text prompt...Done"sv)
 
-    // Get the number of input tokens (for the metadata).
+    // Get the number of input tokens for the metadata.
     CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
   }
 
-  // Maybe currently in the compute_single mode. Reset the computing.
+  // The context may currently be in compute_single mode. Reset the compute
+  // state.
   CxtRef.ComputeSingleStarted = false;
 
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput...Done"sv)

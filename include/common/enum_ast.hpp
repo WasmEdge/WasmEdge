@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of Wasm VM used AST and instruction nodes
-/// enumerations.
+/// This file contains the definitions of AST and instruction node enumerations
+/// used by the Wasm VM.
 ///
 //===----------------------------------------------------------------------===//
 

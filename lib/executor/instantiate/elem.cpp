@@ -29,13 +29,13 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
             spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Seg_Element));
             return E;
           }));
-      // Pop result from stack.
+      // Pop result from the stack.
       InitVals.push_back(StackMgr.pop().get<RefVariant>());
     }
 
     uint64_t Offset = 0;
     if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
-      // Run initialize expression.
+      // Run the initialization expression.
       EXPECTED_TRY(
           runExpression(StackMgr, ElemSeg.getExpr().getInstrs())
               .map_error([](auto E) {
@@ -63,7 +63,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       }
     }
 
-    // Create and add the element instance into the module instance.
+    // Create and add the element instance to the module instance.
     ModInst.addElem(Offset, ElemSeg.getRefType(), InitVals);
   }
   return {};

@@ -18,7 +18,7 @@ int FuzzTool(const uint8_t *Data, size_t Size) noexcept {
   spdlog::set_level(spdlog::level::critical);
 
   Configure Conf;
-  Conf.getRuntimeConfigure().setForceInterpreter(true);
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::Interpreter);
   Loader::Loader Loader(Conf);
 
   std::unique_ptr<AST::Module> Module;

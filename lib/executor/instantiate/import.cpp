@@ -84,7 +84,7 @@ checkImportMatched(std::string_view ModName, std::string_view ExtName,
     assumingUnreachable();
   }
 
-  // Check is error external type or unknown imports.
+  // Check for error external types or unknown imports.
   if (ModInst.findFuncExports(ExtName)) {
     return logMatchError(ModName, ExtName, ExtType, ExtType,
                          ExternalType::Function);
@@ -149,10 +149,11 @@ Expect<void> Executor::instantiate(
     }
     EXPECTED_TRY(checkImportMatched(ModName, ExtName, ExtType, *ImpModInst));
 
-    // Add the imports into module instance.
+    // Add the imports to the module instance.
     switch (ExtType) {
     case ExternalType::Function: {
-      // Get function type index. External type checked in validation.
+      // Get the function type index. The external type is checked in
+      // validation.
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       // Import matching.
       auto *ImpInst = ImpModInst->findFuncExports(ExtName);
@@ -209,10 +210,10 @@ Expect<void> Executor::instantiate(
               ImpFuncType.getReturnTypes());
         }
       }
-      // Set the matched function address to module instance.
+      // Set the matched function address in the module instance.
       ModInst.importFunction(ImpInst);
 
-      // If the imported function is a WASI function, mark in the module.
+      // If the imported function is a WASI function, mark it in the module.
       if (!ModInst.getWASIModule() && ModName == "wasi_snapshot_preview1"sv) {
         ModInst.setWASIModule(ImpModInst);
       }
@@ -241,7 +242,7 @@ Expect<void> Executor::instantiate(
                              ImpType.getRefType(), ImpLim.hasMax(),
                              ImpLim.getMin(), ImpLim.getMax());
       }
-      // Set the matched table address to module instance.
+      // Set the matched table address in the module instance.
       ModInst.importTable(ImpInst);
       break;
     }
@@ -258,7 +259,7 @@ Expect<void> Executor::instantiate(
                              MemLim.getMin(), MemLim.getMax(), ImpLim.hasMax(),
                              ImpLim.getMin(), ImpLim.getMax());
       }
-      // Set the matched memory address to module instance.
+      // Set the matched memory address in the module instance.
       ModInst.importMemory(ImpInst);
       break;
     }
@@ -309,7 +310,7 @@ Expect<void> Executor::instantiate(
                              GlobType.getValMut(), ImpType.getValType(),
                              ImpType.getValMut());
       }
-      // Set the matched global address to module instance.
+      // Set the matched global address in the module instance.
       ModInst.importGlobal(ImpInst);
       break;
     }

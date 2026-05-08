@@ -25,7 +25,7 @@ namespace Host {
 namespace WasiCrypto {
 namespace Signatures {
 
-/// Signatures computation.
+/// Signature computation.
 ///
 /// More detailed:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#signature-creation

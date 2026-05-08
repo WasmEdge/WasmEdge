@@ -42,7 +42,7 @@ std::unique_ptr<WasmEdge::Host::WasmEdgeTensorflowModule> createModule() {
 }
 } // namespace
 
-// TODO: unit tests for every functions.
+// TODO: add unit tests for every function.
 
 TEST(WasmEdgeTensorflowTest, Module) {
   // Create the wasmedge_tensorflow module instance.

@@ -105,7 +105,7 @@ std::vector<size_t> classSort(WasmEdge::Span<const T> Array) {
   std::iota(Indices.begin(), Indices.end(), 0);
   std::sort(Indices.begin(), Indices.end(),
             [&Array](size_t Left, size_t Right) -> bool {
-              // Sort indices according to corresponding array element.
+              // Sort indices according to the corresponding array elements.
               return Array[Left] > Array[Right];
             });
   return Indices;
@@ -274,7 +274,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: load -- wrong builders' length.
+  // Test: load -- wrong builder count.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(XmlRead.size()),
                   BuilderPtr);
@@ -361,7 +361,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -372,7 +372,7 @@ TEST(WasiNNTest, OpenVINOBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -677,7 +677,7 @@ TEST(WasiNNTest, PyTorchBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: load -- wrong builders' length.
+  // Test: load -- wrong builder count.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
                   BuilderPtr);
@@ -747,7 +747,7 @@ TEST(WasiNNTest, PyTorchBackend) {
   NNGraphTmp.emplace_back(Backend::PyTorch);
   NNGraphTmp.back().setReady();
   // Test: init_execution_context -- graph id exceeds.
-  // TODO: not null test for pytorch now
+  // TODO: add a non-null test for PyTorch.
   //   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   //   NNContextTmp.swap(NNMod->getEnv().NNContext);
   //   {
@@ -762,7 +762,7 @@ TEST(WasiNNTest, PyTorchBackend) {
   //   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   //   NNContextTmp.swap(NNMod->getEnv().NNContext);
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -773,7 +773,7 @@ TEST(WasiNNTest, PyTorchBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1056,7 +1056,7 @@ TEST(WasiNNTest, TFLiteBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: load -- wrong builders' length.
+  // Test: load -- wrong builder count.
   BuilderPtr = LoadEntryPtr;
   writeFatPointer(MemInst, StorePtr, static_cast<uint32_t>(WeightRead.size()),
                   BuilderPtr);
@@ -1144,7 +1144,7 @@ TEST(WasiNNTest, TFLiteBackend) {
   NNGraphTmp.swap(NNMod->getEnv().NNGraph);
   NNContextTmp.swap(NNMod->getEnv().NNContext);
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1155,7 +1155,7 @@ TEST(WasiNNTest, TFLiteBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1458,7 +1458,7 @@ TEST(WasiNNTest, GGMLBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1695,7 +1695,7 @@ TEST(WasiNNTest, GGMLBackendWithRPC) {
     EXPECT_NE(Errno[0].get<int32_t>(), static_cast<uint32_t>(ErrNo::Success));
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -1920,7 +1920,7 @@ TEST(WasiNNTest, GGMLBackendComputeSingleWithRPC) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2147,7 +2147,7 @@ TEST(WasiNNTest, WhisperBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2386,7 +2386,7 @@ TEST(WasiNNTest, PiperBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2506,7 +2506,7 @@ TEST(WasiNNTest, PiperBackend) {
     BuilderPtr += 4;
   }
 
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -2517,7 +2517,7 @@ TEST(WasiNNTest, PiperBackend) {
     BuilderPtr += 4;
   }
 
-  // First json input with parameters overridden
+  // First JSON input with parameters overridden.
   Text = "{\"text\": \"This is a test.\", \"noise_scale\": 0.0, "
          "\"length_scale\": 2.0, \"noise_w\": 0.0}";
   TensorData = {Text.begin(), Text.end()};
@@ -2566,7 +2566,7 @@ TEST(WasiNNTest, PiperBackend) {
     EXPECT_GE(BytesWritten, 40000);
   }
 
-  // Second json input to check if one-time overriding is working properly
+  // Second JSON input to check if one-time overriding works properly.
   Text = "{\"text\": \"This is a test.\", \"output_type\": \"raw\", "
          "\"noise_scale\": 0.0, \"noise_w\": 0.0}";
   TensorData = {Text.begin(), Text.end()};
@@ -2739,7 +2739,7 @@ TEST(WasiNNTest, ChatTTSBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -3020,7 +3020,7 @@ TEST(WasiNNTest, MLXBackend) {
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
 
-  // Test: init_execution_context -- init second context.
+  // Test: init_execution_context -- initialize the second context.
   {
     EXPECT_TRUE(HostFuncInit.run(
         CallFrame,
@@ -3288,7 +3288,7 @@ TEST(WasiNNTest, BitNetBackend) {
     EXPECT_EQ(Errno[0].get<int32_t>(),
               static_cast<uint32_t>(ErrNo::InvalidArgument));
   }
-  // Test: init_execution_context -- init context successfully.
+  // Test: init_execution_context -- initialize context successfully.
   {
     ASSERT_TRUE(HostFuncInit.run(
         CallFrame,

@@ -84,7 +84,6 @@ option(WASMEDGE_PLUGIN_WASI_CRYPTO "Enable and build WasmEdge wasi-crypto plugin
 #   WASI plug-in: WASI-Http proposal.
 option(WASMEDGE_PLUGIN_WASI_HTTP "Enable and build WasmEdge wasi-http plugin." OFF)
 #   WASI plug-in: WASI-Logging proposal.
-#     Note: WASMEDGE_PLUGIN_WASI_LOGGING is not used until the new plug-in mechanism is ready in 0.15.0.
 option(WASMEDGE_PLUGIN_WASI_LOGGING "Enable and build WasmEdge wasi-logging plugin." ON)
 #   WASI plug-in: WASI-NN proposal with backends.
 set(WASMEDGE_PLUGIN_WASI_NN_BACKEND "" CACHE STRING "Enable and build WasmEdge Wasi-NN plugin with backends.")

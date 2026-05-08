@@ -7,8 +7,11 @@
 #include "wasmedge/wasmedge.h"
 
 // BUILTIN-PLUGIN: Headers for built-in plug-ins.
+#ifdef WASMEDGE_PLUGIN_WASI_LOGGING
 #include "plugin/wasi_logging/module.h"
+#endif
 
+#include <shared_mutex>
 #include <type_traits>
 #include <variant>
 
@@ -74,14 +77,17 @@ public:
   CAPIPluginRegister &operator=(const CAPIPluginRegister &) = delete;
 
   CAPIPluginRegister(const WasmEdge_PluginDescriptor *Desc) noexcept {
-    ModuleDescriptions.resize(Desc->ModuleCount);
-    for (size_t I = 0; I < ModuleDescriptions.size(); ++I) {
-      ModuleDescriptions[I].Name = Desc->ModuleDescriptions[I].Name;
-      ModuleDescriptions[I].Description =
-          Desc->ModuleDescriptions[I].Description;
-      ModuleDescriptions[I].Create = &createWrapper;
-      DescriptionLookup.emplace(&ModuleDescriptions[I],
-                                &Desc->ModuleDescriptions[I]);
+    {
+      std::unique_lock Lock(DescriptionLookupMutex);
+      ModuleDescriptions.resize(Desc->ModuleCount);
+      for (size_t I = 0; I < ModuleDescriptions.size(); ++I) {
+        ModuleDescriptions[I].Name = Desc->ModuleDescriptions[I].Name;
+        ModuleDescriptions[I].Description =
+            Desc->ModuleDescriptions[I].Description;
+        ModuleDescriptions[I].Create = &createWrapper;
+        DescriptionLookup.emplace(&ModuleDescriptions[I],
+                                  &Desc->ModuleDescriptions[I]);
+      }
     }
 
     Descriptor.Name = Desc->Name;
@@ -178,13 +184,17 @@ private:
   static Runtime::Instance::ModuleInstance *
   createWrapper(const PluginModule::ModuleDescriptor *Descriptor) noexcept {
     static_assert(std::is_standard_layout_v<CAPIPluginRegister>);
-    if (auto Iter = DescriptionLookup.find(Descriptor);
-        unlikely(Iter == DescriptionLookup.end())) {
-      return nullptr;
-    } else {
-      return reinterpret_cast<Runtime::Instance::ModuleInstance *>(
-          Iter->second->Create(Iter->second));
+    const WasmEdge_ModuleDescriptor *CDesc = nullptr;
+    {
+      std::shared_lock Lock(DescriptionLookupMutex);
+      auto Iter = DescriptionLookup.find(Descriptor);
+      if (unlikely(Iter == DescriptionLookup.end())) {
+        return nullptr;
+      }
+      CDesc = Iter->second;
     }
+    return reinterpret_cast<Runtime::Instance::ModuleInstance *>(
+        CDesc->Create(CDesc));
   }
   static void addOptionsWrapper(const Plugin::PluginDescriptor *Descriptor,
                                 PO::ArgumentParser &Parser
@@ -213,12 +223,14 @@ private:
                    PO::Option<double *>, PO::Option<WasmEdge_String *>>>>
       Options;
   std::vector<PluginModule::ModuleDescriptor> ModuleDescriptions;
+  static std::shared_mutex DescriptionLookupMutex;
   static std::unordered_map<const PluginModule::ModuleDescriptor *,
                             const WasmEdge_ModuleDescriptor *>
       DescriptionLookup;
 
   bool Result = false;
 };
+std::shared_mutex CAPIPluginRegister::DescriptionLookupMutex;
 std::unordered_map<const PluginModule::ModuleDescriptor *,
                    const WasmEdge_ModuleDescriptor *>
     CAPIPluginRegister::DescriptionLookup;
@@ -436,8 +448,10 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
 
 void Plugin::registerBuiltInPlugins() noexcept {
   std::unique_lock Lock(Mutex);
+#ifdef WASMEDGE_PLUGIN_WASI_LOGGING
   // BUILTIN-PLUGIN: Register wasi-logging here. May be refactored in 0.15.0.
   registerPlugin(&Host::WasiLoggingModule::PluginDescriptor);
+#endif
 }
 
 Plugin::Plugin(const PluginDescriptor *D) noexcept : Desc(D) {

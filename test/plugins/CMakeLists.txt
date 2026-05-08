@@ -7,7 +7,9 @@ if(WASMEDGE_PLUGIN_WASI_CRYPTO)
 endif()
 
 # WASI plug-in: WASI-Logging proposal.
-add_subdirectory(wasi_logging)
+if(WASMEDGE_PLUGIN_WASI_LOGGING)
+  add_subdirectory(wasi_logging)
+endif()
 
 # WASI plug-in: WASI-NN proposal with backends.
 if(WASMEDGE_PLUGIN_WASI_NN_BACKEND)

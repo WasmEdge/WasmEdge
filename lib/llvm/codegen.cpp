@@ -511,6 +511,12 @@ namespace WasmEdge::LLVM {
 
 Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
                               std::filesystem::path OutputPath) noexcept {
+  // CompileFromBuffer skips the loader, so reject empty path here.
+  if (OutputPath.empty()) {
+    spdlog::error("output failed: empty output path"sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
   auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;
   auto &TM = D.extract().TM;

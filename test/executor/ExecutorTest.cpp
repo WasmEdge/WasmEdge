@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains tests of Wasm test suites extracted by wast2json.
-/// Test Suits: https://github.com/WebAssembly/spec/tree/master/test/core
+/// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
@@ -84,8 +84,14 @@ TEST_P(CoreTest, TestSuites) {
                   const std::string &FileName) -> Expect<void> {
     auto &VM = static_cast<TestContext *>(Ctx)->VM;
     if (!ModName.empty()) {
-      return VM.registerModule(ModName, FileName);
-    } else if (T.SkipComponentValidation) {
+      // registerModule only supports core wasm modules. If it fails (e.g.
+      // because the file is a component), fall back to
+      // load/validate/instantiate.
+      if (auto Res = VM.registerModule(ModName, FileName); Res) {
+        return {};
+      }
+    }
+    if (T.SkipComponentValidation) {
       // For component-model tests where validation is not yet supported,
       // skip validation by force-setting the stage as validated.
       return VM.loadWasm(FileName)
@@ -150,7 +156,7 @@ TEST_P(CoreTest, TestSuites) {
       return VM.execute(ModName, Field, Params, ParamTypes);
     } else {
       // Invoke function of anonymous module. Anonymous modules are instantiated
-      // in VM.
+      // in the VM.
       return VM.execute(Field, Params, ParamTypes);
     }
   };

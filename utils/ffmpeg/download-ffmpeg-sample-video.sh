@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-# The below video used is sourced from an ffmpeg-libav-tutorial repository.
+# The video below is sourced from an ffmpeg-libav-tutorial repository.
 # Source: https://github.com/leandromoreira/ffmpeg-libav-tutorial/blob/master/LICENSE.
 TODIR=$1
 SAMPLE_VIDEO=https://raw.githubusercontent.com/Hrushi20/rust-ffmpeg/master/assets/bunny.mp4

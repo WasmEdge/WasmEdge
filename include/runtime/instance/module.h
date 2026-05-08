@@ -52,7 +52,7 @@ class CallingFrame;
 namespace Instance {
 
 namespace {
-/// Return true if T is an entity which can be exported or imported.
+/// Return true if T is an entity that can be exported or imported.
 template <typename T>
 inline constexpr const bool IsEntityV =
     std::is_same_v<T, Instance::FunctionInstance> ||
@@ -118,7 +118,7 @@ public:
         DataInsts.size());
   }
 
-  /// Add exist instances and move ownership with exporting name.
+  /// Add existing instances and move ownership with the export name.
   void addHostFunc(std::string_view Name,
                    std::unique_ptr<HostFunctionBase> &&Func) {
     std::unique_lock Lock(Mutex);
@@ -240,7 +240,7 @@ protected:
     Types.push_back(OwnedTypes.back().get());
   }
 
-  /// Create and add instances into this module instance.
+  /// Create and add instances to this module instance.
   template <typename... Args> void addFunc(Args &&...Values) {
     std::unique_lock Lock(Mutex);
     unsafeAddInstance(OwnedFuncInsts, FuncInsts, this,
@@ -335,7 +335,7 @@ protected:
   Expect<const AST::SubType *> getType(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (unlikely(Idx >= Types.size())) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetType(Idx);
@@ -346,7 +346,7 @@ protected:
   Expect<FunctionInstance *> getFunc(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= FuncInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetFunction(Idx);
@@ -357,7 +357,7 @@ protected:
   Expect<TableInstance *> getTable(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= TabInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetTable(Idx);
@@ -368,7 +368,7 @@ protected:
   Expect<MemoryInstance *> getMemory(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= MemInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetMemory(Idx);
@@ -382,7 +382,7 @@ protected:
   Expect<GlobalInstance *> getGlobal(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= GlobInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetGlobal(Idx);
@@ -393,7 +393,7 @@ protected:
   Expect<ElementInstance *> getElem(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= ElemInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetElem(Idx);
@@ -404,7 +404,7 @@ protected:
   Expect<DataInstance *> getData(uint32_t Idx) const noexcept {
     std::shared_lock Lock(Mutex);
     if (Idx >= DataInsts.size()) {
-      // Error logging need to be handled in caller.
+      // Error logging needs to be handled by the caller.
       return Unexpect(ErrCode::Value::WrongInstanceIndex);
     }
     return unsafeGetData(Idx);
@@ -442,33 +442,33 @@ protected:
     return StartFunc;
   }
 
-  /// Set the target imported WASI module when instantiation.
+  /// Set the target imported WASI module during instantiation.
   void setWASIModule(const ModuleInstance *Mod) noexcept {
     std::unique_lock Lock(Mutex);
     WASIModInst = Mod;
   }
 
-  /// Get the target imported WASI module when instantiation.
+  /// Get the target imported WASI module during instantiation.
   const ModuleInstance *getWASIModule() const noexcept {
     std::shared_lock Lock(Mutex);
     return WASIModInst;
   }
 
-  /// Unsafe import instance into this module.
+  /// Unsafely import an instance into this module.
   template <typename T>
   std::enable_if_t<IsEntityV<T>, void>
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
     Vec.push_back(Ptr);
   }
 
-  /// Unsafe import defined type from host function into this module.
+  /// Unsafely import a defined type from a host function into this module.
   void unsafeImportDefinedType(const AST::SubType &SType) {
     Types.push_back(&SType);
     const_cast<AST::SubType *>(Types.back())
         ->setTypeIndex(static_cast<uint32_t>(Types.size()) - 1);
   }
 
-  /// Unsafe create and add the instance into this module.
+  /// Unsafely create and add the instance to this module.
   template <typename T, typename... Args>
   std::enable_if_t<IsInstanceV<T>, void>
   unsafeAddInstance(std::vector<std::unique_ptr<T>> &OwnedInstsVec,
@@ -477,7 +477,7 @@ protected:
     InstsVec.push_back(OwnedInstsVec.back().get());
   }
 
-  /// Unsafe add and export the existing instance into this module.
+  /// Unsafely add and export the existing instance to this module.
   template <typename T, typename... Args>
   std::enable_if_t<IsEntityV<T>, void>
   unsafeAddHostInstance(std::string_view Name,
@@ -490,7 +490,7 @@ protected:
     InstsMap.insert_or_assign(std::string(Name), InstsVec.back());
   }
 
-  /// Unsafe find and get the exported instance by name.
+  /// Unsafely find and get the exported instance by name.
   template <typename T>
   std::enable_if_t<IsEntityV<T>, T *>
   unsafeFindExports(const std::map<std::string, T *, std::less<>> &Map,
@@ -518,7 +518,7 @@ protected:
                                            const ModuleInstance *Mod);
   void linkStore(StoreManager *Store, std::string_view Name,
                  BeforeModuleDestroyCallback Callback) {
-    // Link to store when registration.
+    // Link to the store during registration.
     std::unique_lock Lock(Mutex);
     LinkedStore.insert_or_assign(LinkedStoreKey{Store, std::string(Name)},
                                  Callback);
@@ -560,7 +560,7 @@ protected:
   std::vector<ElementInstance *> ElemInsts;
   std::vector<DataInstance *> DataInsts;
 
-  /// Imported instances counts.
+  /// Imported instance counts.
   uint32_t ImpGlobalNum = 0;
 
   /// Exported name maps.
@@ -573,7 +573,7 @@ protected:
   /// Start function instance.
   const FunctionInstance *StartFunc = nullptr;
 
-  /// Imported WASI module instance when instantiation.
+  /// Imported WASI module instance during instantiation.
   const ModuleInstance *WASIModInst = nullptr;
 
   /// Linked store. Key is (StoreManager*, RegisteredName) to support

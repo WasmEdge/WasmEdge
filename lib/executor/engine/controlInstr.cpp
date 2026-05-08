@@ -17,7 +17,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
   // If non-zero, run if-statement; else, run else-statement.
   if (Cond == 0) {
     if (Instr.getJumpElse() == Instr.getJumpEnd()) {
-      // No else-statement case. Jump to right before End instruction.
+      // No else-statement case. Jump to right before the End instruction.
       PC += (Instr.getJumpEnd() - 1);
     } else {
       if (Stat) {
@@ -26,7 +26,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
           return Unexpect(ErrCode::Value::CostLimitExceeded);
         }
       }
-      // Have else-statement case. Jump to Else instruction to continue.
+      // Else-statement case. Jump to the Else instruction to continue.
       PC += Instr.getJumpElse();
     }
   }
@@ -37,7 +37,7 @@ Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
                                   const AST::Instruction &Instr,
                                   AST::InstrView::iterator &PC) noexcept {
   auto *TagInst = getTagInstByIdx(StackMgr, Instr.getTargetIndex());
-  // The args will be popped from stack in the throw function.
+  // The arguments will be popped from the stack in the throw function.
   return throwException(StackMgr, *TagInst, PC);
 }
 
@@ -93,7 +93,7 @@ Expect<void> Executor::runBrOnNonNullOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC) noexcept {
-  // Get value on top of stack.
+  // Get the value on top of the stack.
   uint32_t Value = StackMgr.pop().get<uint32_t>();
 
   // Do branch.
@@ -109,7 +109,7 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
                                      const AST::Instruction &Instr,
                                      AST::InstrView::iterator &PC,
                                      bool IsReverse) noexcept {
-  // Get value on top of stack.
+  // Get the value on top of the stack.
   const auto *ModInst = StackMgr.getModule();
   const auto &Val = StackMgr.getTop().get<RefVariant>();
   const auto &VT = Val.getType();

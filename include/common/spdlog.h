@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the linkage of logging system.
+/// This file contains the logging system linkage.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -35,7 +35,7 @@ void setErrorLoggingLevel();
 
 void setCriticalLoggingLevel();
 
-/// Set logging level from string.
+/// Set the logging level from a string.
 /// Supported values: off, trace, debug, info, warning, error, fatal.
 /// Returns true if level was set successfully, false if invalid.
 bool setLoggingLevelFromString(std::string_view Level);

@@ -2535,8 +2535,8 @@ public:
         static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));
     if (EntryCount == 0)
       return;
-    // Calculate object image base address by assuming that address of the first
-    // function is equal to the address of the code section
+    // Calculate the object image base address by assuming that the address of
+    // the first function is equal to the address of the code section.
     const auto ImageBase = CodeAddress - FunctionTable[0].BeginAddress;
     winapi::RtlAddFunctionTable(FunctionTable, EntryCount, ImageBase);
     EHFrames.push_back({Addr, Size});

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of x25519 algorithm.
+/// This file contains the definition of the X25519 algorithm.
 ///
 //===----------------------------------------------------------------------===//
 

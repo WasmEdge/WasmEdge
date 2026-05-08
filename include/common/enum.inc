@@ -54,7 +54,7 @@ A(Type_Global, "global type")
 A(Type_Tag, "tag type")
 A(Expression, "expression")
 A(Instruction, "instruction")
-// AOT section is not in spec, only for WasmEdge use for AOT/JIT.
+// AOT section is not in the spec and is used only by WasmEdge for AOT/JIT.
 A(Sec_AOT, "aot section")
 // Component model AST
 A(Component, "component model module")
@@ -824,6 +824,14 @@ H(Wasi)
 #undef H
 #endif // UseHostRegistration
 
+#ifdef UseRunMode
+#define R Line
+R(Interpreter)
+R(JIT)
+R(AOT)
+#undef R
+#endif // UseRunMode
+
 // enum_errcode.h
 
 #ifdef UseErrCategory
@@ -855,11 +863,11 @@ E(AOTDisabled, 0x0006, "AOT runtime is disabled in this build")
 E(Interrupted, 0x0007, "execution interrupted")
 // Not validated module
 E(NotValidated, 0x0008, "wasm module hasn't passed validation yet")
-// Non-Null value is required
+// Non-null value is required
 E(NonNullRequired, 0x0009, "set null value into non-nullable value type")
 // Unable to set value due to const
 E(SetValueToConst, 0x000A, "set value into const")
-// Set value failed due to mismatch value type
+// Setting value failed due to mismatched value type
 E(SetValueErrorType, 0x000B, "set value type mismatch")
 // User defined error
 E(UserDefError, 0x000C, "user defined error code")
@@ -900,7 +908,7 @@ E(DataCountRequired, 0x010B, "data count section required")
 E(MalformedImportKind, 0x010C, "malformed import kind")
 // Malformed export kind
 E(MalformedExportKind, 0x010D, "malformed export kind")
-// Not loaded an expected zero byte
+// Did not load an expected zero byte
 E(ExpectedZeroByte, 0x010E, "zero byte expected")
 // Malformed mutability
 E(InvalidMut, 0x010F, "malformed mutability")
@@ -1040,9 +1048,9 @@ E(InvalidUnpackedField, 0x0220, "field is unpacked")
 E(InvalidUnpackedArray, 0x0221, "array is unpacked")
 // Invalid Br ref type
 E(InvalidBrRefType, 0x0222, "invalid br ref type")
-// 2 array types not matched
+// Two array types do not match
 E(ArrayTypesMismatch, 0x0223, "array types do not match")
-// Should be numeric type in array type
+// Should be a numeric type in the array type
 E(ArrayTypesNumtypeRequired, 0x0224, "array type is not numeric or vector")
 // Sub type matching or validation failed
 E(InvalidSubType, 0x0225, "sub type")
@@ -1077,6 +1085,36 @@ E(ComponentNotImplValidator, 0x02A5,
 E(ComponentDuplicateName, 0x02A6, "duplicate name in component")
 // Component model invalid name
 E(ComponentInvalidName, 0x02A7, "invalid component name")
+// DefValType: own/borrow does not reference a resource type
+E(NotADefinedType, 0x02A8, "not a defined type")
+// DefValType: own/borrow type index out of bounds
+E(DefTypeIndexOutOfBounds, 0x02A9, "index out of bounds")
+// DefValType: name cannot be empty
+E(NameCannotBeEmpty, 0x02AA, "name cannot be empty")
+// DefValType: cannot have more than 32 flags
+E(CannotHaveMoreThan32Flags, 0x02AB, "cannot have more than 32 flags")
+// DefValType: record field name conflicts
+E(RecordFieldNameConflicts, 0x02AC,
+  "record field name conflicts with previous field name")
+// DefValType: variant case name conflicts
+E(VariantCaseNameConflicts, 0x02AD,
+  "variant case name conflicts with previous case name")
+// DefValType: flag name conflicts
+E(FlagNameConflicts, 0x02AE, "flag name conflicts with previous flag name")
+// DefValType: enum tag name conflicts
+E(EnumTagNameConflicts, 0x02AF,
+  "enum tag name conflicts with previous tag name")
+// DefValType: type must have at least one case/field/element
+E(VariantMustHaveCase, 0x02B0, "variant type must have at least one case")
+// Export ascription is not a supertype of the inferred externdesc
+E(ExportAscriptionIncompatible, 0x02B1,
+  "ascribed type of export is not compatible")
+// Instance argument is missing an export the import type requires
+E(InstanceMissingExpectedExport, 0x02B2, "missing expected export")
+// Export name is syntactically valid but not allowed in an export position
+E(InvalidExportName, 0x02B3, "not a valid export name")
+// Extern (import/export) name fails the extern-name grammar
+E(InvalidExternName, 0x02B4, "not a valid extern name")
 // @}
 
 // Instantiation phase
@@ -1111,13 +1149,13 @@ E(ComponentNotImplInstantiate, 0x03A4,
 
 // Execution phase
 // @{
-// Wrong access of instances addresses
+// Invalid access to instance addresses
 E(WrongInstanceAddress, 0x0400, "wrong instance address")
-// Wrong access of instances indices
+// Invalid access to instance indices
 E(WrongInstanceIndex, 0x0401, "wrong instance index")
-// Instruction type not match
+// Instruction type does not match
 E(InstrTypeMismatch, 0x0402, "instruction type mismatch")
-// Function signature not match when invoking
+// Function signature does not match when invoking
 E(FuncSigMismatch, 0x0403, "function signature mismatch")
 // Divide by zero
 E(DivideByZero, 0x0404, "integer divide by zero")
@@ -1131,7 +1169,7 @@ E(TableOutOfBounds, 0x0407, "out of bounds table access")
 E(MemoryOutOfBounds, 0x0408, "out of bounds memory access")
 // Out of bounds array access
 E(ArrayOutOfBounds, 0x0409, "out of bounds array access")
-// Meet an unreachable instruction
+// Encounter an unreachable instruction
 E(Unreachable, 0x040A, "unreachable")
 // Uninitialized element in table instance
 E(UninitializedElement, 0x040B, "uninitialized element")
@@ -1141,7 +1179,7 @@ E(UndefinedElement, 0x040C, "undefined element")
 E(IndirectCallTypeMismatch, 0x040D, "indirect call type mismatch")
 // Host function execution failed
 E(HostFuncError, 0x040E, "host function failed")
-// Reference type not match
+// Reference type does not match
 E(RefTypeMismatch, 0x040F, "reference type mismatch")
 // Unaligned atomic memory access
 E(UnalignedAtomicAccess, 0x0410, "unaligned atomic")
@@ -1159,7 +1197,7 @@ E(AccessNullArray, 0x0415, "null array reference")
 E(AccessNullI31, 0x0416, "null i31 reference")
 // Access to null exception reference
 E(AccessNullException, 0x0417, "null exception reference")
-// Fail to cast reference
+// Failed to cast reference
 E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
 E(UncaughtException, 0x0419, "uncaught exception")

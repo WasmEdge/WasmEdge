@@ -14,8 +14,6 @@ namespace Validator {
 
 using namespace std::literals;
 
-namespace {
-
 // label          ::= <first-fragment> ( '-' <fragment> )*
 // first-fragment ::= <first-word> | <first-acronym>
 // first-word     ::= [a-z] [0-9a-z]*
@@ -58,6 +56,8 @@ bool isKebabString(std::string_view Input) {
 
   return Input.size() > 0 && Input.back() != '-';
 }
+
+namespace {
 
 // words      ::= <first-word> ( '-' <word> )*
 // first-word ::= [a-z] [0-9a-z]*

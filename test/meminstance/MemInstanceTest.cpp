@@ -225,7 +225,7 @@ TEST_F(MemCopyOverlapTest, BackwardOverlap) {
   EXPECT_EQ(ActualTail, Tail) << "Trailing bytes should be unchanged.";
 }
 
-// Test: Exact overlap (dst == src). Should be a no-op effectively.
+// Test: Exact overlap (dst == src). Should effectively be a no-op.
 TEST_F(MemCopyOverlapTest, ExactOverlap) {
   for (uint32_t I = 0; I < 8; ++I) {
     storeByte(vm(), I, 0x41 + I);

@@ -18,7 +18,7 @@
 #pragma intrinsic(_BitScanReverse64)
 #include <immintrin.h>
 #endif
-// We have to detect for those environments who don't support __int128 type
+// We have to detect those environments that don't support __int128 type
 // natively.
 #include "endian.h"
 
@@ -538,11 +538,6 @@ public:
   static constexpr WasmEdge::int128 signaling_NaN() { return 0; }
   static constexpr WasmEdge::int128 denorm_min() { return 0; }
 };
-} // namespace std
-
-#include <type_traits>
-namespace std {
-template <> struct is_class<WasmEdge::uint128> : std::true_type {};
 } // namespace std
 
 namespace WasmEdge {

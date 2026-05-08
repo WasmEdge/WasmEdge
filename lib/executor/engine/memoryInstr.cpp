@@ -11,7 +11,7 @@ namespace Executor {
 Expect<void>
 Executor::runMemorySizeOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
-  // Push SZ = page size to stack.
+  // Push SZ = page size to the stack.
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   StackMgr.push(emplaceAddr(MemInst.getPageSize(), AddrType));
   return {};
@@ -20,11 +20,11 @@ Executor::runMemorySizeOp(Runtime::StackManager &StackMgr,
 Expect<void>
 Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst) {
-  // Pop N for growing page size.
+  // Pop N, the number of pages to grow.
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t N = extractAddr(StackMgr.pop(), AddrType);
 
-  // Grow page and push result.
+  // Grow the page and push the result.
   const uint64_t CurrPageSize = MemInst.getPageSize();
   if (MemInst.growPage(N)) {
     StackMgr.push(emplaceAddr(CurrPageSize, AddrType));
@@ -37,8 +37,8 @@ Executor::runMemoryGrowOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runMemoryInitOp(
     Runtime::StackManager &StackMgr, Runtime::Instance::MemoryInstance &MemInst,
     Runtime::Instance::DataInstance &DataInst, const AST::Instruction &Instr) {
-  // Pop the length, source, and destination from stack.
-  // Currently, the length and source offset from data instance is defined as
+  // Pop the length, source, and destination from the stack.
+  // Currently, the length and source offset from the data instance are
   // 32-bit.
   uint64_t Len = static_cast<uint64_t>(StackMgr.pop().get<uint32_t>());
   uint64_t Src = static_cast<uint64_t>(StackMgr.pop().get<uint32_t>());
@@ -66,7 +66,7 @@ Executor::runMemoryCopyOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInstDst,
                           Runtime::Instance::MemoryInstance &MemInstSrc,
                           const AST::Instruction &Instr) {
-  // Pop the length, source, and destination from stack.
+  // Pop the length, source, and destination from the stack.
   const auto AddrType1 = MemInstSrc.getMemoryType().getLimit().getAddrType();
   const auto AddrType2 = MemInstDst.getMemoryType().getLimit().getAddrType();
   uint64_t Len = extractAddr(StackMgr.pop(), std::min(AddrType1, AddrType2));
@@ -113,7 +113,7 @@ Expect<void>
 Executor::runMemoryFillOp(Runtime::StackManager &StackMgr,
                           Runtime::Instance::MemoryInstance &MemInst,
                           const AST::Instruction &Instr) {
-  // Pop the length, value, and offset from stack.
+  // Pop the length, value, and offset from the stack.
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Len = extractAddr(StackMgr.pop(), AddrType);
   uint8_t Val = static_cast<uint8_t>(StackMgr.pop().get<uint32_t>());

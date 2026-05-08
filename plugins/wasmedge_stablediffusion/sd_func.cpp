@@ -150,7 +150,7 @@ void upscalerModel(const char *UpscaleModelPath, uint32_t UpscaleRepeats,
         free(CurrentImage.data);
         CurrentImage = UpscaledImage;
       }
-      // Set the final upscaled image as the result
+      // Set the final upscaled image as the result.
       Results[I] = CurrentImage;
     }
   }
@@ -513,7 +513,7 @@ Expect<uint32_t> SDImageToImage::body(
       free(InputImageBuffer);
       return static_cast<uint32_t>(ErrNo::InvalidArgument);
     }
-    // Resize image when image size not matches width and height
+    // Resize image when its size does not match the width and height.
     if (Height != static_cast<uint32_t>(ImageHeight) ||
         Width != static_cast<uint32_t>(ImageWidth)) {
       int ResizedHeight = Height;

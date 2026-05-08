@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading AST description nodes, which are
+/// This file contains unit tests for loading AST description nodes, which are
 /// ImportDesc and ExportDesc.
 ///
 //===----------------------------------------------------------------------===//

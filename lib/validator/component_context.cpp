@@ -117,7 +117,7 @@ bool ComponentContext::Context::AddImportedName(
   if (Name.getKind() == ComponentNameKind::Constructor) {
     std::string LowerCase = toLowerString(Name.getOriginalName());
     std::string Label = std::string(Name.getNoTagName());
-    // check conflict with existing constructors
+    // Check for conflicts with existing constructors.
     if (ImportedNames.count(LowerCase)) {
       return false;
     }
@@ -127,15 +127,14 @@ bool ComponentContext::Context::AddImportedName(
         return false;
       }
       // By rule, a constructor [constructor]X and X are strongly-unique.
-      // if X and its lower-case x form both exist, it meaning x is coming
-      // from X.
+      // If X and its lower-case x form both exist, it means x comes from X.
     }
     ImportedNames.insert(LowerCase);
     ImportedNames.insert(std::string(Name.getOriginalName()));
     return true;
   }
 
-  // For case 2, L and L.L is not strongly-unique together.
+  // For case 2, L and L.L are not strongly-unique together.
   std::string Normal = std::string(Name.getNoTagName());
   std::string UniForm = toLowerString(Normal);
   std::string LdL =
@@ -151,27 +150,27 @@ bool ComponentContext::Context::AddImportedName(
     Left = Normal.substr(0, Pos);
     Right = Normal.substr(Pos + 1);
     if (Left == Right) {
-      // conflict with l.l and [*]l
+      // Conflict with l.l and [*]l.
       if (ImportedNames.count(toLowerString(Left))) {
         return false;
       }
     }
   }
 
-  // case 3, check existing names
+  // Case 3: check existing names.
   if (ImportedNames.count(UniForm)) {
     return false;
   }
 
-  // Special case, check conflict with constructor names
+  // Special case: check conflicts with constructor names.
   std::string ConstrName = "[constructor]" + UniForm;
   if (ImportedNames.count(ConstrName)) {
     if (!ImportedNames.count("[constructor]" + Normal)) {
       return false;
     }
     // By rule, a constructor [constructor]X and X are strongly-unique.
-    // if [constructor]X and its lower-case [constructor]x form both exist,
-    // it meaning [constructor]x is coming from [constructor]X.
+    // If [constructor]X and its lower-case [constructor]x form both exist, it
+    // means [constructor]x comes from [constructor]X.
   }
   ImportedNames.insert(Normal);
   ImportedNames.insert(UniForm);

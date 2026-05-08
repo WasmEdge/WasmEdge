@@ -9,7 +9,7 @@
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-// Helper to init a llama batch.
+// Helper to initialize a llama batch.
 struct llama_batch allocBatch(int64_t NTokens, int64_t Embd,
                               int32_t NSeqMax) noexcept {
   struct llama_batch Batch = llama_batch_init(

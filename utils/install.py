@@ -439,7 +439,7 @@ case :"${1}": in
     *:"{0}/bin":*)
         ;;
     *)
-        # Prepending path in case a system-installed wasmedge needs to be overridden
+        # Prepend the path in case a system-installed wasmedge needs to be overridden
         if [ -n "${1}" ]; then
             export PATH="{0}/bin:$PATH"
         else
@@ -451,7 +451,7 @@ case :"${2}": in
     *:"{0}/{6}":*)
         ;;
     *)
-        # Prepending path in case a system-installed wasmedge libs needs to be overridden
+        # Prepend the path in case system-installed wasmedge libraries need to be overridden
         if [ -n "${2}" ]; then
             export {2}="{0}/{6}:${2}"
         else
@@ -1380,7 +1380,7 @@ def main(args):
         )
         remove(uninstaller_path)
 
-        # If args.path is default then remove it initially
+        # If args.path is the default, remove it initially
         if PATH in args.path and exists(args.path):
             shutil.rmtree(args.path)
 

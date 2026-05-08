@@ -434,8 +434,8 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
     EXPECT_TRUE(Result[0].get<int32_t>() >= 0);
   }
 
-  // TODO: This test modifies the input file. Unable to test.
-  // Added test on rust side.
+  // TODO: This test modifies the input file, so it cannot be tested.
+  // Added test on the Rust side.
   //  spdlog::info("Testing AVGuessCodec"sv);
   //  uint32_t EmptyStrPtr = UINT32_C(520);
   //  writeUInt32(MemInst, 0, EmptyStrPtr);
@@ -472,9 +472,9 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
     EXPECT_EQ(Result[0].get<int32_t>(), -22);
   }
 
-  // Write Header above return invalid argument due to which below test won't
-  // work. The OutputFormatContext should Be configured using the input format
-  // context. Test on the Rust side. This is working as expected.
+  // Writing the header above returns an invalid argument, so the test below
+  // does not work. The OutputFormatContext should be configured using the input
+  // format context. Test this on the Rust side. This is working as expected.
 
   //  FuncInst = AVFormatMod->findFuncExports(
   //      "wasmedge_ffmpeg_avformat_avformat_write_trailer");
@@ -516,7 +516,7 @@ TEST_F(FFmpegTest, AVOutputFormatFunc) {
   //  auto &HostFuncAVChapterDynarrayAdd = dynamic_cast<
   //      WasmEdge::Host::WasmEdgeFFmpeg::AVFormat::AVChapterDynarrayAdd &>(
   //      FuncInst->getHostFunc());
-  //  // For the give input file, nb_chapter is 0;
+  //  // For the given input file, nb_chapter is 0;
   //  {
   //    uint32_t AvChapterId = readUInt32(MemInst, AvFormatCtxPtr);
   //    uint32_t AvFormatCtxId = readUInt32(MemInst, AvFormatCtxPtr);

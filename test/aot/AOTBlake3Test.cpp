@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of calculating blake3 hash.
+/// This file contains unit tests for calculating blake3 hashes.
 ///
 //===----------------------------------------------------------------------===//
 

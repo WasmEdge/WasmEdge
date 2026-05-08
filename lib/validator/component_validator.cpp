@@ -608,9 +608,10 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
           }
         }
       }
-      // Get the instantiate args.
+      // Get the instantiation arguments.
       auto Args = Inst.getInstantiateArgs();
-      // Check the import names are supplied from the instantiate args.
+      // Check that the import names are supplied by the instantiation
+      // arguments.
       for (auto It = ImportMap.begin(); It != ImportMap.end(); ++It) {
         const auto &ImportName = It->first;
         auto ArgIt =

@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the AOTSection, which holds logics to
-/// load from an AOTSection
+/// This file contains the declaration of the AOTSection, which contains the
+/// logic for loading an AOT section.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -26,7 +26,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-/// Holder class for library handle
+/// Holder class for a library handle.
 class AOTSection : public Executable {
 public:
   AOTSection() noexcept = default;

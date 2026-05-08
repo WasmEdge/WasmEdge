@@ -13,7 +13,7 @@ namespace WasmEdge {
 namespace Host {
 
 struct WasmBpfState {
-  /// manage bpf programs
+  /// Manage BPF programs.
   std::unordered_map<handle_t, std::unique_ptr<wasm_bpf_program>> handles;
   std::shared_mutex lock;
   ~WasmBpfState() noexcept = default;

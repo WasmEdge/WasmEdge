@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about AOT compiler in WasmEdge C API.
+/// This file contains functions for the AOT compiler in the WasmEdge C API.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -87,7 +87,7 @@ WasmEdge_CompilerDelete(WasmEdge_CompilerContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 /// to destroy it.
 ///
 /// \param Cxt the WasmEdge_LoaderContext.
-/// \param [out] Module the output WasmEdge_ASTModuleContext if succeeded.
+/// \param [out] Module the output WasmEdge_ASTModuleContext on success.
 /// \param Buf the buffer of WASM binary.
 /// \param BufLen the length of the buffer.
 ///

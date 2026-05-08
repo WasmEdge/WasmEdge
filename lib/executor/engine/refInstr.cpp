@@ -412,8 +412,8 @@ Expect<void> Executor::runI31GetOp(ValVariant &Val,
 Expect<RefVariant>
 Executor::structNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                     Span<const ValVariant> Args) const noexcept {
-  /// TODO: The array and struct instances are owned by the module instance
-  /// currently because of referring the defined types of the module instances.
+  /// TODO: The array and struct instances are currently owned by the module
+  /// instance because they refer to the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
   const auto &CompType = getCompositeTypeByIdx(StackMgr, TypeIdx);
   uint32_t N = static_cast<uint32_t>(CompType.getFieldTypes().size());
@@ -465,8 +465,8 @@ Expect<RefVariant>
 Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                    const uint32_t Length,
                    Span<const ValVariant> Args) const noexcept {
-  /// TODO: The array and struct instances are owned by the module instance
-  /// currently because of referring the defined types of the module instances.
+  /// TODO: The array and struct instances are currently owned by the module
+  /// instance because they refer to the defined types of the module instances.
   /// This may be changed after applying the garbage collection mechanism.
   const auto &VType = getArrayStorageTypeByIdx(StackMgr, TypeIdx);
   WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
@@ -479,10 +479,10 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
                        : ValVariant(static_cast<uint128_t>(0U));
     Inst = ModInst->newArray(TypeIdx, Length, InitVal);
   } else if (Args.size() == 1) {
-    // New and fill with the arg value.
+    // Create and fill with the argument value.
     Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
   } else {
-    // New with args.
+    // Create with arguments.
     Inst = ModInst->newArray(
         TypeIdx,
         packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));

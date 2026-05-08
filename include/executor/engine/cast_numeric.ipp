@@ -9,7 +9,7 @@
 namespace WasmEdge {
 namespace Executor {
 
-// Helper for types transform
+// Helper for type transformations.
 namespace {
 template <typename T, size_t B = sizeof(T)> struct TypeFromBytes {
   using type = T;
@@ -143,21 +143,21 @@ TypeIF<TIn, TOut> Executor::runConvertOp(ValVariant &Val) const {
 
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut> Executor::runDemoteOp(ValVariant &Val) const {
-  // Return i convert to TOut. (NaN, inf, and zeros handled)
+  // Return i converted to TOut. (NaN, inf, and zeros handled)
   Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
 TypeFF<TIn, TOut> Executor::runPromoteOp(ValVariant &Val) const {
-  // Return i convert to TOut. (NaN, inf, and zeros handled)
+  // Return i converted to TOut. (NaN, inf, and zeros handled)
   Val.emplace<TOut>(static_cast<TOut>(Val.get<TIn>()));
   return {};
 }
 
 template <typename TIn, typename TOut>
 TypeNN<TIn, TOut> Executor::runReinterpretOp(ValVariant &Val) const {
-  // Return ValVariant with type TOut which copy bits of V.
+  // Return ValVariant with type TOut, copying the bits of V.
   TOut VOut;
   TIn VIn = Val.get<TIn>();
   std::memcpy(&VOut, &VIn, sizeof(TIn));

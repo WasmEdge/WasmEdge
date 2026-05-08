@@ -14,14 +14,14 @@ Expect<ValType> Loader::loadHeapType(TypeCode TC, ASTNodeAttr From) {
     return logLoadError(Val.error(), FMgr.getLastOffset(), From);
   }
 
-  // The error code is different when the reference-types proposal turned off.
+  // The error code is different when the reference-types proposal is disabled.
   ErrCode::Value FailCode = Conf.hasProposal(Proposal::ReferenceTypes)
                                 ? ErrCode::Value::MalformedRefType
                                 : ErrCode::Value::MalformedElemType;
 
   if (*Val < 0) {
     if (*Val < -64) {
-      // For checking the invalid s33 value which is larger than 1 byte.
+      // Check for an invalid s33 value larger than 1 byte.
       return logLoadError(FailCode, FMgr.getLastOffset(), From);
     }
     TypeCode HTCode =
@@ -86,7 +86,7 @@ Expect<ValType> Loader::loadRefType(ASTNodeAttr From) {
     return logLoadError(B.error(), FMgr.getLastOffset(), From);
   }
 
-  // The error code is different when the reference-types proposal turned off.
+  // The error code is different when the reference-types proposal is disabled.
   ErrCode::Value FailCode = Conf.hasProposal(Proposal::ReferenceTypes)
                                 ? ErrCode::Value::MalformedRefType
                                 : ErrCode::Value::MalformedElemType;
@@ -242,7 +242,7 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
     break;
   default:
     if (Conf.hasProposal(Proposal::Memory64)) {
-      // The error code after memory64 proposal is different.
+      // With the Memory64 proposal enabled, the error code is different.
       return logLoadError(ErrCode::Value::MalformedLimitFlags,
                           FMgr.getLastOffset(), ASTNodeAttr::Type_Limit);
     } else {
@@ -270,9 +270,9 @@ Expect<void> Loader::loadLimit(AST::Limit &Lim) {
                         ASTNodeAttr::Type_Limit);
   }
 
-  // Read the min and max number.
-  // The s64 is accepted after applying memory64 proposal. Therefore we should
-  // check the s32 presentation length without memory64 proposal.
+  // Read the min and max numbers.
+  // S64 is accepted when the Memory64 proposal is enabled. Therefore, we should
+  // check the S32 representation length when the Memory64 proposal is disabled.
   uint64_t MinVal = 0, MaxVal = 0;
   if (Conf.hasProposal(Proposal::Memory64)) {
     EXPECTED_TRY(MinVal, FMgr.readU64().map_error([this](auto E) {
@@ -400,7 +400,7 @@ Expect<void> Loader::loadType(AST::TagType &TgType) {
   }));
 
   // The preserved byte for future extension possibility for tag type.
-  // It supports only 0x00 currently, which is for exception handling.
+  // Currently, it supports only 0x00, which is for exception handling.
   if (unlikely(B != 0x00)) {
     return logLoadError(ErrCode::Value::ExpectedZeroByte, FMgr.getLastOffset(),
                         ASTNodeAttr::Type_Tag);

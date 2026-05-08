@@ -32,7 +32,7 @@ namespace Common {
 /// Some functions support options. For example, options can be used to access
 /// the features that are only relevant to specific ciphers and hash functions.
 ///
-/// Options are represented as a (key, value) map, keys are strings. They are
+/// Options are represented as a (key, value) map with string keys. They are
 /// attached to a context, such as a cipher state. Applications can set, and
 /// also read the value associated with a key in order to either get the default
 /// value or obtain the runtime information.

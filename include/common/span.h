@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the helper template aliasing of std::span.
+/// This file contains the helper template alias for std::span.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

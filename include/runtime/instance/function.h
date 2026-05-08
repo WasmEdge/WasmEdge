@@ -70,35 +70,35 @@ public:
         Data(std::in_place_type_t<std::unique_ptr<HostFunctionBase>>(),
              std::move(Func)) {}
 
-  /// Getter of checking is native wasm function.
+  /// Check whether this is a native wasm function.
   bool isWasmFunction() const noexcept {
     return std::holds_alternative<WasmFunction>(Data);
   }
 
-  /// Getter of checking is compiled function.
+  /// Check whether this is a compiled function.
   bool isCompiledFunction() const noexcept {
     return std::holds_alternative<Symbol<CompiledFunction>>(Data);
   }
 
-  /// Getter of checking is host function.
+  /// Check whether this is a host function.
   bool isHostFunction() const noexcept {
     return std::holds_alternative<std::unique_ptr<HostFunctionBase>>(Data);
   }
 
-  /// Getter of function type.
+  /// Getter for function type.
   const AST::FunctionType &getFuncType() const noexcept { return FuncType; }
 
-  /// Getter of function local variables.
+  /// Getter for function local variables.
   Span<const std::pair<uint32_t, ValType>> getLocals() const noexcept {
     return std::get_if<WasmFunction>(&Data)->Locals;
   }
 
-  /// Getter of function local number.
+  /// Getter for function local number.
   uint32_t getLocalNum() const noexcept {
     return std::get_if<WasmFunction>(&Data)->LocalNum;
   }
 
-  /// Getter of function body instrs.
+  /// Getter for function body instrs.
   AST::InstrView getInstrs() const noexcept {
     if (std::holds_alternative<WasmFunction>(Data)) {
       return std::get<WasmFunction>(Data).Instrs;
@@ -107,12 +107,12 @@ public:
     }
   }
 
-  /// Getter of symbol
+  /// Getter for symbol.
   auto &getSymbol() const noexcept {
     return *std::get_if<Symbol<CompiledFunction>>(&Data);
   }
 
-  /// Getter of host function.
+  /// Getter for host function.
   HostFunctionBase &getHostFunc() const noexcept {
     return *std::get_if<std::unique_ptr<HostFunctionBase>>(&Data)->get();
   }
@@ -130,7 +130,7 @@ private:
                               [](uint32_t N, const auto &Pair) -> uint32_t {
                                 return N + Pair.first;
                               })) {
-      // FIXME: Modify the capacity to prevent from connection of 2 vectors.
+      // FIXME: Modify the capacity to prevent connecting 2 vectors.
       Instrs.reserve(Expr.size() + 1);
       Instrs.assign(Expr.begin(), Expr.end());
     }

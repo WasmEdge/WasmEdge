@@ -38,7 +38,7 @@ namespace {
 #define LOG_ERROR(...)                                                         \
   spdlog::error("[WASI-NN] BitNet backend: "sv __VA_ARGS__);
 
-// Macro for logging error message and return.
+// Macro for logging an error message and returning.
 #define RET_ERROR(Error, ...)                                                  \
   spdlog::error("[WASI-NN] BitNet backend: "sv __VA_ARGS__);                   \
   return Error;
@@ -83,7 +83,7 @@ void stringToList(const std::string &Raw, std::vector<int> &Out) {
   }
 }
 
-// Parse metadata from json.
+// Parse metadata from JSON.
 ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                     const std::string &Metadata, bool *IsModelUpdated = nullptr,
                     bool *IsContextUpdated = nullptr,
@@ -1603,7 +1603,7 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
 
 // >>>>>>>> Compute related functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-// Helper to init a llama batch.
+// Helper to initialize a llama batch.
 struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
                               int32_t NSeqMax = 1) noexcept {
   struct llama_batch Batch = llama_batch_init(
@@ -1619,7 +1619,7 @@ struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
   return Batch;
 }
 
-// Fill tokens (smaller than batch size) into a batch with position data.
+// Fill a batch with tokens (smaller than batch size) and position data.
 void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
                llama_batch &Batch, int &NPos, bool IsLogit = false) {
   assuming(GraphRef.Params.n_batch >= static_cast<int64_t>(Tokens.size()));
@@ -1634,7 +1634,7 @@ void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
     Batch.logits[I] = false;
   }
 
-  // Logits of sampling or end of inputs.
+  // Logits for sampling or the end of inputs.
   if (IsLogit) {
     Batch.logits[Tokens.size() - 1] = true;
   }
@@ -1643,7 +1643,7 @@ void fillBatch(Span<const llama_token> Tokens, Graph &GraphRef,
   NPos += static_cast<int>(Tokens.size());
 }
 
-// Evaluate tokens. Construct the tokens into batch and decode.
+// Evaluate tokens. Construct the batch from tokens and decode.
 ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
                      llama_batch &Batch, int &NPos,
                      bool IsLogits = false) noexcept {
@@ -1658,7 +1658,7 @@ ErrNo evaluateTokens(Span<const llama_token> Tokens, Graph &GraphRef,
     return ErrNo::ContextFull;
   }
 
-  // Loop for decode batch. Split tokens into batch size length.
+  // Loop for decoding batches. Split tokens by batch size.
   for (int I = 0; I < static_cast<int>(Tokens.size());
        I += static_cast<int>(GraphRef.Params.n_batch)) {
     int NEval = static_cast<int>(Tokens.size()) - I;
@@ -1701,7 +1701,7 @@ void clearContext(Graph &GraphRef, Context &CxtRef) noexcept {
   LOG_DEBUG(GraphRef.EnableDebugLog, "{}: clearContext...Done"sv)
 }
 
-// Evaluate the input tokens. Clean all inputs if succeeded.
+// Evaluate the input tokens. Clear all inputs on success.
 ErrNo evaluateInput(Graph &GraphRef, Context &CxtRef,
                     std::string_view LogPrefix) noexcept {
   // Check if the input is set before setting up the context.
@@ -1926,7 +1926,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   llama_log_set(llamaLogCallback, &GraphRef);
   LOG_DEBUG(GraphRef.EnableDebugLog, "load start."sv)
 
-  // If the graph builder length > 1, the data of builder[1] is the metadata.
+  // If the graph builder length is greater than 1, builder[1] contains the
+  // metadata.
   if (Builders.size() > 1) {
     const std::string Metadata(
         reinterpret_cast<const char *>(Builders[1].data()), Builders[1].size());
@@ -2059,8 +2060,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
     }
 
     if (IsModelUpdated || GraphRef.LlamaModel == nullptr) {
-      // The llama model may be nullptr if set_input with updated model params
-      // last time. Therefore besides the model params updated, we should
+      // The llama model may be nullptr if set_input updated the model params
+      // last time. Therefore, in addition to updated model params, we should
       // reload the llama model if the model is nullptr.
       LOG_INFO(GraphRef.EnableLog,
                "setInput: Reloading model due to parameter change"sv)
@@ -2142,7 +2143,8 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
               "Only prompt (index 0) and metadata (index 1) are supported.");
   }
 
-  // Check the graph is valid after reloading during previous set_input.
+  // Check that the graph is valid after reloading during the previous
+  // set_input.
   if (!Env.NNGraph[CxtRef.GraphId].isReady()) {
     RET_ERROR(
         ErrNo::InvalidArgument,
@@ -2170,7 +2172,7 @@ Expect<ErrNo> setInput(WasiNNEnvironment &Env, uint32_t ContextId,
                       llama_add_bos_token(GraphRef.LlamaModel.get()), true);
   LOG_DEBUG(GraphRef.EnableDebugLog, "setInput: tokenize text prompt...Done"sv)
 
-  // Get the number of input tokens (for the metadata).
+  // Get the number of input tokens for the metadata.
   CxtRef.LlamaNInputs = CxtRef.LlamaInputs.size();
 
   // Reset state for the compute loop.

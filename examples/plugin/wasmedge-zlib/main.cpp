@@ -14,9 +14,9 @@
 #include "bindings/zlib_component.h"
 #endif
 
-// NOTE: Some function signatures, structs etc need to be same as the ones in
+// NOTE: Some function signatures, structs, etc. need to match the ones in
 // zlib_component.h example: `bool exports_example_zlib_compressor_deflate(...)`
-// This is to ensure that the C ABI layer can call these functions correctly.
+// This ensures that the C ABI layer can call these functions correctly.
 // This is also true for some extern "C" functions.
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

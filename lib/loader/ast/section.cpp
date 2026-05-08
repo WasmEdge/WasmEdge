@@ -26,7 +26,7 @@ Expect<void> Loader::loadSection(AST::CustomSection &Sec) {
     Sec.setName(Name);
     auto ReadSize = FMgr.getOffset() - StartOffset;
 
-    // Read remain bytes. Check is overread or not first.
+    // Check for overread first, then read the remaining bytes.
     if (unlikely(Sec.getContentSize() < ReadSize)) {
       return logLoadError(ErrCode::Value::UnexpectedEnd, FMgr.getLastOffset(),
                           ASTNodeAttr::Sec_Custom);
@@ -241,8 +241,8 @@ inline constexpr uint8_t HostArchType() noexcept {
 
 } // namespace
 
-// If there is any loader error occurs in the loadSection, then fallback
-// to the interpreter mode with info level log.
+// If any loader error occurs in loadSection, fall back to interpreter mode with
+// an info-level log.
 Expect<void> Loader::loadSection(FileMgr &VecMgr, AST::AOTSection &Sec) {
   EXPECTED_TRY(auto Version, VecMgr.readU32().map_error([](auto E) {
     spdlog::error(E);

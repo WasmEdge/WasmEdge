@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the asymmetric common PubicKey of wasi-crypto.
+/// This file contains the asymmetric common PublicKey of wasi-crypto.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

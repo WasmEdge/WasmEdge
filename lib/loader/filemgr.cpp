@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <iterator>
 
-// Error logging of file manager need to be handled in caller.
+// Error logging for the file manager needs to be handled by the caller.
 
 namespace WasmEdge {
 
@@ -68,12 +68,12 @@ Expect<Byte> FileMgr::readByte() {
   }
   // Set the flag to the start offset.
   LastPos = Pos;
-  // Check if exceed the data boundary and section boundary.
+  // Check whether reading exceeds the data or section boundary.
   EXPECTED_TRY(testRead(1));
   return Data[Pos++];
 }
 
-// Read number of bytes. See "include/loader/filemgr.h".
+// Read bytes. See "include/loader/filemgr.h".
 Expect<std::vector<Byte>> FileMgr::readBytes(size_t SizeToRead) {
   // Set the flag to the start offset.
   LastPos = Pos;
@@ -164,14 +164,14 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
       return Unexpect(Status);
     }
 
-    // In the rest logic, RemainingBits must be at least 1.
+    // In the remaining logic, RemainingBits must be at least 1.
     EXPECTED_TRY(testRead(1));
     WasmEdge::Byte Byte = Data[Pos++];
 
     const WasmEdge::Byte HighestBitMask = 1 << 7;
     const WasmEdge::Byte SecondHighestBitMask = 1 << 6;
     if (Byte & HighestBitMask) {
-      // The byte has leading 1. It contains 7 bits payload.
+      // The byte has a leading 1. It contains a 7-bit payload.
 
       if (unlikely(RemainingBits < 7)) {
         Status = ErrCode::Value::IntegerTooLong;
@@ -184,7 +184,7 @@ template <typename RetType, size_t N> Expect<RetType> FileMgr::readSN() {
       Offset += 7;
       RemainingBits -= 7;
     } else {
-      // The byte has leading 0. It will be the last byte.
+      // The byte has a leading 0. It will be the last byte.
 
       // The number of bits that take effect in the byte. Since RemainingBits
       // must be at least 1, EffectiveBits also must be at least 1. It is also
@@ -232,7 +232,7 @@ Expect<float> FileMgr::readF32() {
 
   uint32_t Buf = 0;
   Byte Byte = 0x00;
-  // Check if exceed the data boundary and section boundary.
+  // Check whether reading exceeds the data or section boundary.
   EXPECTED_TRY(testRead(4));
   for (uint32_t I = 0; I < 4; I++) {
     Byte = Data[Pos++];
@@ -254,7 +254,7 @@ Expect<double> FileMgr::readF64() {
 
   uint64_t Buf = 0;
   Byte Byte = 0x00;
-  // Check if exceed the data boundary and section boundary.
+  // Check whether reading exceeds the data or section boundary.
   EXPECTED_TRY(testRead(8));
   for (uint32_t I = 0; I < 8; I++) {
     Byte = Data[Pos++];
@@ -271,14 +271,14 @@ Expect<std::string> FileMgr::readName() {
   if (unlikely(Status != ErrCode::Value::Success)) {
     return Unexpect(Status);
   }
-  // If UTF-8 validation or readU32() or readBytes() failed, the last succeeded
+  // If UTF-8 validation, readU32(), or readBytes() failed, the last successful
   // reading offset will be at the start of `Name`.
   LastPos = Pos;
 
   // Read the name size.
   EXPECTED_TRY(uint32_t SizeToRead, readU32());
 
-  // Check if string length exceed the data boundary.
+  // Check whether the string length exceeds the data boundary.
   if (auto Res = testRead(SizeToRead); unlikely(!Res)) {
     return Unexpect(ErrCode::Value::LengthOutOfBounds);
   }
@@ -309,7 +309,7 @@ Expect<std::string> FileMgr::readName() {
       Valid = false;
     }
 
-    // Need to have N more bytes
+    // Need N more bytes.
     if (I + N >= Str.size()) {
       Valid = false;
     }
@@ -336,7 +336,7 @@ Expect<std::string> FileMgr::readName() {
     }
 
     for (uint32_t J = 0; J < N && Valid; ++J) {
-      // N bytes needs to match 10xxxxxx
+      // N bytes need to match 10xxxxxx
       if ((Str.data()[I + J + 1] & '\xC0') != '\x80') {
         Valid = false;
       }
@@ -399,15 +399,15 @@ Expect<void> FileMgr::jumpContent() {
   return {};
 }
 
-// Helper function for reading number of bytes. See "include/loader/filemgr.h".
+// Helper function for reading bytes. See "include/loader/filemgr.h".
 Expect<void> FileMgr::readBytes(Span<Byte> Buffer) {
   if (unlikely(Status != ErrCode::Value::Success)) {
     return Unexpect(Status);
   }
-  // The adjustment of `LastPos` should be handled by caller.
+  // The adjustment of `LastPos` should be handled by the caller.
   auto SizeToRead = Buffer.size();
   if (likely(SizeToRead > 0)) {
-    // Check if exceed the data boundary.
+    // Check whether reading exceeds the data boundary.
     EXPECTED_TRY(testRead(SizeToRead));
     std::copy_n(Data + Pos, SizeToRead, Buffer.begin());
     Pos += SizeToRead;
@@ -417,7 +417,7 @@ Expect<void> FileMgr::readBytes(Span<Byte> Buffer) {
 
 // Helper function for checking boundary. See "include/loader/filemgr.h".
 Expect<void> FileMgr::testRead(uint64_t Read) {
-  // Check if exceed the data boundary
+  // Check whether reading exceeds the data boundary.
   if (unlikely(getRemainSize() < Read)) {
     Pos = Size;
     LastPos = Pos;

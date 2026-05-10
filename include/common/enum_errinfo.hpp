@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of ErrInfo used C++ enumerations.
+/// This file contains the definitions of C++ enumerations used by ErrInfo.
 ///
 //===----------------------------------------------------------------------===//
 

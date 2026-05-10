@@ -45,7 +45,7 @@ static int32_t bpf_buffer_sample(void *ctx, void *data, size_t size) {
 namespace WasmEdge {
 namespace Host {
 
-/// \brief initialize libbpf library
+/// \brief Initialize the libbpf library.
 void init_libbpf(void) {
   libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
   libbpf_set_print(libbpf_print_fn);
@@ -156,7 +156,7 @@ int32_t bpf_buffer::bpf_buffer_sample(void *data, size_t size) {
   return WasmEdge_ValueGetI32(invoke_func_result);
 }
 
-/// \brief create a bpf buffer based on the object map type
+/// \brief Create a BPF buffer based on the object map type.
 std::unique_ptr<bpf_buffer> bpf_buffer__new(bpf_map *events) {
   bpf_map_type map_type = bpf_map__type(events);
   switch (map_type) {
@@ -173,7 +173,7 @@ std::unique_ptr<bpf_buffer> bpf_buffer__new(bpf_map *events) {
 int32_t wasm_bpf_program::bpf_map_fd_by_name(const char *name) {
   return bpf_object__find_map_fd_by_name(obj.get(), name);
 }
-/// \brief load all bpf programs and maps in an object file.
+/// \brief Load all BPF programs and maps in an object file.
 int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
                                           size_t obj_buf_sz) {
   auto object = bpf_object__open_mem(obj_buf, obj_buf_sz, nullptr);
@@ -184,13 +184,13 @@ int32_t wasm_bpf_program::load_bpf_object(const void *obj_buf,
   return bpf_object__load(object);
 }
 
-/// \brief attach a specific bpf program by name and target.
+/// \brief Attach a specific BPF program by name and target.
 int32_t wasm_bpf_program::attach_bpf_program(const char *name,
                                              const char *attach_target) {
   bpf_link *link;
   if (!attach_target) {
-    // auto attach base on bpf_program__section_name. The works well for most
-    // bpf types, include kprobe, uprobe, fentry, lsm, etc.
+    // Auto-attach based on bpf_program__section_name. This works well for most
+    // BPF types, including kprobe, uprobe, fentry, lsm, etc.
     link =
         bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
   } else {
@@ -200,11 +200,11 @@ int32_t wasm_bpf_program::attach_bpf_program(const char *name,
       spdlog::error("[WasmEdge Wasm_bpf] get prog {} fail"sv, name);
       return -1;
     }
-    // TODO: attach dynamically base on bpf_program__section_name(prog) and
-    // attach_target to support more attach type libbpf cannot auto attach. For
-    // example, if bpf_program__section_name(prog) is "xdp" and attach_target is
-    // "eth0", or attach sockops to a socket fd. For now, we will try auto
-    // attach as well.
+    // TODO: attach dynamically based on bpf_program__section_name(prog) and
+    // attach_target to support more attach types that libbpf cannot auto
+    // attach. For example, if bpf_program__section_name(prog) is "xdp" and
+    // attach_target is "eth0", or attach sockops to a socket fd. For now, we
+    // will try auto attach as well.
     link =
         bpf_program__attach(bpf_object__find_program_by_name(obj.get(), name));
   }
@@ -227,7 +227,7 @@ bpf_map *wasm_bpf_program::map_ptr_by_fd(int fd) {
   return nullptr;
 }
 
-/// polling the buffer, if the buffer is not created, create it.
+/// Poll the buffer; if the buffer is not created, create it.
 int32_t wasm_bpf_program::bpf_buffer_poll(
     WasmEdge_ExecutorContext *executor,
     const WasmEdge_ModuleInstanceContext *module_instance, int32_t fd,

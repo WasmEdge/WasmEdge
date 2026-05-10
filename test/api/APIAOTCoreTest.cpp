@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains tests of Wasm test suites extracted by wast2json.
-/// Test Suits: https://github.com/WebAssembly/spec/tree/master/test/core
+/// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
@@ -248,7 +248,7 @@ TEST_P(CoreCompileTest, TestSuites) {
         Field.data(), static_cast<uint32_t>(Field.length()));
     if (!ModName.empty()) {
       // Invoke function of named module. Named modules are registered in Store
-      // Manager. Get the function type to specify the return nums.
+      // Manager. Get the function type to specify the return count.
       WasmEdge_String ModStr = WasmEdge_StringWrap(
           ModName.data(), static_cast<uint32_t>(ModName.length()));
       const WasmEdge_FunctionTypeContext *FuncType =
@@ -264,7 +264,7 @@ TEST_P(CoreCompileTest, TestSuites) {
           static_cast<uint32_t>(CReturns.size()));
     } else {
       // Invoke function of anonymous module. Anonymous modules are instantiated
-      // in VM. Get function type to specify the return nums.
+      // in the VM. Get the function type to specify the return count.
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {

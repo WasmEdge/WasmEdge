@@ -12,7 +12,7 @@
 
 namespace WasmEdge::Host::WASINN::GGML {
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML
-// Parse metadata from json.
+// Parse metadata from JSON.
 ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
                     const std::string &Metadata, bool *IsModelUpdated,
                     bool *IsContextUpdated, bool *IsSamplerUpdated) noexcept {
@@ -521,7 +521,7 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
   } catch (const ErrNo &Error) {
     return Error;
   }
-  // The tensor buffer overrides should terminated with empty pattern.
+  // The tensor buffer overrides should be terminated with an empty pattern.
   if (!GraphRef.TensorBuftOverrides.empty()) {
     for (const std::string &Override : GraphRef.TensorBuftOverrides) {
       GraphRef.Params.tensor_buft_overrides.push_back(

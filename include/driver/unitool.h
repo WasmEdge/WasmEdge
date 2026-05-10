@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/driver/unitool.h - UniTool entrypoint ------------------===//
+//===-- wasmedge/driver/unitool.h - UniTool entry point ------------------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the entrypoint for the wasmedge unified tool executable.
+/// This file contains the entry point for the wasmedge unified tool executable.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

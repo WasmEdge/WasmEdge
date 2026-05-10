@@ -31,7 +31,7 @@ namespace Common {
 /// Functions returning arrays whose size is not constant or too large to be
 /// safely allocated on the stack return a handle to an ArrayOutput type.
 ///
-/// More detail:
+/// More details:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#array-outputs
 class ArrayOutput {
 public:
@@ -44,11 +44,12 @@ public:
 
   ArrayOutput(SecretVec &&Data) noexcept : Data(std::move(Data)) {}
 
-  /// Copy the content to the @param Buf buffer.
-  /// Multiple calls are possible, the total number of bytes to be read is
+  /// Copy the contents to the @param Buf buffer.
+  /// Multiple calls are possible, and the total number of bytes to be read is
   /// guaranteed to always match the data size.
   ///
-  /// @returns the number of bytes read. If all pull, return true.
+  /// @returns a tuple of `{bytes read, all-pulled flag}`. The flag is true if
+  /// all data has been pulled.
   std::tuple<size_t, bool> pull(Span<uint8_t> Buf) noexcept;
 
   /// Return ArrayOutput data size.

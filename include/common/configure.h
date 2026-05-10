@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the configuration class of proposals, pre-registration
+/// This file contains the configuration class of proposals, pre-registration
 /// host functions, etc.
 ///
 //===----------------------------------------------------------------------===//
@@ -354,7 +354,7 @@ public:
     return StatisticsConf;
   }
 
-  /// Helper function of checking the proposal of instructions.
+  /// Helper function for checking instruction proposals.
   std::optional<Proposal> isInstrNeedProposal(OpCode Code) const noexcept {
     if (Code >= OpCode::I32__trunc_sat_f32_s &&
         Code <= OpCode::I64__trunc_sat_f64_u) {

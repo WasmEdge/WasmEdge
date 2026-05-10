@@ -28,7 +28,7 @@ The `print_env` is the function to print the environment variables and the comma
 The example C program use the WasmEdge C API to initialize the WASI environment as following:
 
 ```c
-  /* The envs. */
+  /* The environment variables. */
   const char EnvStrs[] = {
       'E', 'N', 'V', '1', '=', 'V', 'A', 'L', '1', '\0',
       // ENV1=VAL1
@@ -39,7 +39,7 @@ The example C program use the WasmEdge C API to initialize the WASI environment 
   };
   const char *const Envs[] = {&EnvStrs[0], &EnvStrs[10], &EnvStrs[20]};
 
-  /* Set the envs and args. */
+  /* Set the environment variables and arguments. */
   WasmEdge_ModuleInstanceContext *WasiCxt =
       WasmEdge_VMGetImportModuleContext(VMCxt, WasmEdge_HostRegistration_Wasi);
   WasmEdge_ModuleInstanceInitWASI(WasiCxt, argv, argc, Envs, 3, NULL, 0);
@@ -62,7 +62,7 @@ Then you can build this example with linking the WasmEdge shared library.
 clang set_wasi_env.c -o set_wasi_env.out -lwasmedge
 ```
 
-## (Optional) Build the example WASM from rust
+## (Optional) Build the example WASM from Rust
 
 For building the WASM from the rust source, the following steps are required:
 

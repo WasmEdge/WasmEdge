@@ -80,8 +80,8 @@ public:
   // mono-channel F32 PCM input.
   std::vector<float> InputPCM;
   std::vector<std::vector<float>> InputPCMs;
-  // Whisper config. Inherit from the graph and accept metadata when setting
-  // input.
+  // Whisper config. Inherited from the graph and updated from metadata when
+  // setting input.
   Config WhisperConfig;
   whisper_full_params WhisperParams;
   // Recognition outputs.

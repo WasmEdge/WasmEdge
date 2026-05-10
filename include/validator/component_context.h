@@ -36,7 +36,7 @@ public:
     std::vector<std::unordered_map<std::string, ExternalType>>
         CoreInstances;                                 // core:instance
     std::vector<const AST::SubType *> CoreTypes;       // core:type
-    uint32_t CoreFuncCount = 0;                        // core:func
+    std::vector<const AST::SubType *> CoreFuncs;       // core:func
     std::vector<const AST::TableType *> CoreTables;    // core:table
     std::vector<const AST::MemoryType *> CoreMemories; // core:memory
     std::vector<const AST::GlobalType *> CoreGlobals;  // core:global
@@ -55,14 +55,20 @@ public:
     std::vector<std::unordered_map<std::string, InstanceExport>>
         Instances;                                      // instance
     std::vector<const AST::Component::DefType *> Types; // type
-    uint32_t FuncCount = 0;                             // func
-    uint32_t ValueCount = 0;                            // value
+    std::vector<const AST::Component::FuncType *>
+        Funcs;               // func (element i = FuncType* or nullptr)
+    uint32_t ValueCount = 0; // value
 
     // --- Type annotations (keyed by type index) ---
     std::unordered_map<uint32_t, const AST::Component::InstanceType *>
         InstanceTypes;
     std::unordered_map<uint32_t, const AST::Component::ResourceType *>
         ResourceTypes;
+
+    // Type indices that refer to locally-defined resources (not imported / not
+    // aliased from an outer scope). Required by canon resource.new /
+    // resource.rep, which are only valid for locally-defined resources.
+    std::unordered_set<uint32_t> DefinedResources;
 
     // --- Validation state ---
     std::unordered_map<std::string, uint32_t> TypeSubstitutions;
@@ -188,8 +194,15 @@ public:
     V.push_back(ST);
     return Idx;
   }
-  uint32_t addCoreFunc() noexcept {
-    return getCurrentContext().CoreFuncCount++;
+  uint32_t addCoreFunc(const AST::SubType *ST = nullptr) noexcept {
+    auto &V = getCurrentContext().CoreFuncs;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(ST);
+    return Idx;
+  }
+  const AST::SubType *getCoreFunc(uint32_t Idx) const noexcept {
+    const auto &V = getCurrentContext().CoreFuncs;
+    return Idx < V.size() ? V[Idx] : nullptr;
   }
 
   uint32_t addCoreTable(const AST::TableType *TT = nullptr) noexcept {
@@ -266,18 +279,13 @@ public:
   // ==========================================================================
 
   uint32_t addType(const AST::Component::DefType *DT = nullptr) noexcept {
-    auto &Ctx = getCurrentContext();
-    uint32_t Idx = static_cast<uint32_t>(Ctx.Types.size());
-    Ctx.Types.push_back(DT);
-    if (DT != nullptr) {
-      if (DT->isInstanceType()) {
-        Ctx.InstanceTypes[Idx] = &DT->getInstanceType();
-      }
-      if (DT->isResourceType()) {
-        Ctx.ResourceTypes[Idx] = &DT->getResourceType();
-      }
-    }
-    return Idx;
+    return addTypeImpl(DT, /*IsLocal=*/true);
+  }
+
+  /// Like addType but marks the resource as imported rather than locally
+  /// defined. Used for resource type imports and outer-alias resources.
+  uint32_t addTypeImported(const AST::Component::DefType *DT) noexcept {
+    return addTypeImpl(DT, /*IsLocal=*/false);
   }
 
   const AST::Component::DefType *getDefType(uint32_t Idx) const noexcept {
@@ -291,6 +299,14 @@ public:
   bool isResourceType(uint32_t Idx) const noexcept {
     const auto &Ctx = getCurrentContext();
     return Ctx.ResourceTypes.find(Idx) != Ctx.ResourceTypes.end();
+  }
+
+  /// Returns true iff the type index is a resource defined in the current
+  /// scope (not imported, not an outer-alias). Required for canon
+  /// resource.new and resource.rep validation.
+  bool isLocalResource(uint32_t Idx) const noexcept {
+    const auto &Ctx = getCurrentContext();
+    return Ctx.DefinedResources.find(Idx) != Ctx.DefinedResources.end();
   }
 
   const AST::Component::InstanceType *
@@ -311,7 +327,16 @@ public:
   // func / value
   // ==========================================================================
 
-  uint32_t addFunc() noexcept { return getCurrentContext().FuncCount++; }
+  uint32_t addFunc(const AST::Component::FuncType *FT = nullptr) noexcept {
+    auto &V = getCurrentContext().Funcs;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.push_back(FT);
+    return Idx;
+  }
+  const AST::Component::FuncType *getFunc(uint32_t Idx) const noexcept {
+    const auto &V = getCurrentContext().Funcs;
+    return Idx < V.size() ? V[Idx] : nullptr;
+  }
   uint32_t addValue() noexcept { return getCurrentContext().ValueCount++; }
 
   // ==========================================================================
@@ -343,6 +368,24 @@ public:
   }
 
 private:
+  uint32_t addTypeImpl(const AST::Component::DefType *DT,
+                       bool IsLocal) noexcept {
+    auto &Ctx = getCurrentContext();
+    uint32_t Idx = static_cast<uint32_t>(Ctx.Types.size());
+    Ctx.Types.push_back(DT);
+    if (DT != nullptr) {
+      if (DT->isInstanceType()) {
+        Ctx.InstanceTypes[Idx] = &DT->getInstanceType();
+      } else if (DT->isResourceType()) {
+        Ctx.ResourceTypes[Idx] = &DT->getResourceType();
+        if (IsLocal) {
+          Ctx.DefinedResources.insert(Idx);
+        }
+      }
+    }
+    return Idx;
+  }
+
   std::deque<Context> CompCtxs;
 };
 

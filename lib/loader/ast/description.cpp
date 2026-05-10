@@ -27,7 +27,7 @@ Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
     ImpDesc.setExternalType(static_cast<ExternalType>(B));
   }));
 
-  // Make content node according to external type.
+  // Create the content node according to the external type.
   switch (ImpDesc.getExternalType()) {
   case ExternalType::Function: {
     // Read the function type index.
@@ -47,7 +47,7 @@ Expect<void> Loader::loadDesc(AST::ImportDesc &ImpDesc) {
   case ExternalType::Global: {
     // Read the global type node.
     EXPECTED_TRY(loadType(ImpDesc.getExternalGlobalType()));
-    // Import the mutable globals are for ImportExportMutGlobals proposal.
+    // Mutable global imports are for the ImportExportMutGlobals proposal.
     if (ImpDesc.getExternalGlobalType().getValMut() == ValMut::Var &&
         unlikely(!Conf.hasProposal(Proposal::ImportExportMutGlobals))) {
       return logNeedProposal(ErrCode::Value::InvalidMut,

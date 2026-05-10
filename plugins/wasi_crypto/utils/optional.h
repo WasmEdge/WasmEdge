@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of the OptionalRef and some helper
+/// This file contains the definition of OptionalRef and some helper
 /// functions.
 ///
 //===----------------------------------------------------------------------===//

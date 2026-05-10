@@ -89,7 +89,7 @@ Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
-  // If Dict Not created return (i.e. 0 is passed as AVDictId)
+  // Return if Dict was not created (i.e. 0 is passed as AVDictId).
   if (AvDict == nullptr) {
     return static_cast<int32_t>(ErrNo::InternalError);
   }
@@ -124,7 +124,7 @@ Expect<int32_t> AVDictGetKeyValue::body(
 
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
-  // If Dict Not created return (i.e. 0 is passed as AVDictId)
+  // Return if Dict was not created (i.e. 0 is passed as AVDictId).
   if (AvDict == nullptr) {
     return static_cast<int32_t>(ErrNo::InternalError);
   }

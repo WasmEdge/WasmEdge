@@ -118,7 +118,7 @@ Expect<WASINN::ErrNo> load(WASINN::WasiNNEnvironment &Env,
   //   Builder-1: Path to the dir model xml/bin files
   //   Builder-2: Empty for now (reserved for future use)
 
-  // There are 4 types (text or img) x (text or img), we assume the input is 0
+  // There are 4 types (text or img) x (text or img); we assume the input is 0
   // for now.
   auto ModelType = std::string(
       reinterpret_cast<const char *>(Builders[0].data()), Builders[0].size());

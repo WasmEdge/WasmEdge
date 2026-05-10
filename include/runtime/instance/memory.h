@@ -84,17 +84,17 @@ public:
 
   /// Get page size of memory.data
   uint64_t getPageSize() const noexcept {
-    // The memory page size is binded with the limit in memory type.
+    // The memory page size is bound to the limit in the memory type.
     return MemType.getLimit().getMin();
   }
 
   /// Get memory size of memory.data
   uint64_t getSize() const noexcept {
-    // The memory page size is binded with the limit in memory type.
+    // The memory page size is bound to the limit in the memory type.
     return MemType.getLimit().getMin() * kPageSize;
   }
 
-  /// Getter of memory type.
+  /// Getter for memory type.
   const AST::MemoryType &getMemoryType() const noexcept { return MemType; }
 
   /// Check access size is valid.
@@ -293,16 +293,16 @@ public:
     return {reinterpret_cast<const char *>(&DataPtr[Offset]), Size};
   }
 
-  /// Template of loading bytes and convert to a value.
+  /// Template for loading bytes and converting them to a value.
   ///
-  /// Load the length of vector and construct into a value.
-  /// Only output value of int32, uint32, int64, uint64, float, and double are
+  /// Load bytes of the specified length and construct a value.
+  /// Only output values of int32, uint32, int64, uint64, float, and double are
   /// allowed.
   ///
   /// \param Value the constructed output value.
   /// \param Offset the start offset in data array.
   ///
-  /// \returns void when success, ErrCode when failed.
+  /// \returns void on success, ErrCode on failure.
   template <typename T, uint32_t Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNumV<T>, Expect<void>>
   loadValue(T &Value, const uint64_t Offset) const noexcept {
@@ -328,7 +328,7 @@ public:
           std::memcpy(&LoadValue.raw(), &DataPtr[Offset], Length);
           Value = LoadValue.le();
         } else {
-          // Integer case. Extends to the result type.
+          // Integer case. Extend to the result type.
           EndianValue<uint64_t> LoadVal = 0;
           std::memcpy(&LoadVal.raw(), &DataPtr[Offset], Length);
           uint64_t Val = LoadVal.le();
@@ -345,15 +345,15 @@ public:
     return {};
   }
 
-  /// Template of loading bytes and convert to a value.
+  /// Template for storing a value as bytes.
   ///
-  /// Destruct and Store the value to length of vector.
-  /// Only input value of uint32, uint64, float, and double are allowed.
+  /// Store the value using the specified byte length.
+  /// Only input values of uint32, uint64, float, and double are allowed.
   ///
-  /// \param Value the value want to store into data array.
+  /// \param Value the value to store into the data array.
   /// \param Offset the start offset in data array.
   ///
-  /// \returns void when success, ErrCode when failed.
+  /// \returns void on success, ErrCode on failure.
   template <typename T, uint32_t Length = sizeof(T)>
   typename std::enable_if_t<IsWasmNativeNumV<T>, Expect<void>>
   storeValue(const T &Value, const uint64_t Offset) noexcept {
@@ -365,7 +365,7 @@ public:
       spdlog::error(ErrInfo::InfoBoundary(Offset, Length, getSize()));
       return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
-    // Copy the stored data to the value.
+    // Copy the value to memory.
     if (likely(Length > 0)) {
       T StoreValue = EndianValue<T>(Value).le();
       std::memcpy(&DataPtr[Offset], &StoreValue, Length);

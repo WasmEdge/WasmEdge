@@ -29,7 +29,7 @@ void generateCoredump(const Runtime::StackManager &StackMgr,
   std::string MagicStr("\0asm", 4);
   Magic.insert(Magic.begin(), MagicStr.begin(), MagicStr.end());
   std::vector<Byte> &Version = Module.getVersion();
-  // Version must be 1 for support Wasmgdb
+  // Version must be 1 to support Wasmgdb.
   Version.insert(Version.begin(), {0x01, 0x00, 0x00, 0x00});
 
   Module.getCustomSections().emplace_back(createCore());
@@ -125,8 +125,8 @@ AST::CustomSection createCorestack(
     // stack size
     Ser.serializeU32(Vsize, Content);
     for (auto &Iter : Locals) {
-      // 0x7F implies i32, since it doesn't support i128 and wasmgdb not support
-      // i64
+      // 0x7F implies i32. i128 is not supported here, and wasmgdb does not
+      // support i64.
       Content.push_back(0x7F);
       auto Value = Iter.unwrap();
       std::vector<Byte> ValueBytes(4);
@@ -135,8 +135,8 @@ AST::CustomSection createCorestack(
     }
     if (!ForWasmgdb) {
       for (auto &Iter : Stacks) {
-        // 0x7F implies i32, since it doesn't support i128 and wasmgdb not
-        // support i64
+        // 0x7F implies i32. i128 is not supported here, and wasmgdb does not
+        // support i64.
         Content.push_back(0x7F);
         auto Value = Iter.unwrap();
         std::vector<Byte> ValueBytes(4);

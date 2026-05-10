@@ -25,7 +25,7 @@ namespace Host {
 namespace WasiCrypto {
 namespace Symmetric {
 
-/// Authentication tag, that can be verified without channels using the provided
+/// Authentication tag that can be verified without channels using the provided
 /// APIs. Very small and no streaming.
 ///
 /// More detail:
@@ -42,7 +42,7 @@ public:
   size_t len() const noexcept { return Data.size(); }
 
   /// The function MUST return `__WASI_CRYPTO_ERRNO_INVALID_TAG` if the
-  /// tags don't match.
+  /// tags do not match.
   WasiCryptoExpect<void> verify(Span<const uint8_t> RawTag) const noexcept;
 
   WasiCryptoExpect<size_t> pull(Span<uint8_t> Raw) const noexcept;

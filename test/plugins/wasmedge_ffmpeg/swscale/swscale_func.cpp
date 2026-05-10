@@ -13,7 +13,7 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 
 // ============================================================================
-// This test deals with funcs related to SwsContext
+// This test deals with functions related to SwsContext.
 // ============================================================================
 
 TEST_F(FFmpegTest, SwsContext) {
@@ -114,13 +114,13 @@ TEST_F(FFmpegTest, SwsContext) {
       FuncInst->getHostFunc());
 
   {
-    // AV_PIX_FMT_RGB24 is supported Pixel Format
+    // AV_PIX_FMT_RGB24 is a supported pixel format.
     EXPECT_TRUE(HostFuncSwsIsSupportedInput.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{RGB24Id},
         Result));
     ASSERT_TRUE(Result[0].get<int32_t>() > 0);
 
-    // AV_PIX_FMT_XVMC is not supported Pixel Format
+    // AV_PIX_FMT_XVMC is not a supported pixel format.
     EXPECT_TRUE(HostFuncSwsIsSupportedInput.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{XVMCId},
         Result));
@@ -136,13 +136,13 @@ TEST_F(FFmpegTest, SwsContext) {
       FuncInst->getHostFunc());
 
   {
-    // AV_PIX_FMT_RGB24 is supported Pixel Format
+    // AV_PIX_FMT_RGB24 is a supported pixel format.
     EXPECT_TRUE(HostFuncSwsIsSupportedOutput.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{RGB24Id},
         Result));
     ASSERT_TRUE(Result[0].get<int32_t>() > 0);
 
-    // AV_PIX_FMT_XVMC is not supported Pixel Format
+    // AV_PIX_FMT_XVMC is not a supported pixel format.
     EXPECT_TRUE(HostFuncSwsIsSupportedOutput.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{XVMCId},
         Result));
@@ -159,7 +159,7 @@ TEST_F(FFmpegTest, SwsContext) {
           FuncInst->getHostFunc());
 
   {
-    // AV_PIX_FMT_XVMC is not supported Pixel Format for
+    // AV_PIX_FMT_XVMC is not a supported pixel format for
     EXPECT_TRUE(HostFuncSwsIsSupportedEndiannessConversion.run(
         CallFrame, std::initializer_list<WasmEdge::ValVariant>{XVMCId},
         Result));
@@ -198,7 +198,7 @@ TEST_F(FFmpegTest, SwsContext) {
 }
 
 // ============================================================================
-// This test deals with funcs related to SwsFilter.
+// This test deals with functions related to SwsFilter.
 // ============================================================================
 
 TEST_F(FFmpegTest, SwsFilter) {
@@ -319,7 +319,7 @@ TEST_F(FFmpegTest, SwsFilter) {
 }
 
 // ============================================================================
-// This test deals with funcs related to SwsVector.
+// This test deals with functions related to SwsVector.
 // ============================================================================
 
 TEST_F(FFmpegTest, SwsVector) {
@@ -453,7 +453,8 @@ TEST_F(FFmpegTest, SwsVector) {
 }
 
 // ============================================================================
-// This test deals with funcs related to Version, Configuration and License
+// This test deals with functions related to Version, Configuration, and
+// License.
 // ============================================================================
 
 TEST_F(FFmpegTest, SWScaleVersion) {

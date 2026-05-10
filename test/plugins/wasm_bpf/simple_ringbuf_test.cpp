@@ -69,7 +69,7 @@ public:
 
 TEST(WasmBpfTest, SimpleRingbuf) {
   using namespace std::string_view_literals;
-  // Test loading and attaching a bpf program, and polling buffer
+  // Test loading and attaching a BPF program and polling a buffer.
   auto module = dynamic_cast<WasmEdge::Host::WasmBpfModule *>(createModule());
   ASSERT_NE(module, nullptr);
 
@@ -88,10 +88,10 @@ TEST(WasmBpfTest, SimpleRingbuf) {
   namespace fs = std::filesystem;
   auto bpfObject = getAssertsPath() / "simple_ringbuf.bpf.o";
 
-  // Ensure the bpf object we need exists
+  // Ensure the BPF object we need exists.
   ASSERT_TRUE(fs::exists(bpfObject));
 
-  // Read the bpf object into wasm memory
+  // Read the BPF object into Wasm memory.
   std::ifstream bpfObjStream(bpfObject);
   ASSERT_TRUE(bpfObjStream.is_open());
   ASSERT_TRUE(bpfObjStream.good());
@@ -99,15 +99,15 @@ TEST(WasmBpfTest, SimpleRingbuf) {
       (std::istreambuf_iterator<char>(bpfObjStream)),
       std::istreambuf_iterator<char>());
   ASSERT_FALSE(bpfObjectBytes.empty());
-  // Offset to put things into memory
+  // Offset used to place data in memory.
   uint32_t nextOffset = 1;
 
-  // Put the bpf object into memory
+  // Put the BPF object in memory.
   const uint32_t bpfObjectMemoryOffset = nextOffset;
   fillMemContent(memoryInstRef, bpfObjectMemoryOffset, bpfObjectBytes);
   nextOffset += static_cast<uint32_t>(bpfObjectBytes.size());
 
-  // Fill strings that will be used into memory
+  // Write the strings to memory.
   std::array<const char *, 3> strings = {
       "rb",          // Map name
       "handle_exec", // Program names
@@ -184,13 +184,13 @@ TEST(WasmBpfTest, SimpleRingbuf) {
   auto mapFd = mapFdResult[0].get<int32_t>();
   ASSERT_GE(mapFd, 0);
 
-  // In the following several steps we will prepare for polling
-  // Create an instance of the polling callback function
+  // In the following steps we prepare for polling.
+  // Create an instance of the polling callback function.
   moduleInst.addHostFunc("__polling_callback_hostfunc"sv,
                          std::make_unique<PollCallbackFunction>());
   auto *callbackFuncInst =
       moduleInst.findFuncExports("__polling_callback_hostfunc");
-  // Create a function table, and fill the callback function into it
+  // Create a function table and fill it with the callback function.
   auto funcTableInst =
       std::make_unique<WasmEdge::Runtime::Instance::TableInstance>(
           WasmEdge::AST::TableType(WasmEdge::TypeCode::FuncRef, 1));

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains a pseudo random generator for testing purpose.
+/// This file contains a pseudorandom generator for testing purposes.
 ///
 /// clang-13 --target=wasm32-wasi --sysroot=[[wasm sysroot]] -fno-exceptions
 /// -fno-rounding-math -ftls-model=local-exec -mmutable-globals

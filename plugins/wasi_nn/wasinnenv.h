@@ -141,10 +141,11 @@ private:
       Impl;
   // Graph status.
   //   Uninitialized: A new graph in monostate.
-  //   Invalid: The graph loaded failed in set_input with metadata. Can be
-  //            reload with a new metadata in set_input.
-  //   Finalized: The graph being deleted, but there are contexts linked. This
-  //              graph ID will be released once the contexts are deleted.
+  //   Invalid: The graph failed to load in set_input with metadata. It can be
+  //            reloaded with new metadata in set_input.
+  //   Finalized: The graph is being deleted, but there are linked contexts.
+  //              This graph ID will be released once the contexts are
+  //              deleted.
   //   Ready: This graph can be used to create a context.
   enum class Status : uint8_t { Uninitialized, Invalid, Finalized, Ready };
   Status Stat;
@@ -317,7 +318,7 @@ struct WasiNNEnvironment :
       auto &G = NNGraph[Id];
       G.setFinalized();
       if (G.getContextCount() == 0) {
-        // Checked all contexts are deleted. Release the graph id.
+        // All contexts are deleted. Release the graph ID.
         if (Id == NNGraph.size() - 1) {
           NNGraph.pop_back();
         } else {
@@ -337,7 +338,7 @@ struct WasiNNEnvironment :
       auto &G = NNGraph[GId];
       G.decreaseContext();
       if (G.getContextCount() == 0 && G.isFinalized()) {
-        // Checked all contexts are deleted. Release the graph id.
+        // All contexts are deleted. Release the graph ID.
         if (GId == NNGraph.size() - 1) {
           NNGraph.pop_back();
         } else {

@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file parse and run tests of Wasm test suites extracted by wast2json.
-/// Test Suits: https://github.com/WebAssembly/testsuite
+/// This file parses and runs tests of Wasm test suites extracted by wast2json.
+/// Test Suites: https://github.com/WebAssembly/testsuite
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
@@ -116,7 +116,7 @@ static void parseSIMDLanes(WasmEdge::uint128_t &V128,
   std::memcpy(&V128, &V, 16);
 }
 
-// Helper function to parse parameters from json to vector of value.
+// Helper function to parse parameters from JSON to a vector of values.
 std::pair<std::vector<WasmEdge::ValVariant>, std::vector<WasmEdge::ValType>>
 parseValueList(const simdjson::dom::array &Args) {
   std::vector<WasmEdge::ValVariant> Result;
@@ -164,7 +164,7 @@ parseValueList(const simdjson::dom::array &Args) {
           Result.emplace_back(
               WasmEdge::RefVariant(WasmEdge::TypeCode::FuncRef));
         } else {
-          // Not support input value of opaque references for testing.
+          // Input values of opaque references are not supported for testing.
           assumingUnreachable();
         }
         ResultTypes.emplace_back(WasmEdge::TypeCode::FuncRef);
@@ -194,7 +194,7 @@ parseValueList(const simdjson::dom::array &Args) {
   return {Result, ResultTypes};
 }
 
-// Helper function to parse parameters from json to vector of string pair.
+// Helper function to parse parameters from JSON to a vector of string pairs.
 std::vector<std::pair<std::string, std::string>>
 parseExpectedList(const simdjson::dom::array &Args) {
   std::vector<std::pair<std::string, std::string>> Result;
@@ -287,7 +287,7 @@ static const TestsuiteProposal TestsuiteProposals[] = {
     {"wasm-3.0-relaxed-simd"sv, WasmEdge::Standard::WASM_3},
     {"wasm-3.0-simd"sv, WasmEdge::Standard::WASM_3},
     {"threads"sv, WasmEdge::Standard::WASM_2, {Proposal::Threads}},
-    // Component model only supports interpreter mode currently.
+    // Currently, the component model supports only interpreter mode.
     {"component-model"sv,
      WasmEdge::Standard::WASM_3,
      {Proposal::Component},
@@ -295,8 +295,8 @@ static const TestsuiteProposal TestsuiteProposals[] = {
      WasmEdge::SpecTest::TestMode::Interpreter},
 };
 
-// Used for labeling the status of component model support of each test folder.
-// Would be deleted when component model is fully supported.
+// Labels the component model support status of each test folder.
+// Will be deleted when component model is fully supported.
 struct ComponentModelSupport {
   bool Load;
   bool Validate;
@@ -305,13 +305,13 @@ struct ComponentModelSupport {
 };
 
 // clang-format off
-// Used for labeling the status of component model support of each test folder.
-// Would be deleted when component model is fully supported.
+// Labels the component model support status of each test folder.
+// Will be deleted when component model is fully supported.
 std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     // | Folder | Test table: {load, validate, instantiate, execute} |
     // ---------------------------------------------------------------
     // Folder: the directory name of tests.
-    // Test table: the testing status of load, validate, instantiate and execute
+    // Test table: the testing status of load, validate, instantiate, and execute.
     {"adapt",                   {true, false, false, false}},
     {"alias",                   {true, false, false, false}},
     {"big",                     {true, false, false, false}},
@@ -345,8 +345,8 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
 };
 // clang-format on
 
-// Used for getting the status of component model support of each test folder.
-// Would be deleted when component model is fully supported.
+// Gets the component model support status of each test folder.
+// Will be deleted when component model is fully supported.
 bool checkComponentSupported(std::string_view Folder, WasmEdge::WasmPhase P) {
   auto It = ComponentModelFolders.find(std::string(Folder));
   if (It == ComponentModelFolders.end()) {
@@ -764,7 +764,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     return LastModName;
   };
 
-  // Helper function to check result of invocation.
+  // Helper function to check the result of invocation.
   auto Invoke = [&](const simdjson::dom::object &Action,
                     const simdjson::dom::array &Expected, uint64_t LineNumber) {
     if (IsComponent) {
@@ -778,7 +778,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     const auto Returns = parseExpectedList(Expected);
 
     // Invoke function of named module. Named modules are registered in Store
-    // Manager. Anonymous modules are instantiated in VM.
+    // Manager. Anonymous modules are instantiated in the VM.
     if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
                             Params.second)) {
       // Check value.
@@ -788,7 +788,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     }
   };
 
-  // Helper function to check one of matched results of invocation.
+  // Helper function to check one of the matched results of invocation.
   auto InvokeEither = [&](const simdjson::dom::object &Action,
                           const simdjson::dom::array &Eithers,
                           uint64_t LineNumber) {
@@ -803,7 +803,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
     const auto Returns = parseEithersList(Eithers);
 
     // Invoke function of named module. Named modules are registered in Store
-    // Manager. Anonymous modules are instantiated in VM.
+    // Manager. Anonymous modules are instantiated in the VM.
     if (auto Res = onInvoke(Ctx, ModName, std::string(Field), Params.first,
                             Params.second)) {
       // Check value.
@@ -1025,8 +1025,8 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         std::string_view ASTName = Cmd["definition"];
         const uint64_t LineNumber = Cmd["line"];
         if (IsComponent) {
-          // The component model spec tests currently have no module_instance
-          // commands. Fail explicitly if one is encountered.
+          // The component model spec tests currently do not have
+          // module_instance commands. Fail explicitly if one is encountered.
           EXPECT_NE(LineNumber, LineNumber);
           return;
         }
@@ -1131,7 +1131,7 @@ void SpecTest::processCommands(ContextHandle Ctx, std::string_view Proposal,
         const simdjson::dom::object &Action = Cmd["action"];
         const std::string_view ActType = Action["type"];
         const uint64_t LineNumber = Cmd["line"];
-        // TODO: Check expected exception type
+        // TODO: Check the expected exception type.
         if (ActType == "invoke"sv) {
           ExceptionInvoke(Action, LineNumber);
           return;

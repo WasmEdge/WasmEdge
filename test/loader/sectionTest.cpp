@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading AST section nodes.
+/// This file contains unit tests for loading AST section nodes.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -159,7 +159,7 @@ TEST(SectionTest, LoadFunctionSection) {
   //   2.  Load function section without contents.
   //   3.  Load function section with zero vector length.
   //   4.  Load function section with contents.
-  //   5.  Load function section with contents not match section size.
+  //   5.  Load function section with contents that do not match section size.
 
   Vec = {0x03U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -372,7 +372,7 @@ TEST(SectionTest, LoadStartSection) {
   //   1.  Load invalid empty section.
   //   2.  Load start section without contents.
   //   3.  Load start section with contents.
-  //   4.  Load start section with contents not match section size.
+  //   4.  Load start section with contents that do not match section size.
 
   Vec = {0x08U};
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
@@ -558,7 +558,7 @@ TEST(SectionTest, LoadDataCountSection) {
   //   1.  Load invalid empty section.
   //   2.  Load datacount section without contents.
   //   3.  Load datacount section with contents.
-  //   4.  Load datacount section with contents not match section size.
+  //   4.  Load datacount section with contents that do not match section size.
   //   5.  Load datacount section without Ref-Types proposal.
 
   Vec = {0x0CU};

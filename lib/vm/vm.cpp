@@ -87,7 +87,7 @@ void VM::unsafeInitVM() {
 
 void VM::unsafeLoadBuiltInHosts() {
   // Load the built-in host modules from configuration.
-  // TODO: This will be extended for the versionlized WASI in the future.
+  // TODO: This will be extended for versioned WASI in the future.
   BuiltInModInsts.clear();
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
     std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
@@ -177,8 +177,8 @@ void VM::unsafeRegisterPlugInHosts() {
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const std::filesystem::path &Path) {
   if (Stage == VMStage::Instantiated) {
-    // When registering module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
+    // When registering a module, the instantiated module in the store will be
+    // reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   // Load module.
@@ -189,8 +189,8 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       Span<const Byte> Code) {
   if (Stage == VMStage::Instantiated) {
-    // When registering module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
+    // When registering a module, the instantiated module in the store will be
+    // reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   // Load module.
@@ -201,8 +201,8 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       const AST::Module &Module) {
   if (Stage == VMStage::Instantiated) {
-    // When registering module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
+    // When registering a module, the instantiated module in the store will be
+    // reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   // Validate module.
@@ -218,8 +218,8 @@ Expect<void>
 VM::unsafeRegisterModule(std::string_view Name,
                          const Runtime::Instance::ModuleInstance &ModInst) {
   if (Stage == VMStage::Instantiated) {
-    // When registering module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
+    // When registering a module, the instantiated module in the store will be
+    // reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   return ExecutorEngine.registerModule(StoreRef, ModInst, Name);
@@ -230,8 +230,8 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
-    // When running another module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
+    // When running another module, the instantiated module in the store will be
+    // reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   // Load wasm unit.
@@ -254,8 +254,8 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
-    // When running another module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
+    // When running another module, the instantiated module in the store will be
+    // reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   // Load wasm unit.
@@ -278,8 +278,8 @@ VM::unsafeRunWasmFile(const AST::Component::Component &Component,
                       std::string_view, Span<const ValVariant>,
                       Span<const ValType>) {
   if (Stage == VMStage::Instantiated) {
-    // When running another module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
+    // When running another module, the instantiated module in the store will be
+    // reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   EXPECTED_TRY(ValidatorEngine.validate(Component));
@@ -292,8 +292,8 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
   if (Stage == VMStage::Instantiated) {
-    // When running another module, instantiated module in store will be reset.
-    // Therefore the instantiation should restart.
+    // When running another module, the instantiated module in the store will be
+    // reset. Therefore the instantiation should restart.
     Stage = VMStage::Validated;
   }
   EXPECTED_TRY(ValidatorEngine.validate(Module));
@@ -302,7 +302,7 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
 
   // Get module instance.
   if (ActiveModInst) {
-    // Execute function and return values with the module instance.
+    // Execute function and return values using the module instance.
     return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
   }
   spdlog::error(ErrCode::Value::WrongInstanceAddress);
@@ -356,7 +356,7 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 }
 
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
-  // If not load successfully, the previous status will be reserved.
+  // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
 
   std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
@@ -367,7 +367,7 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 }
 
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
-  // If not load successfully, the previous status will be reserved.
+  // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
 
   std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
@@ -400,7 +400,7 @@ private:
 
 Expect<void> VM::unsafeValidate() {
   if (Stage < VMStage::Loaded) {
-    // When module is not loaded, not validate.
+    // Do not validate when the module is not loaded.
     spdlog::error(ErrCode::Value::WrongVMWorkflow);
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
@@ -419,7 +419,7 @@ Expect<void> VM::unsafeValidate() {
 
 Expect<void> VM::unsafeInstantiate() {
   if (Stage < VMStage::Validated) {
-    // When module is not validated, not instantiate.
+    // Do not instantiate when the module is not validated.
     spdlog::error(ErrCode::Value::WrongVMWorkflow);
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
@@ -499,7 +499,7 @@ VM::unsafeExecute(std::string_view Func, Span<const ValVariant> Params,
     spdlog::error(ErrInfo::InfoExecuting("When invoking"sv, Func));
     return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
-  // Execute function and return values with the module instance.
+  // Execute function and return values using the module instance.
   return unsafeExecute(ActiveModInst.get(), Func, Params, ParamTypes);
 }
 
@@ -514,7 +514,7 @@ VM::unsafeExecute(std::string_view ModName, std::string_view Func,
     spdlog::error(ErrInfo::InfoExecuting(ModName, Func));
     return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
-  // Execute function and return values with the module instance.
+  // Execute function and return values using the module instance.
   return unsafeExecute(FindModInst, Func, Params, ParamTypes);
 }
 
@@ -541,7 +541,7 @@ VM::unsafeExecuteComponent(std::string_view CompName, std::string_view Func,
     spdlog::error(ErrInfo::InfoExecuting(CompName, Func));
     return Unexpect(ErrCode::Value::WrongInstanceAddress);
   }
-  // Execute function and return values with the component instance.
+  // Execute function and return values using the component instance.
   return unsafeExecuteComponent(FindCompInst, Func, Params, ParamTypes);
 }
 

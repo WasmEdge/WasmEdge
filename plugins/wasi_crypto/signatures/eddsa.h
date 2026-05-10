@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of eddsa algorithm.
+/// This file contains the definition of the EdDSA algorithm.
 ///
 //===----------------------------------------------------------------------===//
 

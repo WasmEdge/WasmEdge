@@ -28,13 +28,13 @@ extern "C" {
 namespace WasmEdge {
 namespace Host {
 
-/// \brief init libbpf callbacks
+/// \brief Initialize libbpf callbacks.
 void init_libbpf(void);
 
 typedef int32_t (*bpf_buffer_sample_fn)(void *ctx, void *data, size_t size);
 
-/// An absraction of a bpf ring buffer or perf buffer
-/// see https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c
+/// An abstraction of a BPF ring buffer or perf buffer.
+/// See https://github.com/iovisor/bcc/blob/master/libbpf-tools/compat.c.
 class bpf_buffer {
 protected:
   bpf_buffer_sample_fn fn;
@@ -47,27 +47,27 @@ protected:
   uint32_t wasm_buf_ptr;
 
 public:
-  /// sample callback which calls the wasm handler indirectly
+  /// Sample callback that calls the Wasm handler indirectly.
   int32_t bpf_buffer_sample(void *data, size_t size);
-  /// Check if the bpf buffer is valid
+  /// Check whether the BPF buffer is valid.
   ///
-  /// a valid module instance should have only one table and a sample function
+  /// A valid module instance should have only one table and a sample function.
   bool is_valid() const;
-  /// set the wasm callback parameters
+  /// Set the Wasm callback parameters.
   void
   set_callback_params(WasmEdge_ExecutorContext *executor,
                       const WasmEdge_ModuleInstanceContext *module_instance,
                       uint32_t sample_func, void *data, size_t max_size,
                       uint32_t ctx, uint32_t buf_ptr);
-  /// polling the bpf buffer
+  /// Poll the BPF buffer.
   virtual int32_t bpf_buffer__poll(int32_t timeout_ms) = 0;
-  /// open the bpf buffer map
+  /// Open the BPF buffer map.
   virtual int32_t bpf_buffer__open(int32_t fd, bpf_buffer_sample_fn sample_cb,
                                    void *ctx) = 0;
   virtual ~bpf_buffer() noexcept = default;
 };
 
-/// bpf program instance
+/// BPF program instance.
 class wasm_bpf_program {
   std::unique_ptr<bpf_object, void (*)(bpf_object *obj)> obj{nullptr,
                                                              bpf_object__close};
@@ -76,19 +76,19 @@ class wasm_bpf_program {
       links;
 
 public:
-  /// Find a bpf map fd by name
+  /// Find a BPF map fd by name.
   int32_t bpf_map_fd_by_name(const char *name);
-  /// Load a bpf object from a buffer into the kernel
+  /// Load a BPF object from a buffer into the kernel.
   int32_t load_bpf_object(const void *obj_buf, size_t obj_buf_sz);
-  /// Attach a bpf program to a target (e.g. a kernel function on a kprobe)
+  /// Attach a BPF program to a target (e.g. a kernel function on a kprobe).
   int32_t attach_bpf_program(const char *name, const char *attach_target);
-  /// Poll the bpf buffer to get data from the kernel
+  /// Poll the BPF buffer to get data from the kernel.
   int32_t bpf_buffer_poll(WasmEdge_ExecutorContext *executor,
                           const WasmEdge_ModuleInstanceContext *module_instance,
                           int32_t fd, int32_t sample_func, uint32_t ctx,
                           void *buffer_data, size_t max_size,
                           int32_t timeout_ms, uint32_t wasm_buf_ptr);
-  /// Get the bpf map pointer by fd
+  /// Get the BPF map pointer by fd.
   bpf_map *map_ptr_by_fd(int32_t fd);
 };
 
@@ -99,7 +99,7 @@ enum bpf_map_cmd {
   _BPF_MAP_GET_NEXT_KEY,
 };
 
-/// Operate on a bpf map.
+/// Operate on a BPF map.
 int32_t bpf_map_operate(int32_t fd, int32_t cmd, void *key, void *value,
                         void *next_key, uint64_t flags);
 using handle_t = int64_t;

@@ -26,7 +26,7 @@ namespace Host {
 namespace WasiCrypto {
 namespace Symmetric {
 
-/// Aeads invalid operations, every Aeads state should inherent from this class.
+/// Aeads invalid operations. Every Aeads state should inherit from this class.
 ///
 /// More detailed:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#aeads
@@ -77,8 +77,8 @@ public:
   class State : public AEADsState<Key> {
   public:
     /// There are four inputs for authenticated encryption:
-    /// @param[in] Key The secret key for encrypt
-    /// @param[in] OptOption `Must` contain an Nonce (Initialization vector).
+    /// @param[in] Key The secret key for encryption.
+    /// @param[in] OptOption `Must` contain a Nonce (initialization vector).
     static WasiCryptoExpect<State>
     open(const Key &Key, OptionalRef<const Options> OptOption) noexcept;
 
@@ -106,7 +106,7 @@ public:
     WasiCryptoExpect<size_t> maxTagLen() const noexcept;
 
     /// Check Out.size() == Data.size() + maxTagLen(), then call
-    /// encryptUnchecked(Out, Data) or return error if not equal.
+    /// encryptUnchecked(Out, Data), or return an error if they are not equal.
     ///
     /// @param Out The encrypted data text
     /// @param Data The data to be encrypted
@@ -116,7 +116,8 @@ public:
                                      Span<const uint8_t> Data) noexcept;
 
     /// Check Out.size() == Data.size(), then call
-    /// encryptDetachedUnchecked(Out, Data) or error if not equal
+    /// encryptDetachedUnchecked(Out, Data), or return an error if they are not
+    /// equal.
     ///
     /// @param Out The encrypted data text
     /// @param Data The data to be encrypted
@@ -126,7 +127,8 @@ public:
                                           Span<const uint8_t> Data) noexcept;
 
     /// Check Out.size() = Data.size() + maxTagLen(), then call
-    /// decryptDetachedUnchecked(Out, Data) or error if not equal
+    /// decryptDetachedUnchecked(Out, Data), or return an error if they are not
+    /// equal.
     ///
     /// @param Out The decrypted data text
     /// @param Data The data to be decrypted
@@ -136,7 +138,8 @@ public:
                                      Span<const uint8_t> Data) noexcept;
 
     /// Check Out.size() == Data.size(), then call
-    /// encryptDetachedUnchecked(Out, Data) or error if not equal
+    /// encryptDetachedUnchecked(Out, Data), or return an error if they are not
+    /// equal.
     ///
     /// @param Out The decrypted data text
     /// @param Data The data to be decrypted

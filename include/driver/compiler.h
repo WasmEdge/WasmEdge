@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/driver/compiler.h - Compiler entrypoint ------------------===//
+//===-- wasmedge/driver/compiler.h - Compiler entry point -----------------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the entrypoint for the compiler executable.
+/// This file contains the entry point for the compiler executable.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

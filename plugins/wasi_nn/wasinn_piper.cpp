@@ -28,7 +28,7 @@ namespace WasmEdge::Host::WASINN::Piper {
 
 namespace {
 
-// helper function to write WAV header
+// Helper function to write the WAV header.
 void writeWavHeader(int SampleRate, int16_t NumChannels, int32_t NumSamples,
                     std::vector<uint8_t> &OutputBuffer) {
   int32_t const ByteRate = SampleRate * NumChannels * sizeof(int16_t);

@@ -10,7 +10,7 @@ struct WasmEdge::LLVM::Data::DataContext {
   LLVM::Context LLContext = LLVM::Context::create();
   LLVM::Context getLLContext() noexcept { return LLContext; }
   LLVM::OrcThreadSafeContext getTSContext() noexcept {
-    return LLVM::OrcThreadSafeContext(LLContext);
+    return LLVM::OrcThreadSafeContext(LLContext.release());
   }
 #else
   LLVM::OrcThreadSafeContext TSContext;
@@ -22,4 +22,7 @@ struct WasmEdge::LLVM::Data::DataContext {
   LLVM::Module LLModule;
   LLVM::TargetMachine TM;
   DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
+#if LLVM_VERSION_MAJOR >= 21
+  ~DataContext() noexcept { LLVMContextDispose(LLContext.release()); }
+#endif
 };

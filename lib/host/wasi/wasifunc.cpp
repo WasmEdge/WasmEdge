@@ -371,6 +371,14 @@ bool AllowAFUNIX(const Runtime::CallingFrame &Frame,
   return true;
 }
 
+Runtime::Instance::MemoryInstance *
+getMemoryInstance(const Runtime::CallingFrame &Frame) noexcept {
+  if (const auto *ModInst = Frame.getModule()) {
+    return ModInst->findMemoryExports("memory");
+  }
+  return nullptr;
+}
+
 template <typename T> inline bool isMisaligned(uint32_t Ptr) noexcept {
   return (Ptr & (alignof(T) - 1)) != 0;
 }
@@ -385,7 +393,7 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
   // ArgvBufPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -428,7 +436,7 @@ Expect<uint32_t> WasiArgsSizesGet::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -459,7 +467,7 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
   // EnvBufPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -502,7 +510,7 @@ Expect<uint32_t> WasiEnvironSizesGet::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -534,7 +542,7 @@ Expect<uint32_t> WasiClockResGet::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -567,7 +575,7 @@ Expect<uint32_t> WasiClockTimeGet::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -654,7 +662,7 @@ Expect<uint32_t> WasiFdFdstatGet::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -725,7 +733,7 @@ Expect<uint32_t> WasiFdFilestatGet::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -791,7 +799,7 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -850,7 +858,7 @@ Expect<uint32_t> WasiFdPrestatDirName::body(const Runtime::CallingFrame &Frame,
   // PathBufPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -877,7 +885,7 @@ Expect<uint32_t> WasiFdPrestatGet::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -910,7 +918,7 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -979,7 +987,7 @@ Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1040,7 +1048,7 @@ Expect<uint32_t> WasiFdReadDir::body(const Runtime::CallingFrame &Frame,
   // BufPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1088,7 +1096,7 @@ Expect<int32_t> WasiFdSeek::body(const Runtime::CallingFrame &Frame, int32_t Fd,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1133,7 +1141,7 @@ Expect<uint32_t> WasiFdTell::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1167,7 +1175,7 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1224,7 +1232,7 @@ WasiPathCreateDirectory::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                               uint32_t PathPtr, uint32_t PathLen) {
   // PathPtr should be aligned to at least 1 byte (which is always true)
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1254,7 +1262,7 @@ Expect<uint32_t> WasiPathFilestatGet::body(const Runtime::CallingFrame &Frame,
   // PathPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1294,7 +1302,7 @@ WasiPathFilestatSetTimes::body(const Runtime::CallingFrame &Frame, int32_t Fd,
   // PathPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1340,7 +1348,7 @@ Expect<uint32_t> WasiPathLink::body(const Runtime::CallingFrame &Frame,
   // always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1386,7 +1394,7 @@ Expect<uint32_t> WasiPathOpen::body(
   // PathPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1470,7 +1478,7 @@ Expect<uint32_t> WasiPathReadLink::body(const Runtime::CallingFrame &Frame,
   // true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1508,7 +1516,7 @@ WasiPathRemoveDirectory::body(const Runtime::CallingFrame &Frame, int32_t Fd,
   // PathPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1537,7 +1545,7 @@ Expect<uint32_t> WasiPathRename::body(const Runtime::CallingFrame &Frame,
   // always true).
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1573,7 +1581,7 @@ Expect<uint32_t> WasiPathSymlink::body(const Runtime::CallingFrame &Frame,
   // always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1609,7 +1617,7 @@ Expect<uint32_t> WasiPathUnlinkFile::body(const Runtime::CallingFrame &Frame,
   // PathPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1642,7 +1650,7 @@ Expect<uint32_t> WasiPollOneoff<Trigger>::body(
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1779,7 +1787,7 @@ Expect<uint32_t> WasiRandomGet::body(const Runtime::CallingFrame &Frame,
   // BufPtr should be aligned to at least 1 byte (which is always true)
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1806,7 +1814,7 @@ Expect<uint32_t> WasiSockOpenV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1853,7 +1861,7 @@ Expect<uint32_t> WasiSockBindV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1909,7 +1917,7 @@ Expect<uint32_t> WasiSockAcceptV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1937,7 +1945,7 @@ Expect<uint32_t> WasiSockAcceptV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -1971,7 +1979,7 @@ Expect<uint32_t> WasiSockConnectV1::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2029,7 +2037,7 @@ Expect<uint32_t> WasiSockRecvV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2119,7 +2127,7 @@ Expect<uint32_t> WasiSockRecvFromV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2209,7 +2217,7 @@ Expect<uint32_t> WasiSockSendV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2287,7 +2295,7 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2397,7 +2405,7 @@ Expect<uint32_t> WasiSockSetOpt::body(const Runtime::CallingFrame &Frame,
   // Alignment checks
   // FlagPtr should be aligned to at least 1 byte (which is always true)
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2451,7 +2459,7 @@ Expect<uint32_t> WasiSockGetAddrinfo::body(
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2629,7 +2637,7 @@ WasiSockGetLocalAddrV1::body(const Runtime::CallingFrame &Frame, int32_t Fd,
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2709,7 +2717,7 @@ Expect<uint32_t> WasiSockGetPeerAddrV1::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2782,7 +2790,7 @@ Expect<uint32_t> WasiSockOpenV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2829,7 +2837,7 @@ Expect<uint32_t> WasiSockBindV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2892,7 +2900,7 @@ Expect<uint32_t> WasiSockConnectV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -2957,7 +2965,7 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -3050,7 +3058,7 @@ Expect<uint32_t> WasiSockRecvFromV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -3164,7 +3172,7 @@ Expect<uint32_t> WasiSockSendV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -3242,7 +3250,7 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
   }
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -3346,7 +3354,7 @@ Expect<uint32_t> WasiSockGetOpt::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -3399,7 +3407,7 @@ WasiSockGetLocalAddrV2::body(const Runtime::CallingFrame &Frame, int32_t Fd,
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }
@@ -3455,7 +3463,7 @@ Expect<uint32_t> WasiSockGetPeerAddrV2::body(const Runtime::CallingFrame &Frame,
     return __WASI_ERRNO_ADDRNOTAVAIL;
   }
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = getMemoryInstance(Frame);
   if (MemInst == nullptr) {
     return __WASI_ERRNO_FAULT;
   }

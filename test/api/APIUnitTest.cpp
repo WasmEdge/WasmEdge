@@ -479,6 +479,33 @@ TEST(APICoreTest, Version) {
 TEST(APICoreTest, Log) {
   WasmEdge_LogSetCallback([](const WasmEdge_LogMessage *) {});
   EXPECT_TRUE(true);
+
+  static bool CallbackCalled = false;
+  static std::string CopiedMessage;
+  static std::string CopiedLoggerName;
+  CallbackCalled = false;
+  CopiedMessage.clear();
+  CopiedLoggerName.clear();
+  WasmEdge_LogSetCallback([](const WasmEdge_LogMessage *Message) {
+    CallbackCalled = true;
+    if (Message->Message.Buf && Message->Message.Length > 0) {
+      CopiedMessage.assign(Message->Message.Buf, Message->Message.Length);
+    }
+    if (Message->LoggerName.Buf && Message->LoggerName.Length > 0) {
+      CopiedLoggerName.assign(Message->LoggerName.Buf,
+                              Message->LoggerName.Length);
+    }
+  });
+  WasmEdge_LogSetErrorLevel();
+  WasmEdge_LoaderContext *Loader = WasmEdge_LoaderCreate(nullptr);
+  WasmEdge_ASTModuleContext *Mod = nullptr;
+  EXPECT_FALSE(
+      WasmEdge_ResultOK(WasmEdge_LoaderParseFromFile(Loader, &Mod, "file")));
+  WasmEdge_LoaderDelete(Loader);
+  EXPECT_TRUE(CallbackCalled);
+  EXPECT_FALSE(CopiedMessage.empty());
+  EXPECT_EQ(CopiedLoggerName, "WasmEdge"sv);
+
   std::vector<WasmEdge_LogLevel> LogLevels = {
       WasmEdge_LogLevel_Trace, WasmEdge_LogLevel_Debug,
       WasmEdge_LogLevel_Info,  WasmEdge_LogLevel_Warn,

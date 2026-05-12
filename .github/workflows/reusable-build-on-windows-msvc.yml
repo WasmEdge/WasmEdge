@@ -37,7 +37,7 @@ jobs:
         with:
           args: install --no-progress ninja vswhere
       - name: Install Windows SDK
-        uses: GuillaumeFalourd/setup-windows10-sdk-action@9979bedbf6ae74f038cc338622ba015942ed2408 # v2.4
+        uses: GuillaumeFalourd/setup-windows10-sdk-action@d4f23d08ae372a72e47dc2616c9ec8c951f853ec # v2.5
         with:
           sdk-version: 26100
       - name: Set environment variables for release

@@ -63,97 +63,27 @@ bool sortMatchesDescType(const AST::Component::Sort &S,
   return Mapped.has_value() && S.getSortType() == *Mapped;
 }
 
-// Shallow populate: copy an InstanceType's exportdecls into the instance at
-// InstIdx. InstanceType exportdecls get `IT` resolved in the current scope
-// so alias-export can chase shapes through un-ascribed chains.
-//
-// Precondition: `IT` must be owned by the current ComponentContext scope —
-// nested TypeIndex lookups resolve against that scope.
-void populateInstanceFromType(ComponentContext &Ctx, uint32_t InstIdx,
-                              const AST::Component::InstanceType &IT) {
-  for (const auto &Decl : IT.getDecl()) {
-    if (!Decl.isExportDecl()) {
+// Fallback type-index lookup against an InstanceType's own local
+// type-decl space (used when the outer ComponentContext scope doesn't
+// own the InstanceType).
+const AST::Component::InstanceType *
+resolveNestedInstanceType(const AST::Component::InstanceType &Parent,
+                          uint32_t TypeIdx) noexcept {
+  uint32_t LocalIdx = 0;
+  for (const auto &LocalDecl : Parent.getDecl()) {
+    if (!LocalDecl.isType()) {
       continue;
     }
-    const auto &Exp = Decl.getExport();
-    const auto &ED = Exp.getExternDesc();
-    auto ST = descTypeToSortType(ED.getDescType());
-    if (!ST.has_value()) {
-      // The InstanceExport::ST field is component-side only and has no
-      // variant for `(core module)`. Skip the export rather than crash;
-      // follow-up: extend InstanceExport to carry a core-sort alternative
-      // so nested alias lookups through a core-module export can resolve.
-      spdlog::debug(
-          "    populateInstanceFromType: skipping `(core module)` export "
-          "'{}'"sv,
-          Exp.getName());
-      continue;
-    }
-    const AST::Component::InstanceType *NestedIT = nullptr;
-    if (ED.getDescType() ==
-        AST::Component::ExternDesc::DescType::InstanceType) {
-      NestedIT = Ctx.getInstanceType(ED.getTypeIndex());
-      // Fallback: when IT is being processed inside a
-      // componenttype/instancetype scope, nested inline InstanceTypes live
-      // in IT's own local type-index space rather than the current scope's
-      // typestate. Walk IT's type-declaring decls to locate the N-th one.
-      if (NestedIT == nullptr) {
-        uint32_t TargetIdx = ED.getTypeIndex();
-        uint32_t LocalIdx = 0;
-        for (const auto &LocalDecl : IT.getDecl()) {
-          if (!LocalDecl.isType()) {
-            continue;
-          }
-          if (LocalIdx == TargetIdx) {
-            const auto *LocalDT = LocalDecl.getType();
-            if (LocalDT != nullptr && LocalDT->isInstanceType()) {
-              NestedIT = &LocalDT->getInstanceType();
-            }
-            break;
-          }
-          LocalIdx++;
-        }
+    if (LocalIdx == TypeIdx) {
+      const auto *LocalDT = LocalDecl.getType();
+      if (LocalDT != nullptr && LocalDT->isInstanceType()) {
+        return &LocalDT->getInstanceType();
       }
+      return nullptr;
     }
-    Ctx.addInstanceExport(InstIdx, Exp.getName(), *ST, NestedIT);
+    LocalIdx++;
   }
-}
-
-// Returns the first export in `RequiredIT` missing from the instance at
-// `ProvidedInstIdx`, or whose stored SortType doesn't match the required
-// sort kind. nullopt ⇒ Provided is a sort-kind subtype of RequiredIT.
-// Only the sort kind is compared; deep structural subtype between the
-// required externdesc and the provided export's inferred type is not yet
-// implemented.
-std::optional<std::string>
-findMissingRequiredExport(const ComponentContext &Ctx, uint32_t ProvidedInstIdx,
-                          const AST::Component::InstanceType &RequiredIT) {
-  const auto &Exports = Ctx.getInstance(ProvidedInstIdx);
-  for (const auto &Decl : RequiredIT.getDecl()) {
-    if (!Decl.isExportDecl()) {
-      continue;
-    }
-    const auto &Exp = Decl.getExport();
-    auto It = Exports.find(std::string(Exp.getName()));
-    if (It == Exports.end()) {
-      return std::string(Exp.getName());
-    }
-    auto RequiredST = descTypeToSortType(Exp.getExternDesc().getDescType());
-    if (!RequiredST.has_value()) {
-      // `(core module)` required-exports can't be compared against
-      // InstanceExport::ST (component-side only). Skip symmetrically with
-      // populateInstanceFromType; will be revisited when InstanceExport
-      // gains a core-sort variant.
-      spdlog::debug("    findMissingRequiredExport: skipping `(core module)` "
-                    "required-export '{}'"sv,
-                    Exp.getName());
-      continue;
-    }
-    if (It->second.ST != *RequiredST) {
-      return std::string(Exp.getName());
-    }
-  }
-  return std::nullopt;
+  return nullptr;
 }
 
 // Resolve a type index in `Comp`'s own type index space to an InstanceType.
@@ -229,7 +159,147 @@ Expect<ComponentName> validateExportName(std::string_view Name) noexcept {
     return Unexpect(ErrCode::Value::InvalidExportName);
   }
 }
+
 } // namespace
+
+void Validator::populateInstanceFromType(
+    uint32_t InstIdx, const AST::Component::InstanceType &IT) noexcept {
+  for (const auto &Decl : IT.getDecl()) {
+    if (!Decl.isExportDecl()) {
+      continue;
+    }
+    const auto &Exp = Decl.getExport();
+    const auto &ED = Exp.getExternDesc();
+    auto ST = descTypeToSortType(ED.getDescType());
+    if (!ST.has_value()) {
+      // InstanceExport::ST has no `(core module)` variant — skip rather
+      // than crash. TODO: extend InstanceExport with a core-sort alternative.
+      spdlog::debug(
+          "    populateInstanceFromType: skipping `(core module)` export "
+          "'{}'"sv,
+          Exp.getName());
+      continue;
+    }
+    const AST::Component::InstanceType *NestedIT = nullptr;
+    if (ED.getDescType() ==
+        AST::Component::ExternDesc::DescType::InstanceType) {
+      NestedIT = CompCtx.getInstanceType(ED.getTypeIndex());
+      if (NestedIT == nullptr) {
+        NestedIT = resolveNestedInstanceType(IT, ED.getTypeIndex());
+      }
+    }
+    // Resource-typed exports carry a canonical id so an alias-export of
+    // the type slot can preserve identity. `(sub resource)` introduces a
+    // fresh id; `(eq i)` should inherit, but cross-scope resource lookup
+    // inside an InstanceType body is not yet implemented (TODO).
+    std::optional<uint64_t> ResourceId;
+    if (ED.getDescType() == AST::Component::ExternDesc::DescType::TypeBound &&
+        !ED.isEqType()) {
+      ResourceId = CompCtx.allocateFreshResourceId();
+    }
+    CompCtx.addInstanceExport(InstIdx, Exp.getName(), *ST, NestedIT,
+                              /*NestedInstIdx=*/std::nullopt, ResourceId);
+  }
+}
+
+bool Validator::exportSatisfies(
+    const AST::Component::InstanceType &RequiredCtx,
+    const ComponentContext::InstanceExport &Provided,
+    const AST::Component::ExternDesc &Required) const noexcept {
+  auto RequiredST = descTypeToSortType(Required.getDescType());
+  if (!RequiredST.has_value()) {
+    // `(core module)` has no InstanceExport::ST variant — no constraint.
+    return true;
+  }
+  if (Provided.ST != *RequiredST) {
+    return false;
+  }
+  // Instance-on-instance: recurse if both sides resolve to an
+  // InstanceType. Otherwise sort-kind match (pre-Phase-3 behaviour).
+  if (Required.getDescType() ==
+          AST::Component::ExternDesc::DescType::InstanceType &&
+      Provided.IT != nullptr) {
+    const auto *RequiredIT = CompCtx.getInstanceType(Required.getTypeIndex());
+    if (RequiredIT == nullptr) {
+      // Required's idx lives in RequiredCtx's local type-decls.
+      RequiredIT =
+          resolveNestedInstanceType(RequiredCtx, Required.getTypeIndex());
+    }
+    if (RequiredIT != nullptr) {
+      return isInstanceSubtype(*Provided.IT, *RequiredIT);
+    }
+  }
+  return true;
+}
+
+std::optional<std::string> Validator::findMissingRequiredExport(
+    uint32_t ProvidedInstIdx,
+    const AST::Component::InstanceType &RequiredIT) const noexcept {
+  const auto &Exports = CompCtx.getInstance(ProvidedInstIdx).Exports;
+  for (const auto &Decl : RequiredIT.getDecl()) {
+    if (!Decl.isExportDecl()) {
+      continue;
+    }
+    const auto &Exp = Decl.getExport();
+    auto It = Exports.find(std::string(Exp.getName()));
+    if (It == Exports.end()) {
+      return std::string(Exp.getName());
+    }
+    if (!exportSatisfies(RequiredIT, It->second, Exp.getExternDesc())) {
+      return std::string(Exp.getName());
+    }
+  }
+  return std::nullopt;
+}
+
+bool Validator::isInstanceSubtype(
+    const AST::Component::InstanceType &S,
+    const AST::Component::InstanceType &T) const noexcept {
+  // S subtype T iff every export declared by T is present in S with a
+  // satisfying type. Build a quick (name → externdesc) lookup of S's
+  // exports for the lookup.
+  std::unordered_map<std::string, const AST::Component::ExternDesc *> SExports;
+  for (const auto &Decl : S.getDecl()) {
+    if (Decl.isExportDecl()) {
+      const auto &E = Decl.getExport();
+      SExports.emplace(std::string(E.getName()), &E.getExternDesc());
+    }
+  }
+  for (const auto &Decl : T.getDecl()) {
+    if (!Decl.isExportDecl()) {
+      continue;
+    }
+    const auto &E = Decl.getExport();
+    auto It = SExports.find(std::string(E.getName()));
+    if (It == SExports.end()) {
+      return false;
+    }
+    auto SKind = descTypeToSortType(It->second->getDescType());
+    auto TKind = descTypeToSortType(E.getExternDesc().getDescType());
+    if (SKind != TKind) {
+      return false;
+    }
+    // Instance-on-instance: nested type indices on each side belong to
+    // that side's own decls, so fall back via resolveNestedInstanceType.
+    if (E.getExternDesc().getDescType() ==
+        AST::Component::ExternDesc::DescType::InstanceType) {
+      const auto *SubIT = CompCtx.getInstanceType(It->second->getTypeIndex());
+      if (SubIT == nullptr) {
+        SubIT = resolveNestedInstanceType(S, It->second->getTypeIndex());
+      }
+      const auto *ReqIT =
+          CompCtx.getInstanceType(E.getExternDesc().getTypeIndex());
+      if (ReqIT == nullptr) {
+        ReqIT = resolveNestedInstanceType(T, E.getExternDesc().getTypeIndex());
+      }
+      if (SubIT != nullptr && ReqIT != nullptr &&
+          !isInstanceSubtype(*SubIT, *ReqIT)) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 Expect<void>
 Validator::validate(const AST::Component::Component &Comp) noexcept {
@@ -340,26 +410,30 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
       // on another instance, propagate the source instance's export table
       // into the new slot so a subsequent `alias export` on this slot can
       // resolve nested exports.
-      if (Sort.getSortType() == AST::Component::Sort::SortType::Instance &&
-          Alias.getTargetType() == AST::Component::Alias::TargetType::Export) {
+      if (Alias.getTargetType() == AST::Component::Alias::TargetType::Export) {
         const auto SrcInstIdx = Alias.getExport().first;
         const auto &SrcName = Alias.getExport().second;
-        const auto &SrcExports = CompCtx.getInstance(SrcInstIdx);
+        const auto &SrcExports = CompCtx.getInstance(SrcInstIdx).Exports;
         auto It = SrcExports.find(std::string(SrcName));
         if (It != SrcExports.end()) {
-          if (It->second.IT != nullptr) {
-            populateInstanceFromType(CompCtx, NewIdx, *It->second.IT);
-          } else if (It->second.NestedInstIdx.has_value()) {
-            const auto &NestedExports =
-                CompCtx.getInstance(*It->second.NestedInstIdx);
-            for (const auto &[Name, IE] : NestedExports) {
-              CompCtx.addInstanceExport(NewIdx, Name, IE.ST, IE.IT,
-                                        IE.NestedInstIdx);
+          if (Sort.getSortType() == AST::Component::Sort::SortType::Instance) {
+            if (It->second.IT != nullptr) {
+              populateInstanceFromType(NewIdx, *It->second.IT);
+            } else if (It->second.NestedInstIdx.has_value()) {
+              const auto &NestedExports =
+                  CompCtx.getInstance(*It->second.NestedInstIdx).Exports;
+              for (const auto &[Name, IE] : NestedExports) {
+                CompCtx.addInstanceExport(NewIdx, Name, IE.ST, IE.IT,
+                                          IE.NestedInstIdx, IE.ResourceId);
+              }
             }
+          } else if (Sort.getSortType() ==
+                         AST::Component::Sort::SortType::Type &&
+                     It->second.ResourceId.has_value()) {
+            // Alias-export of a resource type — same identity.
+            CompCtx.addResource(NewIdx, {*It->second.ResourceId,
+                                         /*LocallyDefined=*/false});
           }
-          // Source instance has neither a resolved InstanceType nor a
-          // NestedInstIdx (e.g. ascription by a cross-scope type index we
-          // cannot resolve yet). Leave the new slot's export table empty.
         }
       }
     }
@@ -521,38 +595,72 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       }
     }
 
-    // Get the import descriptors of the module to instantiate.
-    const auto *Mod = CompCtx.getCoreModule(ModIdx);
-    // TODO: use core:moduletype info (not the raw AST) so arg checking also
-    // applies to imported/aliased modules, not just modules defined inline.
-    // This also unlocks structural subtype checks of each supplied argument
-    // against the corresponding core import's type.
+    // Imports + exports come from the raw Module (inline) or the
+    // CoreModuleType (imported / aliased) — GAP-CI-1.
+    const auto &CoreModSlot = CompCtx.getCoreModule(ModIdx);
+    const auto *Mod = CoreModSlot.Body;
+    const auto *ModTy = CoreModSlot.Type;
+
+    // Required arg module-names (one per distinct CoreImportDecl module).
+    std::vector<std::string_view> RequiredArgNames;
     if (Mod != nullptr) {
-      const auto &ImportDescs = Mod->getImportSection().getContent();
-      auto Args = Inst.getInstantiateArgs();
-      for (const auto &Import : ImportDescs) {
-        auto ArgIt =
-            std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
-              return Arg.getName() == Import.getModuleName();
-            });
-        if (ArgIt == Args.end()) {
-          spdlog::error(ErrCode::Value::MissingArgument);
-          spdlog::error(
-              "    CoreInstance: Module index {} missing argument for import '{}'"sv,
-              Inst.getModuleIndex(), Import.getModuleName());
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
-          return Unexpect(ErrCode::Value::MissingArgument);
+      for (const auto &Import : Mod->getImportSection().getContent()) {
+        RequiredArgNames.push_back(Import.getModuleName());
+      }
+    } else if (ModTy != nullptr && ModTy->isModuleType()) {
+      for (const auto &Decl : ModTy->getModuleType()) {
+        if (Decl.isImport()) {
+          RequiredArgNames.push_back(Decl.getImport().getModuleName());
         }
       }
-      // Allocate a core:instance and bind module exports to it.
-      uint32_t InstanceIdx = CompCtx.addCoreInstance();
-      const auto &ExportDescs = Mod->getExportSection().getContent();
-      for (const auto &ExportDesc : ExportDescs) {
+    }
+
+    auto Args = Inst.getInstantiateArgs();
+    for (const auto ImportName : RequiredArgNames) {
+      const auto *ArgIt =
+          std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+            return Arg.getName() == ImportName;
+          });
+      if (ArgIt == Args.end()) {
+        spdlog::error(ErrCode::Value::MissingArgument);
+        spdlog::error(
+            "    CoreInstance: Module index {} missing argument for import '{}'"sv,
+            Inst.getModuleIndex(), ImportName);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
+        return Unexpect(ErrCode::Value::MissingArgument);
+      }
+    }
+
+    // Allocate the core:instance and bind exports to it.
+    uint32_t InstanceIdx = CompCtx.addCoreInstance();
+    if (Mod != nullptr) {
+      for (const auto &ExportDesc : Mod->getExportSection().getContent()) {
         CompCtx.addCoreInstanceExport(InstanceIdx, ExportDesc.getExternalName(),
                                       ExportDesc.getExternalType());
       }
-    } else {
-      CompCtx.addCoreInstance();
+    } else if (ModTy != nullptr && ModTy->isModuleType()) {
+      for (const auto &Decl : ModTy->getModuleType()) {
+        if (!Decl.isExport()) {
+          continue;
+        }
+        const auto &Exp = Decl.getExport();
+        const auto &ImpDesc = Exp.getImportDesc();
+        ExternalType ET;
+        if (ImpDesc.isFunc()) {
+          ET = ExternalType::Function;
+        } else if (ImpDesc.isTable()) {
+          ET = ExternalType::Table;
+        } else if (ImpDesc.isMemory()) {
+          ET = ExternalType::Memory;
+        } else if (ImpDesc.isGlobal()) {
+          ET = ExternalType::Global;
+        } else if (ImpDesc.isTag()) {
+          ET = ExternalType::Tag;
+        } else {
+          continue;
+        }
+        CompCtx.addCoreInstanceExport(InstanceIdx, Exp.getName(), ET);
+      }
     }
   } else if (Inst.isInlineExport()) {
     // Inline export case.
@@ -652,120 +760,117 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
       }
     }
 
-    // Get the imports of the component to instantiate.
-    const auto *Comp = CompCtx.getComponent(CompIdx);
-    // TODO: use componenttype info (not the raw AST) so arg checking also
-    // applies to imported/aliased components. For now, arg checking only
-    // runs when the component being instantiated is defined inline.
-    if (Comp != nullptr) {
-      // Prepare the import descriptor map.
-      std::unordered_map<std::string, const AST::Component::ExternDesc *>
-          ImportMap;
-      for (const auto &Sec : Comp->getSections()) {
-        if (std::holds_alternative<AST::Component::ImportSection>(Sec)) {
-          const auto &ImportSec = std::get<AST::Component::ImportSection>(Sec);
-          for (const auto &Import : ImportSec.getContent()) {
-            ImportMap[std::string(Import.getName())] = &Import.getDesc();
+    // Source: raw Component (inline) or ComponentType (imported / aliased).
+    const auto &CompSlot = CompCtx.getComponent(CompIdx);
+    const auto *Comp = CompSlot.Body;
+    const auto *CompTy = CompSlot.Type;
+
+    // Verify each component import is satisfied by some instantiate arg.
+    auto Args = Inst.getInstantiateArgs();
+    auto checkImport =
+        [&](std::string_view ImportName,
+            const AST::Component::ExternDesc &ImportDesc) -> Expect<void> {
+      const auto *ArgIt =
+          std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+            return Arg.getName() == ImportName;
+          });
+      if (ArgIt == Args.end()) {
+        spdlog::error(ErrCode::Value::MissingArgument);
+        spdlog::error(
+            "    Instance: Component index {} missing argument for import '{}'"sv,
+            Inst.getComponentIndex(), ImportName);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+        return Unexpect(ErrCode::Value::MissingArgument);
+      }
+      const auto &Sort = ArgIt->getIndex().getSort();
+      const uint32_t Idx = ArgIt->getIndex().getIdx();
+      // Only `core module` is admissible as a core-side import externdesc.
+      if (Sort.isCore() && Sort.getCoreSortType() !=
+                               AST::Component::Sort::CoreSortType::Module) {
+        spdlog::error(ErrCode::Value::ArgTypeMismatch);
+        spdlog::error("    Instance: Argument '{}' uses a core sort other than "
+                      "`core module`, which no import externdesc can accept"sv,
+                      ImportName);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+        return Unexpect(ErrCode::Value::ArgTypeMismatch);
+      }
+      if (!sortMatchesDescType(Sort, ImportDesc.getDescType())) {
+        spdlog::error(ErrCode::Value::ArgTypeMismatch);
+        spdlog::error("    Instance: Argument '{}' sort mismatch for import"sv,
+                      ImportName);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+        return Unexpect(ErrCode::Value::ArgTypeMismatch);
+      }
+      if (Sort.isCore()) {
+        if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
+          spdlog::error(ErrCode::Value::InvalidIndex);
+          spdlog::error(
+              "    Instance: Argument '{}' refers to invalid index {}"sv,
+              ImportName, Idx);
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+          return Unexpect(ErrCode::Value::InvalidIndex);
+        }
+        return {};
+      }
+      if (Idx >= CompCtx.getSortIndexSize(Sort.getSortType())) {
+        spdlog::error(ErrCode::Value::InvalidIndex);
+        spdlog::error(
+            "    Instance: Argument '{}' refers to invalid index {}"sv,
+            ImportName, Idx);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+        return Unexpect(ErrCode::Value::InvalidIndex);
+      }
+      // Partial subtype: for instance-typed imports, verify the provided
+      // instance has every required export (raw-Component path only;
+      // ComponentType path needs GAP-DECL-ED).
+      if (Comp != nullptr &&
+          ImportDesc.getDescType() ==
+              AST::Component::ExternDesc::DescType::InstanceType &&
+          Sort.getSortType() == AST::Component::Sort::SortType::Instance) {
+        const auto *RequiredIT =
+            resolveChildInstanceType(*Comp, ImportDesc.getTypeIndex());
+        if (RequiredIT != nullptr) {
+          if (auto Missing = findMissingRequiredExport(Idx, *RequiredIT)) {
+            spdlog::error(ErrCode::Value::InstanceMissingExpectedExport);
+            spdlog::error("    Instance: Argument '{}' missing required export "
+                          "'{}' for import"sv,
+                          ImportName, *Missing);
+            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+            return Unexpect(ErrCode::Value::InstanceMissingExpectedExport);
           }
         }
       }
-      // Get the instantiation arguments.
-      auto Args = Inst.getInstantiateArgs();
-      // Check that the import names are supplied by the instantiation
-      // arguments.
-      for (auto It = ImportMap.begin(); It != ImportMap.end(); ++It) {
-        const auto &ImportName = It->first;
-        auto ArgIt =
-            std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
-              return Arg.getName() == ImportName;
-            });
-        if (ArgIt == Args.end()) {
-          spdlog::error(ErrCode::Value::MissingArgument);
-          spdlog::error(
-              "    Instance: Component index {} missing argument for import '{}'"sv,
-              Inst.getComponentIndex(), ImportName);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-          return Unexpect(ErrCode::Value::MissingArgument);
-        }
-        const auto &ImportDesc = *It->second;
-        const auto &Sort = ArgIt->getIndex().getSort();
-        const uint32_t Idx = ArgIt->getIndex().getIdx();
-        // The externdesc grammar only admits `core module` on the core side
-        // (other core sorts don't appear as importable externdescs), so any
-        // other core sort can't satisfy a component import.
-        if (Sort.isCore() && Sort.getCoreSortType() !=
-                                 AST::Component::Sort::CoreSortType::Module) {
-          spdlog::error(ErrCode::Value::ArgTypeMismatch);
-          spdlog::error(
-              "    Instance: Argument '{}' uses a core sort other than "
-              "`core module`, which no import externdesc can accept"sv,
-              ImportName);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-          return Unexpect(ErrCode::Value::ArgTypeMismatch);
-        }
-        if (!sortMatchesDescType(Sort, ImportDesc.getDescType())) {
-          spdlog::error(ErrCode::Value::ArgTypeMismatch);
-          spdlog::error(
-              "    Instance: Argument '{}' sort mismatch for import"sv,
-              ImportName);
-          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-          return Unexpect(ErrCode::Value::ArgTypeMismatch);
-        }
-        if (Sort.isCore()) {
-          if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
-            spdlog::error(ErrCode::Value::InvalidIndex);
-            spdlog::error(
-                "    Instance: Argument '{}' refers to invalid index {}"sv,
-                ImportName, Idx);
-            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-            return Unexpect(ErrCode::Value::InvalidIndex);
+      return {};
+    };
+    if (Comp != nullptr) {
+      for (const auto &Sec : Comp->getSections()) {
+        if (const auto *IS = std::get_if<AST::Component::ImportSection>(&Sec)) {
+          for (const auto &Imp : IS->getContent()) {
+            EXPECTED_TRY(checkImport(Imp.getName(), Imp.getDesc()));
           }
-        } else {
-          if (Idx >= CompCtx.getSortIndexSize(Sort.getSortType())) {
-            spdlog::error(ErrCode::Value::InvalidIndex);
-            spdlog::error(
-                "    Instance: Argument '{}' refers to invalid index {}"sv,
-                ImportName, Idx);
-            spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-            return Unexpect(ErrCode::Value::InvalidIndex);
-          }
-          // Partial step toward structural subtype: when the import asks
-          // for an InstanceType, check that every export required by the
-          // import's declared InstanceType is present on the provided
-          // instance. Field-level subtype of each matching export is still
-          // pending.
-          if (ImportDesc.getDescType() ==
-                  AST::Component::ExternDesc::DescType::InstanceType &&
-              Sort.getSortType() == AST::Component::Sort::SortType::Instance) {
-            const auto *RequiredIT =
-                resolveChildInstanceType(*Comp, ImportDesc.getTypeIndex());
-            if (RequiredIT != nullptr) {
-              if (auto Missing =
-                      findMissingRequiredExport(CompCtx, Idx, *RequiredIT)) {
-                spdlog::error(ErrCode::Value::InstanceMissingExpectedExport);
-                spdlog::error(
-                    "    Instance: Argument '{}' missing required export "
-                    "'{}' for import"sv,
-                    ImportName, *Missing);
-                spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
-                return Unexpect(ErrCode::Value::InstanceMissingExpectedExport);
-              }
-            }
-          }
+        }
+      }
+    } else if (CompTy != nullptr) {
+      for (const auto &CD : CompTy->getDecl()) {
+        if (CD.isImportDecl()) {
+          const auto &ID = CD.getImport();
+          EXPECTED_TRY(checkImport(ID.getName(), ID.getExternDesc()));
         }
       }
     }
-    // Allocate the instance in the index space and populate its export table
-    // from the instantiated component's ExportSection(s) so alias-export can
-    // resolve subsequent lookups.
+
+    // Allocate the slot + populate exports so alias-export can resolve.
+    // Raw-Component path resolves the IT for instance-typed exports;
+    // ComponentType path registers sort-kind only (GAP-DECL-ED).
+    // TODO (GAP-I-3): fresh ResourceIds + per-export resource remapping.
     uint32_t InstanceIdx = CompCtx.addInstance();
     if (Comp != nullptr) {
       for (const auto &Sec : Comp->getSections()) {
-        if (!std::holds_alternative<AST::Component::ExportSection>(Sec)) {
+        const auto *ES = std::get_if<AST::Component::ExportSection>(&Sec);
+        if (ES == nullptr) {
           continue;
         }
-        const auto &ExpSec = std::get<AST::Component::ExportSection>(Sec);
-        for (const auto &Exp : ExpSec.getContent()) {
+        for (const auto &Exp : ES->getContent()) {
           const auto &ExpSort = Exp.getSortIndex().getSort();
           if (ExpSort.isCore()) {
             continue;
@@ -781,6 +886,22 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
           CompCtx.addInstanceExport(InstanceIdx, Exp.getName(),
                                     ExpSort.getSortType(), IT);
         }
+      }
+    } else if (CompTy != nullptr) {
+      for (const auto &CD : CompTy->getDecl()) {
+        if (!CD.isInstanceDecl()) {
+          continue;
+        }
+        const auto &ID = CD.getInstance();
+        if (!ID.isExportDecl()) {
+          continue;
+        }
+        const auto &ED = ID.getExport();
+        const auto OptST = descTypeToSortType(ED.getExternDesc().getDescType());
+        if (!OptST.has_value()) {
+          continue; // `(core module)` export — not a component-side entry.
+        }
+        CompCtx.addInstanceExport(InstanceIdx, ED.getName(), *OptST);
       }
     }
   } else if (Inst.isInlineExport()) {
@@ -833,14 +954,17 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
         }
       }
       std::optional<uint32_t> NestedIdx;
+      const AST::Component::InstanceType *PropagatedIT = nullptr;
       if (Sort.getSortType() == AST::Component::Sort::SortType::Instance) {
         NestedIdx = Idx;
+        // GAP-I-5b: forward source's InstanceType so later ascription /
+        // subtype checks have a concrete type. Populated only when the
+        // source slot was bound via ExternDesc::InstanceType; inline-
+        // export / instantiate sources read nullptr (Phase-3 follow-up).
+        PropagatedIT = CompCtx.getInstance(Idx).Type;
       }
-      // No resolved InstanceType is forwarded here; NestedInstIdx is
-      // enough for subsequent alias-export lookups to chase into the
-      // source instance.
       CompCtx.addInstanceExport(InstanceIdx, Export.getName(),
-                                Sort.getSortType(), nullptr, NestedIdx);
+                                Sort.getSortType(), PropagatedIT, NestedIdx);
     }
   } else {
     assumingUnreachable();
@@ -903,7 +1027,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
-    const auto &InstExports = CompCtx.getInstance(Idx);
+    const auto &InstExports = CompCtx.getInstance(Idx).Exports;
     auto It = InstExports.find(std::string(Name));
     if (It == InstExports.cend()) {
       spdlog::error(ErrCode::Value::ExportNotFound);
@@ -1054,8 +1178,7 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
         // Implementing that needs a free-variable walker over type bodies,
         // which is tracked alongside the Phase 3/4 type-handle work
         // (GAP-TH-1, GAP-EX-5).
-        if (TargetCtx->ResourceTypes.find(Idx) !=
-            TargetCtx->ResourceTypes.end()) {
+        if (TargetCtx->Resources.count(Idx) != 0) {
           spdlog::error(ErrCode::Value::InvalidTypeReference);
           spdlog::error(
               "    Alias outer: Cannot outer-alias resource type at index {}"sv,
@@ -1088,8 +1211,10 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
       }));
     }
     CompCtx.exitComponent();
-    // Module type also gets an entry in core:type (nullptr — not a SubType).
-    CompCtx.addCoreType();
+    // Module type gets a core:type slot (Body=nullptr) bound to the
+    // CoreDefType so (core module (type i)) can recover the body — GAP-CI-1.
+    uint32_t NewTypeIdx = CompCtx.addCoreType();
+    CompCtx.setCoreModuleType(NewTypeIdx, &DType);
   } else {
     assumingUnreachable();
   }
@@ -1116,6 +1241,7 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
   } else {
     assumingUnreachable();
   }
+  // addType records body/id/locality for resource DefTypes in one step.
   CompCtx.addType(&DType);
   return {};
 }
@@ -1412,8 +1538,9 @@ Expect<void> Validator::validateCanonResourceNew(
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidIndex);
   }
-  // 2. Type must be a resource type.
-  if (!CompCtx.isResourceType(Idx)) {
+  // 2. Type must be a locally-defined resource.
+  const auto *RInfo = CompCtx.getResource(Idx);
+  if (RInfo == nullptr) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error(
         "    canon resource.new: type index {} does not reference a resource"sv,
@@ -1421,8 +1548,7 @@ Expect<void> Validator::validateCanonResourceNew(
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
-  // 3. Resource must be locally defined.
-  if (!CompCtx.isLocalResource(Idx)) {
+  if (!RInfo->LocallyDefined) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error(
         "    canon resource.new: type index {} is not locally defined (imported or outer-aliased resources are not allowed)"sv,
@@ -1452,8 +1578,9 @@ Expect<void> Validator::validateCanonResourceRep(
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidIndex);
   }
-  // 2. Type must be a resource type.
-  if (!CompCtx.isResourceType(Idx)) {
+  // 2. Type must be a locally-defined resource.
+  const auto *RInfo = CompCtx.getResource(Idx);
+  if (RInfo == nullptr) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error(
         "    canon resource.rep: type index {} does not reference a resource"sv,
@@ -1461,8 +1588,7 @@ Expect<void> Validator::validateCanonResourceRep(
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidTypeReference);
   }
-  // 3. Resource must be locally defined.
-  if (!CompCtx.isLocalResource(Idx)) {
+  if (!RInfo->LocallyDefined) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error(
         "    canon resource.rep: type index {} is not locally defined (imported or outer-aliased resources are not allowed)"sv,
@@ -1493,7 +1619,7 @@ Expect<void> Validator::validateCanonResourceDrop(
     return Unexpect(ErrCode::Value::InvalidIndex);
   }
   // 2. Type must be a resource type.
-  if (!CompCtx.isResourceType(Idx)) {
+  if (CompCtx.getResource(Idx) == nullptr) {
     spdlog::error(ErrCode::Value::InvalidTypeReference);
     spdlog::error(
         "    canon resource.drop: type index {} does not reference a resource"sv,
@@ -1693,7 +1819,7 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     if (HasInstAscription) {
       IT = CompCtx.getInstanceType(Ex.getDesc()->getTypeIndex());
       if (IT != nullptr) {
-        if (auto Missing = findMissingRequiredExport(CompCtx, Idx, *IT)) {
+        if (auto Missing = findMissingRequiredExport(Idx, *IT)) {
           spdlog::error(ErrCode::Value::ExportAscriptionIncompatible);
           spdlog::error(
               "    Export: ascribed instance type requires export '{}' "
@@ -1707,14 +1833,14 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     uint32_t NewIdx = CompCtx.incSortIndexSize(Sort.getSortType());
     if (IsInst) {
       if (IT != nullptr) {
-        populateInstanceFromType(CompCtx, NewIdx, *IT);
+        populateInstanceFromType(NewIdx, *IT);
       } else {
         // Either no ascription, or the ascription's type index didn't
         // resolve to an inline InstanceType here (cross-scope type-index
         // resolution is not yet implemented). Copy the source instance's
         // inferred exports so a later alias-export on this slot can still
         // find them.
-        const auto &SrcExports = CompCtx.getInstance(Idx);
+        const auto &SrcExports = CompCtx.getInstance(Idx).Exports;
         for (const auto &[Name, IE] : SrcExports) {
           CompCtx.addInstanceExport(NewIdx, Name, IE.ST, IE.IT,
                                     IE.NestedInstIdx);
@@ -1777,11 +1903,13 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
   }
 
   switch (Desc.getDescType()) {
-  case AST::Component::ExternDesc::DescType::CoreType:
+  case AST::Component::ExternDesc::DescType::CoreType: {
     // The CoreType externdesc is `(core module (type i))`, so it introduces
-    // a new core module index, not a core type.
-    CompCtx.addCoreModule();
+    // a new core:module slot bound to the moduletype at core:type idx i.
+    const auto *CT = CompCtx.getCoreModuleType(Desc.getTypeIndex());
+    CompCtx.addCoreModule(CT);
     break;
+  }
   case AST::Component::ExternDesc::DescType::FuncType:
     CompCtx.addFunc();
     break;
@@ -1799,28 +1927,33 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
                       RefIdx);
         return Unexpect(ErrCode::Value::InvalidIndex);
       }
-      // Create alias: propagate resource property if referenced type is
-      // resource
-      uint32_t NewIdx = CompCtx.addTypeImported(nullptr);
-      if (CompCtx.isResourceType(RefIdx)) {
-        CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
+      // (eq i): inherits the source resource's id; body lives on the
+      // shared registry entry.
+      uint32_t NewIdx = CompCtx.addType(nullptr, /*IsLocal=*/false);
+      if (const auto *SrcInfo = CompCtx.getResource(RefIdx)) {
+        CompCtx.addResource(NewIdx, {SrcInfo->Id, /*LocallyDefined=*/false});
       }
     } else {
-      // (type (sub resource)) — fresh abstract resource type
-      uint32_t NewIdx = CompCtx.addTypeImported(nullptr);
-      CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
+      // (sub resource): abstract import — fresh id with no body.
+      uint32_t NewIdx = CompCtx.addType(nullptr, /*IsLocal=*/false);
+      CompCtx.addResource(NewIdx, {CompCtx.allocateFreshResourceId(),
+                                   /*LocallyDefined=*/false});
     }
     break;
-  case AST::Component::ExternDesc::DescType::ComponentType:
-    CompCtx.addComponent();
+  case AST::Component::ExternDesc::DescType::ComponentType: {
+    // Bind the new component slot to its ComponentType so a later
+    // instantiation can pull imports/exports from it (GAP-I-1).
+    const auto *CT = CompCtx.getComponentType(Desc.getTypeIndex());
+    CompCtx.addComponent(CT);
     break;
+  }
   case AST::Component::ExternDesc::DescType::InstanceType: {
-    // GAP-ED-2: populate the new instance slot from the referenced
-    // InstanceType so a subsequent alias-export resolves its sub-exports.
-    uint32_t InstIdx = CompCtx.addInstance();
+    // GAP-ED-2: populate exports from the referenced InstanceType so
+    // alias-export resolves. GAP-I-5b: also bind it to the slot.
     const auto *IT = CompCtx.getInstanceType(Desc.getTypeIndex());
+    uint32_t InstIdx = CompCtx.addInstance(IT);
     if (IT != nullptr) {
-      populateInstanceFromType(CompCtx, InstIdx, *IT);
+      populateInstanceFromType(InstIdx, *IT);
     }
     // If the type index resolved against an outer scope's InstanceType,
     // populating from it requires cross-scope walking (the rest of
@@ -1988,26 +2121,32 @@ Validator::validate(const AST::Component::InstanceDecl &Decl) noexcept {
       CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
     } else {
       uint32_t NewInstIdx = CompCtx.incSortIndexSize(Sort.getSortType());
-      // When aliasing an instance export that is itself an instance,
-      // propagate the source instance's export table into the new slot so
-      // subsequent `alias export` on this slot can resolve nested exports
-      // (mirrors the AliasSection handling).
-      if (Sort.getSortType() == AST::Component::Sort::SortType::Instance &&
-          A.getTargetType() == AST::Component::Alias::TargetType::Export) {
+      // When aliasing an instance export, propagate either the source
+      // instance's export table (for Instance targets) or the source
+      // export's resource identity (for Type targets that are resources)
+      // — mirrors the AliasSection handling.
+      if (A.getTargetType() == AST::Component::Alias::TargetType::Export) {
         const auto SrcInstIdx = A.getExport().first;
         const auto &SrcName = A.getExport().second;
-        const auto &SrcExports = CompCtx.getInstance(SrcInstIdx);
+        const auto &SrcExports = CompCtx.getInstance(SrcInstIdx).Exports;
         auto It = SrcExports.find(std::string(SrcName));
         if (It != SrcExports.end()) {
-          if (It->second.IT != nullptr) {
-            populateInstanceFromType(CompCtx, NewInstIdx, *It->second.IT);
-          } else if (It->second.NestedInstIdx.has_value()) {
-            const auto &NestedExports =
-                CompCtx.getInstance(*It->second.NestedInstIdx);
-            for (const auto &[Name, IE] : NestedExports) {
-              CompCtx.addInstanceExport(NewInstIdx, Name, IE.ST, IE.IT,
-                                        IE.NestedInstIdx);
+          if (Sort.getSortType() == AST::Component::Sort::SortType::Instance) {
+            if (It->second.IT != nullptr) {
+              populateInstanceFromType(NewInstIdx, *It->second.IT);
+            } else if (It->second.NestedInstIdx.has_value()) {
+              const auto &NestedExports =
+                  CompCtx.getInstance(*It->second.NestedInstIdx).Exports;
+              for (const auto &[Name, IE] : NestedExports) {
+                CompCtx.addInstanceExport(NewInstIdx, Name, IE.ST, IE.IT,
+                                          IE.NestedInstIdx, IE.ResourceId);
+              }
             }
+          } else if (Sort.getSortType() ==
+                         AST::Component::Sort::SortType::Type &&
+                     It->second.ResourceId.has_value()) {
+            CompCtx.addResource(NewInstIdx, {*It->second.ResourceId,
+                                             /*LocallyDefined=*/false});
           }
         }
       }
@@ -2066,7 +2205,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
       spdlog::error("    DefValType: own type index {} out of bounds"sv, Idx);
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
-    if (!CompCtx.isResourceType(Idx)) {
+    if (CompCtx.getResource(Idx) == nullptr) {
       spdlog::error(ErrCode::Value::NotADefinedType);
       spdlog::error(
           "    DefValType: own type index {} does not refer to a resource type"sv,
@@ -2081,7 +2220,7 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
                     Idx);
       return Unexpect(ErrCode::Value::DefTypeIndexOutOfBounds);
     }
-    if (!CompCtx.isResourceType(Idx)) {
+    if (CompCtx.getResource(Idx) == nullptr) {
       spdlog::error(ErrCode::Value::NotADefinedType);
       spdlog::error(
           "    DefValType: borrow type index {} does not refer to a resource type"sv,

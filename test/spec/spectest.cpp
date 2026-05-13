@@ -314,7 +314,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     // Test table: the testing status of load, validate, instantiate, and execute.
     {"adapt",                   {true, false, false, false}},
     {"alias",                   {true, false, false, false}},
-    {"big",                     {true, false, false, false}},
+    {"big",                     {true, true,  false, false}},
     {"definedtypes",            {true, true,  true,  false}},
     {"empty",                   {true, true,  true,  false}},
     {"example",                 {true, true,  true,  false}},
@@ -323,7 +323,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"export-introduces-alias", {true, true,  true,  false}},
     {"func",                    {true, false, false, false}},
     {"import",                  {true, false, false, false}},
-    {"imports-exports",         {true, false, false, false}},
+    {"imports-exports",         {true, true,  false, false}},
     {"inline-exports",          {true, true,  true,  false}},
     {"instance-types",          {true, true,  true,  false}},
     {"instantiate",             {true, false, false, false}},

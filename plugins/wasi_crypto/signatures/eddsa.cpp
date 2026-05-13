@@ -98,8 +98,26 @@ Eddsa::SecretKey::publicKey() const noexcept {
 }
 
 WasiCryptoExpect<Eddsa::KeyPair>
-Eddsa::SecretKey::toKeyPair(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Eddsa::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
+  auto DerivedPk = publicKey();
+  if (!DerivedPk) {
+    return WasiCryptoUnexpect(DerivedPk);
+  }
+
+  auto DerivedRaw = (*DerivedPk).exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!DerivedRaw) {
+    return WasiCryptoUnexpect(DerivedRaw);
+  }
+
+  auto GivenRaw = Pk.exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!GivenRaw) {
+    return WasiCryptoUnexpect(GivenRaw);
+  }
+
+  ensureOrReturn(*DerivedRaw == *GivenRaw,
+                 __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+
+  return Ctx;
 }
 
 WasiCryptoExpect<SecretVec> Eddsa::SecretKey::exportData(

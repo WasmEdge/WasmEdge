@@ -52,6 +52,8 @@ public:
 
     PublicKeyBase(SharedEvpPkey Ctx) noexcept : Ctx(std::move(Ctx)) {}
 
+    const auto &raw() const { return Ctx; }
+
     static WasiCryptoExpect<PublicKey>
     import(Span<const uint8_t> Encoded,
            __wasi_publickey_encoding_e_t Encoding) noexcept {
@@ -207,8 +209,36 @@ public:
       return Ctx;
     }
 
-    WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &) const noexcept {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept {
+      if (auto Res = Pk.verify(); !Res) {
+        return WasiCryptoUnexpect(Res);
+      }
+
+      const EC_KEY *PkEcCtx = EVP_PKEY_get0_EC_KEY(Pk.raw().get());
+      ensureOrReturn(PkEcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+      const EC_KEY *SkEcCtx = EVP_PKEY_get0_EC_KEY(Ctx.get());
+      ensureOrReturn(SkEcCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+      const EC_GROUP *SkGroup = EC_KEY_get0_group(SkEcCtx);
+      ensureOrReturn(SkGroup, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+      ensureOrReturn(EC_GROUP_get_curve_name(SkGroup) == CurveNid,
+                     __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+      const BIGNUM *Sk = EC_KEY_get0_private_key(SkEcCtx);
+      ensureOrReturn(Sk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+      EcKeyPtr EcCtx{EC_KEY_dup(PkEcCtx)};
+      opensslCheck(EcCtx);
+      opensslCheck(EC_KEY_set_private_key(EcCtx.get(), Sk));
+      ensureOrReturn(EC_KEY_check_key(EcCtx.get()),
+                     __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+
+      EvpPkeyPtr KpCtx{EVP_PKEY_new()};
+      opensslCheck(KpCtx);
+      opensslCheck(EVP_PKEY_set1_EC_KEY(KpCtx.get(), EcCtx.get()));
+
+      return KpCtx;
     }
 
   protected:

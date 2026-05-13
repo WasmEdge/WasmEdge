@@ -9,6 +9,46 @@ namespace WasiCrypto {
 using namespace std::literals;
 
 TEST_F(WasiCryptoTest, Asymmetric) {
+  auto KeypairFromPkAndSkImportCheck =
+      [this](__wasi_algorithm_type_e_t AlgType, std::string_view Alg,
+             const std::vector<uint8_t> &PkData,
+             __wasi_publickey_encoding_e_t PkEncoding,
+             const std::vector<uint8_t> &SkData,
+             __wasi_secretkey_encoding_e_t SkEncoding) {
+        SCOPED_TRACE("KeypairFromPkAndSk");
+        SCOPED_TRACE(Alg);
+
+        WASI_CRYPTO_EXPECT_SUCCESS(
+            PkHandle, publickeyImport(AlgType, Alg, PkData, PkEncoding));
+        WASI_CRYPTO_EXPECT_SUCCESS(
+            SkHandle, secretkeyImport(AlgType, Alg, SkData, SkEncoding));
+
+        WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                                   keypairFromPkAndSk(PkHandle, SkHandle));
+
+        WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+        WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+        WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+      };
+
+  auto KeypairFromPkAndSkGenerateCheck =
+      [this](__wasi_algorithm_type_e_t AlgType, std::string_view Alg) {
+        SCOPED_TRACE("KeypairFromPkAndSk");
+        SCOPED_TRACE(Alg);
+
+        WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                                   keypairGenerate(AlgType, Alg, std::nullopt));
+        WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+        WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+        WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+
+        WASI_CRYPTO_EXPECT_SUCCESS(NewKpHandle,
+                                   keypairFromPkAndSk(PkHandle, SkHandle));
+
+        WASI_CRYPTO_EXPECT_TRUE(keypairClose(NewKpHandle));
+        WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+        WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
+      };
   auto EncodingCheck =
       [this](std::string_view Alg, __wasi_algorithm_type_e_t AlgType,
              std::map<__wasi_publickey_encoding_e_t, std::vector<uint8_t>>
@@ -77,6 +117,12 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a"_u8v}},
       {{__WASI_KEYPAIR_ENCODING_RAW,
         "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a"_u8v}});
+  KeypairFromPkAndSkImportCheck(
+      __WASI_ALGORITHM_TYPE_KEY_EXCHANGE, "X25519"sv,
+      "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a"_u8v,
+      __WASI_PUBLICKEY_ENCODING_RAW,
+      "77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a"_u8v,
+      __WASI_SECRETKEY_ENCODING_RAW);
   EncodingCheck(
       "ECDSA_P256_SHA256"sv, __WASI_ALGORITHM_TYPE_SIGNATURES,
       {{__WASI_PUBLICKEY_ENCODING_SEC,
@@ -97,6 +143,8 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "+mzmaWIuYPKftnkD/hAIuLyZpBrp6VYovGTy8bIMLX6fUXejwpTURiKZ\n"
         "-----END PRIVATE KEY-----\n"_u8}},
       {});
+  KeypairFromPkAndSkGenerateCheck(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                  "ECDSA_P256_SHA256"sv);
   EncodingCheck(
       "ECDSA_K256_SHA256"sv, __WASI_ALGORITHM_TYPE_SIGNATURES,
       {{__WASI_PUBLICKEY_ENCODING_SEC,
@@ -147,7 +195,12 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"_u8v}},
       {{__WASI_KEYPAIR_ENCODING_RAW,
         "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v}});
-
+  KeypairFromPkAndSkImportCheck(
+      __WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
+      "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a"_u8v,
+      __WASI_PUBLICKEY_ENCODING_RAW,
+      "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60"_u8v,
+      __WASI_SECRETKEY_ENCODING_RAW);
   auto RsaCheck =
       [EncodingCheck](
           std::string_view Bit,
@@ -296,6 +349,8 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "caa823ff6a1eb4f851223be1b7c21a1ee14a4248efeb8db8bdda2e92ea0c"
         "de8e411ecda4caf87d92e4ad84163d5d99cd"_u8v}},
       {});
+  KeypairFromPkAndSkGenerateCheck(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                  "RSA_PKCS1_2048_SHA256"sv);
   RsaCheck(
       "3072"sv,
       {{__WASI_PUBLICKEY_ENCODING_PEM,

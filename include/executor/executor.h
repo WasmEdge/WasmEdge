@@ -396,10 +396,12 @@ private:
                              const AST::Instruction::JumpDescriptor &JumpDesc,
                              AST::InstrView::iterator &PC) noexcept;
 
-  /// Helper function for throwing an exception.
-  Expect<void> throwException(Runtime::StackManager &StackMgr,
-                              Runtime::Instance::TagInstance &TagInst,
-                              AST::InstrView::iterator &PC) noexcept;
+  /// Helper function for throwing an exception. Pass `ExnInst` on `throw_ref`
+  /// to reuse the exception instance and preserve exnref identity.
+  Expect<void> throwException(
+      Runtime::StackManager &StackMgr, Runtime::Instance::TagInstance &TagInst,
+      AST::InstrView::iterator &PC,
+      const Runtime::Instance::ExceptionInstance *ExnInst = nullptr) noexcept;
   /// @}
 
   /// \name Helper Function for checking memory offset boundary.

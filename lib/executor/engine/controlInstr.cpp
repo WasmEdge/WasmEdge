@@ -51,8 +51,11 @@ Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
     return Unexpect(ErrCode::Value::AccessNullException);
   }
-  auto *TagInst = Ref.getPtr<Runtime::Instance::TagInstance>();
-  return throwException(StackMgr, *TagInst, PC);
+  const auto *ExnInst = Ref.getPtr<Runtime::Instance::ExceptionInstance>();
+  auto *TagInst = ExnInst->getTag();
+  // Re-push the captured payload to mirror an initial `throw`, then unwind.
+  StackMgr.pushValVec(ExnInst->getPayload());
+  return throwException(StackMgr, *TagInst, PC, ExnInst);
 }
 
 Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,

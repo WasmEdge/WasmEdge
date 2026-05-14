@@ -20,6 +20,7 @@
 #include "runtime/instance/array.h"
 #include "runtime/instance/data.h"
 #include "runtime/instance/elem.h"
+#include "runtime/instance/exception.h"
 #include "runtime/instance/function.h"
 #include "runtime/instance/global.h"
 #include "runtime/instance/memory.h"
@@ -281,6 +282,13 @@ protected:
     OwnedStructInsts.push_back(
         std::make_unique<StructInstance>(this, std::forward<Args>(Values)...));
     return OwnedStructInsts.back().get();
+  }
+  template <typename... Args>
+  ExceptionInstance *newException(Args &&...Values) {
+    std::unique_lock Lock(Mutex);
+    OwnedExceptionInsts.push_back(
+        std::make_unique<ExceptionInstance>(std::forward<Args>(Values)...));
+    return OwnedExceptionInsts.back().get();
   }
 
   /// Import instances into this module instance.
@@ -550,6 +558,7 @@ protected:
   std::vector<std::unique_ptr<DataInstance>> OwnedDataInsts;
   std::vector<std::unique_ptr<ArrayInstance>> OwnedArrayInsts;
   std::vector<std::unique_ptr<StructInstance>> OwnedStructInsts;
+  std::vector<std::unique_ptr<ExceptionInstance>> OwnedExceptionInsts;
 
   /// Imported and added instances in this module.
   std::vector<FunctionInstance *> FuncInsts;

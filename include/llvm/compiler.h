@@ -45,11 +45,6 @@ public:
       std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>
   compileInfrastructure(const AST::Module &Module,
                         std::string Prefix = "") noexcept;
-  /// Compile a single function by index.
-  Expect<Data> compileFunction(Data &&LLData, CompileContext *Context,
-                               const AST::Module &Module,
-                               uint32_t FuncIndex) noexcept;
-
   /// Compile multiple function bodies in one LLVM module for lazy JIT.
   /// \p LocalFuncIndices are indices of defined functions (not imports).
   Expect<Data> compileFunctions(Data &&LLData, CompileContext *Context,

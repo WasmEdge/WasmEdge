@@ -78,6 +78,10 @@ public:
   bool getIsValidated() const noexcept { return IsValidated; }
   void setIsValidated(bool V = true) noexcept { IsValidated = V; }
 
+  /// Getter and setter of ID.
+  const std::string &getID() const noexcept { return ID; }
+  void setID(std::string_view NewID) noexcept { ID = NewID; }
+
 private:
   /// \name Data of Module node.
   /// @{
@@ -112,6 +116,11 @@ private:
   /// \name Validated flag.
   /// @{
   bool IsValidated = false;
+  /// @}
+
+  /// \name ID.
+  /// @{
+  std::string ID;
   /// @}
 };
 

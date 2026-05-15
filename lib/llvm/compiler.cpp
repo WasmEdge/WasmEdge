@@ -4003,15 +4003,12 @@ public:
   }
   void compileAtomicWait(unsigned MemoryIndex, uint64_t MemoryOffset,
                          LLVM::Type TargetType, uint32_t BitWidth) noexcept {
-    spdlog::error("[lazyjit] memory_index: {}", MemoryIndex);
     auto Timeout = stackPop();
     auto ExpectedValue = Builder.createZExtOrTrunc(stackPop(), Context.Int64Ty);
     auto Offset = Builder.createZExt(stackPop(), Context.Int64Ty);
     if (MemoryOffset != 0) {
       Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
-    spdlog::error("Check: {}",
-                  Context.MemoryAddrTypes[MemoryIndex].isStructTy());
     compileAtomicCheckOffsetAlignment(Offset, TargetType);
     stackPush(Builder.createTrunc(
         Builder.createCall(
@@ -6155,6 +6152,20 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
   Context->CompositeTypes.reserve(Size);
   Context->FunctionWrappers.reserve(Size);
 
+  auto SetFuncAttributes = [&](auto FDecl) {
+    FDecl.setVisibility(LLVMProtectedVisibility);
+    FDecl.setDSOLocal(true);
+    FDecl.setDLLStorageClass(LLVMDLLExportStorageClass);
+    FDecl.addFnAttr(Context->NoStackArgProbe);
+    FDecl.addFnAttr(Context->StrictFP);
+    FDecl.addFnAttr(Context->UWTable);
+    FDecl.addParamAttr(0, Context->ReadOnly);
+    FDecl.addParamAttr(0, Context->NoAlias);
+    FDecl.addParamAttr(1, Context->NoAlias);
+    FDecl.addParamAttr(2, Context->NoAlias);
+    FDecl.addParamAttr(3, Context->NoAlias);
+  };
+
   // Iterate and compile types.
   for (size_t I = 0; I < Size; ++I) {
     const auto &CompType = SubTypes[I].getCompositeType();
@@ -6174,17 +6185,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
               if (DeclarationsOnly) {
                 auto FDecl = Context->LLModule.get().addFunction(
                     WrapperTy, LLVMExternalLinkage, Name.c_str());
-                FDecl.setVisibility(LLVMProtectedVisibility);
-                FDecl.setDSOLocal(true);
-                FDecl.setDLLStorageClass(LLVMDLLExportStorageClass);
-                FDecl.addFnAttr(Context->NoStackArgProbe);
-                FDecl.addFnAttr(Context->StrictFP);
-                FDecl.addFnAttr(Context->UWTable);
-                FDecl.addParamAttr(0, Context->ReadOnly);
-                FDecl.addParamAttr(0, Context->NoAlias);
-                FDecl.addParamAttr(1, Context->NoAlias);
-                FDecl.addParamAttr(2, Context->NoAlias);
-                FDecl.addParamAttr(3, Context->NoAlias);
+                SetFuncAttributes(FDecl);
                 Context->FunctionWrappers.push_back(FDecl);
               } else {
                 auto F = Context->FunctionWrappers[J];
@@ -6209,17 +6210,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
       auto F = Context->LLModule.get().addFunction(
           WrapperTy, LLVMExternalLinkage, Name.c_str());
       {
-        F.setVisibility(LLVMProtectedVisibility);
-        F.setDSOLocal(true);
-        F.setDLLStorageClass(LLVMDLLExportStorageClass);
-        F.addFnAttr(Context->NoStackArgProbe);
-        F.addFnAttr(Context->StrictFP);
-        F.addFnAttr(Context->UWTable);
-        F.addParamAttr(0, Context->ReadOnly);
-        F.addParamAttr(0, Context->NoAlias);
-        F.addParamAttr(1, Context->NoAlias);
-        F.addParamAttr(2, Context->NoAlias);
-        F.addParamAttr(3, Context->NoAlias);
+        SetFuncAttributes(F);
 
         if (!DeclarationsOnly) {
           LLVM::Builder Builder(Context->LLContext);
@@ -6268,17 +6259,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
       auto F = Context->LLModule.get().addFunction(
           WrapperTy, LLVMExternalLinkage, Name.c_str());
       {
-        F.setVisibility(LLVMProtectedVisibility);
-        F.setDSOLocal(true);
-        F.setDLLStorageClass(LLVMDLLExportStorageClass);
-        F.addFnAttr(Context->NoStackArgProbe);
-        F.addFnAttr(Context->StrictFP);
-        F.addFnAttr(Context->UWTable);
-        F.addParamAttr(0, Context->ReadOnly);
-        F.addParamAttr(0, Context->NoAlias);
-        F.addParamAttr(1, Context->NoAlias);
-        F.addParamAttr(2, Context->NoAlias);
-        F.addParamAttr(3, Context->NoAlias);
+        SetFuncAttributes(F);
 
         if (!DeclarationsOnly) {
           LLVM::Builder Builder(Context->LLContext);
@@ -6622,6 +6603,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
         IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
         LLVM::Value::getConstNull(IntrinsicsTableTy), IntrinsicsName.c_str());
   }
+  LLModule.verify(LLVMPrintMessageAction);
 
   spdlog::info("[lazyjit]: infrastructure compilation done"sv);
 
@@ -6630,15 +6612,6 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
       std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>{
       std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>{
           std::move(D), std::move(NewContext)}};
-}
-
-Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
-                                             CompileContext *NewContext,
-                                             const AST::Module &Module,
-                                             uint32_t FuncIndex) noexcept {
-  const uint32_t One[1] = {FuncIndex};
-  return compileFunctions(std::move(LLData), NewContext, Module,
-                          Span<const uint32_t>(One, 1));
 }
 
 Expect<LLVM::Data>

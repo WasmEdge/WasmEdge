@@ -5,6 +5,7 @@
 
 #include "ast/instruction.h"
 #include "ast/module.h"
+#include "common/enum_errcode.hpp"
 #include "common/errcode.h"
 #include "common/types.h"
 #include "host/wasi/wasimodule.h"
@@ -142,9 +143,8 @@ void VM::unsafeInitVM() {
 #ifdef WASMEDGE_USE_LLVM
   if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
     ExecutorEngine.registerLazyCompilationCallback(
-        [this](const Runtime::Instance::ModuleInstance *ModInst,
-               const uint32_t FuncIdx) -> Expect<void> {
-          return unsafeLazyCompileFunction(ModInst, FuncIdx);
+        [this](const std::string &ID, const uint32_t FuncIdx) -> Expect<void> {
+          return lazyCompileFunctions(ID, FuncIdx);
         });
   }
 #endif
@@ -251,20 +251,14 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
     Stage = VMStage::Validated;
   }
   // Load module.
-  EXPECTED_TRY(auto Module, LoaderEngine.parseModule(Path));
-  auto *ASTModPtr = Module.get();
-  EXPECTED_TRY(unsafeRegisterModule(Name, *ASTModPtr));
+  EXPECTED_TRY(std::shared_ptr<AST::Module> Module,
+               LoaderEngine.parseModule(Path));
 
-#ifdef WASMEDGE_USE_LLVM
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT &&
-      !RegModInsts.empty()) {
-    std::unique_lock Lock(LazyMutex);
-    auto *RegisteredModInst = RegModInsts.back().get();
-    auto &State = LazyJITStates[RegisteredModInst];
-    State.OwnedModule = std::move(Module);
-    State.ModulePtr = State.OwnedModule.get();
+  EXPECTED_TRY(unsafeRegisterModule(Name, *Module));
+
+  if (!RegASTModules.empty()) {
+    RegASTModules.back() = Module;
   }
-#endif
 
   return {};
 }
@@ -277,20 +271,14 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
     Stage = VMStage::Validated;
   }
   // Load module.
-  EXPECTED_TRY(auto Module, LoaderEngine.parseModule(Code));
-  auto *ASTModPtr = Module.get();
-  EXPECTED_TRY(unsafeRegisterModule(Name, *ASTModPtr));
+  EXPECTED_TRY(std::shared_ptr<AST::Module> Module,
+               LoaderEngine.parseModule(Code));
 
-#ifdef WASMEDGE_USE_LLVM
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT &&
-      !RegModInsts.empty()) {
-    std::unique_lock Lock(LazyMutex);
-    auto *RegisteredModInst = RegModInsts.back().get();
-    auto &State = LazyJITStates[RegisteredModInst];
-    State.OwnedModule = std::move(Module);
-    State.ModulePtr = State.OwnedModule.get();
+  EXPECTED_TRY(unsafeRegisterModule(Name, *Module));
+
+  if (!RegASTModules.empty()) {
+    RegASTModules.back() = Module;
   }
-#endif
 
   return {};
 }
@@ -304,99 +292,39 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   }
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(Module));
-  spdlog::info("Module validated: {}"sv, Module.getIsValidated());
+
+  std::string ID = Module.getID();
 
 #ifdef WASMEDGE_USE_LLVM
+  std::optional<WasmEdge::LLVM::LazyJITState> State;
   if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT &&
       !Module.getSymbol()) {
-    LLVM::Compiler Compiler(Conf);
-    Compiler.checkConfigure()
-        .map_error([](uint32_t Err) {
-          if (Err != ErrCode::Value::Success) {
-            spdlog::error("Compiler Configure failed. Error code: {}, use "
-                          "interpreter mode instead."sv,
-                          Err);
-          }
-          return ErrCode::Value::Success;
-        })
-        .and_then([&]() {
-          auto Prefix =
-              fmt::format("m{:p}_"sv, reinterpret_cast<const void *>(&Module));
-          return Compiler.compileInfrastructure(Module, Prefix);
-        })
-        .map_error([](uint32_t Err) {
-          if (Err != ErrCode::Value::Success) {
-            spdlog::error("Compilation failed. Error code: {}, use "
-                          "interpreter mode instead."sv,
-                          Err);
-          }
-          return ErrCode::Value::Success;
-        })
-        .and_then([&](auto LLModule) {
-          std::unique_lock Lock(LazyMutex);
-          Pending.LLData = std::move(LLModule.first);
-          Pending.LLContext = std::move(LLModule.second);
-          LLVM::JIT JIT(Conf);
-          return JIT.load(Pending.LLData, true);
-        })
-        .map_error([](uint32_t Err) {
-          if (Err != ErrCode::Value::Success) {
-            spdlog::warn(
-                "JIT failed. Error code: {}, use interpreter mode instead."sv,
-                Err);
-          }
-          return ErrCode::Value::Success;
-        })
-        .and_then([&](auto Exec) {
-          std::unique_lock Lock(LazyMutex);
-          Pending.Exec = Exec;
-          return LoaderEngine.loadExecutable(const_cast<AST::Module &>(Module),
-                                             std::move(Exec));
-        })
-        .map_error([](uint32_t Err) {
-          if (Err != ErrCode::Value::Success) {
-            spdlog::warn("Loader failed. Error code: {}, use interpreter "
-                         "mode instead."sv,
-                         Err);
-          }
-          return ErrCode::Value::Success;
-        });
-
-    std::unique_lock Lock(LazyMutex);
-    size_t ImportFuncCount = 0;
-    for (const auto &ImpDesc : Module.getImportSection().getContent()) {
-      if (ImpDesc.getExternalType() == ExternalType::Function) {
-        ++ImportFuncCount;
-      }
-    }
-    Pending.Module = &Module;
-    Pending.ModuleInstance = nullptr;
-    Pending.ImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
+    EXPECTED_TRY(State, prepareLazyJIT(Module));
   }
 #endif
 
   // Instantiate and register module.
-  auto ModInstResult = ExecutorEngine.registerModule(StoreRef, Module, Name);
-
-  EXPECTED_TRY(auto ModInst, std::move(ModInstResult));
+  EXPECTED_TRY(auto ModInst,
+               ExecutorEngine.registerModule(StoreRef, Module, Name));
   RegModInsts.push_back(std::move(ModInst));
 
 #ifdef WASMEDGE_USE_LLVM
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT &&
-      !RegModInsts.empty()) {
-    std::unique_lock Lock(LazyMutex);
-    auto *RegisteredModInst = RegModInsts.back().get();
-    auto &State = LazyJITStates[RegisteredModInst];
-    State.ImportFuncCount = Pending.ImportFuncCount;
-    State.LazyCompiledFuncs.clear();
-    State.ModulePtr = Pending.Module;
-    State.LLData = std::move(Pending.LLData);
-    State.LLContext = std::move(Pending.LLContext);
-    State.Exec = std::move(Pending.Exec);
-    Pending.Module = nullptr;
-    Pending.ModuleInstance = nullptr;
+  if (State) {
+    std::unique_lock Lock(LazyJITMutex);
+    LazyJITStates[ID] = std::move(*State);
   }
 #endif
+
+  size_t InstIdx = RegModInsts.size() - 1;
+  auto It = RegModMap.find(ID);
+  if (It != RegModMap.end()) {
+    It->second[1] = InstIdx;
+  } else {
+    std::shared_ptr<const AST::Module> SharedMod(&Module,
+                                                 [](const AST::Module *) {});
+    RegASTModules.push_back(SharedMod);
+    RegModMap[ID] = {RegASTModules.size() - 1, InstIdx};
+  }
 
   return {};
 }
@@ -611,64 +539,16 @@ Expect<void> VM::unsafeInstantiate() {
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
   if (Mod) {
+    std::string ID = Mod->getID();
+
     if ((Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT ||
          Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) &&
         !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
       if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
-        LLVM::Compiler Compiler(Conf);
-        Compiler.checkConfigure()
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::error("Compiler Configure failed. Error code: {}, use "
-                              "interpreter mode instead."sv,
-                              Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&]() {
-              auto Prefix = fmt::format(
-                  "m{:p}_"sv, reinterpret_cast<const void *>(Mod.get()));
-              return Compiler.compileInfrastructure(*Mod, Prefix);
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::error("Compilation failed. Error code: {}, use "
-                              "interpreter mode instead."sv,
-                              Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&](auto LLModule) {
-              std::unique_lock Lock(LazyMutex);
-              Pending.LLData = std::move(LLModule.first);
-              Pending.LLContext = std::move(LLModule.second);
-              LLVM::JIT JIT(Conf);
-              return JIT.load(Pending.LLData, true);
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::warn(
-                    "JIT failed. Error code: {}, use interpreter mode instead."sv,
-                    Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&](auto Module) {
-              {
-                std::unique_lock Lock(LazyMutex);
-                Pending.Exec = Module;
-              }
-              return LoaderEngine.loadExecutable(*Mod, std::move(Module));
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::warn("Loader failed. Error code: {}, use interpreter "
-                             "mode instead."sv,
-                             Err);
-              }
-              return ErrCode::Value::Success;
-            });
+        EXPECTED_TRY(auto State, prepareLazyJIT(*Mod));
+        std::unique_lock Lock(LazyJITMutex);
+        LazyJITStates[ID] = std::move(State);
       } else {
         LLVM::Compiler Compiler(Conf);
         Compiler.checkConfigure()
@@ -702,10 +582,6 @@ Expect<void> VM::unsafeInstantiate() {
               return ErrCode::Value::Success;
             })
             .and_then([&](auto Module) {
-              {
-                std::unique_lock Lock(LazyMutex);
-                Pending.Exec = Module;
-              }
               return LoaderEngine.loadExecutable(*Mod, std::move(Module));
             })
             .map_error([](uint32_t Err) {
@@ -725,38 +601,22 @@ Expect<void> VM::unsafeInstantiate() {
 
 #ifdef WASMEDGE_USE_LLVM
     if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
-      std::unique_lock Lock(LazyMutex);
+      std::unique_lock Lock(LazyJITMutex);
       size_t ImportFuncCount = 0;
       for (const auto &ImpDesc : Mod->getImportSection().getContent()) {
         if (ImpDesc.getExternalType() == ExternalType::Function) {
           ++ImportFuncCount;
         }
       }
-      Pending.Module = Mod.get();
-      Pending.ModuleInstance = nullptr;
-      Pending.ImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
+      LazyJITStates[ID].ImportFuncCount =
+          static_cast<uint32_t>(ImportFuncCount);
+      LazyJITStates[ID].LazyCompiledFuncs.clear();
     }
 #endif
 
-    auto ActiveModInstResult = ExecutorEngine.instantiateModule(StoreRef, *Mod);
+    EXPECTED_TRY(ActiveModInst,
+                 ExecutorEngine.instantiateModule(StoreRef, *Mod));
 
-    EXPECTED_TRY(ActiveModInst, std::move(ActiveModInstResult));
-
-#ifdef WASMEDGE_USE_LLVM
-    if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
-      std::unique_lock Lock(LazyMutex);
-      auto &State = LazyJITStates[ActiveModInst.get()];
-      State.ImportFuncCount = Pending.ImportFuncCount;
-      State.LazyCompiledFuncs.clear();
-      State.OwnedModule = std::move(Mod);
-      State.ModulePtr = State.OwnedModule.get();
-      State.LLData = std::move(Pending.LLData);
-      State.LLContext = std::move(Pending.LLContext);
-      State.Exec = std::move(Pending.Exec);
-      Pending.Module = nullptr;
-      Pending.ModuleInstance = nullptr;
-    }
-#endif
     Stage = VMStage::Instantiated;
     return {};
   } else if (Comp) {
@@ -834,11 +694,21 @@ VM::unsafeExecute(const Runtime::Instance::ModuleInstance *ModInst,
 
 #ifdef WASMEDGE_USE_LLVM
   // lazy JIT: compile function on-demand if needed.
-  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT && FuncInst &&
-      FuncInst->isWasmFunction()) {
-    uint32_t FuncIdx = ModInst->getFuncIdx(FuncInst);
-    if (FuncIdx != UINT32_MAX) {
-      if (auto Result = unsafeLazyCompileFunction(ModInst, FuncIdx); !Result) {
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT && FuncInst) {
+    bool NeedsCompile = false;
+    uint32_t FuncIdx = UINT32_MAX;
+    {
+      std::shared_lock Lock(LazyJITMutex);
+      if (FuncInst->isWasmFunction()) {
+        NeedsCompile = true;
+        if (auto Res = ModInst->getFuncIdx(FuncInst)) {
+          FuncIdx = *Res;
+        }
+      }
+    }
+    if (NeedsCompile && FuncIdx != UINT32_MAX) {
+      if (auto Result = lazyCompileFunctions(ModInst->getID(), FuncIdx);
+          !Result) {
         return Unexpect(Result.error());
       }
     }
@@ -955,7 +825,7 @@ void VM::unsafeCleanup() {
   // LazyJITStates.clear() will automatically clean up all unique_ptr
   // LLContexts.
   {
-    std::unique_lock Lock(LazyMutex);
+    std::unique_lock Lock(LazyJITMutex);
     LazyJITStates.clear();
   }
 #endif
@@ -1007,16 +877,8 @@ const Runtime::Instance::ModuleInstance *VM::unsafeGetActiveModule() const {
 };
 
 #ifdef WASMEDGE_USE_LLVM
-
-Expect<void>
-VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
-                              uint32_t FuncIdx) {
-  if (!ModInst) {
-    spdlog::error("Lazy JIT: null module instance"sv);
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
-  }
-
-  std::unique_lock Lock(LazyMutex);
+Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
+  std::unique_lock Lock(LazyJITMutex);
   uint32_t ImportFuncCount = 0;
   const AST::Module *ModulePtr = nullptr;
   LLVM::Data *LLDataPtr = nullptr;
@@ -1024,21 +886,29 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
                   LLVM::Compiler::CompileContextDeleter> *LLContextPtr =
       nullptr;
   LLVM::LazyJITState *StatePtr = nullptr;
+  const Runtime::Instance::ModuleInstance *ModInst = nullptr;
 
-  auto It = LazyJITStates.find(ModInst);
-  if (It != LazyJITStates.end() && It->second.ModulePtr) {
+  if (ActiveModInst && ActiveModInst->getID() == ID) {
+    ModInst = ActiveModInst.get();
+    ModulePtr = Mod.get();
+  } else {
+    auto ItMap = RegModMap.find(ID);
+    if (ItMap != RegModMap.end()) {
+      ModInst = RegModInsts[ItMap->second[1]].get();
+      ModulePtr = RegASTModules[ItMap->second[0]].get();
+    }
+  }
+
+  if (!ModInst || !ModulePtr) {
+    return {};
+  }
+
+  auto It = LazyJITStates.find(ID);
+  if (It != LazyJITStates.end()) {
     StatePtr = &It->second;
     ImportFuncCount = StatePtr->ImportFuncCount;
-    ModulePtr = StatePtr->ModulePtr;
     LLDataPtr = &StatePtr->LLData;
     LLContextPtr = &StatePtr->LLContext;
-  } else if (Pending.Module && (Pending.ModuleInstance == nullptr ||
-                                Pending.ModuleInstance == ModInst)) {
-    Pending.ModuleInstance = ModInst;
-    ImportFuncCount = Pending.ImportFuncCount;
-    ModulePtr = Pending.Module;
-    LLDataPtr = &Pending.LLData;
-    LLContextPtr = &Pending.LLContext;
   } else {
     return {};
   }
@@ -1096,8 +966,6 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
   std::shared_ptr<Executable> Exec;
   if (StatePtr && StatePtr->Exec) {
     Exec = StatePtr->Exec;
-  } else if (!StatePtr && Pending.Exec) {
-    Exec = Pending.Exec;
   }
 
   std::vector<uint32_t> BatchGlobal;
@@ -1126,8 +994,6 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
     Exec = *LoadResult;
     if (StatePtr) {
       StatePtr->Exec = Exec;
-    } else {
-      Pending.Exec = Exec;
     }
     auto LkRes = JIT.lookupWasmFunctionSymbols(
         *Exec, LLDataPtr->getPrefix(),
@@ -1189,7 +1055,35 @@ VM::unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
 #endif
 
 #ifdef WASMEDGE_USE_LLVM
-VM::LazyJITPendingState::~LazyJITPendingState() = default;
+Expect<WasmEdge::LLVM::LazyJITState>
+VM::prepareLazyJIT(const AST::Module &Module) {
+  WasmEdge::LLVM::LazyJITState State;
+  LLVM::Compiler Compiler(Conf);
+  EXPECTED_TRY(
+      Compiler.checkConfigure().map_error([](uint32_t Err) { return Err; }));
+
+  auto Prefix = fmt::format("m{}_"sv, Module.getID());
+  EXPECTED_TRY(auto LLModule, Compiler.compileInfrastructure(Module, Prefix));
+
+  State.LLData = std::move(LLModule.first);
+  State.LLContext = std::move(LLModule.second);
+
+  LLVM::JIT JIT(Conf);
+  EXPECTED_TRY(State.Exec, JIT.load(State.LLData, true));
+
+  EXPECTED_TRY(LoaderEngine.loadExecutable(const_cast<AST::Module &>(Module),
+                                           State.Exec));
+
+  size_t ImportFuncCount = 0;
+  for (const auto &ImpDesc : Module.getImportSection().getContent()) {
+    if (ImpDesc.getExternalType() == ExternalType::Function) {
+      ++ImportFuncCount;
+    }
+  }
+  State.ImportFuncCount = static_cast<uint32_t>(ImportFuncCount);
+
+  return State;
+}
 #endif
 
 } // namespace VM

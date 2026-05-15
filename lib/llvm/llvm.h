@@ -81,12 +81,13 @@ typedef enum {
   LLVMTailCallKindNoTail = 3,
 } LLVMTailCallKind;
 
-LLVMTailCallKind LLVMGetTailCallKind(LLVMValueRef Call) {
+static inline LLVMTailCallKind LLVMGetTailCallKind(LLVMValueRef Call) {
   return static_cast<LLVMTailCallKind>(
       llvm::unwrap<llvm::CallInst>(Call)->getTailCallKind());
 }
 
-void LLVMSetTailCallKind(LLVMValueRef Call, LLVMTailCallKind kind) {
+static inline void LLVMSetTailCallKind(LLVMValueRef Call,
+                                       LLVMTailCallKind kind) {
   llvm::unwrap<llvm::CallInst>(Call)->setTailCallKind(
       static_cast<llvm::CallInst::TailCallKind>(kind));
 }

@@ -7,21 +7,6 @@
 #include "llvm.h"
 #include "spdlog/spdlog.h"
 
-#include <llvm-c/Core.h>
-#include <llvm-c/Error.h>
-#include <llvm-c/LLJIT.h>
-#include <llvm-c/Orc.h>
-#include <llvm-c/Target.h>
-#include <llvm-c/TargetMachine.h>
-#include <llvm/ADT/STLExtras.h>
-#include <llvm/Config/llvm-config.h>
-#include <llvm/ExecutionEngine/Orc/LLJIT.h>
-#include <llvm/IR/Function.h>
-#include <llvm/IR/Module.h>
-#include <llvm/Linker/Linker.h>
-#include <llvm/Support/CodeGen.h>
-#include <llvm/Support/Error.h>
-#include <llvm/Transforms/Utils/Cloning.h>
 #include <mutex>
 
 #include <fmt/format.h>

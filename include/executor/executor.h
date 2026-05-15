@@ -204,8 +204,7 @@ public:
 
   /// Register a callback for lazy function compilation
   void registerLazyCompilationCallback(
-      std::function<Expect<void>(const Runtime::Instance::ModuleInstance *,
-                                 const uint32_t)>
+      std::function<Expect<void>(const std::string &, const uint32_t)>
           Callback) {
     LazyCompilationHandler = std::move(Callback);
   }
@@ -957,18 +956,6 @@ public:
   Expect<void> proxyCall(Runtime::StackManager &StackMgr,
                          const uint32_t FuncIdx, const ValVariant *Args,
                          ValVariant *Rets) noexcept;
-  Expect<void> proxyReturnCall(Runtime::StackManager &StackMgr,
-                               const uint32_t FuncIdx, const ValVariant *Args,
-                               ValVariant *Rets) noexcept;
-  Expect<void> proxyReturnCallIndirect(Runtime::StackManager &StackMgr,
-                                       const uint32_t TableIdx,
-                                       const uint32_t FuncTypeIdx,
-                                       const uint32_t FuncIdx,
-                                       const ValVariant *Args,
-                                       ValVariant *Rets) noexcept;
-  Expect<void> proxyReturnCallRef(Runtime::StackManager &StackMgr,
-                                  const RefVariant Ref, const ValVariant *Args,
-                                  ValVariant *Rets) noexcept;
   Expect<void> proxyCallIndirect(Runtime::StackManager &StackMgr,
                                  const uint32_t TableIdx,
                                  const uint32_t FuncTypeIdx,
@@ -1160,8 +1147,7 @@ private:
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
   /// Callback for lazy function compilation
-  std::function<Expect<void>(const Runtime::Instance::ModuleInstance *,
-                             const uint32_t)>
+  std::function<Expect<void>(const std::string &, const uint32_t)>
       LazyCompilationHandler;
 
   /// Helper function for checking lazy compilation.
@@ -1170,9 +1156,12 @@ private:
     if (FuncInst->isWasmFunction() && !FuncInst->isCompiledFunction() &&
         LazyCompilationHandler) {
       if (const auto *TargetModInst = FuncInst->getModule()) {
-        uint32_t TargetFuncIdx = TargetModInst->getFuncIdx(FuncInst);
-        if (TargetFuncIdx != UINT32_MAX) {
-          return LazyCompilationHandler(TargetModInst, TargetFuncIdx);
+        if (auto Res = TargetModInst->getFuncIdx(FuncInst)) {
+          uint32_t TargetFuncIdx = *Res;
+          const std::string &ID = TargetModInst->getID();
+          if (!ID.empty()) {
+            return LazyCompilationHandler(ID, TargetFuncIdx);
+          }
         }
       }
     }

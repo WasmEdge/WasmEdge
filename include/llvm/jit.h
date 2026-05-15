@@ -53,7 +53,9 @@ public:
   std::vector<Symbol<void>> getCodes(size_t Offset,
                                      size_t Size) noexcept override;
   bool isLazy() const noexcept override { return IsLazy; }
-  void setPrefix(std::string Prefix) noexcept { this->Prefix = Prefix; }
+  void setPrefix(std::string NewPrefix) noexcept {
+    this->Prefix = std::move(NewPrefix);
+  }
 
 private:
   std::shared_ptr<OrcLLJIT> J;
@@ -96,10 +98,6 @@ struct LazyJITState {
 
   /// Number of import functions (offset for local function indices).
   uint32_t ImportFuncCount = 0;
-  /// Pointer to the AST module (non-owning pointer, lifetime managed by caller)
-  const AST::Module *ModulePtr = nullptr;
-  /// Optional owned module (used when VM takes ownership)
-  std::unique_ptr<AST::Module> OwnedModule;
   /// Store compiled executables to keep them alive
   std::shared_ptr<Executable> Exec;
   /// Per-module JIT data and context

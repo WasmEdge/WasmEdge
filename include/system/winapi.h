@@ -1372,7 +1372,8 @@ static inline constexpr const DWORD_ EXCEPTION_INT_DIVIDE_BY_ZERO_ =
 static inline constexpr const DWORD_ EXCEPTION_INT_OVERFLOW_ = 0xC0000095L;
 static inline constexpr const LONG_ EXCEPTION_CONTINUE_EXECUTION_ =
     static_cast<LONG_>(0xffffffff);
-
+static inline constexpr const LONG_ EXCEPTION_CONTINUE_SEARCH_ = 0L;
+static inline constexpr const DWORD_ EXCEPTION_STACK_OVERFLOW_ = 0xC00000FDL;
 using EXCEPTION_RECORD_ = struct _EXCEPTION_RECORD {
   DWORD_ ExceptionCode;
   DWORD_ ExceptionFlags;

@@ -626,6 +626,163 @@ TEST(ComponentValidatorTest, InstanceTypeDuplicateExportName) {
   ASSERT_FALSE(V.validate(Comp));
 }
 
+TEST(ComponentValidatorTest, InstanceTypeExportCaseFoldConflict) {
+  // (type (instance
+  //   (export "foo" (func))
+  //   (export "foo-BAR" (func))  ;; OK: distinct
+  //   (export "FOO" (func))       ;; FAIL: case-folds to existing "foo"
+  // ))
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+  std::vector<AST::Component::InstanceDecl> Decls;
+  for (const auto *N : {"foo", "foo-BAR", "FOO"}) {
+    AST::Component::ExportDecl Exp;
+    Exp.getName() = N;
+    Exp.getExternDesc().setFuncTypeIdx(0);
+    AST::Component::InstanceDecl D;
+    D.setExport(std::move(Exp));
+    Decls.push_back(std::move(D));
+  }
+
+  AST::Component::InstanceType IT;
+  IT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
+  // (type (instance
+  //   (export "foo" (func))
+  //   (export "[constructor]foo" (func))  ;; OK: strongly-unique pair
+  // ))
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+  std::vector<AST::Component::InstanceDecl> Decls;
+  for (const auto *N : {"foo", "[constructor]foo"}) {
+    AST::Component::ExportDecl Exp;
+    Exp.getName() = N;
+    Exp.getExternDesc().setFuncTypeIdx(0);
+    AST::Component::InstanceDecl D;
+    D.setExport(std::move(Exp));
+    Decls.push_back(std::move(D));
+  }
+
+  AST::Component::InstanceType IT;
+  IT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, InstanceTypeExportMethodSelfDotConflict) {
+  // (type (instance
+  //   (export "foo" (func))
+  //   (export "[method]foo.foo" (func))   ;; FAIL: L and [*]L.L conflict
+  // ))
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+  std::vector<AST::Component::InstanceDecl> Decls;
+  for (const auto *N : {"foo", "[method]foo.foo"}) {
+    AST::Component::ExportDecl Exp;
+    Exp.getName() = N;
+    Exp.getExternDesc().setFuncTypeIdx(0);
+    AST::Component::InstanceDecl D;
+    D.setExport(std::move(Exp));
+    Decls.push_back(std::move(D));
+  }
+
+  AST::Component::InstanceType IT;
+  IT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, ComponentTopLevelDuplicateExportName) {
+  // (component
+  //   (import "i0" (func (type 0)))
+  //   (export "foo" (func 0))
+  //   (export "foo" (func 0))     ;; FAIL: duplicate
+  // )
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "i0";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec =
+      std::get<AST::Component::ExportSection>(Comp.getSections().back());
+  for (int I = 0; I < 2; ++I) {
+    AST::Component::Export Ex;
+    Ex.getName() = "foo";
+    Ex.getSortIndex().getSort().setIsCore(false);
+    Ex.getSortIndex().getSort().setSortType(
+        AST::Component::Sort::SortType::Func);
+    Ex.getSortIndex().setIdx(0);
+    ExpSec.getContent().push_back(std::move(Ex));
+  }
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, ComponentTopLevelExportCaseFoldConflict) {
+  // (component
+  //   (import "i0" (func (type 0)))
+  //   (export "foo" (func 0))
+  //   (export "FOO" (func 0))   ;; FAIL: case-folds to existing "foo"
+  // )
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "i0";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ExportSection>();
+  auto &ExpSec =
+      std::get<AST::Component::ExportSection>(Comp.getSections().back());
+  for (const auto *N : {"foo", "FOO"}) {
+    AST::Component::Export Ex;
+    Ex.getName() = N;
+    Ex.getSortIndex().getSort().setIsCore(false);
+    Ex.getSortIndex().getSort().setSortType(
+        AST::Component::Sort::SortType::Func);
+    Ex.getSortIndex().setIdx(0);
+    ExpSec.getContent().push_back(std::move(Ex));
+  }
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
 TEST(ComponentValidatorTest, ComponentTypeDuplicateImportName) {
   // (type (component
   //   (import "f" (func))

@@ -94,3 +94,10 @@ node_modules/
 
 # generated jni files
 bindings/java/wasmedge-java/wasmedge-jni/jni/*.h
+run.log
+tests-local/
+misalign-test.wat
+lib/host/wasi/misalignedtests/
+CHECKSUM_VERIFICATION.md
+MISALIGN_TEST_RESULTS.md
+WASI_FUNCTIONS_CALL_CHAIN.md

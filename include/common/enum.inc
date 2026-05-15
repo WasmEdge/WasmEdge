@@ -829,6 +829,7 @@ H(Wasi)
 R(Interpreter)
 R(JIT)
 R(AOT)
+R(LazyJIT)
 #undef R
 #endif // UseRunMode
 

@@ -38,6 +38,9 @@ RunMode parseRunModeArg(std::string_view S) noexcept {
   if (Lower == "aot") {
     return RunMode::AOT;
   }
+  if (Lower == "lazy-jit" || Lower == "lazyjit") {
+    return RunMode::LazyJIT;
+  }
   // Default to interpreter on any unrecognised value.
   return RunMode::Interpreter;
 }
@@ -506,14 +509,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     RunModeFromFlag = RunMode::Interpreter;
   }
   Conf.getRuntimeConfigure().setRunMode(RunModeFromFlag);
-  if (RunModeFromFlag == RunMode::JIT) {
-    Conf.getCompilerConfigure().setOptimizationLevel(
-        WasmEdge::CompilerConfigure::OptimizationLevel::O1);
-  }
-  if (Opt.ConfEnableLazyJIT.value()) {
-    // JIT Mode must be enabled.
-    Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
-    Conf.getRuntimeConfigure().setEnableLazyJIT(true);
+  if (RunModeFromFlag == RunMode::JIT || RunModeFromFlag == RunMode::LazyJIT) {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }

@@ -430,14 +430,11 @@ private:
     const AST::Module *Module = nullptr;
     const Runtime::Instance::ModuleInstance *ModuleInstance = nullptr;
     uint32_t ImportFuncCount = 0;
-    uint32_t TotalFuncCount = 0;
     LLVM::Data LLData;
     std::unique_ptr<LLVM::Compiler::CompileContext,
                     LLVM::Compiler::CompileContextDeleter>
         LLContext;
     std::shared_ptr<Executable> Exec;
-    std::unique_ptr<llvm::Module> CumulativeModule;
-    std::unordered_set<uint32_t> LazyCompileInProgress;
   };
 
   LazyJITPendingState Pending;
@@ -448,9 +445,6 @@ private:
   unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
                             uint32_t FuncIdx);
 
-  /// Get or create lazy JIT state for a module instance
-  LLVM::LazyJITState &
-  getLazyJITStateForModule(const Runtime::Instance::ModuleInstance *ModInst);
   /// @}
 #endif
 };

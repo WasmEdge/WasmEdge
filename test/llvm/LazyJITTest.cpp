@@ -58,8 +58,7 @@ protected:
   // Helper to create a VM with eager JIT
   std::unique_ptr<VM::VM> createEagerJITVM() {
     Configure Conf;
-    Conf.getRuntimeConfigure().setEnableJIT(true);
-    Conf.getRuntimeConfigure().setEnableLazyJIT(false);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
     Conf.getCompilerConfigure().setOptimizationLevel(
         CompilerConfigure::OptimizationLevel::O0);
     return std::make_unique<VM::VM>(Conf);
@@ -68,8 +67,7 @@ protected:
   // Helper to create a VM with lazy JIT
   std::unique_ptr<VM::VM> createLazyJITVM() {
     Configure Conf;
-    Conf.getRuntimeConfigure().setEnableJIT(true);
-    Conf.getRuntimeConfigure().setEnableLazyJIT(true);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
     Conf.getCompilerConfigure().setOptimizationLevel(
         CompilerConfigure::OptimizationLevel::O0);
     return std::make_unique<VM::VM>(Conf);
@@ -78,52 +76,48 @@ protected:
   // Helper to create a VM with interpreter mode
   std::unique_ptr<VM::VM> createInterpreterVM() {
     Configure Conf;
-    Conf.getRuntimeConfigure().setEnableJIT(false);
-    Conf.getRuntimeConfigure().setEnableLazyJIT(false);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::Interpreter);
     return std::make_unique<VM::VM>(Conf);
   }
 };
 
 TEST_F(LazyJITTest, ConfigurationDefaultDisabled) {
   Configure Conf;
-  EXPECT_FALSE(Conf.getRuntimeConfigure().isEnableLazyJIT());
-  EXPECT_FALSE(Conf.getRuntimeConfigure().isEnableJIT());
+  EXPECT_EQ(Conf.getRuntimeConfigure().getRunMode(), RunMode::Interpreter);
 }
 
 TEST_F(LazyJITTest, ConfigurationEnableDisable) {
   Configure Conf;
 
   // Enable lazy JIT
-  Conf.getRuntimeConfigure().setEnableLazyJIT(true);
-  EXPECT_TRUE(Conf.getRuntimeConfigure().isEnableLazyJIT());
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  EXPECT_EQ(Conf.getRuntimeConfigure().getRunMode(), RunMode::LazyJIT);
 
-  // Disable lazy JIT
-  Conf.getRuntimeConfigure().setEnableLazyJIT(false);
-  EXPECT_FALSE(Conf.getRuntimeConfigure().isEnableLazyJIT());
+  // Disable lazy JIT (back to interpreter)
+  Conf.getRuntimeConfigure().setRunMode(RunMode::Interpreter);
+  EXPECT_NE(Conf.getRuntimeConfigure().getRunMode(), RunMode::LazyJIT);
 }
 
 TEST_F(LazyJITTest, ConfigurationCopy) {
   Configure Conf1;
-  Conf1.getRuntimeConfigure().setEnableLazyJIT(true);
-  Conf1.getRuntimeConfigure().setEnableJIT(true);
+  Conf1.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
 
   // Copy constructor
   Configure Conf2(Conf1);
-  EXPECT_TRUE(Conf2.getRuntimeConfigure().isEnableLazyJIT());
-  EXPECT_TRUE(Conf2.getRuntimeConfigure().isEnableJIT());
+  EXPECT_EQ(Conf2.getRuntimeConfigure().getRunMode(), RunMode::LazyJIT);
 
   // Modify original should not affect copy
-  Conf1.getRuntimeConfigure().setEnableLazyJIT(false);
-  EXPECT_TRUE(Conf2.getRuntimeConfigure().isEnableLazyJIT());
+  Conf1.getRuntimeConfigure().setRunMode(RunMode::Interpreter);
+  EXPECT_EQ(Conf2.getRuntimeConfigure().getRunMode(), RunMode::LazyJIT);
 }
 
 TEST_F(LazyJITTest, RuntimeConfigureIndependent) {
   RuntimeConfigure RConf1;
   RuntimeConfigure RConf2;
 
-  RConf1.setEnableLazyJIT(true);
-  EXPECT_TRUE(RConf1.isEnableLazyJIT());
-  EXPECT_FALSE(RConf2.isEnableLazyJIT());
+  RConf1.setRunMode(RunMode::LazyJIT);
+  EXPECT_EQ(RConf1.getRunMode(), RunMode::LazyJIT);
+  EXPECT_NE(RConf2.getRunMode(), RunMode::LazyJIT);
 }
 
 TEST_F(LazyJITTest, InterpreterModeBaseline) {

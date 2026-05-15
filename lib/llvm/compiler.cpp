@@ -4267,7 +4267,6 @@ private:
             ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
-    const auto &RetTypes = FuncType.getReturnTypes();
 
     std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
     Args[0] = F.Fn.getFirstParam();
@@ -4276,61 +4275,62 @@ private:
       Args[J + 1] = stackPop();
     }
 
+    LLVM::Value Ret;
     if (IsLazyJIT) {
-      // For Lazy JIT, use the kCall intrinsic to invoke the function.
-      // This avoids direct symbols to uncompiled functions.
-      const size_t ArgSize = ParamTypes.size();
-      const size_t RetSize = RetTypes.size();
+      bool IsImport = std::get<2>(Context.Functions[FuncIndex]) == nullptr;
+      if (IsImport) {
+        Ret = Builder.createCall(Function, Args);
+      } else {
+        auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
 
-      LLVM::Value ArgsArray = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value RetsArray = Builder.createArray(RetSize, kValSize);
+        auto CacheVar = Context.LLModule.get().addGlobal(
+            FTy.getPointerTo(), false, LLVMPrivateLinkage,
+            LLVM::Value::getConstNull(FTy.getPointerTo()), "");
 
-      // Store arguments
-      if (ArgSize > 0) {
-        // Args[0] is ExecCtx, so we skip it.
-        std::vector<LLVM::Value> CallArgs(Args.begin() + 1, Args.end());
-        Builder.createArrayPtrStore(Span<LLVM::Value>(CallArgs), ArgsArray,
-                                    Context.Int8Ty, kValSize);
-      }
+        auto CheckBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ic.check");
+        auto ResolveBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "ic.resolve");
+        auto CallBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ic.call");
 
-      // Call kCall intrinsic
-      Builder.createCall(
-          Context.getIntrinsic(
-              Builder, Executable::Intrinsics::kCall,
-              LLVM::Type::getFunctionType(
-                  Context.VoidTy,
-                  {Context.Int32Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                  false)),
-          {LLContext.getInt32(FuncIndex), ArgsArray, RetsArray});
+        Builder.createBr(CheckBB);
+        Builder.positionAtEnd(CheckBB);
 
-      // Load return values
-      if (RetSize > 0) {
-        std::vector<LLVM::Value> RetsVec;
-        auto RTy = toLLVMRetsType(LLContext, RetTypes);
-        if (RetSize == 1) {
-          RetsVec.push_back(
-              Builder.createValuePtrLoad(RTy, RetsArray, Context.Int8Ty));
-        } else {
-          RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, RetsArray,
-                                               Context.Int8Ty, kValSize);
-        }
+        auto CachedPtr =
+            Builder.createLoad(FTy.getPointerTo(), CacheVar, false);
+        auto IsNull = Builder.createIsNull(CachedPtr);
+        auto IsNotNull = Builder.createLikely(Builder.createNot(IsNull));
+        Builder.createCondBr(IsNotNull, CallBB, ResolveBB);
 
-        for (auto &Val : RetsVec) {
-          stackPush(Val);
-        }
+        Builder.positionAtEnd(ResolveBB);
+        auto FPtr = Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
+                LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                            {Context.Int32Ty}, false)),
+            {LLContext.getInt32(FuncIndex)});
+        Builder.createStore(FPtr, CacheVar);
+        Builder.createBr(CallBB);
+
+        Builder.positionAtEnd(CallBB);
+        auto FinalPtr = Builder.createPHI(FTy.getPointerTo());
+        FinalPtr.addIncoming(CachedPtr, CheckBB);
+        FinalPtr.addIncoming(FPtr, ResolveBB);
+
+        Ret = Builder.createCall(LLVM::FunctionCallee(FTy, FinalPtr), Args);
       }
     } else {
-      auto Ret = Builder.createCall(Function, Args);
-      auto Ty = Ret.getType();
-      if (Ty.isVoidTy()) {
-        // nothing to do
-      } else if (Ty.isStructTy()) {
-        for (auto Val : unpackStruct(Builder, Ret)) {
-          stackPush(Val);
-        }
-      } else {
-        stackPush(Ret);
+      Ret = Builder.createCall(Function, Args);
+    }
+
+    auto Ty = Ret.getType();
+    if (Ty.isVoidTy()) {
+      // nothing to do
+    } else if (Ty.isStructTy()) {
+      for (auto Val : unpackStruct(Builder, Ret)) {
+        stackPush(Val);
       }
+    } else {
+      stackPush(Ret);
     }
   }
 
@@ -4433,7 +4433,6 @@ private:
             ->getFuncType();
     const auto &Function = std::get<1>(Context.Functions[FuncIndex]);
     const auto &ParamTypes = FuncType.getParamTypes();
-    const auto &RetTypes = FuncType.getReturnTypes();
 
     std::vector<LLVM::Value> Args(ParamTypes.size() + 1);
     Args[0] = F.Fn.getFirstParam();
@@ -4442,78 +4441,53 @@ private:
       Args[J + 1] = stackPop();
     }
 
+    LLVM::Value Ret;
     if (IsLazyJIT) {
-      auto NotNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.not_null");
-      auto IsNullBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.is_null");
-      auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
-
-      auto FPtr = Builder.createCall(
-          Context.getIntrinsic(
-              Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
-              LLVM::Type::getFunctionType(FTy.getPointerTo(), {Context.Int32Ty},
-                                          false)),
-          {LLContext.getInt32(FuncIndex)});
-      Builder.createCondBr(
-          Builder.createLikely(Builder.createNot(Builder.createIsNull(FPtr))),
-          NotNullBB, IsNullBB);
-      Builder.positionAtEnd(NotNullBB);
-
-      auto Ret = Builder.createCall(LLVM::FunctionCallee(FTy, FPtr), Args);
-      Ret.setMustTailCall();
-      auto Ty = Ret.getType();
-      if (Ty.isVoidTy()) {
-        Builder.createRetVoid();
+      bool IsImport = std::get<2>(Context.Functions[FuncIndex]) == nullptr;
+      if (IsImport) {
+        Ret = Builder.createCall(Function, Args);
       } else {
-        Builder.createRet(Ret);
+        auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
+
+        auto CacheVar = Context.LLModule.get().addGlobal(
+            FTy.getPointerTo(), false, LLVMPrivateLinkage,
+            LLVM::Value::getConstNull(FTy.getPointerTo()), "");
+
+        auto CheckBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.check");
+        auto ResolveBB =
+            LLVM::BasicBlock::create(LLContext, F.Fn, "rc.resolve");
+        auto CallBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.call");
+
+        Builder.createBr(CheckBB);
+        Builder.positionAtEnd(CheckBB);
+
+        auto CachedPtr =
+            Builder.createLoad(FTy.getPointerTo(), CacheVar, false);
+        auto IsNull = Builder.createIsNull(CachedPtr);
+        auto IsNotNull = Builder.createLikely(Builder.createNot(IsNull));
+        Builder.createCondBr(IsNotNull, CallBB, ResolveBB);
+
+        Builder.positionAtEnd(ResolveBB);
+        auto FPtr = Builder.createCall(
+            Context.getIntrinsic(
+                Builder, Executable::Intrinsics::kFuncGetFuncSymbol,
+                LLVM::Type::getFunctionType(FTy.getPointerTo(),
+                                            {Context.Int32Ty}, false)),
+            {LLContext.getInt32(FuncIndex)});
+        Builder.createStore(FPtr, CacheVar);
+        Builder.createBr(CallBB);
+
+        Builder.positionAtEnd(CallBB);
+        auto FinalPtr = Builder.createPHI(FTy.getPointerTo());
+        FinalPtr.addIncoming(CachedPtr, CheckBB);
+        FinalPtr.addIncoming(FPtr, ResolveBB);
+
+        Ret = Builder.createCall(LLVM::FunctionCallee(FTy, FinalPtr), Args);
       }
-
-      Builder.positionAtEnd(IsNullBB);
-
-      const size_t ArgSize = ParamTypes.size();
-      const size_t RetSize = RetTypes.size();
-
-      LLVM::Value ArgsArray = Builder.createArray(ArgSize, kValSize);
-      LLVM::Value RetsArray = Builder.createArray(RetSize, kValSize);
-
-      if (ArgSize > 0) {
-        std::vector<LLVM::Value> CallArgs(Args.begin() + 1, Args.end());
-        Builder.createArrayPtrStore(Span<LLVM::Value>(CallArgs), ArgsArray,
-                                    Context.Int8Ty, kValSize);
-      }
-
-      Builder.createCall(
-          Context.getIntrinsic(
-              Builder, Executable::Intrinsics::kCall,
-              LLVM::Type::getFunctionType(
-                  Context.VoidTy,
-                  {Context.Int32Ty, Context.Int8PtrTy, Context.Int8PtrTy},
-                  false)),
-          {LLContext.getInt32(FuncIndex), ArgsArray, RetsArray});
-
-      if (RetSize == 0) {
-        Builder.createRetVoid();
-      } else {
-        auto RTy = toLLVMRetsType(LLContext, RetTypes);
-        std::vector<LLVM::Value> RetsVec;
-        if (RetSize == 1) {
-          RetsVec.push_back(
-              Builder.createValuePtrLoad(RTy, RetsArray, Context.Int8Ty));
-        } else {
-          RetsVec = Builder.createArrayPtrLoad(RetSize, RTy, RetsArray,
-                                               Context.Int8Ty, kValSize);
-        }
-        auto RetTy = F.Ty.getReturnType();
-        if (RetTy.isStructTy()) {
-          Builder.createAggregateRet(RetsVec);
-        } else {
-          assuming(RetsVec.size() == 1);
-          Builder.createRet(RetsVec[0]);
-        }
-      }
-      return;
+    } else {
+      Ret = Builder.createCall(Function, Args);
     }
 
-    auto Ret = Builder.createCall(Function, Args);
     Ret.setMustTailCall();
     auto Ty = Ret.getType();
     if (Ty.isVoidTy()) {
@@ -6495,11 +6469,11 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
         Locals.push_back(Local.second);
       }
     }
-    FunctionCompiler FC(*Context, F, Locals,
-                        Conf.getCompilerConfigure().isInterruptible(),
-                        Conf.getStatisticsConfigure().isInstructionCounting(),
-                        Conf.getStatisticsConfigure().isCostMeasuring(),
-                        Conf.getRuntimeConfigure().isEnableLazyJIT());
+    FunctionCompiler FC(
+        *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
+        Conf.getStatisticsConfigure().isInstructionCounting(),
+        Conf.getStatisticsConfigure().isCostMeasuring(),
+        Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT);
     auto Type = Context->resolveBlockType(T);
     EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
     F.Fn.eliminateUnreachableBlocks();
@@ -6578,11 +6552,11 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
     }
   }
 
-  FunctionCompiler FC(*Context, F, Locals,
-                      Conf.getCompilerConfigure().isInterruptible(),
-                      Conf.getStatisticsConfigure().isInstructionCounting(),
-                      Conf.getStatisticsConfigure().isCostMeasuring(),
-                      Conf.getRuntimeConfigure().isEnableLazyJIT());
+  FunctionCompiler FC(
+      *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
+      Conf.getStatisticsConfigure().isInstructionCounting(),
+      Conf.getStatisticsConfigure().isCostMeasuring(),
+      Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT);
   auto Type = Context->resolveBlockType(T);
   EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
   F.Fn.eliminateUnreachableBlocks();
@@ -6662,14 +6636,32 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
                                              CompileContext *NewContext,
                                              const AST::Module &Module,
                                              uint32_t FuncIndex) noexcept {
-  // Check the module is validated.
+  const uint32_t One[1] = {FuncIndex};
+  return compileFunctions(std::move(LLData), NewContext, Module,
+                          Span<const uint32_t>(One, 1));
+}
+
+Expect<LLVM::Data>
+Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
+                           const AST::Module &Module,
+                           Span<const uint32_t> LocalFuncIndices) noexcept {
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     return Unexpect(ErrCode::Value::NotValidated);
   }
+  if (unlikely(LocalFuncIndices.empty())) {
+    spdlog::error("[lazyjit]: compileFunctions with empty index list"sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
 
   std::unique_lock Lock(Mutex);
-  spdlog::debug("[lazyjit]: compile function {} start"sv, FuncIndex);
+  std::vector<uint32_t> Sorted(LocalFuncIndices.begin(),
+                               LocalFuncIndices.end());
+  std::sort(Sorted.begin(), Sorted.end());
+  Sorted.erase(std::unique(Sorted.begin(), Sorted.end()), Sorted.end());
+
+  spdlog::debug("[lazyjit]: compile functions batch ({}) start"sv,
+                Sorted.size());
 
   auto LLContext = LLData.extract().getLLContext();
   LLVM::Core::init(LLContext.unwrap());
@@ -6680,7 +6672,6 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
   this->Context = NewContext;
   Context->LLModule = LLModule;
 
-  // Clear module-bound state if reusing the context
   Context->CompositeTypes.clear();
   Context->FunctionWrappers.clear();
   Context->Functions.clear();
@@ -6705,30 +6696,25 @@ Expect<LLVM::Data> Compiler::compileFunction(Data &&LLData,
   Context->Trap.Fn.addFnAttr(Context->NoInline);
   Context->compileTrap();
 
-  // Re-compile infrastructure for the fresh module
-  // compile types first (needed for function type lookup)
   compile(Module.getTypeSection(), true);
-  // compile imports to get the correct function offset
   compile(Module.getImportSection());
-  // compile globals (may be needed by function body)
   compile(Module.getGlobalSection());
-  // compile memory
   compile(Module.getMemorySection(), Module.getDataSection());
-  // compile table
   compile(Module.getTableSection(), Module.getElementSection());
 
-  // create all function declarations
   compileFunctionDeclarations(Module.getFunctionSection(),
                               Module.getCodeSection());
 
-  // compile only the requested function body
-  EXPECTED_TRY(compileFunctionBody(FuncIndex));
+  for (uint32_t FuncIndex : Sorted) {
+    EXPECTED_TRY(compileFunctionBody(FuncIndex));
+  }
 
-  spdlog::info("[lazyjit]: verify function {} start"sv, FuncIndex);
+  spdlog::info("[lazyjit]: verify batch ({} funcs) start"sv, Sorted.size());
   LLModule.verify(LLVMPrintMessageAction);
-  spdlog::info("[lazyjit]: verify function {} done"sv, FuncIndex);
+  spdlog::info("[lazyjit]: verify batch ({} funcs) done"sv, Sorted.size());
 
-  spdlog::debug("[lazyjit]: compile function {} done"sv, FuncIndex);
+  spdlog::debug("[lazyjit]: compile functions batch ({}) done"sv,
+                Sorted.size());
   return Expect<Data>{std::move(LLData)};
 }
 

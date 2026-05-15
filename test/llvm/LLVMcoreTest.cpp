@@ -543,8 +543,7 @@ TEST_P(LazyJITCoreTest, TestSuites) {
                         const std::vector<std::pair<std::string, std::string>>
                             &SharedModules) -> SpecTest::ContextHandle {
     WasmEdge::Configure CopyConf = ConfRef;
-    CopyConf.getRuntimeConfigure().setEnableJIT(true);
-    CopyConf.getRuntimeConfigure().setEnableLazyJIT(true);
+    CopyConf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
     CopyConf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O0);
     CopyConf.getCompilerConfigure().setDumpIR(true);

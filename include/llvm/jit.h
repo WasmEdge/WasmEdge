@@ -16,6 +16,7 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errcode.h"
+#include "common/span.h"
 #include "llvm/compiler.h"
 #include "llvm/data.h"
 #include <memory>
@@ -52,6 +53,7 @@ public:
   std::vector<Symbol<void>> getCodes(size_t Offset,
                                      size_t Size) noexcept override;
   bool isLazy() const noexcept override { return IsLazy; }
+  void setPrefix(std::string Prefix) noexcept { this->Prefix = Prefix; }
 
 private:
   std::shared_ptr<OrcLLJIT> J;
@@ -72,22 +74,28 @@ public:
   Expect<WasmFunctionCodeAddress> add(Executable &Exec, Data &D,
                                       uint32_t GlobalFuncIndex) noexcept;
 
+  /// Adds one LLVM IR module and resolves many wasm function symbols.
+  Expect<std::vector<WasmFunctionCodeAddress>>
+  add(Executable &Exec, Data &D,
+      Span<const uint32_t> GlobalFuncIndices) noexcept;
+
+  /// Look up already-loaded symbols (no IR add). Same index convention as
+  /// \c add .
+  Expect<std::vector<WasmFunctionCodeAddress>>
+  lookupWasmFunctionSymbols(Executable &Exec, std::string_view Prefix,
+                            Span<const uint32_t> GlobalFuncIndices) noexcept;
+
 private:
   const Configure Conf;
 };
 
-std::unique_ptr<llvm::Module> cloneModuleForLazyJIT(Data &D) noexcept;
-
 struct LazyJITState {
-  ~LazyJITState();
+  LazyJITState() = default;
   /// Track which functions have been lazy-compiled.
   std::unordered_set<uint32_t> LazyCompiledFuncs;
-  /// Functions currently being lazy-compiled (detect mutual tail-call cycles).
-  std::unordered_set<uint32_t> LazyCompileInProgress;
+
   /// Number of import functions (offset for local function indices).
   uint32_t ImportFuncCount = 0;
-  /// Number of total functions
-  uint32_t TotalFuncCount = 0;
   /// Pointer to the AST module (non-owning pointer, lifetime managed by caller)
   const AST::Module *ModulePtr = nullptr;
   /// Optional owned module (used when VM takes ownership)
@@ -99,8 +107,6 @@ struct LazyJITState {
   /// Pointer to the LLVM context.
   std::unique_ptr<Compiler::CompileContext, Compiler::CompileContextDeleter>
       LLContext;
-  /// Merged LLVM IR for lazy JIT (infrastructure plus linked lazy chunks).
-  std::unique_ptr<llvm::Module> CumulativeModule;
 };
 
 } // namespace WasmEdge::LLVM

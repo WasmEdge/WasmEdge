@@ -34,6 +34,10 @@
 #include <unordered_map>
 #include <variant>
 
+namespace WasmEdge {
+thread_local bool SpecTest::SkipComponentValidation = false;
+}
+
 namespace {
 
 using namespace std::literals;

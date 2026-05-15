@@ -25,6 +25,7 @@
 
 #include "runtime/instance/module.h"
 #include "runtime/storemgr.h"
+#include "llvm/jit.h"
 
 #include <cstdint>
 #include <memory>
@@ -32,7 +33,6 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -280,6 +280,11 @@ public:
   /// Getter of statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
+  /// Getter of Lazy JIT state.
+  const LLVM::LazyJITState &getLazyJITState() const noexcept {
+    return LJITState;
+  }
+
 private:
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);
@@ -411,13 +416,7 @@ private:
 #ifdef WASMEDGE_USE_LLVM
   /// \name Lazy JIT.
   /// @{
-  struct LazyJITState {
-    /// Track which functions have been lazy-compiled.
-    std::unordered_set<uint32_t> LazyCompiledFuncs;
-    /// Number of import functions (offset for local function indices).
-    uint32_t ImportFuncCount = 0;
-  };
-  LazyJITState LJITState;
+  LLVM::LazyJITState LJITState;
 
   /// Lazy compile a function if lazy JIT mode is enabled and function not yet
   /// compiled.

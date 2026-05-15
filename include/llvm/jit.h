@@ -24,7 +24,7 @@ class OrcLLJIT;
 
 class JITLibrary : public Executable {
 public:
-  JITLibrary(OrcLLJIT JIT) noexcept;
+  JITLibrary(OrcLLJIT JIT, bool IsLazy = false) noexcept;
   ~JITLibrary() noexcept override;
 
   Symbol<const IntrinsicsTable *> getIntrinsics() noexcept override;
@@ -36,12 +36,14 @@ public:
 
 private:
   OrcLLJIT *J;
+  bool IsLazy;
 };
 
 class JIT {
 public:
   JIT(const Configure &Conf) noexcept : Conf(Conf) {}
-  Expect<std::shared_ptr<Executable>> load(Data D) noexcept;
+  Expect<std::shared_ptr<Executable>> load(Data D,
+                                           bool IsLazy = false) noexcept;
 
 private:
   const Configure Conf;

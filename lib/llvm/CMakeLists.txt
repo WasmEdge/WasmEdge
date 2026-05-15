@@ -11,6 +11,9 @@ if(LLD_FOUND)
   list(APPEND CMAKE_MODULE_PATH "${LLD_CMAKE_DIR}")
 endif()
 
+set(LLVM_INCLUDE_DIR "${LLVM_INCLUDE_DIR}" PARENT_SCOPE)
+set(LLD_INCLUDE_DIRS "${LLD_INCLUDE_DIRS}" PARENT_SCOPE)
+
 if(WASMEDGE_LINK_LLVM_STATIC)
   wasmedge_add_library(wasmedgeLLVM
     compiler.cpp

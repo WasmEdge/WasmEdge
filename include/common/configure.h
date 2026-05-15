@@ -116,6 +116,7 @@ public:
   RuntimeConfigure(const RuntimeConfigure &RHS) noexcept
       : MaxMemPage(RHS.MaxMemPage.load(std::memory_order_relaxed)),
         Mode(RHS.Mode.load(std::memory_order_relaxed)),
+        EnableLazyJIT(RHS.EnableLazyJIT.load(std::memory_order_relaxed)),
         EnableCoredump(RHS.EnableCoredump.load(std::memory_order_relaxed)),
         CoredumpWasmgdb(RHS.CoredumpWasmgdb.load(std::memory_order_relaxed)),
         AllowAFUNIX(RHS.AllowAFUNIX.load(std::memory_order_relaxed)) {}
@@ -134,6 +135,14 @@ public:
 
   RunMode getRunMode() const noexcept {
     return Mode.load(std::memory_order_relaxed);
+  }
+
+  void setEnableLazyJIT(bool IsEnableLazyJIT) noexcept {
+    EnableLazyJIT.store(IsEnableLazyJIT, std::memory_order_relaxed);
+  }
+
+  bool isEnableLazyJIT() const noexcept {
+    return EnableLazyJIT.load(std::memory_order_relaxed);
   }
 
   void setEnableCoredump(bool IsEnableCoredump) noexcept {
@@ -163,6 +172,7 @@ public:
 private:
   std::atomic<uint64_t> MaxMemPage = 65536;
   std::atomic<RunMode> Mode = RunMode::Interpreter;
+  std::atomic<bool> EnableLazyJIT = false;
   std::atomic<bool> EnableCoredump = false;
   std::atomic<bool> CoredumpWasmgdb = false;
   std::atomic<bool> AllowAFUNIX = false;

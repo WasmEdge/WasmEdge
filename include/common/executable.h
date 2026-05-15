@@ -78,9 +78,7 @@ public:
     kMemAtomicWait,
     kTableGetFuncSymbol,
     kRefGetFuncSymbol,
-    kReturnCall,
-    kReturnCallIndirect,
-    kReturnCallRef,
+    kFuncGetFuncSymbol,
     kIntrinsicMax,
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];

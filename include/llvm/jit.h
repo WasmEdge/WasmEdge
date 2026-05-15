@@ -66,10 +66,9 @@ public:
   JIT(const Configure &Conf) noexcept : Conf(Conf) {}
   Expect<std::shared_ptr<Executable>> load(Data &D,
                                            bool IsLazy = false) noexcept;
-  Expect<std::shared_ptr<Executable>> loadModule(OrcThreadSafeContext &TSContext,
-                                                 Module &&LLModule,
-                                                 std::string_view Prefix,
-                                                 bool IsLazy = false) noexcept;
+  Expect<std::shared_ptr<Executable>>
+  loadModule(OrcThreadSafeContext &TSContext, Module &&LLModule,
+             std::string_view Prefix, bool IsLazy = false) noexcept;
   /// Resolves the wasm function symbol in the new lazy JITDylib only (global
   /// index: imports + local index).
   Expect<WasmFunctionCodeAddress> add(Executable &Exec, Data &D,

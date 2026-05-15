@@ -204,7 +204,9 @@ public:
 
   /// Register a callback for lazy function compilation
   void registerLazyCompilationCallback(
-      std::function<Expect<void>(const uint32_t)> Callback) {
+      std::function<Expect<void>(const Runtime::Instance::ModuleInstance *,
+                                 const uint32_t)>
+          Callback) {
     LazyCompilationHandler = std::move(Callback);
   }
 
@@ -1144,7 +1146,9 @@ private:
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
   /// Callback for lazy function compilation
-  std::function<Expect<void>(const uint32_t)> LazyCompilationHandler;
+  std::function<Expect<void>(const Runtime::Instance::ModuleInstance *,
+                             const uint32_t)>
+      LazyCompilationHandler;
 };
 
 } // namespace Executor

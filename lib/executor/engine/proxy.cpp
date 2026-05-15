@@ -124,7 +124,8 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
                                  ValVariant *Rets) noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
   if (!FuncInst->isCompiledFunction() && LazyCompilationHandler) {
-    EXPECTED_TRY(LazyCompilationHandler(FuncIdx));
+    const auto *ModInst = StackMgr.getModule();
+    EXPECTED_TRY(LazyCompilationHandler(ModInst, FuncIdx));
   }
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =

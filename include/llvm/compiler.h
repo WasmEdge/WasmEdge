@@ -33,19 +33,28 @@ public:
 
   /// Compile the whole module.
   Expect<Data> compile(const AST::Module &Module) noexcept;
-  /// Compile only the infrastructure (types, imports, globals, etc.) without
-  /// function bodies.
-  Expect<Data> compileInfrastructure(const AST::Module &Module) noexcept;
-  /// Compile a single function by index.
-  Expect<Data> compileFunction(const AST::Module &Module,
-                               uint32_t FuncIndex) noexcept;
 
   struct CompileContext;
+  struct CompileContextDeleter {
+    void operator()(CompileContext *Context) const noexcept;
+  };
+
+  /// Compile only the infrastructure (types, imports, globals, etc.) without
+  /// function bodies.
+  Expect<
+      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>
+  compileInfrastructure(const AST::Module &Module,
+                        std::string Prefix = "") noexcept;
+  /// Compile a single function by index.
+  Expect<Data> compileFunction(Data &&LLData, CompileContext *Context,
+                               const AST::Module &Module,
+                               uint32_t FuncIndex) noexcept;
 
 private:
   void compile(const AST::ImportSection &ImportSection) noexcept;
   void compile(const AST::ExportSection &ExportSection) noexcept;
-  void compile(const AST::TypeSection &TypeSection) noexcept;
+  void compile(const AST::TypeSection &TypeSection,
+               bool DeclarationsOnly = false) noexcept;
   void compile(const AST::GlobalSection &GlobalSection) noexcept;
   void compile(const AST::MemorySection &MemorySection,
                const AST::DataSection &DataSection) noexcept;

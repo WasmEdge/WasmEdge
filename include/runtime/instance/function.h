@@ -118,12 +118,20 @@ public:
   }
 
   /// Upgrade from WasmFunction to CompiledFunction.
-  bool upgradeToCompiled(Symbol<CompiledFunction> Sym) noexcept {
+  bool unsafeUpgradeToCompiled(Symbol<CompiledFunction> Sym) noexcept {
     if (!isWasmFunction()) {
       return false;
     }
     Data = std::move(Sym);
     return true;
+  }
+
+  bool unsafeReplaceCompiledSymbol(Symbol<CompiledFunction> Sym) noexcept {
+    if (auto *P = std::get_if<Symbol<CompiledFunction>>(&Data)) {
+      *P = std::move(Sym);
+      return true;
+    }
+    return false;
   }
 
 private:

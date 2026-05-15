@@ -25,16 +25,23 @@
 
 #include "runtime/instance/module.h"
 #include "runtime/storemgr.h"
+#include "llvm/compiler.h"
+#include "llvm/data.h"
 #include "llvm/jit.h"
 
 #include <cstdint>
 #include <memory>
 #include <shared_mutex>
 #include <string>
+#include <unordered_set>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+namespace llvm {
+class Module;
+}
 
 namespace WasmEdge {
 namespace VM {
@@ -416,11 +423,28 @@ private:
                      LLVM::LazyJITState>
       LazyJITStates;
 
+  struct LazyJITPendingState {
+    ~LazyJITPendingState();
+    const AST::Module *Module = nullptr;
+    const Runtime::Instance::ModuleInstance *ModuleInstance = nullptr;
+    uint32_t ImportFuncCount = 0;
+    uint32_t TotalFuncCount = 0;
+    LLVM::Data LLData;
+    std::unique_ptr<LLVM::Compiler::CompileContext,
+                    LLVM::Compiler::CompileContextDeleter>
+        LLContext;
+    std::shared_ptr<Executable> Exec;
+    std::unique_ptr<llvm::Module> CumulativeModule;
+    std::unordered_set<uint32_t> LazyCompileInProgress;
+  };
+
+  LazyJITPendingState Pending;
+
   /// Lazy compile a function if lazy JIT mode is enabled and function not yet
   /// compiled.
   Expect<void>
-  lazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
-                      uint32_t FuncIdx);
+  unsafeLazyCompileFunction(const Runtime::Instance::ModuleInstance *ModInst,
+                            uint32_t FuncIdx);
 
   /// Get or create lazy JIT state for a module instance
   LLVM::LazyJITState &

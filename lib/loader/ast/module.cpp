@@ -175,7 +175,8 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
                   FuncTypeSymbols.size(), SubTypes.size());
     return Unexpect(ErrCode::Value::IllegalGrammar);
   }
-  if (unlikely(CodeSymbols.size() != CodeSegs.size())) {
+  // In lazy JIT mode, not all functions are compiled initially.
+  if (unlikely(CodeSymbols.size() != CodeSegs.size() && !Exec->isLazy())) {
     spdlog::error("    AOT section -- number of codes not matching:{} {}, "
                   "use interpreter mode instead.",
                   CodeSymbols.size(), CodeSegs.size());
@@ -197,6 +198,9 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
     FuncTypeIdx++;
   }
   for (size_t I = 0; I < CodeSegs.size(); ++I) {
+    if (Exec->isLazy() && !CodeSymbols[I]) {
+      continue;
+    }
     CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));
   }
   Mod.setSymbol(std::move(IntrinsicsSymbol));

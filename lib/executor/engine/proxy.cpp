@@ -107,6 +107,9 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kMemAtomicWait, proxyMemAtomicWait),
     ENTRY(kTableGetFuncSymbol, proxyTableGetFuncSymbol),
     ENTRY(kRefGetFuncSymbol, proxyRefGetFuncSymbol),
+    ENTRY(kReturnCall, proxyReturnCall),
+    ENTRY(kReturnCallIndirect, proxyReturnCallIndirect),
+    ENTRY(kReturnCallRef, proxyReturnCallRef),
 #undef ENTRY
 };
 
@@ -123,10 +126,7 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
                                  const uint32_t FuncIdx, const ValVariant *Args,
                                  ValVariant *Rets) noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
-  if (!FuncInst->isCompiledFunction() && LazyCompilationHandler) {
-    const auto *ModInst = StackMgr.getModule();
-    EXPECTED_TRY(LazyCompilationHandler(ModInst, FuncIdx));
-  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -144,6 +144,126 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
   for (uint32_t I = 0; I < ReturnsSize; ++I) {
     Rets[ReturnsSize - 1 - I] = StackMgr.pop();
   }
+  return {};
+}
+
+Expect<void> Executor::proxyReturnCall(Runtime::StackManager &StackMgr,
+                                         const uint32_t FuncIdx,
+                                         const ValVariant *Args,
+                                         ValVariant *Rets) noexcept {
+  const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+  const auto &FuncType = FuncInst->getFuncType();
+  const uint32_t ParamsSize =
+      static_cast<uint32_t>(FuncType.getParamTypes().size());
+  const uint32_t ReturnsSize =
+      static_cast<uint32_t>(FuncType.getReturnTypes().size());
+
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+
+  auto Instrs = FuncInst->getInstrs();
+  EXPECTED_TRY(auto StartIt,
+               enterFunction(StackMgr, *FuncInst, Instrs.end(), true));
+  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
+
+  for (uint32_t I = 0; I < ReturnsSize; ++I) {
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+  return {};
+}
+
+Expect<void> Executor::proxyReturnCallIndirect(
+    Runtime::StackManager &StackMgr, const uint32_t TableIdx,
+    const uint32_t FuncTypeIdx, const uint32_t FuncIdx, const ValVariant *Args,
+    ValVariant *Rets) noexcept {
+  const auto *TabInst = getTabInstByIdx(StackMgr, TableIdx);
+  assuming(TabInst);
+
+  if (unlikely(FuncIdx >= TabInst->getSize())) {
+    return Unexpect(ErrCode::Value::UndefinedElement);
+  }
+
+  auto Ref = TabInst->getRefAddr(FuncIdx);
+  assuming(Ref);
+  if (unlikely(Ref->isNull())) {
+    return Unexpect(ErrCode::Value::UninitializedElement);
+  }
+
+  const auto *ModInst = StackMgr.getModule();
+  assuming(ModInst);
+  const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
+  const auto *FuncInst = retrieveFuncRef(*Ref);
+  assuming(FuncInst);
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  bool IsMatch = false;
+  if (FuncInst->getModule()) {
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), *ExpDefType.getTypeIndex(),
+        FuncInst->getModule()->getTypeList(), FuncInst->getTypeIndex());
+  } else {
+    IsMatch = AST::TypeMatcher::matchType(
+        ModInst->getTypeList(), ExpDefType.getCompositeType(),
+        FuncInst->getHostFunc().getDefinedType().getCompositeType());
+  }
+  if (!IsMatch) {
+    return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
+  }
+
+  const auto &FuncType = FuncInst->getFuncType();
+  const uint32_t ParamsSize =
+      static_cast<uint32_t>(FuncType.getParamTypes().size());
+  const uint32_t ReturnsSize =
+      static_cast<uint32_t>(FuncType.getReturnTypes().size());
+
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+
+  auto Instrs = FuncInst->getInstrs();
+  EXPECTED_TRY(auto StartIt,
+               enterFunction(StackMgr, *FuncInst, Instrs.end(), true));
+  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
+
+  for (uint32_t I = 0; I < ReturnsSize; ++I) {
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+  return {};
+}
+
+Expect<void> Executor::proxyReturnCallRef(Runtime::StackManager &StackMgr,
+                                          const RefVariant Ref,
+                                          const ValVariant *Args,
+                                          ValVariant *Rets) noexcept {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (unlikely(!FuncInst)) {
+    return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  const auto &FuncType = FuncInst->getFuncType();
+  const uint32_t ParamsSize =
+      static_cast<uint32_t>(FuncType.getParamTypes().size());
+  const uint32_t ReturnsSize =
+      static_cast<uint32_t>(FuncType.getReturnTypes().size());
+
+  for (uint32_t I = 0; I < ParamsSize; ++I) {
+    StackMgr.push(Args[I]);
+  }
+
+  auto Instrs = FuncInst->getInstrs();
+  EXPECTED_TRY(auto StartIt,
+               enterFunction(StackMgr, *FuncInst, Instrs.end(), true));
+  EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
+
+  for (uint32_t I = 0; I < ReturnsSize; ++I) {
+    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
+  }
+
   return {};
 }
 
@@ -171,6 +291,9 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   bool IsMatch = false;
   if (FuncInst->getModule()) {
     IsMatch = AST::TypeMatcher::matchType(
@@ -212,6 +335,12 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
                                     const ValVariant *Args,
                                     ValVariant *Rets) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
+  if (unlikely(!FuncInst)) {
+    return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -644,6 +773,8 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
   }
@@ -654,6 +785,9 @@ Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
                                                const RefVariant Ref) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
   assuming(FuncInst);
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
   }

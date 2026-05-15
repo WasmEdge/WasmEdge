@@ -31,7 +31,14 @@ public:
 
   Expect<void> checkConfigure() noexcept;
 
+  /// Compile the whole module.
   Expect<Data> compile(const AST::Module &Module) noexcept;
+  /// Compile only the infrastructure (types, imports, globals, etc.) without
+  /// function bodies.
+  Expect<Data> compileInfrastructure(const AST::Module &Module) noexcept;
+  /// Compile a single function by index.
+  Expect<Data> compileFunction(const AST::Module &Module,
+                               uint32_t FuncIndex) noexcept;
 
   struct CompileContext;
 
@@ -46,6 +53,10 @@ private:
                const AST::ElementSection &ElementSection) noexcept;
   Expect<void> compile(const AST::FunctionSection &FunctionSection,
                        const AST::CodeSection &CodeSection) noexcept;
+
+  void compileFunctionDeclarations(const AST::FunctionSection &FunctionSec,
+                                   const AST::CodeSection &CodeSec) noexcept;
+  Expect<void> compileFunctionBody(uint32_t LocalFuncIndex) noexcept;
 
   std::mutex Mutex;
   CompileContext *Context;

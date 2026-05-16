@@ -25,6 +25,8 @@ wasmedge_add_library(wasmedgePluginWasiCrypto
   kx/kx.cpp
   kx/module.cpp
   kx/options.cpp
+  secrets_manager/secrets_manager.cpp
+  secrets_manager/options.cpp
   signatures/ctx.cpp
   signatures/ecdsa.cpp
   signatures/eddsa.cpp

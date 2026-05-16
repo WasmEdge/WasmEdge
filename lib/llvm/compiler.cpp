@@ -30,6 +30,16 @@ using namespace std::literals;
 
 namespace {
 
+struct RAIICleanup {
+  RAIICleanup(LLVM::Compiler::CompileContext *&Context,
+              LLVM::Compiler::CompileContext *NewContext)
+      : Context(Context) {
+    Context = NewContext;
+  }
+  ~RAIICleanup() { Context = nullptr; }
+  LLVM::Compiler::CompileContext *&Context;
+};
+
 static bool
 isVoidReturn(WasmEdge::Span<const WasmEdge::ValType> ValTypes) noexcept;
 static LLVM::Type toLLVMType(LLVM::Context LLContext,
@@ -6014,15 +6024,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
 
   CompileContext NewContext(LLContext, LLModule,
                             Conf.getCompilerConfigure().isGenericBinary());
-  struct RAIICleanup {
-    RAIICleanup(CompileContext *&Context, CompileContext &NewContext)
-        : Context(Context) {
-      Context = &NewContext;
-    }
-    ~RAIICleanup() { Context = nullptr; }
-    CompileContext *&Context;
-  };
-  RAIICleanup Cleanup(Context, NewContext);
+  RAIICleanup Cleanup(Context, &NewContext);
 
   // Compile Function Types
   compile(Module.getTypeSection());
@@ -6559,7 +6561,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
   }
 
   std::unique_lock Lock(Mutex);
-  spdlog::info("[lazyjit]: compile infrastructure start"sv);
+  spdlog::info("[lazy-jit]: compile infrastructure start"sv);
 
   auto LLContext = D.extract().getLLContext();
   LLVM::Core::init(LLContext.unwrap());
@@ -6571,7 +6573,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
       new CompileContext(LLContext, LLModule,
                          Conf.getCompilerConfigure().isGenericBinary(),
                          D.getPrefix()));
-  this->Context = NewContext.get();
+  RAIICleanup Cleanup(this->Context, NewContext.get());
 
   // Compile Function Types
   compile(Module.getTypeSection());
@@ -6605,9 +6607,8 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
   }
   LLModule.verify(LLVMPrintMessageAction);
 
-  spdlog::info("[lazyjit]: infrastructure compilation done"sv);
+  spdlog::info("[lazy-jit]: infrastructure compilation done"sv);
 
-  this->Context = nullptr;
   return Expect<
       std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>{
       std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>{
@@ -6623,7 +6624,7 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
     return Unexpect(ErrCode::Value::NotValidated);
   }
   if (unlikely(LocalFuncIndices.empty())) {
-    spdlog::error("[lazyjit]: compileFunctions with empty index list"sv);
+    spdlog::error("[lazy-jit]: compileFunctions with empty index list"sv);
     return Unexpect(ErrCode::Value::IllegalPath);
   }
 
@@ -6633,7 +6634,7 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
   std::sort(Sorted.begin(), Sorted.end());
   Sorted.erase(std::unique(Sorted.begin(), Sorted.end()), Sorted.end());
 
-  spdlog::debug("[lazyjit]: compile functions batch ({}) start"sv,
+  spdlog::debug("[lazy-jit]: compile functions batch ({}) start"sv,
                 Sorted.size());
 
   auto LLContext = LLData.extract().getLLContext();
@@ -6642,7 +6643,7 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
-  this->Context = NewContext;
+  RAIICleanup Cleanup(this->Context, NewContext);
   Context->LLModule = LLModule;
 
   Context->CompositeTypes.clear();
@@ -6682,11 +6683,11 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
     EXPECTED_TRY(compileFunctionBody(FuncIndex));
   }
 
-  spdlog::info("[lazyjit]: verify batch ({} funcs) start"sv, Sorted.size());
+  spdlog::info("[lazy-jit]: verify batch ({} funcs) start"sv, Sorted.size());
   LLModule.verify(LLVMPrintMessageAction);
-  spdlog::info("[lazyjit]: verify batch ({} funcs) done"sv, Sorted.size());
+  spdlog::info("[lazy-jit]: verify batch ({} funcs) done"sv, Sorted.size());
 
-  spdlog::debug("[lazyjit]: compile functions batch ({}) done"sv,
+  spdlog::debug("[lazy-jit]: compile functions batch ({}) done"sv,
                 Sorted.size());
   return Expect<Data>{std::move(LLData)};
 }

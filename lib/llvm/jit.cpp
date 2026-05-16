@@ -83,7 +83,8 @@ JITLibrary::getIntrinsics() noexcept {
           fmt::format("{}intrinsics"sv, Prefix).c_str())) {
     return createSymbol<const IntrinsicsTable *>(*Symbol);
   } else {
-    spdlog::error("{}"sv, errorToString(std::move(Symbol.error())));
+    spdlog::error("[lazy-jit]: failed to lookup intrinsics symbol: {}"sv,
+                  errorToString(std::move(Symbol.error())));
     return {};
   }
 }
@@ -97,7 +98,8 @@ JITLibrary::getTypes(size_t Size) noexcept {
     if (auto Symbol = J->lookup<Wrapper>(Name.c_str())) {
       Result.push_back(createSymbol<Wrapper>(*Symbol));
     } else {
-      spdlog::error("{}"sv, errorToString(std::move(Symbol.error())));
+      spdlog::error("[lazy-jit]: failed to lookup table symbol {}: {}"sv, Name,
+                    errorToString(std::move(Symbol.error())));
       Result.emplace_back();
     }
   }
@@ -117,7 +119,8 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
       Addr = *AddrOrErr;
     } else {
       if (!IsLazy) {
-        spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));
+        spdlog::error("[lazy-jit]: failed to lookup function symbol {}: {}"sv,
+                      Name, errorToString(std::move(AddrOrErr.error())));
       } else {
         // Just consume the error if it's lazy (it might not be compiled yet)
         (void)AddrOrErr.error();
@@ -148,7 +151,8 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
   } else {
     auto R = OrcLLJIT::create();
     if (!R) {
-      spdlog::error("{}"sv, R.error().message().string_view());
+      spdlog::error("[lazy-jit]: failed to create LLJIT: {}"sv,
+                    R.error().message().string_view());
       return Unexpect(ErrCode::Value::HostFuncError);
     }
     LLJITInstance = std::move(*R);
@@ -167,7 +171,8 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
   auto MainJD = LLJITInstance.getMainJITDylib();
   if (auto Err = LLJITInstance.addLLVMIRModule(
           MainJD, OrcThreadSafeModule(LLModule.release(), TSContext))) {
-    spdlog::error("{}"sv, Err.message().string_view());
+    spdlog::error("[lazy-jit]: failed to add LLVM IR module: {}"sv,
+                  Err.message().string_view());
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -177,28 +182,24 @@ Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
 }
 
 Expect<std::vector<WasmFunctionCodeAddress>>
-JIT::add(Executable &Exec, Data &D,
+JIT::add(JITLibrary &Lib, Data &D,
          Span<const uint32_t> GlobalFuncIndices) noexcept {
-  auto *Lib = static_cast<JITLibrary *>(&Exec);
-  if (!Lib) {
-    spdlog::error("JIT::add: executable is not a JITLibrary"sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
   if (GlobalFuncIndices.empty()) {
     spdlog::error("JIT::add: empty function index list"sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  std::lock_guard<std::mutex> Lock(Lib->LazyAddMutex);
+  std::lock_guard<std::mutex> Lock(Lib.LazyAddMutex);
   auto &LLModule = D.extract().LLModule;
   auto &TSContext = D.extract().getTSContext();
 
-  LLVMOrcJITDylibRef MainJDRef = LLVMOrcLLJITGetMainJITDylib(Lib->J->unwrap());
+  LLVMOrcJITDylibRef MainJDRef = LLVMOrcLLJITGetMainJITDylib(Lib.J->unwrap());
 
-  if (auto Err = Lib->J->addLLVMIRModule(
+  if (auto Err = Lib.J->addLLVMIRModule(
           OrcJITDylib(MainJDRef),
           OrcThreadSafeModule(LLModule.release(), TSContext))) {
-    spdlog::error("{}"sv, Err.message().string_view());
+    spdlog::error("[lazy-jit]: failed to add LLVM IR module: {}"sv,
+                  Err.message().string_view());
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -207,9 +208,10 @@ JIT::add(Executable &Exec, Data &D,
   for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {
     const std::string SymName =
         fmt::format("{}f{}"sv, D.getPrefix(), GlobalFuncIndex);
-    auto AddrOrErr = Lib->J->lookup<void *>(SymName.c_str());
+    auto AddrOrErr = Lib.J->lookup<void *>(SymName.c_str());
     if (!AddrOrErr) {
-      spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));
+      spdlog::error("[lazy-jit]: failed to lookup function symbol {}: {}"sv,
+                    SymName, errorToString(std::move(AddrOrErr.error())));
       return Unexpect(ErrCode::Value::HostFuncError);
     }
     Addresses.push_back(*AddrOrErr);
@@ -217,10 +219,10 @@ JIT::add(Executable &Exec, Data &D,
   return Addresses;
 }
 
-Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
+Expect<WasmFunctionCodeAddress> JIT::add(JITLibrary &Lib, Data &D,
                                          uint32_t GlobalFuncIndex) noexcept {
   const uint32_t One[1] = {GlobalFuncIndex};
-  auto Batch = add(Exec, D, Span<const uint32_t>(One, 1));
+  auto Batch = add(Lib, D, Span<const uint32_t>(One, 1));
   if (!Batch) {
     return Unexpect(Batch.error());
   }
@@ -228,22 +230,17 @@ Expect<WasmFunctionCodeAddress> JIT::add(Executable &Exec, Data &D,
 }
 
 Expect<std::vector<WasmFunctionCodeAddress>> JIT::lookupWasmFunctionSymbols(
-    Executable &Exec, std::string_view Prefix,
+    JITLibrary &Lib, std::string_view Prefix,
     Span<const uint32_t> GlobalFuncIndices) noexcept {
-  auto *Lib = static_cast<JITLibrary *>(&Exec);
-  if (!Lib) {
-    spdlog::error("JIT::lookupWasmFunctionSymbols: not a JITLibrary"sv);
-    return Unexpect(ErrCode::Value::HostFuncError);
-  }
-
-  std::lock_guard<std::mutex> Lock(Lib->LazyAddMutex);
+  std::lock_guard<std::mutex> Lock(Lib.LazyAddMutex);
   std::vector<WasmFunctionCodeAddress> Addresses;
   Addresses.reserve(GlobalFuncIndices.size());
   for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {
     const std::string SymName = fmt::format("{}f{}"sv, Prefix, GlobalFuncIndex);
-    auto AddrOrErr = Lib->J->lookup<void *>(SymName.c_str());
+    auto AddrOrErr = Lib.J->lookup<void *>(SymName.c_str());
     if (!AddrOrErr) {
-      spdlog::error("{}"sv, errorToString(std::move(AddrOrErr.error())));
+      spdlog::error("[lazy-jit]: failed to lookup function symbol {}: {}"sv,
+                    SymName, errorToString(std::move(AddrOrErr.error())));
       return Unexpect(ErrCode::Value::HostFuncError);
     }
     Addresses.push_back(*AddrOrErr);

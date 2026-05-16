@@ -935,14 +935,14 @@ Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
   }
 
   spdlog::info(
-      "[lazyjit]: Lazy compiling batch ({} local funcs) for wasm entry local "
+      "[lazy-jit]: Lazy compiling batch ({} local funcs) for wasm entry local "
       "{}, module {}"sv,
       BatchLocals.size(), LocalFuncIdx, static_cast<const void *>(ModInst));
 
   LLVM::Compiler Compiler(Conf);
   auto ConfigResult = Compiler.checkConfigure();
   if (!ConfigResult) {
-    spdlog::error("[lazyjit]: Lazy JIT compiler config failed: {}"sv,
+    spdlog::error("[lazy-jit]: Lazy JIT compiler config failed: {}"sv,
                   ConfigResult.error());
     return Unexpect(ConfigResult.error());
   }
@@ -956,16 +956,16 @@ Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
       *ModulePtr,
       WasmEdge::Span<const uint32_t>(BatchLocals.data(), BatchLocals.size()));
   if (!CompileResult) {
-    spdlog::error("[lazyjit]: Lazy JIT function compilation failed: {}"sv,
+    spdlog::error("[lazy-jit]: Lazy JIT function compilation failed: {}"sv,
                   CompileResult.error());
     return Unexpect(CompileResult.error());
   }
 
   *LLDataPtr = std::move(*CompileResult);
   LLVM::JIT JIT(Conf);
-  std::shared_ptr<Executable> Exec;
-  if (StatePtr && StatePtr->Exec) {
-    Exec = StatePtr->Exec;
+  std::shared_ptr<LLVM::JITLibrary> JITLib;
+  if (StatePtr && StatePtr->JITLib) {
+    JITLib = StatePtr->JITLib;
   }
 
   std::vector<uint32_t> BatchGlobal;
@@ -975,31 +975,31 @@ Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
   }
 
   std::vector<LLVM::WasmFunctionCodeAddress> ResolvedAddresses;
-  if (Exec) {
+  if (JITLib) {
     auto AddrRes = JIT.add(
-        *Exec, *LLDataPtr,
+        *JITLib, *LLDataPtr,
         WasmEdge::Span<const uint32_t>(BatchGlobal.data(), BatchGlobal.size()));
     if (!AddrRes) {
-      spdlog::error("[lazyjit]: Lazy JIT add failed: {}"sv, AddrRes.error());
+      spdlog::error("[lazy-jit]: Lazy JIT add failed: {}"sv, AddrRes.error());
       return Unexpect(AddrRes.error());
     }
     ResolvedAddresses = std::move(*AddrRes);
   } else {
     auto LoadResult = JIT.load(*LLDataPtr, true);
     if (!LoadResult) {
-      spdlog::error("[lazyjit]: Lazy JIT load failed: {}"sv,
+      spdlog::error("[lazy-jit]: Lazy JIT load failed: {}"sv,
                     LoadResult.error());
       return Unexpect(LoadResult.error());
     }
-    Exec = *LoadResult;
+    JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*LoadResult);
     if (StatePtr) {
-      StatePtr->Exec = Exec;
+      StatePtr->JITLib = JITLib;
     }
     auto LkRes = JIT.lookupWasmFunctionSymbols(
-        *Exec, LLDataPtr->getPrefix(),
+        *JITLib, LLDataPtr->getPrefix(),
         WasmEdge::Span<const uint32_t>(BatchGlobal.data(), BatchGlobal.size()));
     if (!LkRes) {
-      spdlog::error("[lazyjit]: Lazy JIT symbol resolution failed: {}"sv,
+      spdlog::error("[lazy-jit]: Lazy JIT symbol resolution failed: {}"sv,
                     LkRes.error());
       return Unexpect(LkRes.error());
     }
@@ -1007,14 +1007,14 @@ Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
   }
 
   if (ResolvedAddresses.size() != BatchLocals.size()) {
-    spdlog::error("[lazyjit]: Lazy JIT address count mismatch"sv);
+    spdlog::error("[lazy-jit]: Lazy JIT address count mismatch"sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (auto IntrinsicsSymbol = Exec->getIntrinsics()) {
+  if (auto IntrinsicsSymbol = JITLib->getIntrinsics()) {
     *IntrinsicsSymbol = &Executor::Executor::Intrinsics;
   } else {
-    spdlog::error("[lazyjit]: failed to get intrinsics symbol"sv);
+    spdlog::error("[lazy-jit]: failed to get intrinsics symbol"sv);
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
@@ -1024,8 +1024,9 @@ Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
     LLVM::WasmFunctionCodeAddress CompiledCodePtr = ResolvedAddresses[I];
     auto FuncResult = ModInst->getFuncInst(WasmFuncIdx);
     if (!FuncResult) {
-      spdlog::error("[lazyjit]: failed to get function instance for index {}"sv,
-                    WasmFuncIdx);
+      spdlog::error(
+          "[lazy-jit]: failed to get function instance for index {}"sv,
+          WasmFuncIdx);
       return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
 
@@ -1069,10 +1070,11 @@ VM::prepareLazyJIT(const AST::Module &Module) {
   State.LLContext = std::move(LLModule.second);
 
   LLVM::JIT JIT(Conf);
-  EXPECTED_TRY(State.Exec, JIT.load(State.LLData, true));
+  EXPECTED_TRY(auto Exec, JIT.load(State.LLData, true));
+  State.JITLib = std::static_pointer_cast<LLVM::JITLibrary>(Exec);
 
   EXPECTED_TRY(LoaderEngine.loadExecutable(const_cast<AST::Module &>(Module),
-                                           State.Exec));
+                                           State.JITLib));
 
   size_t ImportFuncCount = 0;
   for (const auto &ImpDesc : Module.getImportSection().getContent()) {

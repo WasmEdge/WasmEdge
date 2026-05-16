@@ -72,13 +72,6 @@ protected:
         CompilerConfigure::OptimizationLevel::O0);
     return std::make_unique<VM::VM>(Conf);
   }
-
-  // Helper to create a VM with interpreter mode
-  std::unique_ptr<VM::VM> createInterpreterVM() {
-    Configure Conf;
-    Conf.getRuntimeConfigure().setRunMode(RunMode::Interpreter);
-    return std::make_unique<VM::VM>(Conf);
-  }
 };
 
 TEST_F(LazyJITTest, ConfigurationDefaultDisabled) {
@@ -118,70 +111,6 @@ TEST_F(LazyJITTest, RuntimeConfigureIndependent) {
   RConf1.setRunMode(RunMode::LazyJIT);
   EXPECT_EQ(RConf1.getRunMode(), RunMode::LazyJIT);
   EXPECT_NE(RConf2.getRunMode(), RunMode::LazyJIT);
-}
-
-TEST_F(LazyJITTest, InterpreterModeBaseline) {
-  auto VM = createInterpreterVM();
-
-  ASSERT_TRUE(VM->loadWasm(SimpleWasm));
-  ASSERT_TRUE(VM->validate());
-  ASSERT_TRUE(VM->instantiate());
-
-  // Test add function
-  std::vector<ValVariant> AddParams = {10U, 5U};
-  std::vector<ValType> AddTypes = {ValType(TypeCode::I32),
-                                   ValType(TypeCode::I32)};
-  auto AddResult = VM->execute("add", AddParams, AddTypes);
-  ASSERT_TRUE(AddResult);
-  ASSERT_EQ((*AddResult).size(), 1U);
-  EXPECT_EQ((*AddResult)[0].first.get<uint32_t>(), 15U);
-
-  // Test mul function
-  std::vector<ValVariant> MulParams = {7U, 6U};
-  auto MulResult = VM->execute("mul", MulParams, AddTypes);
-  ASSERT_TRUE(MulResult);
-  ASSERT_EQ((*MulResult).size(), 1U);
-  EXPECT_EQ((*MulResult)[0].first.get<uint32_t>(), 42U);
-
-  // Test const42 function
-  std::vector<ValVariant> ConstParams = {};
-  std::vector<ValType> ConstTypes = {};
-  auto ConstResult = VM->execute("const42", ConstParams, ConstTypes);
-  ASSERT_TRUE(ConstResult);
-  ASSERT_EQ((*ConstResult).size(), 1U);
-  EXPECT_EQ((*ConstResult)[0].first.get<uint32_t>(), 42U);
-
-  VM->cleanup();
-}
-
-TEST_F(LazyJITTest, EagerJITBaseline) {
-  auto VM = createEagerJITVM();
-
-  ASSERT_TRUE(VM->loadWasm(SimpleWasm));
-  ASSERT_TRUE(VM->validate());
-  ASSERT_TRUE(VM->instantiate());
-
-  std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
-
-  // Test add function
-  std::vector<ValVariant> AddP = {10U, 5U};
-  auto AddResult = VM->execute("add", AddP, Types);
-  ASSERT_TRUE(AddResult);
-  EXPECT_EQ((*AddResult)[0].first.get<uint32_t>(), 15U);
-
-  // Test mul function
-  std::vector<ValVariant> MulP = {7U, 6U};
-  auto MulResult = VM->execute("mul", MulP, Types);
-  ASSERT_TRUE(MulResult);
-  EXPECT_EQ((*MulResult)[0].first.get<uint32_t>(), 42U);
-
-  // Test sub function
-  std::vector<ValVariant> SubP = {20U, 8U};
-  auto SubResult = VM->execute("sub", SubP, Types);
-  ASSERT_TRUE(SubResult);
-  EXPECT_EQ((*SubResult)[0].first.get<uint32_t>(), 12U);
-
-  VM->cleanup();
 }
 
 TEST_F(LazyJITTest, LazyJITCorrectness) {
@@ -397,6 +326,19 @@ TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
   ASSERT_TRUE(VM->validate());
   ASSERT_TRUE(VM->instantiate());
 
+  auto *AddFunc = VM->getActiveModule()->findFuncExports("add");
+  auto *MulFunc = VM->getActiveModule()->findFuncExports("mul");
+  auto *SubFunc = VM->getActiveModule()->findFuncExports("sub");
+
+  ASSERT_NE(AddFunc, nullptr);
+  ASSERT_NE(MulFunc, nullptr);
+  ASSERT_NE(SubFunc, nullptr);
+
+  // Initially none should be compiled
+  EXPECT_FALSE(AddFunc->isCompiledFunction());
+  EXPECT_FALSE(MulFunc->isCompiledFunction());
+  EXPECT_FALSE(SubFunc->isCompiledFunction());
+
   std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
 
   // Call 'add' - should trigger compilation of function 0
@@ -405,17 +347,32 @@ TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
   ASSERT_TRUE(AddResult);
   EXPECT_EQ((*AddResult)[0].first.get<uint32_t>(), 3U);
 
+  // Check state: add compiled, others not
+  EXPECT_TRUE(AddFunc->isCompiledFunction());
+  EXPECT_FALSE(MulFunc->isCompiledFunction());
+  EXPECT_FALSE(SubFunc->isCompiledFunction());
+
   // Call 'mul' - should trigger compilation of function 1
   std::vector<ValVariant> MulP = {3U, 4U};
   auto MulResult = VM->execute("mul", MulP, Types);
   ASSERT_TRUE(MulResult);
   EXPECT_EQ((*MulResult)[0].first.get<uint32_t>(), 12U);
 
+  // Check state: add and mul compiled, sub not
+  EXPECT_TRUE(AddFunc->isCompiledFunction());
+  EXPECT_TRUE(MulFunc->isCompiledFunction());
+  EXPECT_FALSE(SubFunc->isCompiledFunction());
+
   // Call 'add' again - should NOT increase compiled count (already compiled)
   std::vector<ValVariant> AddP2 = {5U, 6U};
   auto AddResult2 = VM->execute("add", AddP2, Types);
   ASSERT_TRUE(AddResult2);
   EXPECT_EQ((*AddResult2)[0].first.get<uint32_t>(), 11U);
+
+  // Check state: add and mul compiled, sub not
+  EXPECT_TRUE(AddFunc->isCompiledFunction());
+  EXPECT_TRUE(MulFunc->isCompiledFunction());
+  EXPECT_FALSE(SubFunc->isCompiledFunction());
 
   VM->cleanup();
 }

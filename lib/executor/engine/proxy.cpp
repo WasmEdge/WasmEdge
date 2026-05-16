@@ -410,10 +410,11 @@ Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
   return Ref;
 }
 
-// For the runtime value of `uint64_t`, the arguments are expected to extended
-// into 64-bit length in LLVM compiler no matter the address type is 32 or 64
-// bit. On the other hand, the return of `uint64_t` should handle the conversion
-// into 32 or 64 bit value according to the address type in LLVM compiler.
+// For the runtime value of `uint64_t`, arguments are expected to be extended
+// to 64-bit width in the LLVM compiler regardless of whether the address type
+// is 32 or 64 bits. On the other hand, a `uint64_t` return should handle the
+// conversion to a 32- or 64-bit value according to the address type in the LLVM
+// compiler.
 
 Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,
                                            const uint32_t TableIdx,

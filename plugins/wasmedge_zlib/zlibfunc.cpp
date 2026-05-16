@@ -1117,7 +1117,7 @@ WasmEdgeZlibDeflateInit_::body(const Runtime::CallingFrame &Frame,
   // ignore wasm custom allocators
   HostZStream->zalloc = Z_NULL;
   HostZStream->zfree = Z_NULL;
-  // ignore opaque since zmalloc and zfree was ignored
+  // Ignore opaque because zmalloc and zfree are ignored.
   HostZStream->opaque = Z_NULL;
 
   auto It =
@@ -1152,7 +1152,7 @@ WasmEdgeZlibInflateInit_::body(const Runtime::CallingFrame &Frame,
   // ignore wasm custom allocators
   HostZStream->zalloc = Z_NULL;
   HostZStream->zfree = Z_NULL;
-  // ignore opaque since zmalloc and zfree was ignored
+  // Ignore opaque because zmalloc and zfree are ignored.
   HostZStream->opaque = Z_NULL;
 
   auto It =

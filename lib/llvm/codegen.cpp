@@ -212,7 +212,7 @@ Expect<void> outputNativeLibrary(const std::filesystem::path &OutputPath,
   const auto SDKVersion = getSDKVersion();
 #if LLVM_VERSION_MAJOR >= 14
   // LLVM 14 replaces the older mach_o lld implementation with the new one.
-  // So we need to change the namespace after LLVM 14.x released.
+  // So we need to change the namespace after LLVM 14.x was released.
   // Reference: https://reviews.llvm.org/D114842
   LinkResult = lld::macho::link(
 #else
@@ -511,6 +511,12 @@ namespace WasmEdge::LLVM {
 
 Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
                               std::filesystem::path OutputPath) noexcept {
+  // CompileFromBuffer skips the loader, so reject empty path here.
+  if (OutputPath.empty()) {
+    spdlog::error("output failed: empty output path"sv);
+    return Unexpect(ErrCode::Value::IllegalPath);
+  }
+
   auto LLContext = D.extract().getLLContext();
   auto &LLModule = D.extract().LLModule;
   auto &TM = D.extract().TM;

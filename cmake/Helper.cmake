@@ -260,7 +260,7 @@ if((WASMEDGE_LINK_LLVM_STATIC OR WASMEDGE_BUILD_STATIC_LIB) AND WASMEDGE_USE_LLV
     )
   endif()
   if(LLVM_VERSION_MAJOR GREATER_EQUAL 15)
-    # For LLVM 15 or greater on MacOS, or all LLVM 16+
+    # For LLVM 15 or greater on macOS, or all LLVM 16+
     if(APPLE OR LLVM_VERSION_MAJOR GREATER_EQUAL 16)
       find_package(zstd REQUIRED)
       get_filename_component(ZSTD_PATH "${zstd_LIBRARY}" DIRECTORY)

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definition of ecdsa algorithm.
+/// This file contains the definition of the ECDSA algorithm.
 ///
 //===----------------------------------------------------------------------===//
 

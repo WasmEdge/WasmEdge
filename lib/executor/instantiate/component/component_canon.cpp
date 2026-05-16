@@ -26,8 +26,12 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
       assuming(MemInst != nullptr);
       std::string_view Str = std::get<std::string>(Vals[I++]);
       uint32_t StrSize = static_cast<uint32_t>(Str.size());
+      // realloc(old_ptr=0, old_size=0, alignment=1, new_size=StrSize)
+      // Alignment = 1 for UTF-8 strings (CanonicalABI spec L2432).
+      // TODO: When UTF-16 or Latin1+UTF16 encoding support is added,
+      // alignment should be 2 (CanonicalABI spec L2438, L2446).
       std::vector<ValVariant> ReallocArgs{ValVariant(0), ValVariant(0),
-                                          ValVariant(0), ValVariant(StrSize)};
+                                          ValVariant(1), ValVariant(StrSize)};
       std::vector<ValType> ReallocTypes =
           RFuncInst->getFuncType().getParamTypes();
       auto AllocRes = invoke(RFuncInst, ReallocArgs, ReallocTypes);
@@ -49,7 +53,7 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
       break;
     }
     default: {
-      // Other types don't need conversion
+      // Other types do not need conversion.
       const ValVariant &Val = std::get<ValVariant>(Vals[I++]);
       CoreVals.push_back(Val);
       break;
@@ -93,28 +97,28 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CanonSection &CanonSec) {
   for (const auto &Canon : CanonSec.getContent()) {
     switch (Canon.getOpCode()) {
-    case AST::Component::Canonical::OpCode::Lift: {
-      // lift wrap a core wasm function to a component function, with proper
-      // modification about canonical ABI.
+    case ComponentCanonOpCode::Lift: {
+      // Lift wraps a core Wasm function to a component function with proper
+      // canonical ABI modification.
       const auto &Opts = Canon.getOptions();
       Runtime::Instance::MemoryInstance *MemInst = nullptr;
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
-        case AST::Component::CanonOpt::OptCode::Encode_UTF8:
-        case AST::Component::CanonOpt::OptCode::Encode_UTF16:
-        case AST::Component::CanonOpt::OptCode::Encode_Latin1:
+        case ComponentCanonOptCode::Encode_UTF8:
+        case ComponentCanonOptCode::Encode_UTF16:
+        case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
           spdlog::error("    incomplete canonincal options"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-        case AST::Component::CanonOpt::OptCode::Memory:
+        case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::Realloc:
+        case ComponentCanonOptCode::Realloc:
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::PostReturn:
-        case AST::Component::CanonOpt::OptCode::Async:
+        case ComponentCanonOptCode::PostReturn:
+        case ComponentCanonOptCode::Async:
           // TODO: incomplete validation of these cases.
         default:
           assumingUnreachable();
@@ -123,8 +127,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
 
       const auto *DType = CompInst.getType(Canon.getTargetIndex());
       if (unlikely(!DType->isFuncType())) {
-        // It doesn't make sense if one tries to lift an instance not a
-        // function, so unlikely happen.
+        // It does not make sense to lift an instance that is not a function, so
+        // this is unlikely to happen.
         spdlog::error(ErrCode::Value::InvalidCanonOption);
         spdlog::error("    Cannot lift a non-function"sv);
         return Unexpect(ErrCode::Value::InvalidCanonOption);
@@ -135,9 +139,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
               DType->getFuncType(), FuncInst, MemInst, ReallocFunc));
       break;
     }
-    case AST::Component::Canonical::OpCode::Lower: {
-      // lower sends a component function to a core wasm function, with proper
-      // modification about canonical ABI.
+    case ComponentCanonOpCode::Lower: {
+      // Lower sends a component function to a core Wasm function with proper
+      // canonical ABI modification.
 
       // TODO: COMPONENT - Currently the component functions are from `lifting`,
       // therefore there is a core function instance under the component
@@ -149,20 +153,20 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
-        case AST::Component::CanonOpt::OptCode::Encode_UTF8:
-        case AST::Component::CanonOpt::OptCode::Encode_UTF16:
-        case AST::Component::CanonOpt::OptCode::Encode_Latin1:
+        case ComponentCanonOptCode::Encode_UTF8:
+        case ComponentCanonOptCode::Encode_UTF16:
+        case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
           spdlog::error("    incomplete canonincal options"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-        case AST::Component::CanonOpt::OptCode::Memory:
+        case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::Realloc:
+        case ComponentCanonOptCode::Realloc:
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::PostReturn:
-        case AST::Component::CanonOpt::OptCode::Async:
+        case ComponentCanonOptCode::PostReturn:
+        case ComponentCanonOptCode::Async:
           // TODO: incomplete validation of these cases.
         default:
           assumingUnreachable();
@@ -175,9 +179,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       CompInst.addCoreFunction(CoreFuncInst);
       break;
     }
-    case AST::Component::Canonical::OpCode::Resource__new:
-    case AST::Component::Canonical::OpCode::Resource__drop:
-    case AST::Component::Canonical::OpCode::Resource__rep:
+    case ComponentCanonOpCode::Resource__new:
+    case ComponentCanonOpCode::Resource__drop:
+    case ComponentCanonOpCode::Resource__rep:
     default:
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
       spdlog::error("    incomplete canonincal"sv);

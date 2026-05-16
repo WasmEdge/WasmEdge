@@ -84,10 +84,10 @@ template <int CurveNid>
 WasiCryptoExpect<typename Ecdsa<CurveNid>::Signature>
 Ecdsa<CurveNid>::SignState::sign() noexcept {
   size_t Size;
-  // For ecdsa, OpenSSL produce a der format signatures which means the size is
-  // not fixed. Here is an answer talk about it:
+  // For ECDSA, OpenSSL produces DER-formatted signatures, which means the size
+  // is not fixed. For more context, see:
   // https://bitcoin.stackexchange.com/questions/77191/what-is-the-maximum-size-of-a-der-encoded-ecdsa-signature
-  // So instead of fixing size, just read.
+  // So instead of fixing the size, just read it.
   std::scoped_lock Lock{Ctx->Mutex};
   opensslCheck(EVP_DigestSignFinal(Ctx->RawCtx.get(), nullptr, &Size));
 

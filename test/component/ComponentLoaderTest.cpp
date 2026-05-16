@@ -502,9 +502,10 @@ TEST(ComponentLoaderTest, AsyncI64ResourceRepWithMemory64) {
   ASSERT_EQ((*Comp)->getSections().size(), 1U);
   const auto &Sec = std::get<WasmEdge::AST::Component::TypeSection>(
       (*Comp)->getSections()[0]);
-  ASSERT_EQ(Sec.getContent().size(), 1U);
-  ASSERT_TRUE(Sec.getContent()[0].isResourceType());
-  const auto &RT = Sec.getContent()[0].getResourceType();
+  const auto Content = Sec.getContent();
+  ASSERT_EQ(Content.size(), 1U);
+  ASSERT_TRUE(Content[0].isResourceType());
+  const auto &RT = Content[0].getResourceType();
   EXPECT_TRUE(RT.isAddrI64());
   // For async dtor, the destructor funcidx is mandatory.
   ASSERT_TRUE(RT.getDestructor().has_value());

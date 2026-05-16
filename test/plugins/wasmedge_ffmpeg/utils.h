@@ -138,7 +138,7 @@ protected:
                      std::string FileName);
   void allocPacket(uint32_t PacketPtr);
 
-  // Result of Funcs to be stored here.
+  // Results of Funcs are stored here.
   std::array<WasmEdge::ValVariant, 1> Result = {UINT32_C(0)};
 
   // Create the calling frame with memory instance.

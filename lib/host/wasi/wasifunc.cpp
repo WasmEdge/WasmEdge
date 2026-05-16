@@ -2481,7 +2481,7 @@ Expect<uint32_t> WasiSockGetAddrinfo::body(
     return __WASI_ERRNO_FAULT;
   }
 
-  // service and node can not be empty at the same time
+  // Service and node cannot both be empty.
   if (Service.empty() && Node.empty()) {
     return __WASI_ERRNO_AINONAME;
   }

@@ -1181,13 +1181,13 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
   const auto IOVsArray =
       MemInst->getSpan<__wasi_ciovec_t>(IOVsPtr, WasiIOVsLen);
   if (unlikely(IOVsArray.size() != WasiIOVsLen)) {
-    return __WASI_ERRNO_FAULT;
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
   // Check for invalid address.
   auto *const NWritten = MemInst->getPointer<__wasi_size_t *>(NWrittenPtr);
   if (unlikely(NWritten == nullptr)) {
-    return __WASI_ERRNO_FAULT;
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 
   __wasi_size_t TotalSize = 0;
@@ -1206,7 +1206,7 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
     const auto WriteArr =
         MemInst->getSpan<const uint8_t>(EndianValue(IOV.buf).le(), BufLen);
     if (unlikely(WriteArr.size() != BufLen)) {
-      return __WASI_ERRNO_FAULT;
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
     }
     WasiIOVs.emplace_back_unchecked(WriteArr);
   }

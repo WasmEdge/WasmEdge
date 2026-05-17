@@ -6,12 +6,43 @@
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
+#include <cstdint>
+#include <optional>
 #include <string_view>
 
 namespace WasmEdge {
 namespace Executor {
 
 using namespace std::literals;
+
+namespace {
+
+constexpr uint32_t MaxFlatResults = 1;
+
+std::optional<uint32_t> flatSize(ComponentTypeCode TC) noexcept {
+  switch (TC) {
+  case ComponentTypeCode::Bool:
+  case ComponentTypeCode::U8:
+  case ComponentTypeCode::U16:
+  case ComponentTypeCode::U32:
+  case ComponentTypeCode::U64:
+  case ComponentTypeCode::S8:
+  case ComponentTypeCode::S16:
+  case ComponentTypeCode::S32:
+  case ComponentTypeCode::S64:
+  case ComponentTypeCode::F32:
+  case ComponentTypeCode::F64:
+  case ComponentTypeCode::Char:
+  case ComponentTypeCode::Flags:
+    return 1u;
+  case ComponentTypeCode::String:
+    return 2u;
+  default:
+    return std::nullopt;
+  }
+}
+
+} // namespace
 
 std::vector<ValVariant> Executor::convValsToCoreWASM(
     Span<const ComponentValVariant> Vals, Span<const ComponentValType> ValTypes,
@@ -63,24 +94,49 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
   return CoreVals;
 }
 
-std::vector<std::pair<ComponentValVariant, ComponentValType>>
+Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
 Executor::convValsToComponent(
     Span<const std::pair<ValVariant, ValType>> CoreVals,
     Span<const ComponentValType> ValTypes,
-    Runtime::Instance::MemoryInstance *MemInst) noexcept {
+    Runtime::Instance::MemoryInstance *MemInst) {
+  uint32_t FlatCount = 0;
+  for (const auto &Type : ValTypes) {
+    auto Size = flatSize(Type.getCode());
+    if (!Size.has_value()) {
+      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+      spdlog::error(
+          "    canonical lifting of component type 0x{:02x} not implemented"sv,
+          static_cast<uint8_t>(Type.getCode()));
+      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    }
+    FlatCount += *Size;
+  }
+
+  if (FlatCount > MaxFlatResults) {
+    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+    spdlog::error(
+        "    canonical lifting via return-area pointer (flat count {} > {}) "
+        "not implemented"sv,
+        FlatCount, MaxFlatResults);
+    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+  }
+
   uint32_t I = 0;
   std::vector<std::pair<ComponentValVariant, ComponentValType>> Vals;
+  Vals.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
     switch (Type.getCode()) {
     case ComponentTypeCode::String: {
+      assuming(MemInst != nullptr);
       auto Off = CoreVals[I++].first.get<uint32_t>();
       auto Size = CoreVals[I++].first.get<uint32_t>();
+      if (unlikely(!MemInst->checkAccessBound(Off, Size))) {
+        spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+        spdlog::error("    string pointer/length out of bounds of memory"sv);
+        return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+      }
       auto Str = MemInst->getStringView(Off, Size);
       Vals.emplace_back(std::string(Str), Type);
-      break;
-    }
-    case ComponentTypeCode::TypeIndex: {
-      // TODO: COMPONENT - Not implemented.
       break;
     }
     default: {

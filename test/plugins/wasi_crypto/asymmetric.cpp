@@ -200,6 +200,26 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         }
       };
 
+  {
+    SCOPED_TRACE("RSA publickeyVerify bug");
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        PkHandle,
+        publickeyImport(
+            __WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PKCS1_2048_SHA256"sv,
+            "-----BEGIN PUBLIC KEY-----\n"
+            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtoGqtGXL6bqbDK0IJ2pJ\n"
+            "fM7hfMpyYVXWxtEdv5oNErvGWpHKiH1NIeQxn0ks1QFmkHoK8Quvzyn5/anHLxiZ\n"
+            "ecWbzRA01MTfs1y7HMBlrToZhRTZPFe7VRGJ+Liv1jpIiRHPzqabZrssgs3Kj5fG\n"
+            "0EYXITaQRfn0kfZcYtJLYi0OvU18DBi64MrLwABr3wqn2UZgMgiw3MhKvyXRybca\n"
+            "x0ASO1RTxAJIm21XuFWTztHcJBvl66ygDAzzRdOJyPWvG+TuhNXvZ7dtA0N4iU8p\n"
+            "SwJljzLEzWzwKOgAizx3Q3EdS+9P+pTdKtei9UGWVunoj46kCw+0QasQE958NPa3\n"
+            "uQIDAQAB\n"
+            "-----END PUBLIC KEY-----\n"_u8,
+            __WASI_PUBLICKEY_ENCODING_PEM));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+  }
+
   RsaCheck(
       "2048"sv,
       {{__WASI_PUBLICKEY_ENCODING_PEM,

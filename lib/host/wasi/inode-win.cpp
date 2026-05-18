@@ -1693,7 +1693,7 @@ WasiExpect<void> INode::sockConnect(__wasi_address_family_t AddressFamily,
     ClientAddr6.sin6_family = AF_INET6;
     ClientAddr6.sin6_port = htons(Port);
     assuming(Address.size() >= sizeof(in6_addr));
-    std::memcpy(&ClientAddr6.sin6_addr, Address.data(), sizeof(in_addr));
+    std::memcpy(&ClientAddr6.sin6_addr, Address.data(), sizeof(in6_addr));
   } else {
     assumingUnreachable();
   }

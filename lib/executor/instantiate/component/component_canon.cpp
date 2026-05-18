@@ -97,34 +97,50 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CanonSection &CanonSec) {
   for (const auto &Canon : CanonSec.getContent()) {
     switch (Canon.getOpCode()) {
-    case ComponentCanonOpCode::Lift: {
+    case AST::Component::Canonical::OpCode::Lift: {
       // Lift wraps a core Wasm function to a component function with proper
       // canonical ABI modification.
+      Runtime::Instance::Component::CanonicalOptions CanonOpts;
+
+      // Parse canonical options
       const auto &Opts = Canon.getOptions();
-      Runtime::Instance::MemoryInstance *MemInst = nullptr;
-      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
-        case ComponentCanonOptCode::Encode_UTF8:
-        case ComponentCanonOptCode::Encode_UTF16:
-        case ComponentCanonOptCode::Encode_Latin1:
+        case AST::Component::CanonOpt::OptCode::Encode_UTF8:
+          CanonOpts.StringEncoding =
+              AST::Component::CanonOpt::OptCode::Encode_UTF8;
+          break;
+        case AST::Component::CanonOpt::OptCode::Encode_UTF16:
+          CanonOpts.StringEncoding =
+              AST::Component::CanonOpt::OptCode::Encode_UTF16;
+          break;
+        case AST::Component::CanonOpt::OptCode::Encode_Latin1:
+          CanonOpts.StringEncoding =
+              AST::Component::CanonOpt::OptCode::Encode_Latin1;
+          break;
+        case AST::Component::CanonOpt::OptCode::Memory:
+          CanonOpts.Memory = CompInst.getCoreMemory(Opt.getIndex());
+          break;
+        case AST::Component::CanonOpt::OptCode::Realloc:
+          CanonOpts.Realloc = CompInst.getCoreFunction(Opt.getIndex());
+          break;
+        case AST::Component::CanonOpt::OptCode::PostReturn:
+          CanonOpts.PostReturn = CompInst.getCoreFunction(Opt.getIndex());
+          break;
+        case AST::Component::CanonOpt::OptCode::Async:
+          CanonOpts.IsAsync = true;
+          break;
+        case AST::Component::CanonOpt::OptCode::Callback:
+          // TODO: COMPONENT - Implement callback support
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-          spdlog::error("    incomplete canonincal options"sv);
+          spdlog::error("    callback option not yet implemented"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-        case ComponentCanonOptCode::Memory:
-          MemInst = CompInst.getCoreMemory(Opt.getIndex());
-          break;
-        case ComponentCanonOptCode::Realloc:
-          ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
-          break;
-        case ComponentCanonOptCode::PostReturn:
-        case ComponentCanonOptCode::Async:
-          // TODO: incomplete validation of these cases.
         default:
           assumingUnreachable();
         }
       }
 
+      // Get the component function type
       const auto *DType = CompInst.getType(Canon.getTargetIndex());
       if (unlikely(!DType->isFuncType())) {
         // It does not make sense to lift an instance that is not a function, so
@@ -133,58 +149,90 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         spdlog::error("    Cannot lift a non-function"sv);
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
-      auto *FuncInst = CompInst.getCoreFunction(Canon.getIndex());
+
+      // Get the core function to lift
+      auto *CoreFuncInst = CompInst.getCoreFunction(Canon.getIndex());
+
+      // Create lifted component function instance
       CompInst.addFunction(
           std::make_unique<Runtime::Instance::Component::FunctionInstance>(
-              DType->getFuncType(), FuncInst, MemInst, ReallocFunc));
+              DType->getFuncType(), CoreFuncInst, CanonOpts));
       break;
     }
-    case ComponentCanonOpCode::Lower: {
+    case AST::Component::Canonical::OpCode::Lower: {
       // Lower sends a component function to a core Wasm function with proper
       // canonical ABI modification.
+      Runtime::Instance::Component::CanonicalOptions CanonOpts;
 
-      // TODO: COMPONENT - Currently the component functions are from `lifting`,
-      // therefore there is a core function instance under the component
-      // function instance. Maybe this implementation should be fixed in the
-      // future.
-      /*
+      // Parse canonical options
       const auto &Opts = Canon.getOptions();
-      Runtime::Instance::MemoryInstance *MemInst = nullptr;
-      Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
-        case ComponentCanonOptCode::Encode_UTF8:
-        case ComponentCanonOptCode::Encode_UTF16:
-        case ComponentCanonOptCode::Encode_Latin1:
+        case AST::Component::CanonOpt::OptCode::Encode_UTF8:
+          CanonOpts.StringEncoding =
+              AST::Component::CanonOpt::OptCode::Encode_UTF8;
+          break;
+        case AST::Component::CanonOpt::OptCode::Encode_UTF16:
+          CanonOpts.StringEncoding =
+              AST::Component::CanonOpt::OptCode::Encode_UTF16;
+          break;
+        case AST::Component::CanonOpt::OptCode::Encode_Latin1:
+          CanonOpts.StringEncoding =
+              AST::Component::CanonOpt::OptCode::Encode_Latin1;
+          break;
+        case AST::Component::CanonOpt::OptCode::Memory:
+          CanonOpts.Memory = CompInst.getCoreMemory(Opt.getIndex());
+          break;
+        case AST::Component::CanonOpt::OptCode::Realloc:
+          CanonOpts.Realloc = CompInst.getCoreFunction(Opt.getIndex());
+          break;
+        case AST::Component::CanonOpt::OptCode::PostReturn:
+          CanonOpts.PostReturn = CompInst.getCoreFunction(Opt.getIndex());
+          break;
+        case AST::Component::CanonOpt::OptCode::Async:
+          CanonOpts.IsAsync = true;
+          break;
+        case AST::Component::CanonOpt::OptCode::Callback:
+          // TODO: COMPONENT - Implement callback support
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-          spdlog::error("    incomplete canonincal options"sv);
+          spdlog::error("    callback option not yet implemented"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-        case ComponentCanonOptCode::Memory:
-          MemInst = CompInst.getCoreMemory(Opt.getIndex());
-          break;
-        case ComponentCanonOptCode::Realloc:
-          ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
-          break;
-        case ComponentCanonOptCode::PostReturn:
-        case ComponentCanonOptCode::Async:
-          // TODO: incomplete validation of these cases.
         default:
           assumingUnreachable();
         }
       }
-      */
 
-      auto *FuncInst = CompInst.getFunction(Canon.getIndex());
-      auto *CoreFuncInst = FuncInst->getLowerFunction();
-      CompInst.addCoreFunction(CoreFuncInst);
+      // Get the component function
+      auto *CompFuncInst = CompInst.getFunction(Canon.getIndex());
+
+      // For lifted functions, extract the underlying core function
+      // For host functions, this operation is not yet supported
+      if (CompFuncInst->isLifted()) {
+        auto *CoreFuncInst = CompFuncInst->getLowerFunction();
+        CompInst.addCoreFunction(CoreFuncInst);
+      } else {
+        // TODO: COMPONENT - canon lower should create a wrapper function for
+        // host functions to expose them as core wasm imports
+        spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+        spdlog::error("    lowering host functions not yet implemented"sv);
+        return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      }
       break;
     }
-    case ComponentCanonOpCode::Resource__new:
-    case ComponentCanonOpCode::Resource__drop:
-    case ComponentCanonOpCode::Resource__rep:
+    case AST::Component::Canonical::OpCode::Resource__new:
+    case AST::Component::Canonical::OpCode::Resource__drop:
+    case AST::Component::Canonical::OpCode::Resource__rep:
+    case AST::Component::Canonical::OpCode::Resource__drop_async:
+    case AST::Component::Canonical::OpCode::Task__return:
+    case AST::Component::Canonical::OpCode::Task__cancel:
+      // TODO: COMPONENT - Implement resource and task operations
+      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+      spdlog::error("    resource/task canonical operations not yet "
+                    "implemented"sv);
+      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     default:
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error("    incomplete canonincal"sv);
+      spdlog::error("    unsupported canonical operation"sv);
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     }
   }

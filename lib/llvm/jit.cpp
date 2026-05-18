@@ -219,16 +219,6 @@ JIT::add(JITLibrary &Lib, Data &D,
   return Addresses;
 }
 
-Expect<WasmFunctionCodeAddress> JIT::add(JITLibrary &Lib, Data &D,
-                                         uint32_t GlobalFuncIndex) noexcept {
-  const uint32_t One[1] = {GlobalFuncIndex};
-  auto Batch = add(Lib, D, Span<const uint32_t>(One, 1));
-  if (!Batch) {
-    return Unexpect(Batch.error());
-  }
-  return (*Batch)[0];
-}
-
 Expect<std::vector<WasmFunctionCodeAddress>> JIT::lookupWasmFunctionSymbols(
     JITLibrary &Lib, std::string_view Prefix,
     Span<const uint32_t> GlobalFuncIndices) noexcept {

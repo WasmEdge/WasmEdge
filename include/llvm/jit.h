@@ -71,11 +71,6 @@ public:
   Expect<std::shared_ptr<Executable>> load(Data &D,
                                            bool IsLazy = false) noexcept;
 
-  /// Resolves the wasm function symbol in the new lazy JITDylib only
-  /// (global index: imports + local index).
-  Expect<WasmFunctionCodeAddress> add(JITLibrary &Lib, Data &D,
-                                      uint32_t GlobalFuncIndex) noexcept;
-
   /// Adds one LLVM IR module and resolves many wasm function symbols.
   Expect<std::vector<WasmFunctionCodeAddress>>
   add(JITLibrary &Lib, Data &D,
@@ -92,10 +87,8 @@ private:
 };
 
 struct LazyJITState {
-  LazyJITState() = default;
   /// Track which functions have been lazy-compiled.
   std::unordered_set<uint32_t> LazyCompiledFuncs;
-
   /// Number of import functions (offset for local function indices).
   uint32_t ImportFuncCount = 0;
   /// Store compiled JIT library to keep it alive

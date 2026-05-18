@@ -814,6 +814,8 @@ void VM::unsafeCleanup() {
   }
   StoreRef.reset();
   RegModInsts.clear();
+  RegASTModules.clear();
+  RegModMap.clear();
   Stat.clear();
   unsafeLoadBuiltInHosts();
   unsafeLoadPlugInHosts();
@@ -824,10 +826,7 @@ void VM::unsafeCleanup() {
 #ifdef WASMEDGE_USE_LLVM
   // LazyJITStates.clear() will automatically clean up all unique_ptr
   // LLContexts.
-  {
-    std::unique_lock Lock(LazyJITMutex);
-    LazyJITStates.clear();
-  }
+  LazyJITStates.clear();
 #endif
 }
 

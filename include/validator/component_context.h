@@ -81,6 +81,7 @@ public:
     getCoreSortIndexSize(AST::Component::Sort::CoreSortType ST) const noexcept;
 
     bool AddImportedName(const ComponentName &Name) noexcept;
+    bool AddExportedName(const ComponentName &Name) noexcept;
   };
 
   // ==========================================================================
@@ -362,9 +363,9 @@ public:
     return getCurrentContext().AddImportedName(Name);
   }
 
-  /// Returns false if the export name already exists (duplicate).
-  bool addExportedName(std::string_view Name) noexcept {
-    return getCurrentContext().ExportedNames.emplace(Name).second;
+  /// Returns false if the export name violates strong-uniqueness.
+  bool addExportedName(const ComponentName &Name) noexcept {
+    return getCurrentContext().AddExportedName(Name);
   }
 
 private:

@@ -1055,16 +1055,16 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   switch (Canon.getOpCode()) {
-  case AST::Component::Canonical::OpCode::Lift:
+  case ComponentCanonOpCode::Lift:
     return validateCanonLift(Canon);
-  case AST::Component::Canonical::OpCode::Lower:
+  case ComponentCanonOpCode::Lower:
     return validateCanonLower(Canon);
-  case AST::Component::Canonical::OpCode::Resource__new:
+  case ComponentCanonOpCode::Resource__new:
     return validateCanonResourceNew(Canon);
-  case AST::Component::Canonical::OpCode::Resource__rep:
+  case ComponentCanonOpCode::Resource__rep:
     return validateCanonResourceRep(Canon);
-  case AST::Component::Canonical::OpCode::Resource__drop:
-  case AST::Component::Canonical::OpCode::Resource__drop_async:
+  case ComponentCanonOpCode::Resource__drop:
+  case ComponentCanonOpCode::Resource__drop_async:
     return validateCanonResourceDrop(Canon);
   default:
     spdlog::error(ErrCode::Value::ComponentNotImplValidator);
@@ -1074,10 +1074,10 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
 }
 
 Expect<void> Validator::validateCanonOptions(
-    AST::Component::Canonical::OpCode Code,
+    ComponentCanonOpCode Code,
     Span<const AST::Component::CanonOpt> Opts) noexcept {
-  using OptCode = AST::Component::CanonOpt::OptCode;
-  using CanonOp = AST::Component::Canonical::OpCode;
+  using OptCode = ComponentCanonOptCode;
+  using CanonOp = ComponentCanonOpCode;
 
   // Only canon lift/lower accept canonical options. Any other built-in
   // (resource.new/rep/drop, drop_async, ...) must be invoked without options.

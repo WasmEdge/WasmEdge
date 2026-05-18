@@ -181,6 +181,24 @@ foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
         -Wno-unused-function
       )
     endif()
+  elseif(BACKEND STREQUAL "rwkv")
+    message(STATUS "Download ML artifacts to ${CMAKE_CURRENT_BINARY_DIR}/wasinn_rwkv_fixtures")
+    download(
+      https://huggingface.co/concedo/rwkv-v4-169m-ggml/resolve/main/rwkv-169m-ggml-f16-new.bin
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_rwkv_fixtures/rwkv-4-pile-169m.bin
+      SHA256=97c1fbc15ba61b968fb74bb93ea75f84ee98514e9e76552436ccb9b5f3a2a2af
+    )
+    download(
+      https://raw.githubusercontent.com/BlinkDL/ChatRWKV/main/20B_tokenizer.json
+      ${CMAKE_CURRENT_BINARY_DIR}/wasinn_rwkv_fixtures/20B_tokenizer.json
+      MD5=55634e54c40440d3639fc80ef8e7bdd9
+    )
+
+    if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+      target_compile_options(wasiNNTests PUBLIC
+        -Wno-unused-function
+      )
+    endif()
   else()
     # Add the other backend test files fetching here.
   endif()

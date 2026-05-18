@@ -33,7 +33,18 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519::PublicKey::exportData(
 }
 
 WasiCryptoExpect<void> X25519::PublicKey::verify() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  size_t Size = PkSize;
+  std::vector<uint8_t> Raw(PkSize);
+
+  ensureOrReturn(EVP_PKEY_get_raw_public_key(Ctx.get(), Raw.data(), &Size),
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  EvpPkeyPtr Pk{EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, nullptr,
+                                            Raw.data(), Raw.size())};
+  ensureOrReturn(Pk, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  return {};
 }
 
 WasiCryptoExpect<SecretVec> X25519::SecretKey::exportData(
@@ -79,8 +90,26 @@ X25519::SecretKey::dh(const PublicKey &Pk) const noexcept {
 }
 
 WasiCryptoExpect<X25519::KeyPair>
-X25519::SecretKey::toKeyPair(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+X25519::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
+  auto DerivedPk = publicKey();
+  if (!DerivedPk) {
+    return WasiCryptoUnexpect(DerivedPk);
+  }
+
+  auto DerivedRaw = (*DerivedPk).exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!DerivedRaw) {
+    return WasiCryptoUnexpect(DerivedRaw);
+  }
+
+  auto GivenRaw = Pk.exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!GivenRaw) {
+    return WasiCryptoUnexpect(GivenRaw);
+  }
+
+  ensureOrReturn(*DerivedRaw == *GivenRaw,
+                 __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+
+  return Ctx;
 }
 
 WasiCryptoExpect<X25519::PublicKey>

@@ -276,20 +276,16 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
         convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst);
     assuming(Returns.size() == ReturnTypes.size());
 
-    // Invoke post-return function for cleanup if specified
+    // call_and_trap_on_throw(opts.post_return, thread, flat_results)
     if (auto *PostReturnFunc = FuncInst->getPostReturnFunction()) {
-      // Post-return is called with the original core WASM arguments
-      // to allow cleanup of any allocated memory
-      const auto &PostReturnType = PostReturnFunc->getFuncType();
-      if (PostReturnType.getParamTypes().size() == CoreWASMArgs.size()) {
-        // Invoke post-return (ignore result, it's for cleanup only)
-        auto PostReturnResult = invoke(PostReturnFunc, CoreWASMArgs,
-                                       PostReturnType.getParamTypes());
-        // Log error if post-return fails, but don't fail the function call
-        if (!PostReturnResult) {
-          spdlog::warn("Post-return function failed, but continuing");
-        }
+      std::vector<ValVariant> FlatResults;
+      FlatResults.reserve(CoreWASMReturns.size());
+      for (const auto &[Val, _] : CoreWASMReturns) {
+        FlatResults.push_back(Val);
       }
+      const auto &PostReturnType = PostReturnFunc->getFuncType();
+      EXPECTED_TRY(invoke(PostReturnFunc, FlatResults,
+                          PostReturnType.getParamTypes()));
     }
 
     return Returns;

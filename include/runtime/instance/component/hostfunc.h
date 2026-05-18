@@ -306,8 +306,8 @@ private:
   template <typename Tuple, std::size_t... Indices>
   void pushParamTypes(std::vector<AST::Component::LabelValType> &Params,
                       std::index_sequence<Indices...>) {
-    // TODO: COMPONENT - Implement proper component type mapping
-    // For now, create empty LabelValType as placeholder
+    // TODO: COMPONENT - regression: map C++ template parameter types to proper
+    // component value types instead of using empty placeholders
     if constexpr (sizeof...(Indices) > 0) {
       Params.resize(sizeof...(Indices));
     }
@@ -316,8 +316,8 @@ private:
   template <typename Tuple, std::size_t... Indices>
   void pushReturnTypes(std::vector<AST::Component::LabelValType> &Rets,
                        std::index_sequence<Indices...>) {
-    // TODO: COMPONENT - Implement proper component type mapping
-    // For now, create empty LabelValType as placeholder
+    // TODO: COMPONENT - regression: map C++ template return types to proper
+    // component value types instead of using empty placeholders
     if constexpr (sizeof...(Indices) > 0) {
       Rets.resize(sizeof...(Indices));
     }

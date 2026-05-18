@@ -377,10 +377,10 @@ private:
                      Runtime::Instance::FunctionInstance *RFuncInst,
                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
 
-  std::vector<std::pair<ComponentValVariant, ComponentValType>>
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
   convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
                       Span<const ComponentValType> ValTypes,
-                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
+                      Runtime::Instance::MemoryInstance *MemInst);
   /// @}
 
   /// \name Helper Functions for block controls.

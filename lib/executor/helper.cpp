@@ -262,9 +262,10 @@ Executor::branchToLabel(Runtime::StackManager &StackMgr,
   return {};
 }
 
-Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
-                                      Runtime::Instance::TagInstance &TagInst,
-                                      AST::InstrView::iterator &PC) noexcept {
+Expect<void> Executor::throwException(
+    Runtime::StackManager &StackMgr, Runtime::Instance::TagInstance &TagInst,
+    AST::InstrView::iterator &PC,
+    const Runtime::Instance::ExceptionInstance *ExnInst) noexcept {
   StackMgr.removeInactiveHandler(PC);
   auto AssocValSize = TagInst.getTagType().getAssocValSize();
   while (true) {
@@ -281,10 +282,18 @@ Expect<void> Executor::throwException(Runtime::StackManager &StackMgr,
         continue;
       }
       if (C.IsRef) {
-        // For catching an exception reference, push the reference value onto
-        // stack.
+        // Allocate the exception instance lazily on the first catch_ref;
+        // reuse the one passed in by throw_ref to preserve exnref identity.
+        const Runtime::Instance::ExceptionInstance *Inst = ExnInst;
+        if (Inst == nullptr) {
+          auto Payload = StackMgr.getTopSpan(AssocValSize);
+          std::vector<ValVariant> Vec(Payload.begin(), Payload.end());
+          auto *ModInst = const_cast<Runtime::Instance::ModuleInstance *>(
+              StackMgr.getModule());
+          Inst = ModInst->newException(&TagInst, std::move(Vec));
+        }
         StackMgr.push(
-            RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), &TagInst));
+            RefVariant(ValType(TypeCode::Ref, TypeCode::ExnRef), Inst));
       }
       // When an exception is caught, move the PC to the try block and branch to
       // the label.

@@ -209,7 +209,7 @@ resolveChildInstanceType(const AST::Component::Component &Comp,
 // Validate that a name may appear at an export position: reject the
 // `relative-url=` prefix (not part of the extern-name grammar) and any
 // plainname/interfacename kind that isn't allowed on an export.
-Expect<void> validateExportName(std::string_view Name) noexcept {
+Expect<ComponentName> validateExportName(std::string_view Name) noexcept {
   if (Name.rfind("relative-url="sv, 0) == 0) {
     spdlog::error(ErrCode::Value::InvalidExternName);
     spdlog::error("    Export name '{}' is not a valid extern name"sv, Name);
@@ -222,7 +222,7 @@ Expect<void> validateExportName(std::string_view Name) noexcept {
   case ComponentNameKind::Method:
   case ComponentNameKind::Static:
   case ComponentNameKind::InterfaceType:
-    return {};
+    return CName;
   default:
     spdlog::error(ErrCode::Value::InvalidExportName);
     spdlog::error("    Export name '{}' kind is not valid for exports"sv, Name);
@@ -1055,16 +1055,16 @@ Validator::validate(const AST::Component::DefType &DType) noexcept {
 Expect<void>
 Validator::validate(const AST::Component::Canonical &Canon) noexcept {
   switch (Canon.getOpCode()) {
-  case AST::Component::Canonical::OpCode::Lift:
+  case ComponentCanonOpCode::Lift:
     return validateCanonLift(Canon);
-  case AST::Component::Canonical::OpCode::Lower:
+  case ComponentCanonOpCode::Lower:
     return validateCanonLower(Canon);
-  case AST::Component::Canonical::OpCode::Resource__new:
+  case ComponentCanonOpCode::Resource__new:
     return validateCanonResourceNew(Canon);
-  case AST::Component::Canonical::OpCode::Resource__rep:
+  case ComponentCanonOpCode::Resource__rep:
     return validateCanonResourceRep(Canon);
-  case AST::Component::Canonical::OpCode::Resource__drop:
-  case AST::Component::Canonical::OpCode::Resource__drop_async:
+  case ComponentCanonOpCode::Resource__drop:
+  case ComponentCanonOpCode::Resource__drop_async:
     return validateCanonResourceDrop(Canon);
   default:
     spdlog::error(ErrCode::Value::ComponentNotImplValidator);
@@ -1074,10 +1074,10 @@ Validator::validate(const AST::Component::Canonical &Canon) noexcept {
 }
 
 Expect<void> Validator::validateCanonOptions(
-    AST::Component::Canonical::OpCode Code,
+    ComponentCanonOpCode Code,
     Span<const AST::Component::CanonOpt> Opts) noexcept {
-  using OptCode = AST::Component::CanonOpt::OptCode;
-  using CanonOp = AST::Component::Canonical::OpCode;
+  using OptCode = ComponentCanonOptCode;
+  using CanonOp = ComponentCanonOpCode;
 
   // Only canon lift/lower accept canonical options. Any other built-in
   // (resource.new/rep/drop, drop_async, ...) must be invoked without options.
@@ -1502,23 +1502,17 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
 
 Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   // Validation steps:
-  //   1. Export name is strongly-unique across exports.
-  //   2. `sortidx` is in-bounds and (for core sorts) must be `core module`.
-  //   3. If an `externdesc` ascription is present, it must be a supertype
+  //   1. `sortidx` is in-bounds and (for core sorts) must be `core module`.
+  //   2. If an `externdesc` ascription is present, it must be a supertype
   //      of the inferred externdesc of the `sortidx` (kind-only check for
   //      now; structural subtype is a follow-up).
-  //   4. The export name parses under the export-name grammar.
+  //   3. The export name parses under the export-name grammar.
+  //   4. The export name is strongly-unique across exports.
   //   5. The export introduces a new index aliasing the definition in the
   //      component's own index space for its sort.
   //
   // Not yet enforced: transitive resource-avoidance in exported types;
   // flipping the "consumed" flag for value exports.
-  if (!CompCtx.addExportedName(Ex.getName())) {
-    spdlog::error(ErrCode::Value::ComponentDuplicateName);
-    spdlog::error("    Export: Duplicate export name '{}'"sv, Ex.getName());
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return Unexpect(ErrCode::Value::ComponentDuplicateName);
-  }
 
   // Validate the sortidx bounds.
   const auto &Sort = Ex.getSortIndex().getSort();
@@ -1562,11 +1556,18 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
     return Unexpect(ErrCode::Value::ExportAscriptionIncompatible);
   }
 
-  // exportname ::= <plainname> | <interfacename>
-  EXPECTED_TRY(validateExportName(Ex.getName()).map_error([](auto E) {
+  // Validate name grammar, then enforce strong-uniqueness across exports.
+  EXPECTED_TRY(ComponentName CName,
+               validateExportName(Ex.getName()).map_error([](auto E) {
+                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+                 return E;
+               }));
+  if (!CompCtx.addExportedName(CName)) {
+    spdlog::error(ErrCode::Value::ComponentDuplicateName);
+    spdlog::error("    Export: Duplicate export name '{}'"sv, Ex.getName());
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
-    return E;
-  }));
+    return Unexpect(ErrCode::Value::ComponentDuplicateName);
+  }
 
   // Every export introduces a new index that aliases the exported
   // definition in the component's own index space for that sort. For
@@ -1791,19 +1792,21 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
 
 Expect<void>
 Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
-  // Check export name uniqueness before mutating the index spaces so a
-  // duplicate or malformed name doesn't widen the scope's sort counts.
-  if (!CompCtx.addExportedName(Decl.getName())) {
+  // Check export name grammar and uniqueness before mutating the index
+  // spaces so a duplicate or malformed name doesn't widen the scope's
+  // sort counts.
+  EXPECTED_TRY(ComponentName CName,
+               validateExportName(Decl.getName()).map_error([](auto E) {
+                 spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
+                 return E;
+               }));
+  if (!CompCtx.addExportedName(CName)) {
     spdlog::error(ErrCode::Value::ComponentDuplicateName);
     spdlog::error("    ExportDecl: Duplicate export name '{}'"sv,
                   Decl.getName());
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
     return Unexpect(ErrCode::Value::ComponentDuplicateName);
   }
-  EXPECTED_TRY(validateExportName(Decl.getName()).map_error([](auto E) {
-    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
-    return E;
-  }));
 
   // Increment sort index spaces based on the extern descriptor type.
   // Full ExternDesc validation (type index bounds) is deferred because

@@ -157,12 +157,14 @@ Expect<void> Executor::instantiate(
       uint32_t TypeIdx = ImpDesc.getExternalFuncTypeIdx();
       // Import matching.
       auto *ImpInst = ImpModInst->findFuncExports(ExtName);
-      // External function type should match the import function type in
-      // description.
+      // Read the type list from the function's owning module (so an alias
+      // re-exporting a foreign func matches against the original's types).
+      const auto &ImpTypeList = ImpInst->getModule()
+                                    ? ImpInst->getModule()->getTypeList()
+                                    : ImpModInst->getTypeList();
 
       if (!AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
-                                       ImpModInst->getTypeList(),
-                                       ImpInst->getTypeIndex())) {
+                                       ImpTypeList, ImpInst->getTypeIndex())) {
         const auto &ExpDefType = **ModInst.getType(TypeIdx);
         bool IsMatchV2 = false;
         const auto &ExpFuncType = ExpDefType.getCompositeType().getFuncType();
@@ -194,7 +196,7 @@ Expect<void> Executor::instantiate(
                   ImpModInst->findFuncExports(std::string(*Iter) + "_v2");
               if (ImpInstV2 != nullptr &&
                   AST::TypeMatcher::matchType(ModInst.getTypeList(), TypeIdx,
-                                              ImpModInst->getTypeList(),
+                                              ImpTypeList,
                                               ImpInstV2->getTypeIndex())) {
                 // Try to match the new version
                 ImpInst = ImpInstV2;

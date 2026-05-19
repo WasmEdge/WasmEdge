@@ -197,6 +197,16 @@ make_memorytype_from_wasmedge(const WasmEdge::AST::MemoryType &mt) {
   return wasm::MemoryType::make(make_limits_from_wasmedge(mt.getLimit()));
 }
 
+// Make wasm::own<wasm::TagType> from WasmEdge's tag-defining SubType.
+wasm::own<wasm::TagType>
+make_tagtype_from_wasmedge(const WasmEdge::AST::SubType &st) {
+  if (st.getCompositeType().isFunc()) {
+    return wasm::TagType::make(
+        make_functype_from_wasmedge(st.getCompositeType().getFuncType()));
+  }
+  return wasm::TagType::make(wasm::FuncType::make());
+}
+
 // wasm_allocmgr_t: the allocation manager for the runtime objects.
 struct wasm_allocmgr_t {
   // Entry for each tracked runtime object, storing refcount, destroyer,
@@ -254,10 +264,9 @@ inline wasm_val_t conv_cval_from_wasmedge(const WasmEdge::ValVariant &,
 inline wasm::Val conv_cppval_from_wasmedge(const WasmEdge::ValVariant &,
                                            const WasmEdge::ValType &);
 inline WasmEdge::ValVariant conv_cval_to_wasmedge(const wasm_val_t &);
-inline WasmEdge::ValVariant conv_cppval_to_wasmedge(const wasm::Val &,
-                                                    wasm::ValKind);
+inline WasmEdge::ValVariant conv_cppval_to_wasmedge(const wasm::Val &);
 inline wasm::Val conv_val_to_cpp(const wasm_val_t &);
-inline wasm_val_t conv_val_to_c(const wasm::Val &, wasm::ValKind);
+inline wasm_val_t conv_val_to_c(const wasm::Val &);
 
 // wasm_hostfunc_t: the wrapper to host function in wasm C/C++ API.
 class wasm_hostfunc_t : public WasmEdge::Runtime::HostFunctionBase {
@@ -287,6 +296,13 @@ public:
         env(e), finalizer(fin) {
     callback.cpp_env = cb;
     DefType = WasmEdge::AST::SubType(make_functype_from_wasm(ft));
+  }
+  // Alias copy: share callback + env without the finalizer, used when
+  // importing a host wasm_func_t into another instance.
+  explicit wasm_hostfunc_t(const wasm_hostfunc_t &other) noexcept
+      : WasmEdge::Runtime::HostFunctionBase(0), type(other.type),
+        callback(other.callback), env(other.env), finalizer(nullptr) {
+    DefType = other.DefType;
   }
   ~wasm_hostfunc_t() noexcept override {
     if (finalizer) {
@@ -352,8 +368,7 @@ public:
         return Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
       }
       for (size_t i = 0; i < Rets.size(); ++i) {
-        Rets[i] = conv_cppval_to_wasmedge(
-            returns[i], conv_valtype_from_wasmedge(rtypes[i]));
+        Rets[i] = conv_cppval_to_wasmedge(returns[i]);
       }
     }
     return {};
@@ -386,17 +401,8 @@ template <> struct wasm_externkind_val<wasm::TableType> {
 template <> struct wasm_externkind_val<wasm::MemoryType> {
   static const auto value = wasm::ExternKind::MEMORY;
 };
-template <> struct wasm_externkind_val<wasm::Func> {
-  static const auto value = wasm::ExternKind::FUNC;
-};
-template <> struct wasm_externkind_val<wasm::Global> {
-  static const auto value = wasm::ExternKind::GLOBAL;
-};
-template <> struct wasm_externkind_val<wasm::Table> {
-  static const auto value = wasm::ExternKind::TABLE;
-};
-template <> struct wasm_externkind_val<wasm::Memory> {
-  static const auto value = wasm::ExternKind::MEMORY;
+template <> struct wasm_externkind_val<wasm::TagType> {
+  static const auto value = wasm::ExternKind::TAG;
 };
 
 // wasm_category_enum for the runtime objects.
@@ -434,11 +440,51 @@ template <> struct wasm_category_val<wasm_table_t> {
 template <> struct wasm_category_val<wasm_memory_t> {
   static const auto value = wasm_category_enum::MEMORY;
 };
-/*
 template <> struct wasm_category_val<wasm_instance_t> {
   static const auto value = wasm_category_enum::INSTANCE;
 };
-*/
+
+// Imports shim that aliases (does not own) the user's runtime instances.
+class wasm_import_module_t
+    : public WasmEdge::Runtime::Instance::ModuleInstance {
+public:
+  explicit wasm_import_module_t(std::string_view name) noexcept
+      : WasmEdge::Runtime::Instance::ModuleInstance(name) {}
+
+  void aliasFunc(std::string_view name,
+                 WasmEdge::Runtime::Instance::FunctionInstance *fi) {
+    // Native/compiled funcs: linker reads the type from fi->getModule().
+    // Host funcs have no owner module, so register a copy under this shim.
+    if (fi->getModule()) {
+      importFunction(fi);
+      exportFunction(name, FuncCount++);
+    } else {
+      const auto &orig = static_cast<wasm_hostfunc_t &>(fi->getHostFunc());
+      addHostFunc(name, std::make_unique<wasm_hostfunc_t>(orig));
+    }
+  }
+  void aliasGlobal(std::string_view name,
+                   WasmEdge::Runtime::Instance::GlobalInstance *gi) {
+    importGlobal(gi);
+    exportGlobal(name, GlobCount++);
+  }
+  void aliasTable(std::string_view name,
+                  WasmEdge::Runtime::Instance::TableInstance *ti) {
+    importTable(ti);
+    exportTable(name, TabCount++);
+  }
+  void aliasMemory(std::string_view name,
+                   WasmEdge::Runtime::Instance::MemoryInstance *mi) {
+    importMemory(mi);
+    exportMemory(name, MemCount++);
+  }
+
+private:
+  uint32_t FuncCount = 0;
+  uint32_t GlobCount = 0;
+  uint32_t TabCount = 0;
+  uint32_t MemCount = 0;
+};
 
 } // namespace
 
@@ -523,6 +569,13 @@ struct wasm_memorytype_t : public wasm_externtype_base_t<wasm::MemoryType> {
   wasm::Limits mlimits;
 };
 
+// wasm_tagtype_t implementation.
+struct wasm_tagtype_t : public wasm_externtype_base_t<wasm::TagType> {
+  wasm_tagtype_t(wasm::own<wasm::FuncType> &&ft) noexcept
+      : mfunctype(std::move(ft)) {}
+  wasm::own<wasm::FuncType> mfunctype;
+};
+
 // wasm_importtype_t implementation.
 struct wasm_importtype_t : public wasm::ImportType {
   wasm_importtype_t(wasm::Name &&mod, wasm::Name &&n,
@@ -542,10 +595,12 @@ struct wasm_exporttype_t : public wasm::ExportType {
 
 // wasm_ref_base_t implementation.
 template <class C> struct wasm_ref_base_t {
+  // `inner` must hold the outer C* address (allocmgr's destroyer calls
+  // delete on it); when wasm_ref_base_t is a non-first base, `this` differs.
   wasm_ref_base_t(wasm::Store *s) noexcept
       : store(static_cast<wasm_store_t *>(s)),
-        category(wasm_category_val<C>::value), inner(this), info(nullptr),
-        finalizer(nullptr) {
+        category(wasm_category_val<C>::value), inner(static_cast<C *>(this)),
+        info(nullptr), finalizer(nullptr) {
     increase_ref();
   }
   wasm_ref_base_t(wasm::Store *s, const wasm_ref_base_t &ref) noexcept
@@ -553,10 +608,8 @@ template <class C> struct wasm_ref_base_t {
         inner(ref.inner), info(ref.info), finalizer(ref.finalizer) {
     increase_ref();
   }
-  // The destructor must NOT call unlink() to avoid double-destruction when
-  // the allocmgr's destroyer calls delete on the object, which would trigger
-  // the destructor chain including ~wasm_ref_base_t() again.
-  // Instead, use decrease_ref() explicitly in the destroy() methods.
+  // No unlink() here — destroy() calls decrease_ref() explicitly to avoid
+  // recursing through the destructor chain.
   ~wasm_ref_base_t() noexcept = default;
   void decrease_ref() noexcept {
     store->allocmgr.unlink<C>(static_cast<C *>(inner));
@@ -576,29 +629,32 @@ template <class C> struct wasm_ref_base_t {
   void (*finalizer)(void *);
 };
 
-// wasm_ref_t implementation.
-struct wasm_ref_t : public wasm_ref_base_t<wasm_ref_t>, wasm::Ref {
+// wasm_ref_t implementation. wasm::X is the first base (EBO'd to size 0)
+// in every ref-bearing concrete type, so wasm_ref_base_t<C> lands at offset 0.
+struct wasm_ref_t : public wasm::Ref, public wasm_ref_base_t<wasm_ref_t> {
   wasm_ref_t() = delete;
 };
 
-// wasm_frame_t implementation.
-// TODO: the tracing frame is not supported yet.
+// wasm_frame_t implementation. funcoff / moduleoff are kept for the spec
+// API surface but stay 0 until the engine exposes address-map info.
 struct wasm_frame_t : public wasm::Frame {
-  wasm_frame_t() noexcept : funcidx(0), funcoff(0), moduleoff(0) {}
-  wasm_frame_t(const wasm_frame_t &frame) noexcept
-      : funcidx(frame.funcidx), funcoff(frame.funcoff),
-        moduleoff(frame.moduleoff) {}
+  explicit wasm_frame_t(uint32_t idx) noexcept
+      : funcidx(idx), funcoff(0), moduleoff(0) {}
+  wasm_frame_t(const wasm_frame_t &) noexcept = default;
+  wasm_frame_t &operator=(const wasm_frame_t &) noexcept = default;
   uint32_t funcidx;
   size_t funcoff;
   size_t moduleoff;
 };
 
-// wasm_trap_t implementation.
-// TODO: the trap only supports error message in current.
+// wasm_trap_t implementation. morigin holds the outermost called funcidx;
+// deeper frames and offsets are unavailable from the engine.
 struct wasm_trap_t : public wasm::Trap, wasm_ref_base_t<wasm_trap_t> {
-  wasm_trap_t(wasm::Store *s, wasm::Message &&m) noexcept
-      : wasm_ref_base_t<wasm_trap_t>(s), mmsg(std::move(m)) {}
+  wasm_trap_t(wasm::Store *s, wasm::Message &&m,
+              wasm_frame_t origin = wasm_frame_t(0)) noexcept
+      : wasm_ref_base_t<wasm_trap_t>(s), mmsg(std::move(m)), morigin(origin) {}
   wasm::Message mmsg;
+  wasm_frame_t morigin;
 };
 
 // wasm_foreign_t implementation.
@@ -629,15 +685,17 @@ struct wasm_shared_module_t : public wasm::Shared<wasm::Module> {
   wasm::vec<byte_t> binary;
 };
 
-// wasm_extern_t implementation.
-struct wasm_extern_t : public wasm_externtype_base_t<wasm::Extern>,
-                       wasm_ref_base_t<wasm_extern_t> {
+// wasm_extern_t implementation. Never instantiated; only a layout shim so
+// static_cast from wasm::Extern * finds mkind at the same offset as the
+// other wasm_X_t extern types.
+struct wasm_extern_t : public wasm::Extern,
+                       public wasm_ref_base_t<wasm_extern_t> {
+  const wasm::ExternKind mkind;
   wasm_extern_t() = delete;
 };
 
 // wasm_func_t implementation.
-struct wasm_func_t : public wasm_externtype_base_t<wasm::Func>,
-                     wasm_ref_base_t<wasm_func_t> {
+struct wasm_func_t : public wasm::Func, public wasm_ref_base_t<wasm_func_t> {
   wasm_func_t(wasm::Store *s, const wasm::FuncType &ft,
               wasm_func_callback_t cb) noexcept
       : wasm_ref_base_t<wasm_func_t>(s), owned(true) {
@@ -664,73 +722,167 @@ struct wasm_func_t : public wasm_externtype_base_t<wasm::Func>,
     inst = new WasmEdge::Runtime::Instance::FunctionInstance(
         std::make_unique<wasm_hostfunc_t>(ft, cb, env, fin));
   }
+  // Non-owning view (for wasm_instance_exports / wasm_table_get funcref).
+  wasm_func_t(wasm::Store *s,
+              WasmEdge::Runtime::Instance::FunctionInstance *fi) noexcept
+      : wasm_ref_base_t<wasm_func_t>(s), owned(false) {
+    inst = fi;
+  }
   ~wasm_func_t() {
     if (owned && inst) {
       delete inst;
     }
   }
+  const wasm::ExternKind mkind = wasm::ExternKind::FUNC;
   bool owned;
   WasmEdge::Runtime::Instance::FunctionInstance *inst;
 };
 
 // wasm_global_t implementation.
-struct wasm_global_t : public wasm_externtype_base_t<wasm::Global>,
-                       wasm_ref_base_t<wasm_global_t> {
+struct wasm_global_t : public wasm::Global,
+                       public wasm_ref_base_t<wasm_global_t> {
+  // Owning ctor (wasm_global_new).
   wasm_global_t(wasm::Store *s, const wasm::GlobalType &gt,
                 const wasm::Val &v) noexcept
-      : wasm_ref_base_t<wasm_global_t>(s), keepval(v.copy()),
-        inst(WasmEdge::AST::GlobalType(
-                 conv_valtype_to_wasmedge(gt.content()->kind()),
-                 conv_valmut_to_wasmedge(gt.mutability())),
-             conv_cppval_to_wasmedge(v, gt.content()->kind())) {}
+      : wasm_ref_base_t<wasm_global_t>(s), owned(true), keepval(v.copy()),
+        inst(new WasmEdge::Runtime::Instance::GlobalInstance(
+            WasmEdge::AST::GlobalType(
+                conv_valtype_to_wasmedge(gt.content()->kind()),
+                conv_valmut_to_wasmedge(gt.mutability())),
+            conv_cppval_to_wasmedge(v))) {}
+  // Non-owning view (wasm_instance_exports).
+  wasm_global_t(wasm::Store *s,
+                WasmEdge::Runtime::Instance::GlobalInstance *gi) noexcept
+      : wasm_ref_base_t<wasm_global_t>(s), owned(false), inst(gi) {}
+  ~wasm_global_t() {
+    if (owned && inst) {
+      delete inst;
+    }
+  }
+  const wasm::ExternKind mkind = wasm::ExternKind::GLOBAL;
+  bool owned;
   // Copy the init val to keep the reference if the valtype is a ref.
   wasm::Val keepval;
-  WasmEdge::Runtime::Instance::GlobalInstance inst;
+  WasmEdge::Runtime::Instance::GlobalInstance *inst;
 };
 
 // wasm_table_t implementation.
-struct wasm_table_t : public wasm_externtype_base_t<wasm::Table>,
-                      wasm_ref_base_t<wasm_table_t> {
+struct wasm_table_t : public wasm::Table, public wasm_ref_base_t<wasm_table_t> {
+  // Owning ctor (wasm_table_new).
   wasm_table_t(wasm::Store *s, const wasm::TableType &tt,
                const wasm::Ref *r) noexcept
-      : wasm_ref_base_t<wasm_table_t>(s),
-        inst(WasmEdge::AST::TableType(
-            conv_reftype_to_wasmedge(tt.element()->kind()), tt.limits().min,
-            tt.limits().max)) {
-    // The wasm::Ref set into the table instance will not add the ref count.
-    if (inst.getTableType().getRefType().isFuncRefType()) {
+      : wasm_ref_base_t<wasm_table_t>(s), owned(true),
+        inst(new WasmEdge::Runtime::Instance::TableInstance(
+            WasmEdge::AST::TableType(
+                conv_reftype_to_wasmedge(tt.element()->kind()), tt.limits().min,
+                tt.limits().max))) {
+    if (inst->getTableType().getRefType().isFuncRefType()) {
       if (r && static_cast<const wasm_ref_t *>(r)->category ==
                    wasm_category_enum::FUNC) {
-        inst.fillRefs(
+        inst->fillRefs(
             WasmEdge::RefVariant(static_cast<const wasm_func_t *>(r)->inst), 0,
-            inst.getSize());
+            inst->getSize());
       } else {
-        inst.fillRefs(WasmEdge::RefVariant(
-                          WasmEdge::ValType(WasmEdge::TypeCode::FuncRef)),
-                      0, inst.getSize());
+        inst->fillRefs(WasmEdge::RefVariant(
+                           WasmEdge::ValType(WasmEdge::TypeCode::FuncRef)),
+                       0, inst->getSize());
       }
     } else {
-      inst.fillRefs(WasmEdge::RefVariant(const_cast<wasm::Ref *>(r)), 0,
-                    inst.getSize());
+      inst->fillRefs(WasmEdge::RefVariant(const_cast<wasm::Ref *>(r)), 0,
+                     inst->getSize());
     }
   }
-  WasmEdge::Runtime::Instance::TableInstance inst;
+  // Non-owning view (wasm_instance_exports).
+  wasm_table_t(wasm::Store *s,
+               WasmEdge::Runtime::Instance::TableInstance *ti) noexcept
+      : wasm_ref_base_t<wasm_table_t>(s), owned(false), inst(ti) {}
+  ~wasm_table_t() {
+    if (owned && inst) {
+      delete inst;
+    }
+  }
+  const wasm::ExternKind mkind = wasm::ExternKind::TABLE;
+  bool owned;
+  WasmEdge::Runtime::Instance::TableInstance *inst;
 };
 
 // wasm_memory_t implementation.
-struct wasm_memory_t : public wasm_externtype_base_t<wasm::Memory>,
-                       wasm_ref_base_t<wasm_memory_t> {
+struct wasm_memory_t : public wasm::Memory,
+                       public wasm_ref_base_t<wasm_memory_t> {
+  // Owning ctor (wasm_memory_new).
   wasm_memory_t(wasm::Store *s, const wasm::MemoryType &mt) noexcept
-      : wasm_ref_base_t<wasm_memory_t>(s),
-        inst(WasmEdge::AST::MemoryType(mt.limits().min, mt.limits().max)) {}
-  WasmEdge::Runtime::Instance::MemoryInstance inst;
+      : wasm_ref_base_t<wasm_memory_t>(s), owned(true),
+        inst(new WasmEdge::Runtime::Instance::MemoryInstance(
+            WasmEdge::AST::MemoryType(mt.limits().min, mt.limits().max))) {}
+  // Non-owning view (wasm_instance_exports).
+  wasm_memory_t(wasm::Store *s,
+                WasmEdge::Runtime::Instance::MemoryInstance *mi) noexcept
+      : wasm_ref_base_t<wasm_memory_t>(s), owned(false), inst(mi) {}
+  ~wasm_memory_t() {
+    if (owned && inst) {
+      delete inst;
+    }
+  }
+  const wasm::ExternKind mkind = wasm::ExternKind::MEMORY;
+  bool owned;
+  WasmEdge::Runtime::Instance::MemoryInstance *inst;
 };
 
 // wasm_instance_t implementation.
 struct wasm_instance_t : public wasm::Instance,
-                         wasm_ref_base_t<wasm_instance_t> {};
+                         wasm_ref_base_t<wasm_instance_t> {
+  // Captures export order at instantiation (ModuleInstance maps sort by name).
+  struct export_entry_t {
+    std::string name;
+    WasmEdge::ExternalType kind;
+  };
+  wasm_instance_t(
+      wasm::Store *s,
+      std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> &&mi,
+      std::vector<std::unique_ptr<wasm_import_module_t>> &&imps,
+      std::vector<wasm::own<wasm::Extern>> &&retained,
+      std::vector<export_entry_t> &&exps) noexcept
+      : wasm_ref_base_t<wasm_instance_t>(s), modinst(std::move(mi)),
+        importmods(std::move(imps)), retainedImports(std::move(retained)),
+        exportorder(std::move(exps)) {}
+  std::unique_ptr<WasmEdge::Runtime::Instance::ModuleInstance> modinst;
+  std::vector<std::unique_ptr<wasm_import_module_t>> importmods;
+  // Keep host-provided imports alive for the instance's lifetime.
+  std::vector<wasm::own<wasm::Extern>> retainedImports;
+  std::vector<export_entry_t> exportorder;
+};
 
 namespace {
+
+// Reverse-lookup funcidx within fi's owning module; 0 if fi is a host
+// function with no owner module or otherwise unresolvable.
+uint32_t
+lookupFuncIdx(const WasmEdge::Runtime::Instance::FunctionInstance *fi) {
+  if (!fi) {
+    return 0;
+  }
+  const auto *mi = fi->getModule();
+  if (!mi) {
+    return 0;
+  }
+  auto funcs = mi->getFunctionInstances();
+  for (uint32_t i = 0; i < funcs.size(); ++i) {
+    if (funcs[i] == fi) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+wasm::own<wasm::Trap> buildTrap(wasm::Store *store,
+                                const WasmEdge::ErrCode &code,
+                                uint32_t originFuncIdx = 0) {
+  auto msg = wasm::Message::make_nt(
+      fmt::format("{} failed: {}, Code: 0x{:03x}", code.getErrCodePhase(),
+                  WasmEdge::ErrCodeStr[code.getEnum()], code.getCode()));
+  return wasm::make_own(new (std::nothrow) wasm_trap_t(
+      store, std::move(msg), wasm_frame_t(originFuncIdx)));
+}
 
 // Global variables to prevent from new/delete.
 wasm_valtype_t wasm_valtype_i32(wasm::ValKind::I32);
@@ -947,9 +1099,9 @@ inline wasm::Val conv_val_to_cpp(const wasm_val_t &v) {
   }
 }
 
-inline wasm_val_t conv_val_to_c(const wasm::Val &v, wasm::ValKind k) {
+inline wasm_val_t conv_val_to_c(const wasm::Val &v) {
   wasm_val_t r;
-  switch (k) {
+  switch (v.kind()) {
   case wasm::ValKind::I32:
     r.kind = wasm_valkind_enum::WASM_I32;
     r.of.i32 = v.i32();
@@ -1012,8 +1164,7 @@ wasm_val_t conv_cval_from_wasmedge(const WasmEdge::ValVariant &v,
     return r;
   } else if (vt.isExternRefType()) {
     r.kind = wasm_valkind_enum::WASM_EXTERNREF;
-    r.of.ref = WasmEdge::retrieveExternRef<wasm_ref_t *>(
-        v.get<WasmEdge::RefVariant>());
+    r.of.ref = v.get<WasmEdge::RefVariant>().getPtr<wasm_ref_t>();
     return r;
   }
   // v128 and other types are not supported in wasm C API yet.
@@ -1042,9 +1193,8 @@ wasm::Val conv_cppval_from_wasmedge(const WasmEdge::ValVariant &v,
     // TODO: implement this
     return wasm::Val();
   } else if (vt.isExternRefType()) {
-    return wasm::Val::ref(
-        WasmEdge::retrieveExternRef<wasm_ref_t *>(v.get<WasmEdge::RefVariant>())
-            ->copy_ref());
+    auto *ref = v.get<WasmEdge::RefVariant>().getPtr<wasm_ref_t>();
+    return wasm::Val::ref(ref ? ref->copy_ref() : wasm::own<wasm_ref_t>());
   }
   // v128 and other types are not supported in wasm C API yet.
   assumingUnreachable();
@@ -1078,10 +1228,9 @@ WasmEdge::ValVariant conv_cval_to_wasmedge(const wasm_val_t &v) {
 }
 
 // wasm::Val to WasmEdge::ValVariant conversion.
-WasmEdge::ValVariant conv_cppval_to_wasmedge(const wasm::Val &v,
-                                             wasm::ValKind k) {
+WasmEdge::ValVariant conv_cppval_to_wasmedge(const wasm::Val &v) {
   // Note: the conversion will not transfer the ownership of wasm::Ref.
-  switch (k) {
+  switch (v.kind()) {
   case wasm::ValKind::I32:
     return v.i32();
   case wasm::ValKind::I64:
@@ -1093,13 +1242,14 @@ WasmEdge::ValVariant conv_cppval_to_wasmedge(const wasm::Val &v,
   case wasm::ValKind::EXTERNREF:
     return WasmEdge::RefVariant(v.ref());
   case wasm::ValKind::FUNCREF: {
-    auto r = static_cast<wasm_ref_t *>(v.ref());
-    if (r && r->category == wasm_category_enum::FUNC) {
-      return WasmEdge::RefVariant(static_cast<wasm_func_t *>(v.ref())->inst);
-    } else {
-      return WasmEdge::RefVariant(
-          WasmEdge::ValType(WasmEdge::TypeCode::FuncRef));
+    // C-API funcrefs always come from wasm_func_as_ref / wasm_table_get, so
+    // ref() is a wasm::Func — recover the wasm_func_t and store its inst.
+    if (v.ref()) {
+      auto *cfunc = static_cast<wasm_func_t *>(
+          static_cast<wasm::Func *>(static_cast<wasm::Extern *>(v.ref())));
+      return WasmEdge::RefVariant(cfunc->inst);
     }
+    return WasmEdge::RefVariant(WasmEdge::ValType(WasmEdge::TypeCode::FuncRef));
   }
   default:
     assumingUnreachable();
@@ -1284,6 +1434,23 @@ WASM_DECLARE_C_GET_ATTR(memorytype, wasm_limits_t *, limits, reinterpret,
 
 // <<<<<<<< wasm_memorytype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> wasm_tagtype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+WASM_DECLARE_TYPE_IMPL(tagtype, wasm::TagType)
+
+WASMEDGE_CAPI_EXPORT OWN wasm_tagtype_t *
+wasm_tagtype_new(OWN wasm_functype_t *functype) {
+  if (functype) {
+    return new (std::nothrow) wasm_tagtype_t(wasm::make_own(functype));
+  }
+  return nullptr;
+}
+
+WASM_DECLARE_C_GET_ATTR(tagtype, wasm_functype_t *, functype, static, nullptr, ,
+                        const)
+
+// <<<<<<<< wasm_tagtype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> wasm_externtype_t functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 WASM_DECLARE_TYPE_IMPL(externtype, wasm::ExternType)
@@ -1299,6 +1466,8 @@ WASM_EXTERNTYPE_C_CONV(table, extern, type, Type, , )
 WASM_EXTERNTYPE_C_CONV(table, extern, type, Type, _, const)
 WASM_EXTERNTYPE_C_CONV(memory, extern, type, Type, , )
 WASM_EXTERNTYPE_C_CONV(memory, extern, type, Type, _, const)
+WASM_EXTERNTYPE_C_CONV(tag, extern, type, Type, , )
+WASM_EXTERNTYPE_C_CONV(tag, extern, type, Type, _, const)
 WASM_EXTERNTYPE_C_CONV(extern, func, type, Type, , )
 WASM_EXTERNTYPE_C_CONV(extern, func, type, Type, _, const)
 WASM_EXTERNTYPE_C_CONV(extern, global, type, Type, , )
@@ -1307,6 +1476,8 @@ WASM_EXTERNTYPE_C_CONV(extern, table, type, Type, , )
 WASM_EXTERNTYPE_C_CONV(extern, table, type, Type, _, const)
 WASM_EXTERNTYPE_C_CONV(extern, memory, type, Type, , )
 WASM_EXTERNTYPE_C_CONV(extern, memory, type, Type, _, const)
+WASM_EXTERNTYPE_C_CONV(extern, tag, type, Type, , )
+WASM_EXTERNTYPE_C_CONV(extern, tag, type, Type, _, const)
 
 // <<<<<<<< wasm_externtype_t functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -1446,7 +1617,7 @@ WASM_DECLARE_REF_IMPL(trap, wasm::Trap)
 
 WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *
 wasm_trap_new(wasm_store_t *store, const wasm_message_t *message) {
-  if (message) {
+  if (store && message) {
     wasm_byte_vec_t v;
     wasm_byte_vec_copy(&v, message);
     return new (std::nothrow)
@@ -1508,10 +1679,11 @@ wasm_module_new(wasm_store_t *store, const wasm_byte_vec_t *binary) {
     wasm_byte_vec_copy(&v, binary);
     auto mod = store->load.parseModule(WasmEdge::Span<const uint8_t>(
         reinterpret_cast<const uint8_t *>(v.data), v.size));
-    if (mod) {
+    if (mod && store->valid.validate(*mod->get())) {
       return new (std::nothrow) wasm_module_t(
           store, std::move(*mod), wasm::vec<byte_t>::adopt(v.size, v.data));
     }
+    wasm_byte_vec_delete(&v);
   }
   return nullptr;
 }
@@ -1624,9 +1796,42 @@ wasm_func_type(const wasm_func_t *func) {
 WASM_DECLARE_C_GET_ATTR(func, size_t, param_arity, static, 0, , )
 WASM_DECLARE_C_GET_ATTR(func, size_t, result_arity, static, 0, , )
 
-WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *
-wasm_func_call(const wasm_func_t *, const wasm_val_vec_t *, wasm_val_vec_t *) {
-  // TODO: implement this
+WASMEDGE_CAPI_EXPORT OWN wasm_trap_t *wasm_func_call(const wasm_func_t *func,
+                                                     const wasm_val_vec_t *args,
+                                                     wasm_val_vec_t *results) {
+  if (!func || !func->inst) {
+    return nullptr;
+  }
+  const auto &ftype = func->inst->getFuncType();
+  const auto &ptypes = ftype.getParamTypes();
+  const auto &rtypes = ftype.getReturnTypes();
+
+  std::vector<WasmEdge::ValVariant> params(ptypes.size());
+  if (args) {
+    for (size_t i = 0; i < ptypes.size() && i < args->size; ++i) {
+      params[i] = conv_cval_to_wasmedge(args->data[i]);
+    }
+  }
+
+  auto res = func->store->engine->exec.invoke(func->inst, params, ptypes);
+  if (!res) {
+    return static_cast<wasm_trap_t *>(
+        buildTrap(func->store, res.error(), lookupFuncIdx(func->inst))
+            .release());
+  }
+  if (results) {
+    for (size_t i = 0; i < rtypes.size() && i < results->size; ++i) {
+      results->data[i] = conv_cval_from_wasmedge((*res)[i].first, rtypes[i]);
+      // Results from wasm_func_call are owning per the wasm-c-api spec:
+      // the caller is expected to wasm_val_delete (or wasm_ref_delete the
+      // payload). conv_cval_from_wasmedge returns a borrowed pointer, so
+      // increment the refcount here to transfer ownership.
+      if (results->data[i].of.ref &&
+          wasm::is_ref(static_cast<wasm::ValKind>(results->data[i].kind))) {
+        results->data[i].of.ref->copy_ref().release();
+      }
+    }
+  }
   return nullptr;
 }
 
@@ -1657,9 +1862,14 @@ wasm_global_type(const wasm_global_t *global) {
 WASMEDGE_CAPI_EXPORT void wasm_global_get(const wasm_global_t *global,
                                           OWN wasm_val_t *out) {
   if (global && out) {
-    *out = conv_val_to_c(
-        global->get(),
-        conv_valtype_from_wasmedge(global->inst.getGlobalType().getValType()));
+    auto val = global->get();
+    *out = conv_val_to_c(val);
+    // global_get returns an owning wasm_val_t (caller will wasm_val_delete).
+    // conv_val_to_c only exposes a borrowed pointer; bump the refcount while
+    // val still owns the ref so the net is +1 transferred to the caller.
+    if (out->of.ref && wasm::is_ref(static_cast<wasm::ValKind>(out->kind))) {
+      out->of.ref->copy_ref().release();
+    }
   }
 }
 
@@ -1796,13 +2006,21 @@ WASM_DECLARE_REF_IMPL(instance, wasm::Instance)
 WASMEDGE_CAPI_EXPORT OWN wasm_instance_t *
 wasm_instance_new(wasm_store_t *store, const wasm_module_t *module,
                   const wasm_extern_vec_t *imports, OWN wasm_trap_t **trap) {
-  // TODO: implement this
+  // Copy the C imports vec into a wasm::vec view; the pointed-to externs are
+  // borrowed.
+  auto imports_vec = wasm::vec<wasm::Extern *>::make_uninitialized(
+      imports ? imports->size : 0);
+  if (imports) {
+    for (size_t i = 0; i < imports->size; ++i) {
+      imports_vec[i] = static_cast<wasm::Extern *>(imports->data[i]);
+    }
+  }
   wasm::own<wasm::Trap> error;
-  auto imports_ = reinterpret_cast<const wasm::vec<wasm::Extern *> *>(imports);
-  auto instance = static_cast<wasm_instance_t *>(
-      wasm::Instance::make(store, module, *imports_, &error).release());
-  if (trap)
+  auto *instance = static_cast<wasm_instance_t *>(
+      wasm::Instance::make(store, module, imports_vec, &error).release());
+  if (trap) {
     *trap = static_cast<wasm_trap_t *>(error.release());
+  }
   return instance;
 }
 
@@ -1999,6 +2217,28 @@ const wasm::Limits &wasm::MemoryType::limits() const {
 
 // <<<<<<<< wasm::MemoryType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+// >>>>>>>> wasm::TagType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+void wasm::TagType::destroy() { delete static_cast<wasm_tagtype_t *>(this); }
+
+wasm::own<wasm::TagType> wasm::TagType::make(wasm::own<wasm::FuncType> &&ft) {
+  if (!ft) {
+    return nullptr;
+  }
+  return wasm::make_own(new (std::nothrow) wasm_tagtype_t(std::move(ft)));
+}
+
+wasm::own<wasm::TagType> wasm::TagType::copy() const {
+  auto *self = static_cast<const wasm_tagtype_t *>(this);
+  return make(self->mfunctype->copy());
+}
+
+const wasm::FuncType *wasm::TagType::functype() const {
+  return static_cast<const wasm_tagtype_t *>(this)->mfunctype.get();
+}
+
+// <<<<<<<< wasm::TagType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 // >>>>>>>> wasm::ExternType functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 void wasm::ExternType::destroy() {
@@ -2015,6 +2255,9 @@ void wasm::ExternType::destroy() {
   case wasm::ExternKind::MEMORY:
     delete static_cast<wasm_memorytype_t *>(this);
     break;
+  case wasm::ExternKind::TAG:
+    delete static_cast<wasm_tagtype_t *>(this);
+    break;
   default:
     assumingUnreachable();
   }
@@ -2030,6 +2273,8 @@ wasm::own<wasm::ExternType> wasm::ExternType::copy() const {
     return table()->copy();
   case wasm::ExternKind::MEMORY:
     return memory()->copy();
+  case wasm::ExternKind::TAG:
+    return tag()->copy();
   default:
     assumingUnreachable();
   }
@@ -2047,6 +2292,8 @@ WASM_EXTERNTYPE_CPP_CONV(table, Table, Type, TABLE, )
 WASM_EXTERNTYPE_CPP_CONV(table, Table, Type, TABLE, const)
 WASM_EXTERNTYPE_CPP_CONV(memory, Memory, Type, MEMORY, )
 WASM_EXTERNTYPE_CPP_CONV(memory, Memory, Type, MEMORY, const)
+WASM_EXTERNTYPE_CPP_CONV(tag, Tag, Type, TAG, )
+WASM_EXTERNTYPE_CPP_CONV(tag, Tag, Type, TAG, const)
 
 // <<<<<<<< wasm::ExternType functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -2160,10 +2407,12 @@ uint32_t wasm::Frame::func_index() const {
 }
 
 size_t wasm::Frame::func_offset() const {
+  // Not implemented yet: stored field is always 0.
   return static_cast<const wasm_frame_t *>(this)->funcoff;
 }
 
 size_t wasm::Frame::module_offset() const {
+  // Not implemented yet: stored field is always 0.
   return static_cast<const wasm_frame_t *>(this)->moduleoff;
 }
 
@@ -2190,13 +2439,15 @@ wasm::Message wasm::Trap::message() const {
 }
 
 wasm::own<wasm::Frame> wasm::Trap::origin() const {
-  // TODO: Not supported yet.
-  return nullptr;
+  const auto &slot = static_cast<const wasm_trap_t *>(this)->morigin;
+  return wasm::make_own(new (std::nothrow) wasm_frame_t(slot));
 }
 
 wasm::ownvec<wasm::Frame> wasm::Trap::trace() const {
-  // TODO: Not supported yet.
-  return wasm::ownvec<wasm::Frame>::make();
+  const auto &slot = static_cast<const wasm_trap_t *>(this)->morigin;
+  auto v = wasm::ownvec<wasm::Frame>::make_uninitialized(1);
+  v[0] = wasm::make_own(new (std::nothrow) wasm_frame_t(slot));
+  return v;
 }
 
 // <<<<<<<< wasm::Trap functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2247,10 +2498,14 @@ bool wasm::Module::validate(wasm::Store *store,
 wasm::own<wasm::Module> wasm::Module::make(wasm::Store *store,
                                            const wasm::vec<byte_t> &binary) {
   if (store) {
-    auto mod = static_cast<wasm_store_t *>(store)->load.parseModule(
-        WasmEdge::Span<const uint8_t>(
-            reinterpret_cast<const uint8_t *>(binary.get()), binary.size()));
+    auto *cstore = static_cast<wasm_store_t *>(store);
+    auto mod = cstore->load.parseModule(WasmEdge::Span<const uint8_t>(
+        reinterpret_cast<const uint8_t *>(binary.get()), binary.size()));
     if (mod) {
+      // The executor requires a validated module before instantiation.
+      if (auto valid = cstore->valid.validate(*mod->get()); !valid) {
+        return nullptr;
+      }
       return wasm::make_own(new (std::nothrow) wasm_module_t(
           store, std::move(*mod), binary.copy()));
     }
@@ -2298,6 +2553,11 @@ wasm::ownvec<wasm::ImportType> wasm::Module::imports() const {
           make_globaltype_from_wasmedge(importvec[i].getExternalGlobalType());
       break;
     }
+    case WasmEdge::ExternalType::Tag: {
+      type = make_tagtype_from_wasmedge(
+          importvec[i].getExternalTagType().getDefType());
+      break;
+    }
     default:
       assumingUnreachable();
     }
@@ -2316,6 +2576,7 @@ wasm::ownvec<wasm::ExportType> wasm::Module::exports() const {
   size_t imptable = 0;
   size_t impmemory = 0;
   size_t impglobal = 0;
+  size_t imptag = 0;
   for (size_t i = 0; i < importvec.size(); ++i) {
     switch (importvec[i].getExternalType()) {
     case WasmEdge::ExternalType::Function:
@@ -2329,6 +2590,9 @@ wasm::ownvec<wasm::ExportType> wasm::Module::exports() const {
       break;
     case WasmEdge::ExternalType::Global:
       ++impglobal;
+      break;
+    case WasmEdge::ExternalType::Tag:
+      ++imptag;
       break;
     default:
       assumingUnreachable();
@@ -2382,6 +2646,13 @@ wasm::ownvec<wasm::ExportType> wasm::Module::exports() const {
       type = make_globaltype_from_wasmedge(globaltype);
       break;
     }
+    case WasmEdge::ExternalType::Tag: {
+      const auto &tag = static_cast<const wasm_module_t *>(this)
+                            ->ast->getTagSection()
+                            .getContent()[extidx - imptag];
+      type = make_tagtype_from_wasmedge(tag.getDefType());
+      break;
+    }
     default:
       assumingUnreachable();
     }
@@ -2404,14 +2675,26 @@ wasm::Module::obtain(wasm::Store *store,
 }
 
 wasm::vec<byte_t> wasm::Module::serialize() const {
-  // TODO: Refine this after the implementation of serialization in WasmEdge.
-  return static_cast<const wasm_module_t *>(this)->binary.copy();
+  // Re-emit the AST as canonical wasm binary via WasmEdge's Serializer. On
+  // failure (e.g. unsupported AST feature) fall back to the original binary
+  // so the wasm-c-api round-trip contract (serialize → deserialize → equiv
+  // module) still holds.
+  auto *self = static_cast<const wasm_module_t *>(this);
+  if (self->ast && self->store) {
+    if (auto bytes = self->store->load.serializeModule(*self->ast)) {
+      auto out = wasm::vec<byte_t>::make_uninitialized(bytes->size());
+      std::copy(bytes->begin(), bytes->end(), out.get());
+      return out;
+    }
+  }
+  return self->binary.copy();
 }
 
 wasm::own<wasm::Module>
 wasm::Module::deserialize(wasm::Store *store,
                           const wasm::vec<byte_t> &vec_byte) {
-  // TODO: Refine this after the implementation of deserialization in WasmEdge.
+  // The serialized form is canonical wasm binary; re-parse via the regular
+  // module-loading path.
   return make(store, vec_byte);
 }
 
@@ -2491,10 +2774,32 @@ size_t wasm::Func::result_arity() const {
   return 0;
 }
 
-wasm::own<wasm::Trap> wasm::Func::call(const wasm::vec<wasm::Val> &,
-                                       wasm::vec<wasm::Val> &) const {
-  // TODO: implement this
-  return wasm::own<wasm::Trap>();
+wasm::own<wasm::Trap> wasm::Func::call(const wasm::vec<wasm::Val> &args,
+                                       wasm::vec<wasm::Val> &results) const {
+  auto *self = static_cast<const wasm_func_t *>(this);
+  if (!self->inst) {
+    return nullptr;
+  }
+  const auto &ftype = self->inst->getFuncType();
+  const auto &ptypes = ftype.getParamTypes();
+  const auto &rtypes = ftype.getReturnTypes();
+
+  std::vector<WasmEdge::ValVariant> params(ptypes.size());
+  for (size_t i = 0; i < ptypes.size() && i < args.size(); ++i) {
+    params[i] = conv_cppval_to_wasmedge(args[i]);
+  }
+
+  auto res = self->store->engine->exec.invoke(self->inst, params, ptypes);
+  if (!res) {
+    return buildTrap(self->store, res.error(), lookupFuncIdx(self->inst));
+  }
+  if (results.size() < rtypes.size()) {
+    results = wasm::vec<wasm::Val>::make_uninitialized(rtypes.size());
+  }
+  for (size_t i = 0; i < rtypes.size(); ++i) {
+    results[i] = conv_cppval_from_wasmedge((*res)[i].first, rtypes[i]);
+  }
+  return nullptr;
 }
 
 // <<<<<<<< wasm::Func functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2520,16 +2825,16 @@ wasm::own<wasm::Global> wasm::Global::copy() const {
 
 wasm::own<wasm::GlobalType> wasm::Global::type() const {
   const auto &type =
-      static_cast<const wasm_global_t *>(this)->inst.getGlobalType();
+      static_cast<const wasm_global_t *>(this)->inst->getGlobalType();
   return wasm::GlobalType::make(
       wasm::ValType::make(conv_valtype_from_wasmedge(type.getValType())),
       conv_valmut_from_wasmedge(type.getValMut()));
 }
 
 wasm::Val wasm::Global::get() const {
-  const auto &inst = static_cast<const wasm_global_t *>(this)->inst;
-  return conv_cppval_from_wasmedge(inst.getValue(),
-                                   inst.getGlobalType().getValType());
+  auto *inst = static_cast<const wasm_global_t *>(this)->inst;
+  return conv_cppval_from_wasmedge(inst->getValue(),
+                                   inst->getGlobalType().getValType());
 }
 
 void wasm::Global::set(const wasm::Val &val) {
@@ -2537,9 +2842,7 @@ void wasm::Global::set(const wasm::Val &val) {
   // will help to keep the reference count.
   auto *global = static_cast<wasm_global_t *>(this);
   global->keepval = val.copy();
-  global->inst.getValue() = conv_cppval_to_wasmedge(
-      val,
-      conv_valtype_from_wasmedge(global->inst.getGlobalType().getValType()));
+  global->inst->getValue() = conv_cppval_to_wasmedge(val);
 }
 
 // <<<<<<<< wasm::Global functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2565,7 +2868,7 @@ wasm::own<wasm::Table> wasm::Table::copy() const {
 
 wasm::own<wasm::TableType> wasm::Table::type() const {
   const auto &type =
-      static_cast<const wasm_table_t *>(this)->inst.getTableType();
+      static_cast<const wasm_table_t *>(this)->inst->getTableType();
   return wasm::TableType::make(
       wasm::ValType::make(conv_reftype_from_wasmedge(type.getRefType())),
       type.getLimit().hasMax()
@@ -2575,40 +2878,49 @@ wasm::own<wasm::TableType> wasm::Table::type() const {
 }
 
 wasm::own<wasm::Ref> wasm::Table::get(wasm::Table::size_t index) const {
-  const auto &inst = static_cast<const wasm_table_t *>(this)->inst;
-  if (auto res = inst.getRefAddr(static_cast<uint32_t>(index));
+  auto *self = static_cast<const wasm_table_t *>(this);
+  auto *inst = self->inst;
+  if (auto res = inst->getRefAddr(static_cast<uint32_t>(index));
       res && !(*res).isNull()) {
-    if (inst.getTableType().getRefType().isFuncRefType()) {
-      // TODO: implement this
+    if (inst->getTableType().getRefType().isFuncRefType()) {
+      // Non-owning wrap; the FunctionInstance lives in the table's module.
+      auto *fi = (*res).getPtr<WasmEdge::Runtime::Instance::FunctionInstance>();
+      if (!fi) {
+        return nullptr;
+      }
+      auto *wf = new (std::nothrow) wasm_func_t(self->store, fi);
+      return wasm::own<wasm::Ref>(
+          static_cast<wasm::Ref *>(static_cast<wasm::Func *>(wf)));
     } else {
-      return WasmEdge::retrieveExternRef<wasm_ref_t *>(*res)->copy_ref();
+      auto *ref = (*res).getPtr<wasm_ref_t>();
+      return ref ? ref->copy_ref() : nullptr;
     }
   }
   return nullptr;
 }
 
 bool wasm::Table::set(wasm::Table::size_t index, const wasm::Ref *ref) {
-  auto &inst = static_cast<wasm_table_t *>(this)->inst;
-  if (inst.getTableType().getRefType().isExternRefType()) {
+  auto *inst = static_cast<wasm_table_t *>(this)->inst;
+  if (inst->getTableType().getRefType().isExternRefType()) {
     // For the externref of the element type, set the ref.
-    if (inst.setRefAddr(static_cast<uint32_t>(index),
-                        WasmEdge::RefVariant(const_cast<wasm::Ref *>(ref)))) {
+    if (inst->setRefAddr(static_cast<uint32_t>(index),
+                         WasmEdge::RefVariant(const_cast<wasm::Ref *>(ref)))) {
       return true;
     }
   } else {
-    // For the funcref of the element type, check the input ref is a funcref.
+    // Funcref slot: ref was produced via wasm_func_as_ref, so we can recover
+    // the wasm_func_t through the wasm::Func subobject.
     if (ref) {
-      if (static_cast<const wasm_ref_t *>(ref)->category ==
-          wasm_category_enum::FUNC) {
-        if (inst.setRefAddr(index,
-                            WasmEdge::RefVariant(
-                                static_cast<const wasm_func_t *>(ref)->inst))) {
-          return true;
-        }
+      auto *cfunc =
+          static_cast<const wasm_func_t *>(static_cast<const wasm::Func *>(
+              static_cast<const wasm::Extern *>(ref)));
+      if (cfunc->inst &&
+          inst->setRefAddr(index, WasmEdge::RefVariant(cfunc->inst))) {
+        return true;
       }
     } else {
-      if (inst.setRefAddr(index, WasmEdge::RefVariant(WasmEdge::ValType(
-                                     WasmEdge::TypeCode::FuncRef)))) {
+      if (inst->setRefAddr(index, WasmEdge::RefVariant(WasmEdge::ValType(
+                                      WasmEdge::TypeCode::FuncRef)))) {
         return true;
       }
     }
@@ -2618,12 +2930,12 @@ bool wasm::Table::set(wasm::Table::size_t index, const wasm::Ref *ref) {
 
 wasm::Table::size_t wasm::Table::size() const {
   return static_cast<wasm::Table::size_t>(
-      static_cast<const wasm_table_t *>(this)->inst.getSize());
+      static_cast<const wasm_table_t *>(this)->inst->getSize());
 }
 
 bool wasm::Table::grow(wasm::Table::size_t delta, const wasm::Ref *ref) {
   size_t orig = size();
-  if (static_cast<wasm_table_t *>(this)->inst.growTable(
+  if (static_cast<wasm_table_t *>(this)->inst->growTable(
           static_cast<uint32_t>(delta))) {
     for (size_t i = orig; i < orig + delta; ++i) {
       set(i, ref);
@@ -2656,7 +2968,7 @@ wasm::own<wasm::Memory> wasm::Memory::copy() const {
 
 wasm::own<wasm::MemoryType> wasm::Memory::type() const {
   const auto &type =
-      static_cast<const wasm_memory_t *>(this)->inst.getMemoryType();
+      static_cast<const wasm_memory_t *>(this)->inst->getMemoryType();
   return wasm::MemoryType::make(
       type.getLimit().hasMax()
           ? wasm::Limits(static_cast<uint32_t>(type.getLimit().getMin()),
@@ -2665,22 +2977,23 @@ wasm::own<wasm::MemoryType> wasm::Memory::type() const {
 }
 
 byte_t *wasm::Memory::data() const {
-  return static_cast<const wasm_memory_t *>(this)->inst.getPointer<byte_t *>(0);
+  return static_cast<const wasm_memory_t *>(this)->inst->getPointer<byte_t *>(
+      0);
 }
 
 size_t wasm::Memory::data_size() const {
   return static_cast<size_t>(
-      static_cast<const wasm_memory_t *>(this)->inst.getPageSize() *
+      static_cast<const wasm_memory_t *>(this)->inst->getPageSize() *
       wasm::Memory::page_size);
 }
 
 wasm::Memory::pages_t wasm::Memory::size() const {
   return static_cast<wasm::Memory::pages_t>(
-      static_cast<const wasm_memory_t *>(this)->inst.getPageSize());
+      static_cast<const wasm_memory_t *>(this)->inst->getPageSize());
 }
 
 bool wasm::Memory::grow(wasm::Memory::pages_t delta) {
-  if (static_cast<wasm_memory_t *>(this)->inst.growPage(
+  if (static_cast<wasm_memory_t *>(this)->inst->growPage(
           static_cast<uint32_t>(delta))) {
     return true;
   } else {
@@ -2737,10 +3050,127 @@ void wasm::Instance::destroy() {
 }
 
 wasm::own<wasm::Instance>
-wasm::Instance::make(wasm::Store *, const wasm::Module *,
-                     const wasm::vec<wasm::Extern *> &, own<wasm::Trap> *) {
-  // TODO: implement this
-  return wasm::own<wasm::Instance>();
+wasm::Instance::make(wasm::Store *store, const wasm::Module *module,
+                     const wasm::vec<wasm::Extern *> &imports,
+                     own<wasm::Trap> *trap_out) {
+  if (trap_out) {
+    *trap_out = nullptr;
+  }
+  if (!store || !module) {
+    return nullptr;
+  }
+  auto *cstore = static_cast<wasm_store_t *>(store);
+  auto *cmodule = static_cast<const wasm_module_t *>(module);
+
+  // The user's imports vec must align positionally with the module's import
+  // declarations; reject up front if the sizes don't match.
+  const auto &importsec = cmodule->ast->getImportSection().getContent();
+  if (imports.size() < importsec.size()) {
+    return nullptr;
+  }
+
+  // One shim per distinct module-name (executor resolves by name).
+  std::unordered_map<std::string, std::unique_ptr<wasm_import_module_t>> modmap;
+  // Retain each host-provided import for the instance's lifetime; the import
+  // shim only borrows the underlying runtime instance pointer.
+  std::vector<wasm::own<wasm::Extern>> retainedImports;
+  retainedImports.reserve(importsec.size());
+  for (size_t i = 0; i < importsec.size(); ++i) {
+    auto *ext = imports[i];
+    if (!ext) {
+      return nullptr;
+    }
+    retainedImports.push_back(ext->copy());
+    auto modname = std::string(importsec[i].getModuleName());
+    auto name = std::string(importsec[i].getExternalName());
+    auto it = modmap.find(modname);
+    if (it == modmap.end()) {
+      it =
+          modmap
+              .emplace(modname, std::make_unique<wasm_import_module_t>(modname))
+              .first;
+    }
+    auto *modinst = it->second.get();
+    switch (ext->kind()) {
+    case wasm::ExternKind::FUNC: {
+      auto *cfunc = static_cast<wasm_func_t *>(ext->func());
+      if (!cfunc || !cfunc->inst) {
+        return nullptr;
+      }
+      modinst->aliasFunc(name, cfunc->inst);
+      break;
+    }
+    case wasm::ExternKind::GLOBAL: {
+      auto *cglob = static_cast<wasm_global_t *>(ext->global());
+      if (!cglob || !cglob->inst) {
+        return nullptr;
+      }
+      modinst->aliasGlobal(name, cglob->inst);
+      break;
+    }
+    case wasm::ExternKind::TABLE: {
+      auto *ctab = static_cast<wasm_table_t *>(ext->table());
+      if (!ctab || !ctab->inst) {
+        return nullptr;
+      }
+      modinst->aliasTable(name, ctab->inst);
+      break;
+    }
+    case wasm::ExternKind::MEMORY: {
+      auto *cmem = static_cast<wasm_memory_t *>(ext->memory());
+      if (!cmem || !cmem->inst) {
+        return nullptr;
+      }
+      modinst->aliasMemory(name, cmem->inst);
+      break;
+    }
+    default:
+      return nullptr;
+    }
+  }
+
+  // Temporarily register each shim so instantiateModule can resolve imports
+  // by name; unregister all after to avoid collisions on later calls.
+  std::vector<std::unique_ptr<wasm_import_module_t>> importmods;
+  std::vector<std::string> registered;
+  for (auto &kv : modmap) {
+    if (auto reg =
+            cstore->engine->exec.registerModule(cstore->store, *(kv.second));
+        !reg) {
+      for (const auto &n : registered) {
+        cstore->store.unregisterModule(n);
+      }
+      return nullptr;
+    }
+    registered.push_back(kv.first);
+    importmods.push_back(std::move(kv.second));
+  }
+
+  // Capture export order, since ModuleInstance's export maps are alphabetical.
+  std::vector<wasm_instance_t::export_entry_t> exportorder;
+  for (const auto &exp : cmodule->ast->getExportSection().getContent()) {
+    exportorder.push_back(
+        {std::string(exp.getExternalName()), exp.getExternalType()});
+  }
+
+  // Instantiate, then unregister regardless of outcome.
+  auto res =
+      cstore->engine->exec.instantiateModule(cstore->store, *cmodule->ast);
+  for (const auto &n : registered) {
+    cstore->store.unregisterModule(n);
+  }
+  if (!res) {
+    if (trap_out) {
+      *trap_out =
+          buildTrap(store, res.error(),
+                    cmodule->ast->getStartSection().getContent().value_or(0));
+    }
+    return nullptr;
+  }
+
+  return wasm::make_own(new (std::nothrow) wasm_instance_t(
+      store, std::move(*res), std::move(importmods), std::move(retainedImports),
+      std::move(exportorder)));
 }
 
 wasm::own<wasm::Instance> wasm::Instance::copy() const {
@@ -2748,8 +3178,60 @@ wasm::own<wasm::Instance> wasm::Instance::copy() const {
 }
 
 wasm::ownvec<wasm::Extern> wasm::Instance::exports() const {
-  // TODO: implement this
-  return wasm::ownvec<wasm::Extern>::make_uninitialized();
+  auto *self = static_cast<const wasm_instance_t *>(this);
+  if (!self->modinst) {
+    return wasm::ownvec<wasm::Extern>::make();
+  }
+  auto v =
+      wasm::ownvec<wasm::Extern>::make_uninitialized(self->exportorder.size());
+  for (size_t i = 0; i < self->exportorder.size(); ++i) {
+    const auto &entry = self->exportorder[i];
+    switch (entry.kind) {
+    case WasmEdge::ExternalType::Function: {
+      auto *fi = self->modinst->findFuncExports(entry.name);
+      if (!fi) {
+        return wasm::ownvec<wasm::Extern>::make();
+      }
+      v[i] = wasm::own<wasm::Extern>(
+          static_cast<wasm::Extern *>(static_cast<wasm::Func *>(
+              new (std::nothrow) wasm_func_t(self->store, fi))));
+      break;
+    }
+    case WasmEdge::ExternalType::Global: {
+      auto *gi = self->modinst->findGlobalExports(entry.name);
+      if (!gi) {
+        return wasm::ownvec<wasm::Extern>::make();
+      }
+      v[i] = wasm::own<wasm::Extern>(
+          static_cast<wasm::Extern *>(static_cast<wasm::Global *>(
+              new (std::nothrow) wasm_global_t(self->store, gi))));
+      break;
+    }
+    case WasmEdge::ExternalType::Table: {
+      auto *ti = self->modinst->findTableExports(entry.name);
+      if (!ti) {
+        return wasm::ownvec<wasm::Extern>::make();
+      }
+      v[i] = wasm::own<wasm::Extern>(
+          static_cast<wasm::Extern *>(static_cast<wasm::Table *>(
+              new (std::nothrow) wasm_table_t(self->store, ti))));
+      break;
+    }
+    case WasmEdge::ExternalType::Memory: {
+      auto *mi = self->modinst->findMemoryExports(entry.name);
+      if (!mi) {
+        return wasm::ownvec<wasm::Extern>::make();
+      }
+      v[i] = wasm::own<wasm::Extern>(
+          static_cast<wasm::Extern *>(static_cast<wasm::Memory *>(
+              new (std::nothrow) wasm_memory_t(self->store, mi))));
+      break;
+    }
+    default:
+      return wasm::ownvec<wasm::Extern>::make();
+    }
+  }
+  return v;
 }
 
 // <<<<<<<< wasm::Instance functions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

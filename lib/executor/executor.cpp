@@ -224,17 +224,35 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
     return Unexpect(ErrCode::Value::FuncNotFound);
   }
 
-  // Matching arguments and function type.
-  // TODO: COMPONENT - type matching.
-  // const auto &FuncType = FuncInst->getFuncType();
-  // const auto PTypes = FuncType.getParamList();
-  const auto &ExpectedFuncType = FuncInst->getFuncType();
-  const size_t ExpectedArity = ExpectedFuncType.getParamList().size();
-  if (Params.size() != ParamTypes.size() || ParamTypes.size() < ExpectedArity) {
+  const auto &FuncType = FuncInst->getFuncType();
+  const auto PTypes = FuncType.getParamList();
+  if (Params.size() != ParamTypes.size() ||
+      ParamTypes.size() != PTypes.size()) {
     spdlog::error(ErrCode::Value::FuncSigMismatch);
-    spdlog::error("    expected {} argument(s), got {}"sv, ExpectedArity,
-                  ParamTypes.size());
+    spdlog::error(
+        "    expected {} argument(s), got {} value(s) and {} type(s)"sv,
+        PTypes.size(), Params.size(), ParamTypes.size());
     return Unexpect(ErrCode::Value::FuncSigMismatch);
+  }
+  // TODO: COMPONENT - subtype matching.
+  for (size_t I = 0; I < ParamTypes.size(); ++I) {
+    const auto &ExpectedType = PTypes[I].getValType();
+    if (ParamTypes[I] != ExpectedType) {
+      spdlog::error(ErrCode::Value::FuncSigMismatch);
+      spdlog::error(
+          "    parameter {} type mismatch: expected {} index {}, got {} index {}"sv,
+          I, ComponentTypeCodeStr[ExpectedType.getCode()],
+          ExpectedType.getTypeIndex(),
+          ComponentTypeCodeStr[ParamTypes[I].getCode()],
+          ParamTypes[I].getTypeIndex());
+      return Unexpect(ErrCode::Value::FuncSigMismatch);
+    }
+  }
+
+  auto *CoreFuncInst = FuncInst->getLowerFunction();
+  if (unlikely(!CoreFuncInst)) {
+    spdlog::error(ErrCode::Value::FuncNotFound);
+    return Unexpect(ErrCode::Value::FuncNotFound);
   }
 
   // Convert the component params into core WASM params.
@@ -244,8 +262,6 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
       convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst);
 
   // Call runFunction.
-  auto *CoreFuncInst = FuncInst->getLowerFunction();
-  assuming(CoreFuncInst);
   const auto &CoreFuncType = CoreFuncInst->getFuncType();
   // TODO: COMPONENT - check the ABI types between core functype and args.
   EXPECTED_TRY(auto CoreWASMReturns, invoke(CoreFuncInst, CoreWASMArgs,

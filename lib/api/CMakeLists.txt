@@ -90,6 +90,16 @@ wasmedge_add_library(wasmedgeCAPI OBJECT
   wasmedge.cpp
 )
 
+# wasm.h leaves WASM_API_EXTERN empty on POSIX; under -fvisibility=hidden
+# that hides every wasm::* C++ declaration. Override the macro to apply
+# default visibility so wasm::* symbols are exported from libwasmedge.
+if(NOT WIN32)
+  target_compile_definitions(wasmedgeCAPI
+    PUBLIC
+    "WASM_API_EXTERN=__attribute__((visibility(\"default\")))"
+  )
+endif()
+
 target_link_libraries(wasmedgeCAPI
   PUBLIC
   wasmedgeVM

@@ -12,7 +12,7 @@ Expect<void> Executor::runIfElseOp(Runtime::StackManager &StackMgr,
                                    const AST::Instruction &Instr,
                                    AST::InstrView::iterator &PC) noexcept {
   // Get condition.
-  uint32_t Cond = StackMgr.pop().get<uint32_t>();
+  uint32_t Cond = StackMgr.pop<uint32_t>();
 
   // If non-zero, run if-statement; else, run else-statement.
   if (Cond == 0) {
@@ -44,7 +44,7 @@ Expect<void> Executor::runThrowOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
                                      const AST::Instruction &Instr,
                                      AST::InstrView::iterator &PC) noexcept {
-  const auto Ref = StackMgr.pop().get<RefVariant>();
+  const auto Ref = StackMgr.pop<RefVariant>();
   if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::AccessNullException);
     spdlog::error(
@@ -54,7 +54,7 @@ Expect<void> Executor::runThrowRefOp(Runtime::StackManager &StackMgr,
   const auto *ExnInst = Ref.getPtr<Runtime::Instance::ExceptionInstance>();
   auto *TagInst = ExnInst->getTag();
   // Re-push the captured payload to mirror an initial `throw`, then unwind.
-  StackMgr.pushValVec(ExnInst->getPayload());
+  StackMgr.pushSpan(ExnInst->getPayload());
   return throwException(StackMgr, *TagInst, PC, ExnInst);
 }
 
@@ -67,7 +67,7 @@ Expect<void> Executor::runBrOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
                                  const AST::Instruction &Instr,
                                  AST::InstrView::iterator &PC) noexcept {
-  if (StackMgr.pop().get<uint32_t>() != 0) {
+  if (StackMgr.pop<uint32_t>() != 0) {
     return runBrOp(StackMgr, Instr, PC);
   }
   return {};
@@ -76,8 +76,8 @@ Expect<void> Executor::runBrIfOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runBrOnNullOp(Runtime::StackManager &StackMgr,
                                      const AST::Instruction &Instr,
                                      AST::InstrView::iterator &PC) noexcept {
-  if (StackMgr.getTop().get<RefVariant>().isNull()) {
-    StackMgr.pop();
+  if (StackMgr.peekTop<RefVariant>().isNull()) {
+    StackMgr.pop<ValVariant>();
     return runBrOp(StackMgr, Instr, PC);
   }
   return {};
@@ -86,18 +86,18 @@ Expect<void> Executor::runBrOnNullOp(Runtime::StackManager &StackMgr,
 Expect<void> Executor::runBrOnNonNullOp(Runtime::StackManager &StackMgr,
                                         const AST::Instruction &Instr,
                                         AST::InstrView::iterator &PC) noexcept {
-  if (!StackMgr.getTop().get<RefVariant>().isNull()) {
+  if (!StackMgr.peekTop<RefVariant>().isNull()) {
     return runBrOp(StackMgr, Instr, PC);
   }
-  StackMgr.pop();
+  StackMgr.pop<ValVariant>();
   return {};
 }
 
 Expect<void> Executor::runBrTableOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC) noexcept {
-  // Get the value on top of the stack.
-  uint32_t Value = StackMgr.pop().get<uint32_t>();
+  // Get value on top of stack.
+  uint32_t Value = StackMgr.pop<uint32_t>();
 
   // Do branch.
   auto LabelTable = Instr.getLabelList();
@@ -114,7 +114,7 @@ Expect<void> Executor::runBrOnCastOp(Runtime::StackManager &StackMgr,
                                      bool IsReverse) noexcept {
   // Get the value on top of the stack.
   const auto *ModInst = StackMgr.getModule();
-  const auto &Val = StackMgr.getTop().get<RefVariant>();
+  const auto Val = StackMgr.peekTop<RefVariant>();
   const auto &VT = Val.getType();
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
@@ -171,7 +171,7 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
                                     const AST::Instruction &Instr,
                                     AST::InstrView::iterator &PC,
                                     bool IsTailCall) noexcept {
-  const auto Ref = StackMgr.pop().get<RefVariant>();
+  const auto Ref = StackMgr.pop<RefVariant>();
   if (Ref.isNull()) {
     spdlog::error(ErrCode::Value::AccessNullFunc);
     spdlog::error(
@@ -200,7 +200,7 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Pop the value of index from the Stack.
   const auto AddrType = TabInst->getTableType().getLimit().getAddrType();
-  uint64_t Idx = extractAddr(StackMgr.pop(), AddrType);
+  uint64_t Idx = extractAddr(StackMgr.pop<ValVariant>(), AddrType);
 
   // If idx not small than tab.elem, trap.
   if (Idx >= TabInst->getSize()) {

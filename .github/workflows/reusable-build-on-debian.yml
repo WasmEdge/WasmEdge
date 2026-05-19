@@ -47,7 +47,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/build/lib/api:$LD_LIBRARY_PATH"
           cd build
           ./tools/wasmedge/wasmedge -v
-          ctest
+          ctest --output-on-failure
           cd -
       - name: Create package tarball
         run: |

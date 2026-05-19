@@ -659,8 +659,9 @@ TEST(ComponentValidatorTest, InstanceTypeExportCaseFoldConflict) {
 
 TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
   // (type (instance
-  //   (export "foo" (func))
-  //   (export "[constructor]foo" (func))  ;; OK: strongly-unique pair
+  //   (type (func))                         ;; type 0 for the exports below
+  //   (export "foo" (func (type 0)))
+  //   (export "[constructor]foo" (func (type 0)))  ;; OK: strongly-unique pair
   // ))
   AST::Component::Component Comp;
   Comp.getSections().emplace_back();
@@ -669,6 +670,14 @@ TEST(ComponentValidatorTest, InstanceTypeExportConstructorPlainAllowed) {
       std::get<AST::Component::TypeSection>(Comp.getSections().back());
 
   std::vector<AST::Component::InstanceDecl> Decls;
+  // Define a FuncType at the instancetype's local type idx 0.
+  {
+    auto DT = std::make_unique<AST::Component::DefType>();
+    DT->setFuncType(AST::Component::FuncType{});
+    AST::Component::InstanceDecl FtDecl;
+    FtDecl.setType(std::move(DT));
+    Decls.push_back(std::move(FtDecl));
+  }
   for (const auto *N : {"foo", "[constructor]foo"}) {
     AST::Component::ExportDecl Exp;
     Exp.getName() = N;
@@ -1662,6 +1671,365 @@ TEST(ComponentValidatorTest, CanonLift_WithPostReturn_Passes) {
   CanonSec.getContent().emplace_back(std::move(Lift));
   Validator::Validator V(Conf);
   ASSERT_TRUE(V.validate(Comp));
+}
+
+// =============================================================================
+// ExportDecl ExternDesc bounds (GAP-DECL-ED)
+// =============================================================================
+
+TEST(ComponentValidatorTest,
+     InstanceTypeExportDeclFuncTypeOutOfBoundsRejected) {
+  // (type (instance
+  //   (export "f" (func (type 99))) ;; FAIL: no type 99 in instance scope
+  // ))
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+
+  std::vector<AST::Component::InstanceDecl> Decls;
+  AST::Component::ExportDecl ExpDecl;
+  ExpDecl.getName() = "f";
+  ExpDecl.getExternDesc().setFuncTypeIdx(99);
+  AST::Component::InstanceDecl D;
+  D.setExport(std::move(ExpDecl));
+  Decls.push_back(std::move(D));
+
+  AST::Component::InstanceType IT;
+  IT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setInstanceType(std::move(IT));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+// =============================================================================
+// Start section validation (GAP-S-1)
+// =============================================================================
+
+TEST(ComponentValidatorTest, StartFuncIndexOutOfBoundsRejected) {
+  // start (func 99) ;; FAIL — no func at index 99
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections().back());
+  StartSec.getContent().getFunctionIndex() = 99;
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, StartArgArityMismatchRejected) {
+  // type 0: FuncType ([] -> [])
+  // import "f" (func (type 0))   ;; func 0
+  // start (func 0) (arg 0) result=0   ;; FAIL — func has 0 params but 1 arg
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "f";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections()[2]);
+  StartSec.getContent().getFunctionIndex() = 0;
+  StartSec.getContent().getArguments().push_back(0U);
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, StartValidEmptyFuncPasses) {
+  // type 0: FuncType ([] -> [])
+  // import "f" (func (type 0))   ;; func 0
+  // start (func 0) result=0   ;; PASS
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::StartSection>();
+
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "f";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  auto &StartSec =
+      std::get<AST::Component::StartSection>(Comp.getSections()[2]);
+  StartSec.getContent().getFunctionIndex() = 0;
+  StartSec.getContent().getResult() = 0;
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+// =============================================================================
+// Annotated-name resource-in-scope (GAP-T-3b)
+// =============================================================================
+
+TEST(ComponentValidatorTest, AnnotatedNameMissingResourceRejected) {
+  // type 0: FuncType
+  // import "[constructor]missing" (func (type 0))   ;; FAIL — no resource
+  // "missing"
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "[constructor]missing";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, AnnotatedNameResourceInScopePasses) {
+  // type 0: FuncType
+  // import "r" (type (sub resource))    ;; resource "r" → type 1
+  // import "[method]r.f" (func (type 0)) ;; PASS — resource "r" is in scope
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(AST::Component::FuncType());
+
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  // Resource import.
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "r";
+  ImpSec.getContent().back().getDesc().setTypeBound();
+  // Annotated method import referencing resource "r".
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "[method]r.f";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+// =============================================================================
+// Resource destructor signature (GAP-T-5b)
+// =============================================================================
+
+TEST(ComponentValidatorTest, ResourceDestructorSignatureWrongShape) {
+  // type 0: resource (no dtor)
+  // canon resource.rep 0  -> core:func 0 with signature [i32] -> [i32]
+  // type 1: resource (dtor = core:func 0)  ;; FAIL — dtor must be [i32] -> []
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec0 =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  // type 0: resource (no dtor)
+  TypeSec0.getContent().emplace_back();
+  TypeSec0.getContent().back().setResourceType(AST::Component::ResourceType{});
+
+  // canon resource.rep on type 0 -> core:func 0, signature [i32] -> [i32].
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CanonSection>();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Rep;
+  Rep.setOpCode(ComponentCanonOpCode::Resource__rep);
+  Rep.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(Rep));
+
+  // type 1: resource with dtor = core:func 0.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec1 =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  AST::Component::ResourceType BadDtor;
+  BadDtor.getDestructor() = 0U;
+  TypeSec1.getContent().emplace_back();
+  TypeSec1.getContent().back().setResourceType(std::move(BadDtor));
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, ResourceDestructorSignatureCorrect) {
+  // type 0: resource (no dtor)
+  // canon resource.drop 0  -> core:func 0 with signature [i32] -> []
+  // type 1: resource (dtor = core:func 0)  ;; PASS — dtor signature matches
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec0 =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  TypeSec0.getContent().emplace_back();
+  TypeSec0.getContent().back().setResourceType(AST::Component::ResourceType{});
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CanonSection>();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Drop;
+  Drop.setOpCode(ComponentCanonOpCode::Resource__drop);
+  Drop.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(Drop));
+
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec1 =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  AST::Component::ResourceType GoodDtor;
+  GoodDtor.getDestructor() = 0U;
+  TypeSec1.getContent().emplace_back();
+  TypeSec1.getContent().back().setResourceType(std::move(GoodDtor));
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+// =============================================================================
+// Core-export alias tag support (GAP-A-2)
+// =============================================================================
+
+TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
+  // (core module $M
+  //   (type (func))
+  //   (tag (type 0))
+  //   (export "t" (tag 0)))
+  // (core instance $i (instantiate $M))
+  // (alias core export $i "t" (core tag $t))   ;; FAIL pre-fix, PASS post-fix
+  Configure ConfTag;
+  ConfTag.addProposal(Proposal::Component);
+  ConfTag.addProposal(Proposal::ExceptionHandling);
+
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreModuleSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::AliasSection>();
+
+  // Inner core module: `(type (func)) (tag (type 0)) (export "t" (tag 0))`.
+  auto &ModSec =
+      std::get<AST::Component::CoreModuleSection>(Comp.getSections()[0]);
+  auto &Mod = ModSec.getContent();
+  // Type 0: empty FunctionType.
+  AST::SubType ST;
+  ST.getCompositeType().setFunctionType(AST::FunctionType());
+  Mod.getTypeSection().getContent().push_back(std::move(ST));
+  // Tag 0: type index 0.
+  AST::TagType Tag;
+  Tag.setTypeIdx(0);
+  Mod.getTagSection().getContent().push_back(std::move(Tag));
+  // Export "t" (tag 0).
+  AST::ExportDesc ED;
+  ED.setExternalName("t");
+  ED.setExternalType(ExternalType::Tag);
+  ED.setExternalIndex(0);
+  Mod.getExportSection().getContent().push_back(std::move(ED));
+
+  // Core instance: instantiate module 0 (no args).
+  auto &CoreInstSec =
+      std::get<AST::Component::CoreInstanceSection>(Comp.getSections()[1]);
+  CoreInstSec.getContent().emplace_back();
+  CoreInstSec.getContent().back().setInstantiateArgs(
+      0U, AST::Component::CoreInstance::InstantiateArgs{});
+
+  // Alias core:export 0 "t" with sort = core:tag.
+  auto &AliasSec =
+      std::get<AST::Component::AliasSection>(Comp.getSections()[2]);
+  AliasSec.getContent().emplace_back();
+  auto &A = AliasSec.getContent().back();
+  A.setTargetType(AST::Component::Alias::TargetType::CoreExport);
+  A.getSort().setIsCore(true);
+  A.getSort().setCoreSortType(AST::Component::Sort::CoreSortType::Tag);
+  A.setExport(0U, "t");
+
+  Validator::Validator V(ConfTag);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+// =============================================================================
+// Imported component instantiation arg-checking (GAP-I-1)
+// =============================================================================
+
+TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
+  // type 0: (component (import "x" (value bool)))
+  // import "C" (component (type 0))   ;; component 0 — imported, no raw AST
+  // instance (instantiate 0)          ;; FAIL — no arg supplied for "x"
+  //
+  // The (value ...) bound is used because it does not reference any type
+  // index in the inner component-type scope (which would otherwise need
+  // cross-scope resolution to validate). The point of this test is to
+  // exercise GAP-I-1: an instantiate of an imported component should
+  // surface MissingArgument from the ComponentType-derived import list.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+
+  // type 0: ComponentType `(component (import "x" (value bool)))`.
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  std::vector<AST::Component::ComponentDecl> Decls;
+  AST::Component::ImportDecl ImpDecl;
+  ImpDecl.getName() = "x";
+  ImpDecl.getExternDesc().setValueBound(ComponentValType{ComponentTypeCode::Bool});
+  AST::Component::ComponentDecl CD;
+  CD.setImport(std::move(ImpDecl));
+  Decls.push_back(std::move(CD));
+  AST::Component::ComponentType CT;
+  CT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setComponentType(std::move(CT));
+
+  // import "C" (component (type 0)) — gives component 0.
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "C";
+  ImpSec.getContent().back().getDesc().setComponentTypeIdx(0);
+
+  // instance (instantiate 0) — no args supplied.
+  auto &InstSec =
+      std::get<AST::Component::InstanceSection>(Comp.getSections()[2]);
+  InstSec.getContent().emplace_back();
+  InstSec.getContent().back().setInstantiateArgs(
+      0U, AST::Component::Instance::InstantiateArgs{});
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
 }
 
 } // namespace

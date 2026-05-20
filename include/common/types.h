@@ -531,15 +531,18 @@ private:
 struct ValComp;
 
 using ComponentValVariant = std::variant<
-    // Constant types in component types.
+    // Primitive types in the Component Model value model. Held in typed arms
+    // directly (no ValVariant wrapping) so that aggregate-internal primitives
+    // and top-level primitives share a single representation. See
+    // CanonicalABI.md L2920+ — component values are the spec's typed Python
+    // values; core wasm ValVariants belong to the orthogonal Core layer and
+    // never appear inside a component value.
     uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
     float, double, bool, std::string,
     // Aggregate types (record/variant/list/tuple/option/result/flags/enum/own/
     // borrow). Held via shared_ptr because the variant is frequently copied and
     // the contained ValComp recursively holds further ComponentValVariants.
-    std::shared_ptr<ValComp>,
-    // Wasm core values.
-    ValVariant>;
+    std::shared_ptr<ValComp>>;
 
 // Per-aggregate value structs. Labels for records/variants/flags/enums are
 // retained on the value side for easier round-trip debugging — the canonical

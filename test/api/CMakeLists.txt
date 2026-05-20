@@ -31,6 +31,40 @@ target_link_libraries(wasmedgeAPIWasmCUnitTests
   wasmedge_shared
 )
 
+wasmedge_add_executable(wasmedgeAPIWasmCExampleTests
+  APIWasmCExampleTest.cpp
+)
+
+add_test(wasmedgeAPIWasmCExampleTests wasmedgeAPIWasmCExampleTests)
+
+target_include_directories(wasmedgeAPIWasmCExampleTests
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
+)
+
+target_link_libraries(wasmedgeAPIWasmCExampleTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedge_shared
+)
+
+wasmedge_add_executable(wasmedgeAPIWasmCRegressionTests
+  APIWasmCRegressionTest.cpp
+)
+
+add_test(wasmedgeAPIWasmCRegressionTests wasmedgeAPIWasmCRegressionTests)
+
+target_include_directories(wasmedgeAPIWasmCRegressionTests
+  PUBLIC
+  ${PROJECT_SOURCE_DIR}/thirdparty/wasm
+)
+
+target_link_libraries(wasmedgeAPIWasmCRegressionTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedge_shared
+)
+
 wasmedge_add_library(wasmedgeAPITestHelpers
   hostfunc_c.c
   helper.cpp

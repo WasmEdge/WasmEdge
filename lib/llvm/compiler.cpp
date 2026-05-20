@@ -4658,7 +4658,7 @@ private:
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
-    auto LoadInst = Builder.createLoad(LoadTy, Ptr, true);
+    auto LoadInst = Builder.createLoad(LoadTy, Ptr, false);
     LoadInst.setAlignment(1 << Alignment);
     stackPush(switchEndian(LoadInst));
   }
@@ -4725,7 +4725,7 @@ private:
     auto VPtr = Builder.createInBoundsGEP1(
         Context.Int8Ty, Context.getMemory(Builder, ExecCtx, MemoryIndex), Off);
     auto Ptr = Builder.createBitCast(VPtr, LoadTy.getPointerTo());
-    auto StoreInst = Builder.createStore(V, Ptr, true);
+    auto StoreInst = Builder.createStore(V, Ptr, false);
     StoreInst.setAlignment(1 << Alignment);
   }
   void compileStoreLaneOp(uint32_t MemoryIndex, uint64_t Offset,

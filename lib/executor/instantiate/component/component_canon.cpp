@@ -15,15 +15,78 @@ namespace Executor {
 
 using namespace std::literals;
 
-std::vector<ValVariant> Executor::convValsToCoreWASM(
+Expect<std::vector<ValVariant>> Executor::convValsToCoreWASM(
     Span<const ComponentValVariant> Vals, Span<const ComponentValType> ValTypes,
     Runtime::Instance::FunctionInstance *RFuncInst,
-    Runtime::Instance::MemoryInstance *MemInst) noexcept {
+    Runtime::Instance::MemoryInstance *MemInst,
+    const Runtime::Instance::ComponentInstance *CompInst) {
+  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst};
+
+  // Indirect-params branch (CanonicalABI.md L2823-2824, L3215-3226): when the
+  // total flat count over all param types exceeds MAX_FLAT_PARAMS, the entire
+  // argument tuple is materialized in linear memory via realloc and only the
+  // base pointer is passed as a single i32 to core wasm.
+  uint32_t FlatCount = 0;
+  for (const auto &Type : ValTypes) {
+    EXPECTED_TRY(auto Sub, CanonicalABI::flattenType(Cx, Type));
+    FlatCount += static_cast<uint32_t>(Sub.size());
+  }
+  if (FlatCount > CanonicalABI::MaxFlatParams) {
+    assuming(RFuncInst != nullptr);
+    assuming(MemInst != nullptr);
+    // Synthesize tuple type of all params; alignment / elem_size set the
+    // realloc request, then storeDef writes each value at its in-tuple offset.
+    AST::Component::TupleTy ParamsTuple;
+    for (const auto &VT : ValTypes) {
+      ParamsTuple.Types.push_back(VT);
+    }
+    AST::Component::DefValType ParamsTupleDef;
+    ParamsTupleDef.setTuple(std::move(ParamsTuple));
+    EXPECTED_TRY(auto Align,
+                 CanonicalABI::alignmentDef(Cx, ParamsTupleDef));
+    EXPECTED_TRY(auto Sz, CanonicalABI::elemSizeDef(Cx, ParamsTupleDef));
+    std::vector<ValVariant> ReallocArgs{ValVariant(0u), ValVariant(0u),
+                                        ValVariant(Align), ValVariant(Sz)};
+    auto ReallocTypes = RFuncInst->getFuncType().getParamTypes();
+    EXPECTED_TRY(auto AllocRes,
+                 invoke(RFuncInst, ReallocArgs, ReallocTypes));
+    const uint32_t Ptr = AllocRes[0].first.get<uint32_t>();
+    if (Ptr != alignTo(Ptr, Align)) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(
+          "    indirect-params pointer 0x{:x} not aligned to {}"sv, Ptr,
+          Align);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    if (!MemInst->checkAccessBound(Ptr, Sz)) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(
+          "    indirect-params area out of bounds (ptr=0x{:x} size={})"sv,
+          Ptr, Sz);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    // Walk the tuple layout in-line (storeDef recursion would also work, but
+    // we need to pull each component value from Vals while honoring per-field
+    // alignment).
+    uint32_t Off = 0u;
+    for (size_t Idx = 0; Idx < ValTypes.size(); ++Idx) {
+      EXPECTED_TRY(auto FA, CanonicalABI::alignment(Cx, ValTypes[Idx]));
+      Off = alignTo(Off, FA);
+      EXPECTED_TRY(CanonicalABI::store(Cx, Vals[Idx], ValTypes[Idx], Ptr + Off));
+      EXPECTED_TRY(auto FS, CanonicalABI::elemSize(Cx, ValTypes[Idx]));
+      Off += FS;
+    }
+    return std::vector<ValVariant>{ValVariant(Ptr)};
+  }
+
   uint32_t I = 0;
   std::vector<ValVariant> CoreVals;
   for (const auto &Type : ValTypes) {
     switch (Type.getCode()) {
     case ComponentTypeCode::String: {
+      // String lowering still goes through the inline path so the existing
+      // (ptr, len) calling convention at the top level is preserved. Nested
+      // strings inside aggregates go through lowerFlat → store(String).
       assuming(RFuncInst != nullptr);
       assuming(MemInst != nullptr);
       std::string_view Str = std::get<std::string>(Vals[I++]);
@@ -57,7 +120,12 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
       break;
     }
     case ComponentTypeCode::TypeIndex: {
-      // TODO: COMPONENT - Not implemented.
+      // Aggregate (record/tuple/variant/list/...). Route through lowerFlat
+      // instead of silently dropping the value.
+      EXPECTED_TRY(auto Sub, CanonicalABI::lowerFlat(Cx, Vals[I++], Type));
+      for (auto &CV : Sub) {
+        CoreVals.push_back(std::move(CV));
+      }
       break;
     }
     default: {
@@ -77,7 +145,7 @@ Executor::convValsToComponent(
     Span<const ComponentValType> ValTypes,
     Runtime::Instance::MemoryInstance *MemInst,
     const Runtime::Instance::ComponentInstance *CompInst) {
-  CanonicalABI::CanonCtx Cx{MemInst, nullptr, CompInst};
+  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst};
 
   // Compute total flat count over the result types. CanonicalABI.md L3193.
   uint32_t FlatCount = 0;
@@ -223,7 +291,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // instantiation time rather than at call time. Sync-lift indirect
       // results are explicitly supported by B and reduce to results=[i32].
       {
-        CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, &CompInst};
+        // Pre-flight only needs CompInst for TypeIndex resolution; flatten
+        // never invokes realloc, so leaving Exec/Mem/Realloc unset is fine.
+        CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst};
         EXPECTED_TRY(CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
                                                    /*IsLift=*/true));
       }

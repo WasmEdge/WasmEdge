@@ -30,6 +30,13 @@
 
 namespace WasmEdge {
 namespace Executor {
+
+// Forward declaration: store / lowerFlat invoke the guest `realloc` through
+// Executor::invoke when allocating list / string return areas. Pulling in
+// executor/executor.h here would form a header cycle, so the call is routed
+// through this forward-declared pointer instead.
+class Executor;
+
 namespace CanonicalABI {
 
 /// Sync ABI limits (CanonicalABI.md L2815-2817).
@@ -38,9 +45,11 @@ constexpr uint32_t MaxFlatResults = 1;
 
 /// Context bundle for canonical-ABI operations. Not every helper requires every
 /// field — alignment / elem_size / flatten_* only need CompInst; load / store /
-/// lift_flat / lower_flat additionally require Mem (and Realloc when allocating
-/// list / string return areas).
+/// lift_flat / lower_flat additionally require Mem (and Realloc + Exec when
+/// allocating list / string return areas, since the allocation goes through
+/// Executor::invoke on the guest's `realloc` core function).
 struct CanonCtx {
+  Executor *Exec = nullptr;
   Runtime::Instance::MemoryInstance *Mem = nullptr;
   Runtime::Instance::FunctionInstance *Realloc = nullptr;
   const Runtime::Instance::ComponentInstance *CompInst = nullptr;
@@ -178,6 +187,21 @@ Expect<ComponentValVariant> liftFlat(const CanonCtx &Cx, FlatIter &VI,
 Expect<ComponentValVariant>
 liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
             const AST::Component::DefValType &T) noexcept;
+
+/// Lower a ComponentValVariant to its flat representation, the symmetric
+/// inverse of `liftFlat`. CanonicalABI.md L3086-3192 (lower_flat).
+///
+/// String / variable-length list lowering allocates a payload buffer via
+/// `Cx.Realloc`; callers must populate Exec / Realloc on the CanonCtx. The
+/// same variant-payload coercion gap that liftFlat has applies here.
+Expect<std::vector<ValVariant>>
+lowerFlat(const CanonCtx &Cx, const ComponentValVariant &V,
+          const ComponentValType &T) noexcept;
+
+/// Lower a defined value type to flat values — internal recursion helper.
+Expect<std::vector<ValVariant>>
+lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
+             const AST::Component::DefValType &T) noexcept;
 
 } // namespace CanonicalABI
 } // namespace Executor

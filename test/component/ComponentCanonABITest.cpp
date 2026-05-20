@@ -556,14 +556,31 @@ TEST(ComponentCanonABI, FlattenFuncTypeLiftIndirectResults) {
   EXPECT_EQ(Res->Results[0].getCode(), TypeCode::I32);
 }
 
-TEST(ComponentCanonABI, FlattenFuncTypeLowerIndirectResultsRejected) {
-  // Lower-side indirect (results > 1 → out-pointer param) is work item C.
+TEST(ComponentCanonABI, FlattenFuncTypeLowerIndirectResultsAddsOutPtr) {
+  // Lower side: results > MAX_FLAT_RESULTS (=1) collapses results=[] and
+  // appends a trailing out-pointer to params (CanonicalABI.md L2829-2831).
   CanonCtx Cx{};
   auto FT =
       makeFunc({}, {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)});
   auto Res = flattenFuncType(Cx, FT, /*IsLift=*/false);
-  ASSERT_FALSE(Res.has_value());
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentNotImplInstantiate);
+  ASSERT_TRUE(Res.has_value());
+  ASSERT_EQ(Res->Params.size(), 1u);
+  EXPECT_EQ(Res->Params[0].getCode(), TypeCode::I32);
+  EXPECT_TRUE(Res->Results.empty());
+}
+
+TEST(ComponentCanonABI, FlattenFuncTypeLowerIndirectResultsAppendsToParams) {
+  // Params + out-pointer combine on lower direction.
+  CanonCtx Cx{};
+  auto FT = makeFunc({prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)},
+                     {prim(ComponentTypeCode::U32), prim(ComponentTypeCode::U32)});
+  auto Res = flattenFuncType(Cx, FT, /*IsLift=*/false);
+  ASSERT_TRUE(Res.has_value());
+  ASSERT_EQ(Res->Params.size(), 3u);
+  EXPECT_EQ(Res->Params[0].getCode(), TypeCode::I32);
+  EXPECT_EQ(Res->Params[1].getCode(), TypeCode::I32);
+  EXPECT_EQ(Res->Params[2].getCode(), TypeCode::I32); // out-ptr
+  EXPECT_TRUE(Res->Results.empty());
 }
 
 TEST(ComponentCanonABI, FlattenFuncTypeTooManyParamsCollapses) {
@@ -1257,6 +1274,72 @@ TEST_F(CanonABIMemFixture, LowerVariantWithPayloadIsDeferred) {
   auto R = lowerFlatDef(Cx, ComponentValVariant{VC}, D);
   ASSERT_FALSE(R.has_value());
   EXPECT_EQ(R.error(), ErrCode::Value::ComponentNotImplInstantiate);
+}
+
+// =============================================================================
+// lift_flat_values / lower_flat_values — CanonicalABI.md L3193-3232
+// =============================================================================
+
+TEST_F(CanonABIMemFixture, LiftFlatValuesDirect) {
+  // 2 u32 types, MaxFlat=4 → direct path, both lifted from the iter.
+  std::vector<ValVariant> Flat{ValVariant(uint32_t{0xAAAAu}),
+                               ValVariant(uint32_t{0xBBBBu})};
+  std::vector<ComponentValType> Types{prim(ComponentTypeCode::U32),
+                                      prim(ComponentTypeCode::U32)};
+  FlatIter It(Flat);
+  auto R = liftFlatValues(Cx, It, Types, /*MaxFlat=*/4u);
+  ASSERT_TRUE(R.has_value());
+  ASSERT_EQ(R->size(), 2u);
+  EXPECT_EQ(std::get<uint32_t>((*R)[0]), 0xAAAAu);
+  EXPECT_EQ(std::get<uint32_t>((*R)[1]), 0xBBBBu);
+  EXPECT_TRUE(It.done());
+}
+
+TEST_F(CanonABIMemFixture, LowerFlatValuesDirect) {
+  // 2 u32 values → direct path → 2 i32 flats.
+  std::vector<ComponentValVariant> Vs{ComponentValVariant{uint32_t{1u}},
+                                      ComponentValVariant{uint32_t{2u}}};
+  std::vector<ComponentValType> Types{prim(ComponentTypeCode::U32),
+                                      prim(ComponentTypeCode::U32)};
+  auto R = lowerFlatValues(Cx, Vs, Types, /*MaxFlat=*/4u);
+  ASSERT_TRUE(R.has_value());
+  ASSERT_EQ(R->size(), 2u);
+  EXPECT_EQ((*R)[0].get<uint32_t>(), 1u);
+  EXPECT_EQ((*R)[1].get<uint32_t>(), 2u);
+}
+
+TEST_F(CanonABIMemFixture, LiftFlatValuesIndirectFromMemory) {
+  // 2 u32 types, MaxFlat=1 → indirect. Pre-populate memory at offset 64 with
+  // {0x11, 0x22} u32s, then lift.
+  writeLE<uint32_t>(64, 0x11u);
+  writeLE<uint32_t>(68, 0x22u);
+  std::vector<ValVariant> Flat{ValVariant(uint32_t{64u})};
+  std::vector<ComponentValType> Types{prim(ComponentTypeCode::U32),
+                                      prim(ComponentTypeCode::U32)};
+  FlatIter It(Flat);
+  auto R = liftFlatValues(Cx, It, Types, /*MaxFlat=*/1u);
+  ASSERT_TRUE(R.has_value());
+  ASSERT_EQ(R->size(), 2u);
+  EXPECT_EQ(std::get<uint32_t>((*R)[0]), 0x11u);
+  EXPECT_EQ(std::get<uint32_t>((*R)[1]), 0x22u);
+}
+
+TEST_F(CanonABIMemFixture, LowerFlatValuesIndirectWithOutParam) {
+  // 2 u32 values, MaxFlat=1, OutParam = 128 → store to memory at 128, return
+  // empty vector (no realloc needed because OutParam is provided).
+  std::vector<ComponentValVariant> Vs{ComponentValVariant{uint32_t{0x33u}},
+                                      ComponentValVariant{uint32_t{0x44u}}};
+  std::vector<ComponentValType> Types{prim(ComponentTypeCode::U32),
+                                      prim(ComponentTypeCode::U32)};
+  auto R = lowerFlatValues(Cx, Vs, Types, /*MaxFlat=*/1u,
+                           /*OutParam=*/std::optional<uint32_t>{128u});
+  ASSERT_TRUE(R.has_value());
+  EXPECT_TRUE(R->empty());
+  uint32_t V0 = 0, V1 = 0;
+  ASSERT_TRUE(Mem.loadValue<uint32_t>(V0, 128).has_value());
+  ASSERT_TRUE(Mem.loadValue<uint32_t>(V1, 132).has_value());
+  EXPECT_EQ(V0, 0x33u);
+  EXPECT_EQ(V1, 0x44u);
 }
 
 } // namespace

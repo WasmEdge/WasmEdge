@@ -40,11 +40,20 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         const auto &SortIdx = Exp.getSortIdx();
         const uint32_t Idx = SortIdx.getIdx();
         switch (SortIdx.getSort().getCoreSortType()) {
-        case AST::Component::Sort::CoreSortType::Func:
-          Mod->importFunction(CompInst.getCoreFunction(Idx));
+        case AST::Component::Sort::CoreSortType::Func: {
+          // Host functions (e.g., canon lower thunks) need their defined type
+          // registered into the inline-instance's TypeList so that downstream
+          // import-time matchType lookups find it.
+          auto *FI = CompInst.getCoreFunction(Idx);
+          if (FI && FI->isHostFunction()) {
+            Mod->importHostFunction(FI);
+          } else {
+            Mod->importFunction(FI);
+          }
           Mod->exportFunction(Exp.getName(), ExpIdx[0]);
           ExpIdx[0]++;
           break;
+        }
         case AST::Component::Sort::CoreSortType::Table:
           Mod->importTable(CompInst.getCoreTable(Idx));
           Mod->exportTable(Exp.getName(), ExpIdx[1]);

@@ -21,10 +21,10 @@ jobs:
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
-      - name: Install clang-format-18
+      - name: Install clang-format
         run: |
           sudo apt update
-          sudo apt install clang-format-18
+          sudo apt install clang-format
       - name: Run clang-format
         run: |
-          bash ./.github/scripts/clang-format.sh `which clang-format-18`
+          bash ./.github/scripts/clang-format.sh `which clang-format`

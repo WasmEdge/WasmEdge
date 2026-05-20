@@ -240,8 +240,9 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   // Convert the component params into core WASM params.
   auto *ReallocFuncInst = FuncInst->getAllocFunction();
   auto *MemInst = FuncInst->getMemoryInstance();
-  std::vector<ValVariant> CoreWASMArgs =
-      convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst);
+  EXPECTED_TRY(auto CoreWASMArgs,
+               convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst,
+                                  FuncInst->getComponentInstance()));
 
   // Call runFunction.
   auto *CoreFuncInst = FuncInst->getLowerFunction();

@@ -22,15 +22,25 @@
 
 #include <array>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <type_traits>
 #include <variant>
+#include <vector>
 
 namespace WasmEdge {
 
 // >>>>>>>> Type definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 using Byte = uint8_t;
+
+/// Round Value up to the next multiple of Alignment.
+/// Alignment must be a non-zero power of two (the Canonical ABI only ever
+/// supplies 1, 2, 4, or 8). Behavior is undefined otherwise.
+inline constexpr uint32_t alignTo(uint32_t Value,
+                                  uint32_t Alignment) noexcept {
+  return (Value + (Alignment - 1u)) & ~(Alignment - 1u);
+}
 
 /// SIMD types definition.
 template <typename Ty, size_t TotalSize,
@@ -515,16 +525,71 @@ private:
 
 // >>>>>>>> Component Model Value definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+/// Forward declaration of the aggregate component value container.
+/// Defined after ComponentValVariant so members can hold ComponentValVariant.
+struct ValComp;
+
 using ComponentValVariant = std::variant<
-    // constant types in component types
+    // Constant types in component types.
     uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
     float, double, bool, std::string,
-    // Composition types like List, Record, and Variant.
-    //
-    // We need to copy them in many places, so we just use shared_ptr.
-    // std::shared_ptr<ValComp>,
-    // wasm values
+    // Aggregate types (record/variant/list/tuple/option/result/flags/enum/own/
+    // borrow). Held via shared_ptr because the variant is frequently copied and
+    // the contained ValComp recursively holds further ComponentValVariants.
+    std::shared_ptr<ValComp>,
+    // Wasm core values.
     ValVariant>;
+
+// Per-aggregate value structs. Labels for records/variants/flags/enums are
+// retained on the value side for easier round-trip debugging — the canonical
+// source of truth remains the DefValType.
+struct RecordVal {
+  std::vector<std::pair<std::string, ComponentValVariant>> Fields;
+};
+struct TupleVal {
+  std::vector<ComponentValVariant> Values;
+};
+struct VariantVal {
+  uint32_t Case;
+  std::optional<ComponentValVariant> Payload;
+};
+struct ListVal {
+  std::vector<ComponentValVariant> Elements;
+};
+struct OptionVal {
+  std::optional<ComponentValVariant> Value;
+};
+struct ResultVal {
+  bool IsOk;
+  std::optional<ComponentValVariant> Payload;
+};
+struct FlagsVal {
+  std::vector<bool> Bits;
+};
+struct EnumVal {
+  uint32_t Case;
+};
+struct OwnVal {
+  uint32_t Handle;
+};
+struct BorrowVal {
+  uint32_t Handle;
+};
+
+struct ValComp {
+  std::variant<RecordVal, TupleVal, VariantVal, ListVal, OptionVal, ResultVal,
+               FlagsVal, EnumVal, OwnVal, BorrowVal>
+      V;
+};
+
+/// Wrap an aggregate value in a heap-allocated ValComp and lift it into a
+/// ComponentValVariant. Saves the make_shared + V= + variant-wrap dance at the
+/// many lift/load call sites.
+template <typename T> inline ComponentValVariant makeComponentVal(T &&Inner) {
+  auto VC = std::make_shared<ValComp>();
+  VC->V = std::forward<T>(Inner);
+  return ComponentValVariant{std::move(VC)};
+}
 
 // <<<<<<<< Component Model Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 

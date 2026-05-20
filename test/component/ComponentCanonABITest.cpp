@@ -616,7 +616,7 @@ class CanonABIMemFixture : public ::testing::Test {
 protected:
   CanonABIMemFixture()
       : MemType(1U), Mem(MemType),
-        Cx{nullptr, &Mem, nullptr, nullptr} {}
+        Cx{nullptr, &Mem, nullptr, nullptr, {}} {}
 
   void writeBytes(uint32_t Off, const std::vector<uint8_t> &Bytes) {
     auto Res = Mem.setBytes(Bytes, Off, 0, Bytes.size());

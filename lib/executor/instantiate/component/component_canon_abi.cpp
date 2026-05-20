@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <vector>
 
 namespace WasmEdge {
@@ -1431,6 +1432,111 @@ liftListFromRange(const CanonCtx &Cx, uint32_t Begin, uint32_t Length,
   return makeComponentVal(std::move(LV));
 }
 
+// Bit-pattern reinterpret helpers for variant payload coerce
+// (CanonicalABI.md L3047-3055 / L3168-3173). C++17 has no std::bit_cast,
+// so the conversion goes through std::memcpy on a same-sized scratch slot.
+inline uint32_t bitsAsU32(float V) noexcept {
+  uint32_t U = 0;
+  std::memcpy(&U, &V, sizeof(U));
+  return U;
+}
+inline uint64_t bitsAsU64(double V) noexcept {
+  uint64_t U = 0;
+  std::memcpy(&U, &V, sizeof(U));
+  return U;
+}
+inline float bitsAsF32(uint32_t V) noexcept {
+  float F = 0.f;
+  std::memcpy(&F, &V, sizeof(F));
+  return F;
+}
+inline double bitsAsF64(uint64_t V) noexcept {
+  uint64_t Bits = V;
+  double F = 0.;
+  std::memcpy(&F, &Bits, sizeof(F));
+  return F;
+}
+
+// Spec L3066-3068 (`def wrap_i64_to_i32`).
+inline uint32_t wrapI64ToI32(uint64_t V) noexcept {
+  return static_cast<uint32_t>(V);
+}
+
+// CoerceValueIter.next() (spec L3047-3055): read a `Have`-typed flat slot
+// from VI and reinterpret it into the `Want`-typed slot that the
+// variant's selected case expects. The (have, want) pairs are limited
+// to those produced by `joinFlat` (L2917-2920); other pairs are
+// unreachable.
+Expect<ValVariant> coerceLiftSlot(FlatIter &VI, ValType Have,
+                                  ValType Want) noexcept {
+  auto Raw = VI.next();
+  if (!Raw.has_value()) {
+    EXPECTED_TRY(trapDataInvalid("lift_flat variant: iterator exhausted"));
+  }
+  const auto Hc = Have.getCode();
+  const auto Wc = Want.getCode();
+  if (Hc == Wc) {
+    return *Raw;
+  }
+  if (Hc == TypeCode::I32 && Wc == TypeCode::F32) {
+    return ValVariant{bitsAsF32(Raw->get<uint32_t>())};
+  }
+  if (Hc == TypeCode::I64 && Wc == TypeCode::I32) {
+    return ValVariant{wrapI64ToI32(Raw->get<uint64_t>())};
+  }
+  if (Hc == TypeCode::I64 && Wc == TypeCode::F32) {
+    return ValVariant{bitsAsF32(wrapI64ToI32(Raw->get<uint64_t>()))};
+  }
+  if (Hc == TypeCode::I64 && Wc == TypeCode::F64) {
+    return ValVariant{bitsAsF64(Raw->get<uint64_t>())};
+  }
+  assumingUnreachable();
+}
+
+// Symmetric inverse of coerceLiftSlot (spec L3168-3173): widen / reinterpret
+// a lowered slot from its native flat type `Have` into the variant's joined
+// slot `Want`.
+ValVariant coerceLowerSlot(const ValVariant &Raw, ValType Have,
+                           ValType Want) noexcept {
+  const auto Hc = Have.getCode();
+  const auto Wc = Want.getCode();
+  if (Hc == Wc) {
+    return Raw;
+  }
+  if (Hc == TypeCode::F32 && Wc == TypeCode::I32) {
+    return ValVariant{bitsAsU32(Raw.get<float>())};
+  }
+  if (Hc == TypeCode::I32 && Wc == TypeCode::I64) {
+    // L3171: same numeric value, slot widened to occupy the joined i64 shape
+    // expected by the downstream core caller.
+    return ValVariant{static_cast<uint64_t>(Raw.get<uint32_t>())};
+  }
+  if (Hc == TypeCode::F32 && Wc == TypeCode::I64) {
+    return ValVariant{static_cast<uint64_t>(bitsAsU32(Raw.get<float>()))};
+  }
+  if (Hc == TypeCode::F64 && Wc == TypeCode::I64) {
+    return ValVariant{bitsAsU64(Raw.get<double>())};
+  }
+  assumingUnreachable();
+}
+
+// L3175-3176: tail-pad the lowered payload with a zero value typed to the
+// joined slot, so downstream consumers see slots of the expected shape.
+ValVariant zeroSlot(ValType Want) noexcept {
+  switch (Want.getCode()) {
+  case TypeCode::I32:
+    return ValVariant{uint32_t{0}};
+  case TypeCode::I64:
+    return ValVariant{uint64_t{0}};
+  case TypeCode::F32:
+    return ValVariant{0.f};
+  case TypeCode::F64:
+    return ValVariant{0.};
+  default:
+    assumingUnreachable();
+  }
+}
+
 // CanonicalABI.md L2990-3001 — narrow-from-i32 with zero/sign extension.
 ComponentValVariant liftFlatUnsigned(uint32_t Width, uint64_t Raw) noexcept {
   switch (Width) {
@@ -1650,54 +1756,95 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
   }
 
   if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {
-    // lift_flat_variant (L3042-3072): disc + per-case coerced payload reads.
-    // Only the payload-free shape is implemented — payload-bearing variants
-    // require CoerceValueIter and only become reachable from param-side
-    // direct-path lift, which isn't on yet.
-    bool AnyPayload = false;
+    // lift_flat_variant (L3042-3072): read disc, then read the joined flat
+    // slots, coercing the prefix that belongs to the selected case into the
+    // case's native flat shape and draining the unused suffix.
     size_t NumCases = 0;
-    if (T.isVariantTy()) {
-      for (const auto &C : T.getVariant().Cases) {
-        if (C.second.has_value()) {
-          AnyPayload = true;
-          break;
+    std::optional<ComponentValType> CasePayloadTy;
+    auto pickCase = [&](uint32_t Case) -> Expect<void> {
+      if (T.isVariantTy()) {
+        const auto &Vt = T.getVariant();
+        NumCases = Vt.Cases.size();
+        if (Case >= NumCases) {
+          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
         }
+        CasePayloadTy = Vt.Cases[Case].second;
+      } else if (T.isOptionTy()) {
+        NumCases = 2;
+        if (Case >= NumCases) {
+          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+        }
+        if (Case == 1) {
+          CasePayloadTy = T.getOption().ValTy;
+        }
+      } else {
+        NumCases = 2;
+        if (Case >= NumCases) {
+          EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+        }
+        const auto &Rt = T.getResult();
+        CasePayloadTy = (Case == 0) ? Rt.ValTy : Rt.ErrTy;
       }
-      NumCases = T.getVariant().Cases.size();
-    } else if (T.isOptionTy()) {
-      AnyPayload = true; // some(T) always carries a payload by construction
-      NumCases = 2;
-    } else {
-      AnyPayload = T.getResult().ValTy.has_value() ||
-                   T.getResult().ErrTy.has_value();
-      NumCases = 2;
-    }
-    if (AnyPayload) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: lift_flat of variant/option/result with payload not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-    }
-    auto Next = VI.next();
-    if (!Next.has_value()) {
+      return {};
+    };
+
+    auto DiscRaw = VI.next();
+    if (!DiscRaw.has_value()) {
       EXPECTED_TRY(trapDataInvalid("lift_flat variant: iterator exhausted"));
     }
-    const uint32_t Case = Next->get<uint32_t>();
-    if (Case >= NumCases) {
-      EXPECTED_TRY(trapDataInvalid("variant case index out of range"));
+    const uint32_t Case = DiscRaw->get<uint32_t>();
+    EXPECTED_TRY(pickCase(Case));
+
+    // Joined flat is `[i32] ++ joined`; drop the leading disc.
+    EXPECTED_TRY(auto Joined, flattenTypeDef(Cx, T));
+    assuming(!Joined.empty() && Joined.front().getCode() == TypeCode::I32);
+    Joined.erase(Joined.begin());
+
+    // Native flat for the picked case (empty if no payload).
+    std::vector<ValType> CaseFlat;
+    if (CasePayloadTy.has_value()) {
+      EXPECTED_TRY(CaseFlat, flattenType(Cx, *CasePayloadTy));
     }
+    assuming(CaseFlat.size() <= Joined.size());
+
+    // Coerce the case's prefix; drain the join-padding suffix.
+    std::vector<ValVariant> Coerced;
+    Coerced.reserve(CaseFlat.size());
+    for (size_t I = 0; I < CaseFlat.size(); ++I) {
+      EXPECTED_TRY(auto V, coerceLiftSlot(VI, Joined[I], CaseFlat[I]));
+      Coerced.push_back(V);
+    }
+    for (size_t I = CaseFlat.size(); I < Joined.size(); ++I) {
+      auto Skip = VI.next();
+      if (!Skip.has_value()) {
+        EXPECTED_TRY(trapDataInvalid("lift_flat variant: iterator exhausted"));
+      }
+    }
+
+    std::optional<ComponentValVariant> Payload;
+    if (CasePayloadTy.has_value()) {
+      Span<const ValVariant> CoercedSpan(Coerced);
+      FlatIter PayloadIter(CoercedSpan);
+      EXPECTED_TRY(auto P, liftFlat(Cx, PayloadIter, *CasePayloadTy));
+      Payload = std::move(P);
+    }
+
     if (T.isVariantTy()) {
       VariantVal Vv;
       Vv.Case = Case;
+      Vv.Payload = std::move(Payload);
       return makeComponentVal(std::move(Vv));
     }
     if (T.isOptionTy()) {
-      // Unreachable in practice: option<T> always has a payload, so AnyPayload
-      // would have short-circuited above.
-      return makeComponentVal(OptionVal{});
+      OptionVal Ov;
+      if (Case == 1) {
+        Ov.Value = std::move(Payload);
+      }
+      return makeComponentVal(std::move(Ov));
     }
     ResultVal Rv;
     Rv.IsOk = (Case == 0);
+    Rv.Payload = std::move(Payload);
     return makeComponentVal(std::move(Rv));
   }
 
@@ -1939,13 +2086,13 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {
-    // lower_flat_variant (L3158-3180): payload coercion is the symmetric
-    // counterpart of lift_flat_variant's CoerceValueIter. Only the
-    // payload-free case is supported here — payload-bearing variants stay
-    // gated until both lift and lower paths grow coercion support.
-    bool AnyPayload = false;
+    // lower_flat_variant (L3158-3180): lower the selected case's payload to
+    // its native flat shape, then coerce each slot into the variant's joined
+    // flat shape and tail-pad zeros up to the joined length.
     size_t NumCases = 0;
     uint32_t Case = 0;
+    std::optional<ComponentValType> CasePayloadTy;
+    std::optional<ComponentValVariant> CasePayloadVal;
     if (T.isVariantTy()) {
       const auto VC = std::get<std::shared_ptr<ValComp>>(V);
       if (!VC) {
@@ -1954,40 +2101,78 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
       const auto &Vv = std::get<VariantVal>(VC->V);
       Case = Vv.Case;
       NumCases = T.getVariant().Cases.size();
-      for (const auto &C : T.getVariant().Cases) {
-        if (C.second.has_value()) {
-          AnyPayload = true;
-          break;
+      if (Case >= NumCases) {
+        EXPECTED_TRY(trapDataInvalid("lower_flat variant: case out of range"));
+      }
+      CasePayloadTy = T.getVariant().Cases[Case].second;
+      if (CasePayloadTy.has_value()) {
+        if (!Vv.Payload.has_value()) {
+          EXPECTED_TRY(trapDataInvalid("lower_flat variant: missing payload"));
         }
+        CasePayloadVal = Vv.Payload;
       }
     } else if (T.isOptionTy()) {
-      AnyPayload = true; // some(T) always carries a payload
       NumCases = 2;
       const auto VC = std::get<std::shared_ptr<ValComp>>(V);
       if (!VC) {
         EXPECTED_TRY(trapDataInvalid("lower_flat option: empty value"));
       }
-      Case = std::get<OptionVal>(VC->V).Value.has_value() ? 1u : 0u;
+      const auto &Ov = std::get<OptionVal>(VC->V);
+      if (Ov.Value.has_value()) {
+        Case = 1u;
+        CasePayloadTy = T.getOption().ValTy;
+        CasePayloadVal = Ov.Value;
+      } else {
+        Case = 0u;
+      }
     } else {
-      const auto &Rt = T.getResult();
-      AnyPayload = Rt.ValTy.has_value() || Rt.ErrTy.has_value();
       NumCases = 2;
       const auto VC = std::get<std::shared_ptr<ValComp>>(V);
       if (!VC) {
         EXPECTED_TRY(trapDataInvalid("lower_flat result: empty value"));
       }
-      Case = std::get<ResultVal>(VC->V).IsOk ? 0u : 1u;
+      const auto &Rv = std::get<ResultVal>(VC->V);
+      Case = Rv.IsOk ? 0u : 1u;
+      const auto &Rt = T.getResult();
+      CasePayloadTy = Rv.IsOk ? Rt.ValTy : Rt.ErrTy;
+      if (CasePayloadTy.has_value()) {
+        if (!Rv.Payload.has_value()) {
+          EXPECTED_TRY(trapDataInvalid("lower_flat result: missing payload"));
+        }
+        CasePayloadVal = Rv.Payload;
+      }
     }
-    if (AnyPayload) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: lower_flat of variant/option/result with payload not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+
+    // Joined flat is `[i32] ++ joined`; drop the leading disc.
+    EXPECTED_TRY(auto Joined, flattenTypeDef(Cx, T));
+    assuming(!Joined.empty() && Joined.front().getCode() == TypeCode::I32);
+    Joined.erase(Joined.begin());
+
+    std::vector<ValVariant> Flat;
+    Flat.reserve(1u + Joined.size());
+    Flat.emplace_back(static_cast<uint32_t>(Case));
+
+    if (CasePayloadTy.has_value()) {
+      EXPECTED_TRY(auto CaseFlat, flattenType(Cx, *CasePayloadTy));
+      assuming(CaseFlat.size() <= Joined.size());
+      EXPECTED_TRY(auto Native,
+                   lowerFlat(Cx, *CasePayloadVal, *CasePayloadTy));
+      if (Native.size() != CaseFlat.size()) {
+        EXPECTED_TRY(trapDataInvalid(
+            "lower_flat variant: payload arity mismatch"));
+      }
+      for (size_t I = 0; I < Native.size(); ++I) {
+        Flat.push_back(coerceLowerSlot(Native[I], CaseFlat[I], Joined[I]));
+      }
+      for (size_t I = Native.size(); I < Joined.size(); ++I) {
+        Flat.push_back(zeroSlot(Joined[I]));
+      }
+    } else {
+      for (const auto &J : Joined) {
+        Flat.push_back(zeroSlot(J));
+      }
     }
-    if (Case >= NumCases) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat variant: case out of range"));
-    }
-    return std::vector<ValVariant>{ValVariant(Case)};
+    return Flat;
   }
 
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);

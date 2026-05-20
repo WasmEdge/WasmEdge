@@ -4,9 +4,11 @@
 #include "executor/component/canonical_abi.h"
 
 #include "common/spdlog.h"
+#include "executor/executor.h"
 
 #include <algorithm>
 #include <cstdint>
+#include <vector>
 
 namespace WasmEdge {
 namespace Executor {
@@ -15,6 +17,27 @@ namespace CanonicalABI {
 using namespace std::literals;
 
 namespace {
+
+// Invoke the guest's `realloc` core function. Mirrors the inline allocation
+// dance previously embedded in convValsToCoreWASM (component_canon.cpp:35-44).
+// Returns the freshly-allocated address. Traps on invoke failure since a
+// realloc shortage at this layer is unrecoverable.
+Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
+                             uint32_t OldSize, uint32_t Align,
+                             uint32_t NewSize) noexcept {
+  assuming(Cx.Exec != nullptr);
+  assuming(Cx.Realloc != nullptr);
+  std::vector<ValVariant> Args{ValVariant(OldPtr), ValVariant(OldSize),
+                               ValVariant(Align), ValVariant(NewSize)};
+  auto ParamTypes = Cx.Realloc->getFuncType().getParamTypes();
+  EXPECTED_TRY(auto Res, Cx.Exec->invoke(Cx.Realloc, Args, ParamTypes));
+  if (Res.empty()) {
+    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+    spdlog::error("    canonical ABI: realloc returned no value"sv);
+    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+  }
+  return Res[0].first.get<uint32_t>();
+}
 
 // CanonicalABI.md L1951-1956 (`def discriminant_type`):
 //   match math.ceil(math.log2(n)/8):
@@ -630,13 +653,11 @@ flattenFuncType(const CanonCtx &Cx, const AST::Component::FuncType &FT,
     F.Results.insert(F.Results.end(), Sub.begin(), Sub.end());
   }
 
-  // Params over the cap → indirect-param path; deferred.
+  // Params over the cap → indirect-param path (spec L2823-2824 for lift;
+  // L2829-2830 for lower). Both directions collapse to a single ptr_type.
   if (F.Params.size() > MaxFlatParams) {
-    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-    spdlog::error(
-        "    canonical ABI: param-side indirect (>{} flat params) not implemented"sv,
-        MaxFlatParams);
-    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    F.Params.clear();
+    F.Params.push_back(I32T);
   }
 
   // Results over the cap.
@@ -1095,13 +1116,26 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
     EXPECTED_TRY(validateUSV(I));
     return Cx.Mem->storeValue<uint32_t>(I, Ptr);
   }
-  case P::String:
-    // store_string (L2477+) requires realloc to allocate the payload buffer;
-    // realloc plumbing not yet wired through CanonCtx.
-    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-    spdlog::error(
-        "    canonical ABI: store of string requires realloc"sv);
-    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+  case P::String: {
+    // store_string (CanonicalABI.md L2477-2502): UTF-8 only here — other
+    // encodings are filtered at the canon-options layer in
+    // component_canon.cpp. Allocate via realloc with alignment 1 (L2432),
+    // copy payload, then store the (ptr, len) pair at Ptr.
+    const auto &Str = std::get<std::string>(V);
+    const uint32_t Len = static_cast<uint32_t>(Str.size());
+    uint32_t Begin = 0;
+    if (Len > 0u) {
+      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, 1u, Len));
+      if (!Cx.Mem->checkAccessBound(Begin, Len)) {
+        EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
+      }
+      Cx.Mem->setBytes(std::vector<Byte>{Str.begin(), Str.end()}, Begin, 0u,
+                       Len);
+    }
+    EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Begin, Ptr));
+    EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Len, Ptr + 4u));
+    return {};
+  }
   case P::ErrorContext:
     spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
     spdlog::error(
@@ -1263,11 +1297,43 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isListTy()) {
-    // store_list (L2674+) requires realloc; not yet wired.
-    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-    spdlog::error(
-        "    canonical ABI: store of list requires realloc"sv);
-    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    // store_list (CanonicalABI.md L2674-2694). Fixed-length lists stay
+    // deferred until a use case appears.
+    if (T.getList().Len.has_value()) {
+      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+      spdlog::error(
+          "    canonical ABI: store of fixed-length list not implemented"sv);
+      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    }
+    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    if (!VC) {
+      EXPECTED_TRY(trapDataInvalid("store list: empty value"));
+    }
+    const auto &Lv = std::get<ListVal>(VC->V);
+    const auto &ElemT = T.getList().ValTy;
+    EXPECTED_TRY(auto ElemAlign, alignment(Cx, ElemT));
+    EXPECTED_TRY(auto ElemSz, elemSize(Cx, ElemT));
+    const uint32_t Length = static_cast<uint32_t>(Lv.Elements.size());
+    const uint64_t ByteLen64 =
+        static_cast<uint64_t>(Length) * static_cast<uint64_t>(ElemSz);
+    if (ByteLen64 > static_cast<uint64_t>(kMaxCanonByteLength)) {
+      EXPECTED_TRY(trapDataInvalid("store list: byte length exceeds MAX"));
+    }
+    const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
+    uint32_t Begin = 0;
+    if (Length > 0u) {
+      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
+      if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
+        EXPECTED_TRY(trapMemoryOOB("list payload (post-realloc)", Begin,
+                                   ByteLen));
+      }
+      for (uint32_t I = 0; I < Length; ++I) {
+        EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
+      }
+    }
+    EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Begin, Ptr));
+    EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Length, Ptr + 4u));
+    return {};
   }
 
   if (T.isFlagsTy()) {
@@ -1639,6 +1705,295 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
 
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
   spdlog::error("    canonical ABI: lift_flat of gated value type"sv);
+  return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+}
+
+namespace {
+
+// CanonicalABI.md L3118-3128 (`lower_flat_signed`): two's-complement reinterp
+// into the unsigned width, then bucketed to i32 or i64.
+std::vector<ValVariant> lowerSigned32(int32_t V) noexcept {
+  return {ValVariant(static_cast<uint32_t>(V))};
+}
+std::vector<ValVariant> lowerSigned64(int64_t V) noexcept {
+  return {ValVariant(static_cast<uint64_t>(V))};
+}
+
+Expect<std::vector<ValVariant>>
+lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
+              AST::Component::PrimValType PVT) noexcept {
+  using P = AST::Component::PrimValType;
+  switch (PVT) {
+  case P::Bool:
+    return std::vector<ValVariant>{ValVariant(std::get<bool>(V) ? 1u : 0u)};
+  case P::U8:
+    return std::vector<ValVariant>{
+        ValVariant(static_cast<uint32_t>(std::get<uint8_t>(V)))};
+  case P::U16:
+    return std::vector<ValVariant>{
+        ValVariant(static_cast<uint32_t>(std::get<uint16_t>(V)))};
+  case P::U32:
+    return std::vector<ValVariant>{ValVariant(std::get<uint32_t>(V))};
+  case P::U64:
+    return std::vector<ValVariant>{ValVariant(std::get<uint64_t>(V))};
+  case P::S8:
+    return lowerSigned32(static_cast<int32_t>(std::get<int8_t>(V)));
+  case P::S16:
+    return lowerSigned32(static_cast<int32_t>(std::get<int16_t>(V)));
+  case P::S32:
+    return lowerSigned32(std::get<int32_t>(V));
+  case P::S64:
+    return lowerSigned64(std::get<int64_t>(V));
+  case P::F32:
+    return std::vector<ValVariant>{ValVariant(std::get<float>(V))};
+  case P::F64:
+    return std::vector<ValVariant>{ValVariant(std::get<double>(V))};
+  case P::Char: {
+    const uint32_t I = std::get<uint32_t>(V);
+    EXPECTED_TRY(validateUSV(I));
+    return std::vector<ValVariant>{ValVariant(I)};
+  }
+  case P::String: {
+    // lower_flat_string (L3130-3132): realloc + copy, push (ptr, len).
+    const auto &Str = std::get<std::string>(V);
+    const uint32_t Len = static_cast<uint32_t>(Str.size());
+    uint32_t Begin = 0;
+    if (Len > 0u) {
+      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, 1u, Len));
+      if (!Cx.Mem->checkAccessBound(Begin, Len)) {
+        EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
+      }
+      Cx.Mem->setBytes(std::vector<Byte>{Str.begin(), Str.end()}, Begin, 0u,
+                       Len);
+    }
+    return std::vector<ValVariant>{ValVariant(Begin), ValVariant(Len)};
+  }
+  case P::ErrorContext:
+    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+    spdlog::error(
+        "    canonical ABI: lower_flat of error-context not implemented"sv);
+    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+  default:
+    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+    spdlog::error(
+        "    canonical ABI: lower_flat of unknown prim 0x{:02x}"sv,
+        static_cast<uint8_t>(PVT));
+    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+  }
+}
+
+} // namespace
+
+Expect<std::vector<ValVariant>>
+lowerFlat(const CanonCtx &Cx, const ComponentValVariant &V,
+          const ComponentValType &T) noexcept {
+  using TC = ComponentTypeCode;
+  const TC Code = T.getCode();
+
+  if (Code == TC::TypeIndex) {
+    assuming(Cx.CompInst != nullptr);
+    const auto *DT = Cx.CompInst->getType(T.getTypeIndex());
+    if (DT == nullptr || !DT->isDefValType()) {
+      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      spdlog::error(
+          "    canonical ABI: type index {} does not refer to a value type"sv,
+          T.getTypeIndex());
+      return Unexpect(ErrCode::Value::InvalidTypeReference);
+    }
+    return lowerFlatDef(Cx, V, DT->getDefValType());
+  }
+  return lowerFlatPrim(
+      Cx, V,
+      static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
+}
+
+Expect<std::vector<ValVariant>>
+lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
+             const AST::Component::DefValType &T) noexcept {
+  if (T.isPrimValType()) {
+    return lowerFlatPrim(Cx, V, T.getPrimValType());
+  }
+
+  if (T.isRecordTy()) {
+    // lower_flat_record (L3147-3156): concatenate per-field lowerings.
+    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    if (!VC) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat record: empty value"));
+    }
+    const auto &R = std::get<RecordVal>(VC->V);
+    const auto &Fields = T.getRecord().LabelTypes;
+    if (R.Fields.size() != Fields.size()) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat record: field count mismatch"));
+    }
+    std::vector<ValVariant> Flat;
+    for (size_t I = 0; I < Fields.size(); ++I) {
+      EXPECTED_TRY(auto Sub, lowerFlat(Cx, R.Fields[I].second,
+                                       Fields[I].getValType()));
+      Flat.insert(Flat.end(), Sub.begin(), Sub.end());
+    }
+    return Flat;
+  }
+
+  if (T.isTupleTy()) {
+    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    if (!VC) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat tuple: empty value"));
+    }
+    const auto &Tu = std::get<TupleVal>(VC->V);
+    const auto &Types = T.getTuple().Types;
+    if (Tu.Values.size() != Types.size()) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat tuple: value count mismatch"));
+    }
+    std::vector<ValVariant> Flat;
+    for (size_t I = 0; I < Types.size(); ++I) {
+      EXPECTED_TRY(auto Sub, lowerFlat(Cx, Tu.Values[I], Types[I]));
+      Flat.insert(Flat.end(), Sub.begin(), Sub.end());
+    }
+    return Flat;
+  }
+
+  if (T.isListTy()) {
+    // lower_flat_list (L3134-3145): no-len → realloc + store + push (ptr, len).
+    // Fixed-length list deferred (symmetric to load/store gates).
+    if (T.getList().Len.has_value()) {
+      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+      spdlog::error(
+          "    canonical ABI: lower_flat of fixed-length list not implemented"sv);
+      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    }
+    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    if (!VC) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat list: empty value"));
+    }
+    const auto &Lv = std::get<ListVal>(VC->V);
+    const auto &ElemT = T.getList().ValTy;
+    EXPECTED_TRY(auto ElemAlign, alignment(Cx, ElemT));
+    EXPECTED_TRY(auto ElemSz, elemSize(Cx, ElemT));
+    const uint32_t Length = static_cast<uint32_t>(Lv.Elements.size());
+    const uint64_t ByteLen64 =
+        static_cast<uint64_t>(Length) * static_cast<uint64_t>(ElemSz);
+    if (ByteLen64 > static_cast<uint64_t>(kMaxCanonByteLength)) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat list: byte length exceeds MAX"));
+    }
+    const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
+    uint32_t Begin = 0;
+    if (Length > 0u) {
+      EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
+      if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
+        EXPECTED_TRY(trapMemoryOOB("list payload (post-realloc)", Begin,
+                                   ByteLen));
+      }
+      for (uint32_t I = 0; I < Length; ++I) {
+        EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
+      }
+    }
+    return std::vector<ValVariant>{ValVariant(Begin), ValVariant(Length)};
+  }
+
+  if (T.isFlagsTy()) {
+    // lower_flat_flags (L3182-3192). Preview 2: labels ≤ 32 → single i32.
+    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    if (!VC) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat flags: empty value"));
+    }
+    const auto &F = std::get<FlagsVal>(VC->V);
+    const auto &Ft = T.getFlags();
+    if (F.Bits.size() != Ft.Labels.size()) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat flags: bit count mismatch"));
+    }
+    uint32_t Packed = 0;
+    for (size_t I = 0; I < F.Bits.size(); ++I) {
+      if (F.Bits[I]) {
+        Packed |= (1u << I);
+      }
+    }
+    return std::vector<ValVariant>{ValVariant(Packed)};
+  }
+
+  if (T.isEnumTy()) {
+    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    if (!VC) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat enum: empty value"));
+    }
+    const auto &E = std::get<EnumVal>(VC->V);
+    if (E.Case >= T.getEnum().Labels.size()) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat enum: case out of range"));
+    }
+    return std::vector<ValVariant>{ValVariant(E.Case)};
+  }
+
+  if (T.isOwnTy()) {
+    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    if (!VC) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat own: empty value"));
+    }
+    const auto &O = std::get<OwnVal>(VC->V);
+    return std::vector<ValVariant>{ValVariant(O.Handle)};
+  }
+
+  if (T.isBorrowTy()) {
+    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    if (!VC) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat borrow: empty value"));
+    }
+    const auto &B = std::get<BorrowVal>(VC->V);
+    return std::vector<ValVariant>{ValVariant(B.Handle)};
+  }
+
+  if (T.isVariantTy() || T.isOptionTy() || T.isResultTy()) {
+    // lower_flat_variant (L3158-3180): payload coercion is the symmetric
+    // counterpart of lift_flat_variant's CoerceValueIter. Only the
+    // payload-free case is supported here — payload-bearing variants stay
+    // gated until both lift and lower paths grow coercion support.
+    bool AnyPayload = false;
+    size_t NumCases = 0;
+    uint32_t Case = 0;
+    if (T.isVariantTy()) {
+      const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+      if (!VC) {
+        EXPECTED_TRY(trapDataInvalid("lower_flat variant: empty value"));
+      }
+      const auto &Vv = std::get<VariantVal>(VC->V);
+      Case = Vv.Case;
+      NumCases = T.getVariant().Cases.size();
+      for (const auto &C : T.getVariant().Cases) {
+        if (C.second.has_value()) {
+          AnyPayload = true;
+          break;
+        }
+      }
+    } else if (T.isOptionTy()) {
+      AnyPayload = true; // some(T) always carries a payload
+      NumCases = 2;
+      const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+      if (!VC) {
+        EXPECTED_TRY(trapDataInvalid("lower_flat option: empty value"));
+      }
+      Case = std::get<OptionVal>(VC->V).Value.has_value() ? 1u : 0u;
+    } else {
+      const auto &Rt = T.getResult();
+      AnyPayload = Rt.ValTy.has_value() || Rt.ErrTy.has_value();
+      NumCases = 2;
+      const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+      if (!VC) {
+        EXPECTED_TRY(trapDataInvalid("lower_flat result: empty value"));
+      }
+      Case = std::get<ResultVal>(VC->V).IsOk ? 0u : 1u;
+    }
+    if (AnyPayload) {
+      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+      spdlog::error(
+          "    canonical ABI: lower_flat of variant/option/result with payload not implemented"sv);
+      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    }
+    if (Case >= NumCases) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat variant: case out of range"));
+    }
+    return std::vector<ValVariant>{ValVariant(Case)};
+  }
+
+  spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+  spdlog::error("    canonical ABI: lower_flat of gated value type"sv);
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
 }
 

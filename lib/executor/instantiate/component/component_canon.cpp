@@ -27,7 +27,7 @@ Expect<std::vector<ValVariant>> Executor::convValsToCoreWASM(
   // recursion, and the indirect-params (>MAX_FLAT_PARAMS) realloc-and-store
   // path. All ComponentValVariant primitives flow on the typed-arm
   // convention end-to-end.
-  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst};
+  CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst, {}};
   return CanonicalABI::lowerFlatValues(Cx, Vals, ValTypes,
                                        CanonicalABI::MaxFlatParams);
 }
@@ -44,7 +44,7 @@ Executor::convValsToComponent(
   // recursion, and the indirect-result (>MAX_FLAT_RESULTS) load-tuple-from-ptr
   // path. All produced ComponentValVariant primitives use the typed-arm
   // convention.
-  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst};
+  CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst, {}};
   CanonicalABI::FlatIter VI(CoreVals);
   EXPECTED_TRY(
       auto Lifted,
@@ -114,7 +114,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // results are explicitly supported by B and reduce to results=[i32].
       // Capture FlatSig so the post-return signature check can compare
       // against flatten_functype({}, $ft, 'lift').results (spec L3292).
-      CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst};
+      CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst, {}};
       EXPECTED_TRY(
           auto FlatSig,
           CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
@@ -198,7 +198,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // Pre-flight the lower-direction flat ABI so unsupported shapes (async,
       // gated types) fail at instantiation time. flattenFuncType doesn't need
       // Mem / Realloc to compute the signature.
-      CanonicalABI::CanonCtx PrefCx{this, nullptr, nullptr, &CompInst};
+      CanonicalABI::CanonCtx PrefCx{this, nullptr, nullptr, &CompInst, {}};
       EXPECTED_TRY(auto FlatSig,
                    CanonicalABI::flattenFuncType(PrefCx, CFT,
                                                  /*IsLift=*/false));

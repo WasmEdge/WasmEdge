@@ -44,7 +44,7 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
   // Lower-direction CanonCtx: Memory/Realloc come from the canon lower
   // options. Exec is needed by callRealloc inside lower_flat_values when
   // nested strings/lists in results need their own buffer.
-  CanonicalABI::CanonCtx Cx{Exec, Memory, Realloc, CompInst};
+  CanonicalABI::CanonCtx Cx{Exec, Memory, Realloc, CompInst, {}};
 
   // Collect component-level param + result types from the callee.
   const auto &CFT = Callee->getFuncType();

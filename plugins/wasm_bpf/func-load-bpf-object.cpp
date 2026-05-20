@@ -8,7 +8,7 @@ namespace Host {
 
 Expect<handle_t> LoadBpfObject::body(const Runtime::CallingFrame &Frame,
                                      uint32_t obj_buf, uint32_t obj_buf_sz) {
-  auto *memory = Frame.getMemoryByIndex(0);
+  auto *memory = Frame.getMemoryByName("memory");
   if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

@@ -62,7 +62,7 @@ WasiNNLoad::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t BuilderPtr,
   }
 #endif
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -121,7 +121,7 @@ Expect<WASINN::ErrNo>
 WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
                            uint32_t NameLen, uint32_t GraphIdPtr) {
   Env.setEnviron(&Frame);
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -171,7 +171,7 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
     const Runtime::CallingFrame &Frame, uint32_t NamePtr, uint32_t NameLen,
     uint32_t ConfigPtr, uint32_t ConfigLen, uint32_t GraphIdPtr) {
   Env.setEnviron(&Frame);
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -234,7 +234,7 @@ Expect<WASINN::ErrNo>
 WasiNNInitExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
                             uint32_t GraphId, uint32_t ContextPtr) {
   Env.setEnviron(&Frame);
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -292,7 +292,7 @@ Expect<WASINN::ErrNo>
 WasiNNSetInput::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t ContextId,
                          uint32_t Index, uint32_t TensorPtr) {
   Env.setEnviron(&Frame);
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -394,7 +394,7 @@ WasiNNGetOutput::bodyImpl(const Runtime::CallingFrame &Frame,
                           uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
                           uint32_t BytesWrittenPtr) {
   Env.setEnviron(&Frame);
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -459,7 +459,7 @@ Expect<WASINN::ErrNo> WasiNNGetOutputSingle::bodyImpl(
     uint32_t OutBufferPtr, uint32_t OutBufferMaxSize,
     uint32_t BytesWrittenPtr) {
   Env.setEnviron(&Frame);
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -542,7 +542,7 @@ WasiNNCompute::bodyImpl(const Runtime::CallingFrame &Frame,
     return WASINN::ErrNo::Success;
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -595,7 +595,7 @@ WasiNNComputeSingle::bodyImpl(const Runtime::CallingFrame &Frame,
     return WASINN::ErrNo::Success;
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -649,7 +649,7 @@ WasiNNFiniSingle::bodyImpl(const Runtime::CallingFrame &Frame,
     return WASINN::ErrNo::Success;
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -683,7 +683,7 @@ Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
     return WASINN::ErrNo::UnsupportedOperation;
   }
 #endif
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -721,7 +721,7 @@ WasiNNFinalizeExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
     return WASINN::ErrNo::UnsupportedOperation;
   }
 #endif
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

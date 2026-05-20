@@ -61,7 +61,7 @@ public:
   }
 
   Runtime::Instance::MemoryInstance &getMemInst(void) {
-    return *Frame.getMemoryByIndex(0);
+    return *Frame.getMemoryByName("memory");
   }
 
   uint32_t call(std::initializer_list<WasmEdge::ValVariant> Args) {

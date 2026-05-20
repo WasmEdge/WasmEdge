@@ -11,7 +11,7 @@ namespace Signatures {
 Expect<uint32_t> Export::body(const Runtime::CallingFrame &Frame,
                               int32_t SigHandle, uint32_t Encoding,
                               uint32_t /* Out */ ArrayOutputHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   __wasi_signature_encoding_e_t WasiEncoding;
@@ -40,7 +40,7 @@ Expect<uint32_t> Import::body(const Runtime::CallingFrame &Frame,
                               uint32_t EncodedPtr, uint32_t EncodedLen,
                               uint32_t Encoding,
                               uint32_t /* Out */ SigHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -84,7 +84,7 @@ Expect<uint32_t> Import::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> StateOpen::body(const Runtime::CallingFrame &Frame,
                                  int32_t KpHandle,
                                  uint32_t /* Out */ SigStatePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const SigState =
@@ -103,7 +103,7 @@ Expect<uint32_t> StateOpen::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> StateUpdate::body(const Runtime::CallingFrame &Frame,
                                    int32_t SigStateHandle, uint32_t InputPtr,
                                    uint32_t InputSize) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiInputSize = InputSize;
@@ -121,7 +121,7 @@ Expect<uint32_t> StateUpdate::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> StateSign::body(const Runtime::CallingFrame &Frame,
                                  int32_t SigStateHandle,
                                  uint32_t /* Out */ ArrayOutputHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const ArrayOutputHandle =
@@ -139,7 +139,7 @@ Expect<uint32_t> StateSign::body(const Runtime::CallingFrame &Frame,
 
 Expect<uint32_t> StateClose::body(const Runtime::CallingFrame &Frame,
                                   int32_t SigStateHandle) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   if (auto Res = Ctx.signatureStateClose(SigStateHandle); unlikely(!Res)) {
@@ -153,7 +153,7 @@ Expect<uint32_t>
 VerificationStateOpen::body(const Runtime::CallingFrame &Frame,
                             int32_t SigPkHandle,
                             uint32_t /* Out */ VerificationStateHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const VerificationStateHandle =
@@ -175,7 +175,7 @@ Expect<uint32_t>
 VerificationStateUpdate::body(const Runtime::CallingFrame &Frame,
                               int32_t SigStateHandle, uint32_t InputPtr,
                               uint32_t InputSize) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiInputSize = InputSize;

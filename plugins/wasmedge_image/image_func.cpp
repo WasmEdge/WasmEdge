@@ -99,7 +99,7 @@ bool decodeImgToSize(Span<const uint8_t> Buf, uint32_t W, uint32_t H,
 }
 
 #define MEMINST_CHECK(Out, CallFrame, Index)                                   \
-  auto *Out = CallFrame.getMemoryByIndex(Index);                               \
+  auto *Out = CallFrame.getMemoryByName("memory");                             \
   if (unlikely(Out == nullptr)) {                                              \
     spdlog::error("[WasmEdge-Image] Memory instance not found."sv);            \
     return static_cast<uint32_t>(ErrNo::Fail);                                 \

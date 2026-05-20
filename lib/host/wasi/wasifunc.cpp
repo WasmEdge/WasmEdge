@@ -373,10 +373,7 @@ bool AllowAFUNIX(const Runtime::CallingFrame &Frame,
 
 Runtime::Instance::MemoryInstance *
 getMemoryInstance(const Runtime::CallingFrame &Frame) noexcept {
-  if (const auto *ModInst = Frame.getModule()) {
-    return ModInst->findMemoryExports("memory");
-  }
-  return nullptr;
+  return Frame.getMemoryByName("memory");
 }
 
 template <typename T> inline bool isMisaligned(uint32_t Ptr) noexcept {

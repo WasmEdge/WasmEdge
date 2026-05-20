@@ -27,6 +27,7 @@
 #include "runtime/instance/memory.h"
 
 #include <cstdint>
+#include <optional>
 
 namespace WasmEdge {
 namespace Executor {
@@ -202,6 +203,24 @@ lowerFlat(const CanonCtx &Cx, const ComponentValVariant &V,
 Expect<std::vector<ValVariant>>
 lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
              const AST::Component::DefValType &T) noexcept;
+
+/// Spec L3193-3202 (`def lift_flat_values`). Reads MaxFlat-bounded flat values
+/// from VI; when the type list flattens to more than MaxFlat, reads a single
+/// pointer and loads the synthesized tuple from memory at that pointer.
+Expect<std::vector<ComponentValVariant>>
+liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
+               Span<const ComponentValType> Types,
+               uint32_t MaxFlat) noexcept;
+
+/// Spec L3212-3232 (`def lower_flat_values`). Lowers Values into flat core
+/// wasm values. When OutParam is provided, the indirect-store buffer is the
+/// caller-supplied pointer (lower-direction returning to an out-pointer) and
+/// the returned vector is empty. When OutParam is std::nullopt, the indirect
+/// case allocates a buffer via realloc and returns a single i32 pointer.
+Expect<std::vector<ValVariant>>
+lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
+                Span<const ComponentValType> Types, uint32_t MaxFlat,
+                std::optional<uint32_t> OutParam = std::nullopt) noexcept;
 
 } // namespace CanonicalABI
 } // namespace Executor

@@ -95,12 +95,16 @@ TEST(Component, LoadAndRun_SimpleBinary) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
 
-  uint64_t V = 100;
-  auto Res = VM.executeComponent("mdup", {ComponentValVariant(ValVariant(V))},
-                                 {ComponentValType(ComponentTypeCode::U64)});
+  // The component function "mdup" lifts a core (i64)->i64 doubler with the
+  // declared component type (param "a" s64) (result s64). Use the S64 typed
+  // arm end-to-end so the post-refactor type-driven lift/lower paths match
+  // the actual function signature.
+  int64_t V = 100;
+  auto Res = VM.executeComponent("mdup", {ComponentValVariant{V}},
+                                 {ComponentValType(ComponentTypeCode::S64)});
   ASSERT_TRUE(Res);
   std::vector<std::pair<ComponentValVariant, ComponentValType>> Result = *Res;
-  auto Ret = std::get<ValVariant>(Result[0].first).get<uint64_t>();
+  auto Ret = std::get<int64_t>(Result[0].first);
   EXPECT_EQ(Ret, 200);
 }
 

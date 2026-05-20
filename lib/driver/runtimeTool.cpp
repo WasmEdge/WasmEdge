@@ -197,7 +197,7 @@ ToolOnModule(WasmEdge::VM::VM &VM, const std::string &FuncName,
     }
     return EXIT_SUCCESS;
   } else {
-    // It indicates that the execution of wasm has been aborted.
+    spdlog::error(Result.error());
     return 128 + SIGABRT;
   }
 }
@@ -350,7 +350,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 
     return EXIT_SUCCESS;
   } else {
-    // It indicates that the execution of wasm has been aborted.
+    spdlog::error(Result.error());
     return 128 + SIGABRT;
   }
 }
@@ -593,7 +593,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
         Result || Result.error() == ErrCode::Value::Terminated) {
       return static_cast<int>(WasiMod->getExitCode());
     } else {
-      // It indicates that the execution of wasm has been aborted.
+      spdlog::error(Result.error());
       return 128 + SIGABRT;
     }
   } else {
@@ -643,7 +643,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
           }
         }
         if (auto Result = AsyncResult.get(); unlikely(!Result)) {
-          // It indicates that the execution of wasm has been aborted.
+          spdlog::error(Result.error());
           return 128 + SIGABRT;
         }
       }

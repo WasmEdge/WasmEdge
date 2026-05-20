@@ -385,9 +385,11 @@ private:
                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
 
   Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
-  convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
-                      Span<const ComponentValType> ValTypes,
-                      Runtime::Instance::MemoryInstance *MemInst);
+  convValsToComponent(
+      Span<const std::pair<ValVariant, ValType>> CoreVals,
+      Span<const ComponentValType> ValTypes,
+      Runtime::Instance::MemoryInstance *MemInst,
+      const Runtime::Instance::ComponentInstance *CompInst);
   /// @}
 
   /// \name Helper Functions for block controls.

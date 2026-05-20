@@ -257,7 +257,8 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
     ReturnTypes.push_back(Type.getValType());
   }
   EXPECTED_TRY(auto Returns,
-               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst));
+               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
+                                   FuncInst->getComponentInstance()));
   assuming(Returns.size() == ReturnTypes.size());
   return Returns;
 }

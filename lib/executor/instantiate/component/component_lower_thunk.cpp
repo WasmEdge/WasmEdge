@@ -14,103 +14,6 @@ namespace Executor {
 
 using namespace std::literals;
 
-namespace {
-
-// convValsToCoreWASM's direct path reads `std::get<ValVariant>(V)` for
-// non-string primitives — so the inverse of coerceValVariantToTyped is needed
-// when the thunk forwards lifted typed primitives back into the lift-direction
-// invoke. Re-wraps typed primitive arms as ComponentValVariant{ValVariant}.
-ComponentValVariant
-coerceTypedToValVariant(const ComponentValVariant &V,
-                        ComponentTypeCode Code) noexcept {
-  using TC = ComponentTypeCode;
-  switch (Code) {
-  case TC::Bool:
-    return ComponentValVariant{
-        ValVariant(static_cast<uint32_t>(std::get<bool>(V) ? 1u : 0u))};
-  case TC::U8:
-    return ComponentValVariant{
-        ValVariant(static_cast<uint32_t>(std::get<uint8_t>(V)))};
-  case TC::U16:
-    return ComponentValVariant{
-        ValVariant(static_cast<uint32_t>(std::get<uint16_t>(V)))};
-  case TC::U32:
-    return ComponentValVariant{ValVariant(std::get<uint32_t>(V))};
-  case TC::U64:
-    return ComponentValVariant{ValVariant(std::get<uint64_t>(V))};
-  case TC::S8:
-    return ComponentValVariant{
-        ValVariant(static_cast<uint32_t>(std::get<int8_t>(V)))};
-  case TC::S16:
-    return ComponentValVariant{
-        ValVariant(static_cast<uint32_t>(std::get<int16_t>(V)))};
-  case TC::S32:
-    return ComponentValVariant{
-        ValVariant(static_cast<uint32_t>(std::get<int32_t>(V)))};
-  case TC::S64:
-    return ComponentValVariant{
-        ValVariant(static_cast<uint64_t>(std::get<int64_t>(V)))};
-  case TC::F32:
-    return ComponentValVariant{ValVariant(std::get<float>(V))};
-  case TC::F64:
-    return ComponentValVariant{ValVariant(std::get<double>(V))};
-  case TC::Char:
-    return ComponentValVariant{ValVariant(std::get<uint32_t>(V))};
-  default:
-    // String / TypeIndex go through their own arms in convValsToCoreWASM.
-    return V;
-  }
-}
-
-// convValsToComponent's direct path wraps each primitive result as
-// ComponentValVariant{ValVariant} (preserving the pre-Phase-1 calling
-// convention used by existing host-side consumers). lowerFlat / lowerFlatValues
-// expect ComponentValVariants whose primitive arm holds the typed primitive
-// (uint32_t / int8_t / ...) directly. This helper rewrites the legacy
-// ValVariant arm into the typed arm so the thunk can route directly through
-// lowerFlatValues without forking the contract.
-ComponentValVariant
-coerceValVariantToTyped(const ComponentValVariant &V,
-                        ComponentTypeCode Code) noexcept {
-  if (!std::holds_alternative<ValVariant>(V)) {
-    return V;
-  }
-  const auto &VV = std::get<ValVariant>(V);
-  using TC = ComponentTypeCode;
-  switch (Code) {
-  case TC::Bool:
-    return ComponentValVariant{VV.get<uint32_t>() != 0u};
-  case TC::U8:
-    return ComponentValVariant{static_cast<uint8_t>(VV.get<uint32_t>())};
-  case TC::U16:
-    return ComponentValVariant{static_cast<uint16_t>(VV.get<uint32_t>())};
-  case TC::U32:
-    return ComponentValVariant{VV.get<uint32_t>()};
-  case TC::U64:
-    return ComponentValVariant{VV.get<uint64_t>()};
-  case TC::S8:
-    return ComponentValVariant{static_cast<int8_t>(VV.get<uint32_t>())};
-  case TC::S16:
-    return ComponentValVariant{static_cast<int16_t>(VV.get<uint32_t>())};
-  case TC::S32:
-    return ComponentValVariant{static_cast<int32_t>(VV.get<uint32_t>())};
-  case TC::S64:
-    return ComponentValVariant{static_cast<int64_t>(VV.get<uint64_t>())};
-  case TC::F32:
-    return ComponentValVariant{VV.get<float>()};
-  case TC::F64:
-    return ComponentValVariant{VV.get<double>()};
-  case TC::Char:
-    return ComponentValVariant{VV.get<uint32_t>()};
-  default:
-    // Non-primitive shapes don't go through the ValVariant-wrapped path in
-    // the first place — pass through.
-    return V;
-  }
-}
-
-} // namespace
-
 CanonLowerHostFunc::CanonLowerHostFunc(
     Executor *ExecIn, const CanonicalABI::FlatFuncType &FlatSig,
     Runtime::Instance::Component::FunctionInstance *CalleeIn,
@@ -181,17 +84,13 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
     ParamArgs = Args.subspan(0, Args.size() - 1);
   }
 
-  // Lift params (spec L3193-3202).
+  // Lift params (spec L3193-3202). Produces typed-arm ComponentValVariants;
+  // Executor::invoke (lift direction) now consumes the same convention end-to-
+  // end, so no boundary translation is needed.
   CanonicalABI::FlatIter VI(ParamArgs);
   EXPECTED_TRY(auto Params,
                CanonicalABI::liftFlatValues(Cx, VI, ParamTypes,
                                             CanonicalABI::MaxFlatParams));
-
-  // The lift side (Executor::invoke + convValsToCoreWASM) currently expects
-  // primitive params wrapped as ComponentValVariant{ValVariant} — coerce.
-  for (size_t I = 0; I < Params.size(); ++I) {
-    Params[I] = coerceTypedToValVariant(Params[I], ParamTypes[I].getCode());
-  }
 
   // Invoke the wrapped component function. Note this re-enters
   // Executor::invoke from inside a host-function frame — host re-entry is
@@ -200,13 +99,11 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
                Exec->invoke(Callee, Params, ParamTypes));
 
   // Split CompRes (vector<pair<ComponentValVariant, ComponentValType>>) into
-  // values + types and coerce legacy ValVariant-wrapped primitives back to
-  // their typed form before lowering.
+  // a value-only vector for lowerFlatValues. Values already use typed arms.
   std::vector<ComponentValVariant> ResultValues;
   ResultValues.reserve(CompRes.size());
-  for (size_t I = 0; I < CompRes.size(); ++I) {
-    ResultValues.push_back(
-        coerceValVariantToTyped(CompRes[I].first, ResultTypes[I].getCode()));
+  for (auto &P : CompRes) {
+    ResultValues.push_back(std::move(P.first));
   }
 
   // Lower results back to flat core values (spec L3212-3232).

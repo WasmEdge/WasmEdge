@@ -27,6 +27,7 @@
 #include "runtime/instance/memory.h"
 
 #include <cstdint>
+#include <functional>
 #include <optional>
 
 namespace WasmEdge {
@@ -45,16 +46,35 @@ constexpr uint32_t MaxFlatParams = 16;
 constexpr uint32_t MaxFlatResults = 1;
 
 /// Context bundle for canonical-ABI operations. Not every helper requires every
-/// field — alignment / elem_size / flatten_* only need CompInst; load / store /
-/// lift_flat / lower_flat additionally require Mem (and Realloc + Exec when
-/// allocating list / string return areas, since the allocation goes through
-/// Executor::invoke on the guest's `realloc` core function).
+/// field — alignment / elem_size / flatten_* only need a type resolver (either
+/// CompInst or TypeResolver); load / store / lift_flat / lower_flat
+/// additionally require Mem (and Realloc + Exec when allocating list / string
+/// return areas, since the allocation goes through Executor::invoke on the
+/// guest's `realloc` core function).
 struct CanonCtx {
   Executor *Exec = nullptr;
   Runtime::Instance::MemoryInstance *Mem = nullptr;
   Runtime::Instance::FunctionInstance *Realloc = nullptr;
   const Runtime::Instance::ComponentInstance *CompInst = nullptr;
+  /// Optional alternative to `CompInst` for resolving component type indices.
+  /// Lets validator-time callers (which have a ComponentContext but no
+  /// ComponentInstance) reuse alignment / elemSize / flatten_* without
+  /// duplicating the recursion. Takes precedence over CompInst when set.
+  std::function<const AST::Component::DefType *(uint32_t)> TypeResolver;
 };
+
+/// Resolve a component type index. Returns the DefType pointer using
+/// TypeResolver when present, otherwise falling back to CompInst.
+inline const AST::Component::DefType *
+resolveDefType(const CanonCtx &Cx, uint32_t Idx) noexcept {
+  if (Cx.TypeResolver) {
+    return Cx.TypeResolver(Idx);
+  }
+  if (Cx.CompInst != nullptr) {
+    return Cx.CompInst->getType(Idx);
+  }
+  return nullptr;
+}
 
 /// Discriminant byte width for a variant / enum with NumCases cases.
 /// CanonicalABI.md L1951-1956 (`def discriminant_type`).
@@ -107,11 +127,18 @@ flattenTypeDef(const CanonCtx &Cx,
 /// `IsLift = true` covers the `canon lift` direction (component-typed
 /// function exposed as core wasm callee); when results exceed
 /// MaxFlatResults the core function returns a single i32 return-area pointer.
-/// `IsLift = false` covers `canon lower` and is currently rejected when it
-/// would require indirect-return out-pointer or indirect-param paths.
+/// `IsLift = false` covers `canon lower` and synthesizes the trailing
+/// out-pointer parameter when results exceed MaxFlatResults.
 Expect<FlatFuncType>
 flattenFuncType(const CanonCtx &Cx, const AST::Component::FuncType &FT,
                 bool IsLift) noexcept;
+
+/// True iff `T` transitively contains a `list` or `string`. Used by the
+/// canon-options validation to enforce the spec's `lift(T)` / `lower(T)`
+/// requirements (CanonicalABI.md L3273-3277). Cycles through type indices
+/// are bounded by the recursion-guard set the caller passes in.
+bool containsListOrString(const CanonCtx &Cx,
+                          const ComponentValType &T) noexcept;
 
 /// Load a Component Model value of type T from linear memory at Ptr.
 /// CanonicalABI.md L2050-2289 (and L2305-2322 for own/borrow).

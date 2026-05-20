@@ -176,11 +176,9 @@ private:
 };
 
 /// Lift a flat representation of a Component Model value into the rich
-/// ComponentValVariant. CanonicalABI.md L2957-3084 (lift_flat).
-///
-/// Variant payload coercion (spec L3042-3072) is not yet implemented —
-/// variants whose selected case carries a payload return
-/// ComponentNotImplInstantiate.
+/// ComponentValVariant. CanonicalABI.md L2957-3084 (lift_flat). The
+/// CoerceValueIter (spec L3042-3072) handling for variant/option/result
+/// payloads is implemented; mismatched join slots reinterpret per L3047-3055.
 Expect<ComponentValVariant> liftFlat(const CanonCtx &Cx, FlatIter &VI,
                                      const ComponentValType &T) noexcept;
 
@@ -193,8 +191,10 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
 /// inverse of `liftFlat`. CanonicalABI.md L3086-3192 (lower_flat).
 ///
 /// String / variable-length list lowering allocates a payload buffer via
-/// `Cx.Realloc`; callers must populate Exec / Realloc on the CanonCtx. The
-/// same variant-payload coercion gap that liftFlat has applies here.
+/// `Cx.Realloc`; callers must populate Exec / Realloc on the CanonCtx.
+/// Variant/option/result payload coerce (spec L3158-3180) is implemented:
+/// the selected case's native flat slots are reinterpreted into the joined
+/// shape and the suffix is zero-padded.
 Expect<std::vector<ValVariant>>
 lowerFlat(const CanonCtx &Cx, const ComponentValVariant &V,
           const ComponentValType &T) noexcept;

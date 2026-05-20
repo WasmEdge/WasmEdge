@@ -69,13 +69,16 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       const auto &Opts = Canon.getOptions();
       Runtime::Instance::MemoryInstance *MemInst = nullptr;
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
+      Runtime::Instance::FunctionInstance *PostReturnFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
         case ComponentCanonOptCode::Encode_UTF8:
+          // UTF-8 is the only encoding supported by the current canon ABI.
+          break;
         case ComponentCanonOptCode::Encode_UTF16:
         case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-          spdlog::error("    incomplete canonincal options"sv);
+          spdlog::error("    canon lift: non-UTF-8 encoding not implemented"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
@@ -84,10 +87,16 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
         case ComponentCanonOptCode::PostReturn:
+          PostReturnFunc = CompInst.getCoreFunction(Opt.getIndex());
+          break;
         case ComponentCanonOptCode::Async:
-          // TODO: incomplete validation of these cases.
+          spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+          spdlog::error("    canon lift: 'async' not implemented"sv);
+          return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         default:
-          assumingUnreachable();
+          spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+          spdlog::error("    canon lift: unsupported canonical option"sv);
+          return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         }
       }
 
@@ -103,18 +112,44 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // shapes (async, indirect-params, lower-side indirect, etc.) at
       // instantiation time rather than at call time. Sync-lift indirect
       // results are explicitly supported by B and reduce to results=[i32].
-      {
-        // Pre-flight only needs CompInst for TypeIndex resolution; flatten
-        // never invokes realloc, so leaving Exec/Mem/Realloc unset is fine.
-        CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst};
-        EXPECTED_TRY(CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
-                                                   /*IsLift=*/true));
+      // Capture FlatSig so the post-return signature check can compare
+      // against flatten_functype({}, $ft, 'lift').results (spec L3292).
+      CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst};
+      EXPECTED_TRY(
+          auto FlatSig,
+          CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
+                                        /*IsLift=*/true));
+
+      // Validate the post-return signature against the lift's flat result
+      // shape (spec L3292): post-return takes the original flat_results as
+      // parameters and returns nothing. Phase 4 (validator F) can swap the
+      // exact-type comparison for a full TypeMatcher walk if needed.
+      if (PostReturnFunc != nullptr) {
+        const auto &PRType = PostReturnFunc->getFuncType();
+        if (!PRType.getReturnTypes().empty() ||
+            PRType.getParamTypes().size() != FlatSig.Results.size()) {
+          spdlog::error(ErrCode::Value::InvalidCanonOption);
+          spdlog::error(
+              "    canon lift: post-return must have signature "
+              "(func (param ...flatten_lift_results))"sv);
+          return Unexpect(ErrCode::Value::InvalidCanonOption);
+        }
+        for (size_t I = 0; I < FlatSig.Results.size(); ++I) {
+          if (PRType.getParamTypes()[I].getCode() !=
+              FlatSig.Results[I].getCode()) {
+            spdlog::error(ErrCode::Value::InvalidCanonOption);
+            spdlog::error(
+                "    canon lift: post-return param[{}] type mismatch"sv, I);
+            return Unexpect(ErrCode::Value::InvalidCanonOption);
+          }
+        }
       }
+
       auto *FuncInst = CompInst.getCoreFunction(Canon.getIndex());
       CompInst.addFunction(
           std::make_unique<Runtime::Instance::Component::FunctionInstance>(
-              DType->getFuncType(), FuncInst, MemInst, ReallocFunc,
-              &CompInst));
+              DType->getFuncType(), FuncInst, MemInst, ReallocFunc, &CompInst,
+              PostReturnFunc));
       break;
     }
     case ComponentCanonOpCode::Lower: {

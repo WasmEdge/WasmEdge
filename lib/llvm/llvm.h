@@ -98,6 +98,10 @@ public:
   static inline unsigned int FShr = 0;
   static inline unsigned int MaxNum = 0;
   static inline unsigned int MinNum = 0;
+  static inline unsigned int SMax = 0;
+  static inline unsigned int SMin = 0;
+  static inline unsigned int UMax = 0;
+  static inline unsigned int UMin = 0;
   static inline unsigned int Nearbyint = 0;
   static inline unsigned int Roundeven = 0;
   static inline unsigned int SAddSat = 0;
@@ -184,6 +188,10 @@ private:
     FShr = getIntrinsicID("llvm.fshr"sv);
     MaxNum = getIntrinsicID("llvm.maxnum"sv);
     MinNum = getIntrinsicID("llvm.minnum"sv);
+    SMax = getIntrinsicID("llvm.smax"sv);
+    SMin = getIntrinsicID("llvm.smin"sv);
+    UMax = getIntrinsicID("llvm.umax"sv);
+    UMin = getIntrinsicID("llvm.umin"sv);
     Nearbyint = getIntrinsicID("llvm.nearbyint"sv);
     Roundeven = getIntrinsicID("llvm.roundeven"sv);
     SAddSat = getIntrinsicID("llvm.sadd.sat"sv);

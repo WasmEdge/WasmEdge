@@ -28,7 +28,9 @@
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <functional>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <string>
@@ -42,6 +44,12 @@ namespace {
 using namespace std::literals;
 using namespace WasmEdge;
 static SpecTest T(std::filesystem::u8path("../spec/testSuites"sv));
+
+static std::string readFile(const std::filesystem::path &Path) {
+  std::ifstream File(Path, std::ios::binary);
+  return std::string{std::istreambuf_iterator<char>(File),
+                     std::istreambuf_iterator<char>()};
+}
 
 // Parameterized testing class.
 class NativeCoreTest : public testing::TestWithParam<std::string> {};
@@ -809,6 +817,49 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
 
   VM.cleanup();
   EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
+TEST(SIMDMax, I16x8MaxUnsignedUsesIntrinsic) {
+  // clang-format off
+  std::array<WasmEdge::Byte, 52> SIMDMaxTestWasm{
+      0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+      0x01, 0x06, 0x01, 0x60, 0x01, 0x7f, 0x01, 0x7f,
+      0x03, 0x02, 0x01, 0x00,
+      0x07, 0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00,
+      0x0a, 0x14, 0x01, 0x12, 0x00, 0x20, 0x00, 0xfd, 0x10, 0x41,
+      0x80, 0x80, 0x02, 0xfd, 0x10, 0xfd, 0x99, 0x01, 0xfd, 0x19, 0x00,
+      0x0b};
+  // clang-format on
+
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::SIMD);
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  Conf.getCompilerConfigure().setDumpIR(true);
+
+  WasmEdge::Loader::Loader Loader(Conf);
+  WasmEdge::Validator::Validator ValidatorEngine(Conf);
+  WasmEdge::LLVM::Compiler Compiler(Conf);
+  WasmEdge::LLVM::CodeGen CodeGen(Conf);
+
+  auto Path = std::filesystem::temp_directory_path() /
+              std::filesystem::u8path("SIMDMaxTest" WASMEDGE_LIB_EXTENSION);
+  const auto IRPath = std::filesystem::u8path("wasm-opt.ll");
+  EXPECT_NO_THROW(std::filesystem::remove(IRPath));
+
+  auto Module = Loader.parseModule(SIMDMaxTestWasm);
+  ASSERT_TRUE(Module);
+  ASSERT_TRUE(ValidatorEngine.validate(**Module));
+  auto Data = Compiler.compile(**Module);
+  ASSERT_TRUE(Data);
+  ASSERT_TRUE(CodeGen.codegen(SIMDMaxTestWasm, std::move(*Data), Path));
+
+  ASSERT_TRUE(std::filesystem::exists(IRPath));
+  const auto IR = readFile(IRPath);
+  EXPECT_NE(IR.find("llvm.umax"), std::string::npos);
+
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+  EXPECT_NO_THROW(std::filesystem::remove(IRPath));
 }
 
 } // namespace

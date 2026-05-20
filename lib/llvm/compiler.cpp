@@ -5036,26 +5036,22 @@ private:
   }
   void compileVectorVectorSMin(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
-      auto C = Builder.createICmpSLE(LHS, RHS);
-      return Builder.createSelect(C, LHS, RHS);
+      return Builder.createBinaryIntrinsic(LLVM::Core::SMin, LHS, RHS);
     });
   }
   void compileVectorVectorUMin(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
-      auto C = Builder.createICmpULE(LHS, RHS);
-      return Builder.createSelect(C, LHS, RHS);
+      return Builder.createBinaryIntrinsic(LLVM::Core::UMin, LHS, RHS);
     });
   }
   void compileVectorVectorSMax(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
-      auto C = Builder.createICmpSGE(LHS, RHS);
-      return Builder.createSelect(C, LHS, RHS);
+      return Builder.createBinaryIntrinsic(LLVM::Core::SMax, LHS, RHS);
     });
   }
   void compileVectorVectorUMax(LLVM::Type VectorTy) noexcept {
     compileVectorVectorOp(VectorTy, [this](auto LHS, auto RHS) noexcept {
-      auto C = Builder.createICmpUGE(LHS, RHS);
-      return Builder.createSelect(C, LHS, RHS);
+      return Builder.createBinaryIntrinsic(LLVM::Core::UMax, LHS, RHS);
     });
   }
   void compileVectorVectorUAvgr(LLVM::Type VectorTy) noexcept {

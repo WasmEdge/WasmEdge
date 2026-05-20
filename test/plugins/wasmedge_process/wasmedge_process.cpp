@@ -68,6 +68,10 @@ TEST(WasmEdgeProcessTest, SetProgName) {
   // Create the calling frame with memory instance.
   WasmEdge::Runtime::Instance::ModuleInstance Mod("");
   Mod.addHostMemory(
+      "not_memory",
+      std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+          WasmEdge::AST::MemoryType(1)));
+  Mod.addHostMemory(
       "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
                     WasmEdge::AST::MemoryType(1)));
   auto *MemInstPtr = Mod.findMemoryExports("memory");

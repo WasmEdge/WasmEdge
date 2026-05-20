@@ -24,7 +24,7 @@ Expect<int32_t> BpfBufferPoll::body(const Runtime::CallingFrame &Frame,
   if (unlikely(!c_ctx || !c_module || !c_executor)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
-  auto *memory = Frame.getMemoryByIndex(0);
+  auto *memory = Frame.getMemoryByName("memory");
   if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

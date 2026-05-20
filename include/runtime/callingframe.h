@@ -15,6 +15,8 @@
 
 #include "runtime/instance/module.h"
 
+#include <string_view>
+
 namespace WasmEdge {
 
 namespace Executor {
@@ -49,6 +51,16 @@ public:
       if (auto Res = Module->getMemory(Index); Res) {
         return *Res;
       }
+    }
+    return nullptr;
+  }
+
+  /// Helper function for getting the exported memory instance by name from the
+  /// module.
+  Instance::MemoryInstance *getMemoryByName(std::string_view Name) const
+      noexcept {
+    if (Module) {
+      return Module->findMemoryExports(Name);
     }
     return nullptr;
   }

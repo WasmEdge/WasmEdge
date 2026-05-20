@@ -19,7 +19,7 @@ Expect<uint32_t>
 WasmEdgeOpenCVMiniImdecode::body(const Runtime::CallingFrame &Frame,
                                  uint32_t BufPtr, uint32_t BufLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -39,7 +39,7 @@ Expect<void> WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame,
   std::string WindowName;
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -181,7 +181,7 @@ Expect<void> WasmEdgeOpenCVMiniImwrite::body(const Runtime::CallingFrame &Frame,
   std::string TargetFileName;
 
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -201,7 +201,7 @@ Expect<void> WasmEdgeOpenCVMiniImencode::body(
     uint32_t MatKey, uint32_t BufPtr, uint32_t BufLen) {
   std::string Ext;
 
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
 
   char *Buf = MemInst->getPointer<char *>(ExtPtr);
   std::copy_n(Buf, ExtLen, std::back_inserter(Ext));

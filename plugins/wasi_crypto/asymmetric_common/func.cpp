@@ -15,7 +15,7 @@ Expect<uint32_t> KeypairGenerate::body(const Runtime::CallingFrame &Frame,
                                        uint32_t AlgLen,
                                        uint32_t OptOptionsHandlePtr,
                                        uint32_t /* Out */ KpHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -53,7 +53,7 @@ Expect<uint32_t> KeypairImport::body(const Runtime::CallingFrame &Frame,
                                      uint32_t AlgLen, uint32_t EncodedPtr,
                                      uint32_t EncodedLen, uint32_t Encoding,
                                      uint32_t /* Out */ KpHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -94,7 +94,7 @@ Expect<uint32_t> KeypairGenerateManaged::body(
     const Runtime::CallingFrame &Frame, int32_t SecretsManagerHandle,
     uint32_t AlgType, uint32_t AlgPtr, uint32_t AlgLen,
     uint32_t OptOptionsHandlePtr, uint32_t KpHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -132,7 +132,7 @@ Expect<uint32_t> KeypairStoreManaged::body(const Runtime::CallingFrame &Frame,
                                            int32_t SecretsManagerHandle,
                                            int32_t KpHandle, uint32_t KpIdPtr,
                                            uint32_t KpIdMaxLen) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdMaxLen = KpIdMaxLen;
@@ -152,7 +152,7 @@ Expect<uint32_t> KeypairReplaceManaged::body(const Runtime::CallingFrame &Frame,
                                              int32_t OldKpHandle,
                                              int32_t NewKpHandle,
                                              uint32_t /* Out */ KpVersionPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const KpVersion = MemInst->getPointer<__wasi_version_t *>(KpVersionPtr);
@@ -174,7 +174,7 @@ Expect<uint32_t> KeypairId::body(const Runtime::CallingFrame &Frame,
                                  uint32_t KpIdMaxLen,
                                  uint32_t /* Out */ SizePtr,
                                  uint32_t /* Out */ KpVersionPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdMaxLen = KpIdMaxLen;
@@ -210,7 +210,7 @@ Expect<uint32_t> KeypairFromId::body(const Runtime::CallingFrame &Frame,
                                      uint32_t KpIdPtr, uint32_t KpIdLen,
                                      uint64_t KpVersion,
                                      uint32_t /* Out */ KpHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiKpIdLen = KpIdLen;
@@ -233,7 +233,7 @@ Expect<uint32_t> KeypairFromId::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> KeypairFromPkAndSk::body(const Runtime::CallingFrame &Frame,
                                           int32_t PkHandle, int32_t SkHandle,
                                           uint32_t /* Out */ KpHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const KpHandle = MemInst->getPointer<__wasi_keypair_t *>(KpHandlePtr);
@@ -251,7 +251,7 @@ Expect<uint32_t> KeypairFromPkAndSk::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> KeypairExport::body(const Runtime::CallingFrame &Frame,
                                      int32_t KpHandle, uint32_t KpEncoding,
                                      uint32_t /* Out */ ArrayOutputHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   __wasi_keypair_encoding_e_t WasiKpEncoding;
@@ -278,7 +278,7 @@ Expect<uint32_t> KeypairExport::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> KeypairPublickey::body(const Runtime::CallingFrame &Frame,
                                         int32_t KpHandle,
                                         uint32_t /* Out */ PkHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const PkHandle = MemInst->getPointer<__wasi_keypair_t *>(PkHandlePtr);
@@ -296,7 +296,7 @@ Expect<uint32_t> KeypairPublickey::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> KeypairSecretkey::body(const Runtime::CallingFrame &Frame,
                                         int32_t KpHandle,
                                         uint32_t /* Out */ SkHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const SkHandle = MemInst->getPointer<__wasi_keypair_t *>(SkHandlePtr);
@@ -325,7 +325,7 @@ Expect<uint32_t> PublickeyImport::body(const Runtime::CallingFrame &Frame,
                                        uint32_t AlgLen, uint32_t EncodedPtr,
                                        uint32_t EncodedLen, uint32_t Encoding,
                                        uint32_t /* Out */ PkHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -370,7 +370,7 @@ Expect<uint32_t>
 PublickeyExport::body(const Runtime::CallingFrame &Frame, int32_t PkHandle,
                       uint32_t PkEncoding,
                       uint32_t /* Out */ ArrayOutputHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   __wasi_publickey_encoding_e_t WasiPkEncoding;
@@ -406,7 +406,7 @@ Expect<uint32_t> PublickeyVerify::body(const Runtime::CallingFrame &,
 Expect<uint32_t>
 PublickeyFromSecretkey::body(const Runtime::CallingFrame &Frame,
                              int32_t SkHandle, uint32_t /* Out */ PkHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const PkHandle = MemInst->getPointer<__wasi_publickey_t *>(PkHandlePtr);
@@ -435,7 +435,7 @@ Expect<uint32_t> SecretkeyImport::body(const Runtime::CallingFrame &Frame,
                                        uint32_t AlgLen, uint32_t EncodedPtr,
                                        uint32_t EncodedLen, uint32_t Encoding,
                                        uint32_t /* Out */ SkHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -478,7 +478,7 @@ Expect<uint32_t>
 SecretkeyExport::body(const Runtime::CallingFrame &Frame, int32_t SkHandle,
                       uint32_t SkEncoding,
                       uint32_t /* Out */ ArrayOutputHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   __wasi_secretkey_encoding_e_t WasiSkEncoding;

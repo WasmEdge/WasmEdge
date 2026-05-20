@@ -18,7 +18,7 @@ Expect<void> Log::body(const Runtime::CallingFrame &Frame, uint32_t Level,
                        uint32_t CxtPtr, uint32_t CxtLen, uint32_t MsgPtr,
                        uint32_t MsgLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

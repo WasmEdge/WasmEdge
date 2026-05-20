@@ -9,7 +9,7 @@ namespace WasmEdge {
 namespace Host {
 
 #define MEMINST_CHECK(Out, CallFrame, Index)                                   \
-  auto *Out = CallFrame.getMemoryByIndex(Index);                               \
+  auto *Out = CallFrame.getMemoryByName("memory");                             \
   if (unlikely(Out == nullptr)) {                                              \
     spdlog::error("[WasmEdge-Zlib] Memory instance not found."sv);             \
     return Unexpect(ErrCode::Value::HostFuncError);                            \

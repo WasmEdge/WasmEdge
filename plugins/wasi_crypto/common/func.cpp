@@ -12,7 +12,7 @@ Expect<uint32_t> ArrayOutputLen::body(const Runtime::CallingFrame &Frame,
                                       int32_t ArrayOutputHandle,
                                       uint32_t /* Out */ SizePtr) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -33,7 +33,7 @@ Expect<uint32_t> ArrayOutputPull::body(const Runtime::CallingFrame &Frame,
                                        uint32_t BufPtr, uint32_t BufLen,
                                        uint32_t /* Out */ SizePtr) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiBufLen = BufLen;
@@ -58,7 +58,7 @@ Expect<uint32_t> OptionsOpen::body(const Runtime::CallingFrame &Frame,
                                    uint32_t AlgType,
                                    uint32_t /* Out */ OptionsHandlePtr) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   __wasi_algorithm_type_e_t WasiAlgType;
@@ -95,7 +95,7 @@ Expect<uint32_t> OptionsSet::body(const Runtime::CallingFrame &Frame,
                                   uint32_t NameLen, uint32_t ValuePtr,
                                   uint32_t ValueLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -117,7 +117,7 @@ Expect<uint32_t> OptionsSetU64::body(const Runtime::CallingFrame &Frame,
                                      int32_t OptionsHandle, uint32_t NamePtr,
                                      uint32_t NameLen, uint64_t Value) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -137,7 +137,7 @@ Expect<uint32_t> OptionsSetGuestBuffer::body(const Runtime::CallingFrame &Frame,
                                              uint32_t NamePtr, uint32_t NameLen,
                                              uint32_t BufPtr, uint32_t BufLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -161,7 +161,7 @@ SecretsManagerOpen::body(const Runtime::CallingFrame &Frame,
                          uint32_t OptOptionsHandlePtr,
                          uint32_t /* Out */ SecretsManagerHandlePtr) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const OptOptionsHandle =
@@ -196,7 +196,7 @@ SecretsManagerInvalidate::body(const Runtime::CallingFrame &Frame,
                                int32_t SecretsManagerHandle, uint32_t KeyIdPtr,
                                uint32_t KeyIdLen, uint64_t Version) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdLen = KeyIdLen;

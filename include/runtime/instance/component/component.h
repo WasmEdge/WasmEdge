@@ -264,6 +264,20 @@ public:
   void addCoreFunction(FunctionInstance *Inst) noexcept {
     CoreFuncInsts.push_back(Inst);
   }
+  /// Add a host function to the core function index space. The function is
+  /// owned by an auxiliary ModuleInstance (created here) whose only purpose
+  /// is to register the host function's defined type so that downstream
+  /// import matching (which walks ModInst::getTypeList()) succeeds. This is
+  /// used by canon lower to expose its thunk to core wasm.
+  void addCoreHostFunction(
+      std::unique_ptr<Runtime::HostFunctionBase> &&Host,
+      std::string_view Name = "$canon-lower") {
+    auto Mod = std::make_unique<ModuleInstance>("");
+    Mod->addHostFunc(std::string(Name), std::move(Host));
+    auto *FuncPtr = Mod->findFuncExports(std::string(Name));
+    CoreFuncInsts.push_back(FuncPtr);
+    OwnedAuxModInsts.push_back(std::move(Mod));
+  }
   FunctionInstance *getCoreFunction(uint32_t Index) const noexcept {
     return CoreFuncInsts[Index];
   }
@@ -376,6 +390,10 @@ private:
   std::vector<std::unique_ptr<FunctionInstance>> OwnedCoreFuncInsts;
   // std::vector<std::unique_ptr<AST::Component::CoreDefType>> OwnedCoreTypes;
   std::vector<std::unique_ptr<ModuleInstance>> OwnedCoreModInsts;
+  // Holder modules for synthesized host functions (e.g., canon lower thunks).
+  // Not visible in the core-module index space; only owns the host function
+  // and its registered SubType for matchType lookups.
+  std::vector<std::unique_ptr<ModuleInstance>> OwnedAuxModInsts;
 
   // Export alias.
   std::map<std::string, Component::FunctionInstance *, std::less<>>

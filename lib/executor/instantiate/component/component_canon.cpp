@@ -1,48 +1,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "executor/component/canonical_abi.h"
 #include "executor/executor.h"
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
 #include <cstdint>
-#include <optional>
 #include <string_view>
 
 namespace WasmEdge {
 namespace Executor {
 
 using namespace std::literals;
-
-namespace {
-
-constexpr uint32_t MaxFlatResults = 1;
-
-std::optional<uint32_t> flatSize(ComponentTypeCode TC) noexcept {
-  switch (TC) {
-  case ComponentTypeCode::Bool:
-  case ComponentTypeCode::U8:
-  case ComponentTypeCode::U16:
-  case ComponentTypeCode::U32:
-  case ComponentTypeCode::U64:
-  case ComponentTypeCode::S8:
-  case ComponentTypeCode::S16:
-  case ComponentTypeCode::S32:
-  case ComponentTypeCode::S64:
-  case ComponentTypeCode::F32:
-  case ComponentTypeCode::F64:
-  case ComponentTypeCode::Char:
-  case ComponentTypeCode::Flags:
-    return 1u;
-  case ComponentTypeCode::String:
-    return 2u;
-  default:
-    return std::nullopt;
-  }
-}
-
-} // namespace
 
 std::vector<ValVariant> Executor::convValsToCoreWASM(
     Span<const ComponentValVariant> Vals, Span<const ComponentValType> ValTypes,
@@ -98,32 +69,78 @@ Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
 Executor::convValsToComponent(
     Span<const std::pair<ValVariant, ValType>> CoreVals,
     Span<const ComponentValType> ValTypes,
-    Runtime::Instance::MemoryInstance *MemInst) {
+    Runtime::Instance::MemoryInstance *MemInst,
+    const Runtime::Instance::ComponentInstance *CompInst) {
+  CanonicalABI::CanonCtx Cx{MemInst, nullptr, CompInst};
+
+  // Compute total flat count over the result types. CanonicalABI.md L3193.
   uint32_t FlatCount = 0;
   for (const auto &Type : ValTypes) {
-    auto Size = flatSize(Type.getCode());
-    if (!Size.has_value()) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical lifting of component type 0x{:02x} not implemented"sv,
-          static_cast<uint8_t>(Type.getCode()));
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-    }
-    FlatCount += *Size;
+    EXPECTED_TRY(auto Sub, CanonicalABI::flattenType(Cx, Type));
+    FlatCount += static_cast<uint32_t>(Sub.size());
   }
 
-  if (FlatCount > MaxFlatResults) {
-    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-    spdlog::error(
-        "    canonical lifting via return-area pointer (flat count {} > {}) "
-        "not implemented"sv,
-        FlatCount, MaxFlatResults);
-    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-  }
-
-  uint32_t I = 0;
   std::vector<std::pair<ComponentValVariant, ComponentValType>> Vals;
   Vals.reserve(ValTypes.size());
+
+  if (FlatCount > CanonicalABI::MaxFlatResults) {
+    // Indirect-return path. CanonicalABI.md L3194-3200:
+    //   ptr = vi.next(ptr_type)
+    //   trap_if(ptr != align_to(ptr, alignment(tuple_type, ptr_type)))
+    //   trap_if(ptr + elem_size(tuple_type, ptr_type) > len(memory))
+    //   return list(load(cx, ptr, tuple_type).values())
+    if (CoreVals.size() != 1) {
+      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+      spdlog::error(
+          "    indirect-return: expected 1 core return value, got {}"sv,
+          CoreVals.size());
+      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    }
+    assuming(MemInst != nullptr);
+    const uint32_t Ptr = CoreVals[0].first.get<uint32_t>();
+
+    // Build a synthetic tuple type covering all result types so we can use
+    // alignment / elem_size / load uniformly. Spec L3197.
+    AST::Component::TupleTy ResultsTuple;
+    for (const auto &VT : ValTypes) {
+      ResultsTuple.Types.push_back(VT);
+    }
+    AST::Component::DefValType ResultsTupleDef;
+    ResultsTupleDef.setTuple(std::move(ResultsTuple));
+
+    EXPECTED_TRY(auto Align,
+                 CanonicalABI::alignmentDef(Cx, ResultsTupleDef));
+    EXPECTED_TRY(auto Sz, CanonicalABI::elemSizeDef(Cx, ResultsTupleDef));
+    if (Ptr != alignTo(Ptr, Align)) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(
+          "    indirect-return pointer 0x{:x} not aligned to {}"sv, Ptr,
+          Align);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    if (!MemInst->checkAccessBound(Ptr, Sz)) {
+      spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+      spdlog::error(
+          "    indirect-return area out of bounds (ptr=0x{:x} size={})"sv,
+          Ptr, Sz);
+      return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+    }
+    EXPECTED_TRY(auto Loaded,
+                 CanonicalABI::loadDef(Cx, Ptr, ResultsTupleDef));
+    auto &Tu = std::get<TupleVal>(
+        std::get<std::shared_ptr<ValComp>>(Loaded)->V);
+    assuming(Tu.Values.size() == ValTypes.size());
+    for (size_t Idx = 0; Idx < ValTypes.size(); ++Idx) {
+      Vals.emplace_back(std::move(Tu.Values[Idx]), ValTypes[Idx]);
+    }
+    return Vals;
+  }
+
+  // Direct path. Preserve the legacy "primitives wrapped in ValVariant"
+  // calling convention so existing host-side consumers (driver, host-function
+  // marshaling) are unaffected. Aggregate result types in the direct path
+  // (flat count ≤ 1 record/tuple/etc.) are not yet handled.
+  uint32_t I = 0;
   for (const auto &Type : ValTypes) {
     switch (Type.getCode()) {
     case ComponentTypeCode::String: {
@@ -138,6 +155,12 @@ Executor::convValsToComponent(
       auto Str = MemInst->getStringView(Off, Size);
       Vals.emplace_back(std::string(Str), Type);
       break;
+    }
+    case ComponentTypeCode::TypeIndex: {
+      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+      spdlog::error(
+          "    direct-path lift of aggregate type not implemented"sv);
+      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     }
     default: {
       Vals.emplace_back(CoreVals[I++].first, Type);
@@ -189,10 +212,20 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         spdlog::error("    Cannot lift a non-function"sv);
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
+      // Pre-flight the ABI signature: this surfaces gated / out-of-scope
+      // shapes (async, indirect-params, lower-side indirect, etc.) at
+      // instantiation time rather than at call time. Sync-lift indirect
+      // results are explicitly supported by B and reduce to results=[i32].
+      {
+        CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, &CompInst};
+        EXPECTED_TRY(CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
+                                                   /*IsLift=*/true));
+      }
       auto *FuncInst = CompInst.getCoreFunction(Canon.getIndex());
       CompInst.addFunction(
           std::make_unique<Runtime::Instance::Component::FunctionInstance>(
-              DType->getFuncType(), FuncInst, MemInst, ReallocFunc));
+              DType->getFuncType(), FuncInst, MemInst, ReallocFunc,
+              &CompInst));
       break;
     }
     case ComponentCanonOpCode::Lower: {

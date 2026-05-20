@@ -61,7 +61,6 @@ private:
   std::shared_ptr<OrcLLJIT> J;
   std::string Prefix;
   bool IsLazy;
-  mutable std::mutex LazyAddMutex;
   friend class JIT;
 };
 

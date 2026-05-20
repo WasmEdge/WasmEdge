@@ -299,7 +299,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
   std::optional<WasmEdge::LLVM::LazyJITState> State;
   if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT &&
       !Module.getSymbol()) {
-    EXPECTED_TRY(State, prepareLazyJIT(Module));
+    EXPECTED_TRY(State, prepareLazyJIT(const_cast<AST::Module &>(Module)));
   }
 #endif
 
@@ -918,6 +918,17 @@ Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
 
   uint32_t LocalFuncIdx = FuncIdx - ImportFuncCount;
 
+  auto FuncResult = ModInst->getFuncInst(FuncIdx);
+  if (!FuncResult) {
+    return {};
+  }
+  auto *FuncInst = *FuncResult;
+
+  // If already compiled or not a Wasm function, nothing to do.
+  if (!FuncInst->isWasmFunction() || FuncInst->isCompiledFunction()) {
+    return {};
+  }
+
   if (StatePtr && StatePtr->LazyCompiledFuncs.count(LocalFuncIdx) > 0) {
     return {};
   }
@@ -1055,8 +1066,7 @@ Expect<void> VM::lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx) {
 #endif
 
 #ifdef WASMEDGE_USE_LLVM
-Expect<WasmEdge::LLVM::LazyJITState>
-VM::prepareLazyJIT(const AST::Module &Module) {
+Expect<WasmEdge::LLVM::LazyJITState> VM::prepareLazyJIT(AST::Module &Module) {
   WasmEdge::LLVM::LazyJITState State;
   LLVM::Compiler Compiler(Conf);
   EXPECTED_TRY(

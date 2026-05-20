@@ -2164,6 +2164,44 @@ private:
   LLVMOrcThreadSafeModuleRef Ref = nullptr;
 };
 
+class OrcResourceTracker {
+public:
+  constexpr OrcResourceTracker() noexcept = default;
+  constexpr OrcResourceTracker(LLVMOrcResourceTrackerRef R) noexcept : Ref(R) {}
+  ~OrcResourceTracker() noexcept {
+    if (Ref) {
+      LLVMOrcReleaseResourceTracker(Ref);
+    }
+  }
+  OrcResourceTracker(const OrcResourceTracker &) = delete;
+  OrcResourceTracker &operator=(const OrcResourceTracker &) = delete;
+  OrcResourceTracker(OrcResourceTracker &&B) noexcept : OrcResourceTracker() {
+    swap(*this, B);
+  }
+  OrcResourceTracker &operator=(OrcResourceTracker &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(OrcResourceTracker &LHS, OrcResourceTracker &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  Error remove() noexcept {
+    if (Ref) {
+      return LLVMOrcResourceTrackerRemove(Ref);
+    }
+    return nullptr;
+  }
+
+private:
+  LLVMOrcResourceTrackerRef Ref = nullptr;
+};
+
 class OrcJITDylib {
 public:
   constexpr OrcJITDylib() noexcept = default;
@@ -2182,6 +2220,10 @@ public:
   friend void swap(OrcJITDylib &LHS, OrcJITDylib &RHS) noexcept {
     using std::swap;
     swap(LHS.Ref, RHS.Ref);
+  }
+
+  OrcResourceTracker createResourceTracker() noexcept {
+    return LLVMOrcJITDylibCreateResourceTracker(Ref);
   }
 
 private:
@@ -2259,6 +2301,11 @@ public:
 
   Error addLLVMIRModule(const OrcJITDylib &L, OrcThreadSafeModule M) noexcept {
     return LLVMOrcLLJITAddLLVMIRModule(Ref, L.unwrap(), M.release());
+  }
+
+  Error addLLVMIRModuleWithRT(const OrcResourceTracker &RT,
+                              OrcThreadSafeModule M) noexcept {
+    return LLVMOrcLLJITAddLLVMIRModuleWithRT(Ref, RT.unwrap(), M.release());
   }
 
   template <typename T>

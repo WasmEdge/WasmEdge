@@ -1150,11 +1150,10 @@ private:
   std::function<Expect<void>(const std::string &, const uint32_t)>
       LazyCompilationHandler;
 
-  /// Helper function for checking lazy compilation.
+  /// Helper function for triggering lazy compilation.
   Expect<void> checkLazyCompilation(
       const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
-    if (FuncInst->isWasmFunction() && !FuncInst->isCompiledFunction() &&
-        LazyCompilationHandler) {
+    if (LazyCompilationHandler) {
       if (const auto *TargetModInst = FuncInst->getModule()) {
         if (auto Res = TargetModInst->getFuncIdx(FuncInst)) {
           uint32_t TargetFuncIdx = *Res;

@@ -189,15 +189,18 @@ JIT::add(JITLibrary &Lib, Data &D,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  std::lock_guard<std::mutex> Lock(Lib.LazyAddMutex);
   auto &LLModule = D.extract().LLModule;
   auto &TSContext = D.extract().getTSContext();
 
-  LLVMOrcJITDylibRef MainJDRef = LLVMOrcLLJITGetMainJITDylib(Lib.J->unwrap());
+  auto JD = Lib.J->getMainJITDylib();
+  auto RT = JD.createResourceTracker();
+  if (!RT) {
+    spdlog::error("[lazy-jit]: failed to create resource tracker"sv);
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
-  if (auto Err = Lib.J->addLLVMIRModule(
-          OrcJITDylib(MainJDRef),
-          OrcThreadSafeModule(LLModule.release(), TSContext))) {
+  if (auto Err = Lib.J->addLLVMIRModuleWithRT(
+          RT, OrcThreadSafeModule(LLModule.release(), TSContext))) {
     spdlog::error("[lazy-jit]: failed to add LLVM IR module: {}"sv,
                   Err.message().string_view());
     return Unexpect(ErrCode::Value::HostFuncError);
@@ -212,6 +215,11 @@ JIT::add(JITLibrary &Lib, Data &D,
     if (!AddrOrErr) {
       spdlog::error("[lazy-jit]: failed to lookup function symbol {}: {}"sv,
                     SymName, errorToString(std::move(AddrOrErr.error())));
+      if (auto RemoveErr = RT.remove()) {
+        spdlog::error(
+            "[lazy-jit]: failed to remove failed module from tracker: {}"sv,
+            RemoveErr.message().string_view());
+      }
       return Unexpect(ErrCode::Value::HostFuncError);
     }
     Addresses.push_back(*AddrOrErr);
@@ -222,7 +230,6 @@ JIT::add(JITLibrary &Lib, Data &D,
 Expect<std::vector<WasmFunctionCodeAddress>> JIT::lookupWasmFunctionSymbols(
     JITLibrary &Lib, std::string_view Prefix,
     Span<const uint32_t> GlobalFuncIndices) noexcept {
-  std::lock_guard<std::mutex> Lock(Lib.LazyAddMutex);
   std::vector<WasmFunctionCodeAddress> Addresses;
   Addresses.reserve(GlobalFuncIndices.size());
   for (uint32_t GlobalFuncIndex : GlobalFuncIndices) {

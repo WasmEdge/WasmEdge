@@ -29,7 +29,6 @@ class Data {
 public:
   struct DataContext;
   Data() noexcept;
-  Data(OrcThreadSafeContext &&TSContext) noexcept;
   ~Data() noexcept;
   Data(Data &&) noexcept;
   Data &operator=(Data &&) noexcept;

@@ -60,7 +60,7 @@ protected:
     Configure Conf;
     Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
     Conf.getCompilerConfigure().setOptimizationLevel(
-        CompilerConfigure::OptimizationLevel::O0);
+        CompilerConfigure::OptimizationLevel::O1);
     return std::make_unique<VM::VM>(Conf);
   }
 
@@ -69,7 +69,7 @@ protected:
     Configure Conf;
     Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
     Conf.getCompilerConfigure().setOptimizationLevel(
-        CompilerConfigure::OptimizationLevel::O0);
+        CompilerConfigure::OptimizationLevel::O1);
     return std::make_unique<VM::VM>(Conf);
   }
 };
@@ -375,6 +375,90 @@ TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
   EXPECT_FALSE(SubFunc->isCompiledFunction());
 
   VM->cleanup();
+}
+
+TEST_F(LazyJITTest, JITAddLookupFailure) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O1);
+
+  Loader::Loader LoaderEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseWasmUnit(SimpleWasm);
+  ASSERT_TRUE(ModOrErr);
+  auto &Module = std::get<std::unique_ptr<AST::Module>>(*ModOrErr);
+
+  Validator::Validator ValidatorEngine(Conf);
+  auto ValRes = ValidatorEngine.validate(*Module);
+  ASSERT_TRUE(ValRes);
+
+  LLVM::Compiler Compiler(Conf);
+  ASSERT_TRUE(Compiler.checkConfigure());
+
+  auto Prefix = "test_prefix_";
+  auto CompileRes = Compiler.compileInfrastructure(*Module, Prefix);
+  ASSERT_TRUE(CompileRes);
+
+  auto &LLData = CompileRes->first;
+  auto &CompileCtx = CompileRes->second;
+
+  LLVM::JIT JIT(Conf);
+  auto ExecRes = JIT.load(LLData, true);
+  ASSERT_TRUE(ExecRes);
+
+  auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);
+
+  std::vector<uint32_t> CompileLocals = {0};
+  if (!LLData.hasModule()) {
+    LLData.resetModule();
+  }
+  auto FuncCompileRes = Compiler.compileFunctions(
+      std::move(LLData), CompileCtx.get(), *Module, CompileLocals);
+  ASSERT_TRUE(FuncCompileRes);
+
+  std::vector<uint32_t> InvalidIndices = {999};
+
+  auto AddResult = JIT.add(*JITLib, *FuncCompileRes, InvalidIndices);
+  EXPECT_FALSE(AddResult);
+  EXPECT_EQ(AddResult.error(), ErrCode::Value::HostFuncError);
+}
+
+TEST_F(LazyJITTest, JITLookupWasmFunctionSymbolsFailure) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O1);
+
+  Loader::Loader LoaderEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseWasmUnit(SimpleWasm);
+  ASSERT_TRUE(ModOrErr);
+  auto &Module = std::get<std::unique_ptr<AST::Module>>(*ModOrErr);
+
+  Validator::Validator ValidatorEngine(Conf);
+  auto ValRes = ValidatorEngine.validate(*Module);
+  ASSERT_TRUE(ValRes);
+
+  LLVM::Compiler Compiler(Conf);
+  ASSERT_TRUE(Compiler.checkConfigure());
+
+  auto Prefix = "test_prefix_";
+  auto CompileRes = Compiler.compileInfrastructure(*Module, Prefix);
+  ASSERT_TRUE(CompileRes);
+
+  auto &LLData = CompileRes->first;
+
+  LLVM::JIT JIT(Conf);
+  auto ExecRes = JIT.load(LLData, true);
+  ASSERT_TRUE(ExecRes);
+
+  auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);
+
+  std::vector<uint32_t> InvalidIndices = {999};
+
+  auto LookupRes =
+      JIT.lookupWasmFunctionSymbols(*JITLib, Prefix, InvalidIndices);
+  EXPECT_FALSE(LookupRes);
+  EXPECT_EQ(LookupRes.error(), ErrCode::Value::HostFuncError);
 }
 
 } // namespace

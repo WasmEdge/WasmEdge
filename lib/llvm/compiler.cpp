@@ -214,6 +214,7 @@ struct LLVM::Compiler::CompileContext {
   std::vector<std::tuple<uint32_t, LLVM::FunctionCallee,
                          const WasmEdge::AST::CodeSegment *>>
       Functions;
+  uint32_t ImportCount = 0;
   std::vector<LLVM::Type> MemoryAddrTypes;
   std::vector<LLVM::Type> TableAddrTypes;
   std::vector<LLVM::Type> Globals;
@@ -6343,6 +6344,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       }
 
       Context->Functions.emplace_back(TypeIdx, F, nullptr);
+      Context->ImportCount++;
       break;
     }
     case ExternalType::Table: // Table type
@@ -6499,14 +6501,7 @@ void Compiler::compileFunctionDeclarations(
 Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
   // Find the function in the Functions list
   // LocalFuncIndex is relative to the defined functions (not imports)
-  uint32_t ImportCount = 0;
-  for (const auto &[T, F, Code] : Context->Functions) {
-    if (!Code) {
-      ImportCount++;
-    }
-  }
-
-  uint32_t GlobalFuncIndex = ImportCount + LocalFuncIndex;
+  uint32_t GlobalFuncIndex = Context->ImportCount + LocalFuncIndex;
   if (GlobalFuncIndex >= Context->Functions.size()) {
     spdlog::error("[lazy-jit]: function index {} out of range"sv,
                   LocalFuncIndex);
@@ -6649,6 +6644,7 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
   Context->CompositeTypes.clear();
   Context->FunctionWrappers.clear();
   Context->Functions.clear();
+  Context->ImportCount = 0;
   Context->MemoryAddrTypes.clear();
   Context->TableAddrTypes.clear();
   Context->Globals.clear();

@@ -424,8 +424,7 @@ private:
   /// \name Lazy JIT.
   /// @{
   /// Prepare Lazy JIT infrastructure for a module.
-  Expect<WasmEdge::LLVM::LazyJITState>
-  prepareLazyJIT(const AST::Module &Module);
+  Expect<WasmEdge::LLVM::LazyJITState> prepareLazyJIT(AST::Module &Module);
 
   /// Lazy compile a function if lazy JIT mode is enabled and function not yet
   /// compiled.

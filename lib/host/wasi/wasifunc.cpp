@@ -380,7 +380,7 @@ Expect<uint32_t> WasiArgsGet::body(const Runtime::CallingFrame &Frame,
                                    uint32_t ArgvPtr, uint32_t ArgvBufPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<uint8_t_ptr>(ArgvPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   // ArgvBufPtr should be aligned to at least 1 byte (which is always true)
 
@@ -421,10 +421,10 @@ Expect<uint32_t> WasiArgsSizesGet::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ ArgvBufSizePtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_size_t>(ArgcPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   if (unlikely(isMisaligned<__wasi_size_t>(ArgvBufSizePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -454,7 +454,7 @@ Expect<uint32_t> WasiEnvironGet::body(const Runtime::CallingFrame &Frame,
                                       uint32_t EnvPtr, uint32_t EnvBufPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<uint8_t_ptr>(EnvPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   // EnvBufPtr should be aligned to at least 1 byte (which is always true)
 
@@ -495,10 +495,10 @@ Expect<uint32_t> WasiEnvironSizesGet::body(const Runtime::CallingFrame &Frame,
                                            uint32_t /* Out */ EnvBufSizePtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_size_t>(EnvCntPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   if (unlikely(isMisaligned<__wasi_size_t>(EnvBufSizePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -530,7 +530,7 @@ Expect<uint32_t> WasiClockResGet::body(const Runtime::CallingFrame &Frame,
                                        uint32_t /* Out */ ResolutionPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_timestamp_t>(ResolutionPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -563,7 +563,7 @@ Expect<uint32_t> WasiClockTimeGet::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ TimePtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_timestamp_t>(TimePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -650,7 +650,7 @@ Expect<uint32_t> WasiFdFdstatGet::body(const Runtime::CallingFrame &Frame,
                                        uint32_t /* Out */ FdStatPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_fdstat_t>(FdStatPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -721,7 +721,7 @@ Expect<uint32_t> WasiFdFilestatGet::body(const Runtime::CallingFrame &Frame,
                                          uint32_t /* Out */ FilestatPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_filestat_t>(FilestatPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -783,11 +783,11 @@ Expect<uint32_t> WasiFdPread::body(const Runtime::CallingFrame &Frame,
                                    uint32_t /* Out */ NReadPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_iovec_t>(IOVsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(NReadPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -873,7 +873,7 @@ Expect<uint32_t> WasiFdPrestatGet::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ PreStatPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_prestat_t>(PreStatPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -902,11 +902,11 @@ Expect<uint32_t> WasiFdPwrite::body(const Runtime::CallingFrame &Frame,
                                     uint32_t /* Out */ NWrittenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_ciovec_t>(IOVsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(NWrittenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -971,11 +971,11 @@ Expect<uint32_t> WasiFdRead::body(const Runtime::CallingFrame &Frame,
                                   uint32_t /* Out */ NReadPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_iovec_t>(IOVsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(NReadPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -1035,7 +1035,7 @@ Expect<uint32_t> WasiFdReadDir::body(const Runtime::CallingFrame &Frame,
                                      uint32_t /* Out */ NReadPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_size_t>(NReadPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   // BufPtr should be aligned to at least 1 byte (which is always true)
 
@@ -1084,7 +1084,7 @@ Expect<int32_t> WasiFdSeek::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                                  uint32_t /* Out */ NewOffsetPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_filesize_t>(NewOffsetPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -1129,7 +1129,7 @@ Expect<uint32_t> WasiFdTell::body(const Runtime::CallingFrame &Frame,
                                   int32_t Fd, uint32_t /* Out */ OffsetPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_filesize_t>(OffsetPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -1159,11 +1159,11 @@ Expect<uint32_t> WasiFdWrite::body(const Runtime::CallingFrame &Frame,
                                    uint32_t /* Out */ NWrittenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_ciovec_t>(IOVsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(NWrittenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -1249,7 +1249,7 @@ Expect<uint32_t> WasiPathFilestatGet::body(const Runtime::CallingFrame &Frame,
                                            uint32_t /* Out */ FilestatPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_filestat_t>(FilestatPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   // PathPtr should be aligned to at least 1 byte (which is always true)
 
@@ -1381,7 +1381,7 @@ Expect<uint32_t> WasiPathOpen::body(
     uint64_t FsRightsInheriting, uint32_t FsFlags, uint32_t /* Out */ FdPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_fd_t>(FdPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   // PathPtr should be aligned to at least 1 byte (which is always true)
 
@@ -1464,7 +1464,7 @@ Expect<uint32_t> WasiPathReadLink::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ NReadPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_size_t>(NReadPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   // BufPtr and PathPtr should be aligned to at least 1 byte (which is always
   // true)
@@ -1633,13 +1633,13 @@ Expect<uint32_t> WasiPollOneoff<Trigger>::body(
     uint32_t NSubscriptions, uint32_t /* Out */ NEventsPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_subscription_t>(InPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   if (unlikely(isMisaligned<__wasi_event_t>(OutPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   if (unlikely(isMisaligned<__wasi_size_t>(NEventsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -1802,7 +1802,7 @@ Expect<uint32_t> WasiSockOpenV1::body(const Runtime::CallingFrame &Frame,
                                       uint32_t /* Out */ RoFdPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_fd_t>(RoFdPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -1849,7 +1849,7 @@ Expect<uint32_t> WasiSockBindV1::body(const Runtime::CallingFrame &Frame,
                                       uint32_t Port) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -1905,7 +1905,7 @@ Expect<uint32_t> WasiSockAcceptV1::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ RoFdPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_fd_t>(RoFdPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -1933,7 +1933,7 @@ Expect<uint32_t> WasiSockAcceptV2::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ RoFdPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_fd_t>(RoFdPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -1968,7 +1968,7 @@ Expect<uint32_t> WasiSockConnectV1::body(const Runtime::CallingFrame &Frame,
                                          uint32_t Port) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   // Check memory instance from module.
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -2017,15 +2017,15 @@ Expect<uint32_t> WasiSockRecvV1::body(const Runtime::CallingFrame &Frame,
                                       uint32_t /* Out */ RoFlagsPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_iovec_t>(RiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(RoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_roflags_t>(RoFlagsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -2103,19 +2103,19 @@ Expect<uint32_t> WasiSockRecvFromV1::body(const Runtime::CallingFrame &Frame,
                                           uint32_t /* Out */ RoFlagsPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_iovec_t>(RiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(RoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_roflags_t>(RoFlagsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -2201,11 +2201,11 @@ Expect<uint32_t> WasiSockSendV1::body(const Runtime::CallingFrame &Frame,
                                       uint32_t /* Out */ SoDataLenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_ciovec_t>(SiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(SoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -2275,15 +2275,15 @@ Expect<uint32_t> WasiSockSendToV1::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ SoDataLenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_ciovec_t>(SiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(SoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -2441,13 +2441,13 @@ Expect<uint32_t> WasiSockGetAddrinfo::body(
   // true)
 
   if (unlikely(isMisaligned<__wasi_addrinfo_t>(HintsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   if (unlikely(isMisaligned<uint8_t_ptr>(ResPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
   if (unlikely(isMisaligned<__wasi_size_t>(ResLengthPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -2618,15 +2618,15 @@ WasiSockGetLocalAddrV1::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                              uint32_t PortPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<uint32_t>(AddressTypePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<uint32_t>(PortPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -2698,15 +2698,15 @@ Expect<uint32_t> WasiSockGetPeerAddrV1::body(const Runtime::CallingFrame &Frame,
                                              uint32_t PortPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<uint32_t>(AddressTypePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<uint32_t>(PortPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -2778,7 +2778,7 @@ Expect<uint32_t> WasiSockOpenV2::body(const Runtime::CallingFrame &Frame,
                                       uint32_t /* Out */ RoFdPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_fd_t>(RoFdPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -2825,7 +2825,7 @@ Expect<uint32_t> WasiSockBindV2::body(const Runtime::CallingFrame &Frame,
                                       uint32_t Port) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -2888,7 +2888,7 @@ Expect<uint32_t> WasiSockConnectV2::body(const Runtime::CallingFrame &Frame,
                                          uint32_t Port) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -2945,15 +2945,15 @@ Expect<uint32_t> WasiSockRecvV2::body(const Runtime::CallingFrame &Frame,
                                       uint32_t /* Out */ RoFlagsPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_iovec_t>(RiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(RoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_roflags_t>(RoFlagsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -3030,23 +3030,23 @@ Expect<uint32_t> WasiSockRecvFromV2::body(const Runtime::CallingFrame &Frame,
                                           uint32_t /* Out */ RoFlagsPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_iovec_t>(RiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<uint16_t>(PortPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(RoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_roflags_t>(RoFlagsPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -3156,11 +3156,11 @@ Expect<uint32_t> WasiSockSendV2::body(const Runtime::CallingFrame &Frame,
                                       uint32_t /* Out */ SoDataLenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_ciovec_t>(SiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(SoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -3230,15 +3230,15 @@ Expect<uint32_t> WasiSockSendToV2::body(const Runtime::CallingFrame &Frame,
                                         uint32_t /* Out */ SoDataLenPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_ciovec_t>(SiDataPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<__wasi_size_t>(SoDataLenPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   // Check memory instance from module.
@@ -3343,7 +3343,7 @@ Expect<uint32_t> WasiSockGetOpt::body(const Runtime::CallingFrame &Frame,
   // no alignment requirement for FlagPtr as it's a byte array
 
   if (unlikely(isMisaligned<uint32_t>(FlagSizePtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -3392,11 +3392,11 @@ WasiSockGetLocalAddrV2::body(const Runtime::CallingFrame &Frame, int32_t Fd,
                              uint32_t AddressPtr, uint32_t PortPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<uint32_t>(PortPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);
@@ -3448,11 +3448,11 @@ Expect<uint32_t> WasiSockGetPeerAddrV2::body(const Runtime::CallingFrame &Frame,
                                              uint32_t PortPtr) {
   // Alignment checks
   if (unlikely(isMisaligned<__wasi_address_t>(AddressPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   if (unlikely(isMisaligned<uint32_t>(PortPtr))) {
-    return __WASI_ERRNO_ADDRNOTAVAIL;
+    return WasmEdge::Unexpect(WasmEdge::ErrCode::Value::HostFuncError);
   }
 
   auto *MemInst = Frame.getMemoryByIndex(0);

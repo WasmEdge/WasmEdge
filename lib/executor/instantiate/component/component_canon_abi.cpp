@@ -668,13 +668,11 @@ flattenFuncType(const CanonCtx &Cx, const AST::Component::FuncType &FT,
       F.Results.clear();
       F.Results.push_back(I32T);
     } else {
-      // Spec L2829-2831: params += [ptr_type()]; results = [].
-      // Lower-side indirect-return is not yet implemented.
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: lower-side indirect-return (>{} flat results) not implemented"sv,
-          MaxFlatResults);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      // Spec L2829-2831: params += [ptr_type()]; results = []. The trailing
+      // i32 is the caller-provided out-pointer where the lowered tuple is
+      // written; the thunk reads it from the end of the argument list.
+      F.Params.push_back(I32T);
+      F.Results.clear();
     }
   }
 
@@ -1995,6 +1993,138 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
   spdlog::error("    canonical ABI: lower_flat of gated value type"sv);
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+}
+
+namespace {
+
+// Synthesize a TupleTy over a span of component types. Shared by the
+// indirect-path of lift_flat_values / lower_flat_values.
+AST::Component::DefValType
+synthTupleType(Span<const ComponentValType> Types) noexcept {
+  AST::Component::TupleTy Tup;
+  for (const auto &T : Types) {
+    Tup.Types.push_back(T);
+  }
+  AST::Component::DefValType D;
+  D.setTuple(std::move(Tup));
+  return D;
+}
+
+// Compute total flat count over a span of component types.
+Expect<uint32_t> totalFlatCount(const CanonCtx &Cx,
+                                Span<const ComponentValType> Types) noexcept {
+  uint32_t N = 0;
+  for (const auto &T : Types) {
+    EXPECTED_TRY(auto Sub, flattenType(Cx, T));
+    N += static_cast<uint32_t>(Sub.size());
+  }
+  return N;
+}
+
+} // namespace
+
+Expect<std::vector<ComponentValVariant>>
+liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
+               Span<const ComponentValType> Types,
+               uint32_t MaxFlat) noexcept {
+  EXPECTED_TRY(auto N, totalFlatCount(Cx, Types));
+
+  if (N > MaxFlat) {
+    // Indirect path (CanonicalABI.md L3195-3200).
+    auto PtrV = VI.next();
+    if (!PtrV.has_value()) {
+      EXPECTED_TRY(trapDataInvalid("lift_flat_values: missing indirect ptr"));
+    }
+    const uint32_t Ptr = PtrV->get<uint32_t>();
+    auto Td = synthTupleType(Types);
+    EXPECTED_TRY(auto Align, alignmentDef(Cx, Td));
+    EXPECTED_TRY(auto Sz, elemSizeDef(Cx, Td));
+    if (Ptr != alignTo(Ptr, Align)) {
+      EXPECTED_TRY(trapDataInvalid("lift_flat_values: pointer misaligned"));
+    }
+    if (!Cx.Mem->checkAccessBound(Ptr, Sz)) {
+      EXPECTED_TRY(trapMemoryOOB("lift_flat_values area", Ptr, Sz));
+    }
+    EXPECTED_TRY(auto Loaded, loadDef(Cx, Ptr, Td));
+    auto &Tu = std::get<TupleVal>(
+        std::get<std::shared_ptr<ValComp>>(Loaded)->V);
+    if (Tu.Values.size() != Types.size()) {
+      EXPECTED_TRY(trapDataInvalid("lift_flat_values: tuple arity mismatch"));
+    }
+    std::vector<ComponentValVariant> Out;
+    Out.reserve(Tu.Values.size());
+    for (auto &V : Tu.Values) {
+      Out.push_back(std::move(V));
+    }
+    return Out;
+  }
+
+  // Direct path: per-type liftFlat.
+  std::vector<ComponentValVariant> Out;
+  Out.reserve(Types.size());
+  for (const auto &T : Types) {
+    EXPECTED_TRY(auto V, liftFlat(Cx, VI, T));
+    Out.push_back(std::move(V));
+  }
+  return Out;
+}
+
+Expect<std::vector<ValVariant>>
+lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
+                Span<const ComponentValType> Types, uint32_t MaxFlat,
+                std::optional<uint32_t> OutParam) noexcept {
+  if (Values.size() != Types.size()) {
+    EXPECTED_TRY(trapDataInvalid("lower_flat_values: arity mismatch"));
+  }
+  EXPECTED_TRY(auto N, totalFlatCount(Cx, Types));
+
+  if (N > MaxFlat) {
+    // Indirect path (CanonicalABI.md L3215-3226).
+    auto Td = synthTupleType(Types);
+    EXPECTED_TRY(auto Align, alignmentDef(Cx, Td));
+    EXPECTED_TRY(auto Sz, elemSizeDef(Cx, Td));
+
+    uint32_t Ptr = 0;
+    bool ReturnPtr = false;
+    if (OutParam.has_value()) {
+      Ptr = *OutParam;
+    } else {
+      EXPECTED_TRY(Ptr, callRealloc(Cx, 0u, 0u, Align, Sz));
+      ReturnPtr = true;
+    }
+    if (Ptr != alignTo(Ptr, Align)) {
+      EXPECTED_TRY(trapDataInvalid("lower_flat_values: pointer misaligned"));
+    }
+    if (!Cx.Mem->checkAccessBound(Ptr, Sz)) {
+      EXPECTED_TRY(trapMemoryOOB("lower_flat_values area", Ptr, Sz));
+    }
+
+    // Walk the tuple layout in-line — matches the loop used by indirect-params
+    // in convValsToCoreWASM. Per-field alignment is honored.
+    uint32_t Off = 0u;
+    for (size_t I = 0; I < Types.size(); ++I) {
+      EXPECTED_TRY(auto FA, alignment(Cx, Types[I]));
+      Off = alignTo(Off, FA);
+      EXPECTED_TRY(store(Cx, Values[I], Types[I], Ptr + Off));
+      EXPECTED_TRY(auto FS, elemSize(Cx, Types[I]));
+      Off += FS;
+    }
+
+    if (ReturnPtr) {
+      return std::vector<ValVariant>{ValVariant(Ptr)};
+    }
+    return std::vector<ValVariant>{};
+  }
+
+  // Direct path: per-value lowerFlat.
+  std::vector<ValVariant> Out;
+  for (size_t I = 0; I < Types.size(); ++I) {
+    EXPECTED_TRY(auto Sub, lowerFlat(Cx, Values[I], Types[I]));
+    for (auto &CV : Sub) {
+      Out.push_back(std::move(CV));
+    }
+  }
+  return Out;
 }
 
 } // namespace CanonicalABI

@@ -34,7 +34,11 @@ protected:
 
 template <typename ArgT> struct convert {
   static ArgT run(const ComponentValVariant &V) {
-    return std::get<ValVariant>(V).template get<ArgT>();
+    // ComponentValVariant uses the typed arm convention; the explicit
+    // specializations below are kept as documentation of the supported
+    // primitive set. Any unsupported ArgT fails to compile here, which
+    // mirrors std::variant's contract.
+    return std::get<ArgT>(V);
   }
 };
 template <> struct convert<bool> {
@@ -117,7 +121,7 @@ template <typename V, typename E> struct convert<Result<V, E>> {
 
 template <typename ArgT> struct emplace {
   static void run(ComponentValVariant &V, ArgT Arg) {
-    std::get<ValVariant>(V).emplace<ArgT>(Arg);
+    V.emplace<ArgT>(Arg);
   }
 };
 template <> struct emplace<bool> {

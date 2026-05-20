@@ -11,6 +11,9 @@
 namespace WasmEdge {
 namespace Runtime {
 namespace Instance {
+
+class ComponentInstance; // forward decl for parent component pointer
+
 namespace Component {
 
 class FunctionInstance {
@@ -22,13 +25,16 @@ public:
   /// Move constructor.
   FunctionInstance(FunctionInstance &&Inst) noexcept
       : FuncType(Inst.FuncType), LowerFunc(Inst.LowerFunc),
-        MemInst(Inst.MemInst), ReallocFunc(Inst.ReallocFunc) {}
+        MemInst(Inst.MemInst), ReallocFunc(Inst.ReallocFunc),
+        ParentComp(Inst.ParentComp) {}
   /// Constructor for component native function.
   FunctionInstance(const AST::Component::FuncType &Type,
                    Runtime::Instance::FunctionInstance *F,
                    Runtime::Instance::MemoryInstance *M,
-                   Runtime::Instance::FunctionInstance *R) noexcept
-      : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R) {}
+                   Runtime::Instance::FunctionInstance *R,
+                   const Runtime::Instance::ComponentInstance *P) noexcept
+      : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R),
+        ParentComp(P) {}
 
   /// Getter for component function type.
   const AST::Component::FuncType &getFuncType() const noexcept {
@@ -50,11 +56,19 @@ public:
     return ReallocFunc;
   }
 
+  /// Getter for the owning component instance. Required for resolving
+  /// TypeIndex-based component types through the canonical ABI.
+  const Runtime::Instance::ComponentInstance *
+  getComponentInstance() const noexcept {
+    return ParentComp;
+  }
+
 protected:
   const AST::Component::FuncType &FuncType;
   Runtime::Instance::FunctionInstance *LowerFunc;
   Runtime::Instance::MemoryInstance *MemInst;
   Runtime::Instance::FunctionInstance *ReallocFunc;
+  const Runtime::Instance::ComponentInstance *ParentComp;
 };
 
 } // namespace Component

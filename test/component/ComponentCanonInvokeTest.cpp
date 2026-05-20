@@ -138,9 +138,8 @@ TEST(ComponentCanonInvoke, IndirectParams17U32) {
   auto Res = VM.executeComponent("sink", Params, PTypes);
   ASSERT_TRUE(Res);
   ASSERT_EQ(Res->size(), 1u);
-  // Single direct-return u32 — convValsToComponent wraps the core value as
-  // ComponentValVariant{ValVariant}, matching LoadAndRun_SimpleBinary.
-  auto Ret = std::get<ValVariant>((*Res)[0].first).get<uint32_t>();
+  // Single direct-return u32, typed-arm convention end-to-end.
+  auto Ret = std::get<uint32_t>((*Res)[0].first);
   EXPECT_EQ(Ret, 0xDEADBEEFu);
 }
 
@@ -196,7 +195,7 @@ TEST(ComponentCanonInvoke, TypeIndexTupleParamDirect) {
   auto Res = VM.executeComponent("consume", Params, PTypes);
   ASSERT_TRUE(Res);
   ASSERT_EQ(Res->size(), 1u);
-  auto Ret = std::get<ValVariant>((*Res)[0].first).get<uint32_t>();
+  auto Ret = std::get<uint32_t>((*Res)[0].first);
   EXPECT_EQ(Ret, 30u);
 }
 
@@ -254,18 +253,16 @@ TEST(ComponentCanonInvoke, LowerRoundtripAddU32) {
   ASSERT_TRUE(VM.validate());
   ASSERT_TRUE(VM.instantiate());
 
-  // Top-level params use the ValVariant-wrapped form per
-  // convValsToCoreWASM's existing calling convention (matches
-  // LoadAndRun_SimpleBinary in ComponentRegressionTest.cpp).
+  // Typed-arm convention end-to-end (post-refactor unifying convValsTo*).
   std::vector<ComponentValVariant> Params{
-      ComponentValVariant{ValVariant(uint32_t{10u})},
-      ComponentValVariant{ValVariant(uint32_t{20u})}};
+      ComponentValVariant{uint32_t{10u}},
+      ComponentValVariant{uint32_t{20u}}};
   std::vector<ComponentValType> PTypes{ComponentValType(ComponentTypeCode::U32),
                                        ComponentValType(ComponentTypeCode::U32)};
   auto Res = VM.executeComponent("add-via-roundtrip", Params, PTypes);
   ASSERT_TRUE(Res);
   ASSERT_EQ(Res->size(), 1u);
-  auto Ret = std::get<ValVariant>((*Res)[0].first).get<uint32_t>();
+  auto Ret = std::get<uint32_t>((*Res)[0].first);
   EXPECT_EQ(Ret, 30u);
 }
 

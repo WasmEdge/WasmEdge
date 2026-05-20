@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright The WasmEdge Authors
 
 #include "executor/component/canonical_abi.h"
+#include "executor/component/lower_thunk.h"
 #include "executor/executor.h"
 
 #include "common/errinfo.h"
@@ -305,24 +306,21 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       break;
     }
     case ComponentCanonOpCode::Lower: {
-      // Lower sends a component function to a core Wasm function with proper
-      // canonical ABI modification.
-
-      // TODO: COMPONENT - Currently the component functions are from `lifting`,
-      // therefore there is a core function instance under the component
-      // function instance. Maybe this implementation should be fixed in the
-      // future.
-      /*
+      // canon lower: synthesize a core wasm function whose body lifts core
+      // args to component values, calls the wrapped component function, and
+      // lowers the result back. Spec L3534-3640 (sync branch).
       const auto &Opts = Canon.getOptions();
       Runtime::Instance::MemoryInstance *MemInst = nullptr;
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
         case ComponentCanonOptCode::Encode_UTF8:
+          // UTF-8 is the only encoding supported here.
+          break;
         case ComponentCanonOptCode::Encode_UTF16:
         case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-          spdlog::error("    incomplete canonincal options"sv);
+          spdlog::error("    canon lower: non-UTF-8 encoding not implemented"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
@@ -331,17 +329,39 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
         case ComponentCanonOptCode::PostReturn:
+          // Spec L3261: post-return is only valid on canon lift.
+          spdlog::error(ErrCode::Value::InvalidCanonOption);
+          spdlog::error(
+              "    canon lower: 'post-return' is only allowed on canon lift"sv);
+          return Unexpect(ErrCode::Value::InvalidCanonOption);
         case ComponentCanonOptCode::Async:
-          // TODO: incomplete validation of these cases.
+          spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+          spdlog::error("    canon lower: 'async' not implemented"sv);
+          return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         default:
-          assumingUnreachable();
+          spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+          spdlog::error("    canon lower: unsupported canonical option"sv);
+          return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         }
       }
-      */
 
-      auto *FuncInst = CompInst.getFunction(Canon.getIndex());
-      auto *CoreFuncInst = FuncInst->getLowerFunction();
-      CompInst.addCoreFunction(CoreFuncInst);
+      auto *Callee = CompInst.getFunction(Canon.getIndex());
+      const auto &CFT = Callee->getFuncType();
+
+      // Pre-flight the lower-direction flat ABI so unsupported shapes (async,
+      // gated types) fail at instantiation time. flattenFuncType doesn't need
+      // Mem / Realloc to compute the signature.
+      CanonicalABI::CanonCtx PrefCx{this, nullptr, nullptr, &CompInst};
+      EXPECTED_TRY(auto FlatSig,
+                   CanonicalABI::flattenFuncType(PrefCx, CFT,
+                                                 /*IsLift=*/false));
+
+      auto Thunk = std::make_unique<CanonLowerHostFunc>(
+          this, FlatSig, Callee, MemInst, ReallocFunc, &CompInst);
+      // Register via the host-function helper so the synthesized core
+      // function's defined type lands in a ModuleInstance::Types list and
+      // matchType walks find it when wasm callers import this function.
+      CompInst.addCoreHostFunction(std::move(Thunk));
       break;
     }
     case ComponentCanonOpCode::Resource__new:

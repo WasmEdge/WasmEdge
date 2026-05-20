@@ -301,6 +301,19 @@ protected:
     std::unique_lock Lock(Mutex);
     unsafeImportInstance(FuncInsts, Func);
   }
+  /// Import a host function (FunctionInstance owned elsewhere). Registers
+  /// the host function's defined type into this module's Types list so that
+  /// downstream matchType() walks find it, and re-links the FunctionInstance
+  /// to point at the new TypeIdx. Use this when a host function is bridged
+  /// into a different module than the one that originally created it (e.g.,
+  /// the inline-instance machinery in component instantiation).
+  void importHostFunction(FunctionInstance *Func) {
+    std::unique_lock Lock(Mutex);
+    assuming(Func->isHostFunction());
+    unsafeImportDefinedType(Func->getHostFunc().getDefinedType());
+    Func->linkDefinedType(this, static_cast<uint32_t>(Types.size()) - 1);
+    unsafeImportInstance(FuncInsts, Func);
+  }
   void importTable(TableInstance *Tab) {
     std::unique_lock Lock(Mutex);
     unsafeImportInstance(TabInsts, Tab);

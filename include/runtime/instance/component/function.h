@@ -26,15 +26,18 @@ public:
   FunctionInstance(FunctionInstance &&Inst) noexcept
       : FuncType(Inst.FuncType), LowerFunc(Inst.LowerFunc),
         MemInst(Inst.MemInst), ReallocFunc(Inst.ReallocFunc),
-        ParentComp(Inst.ParentComp) {}
-  /// Constructor for component native function.
+        PostReturnFunc(Inst.PostReturnFunc), ParentComp(Inst.ParentComp) {}
+  /// Constructor for component native function. `PR` is the optional
+  /// post-return core function (CanonicalABI.md L3367-3372); pass nullptr
+  /// when the canon lift declared no post-return option.
   FunctionInstance(const AST::Component::FuncType &Type,
                    Runtime::Instance::FunctionInstance *F,
                    Runtime::Instance::MemoryInstance *M,
                    Runtime::Instance::FunctionInstance *R,
-                   const Runtime::Instance::ComponentInstance *P) noexcept
+                   const Runtime::Instance::ComponentInstance *P,
+                   Runtime::Instance::FunctionInstance *PR = nullptr) noexcept
       : FuncType(Type), LowerFunc(F), MemInst(M), ReallocFunc(R),
-        ParentComp(P) {}
+        PostReturnFunc(PR), ParentComp(P) {}
 
   /// Getter for component function type.
   const AST::Component::FuncType &getFuncType() const noexcept {
@@ -63,11 +66,18 @@ public:
     return ParentComp;
   }
 
+  /// Getter for the post-return core function instance, or nullptr when the
+  /// canon lift declared no post-return option (CanonicalABI.md L3367-3372).
+  Runtime::Instance::FunctionInstance *getPostReturnFunction() const noexcept {
+    return PostReturnFunc;
+  }
+
 protected:
   const AST::Component::FuncType &FuncType;
   Runtime::Instance::FunctionInstance *LowerFunc;
   Runtime::Instance::MemoryInstance *MemInst;
   Runtime::Instance::FunctionInstance *ReallocFunc;
+  Runtime::Instance::FunctionInstance *PostReturnFunc;
   const Runtime::Instance::ComponentInstance *ParentComp;
 };
 

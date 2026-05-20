@@ -2103,4 +2103,85 @@ TEST(ComponentValidatorTest, CoreInstanceMemoryIndexTypeMatchAccepted) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
+// Helper: build a Component whose type 1 is `(func (param "s" string))` —
+// triggers the spec's `lift(T)` and `lower(T)` realloc/memory rules
+// (CanonicalABI.md L3273-3277).
+inline AST::Component::Component makeCompWithStringParamFunc() {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  // Type 0: ResourceType (local) — used to allocate core func 0.
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setResourceType(AST::Component::ResourceType{});
+  // Type 1: FuncType with a string param.
+  AST::Component::FuncType FT;
+  std::vector<AST::Component::LabelValType> Params;
+  Params.emplace_back("s", ComponentValType(ComponentTypeCode::String));
+  FT.setParamList(std::move(Params));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+  // Canon section: register core func 0 via resource.new 0 so canon lift has
+  // a target.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CanonSection>();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical ResNew;
+  ResNew.setOpCode(ComponentCanonOpCode::Resource__new);
+  ResNew.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(ResNew));
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, CanonLift_StringParamRequiresRealloc_Fails) {
+  // Spec L3293: `lift(param)` for a list/string-containing T requires
+  // 'realloc'. The lift below omits realloc and so must be rejected by the
+  // validator (previously only caught at instantiate time).
+  auto Comp = makeCompWithStringParamFunc();
+  auto &CanonSec =
+      std::get<AST::Component::CanonSection>(Comp.getSections().back());
+  AST::Component::Canonical Lift;
+  Lift.setOpCode(ComponentCanonOpCode::Lift);
+  Lift.setIndex(0);
+  Lift.setTargetIndex(1);
+  CanonSec.getContent().emplace_back(std::move(Lift));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, CanonLower_StringParamRequiresMemory_Fails) {
+  // Spec L3520: `lower(param)` for a list/string-containing T requires
+  // 'memory'. Set up an imported component func with a string param and
+  // canon-lower it without supplying 'memory'.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  auto &TypeSec =
+      std::get<AST::Component::TypeSection>(Comp.getSections().back());
+  AST::Component::FuncType FT;
+  std::vector<AST::Component::LabelValType> Params;
+  Params.emplace_back("s", ComponentValType(ComponentTypeCode::String));
+  FT.setParamList(std::move(Params));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setFuncType(std::move(FT));
+  // Import the func at index 0 so getFunc(0) returns the FuncType.
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "f";
+  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
+
+  auto &CanonSec = appendCanonSection(Comp);
+  AST::Component::Canonical Lower;
+  Lower.setOpCode(ComponentCanonOpCode::Lower);
+  Lower.setIndex(0);
+  CanonSec.getContent().emplace_back(std::move(Lower));
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
 } // namespace

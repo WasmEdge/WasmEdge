@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <unordered_set>
 #include <vector>
 
 namespace WasmEdge {
@@ -114,8 +115,7 @@ alignment(const CanonCtx &Cx,
   const TC Code = T.getCode();
 
   if (Code == TC::TypeIndex) {
-    assuming(Cx.CompInst != nullptr);
-    const auto *DT = Cx.CompInst->getType(T.getTypeIndex());
+    const auto *DT = resolveDefType(Cx, T.getTypeIndex());
     if (DT == nullptr || !DT->isDefValType()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
@@ -300,8 +300,7 @@ Expect<uint32_t> elemSize(const CanonCtx &Cx,
   const TC Code = T.getCode();
 
   if (Code == TC::TypeIndex) {
-    assuming(Cx.CompInst != nullptr);
-    const auto *DT = Cx.CompInst->getType(T.getTypeIndex());
+    const auto *DT = resolveDefType(Cx, T.getTypeIndex());
     if (DT == nullptr || !DT->isDefValType()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
@@ -501,8 +500,7 @@ flattenType(const CanonCtx &Cx, const ComponentValType &T) noexcept {
   const TC Code = T.getCode();
 
   if (Code == TC::TypeIndex) {
-    assuming(Cx.CompInst != nullptr);
-    const auto *DT = Cx.CompInst->getType(T.getTypeIndex());
+    const auto *DT = resolveDefType(Cx, T.getTypeIndex());
     if (DT == nullptr || !DT->isDefValType()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
@@ -678,6 +676,94 @@ flattenFuncType(const CanonCtx &Cx, const AST::Component::FuncType &FT,
   }
 
   return F;
+}
+
+namespace {
+
+// Inner recursion for `containsListOrString`. The `Seen` set guards against
+// cycles in mutually recursive type-index references.
+bool containsListOrStringDef(const CanonCtx &Cx,
+                             const AST::Component::DefValType &T,
+                             std::unordered_set<uint32_t> &Seen) noexcept;
+bool containsListOrStringImpl(const CanonCtx &Cx, const ComponentValType &T,
+                              std::unordered_set<uint32_t> &Seen) noexcept {
+  using TC = ComponentTypeCode;
+  if (T.getCode() == TC::String) {
+    return true;
+  }
+  if (T.getCode() != TC::TypeIndex) {
+    return false;
+  }
+  const uint32_t Idx = T.getTypeIndex();
+  if (!Seen.insert(Idx).second) {
+    return false;
+  }
+  const auto *DT = resolveDefType(Cx, Idx);
+  if (DT == nullptr || !DT->isDefValType()) {
+    return false;
+  }
+  return containsListOrStringDef(Cx, DT->getDefValType(), Seen);
+}
+bool containsListOrStringDef(const CanonCtx &Cx,
+                             const AST::Component::DefValType &T,
+                             std::unordered_set<uint32_t> &Seen) noexcept {
+  if (T.isPrimValType()) {
+    return T.getPrimValType() == AST::Component::PrimValType::String;
+  }
+  if (T.isListTy()) {
+    return true;
+  }
+  if (T.isRecordTy()) {
+    for (const auto &F : T.getRecord().LabelTypes) {
+      if (containsListOrStringImpl(Cx, F.getValType(), Seen)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (T.isTupleTy()) {
+    for (const auto &Ty : T.getTuple().Types) {
+      if (containsListOrStringImpl(Cx, Ty, Seen)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (T.isVariantTy()) {
+    for (const auto &C : T.getVariant().Cases) {
+      if (C.second.has_value() &&
+          containsListOrStringImpl(Cx, *C.second, Seen)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  if (T.isOptionTy()) {
+    return containsListOrStringImpl(Cx, T.getOption().ValTy, Seen);
+  }
+  if (T.isResultTy()) {
+    const auto &R = T.getResult();
+    if (R.ValTy.has_value() &&
+        containsListOrStringImpl(Cx, *R.ValTy, Seen)) {
+      return true;
+    }
+    if (R.ErrTy.has_value() &&
+        containsListOrStringImpl(Cx, *R.ErrTy, Seen)) {
+      return true;
+    }
+    return false;
+  }
+  // flags / enum / own / borrow / stream / future contain neither list nor
+  // string by construction.
+  return false;
+}
+
+} // namespace
+
+bool containsListOrString(const CanonCtx &Cx,
+                          const ComponentValType &T) noexcept {
+  std::unordered_set<uint32_t> Seen;
+  return containsListOrStringImpl(Cx, T, Seen);
 }
 
 namespace {
@@ -860,8 +946,7 @@ Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
   const TC Code = T.getCode();
 
   if (Code == TC::TypeIndex) {
-    assuming(Cx.CompInst != nullptr);
-    const auto *DT = Cx.CompInst->getType(T.getTypeIndex());
+    const auto *DT = resolveDefType(Cx, T.getTypeIndex());
     if (DT == nullptr || !DT->isDefValType()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
@@ -1156,8 +1241,7 @@ Expect<void> store(const CanonCtx &Cx, const ComponentValVariant &V,
   const TC Code = T.getCode();
 
   if (Code == TC::TypeIndex) {
-    assuming(Cx.CompInst != nullptr);
-    const auto *DT = Cx.CompInst->getType(T.getTypeIndex());
+    const auto *DT = resolveDefType(Cx, T.getTypeIndex());
     if (DT == nullptr || !DT->isDefValType()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
@@ -1648,8 +1732,7 @@ Expect<ComponentValVariant> liftFlat(const CanonCtx &Cx, FlatIter &VI,
   const TC Code = T.getCode();
 
   if (Code == TC::TypeIndex) {
-    assuming(Cx.CompInst != nullptr);
-    const auto *DT = Cx.CompInst->getType(T.getTypeIndex());
+    const auto *DT = resolveDefType(Cx, T.getTypeIndex());
     if (DT == nullptr || !DT->isDefValType()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
@@ -1936,8 +2019,7 @@ lowerFlat(const CanonCtx &Cx, const ComponentValVariant &V,
   const TC Code = T.getCode();
 
   if (Code == TC::TypeIndex) {
-    assuming(Cx.CompInst != nullptr);
-    const auto *DT = Cx.CompInst->getType(T.getTypeIndex());
+    const auto *DT = resolveDefType(Cx, T.getTypeIndex());
     if (DT == nullptr || !DT->isDefValType()) {
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(

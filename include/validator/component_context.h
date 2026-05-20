@@ -5,9 +5,11 @@
 
 #include "ast/component/component.h"
 #include "ast/module.h"
+#include "ast/type.h"
 #include "validator/component_name.h"
 
 #include <deque>
+#include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -278,8 +280,23 @@ public:
     V.push_back(ST);
     return Idx;
   }
+  /// Add a core function whose signature is synthesized during validation
+  /// (e.g., the type produced by `canon lower`). The SubType is owned by the
+  /// ComponentContext so its address stays stable for later lookups.
+  uint32_t
+  addCoreFuncOwned(std::unique_ptr<AST::SubType> ST) noexcept {
+    SynthesizedCoreFuncTypes.push_back(std::move(ST));
+    return addCoreFunc(SynthesizedCoreFuncTypes.back().get());
+  }
   const AST::SubType *getCoreFunc(uint32_t Idx) const noexcept {
     const auto &V = getCurrentContext().CoreFuncs;
+    return Idx < V.size() ? V[Idx] : nullptr;
+  }
+  /// Look up a registered `core:type` entry. Used by canon lift to retrieve
+  /// the imported `$callee`'s declared core type when threaded from
+  /// CoreImportDesc.
+  const AST::SubType *getCoreType(uint32_t Idx) const noexcept {
+    const auto &V = getCurrentContext().CoreTypes;
     return Idx < V.size() ? V[Idx] : nullptr;
   }
 
@@ -549,6 +566,11 @@ private:
 
   // Session-global resource registry; vector index IS the resource id.
   std::vector<ResourceRegistryEntry> ResourceRegistry;
+
+  /// Storage for SubTypes synthesized during validation (e.g., by
+  /// `canon lower`). Owned here so the pointers handed back by getCoreFunc
+  /// remain valid for the lifetime of the ComponentContext.
+  std::vector<std::unique_ptr<AST::SubType>> SynthesizedCoreFuncTypes;
 };
 
 } // namespace Validator

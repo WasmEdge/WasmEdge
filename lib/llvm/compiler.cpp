@@ -214,6 +214,7 @@ struct LLVM::Compiler::CompileContext {
   std::vector<std::tuple<uint32_t, LLVM::FunctionCallee,
                          const WasmEdge::AST::CodeSegment *>>
       Functions;
+  std::vector<LLVM::Value> LazyJITCacheVars;
   uint32_t ImportCount = 0;
   std::vector<LLVM::Type> MemoryAddrTypes;
   std::vector<LLVM::Type> TableAddrTypes;
@@ -4291,9 +4292,15 @@ private:
       } else {
         auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
 
-        auto CacheVar = Context.LLModule.get().addGlobal(
-            FTy.getPointerTo(), false, LLVMPrivateLinkage,
-            LLVM::Value::getConstNull(FTy.getPointerTo()), "");
+        if (Context.LazyJITCacheVars.size() <= FuncIndex) {
+          Context.LazyJITCacheVars.resize(Context.Functions.size());
+        }
+        auto &CacheVar = Context.LazyJITCacheVars[FuncIndex];
+        if (!CacheVar) {
+          CacheVar = Context.LLModule.get().addGlobal(
+              FTy.getPointerTo(), false, LLVMPrivateLinkage,
+              LLVM::Value::getConstNull(FTy.getPointerTo()), "");
+        }
 
         auto CheckBB = LLVM::BasicBlock::create(LLContext, F.Fn, "ic.check");
         auto ResolveBB =
@@ -4457,9 +4464,15 @@ private:
       } else {
         auto FTy = toLLVMType(LLContext, Context.ExecCtxPtrTy, FuncType);
 
-        auto CacheVar = Context.LLModule.get().addGlobal(
-            FTy.getPointerTo(), false, LLVMPrivateLinkage,
-            LLVM::Value::getConstNull(FTy.getPointerTo()), "");
+        if (Context.LazyJITCacheVars.size() <= FuncIndex) {
+          Context.LazyJITCacheVars.resize(Context.Functions.size());
+        }
+        auto &CacheVar = Context.LazyJITCacheVars[FuncIndex];
+        if (!CacheVar) {
+          CacheVar = Context.LLModule.get().addGlobal(
+              FTy.getPointerTo(), false, LLVMPrivateLinkage,
+              LLVM::Value::getConstNull(FTy.getPointerTo()), "");
+        }
 
         auto CheckBB = LLVM::BasicBlock::create(LLContext, F.Fn, "rc.check");
         auto ResolveBB =
@@ -6644,6 +6657,7 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
   Context->CompositeTypes.clear();
   Context->FunctionWrappers.clear();
   Context->Functions.clear();
+  Context->LazyJITCacheVars.clear();
   Context->ImportCount = 0;
   Context->MemoryAddrTypes.clear();
   Context->TableAddrTypes.clear();

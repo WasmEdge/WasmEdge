@@ -92,7 +92,6 @@ public:
 
   virtual bool isLazy() const noexcept { return false; }
 
-protected:
   template <typename T> Symbol<T> createSymbol(T *Pointer) const noexcept {
     return Symbol<T>(shared_from_this(), Pointer);
   }

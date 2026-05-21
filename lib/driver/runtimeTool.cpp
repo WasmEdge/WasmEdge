@@ -38,7 +38,7 @@ RunMode parseRunModeArg(std::string_view S) noexcept {
   if (Lower == "aot") {
     return RunMode::AOT;
   }
-  if (Lower == "lazy-jit" || Lower == "lazyjit") {
+  if (Lower == "lazyjit") {
     return RunMode::LazyJIT;
   }
   // Default to interpreter on any unrecognised value.

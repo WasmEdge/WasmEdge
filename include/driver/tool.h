@@ -113,7 +113,7 @@ struct DriverToolOptions {
         ConfForceInterpreter(
             PO::Description("Forcibly run WASM in interpreter mode."sv)),
         ConfRunMode(PO::Description("Set execution mode. Valid values: "
-                                    "interpreter, jit, aot. "
+                                    "interpreter, jit, aot, lazyjit. "
                                     "Default is interpreter."sv),
                     PO::MetaVar("MODE"sv), PO::DefaultValue(std::string())),
         ConfAFUNIX(PO::Description("Enable UNIX domain sockets"sv)),

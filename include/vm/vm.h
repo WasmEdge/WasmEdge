@@ -287,6 +287,17 @@ public:
   /// Getter of statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
+#ifdef WASMEDGE_USE_LLVM
+  uint32_t getLazyCompiledFuncCount() const noexcept {
+    std::shared_lock Lock(LazyJITMutex);
+    uint32_t Count = 0;
+    for (const auto &Pair : LazyJITStates) {
+      Count += static_cast<uint32_t>(Pair.second.LazyCompiledFuncs.size());
+    }
+    return Count;
+  }
+#endif
+
 private:
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);

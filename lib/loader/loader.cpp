@@ -21,11 +21,12 @@ namespace {
 std::string generateID() {
   const std::string Characters =
       "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-  std::random_device RandomDevice;
-  std::mt19937 Generator(RandomDevice());
+  static std::mutex M;
+  static std::mt19937 Gen{std::random_device{}()};
+  std::lock_guard L(M);
 
   std::string RandomString(Characters);
-  std::shuffle(RandomString.begin(), RandomString.end(), Generator);
+  std::shuffle(RandomString.begin(), RandomString.end(), Gen);
 
   return RandomString.substr(0, 10);
 }

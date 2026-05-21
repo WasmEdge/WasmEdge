@@ -42,6 +42,13 @@ static WasmEdge::Expect<LLVM::OrcLLJIT> createTunedLazyLLJIT() noexcept {
   LLVM::Message CPU(LLVMGetHostCPUName());
   LLVM::Message Features(LLVMGetHostCPUFeatures());
 
+  // LLVMCodeGenLevelNone is used deliberately here as a performance trade-off.
+  // ORC's IRCompileLayer inherits the codegen optimisation level from this
+  // target machine and applies it during every lazy materialisation.
+  // Note that this codegen level is independent of the optimisation
+  // level passed through WasmEdge::Configure, which governs the
+  // IR compilation step, this setting only controls the ORC materialisation
+  // pipeline for lazy JIT.
   LLVMTargetMachineRef TM = LLVMCreateTargetMachine(
       TheTarget, Triple.string_view().data(), CPU.string_view().data(),
       Features.string_view().data(), LLVMCodeGenLevelNone, LLVMRelocDefault,

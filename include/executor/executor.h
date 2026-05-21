@@ -1151,6 +1151,12 @@ private:
       LazyCompilationHandler;
 
   /// Helper function for triggering lazy compilation.
+  /// XXX: Calling checkLazyCompilation in one thread while another thread calls
+  /// unsafeUpgradeToCompiled on the same FuncInst could result in a race
+  /// condition if checking FuncInst->isCompiledFunction() directly here. As a
+  /// temporary workaround, checks for compilation state are deferred to the
+  /// LazyCompilationHandler (VM::lazyCompileFunctions), which executes
+  /// under a global JIT compilation lock.
   Expect<void> checkLazyCompilation(
       const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
     if (LazyCompilationHandler) {

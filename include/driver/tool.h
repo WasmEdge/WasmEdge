@@ -64,6 +64,8 @@ struct DriverToolOptions : public DriverProposalOptions {
             "instruction counting, gas measuring, and execution time"sv)),
         ConfEnableJIT(
             PO::Description("Enable Just-In-Time compiler for running WASM"sv)),
+        ConfEnableLazyJIT(PO::Description(
+            "Enable lazy JIT compilation (compile functions on-demand)"sv)),
         ConfEnableCoredump(PO::Description(
             "Enable coredump when WebAssembly enters a trap"sv)),
         ConfCoredumpWasmgdb(
@@ -71,7 +73,7 @@ struct DriverToolOptions : public DriverProposalOptions {
         ConfForceInterpreter(
             PO::Description("Forcibly run WASM in interpreter mode."sv)),
         ConfRunMode(PO::Description("Set execution mode. Valid values: "
-                                    "interpreter, jit, aot. "
+                                    "interpreter, jit, aot, lazyjit. "
                                     "Default is interpreter."sv),
                     PO::MetaVar("MODE"sv), PO::DefaultValue(std::string())),
         ConfAFUNIX(PO::Description("Enable UNIX domain sockets"sv)),
@@ -118,6 +120,7 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
   PO::Option<PO::Toggle> ConfEnableJIT;
+  PO::Option<PO::Toggle> ConfEnableLazyJIT;
   PO::Option<PO::Toggle> ConfEnableCoredump;
   PO::Option<PO::Toggle> ConfCoredumpWasmgdb;
   PO::Option<PO::Toggle> ConfForceInterpreter;
@@ -169,6 +172,7 @@ public:
         .add_option("enable-time-measuring"sv, ConfEnableTimeMeasuring)
         .add_option("enable-all-statistics"sv, ConfEnableAllStatistics)
         .add_option("enable-jit"sv, ConfEnableJIT)
+        .add_option("enable-lazy-jit"sv, ConfEnableLazyJIT)
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
         .add_option("force-interpreter"sv, ConfForceInterpreter)

@@ -26,12 +26,20 @@
 #include "runtime/instance/module.h"
 #include "runtime/storemgr.h"
 
+#ifdef WASMEDGE_USE_LLVM
+#include "llvm/compiler.h"
+#include "llvm/data.h"
+#include "llvm/jit.h"
+#endif
+
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -281,6 +289,17 @@ public:
   /// Getter for statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 
+#ifdef WASMEDGE_USE_LLVM
+  uint32_t getLazyCompiledFuncCount() const noexcept {
+    std::shared_lock Lock(LazyJITMutex);
+    uint32_t Count = 0;
+    for (const auto &Pair : LazyJITStates) {
+      Count += static_cast<uint32_t>(Pair.second.LazyCompiledFuncs.size());
+    }
+    return Count;
+  }
+#endif
+
 private:
   Expect<void> unsafeRegisterModule(std::string_view Name,
                                     const std::filesystem::path &Path);
@@ -375,6 +394,7 @@ private:
   Statistics::Statistics Stat;
   VMStage Stage;
   mutable std::shared_mutex Mutex;
+  mutable std::shared_mutex LazyJITMutex;
   /// @}
 
   /// \name VM components.
@@ -392,8 +412,12 @@ private:
   /// Active module instance.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ActiveModInst;
   std::unique_ptr<Runtime::Instance::ComponentInstance> ActiveCompInst;
+  /// Registered AST modules.
+  std::vector<std::shared_ptr<const AST::Module>> RegASTModules;
   /// Registered module instances by user.
   std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>> RegModInsts;
+  /// Map from ID to the index in RegASTModules and RegModInsts.
+  std::unordered_map<std::string, std::array<size_t, 2>> RegModMap;
   /// Built-in module instances mapped to the configurations. For WASI.
   std::unordered_map<HostRegistration,
                      std::unique_ptr<Runtime::Instance::ModuleInstance>>
@@ -408,6 +432,22 @@ private:
   /// Reference to the store.
   Runtime::StoreManager &StoreRef;
   /// @}
+
+#ifdef WASMEDGE_USE_LLVM
+  /// \name Lazy JIT.
+  /// @{
+  /// Prepare Lazy JIT infrastructure for a module.
+  Expect<WasmEdge::LLVM::LazyJITState> prepareLazyJIT(AST::Module &Module);
+
+  /// Lazy compile a function if lazy JIT mode is enabled and function not yet
+  /// compiled.
+  Expect<void> lazyCompileFunctions(const std::string &ID, uint32_t FuncIdx);
+
+  /// Map from module ID to its lazy JIT state
+  std::unordered_map<std::string, WasmEdge::LLVM::LazyJITState> LazyJITStates;
+
+  /// @}
+#endif
 };
 
 } // namespace VM

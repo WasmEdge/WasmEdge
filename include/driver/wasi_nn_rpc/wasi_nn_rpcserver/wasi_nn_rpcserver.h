@@ -319,7 +319,10 @@ public:
     std::string_view FuncName = "get_output"sv;
     uint32_t ResourceHandle = RPCRequest->resource_handle();
     uint32_t Index = RPCRequest->index();
-    uint32_t MemorySize = UINT32_C(65536); // FIXME
+    uint32_t OutputMaxSize = RPCRequest->output_max_size() > 0
+                                ? RPCRequest->output_max_size()
+                                : UINT32_C(65536);
+    uint32_t MemorySize = OutputMaxSize;
     uint32_t BytesWrittenPtr = UINT32_C(0);
     uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
     uint32_t BufMaxSize = MemorySize - BufPtr;
@@ -354,7 +357,10 @@ public:
     std::string_view FuncName = "get_output_single"sv;
     uint32_t ResourceHandle = RPCRequest->resource_handle();
     uint32_t Index = RPCRequest->index();
-    uint32_t MemorySize = UINT32_C(65536); // FIXME
+    uint32_t OutputMaxSize = RPCRequest->output_max_size() > 0
+                                ? RPCRequest->output_max_size()
+                                : UINT32_C(65536);
+    uint32_t MemorySize = OutputMaxSize;
     uint32_t BytesWrittenPtr = UINT32_C(0);
     uint32_t BufPtr = BytesWrittenPtr + UINT32_C(4);
     uint32_t BufMaxSize = MemorySize - BufPtr;

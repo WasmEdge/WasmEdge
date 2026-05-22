@@ -1649,20 +1649,18 @@ Expect<void> checkCanonFlatRules(const ComponentContext &CompCtx,
   if (PreFlatParams > Executor::CanonicalABI::MaxFlatParams &&
       !ParamsSpillOptPresent) {
     spdlog::error(ErrCode::Value::InvalidCanonOption);
-    spdlog::error(
-        "    {}: param flat count {} exceeds MAX_FLAT_PARAMS, "
-        "'{}' is required"sv,
-        Site, PreFlatParams, ParamsSpillOpt);
+    spdlog::error("    {}: param flat count {} exceeds MAX_FLAT_PARAMS, "
+                  "'{}' is required"sv,
+                  Site, PreFlatParams, ParamsSpillOpt);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidCanonOption);
   }
   if (PreFlatResults > Executor::CanonicalABI::MaxFlatResults &&
       !ResultsSpillOptPresent) {
     spdlog::error(ErrCode::Value::InvalidCanonOption);
-    spdlog::error(
-        "    {}: result flat count {} exceeds MAX_FLAT_RESULTS, "
-        "'{}' is required"sv,
-        Site, PreFlatResults, ResultsSpillOpt);
+    spdlog::error("    {}: result flat count {} exceeds MAX_FLAT_RESULTS, "
+                  "'{}' is required"sv,
+                  Site, PreFlatResults, ResultsSpillOpt);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
     return Unexpect(ErrCode::Value::InvalidCanonOption);
   }
@@ -1818,8 +1816,7 @@ Validator::validateCanonLower(const AST::Component::Canonical &Canon) noexcept {
   EXPECTED_TRY(auto FlatSig,
                Executor::CanonicalABI::flattenFuncType(Cx, *Callee,
                                                        /*IsLift=*/false));
-  EXPECTED_TRY(
-      checkCanonFlatRules(CompCtx, *Callee, /*IsLift=*/false, Opts));
+  EXPECTED_TRY(checkCanonFlatRules(CompCtx, *Callee, /*IsLift=*/false, Opts));
 
   // 4. Allocate the resulting core func, binding the synthesized flat ABI
   // (spec L3519) so downstream callers see the correct signature.

@@ -7,6 +7,7 @@
 #include "executor/executor.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <unordered_set>
@@ -20,17 +21,16 @@ using namespace std::literals;
 
 namespace {
 
-// Invoke the guest's `realloc` core function. Mirrors the inline allocation
-// dance previously embedded in convValsToCoreWASM (component_canon.cpp:35-44).
-// Returns the freshly-allocated address. Traps on invoke failure since a
-// realloc shortage at this layer is unrecoverable.
+// Invoke the guest's `realloc` core function. Returns the freshly-allocated
+// address. Traps on invoke failure since a realloc shortage at this layer is
+// unrecoverable.
 Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
                              uint32_t OldSize, uint32_t Align,
                              uint32_t NewSize) noexcept {
   assuming(Cx.Exec != nullptr);
   assuming(Cx.Realloc != nullptr);
-  std::vector<ValVariant> Args{ValVariant(OldPtr), ValVariant(OldSize),
-                               ValVariant(Align), ValVariant(NewSize)};
+  std::array<ValVariant, 4> Args{ValVariant(OldPtr), ValVariant(OldSize),
+                                 ValVariant(Align), ValVariant(NewSize)};
   auto ParamTypes = Cx.Realloc->getFuncType().getParamTypes();
   EXPECTED_TRY(auto Res, Cx.Exec->invoke(Cx.Realloc, Args, ParamTypes));
   if (Res.empty()) {
@@ -892,10 +892,7 @@ loadPrim(const CanonCtx &Cx, uint32_t Ptr,
   case P::F32: {
     float V = 0.f;
     EXPECTED_TRY(Cx.Mem->loadValue<float>(V, Ptr));
-    // decode_i32_as_float canonicalises NaN payloads (L2106-2119). C++ NaN
-    // handling already keeps the bit pattern, but downstream comparison may
-    // need normalisation — return the value as-is for now; the visible
-    // semantics are unchanged for non-NaN values.
+    // TODO: decode_i32_as_float canonicalises NaN payloads (L2106-2119).
     return ComponentValVariant{V};
   }
   case P::F64: {
@@ -1213,8 +1210,9 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
       if (!Cx.Mem->checkAccessBound(Begin, Len)) {
         EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
       }
-      Cx.Mem->setBytes(std::vector<Byte>{Str.begin(), Str.end()}, Begin, 0u,
-                       Len);
+      EXPECTED_TRY(Cx.Mem->setBytes(
+          Span<const Byte>{reinterpret_cast<const Byte *>(Str.data()), Len},
+          Begin, 0u, Len));
     }
     EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Begin, Ptr));
     EXPECTED_TRY(Cx.Mem->storeValue<uint32_t>(Len, Ptr + 4u));
@@ -1267,7 +1265,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isRecordTy()) {
     // store_record (L2696-2710).
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store record: empty value"));
     }
@@ -1288,7 +1286,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isTupleTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store tuple: empty value"));
     }
@@ -1310,7 +1308,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isVariantTy()) {
     // store_variant (L2711-2734).
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store variant: empty value"));
     }
@@ -1335,7 +1333,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isOptionTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store option: empty value"));
     }
@@ -1351,7 +1349,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isResultTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store result: empty value"));
     }
@@ -1388,7 +1386,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
           "    canonical ABI: store of fixed-length list not implemented"sv);
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     }
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store list: empty value"));
     }
@@ -1421,7 +1419,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isFlagsTy()) {
     // store_flags (L2735-2740).
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store flags: empty value"));
     }
@@ -1447,7 +1445,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isEnumTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store enum: empty value"));
     }
@@ -1462,7 +1460,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isOwnTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store own: empty value"));
     }
@@ -1471,7 +1469,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isBorrowTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("store borrow: empty value"));
     }
@@ -1878,26 +1876,26 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     const uint32_t Case = DiscRaw->get<uint32_t>();
     EXPECTED_TRY(pickCase(Case));
 
-    // Joined flat is `[i32] ++ joined`; drop the leading disc.
+    // Joined flat is `[i32] ++ joined`; skip the leading disc.
     EXPECTED_TRY(auto Joined, flattenTypeDef(Cx, T));
     assuming(!Joined.empty() && Joined.front().getCode() == TypeCode::I32);
-    Joined.erase(Joined.begin());
+    const auto JoinedPayload = Span<const ValType>{Joined}.subspan(1);
 
     // Native flat for the picked case (empty if no payload).
     std::vector<ValType> CaseFlat;
     if (CasePayloadTy.has_value()) {
       EXPECTED_TRY(CaseFlat, flattenType(Cx, *CasePayloadTy));
     }
-    assuming(CaseFlat.size() <= Joined.size());
+    assuming(CaseFlat.size() <= JoinedPayload.size());
 
     // Coerce the case's prefix; drain the join-padding suffix.
     std::vector<ValVariant> Coerced;
     Coerced.reserve(CaseFlat.size());
     for (size_t I = 0; I < CaseFlat.size(); ++I) {
-      EXPECTED_TRY(auto V, coerceLiftSlot(VI, Joined[I], CaseFlat[I]));
+      EXPECTED_TRY(auto V, coerceLiftSlot(VI, JoinedPayload[I], CaseFlat[I]));
       Coerced.push_back(V);
     }
-    for (size_t I = CaseFlat.size(); I < Joined.size(); ++I) {
+    for (size_t I = CaseFlat.size(); I < JoinedPayload.size(); ++I) {
       auto Skip = VI.next();
       if (!Skip.has_value()) {
         EXPECTED_TRY(trapDataInvalid("lift_flat variant: iterator exhausted"));
@@ -1991,8 +1989,9 @@ lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
       if (!Cx.Mem->checkAccessBound(Begin, Len)) {
         EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
       }
-      Cx.Mem->setBytes(std::vector<Byte>{Str.begin(), Str.end()}, Begin, 0u,
-                       Len);
+      EXPECTED_TRY(Cx.Mem->setBytes(
+          Span<const Byte>{reinterpret_cast<const Byte *>(Str.data()), Len},
+          Begin, 0u, Len));
     }
     return std::vector<ValVariant>{ValVariant(Begin), ValVariant(Len)};
   }
@@ -2043,7 +2042,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isRecordTy()) {
     // lower_flat_record (L3147-3156): concatenate per-field lowerings.
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("lower_flat record: empty value"));
     }
@@ -2062,7 +2061,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isTupleTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("lower_flat tuple: empty value"));
     }
@@ -2088,7 +2087,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
           "    canonical ABI: lower_flat of fixed-length list not implemented"sv);
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     }
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("lower_flat list: empty value"));
     }
@@ -2119,7 +2118,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isFlagsTy()) {
     // lower_flat_flags (L3182-3192). Preview 2: labels ≤ 32 → single i32.
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("lower_flat flags: empty value"));
     }
@@ -2138,7 +2137,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isEnumTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("lower_flat enum: empty value"));
     }
@@ -2150,7 +2149,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isOwnTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("lower_flat own: empty value"));
     }
@@ -2159,7 +2158,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isBorrowTy()) {
-    const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+    const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     if (!VC) {
       EXPECTED_TRY(trapDataInvalid("lower_flat borrow: empty value"));
     }
@@ -2176,7 +2175,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     std::optional<ComponentValType> CasePayloadTy;
     std::optional<ComponentValVariant> CasePayloadVal;
     if (T.isVariantTy()) {
-      const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+      const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
       if (!VC) {
         EXPECTED_TRY(trapDataInvalid("lower_flat variant: empty value"));
       }
@@ -2195,7 +2194,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
       }
     } else if (T.isOptionTy()) {
       NumCases = 2;
-      const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+      const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
       if (!VC) {
         EXPECTED_TRY(trapDataInvalid("lower_flat option: empty value"));
       }
@@ -2209,7 +2208,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
       }
     } else {
       NumCases = 2;
-      const auto VC = std::get<std::shared_ptr<ValComp>>(V);
+      const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
       if (!VC) {
         EXPECTED_TRY(trapDataInvalid("lower_flat result: empty value"));
       }
@@ -2225,18 +2224,18 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
       }
     }
 
-    // Joined flat is `[i32] ++ joined`; drop the leading disc.
+    // Joined flat is `[i32] ++ joined`; skip the leading disc.
     EXPECTED_TRY(auto Joined, flattenTypeDef(Cx, T));
     assuming(!Joined.empty() && Joined.front().getCode() == TypeCode::I32);
-    Joined.erase(Joined.begin());
+    const auto JoinedPayload = Span<const ValType>{Joined}.subspan(1);
 
     std::vector<ValVariant> Flat;
-    Flat.reserve(1u + Joined.size());
+    Flat.reserve(1u + JoinedPayload.size());
     Flat.emplace_back(static_cast<uint32_t>(Case));
 
     if (CasePayloadTy.has_value()) {
       EXPECTED_TRY(auto CaseFlat, flattenType(Cx, *CasePayloadTy));
-      assuming(CaseFlat.size() <= Joined.size());
+      assuming(CaseFlat.size() <= JoinedPayload.size());
       EXPECTED_TRY(auto Native,
                    lowerFlat(Cx, *CasePayloadVal, *CasePayloadTy));
       if (Native.size() != CaseFlat.size()) {
@@ -2244,13 +2243,13 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
             "lower_flat variant: payload arity mismatch"));
       }
       for (size_t I = 0; I < Native.size(); ++I) {
-        Flat.push_back(coerceLowerSlot(Native[I], CaseFlat[I], Joined[I]));
+        Flat.push_back(coerceLowerSlot(Native[I], CaseFlat[I], JoinedPayload[I]));
       }
-      for (size_t I = Native.size(); I < Joined.size(); ++I) {
-        Flat.push_back(zeroSlot(Joined[I]));
+      for (size_t I = Native.size(); I < JoinedPayload.size(); ++I) {
+        Flat.push_back(zeroSlot(JoinedPayload[I]));
       }
     } else {
-      for (const auto &J : Joined) {
+      for (const auto &J : JoinedPayload) {
         Flat.push_back(zeroSlot(J));
       }
     }

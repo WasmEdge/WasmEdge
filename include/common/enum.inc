@@ -1231,6 +1231,8 @@ E(CastFailed, 0x0418, "cast failure")
 E(UncaughtException, 0x0419, "uncaught exception")
 // Exception pending for propagating through the native frames
 E(PendingException, 0x041A, "pending exception")
+// Component model canonical ABI trap (guest-observable)
+E(ComponentTrap, 0x041B, "component canonical ABI trap")
 // @}
 
 #undef E

@@ -397,13 +397,26 @@ TEST(ComponentCanonInvoke, LiftPostReturnDirectResult) {
 
 // =============================================================================
 // Probe tests written for an end-to-end audit of the indirect-return work.
-// Each binary was produced by `wasm-tools parse` from the .wat snippets that
-// live in /tmp/cm_tests/wat at the time of authoring; the literals are
-// embedded here so the test is self-contained.
+// Each binary was produced by `wasm-tools parse` from the .wat snippet shown
+// in the comment above the corresponding constant; the binary literal is
+// embedded so the test is self-contained.
 //
 // PURPOSE: exercise the lift/lower indirect paths and the surrounding
 // trap_if checks (alignment, OOB, string-length cap) under crafted inputs.
 
+// (component
+//   (core module $m
+//     (memory (export "mem") 1)
+//     (func (export "get") (result i32) i32.const 1)  ;; misaligned!
+//     (func (export "realloc")
+//         (param i32 i32 i32 i32) (result i32) i32.const 256))
+//   (core instance $i (instantiate $m))
+//   (alias core export $i "mem" (core memory $mem))
+//   (alias core export $i "realloc" (core func $r))
+//   (alias core export $i "get" (core func $g))
+//   (type $ft (func (result (tuple u32 u32))))
+//   (func (export "get") (type $ft)
+//     (canon lift (core func $g) (memory $mem) (realloc $r))))
 static const std::vector<uint8_t> Wat_Misaligned = {
     0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x53, 0x00, 0x61,
     0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
@@ -426,6 +439,21 @@ static const std::vector<uint8_t> Wat_Misaligned = {
     0x01, 0x69, 0x01, 0x06, 0x03, 0x01, 0x01, 0x02, 0x66, 0x74,
 };
 
+// (component
+//   (core module $m
+//     (memory (export "mem") 1)
+//     ;; 8 bytes (tuple<u32,u32>) starting at 65532 puts the last 4 bytes
+//     ;; past the end of the single page → expect lift_flat_values OOB trap.
+//     (func (export "get") (result i32) i32.const 65532)
+//     (func (export "realloc")
+//         (param i32 i32 i32 i32) (result i32) i32.const 256))
+//   (core instance $i (instantiate $m))
+//   (alias core export $i "mem" (core memory $mem))
+//   (alias core export $i "realloc" (core func $r))
+//   (alias core export $i "get" (core func $g))
+//   (type $ft (func (result (tuple u32 u32))))
+//   (func (export "get") (type $ft)
+//     (canon lift (core func $g) (memory $mem) (realloc $r))))
 static const std::vector<uint8_t> Wat_OOB = {
     0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x55, 0x00, 0x61,
     0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
@@ -448,6 +476,28 @@ static const std::vector<uint8_t> Wat_OOB = {
     0x01, 0x00, 0x01, 0x69, 0x01, 0x06, 0x03, 0x01, 0x01, 0x02, 0x66, 0x74,
 };
 
+// (component
+//   (core module $m
+//     (memory (export "mem") 1)
+//     ;; Layout of tuple<u8,u64,u8,u32> with start offset 32:
+//     ;;   u8 @0  = 0xAA            (then 7 bytes padding)
+//     ;;   u64@8  = 0x1122334455667788
+//     ;;   u8 @16 = 0xBB            (then 3 bytes padding)
+//     ;;   u32@20 = 0x12345678
+//     ;; tuple size aligned to 8 → 24.
+//     (data (i32.const 32)
+//       "\AA\00\00\00\00\00\00\00\88\77\66\55\44\33\22\11\BB\00\00\00\78\56\34\12")
+//     (func (export "get") (result i32) i32.const 32)
+//     (func (export "realloc")
+//         (param i32 i32 i32 i32) (result i32) i32.const 256))
+//   (core instance $i (instantiate $m))
+//   (alias core export $i "mem" (core memory $mem))
+//   (alias core export $i "realloc" (core func $r))
+//   (alias core export $i "get" (core func $g))
+//   (type $tup (tuple u8 u64 u8 u32))
+//   (type $ft (func (result $tup)))
+//   (func (export "get") (type $ft)
+//     (canon lift (core func $g) (memory $mem) (realloc $r))))
 static const std::vector<uint8_t> Wat_MixedAlign = {
     0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x73, 0x00, 0x61,
     0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
@@ -474,6 +524,30 @@ static const std::vector<uint8_t> Wat_MixedAlign = {
     0x74,
 };
 
+// (component
+//   (core module $m
+//     (memory (export "mem") 1)
+//     ;; Callee receives a single i32 pointer to the laid-out param tuple
+//     ;; (17 u32 params > MAX_FLAT_PARAMS=16 → indirect-params path); it
+//     ;; just echoes the pointer so the test can observe what host passed.
+//     (func (export "f") (param i32) (result i32) local.get 0)
+//     ;; Pathological realloc: returns 0 ("NULL"). lower_flat_values will
+//     ;; happily write the 17-u32 tuple at address 0 (which is a legal
+//     ;; address inside linear memory). Goal: prove no UB / no crash.
+//     (func (export "realloc")
+//         (param i32 i32 i32 i32) (result i32) i32.const 0))
+//   (core instance $i (instantiate $m))
+//   (alias core export $i "mem" (core memory $mem))
+//   (alias core export $i "realloc" (core func $r))
+//   (alias core export $i "f" (core func $f))
+//   (type $ft (func
+//     (param "p0"  u32) (param "p1"  u32) (param "p2"  u32) (param "p3"  u32)
+//     (param "p4"  u32) (param "p5"  u32) (param "p6"  u32) (param "p7"  u32)
+//     (param "p8"  u32) (param "p9"  u32) (param "p10" u32) (param "p11" u32)
+//     (param "p12" u32) (param "p13" u32) (param "p14" u32) (param "p15" u32)
+//     (param "p16" u32) (result u32)))
+//   (func (export "f") (type $ft)
+//     (canon lift (core func $f) (memory $mem) (realloc $r))))
 static const std::vector<uint8_t> Wat_ReallocZero = {
     0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x51, 0x00, 0x61,
     0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0e, 0x02, 0x60, 0x01, 0x7f,
@@ -502,6 +576,26 @@ static const std::vector<uint8_t> Wat_ReallocZero = {
     0x02, 0x66, 0x74,
 };
 
+// (component
+//   (core module $m
+//     (memory (export "mem") 1)
+//     ;; tuple<string,u32> indirect-return area @16:
+//     ;;   +0  i32 begin = 64
+//     ;;   +4  i32 len   = 5
+//     ;;   +8  i32 u32   = 0x12345678
+//     (data (i32.const 16) "\40\00\00\00\05\00\00\00\78\56\34\12")
+//     (data (i32.const 64) "hello")
+//     (func (export "get") (result i32) i32.const 16)
+//     (func (export "realloc")
+//         (param i32 i32 i32 i32) (result i32) i32.const 256))
+//   (core instance $i (instantiate $m))
+//   (alias core export $i "mem" (core memory $mem))
+//   (alias core export $i "realloc" (core func $r))
+//   (alias core export $i "get" (core func $g))
+//   (type $tup (tuple string u32))
+//   (type $ft (func (result $tup)))
+//   (func (export "get") (type $ft)
+//     (canon lift (core func $g) (memory $mem) (realloc $r))))
 static const std::vector<uint8_t> Wat_StringInTuple = {
     0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x72, 0x00, 0x61,
     0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
@@ -527,6 +621,24 @@ static const std::vector<uint8_t> Wat_StringInTuple = {
     0x02, 0x00, 0x03, 0x74, 0x75, 0x70, 0x01, 0x02, 0x66, 0x74,
 };
 
+// (component
+//   (core module $m
+//     (memory (export "mem") 1)
+//     ;; tuple<string,u32> indirect-return area @16, but the string len
+//     ;; field is 0xF0000000 (>= 1<<28 == MAX_STRING_BYTE_LENGTH) → spec
+//     ;; load_string must trap.
+//     (data (i32.const 16) "\40\00\00\00\00\00\00\F0\EF\BE\AD\DE")
+//     (func (export "get") (result i32) i32.const 16)
+//     (func (export "realloc")
+//         (param i32 i32 i32 i32) (result i32) i32.const 256))
+//   (core instance $i (instantiate $m))
+//   (alias core export $i "mem" (core memory $mem))
+//   (alias core export $i "realloc" (core func $r))
+//   (alias core export $i "get" (core func $g))
+//   (type $tup (tuple string u32))
+//   (type $ft (func (result $tup)))
+//   (func (export "get") (type $ft)
+//     (canon lift (core func $g) (memory $mem) (realloc $r))))
 static const std::vector<uint8_t> Wat_StringTooLong = {
     0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x67, 0x00, 0x61,
     0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,
@@ -551,6 +663,28 @@ static const std::vector<uint8_t> Wat_StringTooLong = {
     0x03, 0x02, 0x00, 0x03, 0x74, 0x75, 0x70, 0x01, 0x02, 0x66, 0x74,
 };
 
+// (component
+//   (core module $m
+//     (memory (export "mem") 1)
+//     ;; variant<a(s64) | b(f32)> joined flat = [i32 disc, i64]; wrapped in
+//     ;; a 1-tuple so total flat slots = 3 > MAX_FLAT_RESULTS=1 → indirect
+//     ;; return. Layout at @0:
+//     ;;   +0  i32 disc = 1            (case "b")
+//     ;;   +8  i64 payload, low 32 bits = bits-of(12.5f) = 0x41480000
+//     (data (i32.const 0)
+//       "\01\00\00\00\00\00\00\00\00\00\48\41\00\00\00\00")
+//     (func (export "get") (result i32) i32.const 0)
+//     (func (export "realloc")
+//         (param i32 i32 i32 i32) (result i32) i32.const 256))
+//   (core instance $i (instantiate $m))
+//   (alias core export $i "mem" (core memory $mem))
+//   (alias core export $i "realloc" (core func $r))
+//   (alias core export $i "get" (core func $g))
+//   (type $vt (variant (case "a" s64) (case "b" f32)))
+//   (type $tup (tuple $vt))
+//   (type $ft (func (result $tup)))
+//   (func (export "get") (type $ft)
+//     (canon lift (core func $g) (memory $mem) (realloc $r))))
 static const std::vector<uint8_t> Wat_VariantJoin = {
     0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00, 0x01, 0x6b, 0x00, 0x61,
     0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0d, 0x02, 0x60, 0x00, 0x01,

@@ -1520,9 +1520,7 @@ parseCanonOpts(Span<const AST::Component::CanonOpt> Opts) noexcept {
 Executor::CanonicalABI::CanonCtx
 makeValidatorCanonCtx(const ComponentContext &Ctx) noexcept {
   Executor::CanonicalABI::CanonCtx Cx{};
-  Cx.TypeResolver = [&Ctx](uint32_t Idx) {
-    return Ctx.getDefType(Idx);
-  };
+  Cx.TypeResolver = [&Ctx](uint32_t Idx) { return Ctx.getDefType(Idx); };
   return Cx;
 }
 
@@ -1567,52 +1565,45 @@ flatSigToSubType(const Executor::CanonicalABI::FlatFuncType &F) {
 // L3519-3524. `IsLift` decides which side of the spec table to consult.
 Expect<void> checkCanonFlatRules(
     const ComponentContext &CompCtx, ComponentCanonOpCode OpCode,
-    const AST::Component::FuncType &FT, bool IsLift,
-    const ParsedCanonOpts &O,
+    const AST::Component::FuncType &FT, bool IsLift, const ParsedCanonOpts &O,
     const Executor::CanonicalABI::FlatFuncType &Flat) noexcept {
   Executor::CanonicalABI::CanonCtx Cx = makeValidatorCanonCtx(CompCtx);
 
   const char *Site = IsLift ? "canon lift" : "canon lower";
-  const bool RequireReallocForList =
-      [&]() {
-        // lift(T) requires realloc if T contains list/string (params);
-        // lower(T) requires realloc if T contains list/string (result).
-        if (IsLift) {
-          for (const auto &P : FT.getParamList()) {
-            if (Executor::CanonicalABI::containsListOrString(
-                    Cx, P.getValType())) {
-              return true;
-            }
-          }
-        } else {
-          for (const auto &R : FT.getResultList()) {
-            if (Executor::CanonicalABI::containsListOrString(
-                    Cx, R.getValType())) {
-              return true;
-            }
-          }
+  const bool RequireReallocForList = [&]() {
+    // lift(T) requires realloc if T contains list/string (params);
+    // lower(T) requires realloc if T contains list/string (result).
+    if (IsLift) {
+      for (const auto &P : FT.getParamList()) {
+        if (Executor::CanonicalABI::containsListOrString(Cx, P.getValType())) {
+          return true;
         }
-        return false;
-      }();
-  const bool RequireMemoryForList =
-      [&]() {
-        if (IsLift) {
-          for (const auto &R : FT.getResultList()) {
-            if (Executor::CanonicalABI::containsListOrString(
-                    Cx, R.getValType())) {
-              return true;
-            }
-          }
-        } else {
-          for (const auto &P : FT.getParamList()) {
-            if (Executor::CanonicalABI::containsListOrString(
-                    Cx, P.getValType())) {
-              return true;
-            }
-          }
+      }
+    } else {
+      for (const auto &R : FT.getResultList()) {
+        if (Executor::CanonicalABI::containsListOrString(Cx, R.getValType())) {
+          return true;
         }
-        return false;
-      }();
+      }
+    }
+    return false;
+  }();
+  const bool RequireMemoryForList = [&]() {
+    if (IsLift) {
+      for (const auto &R : FT.getResultList()) {
+        if (Executor::CanonicalABI::containsListOrString(Cx, R.getValType())) {
+          return true;
+        }
+      }
+    } else {
+      for (const auto &P : FT.getParamList()) {
+        if (Executor::CanonicalABI::containsListOrString(Cx, P.getValType())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }();
 
   // Pre-flatten counts (before the over-cap collapse) drive the spec's
   // threshold rules. Total over the spans of each list-component flatten.
@@ -1672,8 +1663,7 @@ Expect<void> checkCanonFlatRules(
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     }
   } else {
-    if (PreFlatParams > Executor::CanonicalABI::MaxFlatParams &&
-        !O.HasMemory) {
+    if (PreFlatParams > Executor::CanonicalABI::MaxFlatParams && !O.HasMemory) {
       spdlog::error(ErrCode::Value::InvalidCanonOption);
       spdlog::error(
           "    canon lower: param flat count {} exceeds MAX_FLAT_PARAMS, "
@@ -1764,9 +1754,8 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
   // `(func (param flatten_functype({}, $ft, 'lift').results))`. Only checked
   // when the core func type was threaded through (e.g., CoreImportDesc).
   if (Opts.HasPostReturn) {
-    if (Opts.PostReturnIdx >=
-        CompCtx.getCoreSortIndexSize(
-            AST::Component::Sort::CoreSortType::Func)) {
+    if (Opts.PostReturnIdx >= CompCtx.getCoreSortIndexSize(
+                                  AST::Component::Sort::CoreSortType::Func)) {
       // Already caught by validateCanonOptions, but re-guarded for safety.
       return {};
     }
@@ -1776,9 +1765,8 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
       if (!PRFunc.getReturnTypes().empty() ||
           PRFunc.getParamTypes().size() != FlatSig.Results.size()) {
         spdlog::error(ErrCode::Value::InvalidCanonOption);
-        spdlog::error(
-            "    canon lift: post-return must have signature "
-            "(func (param ...flatten_lift_results))"sv);
+        spdlog::error("    canon lift: post-return must have signature "
+                      "(func (param ...flatten_lift_results))"sv);
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
@@ -1786,8 +1774,8 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
         if (PRFunc.getParamTypes()[I].getCode() !=
             FlatSig.Results[I].getCode()) {
           spdlog::error(ErrCode::Value::InvalidCanonOption);
-          spdlog::error(
-              "    canon lift: post-return param[{}] type mismatch"sv, I);
+          spdlog::error("    canon lift: post-return param[{}] type mismatch"sv,
+                        I);
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
           return Unexpect(ErrCode::Value::InvalidCanonOption);
         }
@@ -1806,9 +1794,8 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
     if (!sameFlatSignature(CalleeSub->getCompositeType().getFuncType(),
                            FlatSig)) {
       spdlog::error(ErrCode::Value::InvalidCanonOption);
-      spdlog::error(
-          "    canon lift: $callee signature does not match "
-          "flatten_functype($opts, $ft, 'lift')"sv);
+      spdlog::error("    canon lift: $callee signature does not match "
+                    "flatten_functype($opts, $ft, 'lift')"sv);
       spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
       return Unexpect(ErrCode::Value::InvalidCanonOption);
     }

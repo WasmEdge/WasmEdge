@@ -44,8 +44,7 @@ using Byte = uint8_t;
 /// against this themselves; `assuming()` here is unsound because the
 /// overflow is reachable from guest memory layouts that use the full 4 GiB
 /// address space.
-inline constexpr uint32_t alignTo(uint32_t Value,
-                                  uint32_t Alignment) noexcept {
+inline constexpr uint32_t alignTo(uint32_t Value, uint32_t Alignment) noexcept {
   return (Value + (Alignment - 1u)) & ~(Alignment - 1u);
 }
 

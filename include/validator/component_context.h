@@ -274,8 +274,7 @@ public:
   /// Add a core function whose signature is synthesized during validation
   /// (e.g., the type produced by `canon lower`). The SubType is owned by the
   /// ComponentContext so its address stays stable for later lookups.
-  uint32_t
-  addCoreFuncOwned(std::unique_ptr<AST::SubType> ST) noexcept {
+  uint32_t addCoreFuncOwned(std::unique_ptr<AST::SubType> ST) noexcept {
     SynthesizedCoreFuncTypes.push_back(std::move(ST));
     return addCoreFunc(SynthesizedCoreFuncTypes.back().get());
   }

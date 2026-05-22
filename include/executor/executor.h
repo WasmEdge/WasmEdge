@@ -386,11 +386,10 @@ private:
                      const Runtime::Instance::ComponentInstance *CompInst);
 
   Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
-  convValsToComponent(
-      Span<const std::pair<ValVariant, ValType>> CoreVals,
-      Span<const ComponentValType> ValTypes,
-      Runtime::Instance::MemoryInstance *MemInst,
-      const Runtime::Instance::ComponentInstance *CompInst);
+  convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
+                      Span<const ComponentValType> ValTypes,
+                      Runtime::Instance::MemoryInstance *MemInst,
+                      const Runtime::Instance::ComponentInstance *CompInst);
   /// @}
 
   /// \name Helper Functions for block controls.

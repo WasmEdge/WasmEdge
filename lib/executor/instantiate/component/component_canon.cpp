@@ -36,10 +36,9 @@ Executor::convValsToComponent(
   // Wrapper over the spec's lift_flat_values (CanonicalABI.md L3193-3202).
   CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst, {}};
   CanonicalABI::FlatIter VI(CoreVals);
-  EXPECTED_TRY(
-      auto Lifted,
-      CanonicalABI::liftFlatValues(Cx, VI, ValTypes,
-                                   CanonicalABI::MaxFlatResults));
+  EXPECTED_TRY(auto Lifted,
+               CanonicalABI::liftFlatValues(Cx, VI, ValTypes,
+                                            CanonicalABI::MaxFlatResults));
   std::vector<std::pair<ComponentValVariant, ComponentValType>> Out;
   Out.reserve(Lifted.size());
   for (size_t I = 0; I < Lifted.size(); ++I) {
@@ -104,10 +103,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // signature check can compare against flatten_functype({}, $ft,
       // 'lift').results (spec L3292).
       CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst, {}};
-      EXPECTED_TRY(
-          auto FlatSig,
-          CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
-                                        /*IsLift=*/true));
+      EXPECTED_TRY(auto FlatSig,
+                   CanonicalABI::flattenFuncType(PrefCx, DType->getFuncType(),
+                                                 /*IsLift=*/true));
 
       // Validate the post-return signature against the lift's flat result
       // shape (spec L3292): post-return takes the original flat_results as
@@ -124,9 +122,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         if (!PRType.getReturnTypes().empty() ||
             PRType.getParamTypes().size() != FlatSig.Results.size()) {
           spdlog::error(ErrCode::Value::InvalidCanonOption);
-          spdlog::error(
-              "    canon lift: post-return must have signature "
-              "(func (param ...flatten_lift_results))"sv);
+          spdlog::error("    canon lift: post-return must have signature "
+                        "(func (param ...flatten_lift_results))"sv);
           return Unexpect(ErrCode::Value::InvalidCanonOption);
         }
         for (size_t I = 0; I < FlatSig.Results.size(); ++I) {
@@ -162,7 +159,8 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         case ComponentCanonOptCode::Encode_UTF16:
         case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-          spdlog::error("    canon lower: non-UTF-8 encoding not implemented"sv);
+          spdlog::error(
+              "    canon lower: non-UTF-8 encoding not implemented"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
         case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());

@@ -256,7 +256,7 @@ TEST(ComponentCanonABI, AlignmentEnum) {
 }
 
 TEST(ComponentCanonABI, AlignmentFixedLengthListRejected) {
-  // 🔧 fixed-length list is gated and must be rejected.
+  // Fixed-length list is gated and must be rejected.
   ASTComp::DefValType D;
   ASTComp::ListTy L;
   L.ValTy = prim(ComponentTypeCode::U32);
@@ -269,7 +269,7 @@ TEST(ComponentCanonABI, AlignmentFixedLengthListRejected) {
 }
 
 TEST(ComponentCanonABI, AlignmentErrorContextRejected) {
-  // 📝 error-context is gated and must be rejected.
+  // Error-context is gated and must be rejected.
   CanonCtx Cx{};
   auto Res = alignment(Cx, prim(ComponentTypeCode::ErrContext));
   ASSERT_FALSE(Res.has_value());
@@ -368,7 +368,7 @@ TEST(ComponentCanonABI, ElemSizeEnum) {
 }
 
 TEST(ComponentCanonABI, ElemSizeFixedLengthListRejected) {
-  // 🔧 fixed-length list deferred.
+  // Fixed-length list deferred.
   ASTComp::DefValType D;
   ASTComp::ListTy L;
   L.ValTy = prim(ComponentTypeCode::U32);

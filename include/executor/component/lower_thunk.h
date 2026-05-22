@@ -51,6 +51,9 @@ private:
   Runtime::Instance::MemoryInstance *Memory;
   Runtime::Instance::FunctionInstance *Realloc;
   const Runtime::Instance::ComponentInstance *CompInst;
+  // Cached at construction: true if lower added a trailing out-pointer
+  // (spec L2829-2831: flat_results > MAX_FLAT_RESULTS).
+  bool HasOutPtr;
 };
 
 } // namespace Executor

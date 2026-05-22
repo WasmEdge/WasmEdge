@@ -38,7 +38,18 @@ Expect<uint32_t> callRealloc(const CanonCtx &Cx, uint32_t OldPtr,
     spdlog::error("    canonical ABI: realloc returned no value"sv);
     return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
   }
-  return Res[0].first.get<uint32_t>();
+  const uint32_t Ptr = Res[0].first.get<uint32_t>();
+  // Spec doesn't mandate this, but wasmtime treats realloc returning 0 for a
+  // non-empty allocation as OOM and traps. Without the check the runtime
+  // would silently write payload to address 0, which is usually a valid
+  // (and often live) wasm memory page.
+  if (Ptr == 0u && NewSize > 0u) {
+    spdlog::error(ErrCode::Value::ComponentTrap);
+    spdlog::error("    canonical ABI: realloc returned 0 for size={}"sv,
+                  NewSize);
+    return Unexpect(ErrCode::Value::ComponentTrap);
+  }
+  return Ptr;
 }
 
 // CanonicalABI.md L1951-1956 (`def discriminant_type`):

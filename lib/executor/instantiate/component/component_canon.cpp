@@ -21,12 +21,7 @@ Expect<std::vector<ValVariant>> Executor::convValsToCoreWASM(
     Runtime::Instance::FunctionInstance *RFuncInst,
     Runtime::Instance::MemoryInstance *MemInst,
     const Runtime::Instance::ComponentInstance *CompInst) {
-  // Thin wrapper over the spec's lower_flat_values (CanonicalABI.md
-  // L3212-3232). lowerFlatValues already covers direct-primitive lowering,
-  // top-level String via callRealloc, aggregate types via lowerFlat→storeDef
-  // recursion, and the indirect-params (>MAX_FLAT_PARAMS) realloc-and-store
-  // path. All ComponentValVariant primitives flow on the typed-arm
-  // convention end-to-end.
+  // Wrapper over the spec's lower_flat_values (CanonicalABI.md L3212-3232).
   CanonicalABI::CanonCtx Cx{this, MemInst, RFuncInst, CompInst, {}};
   return CanonicalABI::lowerFlatValues(Cx, Vals, ValTypes,
                                        CanonicalABI::MaxFlatParams);
@@ -38,12 +33,7 @@ Executor::convValsToComponent(
     Span<const ComponentValType> ValTypes,
     Runtime::Instance::MemoryInstance *MemInst,
     const Runtime::Instance::ComponentInstance *CompInst) {
-  // Thin wrapper over the spec's lift_flat_values (CanonicalABI.md
-  // L3193-3202). liftFlatValues already covers direct-primitive lifting,
-  // top-level String via loadPrim, aggregate types via liftFlat→loadDef
-  // recursion, and the indirect-result (>MAX_FLAT_RESULTS) load-tuple-from-ptr
-  // path. All produced ComponentValVariant primitives use the typed-arm
-  // convention.
+  // Wrapper over the spec's lift_flat_values (CanonicalABI.md L3193-3202).
   CanonicalABI::CanonCtx Cx{this, MemInst, nullptr, CompInst, {}};
   CanonicalABI::FlatIter VI(CoreVals);
   EXPECTED_TRY(
@@ -108,12 +98,11 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
         spdlog::error("    Cannot lift a non-function"sv);
         return Unexpect(ErrCode::Value::InvalidCanonOption);
       }
-      // Pre-flight the ABI signature: this surfaces gated / out-of-scope
-      // shapes (async, indirect-params, lower-side indirect, etc.) at
-      // instantiation time rather than at call time. Sync-lift indirect
-      // results are explicitly supported by B and reduce to results=[i32].
-      // Capture FlatSig so the post-return signature check can compare
-      // against flatten_functype({}, $ft, 'lift').results (spec L3292).
+      // Pre-flight the ABI signature: surfaces gated / out-of-scope shapes
+      // (async, indirect-params, lower-side indirect, etc.) at instantiation
+      // time rather than at call time. Captures FlatSig so the post-return
+      // signature check can compare against flatten_functype({}, $ft,
+      // 'lift').results (spec L3292).
       CanonicalABI::CanonCtx PrefCx{nullptr, nullptr, nullptr, &CompInst, {}};
       EXPECTED_TRY(
           auto FlatSig,
@@ -122,8 +111,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
 
       // Validate the post-return signature against the lift's flat result
       // shape (spec L3292): post-return takes the original flat_results as
-      // parameters and returns nothing. Phase 4 (validator F) can swap the
-      // exact-type comparison for a full TypeMatcher walk if needed.
+      // parameters and returns nothing.
       if (PostReturnFunc != nullptr) {
         const auto &PRType = PostReturnFunc->getFuncType();
         if (!PRType.getReturnTypes().empty() ||
@@ -216,7 +204,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
     case ComponentCanonOpCode::Resource__rep:
     default:
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error("    incomplete canonincal"sv);
+      spdlog::error("    incomplete canonical"sv);
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     }
   }

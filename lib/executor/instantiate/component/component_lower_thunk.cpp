@@ -21,10 +21,13 @@ CanonLowerHostFunc::CanonLowerHostFunc(
     Runtime::Instance::FunctionInstance *ReallocIn,
     const Runtime::Instance::ComponentInstance *CompInstIn) noexcept
     : HostFunctionBase(/*FuncCost=*/0), Exec(ExecIn), Callee(CalleeIn),
-      Memory(MemoryIn), Realloc(ReallocIn), CompInst(CompInstIn) {
-  // Populate DefType from the pre-flighted flat ABI signature. Mirrors
-  // HostFunction<T>::initializeFuncType() (include/runtime/hostfunc.h:100-111)
-  // but built at runtime since the signature is data-driven.
+      Memory(MemoryIn), Realloc(ReallocIn), CompInst(CompInstIn),
+      // Lower side adds a trailing out-ptr when flat_results > MaxFlatResults;
+      // in that case FlatSig.Results is empty (spec L2829-2831) while the
+      // callee still has result types.
+      HasOutPtr(FlatSig.Results.empty() &&
+                !CalleeIn->getFuncType().getResultList().empty()) {
+  // Populate DefType from the pre-flighted flat ABI signature.
   auto &FT = DefType.getCompositeType().getFuncType();
   auto &Params = FT.getParamTypes();
   auto &Returns = FT.getReturnTypes();
@@ -59,19 +62,8 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
     ResultTypes.push_back(R.getValType());
   }
 
-  // Determine whether the lower direction added a trailing out-pointer.
   // Spec L2829-2831: if flat_results > MAX_FLAT_RESULTS, params += [ptr];
   // results = []. The thunk's wasm caller passes the out-ptr as the last arg.
-  EXPECTED_TRY(auto FlatResultCount,
-               [&]() -> Expect<uint32_t> {
-                 uint32_t N = 0;
-                 for (const auto &T : ResultTypes) {
-                   EXPECTED_TRY(auto Sub, CanonicalABI::flattenType(Cx, T));
-                   N += static_cast<uint32_t>(Sub.size());
-                 }
-                 return N;
-               }());
-  const bool HasOutPtr = FlatResultCount > CanonicalABI::MaxFlatResults;
   std::optional<uint32_t> OutPtr;
   Span<const ValVariant> ParamArgs = Args;
   if (HasOutPtr) {
@@ -84,22 +76,16 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
     ParamArgs = Args.subspan(0, Args.size() - 1);
   }
 
-  // Lift params (spec L3193-3202). Produces typed-arm ComponentValVariants;
-  // Executor::invoke (lift direction) now consumes the same convention end-to-
-  // end, so no boundary translation is needed.
+  // Lift params (spec L3193-3202).
   CanonicalABI::FlatIter VI(ParamArgs);
   EXPECTED_TRY(auto Params,
                CanonicalABI::liftFlatValues(Cx, VI, ParamTypes,
                                             CanonicalABI::MaxFlatParams));
 
-  // Invoke the wrapped component function. Note this re-enters
-  // Executor::invoke from inside a host-function frame — host re-entry is
-  // already supported by the WASI plumbing, so no special-casing here.
+  // Invoke the wrapped component function.
   EXPECTED_TRY(auto CompRes,
                Exec->invoke(Callee, Params, ParamTypes));
 
-  // Split CompRes (vector<pair<ComponentValVariant, ComponentValType>>) into
-  // a value-only vector for lowerFlatValues. Values already use typed arms.
   std::vector<ComponentValVariant> ResultValues;
   ResultValues.reserve(CompRes.size());
   for (auto &P : CompRes) {

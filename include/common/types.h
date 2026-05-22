@@ -38,6 +38,13 @@ using Byte = uint8_t;
 /// Round Value up to the next multiple of Alignment.
 /// Alignment must be a non-zero power of two (the Canonical ABI only ever
 /// supplies 1, 2, 4, or 8). Behavior is undefined otherwise.
+///
+/// NOTE: Wraps silently if Value + (Alignment - 1) overflows uint32_t — the
+/// result is a small (or zero) address instead of the next aligned slot.
+/// Callers that may receive guest-derived offsets near 2^32 must guard
+/// against this themselves; `assuming()` here is unsound because the
+/// overflow is reachable from guest memory layouts that use the full 4 GiB
+/// address space.
 inline constexpr uint32_t alignTo(uint32_t Value,
                                   uint32_t Alignment) noexcept {
   return (Value + (Alignment - 1u)) & ~(Alignment - 1u);

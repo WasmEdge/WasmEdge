@@ -1434,7 +1434,7 @@ Expect<void> Validator::validateCanonOptions(
   }
 
   // Index bounds checks. Core func signature body checks (realloc/callback)
-  // deferred as GAP-C-5b once getCoreFunc signatures are populated.
+  // are deferred until getCoreFunc signatures are populated.
   if (HasMemory &&
       MemoryIdx >= CompCtx.getCoreSortIndexSize(
                        AST::Component::Sort::CoreSortType::Memory)) {

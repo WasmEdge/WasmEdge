@@ -819,13 +819,14 @@ Expect<void> storeN(Runtime::Instance::MemoryInstance &Mem, uint32_t Bytes,
 }
 
 [[nodiscard]] Expect<void> trapDataInvalid(const std::string_view Msg) noexcept {
-  spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+  spdlog::error(ErrCode::Value::ComponentTrap);
   spdlog::error("    canonical ABI: {}"sv, Msg);
-  return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  return Unexpect(ErrCode::Value::ComponentTrap);
 }
 
 // convert_i32_to_char (CanonicalABI.md L2135-2139): trap on >0x10FFFF or
-// UTF-16 surrogate.
+// UTF-16 surrogate. Used on load/lift paths where the value originates from
+// guest memory or guest-supplied flat values.
 [[nodiscard]] Expect<void> validateUSV(uint32_t I) noexcept {
   if (I >= 0x110000u) {
     return trapDataInvalid("char code point out of range");
@@ -834,6 +835,13 @@ Expect<void> storeN(Runtime::Instance::MemoryInstance &Mem, uint32_t Bytes,
     return trapDataInvalid("char is a UTF-16 surrogate");
   }
   return {};
+}
+
+// Used on store/lower paths where the char originates from a host-constructed
+// ComponentValVariant — a malformed value here is a host-side bug, mirroring
+// the spec's implicit assert on the producer side.
+void assumeValidUSV(uint32_t I) noexcept {
+  assuming(I < 0x110000u && (I < 0xD800u || I > 0xDFFFu));
 }
 
 // Load a primitive at Ptr. CanonicalABI.md L2054-2065.
@@ -1194,7 +1202,7 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
     return Cx.Mem->storeValue<double>(std::get<double>(V), Ptr);
   case P::Char: {
     const uint32_t I = std::get<uint32_t>(V);
-    EXPECTED_TRY(validateUSV(I));
+    assumeValidUSV(I);
     return Cx.Mem->storeValue<uint32_t>(I, Ptr);
   }
   case P::String: {
@@ -1266,14 +1274,10 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   if (T.isRecordTy()) {
     // store_record (L2696-2710).
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store record: empty value"));
-    }
+    assuming(VC);
     const auto &R = std::get<RecordVal>(VC->V);
     const auto &Fields = T.getRecord().LabelTypes;
-    if (R.Fields.size() != Fields.size()) {
-      EXPECTED_TRY(trapDataInvalid("store record: field count mismatch"));
-    }
+    assuming(R.Fields.size() == Fields.size());
     uint32_t Off = Ptr;
     for (size_t I = 0; I < Fields.size(); ++I) {
       EXPECTED_TRY(auto A, alignment(Cx, Fields[I].getValType()));
@@ -1287,14 +1291,10 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isTupleTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store tuple: empty value"));
-    }
+    assuming(VC);
     const auto &Tu = std::get<TupleVal>(VC->V);
     const auto &Types = T.getTuple().Types;
-    if (Tu.Values.size() != Types.size()) {
-      EXPECTED_TRY(trapDataInvalid("store tuple: value count mismatch"));
-    }
+    assuming(Tu.Values.size() == Types.size());
     uint32_t Off = Ptr;
     for (size_t I = 0; I < Types.size(); ++I) {
       EXPECTED_TRY(auto A, alignment(Cx, Types[I]));
@@ -1309,21 +1309,15 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   if (T.isVariantTy()) {
     // store_variant (L2711-2734).
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store variant: empty value"));
-    }
+    assuming(VC);
     const auto &Vv = std::get<VariantVal>(VC->V);
     const auto &Vt = T.getVariant();
-    if (Vv.Case >= Vt.Cases.size()) {
-      EXPECTED_TRY(trapDataInvalid("store variant: case out of range"));
-    }
+    assuming(Vv.Case < Vt.Cases.size());
     const uint32_t DiscSize =
         discriminantSize(static_cast<uint32_t>(Vt.Cases.size()));
     EXPECTED_TRY(storeN<uint32_t>(*Cx.Mem, DiscSize, Vv.Case, Ptr));
     if (Vt.Cases[Vv.Case].second.has_value()) {
-      if (!Vv.Payload.has_value()) {
-        EXPECTED_TRY(trapDataInvalid("store variant: payload missing"));
-      }
+      assuming(Vv.Payload.has_value());
       EXPECTED_TRY(auto MaxAlign, maxCaseAlignment(Cx, Vt.Cases));
       const uint32_t PayloadOff = alignTo(Ptr + DiscSize, MaxAlign);
       EXPECTED_TRY(
@@ -1334,9 +1328,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isOptionTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store option: empty value"));
-    }
+    assuming(VC);
     const auto &O = std::get<OptionVal>(VC->V);
     const uint32_t Disc = O.Value.has_value() ? 1u : 0u;
     EXPECTED_TRY(storeN<uint32_t>(*Cx.Mem, 1, Disc, Ptr));
@@ -1350,18 +1342,14 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isResultTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store result: empty value"));
-    }
+    assuming(VC);
     const auto &R = std::get<ResultVal>(VC->V);
     const auto &Rt = T.getResult();
     const uint32_t Disc = R.IsOk ? 0u : 1u;
     EXPECTED_TRY(storeN<uint32_t>(*Cx.Mem, 1, Disc, Ptr));
     const std::optional<ComponentValType> &PT = R.IsOk ? Rt.ValTy : Rt.ErrTy;
     if (PT.has_value()) {
-      if (!R.Payload.has_value()) {
-        EXPECTED_TRY(trapDataInvalid("store result: payload missing"));
-      }
+      assuming(R.Payload.has_value());
       uint32_t MaxAlign = 1u;
       if (Rt.ValTy.has_value()) {
         EXPECTED_TRY(auto A, alignment(Cx, *Rt.ValTy));
@@ -1387,9 +1375,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     }
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store list: empty value"));
-    }
+    assuming(VC);
     const auto &Lv = std::get<ListVal>(VC->V);
     const auto &ElemT = T.getList().ValTy;
     EXPECTED_TRY(auto ElemAlign, alignment(Cx, ElemT));
@@ -1397,9 +1383,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     const uint32_t Length = static_cast<uint32_t>(Lv.Elements.size());
     const uint64_t ByteLen64 =
         static_cast<uint64_t>(Length) * static_cast<uint64_t>(ElemSz);
-    if (ByteLen64 > static_cast<uint64_t>(kMaxCanonByteLength)) {
-      EXPECTED_TRY(trapDataInvalid("store list: byte length exceeds MAX"));
-    }
+    assuming(ByteLen64 <= static_cast<uint64_t>(kMaxCanonByteLength));
     const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
     uint32_t Begin = 0;
     if (Length > 0u) {
@@ -1420,14 +1404,10 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   if (T.isFlagsTy()) {
     // store_flags (L2735-2740).
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store flags: empty value"));
-    }
+    assuming(VC);
     const auto &F = std::get<FlagsVal>(VC->V);
     const auto &Ft = T.getFlags();
-    if (F.Bits.size() != Ft.Labels.size()) {
-      EXPECTED_TRY(trapDataInvalid("store flags: bit count mismatch"));
-    }
+    assuming(F.Bits.size() == Ft.Labels.size());
     const uint32_t Bytes =
         static_cast<uint32_t>((Ft.Labels.size() + 7) / 8);
     uint64_t Packed = 0;
@@ -1446,14 +1426,10 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isEnumTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store enum: empty value"));
-    }
+    assuming(VC);
     const auto &E = std::get<EnumVal>(VC->V);
     const auto &Et = T.getEnum();
-    if (E.Case >= Et.Labels.size()) {
-      EXPECTED_TRY(trapDataInvalid("store enum: case out of range"));
-    }
+    assuming(E.Case < Et.Labels.size());
     const uint32_t DiscSize =
         discriminantSize(static_cast<uint32_t>(Et.Labels.size()));
     return storeN<uint32_t>(*Cx.Mem, DiscSize, E.Case, Ptr);
@@ -1461,18 +1437,14 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isOwnTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store own: empty value"));
-    }
+    assuming(VC);
     const auto &O = std::get<OwnVal>(VC->V);
     return Cx.Mem->storeValue<uint32_t>(O.Handle, Ptr);
   }
 
   if (T.isBorrowTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("store borrow: empty value"));
-    }
+    assuming(VC);
     const auto &B = std::get<BorrowVal>(VC->V);
     return Cx.Mem->storeValue<uint32_t>(B.Handle, Ptr);
   }
@@ -1552,9 +1524,7 @@ inline uint32_t wrapI64ToI32(uint64_t V) noexcept {
 Expect<ValVariant> coerceLiftSlot(FlatIter &VI, ValType Have,
                                   ValType Want) noexcept {
   auto Raw = VI.next();
-  if (!Raw.has_value()) {
-    EXPECTED_TRY(trapDataInvalid("lift_flat variant: iterator exhausted"));
-  }
+  assuming(Raw.has_value());
   const auto Hc = Have.getCode();
   const auto Wc = Want.getCode();
   if (Hc == Wc) {
@@ -1655,9 +1625,7 @@ liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
              AST::Component::PrimValType PVT) noexcept {
   using P = AST::Component::PrimValType;
   auto Next = VI.next();
-  if (!Next.has_value() && PVT != P::String && PVT != P::ErrorContext) {
-    EXPECTED_TRY(trapDataInvalid("lift_flat: flat iterator exhausted"));
-  }
+  assuming(Next.has_value() || PVT == P::String || PVT == P::ErrorContext);
   switch (PVT) {
   case P::Bool: {
     // convert_int_to_bool (L2959): non-zero → true.
@@ -1691,14 +1659,10 @@ liftFlatPrim(const CanonCtx &Cx, FlatIter &VI,
   }
   case P::String: {
     // lift_flat_string (L3010-3013): ptr + len pair from flat values.
-    if (!Next.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat: flat iterator exhausted"));
-    }
+    assuming(Next.has_value());
     const uint32_t Ptr = Next->get<uint32_t>();
     auto LenV = VI.next();
-    if (!LenV.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat: flat iterator exhausted"));
-    }
+    assuming(LenV.has_value());
     const uint32_t Len = LenV->get<uint32_t>();
     if (Len > kMaxCanonByteLength) {
       EXPECTED_TRY(trapDataInvalid("string byte length exceeds MAX"));
@@ -1781,9 +1745,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     }
     auto PtrV = VI.next();
     auto LenV = VI.next();
-    if (!PtrV.has_value() || !LenV.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat list: iterator exhausted"));
-    }
+    assuming(PtrV.has_value() && LenV.has_value());
     const uint32_t Begin = PtrV->get<uint32_t>();
     const uint32_t Length = LenV->get<uint32_t>();
     return liftListFromRange(Cx, Begin, Length, T.getList().ValTy);
@@ -1792,9 +1754,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
   if (T.isFlagsTy()) {
     // lift_flat_flags (L3074-3084).
     auto Next = VI.next();
-    if (!Next.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat flags: iterator exhausted"));
-    }
+    assuming(Next.has_value());
     const uint32_t Raw = Next->get<uint32_t>();
     FlagsVal F;
     const uint32_t Labels =
@@ -1808,9 +1768,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
 
   if (T.isEnumTy()) {
     auto Next = VI.next();
-    if (!Next.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat enum: iterator exhausted"));
-    }
+    assuming(Next.has_value());
     const uint32_t Case = Next->get<uint32_t>();
     const uint32_t NumCases =
         static_cast<uint32_t>(T.getEnum().Labels.size());
@@ -1822,17 +1780,13 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
 
   if (T.isOwnTy()) {
     auto Next = VI.next();
-    if (!Next.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat own: iterator exhausted"));
-    }
+    assuming(Next.has_value());
     return makeComponentVal(OwnVal{Next->get<uint32_t>()});
   }
 
   if (T.isBorrowTy()) {
     auto Next = VI.next();
-    if (!Next.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat borrow: iterator exhausted"));
-    }
+    assuming(Next.has_value());
     return makeComponentVal(BorrowVal{Next->get<uint32_t>()});
   }
 
@@ -1870,9 +1824,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     };
 
     auto DiscRaw = VI.next();
-    if (!DiscRaw.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat variant: iterator exhausted"));
-    }
+    assuming(DiscRaw.has_value());
     const uint32_t Case = DiscRaw->get<uint32_t>();
     EXPECTED_TRY(pickCase(Case));
 
@@ -1897,9 +1849,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     }
     for (size_t I = CaseFlat.size(); I < JoinedPayload.size(); ++I) {
       auto Skip = VI.next();
-      if (!Skip.has_value()) {
-        EXPECTED_TRY(trapDataInvalid("lift_flat variant: iterator exhausted"));
-      }
+      assuming(Skip.has_value());
     }
 
     std::optional<ComponentValVariant> Payload;
@@ -1976,7 +1926,7 @@ lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
     return std::vector<ValVariant>{ValVariant(std::get<double>(V))};
   case P::Char: {
     const uint32_t I = std::get<uint32_t>(V);
-    EXPECTED_TRY(validateUSV(I));
+    assumeValidUSV(I);
     return std::vector<ValVariant>{ValVariant(I)};
   }
   case P::String: {
@@ -2043,14 +1993,10 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   if (T.isRecordTy()) {
     // lower_flat_record (L3147-3156): concatenate per-field lowerings.
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat record: empty value"));
-    }
+    assuming(VC);
     const auto &R = std::get<RecordVal>(VC->V);
     const auto &Fields = T.getRecord().LabelTypes;
-    if (R.Fields.size() != Fields.size()) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat record: field count mismatch"));
-    }
+    assuming(R.Fields.size() == Fields.size());
     std::vector<ValVariant> Flat;
     for (size_t I = 0; I < Fields.size(); ++I) {
       EXPECTED_TRY(auto Sub, lowerFlat(Cx, R.Fields[I].second,
@@ -2062,14 +2008,10 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isTupleTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat tuple: empty value"));
-    }
+    assuming(VC);
     const auto &Tu = std::get<TupleVal>(VC->V);
     const auto &Types = T.getTuple().Types;
-    if (Tu.Values.size() != Types.size()) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat tuple: value count mismatch"));
-    }
+    assuming(Tu.Values.size() == Types.size());
     std::vector<ValVariant> Flat;
     for (size_t I = 0; I < Types.size(); ++I) {
       EXPECTED_TRY(auto Sub, lowerFlat(Cx, Tu.Values[I], Types[I]));
@@ -2088,9 +2030,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
       return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
     }
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat list: empty value"));
-    }
+    assuming(VC);
     const auto &Lv = std::get<ListVal>(VC->V);
     const auto &ElemT = T.getList().ValTy;
     EXPECTED_TRY(auto ElemAlign, alignment(Cx, ElemT));
@@ -2098,9 +2038,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     const uint32_t Length = static_cast<uint32_t>(Lv.Elements.size());
     const uint64_t ByteLen64 =
         static_cast<uint64_t>(Length) * static_cast<uint64_t>(ElemSz);
-    if (ByteLen64 > static_cast<uint64_t>(kMaxCanonByteLength)) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat list: byte length exceeds MAX"));
-    }
+    assuming(ByteLen64 <= static_cast<uint64_t>(kMaxCanonByteLength));
     const uint32_t ByteLen = static_cast<uint32_t>(ByteLen64);
     uint32_t Begin = 0;
     if (Length > 0u) {
@@ -2119,14 +2057,10 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   if (T.isFlagsTy()) {
     // lower_flat_flags (L3182-3192). Preview 2: labels ≤ 32 → single i32.
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat flags: empty value"));
-    }
+    assuming(VC);
     const auto &F = std::get<FlagsVal>(VC->V);
     const auto &Ft = T.getFlags();
-    if (F.Bits.size() != Ft.Labels.size()) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat flags: bit count mismatch"));
-    }
+    assuming(F.Bits.size() == Ft.Labels.size());
     uint32_t Packed = 0;
     for (size_t I = 0; I < F.Bits.size(); ++I) {
       if (F.Bits[I]) {
@@ -2138,30 +2072,22 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
 
   if (T.isEnumTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat enum: empty value"));
-    }
+    assuming(VC);
     const auto &E = std::get<EnumVal>(VC->V);
-    if (E.Case >= T.getEnum().Labels.size()) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat enum: case out of range"));
-    }
+    assuming(E.Case < T.getEnum().Labels.size());
     return std::vector<ValVariant>{ValVariant(E.Case)};
   }
 
   if (T.isOwnTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat own: empty value"));
-    }
+    assuming(VC);
     const auto &O = std::get<OwnVal>(VC->V);
     return std::vector<ValVariant>{ValVariant(O.Handle)};
   }
 
   if (T.isBorrowTy()) {
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-    if (!VC) {
-      EXPECTED_TRY(trapDataInvalid("lower_flat borrow: empty value"));
-    }
+    assuming(VC);
     const auto &B = std::get<BorrowVal>(VC->V);
     return std::vector<ValVariant>{ValVariant(B.Handle)};
   }
@@ -2176,28 +2102,20 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     std::optional<ComponentValVariant> CasePayloadVal;
     if (T.isVariantTy()) {
       const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-      if (!VC) {
-        EXPECTED_TRY(trapDataInvalid("lower_flat variant: empty value"));
-      }
+      assuming(VC);
       const auto &Vv = std::get<VariantVal>(VC->V);
       Case = Vv.Case;
       NumCases = T.getVariant().Cases.size();
-      if (Case >= NumCases) {
-        EXPECTED_TRY(trapDataInvalid("lower_flat variant: case out of range"));
-      }
+      assuming(Case < NumCases);
       CasePayloadTy = T.getVariant().Cases[Case].second;
       if (CasePayloadTy.has_value()) {
-        if (!Vv.Payload.has_value()) {
-          EXPECTED_TRY(trapDataInvalid("lower_flat variant: missing payload"));
-        }
+        assuming(Vv.Payload.has_value());
         CasePayloadVal = Vv.Payload;
       }
     } else if (T.isOptionTy()) {
       NumCases = 2;
       const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-      if (!VC) {
-        EXPECTED_TRY(trapDataInvalid("lower_flat option: empty value"));
-      }
+      assuming(VC);
       const auto &Ov = std::get<OptionVal>(VC->V);
       if (Ov.Value.has_value()) {
         Case = 1u;
@@ -2209,17 +2127,13 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     } else {
       NumCases = 2;
       const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
-      if (!VC) {
-        EXPECTED_TRY(trapDataInvalid("lower_flat result: empty value"));
-      }
+      assuming(VC);
       const auto &Rv = std::get<ResultVal>(VC->V);
       Case = Rv.IsOk ? 0u : 1u;
       const auto &Rt = T.getResult();
       CasePayloadTy = Rv.IsOk ? Rt.ValTy : Rt.ErrTy;
       if (CasePayloadTy.has_value()) {
-        if (!Rv.Payload.has_value()) {
-          EXPECTED_TRY(trapDataInvalid("lower_flat result: missing payload"));
-        }
+        assuming(Rv.Payload.has_value());
         CasePayloadVal = Rv.Payload;
       }
     }
@@ -2238,10 +2152,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
       assuming(CaseFlat.size() <= JoinedPayload.size());
       EXPECTED_TRY(auto Native,
                    lowerFlat(Cx, *CasePayloadVal, *CasePayloadTy));
-      if (Native.size() != CaseFlat.size()) {
-        EXPECTED_TRY(trapDataInvalid(
-            "lower_flat variant: payload arity mismatch"));
-      }
+      assuming(Native.size() == CaseFlat.size());
       for (size_t I = 0; I < Native.size(); ++I) {
         Flat.push_back(coerceLowerSlot(Native[I], CaseFlat[I], JoinedPayload[I]));
       }
@@ -2298,9 +2209,7 @@ liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
   if (N > MaxFlat) {
     // Indirect path (CanonicalABI.md L3195-3200).
     auto PtrV = VI.next();
-    if (!PtrV.has_value()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat_values: missing indirect ptr"));
-    }
+    assuming(PtrV.has_value());
     const uint32_t Ptr = PtrV->get<uint32_t>();
     auto Td = synthTupleType(Types);
     EXPECTED_TRY(auto Align, alignmentDef(Cx, Td));
@@ -2314,9 +2223,7 @@ liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
     EXPECTED_TRY(auto Loaded, loadDef(Cx, Ptr, Td));
     auto &Tu = std::get<TupleVal>(
         std::get<std::shared_ptr<ValComp>>(Loaded)->V);
-    if (Tu.Values.size() != Types.size()) {
-      EXPECTED_TRY(trapDataInvalid("lift_flat_values: tuple arity mismatch"));
-    }
+    assuming(Tu.Values.size() == Types.size());
     std::vector<ComponentValVariant> Out;
     Out.reserve(Tu.Values.size());
     for (auto &V : Tu.Values) {
@@ -2339,9 +2246,7 @@ Expect<std::vector<ValVariant>>
 lowerFlatValues(const CanonCtx &Cx, Span<const ComponentValVariant> Values,
                 Span<const ComponentValType> Types, uint32_t MaxFlat,
                 std::optional<uint32_t> OutParam) noexcept {
-  if (Values.size() != Types.size()) {
-    EXPECTED_TRY(trapDataInvalid("lower_flat_values: arity mismatch"));
-  }
+  assuming(Values.size() == Types.size());
   EXPECTED_TRY(auto N, totalFlatCount(Cx, Types));
 
   if (N > MaxFlat) {

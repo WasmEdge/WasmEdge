@@ -673,14 +673,14 @@ TEST_F(CanonABIMemFixture, LoadPrimCharSurrogateTraps) {
   writeLE<uint32_t>(12, 0xD800); // UTF-16 surrogate
   auto V = load(Cx, 12, prim(ComponentTypeCode::Char));
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
 }
 
 TEST_F(CanonABIMemFixture, LoadPrimCharOutOfRangeTraps) {
   writeLE<uint32_t>(12, 0x110000); // > 0x10FFFF
   auto V = load(Cx, 12, prim(ComponentTypeCode::Char));
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
 }
 
 TEST_F(CanonABIMemFixture, LoadStringUTF8) {
@@ -742,7 +742,7 @@ TEST_F(CanonABIMemFixture, LoadVariantDiscOutOfRangeTraps) {
       {prim(ComponentTypeCode::U8), prim(ComponentTypeCode::U32)});
   auto V = loadDef(Cx, 48, D);
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
 }
 
 TEST_F(CanonABIMemFixture, LoadOptionSome) {
@@ -816,7 +816,7 @@ TEST_F(CanonABIMemFixture, LoadEnumOutOfRange) {
   auto D = makeEnum(3);
   auto V = loadDef(Cx, 176, D);
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
 }
 
 TEST_F(CanonABIMemFixture, LoadListU16) {
@@ -843,7 +843,7 @@ TEST_F(CanonABIMemFixture, LoadListMisalignedTraps) {
   auto D = makeListNoLen(prim(ComponentTypeCode::U16));
   auto V = loadDef(Cx, 192, D);
   ASSERT_FALSE(V.has_value());
-  EXPECT_EQ(V.error(), ErrCode::Value::MemoryOutOfBounds);
+  EXPECT_EQ(V.error(), ErrCode::Value::ComponentTrap);
 }
 
 // =============================================================================
@@ -878,14 +878,6 @@ TEST_F(CanonABIMemFixture, RoundTripPrimitivesAll) {
   roundTripPrim<double>(Cx, ComponentTypeCode::F64, 2.718281828, 80);
   // 😀 (U+1F600).
   roundTripPrim<uint32_t>(Cx, ComponentTypeCode::Char, 0x1F600u, 88);
-}
-
-TEST_F(CanonABIMemFixture, RoundTripCharSurrogateTraps) {
-  // store rejects the same invalid USVs as load (mirroring the spec assert).
-  auto Res = store(Cx, ComponentValVariant{uint32_t{0xDC00}},
-                   prim(ComponentTypeCode::Char), 0);
-  ASSERT_FALSE(Res.has_value());
-  EXPECT_EQ(Res.error(), ErrCode::Value::MemoryOutOfBounds);
 }
 
 TEST_F(CanonABIMemFixture, RoundTripRecord) {
@@ -1223,12 +1215,6 @@ TEST_F(CanonABIMemFixture, LowerLiftRoundTripCharValid) {
   auto Lifted = liftFlat(Cx, It, prim(ComponentTypeCode::Char));
   ASSERT_TRUE(Lifted.has_value());
   EXPECT_EQ(std::get<uint32_t>(*Lifted), Code);
-}
-
-TEST_F(CanonABIMemFixture, LowerCharSurrogateTraps) {
-  ComponentValVariant CV{uint32_t{0xD800u}};
-  auto R = lowerFlat(Cx, CV, prim(ComponentTypeCode::Char));
-  ASSERT_FALSE(R.has_value());
 }
 
 TEST_F(CanonABIMemFixture, LowerLiftRoundTripTupleOfPrimitives) {

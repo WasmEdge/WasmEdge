@@ -278,8 +278,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::F32: {
       if (!parseNumericArg(
               ArgValue, I, "f32"sv,
-              [](const std::string &S) { return std::stof(S); },
-              FuncArgs, FuncArgTypes, TCode)) {
+              [](const std::string &S) { return std::stof(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
       break;
@@ -287,8 +287,8 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
     case ComponentTypeCode::F64: {
       if (!parseNumericArg(
               ArgValue, I, "f64"sv,
-              [](const std::string &S) { return std::stod(S); },
-              FuncArgs, FuncArgTypes, TCode)) {
+              [](const std::string &S) { return std::stod(S); }, FuncArgs,
+              FuncArgTypes, TCode)) {
         return EXIT_FAILURE;
       }
       break;

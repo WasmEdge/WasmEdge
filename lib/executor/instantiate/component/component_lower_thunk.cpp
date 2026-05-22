@@ -83,8 +83,7 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
                                             CanonicalABI::MaxFlatParams));
 
   // Invoke the wrapped component function.
-  EXPECTED_TRY(auto CompRes,
-               Exec->invoke(Callee, Params, ParamTypes));
+  EXPECTED_TRY(auto CompRes, Exec->invoke(Callee, Params, ParamTypes));
 
   std::vector<ComponentValVariant> ResultValues;
   ResultValues.reserve(CompRes.size());
@@ -93,10 +92,9 @@ Expect<void> CanonLowerHostFunc::run(const Runtime::CallingFrame &,
   }
 
   // Lower results back to flat core values (spec L3212-3232).
-  EXPECTED_TRY(auto FlatRet,
-               CanonicalABI::lowerFlatValues(Cx, ResultValues, ResultTypes,
-                                             CanonicalABI::MaxFlatResults,
-                                             OutPtr));
+  EXPECTED_TRY(auto FlatRet, CanonicalABI::lowerFlatValues(
+                                 Cx, ResultValues, ResultTypes,
+                                 CanonicalABI::MaxFlatResults, OutPtr));
 
   // Copy flat returns into the Rets span. When OutPtr is set, FlatRet is
   // empty and Rets is empty too.

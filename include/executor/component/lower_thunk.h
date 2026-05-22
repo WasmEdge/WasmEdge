@@ -42,8 +42,7 @@ public:
       const Runtime::Instance::ComponentInstance *CompInst) noexcept;
 
   Expect<void> run(const Runtime::CallingFrame &Frame,
-                   Span<const ValVariant> Args,
-                   Span<ValVariant> Rets) override;
+                   Span<const ValVariant> Args, Span<ValVariant> Rets) override;
 
 private:
   Executor *Exec;

@@ -226,8 +226,6 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
 
   // Matching arguments and function type.
   // TODO: COMPONENT - type matching.
-  // const auto &FuncType = FuncInst->getFuncType();
-  // const auto PTypes = FuncType.getParamList();
   const auto &ExpectedFuncType = FuncInst->getFuncType();
   const size_t ExpectedArity = ExpectedFuncType.getParamList().size();
   if (Params.size() != ParamTypes.size() || ParamTypes.size() < ExpectedArity) {

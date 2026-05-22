@@ -457,8 +457,6 @@ Expect<void> Loader::loadType(AST::Component::ListTy &Ty, bool IsFixedLen) {
     EXPECTED_TRY(Ty.Len, FMgr.readU32().map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Type_List);
     }));
-  } else {
-    Ty.Len = 0;
   }
   return {};
 }

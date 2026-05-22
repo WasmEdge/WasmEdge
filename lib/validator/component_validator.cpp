@@ -1657,10 +1657,10 @@ flatSigToSubType(const Executor::CanonicalABI::FlatFuncType &F) {
 // Lift / lower share a few common option-requirement rules driven by the
 // flat ABI of the component func type. CanonicalABI.md L3270-3277, L3290-3296,
 // L3519-3524. `IsLift` decides which side of the spec table to consult.
-Expect<void> checkCanonFlatRules(
-    const ComponentContext &CompCtx, ComponentCanonOpCode OpCode,
-    const AST::Component::FuncType &FT, bool IsLift, const ParsedCanonOpts &O,
-    const Executor::CanonicalABI::FlatFuncType &Flat) noexcept {
+Expect<void> checkCanonFlatRules(const ComponentContext &CompCtx,
+                                 const AST::Component::FuncType &FT,
+                                 bool IsLift,
+                                 const ParsedCanonOpts &O) noexcept {
   Executor::CanonicalABI::CanonCtx Cx = makeValidatorCanonCtx(CompCtx);
 
   const char *Site = IsLift ? "canon lift" : "canon lower";
@@ -1713,7 +1713,6 @@ Expect<void> checkCanonFlatRules(
                  Executor::CanonicalABI::flattenType(Cx, R.getValType()));
     PreFlatResults += Sub.size();
   }
-  (void)Flat;
 
   // Spec L3293-3294 (lift) / L3520-3521 (lower).
   if (RequireReallocForList && !O.HasRealloc) {
@@ -1735,49 +1734,32 @@ Expect<void> checkCanonFlatRules(
 
   // Threshold rules (L3295-3296 for lift, L3522-3523 for lower). Sync only —
   // async would set different caps but is already rejected by flattenFuncType.
-  if (IsLift) {
-    if (PreFlatParams > Executor::CanonicalABI::MaxFlatParams &&
-        !O.HasRealloc) {
-      spdlog::error(ErrCode::Value::InvalidCanonOption);
-      spdlog::error(
-          "    canon lift: param flat count {} exceeds MAX_FLAT_PARAMS, "
-          "'realloc' is required"sv,
-          PreFlatParams);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    }
-    if (PreFlatResults > Executor::CanonicalABI::MaxFlatResults &&
-        !O.HasMemory) {
-      spdlog::error(ErrCode::Value::InvalidCanonOption);
-      spdlog::error(
-          "    canon lift: result flat count {} exceeds MAX_FLAT_RESULTS, "
-          "'memory' is required"sv,
-          PreFlatResults);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    }
-  } else {
-    if (PreFlatParams > Executor::CanonicalABI::MaxFlatParams && !O.HasMemory) {
-      spdlog::error(ErrCode::Value::InvalidCanonOption);
-      spdlog::error(
-          "    canon lower: param flat count {} exceeds MAX_FLAT_PARAMS, "
-          "'memory' is required"sv,
-          PreFlatParams);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    }
-    if (PreFlatResults > Executor::CanonicalABI::MaxFlatResults &&
-        !O.HasRealloc) {
-      spdlog::error(ErrCode::Value::InvalidCanonOption);
-      spdlog::error(
-          "    canon lower: result flat count {} exceeds MAX_FLAT_RESULTS, "
-          "'realloc' is required"sv,
-          PreFlatResults);
-      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
-      return Unexpect(ErrCode::Value::InvalidCanonOption);
-    }
+  // For lift: params need realloc to spill, results need memory. For lower
+  // the two swap.
+  const char *ParamsSpillOpt = IsLift ? "realloc" : "memory";
+  const bool ParamsSpillOptPresent = IsLift ? O.HasRealloc : O.HasMemory;
+  const char *ResultsSpillOpt = IsLift ? "memory" : "realloc";
+  const bool ResultsSpillOptPresent = IsLift ? O.HasMemory : O.HasRealloc;
+  if (PreFlatParams > Executor::CanonicalABI::MaxFlatParams &&
+      !ParamsSpillOptPresent) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    {}: param flat count {} exceeds MAX_FLAT_PARAMS, "
+        "'{}' is required"sv,
+        Site, PreFlatParams, ParamsSpillOpt);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
   }
-  (void)OpCode;
+  if (PreFlatResults > Executor::CanonicalABI::MaxFlatResults &&
+      !ResultsSpillOptPresent) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    {}: result flat count {} exceeds MAX_FLAT_RESULTS, "
+        "'{}' is required"sv,
+        Site, PreFlatResults, ResultsSpillOpt);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
   return {};
 }
 
@@ -1840,9 +1822,8 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
   EXPECTED_TRY(auto FlatSig,
                Executor::CanonicalABI::flattenFuncType(Cx, DT->getFuncType(),
                                                        /*IsLift=*/true));
-  EXPECTED_TRY(checkCanonFlatRules(CompCtx, Canon.getOpCode(),
-                                   DT->getFuncType(), /*IsLift=*/true, Opts,
-                                   FlatSig));
+  EXPECTED_TRY(checkCanonFlatRules(CompCtx, DT->getFuncType(),
+                                   /*IsLift=*/true, Opts));
 
   // 6. Spec L3292: post-return signature must be
   // `(func (param flatten_functype({}, $ft, 'lift').results))`. Only checked
@@ -1931,8 +1912,8 @@ Validator::validateCanonLower(const AST::Component::Canonical &Canon) noexcept {
   EXPECTED_TRY(auto FlatSig,
                Executor::CanonicalABI::flattenFuncType(Cx, *Callee,
                                                        /*IsLift=*/false));
-  EXPECTED_TRY(checkCanonFlatRules(CompCtx, Canon.getOpCode(), *Callee,
-                                   /*IsLift=*/false, Opts, FlatSig));
+  EXPECTED_TRY(
+      checkCanonFlatRules(CompCtx, *Callee, /*IsLift=*/false, Opts));
 
   // 4. Allocate the resulting core func, binding the synthesized flat ABI
   // (spec L3519) so downstream callers see the correct signature.

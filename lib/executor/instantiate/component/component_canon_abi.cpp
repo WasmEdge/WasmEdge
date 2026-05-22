@@ -118,9 +118,8 @@ uint32_t discriminantSize(uint32_t NumCases) noexcept {
   return 4u;
 }
 
-Expect<uint32_t>
-alignment(const CanonCtx &Cx,
-          const ComponentValType &T) noexcept {
+Expect<uint32_t> alignment(const CanonCtx &Cx,
+                           const ComponentValType &T) noexcept {
   // CanonicalABI.md L1904.
   using TC = ComponentTypeCode;
   const TC Code = T.getCode();
@@ -143,9 +142,8 @@ alignment(const CanonCtx &Cx,
       static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
 }
 
-Expect<uint32_t>
-alignmentDef(const CanonCtx &Cx,
-             const AST::Component::DefValType &T) noexcept {
+Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
+                              const AST::Component::DefValType &T) noexcept {
   // CanonicalABI.md L1904 (top-level match on type kind).
   if (T.isPrimValType()) {
     return alignmentPrim(T.getPrimValType());
@@ -232,8 +230,7 @@ alignmentDef(const CanonCtx &Cx,
 
   if (T.isEnumTy()) {
     // Enum aligns to its discriminant.
-    const uint32_t NumCases =
-        static_cast<uint32_t>(T.getEnum().Labels.size());
+    const uint32_t NumCases = static_cast<uint32_t>(T.getEnum().Labels.size());
     return discriminantSize(NumCases);
   }
 
@@ -394,8 +391,8 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
     const auto &R = T.getResult();
     uint32_t MaxAlign = 1u;
     uint32_t MaxSize = 0u;
-    auto consider = [&](const std::optional<ComponentValType> &V)
-        -> Expect<void> {
+    auto consider =
+        [&](const std::optional<ComponentValType> &V) -> Expect<void> {
       if (V.has_value()) {
         EXPECTED_TRY(auto A, alignment(Cx, *V));
         MaxAlign = std::max(MaxAlign, A);
@@ -422,7 +419,8 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isFlagsTy()) {
-    // elem_size_flags (L2035-2040): ceil(|labels|/8) aligned to alignment_flags.
+    // elem_size_flags (L2035-2040): ceil(|labels|/8) aligned to
+    // alignment_flags.
     const auto &F = T.getFlags();
     const uint32_t Labels = static_cast<uint32_t>(F.Labels.size());
     const uint32_t Bytes = (Labels + 7u) / 8u;
@@ -431,8 +429,7 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isEnumTy()) {
-    const uint32_t NumCases =
-        static_cast<uint32_t>(T.getEnum().Labels.size());
+    const uint32_t NumCases = static_cast<uint32_t>(T.getEnum().Labels.size());
     return discriminantSize(NumCases);
   }
 
@@ -505,8 +502,8 @@ ValType joinFlat(ValType A, ValType B) noexcept {
 
 } // namespace
 
-Expect<std::vector<ValType>>
-flattenType(const CanonCtx &Cx, const ComponentValType &T) noexcept {
+Expect<std::vector<ValType>> flattenType(const CanonCtx &Cx,
+                                         const ComponentValType &T) noexcept {
   using TC = ComponentTypeCode;
   const TC Code = T.getCode();
 
@@ -588,8 +585,7 @@ flattenTypeDef(const CanonCtx &Cx,
     // result<T,E> = variant{ok(T)? | err(E)?}.
     const auto &R = T.getResult();
     std::vector<ValType> Flat;
-    auto fold = [&](const std::optional<ComponentValType> &V)
-        -> Expect<void> {
+    auto fold = [&](const std::optional<ComponentValType> &V) -> Expect<void> {
       if (!V.has_value()) {
         return {};
       }
@@ -639,9 +635,9 @@ flattenTypeDef(const CanonCtx &Cx,
   return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
 }
 
-Expect<FlatFuncType>
-flattenFuncType(const CanonCtx &Cx, const AST::Component::FuncType &FT,
-                bool IsLift) noexcept {
+Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
+                                     const AST::Component::FuncType &FT,
+                                     bool IsLift) noexcept {
   // CanonicalABI.md L2819-2832 (sync branch only).
   if (FT.isAsync()) {
     spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
@@ -754,12 +750,10 @@ bool containsListOrStringDef(const CanonCtx &Cx,
   }
   if (T.isResultTy()) {
     const auto &R = T.getResult();
-    if (R.ValTy.has_value() &&
-        containsListOrStringImpl(Cx, *R.ValTy, Seen)) {
+    if (R.ValTy.has_value() && containsListOrStringImpl(Cx, *R.ValTy, Seen)) {
       return true;
     }
-    if (R.ErrTy.has_value() &&
-        containsListOrStringImpl(Cx, *R.ErrTy, Seen)) {
+    if (R.ErrTy.has_value() && containsListOrStringImpl(Cx, *R.ErrTy, Seen)) {
       return true;
     }
     return false;
@@ -779,7 +773,8 @@ bool containsListOrString(const CanonCtx &Cx,
 
 namespace {
 
-// CanonicalABI.md L2172, L2223 (MAX_STRING_BYTE_LENGTH == MAX_LIST_BYTE_LENGTH).
+// CanonicalABI.md L2172, L2223 (MAX_STRING_BYTE_LENGTH ==
+// MAX_LIST_BYTE_LENGTH).
 constexpr uint32_t kMaxCanonByteLength = (1u << 28) - 1u;
 
 // Wraps MemoryInstance::loadValue<T,N> with a runtime byte width. The
@@ -829,7 +824,8 @@ Expect<void> storeN(Runtime::Instance::MemoryInstance &Mem, uint32_t Bytes,
   return Unexpect(ErrCode::Value::MemoryOutOfBounds);
 }
 
-[[nodiscard]] Expect<void> trapDataInvalid(const std::string_view Msg) noexcept {
+[[nodiscard]] Expect<void>
+trapDataInvalid(const std::string_view Msg) noexcept {
   spdlog::error(ErrCode::Value::ComponentTrap);
   spdlog::error("    canonical ABI: {}"sv, Msg);
   return Unexpect(ErrCode::Value::ComponentTrap);
@@ -856,9 +852,8 @@ void assumeValidUSV(uint32_t I) noexcept {
 }
 
 // Load a primitive at Ptr. CanonicalABI.md L2054-2065.
-Expect<ComponentValVariant>
-loadPrim(const CanonCtx &Cx, uint32_t Ptr,
-         AST::Component::PrimValType PVT) noexcept {
+Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
+                                     AST::Component::PrimValType PVT) noexcept {
   assuming(Cx.Mem != nullptr);
   using P = AST::Component::PrimValType;
   switch (PVT) {
@@ -978,9 +973,9 @@ Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
       static_cast<AST::Component::PrimValType>(static_cast<uint8_t>(Code)));
 }
 
-Expect<ComponentValVariant> loadDef(const CanonCtx &Cx, uint32_t Ptr,
-                                    const AST::Component::DefValType
-                                        &T) noexcept {
+Expect<ComponentValVariant>
+loadDef(const CanonCtx &Cx, uint32_t Ptr,
+        const AST::Component::DefValType &T) noexcept {
   if (T.isPrimValType()) {
     return loadPrim(Cx, Ptr, T.getPrimValType());
   }
@@ -1110,8 +1105,7 @@ Expect<ComponentValVariant> loadDef(const CanonCtx &Cx, uint32_t Ptr,
     ListVal LV;
     LV.Elements.reserve(Length);
     for (uint32_t I = 0; I < Length; ++I) {
-      EXPECTED_TRY(auto E,
-                   load(Cx, Begin + I * ElemSz, T.getList().ValTy));
+      EXPECTED_TRY(auto E, load(Cx, Begin + I * ElemSz, T.getList().ValTy));
       LV.Elements.push_back(std::move(E));
     }
     return makeComponentVal(std::move(LV));
@@ -1139,8 +1133,7 @@ Expect<ComponentValVariant> loadDef(const CanonCtx &Cx, uint32_t Ptr,
   }
 
   if (T.isEnumTy()) {
-    const uint32_t NumCases =
-        static_cast<uint32_t>(T.getEnum().Labels.size());
+    const uint32_t NumCases = static_cast<uint32_t>(T.getEnum().Labels.size());
     const uint32_t DiscSize = discriminantSize(NumCases);
     uint32_t Case = 0;
     EXPECTED_TRY(loadN<uint32_t>(*Cx.Mem, DiscSize, Case, Ptr));
@@ -1174,8 +1167,7 @@ Expect<ComponentValVariant> loadDef(const CanonCtx &Cx, uint32_t Ptr,
 namespace {
 
 Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
-                       AST::Component::PrimValType PVT,
-                       uint32_t Ptr) noexcept {
+                       AST::Component::PrimValType PVT, uint32_t Ptr) noexcept {
   assuming(Cx.Mem != nullptr);
   using P = AST::Component::PrimValType;
   switch (PVT) {
@@ -1227,7 +1219,8 @@ Expect<void> storePrim(const CanonCtx &Cx, const ComponentValVariant &V,
     if (Len > 0u) {
       EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, 1u, Len));
       if (!Cx.Mem->checkAccessBound(Begin, Len)) {
-        EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
+        EXPECTED_TRY(
+            trapMemoryOOB("string payload (post-realloc)", Begin, Len));
       }
       EXPECTED_TRY(Cx.Mem->setBytes(
           Span<const Byte>{reinterpret_cast<const Byte *>(Str.data()), Len},
@@ -1400,8 +1393,8 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     if (Length > 0u) {
       EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
       if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-        EXPECTED_TRY(trapMemoryOOB("list payload (post-realloc)", Begin,
-                                   ByteLen));
+        EXPECTED_TRY(
+            trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
       }
       for (uint32_t I = 0; I < Length; ++I) {
         EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
@@ -1419,8 +1412,7 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
     const auto &F = std::get<FlagsVal>(VC->V);
     const auto &Ft = T.getFlags();
     assuming(F.Bits.size() == Ft.Labels.size());
-    const uint32_t Bytes =
-        static_cast<uint32_t>((Ft.Labels.size() + 7) / 8);
+    const uint32_t Bytes = static_cast<uint32_t>((Ft.Labels.size() + 7) / 8);
     uint64_t Packed = 0;
     for (size_t I = 0; I < F.Bits.size(); ++I) {
       if (F.Bits[I]) {
@@ -1768,8 +1760,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     assuming(Next.has_value());
     const uint32_t Raw = Next->get<uint32_t>();
     FlagsVal F;
-    const uint32_t Labels =
-        static_cast<uint32_t>(T.getFlags().Labels.size());
+    const uint32_t Labels = static_cast<uint32_t>(T.getFlags().Labels.size());
     F.Bits.resize(Labels);
     for (uint32_t I = 0; I < Labels; ++I) {
       F.Bits[I] = ((Raw >> I) & 1u) != 0u;
@@ -1781,8 +1772,7 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
     auto Next = VI.next();
     assuming(Next.has_value());
     const uint32_t Case = Next->get<uint32_t>();
-    const uint32_t NumCases =
-        static_cast<uint32_t>(T.getEnum().Labels.size());
+    const uint32_t NumCases = static_cast<uint32_t>(T.getEnum().Labels.size());
     if (Case >= NumCases) {
       EXPECTED_TRY(trapDataInvalid("enum case index out of range"));
     }
@@ -1948,7 +1938,8 @@ lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
     if (Len > 0u) {
       EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, 1u, Len));
       if (!Cx.Mem->checkAccessBound(Begin, Len)) {
-        EXPECTED_TRY(trapMemoryOOB("string payload (post-realloc)", Begin, Len));
+        EXPECTED_TRY(
+            trapMemoryOOB("string payload (post-realloc)", Begin, Len));
       }
       EXPECTED_TRY(Cx.Mem->setBytes(
           Span<const Byte>{reinterpret_cast<const Byte *>(Str.data()), Len},
@@ -1963,18 +1954,17 @@ lowerFlatPrim(const CanonCtx &Cx, const ComponentValVariant &V,
     return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
   default:
     spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-    spdlog::error(
-        "    canonical ABI: lower_flat of unknown prim 0x{:02x}"sv,
-        static_cast<uint8_t>(PVT));
+    spdlog::error("    canonical ABI: lower_flat of unknown prim 0x{:02x}"sv,
+                  static_cast<uint8_t>(PVT));
     return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
   }
 }
 
 } // namespace
 
-Expect<std::vector<ValVariant>>
-lowerFlat(const CanonCtx &Cx, const ComponentValVariant &V,
-          const ComponentValType &T) noexcept {
+Expect<std::vector<ValVariant>> lowerFlat(const CanonCtx &Cx,
+                                          const ComponentValVariant &V,
+                                          const ComponentValType &T) noexcept {
   using TC = ComponentTypeCode;
   const TC Code = T.getCode();
 
@@ -2010,8 +2000,8 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     assuming(R.Fields.size() == Fields.size());
     std::vector<ValVariant> Flat;
     for (size_t I = 0; I < Fields.size(); ++I) {
-      EXPECTED_TRY(auto Sub, lowerFlat(Cx, R.Fields[I].second,
-                                       Fields[I].getValType()));
+      EXPECTED_TRY(auto Sub,
+                   lowerFlat(Cx, R.Fields[I].second, Fields[I].getValType()));
       Flat.insert(Flat.end(), Sub.begin(), Sub.end());
     }
     return Flat;
@@ -2055,8 +2045,8 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     if (Length > 0u) {
       EXPECTED_TRY(Begin, callRealloc(Cx, 0u, 0u, ElemAlign, ByteLen));
       if (!Cx.Mem->checkAccessBound(Begin, ByteLen)) {
-        EXPECTED_TRY(trapMemoryOOB("list payload (post-realloc)", Begin,
-                                   ByteLen));
+        EXPECTED_TRY(
+            trapMemoryOOB("list payload (post-realloc)", Begin, ByteLen));
       }
       for (uint32_t I = 0; I < Length; ++I) {
         EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Begin + I * ElemSz));
@@ -2161,11 +2151,11 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
     if (CasePayloadTy.has_value()) {
       EXPECTED_TRY(auto CaseFlat, flattenType(Cx, *CasePayloadTy));
       assuming(CaseFlat.size() <= JoinedPayload.size());
-      EXPECTED_TRY(auto Native,
-                   lowerFlat(Cx, *CasePayloadVal, *CasePayloadTy));
+      EXPECTED_TRY(auto Native, lowerFlat(Cx, *CasePayloadVal, *CasePayloadTy));
       assuming(Native.size() == CaseFlat.size());
       for (size_t I = 0; I < Native.size(); ++I) {
-        Flat.push_back(coerceLowerSlot(Native[I], CaseFlat[I], JoinedPayload[I]));
+        Flat.push_back(
+            coerceLowerSlot(Native[I], CaseFlat[I], JoinedPayload[I]));
       }
       for (size_t I = Native.size(); I < JoinedPayload.size(); ++I) {
         Flat.push_back(zeroSlot(JoinedPayload[I]));
@@ -2213,8 +2203,7 @@ Expect<uint32_t> totalFlatCount(const CanonCtx &Cx,
 
 Expect<std::vector<ComponentValVariant>>
 liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
-               Span<const ComponentValType> Types,
-               uint32_t MaxFlat) noexcept {
+               Span<const ComponentValType> Types, uint32_t MaxFlat) noexcept {
   EXPECTED_TRY(auto N, totalFlatCount(Cx, Types));
 
   if (N > MaxFlat) {
@@ -2232,8 +2221,8 @@ liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
       EXPECTED_TRY(trapMemoryOOB("lift_flat_values area", Ptr, Sz));
     }
     EXPECTED_TRY(auto Loaded, loadDef(Cx, Ptr, Td));
-    auto &Tu = std::get<TupleVal>(
-        std::get<std::shared_ptr<ValComp>>(Loaded)->V);
+    auto &Tu =
+        std::get<TupleVal>(std::get<std::shared_ptr<ValComp>>(Loaded)->V);
     assuming(Tu.Values.size() == Types.size());
     std::vector<ComponentValVariant> Out;
     Out.reserve(Tu.Values.size());

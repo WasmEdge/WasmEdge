@@ -65,8 +65,8 @@ struct CanonCtx {
 
 /// Resolve a component type index. Returns the DefType pointer using
 /// TypeResolver when present, otherwise falling back to CompInst.
-inline const AST::Component::DefType *
-resolveDefType(const CanonCtx &Cx, uint32_t Idx) noexcept {
+inline const AST::Component::DefType *resolveDefType(const CanonCtx &Cx,
+                                                     uint32_t Idx) noexcept {
   if (Cx.TypeResolver) {
     return Cx.TypeResolver(Idx);
   }
@@ -89,9 +89,8 @@ Expect<uint32_t> alignment(const CanonCtx &Cx,
 /// callers that already hold a DefValType (e.g., synthesized result tuple)
 /// can avoid the typeindex round-trip.
 /// CanonicalABI.md L1904-1985.
-Expect<uint32_t>
-alignmentDef(const CanonCtx &Cx,
-             const AST::Component::DefValType &T) noexcept;
+Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
+                              const AST::Component::DefValType &T) noexcept;
 
 /// Byte size of a Component Model value type T in linear memory.
 /// CanonicalABI.md L1990-2040.
@@ -112,8 +111,8 @@ struct FlatFuncType {
 
 /// Flatten a Component Model value type to its core wasm representation.
 /// CanonicalABI.md L2860-2877.
-Expect<std::vector<ValType>>
-flattenType(const CanonCtx &Cx, const ComponentValType &T) noexcept;
+Expect<std::vector<ValType>> flattenType(const CanonCtx &Cx,
+                                         const ComponentValType &T) noexcept;
 
 /// Flatten a defined value type — internal recursion helper.
 /// CanonicalABI.md L2860-2877.
@@ -129,9 +128,9 @@ flattenTypeDef(const CanonCtx &Cx,
 /// MaxFlatResults the core function returns a single i32 return-area pointer.
 /// `IsLift = false` covers `canon lower` and synthesizes the trailing
 /// out-pointer parameter when results exceed MaxFlatResults.
-Expect<FlatFuncType>
-flattenFuncType(const CanonCtx &Cx, const AST::Component::FuncType &FT,
-                bool IsLift) noexcept;
+Expect<FlatFuncType> flattenFuncType(const CanonCtx &Cx,
+                                     const AST::Component::FuncType &FT,
+                                     bool IsLift) noexcept;
 
 /// True iff `T` transitively contains a `list` or `string`. Used by the
 /// canon-options validation to enforce the spec's `lift(T)` / `lower(T)`
@@ -152,9 +151,9 @@ Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
                                  const ComponentValType &T) noexcept;
 
 /// Load a defined value type — internal recursion helper.
-Expect<ComponentValVariant> loadDef(const CanonCtx &Cx, uint32_t Ptr,
-                                    const AST::Component::DefValType
-                                        &T) noexcept;
+Expect<ComponentValVariant>
+loadDef(const CanonCtx &Cx, uint32_t Ptr,
+        const AST::Component::DefValType &T) noexcept;
 
 /// Store a Component Model value of type T into linear memory at Ptr.
 /// CanonicalABI.md L2360-2735.
@@ -222,9 +221,9 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
 /// Variant/option/result payload coerce (spec L3158-3180) is implemented:
 /// the selected case's native flat slots are reinterpreted into the joined
 /// shape and the suffix is zero-padded.
-Expect<std::vector<ValVariant>>
-lowerFlat(const CanonCtx &Cx, const ComponentValVariant &V,
-          const ComponentValType &T) noexcept;
+Expect<std::vector<ValVariant>> lowerFlat(const CanonCtx &Cx,
+                                          const ComponentValVariant &V,
+                                          const ComponentValType &T) noexcept;
 
 /// Lower a defined value type to flat values — internal recursion helper.
 Expect<std::vector<ValVariant>>
@@ -236,8 +235,7 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
 /// pointer and loads the synthesized tuple from memory at that pointer.
 Expect<std::vector<ComponentValVariant>>
 liftFlatValues(const CanonCtx &Cx, FlatIter &VI,
-               Span<const ComponentValType> Types,
-               uint32_t MaxFlat) noexcept;
+               Span<const ComponentValType> Types, uint32_t MaxFlat) noexcept;
 
 /// Spec L3212-3232 (`def lower_flat_values`). Lowers Values into flat core
 /// wasm values. When OutParam is provided, the indirect-store buffer is the

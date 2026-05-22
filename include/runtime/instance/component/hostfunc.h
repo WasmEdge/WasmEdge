@@ -120,9 +120,7 @@ template <typename V, typename E> struct convert<Result<V, E>> {
 */
 
 template <typename ArgT> struct emplace {
-  static void run(ComponentValVariant &V, ArgT Arg) {
-    V.emplace<ArgT>(Arg);
-  }
+  static void run(ComponentValVariant &V, ArgT Arg) { V.emplace<ArgT>(Arg); }
 };
 template <> struct emplace<bool> {
   static void run(ComponentValVariant &V, bool Arg) { V.emplace<bool>(Arg); }

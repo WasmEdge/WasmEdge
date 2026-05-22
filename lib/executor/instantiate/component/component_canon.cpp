@@ -112,6 +112,13 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       // Validate the post-return signature against the lift's flat result
       // shape (spec L3292): post-return takes the original flat_results as
       // parameters and returns nothing.
+      //
+      // This duplicates component_validator.cpp:1546-1579's check. The
+      // validator silently skips when it cannot resolve the core func's
+      // SubType (alias / canon-synthesized core paths), so this layer is
+      // the fallback that catches signature mismatches on those paths. Do
+      // not demote it to `assuming` until the validator can resolve core
+      // func types from every source.
       if (PostReturnFunc != nullptr) {
         const auto &PRType = PostReturnFunc->getFuncType();
         if (!PRType.getReturnTypes().empty() ||

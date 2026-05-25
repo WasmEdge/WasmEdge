@@ -52,6 +52,29 @@ TEST_F(WasiCryptoTest, Signatures) {
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PSS_3072_SHA512"sv);
   SigTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PSS_4096_SHA512"sv);
 
+  // Export a public key and re-import it as a public-only key, then verify it.
+  auto PublickeyVerifyTest = [this](__wasi_algorithm_type_e_t AlgType,
+                                    std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                               keypairGenerate(AlgType, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        PkOutputHandle,
+        publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkSize, arrayOutputLen(PkOutputHandle));
+    std::vector<uint8_t> EncodedPk(PkSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(PkOutputHandle, EncodedPk));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ImportedPkHandle, publickeyImport(AlgType, Alg, EncodedPk,
+                                          __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(ImportedPkHandle));
+  };
+  PublickeyVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                      "RSA_PKCS1_2048_SHA256"sv);
+  PublickeyVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                      "RSA_PSS_2048_SHA256"sv);
+
   auto SigEncodingTest =
       [this](
           std::string_view Alg,

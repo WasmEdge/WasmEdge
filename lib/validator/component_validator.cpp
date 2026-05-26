@@ -7,6 +7,7 @@
 #include "validator/validator.h"
 
 #include <algorithm>
+#include <string>
 #include <unordered_set>
 #include <variant>
 
@@ -22,6 +23,55 @@ std::string toLowerStr(std::string_view SV) {
       Result.begin(), Result.end(), Result.begin(),
       [](unsigned char C) { return static_cast<char>(std::tolower(C)); });
   return Result;
+}
+
+Expect<void> validateVersionSuffix(const ComponentName &CName,
+                                   std::string_view Name,
+                                   std::string_view Suffix) noexcept {
+  if (Suffix.empty()) {
+    return {};
+  }
+
+  if (CName.getKind() != ComponentNameKind::InterfaceType) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    versionsuffix used on non-interface name '{}'"sv,
+                  Name);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+
+  const auto &Detail = CName.getDetail().get<InterfaceDetail>();
+  if (Detail.Version.empty() || !isCanonVersion(Detail.Version)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    versionsuffix requires canonversion in '{}'"sv, Name);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+
+  if (!isSemverSuffix(Suffix)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    invalid versionsuffix in '{}'"sv, Name);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+
+  std::string FullVersion;
+  FullVersion.reserve(Detail.Version.size() + Suffix.size());
+  FullVersion.append(Detail.Version);
+  FullVersion.append(Suffix);
+  if (!isValidSemver(FullVersion)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error("    invalid semver '{}' from versionsuffix"sv, FullVersion);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+
+  return {};
+}
+
+Expect<void> validateVersionSuffix(std::string_view Name,
+                                   std::string_view Suffix) noexcept {
+  if (Suffix.empty()) {
+    return {};
+  }
+  EXPECTED_TRY(ComponentName CName, ComponentName::parse(Name));
+  return validateVersionSuffix(CName, Name, Suffix);
 }
 
 // Maps a component-side ExternDesc::DescType to its Sort::SortType.
@@ -209,13 +259,15 @@ resolveChildInstanceType(const AST::Component::Component &Comp,
 // Validate that a name may appear at an export position: reject the
 // `relative-url=` prefix (not part of the extern-name grammar) and any
 // plainname/interfacename kind that isn't allowed on an export.
-Expect<void> validateExportName(std::string_view Name) noexcept {
+Expect<void> validateExportName(std::string_view Name,
+                std::string_view VersionSuffix) noexcept {
   if (Name.rfind("relative-url="sv, 0) == 0) {
     spdlog::error(ErrCode::Value::InvalidExternName);
     spdlog::error("    Export name '{}' is not a valid extern name"sv, Name);
     return Unexpect(ErrCode::Value::InvalidExternName);
   }
   EXPECTED_TRY(ComponentName CName, ComponentName::parse(Name));
+  EXPECTED_TRY(validateVersionSuffix(CName, Name, VersionSuffix));
   switch (CName.getKind()) {
   case ComponentNameKind::Label:
   case ComponentNameKind::Constructor:
@@ -738,6 +790,15 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
                       Export.getName());
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
         return Unexpect(ErrCode::Value::ComponentDuplicateName);
+      }
+      if (!Export.getVersionSuffix().empty()) {
+        EXPECTED_TRY(validateVersionSuffix(Export.getName(),
+                                           Export.getVersionSuffix())
+                         .map_error([](auto E) {
+                           spdlog::error(
+                               ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+                           return E;
+                         }));
       }
       const auto &Sort = Export.getSortIdx().getSort();
       uint32_t Idx = Export.getSortIdx().getIdx();
@@ -1462,6 +1523,12 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
                  return E;
                }));
+  EXPECTED_TRY(validateVersionSuffix(CName, Im.getName(),
+                                     Im.getVersionSuffix())
+                   .map_error([](auto E) {
+                     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+                     return E;
+                   }));
 
   // Annotated plainnames ([constructor], [method], [static]) can only appear
   // on func imports.
@@ -1563,7 +1630,8 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
   }
 
   // exportname ::= <plainname> | <interfacename>
-  EXPECTED_TRY(validateExportName(Ex.getName()).map_error([](auto E) {
+  EXPECTED_TRY(validateExportName(Ex.getName(), Ex.getVersionSuffix())
+                   .map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
     return E;
   }));
@@ -1760,6 +1828,9 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
   // Parse and validate the import name.
   EXPECTED_TRY(ComponentName CName,
                ComponentName::parse(Decl.getName()).map_error(ReportError));
+  EXPECTED_TRY(
+      validateVersionSuffix(CName, Decl.getName(), Decl.getVersionSuffix())
+          .map_error(ReportError));
 
   // Annotated plainnames can only appear on func imports.
   switch (CName.getKind()) {
@@ -1800,7 +1871,8 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
     return Unexpect(ErrCode::Value::ComponentDuplicateName);
   }
-  EXPECTED_TRY(validateExportName(Decl.getName()).map_error([](auto E) {
+  EXPECTED_TRY(validateExportName(Decl.getName(), Decl.getVersionSuffix())
+                   .map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
     return E;
   }));

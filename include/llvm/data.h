@@ -22,6 +22,7 @@
 #include <mutex>
 
 namespace WasmEdge::LLVM {
+class OrcThreadSafeContext;
 
 /// Holds llvm-relative runtime data, like llvm::Context, llvm::Module, etc.
 class Data {
@@ -32,6 +33,11 @@ public:
   Data(Data &&) noexcept;
   Data &operator=(Data &&) noexcept;
   DataContext &extract() noexcept { return *Context; }
+  bool isValid() const noexcept { return static_cast<bool>(Context); }
+  bool hasModule() const noexcept;
+  void resetModule() noexcept;
+  void setPrefix(std::string_view P) noexcept;
+  std::string_view getPrefix() const noexcept;
 
 private:
   std::unique_ptr<DataContext> Context;

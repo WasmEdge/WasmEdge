@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// SPDX-FileCopyrightText: 2019-2024 Second State INC
+// SPDX-FileCopyrightText: 2019-2026 Second State INC
 
 //===-- test/llvm/LazyJITTest.cpp - Lazy JIT compilation tests ------------===//
 //
@@ -19,17 +19,19 @@
 #include "common/configure.h"
 #include "common/spdlog.h"
 #include "common/types.h"
+#include "runtime/callingframe.h"
+#include "runtime/instance/module.h"
 #include "vm/vm.h"
 #include "llvm/jit.h"
 #include <gtest/gtest.h>
+#include <thread>
 
 namespace {
 
 using namespace std::literals;
 using namespace WasmEdge;
 
-// Simple module with 6 functions: add, mul, sub, const42, unused1, unused2
-// Compiled from:
+// Module with 6 functions: add, mul, sub, const42, unused1, unused2
 std::vector<uint8_t> SimpleWasm = {
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x17, 0x04, 0x60,
     0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x60, 0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f,
@@ -53,141 +55,105 @@ std::vector<uint8_t> FibonacciWasm = {
     0x20, 0x00, 0x41, 0x02, 0x6b, 0x10, 0x00, 0x20, 0x00, 0x41, 0x01,
     0x6b, 0x10, 0x00, 0x6a, 0x0b, 0x0b};
 
+// Module with 1 imported function and 3 local functions:
+//   import "env" "host_add" (func (param i32 i32) (result i32))
+//   export "call_host"  -> calls host_add
+//   export "double_add" -> calls host_add twice, adds results
+//   export "local_mul"  -> pure local i32.mul
+std::vector<uint8_t> ImportWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x03, 0x65, 0x6e, 0x76,
+    0x08, 0x68, 0x6f, 0x73, 0x74, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x00, 0x03,
+    0x04, 0x03, 0x00, 0x00, 0x00, 0x07, 0x26, 0x03, 0x09, 0x63, 0x61, 0x6c,
+    0x6c, 0x5f, 0x68, 0x6f, 0x73, 0x74, 0x00, 0x01, 0x0a, 0x64, 0x6f, 0x75,
+    0x62, 0x6c, 0x65, 0x5f, 0x61, 0x64, 0x64, 0x00, 0x02, 0x09, 0x6c, 0x6f,
+    0x63, 0x61, 0x6c, 0x5f, 0x6d, 0x75, 0x6c, 0x00, 0x03, 0x0a, 0x22, 0x03,
+    0x08, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x0b, 0x0f, 0x00, 0x20,
+    0x00, 0x20, 0x01, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x6a,
+    0x0b, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6c, 0x0b};
+
+// Library module exporting "add" and "mul" (i32,i32)->i32
+std::vector<uint8_t> MathLibWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01, 0x60,
+    0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x03, 0x03, 0x02, 0x00, 0x00, 0x07, 0x0d,
+    0x02, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x03, 0x6d, 0x75, 0x6c, 0x00,
+    0x01, 0x0a, 0x11, 0x02, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6a, 0x0b,
+    0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6c, 0x0b};
+
+// Consumer module importing "math"."add" and "math"."mul",
+// exporting "add_and_square" = (a+b)*(a+b) and "sum_of_squares" = a*a+b*b
+std::vector<uint8_t> MathConsumerWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
+    0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x17, 0x02, 0x04, 0x6d,
+    0x61, 0x74, 0x68, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00, 0x04, 0x6d,
+    0x61, 0x74, 0x68, 0x03, 0x6d, 0x75, 0x6c, 0x00, 0x00, 0x03, 0x03,
+    0x02, 0x00, 0x00, 0x07, 0x23, 0x02, 0x0e, 0x61, 0x64, 0x64, 0x5f,
+    0x61, 0x6e, 0x64, 0x5f, 0x73, 0x71, 0x75, 0x61, 0x72, 0x65, 0x00,
+    0x02, 0x0e, 0x73, 0x75, 0x6d, 0x5f, 0x6f, 0x66, 0x5f, 0x73, 0x71,
+    0x75, 0x61, 0x72, 0x65, 0x73, 0x00, 0x03, 0x0a, 0x23, 0x02, 0x10,
+    0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01,
+    0x10, 0x00, 0x10, 0x01, 0x0b, 0x10, 0x00, 0x20, 0x00, 0x20, 0x00,
+    0x10, 0x01, 0x20, 0x01, 0x20, 0x01, 0x10, 0x01, 0x10, 0x00, 0x0b};
+
+class HostAdd : public Runtime::HostFunction<HostAdd> {
+public:
+  Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t A, uint32_t B) {
+    return A + B;
+  }
+};
+
+class TestEnvModule : public Runtime::Instance::ModuleInstance {
+public:
+  TestEnvModule() : ModuleInstance("env") {
+    addHostFunc("host_add", std::make_unique<HostAdd>());
+  }
+};
+
 class LazyJITTest : public ::testing::Test {
 protected:
   // Helper to create a VM with eager JIT
   std::unique_ptr<VM::VM> createEagerJITVM() {
     Configure Conf;
-    Conf.getRuntimeConfigure().setEnableJIT(true);
-    Conf.getRuntimeConfigure().setEnableLazyJIT(false);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::JIT);
     Conf.getCompilerConfigure().setOptimizationLevel(
-        CompilerConfigure::OptimizationLevel::O0);
+        CompilerConfigure::OptimizationLevel::O1);
     return std::make_unique<VM::VM>(Conf);
   }
 
   // Helper to create a VM with lazy JIT
   std::unique_ptr<VM::VM> createLazyJITVM() {
     Configure Conf;
-    Conf.getRuntimeConfigure().setEnableJIT(true);
-    Conf.getRuntimeConfigure().setEnableLazyJIT(true);
+    Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
     Conf.getCompilerConfigure().setOptimizationLevel(
-        CompilerConfigure::OptimizationLevel::O0);
-    return std::make_unique<VM::VM>(Conf);
-  }
-
-  // Helper to create a VM with interpreter mode
-  std::unique_ptr<VM::VM> createInterpreterVM() {
-    Configure Conf;
-    Conf.getRuntimeConfigure().setEnableJIT(false);
-    Conf.getRuntimeConfigure().setEnableLazyJIT(false);
+        CompilerConfigure::OptimizationLevel::O1);
     return std::make_unique<VM::VM>(Conf);
   }
 };
 
 TEST_F(LazyJITTest, ConfigurationDefaultDisabled) {
   Configure Conf;
-  EXPECT_FALSE(Conf.getRuntimeConfigure().isEnableLazyJIT());
-  EXPECT_FALSE(Conf.getRuntimeConfigure().isEnableJIT());
+  EXPECT_EQ(Conf.getRuntimeConfigure().getRunMode(), RunMode::Interpreter);
 }
 
 TEST_F(LazyJITTest, ConfigurationEnableDisable) {
   Configure Conf;
 
   // Enable lazy JIT
-  Conf.getRuntimeConfigure().setEnableLazyJIT(true);
-  EXPECT_TRUE(Conf.getRuntimeConfigure().isEnableLazyJIT());
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  EXPECT_EQ(Conf.getRuntimeConfigure().getRunMode(), RunMode::LazyJIT);
 
-  // Disable lazy JIT
-  Conf.getRuntimeConfigure().setEnableLazyJIT(false);
-  EXPECT_FALSE(Conf.getRuntimeConfigure().isEnableLazyJIT());
-}
-
-TEST_F(LazyJITTest, ConfigurationCopy) {
-  Configure Conf1;
-  Conf1.getRuntimeConfigure().setEnableLazyJIT(true);
-  Conf1.getRuntimeConfigure().setEnableJIT(true);
-
-  // Copy constructor
-  Configure Conf2(Conf1);
-  EXPECT_TRUE(Conf2.getRuntimeConfigure().isEnableLazyJIT());
-  EXPECT_TRUE(Conf2.getRuntimeConfigure().isEnableJIT());
-
-  // Modify original should not affect copy
-  Conf1.getRuntimeConfigure().setEnableLazyJIT(false);
-  EXPECT_TRUE(Conf2.getRuntimeConfigure().isEnableLazyJIT());
+  // Disable lazy JIT (back to interpreter)
+  Conf.getRuntimeConfigure().setRunMode(RunMode::Interpreter);
+  EXPECT_NE(Conf.getRuntimeConfigure().getRunMode(), RunMode::LazyJIT);
 }
 
 TEST_F(LazyJITTest, RuntimeConfigureIndependent) {
   RuntimeConfigure RConf1;
   RuntimeConfigure RConf2;
 
-  RConf1.setEnableLazyJIT(true);
-  EXPECT_TRUE(RConf1.isEnableLazyJIT());
-  EXPECT_FALSE(RConf2.isEnableLazyJIT());
-}
-
-TEST_F(LazyJITTest, InterpreterModeBaseline) {
-  auto VM = createInterpreterVM();
-
-  ASSERT_TRUE(VM->loadWasm(SimpleWasm));
-  ASSERT_TRUE(VM->validate());
-  ASSERT_TRUE(VM->instantiate());
-
-  // Test add function
-  std::vector<ValVariant> AddParams = {10U, 5U};
-  std::vector<ValType> AddTypes = {ValType(TypeCode::I32),
-                                   ValType(TypeCode::I32)};
-  auto AddResult = VM->execute("add", AddParams, AddTypes);
-  ASSERT_TRUE(AddResult);
-  ASSERT_EQ((*AddResult).size(), 1U);
-  EXPECT_EQ((*AddResult)[0].first.get<uint32_t>(), 15U);
-
-  // Test mul function
-  std::vector<ValVariant> MulParams = {7U, 6U};
-  auto MulResult = VM->execute("mul", MulParams, AddTypes);
-  ASSERT_TRUE(MulResult);
-  ASSERT_EQ((*MulResult).size(), 1U);
-  EXPECT_EQ((*MulResult)[0].first.get<uint32_t>(), 42U);
-
-  // Test const42 function
-  std::vector<ValVariant> ConstParams = {};
-  std::vector<ValType> ConstTypes = {};
-  auto ConstResult = VM->execute("const42", ConstParams, ConstTypes);
-  ASSERT_TRUE(ConstResult);
-  ASSERT_EQ((*ConstResult).size(), 1U);
-  EXPECT_EQ((*ConstResult)[0].first.get<uint32_t>(), 42U);
-
-  VM->cleanup();
-}
-
-TEST_F(LazyJITTest, EagerJITBaseline) {
-  auto VM = createEagerJITVM();
-
-  ASSERT_TRUE(VM->loadWasm(SimpleWasm));
-  ASSERT_TRUE(VM->validate());
-  ASSERT_TRUE(VM->instantiate());
-
-  std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
-
-  // Test add function
-  std::vector<ValVariant> AddP = {10U, 5U};
-  auto AddResult = VM->execute("add", AddP, Types);
-  ASSERT_TRUE(AddResult);
-  EXPECT_EQ((*AddResult)[0].first.get<uint32_t>(), 15U);
-
-  // Test mul function
-  std::vector<ValVariant> MulP = {7U, 6U};
-  auto MulResult = VM->execute("mul", MulP, Types);
-  ASSERT_TRUE(MulResult);
-  EXPECT_EQ((*MulResult)[0].first.get<uint32_t>(), 42U);
-
-  // Test sub function
-  std::vector<ValVariant> SubP = {20U, 8U};
-  auto SubResult = VM->execute("sub", SubP, Types);
-  ASSERT_TRUE(SubResult);
-  EXPECT_EQ((*SubResult)[0].first.get<uint32_t>(), 12U);
-
-  VM->cleanup();
+  RConf1.setRunMode(RunMode::LazyJIT);
+  EXPECT_EQ(RConf1.getRunMode(), RunMode::LazyJIT);
+  EXPECT_NE(RConf2.getRunMode(), RunMode::LazyJIT);
 }
 
 TEST_F(LazyJITTest, LazyJITCorrectness) {
@@ -234,6 +200,8 @@ TEST_F(LazyJITTest, LazyJITRepeatCalls) {
   ASSERT_TRUE(VM->validate());
   ASSERT_TRUE(VM->instantiate());
 
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 0U);
+
   std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
 
   // First call - triggers lazy compilation
@@ -241,18 +209,21 @@ TEST_F(LazyJITTest, LazyJITRepeatCalls) {
   auto Result1 = VM->execute("add", P1, Types);
   ASSERT_TRUE(Result1);
   EXPECT_EQ((*Result1)[0].first.get<uint32_t>(), 15U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 1U);
 
   // Second call - uses cached compiled code
   std::vector<ValVariant> P2 = {100U, 200U};
   auto Result2 = VM->execute("add", P2, Types);
   ASSERT_TRUE(Result2);
   EXPECT_EQ((*Result2)[0].first.get<uint32_t>(), 300U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 1U);
 
   // Third call - different values
   std::vector<ValVariant> P3 = {1U, 1U};
   auto Result3 = VM->execute("add", P3, Types);
   ASSERT_TRUE(Result3);
   EXPECT_EQ((*Result3)[0].first.get<uint32_t>(), 2U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 1U);
 
   VM->cleanup();
 }
@@ -267,7 +238,7 @@ TEST_F(LazyJITTest, LazyJITFibonacci) {
   std::vector<ValType> Types = {ValType(TypeCode::I32)};
 
   // Test fibonacci function with various inputs
-  // fib(0) = 1, fib(1) = 1, fib(2) = 2, fib(3) = 3, fib(4) = 5, fib(5) = 8
+  // fib(0) = 1, fib(1) = 1, fib(2) = 2, fib(3) = 3, fib(4) = 5, fib(5) =8
   std::vector<std::pair<uint32_t, uint32_t>> TestCases = {
       {0, 1}, {1, 1}, {2, 2}, {3, 3}, {4, 5}, {5, 8}, {10, 89}};
 
@@ -395,111 +366,411 @@ TEST_F(LazyJITTest, LazyJITMultipleInstantiations) {
 }
 
 TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
-  // This test verifies that in lazy JIT mode, only called functions are
-  // compiled
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
   ASSERT_TRUE(VM->validate());
   ASSERT_TRUE(VM->instantiate());
 
-  // Before calling any function, no functions should be compiled
-  size_t InitialCompiled = VM->getLazyJITState().LazyCompiledFuncs.size();
+  auto *AddFunc = VM->getActiveModule()->findFuncExports("add");
+  auto *MulFunc = VM->getActiveModule()->findFuncExports("mul");
+  auto *SubFunc = VM->getActiveModule()->findFuncExports("sub");
+
+  ASSERT_NE(AddFunc, nullptr);
+  ASSERT_NE(MulFunc, nullptr);
+  ASSERT_NE(SubFunc, nullptr);
+
+  // Initially none should be compiled
+  EXPECT_FALSE(AddFunc->isCompiledFunction());
+  EXPECT_FALSE(MulFunc->isCompiledFunction());
+  EXPECT_FALSE(SubFunc->isCompiledFunction());
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 0U);
 
   std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
 
-  // Call 'add' - should trigger compilation of function 0
+  // Call 'add' should trigger compilation of function 0
   std::vector<ValVariant> AddP = {1U, 2U};
   auto AddResult = VM->execute("add", AddP, Types);
   ASSERT_TRUE(AddResult);
   EXPECT_EQ((*AddResult)[0].first.get<uint32_t>(), 3U);
 
-  // After calling 'add', exactly 1 function should be compiled
-  size_t AfterAdd = VM->getLazyJITState().LazyCompiledFuncs.size();
-  EXPECT_EQ(AfterAdd, InitialCompiled + 1)
-      << "After calling 'add', compiled count should increase by 1";
+  // Check state: add compiled, others not
+  EXPECT_TRUE(AddFunc->isCompiledFunction());
+  EXPECT_FALSE(MulFunc->isCompiledFunction());
+  EXPECT_FALSE(SubFunc->isCompiledFunction());
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 1U);
 
-  // Call 'mul' - should trigger compilation of function 1
+  // Call 'mul' should trigger compilation of function 1
   std::vector<ValVariant> MulP = {3U, 4U};
   auto MulResult = VM->execute("mul", MulP, Types);
   ASSERT_TRUE(MulResult);
   EXPECT_EQ((*MulResult)[0].first.get<uint32_t>(), 12U);
 
-  size_t AfterMul = VM->getLazyJITState().LazyCompiledFuncs.size();
-  EXPECT_EQ(AfterMul, InitialCompiled + 2)
-      << "After calling 'mul', compiled count should increase by 1 more";
+  // Check state: add and mul compiled, sub not
+  EXPECT_TRUE(AddFunc->isCompiledFunction());
+  EXPECT_TRUE(MulFunc->isCompiledFunction());
+  EXPECT_FALSE(SubFunc->isCompiledFunction());
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 2U);
 
-  // Call 'add' again - should NOT increase compiled count (already compiled)
+  // Call 'add' again should NOT increase compiled count (already compiled)
   std::vector<ValVariant> AddP2 = {5U, 6U};
   auto AddResult2 = VM->execute("add", AddP2, Types);
   ASSERT_TRUE(AddResult2);
   EXPECT_EQ((*AddResult2)[0].first.get<uint32_t>(), 11U);
 
-  size_t AfterAddAgain = VM->getLazyJITState().LazyCompiledFuncs.size();
-  EXPECT_EQ(AfterAddAgain, AfterMul)
-      << "Calling 'add' again should not compile more functions";
-
-  // The module has 6 functions, but we only called 2 (add, mul)
-  // So only 2 should be compiled, not all 6
-  EXPECT_EQ(VM->getLazyJITState().TotalFuncCount, 6U);
-  EXPECT_LT(VM->getLazyJITState().LazyCompiledFuncs.size(),
-            VM->getLazyJITState().TotalFuncCount)
-      << "In lazy JIT mode, not all functions should be compiled";
+  // Check state: add and mul compiled, sub not
+  EXPECT_TRUE(AddFunc->isCompiledFunction());
+  EXPECT_TRUE(MulFunc->isCompiledFunction());
+  EXPECT_FALSE(SubFunc->isCompiledFunction());
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 2U);
 
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, LazyJITCompilationStatistics) {
-  // This test verifies that compilation statistics are tracked correctly
+TEST_F(LazyJITTest, LazyJITWithImports) {
+  auto VM = createLazyJITVM();
+
+  TestEnvModule HostMod;
+  ASSERT_TRUE(VM->registerModule(HostMod));
+
+  ASSERT_TRUE(VM->loadWasm(ImportWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
+
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 0U);
+
+  std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
+
+  // call_host delegates to the imported host_add; only the local wrapper
+  // should be lazy-compiled, not the import.
+  std::vector<ValVariant> P1 = {3U, 7U};
+  auto R1 = VM->execute("call_host", P1, Types);
+  ASSERT_TRUE(R1);
+  EXPECT_EQ((*R1)[0].first.get<uint32_t>(), 10U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 1U);
+
+  // local_mul is a pure local function with no import usage.
+  std::vector<ValVariant> P2 = {4U, 5U};
+  auto R2 = VM->execute("local_mul", P2, Types);
+  ASSERT_TRUE(R2);
+  EXPECT_EQ((*R2)[0].first.get<uint32_t>(), 20U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 2U);
+
+  // double_add calls host_add twice and adds the results.
+  std::vector<ValVariant> P3 = {6U, 8U};
+  auto R3 = VM->execute("double_add", P3, Types);
+  ASSERT_TRUE(R3);
+  EXPECT_EQ((*R3)[0].first.get<uint32_t>(), 28U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 3U);
+
+  // Repeat call_host – count must not change (cached).
+  std::vector<ValVariant> P4 = {100U, 200U};
+  auto R4 = VM->execute("call_host", P4, Types);
+  ASSERT_TRUE(R4);
+  EXPECT_EQ((*R4)[0].first.get<uint32_t>(), 300U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 3U);
+
+  VM->cleanup();
+}
+
+TEST_F(LazyJITTest, LazyJITWasmImportsWasm) {
+  auto VM = createLazyJITVM();
+
+  ASSERT_TRUE(VM->registerModule("math", MathLibWasm));
+
+  ASSERT_TRUE(VM->loadWasm(MathConsumerWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
+
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 0U);
+
+  std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
+
+  std::vector<ValVariant> P1 = {3U, 4U};
+  auto R1 = VM->execute("add_and_square", P1, Types);
+  ASSERT_TRUE(R1);
+  EXPECT_EQ((*R1)[0].first.get<uint32_t>(), 49U);
+  uint32_t CountAfterFirst = VM->getLazyCompiledFuncCount();
+  EXPECT_EQ(CountAfterFirst, 3U);
+
+  std::vector<ValVariant> P2 = {3U, 4U};
+  auto R2 = VM->execute("sum_of_squares", P2, Types);
+  ASSERT_TRUE(R2);
+  EXPECT_EQ((*R2)[0].first.get<uint32_t>(), 25U);
+  uint32_t CountAfterSecond = VM->getLazyCompiledFuncCount();
+  EXPECT_EQ(CountAfterSecond, 4U);
+
+  std::vector<ValVariant> P3 = {10U, 20U};
+  auto R3 = VM->execute("add_and_square", P3, Types);
+  ASSERT_TRUE(R3);
+  EXPECT_EQ((*R3)[0].first.get<uint32_t>(), 900U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), CountAfterSecond);
+
+  std::vector<ValVariant> P4 = {5U, 12U};
+  auto R4 = VM->execute("sum_of_squares", P4, Types);
+  ASSERT_TRUE(R4);
+  EXPECT_EQ((*R4)[0].first.get<uint32_t>(), 169U);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), CountAfterSecond);
+
+  VM->cleanup();
+}
+
+TEST_F(LazyJITTest, LazyJITReferenceModuleNotReleasedOnCleanup) {
+  bool Destroyed = false;
+  auto Deleter = [&Destroyed](AST::Module *M) {
+    Destroyed = true;
+    delete M;
+  };
+
+  Configure Conf;
+  Loader::Loader LoaderEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseWasmUnit(SimpleWasm);
+  ASSERT_TRUE(ModOrErr);
+  auto &RawMod = std::get<std::unique_ptr<AST::Module>>(*ModOrErr);
+  auto Module = std::shared_ptr<AST::Module>(RawMod.release(), Deleter);
+
+  auto VM = createLazyJITVM();
+  ASSERT_TRUE(VM->registerModule("test", *Module));
+
+  VM->cleanup();
+  EXPECT_FALSE(Destroyed);
+
+  Module.reset();
+  EXPECT_TRUE(Destroyed);
+}
+
+TEST_F(LazyJITTest, LazyJITReferenceModuleNotReleasedOnVMDestruction) {
+  bool Destroyed = false;
+  auto Deleter = [&Destroyed](AST::Module *M) {
+    Destroyed = true;
+    delete M;
+  };
+
+  Configure Conf;
+  Loader::Loader LoaderEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseWasmUnit(SimpleWasm);
+  ASSERT_TRUE(ModOrErr);
+  auto &RawMod = std::get<std::unique_ptr<AST::Module>>(*ModOrErr);
+  auto Module = std::shared_ptr<AST::Module>(RawMod.release(), Deleter);
+
+  {
+    auto VM = createLazyJITVM();
+    ASSERT_TRUE(VM->registerModule("test", *Module));
+  }
+  EXPECT_FALSE(Destroyed);
+
+  Module.reset();
+  EXPECT_TRUE(Destroyed);
+}
+
+TEST_F(LazyJITTest, JITAddLookupFailure) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O1);
+
+  Loader::Loader LoaderEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseWasmUnit(SimpleWasm);
+  ASSERT_TRUE(ModOrErr);
+  auto &Module = std::get<std::unique_ptr<AST::Module>>(*ModOrErr);
+
+  Validator::Validator ValidatorEngine(Conf);
+  auto ValRes = ValidatorEngine.validate(*Module);
+  ASSERT_TRUE(ValRes);
+
+  LLVM::Compiler Compiler(Conf);
+  ASSERT_TRUE(Compiler.checkConfigure());
+
+  auto Prefix = "test_prefix_";
+  auto CompileRes = Compiler.compileInfrastructure(*Module, Prefix);
+  ASSERT_TRUE(CompileRes);
+
+  auto &LLData = CompileRes->first;
+  auto &CompileCtx = CompileRes->second;
+
+  LLVM::JIT JIT(Conf);
+  auto ExecRes = JIT.load(LLData, true);
+  ASSERT_TRUE(ExecRes);
+
+  auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);
+
+  std::vector<uint32_t> CompileLocals = {0};
+  if (!LLData.hasModule()) {
+    LLData.resetModule();
+  }
+  auto FuncCompileRes = Compiler.compileFunctions(
+      std::move(LLData), CompileCtx.get(), *Module, CompileLocals);
+  ASSERT_TRUE(FuncCompileRes);
+
+  std::vector<uint32_t> InvalidIndices = {999};
+
+  auto AddResult = JIT.add(*JITLib, *FuncCompileRes, InvalidIndices);
+  EXPECT_FALSE(AddResult);
+  EXPECT_EQ(AddResult.error(), ErrCode::Value::LazyCompilationError);
+}
+
+TEST_F(LazyJITTest, JITLookupWasmFunctionSymbolsFailure) {
+  Configure Conf;
+  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
+  Conf.getCompilerConfigure().setOptimizationLevel(
+      CompilerConfigure::OptimizationLevel::O1);
+
+  Loader::Loader LoaderEngine(Conf);
+  auto ModOrErr = LoaderEngine.parseWasmUnit(SimpleWasm);
+  ASSERT_TRUE(ModOrErr);
+  auto &Module = std::get<std::unique_ptr<AST::Module>>(*ModOrErr);
+
+  Validator::Validator ValidatorEngine(Conf);
+  auto ValRes = ValidatorEngine.validate(*Module);
+  ASSERT_TRUE(ValRes);
+
+  LLVM::Compiler Compiler(Conf);
+  ASSERT_TRUE(Compiler.checkConfigure());
+
+  auto Prefix = "test_prefix_";
+  auto CompileRes = Compiler.compileInfrastructure(*Module, Prefix);
+  ASSERT_TRUE(CompileRes);
+
+  auto &LLData = CompileRes->first;
+
+  LLVM::JIT JIT(Conf);
+  auto ExecRes = JIT.load(LLData, true);
+  ASSERT_TRUE(ExecRes);
+
+  auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);
+
+  std::vector<uint32_t> InvalidIndices = {999};
+
+  auto LookupRes =
+      JIT.lookupWasmFunctionSymbols(*JITLib, Prefix, InvalidIndices);
+  EXPECT_FALSE(LookupRes);
+  EXPECT_EQ(LookupRes.error(), ErrCode::Value::LazyCompilationError);
+}
+
+TEST_F(LazyJITTest, LazyJITConcurrentSameFunction) {
   auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
   ASSERT_TRUE(VM->validate());
   ASSERT_TRUE(VM->instantiate());
 
-  EXPECT_EQ(VM->getLazyJITState().TotalFuncCount, 6U);
-
-  size_t Compiled = VM->getLazyJITState().LazyCompiledFuncs.size();
   std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
+  std::vector<std::thread> Threads;
+  const size_t NumThreads = 8;
+  Threads.reserve(NumThreads);
 
-  // Call each unique function and verify count increases
-  std::vector<std::string> FuncsToCall = {"add", "mul", "sub"};
-  for (const auto &FuncName : FuncsToCall) {
-    std::vector<ValVariant> Params = {10U, 5U};
-    auto Result = VM->execute(FuncName, Params, Types);
-    ASSERT_TRUE(Result) << "Failed to call " << FuncName;
-
-    size_t NewCompiled = VM->getLazyJITState().LazyCompiledFuncs.size();
-    EXPECT_EQ(NewCompiled, Compiled + 1)
-        << "Compiled count should increase after calling " << FuncName;
-    Compiled = NewCompiled;
+  for (size_t Idx = 0; Idx < NumThreads; ++Idx) {
+    Threads.emplace_back([&VM, &Types, Idx]() {
+      std::vector<ValVariant> Params = {static_cast<uint32_t>(Idx), 10U};
+      auto Result = VM->execute("add", Params, Types);
+      EXPECT_TRUE(Result);
+      if (Result) {
+        EXPECT_EQ((*Result)[0].first.get<uint32_t>(),
+                  static_cast<uint32_t>(Idx + 10));
+      }
+    });
   }
 
-  // Call const42 (no params)
-  std::vector<ValVariant> EmptyP = {};
-  std::vector<ValType> EmptyT = {};
-  auto ConstResult = VM->execute("const42", EmptyP, EmptyT);
-  ASSERT_TRUE(ConstResult);
-  EXPECT_EQ(VM->getLazyJITState().LazyCompiledFuncs.size(), Compiled + 1);
-
-  // We called 4 functions (add, mul, sub, const42) but not unused1, unused2
-  // So 4 functions should be compiled
-  EXPECT_EQ(VM->getLazyJITState().LazyCompiledFuncs.size(), 4U);
+  for (auto &T : Threads) {
+    T.join();
+  }
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 1U);
 
   VM->cleanup();
 }
 
-TEST_F(LazyJITTest, EagerJITCompilesAllUpfront) {
-  // Verify that eager JIT does NOT have lazy JIT active
-  auto VM = createEagerJITVM();
+TEST_F(LazyJITTest, LazyJITConcurrentDifferentFunctions) {
+  auto VM = createLazyJITVM();
 
   ASSERT_TRUE(VM->loadWasm(SimpleWasm));
   ASSERT_TRUE(VM->validate());
   ASSERT_TRUE(VM->instantiate());
 
-  // Eager JIT should not have LazyJITLib set
-  EXPECT_EQ(VM->getLazyJITState().LazyCompiledFuncs.size(), 0U);
-  EXPECT_EQ(VM->getLazyJITState().TotalFuncCount, 0U);
+  std::vector<ValType> Types2 = {ValType(TypeCode::I32),
+                                 ValType(TypeCode::I32)};
+  std::vector<ValType> Types0 = {};
+
+  std::vector<std::thread> Threads;
+  Threads.emplace_back([&VM, &Types2]() {
+    std::vector<ValVariant> Params = {10U, 20U};
+    auto Result = VM->execute("add", Params, Types2);
+    EXPECT_TRUE(Result);
+    if (Result) {
+      EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 30U);
+    }
+  });
+  Threads.emplace_back([&VM, &Types2]() {
+    std::vector<ValVariant> Params = {5U, 6U};
+    auto Result = VM->execute("mul", Params, Types2);
+    EXPECT_TRUE(Result);
+    if (Result) {
+      EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 30U);
+    }
+  });
+  Threads.emplace_back([&VM, &Types2]() {
+    std::vector<ValVariant> Params = {50U, 20U};
+    auto Result = VM->execute("sub", Params, Types2);
+    EXPECT_TRUE(Result);
+    if (Result) {
+      EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 30U);
+    }
+  });
+  Threads.emplace_back([&VM, &Types0]() {
+    std::vector<ValVariant> Params = {};
+    auto Result = VM->execute("const42", Params, Types0);
+    EXPECT_TRUE(Result);
+    if (Result) {
+      EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 42U);
+    }
+  });
+
+  for (auto &T : Threads) {
+    T.join();
+  }
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 4U);
+
+  VM->cleanup();
+}
+
+TEST_F(LazyJITTest, LazyJITConcurrentFibonacci) {
+  auto VM = createLazyJITVM();
+
+  ASSERT_TRUE(VM->loadWasm(FibonacciWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
+
+  std::vector<ValType> Types = {ValType(TypeCode::I32)};
+  std::vector<std::thread> Threads;
+  const size_t NumThreads = 8;
+  Threads.reserve(NumThreads);
+
+  for (size_t Idx = 0; Idx < NumThreads; ++Idx) {
+    Threads.emplace_back([&VM, &Types, Idx]() {
+      std::vector<ValVariant> Params = {static_cast<uint32_t>(Idx)};
+      auto Result = VM->execute("fib", Params, Types);
+      EXPECT_TRUE(Result);
+      if (Result) {
+        uint32_t Expected = 0;
+        if (Idx == 0 || Idx == 1) {
+          Expected = 1;
+        } else {
+          uint32_t Prev2 = 1;
+          uint32_t Prev1 = 1;
+          for (size_t Jdx = 2; Jdx <= Idx; ++Jdx) {
+            Expected = Prev2 + Prev1;
+            Prev2 = Prev1;
+            Prev1 = Expected;
+          }
+        }
+        EXPECT_EQ((*Result)[0].first.get<uint32_t>(), Expected);
+      }
+    });
+  }
+
+  for (auto &T : Threads) {
+    T.join();
+  }
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 1U);
 
   VM->cleanup();
 }

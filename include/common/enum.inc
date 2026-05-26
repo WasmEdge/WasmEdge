@@ -829,6 +829,7 @@ H(Wasi)
 R(Interpreter)
 R(JIT)
 R(AOT)
+R(LazyJIT)
 #undef R
 #endif // UseRunMode
 
@@ -875,6 +876,8 @@ E(UserDefError, 0x000C, "user defined error code")
 E(InvalidAOTConfigure, 0x000D, "invalid AOT/JIT configure")
 // Invalid Configure
 E(AOTNotImpl, 0x000E, "Not implemented instructions in AOT/JIT")
+// Lazy JIT Compilation Error
+E(LazyCompilationError, 0x000F, "Lazy JIT compilation failure")
 
 // Load phase
 // @{

@@ -118,7 +118,9 @@ public:
   }
 
   /// Upgrade from WasmFunction to CompiledFunction.
-  bool upgradeToCompiled(Symbol<CompiledFunction> Sym) noexcept {
+  /// Must be called under synchronization that
+  /// prevents concurrent access to this function's body.
+  bool unsafeUpgradeToCompiled(Symbol<CompiledFunction> Sym) noexcept {
     if (!isWasmFunction()) {
       return false;
     }

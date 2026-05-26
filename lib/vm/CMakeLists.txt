@@ -25,4 +25,10 @@ if(WASMEDGE_USE_LLVM)
     PUBLIC
     wasmedgeLLVM
   )
+  target_include_directories(wasmedgeVM
+    SYSTEM
+    PRIVATE
+    ${LLVM_INCLUDE_DIR}
+    ${LLD_INCLUDE_DIRS}
+  )
 endif()

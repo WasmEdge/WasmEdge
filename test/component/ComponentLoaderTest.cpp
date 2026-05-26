@@ -389,6 +389,46 @@ TEST(ComponentNameParserTest, StronglyUniqueWithNewKinds) {
   EXPECT_TRUE(add("wasi:http/handler"sv));
 }
 
+TEST(ComponentLoaderTest, ImportNameVersionSuffix) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x0a, 0x1b,
+      0x01,
+      0x01,
+      0x13,
+      0x77, 0x61, 0x73, 0x69, 0x3a, 0x68, 0x74, 0x74,
+      0x70, 0x2f, 0x74, 0x79, 0x70, 0x65, 0x73, 0x40,
+      0x30, 0x2e, 0x32,
+      0x02,
+      0x2e, 0x30,
+      0x01, 0x00,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp = std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(
+      &*Res);
+  ASSERT_NE(Comp, nullptr);
+
+  const WasmEdge::AST::Component::ImportSection *ImportSec = nullptr;
+  for (const auto &Sec : (*Comp)->getSections()) {
+    if (auto *Ptr = std::get_if<WasmEdge::AST::Component::ImportSection>(&Sec)) {
+      ImportSec = Ptr;
+      break;
+    }
+  }
+  ASSERT_NE(ImportSec, nullptr);
+  ASSERT_EQ(ImportSec->getContent().size(), 1U);
+
+  const auto &Import = ImportSec->getContent()[0];
+  EXPECT_EQ(Import.getName(), "wasi:http/types@0.2"sv);
+  EXPECT_EQ(Import.getVersionSuffix(), ".0"sv);
+}
+
 TEST(ComponentLoaderTest, AsyncFuncType) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);

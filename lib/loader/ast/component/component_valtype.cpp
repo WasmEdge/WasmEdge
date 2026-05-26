@@ -6,17 +6,35 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadExternName(std::string &Name) {
-  // importname' ::= 0x00 len:<u32> in:<importname> => in (if len = |in|)
-  // exportname' ::= 0x00 len:<u32> en:<exportname> => en (if len = |en|)
+Expect<void> Loader::loadExternName(std::string &Name,
+                  std::string &VersionSuffix) {
+  // importname' ::= 0x00 len:<u32> in:<importname>
+  //               => in (if len = |in|)
+  //             | 0x01 len:<u32> in:<importname> vs:<versionsuffix>
+  //               => in vs (if len = |in|)
+  // exportname' ::= 0x00 len:<u32> en:<exportname>
+  //               => en (if len = |en|)
+  //             | 0x01 len:<u32> en:<exportname> vs:<versionsuffix>
+  //               => en vs (if len = |en|)
 
   // Error messages will be handled in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte());
-  if (B != 0x00) {
+  switch (B) {
+  case 0x00: {
+    VersionSuffix.clear();
+    EXPECTED_TRY(Name, FMgr.readName());
+    return {};
+  }
+  case 0x01: {
+    VersionSuffix.clear();
+    EXPECTED_TRY(Name, FMgr.readName());
+    EXPECTED_TRY(std::string Suffix, FMgr.readName());
+    VersionSuffix = std::move(Suffix);
+    return {};
+  }
+  default:
     return Unexpect(ErrCode::Value::MalformedName);
   }
-  EXPECTED_TRY(Name, FMgr.readName());
-  return {};
 }
 
 Expect<void> Loader::loadType(ComponentValType &Ty) {

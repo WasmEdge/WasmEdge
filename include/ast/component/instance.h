@@ -44,19 +44,23 @@ private:
 
 // core:inlineexport   ::= n:<core:name> si:<core:sortidx>
 //                       => (export n si)
-// inlineexport        ::= n:<exportname> si:<sortidx>
-//                       => (export n si)
+// inlineexport        ::= n:<exportname> si:<sortidx> => (export n si)
+//                       | n:<exportname> vs:<versionsuffix> si:<sortidx>
+//                         => (export n vs si)
 
 /// AST Component::InlineExport class.
 class InlineExport {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
+  std::string_view getVersionSuffix() const noexcept { return VersionSuffix; }
+  std::string &getVersionSuffix() noexcept { return VersionSuffix; }
   const SortIndex &getSortIdx() const noexcept { return SortIdx; }
   SortIndex &getSortIdx() noexcept { return SortIdx; }
 
 private:
   std::string Name;
+  std::string VersionSuffix;
   SortIndex SortIdx;
 };
 

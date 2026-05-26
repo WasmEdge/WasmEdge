@@ -27,12 +27,16 @@ namespace Component {
 //               => (export en si ed?)
 // exportname' ::= 0x00 len:<u32> en:<exportname>
 //               => en  (if len = |en|)
+//             | 0x01 len:<u32> en:<exportname> vs:<versionsuffix>
+//               => en vs  (if len = |en|)
 
 /// AST Component::Export node.
 class Export {
 public:
   std::string &getName() noexcept { return Name; }
   std::string_view getName() const noexcept { return Name; }
+  std::string_view getVersionSuffix() const noexcept { return VersionSuffix; }
+  std::string &getVersionSuffix() noexcept { return VersionSuffix; }
   SortIndex &getSortIndex() noexcept { return SortIdx; }
   const SortIndex &getSortIndex() const noexcept { return SortIdx; }
   std::optional<ExternDesc> &getDesc() noexcept { return Desc; }
@@ -40,6 +44,7 @@ public:
 
 private:
   std::string Name;
+  std::string VersionSuffix;
   SortIndex SortIdx;
   std::optional<ExternDesc> Desc;
 };

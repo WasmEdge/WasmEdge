@@ -69,6 +69,9 @@ using ComponentNameDetail =
 /// Returns true if Input is a valid kebab-case label per the Component Model
 /// spec: `label ::= <first-fragment> ( '-' <fragment> )*`
 bool isKebabString(std::string_view Input);
+bool isCanonVersion(std::string_view V);
+bool isValidSemver(std::string_view V);
+bool isSemverSuffix(std::string_view V);
 
 class ComponentName {
   const std::string_view OriName;

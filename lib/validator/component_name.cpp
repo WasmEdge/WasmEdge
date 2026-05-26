@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cctype>
 #include <string_view>
+#include <string>
 
 namespace WasmEdge {
 namespace Validator {
@@ -182,7 +183,7 @@ size_t parseNumeric(std::string_view V) {
 // canonversion ::= [1-9] [0-9]*
 //                | '0.' [1-9] [0-9]*
 //                | '0.0.' [1-9] [0-9]*
-bool isCanonVersion(std::string_view V) {
+bool isCanonVersionInternal(std::string_view V) {
   if (V.empty())
     return false;
 
@@ -230,7 +231,7 @@ bool isPreReleaseOrBuild(std::string_view V, bool CheckLeadingZeros) {
 }
 
 // MAJOR.MINOR.PATCH[-prerelease][+build] per semver.org 2.0
-bool isValidSemver(std::string_view V) {
+bool isValidSemverInternal(std::string_view V) {
   if (V.empty())
     return false;
 
@@ -271,8 +272,14 @@ bool isValidSemver(std::string_view V) {
   return V.empty();
 }
 
+bool isSemverSuffixInternal(std::string_view V) {
+  return std::all_of(V.begin(), V.end(), [](char C) {
+    return isalnum(C) || C == '.' || C == '+' || C == '-';
+  });
+}
+
 bool isVersion(std::string_view V) {
-  return isCanonVersion(V) || isValidSemver(V);
+  return isCanonVersionInternal(V) || isValidSemverInternal(V);
 }
 
 Unexpected<ErrCode> reportError(std::string_view Reason) {
@@ -331,6 +338,12 @@ Expect<PkgPath> parsePkgPath(std::string_view &Next,
 }
 
 } // anonymous namespace
+
+bool isCanonVersion(std::string_view V) { return isCanonVersionInternal(V); }
+
+bool isValidSemver(std::string_view V) { return isValidSemverInternal(V); }
+
+bool isSemverSuffix(std::string_view V) { return isSemverSuffixInternal(V); }
 
 // exportname        ::= <plainname> | <interfacename>
 // importname        ::= <exportname> | <depname> | <urlname> | <hashname>

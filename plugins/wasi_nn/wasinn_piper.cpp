@@ -438,11 +438,19 @@ Expect<WASINN::ErrNo> compute(WASINN::WasiNNEnvironment &Env,
   }
 
   std::vector<int16_t> AudioBuffer;
-  piper_audio_chunk Chunk;
   int SampleRate = 0;
   constexpr float MaxWavValue = 32767.0f;
 
-  while (piper_synthesize_next(GraphRef.Synth.get(), &Chunk) != PIPER_DONE) {
+  while (true) {
+    piper_audio_chunk Chunk{};
+    int const NextRes = piper_synthesize_next(GraphRef.Synth.get(), &Chunk);
+    if (NextRes == PIPER_DONE) {
+      break;
+    }
+    if (NextRes != PIPER_OK) {
+      spdlog::error("[WASI-NN] Piper backend: piper_synthesize_next failed."sv);
+      return WASINN::ErrNo::RuntimeError;
+    }
     if (Chunk.num_samples == 0) {
       continue;
     }

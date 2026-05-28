@@ -42,43 +42,43 @@ public:
   // Export a named component func to this import manager.
   void exportFunction(std::string_view Name,
                       Component::FunctionInstance *Inst) noexcept {
-    NamedFunc.emplace(Name, Inst);
+    NamedFunc.insert_or_assign(std::string(Name), Inst);
   }
 
   // Export a named component instance to this import manager.
   void exportComponentInstance(std::string_view Name,
                                const ComponentInstance *Inst) noexcept {
-    NamedCompInst.emplace(Name, Inst);
+    NamedCompInst.insert_or_assign(std::string(Name), Inst);
   }
 
   // Export a named core function instance to this import manager.
   void exportCoreFunctionInstance(std::string_view Name,
                                   FunctionInstance *Inst) noexcept {
-    NamedCoreFunc.emplace(Name, Inst);
+    NamedCoreFunc.insert_or_assign(std::string(Name), Inst);
   }
 
   // Export a named core table instance to this import manager.
   void exportCoreTableInstance(std::string_view Name,
                                TableInstance *Inst) noexcept {
-    NamedCoreTable.emplace(Name, Inst);
+    NamedCoreTable.insert_or_assign(std::string(Name), Inst);
   }
 
   // Export a named core memory instance to this import manager.
   void exportCoreMemoryInstance(std::string_view Name,
                                 MemoryInstance *Inst) noexcept {
-    NamedCoreMemory.emplace(Name, Inst);
+    NamedCoreMemory.insert_or_assign(std::string(Name), Inst);
   }
 
   // Export a named core global instance to this import manager.
   void exportCoreGlobalInstance(std::string_view Name,
                                 GlobalInstance *Inst) noexcept {
-    NamedCoreGlobal.emplace(Name, Inst);
+    NamedCoreGlobal.insert_or_assign(std::string(Name), Inst);
   }
 
   // Export a named core module instance to this import manager.
   void exportCoreModuleInstance(std::string_view Name,
                                 const ModuleInstance *Inst) noexcept {
-    NamedCoreModInst.emplace(Name, Inst);
+    NamedCoreModInst.insert_or_assign(std::string(Name), Inst);
   }
 
   // Find component func by name.

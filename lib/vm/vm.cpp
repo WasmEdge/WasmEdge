@@ -345,19 +345,19 @@ VM::unsafeRegisterModule(std::string_view Name,
 }
 
 Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
-  auto RegMapIt = RegModMap.find(std::string(Name));
-  if (RegMapIt != RegModMap.end()) {
-    size_t ModInstIdx = RegMapIt->second[1];
+  auto InstIt = std::find_if(
+      RegModInsts.begin(), RegModInsts.end(),
+      [&Name](const std::unique_ptr<Runtime::Instance::ModuleInstance> &Inst) {
+        return Inst && Inst->getModuleName() == Name;
+      });
+  if (InstIt != RegModInsts.end()) {
+    auto ModId = (*InstIt)->getID();
+    auto *ModInst = (*InstIt).release();
 
-    if (ModInstIdx < RegModInsts.size()) {
-      auto *ModInst = RegModInsts[ModInstIdx].release();
-      if (ModInst) {
-        ModInst->terminate();
-      }
+    if (ModInst) {
+      ModInst->terminate();
     }
-
-    RegModMap.erase(RegMapIt);
-
+    RegModMap.erase(ModId);
     return {};
   }
   for (auto It = BuiltInModInsts.begin(); It != BuiltInModInsts.end(); ++It) {

@@ -76,6 +76,7 @@ public:
           ->unlinkStore(this, Name);
     }
     NamedMod.clear();
+    NamedComp.clear();
   }
 
   /// Register a named module in this store.

@@ -392,6 +392,9 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
   }
+  if (Opt.ConfStatsOutputJSON.value()) {
+    Conf.getStatisticsConfigure().setStatsOutputJSON(true);
+  }
   // Determine the effective run mode.
   // Precedence: --run-mode > deprecated --enable-jit / --force-interpreter.
   RunMode RunModeFromFlag = RunMode::Interpreter;

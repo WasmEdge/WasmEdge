@@ -19,6 +19,7 @@
 #include "common/span.h"
 #include "common/spdlog.h"
 #include "common/timer.h"
+#include <fmt/format.h>
 
 #include <atomic>
 #include <vector>
@@ -157,33 +158,56 @@ public:
       return std::chrono::nanoseconds(Duration).count();
     };
     const auto &StatConf = Conf.getStatisticsConfigure();
-    if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
-        StatConf.isCostMeasuring()) {
-      spdlog::info("====================  Statistics  ===================="sv);
-    }
-    if (StatConf.isTimeMeasuring()) {
-      spdlog::info(" Total execution time: {} ns"sv, Nano(getTotalExecTime()));
-      spdlog::info(" Wasm instructions execution time: {} ns"sv,
-                   Nano(getWasmExecTime()));
-      spdlog::info(" Host functions execution time: {} ns"sv,
-                   Nano(getHostFuncExecTime()));
-    }
-    if (StatConf.isInstructionCounting()) {
-      spdlog::info(" Executed wasm instructions count: {}"sv, getInstrCount());
-    }
-    if (StatConf.isCostMeasuring()) {
-      spdlog::info(" Gas costs: {}"sv, getTotalCost());
-    }
-    if (StatConf.isInstructionCounting() && StatConf.isTimeMeasuring()) {
-      const double IPS = getInstrPerSecond();
-      spdlog::info(" Instructions per second: {}"sv,
-                   likely(!std::isnan(IPS))
-                       ? static_cast<uint64_t>(IPS)
-                       : std::numeric_limits<uint64_t>::max());
-    }
-    if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
-        StatConf.isCostMeasuring()) {
-      spdlog::info("=======================   End   ======================"sv);
+    if (StatConf.isStatsOutputJSON()) {
+      double IPS = getInstrPerSecond();
+      uint64_t IPS_val = likely(!std::isnan(IPS))
+                         ? static_cast<uint64_t>(IPS)
+                         : std::numeric_limits<uint64_t>::max();
+      fmt::print(
+          "{{\n"
+          "  \"total_execution_time_ns\": {},\n"
+          "  \"wasm_instruction_time_ns\": {},\n"
+          "  \"host_function_time_ns\": {},\n"
+          "  \"instruction_count\": {},\n"
+          "  \"gas_used\": {},\n"
+          "  \"instructions_per_second\": {}\n"
+          "}}\n"sv,
+          Nano(getTotalExecTime()),
+          Nano(getWasmExecTime()),
+          Nano(getHostFuncExecTime()),
+          getInstrCount(),
+          getTotalCost(),
+          IPS_val
+      );
+    } else {
+      if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
+          StatConf.isCostMeasuring()) {
+        spdlog::info("====================  Statistics  ===================="sv);
+      }
+      if (StatConf.isTimeMeasuring()) {
+        spdlog::info(" Total execution time: {} ns"sv, Nano(getTotalExecTime()));
+        spdlog::info(" Wasm instructions execution time: {} ns"sv,
+                     Nano(getWasmExecTime()));
+        spdlog::info(" Host functions execution time: {} ns"sv,
+                     Nano(getHostFuncExecTime()));
+      }
+      if (StatConf.isInstructionCounting()) {
+        spdlog::info(" Executed wasm instructions count: {}"sv, getInstrCount());
+      }
+      if (StatConf.isCostMeasuring()) {
+        spdlog::info(" Gas costs: {}"sv, getTotalCost());
+      }
+      if (StatConf.isInstructionCounting() && StatConf.isTimeMeasuring()) {
+        const double IPS = getInstrPerSecond();
+        spdlog::info(" Instructions per second: {}"sv,
+                     likely(!std::isnan(IPS))
+                         ? static_cast<uint64_t>(IPS)
+                         : std::numeric_limits<uint64_t>::max());
+      }
+      if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
+          StatConf.isCostMeasuring()) {
+        spdlog::info("=======================   End   ======================"sv);
+      }
     }
   }
 

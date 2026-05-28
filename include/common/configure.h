@@ -174,7 +174,8 @@ public:
   StatisticsConfigure(const StatisticsConfigure &RHS) noexcept
       : InstrCounting(RHS.InstrCounting.load(std::memory_order_relaxed)),
         CostMeasuring(RHS.CostMeasuring.load(std::memory_order_relaxed)),
-        TimeMeasuring(RHS.TimeMeasuring.load(std::memory_order_relaxed)) {}
+        TimeMeasuring(RHS.TimeMeasuring.load(std::memory_order_relaxed)),
+        StatsOutputJSON(RHS.StatsOutputJSON.load(std::memory_order_relaxed)) {}
 
   void setInstructionCounting(bool IsCount) noexcept {
     InstrCounting.store(IsCount, std::memory_order_relaxed);
@@ -200,6 +201,14 @@ public:
     return TimeMeasuring.load(std::memory_order_relaxed);
   }
 
+  void setStatsOutputJSON(bool IsJSON) noexcept {
+    StatsOutputJSON.store(IsJSON, std::memory_order_relaxed);
+  }
+
+  bool isStatsOutputJSON() const noexcept {
+    return StatsOutputJSON.load(std::memory_order_relaxed);
+  }
+
   void setCostLimit(uint64_t Cost) noexcept {
     CostLimit.store(Cost, std::memory_order_relaxed);
   }
@@ -212,6 +221,7 @@ private:
   std::atomic<bool> InstrCounting = false;
   std::atomic<bool> CostMeasuring = false;
   std::atomic<bool> TimeMeasuring = false;
+  std::atomic<bool> StatsOutputJSON = false;
 
   std::atomic<uint64_t> CostLimit = std::numeric_limits<uint64_t>::max();
 };

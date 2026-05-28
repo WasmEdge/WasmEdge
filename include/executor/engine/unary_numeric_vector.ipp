@@ -3,6 +3,7 @@
 
 #include "common/endian.h"
 #include "common/roundeven.h"
+#include "executor/engine/simd_ops.h"
 #include "executor/executor.h"
 
 namespace WasmEdge {
@@ -112,51 +113,24 @@ Expect<void> Executor::runVectorExtAddPairwiseOp(ValVariant &Val) const {
 
 template <typename T>
 Expect<void> Executor::runVectorAbsOp(ValVariant &Val) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
-  if constexpr (std::is_floating_point_v<T>) {
-    if constexpr (sizeof(T) == 4) {
-      using IVT [[gnu::vector_size(16)]] = uint32_t;
-      IVT Mask = IVT{} + UINT32_C(0x7fffffff);
-      Result = reinterpret_cast<VT>(reinterpret_cast<IVT>(Result) & Mask);
-    } else {
-      using IVT [[gnu::vector_size(16)]] = uint64_t;
-      IVT Mask = IVT{} + UINT64_C(0x7fffffffffffffff);
-      Result = reinterpret_cast<VT>(reinterpret_cast<IVT>(Result) & Mask);
-    }
-  } else {
-    Result = detail::vectorSelect(Result > 0, Result, -Result);
-  }
+  simdOps::vectorAbs<T>(Val);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorNegOp(ValVariant &Val) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
-  Result = -Result;
+  simdOps::vectorNeg<T>(Val);
   return {};
 }
 
 inline Expect<void> Executor::runVectorPopcntOp(ValVariant &Val) const {
-  auto &Result = Val.get<uint8x16_t>();
-  Result -= ((Result >> UINT8_C(1)) & UINT8_C(0x55));
-  Result = (Result & UINT8_C(0x33)) + ((Result >> UINT8_C(2)) & UINT8_C(0x33));
-  Result += Result >> UINT8_C(4);
-  Result &= UINT8_C(0x0f);
+  simdOps::vectorPopcnt(Val);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorSqrtOp(ValVariant &Val) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
-  if constexpr (sizeof(T) == 4) {
-    Result = VT{std::sqrt(Result[0]), std::sqrt(Result[1]),
-                std::sqrt(Result[2]), std::sqrt(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::sqrt(Result[0]), std::sqrt(Result[1])};
-  }
+  simdOps::vectorSqrt<T>(Val);
   return {};
 }
 
@@ -320,53 +294,25 @@ Expect<void> Executor::runVectorBitMaskOp(ValVariant &Val) const {
 
 template <typename T>
 Expect<void> Executor::runVectorCeilOp(ValVariant &Val) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
-  if constexpr (sizeof(T) == 4) {
-    Result = VT{std::ceil(Result[0]), std::ceil(Result[1]),
-                std::ceil(Result[2]), std::ceil(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::ceil(Result[0]), std::ceil(Result[1])};
-  }
+  simdOps::vectorCeil<T>(Val);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorFloorOp(ValVariant &Val) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
-  if constexpr (sizeof(T) == 4) {
-    Result = VT{std::floor(Result[0]), std::floor(Result[1]),
-                std::floor(Result[2]), std::floor(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::floor(Result[0]), std::floor(Result[1])};
-  }
+  simdOps::vectorFloor<T>(Val);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorTruncOp(ValVariant &Val) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
-  if constexpr (sizeof(T) == 4) {
-    Result = VT{std::trunc(Result[0]), std::trunc(Result[1]),
-                std::trunc(Result[2]), std::trunc(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::trunc(Result[0]), std::trunc(Result[1])};
-  }
+  simdOps::vectorTrunc<T>(Val);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorNearestOp(ValVariant &Val) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
-  if constexpr (sizeof(T) == 4) {
-    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1]),
-                WasmEdge::roundeven(Result[2]), WasmEdge::roundeven(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1])};
-  }
+  simdOps::vectorNearest<T>(Val);
   return {};
 }
 

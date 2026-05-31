@@ -209,10 +209,7 @@ Expect<uint32_t> alignmentDef(const CanonCtx &Cx,
     //                              with-len → alignment(elem).
     const auto &L = T.getList();
     if (L.Len.has_value()) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: alignment of fixed-length list not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      return alignment(Cx, L.ValTy);
     }
     return 4u;
   }
@@ -408,12 +405,13 @@ Expect<uint32_t> elemSizeDef(const CanonCtx &Cx,
   }
 
   if (T.isListTy()) {
-    // elem_size_list (L2009-2013): no-len → 8 (ptr + len).
-    if (T.getList().Len.has_value()) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: elem_size of fixed-length list not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    // elem_size_list (L2009-2013): no-len → 8 (ptr + len);
+    //                              with-len → len * elem_size(elem).
+    const auto &L = T.getList();
+    if (L.Len.has_value()) {
+      EXPECTED_TRY(auto ElemSz, elemSize(Cx, L.ValTy));
+      return static_cast<uint32_t>(static_cast<uint64_t>(*L.Len) *
+                                   static_cast<uint64_t>(ElemSz));
     }
     return 8u;
   }
@@ -607,12 +605,17 @@ flattenTypeDef(const CanonCtx &Cx,
   }
 
   if (T.isListTy()) {
-    // flatten_list (L2882-2885): no-len → [i32, i32] (ptr, len).
-    if (T.getList().Len.has_value()) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: flatten of fixed-length list not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    // flatten_list (L2882-2885): no-len → [i32, i32] (ptr, len);
+    //                            with-len → flatten(elem) repeated len times.
+    const auto &L = T.getList();
+    if (L.Len.has_value()) {
+      EXPECTED_TRY(auto Sub, flattenType(Cx, L.ValTy));
+      std::vector<ValType> Result;
+      Result.reserve(static_cast<size_t>(Sub.size()) * *L.Len);
+      for (uint32_t I = 0; I < *L.Len; ++I) {
+        Result.insert(Result.end(), Sub.begin(), Sub.end());
+      }
+      return Result;
     }
     return std::vector<ValType>{I32T, I32T};
   }
@@ -951,6 +954,15 @@ Expect<ComponentValVariant> loadPrim(const CanonCtx &Cx, uint32_t Ptr,
 
 } // namespace
 
+namespace {
+// Forward declaration: fixed-length list load reuses the same in-place element
+// loader as variable-length lists, but liftListFromRange (internal linkage) is
+// defined further below. Declared here so load() can call it.
+Expect<ComponentValVariant>
+liftListFromRange(const CanonCtx &Cx, uint32_t Begin, uint32_t Length,
+                  const ComponentValType &ElemT) noexcept;
+} // namespace
+
 Expect<ComponentValVariant> load(const CanonCtx &Cx, uint32_t Ptr,
                                  const ComponentValType &T) noexcept {
   using TC = ComponentTypeCode;
@@ -1076,12 +1088,10 @@ loadDef(const CanonCtx &Cx, uint32_t Ptr,
   }
 
   if (T.isListTy()) {
-    // load_list (L2226-2243).
+    // load_list (L2226-2243). with-len → load len elems in place at Ptr
+    // (load_list_from_valid_range); no separate begin/length header.
     if (T.getList().Len.has_value()) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: load of fixed-length list not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      return liftListFromRange(Cx, Ptr, *T.getList().Len, T.getList().ValTy);
     }
     uint32_t Begin = 0;
     uint32_t Length = 0;
@@ -1370,13 +1380,22 @@ Expect<void> storeDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isListTy()) {
-    // store_list (CanonicalABI.md L2674-2694). Fixed-length lists stay
-    // deferred until a use case appears.
+    // store_list (CanonicalABI.md L2674-2694). with-len →
+    // store_list_into_valid_range: each element stored in place at Ptr, no
+    // realloc and no (begin, length) header.
     if (T.getList().Len.has_value()) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: store of fixed-length list not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      const auto &L = T.getList();
+      const uint32_t Len = *L.Len;
+      const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
+      assuming(VC);
+      const auto &Lv = std::get<ListVal>(VC->V);
+      assuming(Lv.Elements.size() == Len);
+      const auto &ElemT = L.ValTy;
+      EXPECTED_TRY(auto ElemSz, elemSize(Cx, ElemT));
+      for (uint32_t I = 0; I < Len; ++I) {
+        EXPECTED_TRY(store(Cx, Lv.Elements[I], ElemT, Ptr + I * ElemSz));
+      }
+      return {};
     }
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);
@@ -1739,12 +1758,18 @@ liftFlatDef(const CanonCtx &Cx, FlatIter &VI,
   }
 
   if (T.isListTy()) {
-    // lift_flat_list (L3015-3026).
+    // lift_flat_list (L3015-3026). with-len → lift len elements straight from
+    // the flat iterator (no ptr/len pair, no memory load).
     if (T.getList().Len.has_value()) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: lift_flat of fixed-length list not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      const auto &L = T.getList();
+      const uint32_t Len = *L.Len;
+      ListVal LV;
+      LV.Elements.reserve(Len);
+      for (uint32_t I = 0; I < Len; ++I) {
+        EXPECTED_TRY(auto E, liftFlat(Cx, VI, L.ValTy));
+        LV.Elements.push_back(std::move(E));
+      }
+      return makeComponentVal(std::move(LV));
     }
     auto PtrV = VI.next();
     auto LenV = VI.next();
@@ -2022,13 +2047,21 @@ lowerFlatDef(const CanonCtx &Cx, const ComponentValVariant &V,
   }
 
   if (T.isListTy()) {
-    // lower_flat_list (L3134-3145): no-len → realloc + store + push (ptr, len).
-    // Fixed-length list deferred (symmetric to load/store gates).
+    // lower_flat_list (L3134-3145): no-len → realloc + store + push (ptr, len);
+    // with-len → concatenate per-element lowerings straight into flat values.
     if (T.getList().Len.has_value()) {
-      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
-      spdlog::error(
-          "    canonical ABI: lower_flat of fixed-length list not implemented"sv);
-      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+      const auto &L = T.getList();
+      const uint32_t Len = *L.Len;
+      const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
+      assuming(VC);
+      const auto &Lv = std::get<ListVal>(VC->V);
+      assuming(Lv.Elements.size() == Len);
+      std::vector<ValVariant> Flat;
+      for (uint32_t I = 0; I < Len; ++I) {
+        EXPECTED_TRY(auto Sub, lowerFlat(Cx, Lv.Elements[I], L.ValTy));
+        Flat.insert(Flat.end(), Sub.begin(), Sub.end());
+      }
+      return Flat;
     }
     const auto &VC = std::get<std::shared_ptr<ValComp>>(V);
     assuming(VC);

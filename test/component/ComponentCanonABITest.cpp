@@ -99,6 +99,15 @@ ASTComp::DefValType makeListNoLen(ComponentValType T) {
   return D;
 }
 
+ASTComp::DefValType makeListLen(ComponentValType T, uint32_t Len) {
+  ASTComp::DefValType D;
+  ASTComp::ListTy L;
+  L.ValTy = T;
+  L.Len = Len;
+  D.setList(std::move(L));
+  return D;
+}
+
 ASTComp::DefValType makeEnum(uint32_t N) {
   ASTComp::EnumTy E;
   for (uint32_t I = 0; I < N; ++I) {
@@ -255,17 +264,13 @@ TEST(ComponentCanonABI, AlignmentEnum) {
   EXPECT_EQ(alignDef(makeEnum(257)), 2u);
 }
 
-TEST(ComponentCanonABI, AlignmentFixedLengthListRejected) {
-  // Fixed-length list is gated and must be rejected.
-  ASTComp::DefValType D;
-  ASTComp::ListTy L;
-  L.ValTy = prim(ComponentTypeCode::U32);
-  L.Len = 4;
-  D.setList(std::move(L));
-  CanonCtx Cx{};
-  auto Res = alignmentDef(Cx, D);
-  ASSERT_FALSE(Res.has_value());
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentNotImplInstantiate);
+TEST(ComponentCanonABI, AlignmentFixedLengthList) {
+  // alignment_list (L1927-1933) with-len -> alignment(elem).
+  EXPECT_EQ(alignDef(makeListLen(prim(ComponentTypeCode::U32), 4)), 4u);
+  EXPECT_EQ(alignDef(makeListLen(prim(ComponentTypeCode::U8), 4)), 1u);
+  EXPECT_EQ(alignDef(makeListLen(prim(ComponentTypeCode::U64), 2)), 8u);
+  // Element alignment is independent of the length.
+  EXPECT_EQ(alignDef(makeListLen(prim(ComponentTypeCode::U16), 1)), 2u);
 }
 
 TEST(ComponentCanonABI, AlignmentErrorContextRejected) {
@@ -367,17 +372,12 @@ TEST(ComponentCanonABI, ElemSizeEnum) {
   EXPECT_EQ(sizeDef(makeEnum(257)), 2u);
 }
 
-TEST(ComponentCanonABI, ElemSizeFixedLengthListRejected) {
-  // Fixed-length list deferred.
-  ASTComp::DefValType D;
-  ASTComp::ListTy L;
-  L.ValTy = prim(ComponentTypeCode::U32);
-  L.Len = 4;
-  D.setList(std::move(L));
-  CanonCtx Cx{};
-  auto Res = elemSizeDef(Cx, D);
-  ASSERT_FALSE(Res.has_value());
-  EXPECT_EQ(Res.error(), ErrCode::Value::ComponentNotImplInstantiate);
+TEST(ComponentCanonABI, ElemSizeFixedLengthList) {
+  // elem_size_list (L2009-2013) with-len -> len * elem_size(elem).
+  EXPECT_EQ(sizeDef(makeListLen(prim(ComponentTypeCode::U32), 4)), 16u);
+  EXPECT_EQ(sizeDef(makeListLen(prim(ComponentTypeCode::U8), 4)), 4u);
+  EXPECT_EQ(sizeDef(makeListLen(prim(ComponentTypeCode::U64), 2)), 16u);
+  EXPECT_EQ(sizeDef(makeListLen(prim(ComponentTypeCode::U16), 5)), 10u);
 }
 
 // =============================================================================
@@ -507,6 +507,19 @@ TEST(ComponentCanonABI, FlattenFlagsEnumOwnBorrow) {
 TEST(ComponentCanonABI, FlattenList) {
   EXPECT_EQ(flattenCodesDef(makeListNoLen(prim(ComponentTypeCode::U32))),
             (std::vector<TypeCode>{TypeCode::I32, TypeCode::I32}));
+}
+
+TEST(ComponentCanonABI, FlattenFixedLengthList) {
+  // flatten_list (L2882-2885) with-len -> flatten(elem) repeated len times.
+  EXPECT_EQ(
+      flattenCodesDef(makeListLen(prim(ComponentTypeCode::U32), 3)),
+      (std::vector<TypeCode>{TypeCode::I32, TypeCode::I32, TypeCode::I32}));
+  // u64 flattens to a single i64 element, so len 2 -> [i64, i64].
+  EXPECT_EQ(flattenCodesDef(makeListLen(prim(ComponentTypeCode::U64), 2)),
+            (std::vector<TypeCode>{TypeCode::I64, TypeCode::I64}));
+  // Single-element fixed list collapses to the element's own flattening.
+  EXPECT_EQ(flattenCodesDef(makeListLen(prim(ComponentTypeCode::F32), 1)),
+            (std::vector<TypeCode>{TypeCode::F32}));
 }
 
 // =============================================================================

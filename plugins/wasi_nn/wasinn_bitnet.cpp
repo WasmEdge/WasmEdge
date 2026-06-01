@@ -5,10 +5,12 @@
 #ifdef WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
 #include "simdjson.h"
 #include <algorithm>
+#include <array>
 #include <common.h>
 #include <filesystem>
 #include <fmt/ranges.h>
 #include <fstream>
+#include <limits>
 #include <llama.h>
 #include <sampling.h>
 #include <sstream>
@@ -162,24 +164,36 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     std::string TS(TSV);
     std::replace(TS.begin(), TS.end(), ',', ' ');
     std::stringstream SS(TS);
-    std::memset(GraphRef.Params.tensor_split, 0,
-                sizeof(GraphRef.Params.tensor_split));
-    uint32_t TensorSplitSize = 0;
-    while (SS.good()) {
-      float TmpTensor;
-      SS >> TmpTensor;
-      GraphRef.Params.tensor_split[TensorSplitSize++] = TmpTensor;
+    constexpr size_t TensorSplitCapacity =
+        sizeof(GraphRef.Params.tensor_split) /
+        sizeof(GraphRef.Params.tensor_split[0]);
+    const size_t NDevices = llama_max_devices();
+    if (NDevices > TensorSplitCapacity) {
+      RET_ERROR(ErrNo::RuntimeError,
+                "Number of MaxDevices is larger than tensor-split capacity."sv)
     }
-    size_t NDevices = llama_max_devices();
-    if (TensorSplitSize > NDevices) {
-      RET_ERROR(
-          ErrNo::InvalidArgument,
-          "Number of Tensor-Split is larger than MaxDevices, please reduce "sv
-          "the size of tensor-split."sv)
+    std::array<float, TensorSplitCapacity> TensorSplit;
+    TensorSplit.fill(0.0f);
+    uint32_t TensorSplitSize = 0;
+    float TmpTensor;
+    while (SS >> TmpTensor) {
+      if (TensorSplitSize >= NDevices) {
+        RET_ERROR(
+            ErrNo::InvalidArgument,
+            "Number of Tensor-Split is larger than MaxDevices, please reduce "sv
+            "the size of tensor-split."sv)
+      }
+      TensorSplit[TensorSplitSize++] = TmpTensor;
+    }
+    if (!SS.eof()) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "Invalid value in the tensor-split option."sv)
     }
     for (size_t Idx = TensorSplitSize; Idx < NDevices; Idx++) {
-      GraphRef.Params.tensor_split[TensorSplitSize++] = 0.0f;
+      TensorSplit[TensorSplitSize++] = 0.0f;
     }
+    std::copy(TensorSplit.begin(), TensorSplit.end(),
+              GraphRef.Params.tensor_split);
   }
   if (Doc.at_key("embedding").error() == simdjson::SUCCESS) {
     auto Err = Doc["embedding"].get<bool>().get(GraphRef.Params.embedding);
@@ -223,6 +237,11 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (Err) {
       RET_ERROR(ErrNo::InvalidArgument,
                 "Unable to retrieve the batch-size option."sv)
+    }
+    if (BatchSize <= 0 ||
+        BatchSize > static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+      RET_ERROR(ErrNo::InvalidArgument,
+                "batch-size should be in range [1, int32_max]."sv)
     }
     GraphRef.Params.n_batch = static_cast<int32_t>(BatchSize);
   }
@@ -1606,13 +1625,27 @@ void buildOutputEmbedding(std::string &Embedding, int32_t NEmbd,
 // Helper to initialize a llama batch.
 struct llama_batch allocBatch(int64_t NTokens, int64_t Embd = 0,
                               int32_t NSeqMax = 1) noexcept {
+  if (NTokens <= 0 || Embd < 0 || NSeqMax <= 0 ||
+      NTokens > static_cast<int64_t>(std::numeric_limits<int32_t>::max()) ||
+      Embd > static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
+    return {};
+  }
   struct llama_batch Batch = llama_batch_init(
       /* n_tokens_alloc */ static_cast<int32_t>(NTokens),
       /* embd */ static_cast<int32_t>(Embd),
       /* n_seq_max */ static_cast<int32_t>(NSeqMax));
+  if (!Batch.token || !Batch.pos || !Batch.n_seq_id || !Batch.seq_id ||
+      !Batch.logits) {
+    llama_batch_free(Batch);
+    return {};
+  }
   std::fill(Batch.n_seq_id, Batch.n_seq_id + NTokens,
             static_cast<int32_t>(NSeqMax));
   for (int64_t I = 0; I < NTokens; I++) {
+    if (!Batch.seq_id[I]) {
+      llama_batch_free(Batch);
+      return {};
+    }
     std::fill(Batch.seq_id[I], Batch.seq_id[I] + NSeqMax, 0);
   }
   std::fill(Batch.logits, Batch.logits + NTokens, false);
@@ -2023,10 +2056,19 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
 
   // Allocate the batch for input string prompt tokens.
   CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
+  if (!CxtRef.LlamaBatch.token) {
+    Env.deleteContext(ContextId);
+    RET_ERROR(ErrNo::InvalidArgument, "Failed to allocate llama_batch."sv)
+  }
   CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
 
   // Allocate the batch for single-token output sampling.
   CxtRef.OutputBatch = allocBatch(1);
+  if (!CxtRef.OutputBatch.token) {
+    llama_batch_free(CxtRef.LlamaBatch);
+    Env.deleteContext(ContextId);
+    RET_ERROR(ErrNo::InvalidArgument, "Failed to allocate output batch."sv)
+  }
 
   // Allocate the sampler
   CxtRef.LlamaSampler.reset(

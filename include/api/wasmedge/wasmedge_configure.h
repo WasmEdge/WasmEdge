@@ -160,6 +160,33 @@ WasmEdge_ConfigureSetMaxMemoryPage(WasmEdge_ConfigureContext *Cxt,
 WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the maximum WASI file descriptor value.
+///
+/// Limits the maximum value of randomly generated WASI file descriptors.
+/// Useful for applications using the legacy select(2) API, which requires
+/// FDs below FD_SETSIZE (typically 1024). The value is clamped to the range
+/// [1024, 2147483647] when the runtime is created.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set the maximum WASI FD.
+/// \param Fd the maximum WASI file descriptor value.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetMaxWasiFd(WasmEdge_ConfigureContext *Cxt,
+                               const uint32_t Fd) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Get the maximum WASI file descriptor value.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to get the maximum WASI FD
+/// setting.
+///
+/// \returns the maximum WASI file descriptor value. Returns 0x7FFFFFFF if
+/// Cxt is NULL.
+WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_ConfigureGetMaxWasiFd(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the run mode for module execution.
 ///
 /// Selects the engine used to execute a WebAssembly module: interpreter

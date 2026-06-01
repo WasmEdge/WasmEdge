@@ -986,6 +986,22 @@ WASMEDGE_CAPI_EXPORT uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
 }
 
 WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetMaxWasiFd(WasmEdge_ConfigureContext *Cxt,
+                               const uint32_t Fd) noexcept {
+  if (Cxt) {
+    Cxt->Conf.getRuntimeConfigure().setMaxWasiFd(Fd);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT uint32_t
+WasmEdge_ConfigureGetMaxWasiFd(const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.getRuntimeConfigure().getMaxWasiFd();
+  }
+  return 0x7FFFFFFFU;
+}
+
+WASMEDGE_CAPI_EXPORT void
 WasmEdge_ConfigureSetRunMode(WasmEdge_ConfigureContext *Cxt,
                              const enum WasmEdge_RunMode Mode) noexcept {
   if (Cxt) {

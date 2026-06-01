@@ -737,6 +737,13 @@ TEST(APICoreTest, Configure) {
   WasmEdge_ConfigureSetMaxMemoryPage(Conf, 1234U);
   EXPECT_NE(WasmEdge_ConfigureGetMaxMemoryPage(ConfNull), 1234U);
   EXPECT_EQ(WasmEdge_ConfigureGetMaxMemoryPage(Conf), 1234U);
+  // Tests for max WASI FD limit.
+  WasmEdge_ConfigureSetMaxWasiFd(ConfNull, 2048U);
+  WasmEdge_ConfigureSetMaxWasiFd(Conf, 2048U);
+  EXPECT_NE(WasmEdge_ConfigureGetMaxWasiFd(ConfNull), 2048U);
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxWasiFd(Conf), 2048U);
+  WasmEdge_ConfigureSetMaxWasiFd(Conf, 0x7FFFFFFFU);
+  EXPECT_EQ(WasmEdge_ConfigureGetMaxWasiFd(Conf), 0x7FFFFFFFU);
   // Tests for force interpreter (deprecated API).
   // Pre-set to JIT so the SetForceInterpreter(true) flip is observable; the
   // default run mode is Interpreter, which would make IsForceInterpreter()

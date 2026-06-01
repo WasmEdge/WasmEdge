@@ -609,7 +609,8 @@ main() {
 
 	echo "$ENV" >"$IPATH/env"
 	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env"
-	# Generate env.fish for Fish shell users
+	# Generate env.fish only if user is running Fish shell
+	if echo "$SHELL" | grep -qi "fish"; then
 	local FISH_ENV="# wasmedge shell setup for fish
 fish_add_path -p \"$IPATH/bin\"
 if test -n \"\$DYLD_LIBRARY_PATH\"
@@ -634,6 +635,7 @@ else
 end"
 	echo "$FISH_ENV" >"$IPATH/env.fish"
 	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env.fish"
+	fi
 	local _source="source \"$IPATH/env\""
 	local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
 	if [ "$_grep" = "" ]; then

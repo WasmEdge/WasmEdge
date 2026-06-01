@@ -25,3 +25,25 @@ verify_plugin() {
     exit 1
   fi
 }
+
+# Verify env.fish was created (Fish shell users)
+verify_fish_env() {
+  local ipath=${1:-~/.wasmedge}
+  if [ -f "$ipath/env.fish" ]; then
+    echo "✓ env.fish found: $ipath/env.fish"
+  else
+    echo "✗ env.fish not found: $ipath/env.fish"
+    exit 1
+  fi
+}
+
+# Verify env.fish was NOT created (non-Fish shell users)
+verify_no_fish_env() {
+  local ipath=${1:-~/.wasmedge}
+  if [ ! -f "$ipath/env.fish" ]; then
+    echo "✓ env.fish correctly absent for non-Fish shell"
+  else
+    echo "✗ env.fish unexpectedly created for non-Fish shell"
+    exit 1
+  fi
+}

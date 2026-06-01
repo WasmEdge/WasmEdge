@@ -306,6 +306,22 @@ jobs:
         # Test uninstallation
         bash utils/uninstall.sh -q -V
 
+    - name: Test Fish Shell Detection
+      shell: bash
+      run: |
+        . ./.github/scripts/installer-test-helpers.sh
+        IPATH="$HOME/.wasmedge"
+
+        printf "\n=== Test: env.fish created when SHELL=fish ===\n"
+        SHELL=/usr/bin/fish bash utils/install_v2.sh -V
+        verify_fish_env "${IPATH}"
+        bash utils/uninstall.sh -q -V
+
+        printf "\n=== Test: env.fish NOT created when SHELL=bash ===\n"
+        SHELL=/bin/bash bash utils/install_v2.sh -V
+        verify_no_fish_env "${IPATH}"
+        bash utils/uninstall.sh -q -V
+
     - name: Test NoAVX Installation
       if: ${{ matrix.test_noavx }}
       run: |

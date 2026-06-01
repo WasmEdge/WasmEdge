@@ -609,7 +609,33 @@ main() {
 
 	echo "$ENV" >"$IPATH/env"
 	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env"
-
+	# Generate env.fish only if user is running Fish shell
+	if echo "$SHELL" | grep -qi "fish"; then
+	local FISH_ENV="# wasmedge shell setup for fish
+fish_add_path -p \"$IPATH/bin\"
+if test -n \"\$DYLD_LIBRARY_PATH\"
+    set -gx DYLD_LIBRARY_PATH \"$IPATH/lib\" \$DYLD_LIBRARY_PATH
+else
+    set -gx DYLD_LIBRARY_PATH \"$IPATH/lib\"
+end
+if test -n \"\$LIBRARY_PATH\"
+    set -gx LIBRARY_PATH \"$IPATH/lib\" \$LIBRARY_PATH
+else
+    set -gx LIBRARY_PATH \"$IPATH/lib\"
+end
+if test -n \"\$C_INCLUDE_PATH\"
+    set -gx C_INCLUDE_PATH \"$IPATH/include\" \$C_INCLUDE_PATH
+else
+    set -gx C_INCLUDE_PATH \"$IPATH/include\"
+end
+if test -n \"\$CPLUS_INCLUDE_PATH\"
+    set -gx CPLUS_INCLUDE_PATH \"$IPATH/include\" \$CPLUS_INCLUDE_PATH
+else
+    set -gx CPLUS_INCLUDE_PATH \"$IPATH/include\"
+end"
+	echo "$FISH_ENV" >"$IPATH/env.fish"
+	echo "# Please do not edit comments below this for uninstallation purpose" >> "$IPATH/env.fish"
+	fi
 	local _source="source \"$IPATH/env\""
 	local _grep=$(cat "$__HOME__/.profile" 2>/dev/null | grep "$IPATH/env")
 	if [ "$_grep" = "" ]; then
@@ -639,6 +665,15 @@ main() {
 				[ ! -f "$__HOME__/.profile" ] && touch "$__HOME__/.profile"
 				echo "$_source" >>"$__HOME__/.profile"
 			fi
+		fi
+	fi
+	# Fish shell support
+	if [[ "$_shell_" =~ "fish" ]]; then
+		local _fish_config="$__HOME__/.config/fish/config.fish"
+		local _fish_source="source \"$IPATH/env.fish\""
+		local _fish_grep=$(cat "$_fish_config" 2>/dev/null | grep "$IPATH/env.fish")
+		if [ "$_fish_grep" = "" ]; then
+			[ -f "$_fish_config" ] && echo "$_fish_source" >>"$_fish_config"
 		fi
 	fi
 

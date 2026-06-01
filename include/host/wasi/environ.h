@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -92,6 +93,13 @@ public:
   }
 
   constexpr __wasi_exitcode_t getExitCode() const noexcept { return ExitCode; }
+
+  void setMaxFd(__wasi_fd_t Fd) noexcept {
+    MaxFd.store(Fd, std::memory_order_relaxed);
+  }
+  __wasi_fd_t getMaxFd() const noexcept {
+    return MaxFd.load(std::memory_order_relaxed);
+  }
 
   /// Read command-line argument data.
   ///
@@ -1211,6 +1219,7 @@ private:
 
   mutable std::shared_mutex FdMutex; ///< Protect FdMap
   std::unordered_map<__wasi_fd_t, std::shared_ptr<VINode>> FdMap;
+  std::atomic<__wasi_fd_t> MaxFd = 0x7FFFFFFF;
 
   std::shared_ptr<VINode> getNodeOrNull(__wasi_fd_t Fd) const {
     std::shared_lock Lock(FdMutex);
@@ -1221,12 +1230,16 @@ private:
   }
 
   WasiExpect<__wasi_fd_t> generateRandomFdToNode(std::shared_ptr<VINode> Node) {
-    std::uniform_int_distribution<__wasi_fd_t> Distribution(0, 0x7FFFFFFF);
+    const __wasi_fd_t Limit = MaxFd.load(std::memory_order_relaxed);
+    std::uniform_int_distribution<__wasi_fd_t> Distribution(0, Limit);
     bool Success = false;
     __wasi_fd_t NewFd;
     while (!Success) {
       NewFd = Distribution(Hash::RandEngine);
       std::unique_lock Lock(FdMutex);
+      if (FdMap.size() >= static_cast<size_t>(Limit)) {
+        return WasiUnexpect(__WASI_ERRNO_MFILE);
+      }
       Success = FdMap.emplace(NewFd, Node).second;
     }
     return NewFd;

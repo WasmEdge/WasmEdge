@@ -6204,3 +6204,58 @@ TEST(WasiTest, PointerAlignment) {
     }
   }
 }
+
+TEST(WasiTest, MaxWasiFd) {
+  WasmEdge::Host::WASI::Environ Env;
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  // Default MaxFd is 0x7FFFFFFF
+  EXPECT_EQ(Env.getMaxFd(), 0x7FFFFFFF);
+
+  // setMaxFd / getMaxFd round-trips
+  Env.setMaxFd(1024);
+  EXPECT_EQ(Env.getMaxFd(), 1024);
+  Env.setMaxFd(4096);
+  EXPECT_EQ(Env.getMaxFd(), 4096);
+  Env.setMaxFd(0x7FFFFFFF);
+  EXPECT_EQ(Env.getMaxFd(), 0x7FFFFFFF);
+
+#if !WASMEDGE_OS_WINDOWS
+  // Verify that MFILE is returned when FdMap is at the MaxFd limit.
+  // After init({}), FdMap contains stdin(0), stdout(1), stderr(2) → size = 3.
+  // Setting MaxFd = 3 means the next open must fail with EMFILE.
+  {
+    std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+    WasmEdge::Host::WasiSockOpenV2 WasiSockOpen(Env);
+    const uint32_t FdPtr = 0;
+
+    Env.init({}, "test"s, {}, {});
+    Env.setMaxFd(3); // exactly at the current FdMap size
+    EXPECT_TRUE(WasiSockOpen.run(
+        CallFrame,
+        std::array<WasmEdge::ValVariant, 3>{
+            static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+            static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_DGRAM), FdPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_MFILE);
+
+    // One slot above the limit: open should succeed.
+    Env.setMaxFd(4);
+    EXPECT_TRUE(WasiSockOpen.run(
+        CallFrame,
+        std::array<WasmEdge::ValVariant, 3>{
+            static_cast<uint32_t>(__WASI_ADDRESS_FAMILY_INET4),
+            static_cast<uint32_t>(__WASI_SOCK_TYPE_SOCK_DGRAM), FdPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+
+    Env.fini();
+  }
+#endif
+}

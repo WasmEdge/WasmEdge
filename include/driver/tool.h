@@ -103,7 +103,14 @@ struct DriverToolOptions : public DriverProposalOptions {
             PO::Description(
                 "Set logging level. Valid values: off, trace, debug, info, "
                 "warning, error, fatal. Default is info."sv),
-            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string())) {}
+            PO::MetaVar("LEVEL"sv), PO::DefaultValue(std::string())),
+        MaxWasiFd(
+            PO::Description(
+                "Maximum value for randomly generated WASI file descriptors. "
+                "Useful for applications using the legacy select(2) API, which "
+                "requires FDs below FD_SETSIZE (typically 1024). Value is "
+                "clamped to the range [1024, 2147483647]."sv),
+            PO::MetaVar("MAX_FD"sv), PO::DefaultValue<uint32_t>(0x7FFFFFFF)) {}
 
   PO::Option<std::string> SoName;
   PO::List<std::string> Args;
@@ -129,6 +136,7 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::List<std::string> LinkedModules;
   PO::List<std::string> ForbiddenPlugins;
   PO::Option<std::string> LogLevel;
+  PO::Option<uint32_t> MaxWasiFd;
 
 private:
   void addGlobalOptions(PO::ArgumentParser &Parser) noexcept {
@@ -175,7 +183,8 @@ public:
         .add_option("allow-af-unix"sv, ConfAFUNIX)
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)
-        .add_option("reactor"sv, Reactor);
+        .add_option("reactor"sv, Reactor)
+        .add_option("max-wasi-fd"sv, MaxWasiFd);
   }
 };
 Configure createConfigure(const struct DriverToolOptions &Opt) noexcept;

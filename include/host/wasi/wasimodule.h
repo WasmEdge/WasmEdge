@@ -15,6 +15,8 @@ public:
 
   __wasi_exitcode_t getExitCode() const noexcept { return Env.getExitCode(); }
 
+  void setMaxFd(__wasi_fd_t Fd) noexcept { Env.setMaxFd(Fd); }
+
   void init(Span<const std::string> Dirs, const std::string &ProgramName,
             Span<const std::string> Args,
             Span<const std::string> Envs) noexcept {

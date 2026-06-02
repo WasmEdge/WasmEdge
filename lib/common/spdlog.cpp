@@ -9,7 +9,30 @@
 // https://github.com/gabime/spdlog/pull/3198
 #pragma clang diagnostic ignored "-Wextra-semi"
 #endif
+#if __has_include(<spdlog/sinks/callback_sink.h>)
 #include <spdlog/sinks/callback_sink.h>
+#else
+// Fallback for spdlog without callback_sink.h (e.g. RHEL 9 / EPEL 9
+// spdlog 1.10).
+#include <functional>
+#include <mutex>
+#include <spdlog/sinks/base_sink.h>
+namespace spdlog::sinks {
+template <typename Mutex> class callback_sink final : public base_sink<Mutex> {
+public:
+  explicit callback_sink(std::function<void(const details::log_msg &)> Callback)
+      : Cb(std::move(Callback)) {}
+
+protected:
+  void sink_it_(const details::log_msg &Msg) override { Cb(Msg); }
+  void flush_() override {}
+
+private:
+  std::function<void(const details::log_msg &)> Cb;
+};
+using callback_sink_mt = callback_sink<std::mutex>;
+} // namespace spdlog::sinks
+#endif
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic pop
 #endif

@@ -15,6 +15,7 @@
 #include "driver/options.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
+#include <optional>
 #include <string_view>
 
 namespace WasmEdge {
@@ -180,6 +181,7 @@ public:
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
         .add_option("force-interpreter"sv, ConfForceInterpreter)
+        .add_option("run-mode"sv, ConfRunMode)
         .add_option("allow-af-unix"sv, ConfAFUNIX)
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)
@@ -188,6 +190,7 @@ public:
   }
 };
 Configure createConfigure(const struct DriverToolOptions &Opt) noexcept;
+std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept;
 
 int Tool(struct DriverToolOptions &Opt) noexcept;
 int ParseTool(struct DriverToolOptions &Opt) noexcept;

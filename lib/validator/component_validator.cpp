@@ -119,6 +119,62 @@ void populateInstanceFromType(ComponentContext &Ctx, uint32_t InstIdx,
   }
 }
 
+// Populate a core:instance from a moduletype's exportdecls (name to
+// ExternalType), for instantiating an imported/aliased core module.
+void populateCoreInstanceFromModuleType(ComponentContext &Ctx, uint32_t InstIdx,
+                                        const AST::Component::CoreDefType &MT) {
+  for (const auto &Decl : MT.getModuleType()) {
+    if (!Decl.isExport()) {
+      continue;
+    }
+    const auto &Exp = Decl.getExport();
+    const auto ImpDesc = Exp.getImportDesc();
+    ExternalType ET;
+    if (ImpDesc.isFunc()) {
+      ET = ExternalType::Function;
+    } else if (ImpDesc.isTable()) {
+      ET = ExternalType::Table;
+    } else if (ImpDesc.isMemory()) {
+      ET = ExternalType::Memory;
+    } else if (ImpDesc.isGlobal()) {
+      ET = ExternalType::Global;
+    } else if (ImpDesc.isTag()) {
+      ET = ExternalType::Tag;
+    } else {
+      continue;
+    }
+    Ctx.addCoreInstanceExport(InstIdx, Exp.getName(), ET);
+  }
+}
+
+// Populate an instance from a componenttype's exportdecls (name to sort), for
+// instantiating an imported/aliased component. Like populateInstanceFromType,
+// but a componenttype's exports arrive as `instancedecl`s holding an
+// `exportdecl`.
+void populateInstanceFromComponentType(
+    ComponentContext &Ctx, uint32_t InstIdx,
+    const AST::Component::ComponentType &CT) {
+  for (const auto &CDecl : CT.getDecl()) {
+    if (!CDecl.isInstanceDecl()) {
+      continue;
+    }
+    const auto &IDecl = CDecl.getInstance();
+    if (!IDecl.isExportDecl()) {
+      continue;
+    }
+    const auto &Exp = IDecl.getExport();
+    auto ST = descTypeToSortType(Exp.getExternDesc().getDescType());
+    if (!ST.has_value()) {
+      // `(core module)` export: InstanceExport::ST is component-side only.
+      // Skip symmetrically with populateInstanceFromType.
+      continue;
+    }
+    // TODO(B): resolve a nested InstanceType for instance-typed exports so
+    // multi-level alias-export can chase through it; single-level works now.
+    Ctx.addInstanceExport(InstIdx, Exp.getName(), *ST, /*IT=*/nullptr);
+  }
+}
+
 // Returns the first export in `RequiredIT` missing from the instance at
 // `ProvidedInstIdx`, or whose stored SortType doesn't match the required
 // sort kind. nullopt ⇒ Provided is a sort-kind subtype of RequiredIT.
@@ -277,7 +333,7 @@ Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
     return E;
   }));
   const_cast<AST::Module &>(ModSec.getContent()).setIsValidated();
-  CompCtx.addCoreModule(ModSec.getContent());
+  CompCtx.addInlineCoreModule(ModSec.getContent());
   return {};
 }
 
@@ -309,7 +365,7 @@ Validator::validate(const AST::Component::ComponentSection &CompSec) noexcept {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Component));
     return E;
   }));
-  CompCtx.addComponent(CompSec.getContent());
+  CompCtx.addInlineComponent(CompSec.getContent());
   return {};
 }
 
@@ -332,10 +388,26 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
       return E;
     }));
     const auto &Sort = Alias.getSort();
+    const bool IsOuter =
+        Alias.getTargetType() == AST::Component::Alias::TargetType::Outer;
     if (Sort.isCore()) {
-      CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+      uint32_t NewCoreIdx =
+          CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+      // Carry the outer-aliased module's export source so the alias stays
+      // enumerable when instantiated.
+      if (IsOuter && Sort.getCoreSortType() ==
+                         AST::Component::Sort::CoreSortType::Module) {
+        CompCtx.carryOuterCoreModule(NewCoreIdx, Alias.getOuter().first,
+                                     Alias.getOuter().second);
+      }
     } else {
       uint32_t NewIdx = CompCtx.incSortIndexSize(Sort.getSortType());
+      if (IsOuter &&
+          Sort.getSortType() == AST::Component::Sort::SortType::Component) {
+        // Component analogue of the outer core-module carry above.
+        CompCtx.carryOuterComponent(NewIdx, Alias.getOuter().first,
+                                    Alias.getOuter().second);
+      }
       // If the alias creates a new instance entry out of an `alias export`
       // on another instance, propagate the source instance's export table
       // into the new slot so a subsequent `alias export` on this slot can
@@ -498,7 +570,14 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         CompCtx.addCoreInstanceExport(InstanceIdx, ExportDesc.getExternalName(),
                                       ExportDesc.getExternalType());
       }
+    } else if (const auto *MT = CompCtx.getCoreModuleType(ModIdx)) {
+      // Imported / aliased core module: bind exports from its moduletype.
+      // TODO(B): arg-check against MT's importdecls (only inline modules are
+      // arg-checked above).
+      uint32_t InstanceIdx = CompCtx.addCoreInstance();
+      populateCoreInstanceFromModuleType(CompCtx, InstanceIdx, *MT);
     } else {
+      // Opaque module: exports not enumerable; leave the instance empty.
       CompCtx.addCoreInstance();
     }
   } else if (Inst.isInlineExport()) {
@@ -721,6 +800,11 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
                                     ExpSort.getSortType(), IT);
         }
       }
+    } else if (const auto *CT = CompCtx.getComponentType(CompIdx)) {
+      // Imported / aliased component: bind exports from its componenttype.
+      // TODO(B): arg-check against CT's importdecls (only inline components are
+      // arg-checked above).
+      populateInstanceFromComponentType(CompCtx, InstanceIdx, *CT);
     }
   } else if (Inst.isInlineExport()) {
     // Allocate the instance first so exports can be registered on it.
@@ -792,17 +876,12 @@ Expect<void> Validator::validate(const AST::Component::CoreAlias &A) noexcept {
   uint32_t Ct = A.getComponentJump();
   uint32_t Idx = A.getIndex();
 
-  uint32_t OutLinkCompCnt = 0;
-  const auto *TargetCtx = &CompCtx.getCurrentContext();
-  while (Ct > OutLinkCompCnt && TargetCtx != nullptr) {
-    TargetCtx = TargetCtx->Parent;
-    OutLinkCompCnt++;
-  }
+  const auto *TargetCtx = CompCtx.resolveOuterContext(Ct);
   if (TargetCtx == nullptr) {
     spdlog::error(ErrCode::Value::InvalidIndex);
     spdlog::error(
-        "    CoreAlias: outer count {} exceeds enclosing component count {}"sv,
-        Ct, OutLinkCompCnt);
+        "    CoreAlias: outer count {} exceeds enclosing component count"sv,
+        Ct);
     return Unexpect(ErrCode::Value::InvalidIndex);
   }
 
@@ -929,17 +1008,12 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     const auto Ct = Alias.getOuter().first;
     const auto Idx = Alias.getOuter().second;
 
-    uint32_t OutLinkCompCnt = 0;
-    const auto *TargetCtx = &CompCtx.getCurrentContext();
-    while (Ct > OutLinkCompCnt && TargetCtx != nullptr) {
-      TargetCtx = TargetCtx->Parent;
-      OutLinkCompCnt++;
-    }
+    const auto *TargetCtx = CompCtx.resolveOuterContext(Ct);
     if (TargetCtx == nullptr) {
       spdlog::error(ErrCode::Value::InvalidIndex);
       spdlog::error(
-          "    Alias outer: Component out-link count {} is exceeding the enclosing component count {}"sv,
-          Ct, OutLinkCompCnt);
+          "    Alias outer: Component out-link count {} is exceeding the enclosing component count"sv,
+          Ct);
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
@@ -1020,8 +1094,10 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
       }));
     }
     CompCtx.exitComponent();
-    // Module type also gets an entry in core:type (nullptr — not a SubType).
-    CompCtx.addCoreType();
+    // Module type takes a core:type slot (nullptr — not a SubType) and is
+    // recorded so an imported `(core module (type i))` can recover its exports.
+    uint32_t TIdx = CompCtx.addCoreType();
+    CompCtx.recordCoreModuleTypeDef(TIdx, DType);
   } else {
     assumingUnreachable();
   }
@@ -1636,8 +1712,13 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
   switch (Desc.getDescType()) {
   case AST::Component::ExternDesc::DescType::CoreType:
     // The CoreType externdesc is `(core module (type i))`, so it introduces
-    // a new core module index, not a core type.
-    CompCtx.addCoreModule();
+    // a new core module index, not a core type. Carry the referenced
+    // moduletype so instance definitions can enumerate the module's exports.
+    if (const auto *MT = CompCtx.getCoreModuleTypeDef(Desc.getTypeIndex())) {
+      CompCtx.addDeclaredCoreModule(*MT);
+    } else {
+      CompCtx.addOpaqueCoreModule();
+    }
     break;
   case AST::Component::ExternDesc::DescType::FuncType:
     CompCtx.addFunc();
@@ -1669,7 +1750,14 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     }
     break;
   case AST::Component::ExternDesc::DescType::ComponentType:
-    CompCtx.addComponent();
+    // Carry the referenced componenttype so instance definitions that
+    // instantiate this imported component can enumerate its exports.
+    if (const auto *DT = CompCtx.getDefType(Desc.getTypeIndex());
+        DT != nullptr && DT->isComponentType()) {
+      CompCtx.addDeclaredComponent(DT->getComponentType());
+    } else {
+      CompCtx.addOpaqueComponent();
+    }
     break;
   case AST::Component::ExternDesc::DescType::InstanceType: {
     uint32_t InstIdx = CompCtx.addInstance();
@@ -1817,7 +1905,9 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
   case AST::Component::ExternDesc::DescType::CoreType:
     // The CoreType externdesc is `(core module (type i))`, so it introduces
     // a new core module index, not a core type.
-    CompCtx.addCoreModule();
+    // TODO(B): carry the moduletype (like the top-level import path) once
+    // type-body type-index scoping is resolved; opaque for now.
+    CompCtx.addOpaqueCoreModule();
     break;
   case AST::Component::ExternDesc::DescType::FuncType:
     CompCtx.addFunc();
@@ -1842,7 +1932,9 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
     break;
   }
   case AST::Component::ExternDesc::DescType::ComponentType:
-    CompCtx.addComponent();
+    // TODO(B): carry the componenttype (like the top-level import path) once
+    // type-body type-index scoping is resolved; opaque for now.
+    CompCtx.addOpaqueComponent();
     break;
   case AST::Component::ExternDesc::DescType::InstanceType: {
     // Populate the new instance slot with the referenced InstanceType's

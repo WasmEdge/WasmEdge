@@ -791,9 +791,9 @@ private:
 
 template <>
 struct fmt::formatter<WasmEdge::ValType> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ValType &Type,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ValType &Type,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     using namespace std::literals;
     // For the number types, print the type directly.
     if (!Type.isRefType()) {

@@ -7,14 +7,18 @@
 #include "common/int128.h"
 
 #include <spdlog/fmt/fmt.h>
+#if __has_include(<spdlog/fmt/ranges.h>)
 #include <spdlog/fmt/ranges.h>
+#else
+#include <fmt/ranges.h>
+#endif
 
 using namespace std::literals;
 
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoFile>::format(
     const WasmEdge::ErrInfo::InfoFile &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   fmt::format_to(std::back_inserter(Buffer), "    File name: {}"sv,
                  Info.FileName);
@@ -25,7 +29,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoFile>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoLoading>::format(
     const WasmEdge::ErrInfo::InfoLoading &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   fmt::format_to(std::back_inserter(Buffer), "    Bytecode offset: 0x{:08x}"sv,
                  Info.Offset);
@@ -36,7 +40,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoLoading>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoAST>::format(
     const WasmEdge::ErrInfo::InfoAST &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   fmt::format_to(std::back_inserter(Buffer), "    At AST node: {}"sv,
                  Info.NodeAttr);
@@ -47,7 +51,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoAST>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoInstanceBound>::format(
     const WasmEdge::ErrInfo::InfoInstanceBound &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   fmt::format_to(std::back_inserter(Buffer),
                  "    Instance {} has limited number {} , Got: {}"sv,
@@ -59,7 +63,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoInstanceBound>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoForbidIndex>::format(
     const WasmEdge::ErrInfo::InfoForbidIndex &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   auto Iter =
       fmt::format_to(std::back_inserter(Buffer),
@@ -77,7 +81,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoForbidIndex>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoExporting>::format(
     const WasmEdge::ErrInfo::InfoExporting &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   fmt::format_to(std::back_inserter(Buffer),
                  "    Duplicated exporting name: \"{}\""sv, Info.ExtName);
@@ -88,7 +92,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoExporting>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoLimit>::format(
     const WasmEdge::ErrInfo::InfoLimit &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   auto Iter = fmt::format_to(std::back_inserter(Buffer),
                              "    In Limit type: {{ min: {}"sv, Info.LimMin);
@@ -103,7 +107,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoLimit>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoRegistering>::format(
     const WasmEdge::ErrInfo::InfoRegistering &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   fmt::format_to(std::back_inserter(Buffer), "    Module name: \"{}\""sv,
                  Info.ModName);
@@ -114,7 +118,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoRegistering>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoLinking>::format(
     const WasmEdge::ErrInfo::InfoLinking &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   fmt::format_to(std::back_inserter(Buffer),
                  "    When linking module: \"{}\" , {} name: \"{}\""sv,
@@ -126,7 +130,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoLinking>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoExecuting>::format(
     const WasmEdge::ErrInfo::InfoExecuting &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   auto Iter =
       fmt::format_to(std::back_inserter(Buffer), "    When executing "sv);
@@ -141,7 +145,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoExecuting>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>::format(
     const WasmEdge::ErrInfo::InfoMismatch &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   auto Iter = fmt::format_to(std::back_inserter(Buffer),
                              "    Mismatched {}. "sv, Info.Category);
@@ -229,7 +233,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>::format(
     const WasmEdge::ErrInfo::InfoInstruction &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   uint16_t Payload = static_cast<uint16_t>(Info.Code);
   fmt::memory_buffer Buffer;
   auto Iter = fmt::format_to(std::back_inserter(Buffer),
@@ -294,7 +298,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoBoundary>::format(
     const WasmEdge::ErrInfo::InfoBoundary &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   WasmEdge::uint128_t OffFrom = Info.Offset;
   if (Info.IsOffsetOverflow) {
@@ -347,7 +351,7 @@ fmt::formatter<WasmEdge::ErrInfo::InfoBoundary>::format(
 fmt::format_context::iterator
 fmt::formatter<WasmEdge::ErrInfo::InfoProposal>::format(
     const WasmEdge::ErrInfo::InfoProposal &Info,
-    fmt::format_context &Ctx) const noexcept {
+    fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept {
   fmt::memory_buffer Buffer;
   if (auto Iter = WasmEdge::ProposalStr.find(Info.P);
       Iter != WasmEdge::ProposalStr.end()) {

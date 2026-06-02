@@ -551,6 +551,7 @@ using uint128_t = uint128;
 #include <fmt/format.h>
 
 FMT_BEGIN_NAMESPACE
+#if FMT_VERSION >= 90000
 namespace detail {
 inline constexpr bool operator>=(detail::uint128_fallback LHS,
                                  unsigned int RHS) {
@@ -664,6 +665,7 @@ FMT_CONSTEXPR20 inline int count_digits(detail::uint128_fallback N) {
 }
 
 } // namespace detail
+#endif
 
 template <typename Char> struct formatter<WasmEdge::uint128, Char> {
 private:

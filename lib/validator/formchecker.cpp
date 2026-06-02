@@ -628,7 +628,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     auto T = Instr.getSourceIndex();
     // Check source table index.
     EXPECTED_TRY(checkTableIdx(T));
-    if (unlikely(!Tables[T].second.isFuncRefType())) {
+    if (!AST::TypeMatcher::matchType(Types, TypeCode::FuncRef,
+                                     Tables[T].second)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(TypeCode::FuncRef, Tables[T].second));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
@@ -661,7 +662,8 @@ Expect<void> FormChecker::checkInstr(const AST::Instruction &Instr) {
     auto T = Instr.getSourceIndex();
     // Check source table index.
     EXPECTED_TRY(checkTableIdx(T));
-    if (unlikely(!Tables[T].second.isFuncRefType())) {
+    if (!AST::TypeMatcher::matchType(Types, TypeCode::FuncRef,
+                                     Tables[T].second)) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(TypeCode::FuncRef, Tables[T].second));
       return Unexpect(ErrCode::Value::TypeCheckFailed);

@@ -686,6 +686,9 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
 
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
+  if (!Val.getType().isFuncRefType()) {
+    return nullptr;
+  }
   return Val.getPtr<Runtime::Instance::FunctionInstance>();
 }
 

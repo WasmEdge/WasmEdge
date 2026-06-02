@@ -25,13 +25,15 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Driver {
 
-namespace {
-RunMode parseRunModeArg(std::string_view S) noexcept {
+std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept {
   std::string Lower(S);
   std::transform(Lower.begin(), Lower.end(), Lower.begin(),
                  [](unsigned char C) -> char {
                    return static_cast<char>(std::tolower(C));
                  });
+  if (Lower == "interpreter") {
+    return RunMode::Interpreter;
+  }
   if (Lower == "jit") {
     return RunMode::JIT;
   }
@@ -41,9 +43,10 @@ RunMode parseRunModeArg(std::string_view S) noexcept {
   if (Lower == "lazyjit") {
     return RunMode::LazyJIT;
   }
-  // Default to interpreter on any unrecognised value.
-  return RunMode::Interpreter;
+  return std::nullopt;
 }
+
+namespace {
 
 // Helper template to parse numeric arguments and catch conversion exceptions
 template <typename Converter, typename ValVec, typename TypeVec, typename TC>
@@ -400,7 +403,14 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       spdlog::warn("--run-mode overrides deprecated --enable-jit / "
                    "--force-interpreter."sv);
     }
-    RunModeFromFlag = parseRunModeArg(Opt.ConfRunMode.value());
+    if (auto Mode = parseRunModeArg(Opt.ConfRunMode.value())) {
+      RunModeFromFlag = *Mode;
+    } else {
+      spdlog::warn("Unknown --run-mode value: \"{}\"; using interpreter. "
+                   "Valid values: interpreter, jit, aot, lazyjit."sv,
+                   Opt.ConfRunMode.value());
+      RunModeFromFlag = RunMode::Interpreter;
+    }
   } else if (Opt.ConfEnableJIT.value()) {
     spdlog::warn("--enable-jit is deprecated, use --run-mode=jit instead."sv);
     RunModeFromFlag = RunMode::JIT;

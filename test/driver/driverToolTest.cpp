@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "common/defines.h"
+#include "driver/tool.h"
 #include "driver/unitool.h"
+#include "po/argument_parser.h"
 
 #include <array>
 #include <cstdlib>
@@ -677,6 +679,30 @@ TEST(CompileSubcommand, OutputFormat) {
   std::string NativeOutput = TestDataPath + "/fmt_out" WASMEDGE_LIB_EXTENSION;
   EXPECT_EQ(callCompile({Path, NativeOutput.c_str()}), EXIT_SUCCESS);
   std::filesystem::remove(NativeOutput.c_str());
+}
+
+TEST(RunSubcommand, RunModeFlagParses) {
+  WasmEdge::Driver::DriverToolOptions Opt;
+  WasmEdge::PO::ArgumentParser Parser;
+  Opt.addOptions(Parser);
+
+  const char *Argv[] = {"wasmedge", "--enable-jit", "--run-mode=jit",
+                        "dummy.wasm"};
+  EXPECT_TRUE(Parser.parse(stdout, 4, Argv));
+  EXPECT_TRUE(Opt.ConfEnableJIT.value());
+  EXPECT_EQ(Opt.ConfRunMode.value(), "jit");
+}
+
+TEST(RunSubcommand, ParseRunModeArg) {
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("interpreter"),
+            WasmEdge::RunMode::Interpreter);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("jit"), WasmEdge::RunMode::JIT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("aot"), WasmEdge::RunMode::AOT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("lazyjit"),
+            WasmEdge::RunMode::LazyJIT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("JIT"), WasmEdge::RunMode::JIT);
+  EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("jti").has_value());
+  EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("").has_value());
 }
 
 /* ---------------------------------------------------------------------------

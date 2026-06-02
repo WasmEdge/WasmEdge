@@ -21,9 +21,6 @@ add_test(wasmedgeLazyJITTests wasmedgeLazyJITTests)
 
 target_link_libraries(wasmedgeLazyJITTests
   PRIVATE
-  wasmedgeCommon
-  wasmedgeLoader
-  wasmedgeValidator
   wasmedgeVM
   GTest::gtest
 )

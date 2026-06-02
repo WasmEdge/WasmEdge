@@ -362,6 +362,39 @@ std::array<WasmEdge::Byte, 106> NullGlobalStructWasm{
     0x14, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x1b, 0x04, 0x6e, 0x61, 0x6d, 0x65,
     0x01, 0x08, 0x01, 0x00, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x04, 0x04,
     0x01, 0x00, 0x01, 0x73, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+
+/// Binary Wasm module: call_indirect on a table whose element type is a
+/// concrete struct reference, not a funcref subtype.
+///
+/// The table is `(ref null $s)` where `$s` is a struct type, so it is NOT a
+/// subtype of funcref and call_indirect on it must be rejected at validation.
+/// The old check used `ValType::isFuncRefType()`, which reported *any* concrete
+/// type index as a funcref. The module therefore validated, and at runtime the
+/// struct reference was reinterpreted as a `FunctionInstance *` -- a type
+/// confusion in which the attacker-controlled v128 field bytes (here 0x41.. /
+/// 0x49) stand in for function metadata. The fix validates the table type with
+/// `TypeMatcher::matchType(.., FuncRef, ..)`, which resolves the concrete type
+/// index and rejects the struct-typed table.
+///
+/// (module
+///   (type $f (func))
+///   (type $s (struct (field v128)))
+///   (table 1 (ref null $s))
+///   (func (export "_start")
+///     i32.const 0
+///     v128.const i32x4 0x41414141 0x41414141 0x41414149 0x41414141
+///     struct.new $s
+///     table.set 0
+///     i32.const 0
+///     call_indirect (type $f)))
+std::array<WasmEdge::Byte, 77> CallIndirectStructTableWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
+    0x00, 0x00, 0x5f, 0x01, 0x7b, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x05,
+    0x01, 0x63, 0x01, 0x00, 0x01, 0x07, 0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74,
+    0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x22, 0x01, 0x20, 0x00, 0x41, 0x00,
+    0xfd, 0x0c, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x49, 0x41,
+    0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0xfb, 0x00, 0x01, 0x26, 0x00, 0x41,
+    0x00, 0x11, 0x00, 0x00, 0x0b};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -783,6 +816,27 @@ TEST(ExecutorRegression, NullLocalConcreteType) {
     EXPECT_EQ(Values[0], 1); // null matches nullable eqref
     EXPECT_EQ(Values[1], 0); // null doesn't match non-nullable (ref $s)
   }
+}
+
+/// Regression test for call_indirect on a non-funcref table (type confusion).
+///
+/// A table whose element type is a concrete struct reference is not a funcref
+/// subtype, so call_indirect on it must be rejected by validation. Before the
+/// fix, ValType::isFuncRefType() accepted any concrete type index, so the
+/// module passed validation and the executor reinterpreted the struct
+/// reference as a FunctionInstance pointer -- with the v128 struct field bytes
+/// acting as a forged function pointer. The validator now resolves the
+/// concrete type via TypeMatcher and rejects the module before it can run.
+TEST(ExecutorRegression, CallIndirectNonFuncTable) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  // The module is well-formed and loads successfully...
+  ASSERT_TRUE(VM.loadWasm(CallIndirectStructTableWasm));
+  // ... but validation must reject call_indirect on the (ref null $s) table
+  // instead of letting the struct reference reach the executor as a function.
+  auto Result = VM.validate();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
 }
 
 } // namespace

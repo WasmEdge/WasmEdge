@@ -172,6 +172,7 @@ public:
         .add_option("enable-coredump"sv, ConfEnableCoredump)
         .add_option("coredump-for-wasmgdb"sv, ConfCoredumpWasmgdb)
         .add_option("force-interpreter"sv, ConfForceInterpreter)
+        .add_option("run-mode"sv, ConfRunMode)
         .add_option("allow-af-unix"sv, ConfAFUNIX)
         .add_option("time-limit"sv, TimeLim)
         .add_option("gas-limit"sv, GasLim)

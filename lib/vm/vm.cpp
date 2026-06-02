@@ -161,8 +161,9 @@ void VM::unsafeLoadBuiltInHosts() {
   // TODO: This will be extended for versioned WASI in the future.
   cleanupModInstContainer(BuiltInModInsts);
   if (Conf.hasHostRegistration(HostRegistration::Wasi)) {
-    std::unique_ptr<Runtime::Instance::ModuleInstance> WasiMod =
-        std::make_unique<Host::WasiModule>();
+    auto WasiMod = std::make_unique<Host::WasiModule>();
+    WasiMod->setMaxFd(
+        static_cast<__wasi_fd_t>(Conf.getRuntimeConfigure().getMaxWasiFd()));
     BuiltInModInsts.insert({HostRegistration::Wasi, std::move(WasiMod)});
   }
 }

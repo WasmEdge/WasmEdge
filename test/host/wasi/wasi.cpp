@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "common/configure.h"
 #include "common/defines.h"
 #include "common/types.h"
 #include "host/wasi/wasibase.h"
 #include "host/wasi/wasifunc.h"
+#include "host/wasi/wasimodule.h"
 #include "runtime/instance/module.h"
+#include "vm/vm.h"
 #include "system/winapi.h"
 #include <algorithm>
 #include <array>
@@ -6258,4 +6261,15 @@ TEST(WasiTest, MaxWasiFd) {
     Env.fini();
   }
 #endif
+}
+
+TEST(WasiTest, MaxWasiFdVmPropagation) {
+  WasmEdge::Configure Conf;
+  Conf.addHostRegistration(WasmEdge::HostRegistration::Wasi);
+  Conf.getRuntimeConfigure().setMaxWasiFd(2048);
+  WasmEdge::VM::VM VM(Conf);
+  auto *WasiMod = dynamic_cast<WasmEdge::Host::WasiModule *>(
+      VM.getImportModule(WasmEdge::HostRegistration::Wasi));
+  ASSERT_TRUE(WasiMod != nullptr);
+  EXPECT_EQ(WasiMod->getEnv()->getMaxFd(), static_cast<__wasi_fd_t>(2048));
 }

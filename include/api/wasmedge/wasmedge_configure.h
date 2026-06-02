@@ -165,7 +165,7 @@ WASMEDGE_CAPI_EXPORT extern uint64_t WasmEdge_ConfigureGetMaxMemoryPage(
 /// Limits the maximum value of randomly generated WASI file descriptors.
 /// Useful for applications using the legacy select(2) API, which requires
 /// FDs below FD_SETSIZE (typically 1024). The value is clamped to the range
-/// [1024, 2147483647] when the runtime is created.
+/// [1024, 2147483647] by the setter.
 ///
 /// This function is thread-safe.
 ///

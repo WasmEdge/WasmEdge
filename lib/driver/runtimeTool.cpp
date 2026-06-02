@@ -423,11 +423,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   if (Opt.ConfAFUNIX.value()) {
     Conf.getRuntimeConfigure().setAllowAFUNIX(true);
   }
-  {
-    uint32_t FdLimit = Opt.MaxWasiFd.value();
-    FdLimit = std::clamp(FdLimit, uint32_t(1024), uint32_t(0x7FFFFFFF));
-    Conf.getRuntimeConfigure().setMaxWasiFd(FdLimit);
-  }
+  Conf.getRuntimeConfigure().setMaxWasiFd(Opt.MaxWasiFd.value());
 
   Conf.addHostRegistration(HostRegistration::Wasi);
   const auto InputPath =
@@ -437,11 +433,6 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   VM::VM VM(Conf);
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
-  if (WasiMod) {
-    WasiMod->setMaxFd(
-        static_cast<__wasi_fd_t>(Conf.getRuntimeConfigure().getMaxWasiFd()));
-  }
-
   for (const auto &ModEntry : Opt.LinkedModules.value()) {
     auto Pos = ModEntry.find(':');
     if (Pos == std::string::npos) {

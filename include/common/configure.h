@@ -19,6 +19,7 @@
 #include "common/errcode.h"
 #include "common/hash.h"
 
+#include <algorithm>
 #include <atomic>
 #include <bitset>
 #include <cstdint>
@@ -162,7 +163,8 @@ public:
   }
 
   void setMaxWasiFd(const uint32_t Fd) noexcept {
-    MaxWasiFd.store(Fd, std::memory_order_relaxed);
+    MaxWasiFd.store(std::clamp(Fd, uint32_t(1024), uint32_t(0x7FFFFFFF)),
+                    std::memory_order_relaxed);
   }
 
   uint32_t getMaxWasiFd() const noexcept {

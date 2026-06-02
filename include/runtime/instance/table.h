@@ -34,7 +34,7 @@ public:
       : TabType(TType),
         Refs(TType.getLimit().getMin(), RefVariant(TType.getRefType())),
         InitValue(RefVariant(TType.getRefType())) {
-    // The reftype should be a nullable reference because of no init ref.
+    // The reference type should be nullable because there is no initial ref.
     // This constructor only handles abstract heap types correctly for null
     // refs. For concrete type indices, the caller should use the two-arg
     // constructor with a properly initialized RefVariant.
@@ -44,20 +44,20 @@ public:
   TableInstance(const AST::TableType &TType, const RefVariant &InitVal) noexcept
       : TabType(TType), Refs(TType.getLimit().getMin(), InitVal),
         InitValue(InitVal) {
-    // If the reftype is not a nullable reference, the init ref is required.
+    // If the reference type is not nullable, the initial reference is required.
     assuming(TType.getRefType().isNullableRefType() || !InitVal.isNull());
   }
 
   /// Get size of table.refs
   uint64_t getSize() const noexcept {
-    // The table size is binded with the limit in table type.
+    // The table size is bound to the limit in the table type.
     return TabType.getLimit().getMin();
   }
 
-  /// Getter of table type.
+  /// Getter for table type.
   const AST::TableType &getTableType() const noexcept { return TabType; }
 
-  /// Check is out of bound.
+  /// Check whether access is out of bounds.
   bool checkAccessBound(const uint64_t Offset,
                         const uint64_t Length) const noexcept {
     // Due to applying the Memory64 proposal, we should avoid the overflow issue

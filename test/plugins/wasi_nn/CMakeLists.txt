@@ -204,6 +204,13 @@ target_link_libraries(wasiNNTests
   ${GTEST_BOTH_LIBRARIES}
 )
 
+if(TARGET build_info)
+  target_link_libraries(wasiNNTests
+    PRIVATE
+    build_info
+  )
+endif()
+
 # Link to the WasmEdge library
 if(WASMEDGE_LINK_PLUGINS_STATIC)
   target_link_libraries(wasiNNTests

@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains tests of Wasm test suites extracted by wast2json.
-/// Test Suits: https://github.com/WebAssembly/spec/tree/master/test/core
+/// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
@@ -42,7 +42,10 @@ class CoreCompileTest : public testing::TestWithParam<std::string> {};
 class CoreCompileArrayTest : public testing::TestWithParam<std::string> {};
 
 TEST_P(CoreCompileTest, TestSuites) {
-  const auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  auto [Proposal, Conf, UnitName] = T.resolve(GetParam());
+  // C API AOT spec test: opt into RunMode::AOT so the runtime load
+  // step uses the produced .so as AOT under the new default mode.
+  Conf.getRuntimeConfigure().setRunMode(WasmEdge::RunMode::AOT);
   const auto &ConfRef = Conf;
 
   // Define context structure for C API AOT
@@ -96,8 +99,8 @@ TEST_P(CoreCompileTest, TestSuites) {
         if (ModInst != nullptr) {
           WasmEdge_String AliasNameStr =
               WasmEdge_StringCreateByCString(AliasName.c_str());
-          WasmEdge_VMRegisterModuleFromImportWithAlias(Ctx->VM, ModInst,
-                                                       AliasNameStr);
+          WasmEdge_VMRegisterModuleFromImportWithAlias(Ctx->VM, AliasNameStr,
+                                                       ModInst);
           WasmEdge_StringDelete(AliasNameStr);
         }
       }
@@ -245,7 +248,7 @@ TEST_P(CoreCompileTest, TestSuites) {
         Field.data(), static_cast<uint32_t>(Field.length()));
     if (!ModName.empty()) {
       // Invoke function of named module. Named modules are registered in Store
-      // Manager. Get the function type to specify the return nums.
+      // Manager. Get the function type to specify the return count.
       WasmEdge_String ModStr = WasmEdge_StringWrap(
           ModName.data(), static_cast<uint32_t>(ModName.length()));
       const WasmEdge_FunctionTypeContext *FuncType =
@@ -261,7 +264,7 @@ TEST_P(CoreCompileTest, TestSuites) {
           static_cast<uint32_t>(CReturns.size()));
     } else {
       // Invoke function of anonymous module. Anonymous modules are instantiated
-      // in VM. Get function type to specify the return nums.
+      // in the VM. Get the function type to specify the return count.
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {

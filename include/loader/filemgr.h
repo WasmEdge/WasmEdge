@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the FileMgr class, which controls flow
-/// of WASM loading.
+/// This file contains the declaration of the FileMgr class, which controls the
+/// flow of WASM loading.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -35,9 +35,9 @@ public:
     Wasm,
     // AOT compiled WASM as Linux ELF.
     ELF,
-    // AOT compiled WASM as MacOS Mach_O 32-bit.
+    // AOT compiled WASM as macOS Mach_O 32-bit.
     MachO_32,
-    // AOT compiled WASM as MacOS Mach_O 64-bit.
+    // AOT compiled WASM as macOS Mach_O 64-bit.
     MachO_64,
     // AOT compiled WASM as Windows DLL.
     DLL,
@@ -57,7 +57,7 @@ public:
   /// Read one byte.
   Expect<Byte> readByte();
 
-  /// Read number of bytes into a vector.
+  /// Read bytes into a vector.
   Expect<std::vector<Byte>> readBytes(size_t SizeToRead);
 
   /// Read an unsigned int.
@@ -83,7 +83,7 @@ public:
   /// Read a double.
   Expect<double> readF64();
 
-  /// Read a string, which is size(unsigned int) + bytes.
+  /// Read a string in the format size(unsigned int) followed by bytes.
   Expect<std::string> readName();
 
   /// Peek one byte.
@@ -95,7 +95,7 @@ public:
   /// Get current offset.
   uint64_t getOffset() const noexcept { return Pos; }
 
-  /// Get last succeeded read offset.
+  /// Get the last successful read offset.
   uint64_t getLastOffset() const noexcept { return LastPos; }
 
   /// Get remain size.
@@ -125,7 +125,7 @@ public:
   }
 
 private:
-  /// Helper function for reading number of bytes into a vector.
+  /// Helper function for reading bytes into a vector.
   Expect<void> readBytes(Span<Byte> Buffer);
 
   /// Helper function for checking boundary.
@@ -134,10 +134,10 @@ private:
   /// File manager status.
   ErrCode::Value Status = ErrCode::Value::UnexpectedEnd;
 
-  /// Last succeeded read start or read failed offset.
-  /// Will be set to the read error or EOF offset when read failed, or set to
-  /// the u32, u64, s32, s64, f32, f64, name, or bytes start offset when read
-  /// succeeded or syntax error.
+  /// Last successful read start offset or failed read offset.
+  /// Set to the read error or EOF offset when a read fails, or to the u32, u64,
+  /// s32, s64, f32, f64, name, or bytes start offset when a read succeeds or a
+  /// syntax error occurs.
   uint64_t LastPos;
 
   /// Current read offset.

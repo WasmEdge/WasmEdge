@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about hex and string conversions.
+/// This file contains functions for hex and string conversions.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

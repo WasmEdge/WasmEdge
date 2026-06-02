@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/driver/fuzzPO.h - Fuzz PO entrypoint ---------------------===//
+//===-- wasmedge/driver/fuzzPO.h - Fuzz PO entry point --------------------===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents the entrypoint for the fuzz PO executable.
+/// This file contains the entry point for the fuzz PO executable.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

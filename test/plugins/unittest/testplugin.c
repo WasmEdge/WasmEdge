@@ -72,13 +72,13 @@ CreateTestModule(const struct WasmEdge_ModuleDescriptor *Desc) {
   ParamTypes[1] = WasmEdge_ValTypeGenI32();
   ReturnTypes[0] = WasmEdge_ValTypeGenI32();
 
-  /* Create the "add" function and add into the module instance. */
+  /* Create the "add" function and add it to the module instance. */
   FType = WasmEdge_FunctionTypeCreate(ParamTypes, 2, ReturnTypes, 1);
   FuncName = WasmEdge_StringCreateByCString("add");
   FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncAdd, Accumulate, 0);
   WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);
   WasmEdge_StringDelete(FuncName);
-  /* Create the "sub" function and add into the module instance. */
+  /* Create the "sub" function and add it to the module instance. */
   FuncName = WasmEdge_StringCreateByCString("sub");
   FuncCxt = WasmEdge_FunctionInstanceCreate(FType, HostFuncSub, Accumulate, 0);
   WasmEdge_ModuleInstanceAddFunction(Mod, FuncName, FuncCxt);

@@ -22,11 +22,11 @@ jobs:
       build_tests: ON
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
@@ -41,7 +41,7 @@ jobs:
         with:
           args: upgrade --no-progress llvm
       - name: Install Windows SDK
-        uses: GuillaumeFalourd/setup-windows10-sdk-action@9979bedbf6ae74f038cc338622ba015942ed2408 # v2.4
+        uses: GuillaumeFalourd/setup-windows10-sdk-action@d4f23d08ae372a72e47dc2616c9ec8c951f853ec # v2.5
         with:
           sdk-version: 26100
       - name: Set environment variables for release
@@ -89,13 +89,13 @@ jobs:
           echo product_version=$Env:product_version | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: WasmEdge-${{ inputs.version }}-windows.zip
           path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
       - name: Upload Windows installer
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: WasmEdge-${{ env.product_version }}-windows.msi
           path: build\\WasmEdge-${{ env.product_version }}-windows.msi

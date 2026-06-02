@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading AST segment nodes, which are
+/// This file contains unit tests for loading AST segment nodes, which are
 /// element segment, code segment, data segment, and global segment.
 ///
 //===----------------------------------------------------------------------===//
@@ -42,13 +42,14 @@ TEST(SegmentTest, LoadTableSegment) {
   // 1. Test load table segment.
   //
   //   1.  Load invalid empty table segment.
-  //   2.  Load table segment contains only table type.
-  //   3.  Load table segment contains initialization expression with / without
-  //       typed function reference proposal.
-  //   4.  Load table segment in unexpected end of checking byte.
-  //   5.  Load table segment in wrong checking byte.
-  //   6.  Load table segment in unexpected end of table type.
-  //   7.  Load table segment in unexpected end of initialization expression.
+  //   2.  Load a table segment that contains only table type.
+  //   3.  Load a table segment that contains an initialization expression
+  //       with or without the typed function reference proposal.
+  //   4.  Load a table segment with an unexpected end of checking byte.
+  //   5.  Load a table segment with a wrong checking byte.
+  //   6.  Load a table segment with an unexpected end of table type.
+  //   7.  Load a table segment with an unexpected end of initialization
+  //       expression.
 
   Vec = {
       0x04U, // Table section
@@ -87,8 +88,8 @@ TEST(SegmentTest, LoadTableSegment) {
       0x02U, // Content size = 2
       0x01U, // Vector length = 1
       0x40U  // Table segment with init
-             // 0x00U     Missed checking byte
-             // Missed table type and initialization expression
+             // 0x00U     Missing checking byte
+             // Missing table type and initialization expression
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -97,7 +98,7 @@ TEST(SegmentTest, LoadTableSegment) {
       0x03U,       // Content size = 3
       0x01U,       // Vector length = 1
       0x40U, 0x01U // Wrong checking byte
-                   // Missed table type and initialization expression
+                   // Missing table type and initialization expression
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -107,7 +108,7 @@ TEST(SegmentTest, LoadTableSegment) {
       0x01U,        // Vector length = 1
       0x40U, 0x00U, // Table segment with init
       0x70U         // Reference type
-                    // Missed limit and initialization expression
+                    // Missing limit and initialization expression
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -121,7 +122,7 @@ TEST(SegmentTest, LoadTableSegment) {
       0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Min = 4294967281
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Max = 4294967295
       0x45U, 0x46U, 0x47U                // Expression
-                                         // 0x0BU     Missed end of expression
+                                         // 0x0BU     Missing end of expression
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
@@ -249,10 +250,10 @@ TEST(SegmentTest, LoadElementSegment) {
       0x02U, // Content size = 2
       0x01U, // Vector length = 1
       0x02U  // Prefix checking byte
-             // Missed table index
-             // Missed offset expression
-             // Missed element kind
-             // Missed initialization vector
+             // Missing table index
+             // Missing offset expression
+             // Missing element kind
+             // Missing initialization vector
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -263,8 +264,8 @@ TEST(SegmentTest, LoadElementSegment) {
       0x00U, // Prefix checking byte
       0x45U, 0x46U,
       0x47U // Offset expression
-            // 0x0BU     Missed end of offset expression
-            // Missed initialization vector
+            // 0x0BU     Missing end of offset expression
+            // Missing initialization vector
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -286,8 +287,8 @@ TEST(SegmentTest, LoadElementSegment) {
       0x02U, // Content size = 2
       0x01U, // Vector length = 1
       0x01U  // Prefix checking byte
-             // Missed element kind
-             // Missed initialization vector
+             // Missing element kind
+             // Missing initialization vector
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -297,7 +298,7 @@ TEST(SegmentTest, LoadElementSegment) {
       0x01U, // Vector length = 1
       0x01U, // Prefix checking byte
       0x00U  // Element kind
-             // Missed initialization vector
+             // Missing initialization vector
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -309,7 +310,7 @@ TEST(SegmentTest, LoadElementSegment) {
       0x00U, // Element kind
       0x03U, // Vector length = 3
       0x0AU  // vec[0]
-             // Missed vec[1] and vec[2]
+             // Missing vec[1] and vec[2]
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -318,8 +319,8 @@ TEST(SegmentTest, LoadElementSegment) {
       0x02U, // Content size = 2
       0x01U, // Vector length = 1
       0x05U  // Prefix checking byte
-             // Missed reference type
-             // Missed initialization expressions
+             // Missing reference type
+             // Missing initialization expressions
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -330,7 +331,7 @@ TEST(SegmentTest, LoadElementSegment) {
       0x04U, // Prefix checking byte of 0x04
       0x45U, 0x46U, 0x47U,
       0x0BU // Offset expression
-            // Missed initialization expressions
+            // Missing initialization expressions
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }
@@ -418,8 +419,8 @@ TEST(SegmentTest, LoadCodeSegment) {
       0x04U,        // Code segment size = 4
       0x02U,        // Vector length = 2
       0x01U, 0x7CU, // vec[0]
-      0x03U         // 0x7DU                    // vec[1], missed value type
-                    // 0x45U, 0x46U, 0x0BU      // Missed Expression
+      0x03U         // 0x7DU                    // vec[1], missing value type
+                    // 0x45U, 0x46U, 0x0BU      // Missing expression
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -512,7 +513,8 @@ TEST(SegmentTest, LoadDataSegment) {
       0x02U, // Content size = 2
       0x01U, // Vector length = 1
       0x02U  // Prefix checking byte
-             // Missed memory index, offset expression, and initialization data.
+             // Missing memory index, offset expression, and initialization
+             // data.
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -522,8 +524,8 @@ TEST(SegmentTest, LoadDataSegment) {
       0x01U, // Vector length = 1
       0x02U, // Prefix checking byte
       0x45U,
-      0x46U // Missed end of expression
-            // Missed initialization data
+      0x46U // Missing end of expression
+            // Missing initialization data
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 
@@ -534,7 +536,7 @@ TEST(SegmentTest, LoadDataSegment) {
       0x02U, // Prefix checking byte
       0x45U, 0x46U,
       0x0BU // Expression
-            // Missed initialization data
+            // Missing initialization data
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 }

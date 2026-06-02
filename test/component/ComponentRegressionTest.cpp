@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-#include "ast/component/component.h"
-#include "common/errinfo.h"
-#include "validator/validator.h"
 #include "vm/vm.h"
 
 #include <gtest/gtest.h>
@@ -700,443 +697,211 @@ TEST(Component, LoadAndRun_MultiComponentBinary) {
   */
 }
 
-TEST(ComponentValidatorTest, MissingArgument) {
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
-
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::ImportSection>();
-  auto &ImpSec = std::get<AST::Component::ImportSection>(
-      CompSec.getContent()->getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  InstSec.getContent().emplace_back();
-  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg;
-  Arg.getName() = "g";
-  Arg.getIndex().getSort().setSortType(AST::Component::Sort::SortType::Func);
-  Arg.getIndex().setIdx(0);
-  InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
-
+TEST(Component, ExportAscriptionDoesNotDoubleCountFuncIndex) {
   Configure Conf;
   Conf.addProposal(Proposal::Component);
-  Validator::Validator Validator(Conf);
-  ASSERT_FALSE(Validator.validate(Comp));
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      // Component preamble
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      // Type section: 1 type, type[0] = (func)
+      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,
+      // Import section: 1 import, "f" externdesc func type[0] -> func[0]
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00,
+      // Export section: 1 export
+      //   "x" sort=func idx=0 has-desc=1 desc=(func type 0)  -> alias func[1]
+      0x0b, 0x09, 0x01,
+      0x00, 0x01, 0x78, 0x01, 0x00, 0x01, 0x01, 0x00,
+      // Export section: 1 export referencing func idx 2
+      //   "y" sort=func idx=2 has-desc=1 desc=(func type 0)
+      0x0b, 0x09, 0x01,
+      0x00, 0x01, 0x79, 0x01, 0x02, 0x01, 0x01, 0x00,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_FALSE(VM.validate());
 }
 
-TEST(ComponentValidatorTest, TypeMismatch) {
-  AST::Component::Component Comp;
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::ComponentSection>();
-  Comp.getSections().emplace_back();
-  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
-  auto &CompSec =
-      std::get<AST::Component::ComponentSection>(Comp.getSections()[0]);
-  auto &InstSec =
-      std::get<AST::Component::InstanceSection>(Comp.getSections()[1]);
-
-  CompSec.getContent() = std::make_unique<AST::Component::Component>();
-  CompSec.getContent()->getSections().emplace_back();
-  CompSec.getContent()
-      ->getSections()
-      .back()
-      .emplace<AST::Component::ImportSection>();
-  auto &ImpSec = std::get<AST::Component::ImportSection>(
-      CompSec.getContent()->getSections().back());
-  ImpSec.getContent().emplace_back();
-  ImpSec.getContent().back().getName() = "f";
-  ImpSec.getContent().back().getDesc().setFuncTypeIdx(0);
-
-  InstSec.getContent().emplace_back();
-  AST::Component::InstantiateArg<AST::Component::SortIndex> Arg;
-  Arg.getName() = "f";
-  Arg.getIndex().getSort().setSortType(
-      AST::Component::Sort::SortType::Component);
-  Arg.getIndex().setIdx(0);
-  InstSec.getContent().back().setInstantiateArgs(0U, {Arg});
-
-  WasmEdge::Configure Conf;
+TEST(Component, ImportedCoreModuleRoutedToCoreModuleIndex) {
+  Configure Conf;
   Conf.addProposal(Proposal::Component);
-  WasmEdge::Validator::Validator Validator(Conf);
-  ASSERT_FALSE(Validator.validate(Comp));
-}
+  VM::VM VM(Conf);
 
-TEST(ComponentNameParser, Parse) {
-  using namespace Validator;
-  {
-    auto CName = ComponentName::parse("[constructor]my-class"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Constructor);
-    EXPECT_EQ(CName->getDetail().get<ConstructorDetail>().Label, "my-class"sv);
-    EXPECT_EQ(CName->getNoTagName(), "my-class"sv);
-    EXPECT_EQ(CName->getOriginalName(), "[constructor]my-class"sv);
-  }
-  {
-    auto CName = ComponentName::parse("[method]my-resource.my-method"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Method);
-    EXPECT_EQ(CName->getDetail().get<MethodDetail>().Resource, "my-resource"sv);
-    EXPECT_EQ(CName->getDetail().get<MethodDetail>().Method, "my-method"sv);
-    EXPECT_EQ(CName->getNoTagName(), "my-resource.my-method"sv);
-    EXPECT_EQ(CName->getOriginalName(), "[method]my-resource.my-method"sv);
-  }
-  {
-    auto CName = ComponentName::parse("[static]my-resource.my-method"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Static);
-    EXPECT_EQ(CName->getDetail().get<StaticDetail>().Resource, "my-resource"sv);
-    EXPECT_EQ(CName->getDetail().get<StaticDetail>().Method, "my-method"sv);
-    EXPECT_EQ(CName->getNoTagName(), "my-resource.my-method"sv);
-    EXPECT_EQ(CName->getOriginalName(), "[static]my-resource.my-method"sv);
-  }
-  {
-    auto CName =
-        ComponentName::parse("name-space:a-label/projection-label@1.2.3"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::InterfaceType);
-    auto &D = CName->getDetail().get<InterfaceDetail>();
-    EXPECT_EQ(D.Namespace, "name-space"sv);
-    EXPECT_EQ(D.Package, "a-label"sv);
-    EXPECT_EQ(D.Interface, "projection-label"sv);
-    EXPECT_EQ(D.Version, "1.2.3"sv);
-  }
-  // Invalid names
-  EXPECT_FALSE(ComponentName::parse("[constructor]"sv));
-  EXPECT_FALSE(ComponentName::parse("[method]"sv));
-  EXPECT_FALSE(ComponentName::parse("[method]resource"sv));
-  EXPECT_FALSE(ComponentName::parse("[unknown]label"sv));
-  EXPECT_FALSE(ComponentName::parse(""sv));
-  EXPECT_FALSE(ComponentName::parse("123-abc"sv));
-  // Valid labels
-  {
-    auto CName = ComponentName::parse("simple-label"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Label);
-  }
-  {
-    auto CName = ComponentName::parse("A"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Label);
-  }
-}
-
-TEST(ComponentNameParser, KebabLabel) {
-  using namespace Validator;
-  // Valid mixed-case kebab labels
-  EXPECT_TRUE(ComponentName::parse("a"sv));
-  EXPECT_TRUE(ComponentName::parse("a1"sv));
-  EXPECT_TRUE(ComponentName::parse("a-1"sv));
-  EXPECT_TRUE(ComponentName::parse("a-1-b-2-c-3"sv));
-  EXPECT_TRUE(ComponentName::parse("a-1-c"sv));
-  EXPECT_TRUE(ComponentName::parse("abc-def-ghi"sv));
-  EXPECT_TRUE(ComponentName::parse("A"sv));
-  EXPECT_TRUE(ComponentName::parse("B"sv));
-  EXPECT_TRUE(ComponentName::parse("B1"sv));
-  EXPECT_TRUE(ComponentName::parse("B-1"sv));
-  EXPECT_TRUE(ComponentName::parse("B-1-C-2-D-3"sv));
-  EXPECT_TRUE(ComponentName::parse("ABC-DEF-GHI"sv));
-  EXPECT_TRUE(ComponentName::parse("ABC-def-GHI"sv));
-  EXPECT_TRUE(ComponentName::parse("ABC-123"sv));
-  EXPECT_TRUE(ComponentName::parse("ABC123-G45H"sv));
-  EXPECT_TRUE(ComponentName::parse("a11-B11-123-ABC-abc"sv));
-
-  // Invalid kebab labels
-  EXPECT_FALSE(ComponentName::parse("abcDefGhi"sv));   // camelCase
-  EXPECT_FALSE(ComponentName::parse("abc_def_ghi"sv)); // snake_case
-  EXPECT_FALSE(ComponentName::parse("abc def ghi"sv)); // spaces
-  EXPECT_FALSE(ComponentName::parse("Abc-Fef-Ghi"sv)); // titleCase fragments
-  EXPECT_FALSE(ComponentName::parse("ABC123-G45h"sv)); // mixed within acronym
-  EXPECT_FALSE(ComponentName::parse("Abc--Ghi"sv));    // double hyphen
-  EXPECT_FALSE(ComponentName::parse("Abc-"sv));        // trailing hyphen
-  EXPECT_FALSE(ComponentName::parse("-Ghi"sv));        // leading hyphen
-  EXPECT_FALSE(ComponentName::parse("1-abc"sv));       // starts with digit
-  EXPECT_FALSE(ComponentName::parse(""sv));            // empty
-  EXPECT_FALSE(ComponentName::parse("1"sv));           // digit only
-  EXPECT_FALSE(ComponentName::parse("1-a"sv));         // digit start
-
-  // Non-ASCII
-  EXPECT_FALSE(ComponentName::parse("中文字"sv));
-}
-
-TEST(ComponentNameParser, StronglyUniqueBasicCases) {
-  using namespace Validator;
-  ComponentContext::Context Ctx(nullptr);
-
-  auto add = [&](std::string_view S) -> bool {
-    auto CN = ComponentName::parse(S);
-    if (!CN.has_value())
-      return false;
-    return Ctx.AddImportedName(*CN);
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      // Core type section: 1 moduletype (empty)
+      0x03, 0x03, 0x01, 0x50, 0x00,
+      // Import section: 1 import "m" (core module (type 0))
+      0x0a, 0x07, 0x01, 0x00, 0x01, 0x6d, 0x00, 0x11, 0x00,
+      // Core instance section: 1 (instantiate 0) with no args
+      0x02, 0x04, 0x01, 0x00, 0x00, 0x00,
   };
+  // clang-format on
 
-  EXPECT_TRUE(add("foo"sv));
-  EXPECT_TRUE(add("foo-bar"sv));
-  EXPECT_TRUE(add("[constructor]foo"sv));
-  EXPECT_TRUE(add("[method]foo.bar"sv));
-  EXPECT_TRUE(add("[method]foo.baz"sv));
-
-  EXPECT_FALSE(add("foo"sv));
-  EXPECT_FALSE(add("foo-BAR"sv));
-  EXPECT_FALSE(add("[constructor]foo-BAR"sv));
-  EXPECT_FALSE(add("[method]foo.foo"sv));
-  EXPECT_FALSE(add("[method]foo.BAR"sv));
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
 }
 
-TEST(ComponentNameParser, StronglyUnique) {
-  using namespace Validator;
-  ComponentContext::Context Ctx(nullptr);
+TEST(Component, InstanceTypeWithCoreModuleExportDoesNotCrashValidation) {
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
-  auto add = [&](std::string_view S) -> bool {
-    auto CN = ComponentName::parse(S);
-    if (!CN.has_value())
-      return false;
-    return Ctx.AddImportedName(*CN);
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      // Type section: 1 instancetype containing
+      //   - (core type (module))
+      //   - (export "m" (core module (type 0)))
+      0x07, 0x0d, 0x01,
+      0x42, 0x02,
+      0x00, 0x50, 0x00,
+      0x04, 0x00, 0x01, 0x6d, 0x00, 0x11, 0x00,
+      // Import section: 1 import "i" (instance (type 0))
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00,
   };
+  // clang-format on
 
-  EXPECT_TRUE(add("[method]foo.abc"sv));
-  EXPECT_TRUE(add("[constructor]foo"sv));
-  EXPECT_TRUE(add("foo-bar"sv));
-  EXPECT_TRUE(add("foo"sv));
-
-  EXPECT_FALSE(add("[method]foo"sv));
-  EXPECT_FALSE(add("[static]foo.abc"sv));
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
 }
 
-TEST(ComponentNameParser, LockedDep) {
-  using namespace Validator;
+TEST(Component, ExportAscriptionInstanceMissingExportRejected) {
+  // (component
+  //   (type (instance (export "a" (func)) (export "b" (func))))  ;; type[0]
+  //   (type (instance (export "a" (func))))                      ;; type[1]
+  //   (import "i" (instance (type 1)))                           ;; inst[0]
+  //   (export "e" (instance 0) (instance (type 0)))              ;; reject
+  // )
+  // wasm-tools: "missing expected export `b`"
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
 
-  // Valid: no version, no integrity.
-  {
-    auto CName = ComponentName::parse("locked-dep=<my-registry:sqlite>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::LockedDep);
-    auto &D = CName->getDetail().get<LockedDepDetail>();
-    EXPECT_EQ(D.Namespace, "my-registry"sv);
-    EXPECT_EQ(D.Package, "sqlite"sv);
-    EXPECT_EQ(D.Version, ""sv);
-    EXPECT_EQ(D.Integrity, ""sv);
-  }
-  // Valid: with version.
-  {
-    auto CName =
-        ComponentName::parse("locked-dep=<my-registry:sqlite@1.2.3>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::LockedDep);
-    auto &D = CName->getDetail().get<LockedDepDetail>();
-    EXPECT_EQ(D.Namespace, "my-registry"sv);
-    EXPECT_EQ(D.Package, "sqlite"sv);
-    EXPECT_EQ(D.Version, "1.2.3"sv);
-    EXPECT_EQ(D.Integrity, ""sv);
-  }
-  // Valid: with version and integrity.
-  {
-    auto CName = ComponentName::parse(
-        "locked-dep=<my-registry:sqlite@1.2.3>,integrity=<sha256-H8BRh8j>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::LockedDep);
-    auto &D = CName->getDetail().get<LockedDepDetail>();
-    EXPECT_EQ(D.Namespace, "my-registry"sv);
-    EXPECT_EQ(D.Package, "sqlite"sv);
-    EXPECT_EQ(D.Version, "1.2.3"sv);
-    EXPECT_EQ(D.Integrity, "sha256-H8BRh8j"sv);
-  }
-  // Invalid cases.
-  EXPECT_FALSE(ComponentName::parse("locked-dep=my-registry:sqlite"sv));
-  EXPECT_FALSE(ComponentName::parse("locked-dep=<MY-REG:sqlite>"sv));
-  EXPECT_FALSE(ComponentName::parse("locked-dep=<:sqlite>"sv));
-  EXPECT_FALSE(ComponentName::parse("locked-dep=<my-registry:>"sv));
-  EXPECT_FALSE(ComponentName::parse(
-      "locked-dep=<my-registry:sqlite>,integrity=<md5-abc>"sv));
-}
-
-TEST(ComponentNameParser, UnlockedDep) {
-  using namespace Validator;
-
-  // Valid: no verrange.
-  {
-    auto CName = ComponentName::parse("unlocked-dep=<my-registry:sqlite>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
-    auto &D = CName->getDetail().get<UnlockedDepDetail>();
-    EXPECT_EQ(D.Namespace, "my-registry"sv);
-    EXPECT_EQ(D.Package, "sqlite"sv);
-    EXPECT_EQ(D.VersionRange, ""sv);
-  }
-  // Valid: wildcard verrange.
-  {
-    auto CName = ComponentName::parse("unlocked-dep=<my-registry:sqlite@*>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
-    auto &D = CName->getDetail().get<UnlockedDepDetail>();
-    EXPECT_EQ(D.Package, "sqlite"sv);
-  }
-  // Valid: lower bound.
-  {
-    auto CName = ComponentName::parse(
-        "unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
-  }
-  // Valid: upper bound.
-  {
-    auto CName = ComponentName::parse(
-        "unlocked-dep=<my-registry:imagemagick@{<2.0.0}>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
-  }
-  // Valid: both bounds.
-  {
-    auto CName = ComponentName::parse(
-        "unlocked-dep=<my-registry:imagemagick@{>=1.0.0 <2.0.0}>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::UnlockedDep);
-  }
-  // Invalid cases.
-  EXPECT_FALSE(ComponentName::parse("unlocked-dep=<MY-REG:sqlite>"sv));
-  EXPECT_FALSE(ComponentName::parse("unlocked-dep=my-registry:sqlite"sv));
-  EXPECT_FALSE(ComponentName::parse("unlocked-dep=<:sqlite>"sv));
-  EXPECT_FALSE(ComponentName::parse("unlocked-dep=<my-registry:>"sv));
-  EXPECT_FALSE(
-      ComponentName::parse("unlocked-dep=<my-registry:sqlite@{>=bad}>"sv));
-}
-
-TEST(ComponentNameParser, UrlName) {
-  using namespace Validator;
-
-  // Valid: simple URL.
-  {
-    auto CName =
-        ComponentName::parse("url=<https://mycdn.com/my-component.wasm>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Url);
-    auto &D = CName->getDetail().get<UrlDetail>();
-    EXPECT_EQ(D.Url, "https://mycdn.com/my-component.wasm"sv);
-    EXPECT_EQ(D.Integrity, ""sv);
-  }
-  // Valid: URL with integrity.
-  {
-    auto CName = ComponentName::parse(
-        "url=<./other-component.wasm>,integrity=<sha256-X9ArH3k>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Url);
-    auto &D = CName->getDetail().get<UrlDetail>();
-    EXPECT_EQ(D.Url, "./other-component.wasm"sv);
-    EXPECT_EQ(D.Integrity, "sha256-X9ArH3k"sv);
-  }
-  // Valid: empty URL (nonbrackets = [^<>]*).
-  {
-    auto CName = ComponentName::parse("url=<>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Url);
-  }
-  // Invalid: no angle brackets.
-  EXPECT_FALSE(ComponentName::parse("url=https://example.com"sv));
-  // Invalid: bad integrity.
-  EXPECT_FALSE(
-      ComponentName::parse("url=<https://example.com>,integrity=<md5-abc>"sv));
-}
-
-TEST(ComponentNameParser, IntegrityName) {
-  using namespace Validator;
-
-  // Valid.
-  {
-    auto CName = ComponentName::parse("integrity=<sha256-abc123>"sv);
-    ASSERT_TRUE(CName.has_value());
-    EXPECT_EQ(CName->getKind(), ComponentNameKind::Integrity);
-    EXPECT_EQ(CName->getDetail().get<IntegrityDetail>().Integrity,
-              "sha256-abc123"sv);
-  }
-  // Invalid: unsupported algorithm.
-  EXPECT_FALSE(ComponentName::parse("integrity=<md5-abc>"sv));
-  // Invalid: empty.
-  EXPECT_FALSE(ComponentName::parse("integrity=<>"sv));
-}
-
-TEST(ComponentNameParser, Semver) {
-  using namespace Validator;
-
-  // Valid semver via interface names.
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1.2.3"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.1.0"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1.2.3-beta.1"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1.2.3+build"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1.2.3-beta.1+build.42"sv));
-  // Valid canonversion.
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@1"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.1"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.0.1"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@42"sv));
-  // Invalid versions.
-  EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@01.2.3"sv));
-  EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@abc"sv));
-  EXPECT_FALSE(ComponentName::parse("a:B/c"sv));
-  EXPECT_FALSE(ComponentName::parse("ns:PKG/iface"sv));
-  EXPECT_FALSE(ComponentName::parse("ns:Pkg/iface"sv));
-  EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@"sv));
-  EXPECT_TRUE(ComponentName::parse("ns:pkg/iface@0.0.0"sv));
-  EXPECT_FALSE(ComponentName::parse("ns:pkg/iface@0"sv));
-}
-
-TEST(ComponentNameParser, SpecExamples) {
-  using namespace Validator;
-
-  // Examples from Explainer.md
-  EXPECT_EQ(ComponentName::parse("custom-hook"sv)->getKind(),
-            ComponentNameKind::Label);
-  EXPECT_EQ(ComponentName::parse("wasi:http/handler"sv)->getKind(),
-            ComponentNameKind::InterfaceType);
-  EXPECT_EQ(ComponentName::parse("url=<https://mycdn.com/my-component.wasm>"sv)
-                ->getKind(),
-            ComponentNameKind::Url);
-  EXPECT_EQ(ComponentName::parse(
-                "url=<./other-component.wasm>,integrity=<sha256-X9ArH3k>"sv)
-                ->getKind(),
-            ComponentNameKind::Url);
-  EXPECT_EQ(
-      ComponentName::parse(
-          "locked-dep=<my-registry:sqlite@1.2.3>,integrity=<sha256-H8BRh8j>"sv)
-          ->getKind(),
-      ComponentNameKind::LockedDep);
-  EXPECT_EQ(
-      ComponentName::parse("unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv)
-          ->getKind(),
-      ComponentNameKind::UnlockedDep);
-  EXPECT_EQ(ComponentName::parse("integrity=<sha256-Y3BsI4l>"sv)->getKind(),
-            ComponentNameKind::Integrity);
-  EXPECT_EQ(ComponentName::parse("get-JSON"sv)->getKind(),
-            ComponentNameKind::Label);
-}
-
-TEST(ComponentNameParser, StronglyUniqueWithNewKinds) {
-  using namespace Validator;
-  ComponentContext::Context Ctx(nullptr);
-
-  auto add = [&](std::string_view S) -> bool {
-    auto CN = ComponentName::parse(S);
-    if (!CN.has_value())
-      return false;
-    return Ctx.AddImportedName(*CN);
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x26, 0x02, 0x42, 0x04, 0x01, 0x40, 0x00,
+      0x01, 0x00, 0x04, 0x00, 0x01, 0x61, 0x01, 0x00,
+      0x01, 0x40, 0x00, 0x01, 0x00, 0x04, 0x00, 0x01,
+      0x62, 0x01, 0x01, 0x42, 0x02, 0x01, 0x40, 0x00,
+      0x01, 0x00, 0x04, 0x00, 0x01, 0x61, 0x01, 0x00,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x01,
+      0x0b, 0x09, 0x01, 0x00, 0x01, 0x65, 0x05, 0x00,
+      0x01, 0x05, 0x00,
   };
+  // clang-format on
 
-  EXPECT_TRUE(add("foo"sv));
-  EXPECT_TRUE(add("locked-dep=<my-registry:sqlite@1.2.3>"sv));
-  EXPECT_TRUE(add("unlocked-dep=<my-registry:imagemagick@{>=1.0.0}>"sv));
-  EXPECT_TRUE(add("url=<https://example.com/pkg.wasm>"sv));
-  EXPECT_TRUE(add("integrity=<sha256-abc123>"sv));
-  EXPECT_TRUE(add("wasi:http/handler"sv));
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_FALSE(VM.validate());
+}
+
+TEST(Component, AliasExportInstanceChainResolves) {
+  // (component
+  //   (type (func))
+  //   (import "f" (func (type 0)))              ;; func[0]
+  //   (instance $inner (export "x" (func 0)))   ;; inst[0]
+  //   (instance $outer (export "i" (instance 0)));; inst[1]
+  //   (alias export 1 "i" (instance))            ;; inst[2]
+  //   (alias export 2 "x" (func))                ;; func[1]
+  //   (export "out" (func 1))
+  // )
+  // wasm-tools: VALID
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00,
+      0x05, 0x0f, 0x02,
+      0x01, 0x01, 0x00, 0x01, 0x78, 0x01, 0x00,
+      0x01, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00,
+      0x06, 0x0b, 0x02,
+      0x05, 0x00, 0x01, 0x01, 0x69,
+      0x01, 0x00, 0x02, 0x01, 0x78,
+      0x0b, 0x09, 0x01,
+      0x00, 0x03, 0x6f, 0x75, 0x74, 0x01, 0x01, 0x00,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_TRUE(VM.validate());
+}
+
+TEST(Component, InstantiateArgInstanceMissingExportRejected) {
+  // (component
+  //   (type (func))
+  //   (import "f" (func (type 0)))
+  //   (component $child
+  //     (type (instance (export "a" (func)) (export "b" (func))))
+  //     (import "i" (instance (type 0)))
+  //   )
+  //   (instance $partial (export "a" (func 0)))
+  //   (instance (instantiate $child (with "i" (instance $partial))))
+  // )
+  // wasm-tools: "missing expected export `b`"
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x05, 0x01, 0x40, 0x00, 0x01, 0x00,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00,
+      0x04, 0x44,
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x19, 0x01, 0x42, 0x04,
+      0x01, 0x40, 0x00, 0x01, 0x00,
+      0x04, 0x00, 0x01, 0x61, 0x01, 0x00,
+      0x01, 0x40, 0x00, 0x01, 0x00,
+      0x04, 0x00, 0x01, 0x62, 0x01, 0x01,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x69, 0x05, 0x00,
+      0x00, 0x17, 0x0e, 0x63, 0x6f, 0x6d, 0x70, 0x6f,
+      0x6e, 0x65, 0x6e, 0x74, 0x2d, 0x6e, 0x61, 0x6d,
+      0x65, 0x00, 0x06, 0x05, 0x63, 0x68, 0x69, 0x6c,
+      0x64,
+      0x05, 0x0f, 0x02,
+      0x01, 0x01, 0x00, 0x01, 0x61, 0x01, 0x00,
+      0x00, 0x00, 0x01, 0x01, 0x69, 0x05, 0x00,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_FALSE(VM.validate());
+}
+
+TEST(Component, ExportAscriptionSortKindMismatchRejected) {
+  // (component
+  //   (type (func))                             ;; type[0]
+  //   (type (instance))                          ;; type[1]
+  //   (import "f" (func (type 0)))               ;; func[0]
+  //   (export "bad" (func 0) (instance (type 1)));; sort=func, desc=instance
+  // )
+  // wasm-tools: "expected instance, found func"
+  Configure Conf;
+  Conf.addProposal(Proposal::Component);
+  VM::VM VM(Conf);
+
+  // clang-format off
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x07, 0x07, 0x02, 0x40, 0x00, 0x01, 0x00, 0x42, 0x00,
+      0x0a, 0x06, 0x01, 0x00, 0x01, 0x66, 0x01, 0x00,
+      0x0b, 0x0b, 0x01,
+      0x00, 0x03, 0x62, 0x61, 0x64, 0x01, 0x00, 0x01, 0x05, 0x01,
+  };
+  // clang-format on
+
+  ASSERT_TRUE(VM.loadWasm(Vec));
+  ASSERT_FALSE(VM.validate());
 }
 
 } // namespace

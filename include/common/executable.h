@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Executable, which holds interface
-/// to executable binary objects.
+/// This file contains the declaration of the Executable, which defines the
+/// interface to executable binary objects.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -24,7 +24,7 @@
 
 namespace WasmEdge {
 
-/// Holder class for library handle
+/// Holder class for a library handle.
 class Executable : public std::enable_shared_from_this<Executable> {
   Executable(const Executable &) = delete;
   Executable &operator=(const Executable &) = delete;
@@ -78,6 +78,7 @@ public:
     kMemAtomicWait,
     kTableGetFuncSymbol,
     kRefGetFuncSymbol,
+    kFuncGetFuncSymbol,
     kIntrinsicMax,
   };
   using IntrinsicsTable = void * [uint32_t(Intrinsics::kIntrinsicMax)];
@@ -89,7 +90,8 @@ public:
   virtual std::vector<Symbol<void>> getCodes(size_t Offset,
                                              size_t Size) noexcept = 0;
 
-protected:
+  virtual bool isLazy() const noexcept { return false; }
+
   template <typename T> Symbol<T> createSymbol(T *Pointer) const noexcept {
     return Symbol<T>(shared_from_this(), Pointer);
   }

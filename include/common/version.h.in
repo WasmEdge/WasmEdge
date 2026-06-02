@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains version information that passed from configure stage.
+/// This file contains version information passed from the configure stage.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once

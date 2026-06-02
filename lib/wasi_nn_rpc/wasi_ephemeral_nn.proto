@@ -2,7 +2,8 @@ syntax = "proto3";
 
 import "google/protobuf/empty.proto";
 
-// The services are expected to be exposed to another host via a UNIX socket with ssh forwarding
+// The services are expected to be exposed to another host via a UNIX socket
+// with SSH forwarding
 // (`ssh -R remote.sock:local.sock`).
 // Must not be exposed to an untrusted host.
 

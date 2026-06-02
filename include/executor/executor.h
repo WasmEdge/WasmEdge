@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Executor class, which instantiate
-/// and run Wasm modules.
+/// This file contains the declaration of the Executor class, which instantiates
+/// and runs Wasm modules.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -92,7 +92,7 @@ using TypeNN =
 
 } // namespace
 
-/// Helper class for handling the pre- and post- host functions
+/// Helper class for handling the pre- and post-host functions.
 class HostFuncHandler {
 public:
   void setPreHost(void *HostData, std::function<void(void *)> HostFunc) {
@@ -155,19 +155,19 @@ public:
     }
   }
 
-  /// Getter of Configure
+  /// Getter for configuration.
   const Configure &getConfigure() const { return Conf; }
 
-  /// Instantiate a WASM Module into an anonymous module instance.
+  /// Instantiate a WASM Module as an anonymous module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
 
-  /// Instantiate and register a WASM module into a named module instance.
+  /// Instantiate and register a WASM module as a named module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   registerModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
                  std::string_view Name);
 
-  /// Register an instantiated module into a named module instance.
+  /// Register an instantiated module as a named module instance.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const Runtime::Instance::ModuleInstance &ModInst);
 
@@ -176,12 +176,12 @@ public:
                               const Runtime::Instance::ModuleInstance &ModInst,
                               std::string_view Name);
 
-  /// Instantiate a Component into an anonymous component instance.
+  /// Instantiate a Component as an anonymous component instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
   instantiateComponent(Runtime::StoreManager &StoreMgr,
                        const AST::Component::Component &Comp);
 
-  /// Instantiate and register a Component into a named component instance.
+  /// Instantiate and register a Component as a named component instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
   registerComponent(Runtime::StoreManager &StoreMgr,
                     const AST::Component::Component &Comp,
@@ -201,6 +201,13 @@ public:
   /// host function.
   Expect<void> registerPostHostFunction(void *HostData,
                                         std::function<void(void *)> HostFunc);
+
+  /// Register a callback for lazy function compilation
+  void registerLazyCompilationCallback(
+      std::function<Expect<void>(const std::string &, const uint32_t)>
+          Callback) {
+    LazyCompilationHandler = std::move(Callback);
+  }
 
   /// Invoke a WASM function by function instance.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -377,10 +384,10 @@ private:
                      Runtime::Instance::FunctionInstance *RFuncInst,
                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
 
-  std::vector<std::pair<ComponentValVariant, ComponentValType>>
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
   convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
                       Span<const ComponentValType> ValTypes,
-                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
+                      Runtime::Instance::MemoryInstance *MemInst);
   /// @}
 
   /// \name Helper Functions for block controls.
@@ -396,10 +403,12 @@ private:
                              const AST::Instruction::JumpDescriptor &JumpDesc,
                              AST::InstrView::iterator &PC) noexcept;
 
-  /// Helper function for throwing an exception.
-  Expect<void> throwException(Runtime::StackManager &StackMgr,
-                              Runtime::Instance::TagInstance &TagInst,
-                              AST::InstrView::iterator &PC) noexcept;
+  /// Helper function for throwing an exception. Pass `ExnInst` on `throw_ref`
+  /// to reuse the exception instance and preserve exnref identity.
+  Expect<void> throwException(
+      Runtime::StackManager &StackMgr, Runtime::Instance::TagInstance &TagInst,
+      AST::InstrView::iterator &PC,
+      const Runtime::Instance::ExceptionInstance *ExnInst = nullptr) noexcept;
   /// @}
 
   /// \name Helper Function for checking memory offset boundary.
@@ -1079,6 +1088,8 @@ public:
                                          const uint32_t FuncIdx) noexcept;
   Expect<void *> proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
                                        const RefVariant Ref) noexcept;
+  Expect<void *> proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                        const uint32_t FuncIdx) noexcept;
   /// @}
 
   /// Callbacks for compiled modules
@@ -1119,11 +1130,11 @@ private:
 
   /// Pointer to current object.
   static thread_local Executor *This;
-  /// Stack for passing into compiled functions
+  /// Stack passed into compiled functions
   static thread_local Runtime::StackManager *CurrentStack;
   /// Execution context for compiled functions
   static thread_local ExecutionContextStruct ExecutionContext;
-  /// Record stack track on error
+  /// Record stack trace on error
   static thread_local std::array<uint32_t, 256> StackTrace;
   static thread_local size_t StackTraceSize;
 
@@ -1131,12 +1142,38 @@ private:
   const Configure Conf;
   /// Executor statistics
   Statistics::Statistics *Stat;
-  /// Stop Execution
+  /// Stop execution
   std::atomic_uint32_t StopToken = 0;
   /// Memory instance this Executor is currently waiting on (for stop()).
   std::atomic<Runtime::Instance::MemoryInstance *> WaitingMemory = nullptr;
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
+  /// Callback for lazy function compilation
+  std::function<Expect<void>(const std::string &, const uint32_t)>
+      LazyCompilationHandler;
+
+  /// Helper function for triggering lazy compilation.
+  /// XXX: Calling checkLazyCompilation in one thread while another thread calls
+  /// unsafeUpgradeToCompiled on the same FuncInst could result in a race
+  /// condition if checking FuncInst->isCompiledFunction() directly here. As a
+  /// temporary workaround, checks for compilation state are deferred to the
+  /// LazyCompilationHandler (VM::lazyCompileFunctions), which executes
+  /// under a global JIT compilation lock.
+  Expect<void> checkLazyCompilation(
+      const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
+    if (LazyCompilationHandler) {
+      if (const auto *TargetModInst = FuncInst->getModule()) {
+        if (auto Res = TargetModInst->getFuncIdx(FuncInst)) {
+          uint32_t TargetFuncIdx = *Res;
+          const std::string ID = TargetModInst->getID();
+          if (!ID.empty()) {
+            return LazyCompilationHandler(ID, TargetFuncIdx);
+          }
+        }
+      }
+    }
+    return {};
+  }
 };
 
 } // namespace Executor

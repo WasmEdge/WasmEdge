@@ -28,20 +28,20 @@ namespace Host {
 namespace WasiCrypto {
 namespace Symmetric {
 
-/// Expand invalid operations, every expand state should inherent from this
+/// Expand invalid operations. Every expand state should inherit from this
 /// class.
 ///
 /// More detailed:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#key-derivation-using-extract-and-expand
 template <typename Key> class ExpandState {
 public:
-  /// Current kdf not support any options.
+  /// The current kdf does not support any options.
   WasiCryptoExpect<size_t> optionsGet(std::string_view,
                                       Span<uint8_t>) const noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
 
-  /// Current kdf not support any options.
+  /// The current kdf does not support any options.
   WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view) const noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
@@ -83,17 +83,17 @@ public:
   }
 };
 
-/// Extract invalid operations, every extract state should inherent from this
+/// Extract invalid operations. Every extract state should inherit from this
 /// class.
 template <typename Key> class ExtractState {
 public:
-  /// Current kdf not support any options.
+  /// The current kdf does not support any options.
   WasiCryptoExpect<size_t> optionsGet(std::string_view,
                                       Span<uint8_t>) const noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
 
-  /// Current kdf not support any options.
+  /// The current kdf does not support any options.
   WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view) const noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }

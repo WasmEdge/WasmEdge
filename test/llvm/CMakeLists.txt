@@ -12,3 +12,15 @@ target_link_libraries(wasmedgeLLVMCoreTests
   wasmedgeTestSpec
   wasmedgeVM
 )
+
+wasmedge_add_executable(wasmedgeLazyJITTests
+  LazyJITTest.cpp
+)
+
+add_test(wasmedgeLazyJITTests wasmedgeLazyJITTests)
+
+target_link_libraries(wasmedgeLazyJITTests
+  PRIVATE
+  wasmedgeVM
+  GTest::gtest
+)

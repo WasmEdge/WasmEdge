@@ -91,6 +91,8 @@ Plugin::Plugin::PluginDescriptor Descriptor{
             /* Create */ create,
         },
     },
+    /* ComponentCount */ 0,
+    /* ComponentDescriptions */ nullptr,
     /* AddOptions */ addOptions,
 };
 

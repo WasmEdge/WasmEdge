@@ -554,6 +554,12 @@ using uint128_t = uint128;
 
 #include <fmt/format.h>
 
+#if FMT_VERSION >= 80000
+#define WASMEDGE_FMT_CONST const
+#else
+#define WASMEDGE_FMT_CONST
+#endif
+
 FMT_BEGIN_NAMESPACE
 #if FMT_VERSION >= 90000
 namespace detail {
@@ -671,6 +677,7 @@ FMT_CONSTEXPR20 inline int count_digits(detail::uint128_fallback N) {
 } // namespace detail
 #endif
 
+#if FMT_VERSION >= 80000
 template <typename Char> struct formatter<WasmEdge::uint128, Char> {
 private:
   detail::dynamic_format_specs<Char> Specs;
@@ -715,4 +722,27 @@ public:
 #endif
   }
 };
+#else
+template <typename Char> struct formatter<WasmEdge::uint128, Char> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext &Ctx) -> decltype(Ctx.begin()) {
+    return Ctx.begin();
+  }
+  template <typename FormatContext>
+  auto format(WasmEdge::uint128 V, FormatContext &Ctx) -> decltype(Ctx.out()) {
+    char Buf[40];
+    char *Pos = Buf + sizeof(Buf);
+    const WasmEdge::uint128 Ten(10U);
+    do {
+      *--Pos = static_cast<char>('0' + (V % Ten).low());
+      V /= Ten;
+    } while (V != WasmEdge::uint128(0U));
+    auto Out = Ctx.out();
+    for (const char *It = Pos; It != Buf + sizeof(Buf); ++It) {
+      *Out++ = *It;
+    }
+    return Out;
+  }
+};
+#endif
 FMT_END_NAMESPACE

@@ -797,9 +797,9 @@ private:
 template <>
 struct fmt::formatter<WasmEdge::AST::FunctionType>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::AST::FunctionType &Type,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::AST::FunctionType &Type,
+         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     using namespace std::literals;
 
     fmt::memory_buffer Buffer;

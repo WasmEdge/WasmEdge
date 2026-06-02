@@ -172,7 +172,8 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
                                     AST::InstrView::iterator &PC,
                                     bool IsTailCall) noexcept {
   const auto Ref = StackMgr.pop().get<RefVariant>();
-  if (Ref.isNull()) {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (FuncInst == nullptr) {
     spdlog::error(ErrCode::Value::AccessNullFunc);
     spdlog::error(
         ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -180,7 +181,6 @@ Expect<void> Executor::runCallRefOp(Runtime::StackManager &StackMgr,
   }
 
   // Get Function address.
-  const auto *FuncInst = retrieveFuncRef(Ref);
   EXPECTED_TRY(auto NextPC,
                enterFunction(StackMgr, *FuncInst, PC + 1, IsTailCall));
   PC = NextPC - 1;
@@ -213,7 +213,8 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
 
   // Get function address. The bound is guaranteed.
   RefVariant Ref = *TabInst->getRefAddr(Idx);
-  if (Ref.isNull()) {
+  const auto *FuncInst = retrieveFuncRef(Ref);
+  if (FuncInst == nullptr) {
     spdlog::error(ErrCode::Value::UninitializedElement);
     spdlog::error(ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset(),
                                            {Idx},
@@ -222,7 +223,6 @@ Expect<void> Executor::runCallIndirectOp(Runtime::StackManager &StackMgr,
   }
 
   // Check function type.
-  const auto *FuncInst = retrieveFuncRef(Ref);
   bool IsMatch = false;
   if (FuncInst->getModule()) {
     IsMatch = AST::TypeMatcher::matchType(

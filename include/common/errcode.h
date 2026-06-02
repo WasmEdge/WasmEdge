@@ -60,9 +60,9 @@ template <typename T> constexpr auto Unexpect(const Expect<T> &Val) {
 
 template <>
 struct fmt::formatter<WasmEdge::ErrCode> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ErrCode &Code,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ErrCode &Code,
+         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     using namespace std::literals;
     std::string Output =
         fmt::format("{} failed: {}, Code: 0x{:03x}"sv, Code.getErrCodePhase(),
@@ -74,9 +74,9 @@ struct fmt::formatter<WasmEdge::ErrCode> : fmt::formatter<std::string_view> {
 template <>
 struct fmt::formatter<WasmEdge::ErrCode::Value>
     : fmt::formatter<WasmEdge::ErrCode> {
-  fmt::format_context::iterator
-  format(const WasmEdge::ErrCode::Value &Value,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::ErrCode::Value &Value,
+         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<WasmEdge::ErrCode>::format(WasmEdge::ErrCode(Value), Ctx);
   }
 };

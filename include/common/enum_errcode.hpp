@@ -151,9 +151,9 @@ static inline constexpr const auto ErrCodeStr = []() constexpr {
 
 template <>
 struct fmt::formatter<WasmEdge::WasmPhase> : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator
-  format(const WasmEdge::WasmPhase &Phase,
-         fmt::format_context &Ctx) const noexcept {
+  template <typename FmtCtx>
+  auto format(const WasmEdge::WasmPhase &Phase,
+         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::WasmPhaseStr[Phase],
                                                Ctx);
   }

@@ -693,6 +693,18 @@ TEST(RunSubcommand, RunModeFlagParses) {
   EXPECT_EQ(Opt.ConfRunMode.value(), "jit");
 }
 
+TEST(RunSubcommand, ParseRunModeArg) {
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("interpreter"),
+            WasmEdge::RunMode::Interpreter);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("jit"), WasmEdge::RunMode::JIT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("aot"), WasmEdge::RunMode::AOT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("lazyjit"),
+            WasmEdge::RunMode::LazyJIT);
+  EXPECT_EQ(WasmEdge::Driver::parseRunModeArg("JIT"), WasmEdge::RunMode::JIT);
+  EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("jti").has_value());
+  EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("").has_value());
+}
+
 /* ---------------------------------------------------------------------------
  * InstantiateSubcommand tests
  * TODO: Commented out due to plugin re-entrancy issue.

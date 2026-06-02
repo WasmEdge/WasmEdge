@@ -15,6 +15,7 @@
 #include "driver/options.h"
 #include "plugin/plugin.h"
 #include "po/argument_parser.h"
+#include <optional>
 #include <string_view>
 
 namespace WasmEdge {
@@ -180,6 +181,7 @@ public:
   }
 };
 Configure createConfigure(const struct DriverToolOptions &Opt) noexcept;
+std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept;
 
 int Tool(struct DriverToolOptions &Opt) noexcept;
 int ParseTool(struct DriverToolOptions &Opt) noexcept;

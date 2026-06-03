@@ -799,7 +799,7 @@ struct fmt::formatter<WasmEdge::AST::FunctionType>
     : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
   auto format(const WasmEdge::AST::FunctionType &Type,
-         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     using namespace std::literals;
 
     fmt::memory_buffer Buffer;

@@ -112,7 +112,7 @@ struct fmt::formatter<WasmEdge::ErrInfo::PtrType>
     : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
   auto format(const WasmEdge::ErrInfo::PtrType &Type,
-         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(
         WasmEdge::ErrInfo::PtrTypeStr[Type], Ctx);
   }
@@ -123,7 +123,7 @@ struct fmt::formatter<WasmEdge::ErrInfo::MismatchCategory>
     : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
   auto format(const WasmEdge::ErrInfo::MismatchCategory &Category,
-         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(
         WasmEdge::ErrInfo::MismatchCategoryStr[Category], Ctx);
   }
@@ -134,7 +134,7 @@ struct fmt::formatter<WasmEdge::ErrInfo::IndexCategory>
     : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
   auto format(const WasmEdge::ErrInfo::IndexCategory &Category,
-         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(
         WasmEdge::ErrInfo::IndexCategoryStr[Category], Ctx);
   }

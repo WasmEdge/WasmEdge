@@ -50,8 +50,8 @@ template <>
 struct fmt::formatter<std::filesystem::path>
     : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
-  auto format(const std::filesystem::path &Path,
-              FmtCtx &Ctx) WASMEDGE_FMT_CONST -> decltype(Ctx.out()) {
+  auto format(const std::filesystem::path &Path, FmtCtx &Ctx) WASMEDGE_FMT_CONST
+      -> decltype(Ctx.out()) {
     // mimic std::quoted
     constexpr const char Delimiter = '"';
     constexpr const char Escape = '\\';

@@ -112,7 +112,8 @@ static inline constexpr const auto ComponentTypeCodeStr = []() constexpr {
 template <>
 struct fmt::formatter<WasmEdge::ValMut> : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
-  auto format(const WasmEdge::ValMut &Mut, FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+  auto format(const WasmEdge::ValMut &Mut,
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::ValMutStr[Mut], Ctx);
   }
 };
@@ -122,7 +123,7 @@ struct fmt::formatter<WasmEdge::ExternalType>
     : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
   auto format(const WasmEdge::ExternalType &Type,
-         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::ExternalTypeStr[Type],
                                                Ctx);
   }

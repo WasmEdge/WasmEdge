@@ -269,8 +269,9 @@ struct InfoProposal {
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoFile>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoFile &Info,
-                                       fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoFile &Info,
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoLoading>
@@ -282,8 +283,9 @@ struct fmt::formatter<WasmEdge::ErrInfo::InfoLoading>
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoAST>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoAST &Info,
-                                       fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoAST &Info,
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoInstanceBound>
@@ -309,8 +311,9 @@ struct fmt::formatter<WasmEdge::ErrInfo::InfoExporting>
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoLimit>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoLimit &Info,
-                                       fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoLimit &Info,
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoRegistering>

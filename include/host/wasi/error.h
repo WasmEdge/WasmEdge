@@ -30,7 +30,8 @@ template <typename T> constexpr auto WasiUnexpect(const WasiExpect<T> &Val) {
 template <>
 struct fmt::formatter<__wasi_errno_t> : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
-  auto format(__wasi_errno_t ErrNo, FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+  auto format(__wasi_errno_t ErrNo, FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept
+      -> decltype(Ctx.out()) {
     fmt::memory_buffer Buffer;
     using namespace std::literals;
     auto Iter = std::back_inserter(Buffer);

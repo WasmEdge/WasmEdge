@@ -6,12 +6,43 @@
 #include "common/errinfo.h"
 #include "common/spdlog.h"
 
+#include <cstdint>
+#include <optional>
 #include <string_view>
 
 namespace WasmEdge {
 namespace Executor {
 
 using namespace std::literals;
+
+namespace {
+
+constexpr uint32_t MaxFlatResults = 1;
+
+std::optional<uint32_t> flatSize(ComponentTypeCode TC) noexcept {
+  switch (TC) {
+  case ComponentTypeCode::Bool:
+  case ComponentTypeCode::U8:
+  case ComponentTypeCode::U16:
+  case ComponentTypeCode::U32:
+  case ComponentTypeCode::U64:
+  case ComponentTypeCode::S8:
+  case ComponentTypeCode::S16:
+  case ComponentTypeCode::S32:
+  case ComponentTypeCode::S64:
+  case ComponentTypeCode::F32:
+  case ComponentTypeCode::F64:
+  case ComponentTypeCode::Char:
+  case ComponentTypeCode::Flags:
+    return 1u;
+  case ComponentTypeCode::String:
+    return 2u;
+  default:
+    return std::nullopt;
+  }
+}
+
+} // namespace
 
 std::vector<ValVariant> Executor::convValsToCoreWASM(
     Span<const ComponentValVariant> Vals, Span<const ComponentValType> ValTypes,
@@ -63,24 +94,49 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
   return CoreVals;
 }
 
-std::vector<std::pair<ComponentValVariant, ComponentValType>>
+Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
 Executor::convValsToComponent(
     Span<const std::pair<ValVariant, ValType>> CoreVals,
     Span<const ComponentValType> ValTypes,
-    Runtime::Instance::MemoryInstance *MemInst) noexcept {
+    Runtime::Instance::MemoryInstance *MemInst) {
+  uint32_t FlatCount = 0;
+  for (const auto &Type : ValTypes) {
+    auto Size = flatSize(Type.getCode());
+    if (!Size.has_value()) {
+      spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+      spdlog::error(
+          "    canonical lifting of component type 0x{:02x} not implemented"sv,
+          static_cast<uint8_t>(Type.getCode()));
+      return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+    }
+    FlatCount += *Size;
+  }
+
+  if (FlatCount > MaxFlatResults) {
+    spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
+    spdlog::error(
+        "    canonical lifting via return-area pointer (flat count {} > {}) "
+        "not implemented"sv,
+        FlatCount, MaxFlatResults);
+    return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
+  }
+
   uint32_t I = 0;
   std::vector<std::pair<ComponentValVariant, ComponentValType>> Vals;
+  Vals.reserve(ValTypes.size());
   for (const auto &Type : ValTypes) {
     switch (Type.getCode()) {
     case ComponentTypeCode::String: {
+      assuming(MemInst != nullptr);
       auto Off = CoreVals[I++].first.get<uint32_t>();
       auto Size = CoreVals[I++].first.get<uint32_t>();
+      if (unlikely(!MemInst->checkAccessBound(Off, Size))) {
+        spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+        spdlog::error("    string pointer/length out of bounds of memory"sv);
+        return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+      }
       auto Str = MemInst->getStringView(Off, Size);
       Vals.emplace_back(std::string(Str), Type);
-      break;
-    }
-    case ComponentTypeCode::TypeIndex: {
-      // TODO: COMPONENT - Not implemented.
       break;
     }
     default: {
@@ -97,7 +153,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
                       const AST::Component::CanonSection &CanonSec) {
   for (const auto &Canon : CanonSec.getContent()) {
     switch (Canon.getOpCode()) {
-    case AST::Component::Canonical::OpCode::Lift: {
+    case ComponentCanonOpCode::Lift: {
       // Lift wraps a core Wasm function to a component function with proper
       // canonical ABI modification.
       const auto &Opts = Canon.getOptions();
@@ -105,20 +161,20 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
-        case AST::Component::CanonOpt::OptCode::Encode_UTF8:
-        case AST::Component::CanonOpt::OptCode::Encode_UTF16:
-        case AST::Component::CanonOpt::OptCode::Encode_Latin1:
+        case ComponentCanonOptCode::Encode_UTF8:
+        case ComponentCanonOptCode::Encode_UTF16:
+        case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
           spdlog::error("    incomplete canonincal options"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-        case AST::Component::CanonOpt::OptCode::Memory:
+        case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::Realloc:
+        case ComponentCanonOptCode::Realloc:
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::PostReturn:
-        case AST::Component::CanonOpt::OptCode::Async:
+        case ComponentCanonOptCode::PostReturn:
+        case ComponentCanonOptCode::Async:
           // TODO: incomplete validation of these cases.
         default:
           assumingUnreachable();
@@ -139,7 +195,7 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
               DType->getFuncType(), FuncInst, MemInst, ReallocFunc));
       break;
     }
-    case AST::Component::Canonical::OpCode::Lower: {
+    case ComponentCanonOpCode::Lower: {
       // Lower sends a component function to a core Wasm function with proper
       // canonical ABI modification.
 
@@ -153,20 +209,20 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       Runtime::Instance::FunctionInstance *ReallocFunc = nullptr;
       for (auto &Opt : Opts) {
         switch (Opt.getCode()) {
-        case AST::Component::CanonOpt::OptCode::Encode_UTF8:
-        case AST::Component::CanonOpt::OptCode::Encode_UTF16:
-        case AST::Component::CanonOpt::OptCode::Encode_Latin1:
+        case ComponentCanonOptCode::Encode_UTF8:
+        case ComponentCanonOptCode::Encode_UTF16:
+        case ComponentCanonOptCode::Encode_Latin1:
           spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
           spdlog::error("    incomplete canonincal options"sv);
           return Unexpect(ErrCode::Value::ComponentNotImplInstantiate);
-        case AST::Component::CanonOpt::OptCode::Memory:
+        case ComponentCanonOptCode::Memory:
           MemInst = CompInst.getCoreMemory(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::Realloc:
+        case ComponentCanonOptCode::Realloc:
           ReallocFunc = CompInst.getCoreFunction(Opt.getIndex());
           break;
-        case AST::Component::CanonOpt::OptCode::PostReturn:
-        case AST::Component::CanonOpt::OptCode::Async:
+        case ComponentCanonOptCode::PostReturn:
+        case ComponentCanonOptCode::Async:
           // TODO: incomplete validation of these cases.
         default:
           assumingUnreachable();
@@ -179,9 +235,9 @@ Executor::instantiate(Runtime::Instance::ComponentInstance &CompInst,
       CompInst.addCoreFunction(CoreFuncInst);
       break;
     }
-    case AST::Component::Canonical::OpCode::Resource__new:
-    case AST::Component::Canonical::OpCode::Resource__drop:
-    case AST::Component::Canonical::OpCode::Resource__rep:
+    case ComponentCanonOpCode::Resource__new:
+    case ComponentCanonOpCode::Resource__drop:
+    case ComponentCanonOpCode::Resource__rep:
     default:
       spdlog::error(ErrCode::Value::ComponentNotImplInstantiate);
       spdlog::error("    incomplete canonincal"sv);

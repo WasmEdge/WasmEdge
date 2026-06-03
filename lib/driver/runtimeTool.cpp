@@ -25,22 +25,28 @@ using namespace std::literals;
 namespace WasmEdge {
 namespace Driver {
 
-namespace {
-RunMode parseRunModeArg(std::string_view S) noexcept {
+std::optional<RunMode> parseRunModeArg(std::string_view S) noexcept {
   std::string Lower(S);
   std::transform(Lower.begin(), Lower.end(), Lower.begin(),
                  [](unsigned char C) -> char {
                    return static_cast<char>(std::tolower(C));
                  });
+  if (Lower == "interpreter") {
+    return RunMode::Interpreter;
+  }
   if (Lower == "jit") {
     return RunMode::JIT;
   }
   if (Lower == "aot") {
     return RunMode::AOT;
   }
-  // Default to interpreter on any unrecognised value.
-  return RunMode::Interpreter;
+  if (Lower == "lazyjit") {
+    return RunMode::LazyJIT;
+  }
+  return std::nullopt;
 }
+
+namespace {
 
 // Helper template to parse numeric arguments and catch conversion exceptions
 template <typename Converter, typename ValVec, typename TypeVec, typename TC>
@@ -358,106 +364,7 @@ ToolOnComponent(WasmEdge::VM::VM &VM, const std::string &FuncName,
 int Tool(struct DriverToolOptions &Opt) noexcept {
   std::ios::sync_with_stdio(false);
 
-  Configure Conf;
-  // WASM standard configuration has the highest priority.
-  if (Opt.PropWASM1.value()) {
-    Conf.setWASMStandard(Standard::WASM_1);
-  }
-  if (Opt.PropWASM2.value()) {
-    Conf.setWASMStandard(Standard::WASM_2);
-  }
-  if (Opt.PropWASM3.value()) {
-    Conf.setWASMStandard(Standard::WASM_3);
-  }
-
-  // Proposals adjustment.
-  if (Opt.PropMutGlobals.value()) {
-    Conf.removeProposal(Proposal::ImportExportMutGlobals);
-  }
-  if (Opt.PropNonTrapF2IConvs.value()) {
-    Conf.removeProposal(Proposal::NonTrapFloatToIntConversions);
-  }
-  if (Opt.PropSignExtendOps.value()) {
-    Conf.removeProposal(Proposal::SignExtensionOperators);
-  }
-  if (Opt.PropMultiValue.value()) {
-    Conf.removeProposal(Proposal::MultiValue);
-  }
-  if (Opt.PropBulkMemOps.value()) {
-    Conf.removeProposal(Proposal::BulkMemoryOperations);
-  }
-  if (Opt.PropSIMD.value()) {
-    Conf.removeProposal(Proposal::SIMD);
-  }
-  if (Opt.PropTailCall.value()) {
-    Conf.removeProposal(Proposal::TailCall);
-  }
-  if (Opt.PropExtendConst.value()) {
-    Conf.removeProposal(Proposal::ExtendedConst);
-  }
-  if (Opt.PropMultiMem.value()) {
-    Conf.removeProposal(Proposal::MultiMemories);
-  }
-  if (Opt.PropRelaxedSIMD.value()) {
-    Conf.removeProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropExceptionHandling.value()) {
-    Conf.removeProposal(Proposal::ExceptionHandling);
-  }
-  if (Opt.PropMemory64.value()) {
-    Conf.removeProposal(Proposal::Memory64);
-  }
-  if (Opt.PropTailCallDeprecated.value()) {
-    Conf.addProposal(Proposal::TailCall);
-  }
-  if (Opt.PropExtendConstDeprecated.value()) {
-    Conf.addProposal(Proposal::ExtendedConst);
-  }
-  if (Opt.PropMultiMemDeprecated.value()) {
-    Conf.addProposal(Proposal::MultiMemories);
-  }
-  if (Opt.PropRelaxedSIMDDeprecated.value()) {
-    Conf.addProposal(Proposal::RelaxSIMD);
-  }
-  if (Opt.PropExceptionHandlingDeprecated.value()) {
-    Conf.addProposal(Proposal::ExceptionHandling);
-  }
-
-  // Handle the proposal removal which has dependency.
-  // The GC proposal depends on the func-ref proposal, and the func-ref proposal
-  // depends on the ref-types proposal.
-  if (Opt.PropGC.value()) {
-    Conf.removeProposal(Proposal::GC);
-  }
-  if (Opt.PropFunctionReference.value()) {
-    // This will automatically not work if the GC proposal not disabled.
-    Conf.removeProposal(Proposal::FunctionReferences);
-  }
-  if (Opt.PropRefTypes.value()) {
-    // This will automatically not work if the GC or func-ref proposal not
-    // disabled.
-    Conf.removeProposal(Proposal::ReferenceTypes);
-  }
-  if (Opt.PropFunctionReferenceDeprecated.value()) {
-    Conf.addProposal(Proposal::FunctionReferences);
-  }
-  if (Opt.PropGCDeprecated.value()) {
-    Conf.addProposal(Proposal::GC);
-  }
-
-  if (Opt.PropThreads.value()) {
-    Conf.addProposal(Proposal::Threads);
-  }
-  if (Opt.PropComponent.value()) {
-    Conf.addProposal(Proposal::Component);
-    spdlog::warn("component model is enabled, this is experimental."sv);
-  }
-  if (Opt.PropAll.value()) {
-    Conf.setWASMStandard(Standard::WASM_3);
-    Conf.addProposal(Proposal::Threads);
-    spdlog::warn("component model is enabled, this is experimental."sv);
-    Conf.addProposal(Proposal::Component);
-  }
+  Configure Conf = createConfigure(Opt);
 
   std::optional<std::chrono::system_clock::time_point> Timeout;
   if (Opt.TimeLim.value() > 0) {
@@ -496,7 +403,14 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       spdlog::warn("--run-mode overrides deprecated --enable-jit / "
                    "--force-interpreter."sv);
     }
-    RunModeFromFlag = parseRunModeArg(Opt.ConfRunMode.value());
+    if (auto Mode = parseRunModeArg(Opt.ConfRunMode.value())) {
+      RunModeFromFlag = *Mode;
+    } else {
+      spdlog::warn("Unknown --run-mode value: \"{}\"; using interpreter. "
+                   "Valid values: interpreter, jit, aot, lazyjit."sv,
+                   Opt.ConfRunMode.value());
+      RunModeFromFlag = RunMode::Interpreter;
+    }
   } else if (Opt.ConfEnableJIT.value()) {
     spdlog::warn("--enable-jit is deprecated, use --run-mode=jit instead."sv);
     RunModeFromFlag = RunMode::JIT;
@@ -506,7 +420,7 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     RunModeFromFlag = RunMode::Interpreter;
   }
   Conf.getRuntimeConfigure().setRunMode(RunModeFromFlag);
-  if (RunModeFromFlag == RunMode::JIT) {
+  if (RunModeFromFlag == RunMode::JIT || RunModeFromFlag == RunMode::LazyJIT) {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O1);
   }
@@ -520,10 +434,6 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
     Conf.getRuntimeConfigure().setAllowAFUNIX(true);
   }
 
-  for (const auto &Name : Opt.ForbiddenPlugins.value()) {
-    Conf.addForbiddenPlugins(Name);
-  }
-
   Conf.addHostRegistration(HostRegistration::Wasi);
   const auto InputPath =
       std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
@@ -532,6 +442,23 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
   VM::VM VM(Conf);
   Host::WasiModule *WasiMod = dynamic_cast<Host::WasiModule *>(
       VM.getImportModule(HostRegistration::Wasi));
+
+  for (const auto &ModEntry : Opt.LinkedModules.value()) {
+    auto Pos = ModEntry.find(':');
+    if (Pos == std::string::npos) {
+      spdlog::error("Invalid --module format: \"{}\". Expected name:path."sv,
+                    ModEntry);
+      return EXIT_FAILURE;
+    }
+    auto Name = ModEntry.substr(0, Pos);
+    auto Path = std::filesystem::absolute(
+        std::filesystem::u8path(ModEntry.substr(Pos + 1)));
+    if (auto Result = VM.registerModule(Name, Path); !Result) {
+      spdlog::error("Failed to register module \"{}\" from: {}"sv, Name,
+                    Path.u8string());
+      return EXIT_FAILURE;
+    }
+  }
 
   // Load, validate, and instantiate WASM or Component.
   if (auto Result = VM.loadWasm(InputPath.u8string()); !Result) {

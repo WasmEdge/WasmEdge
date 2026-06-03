@@ -10,11 +10,29 @@
 #include <fstream>
 #include <limits>
 #include <memory>
+#include <random>
 #include <system_error>
 #include <utility>
 #include <variant>
 
 using namespace std::literals;
+
+namespace {
+std::string generateID() {
+  static const std::string Characters =
+      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+  static std::mutex M;
+  static std::mt19937 Gen{std::random_device{}()};
+  std::uniform_int_distribution<size_t> Dist(0, Characters.size() - 1);
+  std::lock_guard L(M);
+
+  std::string Result(10, '\0');
+  for (char &C : Result) {
+    C = Characters[Dist(Gen)];
+  }
+  return Result;
+}
+} // namespace
 
 namespace WasmEdge {
 namespace Loader {
@@ -193,6 +211,9 @@ Loader::loadUnit() {
     auto Mod = std::make_unique<AST::Module>();
     Mod->getMagic() = WasmMagic;
     Mod->getVersion() = Ver;
+    if (Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) {
+      Mod->setID(generateID());
+    }
     if (Conf.getRuntimeConfigure().getRunMode() == RunMode::AOT) {
       EXPECTED_TRY(loadModuleAOT(Mod->getAOTSection()));
     }

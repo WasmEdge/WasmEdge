@@ -442,7 +442,7 @@ using ValVariant =
 // ----------------------------------------------------
 //  byte |      0th ~ 3rd       |      4th ~ 7th
 // ------|----------------------|----------------------
-//  code | ComponentValTypeCode |      Type index
+//  code | ComponentTypeCode    |      Type index
 // ----------------------------------------------------
 
 /// ComponentValType class definition.
@@ -689,6 +689,9 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
 
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
+  if (!Val.getType().isFuncRefType()) {
+    return nullptr;
+  }
   return Val.getPtr<Runtime::Instance::FunctionInstance>();
 }
 

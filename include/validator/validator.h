@@ -27,7 +27,7 @@ namespace Validator {
 /// Validator flow control class.
 class Validator {
 public:
-  Validator(const Configure &Conf) noexcept : Conf(Conf) {}
+  Validator(const Configure &Conf) noexcept;
   ~Validator() noexcept = default;
 
   /// Validate AST::Module.
@@ -106,7 +106,7 @@ private:
   // Validate component canonical
   Expect<void> validate(const AST::Component::Canonical &Canon) noexcept;
   Expect<void>
-  validateCanonOptions(AST::Component::Canonical::OpCode Code,
+  validateCanonOptions(ComponentCanonOpCode Code,
                        Span<const AST::Component::CanonOpt> Opts) noexcept;
   // Per-opcode canonical built-in validators.
   Expect<void>
@@ -154,6 +154,9 @@ private:
   FormChecker Checker;
   /// Context for Component validation
   ComponentContext CompCtx;
+  /// Pre-defined core function SubTypes
+  const AST::SubType CoreFuncType_I32_I32;  // [i32] -> [i32]
+  const AST::SubType CoreFuncType_I32_Void; // [i32] -> []
 };
 
 } // namespace Validator

@@ -12,6 +12,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -32,7 +33,11 @@ public:
     const Context *Parent;
 
     // --- Core sort index spaces ---
-    std::vector<const AST::Module *> CoreModules; // core:module
+    // The export source of a core:module index: inline AST (defined here),
+    // declared core:moduletype (imported/aliased), or monostate (opaque).
+    using CoreModuleEntry = std::variant<std::monostate, const AST::Module *,
+                                         const AST::Component::CoreDefType *>;
+    std::vector<CoreModuleEntry> CoreModules; // core:module
     std::vector<std::unordered_map<std::string, ExternalType>>
         CoreInstances;                                 // core:instance
     std::vector<const AST::SubType *> CoreTypes;       // core:type
@@ -43,7 +48,12 @@ public:
     uint32_t CoreTagCount = 0;                         // core:tag
 
     // --- Component sort index spaces ---
-    std::vector<const AST::Component::Component *> Components; // component
+    // Component analogue of CoreModuleEntry: inline AST, declared
+    // componenttype, or monostate (opaque).
+    using ComponentEntry =
+        std::variant<std::monostate, const AST::Component::Component *,
+                     const AST::Component::ComponentType *>;
+    std::vector<ComponentEntry> Components; // component
     // Instance exports: name → {sort, optional resolved InstanceType,
     // optional nested instance idx} so alias-export and ascription subtype
     // checks can follow chains without re-deriving from ExternDesc.
@@ -64,6 +74,11 @@ public:
         InstanceTypes;
     std::unordered_map<uint32_t, const AST::Component::ResourceType *>
         ResourceTypes;
+    // Moduletype bodies, keyed by core:type index (rec types live in
+    // CoreTypes). Lets an imported `(core module (type i))` recover its
+    // exports.
+    std::unordered_map<uint32_t, const AST::Component::CoreDefType *>
+        CoreModuleTypeDefs;
 
     // Type indices that refer to locally-defined resources (not imported / not
     // aliased from an outer scope). Required by canon resource.new /
@@ -74,6 +89,12 @@ public:
     std::unordered_map<std::string, uint32_t> TypeSubstitutions;
     std::unordered_set<std::string> ImportedNames;
     std::unordered_set<std::string> ExportedNames;
+    // Resource labels in scope: maps the plain-name of a resource
+    // (introduced by a TypeBound import or export with a kebab-case label)
+    // to its type index. Used to validate annotated names of the form
+    // `[constructor]R`, `[method]R.f`, `[static]R.f` — these require the
+    // resource named `R` to be in scope.
+    std::unordered_map<std::string, uint32_t> ResourceLabels;
 
     // Size queries (used by outer alias validation on parent contexts).
     uint32_t getSortIndexSize(AST::Component::Sort::SortType ST) const noexcept;
@@ -81,6 +102,7 @@ public:
     getCoreSortIndexSize(AST::Component::Sort::CoreSortType ST) const noexcept;
 
     bool AddImportedName(const ComponentName &Name) noexcept;
+    bool AddExportedName(const ComponentName &Name) noexcept;
   };
 
   // ==========================================================================
@@ -145,22 +167,41 @@ public:
   // core:module
   // ==========================================================================
 
-  uint32_t addCoreModule(const AST::Module &M) noexcept {
+  // Add a core:module index entry from each possible export source.
+  uint32_t addInlineCoreModule(const AST::Module &M) noexcept {
     auto &V = getCurrentContext().CoreModules;
     uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(&M);
+    V.emplace_back(&M);
+    return Idx;
+  }
+  uint32_t
+  addDeclaredCoreModule(const AST::Component::CoreDefType &MT) noexcept {
+    assuming(MT.isModuleType());
+    auto &V = getCurrentContext().CoreModules;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.emplace_back(&MT);
+    return Idx;
+  }
+  uint32_t addOpaqueCoreModule() noexcept {
+    auto &V = getCurrentContext().CoreModules;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.emplace_back();
     return Idx;
   }
 
-  uint32_t addCoreModule() noexcept {
-    auto &V = getCurrentContext().CoreModules;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(nullptr);
-    return Idx;
-  }
-
+  // Inline module AST, or nullptr if the entry is a moduletype or opaque.
   const AST::Module *getCoreModule(uint32_t Idx) const noexcept {
-    return getCurrentContext().CoreModules.at(Idx);
+    const auto &E = getCurrentContext().CoreModules.at(Idx);
+    const auto *P = std::get_if<const AST::Module *>(&E);
+    return P != nullptr ? *P : nullptr;
+  }
+
+  // Declared moduletype, or nullptr if the entry is a raw AST or opaque.
+  const AST::Component::CoreDefType *
+  getCoreModuleType(uint32_t Idx) const noexcept {
+    const auto &E = getCurrentContext().CoreModules.at(Idx);
+    const auto *P = std::get_if<const AST::Component::CoreDefType *>(&E);
+    return P != nullptr ? *P : nullptr;
   }
 
   // ==========================================================================
@@ -193,6 +234,22 @@ public:
     uint32_t Idx = static_cast<uint32_t>(V.size());
     V.push_back(ST);
     return Idx;
+  }
+
+  // Tag the core:type at CoreTypeIdx as a moduletype (keyed by core:type
+  // index, unlike getCoreModuleType which is keyed by core:module index).
+  void recordCoreModuleTypeDef(uint32_t CoreTypeIdx,
+                               const AST::Component::CoreDefType &MT) noexcept {
+    assuming(MT.isModuleType());
+    getCurrentContext().CoreModuleTypeDefs[CoreTypeIdx] = &MT;
+  }
+
+  // Moduletype at a core:type index, or nullptr if that index isn't one.
+  const AST::Component::CoreDefType *
+  getCoreModuleTypeDef(uint32_t CoreTypeIdx) const noexcept {
+    const auto &M = getCurrentContext().CoreModuleTypeDefs;
+    auto It = M.find(CoreTypeIdx);
+    return It != M.end() ? It->second : nullptr;
   }
   uint32_t addCoreFunc(const AST::SubType *ST = nullptr) noexcept {
     auto &V = getCurrentContext().CoreFuncs;
@@ -229,22 +286,74 @@ public:
   // component
   // ==========================================================================
 
-  uint32_t addComponent(const AST::Component::Component &C) noexcept {
+  // Add a component index entry from each possible export source.
+  uint32_t addInlineComponent(const AST::Component::Component &C) noexcept {
     auto &V = getCurrentContext().Components;
     uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(&C);
+    V.emplace_back(&C);
+    return Idx;
+  }
+  uint32_t
+  addDeclaredComponent(const AST::Component::ComponentType &CT) noexcept {
+    auto &V = getCurrentContext().Components;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.emplace_back(&CT);
+    return Idx;
+  }
+  uint32_t addOpaqueComponent() noexcept {
+    auto &V = getCurrentContext().Components;
+    uint32_t Idx = static_cast<uint32_t>(V.size());
+    V.emplace_back();
     return Idx;
   }
 
-  uint32_t addComponent() noexcept {
-    auto &V = getCurrentContext().Components;
-    uint32_t Idx = static_cast<uint32_t>(V.size());
-    V.push_back(nullptr);
-    return Idx;
-  }
-
+  // Inline component AST, or nullptr if the entry is a componenttype or
+  // opaque.
   const AST::Component::Component *getComponent(uint32_t Idx) const noexcept {
-    return getCurrentContext().Components.at(Idx);
+    const auto &E = getCurrentContext().Components.at(Idx);
+    const auto *P = std::get_if<const AST::Component::Component *>(&E);
+    return P != nullptr ? *P : nullptr;
+  }
+
+  // Declared componenttype, or nullptr if the entry is a raw AST or opaque.
+  const AST::Component::ComponentType *
+  getComponentType(uint32_t Idx) const noexcept {
+    const auto &E = getCurrentContext().Components.at(Idx);
+    const auto *P = std::get_if<const AST::Component::ComponentType *>(&E);
+    return P != nullptr ? *P : nullptr;
+  }
+
+  // The scope an outer alias targets: Ct parent hops up. nullptr if Ct
+  // exceeds the enclosing depth.
+  const Context *resolveOuterContext(uint32_t Ct) const noexcept {
+    uint32_t Hops = 0;
+    const Context *T = &getCurrentContext();
+    while (Ct > Hops && T != nullptr) {
+      T = T->Parent;
+      ++Hops;
+    }
+    return T;
+  }
+
+  // Reproduce an outer-aliased core module's export source into the alias's
+  // slot DstIdx, so its exports stay enumerable when the alias is instantiated.
+  void carryOuterCoreModule(uint32_t DstIdx, uint32_t Ct,
+                            uint32_t SrcIdx) noexcept {
+    const Context *O = resolveOuterContext(Ct);
+    auto &Dst = getCurrentContext().CoreModules;
+    if (O != nullptr && SrcIdx < O->CoreModules.size() && DstIdx < Dst.size()) {
+      Dst[DstIdx] = O->CoreModules[SrcIdx];
+    }
+  }
+
+  // Component analogue of carryOuterCoreModule.
+  void carryOuterComponent(uint32_t DstIdx, uint32_t Ct,
+                           uint32_t SrcIdx) noexcept {
+    const Context *O = resolveOuterContext(Ct);
+    auto &Dst = getCurrentContext().Components;
+    if (O != nullptr && SrcIdx < O->Components.size() && DstIdx < Dst.size()) {
+      Dst[DstIdx] = O->Components[SrcIdx];
+    }
   }
 
   // ==========================================================================
@@ -362,9 +471,21 @@ public:
     return getCurrentContext().AddImportedName(Name);
   }
 
-  /// Returns false if the export name already exists (duplicate).
-  bool addExportedName(std::string_view Name) noexcept {
-    return getCurrentContext().ExportedNames.emplace(Name).second;
+  /// Returns false if the export name violates strong-uniqueness.
+  bool addExportedName(const ComponentName &Name) noexcept {
+    return getCurrentContext().AddExportedName(Name);
+  }
+
+  /// Register a resource name introduced by an import/export of a TypeBound
+  /// (sub resource). Subsequent annotated names ([constructor]R / [method]R.f
+  /// / [static]R.f) can resolve `R` to its type index via hasResourceLabel.
+  void addResourceLabel(std::string_view Name, uint32_t TypeIdx) noexcept {
+    getCurrentContext().ResourceLabels.emplace(std::string(Name), TypeIdx);
+  }
+
+  bool hasResourceLabel(std::string_view Name) const noexcept {
+    return getCurrentContext().ResourceLabels.find(std::string(Name)) !=
+           getCurrentContext().ResourceLabels.end();
   }
 
 private:

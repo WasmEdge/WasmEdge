@@ -84,38 +84,32 @@ TEST(WasmEdgeZlibTest, DeflateInflateCycle) {
   auto *FuncInst = ZlibMod->findFuncExports("deflateInit_");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &DeflateInit_ = dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflateInit_ &>(
-      FuncInst->getHostFunc());
+  auto &DeflateInit_ = FuncInst->getHostFunc();
 
   FuncInst = ZlibMod->findFuncExports("deflate");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &Deflate = dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflate &>(
-      FuncInst->getHostFunc());
+  auto &Deflate = FuncInst->getHostFunc();
 
   FuncInst = ZlibMod->findFuncExports("deflateEnd");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &DeflateEnd = dynamic_cast<WasmEdge::Host::WasmEdgeZlibDeflateEnd &>(
-      FuncInst->getHostFunc());
+  auto &DeflateEnd = FuncInst->getHostFunc();
 
   FuncInst = ZlibMod->findFuncExports("inflateInit_");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &InflateInit_ = dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflateInit_ &>(
-      FuncInst->getHostFunc());
+  auto &InflateInit_ = FuncInst->getHostFunc();
 
   FuncInst = ZlibMod->findFuncExports("inflate");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &Inflate = dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflate &>(
-      FuncInst->getHostFunc());
+  auto &Inflate = FuncInst->getHostFunc();
 
   FuncInst = ZlibMod->findFuncExports("inflateEnd");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &InflateEnd = dynamic_cast<WasmEdge::Host::WasmEdgeZlibInflateEnd &>(
-      FuncInst->getHostFunc());
+  auto &InflateEnd = FuncInst->getHostFunc();
 
   std::array<WasmEdge::ValVariant, 1> RetVal;
 

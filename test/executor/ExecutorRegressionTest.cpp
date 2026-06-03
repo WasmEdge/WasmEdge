@@ -141,9 +141,14 @@ std::array<WasmEdge::Byte, 148> RefTestNullabilityWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (table (export "t") 1 (ref null $s))
 ///   (func (export "test")
-///     i32.const 0  table.get 0  ref.test eqref   call $check
-///     i32.const 0  table.get 0  ref.test (ref $s) call $check
-///   ))
+///     i32.const 0
+///     table.get 0
+///     ref.test eqref
+///     call $check
+///     i32.const 0
+///     table.get 0
+///     ref.test (ref $s)
+///     call $check))
 std::array<WasmEdge::Byte, 106> NullRefTestWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
     0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
@@ -163,10 +168,12 @@ std::array<WasmEdge::Byte, 106> NullRefTestWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (table (export "t") 1 (ref null $s))
 ///   (func $get_null (result (ref null $s))
-///     i32.const 0  table.get 0)
+///     i32.const 0
+///     table.get 0)
 ///   (func (export "test")
-///     call $get_null  ref.test eqref  call $check
-///   ))
+///     call $get_null
+///     ref.test eqref
+///     call $check))
 std::array<WasmEdge::Byte, 118> NullReturnConcreteWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0f, 0x04, 0x5f,
     0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x01, 0x63, 0x00, 0x60, 0x00,
@@ -186,10 +193,15 @@ std::array<WasmEdge::Byte, 118> NullReturnConcreteWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (table $t (export "t") 0 (ref null $s))
 ///   (func (export "test")
-///     ref.null $s  i32.const 1  table.grow $t  drop
-///     i32.const 0  table.get $t  ref.cast eqref  ref.is_null
-///     call $check
-///   ))
+///     ref.null $s
+///     i32.const 1
+///     table.grow $t
+///     drop
+///     i32.const 0
+///     table.get $t
+///     ref.cast eqref
+///     ref.is_null
+///     call $check))
 std::array<WasmEdge::Byte, 112> NullTableGrowWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
     0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
@@ -209,9 +221,11 @@ std::array<WasmEdge::Byte, 112> NullTableGrowWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (table (export "t") 1 (ref null $s))
 ///   (func (export "test")
-///     i32.const 0  table.get 0  ref.cast eqref
-///     ref.is_null  call $check
-///   ))
+///     i32.const 0
+///     table.get 0
+///     ref.cast eqref
+///     ref.is_null
+///     call $check))
 std::array<WasmEdge::Byte, 98> NullRefCastWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03,
     0x5f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c,
@@ -231,7 +245,10 @@ std::array<WasmEdge::Byte, 98> NullRefCastWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (table (export "t") 1 (ref null $s))
 ///   (func (export "test")
-///     i32.const 0  table.get 0  ref.cast (ref eq)  drop))
+///     i32.const 0
+///     table.get 0
+///     ref.cast (ref eq)
+///     drop))
 std::array<WasmEdge::Byte, 96> NullRefCastNonNullWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
     0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
@@ -251,16 +268,25 @@ std::array<WasmEdge::Byte, 96> NullRefCastNonNullWasm{
 ///   (table (export "t") 1 (ref null $s))
 ///   (func (export "test")
 ///     (block $taken (result eqref)
-///       i32.const 0  table.get 0
+///       i32.const 0
+///       table.get 0
 ///       br_on_cast $taken eqref eqref
-///       drop  i32.const 0  call $check  return)
-///     ref.is_null  call $check
+///       drop
+///       i32.const 0
+///       call $check
+///       return)
+///     ref.is_null
+///     call $check
 ///     (block $fail_taken (result eqref)
-///       i32.const 0  table.get 0
+///       i32.const 0
+///       table.get 0
 ///       br_on_cast_fail $fail_taken eqref (ref eq)
-///       drop  i32.const 0  call $check  return)
-///     ref.is_null  call $check
-///   ))
+///       drop
+///       i32.const 0
+///       call $check
+///       return)
+///     ref.is_null
+///     call $check))
 std::array<WasmEdge::Byte, 156> NullBrOnCastWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
     0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
@@ -284,10 +310,15 @@ std::array<WasmEdge::Byte, 156> NullBrOnCastWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (func (export "test")
 ///     (local (ref null $s))
-///     local.get 0  ref.test (ref null $s)  call $check
-///     local.get 0  ref.test eqref          call $check
-///     local.get 0  ref.test (ref $s)       call $check
-///   ))
+///     local.get 0
+///     ref.test (ref null $s)
+///     call $check
+///     local.get 0
+///     ref.test eqref
+///     call $check
+///     local.get 0
+///     ref.test (ref $s)
+///     call $check))
 std::array<WasmEdge::Byte, 101> NullLocalStructWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
     0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
@@ -307,9 +338,12 @@ std::array<WasmEdge::Byte, 101> NullLocalStructWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (func (export "test")
 ///     (local (ref null $f))
-///     local.get 0  ref.test (ref null func)  call $check
-///     local.get 0  ref.test (ref $f)         call $check
-///   ))
+///     local.get 0
+///     ref.test (ref null func)
+///     call $check
+///     local.get 0
+///     ref.test (ref $f)
+///     call $check))
 std::array<WasmEdge::Byte, 92> NullLocalFuncWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
     0x00, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x02, 0x67, 0x63,
@@ -328,9 +362,12 @@ std::array<WasmEdge::Byte, 92> NullLocalFuncWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (func (export "test")
 ///     (local (ref null $a))
-///     local.get 0  ref.test eqref    call $check
-///     local.get 0  ref.test (ref $a) call $check
-///   ))
+///     local.get 0
+///     ref.test eqref
+///     call $check
+///     local.get 0
+///     ref.test (ref $a)
+///     call $check))
 std::array<WasmEdge::Byte, 95> NullLocalArrayWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0b, 0x03, 0x5e,
     0x7f, 0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01,
@@ -349,9 +386,12 @@ std::array<WasmEdge::Byte, 95> NullLocalArrayWasm{
 ///   (import "gc" "check" (func $check (param i32)))
 ///   (global $g (ref null $s) ref.null $s)
 ///   (func (export "test")
-///     global.get $g  ref.test eqref    call $check
-///     global.get $g  ref.test (ref $s) call $check
-///   ))
+///     global.get $g
+///     ref.test eqref
+///     call $check
+///     global.get $g
+///     ref.test (ref $s)
+///     call $check))
 std::array<WasmEdge::Byte, 106> NullGlobalStructWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x03, 0x5f,
     0x00, 0x60, 0x01, 0x7f, 0x00, 0x60, 0x00, 0x00, 0x02, 0x0c, 0x01, 0x02,
@@ -362,6 +402,119 @@ std::array<WasmEdge::Byte, 106> NullGlobalStructWasm{
     0x14, 0x00, 0x10, 0x00, 0x0b, 0x00, 0x1b, 0x04, 0x6e, 0x61, 0x6d, 0x65,
     0x01, 0x08, 0x01, 0x00, 0x05, 0x63, 0x68, 0x65, 0x63, 0x6b, 0x04, 0x04,
     0x01, 0x00, 0x01, 0x73, 0x07, 0x04, 0x01, 0x00, 0x01, 0x67};
+
+/// Binary Wasm module: throw_ref with null (ref null $point) payload;
+/// struct.get on the surfaced value must trap on the null reference.
+///
+/// (module
+///   (type $point (struct (field i32)))
+///   (tag $e (param (ref null $point)))
+///   (func (export "main") (result i32)
+///     (local $exn exnref)
+///     block $h (result (ref null $point) exnref)
+///       try_table (catch_ref $e $h)
+///         ref.null $point
+///         throw $e
+///       end
+///       unreachable
+///     end
+///     local.set $exn
+///     drop
+///     block $h2 (result (ref null $point))
+///       try_table (catch $e $h2)
+///         local.get $exn
+///         throw_ref
+///       end
+///       unreachable
+///     end
+///     struct.get $point 0))
+std::array<WasmEdge::Byte, 139> ThrowRefNullPayloadWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x14, 0x04, 0x5f,
+    0x01, 0x7f, 0x00, 0x60, 0x01, 0x63, 0x00, 0x00, 0x60, 0x00, 0x01, 0x7f,
+    0x60, 0x00, 0x02, 0x63, 0x00, 0x69, 0x03, 0x02, 0x01, 0x02, 0x0d, 0x03,
+    0x01, 0x00, 0x01, 0x07, 0x08, 0x01, 0x04, 0x6d, 0x61, 0x69, 0x6e, 0x00,
+    0x00, 0x0a, 0x2b, 0x01, 0x29, 0x01, 0x01, 0x69, 0x02, 0x03, 0x1f, 0x40,
+    0x01, 0x01, 0x00, 0x00, 0xd0, 0x00, 0x08, 0x00, 0x0b, 0x00, 0x0b, 0x21,
+    0x00, 0x1a, 0x02, 0x63, 0x00, 0x1f, 0x40, 0x01, 0x00, 0x00, 0x00, 0x20,
+    0x00, 0x0a, 0x0b, 0x00, 0x0b, 0xfb, 0x02, 0x00, 0x00, 0x0b, 0x00, 0x2b,
+    0x04, 0x6e, 0x61, 0x6d, 0x65, 0x02, 0x08, 0x01, 0x00, 0x01, 0x00, 0x03,
+    0x65, 0x78, 0x6e, 0x03, 0x0a, 0x01, 0x00, 0x02, 0x00, 0x01, 0x68, 0x02,
+    0x02, 0x68, 0x32, 0x04, 0x08, 0x01, 0x00, 0x05, 0x70, 0x6f, 0x69, 0x6e,
+    0x74, 0x0b, 0x04, 0x01, 0x00, 0x01, 0x65};
+
+/// Binary Wasm module: multi-param tag (i32 i64) round-tripped through
+/// catch_ref + throw_ref + catch -- final result is 7 + 1000 == 1007.
+///
+/// (module
+///   (tag $err (param i32 i64))
+///   (func (export "main") (result i32)
+///     (local $exn exnref)
+///     block $h1 (result i32 i64 exnref)
+///       try_table (catch_ref $err $h1)
+///         i32.const 7
+///         i64.const 1000
+///         throw $err
+///       end
+///       unreachable
+///     end
+///     local.set $exn
+///     drop
+///     drop
+///     block $h2 (result i32 i64)
+///       try_table (catch $err $h2)
+///         local.get $exn
+///         throw_ref
+///       end
+///       unreachable
+///     end
+///     i32.wrap_i64
+///     i32.add))
+std::array<WasmEdge::Byte, 134> ThrowRefMultiParamWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x15, 0x04, 0x60,
+    0x02, 0x7f, 0x7e, 0x00, 0x60, 0x00, 0x01, 0x7f, 0x60, 0x00, 0x03, 0x7f,
+    0x7e, 0x69, 0x60, 0x00, 0x02, 0x7f, 0x7e, 0x03, 0x02, 0x01, 0x01, 0x0d,
+    0x03, 0x01, 0x00, 0x00, 0x07, 0x08, 0x01, 0x04, 0x6d, 0x61, 0x69, 0x6e,
+    0x00, 0x00, 0x0a, 0x2c, 0x01, 0x2a, 0x01, 0x01, 0x69, 0x02, 0x02, 0x1f,
+    0x40, 0x01, 0x01, 0x00, 0x00, 0x41, 0x07, 0x42, 0xe8, 0x07, 0x08, 0x00,
+    0x0b, 0x00, 0x0b, 0x21, 0x00, 0x1a, 0x1a, 0x02, 0x03, 0x1f, 0x40, 0x01,
+    0x00, 0x00, 0x00, 0x20, 0x00, 0x0a, 0x0b, 0x00, 0x0b, 0xa7, 0x6a, 0x0b,
+    0x00, 0x24, 0x04, 0x6e, 0x61, 0x6d, 0x65, 0x02, 0x08, 0x01, 0x00, 0x01,
+    0x00, 0x03, 0x65, 0x78, 0x6e, 0x03, 0x0b, 0x01, 0x00, 0x02, 0x00, 0x02,
+    0x68, 0x31, 0x02, 0x02, 0x68, 0x32, 0x0b, 0x06, 0x01, 0x00, 0x03, 0x65,
+    0x72, 0x72};
+
+/// Binary Wasm module: call_indirect on a table whose element type is a
+/// concrete struct reference, not a funcref subtype.
+///
+/// The table is `(ref null $s)` where `$s` is a struct type, so it is NOT a
+/// subtype of funcref and call_indirect on it must be rejected at validation.
+/// The old check used `ValType::isFuncRefType()`, which reported *any* concrete
+/// type index as a funcref. The module therefore validated, and at runtime the
+/// struct reference was reinterpreted as a `FunctionInstance *` -- a type
+/// confusion in which the attacker-controlled v128 field bytes (here 0x41.. /
+/// 0x49) stand in for function metadata. The fix validates the table type with
+/// `TypeMatcher::matchType(.., FuncRef, ..)`, which resolves the concrete type
+/// index and rejects the struct-typed table.
+///
+/// (module
+///   (type $f (func))
+///   (type $s (struct (field v128)))
+///   (table 1 (ref null $s))
+///   (func (export "_start")
+///     i32.const 0
+///     v128.const i32x4 0x41414141 0x41414141 0x41414149 0x41414141
+///     struct.new $s
+///     table.set 0
+///     i32.const 0
+///     call_indirect (type $f)))
+std::array<WasmEdge::Byte, 77> CallIndirectStructTableWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x60,
+    0x00, 0x00, 0x5f, 0x01, 0x7b, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x05,
+    0x01, 0x63, 0x01, 0x00, 0x01, 0x07, 0x0a, 0x01, 0x06, 0x5f, 0x73, 0x74,
+    0x61, 0x72, 0x74, 0x00, 0x00, 0x0a, 0x22, 0x01, 0x20, 0x00, 0x41, 0x00,
+    0xfd, 0x0c, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x49, 0x41,
+    0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0xfb, 0x00, 0x01, 0x26, 0x00, 0x41,
+    0x00, 0x11, 0x00, 0x00, 0x0b};
 // clang-format on
 
 /// Regression test for ref.test on externalized nullable references.
@@ -783,6 +936,60 @@ TEST(ExecutorRegression, NullLocalConcreteType) {
     EXPECT_EQ(Values[0], 1); // null matches nullable eqref
     EXPECT_EQ(Values[1], 0); // null doesn't match non-nullable (ref $s)
   }
+}
+
+/// Regression test for throw_ref payload preservation.
+///
+/// The bug: exnref stored only a TagInstance*, dropping the captured payload.
+/// When throw_ref re-walked handlers the operand stack carried garbage in
+/// place of the original args, so the surfaced "(ref null $point)" was not
+/// actually null and struct.get failed to trap.
+TEST(ExecutorRegression, ThrowRefPreservesPayload) {
+  // --- Part 1: throw_ref of (ref null $point) must trap at struct.get ---
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(ThrowRefNullPayloadWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Result = VM.execute("main");
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::AccessNullStruct);
+  }
+
+  // --- Part 2: multi-param `(i32 i64)` round-trip yields 1007 ---
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(ThrowRefMultiParamWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Result = VM.execute("main");
+    ASSERT_TRUE(Result);
+    ASSERT_EQ((*Result).size(), 1U);
+    EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 1007U);
+  }
+}
+
+/// Regression test for call_indirect on a non-funcref table (type confusion).
+///
+/// A table whose element type is a concrete struct reference is not a funcref
+/// subtype, so call_indirect on it must be rejected by validation. Before the
+/// fix, ValType::isFuncRefType() accepted any concrete type index, so the
+/// module passed validation and the executor reinterpreted the struct
+/// reference as a FunctionInstance pointer -- with the v128 struct field bytes
+/// acting as a forged function pointer. The validator now resolves the
+/// concrete type via TypeMatcher and rejects the module before it can run.
+TEST(ExecutorRegression, CallIndirectNonFuncTable) {
+  Configure Conf;
+  VM::VM VM(Conf);
+  // The module is well-formed and loads successfully...
+  ASSERT_TRUE(VM.loadWasm(CallIndirectStructTableWasm));
+  // ... but validation must reject call_indirect on the (ref null $s) table
+  // instead of letting the struct reference reach the executor as a function.
+  auto Result = VM.validate();
+  ASSERT_FALSE(Result);
+  EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
 }
 
 } // namespace

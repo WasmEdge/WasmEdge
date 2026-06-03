@@ -62,7 +62,7 @@ template <>
 struct fmt::formatter<WasmEdge::ErrCode> : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
   auto format(const WasmEdge::ErrCode &Code,
-         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     using namespace std::literals;
     std::string Output =
         fmt::format("{} failed: {}, Code: 0x{:03x}"sv, Code.getErrCodePhase(),
@@ -76,7 +76,7 @@ struct fmt::formatter<WasmEdge::ErrCode::Value>
     : fmt::formatter<WasmEdge::ErrCode> {
   template <typename FmtCtx>
   auto format(const WasmEdge::ErrCode::Value &Value,
-         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<WasmEdge::ErrCode>::format(WasmEdge::ErrCode(Value), Ctx);
   }
 };

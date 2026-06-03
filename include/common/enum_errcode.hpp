@@ -153,7 +153,7 @@ template <>
 struct fmt::formatter<WasmEdge::WasmPhase> : fmt::formatter<std::string_view> {
   template <typename FmtCtx>
   auto format(const WasmEdge::WasmPhase &Phase,
-         FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
+              FmtCtx &Ctx) WASMEDGE_FMT_CONST noexcept -> decltype(Ctx.out()) {
     return formatter<std::string_view>::format(WasmEdge::WasmPhaseStr[Phase],
                                                Ctx);
   }

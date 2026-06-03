@@ -161,7 +161,7 @@ WasiCryptoExpect<size_t> stateEncrypt(StateVariant &StateVariant,
               return checkedAdd(DataSize, TagLen);
             })
             .and_then([Out, Data, &State](size_t ActualDataLen) noexcept
-                      -> WasiCryptoExpect<size_t> {
+                          -> WasiCryptoExpect<size_t> {
               ensureOrReturn(Out.size() == ActualDataLen,
                              __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
               return State.encrypt(Out, Data);
@@ -189,7 +189,7 @@ WasiCryptoExpect<size_t> stateDecrypt(StateVariant &StateVariant,
               return checkedAdd(OutSize, TagLen);
             })
             .and_then([Out, Data, &State](size_t ActualOutLen) noexcept
-                      -> WasiCryptoExpect<size_t> {
+                          -> WasiCryptoExpect<size_t> {
               ensureOrReturn(Data.size() == ActualOutLen,
                              __WASI_CRYPTO_ERRNO_INVALID_LENGTH);
               return State.decrypt(Out, Data);

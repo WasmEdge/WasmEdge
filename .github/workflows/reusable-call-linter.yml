@@ -24,7 +24,7 @@ jobs:
       - name: Install clang-format
         run: |
           sudo apt update
-          sudo apt install clang-format
+          sudo apt install -y clang-format-20
       - name: Run clang-format
         run: |
-          bash ./.github/scripts/clang-format.sh `which clang-format`
+          bash ./.github/scripts/clang-format.sh `which clang-format-20`

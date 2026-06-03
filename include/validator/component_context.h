@@ -89,6 +89,12 @@ public:
     std::unordered_map<std::string, uint32_t> TypeSubstitutions;
     std::unordered_set<std::string> ImportedNames;
     std::unordered_set<std::string> ExportedNames;
+    // Resource labels in scope: maps the plain-name of a resource
+    // (introduced by a TypeBound import or export with a kebab-case label)
+    // to its type index. Used to validate annotated names of the form
+    // `[constructor]R`, `[method]R.f`, `[static]R.f` — these require the
+    // resource named `R` to be in scope.
+    std::unordered_map<std::string, uint32_t> ResourceLabels;
 
     // Size queries (used by outer alias validation on parent contexts).
     uint32_t getSortIndexSize(AST::Component::Sort::SortType ST) const noexcept;
@@ -468,6 +474,18 @@ public:
   /// Returns false if the export name violates strong-uniqueness.
   bool addExportedName(const ComponentName &Name) noexcept {
     return getCurrentContext().AddExportedName(Name);
+  }
+
+  /// Register a resource name introduced by an import/export of a TypeBound
+  /// (sub resource). Subsequent annotated names ([constructor]R / [method]R.f
+  /// / [static]R.f) can resolve `R` to its type index via hasResourceLabel.
+  void addResourceLabel(std::string_view Name, uint32_t TypeIdx) noexcept {
+    getCurrentContext().ResourceLabels.emplace(std::string(Name), TypeIdx);
+  }
+
+  bool hasResourceLabel(std::string_view Name) const noexcept {
+    return getCurrentContext().ResourceLabels.find(std::string(Name)) !=
+           getCurrentContext().ResourceLabels.end();
   }
 
 private:

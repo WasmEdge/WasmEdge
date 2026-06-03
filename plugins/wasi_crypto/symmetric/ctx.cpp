@@ -202,7 +202,7 @@ Context::symmetricKeyGenerate(Symmetric::Algorithm Alg,
   auto OptSymmetricOptionsResult = transposeOptionalToRef(
       *OptOptionsResult,
       [](const auto &Options) noexcept
-      -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
+          -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
         auto *SymmetricOptions = std::get_if<Symmetric::Options>(&Options);
         if (!SymmetricOptions) {
           return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
@@ -228,7 +228,7 @@ Context::symmetricStateOpen(Symmetric::Algorithm Alg,
   auto OptKeyResult =
       mapAndTransposeOptional(OptKeyHandle,
                               [this](__wasi_symmetric_key_t KeyHandle) noexcept
-                              -> WasiCryptoExpect<Symmetric::KeyVariant> {
+                                  -> WasiCryptoExpect<Symmetric::KeyVariant> {
                                 return SymmetricKeyManager.get(KeyHandle);
                               });
   if (!OptKeyResult) {
@@ -248,7 +248,7 @@ Context::symmetricStateOpen(Symmetric::Algorithm Alg,
   auto OptSymmetricOptionsResult = transposeOptionalToRef(
       *OptOptionsResult,
       [](const auto &Options) noexcept
-      -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
+          -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
         auto *SymmetricOptions = std::get_if<Symmetric::Options>(&Options);
         if (!SymmetricOptions) {
           return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);

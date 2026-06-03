@@ -392,6 +392,13 @@ int Tool(struct DriverToolOptions &Opt) noexcept {
       Conf.getStatisticsConfigure().setTimeMeasuring(true);
     }
   }
+  if (Opt.ConfStatsFormat.value() == "json") {
+    Conf.getStatisticsConfigure().setStatsOutputFormat(
+        Configure::StatisticsConfigure::StatsOutputFormat::JSON);
+  } else if (Opt.ConfStatsFormat.value() != "human") {
+    spdlog::warn("Unknown --stats-format value '{}'; defaulting to human."sv,
+                 Opt.ConfStatsFormat.value());
+  }
   // Determine the effective run mode.
   // Precedence: --run-mode > deprecated --enable-jit / --force-interpreter.
   RunMode RunModeFromFlag = RunMode::Interpreter;

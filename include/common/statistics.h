@@ -151,42 +151,7 @@ public:
            TimeRecorder.getRecord(Timer::TimerTag::HostFunc);
   }
 
-  void dumpToLog(const Configure &Conf) const noexcept {
-    using namespace std::literals;
-    auto Nano = [](auto &&Duration) {
-      return std::chrono::nanoseconds(Duration).count();
-    };
-    const auto &StatConf = Conf.getStatisticsConfigure();
-    if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
-        StatConf.isCostMeasuring()) {
-      spdlog::info("====================  Statistics  ===================="sv);
-    }
-    if (StatConf.isTimeMeasuring()) {
-      spdlog::info(" Total execution time: {} ns"sv, Nano(getTotalExecTime()));
-      spdlog::info(" Wasm instructions execution time: {} ns"sv,
-                   Nano(getWasmExecTime()));
-      spdlog::info(" Host functions execution time: {} ns"sv,
-                   Nano(getHostFuncExecTime()));
-    }
-    if (StatConf.isInstructionCounting()) {
-      spdlog::info(" Executed wasm instructions count: {}"sv, getInstrCount());
-    }
-    if (StatConf.isCostMeasuring()) {
-      spdlog::info(" Gas costs: {}"sv, getTotalCost());
-    }
-    if (StatConf.isInstructionCounting() && StatConf.isTimeMeasuring()) {
-      const double IPS = getInstrPerSecond();
-      spdlog::info(" Instructions per second: {}"sv,
-                   likely(!std::isnan(IPS))
-                       ? static_cast<uint64_t>(IPS)
-                       : std::numeric_limits<uint64_t>::max());
-    }
-    if (StatConf.isTimeMeasuring() || StatConf.isInstructionCounting() ||
-        StatConf.isCostMeasuring()) {
-      spdlog::info("=======================   End   ======================"sv);
-    }
-  }
-
+  void dumpToLog(const Configure &Conf) const noexcept;
 private:
   std::vector<uint64_t> CostTab;
   std::atomic_uint64_t InstrCnt;

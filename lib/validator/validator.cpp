@@ -18,6 +18,21 @@ namespace Validator {
 
 namespace {
 
+// One-shot builder for the pre-defined core function SubTypes.
+AST::SubType makeCoreFuncType(std::initializer_list<TypeCode> Params,
+                              std::initializer_list<TypeCode> Results) {
+  AST::FunctionType FT;
+  for (auto T : Params) {
+    FT.getParamTypes().emplace_back(T);
+  }
+  for (auto T : Results) {
+    FT.getReturnTypes().emplace_back(T);
+  }
+  AST::SubType ST;
+  ST.getCompositeType().setFunctionType(std::move(FT));
+  return ST;
+}
+
 static constexpr uint32_t MaxSubtypeDepth = 63;
 
 // TODO: make the super type depth table instead of recursively querying.
@@ -64,6 +79,12 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
 }
 
 } // namespace
+
+// Validator constructor. See "include/validator/validator.h".
+Validator::Validator(const Configure &Conf) noexcept
+    : Conf(Conf),
+      CoreFuncType_I32_I32(makeCoreFuncType({TypeCode::I32}, {TypeCode::I32})),
+      CoreFuncType_I32_Void(makeCoreFuncType({TypeCode::I32}, {})) {}
 
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {

@@ -17,6 +17,10 @@ public:
   HostFunction(std::shared_ptr<WasmEdgeFFmpegEnv> HostEnv)
       : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
+  const std::shared_ptr<WasmEdgeFFmpegEnv> &getEnv() const noexcept {
+    return Env;
+  }
+
 protected:
   std::shared_ptr<WasmEdgeFFmpegEnv> Env;
 };

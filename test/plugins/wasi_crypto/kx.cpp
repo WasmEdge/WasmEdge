@@ -29,6 +29,16 @@ TEST_F(WasiCryptoTest, KxDh) {
         Sk2Handle, secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, Sk2,
                                    __WASI_SECRETKEY_ENCODING_RAW));
 
+    WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(Pk1Handle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(Pk2Handle));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                               keypairFromPkAndSk(Pk1Handle, Sk1Handle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+
+    WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(Pk2Handle, Sk1Handle),
+                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
     WASI_CRYPTO_EXPECT_SUCCESS(SharedKey1Handle, kxDh(Pk1Handle, Sk2Handle));
 
     WASI_CRYPTO_EXPECT_SUCCESS(SharedKey1Size,
@@ -119,9 +129,91 @@ TEST_F(WasiCryptoTest, KxDh) {
 
     WASI_CRYPTO_EXPECT_TRUE(publickeyClose(Pk2Handle));
     WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk1Handle));
+
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(Kp1Handle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(Kp2Handle));
   };
   NewKxDhTest("P256-SHA256"sv);
   NewKxDhTest("P384-SHA384"sv);
+  NewKxDhTest("X25519"sv);
+  auto KxDhNegativeTest = [this](std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+
+    // a raw public key with an invalid length must fail.
+    WASI_CRYPTO_EXPECT_FAILURE(
+        publickeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, "00"_u8v,
+                        __WASI_PUBLICKEY_ENCODING_RAW),
+        __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    // a raw secret key with an invalid length must fail.
+    WASI_CRYPTO_EXPECT_FAILURE(
+        secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, "00"_u8v,
+                        __WASI_SECRETKEY_ENCODING_RAW),
+        __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    // a raw key pair with an invalid length must fail.
+    WASI_CRYPTO_EXPECT_FAILURE(keypairImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE,
+                                             Alg, "00"_u8v,
+                                             __WASI_KEYPAIR_ENCODING_RAW),
+                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    // an unsupported encoding must fail.
+    WASI_CRYPTO_EXPECT_FAILURE(
+        publickeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, "00"_u8v,
+                        __WASI_PUBLICKEY_ENCODING_PKCS8),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        secretkeyImport(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, "00"_u8v,
+                        __WASI_SECRETKEY_ENCODING_PKCS8),
+        __WASI_CRYPTO_ERRNO_UNSUPPORTED_ENCODING);
+
+    // a low-order (here all-zero) public point imports fine and even passes
+    // publickeyVerify, but the dh derivation must reject it with INVALID_KEY
+    // instead of leaking an all-zero shared secret.
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        Kp,
+        keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(Sk, keypairSecretkey(Kp));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        LowOrderPk,
+        publickeyImport(
+            __WASI_ALGORITHM_TYPE_KEY_EXCHANGE, Alg,
+            "0000000000000000000000000000000000000000000000000000000000000000"_u8v,
+            __WASI_PUBLICKEY_ENCODING_RAW));
+    WASI_CRYPTO_EXPECT_FAILURE(kxDh(LowOrderPk, Sk),
+                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(LowOrderPk));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(Kp));
+  };
+  KxDhNegativeTest("X25519"sv);
+
+  // mixing keys from different algorithms must be rejected by the dispatch
+  // layer with INVALID_KEY, never silently computed.
+  auto KxDhCrossAlgTest = [this](std::string_view AlgA, std::string_view AlgB) {
+    SCOPED_TRACE(AlgA);
+
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        KpA, keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, AlgA,
+                             std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        KpB, keypairGenerate(__WASI_ALGORITHM_TYPE_KEY_EXCHANGE, AlgB,
+                             std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkA, keypairPublickey(KpA));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkB, keypairSecretkey(KpB));
+
+    // dh between a public key and a secret key of different algorithms.
+    WASI_CRYPTO_EXPECT_FAILURE(kxDh(PkA, SkB), __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    // assembling a key pair from a public/secret key of different algorithms.
+    WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(PkA, SkB),
+                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkA));
+    WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkB));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpA));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpB));
+  };
+  KxDhCrossAlgTest("X25519"sv, "P256-SHA256"sv);
 }
 
 } // namespace WasiCrypto

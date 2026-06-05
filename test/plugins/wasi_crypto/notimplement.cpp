@@ -22,7 +22,7 @@ TEST_F(WasiCryptoTest, NotImplement) {
                              __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 
   EXPECT_EQ(keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES,
-                                   "Ed25519"sv, std::nullopt)
+                                   "ECDSA_P256_SHA256"sv, std::nullopt)
                 .error(),
             __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
   WASI_CRYPTO_EXPECT_FAILURE(keypairStoreManaged(1, 1, {}),

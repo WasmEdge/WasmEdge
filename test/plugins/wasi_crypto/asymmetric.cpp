@@ -646,12 +646,9 @@ TEST_F(WasiCryptoTest, AsymmetricManagedNegative) {
       __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
 
   // Test with invalid options handle
-  __wasi_opt_options_t InvalidOptionsHandle;
-  InvalidOptionsHandle.tag = __WASI_OPT_OPTIONS_U_SOME;
-  InvalidOptionsHandle.u.some = InvaildHandle;
   WASI_CRYPTO_EXPECT_FAILURE(
       keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
-                             InvalidOptionsHandle),
+                             static_cast<__wasi_options_t>(InvaildHandle)),
       __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 }
 

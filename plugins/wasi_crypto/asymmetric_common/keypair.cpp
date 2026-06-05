@@ -42,7 +42,7 @@ generateKp(AsymmetricCommon::Algorithm Alg,
         return transposeOptionalRef(
                    OptOptions,
                    [](auto &&Options) noexcept
-                   -> WasiCryptoExpect<OptionalRef<RequiredOptionsType>> {
+                       -> WasiCryptoExpect<OptionalRef<RequiredOptionsType>> {
                      using InOptionsType = std::decay_t<decltype(Options)>;
                      if constexpr (std::is_same_v<InOptionsType,
                                                   RequiredOptionsType>) {

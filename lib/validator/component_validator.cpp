@@ -119,6 +119,62 @@ void populateInstanceFromType(ComponentContext &Ctx, uint32_t InstIdx,
   }
 }
 
+// Populate a core:instance from a moduletype's exportdecls (name to
+// ExternalType), for instantiating an imported/aliased core module.
+void populateCoreInstanceFromModuleType(ComponentContext &Ctx, uint32_t InstIdx,
+                                        const AST::Component::CoreDefType &MT) {
+  for (const auto &Decl : MT.getModuleType()) {
+    if (!Decl.isExport()) {
+      continue;
+    }
+    const auto &Exp = Decl.getExport();
+    const auto ImpDesc = Exp.getImportDesc();
+    ExternalType ET;
+    if (ImpDesc.isFunc()) {
+      ET = ExternalType::Function;
+    } else if (ImpDesc.isTable()) {
+      ET = ExternalType::Table;
+    } else if (ImpDesc.isMemory()) {
+      ET = ExternalType::Memory;
+    } else if (ImpDesc.isGlobal()) {
+      ET = ExternalType::Global;
+    } else if (ImpDesc.isTag()) {
+      ET = ExternalType::Tag;
+    } else {
+      continue;
+    }
+    Ctx.addCoreInstanceExport(InstIdx, Exp.getName(), ET);
+  }
+}
+
+// Populate an instance from a componenttype's exportdecls (name to sort), for
+// instantiating an imported/aliased component. Like populateInstanceFromType,
+// but a componenttype's exports arrive as `instancedecl`s holding an
+// `exportdecl`.
+void populateInstanceFromComponentType(
+    ComponentContext &Ctx, uint32_t InstIdx,
+    const AST::Component::ComponentType &CT) {
+  for (const auto &CDecl : CT.getDecl()) {
+    if (!CDecl.isInstanceDecl()) {
+      continue;
+    }
+    const auto &IDecl = CDecl.getInstance();
+    if (!IDecl.isExportDecl()) {
+      continue;
+    }
+    const auto &Exp = IDecl.getExport();
+    auto ST = descTypeToSortType(Exp.getExternDesc().getDescType());
+    if (!ST.has_value()) {
+      // `(core module)` export: InstanceExport::ST is component-side only.
+      // Skip symmetrically with populateInstanceFromType.
+      continue;
+    }
+    // TODO(B): resolve a nested InstanceType for instance-typed exports so
+    // multi-level alias-export can chase through it; single-level works now.
+    Ctx.addInstanceExport(InstIdx, Exp.getName(), *ST, /*IT=*/nullptr);
+  }
+}
+
 // Returns the first export in `RequiredIT` missing from the instance at
 // `ProvidedInstIdx`, or whose stored SortType doesn't match the required
 // sort kind. nullopt ⇒ Provided is a sort-kind subtype of RequiredIT.
@@ -277,7 +333,7 @@ Validator::validate(const AST::Component::CoreModuleSection &ModSec) noexcept {
     return E;
   }));
   const_cast<AST::Module &>(ModSec.getContent()).setIsValidated();
-  CompCtx.addCoreModule(ModSec.getContent());
+  CompCtx.addInlineCoreModule(ModSec.getContent());
   return {};
 }
 
@@ -309,7 +365,7 @@ Validator::validate(const AST::Component::ComponentSection &CompSec) noexcept {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Component));
     return E;
   }));
-  CompCtx.addComponent(CompSec.getContent());
+  CompCtx.addInlineComponent(CompSec.getContent());
   return {};
 }
 
@@ -332,10 +388,26 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
       return E;
     }));
     const auto &Sort = Alias.getSort();
+    const bool IsOuter =
+        Alias.getTargetType() == AST::Component::Alias::TargetType::Outer;
     if (Sort.isCore()) {
-      CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+      uint32_t NewCoreIdx =
+          CompCtx.incCoreSortIndexSize(Sort.getCoreSortType());
+      // Carry the outer-aliased module's export source so the alias stays
+      // enumerable when instantiated.
+      if (IsOuter && Sort.getCoreSortType() ==
+                         AST::Component::Sort::CoreSortType::Module) {
+        CompCtx.carryOuterCoreModule(NewCoreIdx, Alias.getOuter().first,
+                                     Alias.getOuter().second);
+      }
     } else {
       uint32_t NewIdx = CompCtx.incSortIndexSize(Sort.getSortType());
+      if (IsOuter &&
+          Sort.getSortType() == AST::Component::Sort::SortType::Component) {
+        // Component analogue of the outer core-module carry above.
+        CompCtx.carryOuterComponent(NewIdx, Alias.getOuter().first,
+                                    Alias.getOuter().second);
+      }
       // If the alias creates a new instance entry out of an `alias export`
       // on another instance, propagate the source instance's export table
       // into the new slot so a subsequent `alias export` on this slot can
@@ -390,26 +462,79 @@ Validator::validate(const AST::Component::CanonSection &CanonSec) noexcept {
 }
 
 Expect<void>
-Validator::validate(const AST::Component::StartSection &) noexcept {
-  // The start section is stubbed. A conformant implementation performs:
-  //
+Validator::validate(const AST::Component::StartSection &StartSec) noexcept {
+  // Validation steps:
   //   1. `f` is in bounds of the component func index space.
-  //   2. `f`'s functype matches the start's arguments: param arity equals
-  //      |arg*|, each arg's value-type is a subtype of the corresponding
-  //      param, and the function's result arity equals `r`.
-  //   3. Each argument consumes a value from the value index space — its
-  //      "consumed" flag must be currently clear and is set after
-  //      consumption. Values are linear: each must be consumed exactly
-  //      once over the lifetime of a component.
-  //   4. The function's result types are appended to the value index
-  //      space as fresh values with consumed=false, so later definitions
-  //      can reference them.
-  //   5. After the component's final definition, every value's consumed
-  //      flag must be set.
-  //
-  // Value-linearity tracking (the "consumed" flag) is not yet wired into
-  // the validator at all, so start validation is deferred until that
-  // machinery is added.
+  //   2. `f`'s functype param arity equals |arg*| and result arity equals
+  //      `r`. Per-argument value-type subtype is checked once subtype
+  //      machinery exists (Phase 3).
+  //   3. Each argument index is in bounds of the value index space.
+  //      Per-value linearity (consume-once) is the responsibility of
+  //      GAP-EX-4: the per-value `consumed` flag and the end-of-component
+  //      "all consumed" pass. They are not yet wired here.
+  //   4. The function's result types are appended to the value index space
+  //      as fresh values, so later definitions can reference them.
+  const auto &Start = StartSec.getContent();
+
+  // 1. Function index bounds.
+  const uint32_t FuncIdx = Start.getFunctionIndex();
+  const uint32_t FuncSpaceSize =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Func);
+  if (FuncIdx >= FuncSpaceSize) {
+    spdlog::error(ErrCode::Value::InvalidIndex);
+    spdlog::error(
+        "    Start: function index {} exceeds func index space size {}"sv,
+        FuncIdx, FuncSpaceSize);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
+    return Unexpect(ErrCode::Value::InvalidIndex);
+  }
+
+  // 2. Look up the func type. If null (e.g. imported component func without
+  // populated FuncType yet), skip arity check — the bound check above is
+  // enough for the moment.
+  const AST::Component::FuncType *FT = CompCtx.getFunc(FuncIdx);
+  if (FT != nullptr) {
+    const auto Args = Start.getArguments();
+    const auto &ParamList = FT->getParamList();
+    if (Args.size() != ParamList.size()) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "    Start: argument count {} does not match func {} param arity {}"sv,
+          Args.size(), FuncIdx, ParamList.size());
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    const uint32_t ResultArity =
+        static_cast<uint32_t>(FT->getResultList().size());
+    if (Start.getResult() != ResultArity) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "    Start: declared result count {} does not match func {} result arity {}"sv,
+          Start.getResult(), FuncIdx, ResultArity);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+  }
+
+  // 3. Argument indices must be in value index space bounds. Per-arg
+  // consume-once tracking is deferred (GAP-EX-4).
+  const uint32_t ValueSpaceSize =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Value);
+  for (const uint32_t ArgIdx : Start.getArguments()) {
+    if (ArgIdx >= ValueSpaceSize) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "    Start: argument value index {} exceeds value index space size {}"sv,
+          ArgIdx, ValueSpaceSize);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Sec_Start));
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+  }
+
+  // 4. Append result values to the value index space.
+  for (uint32_t I = 0; I < Start.getResult(); ++I) {
+    CompCtx.addValue();
+  }
   return {};
 }
 
@@ -498,7 +623,14 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         CompCtx.addCoreInstanceExport(InstanceIdx, ExportDesc.getExternalName(),
                                       ExportDesc.getExternalType());
       }
+    } else if (const auto *MT = CompCtx.getCoreModuleType(ModIdx)) {
+      // Imported / aliased core module: bind exports from its moduletype.
+      // TODO(B): arg-check against MT's importdecls (only inline modules are
+      // arg-checked above).
+      uint32_t InstanceIdx = CompCtx.addCoreInstance();
+      populateCoreInstanceFromModuleType(CompCtx, InstanceIdx, *MT);
     } else {
+      // Opaque module: exports not enumerable; leave the instance empty.
       CompCtx.addCoreInstance();
     }
   } else if (Inst.isInlineExport()) {
@@ -521,12 +653,17 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
       uint32_t Idx = Export.getSortIdx().getIdx();
       assuming(Sort.isCore());
       if (Idx >= CompCtx.getCoreSortIndexSize(Sort.getCoreSortType())) {
-        spdlog::error(ErrCode::Value::InvalidIndex);
+        // The error message differs of the tag core sort.
+        ErrCode::Value ErrValue = ErrCode::Value::InvalidIndex;
+        if (Sort.getCoreSortType() == AST::Component::Sort::CoreSortType::Tag) {
+          ErrValue = ErrCode::Value::UnknownCoreTag;
+        }
+        spdlog::error(ErrValue);
         spdlog::error(
             "    CoreInstance: Inline export '{}' refers to invalid index {}"sv,
             Export.getName(), Idx);
         spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
-        return Unexpect(ErrCode::Value::InvalidIndex);
+        return Unexpect(ErrValue);
       }
       // Map CoreSortType to ExternalType for the instance export map.
       ExternalType ET;
@@ -542,6 +679,9 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         break;
       case AST::Component::Sort::CoreSortType::Global:
         ET = ExternalType::Global;
+        break;
+      case AST::Component::Sort::CoreSortType::Tag:
+        ET = ExternalType::Tag;
         break;
       default:
         spdlog::error(ErrCode::Value::InvalidIndex);
@@ -721,6 +861,11 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
                                     ExpSort.getSortType(), IT);
         }
       }
+    } else if (const auto *CT = CompCtx.getComponentType(CompIdx)) {
+      // Imported / aliased component: bind exports from its componenttype.
+      // TODO(B): arg-check against CT's importdecls (only inline components are
+      // arg-checked above).
+      populateInstanceFromComponentType(CompCtx, InstanceIdx, *CT);
     }
   } else if (Inst.isInlineExport()) {
     // Allocate the instance first so exports can be registered on it.
@@ -792,17 +937,12 @@ Expect<void> Validator::validate(const AST::Component::CoreAlias &A) noexcept {
   uint32_t Ct = A.getComponentJump();
   uint32_t Idx = A.getIndex();
 
-  uint32_t OutLinkCompCnt = 0;
-  const auto *TargetCtx = &CompCtx.getCurrentContext();
-  while (Ct > OutLinkCompCnt && TargetCtx != nullptr) {
-    TargetCtx = TargetCtx->Parent;
-    OutLinkCompCnt++;
-  }
+  const auto *TargetCtx = CompCtx.resolveOuterContext(Ct);
   if (TargetCtx == nullptr) {
     spdlog::error(ErrCode::Value::InvalidIndex);
     spdlog::error(
-        "    CoreAlias: outer count {} exceeds enclosing component count {}"sv,
-        Ct, OutLinkCompCnt);
+        "    CoreAlias: outer count {} exceeds enclosing component count"sv,
+        Ct);
     return Unexpect(ErrCode::Value::InvalidIndex);
   }
 
@@ -909,6 +1049,8 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       ST = AST::Component::Sort::CoreSortType::Global;
       break;
     case ExternalType::Tag:
+      ST = AST::Component::Sort::CoreSortType::Tag;
+      break;
     default:
       spdlog::error(ErrCode::Value::InvalidTypeReference);
       spdlog::error(
@@ -917,11 +1059,16 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
       return Unexpect(ErrCode::Value::InvalidTypeReference);
     }
     if (ST != Sort.getCoreSortType()) {
-      spdlog::error(ErrCode::Value::InvalidTypeReference);
+      // The error message differs of the tag core sort.
+      ErrCode::Value ErrValue = ErrCode::Value::InvalidIndex;
+      if (Sort.getCoreSortType() == AST::Component::Sort::CoreSortType::Tag) {
+        ErrValue = ErrCode::Value::UnknownCoreTag;
+      }
+      spdlog::error(ErrValue);
       spdlog::error(
           "    Alias core:export: Type mapping mismatch for export '{}'"sv,
           Name);
-      return Unexpect(ErrCode::Value::InvalidTypeReference);
+      return Unexpect(ErrValue);
     }
     return {};
   }
@@ -929,17 +1076,12 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     const auto Ct = Alias.getOuter().first;
     const auto Idx = Alias.getOuter().second;
 
-    uint32_t OutLinkCompCnt = 0;
-    const auto *TargetCtx = &CompCtx.getCurrentContext();
-    while (Ct > OutLinkCompCnt && TargetCtx != nullptr) {
-      TargetCtx = TargetCtx->Parent;
-      OutLinkCompCnt++;
-    }
+    const auto *TargetCtx = CompCtx.resolveOuterContext(Ct);
     if (TargetCtx == nullptr) {
       spdlog::error(ErrCode::Value::InvalidIndex);
       spdlog::error(
-          "    Alias outer: Component out-link count {} is exceeding the enclosing component count {}"sv,
-          Ct, OutLinkCompCnt);
+          "    Alias outer: Component out-link count {} is exceeding the enclosing component count"sv,
+          Ct);
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
 
@@ -1020,8 +1162,10 @@ Validator::validate(const AST::Component::CoreDefType &DType) noexcept {
       }));
     }
     CompCtx.exitComponent();
-    // Module type also gets an entry in core:type (nullptr — not a SubType).
-    CompCtx.addCoreType();
+    // Module type takes a core:type slot (nullptr — not a SubType) and is
+    // recorded so an imported `(core module (type i))` can recover its exports.
+    uint32_t TIdx = CompCtx.addCoreType();
+    CompCtx.recordCoreModuleTypeDef(TIdx, DType);
   } else {
     assumingUnreachable();
   }
@@ -1364,8 +1508,9 @@ Expect<void> Validator::validateCanonResourceNew(
   }
   // 4. Validate canonical options.
   EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
-  // 5. Allocate the resulting core func. Full signature tracking deferred.
-  CompCtx.addCoreFunc();
+  // 5. Allocate the resulting core func with synthesized signature
+  // [i32] -> [i32] (rep i32 in, new handle out).
+  CompCtx.addCoreFunc(&CoreFuncType_I32_I32);
   return {};
 }
 
@@ -1403,8 +1548,9 @@ Expect<void> Validator::validateCanonResourceRep(
   }
   // 4. Validate canonical options.
   EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
-  // 5. Allocate the resulting core func. Full signature tracking deferred.
-  CompCtx.addCoreFunc();
+  // 5. Allocate the resulting core func with synthesized signature
+  // [i32] -> [i32] (handle in, rep out).
+  CompCtx.addCoreFunc(&CoreFuncType_I32_I32);
   return {};
 }
 
@@ -1435,8 +1581,10 @@ Expect<void> Validator::validateCanonResourceDrop(
   // check.
   // 4. Validate canonical options.
   EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
-  // 5. Allocate the resulting core func. Full signature tracking deferred.
-  CompCtx.addCoreFunc();
+  // 5. Allocate the resulting core func with synthesized signature
+  // [i32] -> [] (handle in, no result — matches the resource destructor
+  // shape required by validate(ResourceType)).
+  CompCtx.addCoreFunc(&CoreFuncType_I32_Void);
   return {};
 }
 
@@ -1452,6 +1600,11 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
   // The per-annotated-name structural checks (constructor result type,
   // method `self` param, static resource name in scope) are not yet
   // implemented and tracked as follow-ups below.
+  // Snapshot the type space size before validating the desc so we can
+  // recover the new type index allocated by a TypeBound (sub resource).
+  const uint32_t TypeSpaceBefore =
+      CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+
   EXPECTED_TRY(validate(Im.getDesc()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
     return E;
@@ -1481,20 +1634,50 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
     break;
   }
 
-  // TODO: Validation of [constructor] names requires that the func returns
-  // a (result (own $R)), where $R is the resource labeled r.
+  // Resolve the resource name referenced by an annotated name. The resource
+  // must have been previously introduced by a TypeBound import or export
+  // with a kebab-case label in this scope.
+  // TODO: extend to the full structural checks once func-type bodies are
+  // walked here:
+  //   - [constructor]R: result type must be (own $R).
+  //   - [method]R.f:    first param must be (borrow $R).
+  //   - [static]R.f:    no `self` param of (borrow $R).
+  std::string_view ResourceLabel;
+  switch (CName.getKind()) {
+  case ComponentNameKind::Constructor:
+    ResourceLabel = CName.getDetail().get<ConstructorDetail>().Label;
+    break;
+  case ComponentNameKind::Method:
+    ResourceLabel = CName.getDetail().get<MethodDetail>().Resource;
+    break;
+  case ComponentNameKind::Static:
+    ResourceLabel = CName.getDetail().get<StaticDetail>().Resource;
+    break;
+  default:
+    break;
+  }
+  if (!ResourceLabel.empty() && !CompCtx.hasResourceLabel(ResourceLabel)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(
+        "    Import: annotated name references unknown resource '{}'"sv,
+        ResourceLabel);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
 
-  // TODO: Validation of [method] names requires the first parameter of the
-  // function to be (param "self" (borrow $R)), where $R is the resource
-  // labeled r.
-
-  // TODO: Validation of [static] names requires the resource name to be
-  // known in the current context.
   if (!CompCtx.addImportedName(CName)) {
     spdlog::error(ErrCode::Value::ComponentDuplicateName);
     spdlog::error("    Import: Duplicate import name"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
     return Unexpect(ErrCode::Value::ComponentDuplicateName);
+  }
+
+  // If this import introduced a TypeBound resource with a label name,
+  // register the label so subsequent annotated names can reference it.
+  if (Im.getDesc().getDescType() ==
+          AST::Component::ExternDesc::DescType::TypeBound &&
+      CName.getKind() == ComponentNameKind::Label) {
+    CompCtx.addResourceLabel(Im.getName(), TypeSpaceBefore);
   }
 
   return {};
@@ -1630,14 +1813,55 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
   //   * type (sub resource)    → fresh abstract resource type
   //   * component / instance   → component / instance
   //
-  // TODO: validate referenced typeidx kinds against the declared sort
-  // (functype / componenttype / instancetype / core:moduletype) and,
-  // transitively, the contents of any component/instance type bodies.
+  // GAP-ED-1: bounds-check the referenced type index. The CoreType
+  // externdesc indexes the core:type space (the moduletype lives there);
+  // FuncType / ComponentType / InstanceType all index the component-level
+  // type space. Kind-of-type checks (e.g. that a FuncType index actually
+  // resolves to a component func type, not a record) are a follow-up that
+  // needs the type body to be retained on every type entry.
+  switch (Desc.getDescType()) {
+  case AST::Component::ExternDesc::DescType::CoreType: {
+    const uint32_t RefIdx = Desc.getTypeIndex();
+    const uint32_t CoreTypeSize =
+        CompCtx.getCoreSortIndexSize(AST::Component::Sort::CoreSortType::Type);
+    if (RefIdx >= CoreTypeSize) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "    ExternDesc: core type index {} exceeds core:type index space size {}"sv,
+          RefIdx, CoreTypeSize);
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    break;
+  }
+  case AST::Component::ExternDesc::DescType::FuncType:
+  case AST::Component::ExternDesc::DescType::ComponentType:
+  case AST::Component::ExternDesc::DescType::InstanceType: {
+    const uint32_t RefIdx = Desc.getTypeIndex();
+    const uint32_t TypeSize =
+        CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type);
+    if (RefIdx >= TypeSize) {
+      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(
+          "    ExternDesc: referenced type index {} exceeds type index space size {}"sv,
+          RefIdx, TypeSize);
+      return Unexpect(ErrCode::Value::InvalidIndex);
+    }
+    break;
+  }
+  default:
+    break;
+  }
+
   switch (Desc.getDescType()) {
   case AST::Component::ExternDesc::DescType::CoreType:
     // The CoreType externdesc is `(core module (type i))`, so it introduces
-    // a new core module index, not a core type.
-    CompCtx.addCoreModule();
+    // a new core module index, not a core type. Carry the referenced
+    // moduletype so instance definitions can enumerate the module's exports.
+    if (const auto *MT = CompCtx.getCoreModuleTypeDef(Desc.getTypeIndex())) {
+      CompCtx.addDeclaredCoreModule(*MT);
+    } else {
+      CompCtx.addOpaqueCoreModule();
+    }
     break;
   case AST::Component::ExternDesc::DescType::FuncType:
     CompCtx.addFunc();
@@ -1669,19 +1893,27 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     }
     break;
   case AST::Component::ExternDesc::DescType::ComponentType:
-    CompCtx.addComponent();
+    // Carry the referenced componenttype so instance definitions that
+    // instantiate this imported component can enumerate its exports.
+    if (const auto *DT = CompCtx.getDefType(Desc.getTypeIndex());
+        DT != nullptr && DT->isComponentType()) {
+      CompCtx.addDeclaredComponent(DT->getComponentType());
+    } else {
+      CompCtx.addOpaqueComponent();
+    }
     break;
   case AST::Component::ExternDesc::DescType::InstanceType: {
+    // GAP-ED-2: populate the new instance slot from the referenced
+    // InstanceType so a subsequent alias-export resolves its sub-exports.
     uint32_t InstIdx = CompCtx.addInstance();
     const auto *IT = CompCtx.getInstanceType(Desc.getTypeIndex());
     if (IT != nullptr) {
       populateInstanceFromType(CompCtx, InstIdx, *IT);
     }
-    // If the type index didn't resolve to an inline InstanceType here, it
-    // may reference a type in an outer scope (e.g. inside
-    // componenttype/instancetype bodies). Outer-scope type-index
-    // resolution is not yet implemented, so the instance is left with an
-    // empty export table.
+    // If the type index resolved against an outer scope's InstanceType,
+    // populating from it requires cross-scope walking (the rest of
+    // GAP-DECL-ED). For now the instance keeps an empty export table when
+    // the InstanceType body isn't visible in this scope.
     break;
   }
   default:
@@ -1808,56 +2040,19 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
     return Unexpect(ErrCode::Value::ComponentDuplicateName);
   }
 
-  // Increment sort index spaces based on the extern descriptor type.
-  // Full ExternDesc validation (type index bounds) is deferred because
-  // ExportDecls inside nested InstanceTypes reference type indices from
-  // the defining scope, not the InstanceType's own scope.
-  const auto &Desc = Decl.getExternDesc();
-  switch (Desc.getDescType()) {
-  case AST::Component::ExternDesc::DescType::CoreType:
-    // The CoreType externdesc is `(core module (type i))`, so it introduces
-    // a new core module index, not a core type.
-    CompCtx.addCoreModule();
-    break;
-  case AST::Component::ExternDesc::DescType::FuncType:
-    CompCtx.addFunc();
-    break;
-  case AST::Component::ExternDesc::DescType::ValueBound:
-    CompCtx.addValue();
-    break;
-  case AST::Component::ExternDesc::DescType::TypeBound: {
-    uint32_t NewIdx = CompCtx.addTypeImported(nullptr);
-    if (!Desc.isEqType()) {
-      // (type (sub resource)) — fresh abstract resource type
-      CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
-    } else {
-      // (type (eq i)) — propagate resource property if in bounds
-      uint32_t RefIdx = Desc.getTypeIndex();
-      if (RefIdx <
-              CompCtx.getSortIndexSize(AST::Component::Sort::SortType::Type) &&
-          CompCtx.isResourceType(RefIdx)) {
-        CompCtx.getCurrentContext().ResourceTypes[NewIdx] = nullptr;
-      }
-    }
-    break;
-  }
-  case AST::Component::ExternDesc::DescType::ComponentType:
-    CompCtx.addComponent();
-    break;
-  case AST::Component::ExternDesc::DescType::InstanceType: {
-    // Populate the new instance slot with the referenced InstanceType's
-    // exports so a subsequent `alias export` against this slot can resolve
-    // its sub-exports (mirrors the ExternDesc-for-imports handling).
-    uint32_t InstIdx = CompCtx.addInstance();
-    const auto *IT = CompCtx.getInstanceType(Desc.getTypeIndex());
-    if (IT != nullptr) {
-      populateInstanceFromType(CompCtx, InstIdx, *IT);
-    }
-    break;
-  }
-  default:
-    assumingUnreachable();
-  }
+  // Validate the extern descriptor (also increments sort index spaces and
+  // performs type-index bounds checking). For nested ExportDecls whose
+  // ExternDesc references a type index defined in an outer scope, the
+  // current scope's lookup may return nullptr — validate(ExternDesc) handles
+  // that gracefully by allocating an empty instance slot. Cross-scope
+  // type-index resolution (walking the parent CompCtxs chain to resolve
+  // names like `(export "f" (func (type 0)))` where type 0 lives outside
+  // the InstanceType body) is the structural follow-up tracked by the rest
+  // of GAP-DECL-ED / GAP-ED-1 / GAP-ED-2.
+  EXPECTED_TRY(validate(Decl.getExternDesc()).map_error([](auto E) {
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
+    return E;
+  }));
 
   return {};
 }
@@ -2205,10 +2400,27 @@ Validator::validate(const AST::Component::ResourceType &RT) noexcept {
           DtorIdx);
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
-    // TODO: validate that the destructor's core func type is `[i32] -> []`
-    // (or `[i64] -> []` when the resource rep is i64). This requires
-    // tracking the signature of each core func, which the validator does
-    // not yet do.
+    // Verify the destructor's signature is `[i32] -> []`. The signature is
+    // only available for core funcs the validator has populated (canon
+    // resource.* synthesise it; aliased-from-core-module funcs are tracked
+    // as a TODO that needs CoreInstance export-type plumbing). Skip the
+    // check when the SubType pointer is null — the bounds check above
+    // already caught the obvious "no such func" mistake.
+    // TODO: also accept `[i64] -> []` when the resource rep is i64
+    // (memory64 proposal); needs ResourceType to carry rep size.
+    const AST::SubType *DtorST = CompCtx.getCoreFunc(DtorIdx);
+    if (DtorST != nullptr) {
+      const auto &DtorType = DtorST->getCompositeType();
+      const auto &ExpType = CoreFuncType_I32_Void.getCompositeType();
+      if (!DtorType.isFunc() ||
+          DtorType.getFuncType() != ExpType.getFuncType()) {
+        spdlog::error(ErrCode::Value::InvalidTypeReference);
+        spdlog::error(
+            "    ResourceType: destructor core func {} must have signature [i32] -> []"sv,
+            DtorIdx);
+        return Unexpect(ErrCode::Value::InvalidTypeReference);
+      }
+    }
   }
   return {};
 }

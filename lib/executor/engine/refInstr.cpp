@@ -158,12 +158,16 @@ Expect<void> Executor::runArrayNewOp(Runtime::StackManager &StackMgr,
                                      uint32_t Length) const noexcept {
   assuming(InitCnt == 0 || InitCnt == 1 || InitCnt == Length);
   if (InitCnt == 0) {
-    StackMgr.push(*arrayNew(StackMgr, TypeIdx, Length));
+    EXPECTED_TRY(auto Ref, arrayNew(StackMgr, TypeIdx, Length));
+    StackMgr.push(Ref);
   } else if (InitCnt == 1) {
-    StackMgr.getTop().emplace<RefVariant>(
-        *arrayNew(StackMgr, TypeIdx, Length, {StackMgr.getTop()}));
+    EXPECTED_TRY(auto Ref,
+                 arrayNew(StackMgr, TypeIdx, Length, {StackMgr.getTop()}));
+    StackMgr.getTop().emplace<RefVariant>(Ref);
   } else {
-    StackMgr.push(*arrayNew(StackMgr, TypeIdx, Length, StackMgr.pop(Length)));
+    EXPECTED_TRY(auto Ref,
+                 arrayNew(StackMgr, TypeIdx, Length, StackMgr.pop(Length)));
+    StackMgr.push(Ref);
   }
   return {};
 }
@@ -472,20 +476,31 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  if (Args.size() == 0) {
-    // New and fill with default values.
-    auto InitVal = VType.isRefType()
-                       ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
-                       : ValVariant(static_cast<uint128_t>(0U));
-    Inst = ModInst->newArray(TypeIdx, Length, InitVal);
-  } else if (Args.size() == 1) {
-    // Create and fill with the argument value.
-    Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
-  } else {
-    // Create with arguments.
-    Inst = ModInst->newArray(
-        TypeIdx,
-        packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
+  // The `Length` is a runtime-controlled operand of array.new /
+  // array.new_default with no static upper bound, so the backing allocation may
+  // fail. Catch the allocation failure and turn it into a Wasm trap instead of
+  // letting std::bad_alloc escape and abort the whole host process.
+  try {
+    if (Args.size() == 0) {
+      // New and fill with default values.
+      auto InitVal = VType.isRefType()
+                         ? ValVariant(RefVariant(toBottomType(StackMgr, VType)))
+                         : ValVariant(static_cast<uint128_t>(0U));
+      Inst = ModInst->newArray(TypeIdx, Length, InitVal);
+    } else if (Args.size() == 1) {
+      // Create and fill with the argument value.
+      Inst = ModInst->newArray(TypeIdx, Length, packVal(VType, Args[0]));
+    } else {
+      // Create with arguments.
+      Inst = ModInst->newArray(
+          TypeIdx,
+          packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
+    }
+  } catch (const std::bad_alloc &) {
+    using namespace std::literals;
+    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+    spdlog::error("    Unable to allocate array of {} element(s)."sv, Length);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   return RefVariant(Inst->getDefType(), Inst);
 }

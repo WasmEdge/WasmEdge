@@ -581,8 +581,8 @@ operator+(detail::uint128_fallback LHS, unsigned int RHS) {
 
 inline constexpr detail::uint128_fallback
 operator-(unsigned int LHS, detail::uint128_fallback RHS) {
-  uint128_fallback Result = RHS;
-  return (~Result) + 1 + LHS;
+  detail::uint128_fallback Negated = {~RHS.high(), ~RHS.low()};
+  return Negated + 1 + LHS;
 }
 
 inline constexpr detail::uint128_fallback &

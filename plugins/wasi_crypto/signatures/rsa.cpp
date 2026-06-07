@@ -54,7 +54,7 @@ WasiCryptoExpect<void>
 Rsa<PadMode, KeyBits, ShaNid>::PublicKey::verify() const noexcept {
   EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
   ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  ensureOrReturn(EVP_PKEY_public_check(CheckCtx.get()),
+  ensureOrReturn(EVP_PKEY_public_check(CheckCtx.get()) == 1,
                  __WASI_CRYPTO_ERRNO_INVALID_KEY);
   return {};
 }

@@ -846,10 +846,13 @@ public:
     if (!VINode::isPathValid(NewPath)) {
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
-    // forbid absolute path
+    // Forbid an absolute target. A target escaping the base directory is "not
+    // permitted", matching resolvePath and the `..` check in pathSymlink.
     if (!OldPath.empty() && OldPath[0] == '/') {
-      return WasiUnexpect(__WASI_ERRNO_INVAL);
+      return WasiUnexpect(__WASI_ERRNO_PERM);
     }
+    // Relative targets escaping via `..` are rejected in VINode::pathSymlink,
+    // where the link's depth is known.
     auto NewNode = getNodeOrNull(New);
     if (unlikely(!NewNode)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);

@@ -4003,6 +4003,9 @@ TEST(WasiTest, SymbolicLink) {
   WasmEdge::Host::WasiPathSymlink WasiPathSymlink(Env);
   WasmEdge::Host::WasiPathUnlinkFile WasiPathUnlinkFile(Env);
   WasmEdge::Host::WasiPathFilestatGet WasiPathFilestatGet(Env);
+  WasmEdge::Host::WasiPathCreateDirectory WasiPathCreateDirectory(Env);
+  WasmEdge::Host::WasiPathReadLink WasiPathReadLink(Env);
+  WasmEdge::Host::WasiPathRemoveDirectory WasiPathRemoveDirectory(Env);
   std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
 
   const uint32_t Fd = 3;
@@ -4126,6 +4129,129 @@ TEST(WasiTest, SymbolicLink) {
                                    Fd, NewPathPtr, NewPathSize},
                                Errno));
     EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  // Symlink targets resolving outside the preopen root are rejected; in-bounds
+  // targets are stored verbatim. Use spaced buffers so the targets and link
+  // names do not overlap in guest memory.
+  OldPathPtr = 0;
+  NewPathPtr = 64;
+  const auto makeSymlink = [&](std::string_view OldPath,
+                               std::string_view NewPath) {
+    writeString(MemInst, OldPath, OldPathPtr);
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathSymlink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            OldPathPtr, static_cast<uint32_t>(OldPath.size()), Fd, NewPathPtr,
+            static_cast<uint32_t>(NewPath.size())},
+        Errno));
+    return Errno[0].get<int32_t>();
+  };
+  // Read back the verbatim stored target of a link.
+  const uint32_t LinkBufPtr = 256;
+  const uint32_t NReadPtr = 600;
+  const auto readSymlink = [&](std::string_view NewPath) {
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathReadLink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, NewPathPtr, static_cast<uint32_t>(NewPath.size()), LinkBufPtr,
+            UINT32_C(256), NReadPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    const auto NRead = *MemInst.getPointer<const uint32_t *>(NReadPtr);
+    return std::string(MemInst.getPointer<const char *>(LinkBufPtr), NRead);
+  };
+  const auto removeSymlink = [&](std::string_view NewPath) {
+    writeString(MemInst, NewPath, NewPathPtr);
+    EXPECT_TRUE(WasiPathUnlinkFile.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, NewPathPtr, static_cast<uint32_t>(NewPath.size())},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+  };
+
+  // absolute target rejected (control)
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    EXPECT_EQ(makeSymlink("/etc/passwd"sv, "planted_abs_symlink"sv),
+              __WASI_ERRNO_PERM);
+    Env.fini();
+  }
+
+  // `..` targets at the preopen root escape and are rejected
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    EXPECT_EQ(makeSymlink("../../etc/passwd"sv, "escape_a"sv),
+              __WASI_ERRNO_PERM);
+    EXPECT_EQ(makeSymlink("foo/../../etc/passwd"sv, "escape_b"sv),
+              __WASI_ERRNO_PERM);
+    EXPECT_EQ(makeSymlink(".."sv, "escape_c"sv), __WASI_ERRNO_PERM);
+    Env.fini();
+  }
+
+  // depth-1 link: in-bounds `..` accepted, deeper escape rejected
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    writeString(MemInst, "sub"sv, NewPathPtr);
+    EXPECT_TRUE(
+        WasiPathCreateDirectory.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        Fd, NewPathPtr, UINT32_C(3)},
+                                    Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    // single `..` stays in bounds
+    EXPECT_EQ(makeSymlink("../sibling"sv, "sub/keep"sv), __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(readSymlink("sub/keep"sv), "../sibling");
+    // deeper `..` escapes, rejected
+    EXPECT_EQ(makeSymlink("../../../etc/passwd"sv, "sub/escape"sv),
+              __WASI_ERRNO_PERM);
+    removeSymlink("sub/keep"sv);
+    writeString(MemInst, "sub"sv, NewPathPtr);
+    EXPECT_TRUE(
+        WasiPathRemoveDirectory.run(CallFrame,
+                                    std::initializer_list<WasmEdge::ValVariant>{
+                                        Fd, NewPathPtr, UINT32_C(3)},
+                                    Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  // in-bounds targets stored verbatim
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    EXPECT_EQ(makeSymlink("sibling_file"sv, "safe_same_dir"sv),
+              __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(readSymlink("safe_same_dir"sv), "sibling_file");
+    EXPECT_EQ(makeSymlink("a/../sibling_file"sv, "safe_normalized"sv),
+              __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(readSymlink("safe_normalized"sv), "a/../sibling_file");
+    removeSymlink("safe_same_dir"sv);
+    removeSymlink("safe_normalized"sv);
+    Env.fini();
+  }
+
+  // the new path's trailing component is not followed: creating a link where
+  // one already exists fails with EEXIST instead of being created at the
+  // existing link's target
+  {
+    Env.init({"/:."s}, "test"s, {}, {});
+    EXPECT_EQ(makeSymlink("target_x"sv, "existing_link"sv),
+              __WASI_ERRNO_SUCCESS);
+    EXPECT_EQ(makeSymlink("target_y"sv, "existing_link"sv), __WASI_ERRNO_EXIST);
+    // the original link is untouched and no link named after its target exists
+    EXPECT_EQ(readSymlink("existing_link"sv), "target_x");
+    writeString(MemInst, "target_x"sv, NewPathPtr);
+    EXPECT_TRUE(WasiPathReadLink.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            Fd, NewPathPtr, UINT32_C(8), LinkBufPtr, UINT32_C(256), NReadPtr},
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_NOENT);
+    removeSymlink("existing_link"sv);
     Env.fini();
   }
 }

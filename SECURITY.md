@@ -49,3 +49,12 @@ Information regarding supported versions of WasmEdge are in the below table:
 | ------- | --------- |
 | 0.15.0  | :white_check_mark: |
 | 0.14.1  | :white_check_mark: |
+
+## Secure Configuration Guidelines
+
+WasmEdge executes WebAssembly bytecode programs within a well-defined execution sandbox. By default, WebAssembly programs run with no access to host OS resources.
+
+When deploying WasmEdge in production, please adhere to the following secure defaults:
+* **Isolation:** JIT mode, core dumps, and debug features are completely disabled by default. Do not enable them unless explicitly required.
+* **Capabilities:** WASM modules have no access to the file system, sockets, or environment variables unless explicitly granted by the host application.
+* **Host Functions:** Be aware that WASI host function implementations and third-party plug-in interfaces bypass the WebAssembly sandbox. They run natively and form the security boundary between the sandbox and the host OS. Only load trusted plugins.

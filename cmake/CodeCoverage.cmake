@@ -317,6 +317,13 @@ function(setup_target_for_coverage_lcov)
         message(FATAL_ERROR "genhtml not found! Aborting...")
     endif() # NOT GENHTML_PATH
 
+    # The optional SONARQUBE output is produced by gcovr, so fail at configure
+    # time with a clear message rather than emitting an empty command that only
+    # fails when the coverage target is built.
+    if(${Coverage_SONARQUBE} AND NOT GCOVR_PATH)
+        message(FATAL_ERROR "gcovr not found! Aborting...")
+    endif() # Coverage_SONARQUBE AND NOT GCOVR_PATH
+
     # Set base directory (as absolute path), or default to PROJECT_SOURCE_DIR
     if(DEFINED Coverage_BASE_DIRECTORY)
         get_filename_component(BASEDIR ${Coverage_BASE_DIRECTORY} ABSOLUTE)
@@ -458,14 +465,14 @@ function(setup_target_for_coverage_lcov)
 
     # Show where to find the lcov info report
     add_custom_command(TARGET ${Coverage_NAME} POST_BUILD
-        COMMAND true
+        COMMAND ${CMAKE_COMMAND} -E true
         COMMENT "Lcov code coverage info report saved in ${Coverage_NAME}.info."
         ${GCOVR_XML_CMD_COMMENT}
     )
 
     # Show info where to find the report
     add_custom_command(TARGET ${Coverage_NAME} POST_BUILD
-        COMMAND true
+        COMMAND ${CMAKE_COMMAND} -E true
         COMMENT "Open ./${Coverage_NAME}/index.html in your browser to view the coverage report."
     )
 
@@ -558,7 +565,7 @@ function(setup_target_for_coverage_gcovr_xml)
 
     # Show info where to find the report
     add_custom_command(TARGET ${Coverage_NAME} POST_BUILD
-        COMMAND true
+        COMMAND ${CMAKE_COMMAND} -E true
         COMMENT "Cobertura code coverage report saved in ${Coverage_NAME}.xml."
     )
 endfunction() # setup_target_for_coverage_gcovr_xml
@@ -659,7 +666,7 @@ function(setup_target_for_coverage_gcovr_html)
 
     # Show info where to find the report
     add_custom_command(TARGET ${Coverage_NAME} POST_BUILD
-        COMMAND true
+        COMMAND ${CMAKE_COMMAND} -E true
         COMMENT "Open ./${Coverage_NAME}/index.html in your browser to view the coverage report."
     )
 

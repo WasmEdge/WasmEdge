@@ -9,12 +9,20 @@ wasmedge_add_executable(wasmedge-fuzzpo
   po.cpp
 )
 
+wasmedge_add_executable(wasmedge-fuzzwat
+  wat.cpp
+)
+
 if(DEFINED LIB_FUZZING_ENGINE)
   target_link_libraries(wasmedge-fuzztool
     PRIVATE
     ${LIB_FUZZING_ENGINE}
   )
   target_link_libraries(wasmedge-fuzzpo
+    PRIVATE
+    ${LIB_FUZZING_ENGINE}
+  )
+  target_link_libraries(wasmedge-fuzzwat
     PRIVATE
     ${LIB_FUZZING_ENGINE}
   )
@@ -29,12 +37,20 @@ if(WASMEDGE_LINK_TOOLS_STATIC)
     PRIVATE
     wasmedgeCAPI
   )
+  target_link_libraries(wasmedge-fuzzwat
+    PRIVATE
+    wasmedgeCAPI
+  )
 else()
   target_link_libraries(wasmedge-fuzztool
     PRIVATE
     wasmedge_shared
   )
   target_link_libraries(wasmedge-fuzzpo
+    PRIVATE
+    wasmedge_shared
+  )
+  target_link_libraries(wasmedge-fuzzwat
     PRIVATE
     wasmedge_shared
   )

@@ -66,6 +66,7 @@
   * Describe the project’s High Availability requirements.
     * For users who use WasmEdge directly, no matter by API or CLI, the mean time to repair is much shorter than the mean time to failure for the following reasons:
       * As a WASM runtime, WasmEdge passed the WASM test suites to cover the most cases of WASM instructions. Furthermore, fuzzing tests help the WasmEdge project to handle more edge cases to prevent failure.
+        * **Runtime Validation:** WasmEdge does not currently use a formal verifier. Instead, specification compliance is validated empirically through continuous conformance testing. The CI pipeline natively executes the official WebAssembly specification test suites (`wasmedge-spectest`) covering core specifications and active proposals (SIMD, Threads, Component Model, etc.).
       * As a lightweight runtime, users just need to restart WasmEdge quickly to recover from failure
     * For users who use WasmEdge integrated in containers such as `crun`, `docker`, `containerd`, or `Kubernetes`, the High Availability requirements are handled by the containers.
   * Describe the project’s resource requirements, including CPU, Network and Memory.

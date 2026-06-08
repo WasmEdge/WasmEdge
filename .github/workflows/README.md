@@ -18,57 +18,57 @@ This document details the Continuous Integration (CI) workflows for WasmEdge.
 
 ## Workflow Classification
 
-The WasmEdge CI is composed of various workflows. The following table details their triggers and whether they are required to pass before merging a Pull Request. Classifications marked "Unknown" require confirmation from a WasmEdge maintainer.
+The WasmEdge CI is composed of various workflows designed to build, test, and analyze the repository. The following tables detail their triggers, the specific areas of the repository they affect, and the actions expected from contributors if a failure occurs.
 
 *(Note: The `reusable-*.yml` files in this directory are internal workflow components called by the main pipelines and are excluded from these tables. Non-workflow files like `ignore_words` and `matrix-extensions.json` are also excluded.)*
 
 ### Core and Extensions Workflows
 
-| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
-|----------|----------|-------------|-------------|------------------------|
-| **Core** (`build.yml`) | PRs, Push | Tests core build and unit tests across major OS. | **Must-pass** (except Fedora Rawhide) | Compilation errors, unit test failures. |
-| **Extensions** (`build-extensions.yml`) | PRs, Push | Builds and tests WasmEdge plugins. | **Unknown** - Maintainer confirmation required | Missing dependencies, API mismatches. |
+| Workflow | Triggers | Purpose & Affected Areas | Contributor Expectations |
+|----------|----------|--------------------------|--------------------------|
+| **Core** (`build.yml`) | PRs, Push | Tests core build and unit tests across major OS. Affects the entire core engine. | Fix all compilation and unit test failures. **Note:** Fedora Rawhide failures may occasionally be caused by upstream OS breakage and are evaluated case-by-case. |
+| **Extensions** (`build-extensions.yml`) | PRs, Push | Builds and tests WasmEdge plugins (`plugins/` directory). | Plugin-specific workflow failures generally only matter when the related plugins are modified in your PR. |
 
 ### Linting and Compliance
 
-| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
-|----------|----------|-------------|-------------|------------------------|
-| **Commit Lint** (`commitlint.yml`) | PR Target | Enforces Conventional Commits standard. | **Must-pass** | Commit message does not start with `feat:`, `fix:`, etc. |
-| **Misc linters** (`misc-linters.yml`) | PRs, Push | Runs `clang-format` and style checks. | **Unknown** - Maintainer confirmation required | Code formatting deviates from WasmEdge style. |
-| **IWYU checker** (`IWYU_scan.yml`) | PRs, Push | Include-What-You-Use scan. | **Unknown** - Maintainer confirmation required | Missing or unnecessary `#include` directives. |
+| Workflow | Triggers | Purpose & Affected Areas | Contributor Expectations |
+|----------|----------|--------------------------|--------------------------|
+| **Commit Lint** (`commitlint.yml`) | PR Target | Enforces Conventional Commits standard on PR titles/commits. | Commits must be amended to match standard prefixes (`feat:`, `fix:`, etc.) before merging. |
+| **Misc linters** (`misc-linters.yml`) | PRs, Push | Checks C++ formatting (`clang-format`) and markdown styles. | Format your code using the provided `clang-format` script before pushing. |
+| **IWYU checker** (`IWYU_scan.yml`) | PRs, Push | Include-What-You-Use scan to optimize C++ headers. | Review warnings and clean up headers where applicable to keep includes minimal. |
 
 ### Security and Analysis
 
-| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
-|----------|----------|-------------|-------------|------------------------|
-| **CodeQL** (`codeql-analysis.yml`) | PRs, Push, Schedule | Security vulnerability analysis. | **Must-pass** | Memory leaks, unsafe patterns. |
-| **Static Code Analysis** (`static-code-analysis.yml`) | PRs, Push, Dispatch | Meta's Infer static analyzer. | **Unknown** - Maintainer confirmation required | Null pointer dereferences, uninitialized variables. |
+| Workflow | Triggers | Purpose & Affected Areas | Contributor Expectations |
+|----------|----------|--------------------------|--------------------------|
+| **CodeQL** (`codeql-analysis.yml`) | PRs, Push, Schedule | Security vulnerability analysis via GitHub Advanced Security. | Resolve flagged memory leaks or unsafe patterns. |
+| **Static Code Analysis** (`static-code-analysis.yml`) | PRs, Push, Dispatch | Meta's Infer static analyzer for deep code inspection. | Review and address flagged null pointer dereferences or uninitialized variables. |
 
 ### Installers and Specialized
 
-| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
-|----------|----------|-------------|-------------|------------------------|
-| **Installers** (`test-installers.yml`) | PRs, Push | Tests install scripts. | **Unknown** - Maintainer confirmation required | Syntax errors in bash/python scripts. |
-| **Test Wasi Testsuite** (`wasi-testsuite.yml`) | PRs, Push | Runs official WASI testsuite. | **Unknown** - Maintainer confirmation required | Incorrect WASI host function implementation. |
-| **Arch-specific Builds** (`build_for_riscv.yml`, `build_for_s390x.yml`, `build_for_openwrt.yml`, `build_for_nix.yml`) | PRs, Push | Builds for alternative archs. | **Unknown** - Maintainer confirmation required | Upstream changes broke niche architecture builds. |
-| **Docker Build** (`docker.yml`) | PRs, Push, Schedule | Builds and tests docker containers. | **Unknown** - Maintainer confirmation required | Dockerfile errors, path mismatches. |
+| Workflow | Triggers | Purpose & Affected Areas | Contributor Expectations |
+|----------|----------|--------------------------|--------------------------|
+| **Installers** (`test-installers.yml`) | PRs, Push | Tests `utils/install.py` and `utils/install_v2.sh`. | Ensure installer scripts execute cleanly across environments when modified. |
+| **Test Wasi Testsuite** (`wasi-testsuite.yml`) | PRs, Push | Validates `lib/host/wasi` against the official WASI testsuite. | Fix WASI host function implementations if regressions occur. |
+| **Arch-specific Builds** (`build_for_riscv.yml`, `build_for_s390x.yml`, `build_for_openwrt.yml`, `build_for_nix.yml`) | PRs, Push | Builds for niche alternative architectures (RISC-V, s390x, OpenWRT, Nix). | Evaluated case-by-case. May occasionally fail due to upstream dependencies rather than your PR. |
+| **Docker Build** (`docker.yml`) | PRs, Push, Schedule | Builds container images from `utils/docker/`. | Fix Dockerfile paths and syntax when modifying Docker assets. |
 
 ### Release and Maintenance
 
-| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
-|----------|----------|-------------|-------------|------------------------|
-| **Labeler** (`labeler.yml`) | PR Target | Auto-labels PRs based on modified files. | **Unknown** - Maintainer confirmation required | Invalid YAML syntax in labeler config. |
-| **Release** (`release.yml`) | Tag push, Dispatch | Creates GitHub releases and tarballs. | **N/A** (Not a PR check) | Upload asset failures. |
-| **Winget Submit** (`winget-submit.yml`) | Release, Dispatch | Submits MSI to Windows Package Manager. | **N/A** (Not a PR check) | Winget validation failures. |
+| Workflow | Triggers | Purpose & Affected Areas | Contributor Expectations |
+|----------|----------|--------------------------|--------------------------|
+| **Labeler** (`labeler.yml`) | PR Target | Utility to auto-label PRs based on modified paths. | No contributor action needed. |
+| **Release** (`release.yml`) | Tag push, Dispatch | Automation to create GitHub releases and tarballs. | No contributor action needed during standard PRs. |
+| **Winget Submit** (`winget-submit.yml`) | Release, Dispatch | Automation to submit MSI to Windows Package Manager. | No contributor action needed during standard PRs. |
 
 ## External Checks
 
-Some PR checks are not local `.yml` workflows, but are enforced via GitHub Apps or internal workflow steps:
+Some checks are not local `.yml` workflows, but are enforced via GitHub Apps or internal workflow steps:
 
-| Check | Description | Requirement | Typical Failure Causes |
-|-------|-------------|-------------|------------------------|
-| **DCO (Developer Certificate of Origin)** | Enforced by the DCO GitHub App. Ensures all commits are signed off. | **Must-pass** | Missing `Signed-off-by` in commit messages. |
-| **CodeCov** | Uploaded via steps in `build.yml` to track code coverage. | **Nice-to-pass** | Coverage dropped below acceptable thresholds. |
+| Check | Purpose & Affected Areas | Contributor Expectations |
+|-------|--------------------------|--------------------------|
+| **DCO (Developer Certificate of Origin)** | Enforced by the DCO GitHub App to ensure provenance. | All commits must contain a valid `Signed-off-by` line. |
+| **CodeCov** | Uploaded via steps in `build.yml` to track code coverage. | Contributors are expected to maintain or improve code coverage. Significant drops will block merging. |
 
 ## Contributor Guidance
 

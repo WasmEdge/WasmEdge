@@ -94,8 +94,10 @@ LLMPipelineBackend::GetContextOutput(Context &CxtRef, uint32_t Index,
 
   try {
     BytesWritten = CxtRef.StringOutput.size();
+    const size_t BytesToCopy = std::min(static_cast<size_t>(OutBuffer.size()),
+                                        static_cast<size_t>(BytesWritten));
     std::copy_n(reinterpret_cast<const uint8_t *>(CxtRef.StringOutput.data()),
-                BytesWritten, OutBuffer.data());
+                BytesToCopy, OutBuffer.data());
   } catch (const std::exception &EX) {
     spdlog::error("[WASI-NN] Get Output Exception: {}"sv, EX.what());
     return WASINN::ErrNo::RuntimeError;

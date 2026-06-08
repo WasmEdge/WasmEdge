@@ -551,8 +551,9 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   if (GraphRef.ModelArch == "llm") {
     auto *Output = std::get_if<LLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
-      std::copy_n(Output->Answer.data(), Output->Answer.length(),
-                  OutBuffer.data());
+      const size_t BytesToCopy = std::min(static_cast<size_t>(OutBuffer.size()),
+                                          Output->Answer.length());
+      std::copy_n(Output->Answer.data(), BytesToCopy, OutBuffer.data());
       BytesWritten = Output->Answer.length();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
@@ -562,7 +563,9 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto *Output = std::get_if<VLMOutput>(&CxtRef.Outputs);
     if (Output != nullptr) {
       auto OutputBytes = toBytes(Output->Answer);
-      std::copy_n(OutputBytes.data(), OutputBytes.size(), OutBuffer.data());
+      const size_t BytesToCopy =
+          std::min(static_cast<size_t>(OutBuffer.size()), OutputBytes.size());
+      std::copy_n(OutputBytes.data(), BytesToCopy, OutBuffer.data());
       BytesWritten = OutputBytes.size();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);
@@ -572,7 +575,9 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     auto *Output = std::get_if<whisper::TranscribeResult>(&CxtRef.Outputs);
     if (Output != nullptr) {
       std::string Text = Output->Text;
-      std::copy_n(Text.data(), Text.length(), OutBuffer.data());
+      const size_t BytesToCopy =
+          std::min(static_cast<size_t>(OutBuffer.size()), Text.length());
+      std::copy_n(Text.data(), BytesToCopy, OutBuffer.data());
       BytesWritten = Text.length();
     } else {
       spdlog::error("[WASI-NN] MLX backend: No output found."sv);

@@ -27,7 +27,9 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
   // Use index 1 for output metadata.
   if (Index == 1) {
     std::string Metadata = buildOutputMetadata(CxtRef);
-    std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
+    const size_t BytesToCopy =
+        std::min(static_cast<size_t>(OutBuffer.size()), Metadata.length());
+    std::copy_n(Metadata.data(), BytesToCopy, OutBuffer.data());
     BytesWritten = static_cast<uint32_t>(Metadata.length());
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "getOutputSingle: with Index {} a.k.a Metadata...Done"sv, Index)
@@ -36,7 +38,9 @@ Expect<ErrNo> getOutputSingle(WasiNNEnvironment &Env, uint32_t ContextId,
 
   std::string LastToken = common_token_to_piece(
       GraphRef.LlamaContext.get(), CxtRef.LlamaOutputTokens.back());
-  std::copy_n(LastToken.data(), LastToken.length(), OutBuffer.data());
+  const size_t BytesToCopy =
+      std::min(static_cast<size_t>(OutBuffer.size()), LastToken.length());
+  std::copy_n(LastToken.data(), BytesToCopy, OutBuffer.data());
   BytesWritten = EndianValue(static_cast<uint32_t>(LastToken.length())).le();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutputSingle: with Index {}...Done"sv,
             Index)
@@ -53,15 +57,18 @@ Expect<ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
   // Use index 1 for output metadata.
   if (Index == 1) {
     std::string Metadata = buildOutputMetadata(CxtRef);
-    std::copy_n(Metadata.data(), Metadata.length(), OutBuffer.data());
+    const size_t BytesToCopy =
+        std::min(static_cast<size_t>(OutBuffer.size()), Metadata.length());
+    std::copy_n(Metadata.data(), BytesToCopy, OutBuffer.data());
     BytesWritten = static_cast<uint32_t>(Metadata.length());
     LOG_DEBUG(GraphRef.EnableDebugLog,
               "getOutput: with Index {} a.k.a Metadata ...Done"sv, Index)
     return ErrNo::Success;
   }
 
-  std::copy_n(CxtRef.LlamaOutputs.data(), CxtRef.LlamaOutputs.size(),
-              OutBuffer.data());
+  const size_t BytesToCopy = std::min(static_cast<size_t>(OutBuffer.size()),
+                                      CxtRef.LlamaOutputs.size());
+  std::copy_n(CxtRef.LlamaOutputs.data(), BytesToCopy, OutBuffer.data());
   BytesWritten =
       EndianValue(static_cast<uint32_t>(CxtRef.LlamaOutputs.size())).le();
   LOG_DEBUG(GraphRef.EnableDebugLog, "getOutput: with Index {}...Done"sv, Index)

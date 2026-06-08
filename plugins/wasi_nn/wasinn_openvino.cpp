@@ -160,7 +160,9 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
     const ov::Tensor &OutputTensor =
         CxtRef.OpenVINOInferRequest.get_output_tensor(Index);
     BytesWritten = OutputTensor.get_byte_size();
-    std::copy_n(static_cast<const uint8_t *>(OutputTensor.data()), BytesWritten,
+    const size_t BytesToCopy = std::min(static_cast<size_t>(OutBuffer.size()),
+                                        static_cast<size_t>(BytesWritten));
+    std::copy_n(static_cast<const uint8_t *>(OutputTensor.data()), BytesToCopy,
                 OutBuffer.data());
   } catch (const std::exception &EX) {
     spdlog::error("[WASI-NN] Get Output Exception: {}"sv, EX.what());

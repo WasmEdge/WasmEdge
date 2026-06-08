@@ -1,7 +1,86 @@
 # CI Workflows
 
-This document has not yet covered all workflows.
+This document details the Continuous Integration (CI) workflows for WasmEdge.
 
+## Table of Contents
+
+- [Workflow Classification](#workflow-classification)
+  - [Core and Extensions Workflows](#core-and-extensions-workflows)
+  - [Linting and Compliance](#linting-and-compliance)
+  - [Security and Analysis](#security-and-analysis)
+  - [Installers and Specialized](#installers-and-specialized)
+  - [Release and Maintenance](#release-and-maintenance)
+- [External Checks](#external-checks)
+- [Contributor Guidance](#contributor-guidance)
+- [Build and Release](#build-and-release)
+- [Workflow for build.yml](#workflow-for-buildyml)
+- [Calling Structure for Reusable Workflows](#calling-structure-for-reusable-workflows)
+
+## Workflow Classification
+
+The WasmEdge CI is composed of various workflows. The following table details their triggers and whether they are required to pass before merging a Pull Request. Classifications marked "Unknown" require confirmation from a WasmEdge maintainer.
+
+*(Note: The `reusable-*.yml` files in this directory are internal workflow components called by the main pipelines and are excluded from these tables. Non-workflow files like `ignore_words` and `matrix-extensions.json` are also excluded.)*
+
+### Core and Extensions Workflows
+
+| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
+|----------|----------|-------------|-------------|------------------------|
+| **Core** (`build.yml`) | PRs, Push | Tests core build and unit tests across major OS. | **Must-pass** (except Fedora Rawhide) | Compilation errors, unit test failures. |
+| **Extensions** (`build-extensions.yml`) | PRs, Push | Builds and tests WasmEdge plugins. | **Unknown** - Maintainer confirmation required | Missing dependencies, API mismatches. |
+
+### Linting and Compliance
+
+| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
+|----------|----------|-------------|-------------|------------------------|
+| **Commit Lint** (`commitlint.yml`) | PR Target | Enforces Conventional Commits standard. | **Must-pass** | Commit message does not start with `feat:`, `fix:`, etc. |
+| **Misc linters** (`misc-linters.yml`) | PRs, Push | Runs `clang-format` and style checks. | **Unknown** - Maintainer confirmation required | Code formatting deviates from WasmEdge style. |
+| **IWYU checker** (`IWYU_scan.yml`) | PRs, Push | Include-What-You-Use scan. | **Unknown** - Maintainer confirmation required | Missing or unnecessary `#include` directives. |
+
+### Security and Analysis
+
+| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
+|----------|----------|-------------|-------------|------------------------|
+| **CodeQL** (`codeql-analysis.yml`) | PRs, Push, Schedule | Security vulnerability analysis. | **Must-pass** | Memory leaks, unsafe patterns. |
+| **Static Code Analysis** (`static-code-analysis.yml`) | PRs, Push, Dispatch | Meta's Infer static analyzer. | **Unknown** - Maintainer confirmation required | Null pointer dereferences, uninitialized variables. |
+
+### Installers and Specialized
+
+| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
+|----------|----------|-------------|-------------|------------------------|
+| **Installers** (`test-installers.yml`) | PRs, Push | Tests install scripts. | **Unknown** - Maintainer confirmation required | Syntax errors in bash/python scripts. |
+| **Test Wasi Testsuite** (`wasi-testsuite.yml`) | PRs, Push | Runs official WASI testsuite. | **Unknown** - Maintainer confirmation required | Incorrect WASI host function implementation. |
+| **Arch-specific Builds** (`build_for_riscv.yml`, `build_for_s390x.yml`, `build_for_openwrt.yml`, `build_for_nix.yml`) | PRs, Push | Builds for alternative archs. | **Unknown** - Maintainer confirmation required | Upstream changes broke niche architecture builds. |
+| **Docker Build** (`docker.yml`) | PRs, Push, Schedule | Builds and tests docker containers. | **Unknown** - Maintainer confirmation required | Dockerfile errors, path mismatches. |
+
+### Release and Maintenance
+
+| Workflow | Triggers | Description | Requirement | Typical Failure Causes |
+|----------|----------|-------------|-------------|------------------------|
+| **Labeler** (`labeler.yml`) | PR Target | Auto-labels PRs based on modified files. | **Unknown** - Maintainer confirmation required | Invalid YAML syntax in labeler config. |
+| **Release** (`release.yml`) | Tag push, Dispatch | Creates GitHub releases and tarballs. | **N/A** (Not a PR check) | Upload asset failures. |
+| **Winget Submit** (`winget-submit.yml`) | Release, Dispatch | Submits MSI to Windows Package Manager. | **N/A** (Not a PR check) | Winget validation failures. |
+
+## External Checks
+
+Some PR checks are not local `.yml` workflows, but are enforced via GitHub Apps or internal workflow steps:
+
+| Check | Description | Requirement | Typical Failure Causes |
+|-------|-------------|-------------|------------------------|
+| **DCO (Developer Certificate of Origin)** | Enforced by the DCO GitHub App. Ensures all commits are signed off. | **Must-pass** | Missing `Signed-off-by` in commit messages. |
+| **CodeCov** | Uploaded via steps in `build.yml` to track code coverage. | **Nice-to-pass** | Coverage dropped below acceptable thresholds. |
+
+## Contributor Guidance
+
+When a CI workflow fails on your Pull Request, follow these steps:
+
+1. **Identify the Failing Workflow**: Review the PR checks section at the bottom of your PR.
+2. **Review the Logs**: Click "Details", expand the failing step, and look for compiler errors or test failures.
+3. **Reproduce Locally**: 
+   - **Build/Test Failures**: Attempt to build WasmEdge locally with the same compiler.
+   - **Formatting Issues**: Run `clang-format` on your changed files.
+   - **Commit Lint**: Use `git commit --amend` to update your message to [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), then `git push --force`.
+4. **Ask for Help**: If you cannot determine the cause or suspect a flaky test, comment on your PR asking maintainers for guidance.
 ## Build and Release
 
 ### WasmEdge (core)

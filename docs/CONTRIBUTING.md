@@ -39,6 +39,8 @@ Signed-off-by: Alice Chen <alice.chen@example.com>
 
 ## CI Checks
 
+For a complete inventory of our CI workflows, what they test, and their passing requirements, please see the [CI Workflows Documentation](../.github/workflows/README.md).
+
 The CI workflows will only be approved to execute if:
 
 1. DCO check is passed.

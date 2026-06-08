@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about WASM execution (loader, validator,
+/// This file contains functions for WASM execution (loader, validator,
 /// executor, calling frame, store, and async) in WasmEdge C API.
 ///
 //===----------------------------------------------------------------------===//
@@ -46,7 +46,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_LoaderContext *WasmEdge_LoaderCreate(
 /// `WasmEdge_ASTModuleDelete` to destroy it.
 ///
 /// \param Cxt the WasmEdge_LoaderContext.
-/// \param [out] Module the output WasmEdge_ASTModuleContext if succeeded.
+/// \param [out] Module the output WasmEdge_ASTModuleContext on success.
 /// \param Path the NULL-terminated C string of the WASM file path.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
@@ -65,7 +65,7 @@ WasmEdge_LoaderParseFromFile(WasmEdge_LoaderContext *Cxt,
 /// to destroy it.
 ///
 /// \param Cxt the WasmEdge_LoaderContext.
-/// \param [out] Module the output WasmEdge_ASTModuleContext if succeeded.
+/// \param [out] Module the output WasmEdge_ASTModuleContext on success.
 /// \param Bytes the WasmEdge_Bytes of WASM binary.
 ///
 /// \returns WasmEdge_Result. Call `WasmEdge_ResultGetMessage` for the error
@@ -78,7 +78,7 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_LoaderParseFromBytes(
 ///
 /// Serialize the loaded WasmEdge_ASTModuleContext into the WASM binary format.
 /// If the serialization succeeded, this API will allocate a new
-/// `WasmEdge_Bytes` object and fill into the `Buf`. The caller owns the
+/// `WasmEdge_Bytes` object and store it in `Buf`. The caller owns the
 /// `WasmEdge_Bytes` object and should call `WasmEdge_BytesDelete` to destroy
 /// it.
 ///
@@ -150,9 +150,9 @@ WasmEdge_ValidatorDelete(WasmEdge_ValidatorContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 /// \param ConfCxt the WasmEdge_ConfigureContext as the configuration of
 /// Executor. NULL for the default configuration.
 /// \param StatCxt the WasmEdge_StatisticsContext as the statistics object set
-/// into Executor. The statistics will refer to this context, and the life cycle
-/// should be guaranteed until the executor context is deleted. NULL for not
-/// doing the statistics.
+/// in Executor. The statistics will refer to this context, and the lifetime
+/// should be guaranteed until the executor context is deleted. NULL to disable
+/// statistics.
 ///
 /// \returns pointer to context, NULL if failed.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_ExecutorContext *WasmEdge_ExecutorCreate(
@@ -182,7 +182,8 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInstantiate(
     WasmEdge_StoreContext *StoreCxt,
     const WasmEdge_ASTModuleContext *ASTCxt) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Instantiate an AST Module into a named module instance and link into store.
+/// Instantiate an AST Module as a named module instance and link it to the
+/// store.
 ///
 /// Instantiate an AST Module with the module name, return the instantiated
 /// module instance context as the result, and also register the module instance
@@ -192,13 +193,13 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorInstantiate(
 /// `WasmEdge_ModuleInstanceFindFunction`, etc. APIs to retrieve the exported
 /// instances from the result module instance.
 /// After calling this function, the output module instance will also be
-/// registered into the store, and the other modules can import the exported
-/// instances for linking when instantiation. Developers SHOULD guarantee the
-/// life cycle of this output module instance, or the error will occur when in
-/// execution after the module instance being destroyed if it has been imported
-/// by other modules. That is, developers have the responsibility to delete the
-/// output module instance even though the store being destroyed. When the
-/// module instance is deleted, it will be unregistered to the store
+/// registered in the store, and the other modules can import the exported
+/// instances for linking during instantiation. Developers SHOULD guarantee the
+/// lifetime of this output module instance, or an error will occur during
+/// execution after the module instance is destroyed if it has been imported
+/// by other modules. That is, developers are responsible for deleting the
+/// output module instance even if the store is destroyed. When the
+/// module instance is deleted, it will be unregistered from the store
 /// automatically.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
@@ -217,16 +218,16 @@ WASMEDGE_CAPI_EXPORT extern WasmEdge_Result WasmEdge_ExecutorRegister(
     WasmEdge_StoreContext *StoreCxt, const WasmEdge_ASTModuleContext *ASTCxt,
     WasmEdge_String ModuleName) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Register a module instance into a store with exporting its module name.
+/// Register a module instance in a store by exporting its module name.
 ///
 /// Register an existing module into the store with its module name.
 /// After calling this function, the existing module instance will be registered
 /// into the store, and the other modules can import the exported instances for
-/// linking when instantiation. Developers SHOULD guarantee the life cycle of
-/// this existing module instance, or the error will occur when in execution
-/// after the module instance being destroyed if it has been imported by other
-/// modules. When the module instance is deleted, it will be unregistered to the
-/// store automatically.
+/// linking during instantiation. Developers SHOULD guarantee the lifetime of
+/// this existing module instance, or an error will occur during execution
+/// after the module instance is destroyed if it has been imported by other
+/// modules. When the module instance is deleted, it will be unregistered from
+/// the store automatically.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext to instantiate the module.
 /// \param StoreCxt the WasmEdge_StoreContext to store the instantiated module.
@@ -279,7 +280,7 @@ WasmEdge_ExecutorInvoke(WasmEdge_ExecutorContext *Cxt,
                         WasmEdge_Value *Returns,
                         const uint32_t ReturnLen) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Asynchronous invoke a WASM function by the function instance.
+/// Asynchronously invoke a WASM function by the function instance.
 ///
 /// After instantiating a WASM module, developers can get the function instance
 /// context from the module instance. Then developers can invoke the function
@@ -316,7 +317,7 @@ WasmEdge_ExecutorDelete(WasmEdge_ExecutorContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 /// The caller owns the object and should call `WasmEdge_StoreDelete` to destroy
 /// it.
 /// The store is the linker for multiple WASM module instances. The store will
-/// not own any module instance registered into it, and the module instances
+/// not own any module instance registered in it, and the module instances
 /// will automatically be unregistered if they are destroyed.
 ///
 /// \returns pointer to context, NULL if failed.
@@ -351,7 +352,7 @@ WASMEDGE_CAPI_EXPORT extern uint32_t WasmEdge_StoreListModuleLength(
 /// List the registered module names.
 ///
 /// This function will list all registered module names.
-/// The returned module names filled into the `Names` array are linked to the
+/// The returned module names stored in the `Names` array are linked to the
 /// registered module names in the store context, and the caller should __NOT__
 /// call the `WasmEdge_StringDelete`.
 /// If the `Names` buffer length is smaller than the result of the registered
@@ -373,8 +374,8 @@ WasmEdge_StoreListModule(const WasmEdge_StoreContext *Cxt,
 ///
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
-/// If there are module instances registered into this store context, they will
-/// be automatically un-link to this store context.
+/// If there are module instances registered in this store context, they will
+/// be automatically unlinked from this store context.
 ///
 /// \param Cxt the WasmEdge_StoreContext to destroy.
 WASMEDGE_CAPI_EXPORT extern void
@@ -395,13 +396,12 @@ WasmEdge_CallingFrameGetExecutor(const WasmEdge_CallingFrameContext *Cxt)
 
 /// Get the module instance of the current calling frame.
 ///
-/// When a WASM function is executing and start to call a host function, a frame
-/// with the module instance which the WASM function belongs to will be pushed
-/// onto the stack. And therefore the calling frame context will record that
-/// module instance.
-/// So in one case that the module instance will be `NULL`: developers execute
-/// the function instance which is a host function and not added into a module
+/// When a WASM function executes and starts to call a host function, a frame
+/// with the module instance to which the WASM function belongs will be pushed
+/// onto the stack. Therefore, the calling frame context will record that module
 /// instance.
+/// The module instance will be `NULL` when developers execute a host function
+/// instance that is not added to a module instance.
 ///
 /// \param Cxt the WasmEdge_CallingFrameContext.
 ///
@@ -413,17 +413,17 @@ WasmEdge_CallingFrameGetModuleInstance(const WasmEdge_CallingFrameContext *Cxt)
 /// Get the memory instance by index from the module instance of the current
 /// calling frame.
 ///
-/// By default, a WASM module only have one memory instance after instantiation.
+/// By default, a WASM module has only one memory instance after instantiation.
 /// Therefore, developers can use:
 ///   `WasmEdge_CallingFrameGetMemoryInstance(Cxt, 0)`
 /// to get the memory instance in host function body.
 /// This extension is for the WASM multiple memories proposal. After enabling
-/// the proposal, there may be greater than 1 memory instances in a WASM module.
-/// So developers can use this function to access the memory instances which are
-/// not in 0 index.
+/// the proposal, there may be more than one memory instance in a WASM module.
+/// Developers can use this function to access memory instances that are not at
+/// index 0.
 ///
 /// \param Cxt the WasmEdge_CallingFrameContext.
-/// \param Idx the index of memory instance in the module instance.
+/// \param Idx the index of the memory instance in the module instance.
 ///
 /// \returns the memory instance, NULL if not found.
 WASMEDGE_CAPI_EXPORT extern WasmEdge_MemoryInstanceContext *
@@ -435,18 +435,18 @@ WasmEdge_CallingFrameGetMemoryInstance(const WasmEdge_CallingFrameContext *Cxt,
 
 // >>>>>>>> WasmEdge Async functions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// Wait a WasmEdge_Async execution.
+/// Wait for a WasmEdge_Async execution.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_AsyncWait(const WasmEdge_Async *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
-/// Wait a WasmEdge_Async execution with timeout.
+/// Wait for a WasmEdge_Async execution with timeout.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 /// \param Milliseconds times to wait.
 ///
-/// \returns Result of waiting, true for execution ended, false for timeout
+/// \returns result of waiting: true if execution ended, false if timeout
 /// occurred.
 WASMEDGE_CAPI_EXPORT bool
 WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
@@ -454,19 +454,19 @@ WasmEdge_AsyncWaitFor(const WasmEdge_Async *Cxt,
 
 /// Cancel a WasmEdge_Async execution.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_AsyncCancel(WasmEdge_Async *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Wait and get the return list length of the WasmEdge_Async execution.
 ///
-/// This function will wait until the execution finished and return the return
+/// This function will wait until the execution finishes and return the return
 /// value list length of the executed function. This function will return 0 if
-/// the `Cxt` is NULL, the execution was failed, or the execution was canceled.
+/// the `Cxt` is NULL, the execution failed, or the execution was canceled.
 /// Developers can call the `WasmEdge_AsyncGet` to get the execution status and
 /// the return values.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 ///
 /// \returns the return list length of the executed function.
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_AsyncGetReturnsLength(
@@ -474,12 +474,12 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_AsyncGetReturnsLength(
 
 /// Wait and get the result of WasmEdge_Async execution.
 ///
-/// This function will wait until the execution finished and return the
+/// This function will wait until the execution finishes and return the
 /// execution status and the return values.
 /// If the `Returns` buffer length is smaller than the arity of the function,
 /// the overflowed return values will be discarded.
 ///
-/// \param Cxt the WasmEdge_ASync.
+/// \param Cxt the WasmEdge_Async.
 /// \param [out] Returns the WasmEdge_Value buffer to fill the return values.
 /// \param ReturnLen the return buffer length.
 ///
@@ -494,7 +494,7 @@ WasmEdge_AsyncGet(const WasmEdge_Async *Cxt, WasmEdge_Value *Returns,
 /// After calling this function, the context will be destroyed and should
 /// __NOT__ be used.
 ///
-/// \param Cxt the WasmEdge_ASync to destroy.
+/// \param Cxt the WasmEdge_Async to destroy.
 WASMEDGE_CAPI_EXPORT void
 WasmEdge_AsyncDelete(WasmEdge_Async *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 

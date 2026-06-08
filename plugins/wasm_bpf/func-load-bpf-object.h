@@ -13,13 +13,13 @@
 namespace WasmEdge {
 namespace Host {
 
-/// \brief Load a bpf ELF file.
+/// \brief Load a BPF ELF file.
 ///
-/// Binary file should be provided through a Wasm Buffer. wasm_bpf will handle
-/// the remaining process Call to this function will also cache bpf map fds.
+/// A binary file should be provided through a Wasm buffer. wasm_bpf handles
+/// the remaining process. Calling this function also caches BPF map fds.
 ///
-/// \return a handle to a bpf program, which is stored in a map in the global
-/// state. Return 0 if failed.
+/// \return a handle to a BPF program, which is stored in a map in the global
+/// state. Returns 0 on failure.
 class LoadBpfObject : public WasmEdge::Runtime::HostFunction<LoadBpfObject> {
 public:
   LoadBpfObject(state_t state) : state(state) {}

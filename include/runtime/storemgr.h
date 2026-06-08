@@ -70,20 +70,21 @@ public:
 
   /// Reset this store manager and unlink all the registered module instances.
   void reset() noexcept {
-    std::shared_lock Lock(Mutex);
+    std::unique_lock Lock(Mutex);
     for (auto &&[Name, ModInst] : NamedMod) {
       (const_cast<Instance::ModuleInstance *>(ModInst))
           ->unlinkStore(this, Name);
     }
     NamedMod.clear();
+    NamedComp.clear();
   }
 
-  /// Register named module into this store.
+  /// Register a named module in this store.
   Expect<void> registerModule(const Instance::ModuleInstance *ModInst) {
     return registerModule(ModInst, ModInst->getModuleName());
   }
 
-  /// Register a module instance into this store under the given alias name.
+  /// Register a module instance in this store under the given alias name.
   Expect<void> registerModule(const Instance::ModuleInstance *ModInst,
                               std::string_view Name) {
     std::unique_lock Lock(Mutex);
@@ -118,7 +119,7 @@ public:
     return {};
   }
 
-  /// Register named component into this store.
+  /// Register a named component in this store.
   Expect<void> registerComponent(const Instance::ComponentInstance *CompInst) {
     std::unique_lock Lock(Mutex);
     auto Iter = NamedComp.find(CompInst->getComponentName());
@@ -137,6 +138,12 @@ private:
 
   /// Collect the instantiation failed module.
   void recycleModule(std::unique_ptr<Instance::ModuleInstance> &&Mod) {
+    if (FailedMod) {
+      auto *OldMod = FailedMod.release();
+      if (OldMod) {
+        OldMod->terminate();
+      }
+    }
     FailedMod = std::move(Mod);
   }
 
@@ -147,9 +154,9 @@ private:
       NamedComp;
 
   /// \name Last instantiation failed module.
-  /// According to the current spec, the instances should be able to be
-  /// referenced even if instantiation failed. Therefore store the failed module
-  /// instance here to keep the instances.
+  /// According to the current spec, instances should remain referenceable even
+  /// if instantiation failed. Therefore, store the failed module instance here
+  /// to keep the instances alive.
   /// FIXME: Is this necessary to be a vector?
   std::unique_ptr<Instance::ModuleInstance> FailedMod;
 };

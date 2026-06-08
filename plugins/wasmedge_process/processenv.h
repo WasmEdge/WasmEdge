@@ -40,7 +40,7 @@ public:
   /// Configurations
   /// Timeout in milliseconds.
   uint32_t TimeOut = DEFAULT_TIMEOUT;
-  /// Programs in white list.
+  /// Programs in the allowlist.
   std::unordered_set<std::string> AllowedCmd;
   /// Flag to allow all programs.
   bool AllowedAll;

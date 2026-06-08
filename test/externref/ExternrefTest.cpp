@@ -132,26 +132,25 @@ void HexToFile(cxx20::span<const uint8_t> Wasm, const char *Path) {
   TFile.close();
 }
 
-// The following are the functions and class definitions to pass as
-// references.
+// The following are the functions and class definitions passed as references.
 
-// Test: function to pass as function pointer
+// Test: function passed as a function pointer.
 uint32_t MulFunc(uint32_t A, uint32_t B) { return A * B; }
 
-// Test: class to pass as reference
+// Test: class passed as a reference.
 class AddClass {
 public:
   uint32_t add(uint32_t A, uint32_t B) const { return A + B; }
 };
 
-// Test: functor to pass as reference
+// Test: functor passed as a reference.
 struct SquareStruct {
   uint32_t operator()(uint32_t Val) const { return Val * Val; }
 };
 
 // The following are the host function definitions.
 
-// Host function to call functor by external reference
+// Host function to call a functor through an external reference.
 WasmEdge_Result ExternFunctorSquare(void *,
                                     const WasmEdge_CallingFrameContext *,
                                     const WasmEdge_Value *In,
@@ -164,7 +163,7 @@ WasmEdge_Result ExternFunctorSquare(void *,
   return WasmEdge_Result_Success;
 }
 
-// Host function to access class by external reference
+// Host function to access a class through an external reference.
 WasmEdge_Result ExternClassAdd(void *, const WasmEdge_CallingFrameContext *,
                                const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // Function type: {externref, i32, i32} -> {i32}
@@ -176,7 +175,8 @@ WasmEdge_Result ExternClassAdd(void *, const WasmEdge_CallingFrameContext *,
   return WasmEdge_Result_Success;
 }
 
-// Host function to call function by external reference as a function pointer
+// Host function to call a function through an external reference as a function
+// pointer.
 WasmEdge_Result ExternFuncMul(void *, const WasmEdge_CallingFrameContext *,
                               const WasmEdge_Value *In, WasmEdge_Value *Out) {
   // Function type: {externref, i32, i32} -> {i32}
@@ -215,7 +215,7 @@ WasmEdge_Result ExternSTLOStreamU32(void *,
   return WasmEdge_Result_Success;
 }
 
-// Host function to insert {key, val} to std::map<std::string, std::string>
+// Host function to insert {key, val} into std::map<std::string, std::string>.
 WasmEdge_Result ExternSTLMapInsert(void *, const WasmEdge_CallingFrameContext *,
                                    const WasmEdge_Value *In, WasmEdge_Value *) {
   // Function type: {externref, externref, externref} -> {}
@@ -229,7 +229,7 @@ WasmEdge_Result ExternSTLMapInsert(void *, const WasmEdge_CallingFrameContext *,
   return WasmEdge_Result_Success;
 }
 
-// Host function to erase std::map<std::string, std::string> with key
+// Host function to erase std::map<std::string, std::string> by key.
 WasmEdge_Result ExternSTLMapErase(void *, const WasmEdge_CallingFrameContext *,
                                   const WasmEdge_Value *In, WasmEdge_Value *) {
   // Function type: {externref, externref} -> {}
@@ -241,7 +241,7 @@ WasmEdge_Result ExternSTLMapErase(void *, const WasmEdge_CallingFrameContext *,
   return WasmEdge_Result_Success;
 }
 
-// Host function to insert key to std::set<uint32_t>
+// Host function to insert a key into std::set<uint32_t>.
 WasmEdge_Result ExternSTLSetInsert(void *, const WasmEdge_CallingFrameContext *,
                                    const WasmEdge_Value *In, WasmEdge_Value *) {
   // Function type: {externref, i32} -> {}
@@ -251,7 +251,7 @@ WasmEdge_Result ExternSTLSetInsert(void *, const WasmEdge_CallingFrameContext *,
   return WasmEdge_Result_Success;
 }
 
-// Host function to erase std::set<uint32_t> with key
+// Host function to erase std::set<uint32_t> by key.
 WasmEdge_Result ExternSTLSetErase(void *, const WasmEdge_CallingFrameContext *,
                                   const WasmEdge_Value *In, WasmEdge_Value *) {
   // Function type: {externref, i32} -> {}
@@ -261,7 +261,7 @@ WasmEdge_Result ExternSTLSetErase(void *, const WasmEdge_CallingFrameContext *,
   return WasmEdge_Result_Success;
 }
 
-// Host function to push value into std::vector<uint32_t>
+// Host function to push a value into std::vector<uint32_t>.
 WasmEdge_Result ExternSTLVectorPush(void *,
                                     const WasmEdge_CallingFrameContext *,
                                     const WasmEdge_Value *In,
@@ -273,7 +273,7 @@ WasmEdge_Result ExternSTLVectorPush(void *,
   return WasmEdge_Result_Success;
 }
 
-// Host function to summarize value in slice of std::vector<uint32_t>
+// Host function to sum values in a slice of std::vector<uint32_t>.
 WasmEdge_Result ExternSTLVectorSum(void *, const WasmEdge_CallingFrameContext *,
                                    const WasmEdge_Value *In,
                                    WasmEdge_Value *Out) {
@@ -495,15 +495,15 @@ TEST(ExternRefTest, ExternConvertAnyWithBrOnCast) {
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMValidate(VMCxt)));
   EXPECT_TRUE(WasmEdge_ResultOK(WasmEdge_VMInstantiate(VMCxt)));
 
-  // Execute the main function
+  // Execute the main function.
   FuncName = WasmEdge_StringCreateByCString("main");
   auto Result = WasmEdge_VMExecute(VMCxt, FuncName, nullptr, 0, R, 2);
   WasmEdge_StringDelete(FuncName);
 
-  // The function should execute without error
+  // The function should execute without errors.
   EXPECT_TRUE(WasmEdge_ResultOK(Result));
 
-  // Verify the expected results - should match wasmtime's correct behavior
+  // Verify the expected results. They should match wasmtime's correct behavior.
   // First return: 1.8 (NOT 3.2 which was the buggy behavior)
   EXPECT_TRUE(WasmEdge_ValTypeIsF32(R[0].Type));
   EXPECT_EQ(WasmEdge_ValueGetF32(R[0]), 1.8f);

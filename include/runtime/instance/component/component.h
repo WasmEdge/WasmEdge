@@ -36,46 +36,46 @@ namespace Instance {
 class ComponentInstance;
 
 class ComponentImportManager {
-  // The import manager is used for supplying the imports to local instantiate
-  // child components and core modules.
+  // The import manager is used to supply imports for locally instantiated child
+  // components and core modules.
 public:
-  // Export component func with name into this import manager.
+  // Export a named component func to this import manager.
   void exportFunction(std::string_view Name,
                       Component::FunctionInstance *Inst) noexcept {
     NamedFunc.emplace(Name, Inst);
   }
 
-  // Export component instance with name into this import manager.
+  // Export a named component instance to this import manager.
   void exportComponentInstance(std::string_view Name,
                                const ComponentInstance *Inst) noexcept {
     NamedCompInst.emplace(Name, Inst);
   }
 
-  // Export core function instance with name into this import manager.
+  // Export a named core function instance to this import manager.
   void exportCoreFunctionInstance(std::string_view Name,
                                   FunctionInstance *Inst) noexcept {
     NamedCoreFunc.emplace(Name, Inst);
   }
 
-  // Export core table instance with name into this import manager.
+  // Export a named core table instance to this import manager.
   void exportCoreTableInstance(std::string_view Name,
                                TableInstance *Inst) noexcept {
     NamedCoreTable.emplace(Name, Inst);
   }
 
-  // Export core memory instance with name into this import manager.
+  // Export a named core memory instance to this import manager.
   void exportCoreMemoryInstance(std::string_view Name,
                                 MemoryInstance *Inst) noexcept {
     NamedCoreMemory.emplace(Name, Inst);
   }
 
-  // Export core global instance with name into this import manager.
+  // Export a named core global instance to this import manager.
   void exportCoreGlobalInstance(std::string_view Name,
                                 GlobalInstance *Inst) noexcept {
     NamedCoreGlobal.emplace(Name, Inst);
   }
 
-  // Export core module instance with name into this import manager.
+  // Export a named core module instance to this import manager.
   void exportCoreModuleInstance(std::string_view Name,
                                 const ModuleInstance *Inst) noexcept {
     NamedCoreModInst.emplace(Name, Inst);
@@ -159,13 +159,13 @@ private:
 };
 
 class ComponentInstance {
-  // The component instance class is not only for the runtime data structure,
-  // but also for the instantiation context according to the linking isolation
-  // and the module and component type declarations.
+  // The component instance class is used not only for the runtime data
+  // structure but also for the instantiation context according to the linking
+  // isolation and the module and component type declarations.
 public:
   ComponentInstance(std::string_view Name) : CompName(Name) {}
 
-  // Getter of the component name.
+  // Getter for the component name.
   std::string_view getComponentName() const noexcept { return CompName; }
 
   // Instantiation finalizer. Should clean up all instantiation time data.

@@ -31,19 +31,19 @@ namespace Host {
 namespace WasiCrypto {
 namespace Symmetric {
 
-/// Mac invalid operation, every mac state should inherent from this class
+/// Mac invalid operations. Every mac state should inherit from this class.
 ///
 /// More detailed:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#message-authentication-codes
 template <typename Key> class MacState {
 public:
-  /// Current mac not support any options.
+  /// The current mac does not support any options.
   WasiCryptoExpect<size_t> optionsGet(std::string_view,
                                       Span<uint8_t>) const noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
 
-  /// Current mac not support any options.
+  /// The current mac does not support any options.
   WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view) const noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
@@ -119,7 +119,7 @@ public:
     WasiCryptoExpect<void> absorb(Span<const uint8_t> Data) noexcept;
 
     /// Authenticates the input received up to the function call.
-    /// If the finalization is required, the implementation MUST duplicate the
+    /// If finalization is required, the implementation MUST duplicate the
     /// internal state and apply the finalization on the copy, leaving the state
     /// unchanged from the guest perspective.
     ///

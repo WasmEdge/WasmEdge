@@ -107,6 +107,7 @@ const Executable::IntrinsicsTable Executor::Intrinsics = {
     ENTRY(kMemAtomicWait, proxyMemAtomicWait),
     ENTRY(kTableGetFuncSymbol, proxyTableGetFuncSymbol),
     ENTRY(kRefGetFuncSymbol, proxyRefGetFuncSymbol),
+    ENTRY(kFuncGetFuncSymbol, proxyFuncGetFuncSymbol),
 #undef ENTRY
 };
 
@@ -123,6 +124,8 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
                                  const uint32_t FuncIdx, const ValVariant *Args,
                                  ValVariant *Rets) noexcept {
   const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  assuming(FuncInst);
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -167,6 +170,9 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   const auto &ExpDefType = **ModInst->getType(FuncTypeIdx);
   const auto *FuncInst = retrieveFuncRef(*Ref);
   assuming(FuncInst);
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   bool IsMatch = false;
   if (FuncInst->getModule()) {
     IsMatch = AST::TypeMatcher::matchType(
@@ -208,6 +214,12 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
                                     const ValVariant *Args,
                                     ValVariant *Rets) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
+  if (unlikely(!FuncInst)) {
+    return Unexpect(ErrCode::Value::AccessNullFunc);
+  }
+
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   const auto &FuncType = FuncInst->getFuncType();
   const uint32_t ParamsSize =
       static_cast<uint32_t>(FuncType.getParamTypes().size());
@@ -410,10 +422,11 @@ Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
   return Ref;
 }
 
-// For the runtime value of `uint64_t`, the arguments are expected to extended
-// into 64-bit length in LLVM compiler no matter the address type is 32 or 64
-// bit. On the other hand, the return of `uint64_t` should handle the conversion
-// into 32 or 64 bit value according to the address type in LLVM compiler.
+// For the runtime value of `uint64_t`, arguments are expected to be extended
+// to 64-bit width in the LLVM compiler regardless of whether the address type
+// is 32 or 64 bits. On the other hand, a `uint64_t` return should handle the
+// conversion to a 32- or 64-bit value according to the address type in the LLVM
+// compiler.
 
 Expect<RefVariant> Executor::proxyTableGet(Runtime::StackManager &StackMgr,
                                            const uint32_t TableIdx,
@@ -640,6 +653,8 @@ Expect<void *> Executor::proxyTableGetFuncSymbol(
     return Unexpect(ErrCode::Value::IndirectCallTypeMismatch);
   }
 
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
   }
@@ -650,6 +665,27 @@ Expect<void *> Executor::proxyRefGetFuncSymbol(Runtime::StackManager &,
                                                const RefVariant Ref) noexcept {
   const auto *FuncInst = retrieveFuncRef(Ref);
   assuming(FuncInst);
+  if (likely(FuncInst->isCompiledFunction())) {
+    return FuncInst->getSymbol().get();
+  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
+  if (unlikely(!FuncInst->isCompiledFunction())) {
+    return nullptr;
+  }
+  return FuncInst->getSymbol().get();
+}
+
+Expect<void *>
+Executor::proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                 const uint32_t FuncIdx) noexcept {
+  const auto *FuncInst = getFuncInstByIdx(StackMgr, FuncIdx);
+  assuming(FuncInst);
+  if (likely(FuncInst->isCompiledFunction())) {
+    return FuncInst->getSymbol().get();
+  }
+  EXPECTED_TRY(checkLazyCompilation(FuncInst));
+
   if (unlikely(!FuncInst->isCompiledFunction())) {
     return nullptr;
   }

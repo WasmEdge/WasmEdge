@@ -256,8 +256,19 @@ WasiExpect<void> VINode::pathSymlink(std::string_view OldPath,
   if (!New->can(__WASI_RIGHTS_PATH_SYMLINK)) {
     return WasiUnexpect(__WASI_ERRNO_NOTCAPABLE);
   }
-  EXPECTED_TRY(auto NewBuffer, resolvePath(New, NewPath));
+  // Resolve the new path without following its trailing component (an existing
+  // link must not be followed, so creating over it fails with EEXIST), and
+  // capture the link directory's depth below the fd.
+  uint32_t ParentDepth = 0;
+  EXPECTED_TRY(auto NewBuffer,
+               resolvePath(New, NewPath, static_cast<__wasi_lookupflags_t>(0),
+                           static_cast<VFS::Flags>(0), 0, true, &ParentDepth));
 
+  // Reject relative targets that resolve outside the preopen root; store
+  // in-bounds targets as-is.
+  if (isSymlinkTargetEscaping(OldPath, ParentDepth)) {
+    return WasiUnexpect(__WASI_ERRNO_PERM);
+  }
   return New->Node.pathSymlink(std::string(OldPath), std::string(NewPath));
 }
 
@@ -328,7 +339,8 @@ VINode::directOpen(std::string_view Path, __wasi_oflags_t OpenFlags,
 WasiExpect<std::vector<char>>
 VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
                     __wasi_lookupflags_t LookupFlags, VFS::Flags VFSFlags,
-                    uint8_t LinkCount, bool FollowTrailingSlashes) {
+                    uint8_t LinkCount, bool FollowTrailingSlashes,
+                    uint32_t *ResolvedDepth) {
   std::vector<std::shared_ptr<VINode>> PartFds;
   std::vector<char> Buffer;
   do {
@@ -368,6 +380,9 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
       if (!Part.empty() && Part[0] == '.') {
         if (Part.size() == 1) {
           if (LastPart) {
+            if (ResolvedDepth) {
+              *ResolvedDepth = static_cast<uint32_t>(PartFds.size());
+            }
             return Buffer;
           }
           Path = Remain;
@@ -382,6 +397,9 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
           Path = Remain;
           if (LastPart) {
             Path = "."sv;
+            if (ResolvedDepth) {
+              *ResolvedDepth = static_cast<uint32_t>(PartFds.size());
+            }
             return Buffer;
           }
           continue;
@@ -390,14 +408,20 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
 
       if (LastPart && !(LookupFlags & __WASI_LOOKUPFLAGS_SYMLINK_FOLLOW)) {
         Path = Part;
+        if (ResolvedDepth) {
+          *ResolvedDepth = static_cast<uint32_t>(PartFds.size());
+        }
         return Buffer;
       }
 
-      __wasi_filestat_t Filestat;
+      __wasi_filestat_t Filestat{};
       if (auto Res = Fd->Node.pathFilestatGet(std::string(Part), Filestat);
           unlikely(!Res)) {
         if (LastPart) {
           Path = Part;
+          if (ResolvedDepth) {
+            *ResolvedDepth = static_cast<uint32_t>(PartFds.size());
+          }
           return Buffer;
         }
         return WasiUnexpect(Res);
@@ -428,6 +452,9 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
 
       if (LastPart) {
         Path = Part;
+        if (ResolvedDepth) {
+          *ResolvedDepth = static_cast<uint32_t>(PartFds.size());
+        }
         return Buffer;
       }
 
@@ -445,6 +472,9 @@ VINode::resolvePath(std::shared_ptr<VINode> &Fd, std::string_view &Path,
       Path = Remain;
       if (Path.empty()) {
         Path = "."sv;
+        if (ResolvedDepth) {
+          *ResolvedDepth = static_cast<uint32_t>(PartFds.size());
+        }
         return {};
       }
       continue;

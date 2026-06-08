@@ -26,8 +26,8 @@ namespace Host {
 namespace WasiCrypto {
 namespace Symmetric {
 
-/// Hash never have key, just a placement, every hash key should inherent from
-/// this class.
+/// Hash never has a key; it is only a placeholder. Every hash key should
+/// inherit from this class.
 ///
 /// More detailed:
 /// https://github.com/WebAssembly/wasi-crypto/blob/main/docs/wasi-crypto.md#hash-functions
@@ -44,16 +44,16 @@ public:
   SecretVec exportData() const noexcept { assumingUnreachable(); }
 };
 
-/// Hash invalid operations, every hash state should inherent from this class.
+/// Hash invalid operations. Every hash state should inherit from this class.
 template <typename Key> class HashState {
 public:
-  /// Current hash not support any options.
+  /// The current hash does not support any options.
   WasiCryptoExpect<size_t> optionsGet(std::string_view,
                                       Span<uint8_t>) const noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
 
-  /// Current hash not support any options.
+  /// The current hash does not support any options.
   WasiCryptoExpect<uint64_t> optionsGetU64(std::string_view) const noexcept {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_OPTION);
   }
@@ -97,7 +97,7 @@ public:
 
 template <int ShaNid> class Sha2 {
 public:
-  /// In fact, sha2 key will never produce. This design is for removing the
+  /// In fact, sha2 keys are never produced. This design removes the
   /// forwarding declaration.
   class Key : public HashKey<Key> {};
 

@@ -133,19 +133,16 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  // Get the model name.
-  auto Name = MemInst->getPointer<const uint32_t *>(NamePtr);
-  if (unlikely(Name == nullptr)) {
-    spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     auto Stub = wasi_ephemeral_nn::Graph::NewStub(Env.NNRPCChannel);
     grpc::ClientContext ClientContext;
     wasi_ephemeral_nn::LoadByNameRequest Req;
     auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
+    if (unlikely(NameStrView.size() != NameLen)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Name memory."sv);
+      return WASINN::ErrNo::InvalidArgument;
+    }
     Req.set_name(NameStrView.data(), NameStrView.size());
     wasi_ephemeral_nn::LoadByNameResult Res;
     auto Status = Stub->LoadByName(&ClientContext, Req, &Res);
@@ -158,8 +155,13 @@ WasiNNLoadByName::bodyImpl(const Runtime::CallingFrame &Frame, uint32_t NamePtr,
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
-  // Get the model.
-  std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);
+  // Get the model name.
+  auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
+  if (unlikely(NameStrView.size() != NameLen)) {
+    spdlog::error("[WASI-NN] Failed when accessing the Name memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  std::string ModelName(NameStrView);
   if (Env.mdGet(ModelName, *GraphId)) {
     return WASINN::ErrNo::Success;
   } else {
@@ -183,21 +185,6 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
     return WASINN::ErrNo::InvalidArgument;
   }
 
-  // Get the model name.
-  auto Name = MemInst->getPointer<const uint32_t *>(NamePtr);
-  if (unlikely(Name == nullptr)) {
-    spdlog::error("[WASI-NN] Failed when accessing the return Name memory."sv);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
-  // Get the model config.
-  auto Config = MemInst->getPointer<const uint32_t *>(ConfigPtr);
-  if (unlikely(Config == nullptr)) {
-    spdlog::error(
-        "[WASI-NN] Failed when accessing the return Config memory."sv);
-    return WASINN::ErrNo::InvalidArgument;
-  }
-
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
   if (Env.NNRPCChannel != nullptr) {
     auto Stub = wasi_ephemeral_nn::Graph::NewStub(Env.NNRPCChannel);
@@ -205,6 +192,14 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
     wasi_ephemeral_nn::LoadByNameWithConfigRequest Req;
     auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
     auto ConfigStrView = MemInst->getStringView(ConfigPtr, ConfigLen);
+    if (unlikely(NameStrView.size() != NameLen)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Name memory."sv);
+      return WASINN::ErrNo::InvalidArgument;
+    }
+    if (unlikely(ConfigStrView.size() != ConfigLen)) {
+      spdlog::error("[WASI-NN] Failed when accessing the Config memory."sv);
+      return WASINN::ErrNo::InvalidArgument;
+    }
     Req.set_name(NameStrView.data(), NameStrView.size());
     Req.set_config(ConfigStrView.data(), ConfigStrView.size());
     wasi_ephemeral_nn::LoadByNameWithConfigResult Res;
@@ -218,11 +213,19 @@ Expect<WASINN::ErrNo> WasiNNLoadByNameWithConfig::bodyImpl(
   }
 #endif // ifdef WASMEDGE_BUILD_WASI_NN_RPC
 
-  // Get the model.
-  std::string ModelName(reinterpret_cast<const char *>(Name), NameLen);
-  std::vector<uint8_t> ModelConfig(reinterpret_cast<const uint8_t *>(Config),
-                                   reinterpret_cast<const uint8_t *>(Config) +
-                                       ConfigLen);
+  // Get the model name and config.
+  auto NameStrView = MemInst->getStringView(NamePtr, NameLen);
+  if (unlikely(NameStrView.size() != NameLen)) {
+    spdlog::error("[WASI-NN] Failed when accessing the Name memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  auto ConfigSpan = MemInst->getSpan<const uint8_t>(ConfigPtr, ConfigLen);
+  if (unlikely(ConfigSpan.size() != ConfigLen)) {
+    spdlog::error("[WASI-NN] Failed when accessing the Config memory."sv);
+    return WASINN::ErrNo::InvalidArgument;
+  }
+  std::string ModelName(NameStrView);
+  std::vector<uint8_t> ModelConfig(ConfigSpan.begin(), ConfigSpan.end());
   if (Env.mdGet(ModelName, *GraphId)) {
     return WASINN::ErrNo::Success;
   } else {

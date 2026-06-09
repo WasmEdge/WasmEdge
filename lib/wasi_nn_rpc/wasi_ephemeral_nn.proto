@@ -73,6 +73,7 @@ message ComputeRequest{
 message GetOutputRequest {
   uint32 resource_handle = 1;
   uint32 index = 2; // defined as a string in wit
+  uint32 output_max_size = 3; // max output buffer size in bytes; default 65536 for backward compatibility
 }
 
 message GetOutputResult {

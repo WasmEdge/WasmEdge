@@ -40,7 +40,9 @@ struct DriverCompilerOptions : public DriverProposalOptions {
             "instruction counting, gas measuring, and execution time."sv)),
         PropOptimizationLevel(
             PO::Description("Optimization level, one of 0, 1, 2, 3, s, z."sv),
-            PO::DefaultValue(std::string("2"))) {}
+            PO::DefaultValue(std::string("2"))),
+        EnableWAT(PO::Description(
+            "Enable WAT text-format input, this is experimental"sv)) {}
 
   PO::Option<std::string> WasmName;
   PO::Option<std::string> SoName;
@@ -52,6 +54,7 @@ struct DriverCompilerOptions : public DriverProposalOptions {
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
   PO::Option<PO::Toggle> ConfEnableAllStatistics;
   PO::Option<std::string> PropOptimizationLevel;
+  PO::Option<PO::Toggle> EnableWAT;
 
   void addOptions(PO::ArgumentParser &Parser) noexcept {
     Parser.add_option(WasmName)
@@ -67,7 +70,8 @@ struct DriverCompilerOptions : public DriverProposalOptions {
     // TODO: Move exception handling option into addProposalOptions after
     // AOT mode of exception handling proposal is ready.
     // Parser.add_option("disable-exception-handling"sv, PropExceptionHandling)
-    Parser.add_option("optimize"sv, PropOptimizationLevel);
+    Parser.add_option("optimize"sv, PropOptimizationLevel)
+        .add_option("enable-wat"sv, EnableWAT);
   }
 };
 

@@ -208,6 +208,29 @@ WASMEDGE_CAPI_EXPORT extern void WasmEdge_ConfigureSetAllowAFUNIX(
 WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsAllowAFUNIX(
     const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
+/// Set the experimental WAT text-format input flag.
+///
+/// When enabled, WasmEdge_LoaderParse* will accept WAT input in addition
+/// to binary modules. This feature is experimental; default is disabled.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to set.
+/// \param IsEnable true to enable WAT text-format input.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_ConfigureSetEnableWAT(WasmEdge_ConfigureContext *Cxt,
+                               const bool IsEnable) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Check whether the WAT text-format input flag is enabled.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_ConfigureContext to check.
+///
+/// \returns the WAT text-format input enable flag.
+WASMEDGE_CAPI_EXPORT extern bool WasmEdge_ConfigureIsEnableWAT(
+    const WasmEdge_ConfigureContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
 /// Set the optimization level of the AOT compiler.
 ///
 /// This function is thread-safe.

@@ -54,3 +54,16 @@ target_link_libraries(wasmedgeLoaderSerializerTests
   ${GTEST_BOTH_LIBRARIES}
   wasmedgeLoader
 )
+
+wasmedge_add_executable(wasmedgeLoaderWatGateTests
+  loaderWatGateTest.cpp
+)
+
+add_test(wasmedgeLoaderWatGateTests wasmedgeLoaderWatGateTests)
+
+target_link_libraries(wasmedgeLoaderWatGateTests
+  PRIVATE
+  ${GTEST_BOTH_LIBRARIES}
+  wasmedgeLoader
+  wasmedgeWat
+)

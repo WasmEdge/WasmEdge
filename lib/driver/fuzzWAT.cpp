@@ -19,6 +19,7 @@ int FuzzWAT(const uint8_t *Data, size_t Size) noexcept {
   spdlog::set_level(spdlog::level::critical);
 
   Configure Conf;
+  Conf.setEnableWAT(true);
   Conf.addProposal(Proposal::TailCall);
   Conf.addProposal(Proposal::ExtendedConst);
   Conf.addProposal(Proposal::FunctionReferences);

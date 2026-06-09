@@ -1033,6 +1033,22 @@ WasmEdge_ConfigureIsAllowAFUNIX(const WasmEdge_ConfigureContext *Cxt) noexcept {
   return false;
 }
 
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_ConfigureSetEnableWAT(WasmEdge_ConfigureContext *Cxt,
+                               const bool IsEnable) noexcept {
+  if (Cxt) {
+    Cxt->Conf.setEnableWAT(IsEnable);
+  }
+}
+
+WASMEDGE_CAPI_EXPORT bool
+WasmEdge_ConfigureIsEnableWAT(const WasmEdge_ConfigureContext *Cxt) noexcept {
+  if (Cxt) {
+    return Cxt->Conf.isEnableWAT();
+  }
+  return false;
+}
+
 WASMEDGE_CAPI_EXPORT bool WasmEdge_ConfigureIsForceInterpreter(
     const WasmEdge_ConfigureContext *Cxt) noexcept {
   if (Cxt) {

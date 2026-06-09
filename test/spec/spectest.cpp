@@ -66,6 +66,7 @@ struct TestsuiteProposal {
       WasmEdge::SpecTest::TestMode M = WasmEdge::SpecTest::TestMode::All)
       : Path(P), Mode(M) {
     Conf.setWASMStandard(Std);
+    Conf.setEnableWAT(true);
     for (const auto &Prop : EnableProps) {
       Conf.addProposal(Prop);
     }

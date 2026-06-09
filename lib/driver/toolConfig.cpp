@@ -134,6 +134,10 @@ Configure createConfigure(const struct DriverToolOptions &Opt) noexcept {
     spdlog::warn("component model is enabled, this is experimental."sv);
     Conf.addProposal(Proposal::Component);
   }
+  if (Opt.EnableWAT.value()) {
+    Conf.setEnableWAT(true);
+    spdlog::warn("WAT text-format input is enabled, this is experimental."sv);
+  }
 
   for (const auto &Name : Opt.ForbiddenPlugins.value()) {
     Conf.addForbiddenPlugins(Name);

@@ -520,9 +520,12 @@ Expect<void> CodeGen::codegen(Span<const Byte> WasmData, Data D,
   }
 
   // If WasmData is WAT text (not WASM binary), serialize it to WASM binary
-  // so that the embedded data in the output is always valid WASM.
+  // so that the embedded data in the output is always valid WASM. Only honor
+  // WAT input when the experimental flag is on; otherwise let the binary
+  // codegen path produce its usual decode error on non-WASM bytes, matching
+  // Loader behavior (see Loader::parseWasmUnit).
   std::vector<Byte> WasmBinary;
-  if (WAT::maybeWAT(WasmData)) {
+  if (Conf.isEnableWAT() && WAT::maybeWAT(WasmData)) {
     std::string_view Source(reinterpret_cast<const char *>(WasmData.data()),
                             WasmData.size());
     EXPECTED_TRY(auto Mod, WAT::parseWat(Source, Conf));

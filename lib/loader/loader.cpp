@@ -148,7 +148,7 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   // still produce the usual error.
   FMgr.reset();
   EXPECTED_TRY(auto Bytes, loadFile(FilePath).map_error(ReportError));
-  if (WAT::maybeWAT(Bytes)) {
+  if (Conf.isEnableWAT() && WAT::maybeWAT(Bytes)) {
     std::string_view Source(reinterpret_cast<const char *>(Bytes.data()),
                             Bytes.size());
     EXPECTED_TRY(auto Mod,
@@ -157,6 +157,10 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
                    spdlog::error(ErrInfo::InfoFile(FilePath));
                    return E;
                  }));
+    // The parsed result is a WASM module; mark the Loader state accordingly
+    // so subsequent calls on the same instance do not see a stale WASMType
+    // left over from a previous shared-library or universal-wasm parse.
+    WASMType = InputType::WASM;
     return std::make_unique<AST::Module>(std::move(Mod));
   }
   EXPECTED_TRY(FMgr.setCode(std::move(Bytes)).map_error(ReportError));
@@ -171,10 +175,15 @@ Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
 
   // Check if the buffer contains WAT text.
-  if (WAT::maybeWAT(Code)) {
+  if (Conf.isEnableWAT() && WAT::maybeWAT(Code)) {
     std::string_view Source(reinterpret_cast<const char *>(Code.data()),
                             Code.size());
     EXPECTED_TRY(auto Mod, WAT::parseWat(Source, Conf));
+    // Drop any file handle/mmap held by FMgr from a prior file-path load and
+    // record that the resulting module is plain WASM, matching the file-path
+    // WAT fast-path in parseWasmUnit(filesystem::path).
+    FMgr.reset();
+    WASMType = InputType::WASM;
     return std::make_unique<AST::Module>(std::move(Mod));
   }
 

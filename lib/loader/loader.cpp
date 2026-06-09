@@ -141,31 +141,57 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     break;
   }
 
-  // Unknown header: the file may be WAT text, which can begin with a UTF-8 BOM,
-  // whitespace, or a comment -- none of which match a binary magic. Read it in
-  // full (WAT must be parsed from a contiguous buffer) and route via maybeWAT;
-  // anything that is not WAT falls back to a binary load so malformed inputs
-  // still produce the usual error.
+  // Unknown header: with the experimental WAT flag enabled, the file may be
+  // WAT text, which can begin with a UTF-8 BOM, whitespace, or a comment --
+  // none of which match a binary magic. Probe a small prefix first via
+  // maybeWAT so we only pay for a full-file read when the input actually
+  // looks like WAT; malformed/unknown binaries fall through to the binary
+  // loader with no extra I/O.
+  //
+  // When the flag is off (default), skip the probe entirely and let the
+  // existing binary loader produce MalformedMagic from the mmap'd header.
+  if (!Conf.isEnableWAT()) {
+    WASMType = InputType::WASM;
+    return loadUnit().map_error(ReportError);
+  }
+
+  // 4 KiB is enough to skip past a UTF-8 BOM plus realistic leading
+  // whitespace/comments and hit the opening '(' of any practical WAT file.
+  // Files that begin with > 4 KiB of whitespace/comments will misroute to
+  // the binary loader and report MalformedMagic, which is an acceptable
+  // degradation for that pathological case.
+  constexpr size_t WATProbeSize = 4096;
+  std::vector<Byte> Probe(WATProbeSize);
+  {
+    std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
+    if (!Fin) {
+      WASMType = InputType::WASM;
+      return loadUnit().map_error(ReportError);
+    }
+    Fin.read(reinterpret_cast<char *>(Probe.data()),
+             static_cast<std::streamsize>(WATProbeSize));
+    Probe.resize(static_cast<size_t>(Fin.gcount()));
+  }
+  if (!WAT::maybeWAT(Probe)) {
+    WASMType = InputType::WASM;
+    return loadUnit().map_error(ReportError);
+  }
+
   FMgr.reset();
   EXPECTED_TRY(auto Bytes, loadFile(FilePath).map_error(ReportError));
-  if (Conf.isEnableWAT() && WAT::maybeWAT(Bytes)) {
-    std::string_view Source(reinterpret_cast<const char *>(Bytes.data()),
-                            Bytes.size());
-    EXPECTED_TRY(auto Mod,
-                 WAT::parseWat(Source, Conf).map_error([&FilePath](auto E) {
-                   spdlog::error(E);
-                   spdlog::error(ErrInfo::InfoFile(FilePath));
-                   return E;
-                 }));
-    // The parsed result is a WASM module; mark the Loader state accordingly
-    // so subsequent calls on the same instance do not see a stale WASMType
-    // left over from a previous shared-library or universal-wasm parse.
-    WASMType = InputType::WASM;
-    return std::make_unique<AST::Module>(std::move(Mod));
-  }
-  EXPECTED_TRY(FMgr.setCode(std::move(Bytes)).map_error(ReportError));
+  std::string_view Source(reinterpret_cast<const char *>(Bytes.data()),
+                          Bytes.size());
+  EXPECTED_TRY(auto Mod,
+               WAT::parseWat(Source, Conf).map_error([&FilePath](auto E) {
+                 spdlog::error(E);
+                 spdlog::error(ErrInfo::InfoFile(FilePath));
+                 return E;
+               }));
+  // The parsed result is a WASM module; mark the Loader state accordingly
+  // so subsequent calls on the same instance do not see a stale WASMType
+  // left over from a previous shared-library or universal-wasm parse.
   WASMType = InputType::WASM;
-  return loadUnit().map_error(ReportError);
+  return std::make_unique<AST::Module>(std::move(Mod));
 }
 
 // Parse module or component from byte code. See "include/loader/loader.h".

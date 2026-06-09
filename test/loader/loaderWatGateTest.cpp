@@ -5,10 +5,14 @@
 #include "common/errcode.h"
 #include "loader/loader.h"
 
+#include <atomic>
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <random>
+#include <string>
 #include <string_view>
+#include <system_error>
 #include <vector>
 
 namespace {
@@ -58,10 +62,19 @@ struct TempFile {
   TempFile &operator=(const TempFile &) = delete;
 };
 
-// Write MinimalWatSource to a temp file and return the RAII guard.
+// Write MinimalWatSource to a temp file and return the RAII guard. The path
+// embeds a per-process random suffix and a per-test-binary counter so that
+// concurrent ctest invocations (e.g. `ctest -j`) do not race on a shared name.
 TempFile writeTempWatFile() {
+  static const auto Suffix = []() {
+    std::random_device RD;
+    return std::to_string(RD()) + "_" + std::to_string(RD());
+  }();
+  static std::atomic<unsigned> Counter{0};
+  const auto Seq = Counter.fetch_add(1, std::memory_order_relaxed);
   auto P = std::filesystem::temp_directory_path() /
-           "wasmedge_loader_wat_gate_file.wat";
+           ("wasmedge_loader_wat_gate_" + Suffix + "_" + std::to_string(Seq) +
+            ".wat");
   std::ofstream Fout(P, std::ios::out | std::ios::trunc | std::ios::binary);
   // Surface temp-dir permission/quota failures here instead of letting the
   // Loader trip over a zero-byte or missing file downstream.

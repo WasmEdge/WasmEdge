@@ -1084,9 +1084,11 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
   //
   //   1.  Serialize table_get instruction.
   //   2.  Serialize table_init instruction.
+  //   3.  Serialize table_copy instruction with distinct source and destination.
 
   WasmEdge::AST::Instruction TableGet(WasmEdge::OpCode::Table__get);
   WasmEdge::AST::Instruction TableInit(WasmEdge::OpCode::Table__init);
+  WasmEdge::AST::Instruction TableCopy(WasmEdge::OpCode::Table__copy);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   TableGet.getTargetIndex() = 0xFFFFFFFFU;
@@ -1122,6 +1124,25 @@ TEST(SerializeInstructionTest, SerializeTableInstruction) {
       0x0BU                              // Expression End.
   };
   EXPECT_EQ(Output, Expected);
+
+  // table.copy x y encodes both x (destination) and y (source) as u32.
+  TableCopy.getTargetIndex() = 0x01U;
+  TableCopy.getSourceIndex() = 0x02U;
+  Instructions = {TableCopy, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,       // Code section
+      0x08U,       // Content size = 8
+      0x01U,       // Vector length = 1
+      0x06U,       // Code segment size = 6
+      0x00U,       // Local vec(0)
+      0xFCU, 0x0EU, // OpCode Table__copy.
+      0x01U,       // Destination table index.
+      0x02U,       // Source table index.
+      0x0BU        // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
 }
 
 TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
@@ -1133,9 +1154,13 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
   //
   //   1.  Serialize memory_grow instruction.
   //   2.  Serialize i32_load instruction.
+  //   3.  Serialize memory_init with a non-zero data segment index.
+  //   4.  Serialize memory_copy (non-multi-memory: both indices must be 0x00).
 
   WasmEdge::AST::Instruction MemoryGrow(WasmEdge::OpCode::Memory__grow);
   WasmEdge::AST::Instruction I32Load(WasmEdge::OpCode::I32__load);
+  WasmEdge::AST::Instruction MemoryInit(WasmEdge::OpCode::Memory__init);
+  WasmEdge::AST::Instruction MemoryCopy(WasmEdge::OpCode::Memory__copy);
   WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
 
   Instructions = {MemoryGrow, End};
@@ -1186,6 +1211,45 @@ TEST(SerializeInstructionTest, SerializeMemoryInstruction) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Align.
       0xFEU, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Offset.
       0x0BU                              // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // memory.init x y encodes x (data segment index, SourceIndex) before y (memory
+  // index, TargetIndex).  Using SourceIndex=5, TargetIndex=0 (non-multi-memory).
+  MemoryInit.getSourceIndex() = 0x05U;
+  MemoryInit.getTargetIndex() = 0x00U;
+  Instructions = {MemoryInit, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,       // Code section
+      0x08U,       // Content size = 8
+      0x01U,       // Vector length = 1
+      0x06U,       // Code segment size = 6
+      0x00U,       // Local vec(0)
+      0xFCU, 0x08U, // OpCode Memory__init.
+      0x05U,       // Data segment index (SourceIndex).
+      0x00U,       // Memory index (TargetIndex, must be 0x00).
+      0x0BU        // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // memory.copy (non-multi-memory) encodes both memory indices as 0x00.
+  MemoryCopy.getTargetIndex() = 0x00U;
+  MemoryCopy.getSourceIndex() = 0x00U;
+  Instructions = {MemoryCopy, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU,       // Code section
+      0x08U,       // Content size = 8
+      0x01U,       // Vector length = 1
+      0x06U,       // Code segment size = 6
+      0x00U,       // Local vec(0)
+      0xFCU, 0x0AU, // OpCode Memory__copy.
+      0x00U,       // Destination memory index (TargetIndex, must be 0x00).
+      0x00U,       // Source memory index (SourceIndex, must be 0x00).
+      0x0BU        // Expression End.
   };
   EXPECT_EQ(Output, Expected);
 }

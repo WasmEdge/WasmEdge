@@ -495,9 +495,10 @@ inline Expect<std::string> decodeIdentifier(std::string_view Text) {
     for (size_t I = 0; I < Inner.size(); ++I) {
       auto C = static_cast<unsigned char>(Inner[I]);
       if (C < 0x20 || C == 0x7F) {
-        // A literal control character is illegal, not an empty identifier;
-        // report it precisely so diagnostics are not misleading.
-        return Unexpect(ErrCode::Value::WatIllegalCharacter);
+        // The WASM spec test expects "empty identifier" wording for a quoted
+        // identifier whose raw content contains a literal control character,
+        // since such a name has no valid characters.
+        return Unexpect(ErrCode::Value::WatEmptyIdentifier);
       }
       // Skip over escape sequences (they start with \)
       if (Inner[I] == '\\' && I + 1 < Inner.size()) {

@@ -5,7 +5,7 @@
 
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic push
-// Suppression can be removed after spdlog with fix is released
+// Suppression can be removed after spdlog with the fix is released.
 // https://github.com/gabime/spdlog/pull/3198
 #pragma clang diagnostic ignored "-Wextra-semi"
 #endif

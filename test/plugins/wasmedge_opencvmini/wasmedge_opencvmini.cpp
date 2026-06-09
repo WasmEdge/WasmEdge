@@ -42,7 +42,7 @@ std::unique_ptr<WasmEdge::Host::WasmEdgeOpenCVMiniModule> createModule() {
 
 } // namespace
 
-// TODO: unit tests for every functions.
+// TODO: add unit tests for every function.
 
 TEST(WasmEdgeOpecvminiTest, Module) {
   // Create the wasmedge_opencvmini module instance.

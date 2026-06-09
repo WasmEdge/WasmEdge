@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the functions about WASM value and value type of WasmEdge
+/// This file contains functions for WASM values and value types in the WasmEdge
 /// C API.
 ///
 //===----------------------------------------------------------------------===//
@@ -29,7 +29,7 @@ typedef struct WasmEdge_ValType {
 /// WasmEdge WASM value struct.
 typedef struct WasmEdge_Value {
   uint128_t Value;
-  // The value type `Type` is used in the parameters or returns of invoking
+  // The value type `Type` is used in the parameters or returns when invoking
   // functions. Developers should use the corresponding `WasmEdge_ValueGen`
   // functions to generate this struct, and the `WasmEdge_ValueGet` functions to
   // retrieve the value from this struct.
@@ -89,7 +89,7 @@ WasmEdge_ValTypeGenExternRef(void) WASMEDGE_CAPI_NOEXCEPT;
 /// \param ValType1 the first WasmEdge_ValType object to compare.
 /// \param ValType2 the second WasmEdge_ValType object to compare.
 ///
-/// \returns true if the content of two WasmEdge_ValType objects are the same,
+/// \returns true if the contents of two WasmEdge_ValType objects are the same,
 /// false if not.
 WASMEDGE_CAPI_EXPORT extern bool
 WasmEdge_ValTypeIsEqual(const WasmEdge_ValType ValType1,

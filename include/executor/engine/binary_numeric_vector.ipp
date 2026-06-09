@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
+#include "executor/engine/simd_ops.h"
 #include "executor/engine/vector_helper.h"
 #include "executor/executor.h"
 
@@ -162,10 +163,7 @@ Expect<void> Executor::runVectorShrOp(ValVariant &Val1,
 template <typename T>
 Expect<void> Executor::runVectorAddOp(ValVariant &Val1,
                                       const ValVariant &Val2) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &V1 = Val1.get<VT>();
-  V1 += Val2.get<VT>();
-
+  simdOps::vectorAdd<T>(Val1, Val2);
   return {};
 }
 
@@ -193,10 +191,7 @@ Expect<void> Executor::runVectorAddSatOp(ValVariant &Val1,
 template <typename T>
 Expect<void> Executor::runVectorSubOp(ValVariant &Val1,
                                       const ValVariant &Val2) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &V1 = Val1.get<VT>();
-  V1 -= Val2.get<VT>();
-
+  simdOps::vectorSub<T>(Val1, Val2);
   return {};
 }
 
@@ -224,77 +219,42 @@ Expect<void> Executor::runVectorSubSatOp(ValVariant &Val1,
 template <typename T>
 Expect<void> Executor::runVectorMulOp(ValVariant &Val1,
                                       const ValVariant &Val2) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &V1 = Val1.get<VT>();
-  V1 *= Val2.get<VT>();
-
+  simdOps::vectorMul<T>(Val1, Val2);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorDivOp(ValVariant &Val1,
                                       const ValVariant &Val2) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &V1 = Val1.get<VT>();
-  V1 /= Val2.get<VT>();
-
+  simdOps::vectorDiv<T>(Val1, Val2);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorMinOp(ValVariant &Val1,
                                       const ValVariant &Val2) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &V1 = Val1.get<VT>();
-  const VT &V2 = Val2.get<VT>();
-  V1 = detail::vectorSelect(V1 > V2, V2, V1);
-
+  simdOps::vectorMin<T>(Val1, Val2);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorMaxOp(ValVariant &Val1,
                                       const ValVariant &Val2) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &V1 = Val1.get<VT>();
-  const VT &V2 = Val2.get<VT>();
-  V1 = detail::vectorSelect(V2 > V1, V2, V1);
-
+  simdOps::vectorMax<T>(Val1, Val2);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorFMinOp(ValVariant &Val1,
                                        const ValVariant &Val2) const {
-  static_assert(std::is_floating_point_v<T>);
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &V1 = Val1.get<VT>();
-  const VT &V2 = Val2.get<VT>();
-  VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(V1) |
-                              reinterpret_cast<uint64x2_t>(V2));
-  R = detail::vectorSelect(V1 < V2, V1, R);
-  R = detail::vectorSelect(V1 > V2, V2, R);
-  R = detail::vectorSelect(V1 == V1, R, V1);
-  R = detail::vectorSelect(V2 == V2, R, V2);
-  V1 = R;
-
+  simdOps::vectorFMin<T>(Val1, Val2);
   return {};
 }
 
 template <typename T>
 Expect<void> Executor::runVectorFMaxOp(ValVariant &Val1,
                                        const ValVariant &Val2) const {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &V1 = Val1.get<VT>();
-  const VT &V2 = Val2.get<VT>();
-  VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(V1) &
-                              reinterpret_cast<uint64x2_t>(V2));
-  R = detail::vectorSelect(V1 < V2, V2, R);
-  R = detail::vectorSelect(V1 > V2, V1, R);
-  R = detail::vectorSelect(V1 == V1, R, V1);
-  R = detail::vectorSelect(V2 == V2, R, V2);
-  V1 = R;
-
+  simdOps::vectorFMax<T>(Val1, Val2);
   return {};
 }
 

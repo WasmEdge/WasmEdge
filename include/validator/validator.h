@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains the declaration of the validator class, which controls
-/// flow of WASM validation.
+/// the flow of WASM validation.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -27,7 +27,7 @@ namespace Validator {
 /// Validator flow control class.
 class Validator {
 public:
-  Validator(const Configure &Conf) noexcept : Conf(Conf) {}
+  Validator(const Configure &Conf) noexcept;
   ~Validator() noexcept = default;
 
   /// Validate AST::Module.
@@ -105,6 +105,20 @@ private:
   Expect<void> validate(const AST::Component::DefType &DType) noexcept;
   // Validate component canonical
   Expect<void> validate(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonOptions(ComponentCanonOpCode Code,
+                       Span<const AST::Component::CanonOpt> Opts) noexcept;
+  // Per-opcode canonical built-in validators.
+  Expect<void>
+  validateCanonLift(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonLower(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonResourceNew(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonResourceRep(const AST::Component::Canonical &Canon) noexcept;
+  Expect<void>
+  validateCanonResourceDrop(const AST::Component::Canonical &Canon) noexcept;
   // Validate component import
   Expect<void> validate(const AST::Component::Import &Im) noexcept;
   // Validate component export
@@ -140,6 +154,9 @@ private:
   FormChecker Checker;
   /// Context for Component validation
   ComponentContext CompCtx;
+  /// Pre-defined core function SubTypes
+  const AST::SubType CoreFuncType_I32_I32;  // [i32] -> [i32]
+  const AST::SubType CoreFuncType_I32_Void; // [i32] -> []
 };
 
 } // namespace Validator

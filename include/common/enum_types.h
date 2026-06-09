@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-//===-- wasmedge/common/enum_types.h - WASM types related enumerations ----===//
+//===-- wasmedge/common/enum_types.h - WASM type-related enumerations -----===//
 //
 // Part of the WasmEdge Project.
 //
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of WASM types related enumerations.
+/// This file contains the definitions of WASM type-related enumerations.
 ///
 //===----------------------------------------------------------------------===//
 

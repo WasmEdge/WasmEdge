@@ -1,4 +1,4 @@
-### 0.17.0-alpha.4 (2026-04-20)
+### 0.17.0 (2026-05-18)
 
 Features:
 
@@ -18,6 +18,9 @@ Features:
   * feat(component,validator): export ascription sort-kind subtype check
   * feat(component,loader): align functype binary grammar with current spec
   * feat(component,loader): support i64 resource rep under memory64 proposal
+  * feat(component,validator): validate declaration types in component model (#4797)
+  * feat(component,validator): reject duplicate names on instance exprs (#4811)
+  * feat(component,validator): validate canonical built-ins (#4842)
 * [WASI-NN]
   * feat(wasi-nn,piper): update the WASI-NN Piper plugin due to upstream changes (#4443)
   * feat(wasi-nn,ggml): support HIP backend for llama.cpp (#4552)
@@ -25,6 +28,7 @@ Features:
   * feat(wasi-nn,ggml): redirect multi model log (#4801)
 * [Tools]
   * feat(cli): add CLI option to control logging level (#4525)
+  * feat(loader,vm): gate AOT/JIT behaviour on RunMode and tighten dlopen scope
 * [Misc]
   * feat(hash): upgrade rapidhash to v3 Nano variant (#4734)
   * feat(android): remove gradle-wrapper.jar and bootstrap wrapper (#4505)
@@ -39,17 +43,21 @@ Fixed issues:
   * fix(api): guard WasmEdge_StringCopy against null Buf (#4686)
   * fix(api): typo and grammar error in WasmEdge C API docs (#4763)
   * fix(api): correct parameter order of VM RegisterModuleFromImportWithAlias
+  * fix(api): handle null paths in C APIs (#4835)
 * [Component Model]
   * fix(component): use ValVariant for argument types in ToolOnComponent (#4704, #4716)
   * fix(component,loader): missed set data in loading core deftype
   * fix(component,validator): enforce lowercase package name per spec PR #630
   * fix(component,validator): route core module externdesc and stop export double-count
+  * fix(component): pass correct alignment to realloc in canonical lifting (#4730)
 * [Validator]
   * fix(validator): wrong jump end offset of try_table
   * fix(validator): handle unreachable type in ref.test/ref.cast validation (#4669)
+  * fix(validator): use matchType for active element segment reftype (#4814)
 * [Loader]
   * fix(loader): handle try_table catch flag syntax (#4676)
   * fix(loader,component): support component inline export names and core tag sort in loader (#4745)
+  * fix(loader): reject non-canonical multi-byte SLEB128 blocktype (#4817)
 * [Executor]
   * fix(executor): move WaiterMap from Executor to MemoryInstance
   * fix(executor): preserve nullability for externalized refs in ref.test/ref.cast (#4679)
@@ -61,6 +69,9 @@ Fixed issues:
   * fix(executor): ref type for uninit values in table (#4764)
   * fix(executor): normalize null ref types for locals and AOT (#4772)
   * fix(executor): prevent silent override of error code in registerModule() & registerComponent() (#4777)
+  * fix(executor): reject insufficient argument count in component invoke
+  * fix(executor): correct WASI socket v2 fallback matching (#4832)
+  * fix(executor): preserve exnref payload across throw_ref
 * [Runtime]
   * fix(runtime): use unique_lock in StoreManager::reset() to prevent data race (#4771)
 * [AOT]
@@ -72,10 +83,12 @@ Fixed issues:
   * fix(tools): handle exported function not found case in reactor mode (#4647)
   * fix(tools): default logging level not passing (#4765)
   * fix(po): reject numeric option values with trailing garbage
+  * fix(cli): reject insufficient arguments for invoked function
 * [WASI]
   * fix(wasi): resolve 100% CPU usage on macOS due to clock mismatch (#4470)
   * fix(wasi): return ERRNO BADF error when try to sync a directory (#4572)
   * fix(wasi): refactor Poller context handling to use pointer instead of wrapper (#4509)
+  * fix(wasi): initialize Filestat to silence MSVC C4701 warning (#4852)
 * [WASI-NN]
   * fix(wasi-nn,bitnet): out-of-bounds array access in unload() function (#4531)
   * fix(wasi-nn): disable shallow clone for BitNet dependency (#4638)
@@ -95,6 +108,7 @@ Fixed issues:
   * fix(common): correct uint128 output for fmt on Windows
   * fix(common): remove invalid specialization for uint128 (#4796)
   * fix(misc): resolve warnings on Windows clang-cl
+  * fix(typo): some typo in comments (#4810)
 
 Tests:
 
@@ -110,6 +124,9 @@ Tests:
 * test(component): enable func spec test and drop wrong-order entry
 * fix(test): split poll socket tests to isolate flaky cycle 2 (#4747)
 * fix(test): disable LTO in tensorflow plugin tests of manylinux (#4766)
+* test(component): fix GCC -Wdangling-reference and gate Clang-only flags (#4813)
+* test: cover RunMode behaviours and opt JIT/AOT spec tests into explicit modes
+* test(executor): regression tests for exnref payload preservation
 
 Refactored:
 
@@ -118,6 +135,8 @@ Refactored:
 * refactor(installer): handle shell login config by OS and distro (#4453)
 * refactor(WASI-Crypto): deduplicate factory functions and OpenSSL BIO helpers (#4545)
 * refactor(validator): introduce typed index spaces and fix section validation
+* refactor(api): introduce RunMode and the --run-mode CLI flag
+* refactor(component): move AST::Component::Canonical enums to enums.inc (#4875)
 
 Misc:
 
@@ -128,18 +147,22 @@ Misc:
 * chore(AI): provide AGENTS.md for the AI co-working toolchains (#4521)
 * chore: add mentorship policy into the issue template (#4520)
 * chore: add missing gitvote update from previous maintainer onboarding (#4493)
+* docs: create technical review document for WasmEdge
+* docs: update the technical-review.md for the latest changes
+* docs(roadmap): update roadmap for Q2/2026 (#4800)
+* chore: fix comment grammar sweep (#4850)
 
 CI:
 
 * [dependabot]
-  * ci(dependabot): bump github/codeql-action from 4.31.9 to 4.35.1
+  * ci(dependabot): bump github/codeql-action from 4.31.9 to 4.35.4
   * ci(dependabot): bump codecov/codecov-action from 5.5.2 to 6.0.0 (#4750)
-  * ci(dependabot): bump actions/cache from 5.0.1 to 5.0.4
-  * ci(dependabot): bump cachix/install-nix-action from 31.9.0 to 31.10.4
+  * ci(dependabot): bump actions/cache from 5.0.1 to 5.0.5
+  * ci(dependabot): bump cachix/install-nix-action from 31.9.0 to 31.10.6
   * ci(dependabot): bump vedantmgoyal9/winget-releaser (#4721)
   * ci(dependabot): bump dorny/paths-filter from 3.0.2 to 4.0.1 (#4718)
   * ci(dependabot): bump actions/download-artifact from 8.0.0 to 8.0.1 (#4717)
-  * ci(dependabot): bump step-security/harden-runner from 2.14.0 to 2.17.0
+  * ci(dependabot): bump step-security/harden-runner from 2.14.0 to 2.19.1
   * ci(dependabot): bump the docker group with 3 updates (#4697)
   * ci(dependabot): bump docker/login-action from 3.6.0 to 4.1.0 in the docker group (#4760)
   * ci(dependabot): bump docker/bake-action from 7.0.0 to 7.1.0 in the docker group (#4780)
@@ -149,6 +172,8 @@ CI:
   * ci(dependabot): bump actions/setup-python from 6.1.0 to 6.2.0 (#4555)
   * ci(dependabot): bump actions/checkout from 6.0.1 to 6.0.2 (#4556)
   * ci(dependabot): bump actions/github-script from 8.0.0 to 9.0.0 (#4783)
+  * ci(dependabot): bump actions/labeler from 6.0.1 to 6.1.0 (#4869)
+  * ci(dependabot): bump GuillaumeFalourd/setup-windows10-sdk-action from 2.4 to 2.5 (#4868)
 * [Runner]
   * ci(riscv): enable RISC-V cross-compilation CI (#4542)
   * ci: guard reusable workflows and jobs to avoid empty matrix jobs (#4668)
@@ -163,12 +188,34 @@ CI:
   * fix(ci): cache lld pre-built on macOS workflow (#4753)
   * fix(ci): new content for wasi-testsuite (#4751)
   * fix(ci): update SOVERSION for openwrt build (#4792)
+  * fix(ci): bump Fedora IWYU toolchain to llvm19 + IWYU 0.23 (#4827)
+  * fix(ci): backward support for old tap in older brew LLVM version (#4845)
 
 Thank all the contributors who made this release possible!
 
-Asish Kumar, Asmit Kumar Rai, Barry, Digo, Divyansh Khatri, Han-Wen Tsao, hydai, Kajal Jotwani, Karan Lokchandani, Khushi-Singh, Lîm Tsú-thuàn, Meet Jain, Mrinal Chaturvedi, Parship Chowdhury, Piyush Kumar, Samarth Jain, SANCHIT KUMAR, Sankalp Jha, Shen-Ta Hsieh(BestSteve), Siddhartha Mondal, Sourav Kumar, SriramB, Tushar Gupta, Vikas_pal8923, Vishal Malyan, Wang-Yang Li, Yi Liu, Yi-Ying He
+Abdelrahman Emad, alabulei1, Asish Kumar, Asmit Kumar Rai, Barry, Digo, Divyansh Khatri, Han-Wen Tsao, harukiki97, hydai, Kajal Jotwani, Karan Lokchandani, Khushi-Singh, LuaLighter, Lîm Tsú-thuàn, Meet Jain, Mrinal Chaturvedi, Parship Chowdhury, Piyush Kumar, Pranjal Kole, Samarth Jain, SANCHIT KUMAR, Sankalp Jha, Shen-Ta Hsieh(BestSteve), Siddhartha Mondal, Sourav Kumar, SriramB, Tushar Gupta, Vikas_pal8923, Vishal Malyan, Wang-Yang Li, Yi Liu, Yi-Ying He
 
-If you want to build from source, please use WasmEdge-0.17.0-alpha.4-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.17.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.16.3 (2026-05-04)
+
+This is the bug fix for the 0.16.x versions.
+
+Fixed issues:
+
+* fix(validator): use matchType for active element segment reftype (#4814)
+* fix(loader): reject non-canonical multi-byte SLEB128 blocktype (#4817)
+
+CI:
+
+* fix(ci): bump Fedora IWYU toolchain to llvm19 + IWYU 0.23 (#4827)
+* Bumped CI dependencies
+
+Thank all the contributors who made this release possible!
+
+harukiki97, hydai, Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.16.3-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.16.2 (2026-04-14)
 

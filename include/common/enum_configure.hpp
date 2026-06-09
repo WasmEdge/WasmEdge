@@ -8,7 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the definitions of configure related C++ enumerations.
+/// This file contains the definitions of configuration-related C++
+/// enumerations.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -61,6 +62,16 @@ enum class HostRegistration : uint8_t {
 #undef Line
 #undef UseHostRegistration
   Max
+};
+
+/// Run mode C++ enumeration class. Selects the engine used to execute a
+/// WebAssembly module: interpreter (default), JIT, or AOT.
+enum class RunMode : uint8_t {
+#define UseRunMode
+#define Line(NAME) NAME,
+#include "enum.inc"
+#undef Line
+#undef UseRunMode
 };
 
 } // namespace WasmEdge

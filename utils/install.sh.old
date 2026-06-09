@@ -236,7 +236,7 @@ case ":\"\${PATH}\":" in
     *:\"$1/bin\":*)
         ;;
     *)
-        # Prepending path in case a system-installed wasmedge needs to be overridden
+        # Prepend the path in case a system-installed wasmedge needs to be overridden
         if [ -n \"\${PATH}\" ]; then
             export PATH=\"$1/bin\":\$PATH
         else
@@ -248,7 +248,7 @@ case ":\"\${"$_LD_LIBRARY_PATH_"}\":" in
     *:\"$1/lib\":*)
         ;;
     *)
-        # Prepending path in case a system-installed wasmedge libs needs to be overridden
+        # Prepend the path in case system-installed wasmedge libraries need to be overridden
         if [ -n \"\${"$_LD_LIBRARY_PATH_"}\" ]; then
             export $_LD_LIBRARY_PATH_=\"$1/lib\":\$$_LD_LIBRARY_PATH_
         else

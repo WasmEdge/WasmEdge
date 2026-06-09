@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file is the definition class of Compiler class.
+/// This file defines the Compiler class.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -24,6 +24,9 @@
 
 namespace WasmEdge::LLVM {
 
+class Module;
+class TargetMachine;
+
 /// Compiling Module into LLVM Module.
 class Compiler {
 public:
@@ -31,14 +34,31 @@ public:
 
   Expect<void> checkConfigure() noexcept;
 
+  /// Compile the whole module.
   Expect<Data> compile(const AST::Module &Module) noexcept;
 
   struct CompileContext;
+  struct CompileContextDeleter {
+    void operator()(CompileContext *Context) const noexcept;
+  };
+
+  /// Compile only the infrastructure (types, imports, globals, etc.) without
+  /// function bodies.
+  Expect<
+      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>
+  compileInfrastructure(const AST::Module &Module,
+                        std::string Prefix = "") noexcept;
+  /// Compile multiple function bodies in one LLVM module for lazy JIT.
+  /// \p LocalFuncIndices are indices of defined functions (not imports).
+  Expect<Data> compileFunctions(Data &&LLData, CompileContext *Context,
+                                const AST::Module &Module,
+                                Span<const uint32_t> LocalFuncIndices) noexcept;
 
 private:
   void compile(const AST::ImportSection &ImportSection) noexcept;
   void compile(const AST::ExportSection &ExportSection) noexcept;
-  void compile(const AST::TypeSection &TypeSection) noexcept;
+  void compile(const AST::TypeSection &TypeSection,
+               bool DeclarationsOnly = false) noexcept;
   void compile(const AST::GlobalSection &GlobalSection) noexcept;
   void compile(const AST::MemorySection &MemorySection,
                const AST::DataSection &DataSection) noexcept;
@@ -46,6 +66,11 @@ private:
                const AST::ElementSection &ElementSection) noexcept;
   Expect<void> compile(const AST::FunctionSection &FunctionSection,
                        const AST::CodeSection &CodeSection) noexcept;
+
+  void compileFunctionDeclarations(const AST::FunctionSection &FunctionSec,
+                                   const AST::CodeSection &CodeSec) noexcept;
+  Expect<void> compileFunctionBody(uint32_t LocalFuncIndex) noexcept;
+  Expect<void> optimize(Module &LLModule, TargetMachine &TM) noexcept;
 
   std::mutex Mutex;
   CompileContext *Context;

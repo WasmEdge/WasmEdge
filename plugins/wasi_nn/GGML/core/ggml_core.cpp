@@ -95,7 +95,8 @@ Expect<ErrNo> load(WasiNNEnvironment &Env, Span<const Span<uint8_t>> Builders,
   llama_log_set(llamaLogCallback, &GraphRef);
   mtmd_helper_log_set(llamaLogCallback, &GraphRef);
 
-  // If the graph builder length > 1, the data of builder[1] is the metadata.
+  // If the graph builder length is greater than 1, builder[1] contains the
+  // metadata.
   if (Builders.size() > 1) {
     const std::string Metadata(reinterpret_cast<char *>(Builders[1].data()),
                                Builders[1].size());

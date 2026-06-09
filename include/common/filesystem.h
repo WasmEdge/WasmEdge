@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the handling of std::filesystem linkage for various
+/// This file contains std::filesystem linkage handling for various
 /// compilers.
 ///
 //===----------------------------------------------------------------------===//

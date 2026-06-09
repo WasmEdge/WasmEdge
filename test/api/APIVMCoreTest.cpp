@@ -9,7 +9,7 @@
 ///
 /// \file
 /// This file contains tests of Wasm test suites extracted by wast2json.
-/// Test Suits: https://github.com/WebAssembly/spec/tree/master/test/core
+/// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
@@ -199,7 +199,7 @@ TEST_P(CoreTest, TestSuites) {
         Field.data(), static_cast<uint32_t>(Field.length()));
     if (!ModName.empty()) {
       // Invoke function of named module. Named modules are registered in Store
-      // Manager. Get the function type to specify the return nums.
+      // Manager. Get the function type to specify the return count.
       WasmEdge_String ModStr = WasmEdge_StringWrap(
           ModName.data(), static_cast<uint32_t>(ModName.length()));
       const WasmEdge_FunctionTypeContext *FuncType =
@@ -215,7 +215,7 @@ TEST_P(CoreTest, TestSuites) {
           static_cast<uint32_t>(CReturns.size()));
     } else {
       // Invoke function of anonymous module. Anonymous modules are instantiated
-      // in VM. Get function type to specify the return nums.
+      // in the VM. Get the function type to specify the return count.
       const WasmEdge_FunctionTypeContext *FuncType =
           WasmEdge_VMGetFunctionType(VM, FieldStr);
       if (FuncType == nullptr) {
@@ -311,7 +311,7 @@ TEST(AsyncExecute, InterruptTest) {
   WasmEdge_VMDelete(VM);
 }
 
-TEST(WasmEdgeVM, ForceDeleteRegisteredModule) {
+TEST(WasmEdgeVM, DeleteRegisteredModule) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
 
@@ -325,8 +325,7 @@ TEST(WasmEdgeVM, ForceDeleteRegisteredModule) {
   EXPECT_TRUE(WasmEdge_ResultOK(Res));
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount + 1);
 
-  // Force delete
-  WasmEdge_VMForceDeleteRegisteredModule(VMCxt, ModuleName);
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
 
   // Added check to ensure module is no longer accessible
@@ -341,7 +340,7 @@ TEST(WasmEdgeVM, ForceDeleteRegisteredModule) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
-TEST(WasmEdgeVM, ForceDeleteNonExistentModule) {
+TEST(WasmEdgeVM, DeleteNonExistentModule) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
   uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
@@ -349,7 +348,7 @@ TEST(WasmEdgeVM, ForceDeleteNonExistentModule) {
       WasmEdge_StringCreateByCString("nonexistent_module");
 
   // Try deleting a module that doesn’t exist — should not crash
-  WasmEdge_VMForceDeleteRegisteredModule(VMCxt, ModuleName);
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, ModuleName);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt),
             originalCount); // No change
 
@@ -359,16 +358,16 @@ TEST(WasmEdgeVM, ForceDeleteNonExistentModule) {
   WasmEdge_ConfigureDelete(Conf);
 }
 
-TEST(WasmEdgeVM, ForceDeleteInvalidInput) {
+TEST(WasmEdgeVM, DeleteInvalidInput) {
   WasmEdge_ConfigureContext *Conf = WasmEdge_ConfigureCreate();
   WasmEdge_VMContext *VMCxt = WasmEdge_VMCreate(Conf, nullptr);
   WasmEdge_String ModuleName = WasmEdge_StringCreateByCString("test_module");
   WasmEdge_String EmptyName = WasmEdge_StringCreateByCString("");
 
   // Test null VM context, should not crash
-  WasmEdge_VMForceDeleteRegisteredModule(nullptr, ModuleName);
+  WasmEdge_VMDeleteRegisteredModule(nullptr, ModuleName);
   // Test empty module name, should not crash
-  WasmEdge_VMForceDeleteRegisteredModule(VMCxt, EmptyName);
+  WasmEdge_VMDeleteRegisteredModule(VMCxt, EmptyName);
   uint32_t originalCount = WasmEdge_VMListRegisteredModuleLength(VMCxt);
   EXPECT_EQ(WasmEdge_VMListRegisteredModuleLength(VMCxt), originalCount);
 

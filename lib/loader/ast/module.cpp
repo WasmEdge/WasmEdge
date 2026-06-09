@@ -132,7 +132,7 @@ Expect<void> Loader::loadModule(AST::Module &Mod,
   setTagFunctionType(Mod.getTagSection(), Mod.getImportSection(),
                      Mod.getTypeSection());
 
-  // Verify the function section and code section are matched.
+  // Verify that the function section and code section match.
   if (Mod.getFunctionSection().getContent().size() !=
       Mod.getCodeSection().getContent().size()) {
     spdlog::error(ErrCode::Value::IncompatibleFuncCode);
@@ -140,7 +140,7 @@ Expect<void> Loader::loadModule(AST::Module &Mod,
     return Unexpect(ErrCode::Value::IncompatibleFuncCode);
   }
 
-  // Verify the data count section and data segments are matched.
+  // Verify that the data count section and data segments match.
   if (Mod.getDataCountSection().getContent()) {
     if (Mod.getDataSection().getContent().size() !=
         *(Mod.getDataCountSection().getContent())) {
@@ -187,7 +187,7 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
     return Unexpect(ErrCode::Value::IllegalGrammar);
   }
 
-  // Set the symbols into the module.
+  // Set the symbols in the module.
   uint32_t FuncTypeIdx = 0;
   for (auto &SubType : SubTypes) {
     if (SubType.getCompositeType().isFunc()) {
@@ -200,28 +200,30 @@ Expect<void> Loader::loadExecutable(AST::Module &Mod,
     CodeSegs[I].setSymbol(std::move(CodeSymbols[I]));
   }
   Mod.setSymbol(std::move(IntrinsicsSymbol));
-  if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
-    // If the configure is set to force interpreter mode, not to set the
-    // symbol.
-    if (auto &Symbol = Mod.getSymbol()) {
-      *Symbol = IntrinsicsTable;
-    }
+  // loadExecutable is reached only when native code is being prepared (AOT
+  // load or JIT compile). Patch the intrinsics-table pointer embedded in
+  // the produced executable so the native code can call back into the
+  // runtime.
+  if (auto &Symbol = Mod.getSymbol()) {
+    *Symbol = IntrinsicsTable;
   }
 
   return {};
 }
 
 Expect<void> Loader::loadUniversalWASM(AST::Module &Mod) {
-  if (!Conf.getRuntimeConfigure().isForceInterpreter()) {
+  if (Conf.getRuntimeConfigure().getRunMode() == RunMode::AOT) {
     auto Exec = std::make_shared<AOTSection>();
     if (auto Res = Exec->load(Mod.getAOTSection()); unlikely(!Res)) {
-      spdlog::error("    AOT section -- library load failed:{} , use "
-                    "interpreter mode instead.",
-                    Res.error());
+      spdlog::warn("AOT was requested but loading the AOT section failed: "
+                   "{}, falling back to interpreter."sv,
+                   Res.error());
     } else {
       if (loadExecutable(Mod, Exec)) {
         return {};
       }
+      spdlog::warn("AOT was requested but linking the AOT executable failed, "
+                   "falling back to interpreter."sv);
     }
   }
 
@@ -235,12 +237,13 @@ Expect<void> Loader::loadUniversalWASM(AST::Module &Mod) {
 }
 
 Expect<void> Loader::loadModuleAOT(AST::AOTSection &AOTSection) {
-  // Find and Read the AOT custom section first. Jump the others.
-  // This loop is for checking the input is an universal WASM or not.
-  // Therefore, if the configure is set as force interpreter mode, skip this.
+  // Find and read the AOT custom section first. Jump over the others.
+  // This loop checks whether the input is a universal WASM.
+  // Therefore, if the configuration is set to force interpreter mode, skip
+  // this.
   while (WASMType != InputType::SharedLibrary) {
-    // This loop only overview the custom sections and read the AOT section.
-    // For the other general errors, break and handle in the sequentially
+    // This loop only scans custom sections and reads the AOT section.
+    // For other general errors, break and handle them in the sequential
     // parsing below.
     uint8_t NewSectionId = 0x00;
     if (auto Res = FMgr.readByte()) {
@@ -265,13 +268,13 @@ Expect<void> Loader::loadModuleAOT(AST::AOTSection &AOTSection) {
       auto StartOffset = FMgr.getOffset();
       std::string Name;
       if (auto Res = FMgr.readName()) {
-        // The UTF-8 failed case will be ignored here.
+        // The UTF-8 failure case will be ignored here.
         Name = std::move(*Res);
       }
 
       auto ReadSize = FMgr.getOffset() - StartOffset;
       if (ContentSize < ReadSize) {
-        // Syntax error of overread. Jump to the next section.
+        // Syntax error caused by overread. Jump to the next section.
         FMgr.seek(StartOffset + ContentSize);
         continue;
       }

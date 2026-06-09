@@ -25,11 +25,11 @@ namespace AST {
 /// Section's base class.
 class Section {
 public:
-  /// Getter and setter of content size.
+  /// Getter and setter for content size.
   uint64_t getContentSize() const noexcept { return ContentSize; }
   void setContentSize(uint64_t Size) noexcept { ContentSize = Size; }
 
-  /// Getter and setter of start offset in source.
+  /// Getter and setter for start offset in source.
   uint64_t getStartOffset() const noexcept { return StartOffset; }
   void setStartOffset(uint64_t Off) noexcept { StartOffset = Off; }
 
@@ -44,11 +44,11 @@ protected:
 /// AST CustomSection node.
 class CustomSection : public Section {
 public:
-  /// Getter and setter of name.
+  /// Getter and setter for name.
   std::string_view getName() const noexcept { return Name; }
   void setName(std::string_view N) { Name = N; }
 
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const Byte> getContent() const noexcept { return Content; }
   std::vector<Byte> &getContent() noexcept { return Content; }
 
@@ -63,7 +63,7 @@ private:
 /// AST TypeSection node.
 class TypeSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const SubType> getContent() const noexcept { return Content; }
   std::vector<SubType> &getContent() noexcept { return Content; }
 
@@ -77,7 +77,7 @@ private:
 /// AST ImportSection node.
 class ImportSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const ImportDesc> getContent() const noexcept { return Content; }
   std::vector<ImportDesc> &getContent() noexcept { return Content; }
 
@@ -91,7 +91,7 @@ private:
 /// AST FunctionSection node.
 class FunctionSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const uint32_t> getContent() const noexcept { return Content; }
   std::vector<uint32_t> &getContent() noexcept { return Content; }
 
@@ -105,7 +105,7 @@ private:
 /// AST TableSection node.
 class TableSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const TableSegment> getContent() const noexcept { return Content; }
   std::vector<TableSegment> &getContent() noexcept { return Content; }
 
@@ -119,7 +119,7 @@ private:
 /// AST MemorySection node.
 class MemorySection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const MemoryType> getContent() const noexcept { return Content; }
   std::vector<MemoryType> &getContent() noexcept { return Content; }
 
@@ -133,7 +133,7 @@ private:
 /// AST GlobalSection node.
 class GlobalSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const GlobalSegment> getContent() const noexcept { return Content; }
   std::vector<GlobalSegment> &getContent() noexcept { return Content; }
 
@@ -147,7 +147,7 @@ private:
 /// AST ExportSection node.
 class ExportSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const ExportDesc> getContent() const noexcept { return Content; }
   std::vector<ExportDesc> &getContent() noexcept { return Content; }
 
@@ -161,7 +161,7 @@ private:
 /// AST StartSection node.
 class StartSection : public Section {
 public:
-  /// Getter and setter of content.
+  /// Getter and setter for content.
   std::optional<uint32_t> getContent() const { return Content; }
   void setContent(uint32_t Val) noexcept { Content = Val; }
 
@@ -175,7 +175,7 @@ private:
 /// AST ElementSection node.
 class ElementSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const ElementSegment> getContent() const noexcept { return Content; }
   std::vector<ElementSegment> &getContent() noexcept { return Content; }
 
@@ -189,7 +189,7 @@ private:
 /// AST CodeSection node.
 class CodeSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const CodeSegment> getContent() const noexcept { return Content; }
   std::vector<CodeSegment> &getContent() noexcept { return Content; }
 
@@ -203,7 +203,7 @@ private:
 /// AST DataSection node.
 class DataSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const DataSegment> getContent() const noexcept { return Content; }
   std::vector<DataSegment> &getContent() noexcept { return Content; }
 
@@ -217,7 +217,7 @@ private:
 /// AST DataCountSection node.
 class DataCountSection : public Section {
 public:
-  /// Getter and setter of content.
+  /// Getter and setter for content.
   std::optional<uint32_t> getContent() const noexcept { return Content; }
   void setContent(uint32_t Val) noexcept { Content = Val; }
 
@@ -231,7 +231,7 @@ private:
 /// AST TagSection node.
 class TagSection : public Section {
 public:
-  /// Getter of content vector.
+  /// Getter for content vector.
   Span<const TagType> getContent() const noexcept { return Content; }
   std::vector<TagType> &getContent() noexcept { return Content; }
 
@@ -245,41 +245,41 @@ private:
 /// AST AOTSection node. For AOT/JIT using.
 class AOTSection {
 public:
-  /// Getter and setter of version.
+  /// Getter and setter for version.
   uint32_t getVersion() const noexcept { return Version; }
   void setVersion(uint32_t Ver) noexcept { Version = Ver; }
 
-  /// Getter and setter of OS type.
+  /// Getter and setter for OS type.
   uint8_t getOSType() const noexcept { return OSType; }
   void setOSType(uint8_t Type) noexcept { OSType = Type; }
 
-  /// Getter and setter of arch type.
+  /// Getter and setter for arch type.
   uint8_t getArchType() const noexcept { return ArchType; }
   void setArchType(uint8_t Type) noexcept { ArchType = Type; }
 
-  /// Getter and setter of version address.
+  /// Getter and setter for version address.
   uint64_t getVersionAddress() const noexcept { return VersionAddress; }
   void setVersionAddress(uint64_t Addr) noexcept { VersionAddress = Addr; }
 
-  /// Getter and setter of intrinsics address.
+  /// Getter and setter for intrinsics address.
   uint64_t getIntrinsicsAddress() const noexcept { return IntrinsicsAddress; }
   void setIntrinsicsAddress(uint64_t Addr) noexcept {
     IntrinsicsAddress = Addr;
   }
 
-  /// Getter of type addresses.
+  /// Getter for type addresses.
   constexpr const auto &getTypesAddress() const noexcept {
     return TypesAddress;
   }
   constexpr auto &getTypesAddress() noexcept { return TypesAddress; }
 
-  /// Getter of code addresses.
+  /// Getter for code addresses.
   constexpr const auto &getCodesAddress() const noexcept {
     return CodesAddress;
   }
   constexpr auto &getCodesAddress() noexcept { return CodesAddress; }
 
-  /// Getter of sections.
+  /// Getter for sections.
   constexpr const auto &getSections() const noexcept { return Sections; }
   constexpr auto &getSections() noexcept { return Sections; }
 

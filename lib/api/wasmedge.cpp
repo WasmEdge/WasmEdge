@@ -3835,7 +3835,7 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPluginsLength(void) noexcept {
 
 WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_PluginListPlugins(
     WasmEdge_String *Names, const uint32_t Len) noexcept {
-  auto PList = WasmEdge::Plugin::Plugin::plugins();
+  const auto &PList = WasmEdge::Plugin::Plugin::plugins();
   if (Names) {
     for (uint32_t I = 0; I < Len && I < PList.size(); I++) {
       Names[I] = WasmEdge_String{

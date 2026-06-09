@@ -64,7 +64,7 @@ inline std::string_view stripQuotes(std::string_view S) {
 /// For plain identifiers ($abc), returns "abc".
 /// For quoted identifiers ($"abc"), returns "abc" (strips quotes).
 /// Note: Escape sequences in quoted identifiers are NOT decoded here;
-/// callers needing full normalization should use decodeQuotedIdentifier().
+/// callers needing full normalization should use decodeIdentifier().
 inline std::string_view parseIdentifier(std::string_view Text) {
   if (!Text.empty() && Text.front() == '$') {
     auto Inner = Text.substr(1);

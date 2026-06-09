@@ -45,10 +45,14 @@ TEST(LoaderWatGate, AcceptsWatWhenEnabled) {
 }
 
 // RAII helper that removes a temp file on scope exit, even if the test fails.
+// Uses the error_code overload so the destructor never throws.
 struct TempFile {
   std::filesystem::path Path;
   explicit TempFile(std::filesystem::path P) : Path(std::move(P)) {}
-  ~TempFile() { std::filesystem::remove(Path); }
+  ~TempFile() {
+    std::error_code EC;
+    std::filesystem::remove(Path, EC);
+  }
   // Non-copyable.
   TempFile(const TempFile &) = delete;
   TempFile &operator=(const TempFile &) = delete;

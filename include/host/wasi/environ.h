@@ -846,10 +846,13 @@ public:
     if (!VINode::isPathValid(NewPath)) {
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
-    // forbid absolute path
+    // Forbid an absolute target. A target escaping the base directory is "not
+    // permitted", matching resolvePath and the `..` check in pathSymlink.
     if (!OldPath.empty() && OldPath[0] == '/') {
-      return WasiUnexpect(__WASI_ERRNO_INVAL);
+      return WasiUnexpect(__WASI_ERRNO_PERM);
     }
+    // Relative targets escaping via `..` are rejected in VINode::pathSymlink,
+    // where the link's depth is known.
     auto NewNode = getNodeOrNull(New);
     if (unlikely(!NewNode)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
@@ -910,9 +913,9 @@ public:
   /// @return Poll helper or WASI error.
   WasiExpect<EVPoller> acquirePoller(Span<__wasi_event_t> Events) noexcept;
 
-  /// Release a used Poller object.
+  /// Release a Poller object after use.
   ///
-  /// @param[in] Poller Used poller object.
+  /// @param[in] Poller Poller object to release.
   void releasePoller(EVPoller &&Poller) noexcept;
 
   /// Close unused Fd in Pollers.
@@ -921,7 +924,7 @@ public:
   void close(std::shared_ptr<VINode> Node) noexcept;
 
   /// Terminate the process normally. An exit code of 0 indicates successful
-  /// termination of the program. The meanings of other values is dependent on
+  /// termination of the program. The meanings of other values are dependent on
   /// the environment.
   ///
   /// @param[in] Code The exit code returned by the process.
@@ -947,7 +950,7 @@ public:
   /// This function blocks when the implementation is unable to immediately
   /// provide sufficient high-quality random data.
   ///
-  /// This function may execute slowly, so when large mounts of random data are
+  /// This function may execute slowly, so when large amounts of random data are
   /// required, it's advisable to use this function to seed a pseudo-random
   /// number generator, rather than to provide the random data directly.
   ///

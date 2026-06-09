@@ -2,11 +2,11 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 /// This file contains tests of nested VM execution.
-/// When entering compiled wasm functions current VM references are written to
+/// When entering compiled wasm functions, current VM references are written to
 /// thread local variables (e.g. `Executor::This`).
-/// These references are read when compiled wasm calls host function.
-/// There was a bug, when host function created nested VM to call another
-/// compiled wasm function, and overwritten reference was not restored.
+/// These references are read when compiled wasm calls a host function.
+/// There was a bug where a host function created a nested VM to call another
+/// compiled wasm function, and the overwritten reference was not restored.
 
 #include "wasmedge/wasmedge.h"
 
@@ -35,6 +35,11 @@ template <typename T> T *_Try(const char *Name, T *R) {
 template <typename T> struct TryWrap;
 template <typename R, typename... A> struct TryWrap<R (*)(A...)> {
   static auto wrap(const char *Name, R (*Fn)(A...)) {
+    return [Name, Fn](A... Args) { return _Try(Name, Fn(Args...)); };
+  }
+};
+template <typename R, typename... A> struct TryWrap<R (*)(A...) noexcept> {
+  static auto wrap(const char *Name, R (*Fn)(A...) noexcept) {
     return [Name, Fn](A... Args) { return _Try(Name, Fn(Args...)); };
   }
 };

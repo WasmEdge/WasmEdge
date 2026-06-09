@@ -18,7 +18,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     } else {
       serializeU32(Instr.getMemoryAlign(), OutVec);
     }
-    serializeU32(Instr.getMemoryOffset(), OutVec);
+    serializeU64(Instr.getMemoryOffset(), OutVec);
     return {};
   };
 

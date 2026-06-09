@@ -52,7 +52,7 @@ void fillMemContent(WasmEdge::Runtime::Instance::MemoryInstance &MemInst,
 TEST(WasiLoggingTests, func_log) {
   using namespace std::literals::string_view_literals;
   // Create the wasi-logging module instance.
-  // Here create 2 wasi-logging modules for testing in multiple modules.
+  // Create two wasi-logging modules for testing multiple modules.
   auto WasiLoggingMod1 = createModule();
   ASSERT_TRUE(WasiLoggingMod1);
   auto WasiLoggingMod2 = createModule();

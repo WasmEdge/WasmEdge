@@ -22,22 +22,22 @@ jobs:
       build_tests: ON
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@5ef0c079ce82195b2a36a210272d6b661572d83e # v2.14.2
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
       - name: Ensure git safe directory
         run: |
           git config --global --add safe.directory $(pwd)
       - name: Install dependency
-        uses: crazy-max/ghaction-chocolatey@2526f467ccbd337d307fe179959cabbeca0bc8c0 # v3.4.0
+        uses: crazy-max/ghaction-chocolatey@dff3862348493b11fba2fbc49147b6d2dfe09b66 # v4.0.0
         with:
           args: install --no-progress ninja vswhere
       - name: Install Windows SDK
-        uses: GuillaumeFalourd/setup-windows10-sdk-action@9979bedbf6ae74f038cc338622ba015942ed2408 # v2.4
+        uses: GuillaumeFalourd/setup-windows10-sdk-action@d4f23d08ae372a72e47dc2616c9ec8c951f853ec # v2.5
         with:
           sdk-version: 26100
       - name: Set environment variables for release
@@ -82,13 +82,13 @@ jobs:
           echo product_version=$Env:product_version | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
       - name: Upload artifact
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: WasmEdge-${{ inputs.version }}-windows-msvc.zip
           path: build\\WasmEdge-${{ inputs.version }}-Windows.zip
       - name: Upload Windows installer
         if: ${{ !inputs.release }}
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: WasmEdge-${{ env.product_version }}-windows-msvc.msi
           path: build\\WasmEdge-${{ env.product_version }}-windows-msvc.msi

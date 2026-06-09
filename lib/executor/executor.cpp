@@ -17,9 +17,8 @@ Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiateModule(Runtime::StoreManager &StoreMgr,
                             const AST::Module &Mod) {
   return instantiate(StoreMgr, Mod).map_error([this](auto E) {
-    // If Statistics is enabled, then dump it here.
-    // When there is an error happened, the following execution will not
-    // execute.
+    // If statistics are enabled, dump them here.
+    // When an error occurs, subsequent execution will not run.
     if (Stat) {
       Stat->dumpToLog(Conf);
     }
@@ -32,9 +31,8 @@ Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::registerModule(Runtime::StoreManager &StoreMgr,
                          const AST::Module &Mod, std::string_view Name) {
   return instantiate(StoreMgr, Mod, Name).map_error([this](auto E) {
-    // If Statistics is enabled, then dump it here.
-    // When there is an error happened, the following execution will not
-    // execute.
+    // If statistics are enabled, dump them here.
+    // When an error occurs, subsequent execution will not run.
     if (Stat) {
       Stat->dumpToLog(Conf);
     }
@@ -47,7 +45,18 @@ Expect<void>
 Executor::registerModule(Runtime::StoreManager &StoreMgr,
                          const Runtime::Instance::ModuleInstance &ModInst) {
   return StoreMgr.registerModule(&ModInst).map_error([](auto E) {
-    E = ErrCode::Value::ModuleNameConflict;
+    spdlog::error(E);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
+    return E;
+  });
+}
+
+/// Register an instantiated module under an alias name.
+Expect<void>
+Executor::registerModule(Runtime::StoreManager &StoreMgr,
+                         const Runtime::Instance::ModuleInstance &ModInst,
+                         std::string_view Name) {
+  return StoreMgr.registerModule(&ModInst, Name).map_error([](auto E) {
     spdlog::error(E);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
@@ -74,7 +83,6 @@ Expect<void> Executor::registerComponent(
     Runtime::StoreManager &StoreMgr,
     const Runtime::Instance::ComponentInstance &CompInst) {
   return StoreMgr.registerComponent(&CompInst).map_error([](auto E) {
-    E = ErrCode::Value::ModuleNameConflict;
     spdlog::error(E);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Component));
     return E;
@@ -112,11 +120,11 @@ Executor::invoke(const Runtime::Instance::FunctionInstance *FuncInst,
   const auto &PTypes = FuncType.getParamTypes();
   const auto &RTypes = FuncType.getReturnTypes();
   // The defined type list may be empty if the function is an independent
-  // function instance, that is, the module instance will be nullptr. For this
-  // case, all of value types are number types or abstract heap types.
+  // function instance, that is, the module instance will be nullptr. In this
+  // case, all value types are number types or abstract heap types.
   //
-  // If a function belongs to component instance, we should totally get
-  // converted type, so should no need type list.
+  // If a function belongs to a component instance, its type should already be
+  // converted, so the type list is not needed.
   WasmEdge::Span<const WasmEdge::AST::SubType *const> TypeList = {};
   if (FuncInst->getModule()) {
     TypeList = FuncInst->getModule()->getTypeList();
@@ -220,6 +228,14 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   // TODO: COMPONENT - type matching.
   // const auto &FuncType = FuncInst->getFuncType();
   // const auto PTypes = FuncType.getParamList();
+  const auto &ExpectedFuncType = FuncInst->getFuncType();
+  const size_t ExpectedArity = ExpectedFuncType.getParamList().size();
+  if (Params.size() != ParamTypes.size() || ParamTypes.size() < ExpectedArity) {
+    spdlog::error(ErrCode::Value::FuncSigMismatch);
+    spdlog::error("    expected {} argument(s), got {}"sv, ExpectedArity,
+                  ParamTypes.size());
+    return Unexpect(ErrCode::Value::FuncSigMismatch);
+  }
 
   // Convert the component params into core WASM params.
   auto *ReallocFuncInst = FuncInst->getAllocFunction();
@@ -240,8 +256,8 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   for (const auto &Type : FuncInst->getFuncType().getResultList()) {
     ReturnTypes.push_back(Type.getValType());
   }
-  std::vector<std::pair<ComponentValVariant, ComponentValType>> Returns =
-      convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst);
+  EXPECTED_TRY(auto Returns,
+               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst));
   assuming(Returns.size() == ReturnTypes.size());
   return Returns;
 }

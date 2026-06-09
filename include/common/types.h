@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the enumerations of Wasm VM used types and the type
+/// This file contains the enumerations of types used by the Wasm VM and type
 /// recognition templates.
 ///
 //===----------------------------------------------------------------------===//
@@ -54,6 +54,9 @@ using uint8x16_t = SIMDArray<uint8_t, 16>;
 using doublex2_t = SIMDArray<double, 16>;
 using floatx4_t = SIMDArray<float, 16>;
 
+/// Address type enumeration class.
+enum class AddressType : uint8_t { I32, I64 };
+
 // The bit pattern of the value types:
 // -----------------------------------------------------------------------------
 //  byte | 0th  | 1st  |      2nd     |         3rd         |     4th ~ 7th
@@ -75,8 +78,8 @@ using floatx4_t = SIMDArray<float, 16>;
 // WasmEdge implements the ValType class for extending the value types.
 // As the definitions in the typed function references and GC proposal, the
 // `FuncRef` and `ExternRef` are reinterpreted as the `ref.null` types,
-// respectively. Therefore, WasmEdge hendles them into `ref null func` and `ref
-// null extern` in the ValType classes.
+// respectively. Therefore, WasmEdge handles them as `ref null func` and
+// `ref null extern` in the ValType classes.
 
 /// ValType class definition.
 class ValType {
@@ -385,7 +388,7 @@ struct RefVariant {
     setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
   }
 
-  // Getter of type.
+  // Getter for type.
   const ValType &getType() const noexcept {
     return reinterpret_cast<const ValType &>(toArray()[0]);
   }
@@ -393,19 +396,19 @@ struct RefVariant {
     return reinterpret_cast<ValType &>(toArray()[0]);
   }
 
-  // Getter of pointer.
+  // Getter for pointer.
   template <typename T> T *getPtr() const noexcept {
     return reinterpret_cast<T *>(toArray()[1]);
   }
 
-  // Check is null.
+  // Check whether it is null.
   bool isNull() const { return getPtr<void>() == nullptr; }
 
-  // Getter of the raw data.
+  // Getter for the raw data.
   uint64x2_t getRawData() const noexcept { return Data; }
 
 private:
-  // Helper function of converting data to array.
+  // Helper function for converting data to array.
   const std::array<uint64_t, 2> &toArray() const noexcept {
     return reinterpret_cast<const std::array<uint64_t, 2> &>(Data);
   }
@@ -439,7 +442,7 @@ using ValVariant =
 // ----------------------------------------------------
 //  byte |      0th ~ 3rd       |      4th ~ 7th
 // ------|----------------------|----------------------
-//  code | ComponentValTypeCode |      Type index
+//  code | ComponentTypeCode    |      Type index
 // ----------------------------------------------------
 
 /// ComponentValType class definition.
@@ -516,24 +519,24 @@ using ComponentValVariant = std::variant<
     // constant types in component types
     uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t,
     float, double, bool, std::string,
-    // composition type like List, Record, Variant
+    // Composition types like List, Record, and Variant.
     //
-    // we need to copy them at many place, so we just use shared_ptr
+    // We need to copy them in many places, so we just use shared_ptr.
     // std::shared_ptr<ValComp>,
     // wasm values
     ValVariant>;
 
 // <<<<<<<< Component Model Value definitions <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// >>>>>>>> Const expressions to checking value types >>>>>>>>>>>>>>>>>>>>>>>>>>
+// >>>>>>>> Const expressions for checking value types >>>>>>>>>>>>>>>>>>>>>>>>>
 
 namespace {
-/// Remove const, reference, and volitile.
+/// Remove const, reference, and volatile.
 template <typename T>
 using RemoveCVRefT = std::remove_cv_t<std::remove_reference_t<T>>;
 } // namespace
 
-/// Return true if Wasm unsign (uint32_t and uint64_t).
+/// Return true if Wasm unsigned (uint32_t and uint64_t).
 template <typename T>
 struct IsWasmUnsign
     : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, uint32_t> ||
@@ -546,7 +549,7 @@ struct IsWasmUnsign
 template <typename T>
 inline constexpr const bool IsWasmUnsignV = IsWasmUnsign<T>::value;
 
-/// Return true if Wasm sign (int32_t and int64_t).
+/// Return true if Wasm signed (int32_t and int64_t).
 template <typename T>
 struct IsWasmSign
     : std::bool_constant<std::is_same_v<RemoveCVRefT<T>, int32_t> ||
@@ -625,7 +628,7 @@ toUnsigned(T Val) {
   return static_cast<MakeWasmUnsignedT<T>>(Val);
 }
 
-// <<<<<<<< Const expressions to checking value types <<<<<<<<<<<<<<<<<<<<<<<<<<
+// <<<<<<<< Const expressions for checking value types <<<<<<<<<<<<<<<<<<<<<<<<<
 
 // >>>>>>>> Template to get value type from type >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -686,6 +689,9 @@ inline ValVariant ValueFromType(ValType Type) noexcept {
 
 inline const Runtime::Instance::FunctionInstance *
 retrieveFuncRef(const RefVariant &Val) {
+  if (!Val.getType().isFuncRefType()) {
+    return nullptr;
+  }
   return Val.getPtr<Runtime::Instance::FunctionInstance>();
 }
 
@@ -694,6 +700,45 @@ template <typename T> inline T &retrieveExternRef(const RefVariant &Val) {
 }
 
 // <<<<<<<< Functions to retrieve reference inners <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// >>>>>>>> Functions to access address value from ValVariant >>>>>>>>>>>>>>>>>>
+
+inline uint64_t extractAddr(const ValVariant &Val,
+                            const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<uint64_t>(Val.get<uint32_t>());
+  case AddressType::I64:
+    return static_cast<uint64_t>(Val.get<uint64_t>());
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline ValVariant emplaceAddr(const uint64_t Addr,
+                              const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<uint32_t>(Addr);
+  case AddressType::I64:
+    return static_cast<uint64_t>(Addr);
+  default:
+    assumingUnreachable();
+  }
+}
+
+inline uint64_t getMaxAddress(const AddressType AT) noexcept {
+  switch (AT) {
+  case AddressType::I32:
+    return static_cast<uint64_t>(std::numeric_limits<uint32_t>::max());
+  case AddressType::I64:
+    return static_cast<uint64_t>(std::numeric_limits<uint64_t>::max());
+  default:
+    assumingUnreachable();
+  }
+}
+
+// <<<<<<<< Functions to access address value from ValVariant <<<<<<<<<<<<<<<<<<
 
 /// EndianValue definition.
 template <typename T> class EndianValue {

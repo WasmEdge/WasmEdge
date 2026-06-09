@@ -36,3 +36,12 @@ docs: updates Contribution Guide
 
 Signed-off-by: Alice Chen <alice.chen@example.com>
 ```
+
+## CI Checks
+
+The CI workflows will only be approved to execute if:
+
+1. DCO check is passed.
+2. Commit messages follow the Conventional Commit standards.
+3. Pull Request title follows the Conventional Commit standards.
+4. Local tests have been run and evidence (screenshot or logs) is provided in the PR description.

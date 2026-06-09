@@ -18,7 +18,7 @@
 #pragma intrinsic(_BitScanReverse64)
 #include <immintrin.h>
 #endif
-// We have to detect for those environments who don't support __int128 type
+// We have to detect those environments that don't support __int128 type
 // natively.
 #include "endian.h"
 
@@ -540,11 +540,6 @@ public:
 };
 } // namespace std
 
-#include <type_traits>
-namespace std {
-template <> struct is_class<WasmEdge::uint128> : std::true_type {};
-} // namespace std
-
 namespace WasmEdge {
 // If there is a built-in type __int128, then use it directly
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
@@ -586,8 +581,8 @@ operator+(detail::uint128_fallback LHS, unsigned int RHS) {
 
 inline constexpr detail::uint128_fallback
 operator-(unsigned int LHS, detail::uint128_fallback RHS) {
-  uint128_fallback Result = RHS;
-  return (~Result) + 1 + LHS;
+  detail::uint128_fallback Negated = {~RHS.high(), ~RHS.low()};
+  return Negated + 1 + LHS;
 }
 
 inline constexpr detail::uint128_fallback &

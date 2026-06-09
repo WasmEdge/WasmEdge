@@ -122,7 +122,6 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     -Wno-cast-align
     -Wno-cast-qual
     -Wno-implicit-int-conversion
-    -Wno-implicit-int-enum-cast
     -Wno-language-extension-token
     -Wno-missing-prototypes
     -Wno-pointer-sign
@@ -130,6 +129,12 @@ if(NOT CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
     -Wno-sign-conversion
     -Wno-unused-function
   )
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "21")
+    target_compile_options(utilBlake3
+      PRIVATE
+      -Wno-implicit-int-enum-cast
+    )
+  endif()
 endif()
 
 target_include_directories(utilBlake3

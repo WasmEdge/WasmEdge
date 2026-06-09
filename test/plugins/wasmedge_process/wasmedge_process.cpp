@@ -8,6 +8,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
+#include <chrono>
 #include <cstdint>
 #include <gtest/gtest.h>
 #include <memory>
@@ -329,7 +331,7 @@ TEST(WasmEdgeProcessTest, Run) {
   // Return value.
   std::array<WasmEdge::ValVariant, 1> RetVal;
 
-  // Test: Run function failed to run "c++" without allowing all commands.
+  // Test: Run function fails to run "c++" without allowing all commands.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().Name = "c++";
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
@@ -343,7 +345,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(std::equal(ProcMod->getEnv().StdErr.begin(),
                          ProcMod->getEnv().StdErr.end(), ErrStr.begin()));
 
-  // Test: Run function successfully to run "c++" with allowing all commands.
+  // Test: Run function successfully to run "c++" while allowing all commands.
   ProcMod->getEnv().AllowedAll = true;
   ProcMod->getEnv().Name = "c++";
   EXPECT_TRUE(HostFuncInst.run(DummyCallFrame, {}, RetVal));
@@ -351,7 +353,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(ProcMod->getEnv().StdOut.size() == 0);
   EXPECT_TRUE(ProcMod->getEnv().StdErr.size() > 0);
 
-  // Test: Run function successfully to run "c++" with allowing this command.
+  // Test: Run function successfully to run "c++" while allowing this command.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().AllowedCmd.insert("c++");
   ProcMod->getEnv().Name = "c++";
@@ -360,7 +362,7 @@ TEST(WasmEdgeProcessTest, Run) {
   EXPECT_TRUE(ProcMod->getEnv().StdOut.size() == 0);
   EXPECT_TRUE(ProcMod->getEnv().StdErr.size() > 0);
 
-  // Test: Run function successfully to run "/bin/echo" with allowing this
+  // Test: Run function successfully to run "/bin/echo" while allowing this
   // command.
   ProcMod->getEnv().AllowedAll = false;
   ProcMod->getEnv().AllowedCmd.clear();
@@ -374,6 +376,49 @@ TEST(WasmEdgeProcessTest, Run) {
   std::string OutStr = "123456 test\n";
   EXPECT_TRUE(std::equal(ProcMod->getEnv().StdOut.begin(),
                          ProcMod->getEnv().StdOut.end(), OutStr.begin()));
+}
+
+TEST(WasmEdgeProcessTest, TimeoutPrecision) {
+  // Create the wasmedge_process module instance.
+  auto ProcMod = createModule();
+  ASSERT_TRUE(ProcMod);
+
+  // Get the function "wasmedge_process_run".
+  auto *FuncInst = ProcMod->findFuncExports("wasmedge_process_run");
+  EXPECT_NE(FuncInst, nullptr);
+  EXPECT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncRun = dynamic_cast<WasmEdge::Host::WasmEdgeProcessRun &>(
+      FuncInst->getHostFunc());
+
+  // Return value.
+  std::array<WasmEdge::ValVariant, 1> RetVal;
+
+  // Run "sleep 2" with a 500ms timeout.
+  // With the fix, the process should be killed after ~500ms.
+  // With the old bug (/1000000U instead of /1000U), the microsecond
+  // component was effectively zero, so timeout only fired at whole-second
+  // boundaries (i.e., at ~1000ms instead of ~500ms).
+  ProcMod->getEnv().AllowedAll = true;
+  ProcMod->getEnv().Name = "sleep";
+  ProcMod->getEnv().Args.push_back("2");
+  ProcMod->getEnv().TimeOut = 500;
+
+  auto Start = std::chrono::steady_clock::now();
+  EXPECT_TRUE(HostFuncRun.run(DummyCallFrame, {}, RetVal));
+  auto End = std::chrono::steady_clock::now();
+  auto ElapsedMs =
+      std::chrono::duration_cast<std::chrono::milliseconds>(End - Start)
+          .count();
+
+  // The process should have been killed due to timeout.
+  EXPECT_EQ(RetVal[0].get<uint32_t>(), static_cast<uint32_t>(ETIMEDOUT));
+
+  // With the fix, elapsed time should be close to 500ms (the timeout value).
+  // Allow generous margins for CI/scheduling variance, but the key assertion
+  // is that it finishes well before the 2-second sleep completes and does not
+  // overshoot to ~1000ms (the old buggy whole-second boundary).
+  EXPECT_GE(ElapsedMs, 400);
+  EXPECT_LE(ElapsedMs, 900);
 }
 
 TEST(WasmEdgeProcessTest, GetExitCode) {

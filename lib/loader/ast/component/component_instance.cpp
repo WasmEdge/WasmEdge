@@ -97,7 +97,7 @@ Expect<void> Loader::loadInstance(AST::Component::Instance &Instance) {
   auto LoadInlineExp =
       [this](AST::Component::InlineExport &Exp) -> Expect<void> {
     // inlineexport ::= n:<exportname> si:<sortidx> => (export n si)
-    EXPECTED_TRY(Exp.getName(), FMgr.readName().map_error([this](auto E) {
+    EXPECTED_TRY(loadExternName(Exp.getName()).map_error([this](auto E) {
       return logLoadError(E, FMgr.getLastOffset(),
                           ASTNodeAttr::Comp_InlineExport);
     }));

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading AST module node and the main
+/// This file contains unit tests for loading the AST module node and the main
 /// function.
 ///
 //===----------------------------------------------------------------------===//

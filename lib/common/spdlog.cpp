@@ -5,7 +5,7 @@
 
 #if defined(__clang_major__) && __clang_major__ >= 10
 #pragma clang diagnostic push
-// Suppression can be removed after spdlog with fix is released
+// Suppression can be removed after spdlog with the fix is released.
 // https://github.com/gabime/spdlog/pull/3198
 #pragma clang diagnostic ignored "-Wextra-semi"
 #endif
@@ -39,6 +39,38 @@ void setWarnLoggingLevel() { spdlog::set_level(spdlog::level::warn); }
 void setErrorLoggingLevel() { spdlog::set_level(spdlog::level::err); }
 
 void setCriticalLoggingLevel() { spdlog::set_level(spdlog::level::critical); }
+
+bool setLoggingLevelFromString(std::string_view Level) {
+  if (Level == "off"sv) {
+    setLogOff();
+    return true;
+  }
+  if (Level == "trace"sv) {
+    setTraceLoggingLevel();
+    return true;
+  }
+  if (Level == "debug"sv) {
+    setDebugLoggingLevel();
+    return true;
+  }
+  if (Level == "info"sv) {
+    setInfoLoggingLevel();
+    return true;
+  }
+  if (Level == "warning"sv || Level == "warn"sv) {
+    setWarnLoggingLevel();
+    return true;
+  }
+  if (Level == "error"sv) {
+    setErrorLoggingLevel();
+    return true;
+  }
+  if (Level == "fatal"sv || Level == "critical"sv) {
+    setCriticalLoggingLevel();
+    return true;
+  }
+  return false;
+}
 
 void setLoggingCallback(
     std::function<void(const spdlog::details::log_msg &)> Callback) {

@@ -18,6 +18,21 @@ namespace Validator {
 
 namespace {
 
+// One-shot builder for the pre-defined core function SubTypes.
+AST::SubType makeCoreFuncType(std::initializer_list<TypeCode> Params,
+                              std::initializer_list<TypeCode> Results) {
+  AST::FunctionType FT;
+  for (auto T : Params) {
+    FT.getParamTypes().emplace_back(T);
+  }
+  for (auto T : Results) {
+    FT.getReturnTypes().emplace_back(T);
+  }
+  AST::SubType ST;
+  ST.getCompositeType().setFunctionType(std::move(FT));
+  return ST;
+}
+
 static constexpr uint32_t MaxSubtypeDepth = 63;
 
 // TODO: make the super type depth table instead of recursively querying.
@@ -40,7 +55,7 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
     return Unexpect(ErrCode::Value::InvalidSubType);
   }
 
-  // The test type index validation is guaranteed in the caller.
+  // The caller guarantees test type index validation.
   VisitedNodes.insert(TestIdx);
   const auto &TestType = *TypeVec[TestIdx];
   for (const auto SuperIdx : TestType.getSuperTypeIndices()) {
@@ -65,6 +80,12 @@ checkSubtypeDepth(const uint32_t BaseIdx, uint32_t TestIdx,
 
 } // namespace
 
+// Validator constructor. See "include/validator/validator.h".
+Validator::Validator(const Configure &Conf) noexcept
+    : Conf(Conf),
+      CoreFuncType_I32_I32(makeCoreFuncType({TypeCode::I32}, {TypeCode::I32})),
+      CoreFuncType_I32_Void(makeCoreFuncType({TypeCode::I32}, {})) {}
+
 // Validate Module. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::Module &Mod) {
   // https://webassembly.github.io/spec/core/valid/modules.html
@@ -77,42 +98,42 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return E;
   }));
 
-  // Validate and register import section into FormChecker.
+  // Validate and register the import section in FormChecker.
   EXPECTED_TRY(validate(Mod.getImportSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Import));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate function section and register functions into FormChecker.
+  // Validate the function section and register functions in FormChecker.
   EXPECTED_TRY(validate(Mod.getFunctionSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Function));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate table section and register tables into FormChecker.
+  // Validate the table section and register tables in FormChecker.
   EXPECTED_TRY(validate(Mod.getTableSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Table));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate memory section and register memories into FormChecker.
+  // Validate the memory section and register memories in FormChecker.
   EXPECTED_TRY(validate(Mod.getMemorySection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Memory));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate global section and register globals into FormChecker.
+  // Validate the global section and register globals in FormChecker.
   EXPECTED_TRY(validate(Mod.getGlobalSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Global));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate tag section and register tags into FormChecker.
+  // Validate the tag section and register tags in FormChecker.
   EXPECTED_TRY(validate(Mod.getTagSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Tag));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -133,14 +154,14 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return E;
   }));
 
-  // Validate element section which initialize tables.
+  // Validate the element section that initializes tables.
   EXPECTED_TRY(validate(Mod.getElementSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Element));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
     return E;
   }));
 
-  // Validate data section which initialize memories.
+  // Validate the data section that initializes memories.
   EXPECTED_TRY(validate(Mod.getDataSection()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Sec_Data));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -154,7 +175,7 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return E;
   }));
 
-  // Multiple tables is for the ReferenceTypes proposal.
+  // Multiple tables are for the ReferenceTypes proposal.
   if (Checker.getTables().size() > 1 &&
       !Conf.hasProposal(Proposal::ReferenceTypes)) {
     spdlog::error(ErrCode::Value::MultiTables);
@@ -163,8 +184,9 @@ Expect<void> Validator::validate(const AST::Module &Mod) {
     return Unexpect(ErrCode::Value::MultiTables);
   }
 
-  // Multiple memories is for the MultiMemories proposal.
-  if (Checker.getMemories() > 1 && !Conf.hasProposal(Proposal::MultiMemories)) {
+  // Multiple memories are for the MultiMemories proposal.
+  if (Checker.getMemories().size() > 1 &&
+      !Conf.hasProposal(Proposal::MultiMemories)) {
     spdlog::error(ErrCode::Value::MultiMemories);
     spdlog::error(ErrInfo::InfoProposal(Proposal::MultiMemories));
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -210,7 +232,7 @@ Expect<void> Validator::validate(const AST::SubType &Type) {
     }
   }
 
-  // In current version, the length of type index vector will be <= 1.
+  // In the current version, the length of the type index vector will be <= 1.
   if (Type.getSuperTypeIndices().size() > 1) {
     spdlog::error(ErrCode::Value::InvalidSubType);
     spdlog::error("    Accepts only one super type currently."sv);
@@ -270,10 +292,23 @@ Expect<void> Validator::validate(const AST::TableType &Tab) {
   // Validate value type.
   EXPECTED_TRY(Checker.validate(Tab.getRefType()));
   // Validate table limits.
-  return validate(Tab.getLimit()).map_error([](auto E) {
+  const auto &Lim = Tab.getLimit();
+  EXPECTED_TRY(validate(Lim).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return E;
-  });
+  }));
+  uint64_t Range = getMaxAddress(Lim.getAddrType());
+  if (Lim.getMin() > Range || (Lim.hasMax() && Lim.getMax() > Range)) {
+    // Since spec test has no related error message, use this error instead.
+    auto Code = Conf.hasProposal(Proposal::Memory64)
+                    ? ErrCode::Value::InvalidTableSize64
+                    : ErrCode::Value::InvalidLimit;
+    spdlog::error(Code);
+    spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(Code);
+  }
+  return {};
 }
 
 // Validate Memory type. See "include/validator/validator.h".
@@ -284,15 +319,22 @@ Expect<void> Validator::validate(const AST::MemoryType &Mem) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
     return E;
   }));
-  if (Lim.getMin() > LIMIT_MEMORYTYPE ||
-      (Lim.hasMax() && Lim.getMax() > LIMIT_MEMORYTYPE)) {
-    // TODO: MEMORY64 - fully support implementation.
-    ErrCode::Value FailCode = Conf.hasProposal(Proposal::Memory64)
-                                  ? ErrCode::Value::InvalidMemPages64
-                                  : ErrCode::Value::InvalidMemPages;
-    spdlog::error(FailCode);
+  if (!Conf.hasProposal(Proposal::Memory64) && Lim.is64()) {
+    spdlog::error(ErrCode::Value::InvalidLimit);
+    spdlog::error(ErrInfo::InfoProposal(Proposal::Memory64));
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(ErrCode::Value::InvalidLimit);
+  }
+  uint64_t Range = Lim.is32() ? (static_cast<uint64_t>(1) << 16)
+                              : (static_cast<uint64_t>(1) << 48);
+  if (Lim.getMin() > Range || (Lim.hasMax() && Lim.getMax() > Range)) {
+    auto Code = Conf.hasProposal(Proposal::Memory64)
+                    ? ErrCode::Value::InvalidMemPages64
+                    : ErrCode::Value::InvalidMemPages;
+    spdlog::error(Code);
     spdlog::error(ErrInfo::InfoLimit(Lim.hasMax(), Lim.getMin(), Lim.getMax()));
-    return Unexpect(FailCode);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Type_Limit));
+    return Unexpect(Code);
   }
   return {};
 }
@@ -315,7 +357,7 @@ Expect<void> Validator::validate(const AST::TableSegment &TabSeg) {
               return E;
             }));
   } else {
-    // No init expression. Check the reference type is nullable.
+    // No init expression. Check that the reference type is nullable.
     if (!TabSeg.getTableType().getRefType().isNullableRefType()) {
       spdlog::error(ErrCode::Value::TypeCheckFailed);
       spdlog::error(ErrInfo::InfoMismatch(
@@ -351,7 +393,7 @@ Expect<void> Validator::validate(const AST::GlobalSegment &GlobSeg) {
 
 // Validate Element segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
-  // Check initialization expressions are const expressions.
+  // Check that initialization expressions are const expressions.
   for (auto &Expr : ElemSeg.getInitExprs()) {
     EXPECTED_TRY(
         validateConstExpr(Expr.getInstrs(), {ValType(ElemSeg.getRefType())})
@@ -364,7 +406,7 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
   // The reference type should be valid.
   EXPECTED_TRY(Checker.validate(ElemSeg.getRefType()));
 
-  // Passive and declarative cases are valid with the valid reference type.
+  // Passive and declarative cases are valid with a valid reference type.
   if (ElemSeg.getMode() == AST::ElementSegment::ElemMode::Active) {
     // Check table index and reference type in context.
     const auto &TableVec = Checker.getTables();
@@ -375,25 +417,18 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
           static_cast<uint32_t>(TableVec.size())));
       return Unexpect(ErrCode::Value::InvalidTableIdx);
     }
-    // TODO: Use AST::TypeMatcher::matchType() to match types instead.
-    // For the element segments, the RefType may not record the strict type
-    // index, and should check the init exprs for the real type index to do type
-    // matching. But for the table type, the type index is recorded into the
-    // heap type. So it will fail here to do strict type matching. Therefore,
-    // only check the FuncRef and ExternRef and the nullable here.
-    if (TableVec[ElemSeg.getIdx()].isFuncRefType() !=
-            ElemSeg.getRefType().isFuncRefType() ||
-        (!TableVec[ElemSeg.getIdx()].isNullableRefType() &&
-         ElemSeg.getRefType().isNullableRefType())) {
-      // Reference type not matched.
+    if (!AST::TypeMatcher::matchType(Checker.getTypes(),
+                                     TableVec[ElemSeg.getIdx()].second,
+                                     ElemSeg.getRefType())) {
+      // Reference type does not match.
       spdlog::error(ErrCode::Value::TypeCheckFailed);
-      spdlog::error(ErrInfo::InfoMismatch(TableVec[ElemSeg.getIdx()],
+      spdlog::error(ErrInfo::InfoMismatch(TableVec[ElemSeg.getIdx()].second,
                                           ElemSeg.getRefType()));
       return Unexpect(ErrCode::Value::TypeCheckFailed);
     }
     // Check table initialization is a const expression.
     return validateConstExpr(ElemSeg.getExpr().getInstrs(),
-                             {ValType(TypeCode::I32)})
+                             {ValType(TableVec[ElemSeg.getIdx()].first)})
         .map_error([](auto E) {
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
           return E;
@@ -405,18 +440,18 @@ Expect<void> Validator::validate(const AST::ElementSegment &ElemSeg) {
 // Validate Code segment. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::CodeSegment &CodeSeg,
                                  const uint32_t TypeIdx) {
-  // Due to the validation of the function section, the type of index bust be a
-  // function type.
+  // Due to validation of the function section, the type at this index must
+  // be a function type.
   const auto &FuncType =
       Checker.getTypes()[TypeIdx]->getCompositeType().getFuncType();
   // Reset stack in FormChecker.
   Checker.reset();
-  // Add parameters into this frame.
+  // Add parameters to this frame.
   for (auto &Type : FuncType.getParamTypes()) {
     // Local passed by function parameters must have been initialized.
     Checker.addLocal(Type, true);
   }
-  // Add locals into this frame.
+  // Add locals to this frame.
   for (auto Val : CodeSeg.getLocals()) {
     for (uint32_t Cnt = 0; Cnt < Val.first; ++Cnt) {
       // The local value type should be valid.
@@ -438,16 +473,17 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
   switch (DataSeg.getMode()) {
   case AST::DataSegment::DataMode::Active: {
     // Check memory index in context.
-    const auto &MemNum = Checker.getMemories();
-    if (DataSeg.getIdx() >= MemNum) {
+    const auto &MemVec = Checker.getMemories();
+    if (DataSeg.getIdx() >= MemVec.size()) {
       spdlog::error(ErrCode::Value::InvalidMemoryIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory,
-                                             DataSeg.getIdx(), MemNum));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Memory, DataSeg.getIdx(),
+          static_cast<uint32_t>(MemVec.size())));
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     // Check memory initialization is a const expression.
     return validateConstExpr(DataSeg.getExpr().getInstrs(),
-                             {ValType(TypeCode::I32)})
+                             {ValType(MemVec[DataSeg.getIdx()])})
         .map_error([](auto E) {
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Expression));
           return E;
@@ -464,8 +500,8 @@ Expect<void> Validator::validate(const AST::DataSegment &DataSeg) {
 // Validate Import description. See "include/validator/validator.h".
 Expect<void> Validator::validate(const AST::ImportDesc &ImpDesc) {
   switch (ImpDesc.getExternalType()) {
-  // External type and the external content are ensured to be matched in
-  // loader phase.
+  // External type and external content are ensured to match in the loader
+  // phase.
   case ExternalType::Function: {
     const auto TId = ImpDesc.getExternalFuncTypeIdx();
     // Function type index must exist in context and be valid.
@@ -570,10 +606,11 @@ Expect<void> Validator::validate(const AST::ExportDesc &ExpDesc) {
     }
     return {};
   case ExternalType::Memory:
-    if (Id >= Checker.getMemories()) {
+    if (Id >= Checker.getMemories().size()) {
       spdlog::error(ErrCode::Value::InvalidMemoryIdx);
-      spdlog::error(ErrInfo::InfoForbidIndex(ErrInfo::IndexCategory::Memory, Id,
-                                             Checker.getMemories()));
+      spdlog::error(ErrInfo::InfoForbidIndex(
+          ErrInfo::IndexCategory::Memory, Id,
+          static_cast<uint32_t>(Checker.getMemories().size())));
       return Unexpect(ErrCode::Value::InvalidMemoryIdx);
     }
     return {};
@@ -606,7 +643,7 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
   while (Idx < STypeList.size()) {
     const auto &SType = STypeList[Idx];
     if (SType.getRecursiveInfo().has_value()) {
-      // Recursive type case. Add types first for referring recursively.
+      // Recursive type case. Add types first for recursive references.
       uint32_t RecSize = SType.getRecursiveInfo()->RecTypeSize;
       for (uint32_t I = Idx; I < Idx + RecSize; I++) {
         Checker.addType(STypeList[I]);
@@ -621,8 +658,8 @@ Expect<void> Validator::validate(const AST::TypeSection &TypeSec) {
     } else {
       // SubType case.
       if (Conf.hasProposal(Proposal::GC)) {
-        // For the GC proposal, the subtype is seemed as a self-recursive type.
-        // Add types first for referring recursively.
+        // For the GC proposal, the subtype is treated as a self-recursive type.
+        // Add types first for recursive references.
         Checker.addType(SType);
         EXPECTED_TRY(validate(*Checker.getTypes().back()));
       } else {
@@ -652,7 +689,7 @@ Expect<void> Validator::validate(const AST::FunctionSection &FuncSec) {
   const auto &FuncVec = FuncSec.getContent();
   const auto &TypeVec = Checker.getTypes();
 
-  // Check if type id of function is valid in context.
+  // Check whether the function type ID is valid in context.
   for (auto &TId : FuncVec) {
     if (TId >= TypeVec.size()) {
       spdlog::error(ErrCode::Value::InvalidFuncTypeIdx);
@@ -728,7 +765,7 @@ Expect<void> Validator::validate(const AST::CodeSection &CodeSec) {
 
   // Validate function body.
   for (uint32_t Id = 0; Id < static_cast<uint32_t>(CodeVec.size()); ++Id) {
-    // Added functions contains imported functions.
+    // Added functions contain imported functions.
     uint32_t TId = Id + static_cast<uint32_t>(Checker.getNumImportFuncs());
     if (TId >= static_cast<uint32_t>(FuncVec.size())) {
       spdlog::error(ErrCode::Value::InvalidFuncIdx);
@@ -811,7 +848,7 @@ Expect<void> Validator::validate(const AST::TagSection &TagSec) {
   const auto &TagVec = TagSec.getContent();
   const auto &TypeVec = Checker.getTypes();
 
-  // Check if type id of tag is valid in context.
+  // Check whether the tag type ID is valid in context.
   for (auto &TagType : TagVec) {
     auto TagTypeIdx = TagType.getTypeIdx();
     if (TagTypeIdx >= TypeVec.size()) {
@@ -844,7 +881,7 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
     // Only these instructions are accepted.
     switch (Instr.getOpCode()) {
     case OpCode::Global__get: {
-      // For initialization case, global indices must be imported globals.
+      // For the initialization case, global indices must be imported globals.
       auto GlobIdx = Instr.getTargetIndex();
       uint32_t ValidGlobalSize = Checker.getNumImportGlobals();
       if (Conf.hasProposal(Proposal::FunctionReferences)) {
@@ -867,7 +904,7 @@ Expect<void> Validator::validateConstExpr(AST::InstrView Instrs,
       break;
     }
     case OpCode::Ref__func: {
-      // When in const expression, add the reference into context.
+      // In a const expression, add the reference to the context.
       auto FuncIdx = Instr.getTargetIndex();
       if (FuncIdx >= Checker.getFunctions().size()) {
         // Function index out of range.

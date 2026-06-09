@@ -27,11 +27,11 @@ namespace AST {
 /// Base class of Desc node.
 class Desc {
 public:
-  /// Getter and setter of external type.
+  /// Getter and setter for external type.
   ExternalType getExternalType() const noexcept { return ExtType; }
   void setExternalType(ExternalType ET) noexcept { ExtType = ET; }
 
-  /// Getter and setter of external name.
+  /// Getter and setter for external name.
   std::string_view getExternalName() const noexcept { return ExtName; }
   void setExternalName(std::string_view Name) { ExtName = Name; }
 
@@ -46,11 +46,11 @@ protected:
 /// Derived import description class.
 class ImportDesc : public Desc {
 public:
-  /// Getter and setter of module name.
+  /// Getter and setter for module name.
   std::string_view getModuleName() const noexcept { return ModName; }
   void setModuleName(std::string_view Name) { ModName = Name; }
 
-  /// Getter and setter of external contents.
+  /// Getter and setter for external contents.
   uint32_t getExternalFuncTypeIdx() const noexcept { return FuncTypeIdx; }
   void setExternalFuncTypeIdx(uint32_t Idx) noexcept { FuncTypeIdx = Idx; }
   const TableType &getExternalTableType() const noexcept { return TabType; }
@@ -77,7 +77,7 @@ private:
 /// Derived export description class.
 class ExportDesc : public Desc {
 public:
-  /// Getter and setter of external index.
+  /// Getter and setter for external index.
   uint32_t getExternalIndex() const noexcept { return ExtIdx; }
   void setExternalIndex(uint32_t Idx) noexcept { ExtIdx = Idx; }
 

@@ -1,0 +1,40 @@
+name: "Community Meeting"
+description: Propose and discuss topics for the monthly WasmEdge community meeting.
+title: "WasmEdge Community Meeting on <Date>"
+labels: ["community-meeting"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: Overview of the community meeting and how to propose a topic.
+      value: |
+        We hold a monthly [community meeting](https://wasmedge.org/docs/contribute/community#community-meeting) to showcase community-created content, introduce new features, review upcoming milestones, and engage in Q&A with the WasmEdge community. Everyone is welcome, and we encourage you to attend or present a session!
+
+        This issue aims to foster discussion within the WasmEdge community about potential topics for the meeting. If you have a topic you want to present or learn more about, please comment with your name and a brief description of the topic.
+    validations:
+      required: true
+  - type: textarea
+    id: agenda
+    attributes:
+      label: "Agenda"
+      description: The session line-up. Update each session as topics are confirmed.
+      value: |
+        * Introduction
+        * Session 1: <TBD>
+        * Session 2: <TBD>
+        * Open Discussion
+        * Closing
+    validations:
+      required: true
+  - type: textarea
+    id: appendix
+    attributes:
+      label: "Appendix"
+      description: Meeting time and reference links.
+      value: |
+        Time: The first Tuesday of each month at 11PM Hong Kong Time/ 7AM PST.
+
+        [Public meeting agenda/notes](https://docs.google.com/document/d/1iFlVl7R97Lze4RDykzElJGDjjWYDlkI8Rhf8g4dQ5Rk/edit#) | [Zoom link](https://us06web.zoom.us/j/82221747919?pwd=3MORhaxDk15rACk7mNDvyz9KtaEbWy.1)
+    validations:
+      required: false

@@ -5,6 +5,15 @@ wasmedge_add_executable(wasmedgeTensorflowTests
   wasmedge_tensorflow.cpp
 )
 
+# On manylinux_2_28 with gcc-toolset and CXX11_ABI=0, LTO can cause unresolved
+# internal libstdc++ symbols from libstdc++_nonshared.a (cow-fs_path.o) when
+# linking against the TensorFlow C++ shared libraries.
+if(CMAKE_COMPILER_IS_GNUCXX AND NOT WASMEDGE_USE_CXX11_ABI)
+  set_target_properties(wasmedgeTensorflowTests PROPERTIES
+    INTERPROCEDURAL_OPTIMIZATION OFF
+  )
+endif()
+
 add_dependencies(wasmedgeTensorflowTests
   wasmedgePluginWasmEdgeTensorflow
 )

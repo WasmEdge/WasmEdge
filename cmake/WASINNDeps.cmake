@@ -3,12 +3,12 @@
 
 include(FetchContent)
 
-# Function of setup WASI-NN target.
+# Function for setting up a WASI-NN target.
 function(wasmedge_setup_wasinn_target target)
   cmake_parse_arguments(PARSE_ARGV 1 WASMEDGE_WASINNDEPS_${target} "PLUGINLIB" "" "")
-  # `PLUGINLIB` keyword is for the target which is the plugin library.
-  # For some dependencies, the fully linking are necessary because the invoking happened in the plugin header.
-  # In other cases, the includes are needed only if the target is not the plugin library, such as the tests.
+  # The `PLUGINLIB` keyword marks the target that is the plugin library.
+  # Some dependencies must be fully linked because invocation happens in the plugin header.
+  # In other cases, includes are needed only if the target is not the plugin library, such as the tests.
 
   foreach(BACKEND ${WASMEDGE_PLUGIN_WASI_NN_BACKEND})
     string(TOLOWER ${BACKEND} BACKEND)
@@ -117,13 +117,13 @@ function(wasmedge_setup_wasinn_target target)
       target_compile_definitions(${target} PUBLIC WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET)
       wasmedge_setup_bitnet_target(${target})
     else()
-      # Add the message of other backends here.
+      # Add messages for other backends here.
       message(FATAL_ERROR "WASI-NN: backend ${BACKEND} not found or unimplemented.")
     endif()
   endforeach()
 endfunction()
 
-# Function of preparing TensorFlow related variables.
+# Function for preparing TensorFlow-related variables.
 if(NOT WASMEDGE_DEPS_VERSION)
   set(WASMEDGE_DEPS_VERSION "TF-2.12.0-CC")
 endif()
@@ -165,7 +165,7 @@ function(wasmedge_setup_tf_variables)
   endif()
 endfunction()
 
-# Function of preparing TensorFlow headers.
+# Function for preparing TensorFlow headers.
 function(wasmedge_setup_tf_headers)
   # Fetch Tensorflow-deps repository.
   if(NOT wasmedge_tensorflow_header_SOURCE_DIR)
@@ -183,7 +183,7 @@ function(wasmedge_setup_tf_headers)
   set(WASMEDGE_TENSORFLOW_DEPS_HEADERS ${wasmedge_tensorflow_header_SOURCE_DIR} PARENT_SCOPE)
 endfunction()
 
-# Function of preparing TensorFlow-Lite library.
+# Function for preparing the TensorFlow-Lite library.
 function(wasmedge_setup_tflite_lib)
   wasmedge_setup_tf_variables()
   # Fetch Tensorflow-lite pre-built library.
@@ -219,7 +219,7 @@ function(wasmedge_setup_tflite_lib)
   endif()
 endfunction()
 
-# Function of preparing TensorFlow library.
+# Function for preparing the TensorFlow library.
 function(wasmedge_setup_tf_lib)
   wasmedge_setup_tf_variables()
   # Fetch Tensorflow pre-built library.
@@ -267,7 +267,7 @@ function(wasmedge_setup_tf_lib)
   endif()
 endfunction()
 
-# Function of preparing TensorFlow dependency.
+# Function for preparing the TensorFlow dependency.
 function(wasmedge_setup_tf_target target)
   wasmedge_setup_tf_headers()
   wasmedge_setup_tf_lib()
@@ -281,7 +281,7 @@ function(wasmedge_setup_tf_target target)
   )
 endfunction()
 
-# Function of preparing TensorFlow-Lite dependency.
+# Function for preparing the TensorFlow-Lite dependency.
 function(wasmedge_setup_tflite_target target)
   wasmedge_setup_tf_headers()
   wasmedge_setup_tflite_lib()
@@ -295,7 +295,7 @@ function(wasmedge_setup_tflite_target target)
   )
 endfunction()
 
-# Function of preparing llama dependency.
+# Function for preparing the llama dependency.
 function(wasmedge_setup_llama_target target)
   if(NOT TARGET llama)
     # llama.cpp options
@@ -357,7 +357,7 @@ function(wasmedge_setup_llama_target target)
     FetchContent_Declare(
       llama
       GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
-      GIT_TAG        b7090
+      GIT_TAG        b8757
       GIT_SHALLOW    FALSE
     )
     FetchContent_MakeAvailable(llama)
@@ -372,7 +372,7 @@ function(wasmedge_setup_llama_target target)
       set_property(TARGET ggml-cuda PROPERTY POSITION_INDEPENDENT_CODE ON)
     endif()
   endif()
-  # Ignore unused function warnings at common.h in llama.cpp.
+  # Ignore unused function warnings in common.h in llama.cpp.
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     target_compile_options(${target}
       PRIVATE
@@ -393,7 +393,7 @@ function(wasmedge_setup_llama_target target)
       /wd4244
     )
   endif()
-  # Only the plugin library needs to fully linking the dependency.
+  # Only the plugin library needs to fully link the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
     wasmedge_setup_simdjson()
     target_link_libraries(${target}
@@ -405,39 +405,43 @@ function(wasmedge_setup_llama_target target)
   endif()
 endfunction()
 
-# Function of preparing piper dependency.
+# Function for preparing the piper dependency.
 function(wasmedge_setup_piper_target target)
-  find_package(onnxruntime)
-  if(NOT onnxruntime_FOUND)
-    find_library(ONNXRUNTIME_LIBRARY onnxruntime)
-    if(NOT "${ONNXRUNTIME_LIBRARY}" STREQUAL "ONNXRUNTIME_LIBRARY-NOTFOUND")
-      find_path(ONNXRUNTIME_PATH "onnxruntime_cxx_api.h" PATH_SUFFIXES "onnxruntime")
-      if(NOT "${ONNXRUNTIME_PATH}" STREQUAL "ONNXRUNTIME_PATH-NOTFOUND")
-        set(onnxruntime_FOUND TRUE)
-      endif()
-    endif()
-  endif()
-  if(NOT onnxruntime_FOUND)
-    message(FATAL_ERROR "Cannot find onnxruntime")
-  endif()
   if(NOT TARGET piper)
     # setup piper
-    message(STATUS "Downloading piper source")
-    find_program(GIT_CMD git REQUIRED)
-    FetchContent_Declare(
-      piper
-      GIT_REPOSITORY https://github.com/rhasspy/piper.git
-      GIT_TAG 38917ffd8c0e219c6581d73e07b30ef1d572fce1 # 2023.11.14-2
-      UPDATE_DISCONNECTED TRUE
-      PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/plugins/wasi_nn/piper.patch"
-    )
-    set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Piper not build shared")
-    set(BUILD_TESTING OFF CACHE INTERNAL "Piper not build tests")
-    set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE INTERNAL "Piper build independent code")
-    FetchContent_MakeAvailable(piper)
-    message(STATUS "Downloading piper source -- done")
-    # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
-    target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
+    if(DEFINED PIPER_ROOT)
+      message(STATUS "Build: Using pre-built Piper from ${PIPER_ROOT}")
+      add_library(piper STATIC IMPORTED)
+      set(_OLD_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+      set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+      find_library(
+        PIPER_LIB_PATH
+        NAMES piper libpiper
+        PATHS "${PIPER_ROOT}"
+        NO_DEFAULT_PATH REQUIRED)
+      set(CMAKE_FIND_LIBRARY_SUFFIXES ${_OLD_SUFFIXES})
+      set_target_properties(
+        piper PROPERTIES IMPORTED_LOCATION "${PIPER_LIB_PATH}"
+                         INTERFACE_INCLUDE_DIRECTORIES "${PIPER_ROOT}/include")
+    else()
+      message(STATUS "Downloading piper source")
+      find_program(GIT_CMD git REQUIRED)
+      FetchContent_Declare(
+        piper
+        GIT_REPOSITORY https://github.com/OHF-Voice/piper1-gpl.git
+        GIT_TAG 32b95f8c1f0dc0ce27a6acd1143de331f61af777
+        UPDATE_DISCONNECTED TRUE
+        SOURCE_SUBDIR libpiper
+        PATCH_COMMAND "${GIT_CMD}" "apply" "${CMAKE_SOURCE_DIR}/utils/wasi-nn/libpiper.patch"
+      )
+      set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "Piper not build shared")
+      set(BUILD_TESTING OFF CACHE INTERNAL "Piper not build tests")
+      set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE INTERNAL "Piper build independent code")
+      FetchContent_MakeAvailable(piper)
+      message(STATUS "Downloading piper source -- done")
+      # suppress src/cpp/piper.cpp:302:29: error: unused parameter ‘config’ [-Werror=unused-parameter]
+      target_compile_options(piper PRIVATE -Wno-error=unused-parameter)
+    endif()
   endif()
   wasmedge_setup_simdjson()
   target_link_libraries(${target}
@@ -447,7 +451,7 @@ function(wasmedge_setup_piper_target target)
   )
 endfunction()
 
-# Function of preparing whisper dependency.
+# Function for preparing the whisper dependency.
 function(wasmedge_setup_whisper_target target)
   if(NOT TARGET whisper)
     # setup whisper
@@ -484,7 +488,7 @@ function(wasmedge_setup_whisper_target target)
       ${whisper_SOURCE_DIR}
     )
   endif()
-  # Only the plugin library needs to fully linking the dependency.
+  # Only the plugin library needs to fully link the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
     wasmedge_setup_simdjson()
     target_link_libraries(${target}
@@ -495,7 +499,7 @@ function(wasmedge_setup_whisper_target target)
   endif()
 endfunction()
 
-# Function of preparing MLX library.
+# Function for preparing the MLX library.
 function(wasmedge_setup_mlx_target target)
   find_package(MLX CONFIG)
   if(MLX_FOUND)
@@ -577,7 +581,7 @@ function(wasmedge_setup_mlx_target target)
 
   find_program(FFMPEG_EXECUTABLE ffmpeg)
 
-  # Only the plugin library needs to fully linking the dependency.
+  # Only the plugin library needs to fully link the dependency.
   if(WASMEDGE_WASINNDEPS_${target}_PLUGINLIB)
     wasmedge_setup_simdjson()
     target_include_directories(${target}
@@ -640,7 +644,7 @@ function(wasmedge_setup_bitnet_target target)
       bitnet
       GIT_REPOSITORY https://github.com/microsoft/BitNet.git
       GIT_TAG        404980e
-      GIT_SHALLOW    TRUE
+      GIT_SHALLOW    FALSE
       ${BITNET_PATCH_ARGS}
     )
 

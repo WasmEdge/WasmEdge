@@ -16,7 +16,7 @@ namespace Executor {
 Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
                       std::optional<std::string_view> Name) {
-  // Check the module is validated.
+  // Check that the module is validated.
   if (unlikely(!Mod.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Module));
@@ -26,7 +26,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Create the stack manager.
   Runtime::StackManager StackMgr;
 
-  // Check is module name duplicated when trying to registration.
+  // Check whether the module name is duplicated during registration.
   if (Name.has_value()) {
     const auto *FindModInst = StoreMgr.findModule(Name.value());
     if (FindModInst != nullptr) {
@@ -36,13 +36,15 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     }
   }
 
-  // Insert the module instance to store manager and retrieve instance.
+  // Insert the module instance into the store manager and retrieve it.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst;
   if (Name.has_value()) {
     ModInst = std::make_unique<Runtime::Instance::ModuleInstance>(Name.value());
   } else {
     ModInst = std::make_unique<Runtime::Instance::ModuleInstance>("");
   }
+
+  ModInst->setID(Mod.getID());
 
   // Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &SubType : Mod.getTypeSection().getContent()) {
@@ -67,13 +69,21 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
 
   // Instantiate ImportSection and do import matching. (ImportSec)
   const AST::ImportSection &ImportSec = Mod.getImportSection();
-  EXPECTED_TRY(instantiate(
-                   [&StoreMgr](std::string_view ModName)
-                       -> const WasmEdge::Runtime::Instance::ModuleInstance * {
-                     return StoreMgr.findModule(ModName);
-                   },
-                   *ModInst, ImportSec)
-                   .map_error(ReportError(ASTNodeAttr::Sec_Import)));
+  EXPECTED_TRY(
+      instantiate(
+          [&StoreMgr, &ModInst](std::string_view ModName)
+              -> const WasmEdge::Runtime::Instance::ModuleInstance * {
+            const auto *Found = StoreMgr.findModule(ModName);
+            if (Found) {
+              auto *Target =
+                  const_cast<WasmEdge::Runtime::Instance::ModuleInstance *>(
+                      Found);
+              ModInst->linkDependency(*Target);
+            }
+            return Found;
+          },
+          *ModInst, ImportSec)
+          .map_error(ReportError(ASTNodeAttr::Sec_Import)));
 
   // Instantiate Functions in module. (FunctionSec, CodeSec)
   const AST::FunctionSection &FuncSec = Mod.getFunctionSection();
@@ -144,7 +154,7 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
   // Pop Frame.
   StackMgr.popFrame();
 
-  // For the named modules, register it into the store.
+  // For a named module, register it in the store.
   if (Name.has_value()) {
     StoreMgr.registerModule(ModInst.get());
   }

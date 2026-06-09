@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the SharedLibrary, which holds handle
-/// to loaded library.
+/// This file contains the declaration of the SharedLibrary, which holds a
+/// handle to a loaded library.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -26,7 +26,7 @@
 namespace WasmEdge {
 namespace Loader {
 
-/// Holder class for library handle
+/// Holder class for a library handle.
 class SharedLibrary : public Executable {
 public:
 #if WASMEDGE_OS_WINDOWS

@@ -1,14 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
-wasmedge_add_executable(wasmedgeValidatorSubtypeTests
-  ValidatorSubtypeTest.cpp
+wasmedge_add_executable(wasmedgeValidatorRegressionTests
+  ValidatorRegressionTest.cpp
 )
 
-add_test(wasmedgeValidatorSubtypeTests wasmedgeValidatorSubtypeTests)
+add_test(wasmedgeValidatorRegressionTests wasmedgeValidatorRegressionTests)
 
-target_link_libraries(wasmedgeValidatorSubtypeTests
+target_link_libraries(wasmedgeValidatorRegressionTests
   PRIVATE
-  wasmedgeTestSpec
+  ${GTEST_BOTH_LIBRARIES}
   wasmedgeVM
 )

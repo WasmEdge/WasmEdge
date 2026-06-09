@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contents unit tests of loading AST type nodes.
+/// This file contains unit tests for loading AST type nodes.
 ///
 //===----------------------------------------------------------------------===//
 
@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-// AST::Limit test is contained in AST::MemoryType.
+// AST::Limit tests are contained in AST::MemoryType.
 
 namespace {
 
@@ -241,7 +241,7 @@ TEST(TypeTest, LoadTableType) {
   //   2.  Load invalid reference type.
   //   3.  Load invalid types of limit in table type.
   //   4.  Load limit with only min.
-  //   5.  Load invalid limit with fail of loading max.
+  //   5.  Load invalid limit that fails while loading max.
   //   6.  Load limit with min and max.
   //   7.  Load invalid ExternRef without Ref-Types proposal.
   //   8.  Load invalid reference type without Ref-Types proposal.
@@ -251,7 +251,8 @@ TEST(TypeTest, LoadTableType) {
       0x01U, // Content size = 1
       0x01U  // Vector length = 1
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)))
+      << "Expect one but get no element for table section";
 
   Vec = {
       0x04U, // Table section
@@ -281,7 +282,8 @@ TEST(TypeTest, LoadTableType) {
       0x00U,                            // Only has min
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Min = 4294967295
   };
-  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)))
+      << "Only has min with value 4294967295 should be valid";
 
   Vec = {
       0x04U,                            // Table section
@@ -333,7 +335,7 @@ TEST(TypeTest, LoadMemoryType) {
   //   1.  Load invalid empty limit.
   //   2.  Load invalid types of limit.
   //   3.  Load limit with only min.
-  //   4.  Load invalid limit with fail of loading max.
+  //   4.  Load invalid limit that fails while loading max.
   //   5.  Load limit with min and max.
 
   Vec = {
@@ -347,10 +349,11 @@ TEST(TypeTest, LoadMemoryType) {
       0x05U, // Memory section
       0x03U, // Content size = 3
       0x01U, // Vector length = 1
-      0x02U, // Unknown limit type
+      0x08U, // Unknown limit type
       0x00U  // Min = 0
   };
-  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)))
+      << "Unknown limit type should fail";
 
   Vec = {
       0x05U,                            // Memory section
@@ -359,7 +362,8 @@ TEST(TypeTest, LoadMemoryType) {
       0x00U,                            // Only has min
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Min = 4294967295
   };
-  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)));
+  EXPECT_TRUE(Ldr.parseModule(prefixedVec(Vec)))
+      << "Only has min with value 4294967295 should be valid";
 
   Vec = {
       0x05U,                            // Memory section
@@ -471,7 +475,7 @@ TEST(TypeTest, LoadHeapType) {
       0x01U,        // Vector length = 1
       0x7FU, 0x00U, // Global type
       0xD0U         // OpCode Ref__null
-                    // Missed heap type
+                    // Missing heap type
   };
   EXPECT_FALSE(Ldr.parseModule(prefixedVec(Vec)));
 

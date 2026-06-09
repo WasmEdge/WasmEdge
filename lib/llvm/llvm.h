@@ -71,11 +71,35 @@ LLVMOrcThreadSafeModuleWithModuleDo(LLVMOrcThreadSafeModuleRef TSM,
 #define __x86_64__ 1
 #endif
 
+#if LLVM_VERSION_MAJOR < 17
+#include <llvm/IR/Instructions.h>
+#include <llvm/Support/CBindingWrapping.h>
+typedef enum {
+  LLVMTailCallKindNone = 0,
+  LLVMTailCallKindTail = 1,
+  LLVMTailCallKindMustTail = 2,
+  LLVMTailCallKindNoTail = 3,
+} LLVMTailCallKind;
+
+static inline LLVMTailCallKind LLVMGetTailCallKind(LLVMValueRef Call) {
+  return static_cast<LLVMTailCallKind>(
+      llvm::unwrap<llvm::CallInst>(Call)->getTailCallKind());
+}
+
+static inline void LLVMSetTailCallKind(LLVMValueRef Call,
+                                       LLVMTailCallKind kind) {
+  llvm::unwrap<llvm::CallInst>(Call)->setTailCallKind(
+      static_cast<llvm::CallInst::TailCallKind>(kind));
+}
+#endif
+
 namespace WasmEdge::LLVM {
 
 class Core {
 public:
-  static inline void init() noexcept { std::call_once(Once, initOnce); }
+  static inline void init(LLVMContextRef C) noexcept {
+    std::call_once(Once, initOnce, C);
+  }
 
   static inline const unsigned int NotIntrinsic = 0;
   static inline unsigned int Ceil = 0;
@@ -150,7 +174,7 @@ public:
 
 private:
   static inline std::once_flag Once;
-  static inline void initOnce() noexcept {
+  static inline void initOnce(LLVMContextRef C) noexcept {
     using namespace std::literals;
 #if LLVM_VERSION_MAJOR < 17
     LLVMInitializeCore(LLVMGetGlobalPassRegistry());
@@ -228,7 +252,7 @@ private:
     StrictFP = getEnumAttributeKind("strictfp"sv);
     UWTable = getEnumAttributeKind("uwtable"sv);
 
-    InvariantGroup = getMetadataKind("invariant.group"sv);
+    InvariantGroup = getMetadataKind(C, "invariant.group"sv);
   }
 
   template <typename... ArgsT>
@@ -246,8 +270,10 @@ private:
   static unsigned int getEnumAttributeKind(std::string_view Name) noexcept {
     return LLVMGetEnumAttributeKindForName(Name.data(), Name.size());
   }
-  static unsigned int getMetadataKind(std::string_view Name) noexcept {
-    return LLVMGetMDKindID(Name.data(), static_cast<unsigned int>(Name.size()));
+  static unsigned int getMetadataKind(LLVMContextRef C,
+                                      std::string_view Name) noexcept {
+    return LLVMGetMDKindIDInContext(C, Name.data(),
+                                    static_cast<unsigned int>(Name.size()));
   }
 };
 
@@ -781,6 +807,7 @@ public:
   inline void addCallSiteAttribute(const Attribute &A) noexcept;
   inline void setMetadata(Context &C, unsigned int KindID,
                           Metadata Node) noexcept;
+  inline void setMustTailCall() noexcept;
 
   Value getFirstParam() noexcept { return LLVMGetFirstParam(Ref); }
   Value getNextParam() noexcept { return LLVMGetNextParam(Ref); }
@@ -1030,6 +1057,10 @@ void Value::addCallSiteAttribute(const Attribute &A) noexcept {
 void Value::setMetadata(Context &C, unsigned int KindID,
                         Metadata Node) noexcept {
   LLVMSetMetadata(Ref, KindID, LLVMMetadataAsValue(C.unwrap(), Node.unwrap()));
+}
+
+void Value::setMustTailCall() noexcept {
+  LLVMSetTailCallKind(Ref, LLVMTailCallKindMustTail);
 }
 
 static inline Message getDefaultTargetTriple() noexcept {
@@ -2067,7 +2098,7 @@ public:
   }
 #if LLVM_VERSION_MAJOR >= 21
   OrcThreadSafeContext(Context &C) noexcept
-      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.release())) {}
+      : Ref(LLVMOrcCreateNewThreadSafeContextFromLLVMContext(C.unwrap())) {}
 #else
   Context getContext() noexcept {
     return LLVMOrcThreadSafeContextGetContext(Ref);
@@ -2133,6 +2164,44 @@ private:
   LLVMOrcThreadSafeModuleRef Ref = nullptr;
 };
 
+class OrcResourceTracker {
+public:
+  constexpr OrcResourceTracker() noexcept = default;
+  constexpr OrcResourceTracker(LLVMOrcResourceTrackerRef R) noexcept : Ref(R) {}
+  ~OrcResourceTracker() noexcept {
+    if (Ref) {
+      LLVMOrcReleaseResourceTracker(Ref);
+    }
+  }
+  OrcResourceTracker(const OrcResourceTracker &) = delete;
+  OrcResourceTracker &operator=(const OrcResourceTracker &) = delete;
+  OrcResourceTracker(OrcResourceTracker &&B) noexcept : OrcResourceTracker() {
+    swap(*this, B);
+  }
+  OrcResourceTracker &operator=(OrcResourceTracker &&B) noexcept {
+    swap(*this, B);
+    return *this;
+  }
+
+  constexpr operator bool() const noexcept { return Ref != nullptr; }
+  constexpr auto &unwrap() const noexcept { return Ref; }
+  constexpr auto &unwrap() noexcept { return Ref; }
+  friend void swap(OrcResourceTracker &LHS, OrcResourceTracker &RHS) noexcept {
+    using std::swap;
+    swap(LHS.Ref, RHS.Ref);
+  }
+
+  Error remove() noexcept {
+    if (Ref) {
+      return LLVMOrcResourceTrackerRemove(Ref);
+    }
+    return nullptr;
+  }
+
+private:
+  LLVMOrcResourceTrackerRef Ref = nullptr;
+};
+
 class OrcJITDylib {
 public:
   constexpr OrcJITDylib() noexcept = default;
@@ -2151,6 +2220,10 @@ public:
   friend void swap(OrcJITDylib &LHS, OrcJITDylib &RHS) noexcept {
     using std::swap;
     swap(LHS.Ref, RHS.Ref);
+  }
+
+  OrcResourceTracker createResourceTracker() noexcept {
+    return LLVMOrcJITDylibCreateResourceTracker(Ref);
   }
 
 private:
@@ -2230,6 +2303,11 @@ public:
     return LLVMOrcLLJITAddLLVMIRModule(Ref, L.unwrap(), M.release());
   }
 
+  Error addLLVMIRModuleWithRT(const OrcResourceTracker &RT,
+                              OrcThreadSafeModule M) noexcept {
+    return LLVMOrcLLJITAddLLVMIRModuleWithRT(Ref, RT.unwrap(), M.release());
+  }
+
   template <typename T>
   cxx20::expected<T *, Error> lookup(const char *Name) noexcept {
     LLVMOrcJITTargetAddress Addr;
@@ -2243,10 +2321,10 @@ public:
     return LLVMOrcLLJITGetIRTransformLayer(Ref);
   }
 
+  static inline LLVMOrcLLJITBuilderRef getBuilder() noexcept;
+
 private:
   LLVMOrcLLJITRef Ref = nullptr;
-
-  static inline LLVMOrcLLJITBuilderRef getBuilder() noexcept;
 };
 
 } // namespace WasmEdge::LLVM
@@ -2531,8 +2609,8 @@ public:
         static_cast<uint32_t>(Size / sizeof(winapi::RUNTIME_FUNCTION_));
     if (EntryCount == 0)
       return;
-    // Calculate object image base address by assuming that address of the first
-    // function is equal to the address of the code section
+    // Calculate the object image base address by assuming that the address of
+    // the first function is equal to the address of the code section.
     const auto ImageBase = CodeAddress - FunctionTable[0].BeginAddress;
     winapi::RtlAddFunctionTable(FunctionTable, EntryCount, ImageBase);
     EHFrames.push_back({Addr, Size});

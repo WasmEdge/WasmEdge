@@ -29,18 +29,20 @@ WasmEdge roadmap will be updated quarterly with the following steps.
 
 ## Current Roadmap
 
-Last Updated: Q1 / 2026
+Last Updated: Q2 / 2026
 
 | Theme    | Description | Timeline | Assignee |
 | ---      | ----------- | -------- | -------- |
-
-| Document | WasmEdge documentation refactoring | Q1 / 2026 | [@q82419](https://github.com/q82419) |
 | Proposal | [Component Model completion](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q2 / 2026 | [@q82419](https://github.com/q82419) |
 | Proposal | [Component Model canonical section refactoring](https://github.com/WasmEdge/WasmEdge/issues/4334) | Q2 / 2026 | [@q82419](https://github.com/q82419) |
 | Proposal | [WASI preview2 as plugins](https://github.com/WasmEdge/WasmEdge/issues/4236) | Q2 / 2026 | [@q82419](https://github.com/q82419) |
-| Feature | [LFX (2026/term1) Extend sub-command of WasmEdge CLI tool](https://github.com/WasmEdge/WasmEdge/issues/4513) | Q2 / 2026 | |
-| Feature | [LFX (2026/term1) Module instance dependency tree in WASM store](https://github.com/WasmEdge/WasmEdge/issues/4514) | Q2 / 2026 | |
-| Feature | [LFX (2026/term1) Enable JIT mode support for per-function compilation](https://github.com/WasmEdge/WasmEdge/issues/4516) | Q2 / 2026 | |
+| Feature | [LFX (2026/term1) Extend sub-command of WasmEdge CLI tool](https://github.com/WasmEdge/WasmEdge/issues/4513) | Q2 / 2026 | [@Divyansh200102](https://github.com/Divyansh200102) |
+| Feature | [LFX (2026/term1) Module instance dependency tree in WASM store](https://github.com/WasmEdge/WasmEdge/issues/4514) | Q2 / 2026 | [@Wang-Yan-Hao](https://github.com/Wang-Yan-Hao) |
+| Feature | [LFX (2026/term1) Enable JIT mode support for per-function compilation](https://github.com/WasmEdge/WasmEdge/issues/4516) | Q2 / 2026 | [@sleepingeight](https://github.com/sleepingeight) |
+| Feature | [WAT supporting](https://github.com/WasmEdge/WasmEdge/pull/4708) | Q2 / 2026 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) | Q2 / 2026 | [@ibmibmibm](https://github.com/ibmibmibm) |
+| Language Binding | Move Go binding back into WasmEdge org | Q2 / 2026 | [@q82419](https://github.com/q82419) |
+| Feature | Security for universal WASM execution in WasmEdge | Q2 / 2026 | [@q82419](https://github.com/q82419) |
 
 ## Inactive Roadmap
 
@@ -48,7 +50,6 @@ Last Updated: Q1 / 2026
 | ----- | ----------- |
 | Language Binding | [Update Java binding with 0.14](https://github.com/WasmEdge/WasmEdge/pull/3663) |
 | Proposal | [WASM C API proposal](https://github.com/WasmEdge/WasmEdge/pull/346) |
-| Language Binding | Move Go binding back into WasmEdge org |
 | Feature | [Redirection of stdin, stdout, and stderr in C SDK](https://github.com/WasmEdge/WasmEdge/issues/2936) |
 | Proposal | [WASI-NN GGML plugin with CANN support](https://github.com/WasmEdge/WasmEdge/issues/3768) |
 | Proposal | [WASI-NN TensorRT plugin initial support](https://github.com/WasmEdge/WasmEdge/pull/3878) |
@@ -66,9 +67,18 @@ Last Updated: Q1 / 2026
 | Proposal | Typed continuation proposal |
 | Proposal | Stack-switch proposal |
 | Proposal | WASI-NN Whisper.cpp plugin: update for supporting the greedy sampling |
-| Proposal | [Runtime GC support in WasmEdge](https://github.com/WasmEdge/WasmEdge/pull/4156) |
+| Document | WasmEdge documentation refactoring |
 
 ## Previous Roadmap
+
+### Q1/2026
+
+| Theme | Description | Timeline | Assignee | Status |
+| --- | --- | --- | --- | --- |
+| Proposal | [WASM memory64 proposal](https://github.com/WasmEdge/WasmEdge/issues/2779) | Q1 / 2026 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | Threads and atomic tests for threads proposal | Q1 / 2026 | [@q82419](https://github.com/q82419) | Completed |
+| Proposal | Component model proposal spec tests mechanism | Q1 / 2026 | [@q82419](https://github.com/q82419) | Completed |
+| Document | WasmEdge documentation refactoring | Q1 / 2026 | [@q82419](https://github.com/q82419) | Staled |
 
 ### Q4/2025
 

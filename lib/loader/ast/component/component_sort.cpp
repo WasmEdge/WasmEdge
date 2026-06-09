@@ -54,6 +54,7 @@ Expect<void> Loader::loadCoreSort(AST::Component::Sort &Sort) {
   //             | 0x01 => table
   //             | 0x02 => memory
   //             | 0x03 => global
+  //             | 0x04 => tag
   //             | 0x10 => type
   //             | 0x11 => module
   //             | 0x12 => instance
@@ -65,6 +66,7 @@ Expect<void> Loader::loadCoreSort(AST::Component::Sort &Sort) {
   case 0x01:
   case 0x02:
   case 0x03:
+  case 0x04:
   case 0x10:
   case 0x11:
   case 0x12:

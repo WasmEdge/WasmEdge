@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file contains the declaration of the Executor class, which instantiate
-/// and run Wasm modules.
+/// This file contains the declaration of the Executor class, which instantiates
+/// and runs Wasm modules.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -29,7 +29,6 @@
 #include "runtime/storemgr.h"
 
 #include <atomic>
-#include <condition_variable>
 #include <csignal>
 #include <cstdint>
 #include <functional>
@@ -93,7 +92,7 @@ using TypeNN =
 
 } // namespace
 
-/// Helper class for handling the pre- and post- host functions
+/// Helper class for handling the pre- and post-host functions.
 class HostFuncHandler {
 public:
   void setPreHost(void *HostData, std::function<void(void *)> HostFunc) {
@@ -156,28 +155,33 @@ public:
     }
   }
 
-  /// Getter of Configure
+  /// Getter for configuration.
   const Configure &getConfigure() const { return Conf; }
 
-  /// Instantiate a WASM Module into an anonymous module instance.
+  /// Instantiate a WASM Module as an anonymous module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   instantiateModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod);
 
-  /// Instantiate and register a WASM module into a named module instance.
+  /// Instantiate and register a WASM module as a named module instance.
   Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
   registerModule(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
                  std::string_view Name);
 
-  /// Register an instantiated module into a named module instance.
+  /// Register an instantiated module as a named module instance.
   Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
                               const Runtime::Instance::ModuleInstance &ModInst);
 
-  /// Instantiate a Component into an anonymous component instance.
+  /// Register an instantiated module under the given alias name.
+  Expect<void> registerModule(Runtime::StoreManager &StoreMgr,
+                              const Runtime::Instance::ModuleInstance &ModInst,
+                              std::string_view Name);
+
+  /// Instantiate a Component as an anonymous component instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
   instantiateComponent(Runtime::StoreManager &StoreMgr,
                        const AST::Component::Component &Comp);
 
-  /// Instantiate and register a Component into a named component instance.
+  /// Instantiate and register a Component as a named component instance.
   Expect<std::unique_ptr<Runtime::Instance::ComponentInstance>>
   registerComponent(Runtime::StoreManager &StoreMgr,
                     const AST::Component::Component &Comp,
@@ -197,6 +201,13 @@ public:
   /// host function.
   Expect<void> registerPostHostFunction(void *HostData,
                                         std::function<void(void *)> HostFunc);
+
+  /// Register a callback for lazy function compilation
+  void registerLazyCompilationCallback(
+      std::function<Expect<void>(const std::string &, const uint32_t)>
+          Callback) {
+    LazyCompilationHandler = std::move(Callback);
+  }
 
   /// Invoke a WASM function by function instance.
   Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -373,10 +384,10 @@ private:
                      Runtime::Instance::FunctionInstance *RFuncInst,
                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
 
-  std::vector<std::pair<ComponentValVariant, ComponentValType>>
+  Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
   convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
                       Span<const ComponentValType> ValTypes,
-                      Runtime::Instance::MemoryInstance *MemInst) noexcept;
+                      Runtime::Instance::MemoryInstance *MemInst);
   /// @}
 
   /// \name Helper Functions for block controls.
@@ -392,10 +403,20 @@ private:
                              const AST::Instruction::JumpDescriptor &JumpDesc,
                              AST::InstrView::iterator &PC) noexcept;
 
-  /// Helper function for throwing an exception.
-  Expect<void> throwException(Runtime::StackManager &StackMgr,
-                              Runtime::Instance::TagInstance &TagInst,
-                              AST::InstrView::iterator &PC) noexcept;
+  /// Helper function for throwing an exception. Pass `ExnInst` on `throw_ref`
+  /// to reuse the exception instance and preserve exnref identity.
+  Expect<void> throwException(
+      Runtime::StackManager &StackMgr, Runtime::Instance::TagInstance &TagInst,
+      AST::InstrView::iterator &PC,
+      const Runtime::Instance::ExceptionInstance *ExnInst = nullptr) noexcept;
+  /// @}
+
+  /// \name Helper Function for checking memory offset boundary.
+  /// @{
+  Expect<void>
+  checkOffsetOverflow(const Runtime::Instance::MemoryInstance &MemInst,
+                      const AST::Instruction &Instr, const uint64_t Val,
+                      const uint64_t Size) const noexcept;
   /// @}
 
   /// \name Helper Functions for GC instructions.
@@ -451,11 +472,11 @@ private:
   /// \name Helper Functions for atomic operations.
   /// @{
   template <typename T>
-  Expect<uint32_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
-                              uint32_t Address, EndianValue<T> Expected,
+  Expect<uint64_t> atomicWait(Runtime::Instance::MemoryInstance &MemInst,
+                              uint64_t Address, EndianValue<T> Expected,
                               int64_t Timeout) noexcept;
-  Expect<uint32_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
-                                uint32_t Address, uint32_t Count) noexcept;
+  Expect<uint64_t> atomicNotify(Runtime::Instance::MemoryInstance &MemInst,
+                                uint64_t Address, uint64_t Count) noexcept;
   void atomicNotifyAll() noexcept;
   /// @}
 
@@ -1011,55 +1032,55 @@ public:
                                   ValType VTCast) noexcept;
   Expect<RefVariant> proxyTableGet(Runtime::StackManager &StackMgr,
                                    const uint32_t TableIdx,
-                                   const uint32_t Off) noexcept;
+                                   const uint64_t Off) noexcept;
   Expect<void> proxyTableSet(Runtime::StackManager &StackMgr,
-                             const uint32_t TableIdx, const uint32_t Off,
+                             const uint32_t TableIdx, const uint64_t Off,
                              const RefVariant Ref) noexcept;
   Expect<void> proxyTableInit(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdx, const uint32_t ElemIdx,
-                              const uint32_t DstOff, const uint32_t SrcOff,
+                              const uint64_t DstOff, const uint32_t SrcOff,
                               const uint32_t Len) noexcept;
   Expect<void> proxyElemDrop(Runtime::StackManager &StackMgr,
                              const uint32_t ElemIdx) noexcept;
   Expect<void> proxyTableCopy(Runtime::StackManager &StackMgr,
                               const uint32_t TableIdxDst,
-                              const uint32_t TableIdxSrc, const uint32_t DstOff,
-                              const uint32_t SrcOff,
-                              const uint32_t Len) noexcept;
-  Expect<uint32_t> proxyTableGrow(Runtime::StackManager &StackMgr,
+                              const uint32_t TableIdxSrc, const uint64_t DstOff,
+                              const uint64_t SrcOff,
+                              const uint64_t Len) noexcept;
+  Expect<uint64_t> proxyTableGrow(Runtime::StackManager &StackMgr,
                                   const uint32_t TableIdx, const RefVariant Val,
-                                  const uint32_t NewSize) noexcept;
-  Expect<uint32_t> proxyTableSize(Runtime::StackManager &StackMgr,
+                                  const uint64_t NewSize) noexcept;
+  Expect<uint64_t> proxyTableSize(Runtime::StackManager &StackMgr,
                                   const uint32_t TableIdx) noexcept;
   Expect<void> proxyTableFill(Runtime::StackManager &StackMgr,
-                              const uint32_t TableIdx, const uint32_t Off,
+                              const uint32_t TableIdx, const uint64_t Off,
                               const RefVariant Ref,
-                              const uint32_t Len) noexcept;
-  Expect<uint32_t> proxyMemGrow(Runtime::StackManager &StackMgr,
+                              const uint64_t Len) noexcept;
+  Expect<uint64_t> proxyMemGrow(Runtime::StackManager &StackMgr,
                                 const uint32_t MemIdx,
-                                const uint32_t NewSize) noexcept;
-  Expect<uint32_t> proxyMemSize(Runtime::StackManager &StackMgr,
+                                const uint64_t NewSize) noexcept;
+  Expect<uint64_t> proxyMemSize(Runtime::StackManager &StackMgr,
                                 const uint32_t MemIdx) noexcept;
   Expect<void> proxyMemInit(Runtime::StackManager &StackMgr,
                             const uint32_t MemIdx, const uint32_t DataIdx,
-                            const uint32_t DstOff, const uint32_t SrcOff,
+                            const uint64_t DstOff, const uint32_t SrcOff,
                             const uint32_t Len) noexcept;
   Expect<void> proxyDataDrop(Runtime::StackManager &StackMgr,
                              const uint32_t DataIdx) noexcept;
   Expect<void> proxyMemCopy(Runtime::StackManager &StackMgr,
                             const uint32_t DstMemIdx, const uint32_t SrcMemIdx,
-                            const uint32_t DstOff, const uint32_t SrcOff,
-                            const uint32_t Len) noexcept;
+                            const uint64_t DstOff, const uint64_t SrcOff,
+                            const uint64_t Len) noexcept;
   Expect<void> proxyMemFill(Runtime::StackManager &StackMgr,
-                            const uint32_t MemIdx, const uint32_t Off,
-                            const uint8_t Val, const uint32_t Len) noexcept;
-  Expect<uint32_t> proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
+                            const uint32_t MemIdx, const uint64_t Off,
+                            const uint8_t Val, const uint64_t Len) noexcept;
+  Expect<uint64_t> proxyMemAtomicNotify(Runtime::StackManager &StackMgr,
                                         const uint32_t MemIdx,
-                                        const uint32_t Offset,
-                                        const uint32_t Count) noexcept;
-  Expect<uint32_t>
+                                        const uint64_t Offset,
+                                        const uint64_t Count) noexcept;
+  Expect<uint64_t>
   proxyMemAtomicWait(Runtime::StackManager &StackMgr, const uint32_t MemIdx,
-                     const uint32_t Offset, const uint64_t Expected,
+                     const uint64_t Offset, const uint64_t Expected,
                      const int64_t Timeout, const uint32_t BitWidth) noexcept;
   Expect<void *> proxyTableGetFuncSymbol(Runtime::StackManager &StackMgr,
                                          const uint32_t TableIdx,
@@ -1067,6 +1088,8 @@ public:
                                          const uint32_t FuncIdx) noexcept;
   Expect<void *> proxyRefGetFuncSymbol(Runtime::StackManager &StackMgr,
                                        const RefVariant Ref) noexcept;
+  Expect<void *> proxyFuncGetFuncSymbol(Runtime::StackManager &StackMgr,
+                                        const uint32_t FuncIdx) noexcept;
   /// @}
 
   /// Callbacks for compiled modules
@@ -1107,34 +1130,50 @@ private:
 
   /// Pointer to current object.
   static thread_local Executor *This;
-  /// Stack for passing into compiled functions
+  /// Stack passed into compiled functions
   static thread_local Runtime::StackManager *CurrentStack;
   /// Execution context for compiled functions
   static thread_local ExecutionContextStruct ExecutionContext;
-  /// Record stack track on error
+  /// Record stack trace on error
   static thread_local std::array<uint32_t, 256> StackTrace;
   static thread_local size_t StackTraceSize;
-
-  /// Waiter struct for atomic instructions
-  struct Waiter {
-    std::mutex Mutex;
-    std::condition_variable Cond;
-    Runtime::Instance::MemoryInstance *MemInst;
-    Waiter(Runtime::Instance::MemoryInstance *Inst) noexcept : MemInst(Inst) {}
-  };
-  /// Waiter map mutex
-  std::mutex WaiterMapMutex;
-  /// Waiter multimap
-  std::unordered_multimap<uint32_t, Waiter> WaiterMap;
 
   /// WasmEdge configuration
   const Configure Conf;
   /// Executor statistics
   Statistics::Statistics *Stat;
-  /// Stop Execution
+  /// Stop execution
   std::atomic_uint32_t StopToken = 0;
+  /// Memory instance this Executor is currently waiting on (for stop()).
+  std::atomic<Runtime::Instance::MemoryInstance *> WaitingMemory = nullptr;
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
+  /// Callback for lazy function compilation
+  std::function<Expect<void>(const std::string &, const uint32_t)>
+      LazyCompilationHandler;
+
+  /// Helper function for triggering lazy compilation.
+  /// XXX: Calling checkLazyCompilation in one thread while another thread calls
+  /// unsafeUpgradeToCompiled on the same FuncInst could result in a race
+  /// condition if checking FuncInst->isCompiledFunction() directly here. As a
+  /// temporary workaround, checks for compilation state are deferred to the
+  /// LazyCompilationHandler (VM::lazyCompileFunctions), which executes
+  /// under a global JIT compilation lock.
+  Expect<void> checkLazyCompilation(
+      const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
+    if (LazyCompilationHandler) {
+      if (const auto *TargetModInst = FuncInst->getModule()) {
+        if (auto Res = TargetModInst->getFuncIdx(FuncInst)) {
+          uint32_t TargetFuncIdx = *Res;
+          const std::string ID = TargetModInst->getID();
+          if (!ID.empty()) {
+            return LazyCompilationHandler(ID, TargetFuncIdx);
+          }
+        }
+      }
+    }
+    return {};
+  }
 };
 
 } // namespace Executor

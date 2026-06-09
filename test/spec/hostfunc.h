@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// This file parse and run tests of Wasm test suites extracted by wast2json.
-/// Test Suits: https://github.com/WebAssembly/spec/tree/master/test/core
+/// This file parses and runs tests of Wasm test suites extracted by wast2json.
+/// Test Suites: https://github.com/WebAssembly/spec/tree/master/test/core
 /// wast2json: https://webassembly.github.io/wabt/doc/wast2json.1.html
 ///
 //===----------------------------------------------------------------------===//
@@ -75,13 +75,16 @@ public:
     addHostTable("table", std::make_unique<Runtime::Instance::TableInstance>(
                               AST::TableType(TypeCode::FuncRef, 10, 20),
                               RefVariant(TypeCode::FuncRef)));
+    addHostTable("table64", std::make_unique<Runtime::Instance::TableInstance>(
+                                AST::TableType(TypeCode::FuncRef,
+                                               AST::Limit(10, 20, true, false)),
+                                RefVariant(TypeCode::FuncRef)));
 
     addHostMemory("memory", std::make_unique<Runtime::Instance::MemoryInstance>(
                                 AST::MemoryType(1, 2)));
-
     addHostMemory("shared_memory",
                   std::make_unique<Runtime::Instance::MemoryInstance>(
-                      AST::MemoryType(1, 2, true)));
+                      AST::MemoryType(AST::Limit(1, 2, false, true))));
 
     addHostGlobal(
         "global_i32",

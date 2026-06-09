@@ -73,7 +73,7 @@ private:
 
     void clear();
     void clearLocals();
-    void pushLabel(std::string_view Label);
+    Expect<void> pushLabel(std::string_view Label);
     void popLabel();
 
     static Expect<void> isIndexOrId(Node N);

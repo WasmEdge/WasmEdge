@@ -304,7 +304,7 @@ Expect<void> Converter::convertMixedInstrSeq(Cursor &C, AST::InstrVec &Instrs) {
           Label = nodeText(Imm);
           C.next();
         }
-        Syms.pushLabel(Label);
+        EXPECTED_TRY(Syms.pushLabel(Label));
         Instrs.emplace_back(Code);
         BlockStack.push_back(static_cast<uint32_t>(Instrs.size() - 1));
         EXPECTED_TRY(Instrs.back().getBlockType(), parseBlockType(C));
@@ -316,7 +316,7 @@ Expect<void> Converter::convertMixedInstrSeq(Cursor &C, AST::InstrVec &Instrs) {
           Label = nodeText(Imm);
           C.next();
         }
-        Syms.pushLabel(Label);
+        EXPECTED_TRY(Syms.pushLabel(Label));
         Instrs.emplace_back(OpCode::If);
         BlockStack.push_back(static_cast<uint32_t>(Instrs.size() - 1));
         EXPECTED_TRY(Instrs.back().getBlockType(), parseBlockType(C));
@@ -1696,7 +1696,7 @@ Expect<void> Converter::convertBlockInstr(Cursor &C, OpCode Code,
     Instrs[BlockIdx].getBlockType() = std::move(BType);
   }
 
-  Syms.pushLabel(Label);
+  EXPECTED_TRY(Syms.pushLabel(Label));
 
   // Convert body instructions.
   // For 'if', handle (then ...) and (else ...) sub-sexprs specially.

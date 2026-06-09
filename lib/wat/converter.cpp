@@ -89,15 +89,16 @@ void Converter::SymbolTable::clearLocals() {
   NextLocal = 0;
 }
 
-void Converter::SymbolTable::pushLabel(std::string_view Label) {
+Expect<void> Converter::SymbolTable::pushLabel(std::string_view Label) {
   std::string Name;
   if (!Label.empty()) {
-    Name = decodeIdentifier(Label).value_or(std::string());
+    EXPECTED_TRY(Name, decodeIdentifier(Label));
   }
   if (!Name.empty()) {
     Labels[Name].push_back(static_cast<uint32_t>(LabelStack.size()));
   }
   LabelStack.push_back(std::move(Name));
+  return {};
 }
 
 void Converter::SymbolTable::popLabel() {
@@ -201,6 +202,9 @@ Expect<uint32_t> Converter::SymbolTable::resolve(IndexSpace Space,
 
 Expect<uint32_t>
 Converter::SymbolTable::resolveLabel(std::string_view Ref) const {
+  if (Ref.empty()) {
+    return Unexpect(ErrCode::Value::WatUnknownLabel);
+  }
   if (Ref[0] == '$') {
     EXPECTED_TRY(auto Decoded, decodeIdentifier(Ref).map_error([](auto) {
       return ErrCode::Value::WatUnknownLabel;
@@ -246,6 +250,9 @@ Converter::SymbolTable::resolveField(uint32_t TypeIdx,
       return Unexpect(ErrCode::Value::WatUnknownId);
     }
     Idx = Idx * 10 + static_cast<uint64_t>(D);
+  }
+  if (Idx > std::numeric_limits<uint32_t>::max()) {
+    return Unexpect(ErrCode::Value::WatUnknownId);
   }
   return static_cast<uint32_t>(Idx);
 }

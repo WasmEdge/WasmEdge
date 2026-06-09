@@ -44,17 +44,63 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
   std::memcpy(&DimBufLen, &Bytes[Offset], 4);
   Offset += 4;
 
+  // Each dimension is four bytes; the dimension block plus the following
+  // four-byte data-length field must lie within the input.
+  if (DimBufLen % 4 != 0 || DimBufLen > Bytes.size() - 9) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Tensor dimension length {} is out of range."sv,
+        DimBufLen);
+    return mx::array({0.0f});
+  }
+
   std::vector<int> Shape;
+  uint64_t ElemCnt = 1;
   for (size_t I = 0; I < DimBufLen; I += 4) {
     uint32_t Dim;
     std::memcpy(&Dim, &Bytes[Offset + I], 4);
     Shape.push_back(static_cast<int>(Dim));
+    ElemCnt =
+        (Dim != 0 && ElemCnt > UINT64_MAX / Dim) ? UINT64_MAX : ElemCnt * Dim;
   }
   Offset += DimBufLen;
 
   uint32_t DataBufLen;
   std::memcpy(&DataBufLen, &Bytes[Offset], 4);
   Offset += 4;
+
+  // Bytes consumed per element of the declared type.
+  size_t ElemSize;
+  switch (RtypeValue) {
+  case 0:
+    ElemSize = 2; // F16
+    break;
+  case 1:
+    ElemSize = 4; // F32
+    break;
+  case 2:
+    ElemSize = 8; // F64
+    break;
+  case 3:
+    ElemSize = 1; // U8
+    break;
+  case 4:
+    ElemSize = 4; // I32
+    break;
+  case 5:
+    ElemSize = 8; // I64
+    break;
+  default:
+    spdlog::error("[WASI-NN] MLX backend: Unsupported rtype: {}", RtypeValue);
+    return mx::array({0.0f});
+  }
+
+  // The element data described by the shape must fit in the remaining input.
+  if (ElemCnt > (Bytes.size() - Offset) / ElemSize) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Tensor data of {} elements does not fit the {}-byte input."sv,
+        ElemCnt, Bytes.size());
+    return mx::array({0.0f});
+  }
 
   const void *DataPtr = &Bytes[Offset];
   switch (RtypeValue) {

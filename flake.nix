@@ -12,6 +12,7 @@
 
         wasmedge_buildInputs = with pkgs; [
           cmake
+          git
           llvmPackages.clang-unwrapped
           llvmPackages.lld
           llvmPackages.llvm

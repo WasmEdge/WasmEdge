@@ -39,7 +39,9 @@ Expect<int32_t> AVCodecParametersFree::body(const Runtime::CallingFrame &,
                                             uint32_t AvCodecParamId) {
   FFMPEG_PTR_FETCH(AvCodecParam, AvCodecParamId, AVCodecParameters);
 
-  avcodec_parameters_free(&AvCodecParam);
+  if (!Env.get()->isBorrowed(AvCodecParamId)) {
+    avcodec_parameters_free(&AvCodecParam);
+  }
   FFMPEG_PTR_DELETE(AvCodecParamId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -191,11 +193,11 @@ AVCodecFindDecoderByName::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AVCodecPtr,
                 "Failed when accessing the return AVCodec Memory"sv);
-  MEM_PTR_CHECK(NameId, MemInst, char, NamePtr,
-                "Failed when accessing the return URL memory"sv);
+  MEM_SPAN_CHECK(NameId, MemInst, char, NamePtr, NameLen,
+                 "Failed when accessing the return URL memory"sv);
 
   std::string Name;
-  std::copy_n(NameId, NameLen, std::back_inserter(Name));
+  std::copy_n(NameId.data(), NameLen, std::back_inserter(Name));
 
   AVCodec const *AvCodec = avcodec_find_decoder_by_name(Name.c_str());
 
@@ -215,11 +217,11 @@ AVCodecFindEncoderByName::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_PTR_CHECK(AVCodecId, MemInst, uint32_t, AVCodecPtr,
                 "Failed when accessing the return AVCodec Memory"sv);
-  MEM_PTR_CHECK(NameId, MemInst, char, NamePtr,
-                "Failed when accessing the return URL memory"sv);
+  MEM_SPAN_CHECK(NameId, MemInst, char, NamePtr, NameLen,
+                 "Failed when accessing the return URL memory"sv);
 
   std::string Name;
-  std::copy_n(NameId, NameLen, std::back_inserter(Name));
+  std::copy_n(NameId.data(), NameLen, std::back_inserter(Name));
 
   AVCodec const *AvCodec = avcodec_find_encoder_by_name(Name.c_str());
 
@@ -257,13 +259,21 @@ Expect<int32_t> AVCodecParametersCopy::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_FETCH(AvCodecParam, AVCodecParamId, AVCodecParameters);
 
-  AVStream **AvStream = AvFormatCtx->streams;
+  if (AvFormatCtx == nullptr || AvCodecParam == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVCodecParametersCopy: invalid format "
+                  "context id {} or codec parameters id {}"sv,
+                  AvFormatCtxId, AVCodecParamId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= StreamIdx; I++)
-    AvStream++;
-
+  AVStream **AvStream = checkedArraySlot(AvFormatCtx->streams,
+                                         AvFormatCtx->nb_streams, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVCodecParametersCopy: invalid stream "
+                  "index {} (nb_streams={})"sv,
+                  StreamIdx, AvFormatCtx->nb_streams);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return avcodec_parameters_copy((*AvStream)->codecpar, AvCodecParam);
 }
 
@@ -291,9 +301,7 @@ Expect<int32_t> AVCodecConfiguration::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ConfigBuf, MemInst, char, ConfigPtr, ConfigLen, "");
 
   const char *Config = avcodec_configuration();
-  auto Actual = std::strlen(Config);
-  auto N = std::min<uint32_t>(ConfigLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(Config, N, ConfigBuf.data());
+  copyCStringToBuffer(ConfigBuf.data(), ConfigLen, Config);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -308,9 +316,7 @@ Expect<int32_t> AVCodecLicense::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(LicenseBuf, MemInst, char, LicensePtr, LicenseLen, "");
 
   const char *License = avcodec_license();
-  auto Actual = std::strlen(License);
-  auto N = std::min<uint32_t>(LicenseLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(License, N, LicenseBuf.data());
+  copyCStringToBuffer(LicenseBuf.data(), LicenseLen, License);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

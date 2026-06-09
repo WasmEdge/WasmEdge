@@ -39,7 +39,7 @@ Expect<int32_t> AVInputFormatName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
 
   const char *Name = AvInputFormat->name;
-  std::copy_n(Name, NameLen, NameBuf.data());
+  copyCStringToBuffer(NameBuf.data(), NameLen, Name);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -51,7 +51,7 @@ Expect<int32_t> AVOutputFormatName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
 
   const char *Name = AvOutputFormat->name;
-  std::copy_n(Name, NameLen, NameBuf.data());
+  copyCStringToBuffer(NameBuf.data(), NameLen, Name);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -83,7 +83,7 @@ Expect<int32_t> AVInputFormatLongName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
 
   const char *LongName = AvInputFormat->long_name;
-  std::copy_n(LongName, LongNameLen, LongNameBuf.data());
+  copyCStringToBuffer(LongNameBuf.data(), LongNameLen, LongName);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -96,7 +96,7 @@ Expect<int32_t> AVOutputFormatLongName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
 
   const char *LongName = AvOutputFormat->long_name;
-  std::copy_n(LongName, LongNameLen, LongNameBuf.data());
+  copyCStringToBuffer(LongNameBuf.data(), LongNameLen, LongName);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -129,7 +129,7 @@ AVInputFormatExtensions::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
 
   const char *Extensions = AvInputFormat->extensions;
-  std::copy_n(Extensions, ExtensionsLen, ExtensionsBuf.data());
+  copyCStringToBuffer(ExtensionsBuf.data(), ExtensionsLen, Extensions);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -143,7 +143,7 @@ AVOutputFormatExtensions::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
 
   const char *Extensions = AvOutputFormat->extensions;
-  std::copy_n(Extensions, ExtensionsLen, ExtensionsBuf.data());
+  copyCStringToBuffer(ExtensionsBuf.data(), ExtensionsLen, Extensions);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -175,7 +175,7 @@ Expect<int32_t> AVInputFormatMimeType::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
 
   const char *MimeType = AvInputFormat->mime_type;
-  std::copy_n(MimeType, MimeTypeLen, MimeTypeBuf.data());
+  copyCStringToBuffer(MimeTypeBuf.data(), MimeTypeLen, MimeType);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -188,7 +188,7 @@ Expect<int32_t> AVOutputFormatMimeType::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
 
   const char *MimeType = AvOutputFormat->mime_type;
-  std::copy_n(MimeType, MimeTypeLen, MimeTypeBuf.data());
+  copyCStringToBuffer(MimeTypeBuf.data(), MimeTypeLen, MimeType);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

@@ -26,13 +26,16 @@ Expect<int32_t> AVFilterName::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
   const char *Name = Filter->name;
-  std::copy_n(Name, NameLen, NameBuf.data());
+  copyCStringToBuffer(NameBuf.data(), NameLen, Name);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVFilterDescriptionLength::body(const Runtime::CallingFrame &,
                                                 uint32_t FilterId) {
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
+  if (Filter->description == nullptr) {
+    return 0;
+  }
   return strlen(Filter->description);
 }
 
@@ -44,7 +47,12 @@ Expect<int32_t> AVFilterDescription::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
   const char *Desc = Filter->description;
-  std::copy_n(Desc, DescLen, DescBuf.data());
+  if (!copyCStringToBuffer(DescBuf.data(), DescLen, Desc)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFilterDescription: filter description "
+                  "is null (filter id {})"sv,
+                  FilterId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -121,7 +129,8 @@ AVFilterGetInputsFilterPad::body(const Runtime::CallingFrame &Frame,
   if (FilterPad == nullptr) {
     return static_cast<int32_t>(ErrNo::Success);
   }
-  FFMPEG_PTR_STORE(const_cast<AVFilterPad *>(FilterPad), FilterPadId);
+  auto *FilterPadHandle = new FilterPadView{FilterPad, Filter->nb_inputs};
+  FFMPEG_PTR_STORE(FilterPadHandle, FilterPadId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -136,7 +145,8 @@ AVFilterGetOutputsFilterPad::body(const Runtime::CallingFrame &Frame,
   if (FilterPad == nullptr) {
     return static_cast<int32_t>(ErrNo::Success);
   }
-  FFMPEG_PTR_STORE(const_cast<AVFilterPad *>(FilterPad), FilterPadId);
+  auto *FilterPadHandle = new FilterPadView{FilterPad, Filter->nb_outputs};
+  FFMPEG_PTR_STORE(FilterPadHandle, FilterPadId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 

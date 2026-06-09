@@ -28,6 +28,7 @@ Expect<int32_t> AVFrameFree::body(const Runtime::CallingFrame &,
                                   uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   av_frame_free(&AvFrame);
+  Env.get()->deallocChildren(FrameId);
   FFMPEG_PTR_DELETE(FrameId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -98,7 +99,46 @@ Expect<int32_t> AVFrameData::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(Buffer, MemInst, uint8_t, FrameBufPtr, FrameBufLen, "");
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
 
-  uint8_t *Data = AvFrame->data[Index];
+  if (AvFrame == nullptr || Index >= AV_NUM_DATA_POINTERS) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameData: invalid frame id {} or "
+                  "plane index {}"sv,
+                  FrameId, Index);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  uint8_t const *Data = AvFrame->data[Index];
+  if (Data == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameData: frame id {} plane {} has "
+                  "no data"sv,
+                  FrameId, Index);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
+  uintptr_t const Plane = reinterpret_cast<uintptr_t>(Data);
+  size_t Readable = 0;
+  for (int I = 0; I < AV_NUM_DATA_POINTERS; ++I) {
+    const AVBufferRef *Buf = AvFrame->buf[I];
+    if (Buf == nullptr || Buf->data == nullptr) {
+      continue;
+    }
+    uintptr_t const Start = reinterpret_cast<uintptr_t>(Buf->data);
+    if (Plane >= Start && Plane < Start + Buf->size) {
+      Readable = Start + Buf->size - Plane;
+      break;
+    }
+  }
+  if (Readable == 0) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameData: frame id {} plane {} is "
+                  "not backed by any frame buffer"sv,
+                  FrameId, Index);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
+  if (Readable < static_cast<size_t>(FrameBufLen)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameData: requested {} bytes from "
+                  "frame id {} plane {}, but only {} bytes are readable"sv,
+                  FrameBufLen, FrameId, Index, Readable);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   std::copy_n(Data, FrameBufLen, Buffer.data());
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -137,7 +177,15 @@ Expect<int32_t> AVFrameSetChannelLayout::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutID);
-  av_channel_layout_from_mask(&AvFrame->ch_layout, ChannelLayout);
+  int const Ret =
+      av_channel_layout_from_mask(&AvFrame->ch_layout, ChannelLayout);
+  if (Ret < 0) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameSetChannelLayout: "
+                  "av_channel_layout_from_mask failed ({}) for mask {:#x} "
+                  "(frame id {})"sv,
+                  Ret, ChannelLayout, FrameId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -184,8 +232,7 @@ Expect<int32_t> AVFrameSetChannels::body(const Runtime::CallingFrame &,
 Expect<uint64_t> AVFrameChannelLayout::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
-  uint64_t const ChannelLayout = AvFrame->ch_layout.u.mask;
-  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(ChannelLayout);
+  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(AvFrame->ch_layout);
 }
 
 Expect<int64_t> AVFrameBestEffortTimestamp::body(const Runtime::CallingFrame &,
@@ -312,11 +359,13 @@ Expect<int32_t> AVFrameMetadata::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
 
-  AVDictionary **AvDictionary =
-      static_cast<AVDictionary **>(av_malloc(sizeof(AVDictionary *)));
+  if (AvFrame == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameMetadata: invalid frame id {}"sv,
+                  FrameId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  *AvDictionary = AvFrame->metadata;
-  FFMPEG_PTR_STORE(AvDictionary, DictId);
+  FFMPEG_PTR_STORE_CHILD(&AvFrame->metadata, DictId, FrameId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -325,10 +374,19 @@ Expect<int32_t> AVFrameSetMetadata::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
   FFMPEG_PTR_FETCH(AvDict, DictId, AVDictionary *);
 
-  if (AvDict == nullptr) {
-    AvFrame->metadata = nullptr;
-  } else {
-    AvFrame->metadata = *AvDict;
+  if (AvFrame == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameSetMetadata: invalid frame id "
+                  "{}"sv,
+                  FrameId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  AVDictionary *const Src = (AvDict == nullptr) ? nullptr : *AvDict;
+  int const Ret = setMetadataCopy(&AvFrame->metadata, Src);
+  if (Ret < 0) {
+    spdlog::error("[WasmEdge-FFmpeg] AVFrameSetMetadata: metadata dictionary "
+                  "copy failed ({})"sv,
+                  Ret);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
   return static_cast<int32_t>(ErrNo::Success);
 }

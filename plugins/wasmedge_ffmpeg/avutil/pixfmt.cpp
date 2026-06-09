@@ -19,6 +19,12 @@ AvPixFmtDescriptorNbComponents::body(const Runtime::CallingFrame &,
       FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
   const AVPixFmtDescriptor *AvPixFmtDescriptor =
       av_pix_fmt_desc_get(PixelFormat);
+  if (AvPixFmtDescriptor == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AvPixFmtDescriptorNbComponents: no "
+                  "descriptor for pixel format id {}"sv,
+                  PixFormatId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return AvPixFmtDescriptor->nb_components;
 }
 
@@ -29,6 +35,12 @@ AvPixFmtDescriptorLog2ChromaW::body(const Runtime::CallingFrame &,
       FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
   const AVPixFmtDescriptor *AvPixFmtDescriptor =
       av_pix_fmt_desc_get(PixelFormat);
+  if (AvPixFmtDescriptor == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AvPixFmtDescriptorLog2ChromaW: no "
+                  "descriptor for pixel format id {}"sv,
+                  PixFormatId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return AvPixFmtDescriptor->log2_chroma_w;
 }
 
@@ -39,6 +51,12 @@ AvPixFmtDescriptorLog2ChromaH::body(const Runtime::CallingFrame &,
       FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
   const AVPixFmtDescriptor *AvPixFmtDescriptor =
       av_pix_fmt_desc_get(PixelFormat);
+  if (AvPixFmtDescriptor == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AvPixFmtDescriptorLog2ChromaH: no "
+                  "descriptor for pixel format id {}"sv,
+                  PixFormatId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return AvPixFmtDescriptor->log2_chroma_h;
 }
 
@@ -46,6 +64,9 @@ Expect<int32_t> AVColorRangeNameLength::body(const Runtime::CallingFrame &,
                                              int32_t RangeId) {
   AVColorRange const ColorRange = static_cast<AVColorRange>(RangeId);
   const char *Name = av_color_range_name(ColorRange);
+  if (Name == nullptr) {
+    return 0;
+  }
   return strlen(Name);
 }
 
@@ -57,9 +78,12 @@ Expect<int32_t> AVColorRangeName::body(const Runtime::CallingFrame &Frame,
 
   AVColorRange const ColorRange = static_cast<AVColorRange>(RangeId);
   const char *RangeName = av_color_range_name(ColorRange);
-  auto Actual = std::strlen(RangeName);
-  auto N = std::min<uint32_t>(RangeLength, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(RangeName, N, RangeNameBuf.data());
+  if (!copyCStringToBuffer(RangeNameBuf.data(), RangeLength, RangeName)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVColorRangeName: color range name is "
+                  "null (range id {})"sv,
+                  RangeId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -68,6 +92,9 @@ Expect<int32_t> AVColorTransferNameLength::body(const Runtime::CallingFrame &,
   AVColorTransferCharacteristic const Characteristic =
       static_cast<AVColorTransferCharacteristic>(TransferId);
   const char *Name = av_color_transfer_name(Characteristic);
+  if (Name == nullptr) {
+    return 0;
+  }
   return strlen(Name);
 }
 
@@ -82,10 +109,13 @@ Expect<int32_t> AVColorTransferName::body(const Runtime::CallingFrame &Frame,
   AVColorTransferCharacteristic const Characteristic =
       static_cast<AVColorTransferCharacteristic>(TransferId);
   const char *TransferName = av_color_transfer_name(Characteristic);
-  auto Actual = std::strlen(TransferName);
-  auto N =
-      std::min<uint32_t>(TransferLength, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(TransferName, N, TransferNameBuf.data());
+  if (!copyCStringToBuffer(TransferNameBuf.data(), TransferLength,
+                           TransferName)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVColorTransferName: color transfer "
+                  "name is null (transfer id {})"sv,
+                  TransferId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -93,6 +123,9 @@ Expect<int32_t> AVColorSpaceNameLength::body(const Runtime::CallingFrame &,
                                              int32_t ColorSpaceId) {
   AVColorSpace const ColorSpace = static_cast<AVColorSpace>(ColorSpaceId);
   const char *Name = av_color_space_name(ColorSpace);
+  if (Name == nullptr) {
+    return 0;
+  }
   return strlen(Name);
 }
 
@@ -106,9 +139,13 @@ Expect<int32_t> AVColorSpaceName::body(const Runtime::CallingFrame &Frame,
 
   AVColorSpace const ColorSpace = static_cast<AVColorSpace>(ColorSpaceId);
   const char *ColorSpaceName = av_color_space_name(ColorSpace);
-  auto Actual = std::strlen(ColorSpaceName);
-  auto N = std::min<uint32_t>(ColorSpaceLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(ColorSpaceName, N, ColorSpaceBuf.data());
+  if (!copyCStringToBuffer(ColorSpaceBuf.data(), ColorSpaceLen,
+                           ColorSpaceName)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVColorSpaceName: color space name is "
+                  "null (color space id {})"sv,
+                  ColorSpaceId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -117,6 +154,9 @@ Expect<int32_t> AVColorPrimariesNameLength::body(const Runtime::CallingFrame &,
   AVColorPrimaries const ColorPrimaries =
       FFmpegUtils::ColorPrimaries::intoAVColorPrimaries(ColorPrimariesId);
   const char *Name = av_color_primaries_name(ColorPrimaries);
+  if (Name == nullptr) {
+    return 0;
+  }
   return strlen(Name);
 }
 
@@ -131,10 +171,13 @@ Expect<int32_t> AVColorPrimariesName::body(const Runtime::CallingFrame &Frame,
   AVColorPrimaries const ColorPrimaries =
       FFmpegUtils::ColorPrimaries::intoAVColorPrimaries(ColorPrimariesId);
   const char *PrimariesName = av_color_primaries_name(ColorPrimaries);
-  auto Actual = std::strlen(PrimariesName);
-  auto N =
-      std::min<uint32_t>(ColorPrimariesLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(PrimariesName, N, ColorPrimariesBuf.data());
+  if (!copyCStringToBuffer(ColorPrimariesBuf.data(), ColorPrimariesLen,
+                           PrimariesName)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVColorPrimariesName: color primaries "
+                  "name is null (primaries id {})"sv,
+                  ColorPrimariesId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -143,7 +186,9 @@ Expect<int32_t> AVPixelFormatNameLength::body(const Runtime::CallingFrame &,
   AVPixelFormat const PixFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(AvPixFormatId);
   const AVPixFmtDescriptor *PixFmtDescriptor = av_pix_fmt_desc_get(PixFormat);
-
+  if (PixFmtDescriptor == nullptr) {
+    return 0;
+  }
   return strlen(PixFmtDescriptor->name);
 }
 
@@ -158,11 +203,19 @@ Expect<int32_t> AVPixelFormatName::body(const Runtime::CallingFrame &Frame,
   AVPixelFormat const PixFormat =
       FFmpegUtils::PixFmt::intoAVPixFmt(PixFormatId);
   const AVPixFmtDescriptor *PixFmtDescriptor = av_pix_fmt_desc_get(PixFormat);
-  const char *PixFormatName = PixFmtDescriptor->name;
-  auto Actual = std::strlen(PixFormatName);
-  auto N =
-      std::min<uint32_t>(PixFormatNameLen, static_cast<uint32_t>(Actual + 1));
-  std::copy_n(PixFormatName, N, PixFormatBuf.data());
+  if (PixFmtDescriptor == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVPixelFormatName: no descriptor for "
+                  "pixel format id {}"sv,
+                  PixFormatId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+  if (!copyCStringToBuffer(PixFormatBuf.data(), PixFormatNameLen,
+                           PixFmtDescriptor->name)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVPixelFormatName: pixel format name is "
+                  "null (format id {})"sv,
+                  PixFormatId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 

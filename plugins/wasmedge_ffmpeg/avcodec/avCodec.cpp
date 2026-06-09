@@ -50,13 +50,16 @@ Expect<int32_t> AVCodecGetName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
 
   const char *Name = AvCodec->name;
-  std::copy_n(Name, NameLen, NameBuf.data());
+  copyCStringToBuffer(NameBuf.data(), NameLen, Name);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
 Expect<int32_t> AVCodecGetLongNameLen::body(const Runtime::CallingFrame &,
                                             uint32_t AvCodecId) {
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
+  if (AvCodec->long_name == nullptr) {
+    return 0;
+  }
   return strlen(AvCodec->long_name);
 }
 
@@ -69,7 +72,12 @@ Expect<int32_t> AVCodecGetLongName::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(AvCodec, AvCodecId, const AVCodec);
 
   const char *LongName = AvCodec->long_name;
-  std::copy_n(LongName, LongNameLen, LongNameBuf.data());
+  if (!copyCStringToBuffer(LongNameBuf.data(), LongNameLen, LongName)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVCodecGetLongName: codec long name is "
+                  "null (codec id {})"sv,
+                  AvCodecId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -101,6 +109,9 @@ Expect<uint32_t> AVCodecPixFmtsIter::body(const Runtime::CallingFrame &,
 
   uint32_t Curr = 0;
   while (Curr < Idx) {
+    if (*PixelFormat == AV_PIX_FMT_NONE) {
+      return 0;
+    }
     PixelFormat++;
     Curr++;
   }
@@ -139,6 +150,11 @@ AVCodecSupportedFrameratesIter::body(const Runtime::CallingFrame &Frame,
 
   uint32_t Curr = 0;
   while (Curr < Idx) {
+    if (Rational->num == 0 && Rational->den == 0) {
+      *NumId = 0;
+      *DenId = 0;
+      return static_cast<int32_t>(ErrNo::Success);
+    }
     Rational++;
     Curr++;
   }
@@ -169,6 +185,9 @@ AVCodecSupportedSampleRatesIter::body(const Runtime::CallingFrame &,
 
   uint32_t Curr = 0;
   while (Curr < Idx) {
+    if (*SampleRates == 0) {
+      return 0;
+    }
     SampleRates++;
     Curr++;
   }
@@ -197,11 +216,14 @@ Expect<uint64_t> AVCodecChannelLayoutIter::body(const Runtime::CallingFrame &,
 
   uint32_t Curr = 0;
   while (Curr < Idx) {
+    if (ChannelLayout->nb_channels == 0) {
+      return 0;
+    }
     ChannelLayout++;
     Curr++;
   }
 
-  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(ChannelLayout->u.mask);
+  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(*ChannelLayout);
 }
 
 Expect<int32_t> AVCodecSampleFmtsIsNull::body(const Runtime::CallingFrame &,
@@ -224,6 +246,9 @@ Expect<uint32_t> AVCodecSampleFmtsIter::body(const Runtime::CallingFrame &,
 
   uint32_t Curr = 0;
   while (Curr < Idx) {
+    if (*SampleFormat == AV_SAMPLE_FMT_NONE) {
+      return 0;
+    }
     SampleFormat++;
     Curr++;
   }

@@ -47,10 +47,10 @@ Expect<int32_t> AVGetBytesPerSample::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVGetSampleFmt::body(const Runtime::CallingFrame &Frame,
                                      uint32_t Str, uint32_t StrLen) {
   MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_PTR_CHECK(StrId, MemInst, char, Str, "");
+  MEM_SPAN_CHECK(StrId, MemInst, char, Str, StrLen, "");
 
   std::string TargetUrl;
-  std::copy_n(StrId, StrLen, std::back_inserter(TargetUrl));
+  std::copy_n(StrId.data(), StrLen, std::back_inserter(TargetUrl));
 
   AVSampleFormat const AvSampleFormat = av_get_sample_fmt(TargetUrl.c_str());
   return FFmpegUtils::SampleFmt::toSampleID(AvSampleFormat);
@@ -95,6 +95,9 @@ Expect<int32_t> AVGetSampleFmtNameLength::body(const Runtime::CallingFrame &,
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
 
   const char *Name = av_get_sample_fmt_name(SampleFmt);
+  if (Name == nullptr) {
+    return 0;
+  }
   return strlen(Name);
 }
 
@@ -109,7 +112,12 @@ Expect<int32_t> AVGetSampleFmtName::body(const Runtime::CallingFrame &Frame,
   AVSampleFormat const SampleFmt =
       FFmpegUtils::SampleFmt::fromSampleID(SampleFmtId);
   const char *Name = av_get_sample_fmt_name(SampleFmt);
-  std::copy_n(Name, SampleFmtNameLen, SampleFmtBuf.data());
+  if (!copyCStringToBuffer(SampleFmtBuf.data(), SampleFmtNameLen, Name)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVGetSampleFmtName: sample format name "
+                  "is null (sample format id {})"sv,
+                  SampleFmtId);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 

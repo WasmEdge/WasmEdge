@@ -84,14 +84,18 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Wno-undefined-func-template
   )
 
-  # -Wshadow does not enable -Wshadow-field-in-constructor, so the Name(Name)
-  # constructor idiom stays accepted; it does enable the narrower
-  # -Wshadow-field-in-constructor-modified check. -Wshadow-field is not part
-  # of -Wshadow either; it is enabled explicitly to catch declarations that
-  # shadow members inherited from a base class.
+  # -Wshadow is not documented to enable -Wshadow-field-in-constructor, so
+  # the Name(Name) constructor idiom should stay accepted, but clang-cl 21 on
+  # Windows fires it under these flags anyway; disable it explicitly and
+  # re-enable the narrower -Wshadow-field-in-constructor-modified check that
+  # -Wshadow intends. -Wshadow-field is not part of -Wshadow either; it is
+  # enabled explicitly to catch declarations that shadow members inherited
+  # from a base class.
   list(APPEND WASMEDGE_CFLAGS
     -Wshadow
     -Wshadow-field
+    -Wno-shadow-field-in-constructor
+    -Wshadow-field-in-constructor-modified
   )
   set(WASMEDGE_SHADOW_SUPPRESS_FLAGS -Wno-shadow -Wno-shadow-field)
 
@@ -122,8 +126,8 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
   list(APPEND WASMEDGE_CFLAGS
     -Wshadow=local
   )
-  # -Wno-shadow disables the whole -Wshadow family, including =local.
-  set(WASMEDGE_SHADOW_SUPPRESS_FLAGS -Wno-shadow)
+  # Match the enabled subgroup so third-party targets drop -Wshadow=local.
+  set(WASMEDGE_SHADOW_SUPPRESS_FLAGS -Wno-shadow=local)
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=dangling-reference
@@ -210,8 +214,12 @@ function(wasmedge_suppress_shadow_warnings)
   if(NOT WASMEDGE_SHADOW_SUPPRESS_FLAGS)
     return()
   endif()
+  set(SHADOW_SUPPRESS_OPTIONS)
+  foreach(flag IN LISTS WASMEDGE_SHADOW_SUPPRESS_FLAGS)
+    list(APPEND SHADOW_SUPPRESS_OPTIONS "$<$<COMPILE_LANGUAGE:C,CXX>:${flag}>")
+  endforeach()
   foreach(target IN LISTS ARGN)
-    target_compile_options(${target} PRIVATE ${WASMEDGE_SHADOW_SUPPRESS_FLAGS})
+    target_compile_options(${target} PRIVATE ${SHADOW_SUPPRESS_OPTIONS})
   endforeach()
 endfunction()
 

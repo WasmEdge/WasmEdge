@@ -170,7 +170,9 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     const size_t NDevices = llama_max_devices();
     if (NDevices > TensorSplitCapacity) {
       RET_ERROR(ErrNo::RuntimeError,
-                "Number of MaxDevices is larger than tensor-split capacity."sv)
+                "Number of MaxDevices ({}) is larger than tensor-split "sv
+                "capacity ({})."sv,
+                NDevices, TensorSplitCapacity)
     }
     std::array<float, TensorSplitCapacity> TensorSplit;
     TensorSplit.fill(0.0f);
@@ -241,7 +243,8 @@ ErrNo parseMetadata(Graph &GraphRef, LocalConfig &ConfRef,
     if (BatchSize <= 0 ||
         BatchSize > static_cast<int64_t>(std::numeric_limits<int32_t>::max())) {
       RET_ERROR(ErrNo::InvalidArgument,
-                "batch-size should be in range [1, int32_max]."sv)
+                "batch-size should be in range [1, {}]."sv,
+                std::numeric_limits<int32_t>::max())
     }
     GraphRef.Params.n_batch = static_cast<int32_t>(BatchSize);
   }
@@ -2058,7 +2061,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   CxtRef.LlamaBatch = allocBatch(GraphRef.Params.n_batch);
   if (!CxtRef.LlamaBatch.token) {
     Env.deleteContext(ContextId);
-    RET_ERROR(ErrNo::InvalidArgument, "Failed to allocate llama_batch."sv)
+    RET_ERROR(ErrNo::RuntimeError, "Failed to allocate llama_batch."sv)
   }
   CxtRef.CurrentBatchSize = GraphRef.Params.n_batch;
 
@@ -2067,7 +2070,7 @@ Expect<ErrNo> initExecCtx(WasiNNEnvironment &Env, uint32_t GraphId,
   if (!CxtRef.OutputBatch.token) {
     llama_batch_free(CxtRef.LlamaBatch);
     Env.deleteContext(ContextId);
-    RET_ERROR(ErrNo::InvalidArgument, "Failed to allocate output batch."sv)
+    RET_ERROR(ErrNo::RuntimeError, "Failed to allocate output batch."sv)
   }
 
   // Allocate the sampler

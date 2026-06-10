@@ -215,6 +215,18 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         }
       };
 
+  auto ManagedNegativeCheck = [this](
+                                  __wasi_secrets_manager_t SmHandle,
+                                  __wasi_algorithm_type_e_t AlgType,
+                                  std::string_view Alg,
+                                  std::optional<__wasi_options_t> OptOptions,
+                                  __wasi_crypto_errno_e_t ExpectedError) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        keypairGenerateManaged(SmHandle, AlgType, Alg, OptOptions),
+        ExpectedError);
+  };
+
   RsaCheck(
       "2048"sv,
       {{__WASI_PUBLICKEY_ENCODING_PEM,
@@ -615,41 +627,14 @@ TEST_F(WasiCryptoTest, Asymmetric) {
         "3e28cd3c23ecbe66098bd0a029a8792ae5259282c116b32a28908aaa1bcf"
         "ef61d9529f"_u8v}},
       {});
-}
 
-TEST_F(WasiCryptoTest, AsymmetricManagedNegative) {
-  // Test with unsupported algorithm case for managed keypair generation
-  // ECDSA_P256_SHA256 is supported by the plugin but not by
-  // keypair_generate_managed
-  WASI_CRYPTO_EXPECT_FAILURE(
-      keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES,
-                             "ECDSA_P256_SHA256"sv, std::nullopt),
-      __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-
-  // Test with invalid handle / secrets manager misuse
-  // Secrets manager is not implemented, so any handle results in
-  // NOT_IMPLEMENTED for now
-  WASI_CRYPTO_EXPECT_FAILURE(keypairStoreManaged(InvaildHandle, 1, {}),
-                             __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-
-  // Test with invalid algorithm type
-  // SYMMETRIC algorithm type is not allowed for asymmetric keypair generation
-  WASI_CRYPTO_EXPECT_FAILURE(
-      keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SYMMETRIC, "Ed25519"sv,
-                             std::nullopt),
-      __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
-
-  // Test with unsupported algorithm string
-  WASI_CRYPTO_EXPECT_FAILURE(
-      keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "FooBar"sv,
-                             std::nullopt),
-      __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
-
-  // Test with invalid options handle
-  WASI_CRYPTO_EXPECT_FAILURE(
-      keypairGenerateManaged(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
-                             static_cast<__wasi_options_t>(InvaildHandle)),
-      __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SYMMETRIC, "Ed25519"sv,
+                       std::nullopt, __WASI_CRYPTO_ERRNO_INVALID_OPERATION);
+  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "FooBar"sv,
+                       std::nullopt, __WASI_CRYPTO_ERRNO_UNSUPPORTED_ALGORITHM);
+  ManagedNegativeCheck(1, __WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv,
+                       static_cast<__wasi_options_t>(InvaildHandle),
+                       __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
 }
 
 } // namespace WasiCrypto

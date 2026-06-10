@@ -31,20 +31,20 @@ public:
 
   virtual ~Module() = default;
 
-  mx::array &registerParameter(std::string Name, mx::array &&W);
+  mx::array &registerParameter(std::string ParamName, mx::array &&W);
 
   std::unordered_map<std::string, mx::array>
   getWeigts(const std::string &Prefix = "model");
 
   virtual std::shared_ptr<nn::Module> toQuantized(
       int GroupSize = 64, int Bits = 4, const std::string &Prefix = "",
-      const std::unordered_map<std::string, mx::array> &Parameters = {});
+      const std::unordered_map<std::string, mx::array> &LoadedWeights = {});
 
   virtual bool hasQuantize() { return false; }
 
-  void update(std::unordered_map<std::string, mx::array> Parameters);
+  void update(std::unordered_map<std::string, mx::array> NewParameters);
 
-  void apply(std::string Key, mx::array Parameters);
+  void apply(std::string Key, mx::array Value);
 
   template <typename T>
   void registerModule(std::string ModuleName, std::shared_ptr<T> M) {

@@ -51,7 +51,7 @@ PackageDownloadLocation: git@github.com:libcpr/cpr.git
 
 PackageName: tree-sitter
 SPDXID: SPDXRef-tree-sitter
-PackageVersion: v0.26.6
+PackageVersion: v0.26.9
 PackageHomePage: https://github.com/tree-sitter/tree-sitter
 PackageOriginator: Max Brunsfeld
 PackageLicenseDeclared: MIT

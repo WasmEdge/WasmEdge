@@ -12,15 +12,15 @@
 
         # The Nix build sandbox has no network access, so cmake's
         # FetchContent(tree-sitter) cannot reach github.com at configure time.
-        # Pre-fetch the v0.26.6 tarball as a fixed-output derivation (which
+        # Pre-fetch the v0.26.9 tarball as a fixed-output derivation (which
         # runs outside the sandbox), unpack it into a source directory, and
         # hand the path to cmake via FETCHCONTENT_SOURCE_DIR_TREE-SITTER so
         # the in-tree FetchContent_Declare just picks up the local source.
         treeSitterTarball = pkgs.fetchurl {
-          url = "https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v0.26.6.tar.gz";
-          sha256 = "b4218185a48a791d4022ab3969709e271a70a0253e94792abbcf18d7fcf4291c";
+          url = "https://github.com/tree-sitter/tree-sitter/archive/refs/tags/v0.26.9.tar.gz";
+          sha256 = "8e14780500933f43d86662fcaa1b0ce99ebe9c220f4680bc929dce09a0e0cfc6";
         };
-        treeSitterSrc = pkgs.runCommand "tree-sitter-v0.26.6-src" {} ''
+        treeSitterSrc = pkgs.runCommand "tree-sitter-v0.26.9-src" {} ''
           mkdir -p $out
           tar -xzf ${treeSitterTarball} -C $out --strip-components=1
         '';

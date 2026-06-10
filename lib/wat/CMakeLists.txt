@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2019-2026 Second State INC
 
-# tree-sitter runtime (MIT, v0.26.6). Fetched at configure time like the other
+# tree-sitter runtime (MIT, v0.26.9). Fetched at configure time like the other
 # third-party dependencies (fmt/spdlog/simdjson) rather than vendoring the
 # runtime source in-tree. Offline builds can point FetchContent at a local
 # checkout via -DFETCHCONTENT_SOURCE_DIR_TREE-SITTER=<path>.
@@ -10,7 +10,7 @@ message(STATUS "Downloading tree-sitter source")
 FetchContent_Declare(
   tree-sitter
   GIT_REPOSITORY https://github.com/tree-sitter/tree-sitter.git
-  GIT_TAG        v0.26.6
+  GIT_TAG        v0.26.9
   GIT_SHALLOW    TRUE
 )
 # Populate the source without invoking add_subdirectory: tree-sitter does

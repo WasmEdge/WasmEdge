@@ -58,11 +58,11 @@ Span<void *const> stackTrace(Span<void *> Buffer) noexcept {
   BacktraceState State{Buffer, 0};
   _Unwind_Backtrace(
       [](struct _Unwind_Context *Ctx, void *Arg) noexcept {
-        auto &State = *static_cast<BacktraceState *>(Arg);
-        if (State.Index >= State.Buffer.size()) {
+        auto &BTState = *static_cast<BacktraceState *>(Arg);
+        if (BTState.Index >= BTState.Buffer.size()) {
           return _URC_END_OF_STACK;
         }
-        State.Buffer[State.Index++] =
+        BTState.Buffer[BTState.Index++] =
             reinterpret_cast<void *>(_Unwind_GetIP(Ctx));
         return _URC_NO_REASON;
       },

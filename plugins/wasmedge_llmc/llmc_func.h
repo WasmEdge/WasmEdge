@@ -16,7 +16,7 @@ namespace WasmEdgeLLMC {
 
 class ModelCreate : public HostFunction<ModelCreate> {
 public:
-  explicit ModelCreate(LLMCEnv &Env) : HostFunction(Env) {}
+  explicit ModelCreate(LLMCEnv &HostEnv) : HostFunction(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame,
                         uint32_t CheckPointPath, uint32_t CheckPointPathLen,
@@ -33,7 +33,7 @@ private:
 
 class DataLoaderCreate : public HostFunction<DataLoaderCreate> {
 public:
-  explicit DataLoaderCreate(LLMCEnv &Env) : HostFunction(Env) {}
+  explicit DataLoaderCreate(LLMCEnv &HostEnv) : HostFunction(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t DataPath,
                         uint32_t DataPathLen, uint32_t B, uint32_t T,
@@ -53,7 +53,7 @@ private:
 
 class TokenizerCreate : public HostFunction<TokenizerCreate> {
 public:
-  explicit TokenizerCreate(LLMCEnv &Env) : HostFunction(Env) {}
+  explicit TokenizerCreate(LLMCEnv &HostEnv) : HostFunction(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t FilePath,
                         uint32_t FilePathLen, uint32_t TokenizerIdPtr) {
@@ -68,7 +68,7 @@ private:
 
 class ModelTrain : public HostFunction<ModelTrain> {
 public:
-  explicit ModelTrain(LLMCEnv &Env) : HostFunction(Env) {}
+  explicit ModelTrain(LLMCEnv &HostEnv) : HostFunction(HostEnv) {}
 
   Expect<uint32_t> body(const Runtime::CallingFrame &Frame, uint32_t ModelId,
                         uint32_t TrainDataLoaderId, uint32_t ValDataLoaderId,

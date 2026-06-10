@@ -94,8 +94,29 @@ std::string getInitExprStr(const AST::Expression &Expr) {
     return fmt::format("f64={}", Instr.getNum().get<double>());
   case OpCode::Global__get:
     return fmt::format("global.get {}", Instr.getTargetIndex());
+  case OpCode::Ref__func:
+    return fmt::format("ref.func {}", Instr.getTargetIndex());
+  case OpCode::Ref__null:
+    return fmt::format("ref.null {}", Instr.getValType());
   default:
     return {};
+  }
+}
+
+// Renders a single element segment entry, i.e. one of the init expressions
+// in an element segment's `getInitExprs()` list.
+std::string getElemEntryStr(const AST::Expression &Expr) {
+  const auto Instrs = Expr.getInstrs();
+  if (Instrs.empty())
+    return "ref.null";
+  const auto &Instr = Instrs[0];
+  switch (Instr.getOpCode()) {
+  case OpCode::Ref__func:
+    return fmt::format("func[{}]", Instr.getTargetIndex());
+  case OpCode::Ref__null:
+    return "ref.null";
+  default:
+    return getInitExprStr(Expr);
   }
 }
 
@@ -128,11 +149,17 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
   const auto &Imports = Mod.getImportSection().getContent();
   uint32_t ImportedFuncCount = 0;
   uint32_t ImportedGlobalCount = 0;
+  uint32_t ImportedTableCount = 0;
+  uint32_t ImportedMemCount = 0;
   for (const auto &Imp : Imports) {
     if (Imp.getExternalType() == ExternalType::Function)
       ImportedFuncCount++;
     else if (Imp.getExternalType() == ExternalType::Global)
       ImportedGlobalCount++;
+    else if (Imp.getExternalType() == ExternalType::Table)
+      ImportedTableCount++;
+    else if (Imp.getExternalType() == ExternalType::Memory)
+      ImportedMemCount++;
   }
 
   auto FuncName = [&](uint32_t Idx) -> std::string {
@@ -228,6 +255,32 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
     fmt::print(" - func[{}] sig={}{}\n", Idx, Funcs[I], FuncName(Idx));
   }
 
+  // Table Section
+  const auto &Tables = Mod.getTableSection().getContent();
+  fmt::print("Table[{}]:\n", Tables.size());
+  for (uint32_t I = 0; I < Tables.size(); I++) {
+    uint32_t Idx = I + ImportedTableCount;
+    const auto &TT = Tables[I].getTableType();
+    const auto &Lim = TT.getLimit();
+    fmt::print(" - table[{}] type={} initial={}", Idx, TT.getRefType(),
+               Lim.getMin());
+    if (Lim.hasMax())
+      fmt::print(" max={}", Lim.getMax());
+    fmt::print("\n");
+  }
+
+  // Memory Section
+  const auto &Mems = Mod.getMemorySection().getContent();
+  fmt::print("Memory[{}]:\n", Mems.size());
+  for (uint32_t I = 0; I < Mems.size(); I++) {
+    uint32_t Idx = I + ImportedMemCount;
+    const auto &Lim = Mems[I].getLimit();
+    fmt::print(" - memory[{}] pages: initial={}", Idx, Lim.getMin());
+    if (Lim.hasMax())
+      fmt::print(" max={}", Lim.getMax());
+    fmt::print("\n");
+  }
+
   // Global Section
   const auto &Globals = Mod.getGlobalSection().getContent();
   fmt::print("Global[{}]:\n", Globals.size());
@@ -266,6 +319,50 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
     }
   }
 
+  // Start Section
+  fmt::print("Start:\n");
+  if (auto StartIdx = Mod.getStartSection().getContent()) {
+    fmt::print(" - func[{}]{}\n", *StartIdx, FuncName(*StartIdx));
+  }
+
+  // Element Section
+  const auto &Elems = Mod.getElementSection().getContent();
+  fmt::print("Element[{}]:\n", Elems.size());
+  for (uint32_t I = 0; I < Elems.size(); I++) {
+    const auto &Elem = Elems[I];
+    const auto &Entries = Elem.getInitExprs();
+    switch (Elem.getMode()) {
+    case AST::ElementSegment::ElemMode::Active: {
+      fmt::print(" - segment[{}] flags=0 table={} type={} count={}", I,
+                 Elem.getIdx(), Elem.getRefType(), Entries.size());
+      std::string OffsetStr = getInitExprStr(Elem.getExpr());
+      if (!OffsetStr.empty())
+        fmt::print(" - init {}", OffsetStr);
+      fmt::print("\n");
+      break;
+    }
+    case AST::ElementSegment::ElemMode::Passive:
+      fmt::print(" - segment[{}] flags=1 passive type={} count={}\n", I,
+                 Elem.getRefType(), Entries.size());
+      break;
+    case AST::ElementSegment::ElemMode::Declarative:
+      fmt::print(" - segment[{}] flags=3 declarative type={} count={}\n", I,
+                 Elem.getRefType(), Entries.size());
+      break;
+    }
+    for (uint32_t J = 0; J < Entries.size(); J++) {
+      fmt::print("  - elem[{}] = {}\n", J, getElemEntryStr(Entries[J]));
+    }
+  }
+
+  // DataCount Section
+  fmt::print("DataCount section:");
+  if (auto Count = Mod.getDataCountSection().getContent()) {
+    fmt::print(" {}\n", *Count);
+  } else {
+    fmt::print(" (not present)\n");
+  }
+
   // Code Section
   const auto &Codes = Mod.getCodeSection().getContent();
   fmt::print("Code[{}]:\n", Codes.size());
@@ -273,6 +370,27 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
     uint32_t Idx = I + ImportedFuncCount;
     fmt::print(" - func[{}] size={}{}\n", Idx, Codes[I].getSegSize(),
                FuncName(Idx));
+  }
+
+  // Data Section
+  const auto &Datas = Mod.getDataSection().getContent();
+  fmt::print("Data[{}]:\n", Datas.size());
+  for (uint32_t I = 0; I < Datas.size(); I++) {
+    const auto &Data = Datas[I];
+    switch (Data.getMode()) {
+    case AST::DataSegment::DataMode::Active: {
+      fmt::print(" - segment[{}] memory={} size={}", I, Data.getIdx(),
+                 Data.getData().size());
+      std::string OffsetStr = getInitExprStr(Data.getExpr());
+      if (!OffsetStr.empty())
+        fmt::print(" - init {}", OffsetStr);
+      fmt::print("\n");
+      break;
+    }
+    case AST::DataSegment::DataMode::Passive:
+      fmt::print(" - segment[{}] passive size={}\n", I, Data.getData().size());
+      break;
+    }
   }
 
   // Custom Sections

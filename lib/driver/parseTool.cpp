@@ -211,6 +211,7 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
   uint32_t ImpGlobalIdx = 0;
   uint32_t ImpMemIdx = 0;
   uint32_t ImpTableIdx = 0;
+  uint32_t ImpTagIdx = 0;
   for (const auto &Imp : Imports) {
     switch (Imp.getExternalType()) {
     case ExternalType::Function:
@@ -242,6 +243,12 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
       ImpGlobalIdx++;
       break;
     }
+    case ExternalType::Tag:
+      fmt::print(" - tag[{}] sig={} <- {}.{}\n", ImpTagIdx,
+                 Imp.getExternalTagType().getTypeIdx(), Imp.getModuleName(),
+                 Imp.getExternalName());
+      ImpTagIdx++;
+      break;
     default:
       break;
     }

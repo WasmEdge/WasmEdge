@@ -347,7 +347,7 @@ public:
 
   static INode stdErr() noexcept;
 
-  static WasiExpect<INode> fromFd(int32_t Fd);
+  static WasiExpect<INode> fromFd(int32_t FdNum);
 
   /// Open a file or directory.
   ///

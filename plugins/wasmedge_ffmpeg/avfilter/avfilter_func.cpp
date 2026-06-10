@@ -39,6 +39,10 @@ Expect<int32_t> AVFilterGraphFree::body(const Runtime::CallingFrame &,
                                         uint32_t FilterGraphId) {
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
   avfilter_graph_free(&FilterGraph);
+  // The graph owns its filter contexts, so every child context id minted by
+  // AVFilterGraphCreateFilter or AVFilterGraphGetFilter is dropped with it;
+  // otherwise a stale id would later resolve to a freed AVFilterContext.
+  Env.get()->deallocChildren(FilterGraphId);
   FFMPEG_PTR_DELETE(FilterGraphId);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -54,15 +58,17 @@ Expect<int32_t> AVFilterGraphGetFilter::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(FilterCtxId, MemInst, uint32_t, FilterCtxPtr, "");
 
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
+  FFMPEG_PTR_CHECK(FilterGraph, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_FETCH(FilterCtx, *FilterCtxId, AVFilterContext);
 
   std::string Name(NameId.data(), NameSize);
 
   FilterCtx = avfilter_graph_get_filter(FilterGraph, Name.c_str());
   if (FilterCtx == nullptr) {
+    *FilterCtxId = 0;
     return static_cast<int32_t>(ErrNo::Success);
   }
-  FFMPEG_PTR_STORE(FilterCtx, FilterCtxId);
+  FFMPEG_PTR_STORE_CHILD(FilterCtx, FilterCtxId, FilterGraphId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -78,6 +84,7 @@ Expect<int32_t> AVFilterGraphParsePtr::body(const Runtime::CallingFrame &Frame,
   FFMPEG_PTR_FETCH(Inputs, InputsId, AVFilterInOut);
   FFMPEG_PTR_FETCH(Outputs, OutputsId, AVFilterInOut);
   FFMPEG_PTR_FETCH(FiltersGraph, FilterGraphId, AVFilterGraph);
+  FFMPEG_PTR_CHECK(FiltersGraph, static_cast<int32_t>(ErrNo::InternalError));
 
   std::string Filters(FiltersId.data(), FiltersSize);
   return avfilter_graph_parse_ptr(FiltersGraph, Filters.c_str(), &Inputs,
@@ -87,8 +94,17 @@ Expect<int32_t> AVFilterGraphParsePtr::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVFilterInOutFree::body(const Runtime::CallingFrame &,
                                         uint32_t InOutId) {
   FFMPEG_PTR_FETCH(InOut, InOutId, AVFilterInOut);
+  if (InOut == nullptr) {
+    FFMPEG_PTR_DELETE(InOutId);
+    return static_cast<int32_t>(ErrNo::Success);
+  }
+  // avfilter_inout_free releases the entire linked list, so drop the handle
+  // ids of every node in the chain, not just the head; otherwise an id for a
+  // linked node would keep resolving to freed memory.
+  for (AVFilterInOut *Node = InOut; Node != nullptr; Node = Node->next) {
+    Env.get()->deallocByValue(Node);
+  }
   avfilter_inout_free(&InOut);
-  FFMPEG_PTR_DELETE(InOutId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -110,6 +126,7 @@ Expect<int32_t> AVFilterGetByName::body(const Runtime::CallingFrame &Frame,
 
   Filter = avfilter_get_by_name(Name.c_str());
   if (Filter == nullptr) {
+    *FilterId = 0;
     return static_cast<int32_t>(ErrNo::Success);
   }
 
@@ -159,22 +176,25 @@ Expect<int32_t> AVFilterGraphCreateFilter::body(
   MEM_SPAN_CHECK(ArgsBuf, MemInst, char, ArgsPtr, ArgsLen, "");
   MEM_PTR_CHECK(FilterCtxId, MemInst, uint32_t, FilterCtxPtr, "")
 
-  FFMPEG_PTR_FETCH(FilterCtx, *FilterCtxId, AVFilterContext);
   FFMPEG_PTR_FETCH(Filter, FilterId, struct AVFilter);
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
+  if (Filter == nullptr || FilterGraph == nullptr) {
+    *FilterCtxId = 0;
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
 
-  std::string Name;
-  std::string Args;
-  std::copy_n(NameBuf.data(), NameLen, std::back_inserter(Name));
-  std::copy_n(ArgsBuf.data(), ArgsLen, std::back_inserter(Args));
+  std::string Name(NameBuf.data(), NameLen);
+  std::string Args(ArgsBuf.data(), ArgsLen);
 
+  AVFilterContext *FilterCtx = nullptr;
   int Res = avfilter_graph_create_filter(&FilterCtx, Filter, Name.c_str(),
                                          Args.c_str(), nullptr, FilterGraph);
   if (Res < 0) {
+    *FilterCtxId = 0;
     return Res;
   }
 
-  FFMPEG_PTR_STORE(FilterCtx, FilterCtxId);
+  FFMPEG_PTR_STORE_CHILD(FilterCtx, FilterCtxId, FilterGraphId);
   return Res;
 }
 
@@ -247,6 +267,7 @@ Expect<int32_t> AVFilterPadGetType::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVFilterGraphDumpLength::body(const Runtime::CallingFrame &,
                                               uint32_t FilterGraphId) {
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
+  FFMPEG_PTR_CHECK(FilterGraph, 0);
   std::unique_ptr<char, decltype(&av_free)> Graph{
       avfilter_graph_dump(FilterGraph, nullptr), &av_free};
   if (Graph == nullptr) {
@@ -263,9 +284,13 @@ Expect<int32_t> AVFilterGraphDump::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(GraphStr, MemInst, char, GraphStrPtr, GraphStrLen, "");
 
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
+  FFMPEG_PTR_CHECK(FilterGraph, static_cast<int32_t>(ErrNo::InternalError));
 
   std::unique_ptr<char, decltype(&av_free)> Graph{
       avfilter_graph_dump(FilterGraph, nullptr), &av_free};
+  if (Graph == nullptr) {
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   copyCStringToBuffer(GraphStr.data(), GraphStrLen, Graph.get());
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -273,9 +298,10 @@ Expect<int32_t> AVFilterGraphDump::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVFilterFreeGraphStr::body(const Runtime::CallingFrame &,
                                            uint32_t FilterGraphId) {
   FFMPEG_PTR_FETCH(FilterGraph, FilterGraphId, AVFilterGraph);
+  FFMPEG_PTR_CHECK(FilterGraph, static_cast<int32_t>(ErrNo::Success));
 
-  char *Graph = avfilter_graph_dump(FilterGraph, nullptr);
-  av_free(Graph);
+  std::unique_ptr<char, decltype(&av_free)> Graph{
+      avfilter_graph_dump(FilterGraph, nullptr), &av_free};
   return static_cast<int32_t>(ErrNo::Success);
 }
 

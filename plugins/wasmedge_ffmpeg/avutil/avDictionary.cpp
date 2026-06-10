@@ -24,10 +24,8 @@ Expect<int32_t> AVDictSet::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(DictId, MemInst, uint32_t, DictPtr,
                 "Failed to access Memory for AVDict"sv)
 
-  std::string Key;
-  std::string Value;
-  std::copy_n(KeyBuf.data(), KeyLen, std::back_inserter(Key));
-  std::copy_n(ValueBuf.data(), ValueLen, std::back_inserter(Value));
+  std::string Key(KeyBuf.data(), KeyLen);
+  std::string Value(ValueBuf.data(), ValueLen);
 
   int Res = 0;
 
@@ -115,8 +113,7 @@ Expect<int32_t> AVDictGet::body(const Runtime::CallingFrame &Frame,
                   DictId);
     return static_cast<int32_t>(ErrNo::InternalError);
   }
-  std::string Key;
-  std::copy_n(KeyStr.data(), KeyLen, std::back_inserter(Key));
+  std::string Key(KeyStr.data(), KeyLen);
 
   AVDictionaryEntry *DictEntry = nullptr;
   uint32_t Curr = 0;
@@ -160,8 +157,7 @@ Expect<int32_t> AVDictGetKeyValue::body(
     return static_cast<int32_t>(ErrNo::InternalError);
   }
 
-  std::string Key;
-  std::copy_n(KeyStr.data(), KeyLen, std::back_inserter(Key));
+  std::string Key(KeyStr.data(), KeyLen);
 
   AVDictionaryEntry *DictEntry = nullptr;
   uint32_t Curr = 0;

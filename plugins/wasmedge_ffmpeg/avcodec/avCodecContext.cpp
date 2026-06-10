@@ -119,6 +119,7 @@ AVCodecCtxSetSampleAspectRatio::body(const Runtime::CallingFrame &,
 Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,
                                                uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_CHECK(AvCodecCtx, 0);
   return FFmpegUtils::ChannelLayout::intoChannelLayoutID(AvCodecCtx->ch_layout);
 }
 
@@ -126,6 +127,7 @@ Expect<int32_t> AVCodecCtxSetChannelLayout::body(const Runtime::CallingFrame &,
                                                  uint32_t AvCodecCtxId,
                                                  uint64_t ChannelLayoutId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
   uint64_t const AvChannel =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
   int const Ret =

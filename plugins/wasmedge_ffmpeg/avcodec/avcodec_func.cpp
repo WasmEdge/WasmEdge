@@ -196,8 +196,7 @@ AVCodecFindDecoderByName::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(NameId, MemInst, char, NamePtr, NameLen,
                  "Failed when accessing the return URL memory"sv);
 
-  std::string Name;
-  std::copy_n(NameId.data(), NameLen, std::back_inserter(Name));
+  std::string Name(NameId.data(), NameLen);
 
   AVCodec const *AvCodec = avcodec_find_decoder_by_name(Name.c_str());
 
@@ -220,8 +219,7 @@ AVCodecFindEncoderByName::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(NameId, MemInst, char, NamePtr, NameLen,
                  "Failed when accessing the return URL memory"sv);
 
-  std::string Name;
-  std::copy_n(NameId.data(), NameLen, std::back_inserter(Name));
+  std::string Name(NameId.data(), NameLen);
 
   AVCodec const *AvCodec = avcodec_find_encoder_by_name(Name.c_str());
 

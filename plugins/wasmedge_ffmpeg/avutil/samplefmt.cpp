@@ -49,8 +49,7 @@ Expect<int32_t> AVGetSampleFmt::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(StrId, MemInst, char, Str, StrLen, "");
 
-  std::string TargetUrl;
-  std::copy_n(StrId.data(), StrLen, std::back_inserter(TargetUrl));
+  std::string TargetUrl(StrId.data(), StrLen);
 
   AVSampleFormat const AvSampleFormat = av_get_sample_fmt(TargetUrl.c_str());
   return FFmpegUtils::SampleFmt::toSampleID(AvSampleFormat);

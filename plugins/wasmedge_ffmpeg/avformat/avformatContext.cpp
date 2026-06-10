@@ -75,10 +75,15 @@ Expect<int32_t> AVFormatCtxSetNbChapters::body(const Runtime::CallingFrame &,
                                                uint32_t AvFormatCtxId,
                                                uint32_t NbChapters) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  // nb_chapters is the authoritative allocation count that chapterAt and
-  // av_dynarray_add trust; a guest must never raise it above the real array
-  // length, or the chapter accessors would index past the allocation.
-  if (AvFormatContext == nullptr || NbChapters > AvFormatContext->nb_chapters) {
+  // nb_chapters is the authoritative allocation count that chapterAt,
+  // av_dynarray_add, and FFmpeg's own teardown all trust. Raising it lets the
+  // chapter accessors index past the allocation; lowering it makes
+  // avformat_free_context free fewer entries and leak the trailing chapters on
+  // close (a guest-driven host memory-growth/DoS). The count is owned by
+  // av_dynarray_add, so the only value a guest may set is the current one,
+  // making this an authoritative no-op.
+  if (AvFormatContext == nullptr ||
+      NbChapters != AvFormatContext->nb_chapters) {
     spdlog::error("[WasmEdge-FFmpeg] AVFormatCtxSetNbChapters: cannot set "
                   "nb_chapters to {} (format context id {}, current {})"sv,
                   NbChapters, AvFormatCtxId,

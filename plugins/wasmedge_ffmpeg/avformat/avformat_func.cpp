@@ -32,6 +32,10 @@ Expect<int32_t> AVFormatOpenInput::body(const Runtime::CallingFrame &Frame,
 
   int const Res = avformat_open_input(&AvFormatContext, TargetUrl.c_str(),
                                       AvInputFormat, AvDictionary);
+  if (Res < 0) {
+    *AvFormatCtxId = 0;
+    return Res;
+  }
   FFMPEG_PTR_STORE(AvFormatContext, AvFormatCtxId);
   return Res;
 }
@@ -84,6 +88,7 @@ Expect<int32_t> AVDumpFormat::body(const Runtime::CallingFrame &Frame,
 
   std::string TargetUrl(UrlBuf.data(), UrlSize);
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
 
   av_dump_format(AvFormatCtx, Idx, TargetUrl.c_str(), IsOutput);
   return static_cast<int32_t>(ErrNo::Success);
@@ -124,6 +129,7 @@ Expect<int32_t> AVReadFrame::body(const Runtime::CallingFrame &,
 Expect<int32_t> AVIOClose::body(const Runtime::CallingFrame &,
                                 uint32_t AvFormatCtxId) {
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::Success));
   avio_close(AvFormatCtx->pb);
   return static_cast<int32_t>(ErrNo::Success);
 }
@@ -180,6 +186,10 @@ Expect<int32_t> AVFormatAllocOutputContext2::body(
     Res = avformat_alloc_output_context2(&AvFormatContext, AvOutputFormat,
                                          Format.c_str(), File.c_str());
   }
+  if (Res < 0) {
+    *AvFormatCtxId = 0;
+    return Res;
+  }
   FFMPEG_PTR_STORE(AvFormatContext, AvFormatCtxId);
   return Res;
 }
@@ -194,6 +204,7 @@ Expect<int32_t> AVIOOpen::body(const Runtime::CallingFrame &Frame,
   std::string File(FileId.data(), FileNameLen);
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatContext, static_cast<int32_t>(ErrNo::InternalError));
 
   return avio_open(&(AvFormatContext->pb), File.c_str(), Flags);
 }
@@ -208,6 +219,7 @@ Expect<int32_t> AVIOOpen2::body(const Runtime::CallingFrame &Frame,
                  "Failed when accessing the return Url memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatCtx, AvFormatCtxtId, AVFormatContext);
+  FFMPEG_PTR_CHECK(AvFormatCtx, static_cast<int32_t>(ErrNo::InternalError));
   FFMPEG_PTR_FETCH(AvDictionary, AVDictionaryId, AVDictionary *);
   FFMPEG_PTR_FETCH(AvIOInterruptCB, AVIOInterruptCBId, AVIOInterruptCB);
 
@@ -251,11 +263,15 @@ Expect<int32_t> AVChapterDynarrayAdd::body(const Runtime::CallingFrame &Frame,
     return static_cast<int32_t>(ErrNo::InternalError);
   }
 
-  int NbChaptersValue = static_cast<int>(AvFormatContext->nb_chapters);
+  // av_dynarray_add() returns void and, on a realloc failure, leaves the array
+  // pointer and the count untouched; detect that via the count so we neither
+  // bump nb_chapters nor take ownership of a chapter that was never appended.
+  int const OldNbChaptersValue = static_cast<int>(AvFormatContext->nb_chapters);
+  int NbChaptersValue = OldNbChaptersValue;
   av_dynarray_add(&(AvFormatContext->chapters), &NbChaptersValue, AvChapter);
-  if (AvFormatContext->chapters == nullptr) {
-    AvFormatContext->nb_chapters = 0;
-    *NbChapters = 0;
+  if (AvFormatContext->chapters == nullptr ||
+      NbChaptersValue <= OldNbChaptersValue) {
+    *NbChapters = OldNbChaptersValue;
     spdlog::error("[WasmEdge-FFmpeg] AVChapterDynarrayAdd: av_dynarray_add "
                   "failed (format context id {})"sv,
                   AvFormatCtxId);
@@ -314,13 +330,21 @@ Expect<uint32_t> AVGuessCodec::body(const Runtime::CallingFrame &Frame,
                                     uint32_t ShortNameLen, uint32_t FileNamePtr,
                                     uint32_t FileNameLen, uint32_t MimeTypePtr,
                                     uint32_t MimeTypeLen, int32_t MediaTypeId) {
-  MEMINST_CHECK(MemInst, Frame, 0);
-  MEM_SPAN_CHECK(ShortNameBuf, MemInst, char, ShortNamePtr, ShortNameLen,
-                 "Failed when accessing the return ShortName memory"sv);
-  MEM_SPAN_CHECK(FileNameBuf, MemInst, char, FileNamePtr, FileNameLen,
-                 "Failed when accessing the return FileName memory"sv);
-  MEM_SPAN_CHECK(MimeTypeBuf, MemInst, char, MimeTypePtr, MimeTypeLen,
-                 "Failed when accessing the return MimeType memory"sv);
+  auto *MemInst = Frame.getMemoryByIndex(0);
+  if (unlikely(MemInst == nullptr)) {
+    spdlog::error("[WasmEdge-FFmpeg] Memory instance not found."sv);
+    return FFmpegUtils::CodecID::fromAVCodecID(AV_CODEC_ID_NONE);
+  }
+  auto ShortNameBuf = MemInst->getSpan<char>(ShortNamePtr, ShortNameLen);
+  auto FileNameBuf = MemInst->getSpan<char>(FileNamePtr, FileNameLen);
+  auto MimeTypeBuf = MemInst->getSpan<char>(MimeTypePtr, MimeTypeLen);
+  if (unlikely(ShortNameBuf.size() != ShortNameLen ||
+               FileNameBuf.size() != FileNameLen ||
+               MimeTypeBuf.size() != MimeTypeLen)) {
+    spdlog::error("[WasmEdge-FFmpeg] AVGuessCodec: failed when accessing the "
+                  "return string memory"sv);
+    return FFmpegUtils::CodecID::fromAVCodecID(AV_CODEC_ID_NONE);
+  }
   FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);
 
   std::string ShortName(ShortNameBuf.data(), ShortNameLen);

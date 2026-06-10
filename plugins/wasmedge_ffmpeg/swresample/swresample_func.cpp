@@ -40,6 +40,15 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
   MEM_PTR_CHECK(SwrCtxId, MemInst, uint32_t, SwrCtxPtr, "")
   FFMPEG_PTR_FETCH(ExistSWRContext, SWRContextId, SwrContext);
 
+  // A SWRContextId of 0 is the legitimate "allocate a fresh context" request.
+  // A nonzero id that does not resolve is forged or stale; passing it through
+  // as null would silently allocate a new context and bypass handle-id
+  // validation, so reject it instead of changing the call's semantics.
+  if (SWRContextId != 0 && ExistSWRContext == nullptr) {
+    *SwrCtxId = 0;
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
+
   uint64_t const OutChLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(OutChLayoutId);
   AVSampleFormat const OutSampleFmt =
@@ -52,6 +61,7 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
   AVChannelLayout AVOutChLayout;
   int const OutRet = av_channel_layout_from_mask(&AVOutChLayout, OutChLayout);
   if (OutRet < 0) {
+    *SwrCtxId = 0;
     spdlog::error("[WasmEdge-FFmpeg] SWRAllocSetOpts: "
                   "av_channel_layout_from_mask failed ({}) for output "
                   "channel layout mask {:#x}"sv,
@@ -63,6 +73,7 @@ SWRAllocSetOpts::body(const Runtime::CallingFrame &Frame, uint32_t SwrCtxPtr,
   int const InRet = av_channel_layout_from_mask(&AVInChLayout, InChLayout);
   if (InRet < 0) {
     av_channel_layout_uninit(&AVOutChLayout);
+    *SwrCtxId = 0;
     spdlog::error("[WasmEdge-FFmpeg] SWRAllocSetOpts: "
                   "av_channel_layout_from_mask failed ({}) for input channel "
                   "layout mask {:#x}"sv,

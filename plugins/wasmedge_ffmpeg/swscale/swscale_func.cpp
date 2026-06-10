@@ -34,6 +34,7 @@ SwsGetContext::body(const Runtime::CallingFrame &Frame, uint32_t SwsCtxPtr,
                           DestPixelFormat, Flags, SrcSwsFilter, DesSwsFilter,
                           nullptr); // Not using param anywhere in Rust SDK.
   if (SwsCtx == nullptr) {
+    *SwsCtxId = 0;
     spdlog::error("[WasmEdge-FFmpeg] SwsGetContext: sws_getContext failed "
                   "({}x{} format id {} -> {}x{} format id {})"sv,
                   SrcW, SrcH, SrcPixFormatId, DesW, DesH, DesPixFormatId);
@@ -83,6 +84,7 @@ Expect<int32_t> SwsGetCachedContext::body(
       SrcSwsFilter, DesSwsFilter, nullptr);
   if (SwsCachedCtx == nullptr) {
     Env.get()->deallocByValue(PrevSwsCtx);
+    *SwsCachedCtxId = 0;
     spdlog::error("[WasmEdge-FFmpeg] SwsGetCachedContext: "
                   "sws_getCachedContext failed ({}x{} format id {} -> {}x{} "
                   "format id {})"sv,
@@ -130,6 +132,7 @@ Expect<int32_t> SwsGetDefaultFilter::body(
       sws_getDefaultFilter(LumaGBlur, ChromaGBlur, LumaSharpen, ChromaSharpen,
                            ChromaHShift, ChromaVShift, Verbose);
   if (Filter == nullptr) {
+    *SwsFilterId = 0;
     spdlog::error("[WasmEdge-FFmpeg] SwsGetDefaultFilter: "
                   "sws_getDefaultFilter failed"sv);
     return static_cast<int32_t>(ErrNo::InternalError);

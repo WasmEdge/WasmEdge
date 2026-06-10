@@ -19,9 +19,11 @@ Expect<int32_t> AVIOFormatNameLength::body(const Runtime::CallingFrame &,
 
   if (FormatType == 0) {
     FFMPEG_PTR_FETCH(AvInputFormat, AVIOFormatId, AVInputFormat);
+    FFMPEG_PTR_CHECK(AvInputFormat, 0);
     Name = AvInputFormat->name;
   } else {
     FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);
+    FFMPEG_PTR_CHECK(AvOutputFormat, 0);
     Name = AvOutputFormat->name;
   }
 
@@ -37,6 +39,7 @@ Expect<int32_t> AVInputFormatName::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
+  FFMPEG_PTR_CHECK(AvInputFormat, static_cast<int32_t>(ErrNo::InternalError));
 
   const char *Name = AvInputFormat->name;
   copyCStringToBuffer(NameBuf.data(), NameLen, Name);
@@ -49,6 +52,7 @@ Expect<int32_t> AVOutputFormatName::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(NameBuf, MemInst, char, NamePtr, NameLen, "");
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
+  FFMPEG_PTR_CHECK(AvOutputFormat, static_cast<int32_t>(ErrNo::InternalError));
 
   const char *Name = AvOutputFormat->name;
   copyCStringToBuffer(NameBuf.data(), NameLen, Name);
@@ -62,9 +66,11 @@ Expect<int32_t> AVIOFormatLongNameLength::body(const Runtime::CallingFrame &,
 
   if (FormatType == 0) {
     FFMPEG_PTR_FETCH(AvInputFormat, AVIOFormatId, AVInputFormat);
+    FFMPEG_PTR_CHECK(AvInputFormat, 0);
     LongName = AvInputFormat->long_name;
   } else {
     FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);
+    FFMPEG_PTR_CHECK(AvOutputFormat, 0);
     LongName = AvOutputFormat->long_name;
   }
 
@@ -81,6 +87,7 @@ Expect<int32_t> AVInputFormatLongName::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(LongNameBuf, MemInst, char, LongNamePtr, LongNameLen, "");
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
+  FFMPEG_PTR_CHECK(AvInputFormat, static_cast<int32_t>(ErrNo::InternalError));
 
   const char *LongName = AvInputFormat->long_name;
   copyCStringToBuffer(LongNameBuf.data(), LongNameLen, LongName);
@@ -94,6 +101,7 @@ Expect<int32_t> AVOutputFormatLongName::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(LongNameBuf, MemInst, char, LongNamePtr, LongNameLen, "");
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
+  FFMPEG_PTR_CHECK(AvOutputFormat, static_cast<int32_t>(ErrNo::InternalError));
 
   const char *LongName = AvOutputFormat->long_name;
   copyCStringToBuffer(LongNameBuf.data(), LongNameLen, LongName);
@@ -107,9 +115,11 @@ Expect<int32_t> AVIOFormatExtensionsLength::body(const Runtime::CallingFrame &,
 
   if (FormatType == 0) {
     FFMPEG_PTR_FETCH(AvInputFormat, AVIOFormatId, AVInputFormat);
+    FFMPEG_PTR_CHECK(AvInputFormat, 0);
     Extensions = AvInputFormat->extensions;
   } else {
     FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);
+    FFMPEG_PTR_CHECK(AvOutputFormat, 0);
     Extensions = AvOutputFormat->extensions;
   }
 
@@ -127,6 +137,7 @@ AVInputFormatExtensions::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ExtensionsBuf, MemInst, char, ExtensionsPtr, ExtensionsLen,
                  "");
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
+  FFMPEG_PTR_CHECK(AvInputFormat, static_cast<int32_t>(ErrNo::InternalError));
 
   const char *Extensions = AvInputFormat->extensions;
   copyCStringToBuffer(ExtensionsBuf.data(), ExtensionsLen, Extensions);
@@ -141,6 +152,7 @@ AVOutputFormatExtensions::body(const Runtime::CallingFrame &Frame,
   MEM_SPAN_CHECK(ExtensionsBuf, MemInst, char, ExtensionsPtr, ExtensionsLen,
                  "");
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
+  FFMPEG_PTR_CHECK(AvOutputFormat, static_cast<int32_t>(ErrNo::InternalError));
 
   const char *Extensions = AvOutputFormat->extensions;
   copyCStringToBuffer(ExtensionsBuf.data(), ExtensionsLen, Extensions);
@@ -154,9 +166,11 @@ Expect<int32_t> AVIOFormatMimeTypeLength::body(const Runtime::CallingFrame &,
 
   if (FormatType == 0) {
     FFMPEG_PTR_FETCH(AvInputFormat, AVIOFormatId, AVInputFormat);
+    FFMPEG_PTR_CHECK(AvInputFormat, 0);
     MimeType = AvInputFormat->mime_type;
   } else {
     FFMPEG_PTR_FETCH(AvOutputFormat, AVIOFormatId, AVOutputFormat);
+    FFMPEG_PTR_CHECK(AvOutputFormat, 0);
     MimeType = AvOutputFormat->mime_type;
   }
 
@@ -173,6 +187,7 @@ Expect<int32_t> AVInputFormatMimeType::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(MimeTypeBuf, MemInst, char, MimeTypePtr, MimeTypeLen, "");
   FFMPEG_PTR_FETCH(AvInputFormat, AVInputFormatId, AVInputFormat);
+  FFMPEG_PTR_CHECK(AvInputFormat, static_cast<int32_t>(ErrNo::InternalError));
 
   const char *MimeType = AvInputFormat->mime_type;
   copyCStringToBuffer(MimeTypeBuf.data(), MimeTypeLen, MimeType);
@@ -186,6 +201,7 @@ Expect<int32_t> AVOutputFormatMimeType::body(const Runtime::CallingFrame &Frame,
   MEMINST_CHECK(MemInst, Frame, 0);
   MEM_SPAN_CHECK(MimeTypeBuf, MemInst, char, MimeTypePtr, MimeTypeLen, "");
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
+  FFMPEG_PTR_CHECK(AvOutputFormat, static_cast<int32_t>(ErrNo::InternalError));
 
   const char *MimeType = AvOutputFormat->mime_type;
   copyCStringToBuffer(MimeTypeBuf.data(), MimeTypeLen, MimeType);
@@ -195,6 +211,7 @@ Expect<int32_t> AVOutputFormatMimeType::body(const Runtime::CallingFrame &Frame,
 Expect<int32_t> AVOutputFormatFlags::body(const Runtime::CallingFrame &,
                                           uint32_t AVOutputFormatId) {
   FFMPEG_PTR_FETCH(AvOutputFormat, AVOutputFormatId, AVOutputFormat);
+  FFMPEG_PTR_CHECK(AvOutputFormat, 0);
   return AvOutputFormat->flags;
 }
 

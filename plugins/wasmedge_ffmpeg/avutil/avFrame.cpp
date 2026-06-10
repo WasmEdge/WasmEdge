@@ -175,6 +175,7 @@ Expect<int32_t> AVFrameSetChannelLayout::body(const Runtime::CallingFrame &,
                                               uint32_t FrameId,
                                               uint64_t ChannelLayoutID) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, static_cast<int32_t>(ErrNo::InternalError));
   uint64_t const ChannelLayout =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutID);
   int const Ret =
@@ -232,6 +233,7 @@ Expect<int32_t> AVFrameSetChannels::body(const Runtime::CallingFrame &,
 Expect<uint64_t> AVFrameChannelLayout::body(const Runtime::CallingFrame &,
                                             uint32_t FrameId) {
   FFMPEG_PTR_FETCH(AvFrame, FrameId, AVFrame);
+  FFMPEG_PTR_CHECK(AvFrame, 0);
   return FFmpegUtils::ChannelLayout::intoChannelLayoutID(AvFrame->ch_layout);
 }
 

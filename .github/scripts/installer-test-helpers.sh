@@ -25,3 +25,32 @@ verify_plugin() {
     exit 1
   fi
 }
+
+verify_shell_config() {
+  local project="$1"
+  local want_change="$2"
+  local config=""
+
+  for f in .profile .bashrc .bash_profile .zshrc .zsh_profile .zshenv; do
+    if ! [ -f "$HOME/$f" ]; then
+      continue
+    elif grep -Fq "$project/env" "$HOME/$f"; then
+      config="$f"
+      break
+    fi
+  done
+
+  if [ "$want_change" = "1" ]; then
+    if [ -z "$config" ]; then
+      echo "✗ Want change but got none"
+      exit 1
+    fi
+    echo "✓ shell configured"
+  else
+    if [ -n "$config" ]; then
+      echo "✗ Want no change but got $config"
+      exit 1
+    fi
+    echo "✓ --no-shell-config works"
+  fi
+}

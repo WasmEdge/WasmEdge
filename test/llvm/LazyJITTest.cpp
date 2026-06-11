@@ -366,6 +366,45 @@ TEST_F(LazyJITTest, LazyJITMultipleInstantiations) {
   }
 }
 
+TEST_F(LazyJITTest, LazyJITReinstantiateSameVM) {
+  auto VM = createLazyJITVM();
+
+  ASSERT_TRUE(VM->loadWasm(SimpleWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
+
+  std::vector<ValVariant> Params = {static_cast<uint32_t>(2),
+                                    static_cast<uint32_t>(3)};
+  std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
+
+  // Compile "add" lazily on the first instance.
+  auto Result = VM->execute("add", Params, Types);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 5U);
+  const auto CompiledBefore = VM->getLazyCompiledFuncCount();
+  EXPECT_GT(CompiledBefore, 0U);
+
+  // Re-instantiate the same loaded module on the same VM. The engine must
+  // rebind the persisted JIT state to the new module instance.
+  ASSERT_TRUE(VM->instantiate());
+
+  // The previously compiled function is restored to compiled mode...
+  auto *AddFunc = VM->getActiveModule()->findFuncExports("add");
+  ASSERT_NE(AddFunc, nullptr);
+  EXPECT_TRUE(AddFunc->isCompiledFunction());
+
+  // ...still executes correctly...
+  Result = VM->execute("add", Params, Types);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 5U);
+
+  // ...and lazy compilation keeps working for functions not yet compiled.
+  Result = VM->execute("mul", Params, Types);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 6U);
+  EXPECT_GT(VM->getLazyCompiledFuncCount(), CompiledBefore);
+}
+
 TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
   auto VM = createLazyJITVM();
 

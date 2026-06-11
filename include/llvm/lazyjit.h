@@ -46,11 +46,13 @@ namespace LLVM {
 ///    dedicated ORC LLJIT instance and returns the executable so the caller
 ///    can hook it into the AST module via \c Loader::loadExecutable .
 /// 2. \c registerInstance binds the instantiated module instance to the
-///    prepared state. The engine shares ownership of the AST module for
-///    later on-demand compilation.
+///    prepared state.
 /// 3. \c compileOnDemand compiles the requested function together with its
 ///    not-yet-compiled callees and upgrades the bound function instances to
 ///    compiled mode.
+/// 4. \c unregisterInstance drops the per-instance bindings but keeps the
+///    module-level JIT state, so re-instantiating the same AST module
+///    rebinds it and previously compiled functions stay compiled.
 class LazyJITEngine {
 public:
   LazyJITEngine(const Configure &Conf) noexcept;
@@ -58,15 +60,20 @@ public:
   LazyJITEngine(const LazyJITEngine &) = delete;
   LazyJITEngine &operator=(const LazyJITEngine &) = delete;
 
-  /// Compile the module infrastructure and create the per-module JIT.
-  Expect<std::shared_ptr<Executable>> prepare(const AST::Module &Module);
+  /// Compile the module infrastructure and create the per-module JIT. The
+  /// engine shares ownership of the AST module from this point on, so the
+  /// prepared state can never outlive (and dangle on) its module.
+  Expect<std::shared_ptr<Executable>>
+  prepare(std::shared_ptr<const AST::Module> Module);
 
   /// Bind an instantiated module instance to its prepared AST module. No-op
   /// when the AST module has not been prepared.
   void registerInstance(const Runtime::Instance::ModuleInstance &ModInst,
                         std::shared_ptr<const AST::Module> Module) noexcept;
 
-  /// Drop the state bound to a module instance.
+  /// Drop the per-instance bindings of a module instance. The module-level
+  /// JIT state is kept so a later instantiation of the same AST module can
+  /// rebind it.
   void
   unregisterInstance(const Runtime::Instance::ModuleInstance &ModInst) noexcept;
 

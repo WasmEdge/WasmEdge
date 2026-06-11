@@ -94,6 +94,14 @@ void upgradeToCompiled(
   FuncInst->unsafeUpgradeToCompiled(JITLib.createCodeSymbol(Address));
 }
 
+// True while someone outside the engine still holds the AST module and could
+// re-instantiate it; a state failing this can never be rebound, so keeping it
+// would leak its JIT and compiled code for the lifetime of the engine.
+bool isReinstantiable(
+    const std::shared_ptr<const AST::Module> &Module) noexcept {
+  return Module != nullptr && Module.use_count() > 1;
+}
+
 } // namespace
 
 struct LazyJITEngine::Impl {
@@ -194,12 +202,10 @@ LazyJITEngine::prepare(std::shared_ptr<const AST::Module> Module) {
   State.ImportFuncCount = State.Module->getImportFuncCount();
 
   std::unique_lock Lock(PImpl->Mutex);
-  // Prune pending states whose AST module nobody outside the engine holds
-  // anymore: they can never be re-instantiated, so keeping them would leak
-  // their JIT and compiled code for the lifetime of the engine.
+  // Prune pending states nobody can re-instantiate anymore.
   for (auto It = PImpl->PendingStates.begin();
        It != PImpl->PendingStates.end();) {
-    if (It->second.Module.use_count() > 1) {
+    if (isReinstantiable(It->second.Module)) {
       ++It;
     } else {
       It = PImpl->PendingStates.erase(It);
@@ -255,11 +261,9 @@ void LazyJITEngine::unregisterInstance(
   auto State = std::move(It->second);
   PImpl->States.erase(It);
   State.FuncIndices.clear();
-  // Keep the state only while someone outside the engine still holds the
-  // AST module and could re-instantiate it; otherwise it can never be
-  // rebound, so drop it instead of leaking the JIT and its compiled code.
-  if (const auto *Key = State.Module.get();
-      Key != nullptr && State.Module.use_count() > 1) {
+  // Keep the state only while it can be rebound; otherwise drop it instead
+  // of leaking the JIT and its compiled code.
+  if (const auto *Key = State.Module.get(); isReinstantiable(State.Module)) {
     PImpl->PendingStates.insert_or_assign(Key, std::move(State));
   }
 }

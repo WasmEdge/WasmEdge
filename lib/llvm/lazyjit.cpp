@@ -75,6 +75,25 @@ std::vector<uint32_t> collectCallGraphBatch(
   return SortedLocals;
 }
 
+// Upgrade the function instance at GlobalFuncIdx of a bound module instance
+// to run the compiled code at Address. Shared by the fresh-batch path and the
+// re-instantiation restore path.
+void upgradeToCompiled(
+    Span<const Runtime::Instance::FunctionInstance *const> FuncInsts,
+    size_t GlobalFuncIdx, JITLibrary &JITLib,
+    WasmFunctionCodeAddress Address) noexcept {
+  // A fully instantiated instance of the same AST module covers every
+  // compiled local function index.
+  assuming(GlobalFuncIdx < FuncInsts.size());
+  // The function instances are owned mutable by the module instance; the
+  // accessor only adds constness. Upgrading them to compiled mode is the
+  // purpose of this engine. Non-wasm functions are declined by
+  // unsafeUpgradeToCompiled itself.
+  auto *FuncInst = const_cast<Runtime::Instance::FunctionInstance *>(
+      FuncInsts[GlobalFuncIdx]);
+  FuncInst->unsafeUpgradeToCompiled(JITLib.createCodeSymbol(Address));
+}
+
 } // namespace
 
 struct LazyJITEngine::Impl {
@@ -215,19 +234,8 @@ void LazyJITEngine::registerInstance(
   // in interpreter mode, so restore the functions already compiled in
   // earlier instantiations from their persisted code addresses.
   for (const auto &[LocalFuncIdx, Address] : State.CompiledCode) {
-    const size_t GlobalFuncIdx = size_t{State.ImportFuncCount} + LocalFuncIdx;
-    // A fully instantiated instance of the same AST module covers every
-    // persisted local function index.
-    assuming(GlobalFuncIdx < FuncInsts.size());
-    // The function instances are owned mutable by the module instance; the
-    // accessor only adds constness. Upgrading them to compiled mode is the
-    // purpose of this engine.
-    auto *FuncInst = const_cast<Runtime::Instance::FunctionInstance *>(
-        FuncInsts[GlobalFuncIdx]);
-    if (!FuncInst->isWasmFunction()) {
-      continue;
-    }
-    FuncInst->unsafeUpgradeToCompiled(State.JITLib->createCodeSymbol(Address));
+    upgradeToCompiled(FuncInsts, size_t{State.ImportFuncCount} + LocalFuncIdx,
+                      *State.JITLib, Address);
   }
 
   PImpl->States.insert_or_assign(&ModInst, std::move(State));
@@ -335,19 +343,8 @@ Expect<void> LazyJITEngine::compileOnDemand(
 
   const auto FuncInsts = ModInst->getFunctionInstances();
   for (size_t I = 0; I < BatchLocals.size(); ++I) {
-    const uint32_t GlobalFuncIdx = BatchGlobal[I];
-    // A fully instantiated instance of the same AST module covers every
-    // batch function index.
-    assuming(GlobalFuncIdx < FuncInsts.size());
-    // The function instances are owned mutable by the module instance; the
-    // accessor only adds constness. Upgrading them to compiled mode is the
-    // purpose of this engine.
-    auto *BatchFuncInst = const_cast<Runtime::Instance::FunctionInstance *>(
-        FuncInsts[GlobalFuncIdx]);
-    if (BatchFuncInst->isWasmFunction()) {
-      BatchFuncInst->unsafeUpgradeToCompiled(
-          State.JITLib->createCodeSymbol(ResolvedAddresses[I]));
-    }
+    upgradeToCompiled(FuncInsts, BatchGlobal[I], *State.JITLib,
+                      ResolvedAddresses[I]);
   }
 
   spdlog::debug(

@@ -15,7 +15,7 @@
 * Tools: The runtime executables.
   * [WasmEdge-TensorFlow-Tools](https://github.com/second-state/WasmEdge-tensorflow-tools) are the released tools to execute WASM with accessing to `TensorFlow` or `TensorFlow-Lite`.
 * Language supports: The `WasmEdge` triggering in other languages.
-  * The [C API](c_api.md) is embedded in the core release as a header file and shared library.
+  * The [C API](https://github.com/WasmEdge/WasmEdge/tree/master/include/api/wasmedge) is embedded in the core release as a header file and shared library.
   * [WasmEdge-core NAPI package](https://github.com/second-state/wasmedge-core) is the Node.js addon project for `WASM` functions.
   * [WasmEdge-extensions NAPI package](https://github.com/second-state/wasmedge-extensions) is the Node.js addon project for `WASM` runtime with `wasmedge-tensorflow`, `wasmedge-image`, and `wasmedge-storage` extensions.
   * [WasmEdge-go](https://github.com/second-state/WasmEdge-go) is the [Golang](https://golang.org/) binding for `WasmEdge` C API.

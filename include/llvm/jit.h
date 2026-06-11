@@ -34,8 +34,7 @@ class OrcLLJIT;
 
 class JITLibrary : public Executable {
 public:
-  JITLibrary(std::shared_ptr<OrcLLJIT> JIT, std::string Prefix = "",
-             bool IsLazy = false) noexcept;
+  JITLibrary(std::shared_ptr<OrcLLJIT> JIT, bool IsLazy = false) noexcept;
   ~JITLibrary() noexcept override;
 
   Symbol<const IntrinsicsTable *> getIntrinsics() noexcept override;
@@ -48,7 +47,6 @@ public:
 
 private:
   std::shared_ptr<OrcLLJIT> J;
-  std::string Prefix;
   bool IsLazy;
   friend class JIT;
 };
@@ -63,12 +61,6 @@ public:
   Expect<std::vector<WasmFunctionCodeAddress>>
   add(JITLibrary &Lib, Data &D,
       Span<const uint32_t> GlobalFuncIndices) noexcept;
-
-  /// Look up already-loaded symbols (no IR add). Same index convention as
-  /// \c add .
-  Expect<std::vector<WasmFunctionCodeAddress>>
-  lookupWasmFunctionSymbols(JITLibrary &Lib, std::string_view Prefix,
-                            Span<const uint32_t> GlobalFuncIndices) noexcept;
 
 private:
   const Configure Conf;

@@ -12,7 +12,6 @@
 #include "runtime/instance/module.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -134,11 +133,7 @@ LazyJITEngine::prepare(const AST::Module &Module) {
   Compiler InfraCompiler(PImpl->Conf);
   EXPECTED_TRY(InfraCompiler.checkConfigure());
 
-  static std::atomic<uint64_t> NextModuleIndex{0};
-  auto Prefix = fmt::format(
-      "m{}_"sv, NextModuleIndex.fetch_add(1, std::memory_order_relaxed));
-  EXPECTED_TRY(auto Infra,
-               InfraCompiler.compileInfrastructure(Module, Prefix));
+  EXPECTED_TRY(auto Infra, InfraCompiler.compileInfrastructure(Module));
   State.LLData = std::move(Infra.first);
   State.LLContext = std::move(Infra.second);
 

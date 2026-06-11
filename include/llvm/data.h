@@ -33,9 +33,6 @@ public:
   Data(Data &&) noexcept;
   Data &operator=(Data &&) noexcept;
   DataContext &extract() noexcept { return *Context; }
-  bool isValid() const noexcept { return static_cast<bool>(Context); }
-  bool hasModule() const noexcept;
-  void resetModule() noexcept;
 
 private:
   std::unique_ptr<DataContext> Context;

@@ -286,10 +286,6 @@ struct LLVM::Compiler::CompileContext {
     Trap.Fn.addFnAttr(Cold);
     Trap.Fn.addFnAttr(NoInline);
 
-    LLModule.get().addGlobal(
-        Int32Ty, true, LLVMExternalLinkage,
-        LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion), "version");
-
     if (!IsGenericBinary) {
       SubtargetFeatures = LLVM::getHostCPUFeatures();
       auto Features = SubtargetFeatures.string_view();
@@ -407,6 +403,21 @@ struct LLVM::Compiler::CompileContext {
         {Trap.Fn.getFirstParam()});
     CallTrap.addCallSiteAttribute(NoReturn);
     Builder.createUnreachable();
+  }
+  void addVersionGlobal() noexcept {
+    LLModule.get().addGlobal(
+        Int32Ty, true, LLVMExternalLinkage,
+        LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion), "version");
+  }
+  void finalizeIntrinsicsTable() noexcept {
+    if (auto Table = LLModule.get().getNamedGlobal("intrinsics")) {
+      Table.setInitializer(LLVM::Value::getConstNull(Table.getType()));
+      Table.setGlobalConstant(false);
+    } else {
+      LLModule.get().addGlobal(
+          IntrinsicsTablePtrTy, false, LLVMExternalLinkage,
+          LLVM::Value::getConstNull(IntrinsicsTablePtrTy), "intrinsics");
+    }
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
   resolveBlockType(const BlockType &BType) const noexcept {
@@ -6123,19 +6134,16 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   CompileContext NewContext(LLContext, LLModule,
                             Conf.getCompilerConfigure().isGenericBinary());
   RAIICleanup Cleanup(Context, &NewContext);
+  Context->addVersionGlobal();
 
-  // Compile Function Types
-  compile(Module.getTypeSection());
-  // Compile ImportSection
-  compile(Module.getImportSection());
-  // Compile GlobalSection
-  compile(Module.getGlobalSection());
-  // Compile MemorySection (MemorySec, DataSec)
-  compile(Module.getMemorySection(), Module.getDataSection());
-  // Compile TableSection (TableSec, ElemSec)
-  compile(Module.getTableSection(), Module.getElementSection());
-  // Compile functions in the module. (FunctionSec, CodeSec)
-  EXPECTED_TRY(compile(Module.getFunctionSection(), Module.getCodeSection()));
+  // Compile all sections and the function declarations.
+  compileSections(Module, false);
+  // Compile all function bodies.
+  const auto DefinedCount =
+      static_cast<uint32_t>(Module.getCodeSection().getContent().size());
+  for (uint32_t I = 0; I < DefinedCount; ++I) {
+    EXPECTED_TRY(compileFunctionBody(I));
+  }
   // Compile ExportSection.
   compile(Module.getExportSection());
   // StartSection is not required for compilation.
@@ -6147,18 +6155,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   EXPECTED_TRY(optimize(LLModule, TM));
 
   // Set initializer for constant value
-  if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
-    IntrinsicsTable.setInitializer(
-        LLVM::Value::getConstNull(IntrinsicsTable.getType()));
-    IntrinsicsTable.setGlobalConstant(false);
-  } else {
-    auto IntrinsicsTableTy = LLVM::Type::getArrayType(
-        LLContext.getInt8Ty().getPointerTo(),
-        static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax));
-    LLModule.addGlobal(
-        IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
-        LLVM::Value::getConstNull(IntrinsicsTableTy), "intrinsics");
-  }
+  Context->finalizeIntrinsicsTable();
   return Expect<Data>{std::move(D)};
 }
 
@@ -6435,57 +6432,22 @@ void Compiler::compile(const AST::TableSection &TableSec,
   }
 }
 
-Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
-                               const AST::CodeSection &CodeSec) noexcept {
-  const auto &TypeIdxs = FuncSec.getContent();
-  const auto &CodeSegs = CodeSec.getContent();
-  assuming(TypeIdxs.size() == CodeSegs.size());
-
-  for (size_t I = 0; I < CodeSegs.size(); ++I) {
-    const auto &TypeIdx = TypeIdxs[I];
-    const auto &Code = CodeSegs[I];
-    assuming(TypeIdx < Context->CompositeTypes.size());
-    assuming(Context->CompositeTypes[TypeIdx]->isFunc());
-    const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
-    const auto FuncID = Context->Functions.size();
-    auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
-    LLVM::FunctionCallee F = {
-        FTy, Context->LLModule.get().addFunction(
-                 FTy, LLVMExternalLinkage,
-                 fmt::format("f{}"sv, FuncID).c_str())};
-    F.Fn.setVisibility(LLVMProtectedVisibility);
-    F.Fn.setDSOLocal(true);
-    F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
-    F.Fn.addFnAttr(Context->NoStackArgProbe);
-    F.Fn.addFnAttr(Context->StrictFP);
-    F.Fn.addFnAttr(Context->UWTable);
-    F.Fn.addParamAttr(0, Context->ReadOnly);
-    F.Fn.addParamAttr(0, Context->NoAlias);
-
-    Context->Functions.emplace_back(TypeIdx, F, &Code);
-  }
-
-  for (auto [T, F, Code] : Context->Functions) {
-    if (!Code) {
-      continue;
-    }
-
-    std::vector<ValType> Locals;
-    for (const auto &Local : Code->getLocals()) {
-      for (unsigned I = 0; I < Local.first; ++I) {
-        Locals.push_back(Local.second);
-      }
-    }
-    FunctionCompiler FC(
-        *Context, F, Locals, Conf.getCompilerConfigure().isInterruptible(),
-        Conf.getStatisticsConfigure().isInstructionCounting(),
-        Conf.getStatisticsConfigure().isCostMeasuring(),
-        Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT);
-    auto Type = Context->resolveBlockType(T);
-    EXPECTED_TRY(FC.compile(*Code, std::move(Type)));
-    F.Fn.eliminateUnreachableBlocks();
-  }
-  return {};
+void Compiler::compileSections(const AST::Module &Module,
+                               bool DeclarationsOnly) noexcept {
+  // Compile Function Types
+  compile(Module.getTypeSection(), DeclarationsOnly);
+  // Compile ImportSection
+  compile(Module.getImportSection());
+  // Compile GlobalSection
+  compile(Module.getGlobalSection());
+  // Compile MemorySection (MemorySec, DataSec)
+  compile(Module.getMemorySection(), Module.getDataSection());
+  // Compile TableSection (TableSec, ElemSec)
+  compile(Module.getTableSection(), Module.getElementSection());
+  // Create function declarations without compiling bodies. (FunctionSec,
+  // CodeSec)
+  compileFunctionDeclarations(Module.getFunctionSection(),
+                              Module.getCodeSection());
 }
 
 void Compiler::compileFunctionDeclarations(
@@ -6564,11 +6526,8 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
   return {};
 }
 
-Expect<std::pair<LLVM::Data,
-                 std::unique_ptr<LLVM::Compiler::CompileContext,
-                                 LLVM::Compiler::CompileContextDeleter>>>
+Expect<LLVM::Data>
 LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
-  Data D;
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
@@ -6578,59 +6537,34 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
   std::unique_lock Lock(Mutex);
   spdlog::info("[lazy-jit]: compile infrastructure start"sv);
 
+  Data D;
   auto LLContext = D.extract().getLLContext();
   LLVM::Core::init(LLContext.unwrap());
   auto &LLModule = D.extract().LLModule;
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
-  std::unique_ptr<CompileContext, CompileContextDeleter> NewContext(
-      new CompileContext(LLContext, LLModule,
-                         Conf.getCompilerConfigure().isGenericBinary()));
-  RAIICleanup Cleanup(this->Context, NewContext.get());
+  CompileContext NewContext(LLContext, LLModule,
+                            Conf.getCompilerConfigure().isGenericBinary());
+  RAIICleanup Cleanup(Context, &NewContext);
+  Context->addVersionGlobal();
 
-  // Compile Function Types
-  compile(Module.getTypeSection());
-  // Compile ImportSection
-  compile(Module.getImportSection());
-  // Compile GlobalSection
-  compile(Module.getGlobalSection());
-  // Compile MemorySection (MemorySec, DataSec)
-  compile(Module.getMemorySection(), Module.getDataSection());
-  // Compile TableSection (TableSec, ElemSec)
-  compile(Module.getTableSection(), Module.getElementSection());
-  // Create function declarations without compiling bodies
-  compileFunctionDeclarations(Module.getFunctionSection(),
-                              Module.getCodeSection());
+  // Compile all sections and the function declarations without bodies.
+  compileSections(Module, false);
   // Compile ExportSection
   compile(Module.getExportSection());
 
   // Set initializer for constant value
-  if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
-    IntrinsicsTable.setInitializer(
-        LLVM::Value::getConstNull(IntrinsicsTable.getType()));
-    IntrinsicsTable.setGlobalConstant(false);
-  } else {
-    auto IntrinsicsTableTy = LLVM::Type::getArrayType(
-        LLContext.getInt8Ty().getPointerTo(),
-        static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax));
-    LLModule.addGlobal(
-        IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
-        LLVM::Value::getConstNull(IntrinsicsTableTy), "intrinsics");
-  }
+  Context->finalizeIntrinsicsTable();
   LLModule.verify(LLVMPrintMessageAction);
 
   spdlog::info("[lazy-jit]: infrastructure compilation done"sv);
 
-  return Expect<
-      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>{
-      std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>{
-          std::move(D), std::move(NewContext)}};
+  return Expect<Data>{std::move(D)};
 }
 
 Expect<LLVM::Data>
-Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
-                           const AST::Module &Module,
+Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
                            Span<const uint32_t> LocalFuncIndices) noexcept {
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
@@ -6650,49 +6584,25 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
   spdlog::debug("[lazy-jit]: compile functions batch ({}) start"sv,
                 Sorted.size());
 
+  // The previous batch module was consumed by the JIT, so start the next
+  // batch from a fresh module sharing the same thread-safe context.
+  if (!LLData.extract().LLModule) {
+    LLData.extract().resetModule();
+  }
   auto LLContext = LLData.extract().getLLContext();
   LLVM::Core::init(LLContext.unwrap());
   auto &LLModule = LLData.extract().LLModule;
   LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
   LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
-  RAIICleanup Cleanup(this->Context, NewContext);
-  Context->LLModule = LLModule;
+  CompileContext NewContext(LLContext, LLModule,
+                            Conf.getCompilerConfigure().isGenericBinary());
+  RAIICleanup Cleanup(Context, &NewContext);
 
-  Context->CompositeTypes.clear();
-  Context->FunctionWrappers.clear();
-  Context->Functions.clear();
-  Context->LazyJITCacheVars.clear();
-  Context->ImportCount = 0;
-  Context->MemoryAddrTypes.clear();
-  Context->TableAddrTypes.clear();
-  Context->Globals.clear();
-
-  Context->IntrinsicsTable = LLModule.addGlobal(
-      Context->IntrinsicsTablePtrTy, true, LLVMExternalLinkage, LLVM::Value(),
-      "intrinsics");
-  Context->IntrinsicsTable.setInitializer(LLVM::Value());
-  Context->Trap.Ty =
-      LLVM::Type::getFunctionType(Context->VoidTy, {Context->Int32Ty});
-  Context->Trap.Fn =
-      LLModule.addFunction(Context->Trap.Ty, LLVMPrivateLinkage, "trap");
-  Context->Trap.Fn.setDSOLocal(true);
-  Context->Trap.Fn.addFnAttr(Context->NoStackArgProbe);
-  Context->Trap.Fn.addFnAttr(Context->StrictFP);
-  Context->Trap.Fn.addFnAttr(Context->UWTable);
-  Context->Trap.Fn.addFnAttr(Context->NoReturn);
-  Context->Trap.Fn.addFnAttr(Context->Cold);
-  Context->Trap.Fn.addFnAttr(Context->NoInline);
-  Context->compileTrap();
-
-  compile(Module.getTypeSection(), true);
-  compile(Module.getImportSection());
-  compile(Module.getGlobalSection());
-  compile(Module.getMemorySection(), Module.getDataSection());
-  compile(Module.getTableSection(), Module.getElementSection());
-
-  compileFunctionDeclarations(Module.getFunctionSection(),
-                              Module.getCodeSection());
+  // Emit the type wrappers as external declarations resolved against the
+  // infrastructure module, then declare the functions and compile the
+  // requested bodies.
+  compileSections(Module, true);
 
   for (uint32_t FuncIndex : Sorted) {
     EXPECTED_TRY(compileFunctionBody(FuncIndex));
@@ -6710,9 +6620,5 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
   return Expect<Data>{std::move(LLData)};
 }
 
-void LLVM::Compiler::CompileContextDeleter::operator()(
-    CompileContext *ContextPtr) const noexcept {
-  delete ContextPtr;
-}
 } // namespace LLVM
 } // namespace WasmEdge

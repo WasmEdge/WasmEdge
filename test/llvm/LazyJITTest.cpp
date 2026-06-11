@@ -22,6 +22,7 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "vm/vm.h"
+#include "llvm/compiler.h"
 #include "llvm/jit.h"
 #include <gtest/gtest.h>
 #include <thread>

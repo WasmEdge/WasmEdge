@@ -56,7 +56,7 @@ uint32_t ComponentContext::incSortIndexSize(Sort::SortType ST) noexcept {
   case Sort::SortType::Type:
     return addType();
   case Sort::SortType::Component:
-    return addOpaqueComponent();
+    return addComponent();
   case Sort::SortType::Instance:
     return addInstance();
   default:
@@ -80,7 +80,7 @@ ComponentContext::incCoreSortIndexSize(Sort::CoreSortType ST) noexcept {
   case Sort::CoreSortType::Type:
     return addCoreType();
   case Sort::CoreSortType::Module:
-    return addOpaqueCoreModule();
+    return addCoreModule();
   case Sort::CoreSortType::Instance:
     return addCoreInstance();
   default:

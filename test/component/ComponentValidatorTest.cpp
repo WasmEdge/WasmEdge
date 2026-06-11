@@ -1977,4 +1977,58 @@ TEST(ComponentValidatorTest, CoreAliasCoreExportTagPasses) {
   ASSERT_TRUE(V.validate(Comp));
 }
 
+// =============================================================================
+// Imported component instantiation arg-checking (GAP-I-1)
+// =============================================================================
+
+TEST(ComponentValidatorTest, InstantiateImportedComponentMissingArgRejected) {
+  // type 0: (component (import "x" (value bool)))
+  // import "C" (component (type 0))   ;; component 0 — imported, no raw AST
+  // instance (instantiate 0)          ;; FAIL — no arg supplied for "x"
+  //
+  // The (value ...) bound is used because it does not reference any type
+  // index in the inner component-type scope (which would otherwise need
+  // cross-scope resolution to validate). The point of this test is to
+  // exercise GAP-I-1: an instantiate of an imported component should
+  // surface MissingArgument from the ComponentType-derived import list.
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::TypeSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::InstanceSection>();
+
+  // type 0: ComponentType `(component (import "x" (value bool)))`.
+  auto &TypeSec = std::get<AST::Component::TypeSection>(Comp.getSections()[0]);
+  std::vector<AST::Component::ComponentDecl> Decls;
+  AST::Component::ImportDecl ImpDecl;
+  ImpDecl.getName() = "x";
+  ImpDecl.getExternDesc().setValueBound(
+      ComponentValType{ComponentTypeCode::Bool});
+  AST::Component::ComponentDecl CD;
+  CD.setImport(std::move(ImpDecl));
+  Decls.push_back(std::move(CD));
+  AST::Component::ComponentType CT;
+  CT.setDecl(std::move(Decls));
+  TypeSec.getContent().emplace_back();
+  TypeSec.getContent().back().setComponentType(std::move(CT));
+
+  // import "C" (component (type 0)) — gives component 0.
+  auto &ImpSec = std::get<AST::Component::ImportSection>(Comp.getSections()[1]);
+  ImpSec.getContent().emplace_back();
+  ImpSec.getContent().back().getName() = "C";
+  ImpSec.getContent().back().getDesc().setComponentTypeIdx(0);
+
+  // instance (instantiate 0) — no args supplied.
+  auto &InstSec =
+      std::get<AST::Component::InstanceSection>(Comp.getSections()[2]);
+  InstSec.getContent().emplace_back();
+  InstSec.getContent().back().setInstantiateArgs(
+      0U, AST::Component::Instance::InstantiateArgs{});
+
+  Validator::Validator V(Conf);
+  ASSERT_FALSE(V.validate(Comp));
+}
+
 } // namespace

@@ -238,7 +238,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine && !Module->getSymbol()) {
-    EXPECTED_TRY(auto Exec, LazyEngine->prepare(*Module));
+    EXPECTED_TRY(auto Exec, LazyEngine->prepare(Module));
     EXPECTED_TRY(LoaderEngine.loadExecutable(*Module, std::move(Exec)));
   }
 #endif
@@ -386,8 +386,13 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   }
   EXPECTED_TRY(ValidatorEngine.validate(Module));
 #ifdef WASMEDGE_USE_LLVM
-  if (LazyEngine && ActiveModInst) {
-    LazyEngine->unregisterInstance(*ActiveModInst);
+  if (LazyEngine) {
+    if (ActiveModInst) {
+      LazyEngine->unregisterInstance(*ActiveModInst);
+    }
+    // This one-shot path takes no shared ownership of the module, so it is
+    // not bound to the lazy JIT engine and executes in the interpreter.
+    spdlog::debug("[lazy-jit]: runWasmFile executes in interpreter mode"sv);
   }
 #endif
   EXPECTED_TRY(ActiveModInst,
@@ -522,7 +527,7 @@ Expect<void> VM::unsafeInstantiate() {
         !Mod->getSymbol()) {
 #ifdef WASMEDGE_USE_LLVM
       if (LazyEngine) {
-        EXPECTED_TRY(auto Exec, LazyEngine->prepare(*Mod));
+        EXPECTED_TRY(auto Exec, LazyEngine->prepare(Mod));
         EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
       } else {
         LLVM::Compiler Compiler(Conf);

@@ -162,20 +162,20 @@ jobs:
         bash utils/install.sh -D
         # Add dummy content to verify it is preserved
         echo "export DUMMY_VAR=1" >> ~/.bashrc
-        echo ". \"\$HOME/.wasmedge/env\"" >> ~/.bashrc
+        echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
         echo "alias dummy=ls" >> ~/.bashrc
-        echo ". \"\$HOME/.wasmedge/env\"" >> ~/.bashrc
+        echo ". \"${HOME}/.wasmedge/env\"" >> ~/.bashrc
         
         bash utils/uninstall.sh -q -V
         
         # Verify the duplicate entries are removed
-        if grep -q ". \"\$HOME/.wasmedge/env\"" ~/.bashrc; then
+        if grep -qF ". \"${HOME}/.wasmedge/env\"" ~/.bashrc; then
           echo "[FAIL] Duplicate entries were not removed"
           exit 1
         fi
         
         # Verify the expected unrelated content is preserved
-        if ! grep -q "export DUMMY_VAR=1" ~/.bashrc || ! grep -q "alias dummy=ls" ~/.bashrc; then
+        if ! grep -qF "export DUMMY_VAR=1" ~/.bashrc || ! grep -qF "alias dummy=ls" ~/.bashrc; then
           echo "[FAIL] Unrelated content in .bashrc was corrupted or removed"
           exit 1
         fi

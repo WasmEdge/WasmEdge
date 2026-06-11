@@ -263,7 +263,7 @@ main() {
       if grep -qF ". \"${IPATH}/env\"" "$file"; then
         real_file="$(resolve_path "$file")"
         cp "$real_file" "$real_file.bak"
-        grep -Fv ". \"${IPATH}/env\"" "$real_file.bak" > "$real_file"
+        grep -Fv ". \"${IPATH}/env\"" "$real_file.bak" > "$real_file" || [ $? -eq 1 ]
         rm -f "$real_file.bak"
       fi
     done

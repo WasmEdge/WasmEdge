@@ -1157,7 +1157,8 @@ private:
   /// unsafeUpgradeToCompiled on the same FuncInst could result in a race
   /// condition if checking FuncInst->isCompiledFunction() directly here. As a
   /// temporary workaround, checks for compilation state are deferred to the
-  /// LazyCompilationHandler, which executes under the lazy JIT engine lock.
+  /// LazyCompilationHandler, which must serialize them against compiled-state
+  /// upgrades (the lazy JIT engine does so under its internal lock).
   Expect<void> checkLazyCompilation(
       const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
     if (unlikely(LazyCompilationHandler != nullptr)) {

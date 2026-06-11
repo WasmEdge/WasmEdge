@@ -36,8 +36,6 @@ public:
   bool isValid() const noexcept { return static_cast<bool>(Context); }
   bool hasModule() const noexcept;
   void resetModule() noexcept;
-  void setPrefix(std::string_view P) noexcept;
-  std::string_view getPrefix() const noexcept;
 
 private:
   std::unique_ptr<DataContext> Context;

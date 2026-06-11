@@ -219,11 +219,10 @@ struct LLVM::Compiler::CompileContext {
   std::vector<LLVM::Type> MemoryAddrTypes;
   std::vector<LLVM::Type> TableAddrTypes;
   std::vector<LLVM::Type> Globals;
-  std::string Prefix;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
-  CompileContext(LLVM::Context C, LLVM::Module &M, bool IsGenericBinary,
-                 std::string_view P = ""sv) noexcept
+  CompileContext(LLVM::Context C, LLVM::Module &M,
+                 bool IsGenericBinary) noexcept
       : LLContext(C), LLModule(M),
         Cold(LLVM::Attribute::createEnum(C, LLVM::Core::Cold, 0)),
         NoAlias(LLVM::Attribute::createEnum(C, LLVM::Core::NoAlias, 0)),
@@ -273,10 +272,10 @@ struct LLVM::Compiler::CompileContext {
         IntrinsicsTableTy(LLVM::Type::getArrayType(
             Int8Ty.getPointerTo(),
             static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax))),
-        IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()), Prefix(P),
+        IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
         IntrinsicsTable(LLModule.get().addGlobal(
             IntrinsicsTablePtrTy, true, LLVMExternalLinkage, LLVM::Value(),
-            fmt::format("{}intrinsics"sv, Prefix).c_str())) {
+            "intrinsics")) {
     Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
     Trap.Fn = LLModule.get().addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
     Trap.Fn.setDSOLocal(true);
@@ -289,8 +288,7 @@ struct LLVM::Compiler::CompileContext {
 
     LLModule.get().addGlobal(
         Int32Ty, true, LLVMExternalLinkage,
-        LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion),
-        fmt::format("{}version"sv, Prefix).c_str());
+        LLVM::Value::getConstInt(Int32Ty, AOT::kBinaryVersion), "version");
 
     if (!IsGenericBinary) {
       SubtargetFeatures = LLVM::getHostCPUFeatures();
@@ -6197,7 +6195,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
   for (size_t I = 0; I < Size; ++I) {
     const auto &CompType = SubTypes[I].getCompositeType();
     const auto Name =
-        fmt::format("{}t{}"sv, Context->Prefix, Context->CompositeTypes.size());
+        fmt::format("t{}"sv, Context->CompositeTypes.size());
     if (CompType.isFunc()) {
       // Check that the function type is unique.
       {
@@ -6323,7 +6321,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       auto F = LLVM::FunctionCallee{
           FTy, Context->LLModule.get().addFunction(
                    FTy, LLVMInternalLinkage,
-                   fmt::format("{}f{}"sv, Context->Prefix, FuncID).c_str())};
+                   fmt::format("f{}"sv, FuncID).c_str())};
       F.Fn.setDSOLocal(true);
       F.Fn.addFnAttr(Context->NoStackArgProbe);
       F.Fn.addFnAttr(Context->StrictFP);
@@ -6454,7 +6452,7 @@ Expect<void> Compiler::compile(const AST::FunctionSection &FuncSec,
     LLVM::FunctionCallee F = {
         FTy, Context->LLModule.get().addFunction(
                  FTy, LLVMExternalLinkage,
-                 fmt::format("{}f{}"sv, Context->Prefix, FuncID).c_str())};
+                 fmt::format("f{}"sv, FuncID).c_str())};
     F.Fn.setVisibility(LLVMProtectedVisibility);
     F.Fn.setDSOLocal(true);
     F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
@@ -6508,7 +6506,7 @@ void Compiler::compileFunctionDeclarations(
     LLVM::FunctionCallee F = {
         FTy, Context->LLModule.get().addFunction(
                  FTy, LLVMExternalLinkage,
-                 fmt::format("{}f{}"sv, Context->Prefix, FuncID).c_str())};
+                 fmt::format("f{}"sv, FuncID).c_str())};
     F.Fn.setVisibility(LLVMProtectedVisibility);
     F.Fn.setDSOLocal(true);
     F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);
@@ -6569,10 +6567,8 @@ Expect<void> Compiler::compileFunctionBody(uint32_t LocalFuncIndex) noexcept {
 Expect<std::pair<LLVM::Data,
                  std::unique_ptr<LLVM::Compiler::CompileContext,
                                  LLVM::Compiler::CompileContextDeleter>>>
-LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
-                                      std::string Prefix) noexcept {
+LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
   Data D;
-  D.setPrefix(Prefix);
   // Check the module is validated.
   if (unlikely(!Module.getIsValidated())) {
     spdlog::error(ErrCode::Value::NotValidated);
@@ -6590,8 +6586,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
 
   std::unique_ptr<CompileContext, CompileContextDeleter> NewContext(
       new CompileContext(LLContext, LLModule,
-                         Conf.getCompilerConfigure().isGenericBinary(),
-                         D.getPrefix()));
+                         Conf.getCompilerConfigure().isGenericBinary()));
   RAIICleanup Cleanup(this->Context, NewContext.get());
 
   // Compile Function Types
@@ -6611,8 +6606,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
   compile(Module.getExportSection());
 
   // Set initializer for constant value
-  auto IntrinsicsName = fmt::format("{}intrinsics"sv, D.getPrefix());
-  if (auto IntrinsicsTable = LLModule.getNamedGlobal(IntrinsicsName.c_str())) {
+  if (auto IntrinsicsTable = LLModule.getNamedGlobal("intrinsics")) {
     IntrinsicsTable.setInitializer(
         LLVM::Value::getConstNull(IntrinsicsTable.getType()));
     IntrinsicsTable.setGlobalConstant(false);
@@ -6622,7 +6616,7 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module,
         static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax));
     LLModule.addGlobal(
         IntrinsicsTableTy.getPointerTo(), false, LLVMExternalLinkage,
-        LLVM::Value::getConstNull(IntrinsicsTableTy), IntrinsicsName.c_str());
+        LLVM::Value::getConstNull(IntrinsicsTableTy), "intrinsics");
   }
   LLModule.verify(LLVMPrintMessageAction);
 
@@ -6676,7 +6670,7 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
 
   Context->IntrinsicsTable = LLModule.addGlobal(
       Context->IntrinsicsTablePtrTy, true, LLVMExternalLinkage, LLVM::Value(),
-      fmt::format("{}intrinsics"sv, Context->Prefix).c_str());
+      "intrinsics");
   Context->IntrinsicsTable.setInitializer(LLVM::Value());
   Context->Trap.Ty =
       LLVM::Type::getFunctionType(Context->VoidTy, {Context->Int32Ty});

@@ -582,8 +582,7 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   LLVM::Compiler Compiler(Conf);
   ASSERT_TRUE(Compiler.checkConfigure());
 
-  auto Prefix = "test_prefix_";
-  auto CompileRes = Compiler.compileInfrastructure(*Module, Prefix);
+  auto CompileRes = Compiler.compileInfrastructure(*Module);
   ASSERT_TRUE(CompileRes);
 
   auto &LLData = CompileRes->first;
@@ -608,44 +607,6 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   auto AddResult = JIT.add(*JITLib, *FuncCompileRes, InvalidIndices);
   EXPECT_FALSE(AddResult);
   EXPECT_EQ(AddResult.error(), ErrCode::Value::LazyCompilationError);
-}
-
-TEST_F(LazyJITTest, JITLookupWasmFunctionSymbolsFailure) {
-  Configure Conf;
-  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
-  Conf.getCompilerConfigure().setOptimizationLevel(
-      CompilerConfigure::OptimizationLevel::O1);
-
-  Loader::Loader LoaderEngine(Conf);
-  auto ModOrErr = LoaderEngine.parseWasmUnit(SimpleWasm);
-  ASSERT_TRUE(ModOrErr);
-  auto &Module = std::get<std::unique_ptr<AST::Module>>(*ModOrErr);
-
-  Validator::Validator ValidatorEngine(Conf);
-  auto ValRes = ValidatorEngine.validate(*Module);
-  ASSERT_TRUE(ValRes);
-
-  LLVM::Compiler Compiler(Conf);
-  ASSERT_TRUE(Compiler.checkConfigure());
-
-  auto Prefix = "test_prefix_";
-  auto CompileRes = Compiler.compileInfrastructure(*Module, Prefix);
-  ASSERT_TRUE(CompileRes);
-
-  auto &LLData = CompileRes->first;
-
-  LLVM::JIT JIT(Conf);
-  auto ExecRes = JIT.load(LLData, true);
-  ASSERT_TRUE(ExecRes);
-
-  auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);
-
-  std::vector<uint32_t> InvalidIndices = {999};
-
-  auto LookupRes =
-      JIT.lookupWasmFunctionSymbols(*JITLib, Prefix, InvalidIndices);
-  EXPECT_FALSE(LookupRes);
-  EXPECT_EQ(LookupRes.error(), ErrCode::Value::LazyCompilationError);
 }
 
 TEST_F(LazyJITTest, LazyJITConcurrentSameFunction) {

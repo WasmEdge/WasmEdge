@@ -46,8 +46,7 @@ public:
   /// function bodies.
   Expect<
       std::pair<Data, std::unique_ptr<CompileContext, CompileContextDeleter>>>
-  compileInfrastructure(const AST::Module &Module,
-                        std::string Prefix = "") noexcept;
+  compileInfrastructure(const AST::Module &Module) noexcept;
   /// Compile multiple function bodies in one LLVM module for lazy JIT.
   /// \p LocalFuncIndices are indices of defined functions (not imports).
   Expect<Data> compileFunctions(Data &&LLData, CompileContext *Context,

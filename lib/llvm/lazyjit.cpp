@@ -296,9 +296,6 @@ Expect<void> LazyJITEngine::compileOnDemand(
 
   auto BatchLocals = collectCallGraphBatch(
       LocalFuncIdx, *State.Module, State.ImportFuncCount, State.CompiledCode);
-  if (BatchLocals.empty()) {
-    return {};
-  }
 
   spdlog::debug(
       "[lazy-jit]: lazy compiling batch ({} local funcs) for entry local {}"sv,

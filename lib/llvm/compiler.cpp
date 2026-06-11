@@ -6147,8 +6147,7 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Compile all sections and the function declarations.
   compileSections(Module, false);
   // Compile all function bodies.
-  const auto DefinedCount =
-      static_cast<uint32_t>(Module.getCodeSection().getContent().size());
+  const auto DefinedCount = Module.getDefinedFuncCount();
   for (uint32_t I = 0; I < DefinedCount; ++I) {
     EXPECTED_TRY(compileFunctionBody(I));
   }

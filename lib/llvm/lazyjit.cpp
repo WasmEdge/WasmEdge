@@ -35,7 +35,7 @@ std::vector<uint32_t> collectCallGraphBatch(
     const std::unordered_map<uint32_t, WasmFunctionCodeAddress> &Compiled) {
   std::vector<uint32_t> SortedLocals;
   const auto &CodeSec = Module.getCodeSection().getContent();
-  const uint32_t DefinedCount = static_cast<uint32_t>(CodeSec.size());
+  const uint32_t DefinedCount = Module.getDefinedFuncCount();
 
   // The caller's findPendingCompile guarantees a valid, not-yet-compiled
   // seed.

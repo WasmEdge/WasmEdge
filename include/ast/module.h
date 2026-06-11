@@ -79,6 +79,11 @@ public:
     return Count;
   }
 
+  /// Get the number of defined (non-imported) functions.
+  uint32_t getDefinedFuncCount() const noexcept {
+    return static_cast<uint32_t>(CodeSec.getContent().size());
+  }
+
   /// Getter and setter for compiled symbol.
   const auto &getSymbol() const noexcept { return IntrSymbol; }
   void setSymbol(Symbol<const Executable::IntrinsicsTable *> S) noexcept {

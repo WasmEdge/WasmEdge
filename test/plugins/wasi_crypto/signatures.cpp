@@ -176,10 +176,12 @@ TEST_F(WasiCryptoTest, Signatures) {
     WASI_CRYPTO_EXPECT_SUCCESS(ExportSize, arrayOutputLen(ExportHandle));
     std::vector<uint8_t> ExportedPk(ExportSize);
     WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(ExportHandle, ExportedPk));
-    EXPECT_GT(ExportedPk.size(), 16);
+    ASSERT_GT(ExportedPk.size(), 16);
     ExportedPk.resize(ExportedPk.size() - 16);
-    EXPECT_FALSE(publickeyImport(AlgType, Alg, ExportedPk,
-                                 __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_FAILURE(
+        publickeyImport(AlgType, Alg, ExportedPk,
+                        __WASI_PUBLICKEY_ENCODING_PKCS8),
+        __WASI_CRYPTO_ERRNO_INVALID_KEY);
     WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
     WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
   };

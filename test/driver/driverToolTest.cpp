@@ -228,6 +228,12 @@ static const std::array<uint8_t, 29> TagImportTestWasm{
     0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x03, 0x65, 0x6e, 0x76,
     0x03, 0x74, 0x61, 0x67, 0x04, 0x00, 0x00};
 
+// tag_section_test.wasm: compiled from tag_section_test.wat.
+// Defines a tag whose signature is type[0] (func (param i32)).
+static const std::array<uint8_t, 20> TagSectionTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x01, 0x7f, 0x00, 0x0d, 0x03, 0x01, 0x00, 0x00};
+
 // provider.wasm: exports function "add" (i32, i32) -> i32.
 static const std::array<uint8_t, 41> ProviderWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
@@ -300,6 +306,15 @@ std::string tagImportTestPath() {
   if (Path.empty()) {
     Path = writeWasmToFile(TagImportTestWasm.data(), TagImportTestWasm.size(),
                            "tag_import_test.wasm");
+  }
+  return Path;
+}
+
+std::string tagSectionTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(TagSectionTestWasm.data(),
+                           TagSectionTestWasm.size(), "tag_section_test.wasm");
   }
   return Path;
 }
@@ -505,6 +520,17 @@ TEST(ParseSubcommand, OutputImportedTagType) {
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(
       R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
+}
+
+TEST(ParseSubcommand, OutputTagSection) {
+  EXPECT_EQ(callParse({"--enable-exception-handling",
+                       tagSectionTestPath().c_str()}),
+            EXIT_SUCCESS);
+
+  auto R = callParseCaptureStdout(
+      {"--enable-exception-handling", tagSectionTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
 }
 #endif
 

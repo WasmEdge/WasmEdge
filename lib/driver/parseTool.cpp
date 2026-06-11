@@ -151,6 +151,7 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
   uint32_t ImportedGlobalCount = 0;
   uint32_t ImportedTableCount = 0;
   uint32_t ImportedMemCount = 0;
+  uint32_t ImportedTagCount = 0;
   for (const auto &Imp : Imports) {
     if (Imp.getExternalType() == ExternalType::Function)
       ImportedFuncCount++;
@@ -160,6 +161,8 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
       ImportedTableCount++;
     else if (Imp.getExternalType() == ExternalType::Memory)
       ImportedMemCount++;
+    else if (Imp.getExternalType() == ExternalType::Tag)
+      ImportedTagCount++;
   }
 
   auto FuncName = [&](uint32_t Idx) -> std::string {
@@ -286,6 +289,14 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
     if (Lim.hasMax())
       fmt::print(" max={}", Lim.getMax());
     fmt::print("\n");
+  }
+
+  // Tag Section
+  const auto &Tags = Mod.getTagSection().getContent();
+  fmt::print("Tag[{}]:\n", Tags.size());
+  for (uint32_t I = 0; I < Tags.size(); I++) {
+    uint32_t Idx = I + ImportedTagCount;
+    fmt::print(" - tag[{}] sig={}\n", Idx, Tags[I].getTypeIdx());
   }
 
   // Global Section

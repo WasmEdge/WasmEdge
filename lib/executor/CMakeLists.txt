@@ -29,6 +29,7 @@ wasmedge_add_library(wasmedgeExecutor
   engine/variableInstr.cpp
   engine/refInstr.cpp
   engine/engine.cpp
+  engine/const_fold.cpp
   helper.cpp
   executor.cpp
   coredump.cpp

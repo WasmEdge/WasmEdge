@@ -29,6 +29,33 @@ namespace Executor {
 namespace simdOps {
 
 // ---------------------------------------------------------------------------
+// V128 whole-register bitwise operations.  Consumed by const_fold.cpp's
+// foldV128Bin / foldV128Un dispatch for the v128.{not,and,andnot,or,xor}
+// cases; the engine.cpp interpreter dispatch inlines these bodies directly
+// (with its own MSVC fallback), so the simdOps:: form is non-MSVC only.
+// ---------------------------------------------------------------------------
+
+inline void v128Not(ValVariant &Val) noexcept {
+  Val.get<uint128_t>() = ~Val.get<uint128_t>();
+}
+
+inline void v128And(ValVariant &V1, const ValVariant &V2) noexcept {
+  V1.get<uint64x2_t>() &= V2.get<uint64x2_t>();
+}
+
+inline void v128Andnot(ValVariant &V1, const ValVariant &V2) noexcept {
+  V1.get<uint64x2_t>() &= ~V2.get<uint64x2_t>();
+}
+
+inline void v128Or(ValVariant &V1, const ValVariant &V2) noexcept {
+  V1.get<uint64x2_t>() |= V2.get<uint64x2_t>();
+}
+
+inline void v128Xor(ValVariant &V1, const ValVariant &V2) noexcept {
+  V1.get<uint64x2_t>() ^= V2.get<uint64x2_t>();
+}
+
+// ---------------------------------------------------------------------------
 // Lane-wise binary arithmetic.  T is the lane element type
 // (e.g. uint32_t, float, double).
 // ---------------------------------------------------------------------------
@@ -228,6 +255,26 @@ inline void vectorPopcnt(ValVariant &Val) noexcept {
   Result = (Result & UINT8_C(0x33)) + ((Result >> UINT8_C(2)) & UINT8_C(0x33));
   Result += Result >> UINT8_C(4);
   Result &= UINT8_C(0x0f);
+}
+
+// ---------------------------------------------------------------------------
+// Splat (scalar → vector).  TIn is the scalar input type; TOut is the
+// output lane type.  Consumed by const_fold.cpp's foldSplatOp for the
+// {i8x16,i16x8,i32x4,i64x2,f32x4,f64x2}.splat fold cases; the engine.cpp
+// interpreter inlines its own body via Executor::runSplatOp.
+// ---------------------------------------------------------------------------
+
+template <typename TIn, typename TOut>
+inline void splatOp(ValVariant &Val) noexcept {
+  const TOut Part = static_cast<TOut>(Val.get<TIn>());
+  using VTOut [[gnu::vector_size(16)]] = TOut;
+  if constexpr (!std::is_floating_point_v<TOut>) {
+    Val.emplace<VTOut>(VTOut{} + Part);
+  } else if constexpr (sizeof(TOut) == 4) {
+    Val.emplace<VTOut>(VTOut{Part, Part, Part, Part});
+  } else if constexpr (sizeof(TOut) == 8) {
+    Val.emplace<VTOut>(VTOut{Part, Part});
+  }
 }
 
 } // namespace simdOps

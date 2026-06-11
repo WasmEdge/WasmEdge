@@ -62,6 +62,9 @@ TEST_F(WasiCryptoTest, Signatures) {
     WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(PkHandle));
   };
   PublicKeyVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv);
+  PublicKeyVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P256_SHA256"sv);
+  PublicKeyVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_K256_SHA256"sv);
+  PublicKeyVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "ECDSA_P384_SHA384"sv);
 
   // A raw public key with an invalid length is rejected on import.
   auto PublicKeyImportInvalidTest = [this](__wasi_algorithm_type_e_t AlgType,
@@ -72,6 +75,21 @@ TEST_F(WasiCryptoTest, Signatures) {
         __WASI_CRYPTO_ERRNO_INVALID_KEY);
   };
   PublicKeyImportInvalidTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv);
+
+  // A SEC1 public key whose point is not on the curve is rejected on import.
+  auto PublicKeyImportInvalidSecTest = [this](__wasi_algorithm_type_e_t AlgType,
+                                              std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        publickeyImport(
+            AlgType, Alg,
+            "04ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"_u8v,
+            __WASI_PUBLICKEY_ENCODING_SEC),
+        __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  };
+  PublicKeyImportInvalidSecTest(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                                "ECDSA_P256_SHA256"sv);
 
   auto SigEncodingTest =
       [this](

@@ -37,9 +37,9 @@ std::vector<uint32_t> collectCallGraphBatch(
   const auto &CodeSec = Module.getCodeSection().getContent();
   const uint32_t DefinedCount = static_cast<uint32_t>(CodeSec.size());
 
-  if (LocalSeed >= DefinedCount || Compiled.count(LocalSeed) > 0) {
-    return SortedLocals;
-  }
+  // The caller's findPendingCompile guarantees a valid, not-yet-compiled
+  // seed.
+  assuming(LocalSeed < DefinedCount && Compiled.count(LocalSeed) == 0);
 
   std::vector<uint8_t> Visited(DefinedCount, 0);
   std::vector<uint32_t> Stack;
@@ -226,9 +226,9 @@ void LazyJITEngine::registerInstance(
   // earlier instantiations from their persisted code addresses.
   for (const auto &[LocalFuncIdx, Address] : State.CompiledCode) {
     const size_t GlobalFuncIdx = size_t{State.ImportFuncCount} + LocalFuncIdx;
-    if (GlobalFuncIdx >= FuncInsts.size()) {
-      continue;
-    }
+    // A fully instantiated instance of the same AST module covers every
+    // persisted local function index.
+    assuming(GlobalFuncIdx < FuncInsts.size());
     // The function instances are owned mutable by the module instance; the
     // accessor only adds constness. Upgrading them to compiled mode is the
     // purpose of this engine.
@@ -346,11 +346,9 @@ Expect<void> LazyJITEngine::compileOnDemand(
   const auto FuncInsts = ModInst->getFunctionInstances();
   for (size_t I = 0; I < BatchLocals.size(); ++I) {
     const uint32_t GlobalFuncIdx = BatchGlobal[I];
-    if (GlobalFuncIdx >= FuncInsts.size()) {
-      spdlog::error("[lazy-jit]: function index {} out of instance range"sv,
-                    GlobalFuncIdx);
-      return Unexpect(ErrCode::Value::WrongInstanceAddress);
-    }
+    // A fully instantiated instance of the same AST module covers every
+    // batch function index.
+    assuming(GlobalFuncIdx < FuncInsts.size());
     // The function instances are owned mutable by the module instance; the
     // accessor only adds constness. Upgrading them to compiled mode is the
     // purpose of this engine.

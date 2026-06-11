@@ -18,7 +18,6 @@
 #include <shared_mutex>
 #include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -31,15 +30,14 @@ using namespace std::literals;
 // Collect the not-yet-compiled local functions reachable from the seed
 // function through direct calls and function references, so one lazy
 // compilation batch covers the whole call graph of the entry.
-std::vector<uint32_t>
-collectCallGraphBatch(uint32_t LocalSeed, const AST::Module &Module,
-                      uint32_t ImportFuncCount,
-                      const std::unordered_set<uint32_t> &LazyCompiled) {
+std::vector<uint32_t> collectCallGraphBatch(
+    uint32_t LocalSeed, const AST::Module &Module, uint32_t ImportFuncCount,
+    const std::unordered_map<uint32_t, WasmFunctionCodeAddress> &Compiled) {
   std::vector<uint32_t> SortedLocals;
   const auto &CodeSec = Module.getCodeSection().getContent();
   const uint32_t DefinedCount = static_cast<uint32_t>(CodeSec.size());
 
-  if (LocalSeed >= DefinedCount || LazyCompiled.count(LocalSeed) > 0) {
+  if (LocalSeed >= DefinedCount || Compiled.count(LocalSeed) > 0) {
     return SortedLocals;
   }
 
@@ -63,7 +61,7 @@ collectCallGraphBatch(uint32_t LocalSeed, const AST::Module &Module,
         if (Target >= ImportFuncCount) {
           const uint32_t LocalIdx = Target - ImportFuncCount;
           if (LocalIdx < DefinedCount && !Visited[LocalIdx] &&
-              LazyCompiled.count(LocalIdx) == 0) {
+              Compiled.count(LocalIdx) == 0) {
             Visited[LocalIdx] = 1;
             Stack.push_back(LocalIdx);
             SortedLocals.push_back(LocalIdx);
@@ -99,10 +97,10 @@ struct LazyJITEngine::Impl {
     Data LLData;
     /// Per-module ORC LLJIT holding the generated code.
     std::shared_ptr<JITLibrary> JITLib;
-    /// Local indices of functions already lazily compiled.
-    std::unordered_set<uint32_t> LazyCompiledFuncs;
-    /// Function instances of the bound module instance by function index.
-    std::vector<Runtime::Instance::FunctionInstance *> FuncInsts;
+    /// Resolved machine code addresses of lazily compiled functions, keyed
+    /// by local function index. Survives re-instantiations, so rebinding
+    /// restores compiled functions without further JIT symbol lookups.
+    std::unordered_map<uint32_t, WasmFunctionCodeAddress> CompiledCode;
     /// Reverse lookup from function instance to function index.
     std::unordered_map<const Runtime::Instance::FunctionInstance *, uint32_t>
         FuncIndices;
@@ -119,6 +117,14 @@ struct LazyJITEngine::Impl {
   std::pair<ModuleState *, uint32_t>
   findPendingCompile(const Runtime::Instance::ModuleInstance *ModInst,
                      const Runtime::Instance::FunctionInstance *FuncInst) {
+    // Already compiled or not a wasm function: nothing to do. Checked first
+    // because it needs no map lookup, so the steady state where every call
+    // probes an already-compiled function short-circuits here. The check is
+    // done under the engine mutex to avoid racing with the upgrade in
+    // compileOnDemand.
+    if (!FuncInst->isWasmFunction() || FuncInst->isCompiledFunction()) {
+      return {nullptr, 0};
+    }
     auto StateIt = States.find(ModInst);
     if (StateIt == States.end()) {
       return {nullptr, 0};
@@ -137,13 +143,7 @@ struct LazyJITEngine::Impl {
       return {nullptr, 0};
     }
     const uint32_t LocalFuncIdx = FuncIdx - State.ImportFuncCount;
-    // Already compiled or not a wasm function: nothing to do. This check is
-    // done under the engine mutex to avoid racing with the upgrade in
-    // compileOnDemand.
-    if (!FuncInst->isWasmFunction() || FuncInst->isCompiledFunction()) {
-      return {nullptr, 0};
-    }
-    if (State.LazyCompiledFuncs.count(LocalFuncIdx) > 0) {
+    if (State.CompiledCode.count(LocalFuncIdx) > 0) {
       return {nullptr, 0};
     }
     return {&State, LocalFuncIdx};
@@ -216,35 +216,28 @@ void LazyJITEngine::registerInstance(
   PImpl->PendingStates.erase(It);
 
   const auto FuncInsts = ModInst.getFunctionInstances();
-  State.FuncInsts.reserve(FuncInsts.size());
+  State.FuncIndices.reserve(FuncInsts.size());
   for (uint32_t I = 0; I < FuncInsts.size(); ++I) {
+    State.FuncIndices.emplace(FuncInsts[I], I);
+  }
+
+  // Rebinding after a re-instantiation: the fresh function instances start
+  // in interpreter mode, so restore the functions already compiled in
+  // earlier instantiations from their persisted code addresses.
+  for (const auto &[LocalFuncIdx, Address] : State.CompiledCode) {
+    const size_t GlobalFuncIdx = size_t{State.ImportFuncCount} + LocalFuncIdx;
+    if (GlobalFuncIdx >= FuncInsts.size()) {
+      continue;
+    }
     // The function instances are owned mutable by the module instance; the
     // accessor only adds constness. Upgrading them to compiled mode is the
     // purpose of this engine.
-    auto *FuncInst =
-        const_cast<Runtime::Instance::FunctionInstance *>(FuncInsts[I]);
-    State.FuncInsts.push_back(FuncInst);
-    State.FuncIndices.emplace(FuncInst, I);
-  }
-
-  if (!State.LazyCompiledFuncs.empty() && State.JITLib) {
-    // Rebinding after a re-instantiation: the fresh function instances start
-    // in interpreter mode, so restore the functions already compiled in
-    // earlier instantiations from the persisted JIT.
-    for (uint32_t L : State.LazyCompiledFuncs) {
-      const size_t GlobalFuncIdx = size_t{State.ImportFuncCount} + L;
-      if (GlobalFuncIdx >= State.FuncInsts.size()) {
-        continue;
-      }
-      auto *FuncInst = State.FuncInsts[GlobalFuncIdx];
-      if (!FuncInst->isWasmFunction()) {
-        continue;
-      }
-      auto Codes = State.JITLib->getCodes(GlobalFuncIdx, 1);
-      if (!Codes.empty() && Codes[0]) {
-        FuncInst->unsafeUpgradeToCompiled(std::move(Codes[0]));
-      }
+    auto *FuncInst = const_cast<Runtime::Instance::FunctionInstance *>(
+        FuncInsts[GlobalFuncIdx]);
+    if (!FuncInst->isWasmFunction()) {
+      continue;
     }
+    FuncInst->unsafeUpgradeToCompiled(State.JITLib->createCodeSymbol(Address));
   }
 
   PImpl->States.insert_or_assign(&ModInst, std::move(State));
@@ -263,7 +256,6 @@ void LazyJITEngine::unregisterInstance(
   // it instead of silently losing lazy compilation.
   auto State = std::move(It->second);
   PImpl->States.erase(It);
-  State.FuncInsts.clear();
   State.FuncIndices.clear();
   // Keep the state only while someone outside the engine still holds the
   // AST module and could re-instantiate it; otherwise it can never be
@@ -304,9 +296,8 @@ Expect<void> LazyJITEngine::compileOnDemand(
   }
   auto &State = *StatePtr;
 
-  auto BatchLocals =
-      collectCallGraphBatch(LocalFuncIdx, *State.Module, State.ImportFuncCount,
-                            State.LazyCompiledFuncs);
+  auto BatchLocals = collectCallGraphBatch(
+      LocalFuncIdx, *State.Module, State.ImportFuncCount, State.CompiledCode);
   if (BatchLocals.empty()) {
     return {};
   }
@@ -333,42 +324,48 @@ Expect<void> LazyJITEngine::compileOnDemand(
           .map_error(LogError("lazy JIT function compilation"sv)));
   State.LLData = std::move(CompiledData);
 
-  if (!State.JITLib) {
-    spdlog::error("[lazy-jit]: missing JIT library for lazy compilation"sv);
-    return Unexpect(ErrCode::Value::LazyCompilationError);
-  }
-
   std::vector<uint32_t> BatchGlobal;
   BatchGlobal.reserve(BatchLocals.size());
   for (uint32_t L : BatchLocals) {
     BatchGlobal.push_back(State.ImportFuncCount + L);
   }
 
+  // The JIT library is created in prepare() and lives as long as the state.
+  assuming(State.JITLib);
   JIT JITEngine(PImpl->Conf);
   EXPECTED_TRY(auto ResolvedAddresses,
                JITEngine.add(*State.JITLib, State.LLData, BatchGlobal)
                    .map_error(LogError("lazy JIT add"sv)));
 
+  // The machine code now lives in the persisted JIT regardless of the
+  // instance bindings, so record the batch before upgrading the instances.
+  for (size_t I = 0; I < BatchLocals.size(); ++I) {
+    State.CompiledCode.emplace(BatchLocals[I], ResolvedAddresses[I]);
+  }
+
+  const auto FuncInsts = ModInst->getFunctionInstances();
   for (size_t I = 0; I < BatchLocals.size(); ++I) {
     const uint32_t GlobalFuncIdx = BatchGlobal[I];
-    if (GlobalFuncIdx >= State.FuncInsts.size()) {
+    if (GlobalFuncIdx >= FuncInsts.size()) {
       spdlog::error("[lazy-jit]: function index {} out of instance range"sv,
                     GlobalFuncIdx);
       return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
-    auto *BatchFuncInst = State.FuncInsts[GlobalFuncIdx];
+    // The function instances are owned mutable by the module instance; the
+    // accessor only adds constness. Upgrading them to compiled mode is the
+    // purpose of this engine.
+    auto *BatchFuncInst = const_cast<Runtime::Instance::FunctionInstance *>(
+        FuncInsts[GlobalFuncIdx]);
     if (BatchFuncInst->isWasmFunction()) {
-      auto CompiledSym = State.JITLib->createCodeSymbol(ResolvedAddresses[I]);
-      BatchFuncInst->unsafeUpgradeToCompiled(std::move(CompiledSym));
+      BatchFuncInst->unsafeUpgradeToCompiled(
+          State.JITLib->createCodeSymbol(ResolvedAddresses[I]));
     }
   }
-
-  State.LazyCompiledFuncs.insert(BatchLocals.begin(), BatchLocals.end());
 
   spdlog::debug(
       "[lazy-jit]: lazy compilation completed for batch of {} functions, "
       "total compiled: {}"sv,
-      BatchLocals.size(), State.LazyCompiledFuncs.size());
+      BatchLocals.size(), State.CompiledCode.size());
 
   return {};
 }
@@ -377,7 +374,11 @@ uint32_t LazyJITEngine::compiledFunctionCount() const noexcept {
   std::shared_lock Lock(PImpl->Mutex);
   uint32_t Count = 0;
   for (const auto &Pair : PImpl->States) {
-    Count += static_cast<uint32_t>(Pair.second.LazyCompiledFuncs.size());
+    Count += static_cast<uint32_t>(Pair.second.CompiledCode.size());
+  }
+  // Pending states of unbound modules still hold live compiled code.
+  for (const auto &Pair : PImpl->PendingStates) {
+    Count += static_cast<uint32_t>(Pair.second.CompiledCode.size());
   }
   return Count;
 }

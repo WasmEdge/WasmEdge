@@ -273,9 +273,9 @@ struct LLVM::Compiler::CompileContext {
             Int8Ty.getPointerTo(),
             static_cast<uint32_t>(Executable::Intrinsics::kIntrinsicMax))),
         IntrinsicsTablePtrTy(IntrinsicsTableTy.getPointerTo()),
-        IntrinsicsTable(LLModule.get().addGlobal(
-            IntrinsicsTablePtrTy, true, LLVMExternalLinkage, LLVM::Value(),
-            "intrinsics")) {
+        IntrinsicsTable(LLModule.get().addGlobal(IntrinsicsTablePtrTy, true,
+                                                 LLVMExternalLinkage,
+                                                 LLVM::Value(), "intrinsics")) {
     Trap.Ty = LLVM::Type::getFunctionType(VoidTy, {Int32Ty});
     Trap.Fn = LLModule.get().addFunction(Trap.Ty, LLVMPrivateLinkage, "trap");
     Trap.Fn.setDSOLocal(true);
@@ -414,9 +414,9 @@ struct LLVM::Compiler::CompileContext {
       Table.setInitializer(LLVM::Value::getConstNull(Table.getType()));
       Table.setGlobalConstant(false);
     } else {
-      LLModule.get().addGlobal(
-          IntrinsicsTablePtrTy, false, LLVMExternalLinkage,
-          LLVM::Value::getConstNull(IntrinsicsTablePtrTy), "intrinsics");
+      LLModule.get().addGlobal(IntrinsicsTablePtrTy, false, LLVMExternalLinkage,
+                               LLVM::Value::getConstNull(IntrinsicsTablePtrTy),
+                               "intrinsics");
     }
   }
   std::pair<std::vector<ValType>, std::vector<ValType>>
@@ -6191,8 +6191,7 @@ void Compiler::compile(const AST::TypeSection &TypeSec,
   // Iterate and compile types.
   for (size_t I = 0; I < Size; ++I) {
     const auto &CompType = SubTypes[I].getCompositeType();
-    const auto Name =
-        fmt::format("t{}"sv, Context->CompositeTypes.size());
+    const auto Name = fmt::format("t{}"sv, Context->CompositeTypes.size());
     if (CompType.isFunc()) {
       // Check that the function type is unique.
       {
@@ -6315,10 +6314,10 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       auto FTy =
           toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
       auto RTy = FTy.getReturnType();
-      auto F = LLVM::FunctionCallee{
-          FTy, Context->LLModule.get().addFunction(
-                   FTy, LLVMInternalLinkage,
-                   fmt::format("f{}"sv, FuncID).c_str())};
+      auto F =
+          LLVM::FunctionCallee{FTy, Context->LLModule.get().addFunction(
+                                        FTy, LLVMInternalLinkage,
+                                        fmt::format("f{}"sv, FuncID).c_str())};
       F.Fn.setDSOLocal(true);
       F.Fn.addFnAttr(Context->NoStackArgProbe);
       F.Fn.addFnAttr(Context->StrictFP);
@@ -6465,10 +6464,9 @@ void Compiler::compileFunctionDeclarations(
     const auto &FuncType = Context->CompositeTypes[TypeIdx]->getFuncType();
     const auto FuncID = Context->Functions.size();
     auto FTy = toLLVMType(Context->LLContext, Context->ExecCtxPtrTy, FuncType);
-    LLVM::FunctionCallee F = {
-        FTy, Context->LLModule.get().addFunction(
-                 FTy, LLVMExternalLinkage,
-                 fmt::format("f{}"sv, FuncID).c_str())};
+    LLVM::FunctionCallee F = {FTy, Context->LLModule.get().addFunction(
+                                       FTy, LLVMExternalLinkage,
+                                       fmt::format("f{}"sv, FuncID).c_str())};
     F.Fn.setVisibility(LLVMProtectedVisibility);
     F.Fn.setDSOLocal(true);
     F.Fn.setDLLStorageClass(LLVMDLLExportStorageClass);

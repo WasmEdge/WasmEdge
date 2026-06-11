@@ -185,6 +185,17 @@ LazyJITEngine::prepare(std::shared_ptr<const AST::Module> Module) {
   State.ImportFuncCount = countImportFunctions(*State.Module);
 
   std::unique_lock Lock(PImpl->Mutex);
+  // Prune pending states whose AST module nobody outside the engine holds
+  // anymore: they can never be re-instantiated, so keeping them would leak
+  // their JIT and compiled code for the lifetime of the engine.
+  for (auto It = PImpl->PendingStates.begin();
+       It != PImpl->PendingStates.end();) {
+    if (It->second.Module.use_count() > 1) {
+      ++It;
+    } else {
+      It = PImpl->PendingStates.erase(It);
+    }
+  }
   const auto *Key = State.Module.get();
   PImpl->PendingStates.insert_or_assign(Key, std::move(State));
   return Exec;
@@ -254,7 +265,11 @@ void LazyJITEngine::unregisterInstance(
   PImpl->States.erase(It);
   State.FuncInsts.clear();
   State.FuncIndices.clear();
-  if (const auto *Key = State.Module.get(); Key != nullptr) {
+  // Keep the state only while someone outside the engine still holds the
+  // AST module and could re-instantiate it; otherwise it can never be
+  // rebound, so drop it instead of leaking the JIT and its compiled code.
+  if (const auto *Key = State.Module.get();
+      Key != nullptr && State.Module.use_count() > 1) {
     PImpl->PendingStates.insert_or_assign(Key, std::move(State));
   }
 }

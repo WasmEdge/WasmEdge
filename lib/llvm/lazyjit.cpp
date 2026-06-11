@@ -75,16 +75,6 @@ std::vector<uint32_t> collectCallGraphBatch(
   return SortedLocals;
 }
 
-uint32_t countImportFunctions(const AST::Module &Module) noexcept {
-  uint32_t Count = 0;
-  for (const auto &ImpDesc : Module.getImportSection().getContent()) {
-    if (ImpDesc.getExternalType() == ExternalType::Function) {
-      ++Count;
-    }
-  }
-  return Count;
-}
-
 } // namespace
 
 struct LazyJITEngine::Impl {
@@ -182,7 +172,7 @@ LazyJITEngine::prepare(std::shared_ptr<const AST::Module> Module) {
   EXPECTED_TRY(auto Exec, JITEngine.loadLazy(State.LLData));
   State.JITLib = std::static_pointer_cast<JITLibrary>(Exec);
 
-  State.ImportFuncCount = countImportFunctions(*State.Module);
+  State.ImportFuncCount = State.Module->getImportFuncCount();
 
   std::unique_lock Lock(PImpl->Mutex);
   // Prune pending states whose AST module nobody outside the engine holds

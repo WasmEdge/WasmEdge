@@ -157,12 +157,7 @@ Expect<void> Loader::loadModule(AST::Module &Mod,
 Expect<void> Loader::loadExecutable(AST::Module &Mod,
                                     std::shared_ptr<Executable> Exec) {
   auto &SubTypes = Mod.getTypeSection().getContent();
-  size_t Offset = 0;
-  for (const auto &ImpDesc : Mod.getImportSection().getContent()) {
-    if (ImpDesc.getExternalType() == ExternalType::Function) {
-      ++Offset;
-    }
-  }
+  const size_t Offset = Mod.getImportFuncCount();
   auto &CodeSegs = Mod.getCodeSection().getContent();
 
   // Check the symbols.

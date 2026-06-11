@@ -68,6 +68,17 @@ public:
   const AOTSection &getAOTSection() const { return AOTSec; }
   AOTSection &getAOTSection() { return AOTSec; }
 
+  /// Get the number of imported functions.
+  uint32_t getImportFuncCount() const noexcept {
+    uint32_t Count = 0;
+    for (const auto &ImpDesc : ImportSec.getContent()) {
+      if (ImpDesc.getExternalType() == ExternalType::Function) {
+        ++Count;
+      }
+    }
+    return Count;
+  }
+
   /// Getter and setter for compiled symbol.
   const auto &getSymbol() const noexcept { return IntrSymbol; }
   void setSymbol(Symbol<const Executable::IntrinsicsTable *> S) noexcept {

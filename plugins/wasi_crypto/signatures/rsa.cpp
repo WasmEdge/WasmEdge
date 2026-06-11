@@ -137,8 +137,26 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::checkValid(EvpPkeyPtr Ctx) noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::toKeyPair(
-    const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    const PublicKey &Pk) const noexcept {
+  auto DerivedPk = publicKey();
+  if (!DerivedPk) {
+    return WasiCryptoUnexpect(DerivedPk);
+  }
+
+  auto DerivedData = (*DerivedPk).exportData(__WASI_PUBLICKEY_ENCODING_PKCS8);
+  if (!DerivedData) {
+    return WasiCryptoUnexpect(DerivedData);
+  }
+
+  auto GivenData = Pk.exportData(__WASI_PUBLICKEY_ENCODING_PKCS8);
+  if (!GivenData) {
+    return WasiCryptoUnexpect(GivenData);
+  }
+
+  ensureOrReturn(*DerivedData == *GivenData,
+                 __WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+
+  return Ctx;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>

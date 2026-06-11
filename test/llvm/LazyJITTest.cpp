@@ -96,6 +96,18 @@ std::vector<uint8_t> MathConsumerWasm = {
     0x10, 0x00, 0x10, 0x01, 0x0b, 0x10, 0x00, 0x20, 0x00, 0x20, 0x00,
     0x10, 0x01, 0x20, 0x01, 0x20, 0x01, 0x10, 0x01, 0x10, 0x00, 0x0b};
 
+// Module exercising the runtime intrinsics table from lazily compiled code:
+//   (memory 1)
+//   export "trap" -> unreachable   (reaches the trap intrinsic)
+//   export "grow" -> memory.grow   (reaches the memory-grow intrinsic)
+std::vector<uint8_t> IntrinsicsWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02,
+    0x60, 0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x03,
+    0x02, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x0f, 0x02,
+    0x04, 0x74, 0x72, 0x61, 0x70, 0x00, 0x00, 0x04, 0x67, 0x72, 0x6f,
+    0x77, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x03, 0x00, 0x00, 0x0b, 0x06,
+    0x00, 0x20, 0x00, 0x40, 0x00, 0x0b};
+
 class HostAdd : public Runtime::HostFunction<HostAdd> {
 public:
   Expect<uint32_t> body(const Runtime::CallingFrame &, uint32_t A, uint32_t B) {
@@ -642,6 +654,31 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   auto AddResult = JIT.add(*JITLib, *FuncCompileRes, InvalidIndices);
   EXPECT_FALSE(AddResult);
   EXPECT_EQ(AddResult.error(), ErrCode::Value::LazyCompilationError);
+}
+
+TEST_F(LazyJITTest, LazyJITIntrinsicsReachableFromCompiledCode) {
+  // Batch modules only declare the "intrinsics" global; it resolves against
+  // the infrastructure module's definition patched at prepare time. Run two
+  // operations that call back into the runtime through that table — an
+  // unresolved or null table pointer would crash instead.
+  auto VM = createLazyJITVM();
+
+  ASSERT_TRUE(VM->loadWasm(IntrinsicsWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
+
+  std::vector<ValVariant> GrowParams = {1U};
+  std::vector<ValType> GrowTypes = {ValType(TypeCode::I32)};
+  auto GrowRes = VM->execute("grow", GrowParams, GrowTypes);
+  ASSERT_TRUE(GrowRes);
+  // memory.grow returns the previous size in pages.
+  EXPECT_EQ((*GrowRes)[0].first.get<uint32_t>(), 1U);
+
+  auto TrapRes = VM->execute("trap");
+  ASSERT_FALSE(TrapRes);
+  EXPECT_EQ(TrapRes.error(), ErrCode::Value::Unreachable);
+
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 2U);
 }
 
 TEST_F(LazyJITTest, LazyJITConcurrentSameFunction) {

@@ -588,7 +588,7 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   auto &LLData = *CompileRes;
 
   LLVM::JIT JIT(Conf);
-  auto ExecRes = JIT.load(LLData, true);
+  auto ExecRes = JIT.loadLazy(LLData);
   ASSERT_TRUE(ExecRes);
 
   auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);

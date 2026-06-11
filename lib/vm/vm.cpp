@@ -546,7 +546,7 @@ Expect<void> VM::unsafeInstantiate() {
             })
             .and_then([&](auto LLModule) {
               LLVM::JIT JIT(Conf);
-              return JIT.load(LLModule);
+              return JIT.load(std::move(LLModule));
             })
             .map_error([](uint32_t Err) {
               if (Err != ErrCode::Value::Success) {

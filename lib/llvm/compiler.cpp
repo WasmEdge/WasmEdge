@@ -6114,6 +6114,17 @@ Expect<void> Compiler::optimize(LLVM::Module &LLModule,
   return {};
 }
 
+// Initialize the LLVM module held by the data for compilation: set the
+// target triple and the PIC level, and return the LLVM context.
+static LLVM::Context initLLVMModule(LLVM::Data &D) noexcept {
+  auto LLContext = D.extract().getLLContext();
+  LLVM::Core::init(LLContext.unwrap());
+  auto &LLModule = D.extract().LLModule;
+  LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
+  LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
+  return LLContext;
+}
+
 Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   // Check that the module is validated.
   if (unlikely(!Module.getIsValidated())) {
@@ -6125,11 +6136,8 @@ Expect<Data> Compiler::compile(const AST::Module &Module) noexcept {
   spdlog::info("compile start"sv);
 
   LLVM::Data D;
-  auto LLContext = D.extract().getLLContext();
-  LLVM::Core::init(LLContext.unwrap());
+  auto LLContext = initLLVMModule(D);
   auto &LLModule = D.extract().LLModule;
-  LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
-  LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
   CompileContext NewContext(LLContext, LLModule,
                             Conf.getCompilerConfigure().isGenericBinary());
@@ -6536,11 +6544,8 @@ LLVM::Compiler::compileInfrastructure(const AST::Module &Module) noexcept {
   spdlog::info("[lazy-jit]: compile infrastructure start"sv);
 
   Data D;
-  auto LLContext = D.extract().getLLContext();
-  LLVM::Core::init(LLContext.unwrap());
+  auto LLContext = initLLVMModule(D);
   auto &LLModule = D.extract().LLModule;
-  LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
-  LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
   CompileContext NewContext(LLContext, LLModule,
                             Conf.getCompilerConfigure().isGenericBinary());
@@ -6587,11 +6592,8 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   if (!LLData.extract().LLModule) {
     LLData.extract().resetModule();
   }
-  auto LLContext = LLData.extract().getLLContext();
-  LLVM::Core::init(LLContext.unwrap());
+  auto LLContext = initLLVMModule(LLData);
   auto &LLModule = LLData.extract().LLModule;
-  LLModule.setTarget(LLVM::getDefaultTargetTriple().unwrap());
-  LLModule.addFlag(LLVMModuleFlagBehaviorError, "PIC Level"sv, 2);
 
   CompileContext NewContext(LLContext, LLModule,
                             Conf.getCompilerConfigure().isGenericBinary());

@@ -337,13 +337,10 @@ Expect<void> LazyJITEngine::compileOnDemand(
                    .map_error(LogError("lazy JIT add"sv)));
 
   // The machine code now lives in the persisted JIT regardless of the
-  // instance bindings, so record the batch before upgrading the instances.
-  for (size_t I = 0; I < BatchLocals.size(); ++I) {
-    State.CompiledCode.emplace(BatchLocals[I], ResolvedAddresses[I]);
-  }
-
+  // instance bindings, so record each address before upgrading its instance.
   const auto FuncInsts = ModInst->getFunctionInstances();
   for (size_t I = 0; I < BatchLocals.size(); ++I) {
+    State.CompiledCode.emplace(BatchLocals[I], ResolvedAddresses[I]);
     upgradeToCompiled(FuncInsts, BatchGlobal[I], *State.JITLib,
                       ResolvedAddresses[I]);
   }

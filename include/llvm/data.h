@@ -35,7 +35,6 @@ public:
 
 private:
   std::unique_ptr<DataContext> Context;
-  const Configure Conf;
 };
 
 } // namespace WasmEdge::LLVM

@@ -447,6 +447,12 @@ private:
   /// @{
   Loader::Loader LoaderEngine;
   Validator::Validator ValidatorEngine;
+#ifdef WASMEDGE_USE_LLVM
+  /// Lazy JIT engine. Created only when the run mode is LazyJIT. Declared
+  /// before the executor so it outlives the executor-registered lazy
+  /// compilation callback that references it.
+  std::unique_ptr<LLVM::LazyJITEngine> LazyEngine;
+#endif
   Executor::Executor ExecutorEngine;
   /// @}
 
@@ -473,10 +479,6 @@ private:
   std::unique_ptr<Runtime::StoreManager> Store;
   /// Reference to the store.
   Runtime::StoreManager &StoreRef;
-#ifdef WASMEDGE_USE_LLVM
-  /// Lazy JIT engine. Created only when the run mode is LazyJIT.
-  std::unique_ptr<LLVM::LazyJITEngine> LazyEngine;
-#endif
   /// @}
 };
 

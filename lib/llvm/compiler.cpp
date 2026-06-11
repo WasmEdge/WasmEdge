@@ -6587,11 +6587,11 @@ Compiler::compileFunctions(Data &&LLData, const AST::Module &Module,
   spdlog::debug("[lazy-jit]: compile functions batch ({}) start"sv,
                 Sorted.size());
 
-  // The previous batch module was consumed by the JIT, so start the next
-  // batch from a fresh module sharing the same thread-safe context.
-  if (!LLData.extract().LLModule) {
-    LLData.extract().resetModule();
-  }
+  // Each batch starts from a fresh module sharing the same thread-safe
+  // context: on success the previous batch module was consumed by the JIT,
+  // and after a failed batch the leftover module must be discarded so its
+  // declarations are not re-added on top of themselves.
+  LLData.extract().resetModule();
   auto LLContext = initLLVMModule(LLData);
   auto &LLModule = LLData.extract().LLModule;
 

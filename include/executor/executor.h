@@ -204,7 +204,7 @@ public:
 
   /// Register a callback for lazy function compilation
   void registerLazyCompilationCallback(
-      std::function<Expect<void>(const std::string &, const uint32_t)>
+      std::function<Expect<void>(const Runtime::Instance::FunctionInstance *)>
           Callback) {
     LazyCompilationHandler = std::move(Callback);
   }
@@ -1149,7 +1149,7 @@ private:
   /// Executor Host Function Handler
   HostFuncHandler HostFuncHelper = {};
   /// Callback for lazy function compilation
-  std::function<Expect<void>(const std::string &, const uint32_t)>
+  std::function<Expect<void>(const Runtime::Instance::FunctionInstance *)>
       LazyCompilationHandler;
 
   /// Helper function for triggering lazy compilation.
@@ -1157,20 +1157,11 @@ private:
   /// unsafeUpgradeToCompiled on the same FuncInst could result in a race
   /// condition if checking FuncInst->isCompiledFunction() directly here. As a
   /// temporary workaround, checks for compilation state are deferred to the
-  /// LazyCompilationHandler (VM::lazyCompileFunctions), which executes
-  /// under a global JIT compilation lock.
+  /// LazyCompilationHandler, which executes under the lazy JIT engine lock.
   Expect<void> checkLazyCompilation(
       const Runtime::Instance::FunctionInstance *FuncInst) const noexcept {
-    if (LazyCompilationHandler) {
-      if (const auto *TargetModInst = FuncInst->getModule()) {
-        if (auto Res = TargetModInst->getFuncIdx(FuncInst)) {
-          uint32_t TargetFuncIdx = *Res;
-          const std::string ID = TargetModInst->getID();
-          if (!ID.empty()) {
-            return LazyCompilationHandler(ID, TargetFuncIdx);
-          }
-        }
-      }
+    if (unlikely(LazyCompilationHandler != nullptr)) {
+      return LazyCompilationHandler(FuncInst);
     }
     return {};
   }

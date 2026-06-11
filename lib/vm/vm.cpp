@@ -145,8 +145,24 @@ void VM::unsafeInitVM() {
     spdlog::warn(
         "Lazy JIT is an alpha and experimental feature, which is not ready for production use."sv);
     ExecutorEngine.registerLazyCompilationCallback(
-        [this](const std::string &ID, const uint32_t FuncIdx) -> Expect<void> {
-          return lazyCompileFunctions(ID, FuncIdx);
+        [this](const Runtime::Instance::FunctionInstance *FuncInst)
+            -> Expect<void> {
+          if (FuncInst == nullptr) {
+            return {};
+          }
+          const auto *TargetModInst = FuncInst->getModule();
+          if (TargetModInst == nullptr) {
+            return {};
+          }
+          auto Res = TargetModInst->getFuncIdx(FuncInst);
+          if (!Res) {
+            return {};
+          }
+          const std::string ID = TargetModInst->getID();
+          if (ID.empty()) {
+            return {};
+          }
+          return lazyCompileFunctions(ID, *Res);
         });
   }
 #endif

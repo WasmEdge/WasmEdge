@@ -1,0 +1,162 @@
+.
+├── aot
+│   ├── blake3.cpp
+│   ├── cache.cpp
+│   └── CMakeLists.txt
+├── api
+│   ├── CMakeLists.txt
+│   ├── libwasmedge.lds
+│   └── wasmedge.cpp
+├── CMakeLists.txt
+├── common
+│   ├── CMakeLists.txt
+│   ├── errinfo.cpp
+│   ├── hash.cpp
+│   ├── hexstr.cpp
+│   └── spdlog.cpp
+├── driver
+│   ├── CMakeLists.txt
+│   ├── compilerTool.cpp
+│   ├── fuzzPO.cpp
+│   ├── fuzzTool.cpp
+│   ├── instantiateTool.cpp
+│   ├── parseTool.cpp
+│   ├── runtimeTool.cpp
+│   ├── toolConfig.cpp
+│   ├── uniTool.cpp
+│   ├── validateTool.cpp
+│   └── wasiNNRPCServerTool.cpp
+├── executor
+│   ├── CMakeLists.txt
+│   ├── coredump.cpp
+│   ├── engine
+│   │   ├── controlInstr.cpp
+│   │   ├── engine.cpp
+│   │   ├── memoryInstr.cpp
+│   │   ├── proxy.cpp
+│   │   ├── refInstr.cpp
+│   │   ├── tableInstr.cpp
+│   │   ├── threadInstr.cpp
+│   │   └── variableInstr.cpp
+│   ├── executor.cpp
+│   ├── helper.cpp
+│   └── instantiate
+│       ├── component
+│       │   ├── component_alias.cpp
+│       │   ├── component_canon.cpp
+│       │   ├── component.cpp
+│       │   ├── component_export.cpp
+│       │   ├── component_import.cpp
+│       │   ├── component_instance.cpp
+│       │   ├── component_module.cpp
+│       │   ├── component_start.cpp
+│       │   └── component_type.cpp
+│       ├── data.cpp
+│       ├── elem.cpp
+│       ├── export.cpp
+│       ├── function.cpp
+│       ├── global.cpp
+│       ├── import.cpp
+│       ├── memory.cpp
+│       ├── module.cpp
+│       ├── table.cpp
+│       └── tag.cpp
+├── host
+│   ├── CMakeLists.txt
+│   └── wasi
+│       ├── clock-linux.cpp
+│       ├── clock-macos.cpp
+│       ├── clock-win.cpp
+│       ├── CMakeLists.txt
+│       ├── environ.cpp
+│       ├── environ-linux.cpp
+│       ├── environ-macos.cpp
+│       ├── environ-win.cpp
+│       ├── inode-linux.cpp
+│       ├── inode-macos.cpp
+│       ├── inode-win.cpp
+│       ├── linux.h
+│       ├── macos.h
+│       ├── macos.mm
+│       ├── vfs_io.cpp
+│       ├── vinode.cpp
+│       ├── wasifunc.cpp
+│       ├── wasimodule.cpp
+│       └── win.h
+├── llvm
+│   ├── CMakeLists.txt
+│   ├── codegen.cpp
+│   ├── compiler.cpp
+│   ├── data.cpp
+│   ├── data.h
+│   ├── jit.cpp
+│   └── llvm.h
+├── loader
+│   ├── aot_section.cpp
+│   ├── ast
+│   │   ├── component
+│   │   │   ├── component_alias.cpp
+│   │   │   ├── component_canonical.cpp
+│   │   │   ├── component.cpp
+│   │   │   ├── component_declarator.cpp
+│   │   │   ├── component_descriptor.cpp
+│   │   │   ├── component_export.cpp
+│   │   │   ├── component_import.cpp
+│   │   │   ├── component_instance.cpp
+│   │   │   ├── component_section.cpp
+│   │   │   ├── component_sort.cpp
+│   │   │   ├── component_start.cpp
+│   │   │   ├── component_type.cpp
+│   │   │   └── component_valtype.cpp
+│   │   ├── description.cpp
+│   │   ├── expression.cpp
+│   │   ├── instruction.cpp
+│   │   ├── module.cpp
+│   │   ├── section.cpp
+│   │   ├── segment.cpp
+│   │   └── type.cpp
+│   ├── CMakeLists.txt
+│   ├── filemgr.cpp
+│   ├── loader.cpp
+│   ├── serialize
+│   │   ├── serial_description.cpp
+│   │   ├── serial_expression.cpp
+│   │   ├── serial_instruction.cpp
+│   │   ├── serial_module.cpp
+│   │   ├── serial_section.cpp
+│   │   ├── serial_segment.cpp
+│   │   └── serial_type.cpp
+│   └── shared_library.cpp
+├── plugin
+│   ├── CMakeLists.txt
+│   ├── plugin.cpp
+│   └── wasi_logging
+│       ├── CMakeLists.txt
+│       ├── func.cpp
+│       └── module.cpp
+├── po
+│   ├── argument_parser.cpp
+│   └── CMakeLists.txt
+├── structure.txt
+├── system
+│   ├── allocator.cpp
+│   ├── CMakeLists.txt
+│   ├── fault.cpp
+│   ├── mmap.cpp
+│   ├── path.cpp
+│   └── stacktrace.cpp
+├── validator
+│   ├── CMakeLists.txt
+│   ├── component_context.cpp
+│   ├── component_name.cpp
+│   ├── component_validator.cpp
+│   ├── formchecker.cpp
+│   └── validator.cpp
+├── vm
+│   ├── CMakeLists.txt
+│   └── vm.cpp
+└── wasi_nn_rpc
+    ├── CMakeLists.txt
+    └── wasi_ephemeral_nn.proto
+
+23 directories, 137 files

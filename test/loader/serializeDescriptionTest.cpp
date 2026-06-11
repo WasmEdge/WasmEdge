@@ -37,19 +37,6 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
   WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
 
-  // 1. Test serialize import description.
-  //
-  //   1.  Serialize import description with empty module and external name.
-  //   2.  Serialize import description with module and external names.
-  //   3.  Serialize import description of table type.
-  //   4.  Serialize import description of memory type.
-  //   5.  Serialize import description of global type.
-  //   6.  Serialize invalid import description of global type without
-  //       Mut-Globals proposal.
-  //   7.  Serialize import description of tag type.
-  //   8.  Serialize import description of tag type without the exception
-  //   handling proposal.
-
   Desc.setModuleName("");
   Desc.setExternalName("");
   Desc.setExternalType(WasmEdge::ExternalType::Function);
@@ -58,12 +45,12 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
-      0x02U,       // Import section
-      0x05U,       // Content size = 5
-      0x01U,       // Vector length = 1
-      0x00U,       // Empty module name
-      0x00U,       // Empty external name
-      0x00U, 0x00U // function type and index
+      0x02U,
+      0x05U,
+      0x01U,
+      0x00U,
+      0x00U,
+      0x00U, 0x00U
   };
   EXPECT_EQ(Output, Expected);
 
@@ -75,12 +62,12 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
-      0x02U,                                           // Import section
-      0x0FU,                                           // Content size = 15
-      0x01U,                                           // Vector length = 1
-      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               // Module name: test
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
-      0x00U, 0x00U // function type and index
+      0x02U,
+      0x0FU,
+      0x01U,
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
+      0x00U, 0x00U
   };
   EXPECT_EQ(Output, Expected);
 
@@ -94,16 +81,16 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
-      0x02U,                                           // Import section
-      0x1AU,                                           // Content size = 26
-      0x01U,                                           // Vector length = 1
-      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               // Module name: test
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
-      0x01U,                                           // Table type
-      0x70U,                                           // Reference type
-      0x01U,                                           // Has min and max
-      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU,               // Min = 4294967281
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                // Max = 4294967295
+      0x02U,
+      0x1AU,
+      0x01U,
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
+      0x01U,
+      0x70U,
+      0x01U,
+      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU,
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU
   };
   EXPECT_EQ(Output, Expected);
 
@@ -116,15 +103,15 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
-      0x02U,                                           // Import section
-      0x19U,                                           // Content size = 25
-      0x01U,                                           // Vector length = 1
-      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               // Module name: test
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
-      0x02U,                                           // Memory type
-      0x01U,                                           // Has min and max
-      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU,               // Min = 4294967281
-      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU                // Max = 4294967295
+      0x02U,
+      0x19U,
+      0x01U,
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
+      0x02U,
+      0x01U,
+      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU,
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU
   };
   EXPECT_EQ(Output, Expected);
 
@@ -135,13 +122,13 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
-      0x02U,                                           // Import section
-      0x10U,                                           // Content size = 16
-      0x01U,                                           // Vector length = 1
-      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               // Module name: test
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
-      0x03U,                                           // Global type
-      0x7CU, 0x00U                                     // Const F64 number type
+      0x02U,
+      0x10U,
+      0x01U,
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
+      0x03U,
+      0x7CU, 0x00U
   };
   EXPECT_EQ(Output, Expected);
 
@@ -153,13 +140,13 @@ TEST(SerializeDescriptionTest, SerializeImportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createImportSec(Desc), Output));
   Expected = {
-      0x02U,                                           // Import section
-      0x10U,                                           // Content size = 16
-      0x01U,                                           // Vector length = 1
-      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,               // Module name: test
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
-      0x04U,                                           // Tag type
-      0x00U, 0x02U                                     // TypeIdx value
+      0x02U,
+      0x10U,
+      0x01U,
+      0x04U, 0x74U, 0x65U, 0x73U, 0x74U,
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
+      0x04U,
+      0x00U, 0x02U
   };
   EXPECT_EQ(Expected, Output);
 
@@ -176,15 +163,6 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   ConfWASM2.setWASMStandard(WasmEdge::Standard::WASM_2);
   WasmEdge::Loader::Serializer SerWASM2(ConfWASM2);
 
-  // 2. Test serialize export description.
-  //
-  //   1.  Serialize export description with empty module name.
-  //   2.  Serialize export description with non-empty module name.
-  //   3.  Serialize export description of table type.
-  //   7.  Serialize export description of tag type.
-  //   8.  Serialize export description of tag type without the exception
-  //   handling proposal.
-
   Desc.setExternalName("");
   Desc.setExternalType(WasmEdge::ExternalType::Function);
   Desc.setExternalIndex(0x00U);
@@ -192,11 +170,11 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
-      0x07U,       // Export section
-      0x04U,       // Content size = 4
-      0x01U,       // Vector length = 1
-      0x00U,       // Empty external name
-      0x00U, 0x00U // function type and index
+      0x07U,
+      0x04U,
+      0x01U,
+      0x00U,
+      0x00U, 0x00U
   };
   EXPECT_EQ(Output, Expected);
 
@@ -207,11 +185,11 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
-      0x07U,                                           // Export section
-      0x0AU,                                           // Content size = 10
-      0x01U,                                           // Vector length = 1
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
-      0x00U, 0x00U // function type and index
+      0x07U,
+      0x0AU,
+      0x01U,
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
+      0x00U, 0x00U
   };
   EXPECT_EQ(Output, Expected);
 
@@ -222,11 +200,11 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
-      0x07U,                                           // Export section
-      0x0EU,                                           // Content size = 14
-      0x01U,                                           // Vector length = 1
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
-      0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Table type and table index
+      0x07U,
+      0x0EU,
+      0x01U,
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
+      0x01U, 0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU
   };
   EXPECT_EQ(Output, Expected);
 
@@ -235,12 +213,12 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
-      0x07U,                                           // Export section
-      0x0BU,                                           // Content size = 10
-      0x01U,                                           // Vector length = 1
-      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
-      0x04U,                                           // Tag type
-      0x00U, 0x02U                                     // TypeIdx value
+      0x07U,
+      0x0AU,
+      0x01U,
+      0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U,
+      0x04U,
+      0x02U
   };
   EXPECT_EQ(Expected, Output);
 
@@ -248,3 +226,4 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   EXPECT_FALSE(SerWASM2.serializeSection(createExportSec(Desc), Output));
 }
 } // namespace
+

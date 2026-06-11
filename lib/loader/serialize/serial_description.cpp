@@ -1,3 +1,4 @@
+
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
@@ -68,7 +69,8 @@ Serializer::serializeDesc(const AST::ExportDesc &Desc,
       return logNeedProposal(ErrCode::Value::MalformedExportKind,
                              Proposal::ExceptionHandling, ASTNodeAttr::Module);
     }
-    return serializeType(Desc.getExternalIndex(), OutVec);
+    serializeU32(Desc.getExternalIndex(), OutVec);
+    return {};
   }
   serializeU32(Desc.getExternalIndex(), OutVec);
   return {};
@@ -76,3 +78,4 @@ Serializer::serializeDesc(const AST::ExportDesc &Desc,
 
 } // namespace Loader
 } // namespace WasmEdge
+

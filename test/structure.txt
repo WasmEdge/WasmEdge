@@ -1,0 +1,252 @@
+.
+├── aot
+│   ├── AOTBlake3Test.cpp
+│   ├── AOTCacheTest.cpp
+│   └── CMakeLists.txt
+├── api
+│   ├── APIAOTCoreTest.cpp
+│   ├── APIAOTNestedVMTest.cpp
+│   ├── APIStepsCoreTest.cpp
+│   ├── apiTestData
+│   │   ├── fibonacci.wat
+│   │   ├── import.wat
+│   │   └── test.wat
+│   ├── APIUnitTest.cpp
+│   ├── APIVMCoreTest.cpp
+│   ├── CMakeLists.txt
+│   ├── helper.cpp
+│   ├── helper.h
+│   ├── hostfunc_c.c
+│   └── hostfunc_c.h
+├── CMakeLists.txt
+├── common
+│   ├── CMakeLists.txt
+│   ├── hashTest.cpp
+│   ├── int128Test.cpp
+│   └── spdlogTest.cpp
+├── component
+│   ├── CMakeLists.txt
+│   ├── ComponentLoaderTest.cpp
+│   ├── ComponentRegressionTest.cpp
+│   ├── ComponentValidatorTest.cpp
+│   └── fuzzing
+│       ├── CMakeLists.txt
+│       ├── fuzz_component.cpp
+│       └── run_fuzz.sh
+├── driver
+│   ├── CMakeLists.txt
+│   ├── driverTestData
+│   │   ├── invalid.wat
+│   │   ├── mem_no_max.wat
+│   │   ├── parse_test.wat
+│   │   └── simple.wat
+│   └── driverToolTest.cpp
+├── errinfo
+│   ├── CMakeLists.txt
+│   └── errinfoTest.cpp
+├── executor
+│   ├── CMakeLists.txt
+│   ├── ExecutorRegressionTest.cpp
+│   └── ExecutorTest.cpp
+├── expected
+│   ├── assignment.cpp
+│   ├── bases.cpp
+│   ├── catch.hpp
+│   ├── CMakeLists.txt
+│   ├── constexpr.cpp
+│   ├── constructors.cpp
+│   ├── emplace.cpp
+│   ├── extensions.cpp
+│   ├── gtest.cpp
+│   ├── issues.cpp
+│   ├── main.cpp
+│   ├── noexcept.cpp
+│   ├── observers.cpp
+│   ├── relops.cpp
+│   └── swap.cpp
+├── externref
+│   ├── CMakeLists.txt
+│   ├── ExternrefTest.cpp
+│   └── externrefTestData
+│       ├── externconvert.wat
+│       ├── funcs.wat
+│       └── stl.wat
+├── host
+│   ├── mock
+│   │   ├── CMakeLists.txt
+│   │   └── mockTest.cpp
+│   ├── socket
+│   │   ├── CMakeLists.txt
+│   │   └── wasi_socket.cpp
+│   └── wasi
+│       ├── CMakeLists.txt
+│       ├── linuxTest.cpp
+│       ├── vfs_io.cpp
+│       └── wasi.cpp
+├── llvm
+│   ├── CMakeLists.txt
+│   ├── LazyJITTest.cpp
+│   └── LLVMcoreTest.cpp
+├── loader
+│   ├── CMakeLists.txt
+│   ├── descriptionTest.cpp
+│   ├── expressionTest.cpp
+│   ├── filemgrTest.cpp
+│   ├── filemgrTestData
+│   │   ├── readByteTest.bin
+│   │   ├── readF32Test.bin
+│   │   ├── readF64Test.bin
+│   │   ├── readNameTest.bin
+│   │   ├── readS32Test.bin
+│   │   ├── readS32TestTooLarge.bin
+│   │   ├── readS32TestTooLong.bin
+│   │   ├── readS64Test.bin
+│   │   ├── readS64TestTooLarge.bin
+│   │   ├── readS64TestTooLong.bin
+│   │   ├── readU32Test.bin
+│   │   ├── readU32TestTooLarge.bin
+│   │   ├── readU32TestTooLong.bin
+│   │   ├── readU64Test.bin
+│   │   ├── readU64TestTooLarge.bin
+│   │   └── readU64TestTooLong.bin
+│   ├── instructionTest.cpp
+│   ├── moduleTest.cpp
+│   ├── sectionTest.cpp
+│   ├── segmentTest.cpp
+│   ├── serializeDescriptionTest.cpp
+│   ├── serializeExpressionTest.cpp
+│   ├── serializeInstructionTest.cpp
+│   ├── serializeModuleTest.cpp
+│   ├── serializeSectionTest.cpp
+│   ├── serializeSegmentTest.cpp
+│   ├── serializeTypeTest.cpp
+│   └── typeTest.cpp
+├── meminstance
+│   ├── CMakeLists.txt
+│   └── MemInstanceTest.cpp
+├── mixcall
+│   ├── CMakeLists.txt
+│   ├── mixcallTest.cpp
+│   └── mixcallTestData
+│       ├── module1.wat
+│       └── module2.wat
+├── plugins
+│   ├── CMakeLists.txt
+│   ├── unittest
+│   │   ├── CMakeLists.txt
+│   │   ├── testplugin.c
+│   │   ├── testplugin.cpp
+│   │   ├── testplugin.h
+│   │   ├── unittest_c.cpp
+│   │   └── unittest_cpp.cpp
+│   ├── wasi_crypto
+│   │   ├── aeads.cpp
+│   │   ├── asymmetric.cpp
+│   │   ├── CMakeLists.txt
+│   │   ├── common.cpp
+│   │   ├── hash.cpp
+│   │   ├── helper.cpp
+│   │   ├── helper.h
+│   │   ├── kdf.cpp
+│   │   ├── kx.cpp
+│   │   ├── mac.cpp
+│   │   ├── notimplement.cpp
+│   │   └── signatures.cpp
+│   ├── wasi_logging
+│   │   ├── CMakeLists.txt
+│   │   └── wasi_logging.cpp
+│   ├── wasi_nn
+│   │   ├── CMakeLists.txt
+│   │   └── wasi_nn.cpp
+│   ├── wasm_bpf
+│   │   ├── assets
+│   │   │   ├── bpf-sources
+│   │   │   │   ├── Makefile
+│   │   │   │   ├── simple_map.bpf.c
+│   │   │   │   └── simple_ringbuf.bpf.c
+│   │   │   ├── CMakeLists.txt
+│   │   │   └── README.md
+│   │   ├── CMakeLists.txt
+│   │   ├── simple_map_test.cpp
+│   │   ├── simple_ringbuf_test.cpp
+│   │   └── wasm_bpf.cpp
+│   ├── wasmedge_ffmpeg
+│   │   ├── avcodec
+│   │   │   ├── avCodec.cpp
+│   │   │   ├── avCodecCtx.cpp
+│   │   │   ├── avcodec_func.cpp
+│   │   │   ├── avCodecParameters.cpp
+│   │   │   └── avPacket.cpp
+│   │   ├── avfilter
+│   │   │   ├── avfilter.cpp
+│   │   │   └── avfilter_func.cpp
+│   │   ├── avformat
+│   │   │   ├── avChapter.cpp
+│   │   │   ├── avformatContext.cpp
+│   │   │   ├── avformat_func.cpp
+│   │   │   ├── avInputOutputContext.cpp
+│   │   │   └── avStream.cpp
+│   │   ├── avutil
+│   │   │   ├── avDictionary.cpp
+│   │   │   ├── avError.cpp
+│   │   │   ├── avFrame.cpp
+│   │   │   ├── avPixfmt.cpp
+│   │   │   ├── avRational.cpp
+│   │   │   ├── avSampleFmt.cpp
+│   │   │   └── avutil_func.cpp
+│   │   ├── CMakeLists.txt
+│   │   ├── main.cpp
+│   │   ├── swresample
+│   │   │   └── swresample_func.cpp
+│   │   ├── swscale
+│   │   │   └── swscale_func.cpp
+│   │   ├── utils.cpp
+│   │   └── utils.h
+│   ├── wasmedge_image
+│   │   ├── CMakeLists.txt
+│   │   └── wasmedge_image.cpp
+│   ├── wasmedge_llmc
+│   │   ├── CMakeLists.txt
+│   │   └── wasmedge_llmc.cpp
+│   ├── wasmedge_opencvmini
+│   │   ├── CMakeLists.txt
+│   │   └── wasmedge_opencvmini.cpp
+│   ├── wasmedge_process
+│   │   ├── CMakeLists.txt
+│   │   └── wasmedge_process.cpp
+│   ├── wasmedge_stablediffusion
+│   │   ├── CMakeLists.txt
+│   │   └── wasmedge_stablediffusion.cpp
+│   ├── wasmedge_tensorflow
+│   │   ├── CMakeLists.txt
+│   │   └── wasmedge_tensorflow.cpp
+│   ├── wasmedge_tensorflowlite
+│   │   ├── CMakeLists.txt
+│   │   └── wasmedge_tensorflowlite.cpp
+│   └── wasmedge_zlib
+│       ├── CMakeLists.txt
+│       └── wasmedge_zlib.cpp
+├── po
+│   ├── CMakeLists.txt
+│   ├── gtest.cpp
+│   ├── help.cpp
+│   ├── po.cpp
+│   └── subcommand.cpp
+├── span
+│   ├── CMakeLists.txt
+│   └── span.cpp
+├── spec
+│   ├── CMakeLists.txt
+│   ├── hostfunc.h
+│   ├── spectest.cpp
+│   └── spectest.h
+├── structure.txt
+├── thread
+│   ├── CMakeLists.txt
+│   ├── mt19937.c
+│   └── ThreadTest.cpp
+└── validator
+    ├── CMakeLists.txt
+    └── ValidatorRegressionTest.cpp
+
+52 directories, 198 files

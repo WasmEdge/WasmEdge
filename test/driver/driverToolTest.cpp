@@ -119,6 +119,21 @@ containsAll(const std::string &Output,
   }
   return ::testing::AssertionSuccess();
 }
+
+::testing::AssertionResult
+containsNone(const std::string &Output,
+             std::initializer_list<const char *> Needles) {
+  for (const char *Needle : Needles) {
+    if (Output.find(Needle) != std::string::npos) {
+      return ::testing::AssertionFailure()
+             << "output unexpectedly contains substring: \"" << Needle
+             << "\"\n"
+             << "full output:\n"
+             << Output;
+    }
+  }
+  return ::testing::AssertionSuccess();
+}
 #endif
 
 // simple.wasm: self-contained module exporting add, sub, memory, counter.
@@ -483,9 +498,9 @@ TEST(ParseSubcommand, MinimalModuleEmptyCounts) {
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(R.Stdout, {"Type[0]:", "Import[0]:", "Function[0]:",
                                      "Global[0]:", "Export[0]:", "Code[0]:"}));
-  EXPECT_TRUE(containsAll(
-      R.Stdout, {"Table[0]:", "Memory[0]:", "Start:\n", "Element[0]:",
-                 "DataCount section: (not present)", "Data[0]:"}));
+  EXPECT_TRUE(containsNone(
+      R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
+                 "DataCount section", "Data[", "Tag["}));
 }
 
 TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
@@ -531,6 +546,9 @@ TEST(ParseSubcommand, OutputTagSection) {
       {"--enable-exception-handling", tagSectionTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
+  EXPECT_TRUE(containsNone(
+      R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
+                 "DataCount section", "Data["}));
 }
 #endif
 

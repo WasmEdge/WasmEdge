@@ -267,36 +267,42 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
 
   // Table Section
   const auto &Tables = Mod.getTableSection().getContent();
-  fmt::print("Table[{}]:\n", Tables.size());
-  for (uint32_t I = 0; I < Tables.size(); I++) {
-    uint32_t Idx = I + ImportedTableCount;
-    const auto &TT = Tables[I].getTableType();
-    const auto &Lim = TT.getLimit();
-    fmt::print(" - table[{}] type={} initial={}", Idx, TT.getRefType(),
-               Lim.getMin());
-    if (Lim.hasMax())
-      fmt::print(" max={}", Lim.getMax());
-    fmt::print("\n");
+  if (!Tables.empty()) {
+    fmt::print("Table[{}]:\n", Tables.size());
+    for (uint32_t I = 0; I < Tables.size(); I++) {
+      uint32_t Idx = I + ImportedTableCount;
+      const auto &TT = Tables[I].getTableType();
+      const auto &Lim = TT.getLimit();
+      fmt::print(" - table[{}] type={} initial={}", Idx, TT.getRefType(),
+                 Lim.getMin());
+      if (Lim.hasMax())
+        fmt::print(" max={}", Lim.getMax());
+      fmt::print("\n");
+    }
   }
 
   // Memory Section
   const auto &Mems = Mod.getMemorySection().getContent();
-  fmt::print("Memory[{}]:\n", Mems.size());
-  for (uint32_t I = 0; I < Mems.size(); I++) {
-    uint32_t Idx = I + ImportedMemCount;
-    const auto &Lim = Mems[I].getLimit();
-    fmt::print(" - memory[{}] pages: initial={}", Idx, Lim.getMin());
-    if (Lim.hasMax())
-      fmt::print(" max={}", Lim.getMax());
-    fmt::print("\n");
+  if (!Mems.empty()) {
+    fmt::print("Memory[{}]:\n", Mems.size());
+    for (uint32_t I = 0; I < Mems.size(); I++) {
+      uint32_t Idx = I + ImportedMemCount;
+      const auto &Lim = Mems[I].getLimit();
+      fmt::print(" - memory[{}] pages: initial={}", Idx, Lim.getMin());
+      if (Lim.hasMax())
+        fmt::print(" max={}", Lim.getMax());
+      fmt::print("\n");
+    }
   }
 
   // Tag Section
   const auto &Tags = Mod.getTagSection().getContent();
-  fmt::print("Tag[{}]:\n", Tags.size());
-  for (uint32_t I = 0; I < Tags.size(); I++) {
-    uint32_t Idx = I + ImportedTagCount;
-    fmt::print(" - tag[{}] sig={}\n", Idx, Tags[I].getTypeIdx());
+  if (!Tags.empty()) {
+    fmt::print("Tag[{}]:\n", Tags.size());
+    for (uint32_t I = 0; I < Tags.size(); I++) {
+      uint32_t Idx = I + ImportedTagCount;
+      fmt::print(" - tag[{}] sig={}\n", Idx, Tags[I].getTypeIdx());
+    }
   }
 
   // Global Section
@@ -338,47 +344,46 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
   }
 
   // Start Section
-  fmt::print("Start:\n");
   if (auto StartIdx = Mod.getStartSection().getContent()) {
+    fmt::print("Start:\n");
     fmt::print(" - func[{}]{}\n", *StartIdx, FuncName(*StartIdx));
   }
 
   // Element Section
   const auto &Elems = Mod.getElementSection().getContent();
-  fmt::print("Element[{}]:\n", Elems.size());
-  for (uint32_t I = 0; I < Elems.size(); I++) {
-    const auto &Elem = Elems[I];
-    const auto &Entries = Elem.getInitExprs();
-    switch (Elem.getMode()) {
-    case AST::ElementSegment::ElemMode::Active: {
-      fmt::print(" - segment[{}] flags=0 table={} type={} count={}", I,
-                 Elem.getIdx(), Elem.getRefType(), Entries.size());
-      std::string OffsetStr = getInitExprStr(Elem.getExpr());
-      if (!OffsetStr.empty())
-        fmt::print(" - init {}", OffsetStr);
-      fmt::print("\n");
-      break;
-    }
-    case AST::ElementSegment::ElemMode::Passive:
-      fmt::print(" - segment[{}] flags=1 passive type={} count={}\n", I,
-                 Elem.getRefType(), Entries.size());
-      break;
-    case AST::ElementSegment::ElemMode::Declarative:
-      fmt::print(" - segment[{}] flags=3 declarative type={} count={}\n", I,
-                 Elem.getRefType(), Entries.size());
-      break;
-    }
-    for (uint32_t J = 0; J < Entries.size(); J++) {
-      fmt::print("  - elem[{}] = {}\n", J, getElemEntryStr(Entries[J]));
+  if (!Elems.empty()) {
+    fmt::print("Element[{}]:\n", Elems.size());
+    for (uint32_t I = 0; I < Elems.size(); I++) {
+      const auto &Elem = Elems[I];
+      const auto &Entries = Elem.getInitExprs();
+      switch (Elem.getMode()) {
+      case AST::ElementSegment::ElemMode::Active: {
+        fmt::print(" - segment[{}] flags=0 table={} type={} count={}", I,
+                   Elem.getIdx(), Elem.getRefType(), Entries.size());
+        std::string OffsetStr = getInitExprStr(Elem.getExpr());
+        if (!OffsetStr.empty())
+          fmt::print(" - init {}", OffsetStr);
+        fmt::print("\n");
+        break;
+      }
+      case AST::ElementSegment::ElemMode::Passive:
+        fmt::print(" - segment[{}] flags=1 passive type={} count={}\n", I,
+                   Elem.getRefType(), Entries.size());
+        break;
+      case AST::ElementSegment::ElemMode::Declarative:
+        fmt::print(" - segment[{}] flags=3 declarative type={} count={}\n", I,
+                   Elem.getRefType(), Entries.size());
+        break;
+      }
+      for (uint32_t J = 0; J < Entries.size(); J++) {
+        fmt::print("  - elem[{}] = {}\n", J, getElemEntryStr(Entries[J]));
+      }
     }
   }
 
   // DataCount Section
-  fmt::print("DataCount section:");
   if (auto Count = Mod.getDataCountSection().getContent()) {
-    fmt::print(" {}\n", *Count);
-  } else {
-    fmt::print(" (not present)\n");
+    fmt::print("DataCount section: {}\n", *Count);
   }
 
   // Code Section
@@ -392,22 +397,25 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
 
   // Data Section
   const auto &Datas = Mod.getDataSection().getContent();
-  fmt::print("Data[{}]:\n", Datas.size());
-  for (uint32_t I = 0; I < Datas.size(); I++) {
-    const auto &Data = Datas[I];
-    switch (Data.getMode()) {
-    case AST::DataSegment::DataMode::Active: {
-      fmt::print(" - segment[{}] memory={} size={}", I, Data.getIdx(),
-                 Data.getData().size());
-      std::string OffsetStr = getInitExprStr(Data.getExpr());
-      if (!OffsetStr.empty())
-        fmt::print(" - init {}", OffsetStr);
-      fmt::print("\n");
-      break;
-    }
-    case AST::DataSegment::DataMode::Passive:
-      fmt::print(" - segment[{}] passive size={}\n", I, Data.getData().size());
-      break;
+  if (!Datas.empty()) {
+    fmt::print("Data[{}]:\n", Datas.size());
+    for (uint32_t I = 0; I < Datas.size(); I++) {
+      const auto &Data = Datas[I];
+      switch (Data.getMode()) {
+      case AST::DataSegment::DataMode::Active: {
+        fmt::print(" - segment[{}] memory={} size={}", I, Data.getIdx(),
+                   Data.getData().size());
+        std::string OffsetStr = getInitExprStr(Data.getExpr());
+        if (!OffsetStr.empty())
+          fmt::print(" - init {}", OffsetStr);
+        fmt::print("\n");
+        break;
+      }
+      case AST::DataSegment::DataMode::Passive:
+        fmt::print(" - segment[{}] passive size={}\n", I,
+                   Data.getData().size());
+        break;
+      }
     }
   }
 

@@ -6,10 +6,10 @@
 #include "ast/instruction.h"
 #include "ast/module.h"
 #include "common/spdlog.h"
+#include "runtime/instance/module.h"
 #include "llvm/compiler.h"
 #include "llvm/data.h"
 #include "llvm/jit.h"
-#include "runtime/instance/module.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -234,8 +234,7 @@ Expect<void> LazyJITEngine::compileOnDemand(
   EXPECTED_TRY(
       auto CompiledData,
       BatchCompiler
-          .compileFunctions(std::move(State.LLData), *State.Module,
-                            BatchLocals)
+          .compileFunctions(std::move(State.LLData), *State.Module, BatchLocals)
           .map_error([](auto Err) {
             spdlog::error(
                 "[lazy-jit]: lazy JIT function compilation failed: {}"sv, Err);
@@ -266,9 +265,8 @@ Expect<void> LazyJITEngine::compileOnDemand(
   for (size_t I = 0; I < BatchLocals.size(); ++I) {
     const uint32_t GlobalFuncIdx = State.ImportFuncCount + BatchLocals[I];
     if (GlobalFuncIdx >= State.FuncInsts.size()) {
-      spdlog::error(
-          "[lazy-jit]: function index {} out of instance range"sv,
-          GlobalFuncIdx);
+      spdlog::error("[lazy-jit]: function index {} out of instance range"sv,
+                    GlobalFuncIdx);
       return Unexpect(ErrCode::Value::WrongInstanceAddress);
     }
     auto *BatchFuncInst = State.FuncInsts[GlobalFuncIdx];

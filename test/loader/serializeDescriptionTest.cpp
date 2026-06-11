@@ -236,11 +236,11 @@ TEST(SerializeDescriptionTest, SerializeExportDesc) {
   EXPECT_TRUE(Ser.serializeSection(createExportSec(Desc), Output));
   Expected = {
       0x07U,                                           // Export section
-      0x0BU,                                           // Content size = 10
+      0x0AU,                                           // Content size = 10
       0x01U,                                           // Vector length = 1
       0x06U, 0x4CU, 0x6FU, 0x61U, 0x64U, 0x65U, 0x72U, // External name: Loader
       0x04U,                                           // Tag type
-      0x00U, 0x02U                                     // TypeIdx value
+      0x02U                                            // TypeIdx value
   };
   EXPECT_EQ(Expected, Output);
 

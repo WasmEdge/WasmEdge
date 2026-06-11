@@ -22,7 +22,6 @@
 #include <mutex>
 
 namespace WasmEdge::LLVM {
-class OrcThreadSafeContext;
 
 /// Holds llvm-relative runtime data, like llvm::Context, llvm::Module, etc.
 class Data {

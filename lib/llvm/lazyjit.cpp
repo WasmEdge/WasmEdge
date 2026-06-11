@@ -133,7 +133,7 @@ LazyJITEngine::prepare(const AST::Module &Module) {
   EXPECTED_TRY(State.LLData, InfraCompiler.compileInfrastructure(Module));
 
   JIT JITEngine(PImpl->Conf);
-  EXPECTED_TRY(auto Exec, JITEngine.load(State.LLData, true));
+  EXPECTED_TRY(auto Exec, JITEngine.loadLazy(State.LLData));
   State.JITLib = std::static_pointer_cast<JITLibrary>(Exec);
 
   State.ImportFuncCount = countImportFunctions(Module);
@@ -273,9 +273,7 @@ Expect<void> LazyJITEngine::compileOnDemand(
     }
     auto *BatchFuncInst = State.FuncInsts[GlobalFuncIdx];
     if (BatchFuncInst->isWasmFunction()) {
-      auto CompiledSym = State.JITLib->createSymbol(
-          reinterpret_cast<Runtime::Instance::FunctionInstance::CompiledFunction
-                               *>(ResolvedAddresses[I]));
+      auto CompiledSym = State.JITLib->createCodeSymbol(ResolvedAddresses[I]);
       BatchFuncInst->unsafeUpgradeToCompiled(std::move(CompiledSym));
     }
   }

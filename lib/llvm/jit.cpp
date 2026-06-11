@@ -144,7 +144,16 @@ std::vector<Symbol<void>> JITLibrary::getCodes(size_t Offset,
   return Result;
 }
 
-Expect<std::shared_ptr<Executable>> JIT::load(Data &D, bool IsLazy) noexcept {
+Expect<std::shared_ptr<Executable>> JIT::load(Data D) noexcept {
+  return loadImpl(D, false);
+}
+
+Expect<std::shared_ptr<Executable>> JIT::loadLazy(Data &D) noexcept {
+  return loadImpl(D, true);
+}
+
+Expect<std::shared_ptr<Executable>> JIT::loadImpl(Data &D,
+                                                  bool IsLazy) noexcept {
   OrcLLJIT LLJITInstance;
   if (IsLazy) {
     auto R = createTunedLazyLLJIT();

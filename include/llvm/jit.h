@@ -20,7 +20,6 @@
 #include "common/span.h"
 #include "llvm/data.h"
 #include <memory>
-#include <string_view>
 #include <vector>
 
 namespace WasmEdge::LLVM {
@@ -43,7 +42,11 @@ public:
 
   std::vector<Symbol<void>> getCodes(size_t Offset,
                                      size_t Size) noexcept override;
-  bool isLazy() const noexcept override { return IsLazy; }
+
+  /// Create a symbol for lazily compiled machine code owned by this library.
+  Symbol<void> createCodeSymbol(void *Address) const noexcept {
+    return createSymbol<void>(Address);
+  }
 
 private:
   std::shared_ptr<OrcLLJIT> J;
@@ -54,8 +57,11 @@ private:
 class JIT {
 public:
   JIT(const Configure &Conf) noexcept : Conf(Conf) {}
-  Expect<std::shared_ptr<Executable>> load(Data &D,
-                                           bool IsLazy = false) noexcept;
+  Expect<std::shared_ptr<Executable>> load(Data D) noexcept;
+
+  /// Load for lazy JIT. The data is kept alive by the caller so following
+  /// batches can reuse its thread-safe context.
+  Expect<std::shared_ptr<Executable>> loadLazy(Data &D) noexcept;
 
   /// Adds one LLVM IR module and resolves many wasm function symbols.
   Expect<std::vector<WasmFunctionCodeAddress>>
@@ -63,6 +69,8 @@ public:
       Span<const uint32_t> GlobalFuncIndices) noexcept;
 
 private:
+  Expect<std::shared_ptr<Executable>> loadImpl(Data &D, bool IsLazy) noexcept;
+
   const Configure Conf;
 };
 

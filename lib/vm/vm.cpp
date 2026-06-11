@@ -387,16 +387,21 @@ VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
   EXPECTED_TRY(ValidatorEngine.validate(Module));
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
-    if (ActiveModInst) {
-      LazyEngine->unregisterInstance(*ActiveModInst);
-    }
     // This one-shot path takes no shared ownership of the module, so it is
     // not bound to the lazy JIT engine and executes in the interpreter.
     spdlog::debug("[lazy-jit]: runWasmFile executes in interpreter mode"sv);
   }
 #endif
-  EXPECTED_TRY(ActiveModInst,
+  EXPECTED_TRY(auto NewModInst,
                ExecutorEngine.instantiateModule(StoreRef, Module));
+#ifdef WASMEDGE_USE_LLVM
+  // Drop the lazy binding of the replaced instance only after the new
+  // instantiation succeeds, so a failed run keeps the current instance bound.
+  if (LazyEngine && ActiveModInst) {
+    LazyEngine->unregisterInstance(*ActiveModInst);
+  }
+#endif
+  ActiveModInst = std::move(NewModInst);
 
   // Get module instance.
   if (ActiveModInst) {
@@ -579,20 +584,20 @@ Expect<void> VM::unsafeInstantiate() {
 #endif
     }
 
-#ifdef WASMEDGE_USE_LLVM
-    if (LazyEngine && ActiveModInst) {
-      LazyEngine->unregisterInstance(*ActiveModInst);
-    }
-#endif
-
-    EXPECTED_TRY(ActiveModInst,
+    EXPECTED_TRY(auto NewModInst,
                  ExecutorEngine.instantiateModule(StoreRef, *Mod));
 
 #ifdef WASMEDGE_USE_LLVM
     if (LazyEngine) {
-      LazyEngine->registerInstance(*ActiveModInst, Mod);
+      // Rebind the lazy JIT state only after instantiation succeeds, so a
+      // failed re-instantiation keeps the current instance bound.
+      if (ActiveModInst) {
+        LazyEngine->unregisterInstance(*ActiveModInst);
+      }
+      LazyEngine->registerInstance(*NewModInst, Mod);
     }
 #endif
+    ActiveModInst = std::move(NewModInst);
 
     Stage = VMStage::Instantiated;
     return {};

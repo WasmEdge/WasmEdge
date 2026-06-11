@@ -94,9 +94,6 @@ struct LazyJITEngine::Impl {
     std::shared_ptr<const AST::Module> Module;
     /// Per-module LLVM data holding the thread-safe context.
     Data LLData;
-    /// Compilation context reused across batches.
-    std::unique_ptr<Compiler::CompileContext, Compiler::CompileContextDeleter>
-        LLContext;
     /// Per-module ORC LLJIT holding the generated code.
     std::shared_ptr<JITLibrary> JITLib;
     /// Local indices of functions already lazily compiled.
@@ -133,9 +130,7 @@ LazyJITEngine::prepare(const AST::Module &Module) {
   Compiler InfraCompiler(PImpl->Conf);
   EXPECTED_TRY(InfraCompiler.checkConfigure());
 
-  EXPECTED_TRY(auto Infra, InfraCompiler.compileInfrastructure(Module));
-  State.LLData = std::move(Infra.first);
-  State.LLContext = std::move(Infra.second);
+  EXPECTED_TRY(State.LLData, InfraCompiler.compileInfrastructure(Module));
 
   JIT JITEngine(PImpl->Conf);
   EXPECTED_TRY(auto Exec, JITEngine.load(State.LLData, true));
@@ -236,14 +231,11 @@ Expect<void> LazyJITEngine::compileOnDemand(
     return Err;
   }));
 
-  if (!State.LLData.hasModule()) {
-    State.LLData.resetModule();
-  }
   EXPECTED_TRY(
       auto CompiledData,
       BatchCompiler
-          .compileFunctions(std::move(State.LLData), State.LLContext.get(),
-                            *State.Module, BatchLocals)
+          .compileFunctions(std::move(State.LLData), *State.Module,
+                            BatchLocals)
           .map_error([](auto Err) {
             spdlog::error(
                 "[lazy-jit]: lazy JIT function compilation failed: {}"sv, Err);

@@ -585,8 +585,7 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   auto CompileRes = Compiler.compileInfrastructure(*Module);
   ASSERT_TRUE(CompileRes);
 
-  auto &LLData = CompileRes->first;
-  auto &CompileCtx = CompileRes->second;
+  auto &LLData = *CompileRes;
 
   LLVM::JIT JIT(Conf);
   auto ExecRes = JIT.load(LLData, true);
@@ -595,11 +594,8 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);
 
   std::vector<uint32_t> CompileLocals = {0};
-  if (!LLData.hasModule()) {
-    LLData.resetModule();
-  }
-  auto FuncCompileRes = Compiler.compileFunctions(
-      std::move(LLData), CompileCtx.get(), *Module, CompileLocals);
+  auto FuncCompileRes =
+      Compiler.compileFunctions(std::move(LLData), *Module, CompileLocals);
   ASSERT_TRUE(FuncCompileRes);
 
   std::vector<uint32_t> InvalidIndices = {999};

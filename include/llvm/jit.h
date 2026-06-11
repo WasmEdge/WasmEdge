@@ -16,22 +16,14 @@
 #include "ast/module.h"
 #include "common/configure.h"
 #include "common/errcode.h"
+#include "common/executable.h"
 #include "common/span.h"
-#include "llvm/compiler.h"
 #include "llvm/data.h"
 #include <memory>
-#include <mutex>
 #include <string_view>
-#include <unordered_set>
 #include <vector>
 
-namespace llvm {
-class Module;
-}
-
 namespace WasmEdge::LLVM {
-
-class Module;
 
 /// Address of JIT- or AOT-generated machine code for a wasm function. Not a
 /// typed C++ function pointer; wasm signatures vary and calls go through the
@@ -80,20 +72,6 @@ public:
 
 private:
   const Configure Conf;
-};
-
-struct LazyJITState {
-  /// Track which functions have been lazy-compiled.
-  std::unordered_set<uint32_t> LazyCompiledFuncs;
-  /// Number of import functions (offset for local function indices).
-  uint32_t ImportFuncCount = 0;
-  /// Store compiled JIT library to keep it alive
-  std::shared_ptr<JITLibrary> JITLib;
-  /// Per-module JIT data and context
-  Data LLData;
-  /// Pointer to the LLVM context.
-  std::unique_ptr<Compiler::CompileContext, Compiler::CompileContextDeleter>
-      LLContext;
 };
 
 } // namespace WasmEdge::LLVM

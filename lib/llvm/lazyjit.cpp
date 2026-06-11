@@ -312,10 +312,10 @@ Expect<void> LazyJITEngine::compileOnDemand(
     };
   };
 
+  // The configure was already validated by checkConfigure() in prepare(),
+  // and a state only exists after a successful prepare, so re-validating
+  // here would only repeat its per-proposal warnings once per batch.
   Compiler BatchCompiler(PImpl->Conf);
-  EXPECTED_TRY(BatchCompiler.checkConfigure().map_error(
-      LogError("lazy JIT compiler config"sv)));
-
   EXPECTED_TRY(
       auto CompiledData,
       BatchCompiler

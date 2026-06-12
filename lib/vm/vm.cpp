@@ -28,23 +28,6 @@ namespace VM {
 
 namespace {
 
-template <typename T> struct VisitUnit {
-  using MT = std::function<T(std::unique_ptr<AST::Module> &)>;
-  using CT = std::function<T(std::unique_ptr<AST::Component::Component> &)>;
-
-  VisitUnit(MT F, CT G) : VisitMod{F}, VisitComp{G} {}
-  T operator()(std::unique_ptr<AST::Module> &Mod) const {
-    return VisitMod(Mod);
-  }
-  T operator()(std::unique_ptr<AST::Component::Component> &Comp) const {
-    return VisitComp(Comp);
-  }
-
-private:
-  MT VisitMod;
-  CT VisitComp;
-};
-
 template <typename T>
 std::unique_ptr<Runtime::Instance::ModuleInstance>
 createPluginModule(std::string_view PName, std::string_view MName) {
@@ -301,6 +284,17 @@ Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
   return {};
 }
 
+VM::WasmUnitKind VM::unsafeStoreWasmUnit(
+    std::variant<std::unique_ptr<AST::Component::Component>,
+                 std::unique_ptr<AST::Module>> &&Unit) {
+  if (auto *M = std::get_if<std::unique_ptr<AST::Module>>(&Unit)) {
+    Mod = std::move(*M);
+    return WasmUnitKind::Module;
+  }
+  Comp = std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit));
+  return WasmUnitKind::Component;
+}
+
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
@@ -308,17 +302,11 @@ VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
   unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
-  return std::visit(
-      VisitUnit<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
-          [&](auto &M) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Mod = std::move(M);
-            return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
-          },
-          [&](auto &C) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Comp = std::move(C);
-            return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
-          }),
-      ComponentOrModule);
+  if (unsafeStoreWasmUnit(std::move(ComponentOrModule)) ==
+      WasmUnitKind::Component) {
+    return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
+  }
+  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -328,17 +316,11 @@ VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
   unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
-  return std::visit(
-      VisitUnit<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
-          [&](auto &M) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Mod = std::move(M);
-            return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
-          },
-          [&](auto &C) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Comp = std::move(C);
-            return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
-          }),
-      ComponentOrModule);
+  if (unsafeStoreWasmUnit(std::move(ComponentOrModule)) ==
+      WasmUnitKind::Component) {
+    return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
+  }
+  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
@@ -433,10 +415,7 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
-
-  std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
-                             [&](auto &C) -> void { Comp = std::move(C); }),
-             ComponentOrModule);
+  unsafeStoreWasmUnit(std::move(ComponentOrModule));
   Stage = VMStage::Loaded;
   return {};
 }
@@ -444,10 +423,7 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
-
-  std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
-                             [&](auto &C) -> void { Comp = std::move(C); }),
-             ComponentOrModule);
+  unsafeStoreWasmUnit(std::move(ComponentOrModule));
   Stage = VMStage::Loaded;
   return {};
 }

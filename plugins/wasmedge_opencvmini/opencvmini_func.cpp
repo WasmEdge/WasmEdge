@@ -24,9 +24,12 @@ WasmEdgeOpenCVMiniImdecode::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  char *Buf = MemInst->getPointer<char *>(BufPtr);
+  auto Buf = MemInst->getSpan<char>(BufPtr, BufLen);
+  if (unlikely(Buf.size() != BufLen)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
 
-  std::vector<char> Content(Buf, Buf + BufLen);
+  std::vector<char> Content(Buf.begin(), Buf.end());
   cv::Mat Img = cv::imdecode(cv::InputArray(Content), cv::IMREAD_COLOR);
 
   return Env.insertMat(Img);
@@ -44,8 +47,11 @@ Expect<void> WasmEdgeOpenCVMiniImshow::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  char *Buf = MemInst->getPointer<char *>(WindowNamePtr);
-  std::copy_n(Buf, WindowNameLen, std::back_inserter(WindowName));
+  auto Buf = MemInst->getSpan<char>(WindowNamePtr, WindowNameLen);
+  if (unlikely(Buf.size() != WindowNameLen)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  std::copy_n(Buf.data(), WindowNameLen, std::back_inserter(WindowName));
 
   if (auto Img = Env.getMat(MatKey); Img) {
     cv::imshow(WindowName.c_str(), *Img);
@@ -186,8 +192,12 @@ Expect<void> WasmEdgeOpenCVMiniImwrite::body(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  char *Buf = MemInst->getPointer<char *>(TargetFileNamePtr);
-  std::copy_n(Buf, TargetFileNameLen, std::back_inserter(TargetFileName));
+  auto Buf = MemInst->getSpan<char>(TargetFileNamePtr, TargetFileNameLen);
+  if (unlikely(Buf.size() != TargetFileNameLen)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  std::copy_n(Buf.data(), TargetFileNameLen,
+              std::back_inserter(TargetFileName));
 
   if (auto Img = Env.getMat(MatKey); Img) {
     cv::imwrite(TargetFileName.c_str(), *Img);
@@ -203,8 +213,11 @@ Expect<void> WasmEdgeOpenCVMiniImencode::body(
 
   auto *MemInst = Frame.getMemoryByIndex(0);
 
-  char *Buf = MemInst->getPointer<char *>(ExtPtr);
-  std::copy_n(Buf, ExtLen, std::back_inserter(Ext));
+  auto Buf = MemInst->getSpan<char>(ExtPtr, ExtLen);
+  if (unlikely(Buf.size() != ExtLen)) {
+    return Unexpect(ErrCode::Value::HostFuncError);
+  }
+  std::copy_n(Buf.data(), ExtLen, std::back_inserter(Ext));
 
   auto Img = Env.getMat(MatKey);
   if (!Img) {

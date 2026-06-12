@@ -9,7 +9,9 @@
 // BUILTIN-PLUGIN: Headers for built-in plug-ins.
 #include "plugin/wasi_logging/module.h"
 
+#include <string>
 #include <type_traits>
+#include <unordered_set>
 #include <variant>
 
 #if WASMEDGE_OS_LINUX || WASMEDGE_OS_MACOS
@@ -72,6 +74,14 @@ class CAPIPluginRegister {
 public:
   CAPIPluginRegister(const CAPIPluginRegister &) = delete;
   CAPIPluginRegister &operator=(const CAPIPluginRegister &) = delete;
+
+  ~CAPIPluginRegister() noexcept {
+    // Remove this register's entries from the static lookup so that a discarded
+    // register (failed registration) leaves no dangling keys behind.
+    for (const auto &ModuleDesc : ModuleDescriptions) {
+      DescriptionLookup.erase(&ModuleDesc);
+    }
+  }
 
   CAPIPluginRegister(const WasmEdge_PluginDescriptor *Desc) noexcept {
     ModuleDescriptions.resize(Desc->ModuleCount);
@@ -225,10 +235,15 @@ std::unordered_map<const PluginModule::ModuleDescriptor *,
 
 std::vector<std::unique_ptr<CAPIPluginRegister>> CAPIPluginRegisters;
 
+// Path keys of shared libraries already loaded, so repeated load() calls
+// neither re-dlopen nor re-register them and still report them as available.
+// Guarded by Plugin::Mutex.
+std::unordered_set<std::string> LoadedFiles;
+
 } // namespace
 
-std::mutex WasmEdge::Plugin::Plugin::Mutex;
-std::vector<Plugin> WasmEdge::Plugin::Plugin::PluginRegistry;
+std::shared_mutex WasmEdge::Plugin::Plugin::Mutex;
+std::deque<Plugin> WasmEdge::Plugin::Plugin::PluginRegistry;
 std::unordered_map<std::string_view, std::size_t, Hash::Hash>
     WasmEdge::Plugin::Plugin::PluginNameLookup;
 
@@ -378,6 +393,7 @@ bool Plugin::registerPlugin(const PluginDescriptor *Desc) noexcept {
 }
 
 void Plugin::addPluginOptions(PO::ArgumentParser &Parser) noexcept {
+  std::shared_lock Lock(Mutex);
   for (const auto &Plugin : PluginRegistry) {
     if (Plugin.Desc->AddOptions) {
       Plugin.Desc->AddOptions(Plugin.Desc, Parser);
@@ -386,16 +402,27 @@ void Plugin::addPluginOptions(PO::ArgumentParser &Parser) noexcept {
 }
 
 WASMEDGE_EXPORT const Plugin *Plugin::find(std::string_view Name) noexcept {
+  std::shared_lock Lock(Mutex);
   if (auto Iter = PluginNameLookup.find(Name); Iter != PluginNameLookup.end()) {
+    // Safe to return after releasing the lock: std::deque never relocates
+    // existing elements when later plugins are appended.
     return std::addressof(PluginRegistry[Iter->second]);
   }
   return nullptr;
 }
 
-Span<const Plugin> Plugin::plugins() noexcept { return PluginRegistry; }
+const std::deque<Plugin> &Plugin::plugins() noexcept { return PluginRegistry; }
 
 bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
   std::unique_lock Lock(Mutex);
+
+  // A library already loaded in this process stays available: report success
+  // without re-dlopen'ing or re-registering it.
+  const std::string FileKey = Path.u8string();
+  if (LoadedFiles.find(FileKey) != LoadedFiles.end()) {
+    return true;
+  }
+
   bool Result = false;
   auto Lib = std::make_shared<Loader::SharedLibrary>();
   if (auto Res = Lib->load(Path); unlikely(!Res)) {
@@ -416,11 +443,19 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
     } else if (const auto *Descriptor = GetDescriptor();
                unlikely(!Descriptor)) {
       return false;
+    } else if (PluginNameLookup.find(Descriptor->Name) !=
+               PluginNameLookup.end()) {
+      // Already registered under this name: don't build a CAPIPluginRegister,
+      // it would leak since registerPlugin() would reject the duplicate.
+      return false;
     } else {
       Result =
           CAPIPluginRegisters
               .emplace_back(std::make_unique<CAPIPluginRegister>(Descriptor))
               ->result();
+      if (unlikely(!Result)) {
+        CAPIPluginRegisters.pop_back();
+      }
     }
   }
 
@@ -431,6 +466,7 @@ bool Plugin::loadFile(const std::filesystem::path &Path) noexcept {
   auto &Plugin = PluginRegistry.back();
   Plugin.Path = Path;
   Plugin.Lib = std::move(Lib);
+  LoadedFiles.insert(FileKey);
   return true;
 }
 

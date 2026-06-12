@@ -53,7 +53,6 @@ int callCompile(std::initializer_list<const char *> Args) {
                                    WasmEdge::Driver::ToolType::Compiler);
 }
 
-/* TODO: Uncomment when plugin re-entrancy issue is fixed.
 int callInstantiate(std::initializer_list<const char *> Args) {
   std::vector<const char *> Argv = {"wasmedge"};
   Argv.insert(Argv.end(), Args.begin(), Args.end());
@@ -74,7 +73,6 @@ int callUniToolAll(std::initializer_list<const char *> Args) {
   return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
                                    WasmEdge::Driver::ToolType::All);
 }
-*/
 
 #if !WASMEDGE_OS_WINDOWS
 struct ToolResult {
@@ -211,7 +209,6 @@ static const std::array<uint8_t, 25> MemNoMaxWasm{
     0x0f, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x06, 0x6d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01};
 
-/* TODO: Uncomment when plugin re-entrancy issue is fixed.
 // provider.wasm: exports function "add" (i32, i32) -> i32.
 static const std::array<uint8_t, 41> ProviderWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
@@ -225,7 +222,6 @@ static const std::array<uint8_t, 44> ConsumerWasm{
     0x60, 0x02, 0x7f, 0x7f, 0x01, 0x7f, 0x02, 0x10, 0x01, 0x08, 0x70,
     0x72, 0x6f, 0x76, 0x69, 0x64, 0x65, 0x72, 0x03, 0x61, 0x64, 0x64,
     0x00, 0x00, 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00};
-*/
 
 std::string simplePath() {
   static std::string Path;
@@ -253,7 +249,6 @@ std::string parseTestPath() {
   return Path;
 }
 
-/* TODO: Uncomment when plugin re-entrancy issue is fixed.
 std::string providerPath() {
   static std::string Path;
   if (Path.empty()) {
@@ -271,7 +266,6 @@ std::string consumerPath() {
   }
   return Path;
 }
-*/
 
 std::string nonExistPath() { return TestDataPath + "/nonexist.wasm"; }
 
@@ -705,13 +699,9 @@ TEST(RunSubcommand, ParseRunModeArg) {
   EXPECT_FALSE(WasmEdge::Driver::parseRunModeArg("").has_value());
 }
 
-/* ---------------------------------------------------------------------------
- * InstantiateSubcommand tests
- * TODO: Commented out due to plugin re-entrancy issue.
- * UniTool with ToolType::Instantiate calls addLinkerOptions ->
- * loadFromDefaultPaths -> addPluginOptions, which leaves dangling pointers
- * on repeated calls. Uncomment when the plugin system is made re-entrant.
- * ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// InstantiateSubcommand tests
+// ---------------------------------------------------------------------------
 
 TEST(InstantiateSubcommand, ErrorHandling) {
   EXPECT_NE(callInstantiate({}), EXIT_SUCCESS);
@@ -791,13 +781,9 @@ TEST(InstantiateSubcommand, ForbiddenPluginFlag) {
             EXIT_SUCCESS);
 }
 
- * ---------------------------------------------------------------------------
- * RunSubcommand tests
- * TODO: Commented out due to plugin re-entrancy issue.
- * UniTool with ToolType::Tool calls addLinkerOptions -> loadFromDefaultPaths
- * -> addPluginOptions, which leaves dangling pointers on repeated calls.
- * Uncomment when the plugin system is made re-entrant.
- * ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// RunSubcommand tests
+// ---------------------------------------------------------------------------
 
 TEST(RunSubcommand, ErrorHandling) {
   EXPECT_NE(callRun({}), EXIT_SUCCESS);
@@ -921,7 +907,6 @@ TEST(NoSubcommand, FallbackToRun) {
                             simplePath().c_str(), "add", "1", "2"}),
             EXIT_SUCCESS);
 }
-*/
 
 } // namespace
 

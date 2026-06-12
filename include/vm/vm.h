@@ -38,6 +38,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -401,6 +402,13 @@ private:
   const Runtime::Instance::ModuleInstance *unsafeGetActiveModule() const;
 
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
+  enum class WasmUnitKind : uint8_t { Module, Component };
+
+  /// Store a parsed wasm unit into the matching slot and report its kind.
+  /// The slot for the other kind keeps its previous content.
+  WasmUnitKind unsafeStoreWasmUnit(
+      std::variant<std::unique_ptr<AST::Component::Component>,
+                   std::unique_ptr<AST::Module>> &&Unit);
 
   /// Registering a module or running another wasm unit resets the active
   /// instantiation in the store, so the stage falls back to Validated and

@@ -937,6 +937,11 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     // Inline-export names on a component instance must be strongly-unique.
     std::unordered_set<std::string_view> SeenExports;
     for (const auto &Export : Inst.getInlineExports()) {
+      // Inline-export names must be valid component export names.
+      if (auto Res = validateExportName(Export.getName()); !Res) {
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+        return Unexpect(Res.error());
+      }
       if (!SeenExports.insert(Export.getName()).second) {
         spdlog::error(ErrCode::Value::ComponentDuplicateName);
         spdlog::error("    Instance: Duplicate inline-export name '{}'"sv,
@@ -1055,11 +1060,11 @@ Expect<void> Validator::validate(const AST::Component::Alias &Alias) noexcept {
     const auto &InstExports = CompCtx.getInstance(Idx).Exports;
     auto It = InstExports.find(std::string(Name));
     if (It == InstExports.cend()) {
-      spdlog::error(ErrCode::Value::ExportNotFound);
+      spdlog::error(ErrCode::Value::ComponentUnknownExport);
       spdlog::error(
           "    Alias export: No matching export '{}' found in component instance index {}"sv,
           Name, Idx);
-      return Unexpect(ErrCode::Value::ExportNotFound);
+      return Unexpect(ErrCode::Value::ComponentUnknownExport);
     }
 
     if (It->second.ST != Sort.getSortType()) {
@@ -1735,10 +1740,10 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
   }
 
   if (!CompCtx.addImportedName(CName)) {
-    spdlog::error(ErrCode::Value::ComponentDuplicateName);
+    spdlog::error(ErrCode::Value::ComponentImportNameConflict);
     spdlog::error("    Import: Duplicate import name"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
-    return Unexpect(ErrCode::Value::ComponentDuplicateName);
+    return Unexpect(ErrCode::Value::ComponentImportNameConflict);
   }
 
   // If this import introduced a TypeBound resource with a label name,
@@ -2077,10 +2082,10 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
 
   // Check import name uniqueness.
   if (!CompCtx.addImportedName(CName)) {
-    spdlog::error(ErrCode::Value::ComponentDuplicateName);
+    spdlog::error(ErrCode::Value::ComponentImportNameConflict);
     spdlog::error("    ImportDecl: Duplicate import name"sv);
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Import));
-    return Unexpect(ErrCode::Value::ComponentDuplicateName);
+    return Unexpect(ErrCode::Value::ComponentImportNameConflict);
   }
 
   return {};
@@ -2267,11 +2272,11 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
         return Unexpect(ErrCode::Value::NameCannotBeEmpty);
       }
       if (!isKebabString(LT.getLabel())) {
-        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(ErrCode::Value::ComponentNameNotKebab);
         spdlog::error(
             "    DefValType: record field '{}' is not valid kebab-case"sv,
             LT.getLabel());
-        return Unexpect(ErrCode::Value::ComponentInvalidName);
+        return Unexpect(ErrCode::Value::ComponentNameNotKebab);
       }
       if (!Seen.insert(toLowerStr(LT.getLabel())).second) {
         spdlog::error(ErrCode::Value::RecordFieldNameConflicts);
@@ -2294,11 +2299,11 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
         return Unexpect(ErrCode::Value::NameCannotBeEmpty);
       }
       if (!isKebabString(C.first)) {
-        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(ErrCode::Value::ComponentNameNotKebab);
         spdlog::error(
             "    DefValType: variant case '{}' is not valid kebab-case"sv,
             C.first);
-        return Unexpect(ErrCode::Value::ComponentInvalidName);
+        return Unexpect(ErrCode::Value::ComponentNameNotKebab);
       }
       if (!Seen.insert(toLowerStr(C.first)).second) {
         spdlog::error(ErrCode::Value::VariantCaseNameConflicts);
@@ -2348,10 +2353,10 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
         return Unexpect(ErrCode::Value::NameCannotBeEmpty);
       }
       if (!isKebabString(L)) {
-        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(ErrCode::Value::ComponentNameNotKebab);
         spdlog::error(
             "    DefValType: flags label '{}' is not valid kebab-case"sv, L);
-        return Unexpect(ErrCode::Value::ComponentInvalidName);
+        return Unexpect(ErrCode::Value::ComponentNameNotKebab);
       }
       if (!Seen.insert(toLowerStr(L)).second) {
         spdlog::error(ErrCode::Value::FlagNameConflicts);
@@ -2373,10 +2378,10 @@ Validator::validate(const AST::Component::DefValType &DVT) noexcept {
         return Unexpect(ErrCode::Value::NameCannotBeEmpty);
       }
       if (!isKebabString(L)) {
-        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(ErrCode::Value::ComponentNameNotKebab);
         spdlog::error(
             "    DefValType: enum label '{}' is not valid kebab-case"sv, L);
-        return Unexpect(ErrCode::Value::ComponentInvalidName);
+        return Unexpect(ErrCode::Value::ComponentNameNotKebab);
       }
       if (!Seen.insert(toLowerStr(L)).second) {
         spdlog::error(ErrCode::Value::EnumTagNameConflicts);
@@ -2402,11 +2407,11 @@ Expect<void> Validator::validate(const AST::Component::FuncType &FT) noexcept {
   for (const auto &P : FT.getParamList()) {
     if (!P.getLabel().empty()) {
       if (!isKebabString(P.getLabel())) {
-        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(ErrCode::Value::ComponentNameNotKebab);
         spdlog::error(
             "    FuncType: parameter name '{}' is not valid kebab-case"sv,
             P.getLabel());
-        return Unexpect(ErrCode::Value::ComponentInvalidName);
+        return Unexpect(ErrCode::Value::ComponentNameNotKebab);
       }
       if (!ParamNames.insert(P.getLabel()).second) {
         spdlog::error(ErrCode::Value::ComponentDuplicateName);

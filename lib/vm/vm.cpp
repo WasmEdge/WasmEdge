@@ -222,9 +222,9 @@ Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
   return {};
 }
 
-VM::WasmUnitKind VM::unsafeStoreWasmUnit(
-    std::variant<std::unique_ptr<AST::Component::Component>,
-                 std::unique_ptr<AST::Module>> &&Unit) {
+VM::WasmUnitKind
+VM::unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
+                                     std::unique_ptr<AST::Module>> &&Unit) {
   if (auto *M = std::get_if<std::unique_ptr<AST::Module>>(&Unit)) {
     Mod = std::move(*M);
     return WasmUnitKind::Module;

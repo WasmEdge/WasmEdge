@@ -1,4 +1,4 @@
-### 0.16.4-rc.1 (2026-06-09)
+### 0.16.4 (2026-06-12)
 
 This is the bug fix for the 0.16.x versions.
 
@@ -15,7 +15,7 @@ Thank all the contributors who made this release possible!
 
 Shen-Ta Hsieh(BestSteve), Yi-Ying He
 
-If you want to build from source, please use WasmEdge-0.16.4-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+If you want to build from source, please use WasmEdge-0.16.4-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.16.3 (2026-05-04)
 

@@ -370,6 +370,11 @@ private:
 
   Expect<void> unsafeInstantiate();
 
+  /// In JIT or lazy JIT mode, compile and attach an executable to the loaded
+  /// module if it does not carry one yet. Eager JIT compilation failures fall
+  /// back to the interpreter; without LLVM support this only logs a warning.
+  Expect<void> unsafeLoadJITExecutable();
+
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});

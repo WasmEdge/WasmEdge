@@ -1724,9 +1724,9 @@ TEST(SerializeInstructionTest, SerializeSIMDInstruction) {
   // i8x16.shuffle has a 16-byte immediate.
   // The loader unpacks the bytes such that the Nth byte is stored at (N * 8) bits shift.
   // Therefore the serialization should output the Nth byte sequentially.
-  uint128_t Value = 0U;
+  WasmEdge::uint128_t Value = 0U;
   for (uint32_t I = 0U; I < 16U; ++I) {
-    Value |= static_cast<uint128_t>(I) << (I * 8U);
+    Value |= static_cast<WasmEdge::uint128_t>(I) << (I * 8U);
   }
   I8x16Shuffle.setNum(Value);
 

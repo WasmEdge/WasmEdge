@@ -184,85 +184,92 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
 
   // Type Section
   const auto &Types = Mod.getTypeSection().getContent();
-  fmt::print("Type[{}]:\n", Types.size());
-  for (uint32_t I = 0; I < Types.size(); I++) {
-    const auto &FuncType = Types[I].getCompositeType().getFuncType();
-    fmt::print(" - type[{}] (", I);
-    const auto &Params = FuncType.getParamTypes();
-    for (uint32_t J = 0; J < Params.size(); J++) {
-      if (J > 0)
-        fmt::print(", ");
-      fmt::print("{}", Params[J]);
-    }
-    fmt::print(") -> ");
-    const auto &Returns = FuncType.getReturnTypes();
-    if (Returns.empty()) {
-      fmt::print("nil");
-    } else {
-      for (uint32_t J = 0; J < Returns.size(); J++) {
+  if (!Types.empty()) {
+    fmt::print("Type[{}]:\n", Types.size());
+    for (uint32_t I = 0; I < Types.size(); I++) {
+      const auto &FuncType = Types[I].getCompositeType().getFuncType();
+      fmt::print(" - type[{}] (", I);
+      const auto &Params = FuncType.getParamTypes();
+      for (uint32_t J = 0; J < Params.size(); J++) {
         if (J > 0)
           fmt::print(", ");
-        fmt::print("{}", Returns[J]);
+        fmt::print("{}", Params[J]);
       }
+      fmt::print(") -> ");
+      const auto &Returns = FuncType.getReturnTypes();
+      if (Returns.empty()) {
+        fmt::print("nil");
+      } else {
+        for (uint32_t J = 0; J < Returns.size(); J++) {
+          if (J > 0)
+            fmt::print(", ");
+          fmt::print("{}", Returns[J]);
+        }
+      }
+      fmt::print("\n");
     }
-    fmt::print("\n");
   }
 
   // Import Section
-  fmt::print("Import[{}]:\n", Imports.size());
-  uint32_t ImpFuncIdx = 0;
-  uint32_t ImpGlobalIdx = 0;
-  uint32_t ImpMemIdx = 0;
-  uint32_t ImpTableIdx = 0;
-  uint32_t ImpTagIdx = 0;
-  for (const auto &Imp : Imports) {
-    switch (Imp.getExternalType()) {
-    case ExternalType::Function:
-      fmt::print(" - func[{}] sig={}{} <- {}.{}\n", ImpFuncIdx,
-                 Imp.getExternalFuncTypeIdx(), FuncName(ImpFuncIdx),
-                 Imp.getModuleName(), Imp.getExternalName());
-      ImpFuncIdx++;
-      break;
-    case ExternalType::Memory: {
-      const auto &Limit = Imp.getExternalMemoryType().getLimit();
-      fmt::print(" - memory[{}] pages: initial={}", ImpMemIdx, Limit.getMin());
-      if (Limit.hasMax())
-        fmt::print(" max={}", Limit.getMax());
-      fmt::print(" <- {}.{}\n", Imp.getModuleName(), Imp.getExternalName());
-      ImpMemIdx++;
-      break;
-    }
-    case ExternalType::Table:
-      fmt::print(" - table[{}] <- {}.{}\n", ImpTableIdx, Imp.getModuleName(),
-                 Imp.getExternalName());
-      ImpTableIdx++;
-      break;
-    case ExternalType::Global: {
-      const auto &GT = Imp.getExternalGlobalType();
-      fmt::print(" - global[{}] {} mutable={}{} <- {}.{}\n", ImpGlobalIdx,
-                 GT.getValType(), GT.getValMut() == ValMut::Var ? 1 : 0,
-                 GlobalName(ImpGlobalIdx), Imp.getModuleName(),
-                 Imp.getExternalName());
-      ImpGlobalIdx++;
-      break;
-    }
-    case ExternalType::Tag:
-      fmt::print(" - tag[{}] sig={} <- {}.{}\n", ImpTagIdx,
-                 Imp.getExternalTagType().getTypeIdx(), Imp.getModuleName(),
-                 Imp.getExternalName());
-      ImpTagIdx++;
-      break;
-    default:
-      break;
+  if (!Imports.empty()) {
+    fmt::print("Import[{}]:\n", Imports.size());
+    uint32_t ImpFuncIdx = 0;
+    uint32_t ImpGlobalIdx = 0;
+    uint32_t ImpMemIdx = 0;
+    uint32_t ImpTableIdx = 0;
+    uint32_t ImpTagIdx = 0;
+    for (const auto &Imp : Imports) {
+      switch (Imp.getExternalType()) {
+      case ExternalType::Function:
+        fmt::print(" - func[{}] sig={}{} <- {}.{}\n", ImpFuncIdx,
+                   Imp.getExternalFuncTypeIdx(), FuncName(ImpFuncIdx),
+                   Imp.getModuleName(), Imp.getExternalName());
+        ImpFuncIdx++;
+        break;
+      case ExternalType::Memory: {
+        const auto &Limit = Imp.getExternalMemoryType().getLimit();
+        fmt::print(" - memory[{}] pages: initial={}", ImpMemIdx,
+                   Limit.getMin());
+        if (Limit.hasMax())
+          fmt::print(" max={}", Limit.getMax());
+        fmt::print(" <- {}.{}\n", Imp.getModuleName(), Imp.getExternalName());
+        ImpMemIdx++;
+        break;
+      }
+      case ExternalType::Table:
+        fmt::print(" - table[{}] <- {}.{}\n", ImpTableIdx, Imp.getModuleName(),
+                   Imp.getExternalName());
+        ImpTableIdx++;
+        break;
+      case ExternalType::Global: {
+        const auto &GT = Imp.getExternalGlobalType();
+        fmt::print(" - global[{}] {} mutable={}{} <- {}.{}\n", ImpGlobalIdx,
+                   GT.getValType(), GT.getValMut() == ValMut::Var ? 1 : 0,
+                   GlobalName(ImpGlobalIdx), Imp.getModuleName(),
+                   Imp.getExternalName());
+        ImpGlobalIdx++;
+        break;
+      }
+      case ExternalType::Tag:
+        fmt::print(" - tag[{}] sig={} <- {}.{}\n", ImpTagIdx,
+                   Imp.getExternalTagType().getTypeIdx(), Imp.getModuleName(),
+                   Imp.getExternalName());
+        ImpTagIdx++;
+        break;
+      default:
+        break;
+      }
     }
   }
 
   // Function Section
   const auto &Funcs = Mod.getFunctionSection().getContent();
-  fmt::print("Function[{}]:\n", Funcs.size());
-  for (uint32_t I = 0; I < Funcs.size(); I++) {
-    uint32_t Idx = I + ImportedFuncCount;
-    fmt::print(" - func[{}] sig={}{}\n", Idx, Funcs[I], FuncName(Idx));
+  if (!Funcs.empty()) {
+    fmt::print("Function[{}]:\n", Funcs.size());
+    for (uint32_t I = 0; I < Funcs.size(); I++) {
+      uint32_t Idx = I + ImportedFuncCount;
+      fmt::print(" - func[{}] sig={}{}\n", Idx, Funcs[I], FuncName(Idx));
+    }
   }
 
   // Table Section
@@ -307,39 +314,43 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
 
   // Global Section
   const auto &Globals = Mod.getGlobalSection().getContent();
-  fmt::print("Global[{}]:\n", Globals.size());
-  for (uint32_t I = 0; I < Globals.size(); I++) {
-    uint32_t Idx = I + ImportedGlobalCount;
-    const auto &GT = Globals[I].getGlobalType();
-    std::string InitStr = getInitExprStr(Globals[I].getExpr());
-    fmt::print(" - global[{}] {} mutable={}{}", Idx, GT.getValType(),
-               GT.getValMut() == ValMut::Var ? 1 : 0, GlobalName(Idx));
-    if (!InitStr.empty())
-      fmt::print(" - init {}", InitStr);
-    fmt::print("\n");
+  if (!Globals.empty()) {
+    fmt::print("Global[{}]:\n", Globals.size());
+    for (uint32_t I = 0; I < Globals.size(); I++) {
+      uint32_t Idx = I + ImportedGlobalCount;
+      const auto &GT = Globals[I].getGlobalType();
+      std::string InitStr = getInitExprStr(Globals[I].getExpr());
+      fmt::print(" - global[{}] {} mutable={}{}", Idx, GT.getValType(),
+                 GT.getValMut() == ValMut::Var ? 1 : 0, GlobalName(Idx));
+      if (!InitStr.empty())
+        fmt::print(" - init {}", InitStr);
+      fmt::print("\n");
+    }
   }
 
   // Export Section
   const auto &Exports = Mod.getExportSection().getContent();
-  fmt::print("Export[{}]:\n", Exports.size());
-  for (const auto &Exp : Exports) {
-    uint32_t Idx = Exp.getExternalIndex();
-    switch (Exp.getExternalType()) {
-    case ExternalType::Function:
-      fmt::print(" - func[{}]{} -> \"{}\"\n", Idx, FuncName(Idx),
-                 Exp.getExternalName());
-      break;
-    case ExternalType::Global:
-      fmt::print(" - global[{}] -> \"{}\"\n", Idx, Exp.getExternalName());
-      break;
-    case ExternalType::Memory:
-      fmt::print(" - memory[{}] -> \"{}\"\n", Idx, Exp.getExternalName());
-      break;
-    case ExternalType::Table:
-      fmt::print(" - table[{}] -> \"{}\"\n", Idx, Exp.getExternalName());
-      break;
-    default:
-      break;
+  if (!Exports.empty()) {
+    fmt::print("Export[{}]:\n", Exports.size());
+    for (const auto &Exp : Exports) {
+      uint32_t Idx = Exp.getExternalIndex();
+      switch (Exp.getExternalType()) {
+      case ExternalType::Function:
+        fmt::print(" - func[{}]{} -> \"{}\"\n", Idx, FuncName(Idx),
+                   Exp.getExternalName());
+        break;
+      case ExternalType::Global:
+        fmt::print(" - global[{}] -> \"{}\"\n", Idx, Exp.getExternalName());
+        break;
+      case ExternalType::Memory:
+        fmt::print(" - memory[{}] -> \"{}\"\n", Idx, Exp.getExternalName());
+        break;
+      case ExternalType::Table:
+        fmt::print(" - table[{}] -> \"{}\"\n", Idx, Exp.getExternalName());
+        break;
+      default:
+        break;
+      }
     }
   }
 
@@ -388,11 +399,13 @@ int ParseTool(struct DriverToolOptions &Opt) noexcept {
 
   // Code Section
   const auto &Codes = Mod.getCodeSection().getContent();
-  fmt::print("Code[{}]:\n", Codes.size());
-  for (uint32_t I = 0; I < Codes.size(); I++) {
-    uint32_t Idx = I + ImportedFuncCount;
-    fmt::print(" - func[{}] size={}{}\n", Idx, Codes[I].getSegSize(),
-               FuncName(Idx));
+  if (!Codes.empty()) {
+    fmt::print("Code[{}]:\n", Codes.size());
+    for (uint32_t I = 0; I < Codes.size(); I++) {
+      uint32_t Idx = I + ImportedFuncCount;
+      fmt::print(" - func[{}] size={}{}\n", Idx, Codes[I].getSegSize(),
+                 FuncName(Idx));
+    }
   }
 
   // Data Section

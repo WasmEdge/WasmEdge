@@ -496,10 +496,11 @@ TEST(ParseSubcommand, MinimalModuleEmptyCounts) {
   auto R = callParseCaptureStdout({Path.c_str()});
   std::filesystem::remove(Path.c_str());
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(R.Stdout, {"Type[0]:", "Import[0]:", "Function[0]:",
-                                     "Global[0]:", "Export[0]:", "Code[0]:"}));
+  EXPECT_TRUE(
+      containsAll(R.Stdout, {"file format wasm 0x1", "Section Details:"}));
   EXPECT_TRUE(containsNone(
-      R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
+      R.Stdout, {"Type[", "Import[", "Function[", "Global[", "Export[",
+                 "Code[", "Table[", "Memory[", "Start:", "Element[",
                  "DataCount section", "Data[", "Tag["}));
 }
 

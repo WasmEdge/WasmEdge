@@ -58,7 +58,11 @@ public:
 
   ~LogEnv() noexcept {
     std::unique_lock Lock(Mutex);
-    spdlog::drop(LogFileName);
+    // Drop the file logger by its registered name; never LogFileName, which is
+    // empty until a file is set and would reset the unnamed default logger.
+    if (FileLogger) {
+      spdlog::drop(LogRegName);
+    }
     RegisteredID.erase(InstanceID);
   }
 

@@ -277,23 +277,36 @@ Context::symmetricStateClone(__wasi_symmetric_state_t StateHandle) noexcept {
       });
 }
 
-WasiCryptoExpect<__wasi_symmetric_key_t>
-Context::symmetricKeyGenerateManaged(__wasi_secrets_manager_t,
-                                     Symmetric::Algorithm,
-                                     __wasi_opt_options_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerateManaged(
+    __wasi_secrets_manager_t, Symmetric::Algorithm Alg,
+    __wasi_opt_options_t OptOptionsHandle) noexcept {
+  return OptionsManager.get(OptOptionsHandle).and_then([&](auto &&Options) {
+    return Symmetric::generateKey(Alg, Options).and_then([&](auto &&Key) {
+      return SymmetricKeyManager.registerManager(std::move(Key));
+    });
+  });
 }
 
 WasiCryptoExpect<void> Context::symmetricKeyStoreManaged(
-    __wasi_secrets_manager_t, __wasi_symmetric_key_t, Span<uint8_t>) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    __wasi_secrets_manager_t SecretsManagerHandle,
+    __wasi_symmetric_key_t KeyHandle, Span<uint8_t> KeyId) noexcept {
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([&](auto &&Sm) noexcept {
+        return SymmetricKeyManager.get(KeyHandle).and_then(
+            [&](auto &&Key) noexcept { return Sm.storeSk(KeyId, 0, Key); });
+      });
 }
 
-WasiCryptoExpect<__wasi_version_t>
-Context::symmetricKeyReplaceManaged(__wasi_secrets_manager_t,
-                                    __wasi_symmetric_key_t,
-                                    __wasi_symmetric_key_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
+    __wasi_secrets_manager_t SecretsManagerHandle,
+    __wasi_symmetric_key_t OldKeyHandle,
+    __wasi_symmetric_key_t NewKeyHandle) noexcept {
+  return SymmetricKeyManager.get(NewKeyHandle).and_then([&](auto &&Key) noexcept {
+    return SecretsManagerManager.get(SecretsManagerHandle)
+        .and_then([&](auto &&Sm) noexcept {
+          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+        });
+  });
 }
 
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
@@ -302,9 +315,15 @@ Context::symmetricKeyId(__wasi_symmetric_key_t, Span<uint8_t>) noexcept {
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>
-Context::symmetricKeyFromId(__wasi_secrets_manager_t, Span<uint8_t>,
-                            __wasi_version_t) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::symmetricKeyFromId(__wasi_secrets_manager_t SecretsManagerHandle,
+                            Span<uint8_t> KeyId,
+                            __wasi_version_t KeyVersion) noexcept {
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([&](auto &&Sm) noexcept {
+        return Sm.getSk(KeyId, KeyVersion).and_then([&](auto &&Key) noexcept {
+          return SymmetricKeyManager.registerManager(Key);
+        });
+      });
 }
 
 } // namespace WasiCrypto

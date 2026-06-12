@@ -454,6 +454,16 @@ TEST(ParseSubcommand, ForbiddenPluginFlag) {
             EXIT_SUCCESS);
 }
 
+TEST(ParseSubcommand, ExtraSectionModules) {
+  EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-exception-handling",
+                       tagImportTestPath().c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-exception-handling",
+                       tagSectionTestPath().c_str()}),
+            EXIT_SUCCESS);
+}
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(ParseSubcommand, OutputSectionHeaders) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});
@@ -505,8 +515,6 @@ TEST(ParseSubcommand, MinimalModuleEmptyCounts) {
 }
 
 TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
-  EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
-
   auto R = callParseCaptureStdout({sectionsTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
   EXPECT_TRUE(containsAll(
@@ -527,10 +535,6 @@ TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
 }
 
 TEST(ParseSubcommand, OutputImportedTagType) {
-  EXPECT_EQ(callParse({"--enable-exception-handling",
-                       tagImportTestPath().c_str()}),
-            EXIT_SUCCESS);
-
   auto R = callParseCaptureStdout(
       {"--enable-exception-handling", tagImportTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
@@ -539,10 +543,6 @@ TEST(ParseSubcommand, OutputImportedTagType) {
 }
 
 TEST(ParseSubcommand, OutputTagSection) {
-  EXPECT_EQ(callParse({"--enable-exception-handling",
-                       tagSectionTestPath().c_str()}),
-            EXIT_SUCCESS);
-
   auto R = callParseCaptureStdout(
       {"--enable-exception-handling", tagSectionTestPath().c_str()});
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);

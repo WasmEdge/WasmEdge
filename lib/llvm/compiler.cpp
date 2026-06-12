@@ -31,9 +31,9 @@ using namespace std::literals;
 namespace {
 
 struct RAIICleanup {
-  RAIICleanup(LLVM::Compiler::CompileContext *&Context,
+  RAIICleanup(LLVM::Compiler::CompileContext *&ContextRef,
               LLVM::Compiler::CompileContext *NewContext)
-      : Context(Context) {
+      : Context(ContextRef) {
     Context = NewContext;
   }
   ~RAIICleanup() { Context = nullptr; }
@@ -6717,8 +6717,8 @@ Compiler::compileFunctions(Data &&LLData, CompileContext *NewContext,
 }
 
 void LLVM::Compiler::CompileContextDeleter::operator()(
-    CompileContext *Context) const noexcept {
-  delete Context;
+    CompileContext *ContextPtr) const noexcept {
+  delete ContextPtr;
 }
 } // namespace LLVM
 } // namespace WasmEdge

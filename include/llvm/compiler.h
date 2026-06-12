@@ -39,7 +39,7 @@ public:
 
   struct CompileContext;
   struct CompileContextDeleter {
-    void operator()(CompileContext *Context) const noexcept;
+    void operator()(CompileContext *ContextPtr) const noexcept;
   };
 
   /// Compile only the infrastructure (types, imports, globals, etc.) without

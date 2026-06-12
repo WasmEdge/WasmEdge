@@ -131,8 +131,8 @@ int KVCache::trim(int N) {
 }
 
 // RotatingKVCache implementation
-RotatingKVCache::RotatingKVCache(int MaxSize, int Keep, int Step)
-    : KVCache(0, 0, Step), Keep(Keep), MaxSize(MaxSize), Idx(0) {}
+RotatingKVCache::RotatingKVCache(int MaxSize, int Keep, int StepSize)
+    : KVCache(0, 0, StepSize), Keep(Keep), MaxSize(MaxSize), Idx(0) {}
 
 mx::array RotatingKVCache::trim(int TrimSize, const mx::array &V,
                                 std::optional<mx::array> Append) {

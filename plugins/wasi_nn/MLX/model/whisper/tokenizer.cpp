@@ -451,13 +451,14 @@ int Tokenizer::languageToken() const {
   return toLanguageToken(Language.value());
 }
 
-int Tokenizer::toLanguageToken(const std::string &Language) const {
-  std::string TokenName = "<|" + Language + "|>";
+int Tokenizer::toLanguageToken(const std::string &LanguageCode) const {
+  std::string TokenName = "<|" + LanguageCode + "|>";
   auto It = SpecialTokens.find(TokenName);
   if (It != SpecialTokens.end()) {
     return It->second;
   }
-  throw std::runtime_error("Language " + Language + " not found in tokenizer.");
+  throw std::runtime_error("Language " + LanguageCode +
+                           " not found in tokenizer.");
 }
 
 std::vector<int> Tokenizer::getAllLanguageTokens() const {
@@ -703,7 +704,7 @@ std::unique_ptr<Encoding> getEncoding(const std::string &Name,
   std::vector<std::string> Specials = {"<|endoftext|>",
                                        "<|startoftranscript|>"};
 
-  for (const auto &[Code, Name] : LANGUAGES) {
+  for (const auto &[Code, LanguageName] : LANGUAGES) {
     Specials.push_back("<|" + Code + "|>");
     if (static_cast<int>(Specials.size()) >= NumLanguages + 2)
       break;

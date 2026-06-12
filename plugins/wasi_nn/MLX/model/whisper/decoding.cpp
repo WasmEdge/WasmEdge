@@ -468,8 +468,9 @@ DecodingTask::DecodingTask(std::shared_ptr<Whisper> Model,
   }
 }
 
-DecodingOptions DecodingTask::verifyOptions(const DecodingOptions &Options) {
-  DecodingOptions Result = Options;
+DecodingOptions
+DecodingTask::verifyOptions(const DecodingOptions &InputOptions) {
+  DecodingOptions Result = InputOptions;
 
   // Check beam_size and best_of conflicts
   if (Result.BeamSize && Result.BestOf) {

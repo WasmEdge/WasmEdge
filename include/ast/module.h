@@ -68,6 +68,22 @@ public:
   const AOTSection &getAOTSection() const { return AOTSec; }
   AOTSection &getAOTSection() { return AOTSec; }
 
+  /// Get the number of imported functions.
+  uint32_t getImportFuncCount() const noexcept {
+    uint32_t Count = 0;
+    for (const auto &ImpDesc : ImportSec.getContent()) {
+      if (ImpDesc.getExternalType() == ExternalType::Function) {
+        ++Count;
+      }
+    }
+    return Count;
+  }
+
+  /// Get the number of defined (non-imported) functions.
+  uint32_t getDefinedFuncCount() const noexcept {
+    return static_cast<uint32_t>(CodeSec.getContent().size());
+  }
+
   /// Getter and setter for compiled symbol.
   const auto &getSymbol() const noexcept { return IntrSymbol; }
   void setSymbol(Symbol<const Executable::IntrinsicsTable *> S) noexcept {
@@ -77,10 +93,6 @@ public:
   /// Getter and setter for validated flag.
   bool getIsValidated() const noexcept { return IsValidated; }
   void setIsValidated(bool V = true) noexcept { IsValidated = V; }
-
-  /// Getter and setter of ID.
-  const std::string &getID() const noexcept { return ID; }
-  void setID(std::string_view NewID) noexcept { ID = NewID; }
 
 private:
   /// \name Data of Module node.
@@ -116,11 +128,6 @@ private:
   /// \name Validated flag.
   /// @{
   bool IsValidated = false;
-  /// @}
-
-  /// \name ID.
-  /// @{
-  std::string ID;
   /// @}
 };
 

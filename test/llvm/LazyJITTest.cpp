@@ -22,6 +22,7 @@
 #include "runtime/callingframe.h"
 #include "runtime/instance/module.h"
 #include "vm/vm.h"
+#include "llvm/compiler.h"
 #include "llvm/jit.h"
 #include <gtest/gtest.h>
 #include <thread>
@@ -94,6 +95,18 @@ std::vector<uint8_t> MathConsumerWasm = {
     0x00, 0x20, 0x00, 0x20, 0x01, 0x10, 0x00, 0x20, 0x00, 0x20, 0x01,
     0x10, 0x00, 0x10, 0x01, 0x0b, 0x10, 0x00, 0x20, 0x00, 0x20, 0x00,
     0x10, 0x01, 0x20, 0x01, 0x20, 0x01, 0x10, 0x01, 0x10, 0x00, 0x0b};
+
+// Module exercising the runtime intrinsics table from lazily compiled code:
+//   (memory 1)
+//   export "trap" -> unreachable   (reaches the trap intrinsic)
+//   export "grow" -> memory.grow   (reaches the memory-grow intrinsic)
+std::vector<uint8_t> IntrinsicsWasm = {
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x0a, 0x02,
+    0x60, 0x00, 0x01, 0x7f, 0x60, 0x01, 0x7f, 0x01, 0x7f, 0x03, 0x03,
+    0x02, 0x00, 0x01, 0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x0f, 0x02,
+    0x04, 0x74, 0x72, 0x61, 0x70, 0x00, 0x00, 0x04, 0x67, 0x72, 0x6f,
+    0x77, 0x00, 0x01, 0x0a, 0x0c, 0x02, 0x03, 0x00, 0x00, 0x0b, 0x06,
+    0x00, 0x20, 0x00, 0x40, 0x00, 0x0b};
 
 class HostAdd : public Runtime::HostFunction<HostAdd> {
 public:
@@ -365,6 +378,45 @@ TEST_F(LazyJITTest, LazyJITMultipleInstantiations) {
   }
 }
 
+TEST_F(LazyJITTest, LazyJITReinstantiateSameVM) {
+  auto VM = createLazyJITVM();
+
+  ASSERT_TRUE(VM->loadWasm(SimpleWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
+
+  std::vector<ValVariant> Params = {static_cast<uint32_t>(2),
+                                    static_cast<uint32_t>(3)};
+  std::vector<ValType> Types = {ValType(TypeCode::I32), ValType(TypeCode::I32)};
+
+  // Compile "add" lazily on the first instance.
+  auto Result = VM->execute("add", Params, Types);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 5U);
+  const auto CompiledBefore = VM->getLazyCompiledFuncCount();
+  EXPECT_GT(CompiledBefore, 0U);
+
+  // Re-instantiate the same loaded module on the same VM. The engine must
+  // rebind the persisted JIT state to the new module instance.
+  ASSERT_TRUE(VM->instantiate());
+
+  // The previously compiled function is restored to compiled mode...
+  auto *AddFunc = VM->getActiveModule()->findFuncExports("add");
+  ASSERT_NE(AddFunc, nullptr);
+  EXPECT_TRUE(AddFunc->isCompiledFunction());
+
+  // ...still executes correctly...
+  Result = VM->execute("add", Params, Types);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 5U);
+
+  // ...and lazy compilation keeps working for functions not yet compiled.
+  Result = VM->execute("mul", Params, Types);
+  ASSERT_TRUE(Result);
+  EXPECT_EQ((*Result)[0].first.get<uint32_t>(), 6U);
+  EXPECT_GT(VM->getLazyCompiledFuncCount(), CompiledBefore);
+}
+
 TEST_F(LazyJITTest, LazyJITOnlySomeFunctionsCalled) {
   auto VM = createLazyJITVM();
 
@@ -581,25 +633,20 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   LLVM::Compiler Compiler(Conf);
   ASSERT_TRUE(Compiler.checkConfigure());
 
-  auto Prefix = "test_prefix_";
-  auto CompileRes = Compiler.compileInfrastructure(*Module, Prefix);
+  auto CompileRes = Compiler.compileInfrastructure(*Module);
   ASSERT_TRUE(CompileRes);
 
-  auto &LLData = CompileRes->first;
-  auto &CompileCtx = CompileRes->second;
+  auto &LLData = *CompileRes;
 
   LLVM::JIT JIT(Conf);
-  auto ExecRes = JIT.load(LLData, true);
+  auto ExecRes = JIT.loadLazy(LLData);
   ASSERT_TRUE(ExecRes);
 
   auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);
 
   std::vector<uint32_t> CompileLocals = {0};
-  if (!LLData.hasModule()) {
-    LLData.resetModule();
-  }
-  auto FuncCompileRes = Compiler.compileFunctions(
-      std::move(LLData), CompileCtx.get(), *Module, CompileLocals);
+  auto FuncCompileRes =
+      Compiler.compileFunctions(std::move(LLData), *Module, CompileLocals);
   ASSERT_TRUE(FuncCompileRes);
 
   std::vector<uint32_t> InvalidIndices = {999};
@@ -609,42 +656,29 @@ TEST_F(LazyJITTest, JITAddLookupFailure) {
   EXPECT_EQ(AddResult.error(), ErrCode::Value::LazyCompilationError);
 }
 
-TEST_F(LazyJITTest, JITLookupWasmFunctionSymbolsFailure) {
-  Configure Conf;
-  Conf.getRuntimeConfigure().setRunMode(RunMode::LazyJIT);
-  Conf.getCompilerConfigure().setOptimizationLevel(
-      CompilerConfigure::OptimizationLevel::O1);
+TEST_F(LazyJITTest, LazyJITIntrinsicsReachableFromCompiledCode) {
+  // Batch modules only declare the "intrinsics" global; it resolves against
+  // the infrastructure module's definition patched at prepare time. Run two
+  // operations that call back into the runtime through that table — an
+  // unresolved or null table pointer would crash instead.
+  auto VM = createLazyJITVM();
 
-  Loader::Loader LoaderEngine(Conf);
-  auto ModOrErr = LoaderEngine.parseWasmUnit(SimpleWasm);
-  ASSERT_TRUE(ModOrErr);
-  auto &Module = std::get<std::unique_ptr<AST::Module>>(*ModOrErr);
+  ASSERT_TRUE(VM->loadWasm(IntrinsicsWasm));
+  ASSERT_TRUE(VM->validate());
+  ASSERT_TRUE(VM->instantiate());
 
-  Validator::Validator ValidatorEngine(Conf);
-  auto ValRes = ValidatorEngine.validate(*Module);
-  ASSERT_TRUE(ValRes);
+  std::vector<ValVariant> GrowParams = {1U};
+  std::vector<ValType> GrowTypes = {ValType(TypeCode::I32)};
+  auto GrowRes = VM->execute("grow", GrowParams, GrowTypes);
+  ASSERT_TRUE(GrowRes);
+  // memory.grow returns the previous size in pages.
+  EXPECT_EQ((*GrowRes)[0].first.get<uint32_t>(), 1U);
 
-  LLVM::Compiler Compiler(Conf);
-  ASSERT_TRUE(Compiler.checkConfigure());
+  auto TrapRes = VM->execute("trap");
+  ASSERT_FALSE(TrapRes);
+  EXPECT_EQ(TrapRes.error(), ErrCode::Value::Unreachable);
 
-  auto Prefix = "test_prefix_";
-  auto CompileRes = Compiler.compileInfrastructure(*Module, Prefix);
-  ASSERT_TRUE(CompileRes);
-
-  auto &LLData = CompileRes->first;
-
-  LLVM::JIT JIT(Conf);
-  auto ExecRes = JIT.load(LLData, true);
-  ASSERT_TRUE(ExecRes);
-
-  auto JITLib = std::static_pointer_cast<LLVM::JITLibrary>(*ExecRes);
-
-  std::vector<uint32_t> InvalidIndices = {999};
-
-  auto LookupRes =
-      JIT.lookupWasmFunctionSymbols(*JITLib, Prefix, InvalidIndices);
-  EXPECT_FALSE(LookupRes);
-  EXPECT_EQ(LookupRes.error(), ErrCode::Value::LazyCompilationError);
+  EXPECT_EQ(VM->getLazyCompiledFuncCount(), 2U);
 }
 
 TEST_F(LazyJITTest, LazyJITConcurrentSameFunction) {

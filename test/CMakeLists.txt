@@ -53,6 +53,7 @@ else()
   endif()
 
   FetchContent_MakeAvailable(GTest)
+  wasmedge_suppress_shadow_warnings(gtest gtest_main)
   set(GTEST_BOTH_LIBRARIES "gtest_main")
 endif()
 

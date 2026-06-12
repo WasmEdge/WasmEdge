@@ -387,7 +387,6 @@ private:
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
   Expect<std::vector<std::pair<ValVariant, ValType>>>
-
   unsafeExecute(std::string_view Mod, std::string_view Func,
                 Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});

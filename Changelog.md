@@ -1,3 +1,31 @@
+### 0.17.1-rc.1 (2026-06-12)
+
+Features:
+
+* [CAPI]
+  * feat(api): version C ABI symbols for the 0.16 -> 0.17 limit change (#4951)
+
+Fixed issues:
+
+* [Validator]
+  * fix: reject non-funcref tables/refs in call_indirect and call_ref (#4920)
+* [WASI]
+  * fix(wasi): reject symlink targets that resolve outside the preopen root (#4938)
+* [WASI-Logging]
+  * fix(plugin/wasi-logging): keep the default logger alive across instances
+
+CI:
+
+* [dependabot]
+  * ci(dependabot): bump codecov/codecov-action from 6.0.1 to 7.0.0 (#4943)
+  * ci(dependabot): bump github/codeql-action from 4.36.1 to 4.36.2 (#4944)
+
+Thank all the contributors who made this release possible!
+
+Shen-Ta Hsieh(BestSteve), Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.17.1-rc.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.17.0 (2026-05-18)
 
 Features:

@@ -4522,6 +4522,146 @@ TEST(WasiTest, PointerAlignment) {
   // CustomFds pointer alignment tests
   const fs::path TempPath = fs::u8path("wasi_custom_fd_test.tmp");
 
+  // Test WasiArgsGet alignment checks
+  {
+    Env.init({}, "test"s, {}, {});
+    WasmEdge::Host::WasiArgsGet WasiArgsGet(Env);
+    const uint32_t MisalignedArgvPtr = alignof(uint8_t_ptr) - 1;
+    const uint32_t AlignedArgvPtr =
+        static_cast<uint32_t>(alignof(uint8_t_ptr) * 2);
+    const uint32_t ArgvBufPtr =
+        static_cast<uint32_t>(alignof(uint8_t_ptr) * 4);
+
+    // Test misaligned ArgvPtr
+    EXPECT_TRUE(WasiArgsGet.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    MisalignedArgvPtr, // misaligned
+                                    ArgvBufPtr},
+                                Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+
+    writeDummyMemoryContent(MemInst);
+    // Test correctly aligned ArgvPtr (should succeed)
+    EXPECT_TRUE(WasiArgsGet.run(CallFrame,
+                                std::initializer_list<WasmEdge::ValVariant>{
+                                    AlignedArgvPtr, // aligned
+                                    ArgvBufPtr},
+                                Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  // Test WasiArgsSizesGet alignment checks
+  {
+    Env.init({}, "test"s, {}, {});
+    WasmEdge::Host::WasiArgsSizesGet WasiArgsSizesGet(Env);
+    const uint32_t MisalignedArgcPtr = alignof(__wasi_size_t) - 1;
+    const uint32_t MisalignedArgvBufSizePtr = alignof(__wasi_size_t) - 1;
+    const uint32_t AlignedArgcPtr =
+        static_cast<uint32_t>(alignof(__wasi_size_t) * 2);
+    const uint32_t AlignedArgvBufSizePtr =
+        static_cast<uint32_t>(alignof(__wasi_size_t) * 4);
+
+    // Test misaligned ArgcPtr
+    EXPECT_TRUE(WasiArgsSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            MisalignedArgcPtr,      // misaligned
+            AlignedArgvBufSizePtr}, // aligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+
+    // Test misaligned ArgvBufSizePtr
+    EXPECT_TRUE(WasiArgsSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            AlignedArgcPtr,            // aligned
+            MisalignedArgvBufSizePtr}, // misaligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+
+    writeDummyMemoryContent(MemInst);
+    // Test correctly aligned pointers (should succeed)
+    EXPECT_TRUE(WasiArgsSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            AlignedArgcPtr,         // aligned
+            AlignedArgvBufSizePtr}, // aligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  // Test WasiEnvironGet alignment checks
+  {
+    Env.init({}, "test"s, {}, {"KEY=VAL"s});
+    WasmEdge::Host::WasiEnvironGet WasiEnvironGet(Env);
+    const uint32_t MisalignedEnvPtr = alignof(uint8_t_ptr) - 1;
+    const uint32_t AlignedEnvPtr =
+        static_cast<uint32_t>(alignof(uint8_t_ptr) * 2);
+    const uint32_t EnvBufPtr =
+        static_cast<uint32_t>(alignof(uint8_t_ptr) * 4);
+
+    // Test misaligned EnvPtr
+    EXPECT_TRUE(WasiEnvironGet.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       MisalignedEnvPtr, // misaligned
+                                       EnvBufPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+
+    writeDummyMemoryContent(MemInst);
+    // Test correctly aligned EnvPtr (should succeed)
+    EXPECT_TRUE(WasiEnvironGet.run(CallFrame,
+                                   std::initializer_list<WasmEdge::ValVariant>{
+                                       AlignedEnvPtr, // aligned
+                                       EnvBufPtr},
+                                   Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
+  // Test WasiEnvironSizesGet alignment checks
+  {
+    Env.init({}, "test"s, {}, {"KEY=VAL"s});
+    WasmEdge::Host::WasiEnvironSizesGet WasiEnvironSizesGet(Env);
+    const uint32_t MisalignedEnvCntPtr = alignof(__wasi_size_t) - 1;
+    const uint32_t MisalignedEnvBufSizePtr = alignof(__wasi_size_t) - 1;
+    const uint32_t AlignedEnvCntPtr =
+        static_cast<uint32_t>(alignof(__wasi_size_t) * 2);
+    const uint32_t AlignedEnvBufSizePtr =
+        static_cast<uint32_t>(alignof(__wasi_size_t) * 4);
+
+    // Test misaligned EnvCntPtr
+    EXPECT_TRUE(WasiEnvironSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            MisalignedEnvCntPtr,   // misaligned
+            AlignedEnvBufSizePtr}, // aligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+
+    // Test misaligned EnvBufSizePtr
+    EXPECT_TRUE(WasiEnvironSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            AlignedEnvCntPtr,         // aligned
+            MisalignedEnvBufSizePtr}, // misaligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_ADDRNOTAVAIL);
+
+    writeDummyMemoryContent(MemInst);
+    // Test correctly aligned pointers (should succeed)
+    EXPECT_TRUE(WasiEnvironSizesGet.run(
+        CallFrame,
+        std::initializer_list<WasmEdge::ValVariant>{
+            AlignedEnvCntPtr,        // aligned
+            AlignedEnvBufSizePtr},   // aligned
+        Errno));
+    EXPECT_EQ(Errno[0].get<int32_t>(), __WASI_ERRNO_SUCCESS);
+    Env.fini();
+  }
+
   // Test WasiFdFdstatGet alignment checks
   {
     Env.init({}, "test"s, {}, {});

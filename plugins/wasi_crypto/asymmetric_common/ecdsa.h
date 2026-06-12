@@ -81,6 +81,8 @@ public:
       }
     }
 
+    const auto &raw() const { return Ctx; }
+
     WasiCryptoExpect<void> verify() const noexcept {
       EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
       ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
@@ -202,8 +204,13 @@ public:
       return Ctx;
     }
 
-    WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &) const noexcept {
-      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    const auto &raw() const { return Ctx; }
+
+    WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept {
+      if (EVP_PKEY_cmp(Ctx.get(), Pk.raw().get()) != 1) {
+        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+      }
+      return Ctx;
     }
 
   protected:
@@ -226,6 +233,12 @@ public:
           BN_bin2bn(Encoded.data(), static_cast<int>(Encoded.size()), nullptr)};
       ensureOrReturn(EC_KEY_set_private_key(EcCtx.get(), Sk.get()),
                      __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+      // Calculate and set Pk.
+      EcPointPtr Pk{EC_POINT_new(EC_KEY_get0_group(EcCtx.get()))};
+      opensslCheck(EC_POINT_mul(EC_KEY_get0_group(EcCtx.get()), Pk.get(),
+                                Sk.get(), nullptr, nullptr, nullptr));
+      opensslCheck(EC_KEY_set_public_key(EcCtx.get(), Pk.get()));
 
       EvpPkeyPtr Ctx{EVP_PKEY_new()};
       opensslCheck(EVP_PKEY_set1_EC_KEY(Ctx.get(), EcCtx.get()));

@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - master
+      - "[0-9]+.[0-9]+.x"
     paths:
       - ".github/workflows/build.yml"
       - ".github/workflows/reusable-build-on-**"
@@ -27,6 +28,7 @@ on:
       - master
       - "proposal/**"
       - "dev/component"
+      - "[0-9]+.[0-9]+.x"
     paths:
       - ".github/workflows/build.yml"
       - ".github/workflows/reusable-build-on-**"

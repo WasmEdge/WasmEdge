@@ -486,21 +486,6 @@ Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
   return {};
 }
 
-struct Validate {
-  // borrow validator to pass control to it
-  Validate(Validator::Validator &Engine) : ValidatorEngine(Engine) {}
-  Expect<void> operator()(const std::unique_ptr<AST::Module> &Mod) const {
-    return ValidatorEngine.validate(*Mod.get());
-  }
-  Expect<void>
-  operator()(const std::unique_ptr<AST::Component::Component> &Comp) const {
-    return ValidatorEngine.validate(*Comp.get());
-  }
-
-private:
-  Validator::Validator &ValidatorEngine;
-};
-
 Expect<void> VM::unsafeValidate() {
   if (Stage < VMStage::Loaded) {
     // Do not validate when the module is not loaded.

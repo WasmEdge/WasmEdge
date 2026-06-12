@@ -3486,6 +3486,7 @@ TEST(WasiNNTest, LoadByNameOOBRead) {
 
   auto *FuncInst = NNMod->findFuncExports("load_by_name");
   ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncLoadByName =
       dynamic_cast<WasmEdge::Host::WasiNNLoadByName &>(FuncInst->getHostFunc());
 
@@ -3521,6 +3522,7 @@ TEST(WasiNNTest, LoadByNameWithConfigOOBRead) {
 
   auto *FuncInst = NNMod->findFuncExports("load_by_name_with_config");
   ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncLoadByNameWithConfig =
       dynamic_cast<WasmEdge::Host::WasiNNLoadByNameWithConfig &>(
           FuncInst->getHostFunc());

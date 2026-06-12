@@ -3,6 +3,8 @@
 
 #include "vm/vm.h"
 
+#include "plugin_modules.h"
+
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "common/types.h"
@@ -11,37 +13,12 @@
 #include "llvm/compiler.h"
 #include "llvm/jit.h"
 
-#include "host/mock/wasi_crypto_module.h"
-#include "host/mock/wasi_logging_module.h"
-#include "host/mock/wasi_nn_module.h"
-#include "host/mock/wasmedge_image_module.h"
-#include "host/mock/wasmedge_process_module.h"
-#include "host/mock/wasmedge_stablediffusion_module.h"
-#include "host/mock/wasmedge_tensorflow_module.h"
-#include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "validator/validator.h"
 #include <memory>
 #include <variant>
 
 namespace WasmEdge {
 namespace VM {
-
-namespace {
-
-template <typename T>
-std::unique_ptr<Runtime::Instance::ModuleInstance>
-createPluginModule(std::string_view PName, std::string_view MName) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = Plugin::Plugin::find(PName)) {
-    if (const auto *Module = Plugin->findModule(MName)) {
-      return Module->create();
-    }
-  }
-  spdlog::debug("Plugin: {} , module name: {} not found. Mock instead."sv,
-                PName, MName);
-  return std::make_unique<T>();
-}
-} // namespace
 
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
@@ -92,55 +69,16 @@ void VM::unsafeLoadBuiltInHosts() {
 }
 
 void VM::unsafeLoadPlugInHosts() {
-  // Load the plugins and mock them if not found.
-  using namespace std::literals::string_view_literals;
+  // Load the official plugin modules and mock them if not found.
   cleanupModInstContainer(PlugInModInsts);
-
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiNNModuleMock>("wasi_nn"sv, "wasi_nn"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiCryptoCommonModuleMock>(
-      "wasi_crypto"sv, "wasi_crypto_common"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoAsymmetricCommonModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_asymmetric_common"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiCryptoKxModuleMock>(
-      "wasi_crypto"sv, "wasi_crypto_kx"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoSignaturesModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_signatures"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoSymmetricModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_symmetric"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeProcessModuleMock>(
-      "wasmedge_process"sv, "wasmedge_process"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiLoggingModuleMock>(
-      "wasi_logging"sv, "wasi:logging/logging"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeTensorflowModuleMock>(
-          "wasmedge_tensorflow"sv, "wasmedge_tensorflow"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeTensorflowLiteModuleMock>(
-          "wasmedge_tensorflowlite"sv, "wasmedge_tensorflowlite"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeImageModuleMock>(
-      "wasmedge_image"sv, "wasmedge_image"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeStableDiffusionModuleMock>(
-          "wasmedge_stablediffusion"sv, "wasmedge_stablediffusion"sv));
+  PlugInModInsts = loadOfficialPluginModules();
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
     }
-    // Skip wasi_crypto, wasi_nn, wasi_logging, WasmEdge_Process,
-    // WasmEdge_Tensorflow, WasmEdge_TensorflowLite, and WasmEdge_Image.
-    if (Plugin.name() == "wasi_crypto"sv || Plugin.name() == "wasi_nn"sv ||
-        Plugin.name() == "wasi_logging"sv ||
-        Plugin.name() == "wasmedge_process"sv ||
-        Plugin.name() == "wasmedge_tensorflow"sv ||
-        Plugin.name() == "wasmedge_tensorflowlite"sv ||
-        Plugin.name() == "wasmedge_image"sv ||
-        Plugin.name() == "wasmedge_stablediffusion"sv) {
+    if (isOfficialPlugin(Plugin.name())) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {

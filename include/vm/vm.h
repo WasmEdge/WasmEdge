@@ -411,9 +411,9 @@ private:
 
   /// Store a parsed wasm unit into the matching slot and report its kind.
   /// The slot for the other kind keeps its previous content.
-  WasmUnitKind unsafeStoreWasmUnit(
-      std::variant<std::unique_ptr<AST::Component::Component>,
-                   std::unique_ptr<AST::Module>> &&Unit);
+  WasmUnitKind
+  unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
+                                   std::unique_ptr<AST::Module>> &&Unit);
 
   /// Registering a module or running another wasm unit resets the active
   /// instantiation in the store, so the stage falls back to Validated and

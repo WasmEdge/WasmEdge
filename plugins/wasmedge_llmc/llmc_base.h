@@ -14,7 +14,7 @@ namespace WasmEdgeLLMC {
 
 template <typename T> class HostFunction : public Runtime::HostFunction<T> {
 public:
-  HostFunction(LLMCEnv &E) : Runtime::HostFunction<T>(0), Env(E) {}
+  HostFunction(LLMCEnv &HostEnv) : Runtime::HostFunction<T>(0), Env(HostEnv) {}
 
 protected:
   static constexpr uint32_t castErrNo(ErrNo E) noexcept {

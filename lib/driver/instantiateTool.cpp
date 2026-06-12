@@ -26,6 +26,14 @@ int InstantiateTool(struct DriverToolOptions &Opt) noexcept {
   }
 
   Conf.addHostRegistration(HostRegistration::Wasi);
+
+  // Reject an empty input path here: std::filesystem::absolute("") throws on
+  // some standard library implementations (e.g. libstdc++), which would
+  // std::terminate() this noexcept function instead of failing gracefully.
+  if (Opt.SoName.value().empty()) {
+    spdlog::error("No input wasm file provided."sv);
+    return EXIT_FAILURE;
+  }
   const auto InputPath =
       std::filesystem::absolute(std::filesystem::u8path(Opt.SoName.value()));
 

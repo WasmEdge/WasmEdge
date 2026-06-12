@@ -163,7 +163,7 @@ public:
   std::vector<DecodingResult> run(const mx::array &Mel);
 
 private:
-  DecodingOptions verifyOptions(const DecodingOptions &Options);
+  DecodingOptions verifyOptions(const DecodingOptions &InputOptions);
   std::vector<int> getInitialTokens();
   std::vector<int> getSuppressTokens();
   mx::array getAudioFeatures(const mx::array &Mel);

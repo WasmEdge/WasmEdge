@@ -274,8 +274,11 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::Table__size:
   case OpCode::Table__fill:
   case OpCode::Elem__drop:
+    serializeU32(Instr.getTargetIndex(), OutVec);
+    return {};
   case OpCode::Table__copy:
     serializeU32(Instr.getTargetIndex(), OutVec);
+    serializeU32(Instr.getSourceIndex(), OutVec);
     return {};
 
   // Memory Instructions.
@@ -305,7 +308,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
     return serializeMemImmediate();
 
   case OpCode::Memory__init:
-    serializeU32(Instr.getTargetIndex(), OutVec);
+    serializeU32(Instr.getSourceIndex(), OutVec);
     [[fallthrough]];
   case OpCode::Memory__grow:
   case OpCode::Memory__size:
@@ -324,7 +327,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
       return {};
     } else {
       EXPECTED_TRY(serializeCheckZero(Instr.getTargetIndex()));
-      return serializeCheckZero(Instr.getTargetIndex());
+      return serializeCheckZero(Instr.getSourceIndex());
     }
 
   case OpCode::Data__drop:

@@ -525,7 +525,7 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   case OpCode::I8x16__shuffle: {
     uint128_t Value = Instr.getNum().get<uint128_t>();
     for (uint32_t I = 0; I < 16; ++I) {
-      OutVec.push_back(static_cast<uint8_t>(Value));
+      OutVec.push_back(static_cast<uint8_t>(Value & 0xFF));
       Value >>= 8;
     }
     return {};

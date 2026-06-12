@@ -74,6 +74,8 @@ public:
 
     WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept;
 
+    const auto &raw() const { return Ctx; }
+
   private:
     SharedEvpPkey Ctx;
   };

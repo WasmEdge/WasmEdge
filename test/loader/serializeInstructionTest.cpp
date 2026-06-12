@@ -1708,4 +1708,43 @@ TEST(SerializeInstructionTest, SerializeDotProductInstruction) {
   Output = {};
   EXPECT_FALSE(Ser.serializeSection(createCodeSec(Instructions), Output));
 }
+
+TEST(SerializeInstructionTest, SerializeSIMDInstruction) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::SIMD);
+  WasmEdge::Loader::Serializer Ser(Conf);
+
+  std::vector<uint8_t> Expected;
+  std::vector<uint8_t> Output;
+  WasmEdge::AST::InstrVec Instructions;
+
+  WasmEdge::AST::Instruction I8x16Shuffle(WasmEdge::OpCode::I8x16__shuffle);
+  WasmEdge::AST::Instruction End(WasmEdge::OpCode::End);
+
+  // i8x16.shuffle has a 16-byte immediate.
+  // The loader unpacks the bytes such that the Nth byte is stored at (N * 8) bits shift.
+  // Therefore the serialization should output the Nth byte sequentially.
+  uint128_t Value = 0U;
+  for (uint32_t I = 0U; I < 16U; ++I) {
+    Value |= static_cast<uint128_t>(I) << (I * 8U);
+  }
+  I8x16Shuffle.setNum(Value);
+
+  Instructions = {I8x16Shuffle, End};
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createCodeSec(Instructions), Output));
+  Expected = {
+      0x0AU, // Code section
+      0x16U, // Content size = 22
+      0x01U, // Vector length = 1
+      0x14U, // Code segment size = 20
+      0x00U, // Local vec(0)
+      0xFDU, 0x0DU, // OpCode I8x16__shuffle
+      0x00U, 0x01U, 0x02U, 0x03U, 0x04U, 0x05U, 0x06U, 0x07U,
+      0x08U, 0x09U, 0x0AU, 0x0BU, 0x0CU, 0x0DU, 0x0EU, 0x0FU,
+      0x0BU  // Expression End.
+  };
+  EXPECT_EQ(Output, Expected);
+}
+
 } // namespace

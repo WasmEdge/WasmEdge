@@ -212,11 +212,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
     return unsafeRegisterModule(Name, std::make_shared<AST::Module>(Module));
   }
 #endif
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(Module));
   // Instantiate and register module.
@@ -228,11 +224,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       std::shared_ptr<AST::Module> Module) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(*Module));
 
@@ -260,11 +252,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 Expect<void>
 VM::unsafeRegisterModule(std::string_view Name,
                          const Runtime::Instance::ModuleInstance &ModInst) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   return ExecutorEngine.registerModule(StoreRef, ModInst, Name);
 }
 
@@ -317,11 +305,7 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
   return std::visit(
@@ -341,11 +325,7 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
   return std::visit(
@@ -365,11 +345,7 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Component::Component &Component,
                       std::string_view, Span<const ValVariant>,
                       Span<const ValType>) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Component));
   spdlog::error("component execution is not done yet."sv);
   return Unexpect(ErrCode::Value::RuntimeError);
@@ -379,11 +355,7 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {

@@ -391,6 +391,68 @@ Expect<void> VM::unsafeValidate() {
   return {};
 }
 
+Expect<void> VM::unsafeLoadJITExecutable() {
+  if ((Conf.getRuntimeConfigure().getRunMode() != RunMode::JIT &&
+       Conf.getRuntimeConfigure().getRunMode() != RunMode::LazyJIT) ||
+      Mod->getSymbol()) {
+    return {};
+  }
+#ifdef WASMEDGE_USE_LLVM
+  if (LazyEngine) {
+    EXPECTED_TRY(auto Exec, LazyEngine->prepare(Mod));
+    EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
+    return {};
+  }
+  LLVM::Compiler Compiler(Conf);
+  Compiler.checkConfigure()
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::error("Compiler Configure failed. Error code: {}, use "
+                        "interpreter mode instead."sv,
+                        Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&]() { return Compiler.compile(*Mod); })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::error("Compilation failed. Error code: {}, use "
+                        "interpreter mode instead."sv,
+                        Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&](auto LLModule) {
+        LLVM::JIT JIT(Conf);
+        return JIT.load(std::move(LLModule));
+      })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::warn(
+              "JIT failed. Error code: {}, use interpreter mode instead."sv,
+              Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&](auto Module) {
+        return LoaderEngine.loadExecutable(*Mod, std::move(Module));
+      })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::warn("Loader failed. Error code: {}, use interpreter "
+                       "mode instead."sv,
+                       Err);
+        }
+        return ErrCode::Value::Success;
+      });
+  return {};
+#else
+  spdlog::warn("JIT was requested but WasmEdge was built without LLVM, "
+               "falling back to interpreter."sv);
+  return {};
+#endif
+}
+
 Expect<void> VM::unsafeInstantiate() {
   if (Stage < VMStage::Validated) {
     // Do not instantiate when the module is not validated.
@@ -398,63 +460,7 @@ Expect<void> VM::unsafeInstantiate() {
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
   if (Mod) {
-    if ((Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT ||
-         Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) &&
-        !Mod->getSymbol()) {
-#ifdef WASMEDGE_USE_LLVM
-      if (LazyEngine) {
-        EXPECTED_TRY(auto Exec, LazyEngine->prepare(Mod));
-        EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
-      } else {
-        LLVM::Compiler Compiler(Conf);
-        Compiler.checkConfigure()
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::error("Compiler Configure failed. Error code: {}, use "
-                              "interpreter mode instead."sv,
-                              Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&]() { return Compiler.compile(*Mod); })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::error("Compilation failed. Error code: {}, use "
-                              "interpreter mode instead."sv,
-                              Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&](auto LLModule) {
-              LLVM::JIT JIT(Conf);
-              return JIT.load(std::move(LLModule));
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::warn(
-                    "JIT failed. Error code: {}, use interpreter mode instead."sv,
-                    Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&](auto Module) {
-              return LoaderEngine.loadExecutable(*Mod, std::move(Module));
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::warn("Loader failed. Error code: {}, use interpreter "
-                             "mode instead."sv,
-                             Err);
-              }
-              return ErrCode::Value::Success;
-            });
-      }
-#else
-      spdlog::warn("JIT was requested but WasmEdge was built without LLVM, "
-                   "falling back to interpreter."sv);
-#endif
-    }
-
+    EXPECTED_TRY(unsafeLoadJITExecutable());
     EXPECTED_TRY(auto NewModInst,
                  ExecutorEngine.instantiateModule(StoreRef, *Mod));
 
@@ -472,15 +478,15 @@ Expect<void> VM::unsafeInstantiate() {
 
     Stage = VMStage::Instantiated;
     return {};
-  } else if (Comp) {
+  }
+  if (Comp) {
     EXPECTED_TRY(ActiveCompInst,
                  ExecutorEngine.instantiateComponent(StoreRef, *Comp));
     Stage = VMStage::Instantiated;
     return {};
-  } else {
-    spdlog::error(ErrCode::Value::WrongVMWorkflow);
-    return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
+  spdlog::error(ErrCode::Value::WrongVMWorkflow);
+  return Unexpect(ErrCode::Value::WrongVMWorkflow);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>

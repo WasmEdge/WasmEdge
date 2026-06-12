@@ -75,8 +75,10 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::State>
 Hkdf<ShaNid>::Expand::State::clone() const noexcept {
-  // not supported for a keygen operation.
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  std::scoped_lock Lock{Ctx->Mutex};
+  EvpPkeyCtxPtr CloneCtx{EVP_PKEY_CTX_dup(Ctx->RawCtx.get())};
+  opensslCheck(CloneCtx);
+  return State{std::move(CloneCtx)};
 }
 
 template <int ShaNid>
@@ -131,8 +133,12 @@ Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::State>
 Hkdf<ShaNid>::Extract::State::clone() const noexcept {
-  // not supported for a keygen operation.
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  std::scoped_lock Lock{Ctx->Mutex};
+  EvpPkeyCtxPtr CloneCtx{EVP_PKEY_CTX_dup(Ctx->RawCtx.get())};
+  opensslCheck(CloneCtx);
+  auto Res = State{std::move(CloneCtx)};
+  Res.Ctx->Salt = Ctx->Salt;
+  return Res;
 }
 
 template <int ShaNid>

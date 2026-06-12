@@ -137,8 +137,11 @@ Rsa<PadMode, KeyBits, ShaNid>::SecretKey::checkValid(EvpPkeyPtr Ctx) noexcept {
 template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::toKeyPair(
-    const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+    const PublicKey &Pk) const noexcept {
+  if (EVP_PKEY_cmp(Ctx.get(), Pk.raw().get()) != 1) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
+  }
+  return Ctx;
 }
 
 template <int PadMode, int KeyBits, int ShaNid>
@@ -305,8 +308,18 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
     ensureOrReturn(Encoded.size() == getSigSize(),
                    __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     return std::vector<uint8_t>(Encoded.begin(), Encoded.end());
-  case __WASI_SIGNATURE_ENCODING_DER:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  case __WASI_SIGNATURE_ENCODING_DER: {
+    const uint8_t *DataPtr = Encoded.data();
+    ASN1_OCTET_STRING *OctetString =
+        d2i_ASN1_OCTET_STRING(nullptr, &DataPtr, Encoded.size());
+    ensureOrReturn(OctetString, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    std::vector<uint8_t> Res(OctetString->data,
+                             OctetString->data + OctetString->length);
+    ASN1_OCTET_STRING_free(OctetString);
+    ensureOrReturn(Res.size() == getSigSize(),
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    return Res;
+  }
   default:
     assumingUnreachable();
   }
@@ -319,8 +332,19 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::exportData(
   switch (Encoding) {
   case __WASI_SIGNATURE_ENCODING_RAW:
     return Data;
-  case __WASI_SIGNATURE_ENCODING_DER:
-    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  case __WASI_SIGNATURE_ENCODING_DER: {
+    ASN1_OCTET_STRING OctetString;
+    OctetString.data = const_cast<uint8_t *>(Data.data());
+    OctetString.length = static_cast<int>(Data.size());
+    OctetString.type = V_ASN1_OCTET_STRING;
+    OctetString.flags = 0;
+
+    int Len = i2d_ASN1_OCTET_STRING(&OctetString, nullptr);
+    std::vector<uint8_t> Res(Len);
+    uint8_t *Ptr = Res.data();
+    i2d_ASN1_OCTET_STRING(&OctetString, &Ptr);
+    return Res;
+  }
   default:
     assumingUnreachable();
   }

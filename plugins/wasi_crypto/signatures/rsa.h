@@ -102,6 +102,8 @@ public:
 
     WasiCryptoExpect<VerificationState> openVerificationState() const noexcept;
 
+    const auto &raw() const { return Ctx; }
+
   private:
     static WasiCryptoExpect<PublicKey>
     importPem(Span<uint8_t const> Encoded) noexcept;
@@ -136,6 +138,8 @@ public:
     WasiCryptoExpect<PublicKey> publicKey() const noexcept;
 
     WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept;
+
+    const auto &raw() const { return Ctx; }
 
   private:
     static WasiCryptoExpect<SecretKey>

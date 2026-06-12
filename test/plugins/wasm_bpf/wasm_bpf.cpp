@@ -540,13 +540,13 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
       EXPECT_GE(mapLookupElem(histsFd, nextKeyOffset, histOffset), 0);
       const auto &histRef = readHistRef(histOffset);
       size_t maxIdx = 0;
-      for (size_t i = 0; i < std::size(histRef.slots); i++)
-        if (histRef.slots[i] > 0)
-          maxIdx = i;
-      for (size_t i = 0; i < maxIdx; i++) {
-        auto low = UINT64_C(1) << (i);
-        auto high = (UINT64_C(1) << (i + 1)) - 1;
-        fmt::print("{:<6}...{:<6} {:<6}\n"sv, low, high, histRef.slots[i]);
+      for (size_t j = 0; j < std::size(histRef.slots); j++)
+        if (histRef.slots[j] > 0)
+          maxIdx = j;
+      for (size_t j = 0; j < maxIdx; j++) {
+        auto low = UINT64_C(1) << (j);
+        auto high = (UINT64_C(1) << (j + 1)) - 1;
+        fmt::print("{:<6}...{:<6} {:<6}\n"sv, low, high, histRef.slots[j]);
       }
       writeU32(lookUpKeyOffset, readU32(nextKeyOffset));
     }

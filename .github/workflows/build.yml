@@ -26,6 +26,7 @@ on:
     branches:
       - master
       - "proposal/**"
+      - "dev/component"
     paths:
       - ".github/workflows/build.yml"
       - ".github/workflows/reusable-build-on-**"

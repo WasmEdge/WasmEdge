@@ -35,6 +35,7 @@
 #include <shared_mutex>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -309,35 +310,20 @@ public:
 #endif
 
 private:
-  void cleanupModInstContainer(
-      std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
-          &Container) {
+  /// Release and terminate all module instances in a sequence or map
+  /// container, then clear the container.
+  template <typename ContainerT>
+  void cleanupModInstContainer(ContainerT &Container) {
     for (auto &Item : Container) {
-      if (auto *ModInst = Item.release()) {
-        ModInst->terminate();
+      Runtime::Instance::ModuleInstance *ModInst;
+      if constexpr (std::is_same_v<
+                        typename ContainerT::value_type,
+                        std::unique_ptr<Runtime::Instance::ModuleInstance>>) {
+        ModInst = Item.release();
+      } else {
+        ModInst = Item.second.release();
       }
-    }
-    Container.clear();
-  }
-
-  void cleanupModInstContainer(
-      std::unordered_map<std::string,
-                         std::unique_ptr<Runtime::Instance::ModuleInstance>>
-          &Container) {
-    for (auto &Item : Container) {
-      if (auto *ModInst = Item.second.release()) {
-        ModInst->terminate();
-      }
-    }
-    Container.clear();
-  }
-
-  void cleanupModInstContainer(
-      std::unordered_map<HostRegistration,
-                         std::unique_ptr<Runtime::Instance::ModuleInstance>>
-          &Container) {
-    for (auto &Item : Container) {
-      if (auto *ModInst = Item.second.release()) {
+      if (ModInst) {
         ModInst->terminate();
       }
     }

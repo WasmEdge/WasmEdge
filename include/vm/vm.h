@@ -402,6 +402,15 @@ private:
 
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
 
+  /// Registering a module or running another wasm unit resets the active
+  /// instantiation in the store, so the stage falls back to Validated and
+  /// the instantiation must restart.
+  void unsafeRevertStageToValidated() {
+    if (Stage == VMStage::Instantiated) {
+      Stage = VMStage::Validated;
+    }
+  }
+
   void unsafeInitVM();
   void unsafeLoadBuiltInHosts();
   void unsafeLoadPlugInHosts();

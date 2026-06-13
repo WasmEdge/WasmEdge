@@ -119,18 +119,25 @@ AVCodecCtxSetSampleAspectRatio::body(const Runtime::CallingFrame &,
 Expect<uint64_t> AVCodecCtxChannelLayout::body(const Runtime::CallingFrame &,
                                                uint32_t AvCodecCtxId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
-  // Deprecated method
-  uint64_t const AvChannel = AvCodecCtx->ch_layout.u.mask;
-  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(AvChannel);
+  FFMPEG_PTR_CHECK(AvCodecCtx, 0);
+  return FFmpegUtils::ChannelLayout::intoChannelLayoutID(AvCodecCtx->ch_layout);
 }
 
 Expect<int32_t> AVCodecCtxSetChannelLayout::body(const Runtime::CallingFrame &,
                                                  uint32_t AvCodecCtxId,
                                                  uint64_t ChannelLayoutId) {
   FFMPEG_PTR_FETCH(AvCodecCtx, AvCodecCtxId, AVCodecContext);
+  FFMPEG_PTR_CHECK(AvCodecCtx, static_cast<int32_t>(ErrNo::InternalError));
   uint64_t const AvChannel =
       FFmpegUtils::ChannelLayout::fromChannelLayoutID(ChannelLayoutId);
-  av_channel_layout_from_mask(&AvCodecCtx->ch_layout, AvChannel);
+  int const Ret =
+      av_channel_layout_from_mask(&AvCodecCtx->ch_layout, AvChannel);
+  if (Ret < 0) {
+    spdlog::error("[WasmEdge-FFmpeg] AVCodecCtxSetChannelLayout: "
+                  "av_channel_layout_from_mask failed ({}) for mask {:#x}"sv,
+                  Ret, AvChannel);
+    return static_cast<int32_t>(ErrNo::InternalError);
+  }
   return static_cast<int32_t>(ErrNo::Success);
 }
 

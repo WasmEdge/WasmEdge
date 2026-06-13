@@ -12,15 +12,27 @@ namespace Host {
 namespace WasmEdgeFFmpeg {
 namespace AVFormat {
 
+namespace {
+// Returns the stream slot for Idx, or nullptr when the context is null or the
+// index is out of range, so a guest-supplied index cannot walk past the array.
+AVStream **streamAt(AVFormatContext *Ctx, uint32_t Idx) {
+  if (Ctx == nullptr) {
+    return nullptr;
+  }
+  return checkedArraySlot(Ctx->streams, Ctx->nb_streams, Idx);
+}
+} // namespace
+
 Expect<int32_t> AVStreamId::body(const Runtime::CallingFrame &,
                                  uint32_t AvFormatCtxId, uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  // No check here (Check)
-  // Raw Pointer Iteration.
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamId: invalid stream index {} "
+                  "(format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVStream *>(*AvStream)->id;
@@ -30,10 +42,13 @@ Expect<int32_t> AVStreamIndex::body(const Runtime::CallingFrame &,
                                     uint32_t AvFormatCtxId,
                                     uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamIndex: invalid stream index {} "
+                  "(format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVStream *>(*AvStream)->index;
@@ -48,15 +63,18 @@ Expect<int32_t> AVStreamCodecPar::body(const Runtime::CallingFrame &Frame,
                 "Failed when accessing the return CodecParameter Memory"sv);
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamCodecPar: invalid stream index "
+                  "{} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   AVCodecParameters *CodecParam =
       (static_cast<AVStream *>(*AvStream))->codecpar;
-  FFMPEG_PTR_STORE(CodecParam, CodecParamId);
+  FFMPEG_PTR_STORE_CHILD(CodecParam, CodecParamId, AvFormatCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -69,10 +87,13 @@ Expect<int32_t> AVStreamTimebase::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr, "");
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamTimebase: invalid stream index "
+                  "{} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   AVRational const AvRational = static_cast<AVStream *>(*AvStream)->time_base;
@@ -87,9 +108,13 @@ Expect<int32_t> AVStreamSetTimebase::body(const Runtime::CallingFrame &,
                                           uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
 
-  AVStream **AvStream = AvFormatContext->streams;
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamSetTimebase: invalid stream "
+                  "index {} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   AVRational const Timebase = av_make_q(Num, Den);
@@ -101,10 +126,13 @@ Expect<int64_t> AVStreamDuration::body(const Runtime::CallingFrame &,
                                        uint32_t AvFormatCtxId,
                                        uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamDuration: invalid stream index "
+                  "{} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVStream *>(*AvStream)->duration;
@@ -114,10 +142,13 @@ Expect<int64_t> AVStreamStartTime::body(const Runtime::CallingFrame &,
                                         uint32_t AvFormatCtxId,
                                         uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamStartTime: invalid stream index "
+                  "{} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVStream *>(*AvStream)->start_time;
@@ -127,10 +158,13 @@ Expect<int64_t> AVStreamNbFrames::body(const Runtime::CallingFrame &,
                                        uint32_t AvFormatCtxId,
                                        uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamNbFrames: invalid stream index "
+                  "{} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVStream *>(*AvStream)->nb_frames;
@@ -141,10 +175,13 @@ Expect<int32_t> AVStreamDisposition::body(const Runtime::CallingFrame &,
                                           uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
 
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamDisposition: invalid stream "
+                  "index {} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<AVStream *>(*AvStream)->disposition;
@@ -159,10 +196,13 @@ Expect<int32_t> AVStreamRFrameRate::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr, "");
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamRFrameRate: invalid stream "
+                  "index {} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   AVRational const AvRational =
@@ -178,9 +218,13 @@ Expect<int32_t> AVStreamSetRFrameRate::body(const Runtime::CallingFrame &,
                                             uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
 
-  AVStream **AvStream = AvFormatContext->streams;
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamSetRFrameRate: invalid stream "
+                  "index {} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   AVRational const RFrameRate = av_make_q(Num, Den);
@@ -197,10 +241,13 @@ Expect<int32_t> AVStreamAvgFrameRate::body(const Runtime::CallingFrame &Frame,
   MEM_PTR_CHECK(Den, MemInst, int32_t, DenPtr, "");
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamAvgFrameRate: invalid stream "
+                  "index {} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   AVRational const AvRational =
@@ -216,10 +263,13 @@ Expect<int32_t> AVStreamSetAvgFrameRate::body(const Runtime::CallingFrame &,
                                               uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
 
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamSetAvgFrameRate: invalid stream "
+                  "index {} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   AVRational const AvgFrameRate = av_make_q(Num, Den);
@@ -236,17 +286,16 @@ Expect<int32_t> AVStreamMetadata::body(const Runtime::CallingFrame &Frame,
 
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
 
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamMetadata: invalid stream index "
+                  "{} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
-  AVDictionary **AvDictionary =
-      static_cast<AVDictionary **>(av_malloc(sizeof(AVDictionary *)));
-
-  *AvDictionary = (*AvStream)->metadata;
-  FFMPEG_PTR_STORE(AvDictionary, DictId);
+  FFMPEG_PTR_STORE_CHILD(&(*AvStream)->metadata, DictId, AvFormatCtxId);
   return static_cast<int32_t>(ErrNo::Success);
 }
 
@@ -256,16 +305,22 @@ Expect<int32_t> AVStreamSetMetadata::body(const Runtime::CallingFrame &,
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
   FFMPEG_PTR_FETCH(AvDictionary, DictId, AVDictionary *);
 
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamSetMetadata: invalid stream "
+                  "index {} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
-  if (AvDictionary == nullptr) {
-    (*AvStream)->metadata = nullptr;
-  } else {
-    (*AvStream)->metadata = *AvDictionary;
+  AVDictionary *const Src = (AvDictionary == nullptr) ? nullptr : *AvDictionary;
+  int const Ret = setMetadataCopy(&(*AvStream)->metadata, Src);
+  if (Ret < 0) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamSetMetadata: metadata "
+                  "dictionary copy failed ({})"sv,
+                  Ret);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<int32_t>(ErrNo::Success);
@@ -275,10 +330,13 @@ Expect<int32_t> AVStreamDiscard::body(const Runtime::CallingFrame &,
                                       uint32_t AvFormatCtxId,
                                       uint32_t StreamIdx) {
   FFMPEG_PTR_FETCH(AvFormatContext, AvFormatCtxId, AVFormatContext);
-  AVStream **AvStream = AvFormatContext->streams;
-
-  for (unsigned int I = 1; I <= StreamIdx; I++) {
-    AvStream++;
+  AVStream **AvStream = streamAt(AvFormatContext, StreamIdx);
+  if (AvStream == nullptr) {
+    spdlog::error("[WasmEdge-FFmpeg] AVStreamDiscard: invalid stream index "
+                  "{} (format context id {}, nb_streams={})"sv,
+                  StreamIdx, AvFormatCtxId,
+                  AvFormatContext ? AvFormatContext->nb_streams : 0);
+    return static_cast<int32_t>(ErrNo::InternalError);
   }
 
   return static_cast<int32_t>((*AvStream)->discard);

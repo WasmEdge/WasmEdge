@@ -1,0 +1,43 @@
+name: Requirements sync
+
+on:
+  pull_request:
+    paths:
+      - ".github/requirements/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-sync:
+    name: Verify requirements .txt match .in
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          version: "0.11.21"
+
+      - name: Recompile requirements and check for drift
+        working-directory: .github/requirements
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for in_file in *.in; do
+            uv pip compile "$in_file" --universal --generate-hashes --no-annotate -o "${in_file%.in}.txt"
+          done
+          git add --intent-to-add .
+          if ! git diff --exit-code -- .; then
+            echo "::error::Compiled requirements (*.txt) are out of sync with their *.in sources."
+            echo "Regenerate with: uv pip compile <name>.in --universal --generate-hashes --no-annotate -o <name>.txt"
+            exit 1
+          fi

@@ -649,6 +649,24 @@ TEST(serializeTypeTest, SerializeSubType) {
   };
   EXPECT_EQ(Output, Expected);
 
+  WasmEdge::AST::SubType SubType3;
+  SubType3.getCompositeType() = CompType;
+  SubType3.getSuperTypeIndices() = {};
+  SubType3.setFinal(false);
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(createTypeSec(SubType3), Output));
+  Expected = {
+      0x01U,               // Type section
+      0x06U,               // Content size
+      0x01U,               // Vector length
+      0x50U,               // Sub type
+      0x00U,               // TypeIdx Vector size
+      0x5EU,               // Array type
+      0x78U,               // I8 type
+      0x00U                // Const mutation
+  };
+  EXPECT_EQ(Output, Expected);
+
   WasmEdge::AST::TypeSection TypeSec;
   SubType1.setRecursiveInfo(0x00U, 0x01U);
   SubType2.setRecursiveInfo(0x00U, 0x01U);

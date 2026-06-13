@@ -35,8 +35,7 @@ WasiCryptoExpect<SecretVec> dh(const PkVariant &PkVariant,
       PkVariant, SkVariant);
 }
 
-WasiCryptoExpect<EncapsulatedSecret>
-encapsulate(PkVariant &) noexcept {
+WasiCryptoExpect<EncapsulatedSecret> encapsulate(PkVariant &) noexcept {
   return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 

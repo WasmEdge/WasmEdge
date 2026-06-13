@@ -291,7 +291,7 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerateManaged(
   return transposeOptionalToRef(
              *OptOptionsResult,
              [](const auto &Options) noexcept
-             -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
+                 -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
                auto *SymmetricOptions =
                    std::get_if<Symmetric::Options>(&Options);
                if (!SymmetricOptions) {
@@ -308,9 +308,10 @@ WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerateManaged(
       });
 }
 
-WasiCryptoExpect<void> Context::symmetricKeyStoreManaged(
-    __wasi_secrets_manager_t SecretsManagerHandle,
-    __wasi_symmetric_key_t KeyHandle, Span<uint8_t> KeyId) noexcept {
+WasiCryptoExpect<void>
+Context::symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
+                                  __wasi_symmetric_key_t KeyHandle,
+                                  Span<uint8_t> KeyId) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
         return SymmetricKeyManager.get(KeyHandle).and_then(

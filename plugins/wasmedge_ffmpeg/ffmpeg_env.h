@@ -69,7 +69,7 @@ private:
 
 // Utils functions.
 #define MEMINST_CHECK(Out, CallFrame, Index)                                   \
-  auto *Out = CallFrame.getMemoryByIndex(Index);                               \
+  auto *Out = CallFrame.getMemoryByName("memory");                             \
   if (unlikely(Out == nullptr)) {                                              \
     spdlog::error("[WasmEdge-FFmpeg] Memory instance not found."sv);           \
     return static_cast<int32_t>(ErrNo::MissingMemory);                         \

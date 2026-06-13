@@ -18,7 +18,7 @@ Expect<ErrNo> ModelCreate::bodyImpl(const Runtime::CallingFrame &Frame,
                                     uint32_t CheckPointPath,
                                     uint32_t CheckPointPathLen,
                                     uint32_t ModelIdPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     spdlog::error("[WasmEdge-LLMC] Memory instance not found."sv);
     return ErrNo::MissingMemory;
@@ -49,7 +49,7 @@ Expect<ErrNo> DataLoaderCreate::bodyImpl(
     const Runtime::CallingFrame &Frame, uint32_t DataPath, uint32_t DataPathLen,
     uint32_t B, uint32_t T, uint32_t ProcessRank, uint32_t NumProcesses,
     int32_t ShouldShuffle, uint32_t DataLoaderIdPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     spdlog::error("[WasmEdge-LLMC] Memory instance not found."sv);
     return ErrNo::MissingMemory;
@@ -79,7 +79,7 @@ Expect<ErrNo> DataLoaderCreate::bodyImpl(
 Expect<ErrNo> TokenizerCreate::bodyImpl(const Runtime::CallingFrame &Frame,
                                         uint32_t FilePath, uint32_t FilePathLen,
                                         uint32_t TokenizerIdPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     spdlog::error("[WasmEdge-LLMC] Memory instance not found."sv);
     return ErrNo::MissingMemory;
@@ -109,7 +109,7 @@ Expect<ErrNo> ModelTrain::bodyImpl(const Runtime::CallingFrame &Frame,
                                    uint32_t ValDataLoaderId,
                                    uint32_t TokenizerId, uint32_t B, uint32_t T,
                                    float Lr, uint32_t Epoch) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     spdlog::error("[WasmEdge-LLMC] Memory instance not found."sv);
     return ErrNo::MissingMemory;

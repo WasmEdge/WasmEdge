@@ -20,7 +20,7 @@ using namespace std::literals::string_view_literals;
 namespace {
 
 #define MEMINST_CHECK(Out, CallFrame, Index)                                   \
-  auto *Out = CallFrame.getMemoryByIndex(Index);                               \
+  auto *Out = CallFrame.getMemoryByName("memory");                             \
   if (unlikely(Out == nullptr)) {                                              \
     spdlog::error("[WasmEdge-Tensorflow] Memory instance not found."sv);       \
     return static_cast<uint32_t>(ErrNo::MissingMemory);                        \

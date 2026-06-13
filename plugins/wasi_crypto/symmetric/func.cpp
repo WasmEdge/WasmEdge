@@ -12,7 +12,7 @@ Expect<uint32_t> KeyGenerate::body(const Runtime::CallingFrame &Frame,
                                    uint32_t AlgPtr, uint32_t AlgLen,
                                    uint32_t OptOptionsPtr,
                                    uint32_t /* Out */ KeyHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -48,7 +48,7 @@ Expect<uint32_t> KeyImport::body(const Runtime::CallingFrame &Frame,
                                  uint32_t AlgPtr, uint32_t AlgLen,
                                  uint32_t RawPtr, uint32_t RawLen,
                                  uint32_t /* Out */ KeyPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -81,7 +81,7 @@ Expect<uint32_t> KeyImport::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> KeyExport::body(const Runtime::CallingFrame &Frame,
                                  int32_t KeyHandle,
                                  uint32_t /* Out */ ArrayOutputHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const ArrayOutputHandle =
@@ -111,7 +111,7 @@ Expect<uint32_t> KeyGenerateManaged::body(const Runtime::CallingFrame &Frame,
                                           uint32_t AlgPtr, uint32_t AlgLen,
                                           uint32_t OptOptionsPtr,
                                           uint32_t /* Out */ KeyHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -148,7 +148,7 @@ Expect<uint32_t> KeyStoreManaged::body(const Runtime::CallingFrame &Frame,
                                        int32_t SecretsManagerHandle,
                                        int32_t KeyHandle, uint32_t KeyIdPtr,
                                        uint32_t KeyIdMaxLen) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdMaxLen = KeyIdMaxLen;
@@ -169,7 +169,7 @@ Expect<uint32_t> KeyReplaceManaged::body(const Runtime::CallingFrame &Frame,
                                          int32_t OldKeyHandle,
                                          int32_t NewKeyHandle,
                                          uint32_t /* Out */ KeyVersionPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const KeyVersion =
@@ -191,7 +191,7 @@ Expect<uint32_t> KeyId::body(const Runtime::CallingFrame &Frame,
                              int32_t KeyHandle, uint32_t KeyIdPtr,
                              uint32_t KeyIdMaxLen, uint32_t /* Out */ SizePtr,
                              uint32_t /* Out */ KeyVersionPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdMaxLen = KeyIdMaxLen;
@@ -228,7 +228,7 @@ Expect<uint32_t> KeyFromId::body(const Runtime::CallingFrame &Frame,
                                  uint32_t KeyIdPtr, uint32_t KeyIdLen,
                                  uint64_t KeyVersion,
                                  uint32_t /* Out */ KeyHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiKeyIdLen = KeyIdLen;
@@ -255,7 +255,7 @@ Expect<uint32_t> StateOpen::body(const Runtime::CallingFrame &Frame,
                                  uint32_t OptKeyHandlePtr,
                                  uint32_t OptOptionsPtr,
                                  uint32_t /* Out */ StatePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -294,7 +294,7 @@ Expect<uint32_t> StateOpen::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> StateClone::body(const Runtime::CallingFrame &Frame,
                                   int32_t StateHandle,
                                   uint32_t /* Out */ StatePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const State = MemInst->getPointer<__wasi_symmetric_state_t *>(StatePtr);
@@ -316,7 +316,7 @@ Expect<uint32_t> StateOptionsGet::body(const Runtime::CallingFrame &Frame,
                                        uint32_t NameLen, uint32_t ValuePtr,
                                        uint32_t ValueLen,
                                        uint32_t /* Out */ SizePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -345,7 +345,7 @@ Expect<uint32_t> StateOptionsGetU64::body(const Runtime::CallingFrame &Frame,
                                           int32_t StateHandle, uint32_t NamePtr,
                                           uint32_t NameLen,
                                           uint32_t /* Out */ U64Ptr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiNameLen = NameLen;
@@ -377,7 +377,7 @@ Expect<uint32_t> StateClose::body(const Runtime::CallingFrame &,
 Expect<uint32_t> StateAbsorb::body(const Runtime::CallingFrame &Frame,
                                    int32_t StateHandle, uint32_t DataPtr,
                                    uint32_t DataLen) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiDataLen = DataLen;
@@ -394,7 +394,7 @@ Expect<uint32_t> StateAbsorb::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> StateSqueeze::body(const Runtime::CallingFrame &Frame,
                                     int32_t StateHandle, uint32_t OutPtr,
                                     uint32_t OutLen) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
@@ -411,7 +411,7 @@ Expect<uint32_t> StateSqueeze::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> StateSqueezeTag::body(const Runtime::CallingFrame &Frame,
                                        int32_t StateHandle,
                                        uint32_t /* Out */ TagHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const TagHandle =
@@ -431,7 +431,7 @@ Expect<uint32_t> StateSqueezeKey::body(const Runtime::CallingFrame &Frame,
                                        int32_t StateHandle, uint32_t AlgPtr,
                                        uint32_t AlgLen,
                                        uint32_t /* Out */ KeyHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiAlgLen = AlgLen;
@@ -461,7 +461,7 @@ Expect<uint32_t> StateSqueezeKey::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> StateMaxTagLen::body(const Runtime::CallingFrame &Frame,
                                       int32_t StateHandle,
                                       uint32_t /* Out */ SizePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -482,7 +482,7 @@ Expect<uint32_t> StateEncrypt::body(const Runtime::CallingFrame &Frame,
                                     uint32_t OutLen, uint32_t DataPtr,
                                     uint32_t DataLen,
                                     uint32_t /* Out */ SizePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
@@ -512,7 +512,7 @@ Expect<uint32_t> StateEncryptDetached::body(const Runtime::CallingFrame &Frame,
                                             uint32_t OutPtr, uint32_t OutLen,
                                             uint32_t DataPtr, uint32_t DataLen,
                                             uint32_t /* Out */ TagHandlePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
@@ -542,7 +542,7 @@ Expect<uint32_t> StateDecrypt::body(const Runtime::CallingFrame &Frame,
                                     uint32_t OutLen, uint32_t DataPtr,
                                     uint32_t DataLen,
                                     uint32_t /* Out */ SizePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
@@ -573,7 +573,7 @@ Expect<uint32_t> StateDecryptDetached::body(
     const Runtime::CallingFrame &Frame, int32_t StateHandle, uint32_t OutPtr,
     uint32_t OutLen, uint32_t DataPtr, uint32_t DataLen, uint32_t RawTagPtr,
     uint32_t RawTagLen, uint32_t /* Out */ SizePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiOutLen = OutLen;
@@ -614,7 +614,7 @@ Expect<uint32_t> StateRatchet::body(const Runtime::CallingFrame &,
 
 Expect<uint32_t> TagLen::body(const Runtime::CallingFrame &Frame,
                               int32_t TagHandle, uint32_t /* Out */ SizePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *Size = MemInst->getPointer<__wasi_size_t *>(SizePtr);
@@ -635,7 +635,7 @@ Expect<uint32_t> TagLen::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> TagPull::body(const Runtime::CallingFrame &Frame,
                                int32_t TagHandle, uint32_t BufPtr,
                                uint32_t BufLen, uint32_t /* Out */ SizePtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiBufLen = BufLen;
@@ -658,7 +658,7 @@ Expect<uint32_t> TagPull::body(const Runtime::CallingFrame &Frame,
 Expect<uint32_t> TagVerify::body(const Runtime::CallingFrame &Frame,
                                  int32_t TagHandle, uint32_t RawTagPtr,
                                  uint32_t RawTagLen) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiRawTagLen = RawTagLen;

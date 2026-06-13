@@ -11,7 +11,7 @@ namespace Kx {
 Expect<uint32_t> Dh::body(const Runtime::CallingFrame &Frame, int32_t PkHandle,
                           int32_t SkHandle,
                           uint32_t /* Out */ SharedSecretPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const SharedSecret =
@@ -31,7 +31,7 @@ Expect<uint32_t> Encapsulate::body(const Runtime::CallingFrame &Frame,
                                    int32_t PkHandle,
                                    uint32_t /* Out */ SecretPtr,
                                    uint32_t /* Out */ EncapsulatedSecretPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   auto *const Secret = MemInst->getPointer<__wasi_array_output_t *>(SecretPtr);
@@ -55,7 +55,7 @@ Expect<uint32_t> Decapsulate::body(const Runtime::CallingFrame &Frame,
                                    uint32_t EncapsulatedSecretPtr,
                                    uint32_t EncapsulatedSecretLen,
                                    uint32_t /* Out */ SecretPtr) {
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   checkExist(MemInst);
 
   const __wasi_size_t WasiEncapsulatedSecretLen = EncapsulatedSecretLen;

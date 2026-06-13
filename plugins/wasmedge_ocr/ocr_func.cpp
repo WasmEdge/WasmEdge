@@ -16,7 +16,7 @@ Expect<uint32_t> NumOfExtractions::body(const Runtime::CallingFrame &Frame,
                                         uint32_t ImagePathPtr,
                                         uint32_t ImagePathLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -41,7 +41,7 @@ Expect<uint32_t> GetOutput::body(const Runtime::CallingFrame &Frame,
                                  uint32_t OutBufferPtr [[maybe_unused]],
                                  uint32_t OutBufferMaxSize [[maybe_unused]]) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

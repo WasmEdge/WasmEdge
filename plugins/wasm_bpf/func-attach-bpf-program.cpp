@@ -10,7 +10,7 @@ namespace Host {
 Expect<int32_t> AttachBpfProgram::body(const Runtime::CallingFrame &Frame,
                                        handle_t program, uint32_t name,
                                        uint32_t attach_target) {
-  auto *memory = Frame.getMemoryByIndex(0);
+  auto *memory = Frame.getMemoryByName("memory");
   if (unlikely(!memory)) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

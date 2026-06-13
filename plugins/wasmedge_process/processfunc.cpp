@@ -28,7 +28,7 @@ Expect<void>
 WasmEdgeProcessSetProgName::body(const Runtime::CallingFrame &Frame,
                                  uint32_t NamePtr, uint32_t NameLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -41,7 +41,7 @@ WasmEdgeProcessSetProgName::body(const Runtime::CallingFrame &Frame,
 Expect<void> WasmEdgeProcessAddArg::body(const Runtime::CallingFrame &Frame,
                                          uint32_t ArgPtr, uint32_t ArgLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -59,7 +59,7 @@ Expect<void> WasmEdgeProcessAddEnv::body(const Runtime::CallingFrame &Frame,
                                          uint32_t EnvValPtr,
                                          uint32_t EnvValLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -76,7 +76,7 @@ Expect<void> WasmEdgeProcessAddEnv::body(const Runtime::CallingFrame &Frame,
 Expect<void> WasmEdgeProcessAddStdIn::body(const Runtime::CallingFrame &Frame,
                                            uint32_t BufPtr, uint32_t BufLen) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -317,7 +317,7 @@ WasmEdgeProcessGetStdOutLen::body(const Runtime::CallingFrame &) {
 Expect<void> WasmEdgeProcessGetStdOut::body(const Runtime::CallingFrame &Frame,
                                             uint32_t BufPtr) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }
@@ -336,7 +336,7 @@ WasmEdgeProcessGetStdErrLen::body(const Runtime::CallingFrame &) {
 Expect<void> WasmEdgeProcessGetStdErr::body(const Runtime::CallingFrame &Frame,
                                             uint32_t BufPtr) {
   // Check memory instance from module.
-  auto *MemInst = Frame.getMemoryByIndex(0);
+  auto *MemInst = Frame.getMemoryByName("memory");
   if (MemInst == nullptr) {
     return Unexpect(ErrCode::Value::HostFuncError);
   }

@@ -33,7 +33,17 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519::PublicKey::exportData(
 }
 
 WasiCryptoExpect<void> X25519::PublicKey::verify() const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
+  ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  // EVP_PKEY_public_check returns -2 when check for the specific
+  // key type (x25519 in this case) is not supported, on success
+  // it returns 1 and 0 or negative value on failure.
+  const int Ret = EVP_PKEY_public_check(CheckCtx.get());
+  if (Ret == -2) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  }
+  ensureOrReturn(Ret == 1, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return {};
 }
 
 WasiCryptoExpect<SecretVec> X25519::SecretKey::exportData(
@@ -79,8 +89,20 @@ X25519::SecretKey::dh(const PublicKey &Pk) const noexcept {
 }
 
 WasiCryptoExpect<X25519::KeyPair>
-X25519::SecretKey::toKeyPair(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+X25519::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
+  std::vector<uint8_t> DerivedPk(PkSize);
+  size_t Size = PkSize;
+  opensslCheck(EVP_PKEY_get_raw_public_key(Ctx.get(), DerivedPk.data(), &Size));
+  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  std::vector<uint8_t> GivenPk(PkSize);
+  Size = PkSize;
+  opensslCheck(
+      EVP_PKEY_get_raw_public_key(Pk.raw().get(), GivenPk.data(), &Size));
+  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  ensureOrReturn(CRYPTO_memcmp(DerivedPk.data(), GivenPk.data(), PkSize) == 0,
+                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  return Ctx;
 }
 
 WasiCryptoExpect<X25519::PublicKey>

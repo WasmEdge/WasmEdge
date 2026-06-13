@@ -86,12 +86,14 @@ public:
     WasiCryptoExpect<void> verify() const noexcept {
       EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
       ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-      // EVP_PKEY_public_check() returns 1 for a valid key and 0 for an invalid
-      // one. A negative value means the check is unsupported for this key type
-      // (e.g. on OpenSSL 1.1.1), so only an explicit 0 is treated as invalid.
-      ensureOrReturn(EVP_PKEY_public_check(CheckCtx.get()) != 0,
-                     __WASI_CRYPTO_ERRNO_INVALID_KEY);
-      return {};
+      int Rc = EVP_PKEY_public_check(CheckCtx.get());
+      if (Rc == 1) {
+        return {};
+      }
+      if (Rc == 0) {
+        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+      }
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     }
 
   protected:
@@ -109,6 +111,7 @@ public:
     importSec(Span<const uint8_t> Encoded) noexcept {
       EcKeyPtr EcCtx{EC_KEY_new_by_curve_name(CurveNid)};
       EcPointPtr Pk{EC_POINT_new(EC_KEY_get0_group(EcCtx.get()))};
+      ensureOrReturn(Pk, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
       ensureOrReturn(EC_POINT_oct2point(EC_KEY_get0_group(EcCtx.get()),
                                         Pk.get(), Encoded.data(),
                                         Encoded.size(), nullptr),
@@ -236,6 +239,7 @@ public:
 
       // Calculate and set Pk.
       EcPointPtr Pk{EC_POINT_new(EC_KEY_get0_group(EcCtx.get()))};
+      ensureOrReturn(Pk, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
       opensslCheck(EC_POINT_mul(EC_KEY_get0_group(EcCtx.get()), Pk.get(),
                                 Sk.get(), nullptr, nullptr, nullptr));
       opensslCheck(EC_KEY_set_public_key(EcCtx.get(), Pk.get()));
@@ -374,6 +378,7 @@ public:
 
       // Calculate and set Pk.
       EcPointPtr Pk{EC_POINT_new(EC_KEY_get0_group(EcCtx.get()))};
+      ensureOrReturn(Pk, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
       opensslCheck(EC_POINT_mul(EC_KEY_get0_group(EcCtx.get()), Pk.get(),
                                 Sk.get(), nullptr, nullptr, nullptr));
       opensslCheck(EC_KEY_set_public_key(EcCtx.get(), Pk.get()));

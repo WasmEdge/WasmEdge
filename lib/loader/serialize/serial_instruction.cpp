@@ -524,9 +524,9 @@ Serializer::serializeInstruction(const AST::Instruction &Instr,
   // SIMD Shuffle Instruction.
   case OpCode::I8x16__shuffle: {
     uint128_t Value = Instr.getNum().get<uint128_t>();
-    const std::uint8_t *Ptr = reinterpret_cast<const uint8_t *>(&Value);
     for (uint32_t I = 0; I < 16; ++I) {
-      OutVec.push_back(Ptr[15 - I]);
+      OutVec.push_back(static_cast<uint8_t>(Value & 0xFF));
+      Value >>= 8;
     }
     return {};
   }

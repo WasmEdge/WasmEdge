@@ -29,20 +29,14 @@ TEST_F(WasiCryptoTest, Asymmetric) {
           WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
           WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkHandle));
 
-          if (Alg == "Ed25519"sv) {
-            WASI_CRYPTO_EXPECT_SUCCESS(
-                KpMHandle,
-                keypairGenerateManaged(1, AlgType, Alg, std::nullopt));
-            WASI_CRYPTO_EXPECT_SUCCESS(PkMHandle, keypairPublickey(KpMHandle));
-            WASI_CRYPTO_EXPECT_SUCCESS(SkMHandle, keypairSecretkey(KpMHandle));
-            WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpMHandle));
-            WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkMHandle));
-            WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkMHandle));
-          } else {
-            WASI_CRYPTO_EXPECT_FAILURE(
-                keypairGenerateManaged(1, AlgType, Alg, std::nullopt),
-                __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-          }
+          WASI_CRYPTO_EXPECT_SUCCESS(
+              KpMHandle,
+              keypairGenerateManaged(1, AlgType, Alg, std::nullopt));
+          WASI_CRYPTO_EXPECT_SUCCESS(PkMHandle, keypairPublickey(KpMHandle));
+          WASI_CRYPTO_EXPECT_SUCCESS(SkMHandle, keypairSecretkey(KpMHandle));
+          WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpMHandle));
+          WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkMHandle));
+          WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(SkMHandle));
         }
 
         // Encoding checking.

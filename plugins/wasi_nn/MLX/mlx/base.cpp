@@ -9,26 +9,26 @@
 namespace WasmEdge::Host::WASINN::MLX {
 namespace mlx::core::nn {
 
-mx::array &Module::registerParameter(std::string Name, mx::array &&W) {
-  Parameters.insert({Name, W});
-  return Parameters.at(Name);
+mx::array &Module::registerParameter(std::string ParamName, mx::array &&W) {
+  Parameters.insert({ParamName, W});
+  return Parameters.at(ParamName);
 }
 
-void Module::update(std::unordered_map<std::string, mx::array> Parameters) {
-  for (auto &[K, V] : Parameters) {
+void Module::update(std::unordered_map<std::string, mx::array> NewParameters) {
+  for (auto &[K, V] : NewParameters) {
     apply(K, V);
   }
 }
 
 std::shared_ptr<nn::Module> Module::toQuantized(
     int GroupSize, int Bits, const std::string &Prefix,
-    const std::unordered_map<std::string, mx::array> &Parameters) {
+    const std::unordered_map<std::string, mx::array> &LoadedWeights) {
   auto NewPrefix = Prefix + Name + (Prefix.empty() && Name.empty() ? "" : ".");
   for (auto &[K, V] : Submodules) {
     if (V->hasQuantize()) {
       auto Weights = V->Parameters.find("weight");
-      if (Weights != V->Parameters.end() && !Parameters.empty()) {
-        if (Parameters.count(NewPrefix + V->Name + ".scales") == 0) {
+      if (Weights != V->Parameters.end() && !LoadedWeights.empty()) {
+        if (LoadedWeights.count(NewPrefix + V->Name + ".scales") == 0) {
           continue;
         }
       }
@@ -38,7 +38,8 @@ std::shared_ptr<nn::Module> Module::toQuantized(
       }
     }
     V = V->toQuantized(GroupSize, Bits,
-                       Prefix + Name + (Name.empty() ? "" : "."), Parameters);
+                       Prefix + Name + (Name.empty() ? "" : "."),
+                       LoadedWeights);
   }
   return shared_from_this();
 }

@@ -197,6 +197,25 @@ Abdelrahman Emad, alabulei1, Asish Kumar, Asmit Kumar Rai, Barry, Digo, Divyansh
 
 If you want to build from source, please use WasmEdge-0.17.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
+### 0.16.4 (2026-06-12)
+
+This is the bug fix for the 0.16.x versions.
+
+Fixed issues:
+
+* fix: reject non-funcref tables/refs in call_indirect and call_ref (#4920)
+* fix(wasi): reject symlink targets that resolve outside the preopen root (#4938)
+
+CI:
+
+* Bumped CI dependencies
+
+Thank all the contributors who made this release possible!
+
+Shen-Ta Hsieh(BestSteve), Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.16.4-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
 ### 0.16.3 (2026-05-04)
 
 This is the bug fix for the 0.16.x versions.
@@ -402,6 +421,21 @@ Thank all the contributors who made this release possible!
 Han-Wen Tsao, Karan Lokchandani, Khush Agrawal, Minimega12121, Sankalp Jha, Shen-Ta Hsieh(BestSteve), Vishruth Thimmaiah, Wang-Yang, Li, Yi, Yi-Ying He, cmd05, dm4, grorge, hydai
 
 If you want to build from source, please use WasmEdge-0.16.0-src.tar.gz instead of the zip or tarball provided by GitHub directly.
+
+### 0.15.1 (2026-01-08)
+
+This is the hot fix for 0.15.x versions.
+
+Fixed issues:
+
+* feat(aot): add support for llvm 21
+* [CVE-2025-69261] fix(runtime): overflow issue of getting memory over 32-bit offset
+
+Thank all the contributors who made this release possible!
+
+Shen-Ta Hsieh, Yi-Ying He
+
+If you want to build from source, please use WasmEdge-0.15.1-src.tar.gz instead of the zip or tarball provided by GitHub directly.
 
 ### 0.15.0 (2025-08-04)
 

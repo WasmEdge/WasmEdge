@@ -679,8 +679,8 @@ INode INode::stdErr() noexcept {
   return INode(GetStdHandle(STD_ERROR_HANDLE_), true);
 }
 
-WasiExpect<INode> INode::fromFd(int32_t Fd) {
-  EXPECTED_TRY(auto Handle, getWindowsHandle(Fd));
+WasiExpect<INode> INode::fromFd(int32_t FdNum) {
+  EXPECTED_TRY(auto Handle, getWindowsHandle(FdNum));
   return INode(Handle, true);
 }
 

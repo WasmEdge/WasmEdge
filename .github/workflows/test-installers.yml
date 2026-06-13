@@ -478,6 +478,21 @@ jobs:
           echo "Test 3: Deprecated version handling"
           ${python_cmd} utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
             echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
+
+          # Test shell config
+          printf "\n=== Test 4: Shell config (default) ===\n"
+          tempdir="$(mktemp -d)"
+          ${python_cmd} utils/install.py -p "$tempdir"
+          verify_shell_config "$tempdir" "1"
+          bash utils/uninstall.sh -q -V -p "$tempdir"
+
+          # Test no shell config
+          printf "\n=== Test 5: Shell config (--no-shell-config) ===\n"
+          tempdir="$(mktemp -d)"
+          ${python_cmd} utils/install.py --no-shell-config -p "$tempdir"
+          verify_shell_config "$tempdir" "0"
+          bash utils/uninstall.sh -q -V -p "$tempdir"
+
         done
 
     - name: Test Plugin Installations
@@ -563,6 +578,20 @@ jobs:
         printf "\n=== Test 3: Deprecated version handling ===\n"
         python3 utils/install.py -v ${DEPRECATED_TEST_VERSION} -D 2>&1 | grep -q "Version not supported. Min Version: 0.13.0" && \
           echo "[PASS] Version validation works" || (echo "[FAIL] Version validation failed" && exit 1)
+
+        # Test shell config
+        printf "\n=== Test 4: Shell config (default) ===\n"
+        tempdir="$(mktemp -d)"
+        python3 utils/install.py -p "$tempdir"
+        verify_shell_config "$tempdir" "1"
+        bash utils/uninstall.sh -q -V -p "$tempdir"
+
+        # Test no shell config
+        printf "\n=== Test 5: Shell config (--no-shell-config) ===\n"
+        tempdir="$(mktemp -d)"
+        python3 utils/install.py --no-shell-config -p "$tempdir"
+        verify_shell_config "$tempdir" "0"
+        bash utils/uninstall.sh -q -V -p "$tempdir"
 
     - name: Test Plugin Installations
       shell: zsh {0}

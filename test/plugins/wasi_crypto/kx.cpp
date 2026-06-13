@@ -53,9 +53,9 @@ TEST_F(WasiCryptoTest, KxDh) {
     /// It's only supported in OpenSSL 3.0.
     /// See: https://github.com/openssl/openssl/issues/7616
     WASI_CRYPTO_EXPECT_FAILURE(kxEncapsulate(Pk1Handle),
-                               __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
     WASI_CRYPTO_EXPECT_FAILURE(kxDecapsulate(Sk1Handle, {}),
-                               __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
     WASI_CRYPTO_EXPECT_TRUE(publickeyClose(Pk1Handle));
     WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk2Handle));
 
@@ -111,9 +111,9 @@ TEST_F(WasiCryptoTest, KxDh) {
     /// It's only supported in OpenSSL 3.0.
     /// See: https://github.com/openssl/openssl/issues/7616
     WASI_CRYPTO_EXPECT_FAILURE(kxEncapsulate(Pk1Handle),
-                               __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
     WASI_CRYPTO_EXPECT_FAILURE(kxDecapsulate(Sk1Handle, {}),
-                               __WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+                               __WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
     WASI_CRYPTO_EXPECT_TRUE(publickeyClose(Pk1Handle));
     WASI_CRYPTO_EXPECT_TRUE(secretkeyClose(Sk2Handle));
 

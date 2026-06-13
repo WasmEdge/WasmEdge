@@ -35,9 +35,14 @@ WasiCryptoExpect<std::vector<uint8_t>> X25519::PublicKey::exportData(
 WasiCryptoExpect<void> X25519::PublicKey::verify() const noexcept {
   EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
   ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
-  ensureOrReturn(EVP_PKEY_public_check(CheckCtx.get()) != 0,
-                 __WASI_CRYPTO_ERRNO_INVALID_KEY);
-  return {};
+  int Rc = EVP_PKEY_public_check(CheckCtx.get());
+  if (Rc == 1) {
+    return {};
+  }
+  if (Rc == 0) {
+    return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
+  }
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
 }
 
 WasiCryptoExpect<SecretVec> X25519::SecretKey::exportData(

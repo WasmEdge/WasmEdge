@@ -160,6 +160,15 @@ Expect<WASINN::ErrNo> getOutput(WASINN::WasiNNEnvironment &Env,
     const ov::Tensor &OutputTensor =
         CxtRef.OpenVINOInferRequest.get_output_tensor(Index);
     BytesWritten = OutputTensor.get_byte_size();
+
+    // Prevent host memory corruption if guest provides an undersized buffer
+    if (OutBuffer.size() < BytesWritten) {
+      spdlog::error(
+          "[WASI-NN] Host memory bounds error. Expected buffer size {}, but got {}"sv,
+          BytesWritten, OutBuffer.size());
+      return WASINN::ErrNo::InvalidArgument;
+    }
+
     std::copy_n(static_cast<const uint8_t *>(OutputTensor.data()), BytesWritten,
                 OutBuffer.data());
   } catch (const std::exception &EX) {

@@ -280,11 +280,32 @@ Context::symmetricStateClone(__wasi_symmetric_state_t StateHandle) noexcept {
 WasiCryptoExpect<__wasi_symmetric_key_t> Context::symmetricKeyGenerateManaged(
     __wasi_secrets_manager_t, Symmetric::Algorithm Alg,
     __wasi_opt_options_t OptOptionsHandle) noexcept {
-  return OptionsManager.get(OptOptionsHandle).and_then([&](auto &&Options) {
-    return Symmetric::generateKey(Alg, Options).and_then([&](auto &&Key) {
-      return SymmetricKeyManager.registerManager(std::move(Key));
-    });
-  });
+  auto OptOptionsResult = mapAndTransposeOptional(
+      OptOptionsHandle, [this](__wasi_options_t OptionsHandle) noexcept {
+        return OptionsManager.get(OptionsHandle);
+      });
+  if (!OptOptionsResult) {
+    return WasiCryptoUnexpect(OptOptionsResult);
+  }
+
+  return transposeOptionalToRef(
+             *OptOptionsResult,
+             [](const auto &Options) noexcept
+             -> WasiCryptoExpect<OptionalRef<const Symmetric::Options>> {
+               auto *SymmetricOptions =
+                   std::get_if<Symmetric::Options>(&Options);
+               if (!SymmetricOptions) {
+                 return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+               }
+               return SymmetricOptions;
+             })
+      .and_then([Alg](auto &&OptOptions) noexcept {
+        return Symmetric::generateKey(Alg, OptOptions);
+      })
+      .and_then([this](auto &&Key) noexcept {
+        return SymmetricKeyManager.registerManager(
+            std::forward<decltype(Key)>(Key));
+      });
 }
 
 WasiCryptoExpect<void> Context::symmetricKeyStoreManaged(
@@ -301,12 +322,10 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
     __wasi_secrets_manager_t SecretsManagerHandle,
     __wasi_symmetric_key_t OldKeyHandle,
     __wasi_symmetric_key_t NewKeyHandle) noexcept {
-  return SymmetricKeyManager.get(NewKeyHandle).and_then([&](auto &&Key) noexcept {
-    return SecretsManagerManager.get(SecretsManagerHandle)
-        .and_then([&](auto &&Sm) noexcept {
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-        });
-  });
+  (void)SecretsManagerHandle;
+  (void)OldKeyHandle;
+  (void)NewKeyHandle;
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>

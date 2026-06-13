@@ -140,6 +140,55 @@ TEST_F(WasiCryptoTest, Signatures) {
         "8613ecd5ecfc3b40a1d02f40891ca43695cd4c088b05a8054c89c595a47e2748"
         "16f35384226f74459ee63e25a1bfc03c360490552ec38343f8ace502f065303b"
         "00bc0ec320711b211fde92e57feb9013c3609342495ec0d7cabdec21e54acc38"_u8v}});
+
+  auto PkVerifyTest = [this](__wasi_algorithm_type_e_t AlgType,
+                             std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                               keypairGenerate(AlgType, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ExportHandle, publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_SUCCESS(ExportSize, arrayOutputLen(ExportHandle));
+    std::vector<uint8_t> ExportedPk(ExportSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(ExportHandle, ExportedPk));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ReimportedPkHandle,
+        publickeyImport(AlgType, Alg, ExportedPk,
+                        __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyVerify(ReimportedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(ReimportedPkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  PkVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PKCS1_2048_SHA256"sv);
+  PkVerifyTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "RSA_PSS_2048_SHA256"sv);
+
+  auto PkVerifyNegativeTest = [this](__wasi_algorithm_type_e_t AlgType,
+                                     std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                               keypairGenerate(AlgType, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(
+        ExportHandle,
+        publickeyExport(PkHandle, __WASI_PUBLICKEY_ENCODING_PKCS8));
+    WASI_CRYPTO_EXPECT_SUCCESS(ExportSize, arrayOutputLen(ExportHandle));
+    std::vector<uint8_t> ExportedPk(ExportSize);
+    WASI_CRYPTO_EXPECT_TRUE(arrayOutputPull(ExportHandle, ExportedPk));
+    ASSERT_GT(ExportedPk.size(), 16);
+    ExportedPk.resize(ExportedPk.size() - 16);
+    WASI_CRYPTO_EXPECT_FAILURE(
+        publickeyImport(AlgType, Alg, ExportedPk,
+                        __WASI_PUBLICKEY_ENCODING_PKCS8),
+        __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    WASI_CRYPTO_EXPECT_TRUE(publickeyClose(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(KpHandle));
+  };
+  PkVerifyNegativeTest(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                       "RSA_PKCS1_2048_SHA256"sv);
+  PkVerifyNegativeTest(__WASI_ALGORITHM_TYPE_SIGNATURES,
+                       "RSA_PSS_2048_SHA256"sv);
 }
 
 } // namespace WasiCrypto

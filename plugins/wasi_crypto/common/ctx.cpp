@@ -71,8 +71,8 @@ Context::secretsManagerOpen(__wasi_opt_options_t) noexcept {
   return SecretsManagerManager.registerManager(Common::SecretsManager{});
 }
 
-WasiCryptoExpect<void>
-Context::secretsManagerClose(__wasi_secrets_manager_t SecretsManagerHandle) noexcept {
+WasiCryptoExpect<void> Context::secretsManagerClose(
+    __wasi_secrets_manager_t SecretsManagerHandle) noexcept {
   return SecretsManagerManager.close(SecretsManagerHandle);
 }
 
@@ -81,7 +81,8 @@ Context::secretsManagerInvalidate(__wasi_secrets_manager_t SecretsManagerHandle,
                                   Span<const uint8_t> KeyId,
                                   __wasi_version_t Version) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
-      .and_then([&](auto &&Sm) noexcept { return Sm.invalidate(KeyId, Version); });
+      .and_then(
+          [&](auto &&Sm) noexcept { return Sm.invalidate(KeyId, Version); });
 }
 
 } // namespace WasiCrypto

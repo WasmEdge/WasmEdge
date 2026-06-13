@@ -124,6 +124,34 @@ TEST_F(WasiCryptoTest, Options) {
   }
 }
 
+TEST_F(WasiCryptoTest, SecretsManager) {
+  // Open secrets manager.
+  WASI_CRYPTO_EXPECT_SUCCESS(SmHandle, secretsManagerOpen(std::nullopt));
+
+  // Generate and store a key.
+  std::string_view Alg = "HKDF-EXTRACT/SHA-256";
+  WASI_CRYPTO_EXPECT_SUCCESS(KeyHandle, symmetricKeyGenerate(Alg, std::nullopt));
+  std::vector<uint8_t> KeyId = "test-key-id"_u8;
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyStoreManaged(SmHandle, KeyHandle, KeyId));
+
+  // Invalidate the key.
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerInvalidate(SmHandle, KeyId, 0));
+
+  // Test invalidate missing key.
+  WASI_CRYPTO_EXPECT_FAILURE(
+      secretsManagerInvalidate(SmHandle, "non-existent"_u8, 0),
+      __WASI_CRYPTO_ERRNO_NOT_FOUND);
+
+  // Close secrets manager.
+  WASI_CRYPTO_EXPECT_TRUE(secretsManagerClose(SmHandle));
+
+  // Test invalid handle after close.
+  WASI_CRYPTO_EXPECT_FAILURE(secretsManagerInvalidate(SmHandle, KeyId, 0),
+                             __WASI_CRYPTO_ERRNO_INVALID_HANDLE);
+
+  WASI_CRYPTO_EXPECT_TRUE(symmetricKeyClose(KeyHandle));
+}
+
 } // namespace WasiCrypto
 } // namespace Host
 } // namespace WasmEdge

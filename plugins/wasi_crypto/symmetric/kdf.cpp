@@ -46,7 +46,10 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::State>
 Hkdf<ShaNid>::Expand::State::open(const Key &Key,
                                   OptionalRef<const Options>) noexcept {
-  return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);
+  return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY)
+      .map([&Key](auto &&Ctx) noexcept {
+        return State{std::move(Ctx), Key.ref()};
+      });
 }
 
 template <int ShaNid>
@@ -55,6 +58,7 @@ Hkdf<ShaNid>::Expand::State::absorb(Span<const uint8_t> Data) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
   opensslCheck(
       EVP_PKEY_CTX_add1_hkdf_info(Ctx->RawCtx.get(), Data.data(), Data.size()));
+  Ctx->Info.insert(Ctx->Info.end(), Data.begin(), Data.end());
   return {};
 }
 
@@ -76,9 +80,16 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::State>
 Hkdf<ShaNid>::Expand::State::clone() const noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
-  EvpPkeyCtxPtr CloneCtx{EVP_PKEY_CTX_dup(Ctx->RawCtx.get())};
-  opensslCheck(CloneCtx);
-  return State{std::move(CloneCtx)};
+  return openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY)
+      .and_then([this](auto &&NewCtx) noexcept -> WasiCryptoExpect<State> {
+        if (!Ctx->Info.empty()) {
+          opensslCheck(EVP_PKEY_CTX_add1_hkdf_info(
+              NewCtx.get(), Ctx->Info.data(), Ctx->Info.size()));
+        }
+        auto Res = State{std::move(NewCtx), Ctx->Key};
+        Res.Ctx->Info = Ctx->Info;
+        return Res;
+      });
 }
 
 template <int ShaNid>
@@ -97,7 +108,10 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::State>
 Hkdf<ShaNid>::Extract::State::open(const Key &Key,
                                    OptionalRef<const Options>) noexcept {
-  return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY);
+  return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY)
+      .map([&Key](auto &&Ctx) noexcept {
+        return State{std::move(Ctx), Key.ref()};
+      });
 }
 
 template <int ShaNid>
@@ -134,11 +148,12 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::State>
 Hkdf<ShaNid>::Extract::State::clone() const noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
-  EvpPkeyCtxPtr CloneCtx{EVP_PKEY_CTX_dup(Ctx->RawCtx.get())};
-  opensslCheck(CloneCtx);
-  auto Res = State{std::move(CloneCtx)};
-  Res.Ctx->Salt = Ctx->Salt;
-  return Res;
+  return openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY)
+      .map([this](auto &&NewCtx) noexcept {
+        auto Res = State{std::move(NewCtx), Ctx->Key};
+        Res.Ctx->Salt = Ctx->Salt;
+        return Res;
+      });
 }
 
 template <int ShaNid>

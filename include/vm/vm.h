@@ -35,8 +35,10 @@
 #include <shared_mutex>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace WasmEdge {
@@ -309,35 +311,20 @@ public:
 #endif
 
 private:
-  void cleanupModInstContainer(
-      std::vector<std::unique_ptr<Runtime::Instance::ModuleInstance>>
-          &Container) {
+  /// Release and terminate all module instances in a sequence or map
+  /// container, then clear the container.
+  template <typename ContainerT>
+  void cleanupModInstContainer(ContainerT &Container) {
     for (auto &Item : Container) {
-      if (auto *ModInst = Item.release()) {
-        ModInst->terminate();
+      Runtime::Instance::ModuleInstance *ModInst;
+      if constexpr (std::is_same_v<
+                        typename ContainerT::value_type,
+                        std::unique_ptr<Runtime::Instance::ModuleInstance>>) {
+        ModInst = Item.release();
+      } else {
+        ModInst = Item.second.release();
       }
-    }
-    Container.clear();
-  }
-
-  void cleanupModInstContainer(
-      std::unordered_map<std::string,
-                         std::unique_ptr<Runtime::Instance::ModuleInstance>>
-          &Container) {
-    for (auto &Item : Container) {
-      if (auto *ModInst = Item.second.release()) {
-        ModInst->terminate();
-      }
-    }
-    Container.clear();
-  }
-
-  void cleanupModInstContainer(
-      std::unordered_map<HostRegistration,
-                         std::unique_ptr<Runtime::Instance::ModuleInstance>>
-          &Container) {
-    for (auto &Item : Container) {
-      if (auto *ModInst = Item.second.release()) {
+      if (ModInst) {
         ModInst->terminate();
       }
     }
@@ -383,11 +370,15 @@ private:
 
   Expect<void> unsafeInstantiate();
 
+  /// In JIT or lazy JIT mode, compile and attach an executable to the loaded
+  /// module if it does not carry one yet. Eager JIT compilation failures fall
+  /// back to the interpreter; without LLVM support this only logs a warning.
+  Expect<void> unsafeLoadJITExecutable();
+
   Expect<std::vector<std::pair<ValVariant, ValType>>>
   unsafeExecute(std::string_view Func, Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
   Expect<std::vector<std::pair<ValVariant, ValType>>>
-
   unsafeExecute(std::string_view Mod, std::string_view Func,
                 Span<const ValVariant> Params = {},
                 Span<const ValType> ParamTypes = {});
@@ -416,6 +407,22 @@ private:
   const Runtime::Instance::ModuleInstance *unsafeGetActiveModule() const;
 
   enum class VMStage : uint8_t { Inited, Loaded, Validated, Instantiated };
+  enum class WasmUnitKind : uint8_t { Module, Component };
+
+  /// Store a parsed wasm unit into the matching slot and report its kind.
+  /// The slot for the other kind keeps its previous content.
+  WasmUnitKind
+  unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
+                                   std::unique_ptr<AST::Module>> &&Unit);
+
+  /// Registering a module or running another wasm unit resets the active
+  /// instantiation in the store, so the stage falls back to Validated and
+  /// the instantiation must restart.
+  void unsafeRevertStageToValidated() {
+    if (Stage == VMStage::Instantiated) {
+      Stage = VMStage::Validated;
+    }
+  }
 
   void unsafeInitVM();
   void unsafeLoadBuiltInHosts();

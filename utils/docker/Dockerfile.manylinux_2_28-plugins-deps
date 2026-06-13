@@ -1,4 +1,5 @@
-ARG BASE_IMAGE="wasmedge/wasmedge:manylinux_2_28_x86_64"
+ARG BASE_IMAGE="wasmedge/wasmedge:manylinux_2_28_x86_64@sha256:b38c58df11460520955140558323b6ef651160f0a7347fd4b0abaeea3e76a649"
+ARG TARGETARCH=amd64
 FROM ${BASE_IMAGE} AS base
 
 WORKDIR /root

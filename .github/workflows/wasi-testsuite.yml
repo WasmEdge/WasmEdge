@@ -30,7 +30,7 @@ permissions:
 jobs:
   test:
     permissions:
-      contents: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -121,7 +121,7 @@ jobs:
 
       - name: Install wasi testsuite dependencies
         working-directory: wasi-testsuite/test-runner
-        run: pip install -r requirements.txt
+        run: pip install --require-hashes -r ../../WasmEdge/.github/requirements/wasi-testsuite.txt
 
       - name: Test Wasi testsuite
         working-directory: wasi-testsuite

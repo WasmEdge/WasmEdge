@@ -74,7 +74,7 @@ jobs:
 
   test_wasi_nn_ggml_rpc:
     permissions:
-      contents: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -139,7 +139,7 @@ jobs:
 
   build_windows_wasi_nn:
     permissions:
-      contents: write
+      contents: read
     name: WASI-NN (Windows Server 2025)
     runs-on: windows-2025
     env:

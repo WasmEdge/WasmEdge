@@ -1,0 +1,69 @@
+name: Docker pin check
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PIN_STALE_THRESHOLD_DAYS: "30"
+
+jobs:
+  check-pins:
+    name: Check base-image digest pins
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Check image pins
+        id: check
+        run: python3 .github/scripts/check-image-pins.py --report report.md
+
+      - name: Manage tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTIONABLE: ${{ steps.check.outputs.actionable }}
+          WARN: ${{ steps.check.outputs.warn }}
+        run: |
+          set -euo pipefail
+          LABEL="docker-pin-check"
+          TITLE="question: Docker base-image pin check"
+          gh label create "$LABEL" --color FBCA04 \
+            --description "Automated base-image digest pin drift report" 2>/dev/null || true
+          gh label create "question" --color D876E3 \
+            --description "Further information is requested" 2>/dev/null || true
+          EXISTING=$(gh issue list --label "$LABEL" --state open --json number --jq '.[0].number // empty')
+          if [ "${ACTIONABLE:-0}" -gt 0 ]; then
+            if [ -n "$EXISTING" ]; then
+              gh issue edit "$EXISTING" --body-file report.md
+              echo "Updated issue #$EXISTING"
+            else
+              gh issue create --title "$TITLE" --label "question" --label "$LABEL" --body-file report.md
+            fi
+          elif [ "${WARN:-0}" -gt 0 ]; then
+            echo "Pin checks were inconclusive (${WARN} warning(s)); leaving issue state unchanged."
+          elif [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "All base-image pins are healthy. Closing."
+            gh issue close "$EXISTING"
+          fi
+
+      - name: Fail on build-critical findings
+        if: ${{ !cancelled() && steps.check.outcome == 'success' && steps.check.outputs.critical != '0' }}
+        env:
+          CRITICAL: ${{ steps.check.outputs.critical }}
+        run: |
+          echo "Build-critical base-image pin findings: ${CRITICAL}"
+          echo "See the 'docker-pin-check' issue for details."
+          exit 1

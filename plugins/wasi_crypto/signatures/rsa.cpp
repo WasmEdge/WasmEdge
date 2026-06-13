@@ -340,9 +340,11 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::exportData(
     OctetString.flags = 0;
 
     int Len = i2d_ASN1_OCTET_STRING(&OctetString, nullptr);
+    ensureOrReturn(Len > 0, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     std::vector<uint8_t> Res(Len);
     uint8_t *Ptr = Res.data();
-    i2d_ASN1_OCTET_STRING(&OctetString, &Ptr);
+    int Written = i2d_ASN1_OCTET_STRING(&OctetString, &Ptr);
+    ensureOrReturn(Written == Len, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
     return Res;
   }
   default:

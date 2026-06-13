@@ -30,7 +30,7 @@ jobs:
         run: |
           python3 -m venv ./venv
           source ./venv/bin/activate
-          pip install codespell==2.4.1
+          pip install --require-hashes -r .github/requirements/codespell.txt
           # The contributor thank list of every changelog entry is proper names,
           # not prose. Skip those lines only, so that a name cannot mask a real
           # typo of the same word anywhere else.

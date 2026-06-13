@@ -10,7 +10,6 @@ wasmedge_add_executable(wasiCryptoTests
   kdf.cpp
   kx.cpp
   mac.cpp
-  notimplement.cpp
   signatures.cpp
 )
 

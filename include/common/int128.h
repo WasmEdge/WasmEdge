@@ -128,14 +128,12 @@ public:
   constexpr uint128(unsigned long V) noexcept : Low(V), High(0) {}
   constexpr uint128(unsigned long long V) noexcept : Low(V), High(0) {}
   constexpr uint128(int128 V) noexcept;
-  constexpr uint128(uint64_t H, uint64_t L) noexcept
-      : Low(L), High(H){}
+  constexpr uint128(uint64_t H, uint64_t L) noexcept : Low(L), High(H) {}
 
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
-        constexpr uint128(unsigned __int128 V) noexcept
-      : Low(static_cast<uint64_t>(V)), High(static_cast<uint64_t>(V >> 64)) {
-  }
+  constexpr uint128(unsigned __int128 V) noexcept
+      : Low(static_cast<uint64_t>(V)), High(static_cast<uint64_t>(V >> 64)) {}
 #endif
 
   constexpr operator bool() const noexcept {
@@ -395,13 +393,11 @@ public:
   constexpr int128(unsigned long V) noexcept : Low(V), High(INT64_C(0)) {}
   constexpr int128(unsigned long long V) noexcept : Low(V), High(INT64_C(0)) {}
   constexpr int128(uint128 V) noexcept;
-  constexpr int128(int64_t H, uint64_t L) noexcept
-      : Low(L), High(H){}
+  constexpr int128(int64_t H, uint64_t L) noexcept : Low(L), High(H) {}
 #if defined(__x86_64__) || defined(__aarch64__) ||                             \
     (defined(__riscv) && __riscv_xlen == 64) || defined(__s390x__)
-        constexpr int128(__int128 V) noexcept
-      : Low(static_cast<uint64_t>(V)), High(V >> 64) {
-  }
+  constexpr int128(__int128 V) noexcept
+      : Low(static_cast<uint64_t>(V)), High(V >> 64) {}
 #endif
 
   constexpr int128 &operator=(int V) noexcept { return *this = int128(V); }
@@ -554,7 +550,14 @@ using uint128_t = uint128;
 
 #include <fmt/format.h>
 
+#if FMT_VERSION >= 80000
+#define WASMEDGE_FMT_CONST const
+#else
+#define WASMEDGE_FMT_CONST
+#endif
+
 FMT_BEGIN_NAMESPACE
+#if FMT_VERSION >= 90000
 namespace detail {
 inline constexpr bool operator>=(detail::uint128_fallback LHS,
                                  unsigned int RHS) {
@@ -668,7 +671,9 @@ FMT_CONSTEXPR20 inline int count_digits(detail::uint128_fallback N) {
 }
 
 } // namespace detail
+#endif
 
+#if FMT_VERSION >= 80000
 template <typename Char> struct formatter<WasmEdge::uint128, Char> {
 private:
   detail::dynamic_format_specs<Char> Specs;
@@ -713,4 +718,27 @@ public:
 #endif
   }
 };
+#else
+template <typename Char> struct formatter<WasmEdge::uint128, Char> {
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext &Ctx) -> decltype(Ctx.begin()) {
+    return Ctx.begin();
+  }
+  template <typename FormatContext>
+  auto format(WasmEdge::uint128 V, FormatContext &Ctx) -> decltype(Ctx.out()) {
+    char Buf[40];
+    char *Pos = Buf + sizeof(Buf);
+    const WasmEdge::uint128 Ten(10U);
+    do {
+      *--Pos = static_cast<char>('0' + (V % Ten).low());
+      V /= Ten;
+    } while (V != WasmEdge::uint128(0U));
+    auto Out = Ctx.out();
+    for (const char *It = Pos; It != Buf + sizeof(Buf); ++It) {
+      *Out++ = *It;
+    }
+    return Out;
+  }
+};
+#endif
 FMT_END_NAMESPACE

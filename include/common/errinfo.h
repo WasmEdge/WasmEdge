@@ -269,95 +269,98 @@ struct InfoProposal {
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoFile>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoFile &Info,
-                                       fmt::format_context &Ctx) const noexcept;
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoFile &Info,
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoLoading>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoLoading &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoAST>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoAST &Info,
-                                       fmt::format_context &Ctx) const noexcept;
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoAST &Info,
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoInstanceBound>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoInstanceBound &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoForbidIndex>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoForbidIndex &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoExporting>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoExporting &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoLimit>
     : fmt::formatter<std::string_view> {
-  fmt::format_context::iterator format(const WasmEdge::ErrInfo::InfoLimit &Info,
-                                       fmt::format_context &Ctx) const noexcept;
+  fmt::format_context::iterator
+  format(const WasmEdge::ErrInfo::InfoLimit &Info,
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoRegistering>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoRegistering &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoLinking>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoLinking &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoExecuting>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoExecuting &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoMismatch>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoMismatch &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoInstruction>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoInstruction &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoBoundary>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoBoundary &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };
 template <>
 struct fmt::formatter<WasmEdge::ErrInfo::InfoProposal>
     : fmt::formatter<std::string_view> {
   fmt::format_context::iterator
   format(const WasmEdge::ErrInfo::InfoProposal &Info,
-         fmt::format_context &Ctx) const noexcept;
+         fmt::format_context &Ctx) WASMEDGE_FMT_CONST noexcept;
 };

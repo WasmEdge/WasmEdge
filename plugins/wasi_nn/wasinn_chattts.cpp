@@ -236,7 +236,9 @@ Expect<WASINN::ErrNo> getOutput(WasiNNEnvironment &Env, uint32_t ContextId,
     spdlog::info("[WASI-NN] ChatTTS backend: getOutput"sv);
   }
   if (Index == 0) {
-    std::copy_n(CxtRef.Outputs.data(), CxtRef.Outputs.size(), OutBuffer.data());
+    const size_t BytesToCopy =
+        std::min(static_cast<size_t>(OutBuffer.size()), CxtRef.Outputs.size());
+    std::copy_n(CxtRef.Outputs.data(), BytesToCopy, OutBuffer.data());
     BytesWritten = CxtRef.Outputs.size();
     return WASINN::ErrNo::Success;
   }

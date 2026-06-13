@@ -341,7 +341,7 @@ Context::symmetricKeyFromId(__wasi_secrets_manager_t SecretsManagerHandle,
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
         return Sm.getSk(KeyId, KeyVersion).and_then([&](auto &&Key) noexcept {
-          return SymmetricKeyManager.registerManager(Key);
+          return SymmetricKeyManager.registerManager(std::move(Key));
         });
       });
 }

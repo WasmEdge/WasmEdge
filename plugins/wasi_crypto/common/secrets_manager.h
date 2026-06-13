@@ -38,15 +38,16 @@ public:
     std::unique_lock Lock(Ctx->Mutex);
     KeyIdentifier Ident{std::vector<uint8_t>(KeyId.begin(), KeyId.end()),
                         Version};
-    if (Ctx->KeyPairs.erase(Ident) == 0 && Ctx->SymmetricKeys.erase(Ident) == 0) {
+    if (Ctx->KeyPairs.erase(Ident) == 0 &&
+        Ctx->SymmetricKeys.erase(Ident) == 0) {
       return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_FOUND);
     }
     return {};
   }
 
-  WasiCryptoExpect<void> storeKp(Span<const uint8_t> KeyId,
-                                 __wasi_version_t Version,
-                                 const AsymmetricCommon::KpVariant &Kp) noexcept {
+  WasiCryptoExpect<void>
+  storeKp(Span<const uint8_t> KeyId, __wasi_version_t Version,
+          const AsymmetricCommon::KpVariant &Kp) noexcept {
     std::unique_lock Lock(Ctx->Mutex);
     KeyIdentifier Ident{std::vector<uint8_t>(KeyId.begin(), KeyId.end()),
                         Version};

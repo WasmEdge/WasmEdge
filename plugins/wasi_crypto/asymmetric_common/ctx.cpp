@@ -179,14 +179,14 @@ WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerateManaged(
       });
 }
 
-WasiCryptoExpect<void> Context::keypairStoreManaged(
-    __wasi_secrets_manager_t SecretsManagerHandle, __wasi_keypair_t KpHandle,
-    Span<uint8_t> KpId) noexcept {
+WasiCryptoExpect<void>
+Context::keypairStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
+                             __wasi_keypair_t KpHandle,
+                             Span<uint8_t> KpId) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
-        return KeyPairManager.get(KpHandle).and_then([&](auto &&Kp) noexcept {
-          return Sm.storeKp(KpId, 0, Kp);
-        });
+        return KeyPairManager.get(KpHandle).and_then(
+            [&](auto &&Kp) noexcept { return Sm.storeKp(KpId, 0, Kp); });
       });
 }
 

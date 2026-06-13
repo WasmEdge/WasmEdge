@@ -57,4 +57,8 @@ target_link_libraries(wasmedgeLoader
   wasmedgeCommon
   wasmedgeLoaderFileMgr
   std::filesystem
+  PRIVATE
+  # Only loader.cpp's implementation uses the WAT parser; keep it off the
+  # public link interface.
+  wasmedgeWat
 )

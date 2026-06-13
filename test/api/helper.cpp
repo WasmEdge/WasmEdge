@@ -52,6 +52,7 @@ WasmEdge_ConfigureContext *createConf(const Configure &Conf) {
       WasmEdge_ConfigureAddProposal(Cxt, static_cast<WasmEdge_Proposal>(I));
     }
   }
+  WasmEdge_ConfigureSetEnableWAT(Cxt, Conf.isEnableWAT());
   return Cxt;
 }
 

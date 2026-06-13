@@ -1,0 +1,130 @@
+[
+  {
+    "type": "root",
+    "named": true,
+    "root": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "f",
+          "named": true
+        },
+        {
+          "type": "id",
+          "named": true
+        },
+        {
+          "type": "keyword",
+          "named": true
+        },
+        {
+          "type": "reserved",
+          "named": true
+        },
+        {
+          "type": "s",
+          "named": true
+        },
+        {
+          "type": "sexpr",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "u",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "sexpr",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "f",
+          "named": true
+        },
+        {
+          "type": "id",
+          "named": true
+        },
+        {
+          "type": "keyword",
+          "named": true
+        },
+        {
+          "type": "reserved",
+          "named": true
+        },
+        {
+          "type": "s",
+          "named": true
+        },
+        {
+          "type": "sexpr",
+          "named": true
+        },
+        {
+          "type": "string",
+          "named": true
+        },
+        {
+          "type": "u",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "(",
+    "named": false
+  },
+  {
+    "type": ")",
+    "named": false
+  },
+  {
+    "type": "annotation",
+    "named": true,
+    "extra": true
+  },
+  {
+    "type": "f",
+    "named": true
+  },
+  {
+    "type": "id",
+    "named": true
+  },
+  {
+    "type": "keyword",
+    "named": true
+  },
+  {
+    "type": "reserved",
+    "named": true
+  },
+  {
+    "type": "s",
+    "named": true
+  },
+  {
+    "type": "string",
+    "named": true
+  },
+  {
+    "type": "u",
+    "named": true
+  }
+]

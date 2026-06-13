@@ -79,6 +79,16 @@ else()
   )
 endif()
 
+# codegen.cpp serializes embedded WAT data to WASM, pulling in WAT::parseWat
+# (wasmedgeWat) and Loader::Serializer (wasmedgeLoader). Link them explicitly so
+# a shared wasmedgeLLVM does not end up with undefined symbols. Neither library
+# depends on wasmedgeLLVM, so this does not create a cycle.
+target_link_libraries(wasmedgeLLVM
+  PRIVATE
+  wasmedgeWat
+  wasmedgeLoader
+)
+
 wasmedge_setup_target(wasmedgeLLVM)
 
 target_include_directories(wasmedgeLLVM

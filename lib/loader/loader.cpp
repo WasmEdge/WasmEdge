@@ -4,6 +4,7 @@
 #include "loader/loader.h"
 
 #include "aot/version.h"
+#include "wat/parser.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -69,7 +70,11 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
 Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
   std::lock_guard Lock(Mutex);
 
-  // Set path and check the header.
+  // Set path and check the header. setPath mmaps the file and getHeaderType
+  // only peeks the leading bytes, so AOT shared libraries (dlopen'd from the
+  // path) and binary WASM (parsed from the mmap) are handled without reading
+  // the whole artifact into memory. Only a WAT text file -- which has no binary
+  // magic and must be parsed from a contiguous buffer -- is read in full below.
   EXPECTED_TRY(FMgr.setPath(FilePath).map_error([&FilePath](auto E) {
     spdlog::error(E);
     spdlog::error(ErrInfo::InfoFile(FilePath));
@@ -125,14 +130,68 @@ Loader::parseWasmUnit(const std::filesystem::path &FilePath) {
     }
     return Unit;
   }
-  default: {
-    // Universal WASM, WASM, or other cases. Load and parse the module directly.
-    // The intrinsics-table pointer (if any executable is loaded) is patched
-    // inside loadExecutable, so no symbol manipulation is needed here.
+  case FileMgr::FileHeader::Wasm: {
+    // Binary or universal WASM: parse directly from the mmap'd file. The
+    // intrinsics-table pointer (if any executable is loaded) is patched inside
+    // loadExecutable, so no symbol manipulation is needed here.
     WASMType = InputType::WASM;
     return loadUnit().map_error(ReportError);
   }
+  default:
+    break;
   }
+
+  // Unknown header: with the experimental WAT flag enabled, the file may be
+  // WAT text, which can begin with a UTF-8 BOM, whitespace, or a comment --
+  // none of which match a binary magic. Probe a small prefix first via
+  // maybeWAT so we only pay for a full-file read when the input actually
+  // looks like WAT; malformed/unknown binaries fall through to the binary
+  // loader with no extra I/O.
+  //
+  // When the flag is off (default), skip the probe entirely and let the
+  // existing binary loader produce MalformedMagic from the mmap'd header.
+  if (!Conf.isEnableWAT()) {
+    WASMType = InputType::WASM;
+    return loadUnit().map_error(ReportError);
+  }
+
+  // 4 KiB is enough to skip past a UTF-8 BOM plus realistic leading
+  // whitespace/comments and hit the opening '(' of any practical WAT file.
+  // Files that begin with > 4 KiB of whitespace/comments will misroute to
+  // the binary loader and report MalformedMagic, which is an acceptable
+  // degradation for that pathological case.
+  constexpr size_t WATProbeSize = 4096;
+  std::vector<Byte> Probe(WATProbeSize);
+  {
+    std::ifstream Fin(FilePath, std::ios::in | std::ios::binary);
+    if (!Fin) {
+      WASMType = InputType::WASM;
+      return loadUnit().map_error(ReportError);
+    }
+    Fin.read(reinterpret_cast<char *>(Probe.data()),
+             static_cast<std::streamsize>(WATProbeSize));
+    Probe.resize(static_cast<size_t>(Fin.gcount()));
+  }
+  if (!WAT::maybeWAT(Probe)) {
+    WASMType = InputType::WASM;
+    return loadUnit().map_error(ReportError);
+  }
+
+  FMgr.reset();
+  EXPECTED_TRY(auto Bytes, loadFile(FilePath).map_error(ReportError));
+  std::string_view Source(reinterpret_cast<const char *>(Bytes.data()),
+                          Bytes.size());
+  EXPECTED_TRY(auto Mod,
+               WAT::parseWat(Source, Conf).map_error([&FilePath](auto E) {
+                 spdlog::error(E);
+                 spdlog::error(ErrInfo::InfoFile(FilePath));
+                 return E;
+               }));
+  // The parsed result is a WASM module; mark the Loader state accordingly
+  // so subsequent calls on the same instance do not see a stale WASMType
+  // left over from a previous shared-library or universal-wasm parse.
+  WASMType = InputType::WASM;
+  return std::make_unique<AST::Module>(std::move(Mod));
 }
 
 // Parse module or component from byte code. See "include/loader/loader.h".
@@ -140,6 +199,20 @@ Expect<std::variant<std::unique_ptr<AST::Component::Component>,
                     std::unique_ptr<AST::Module>>>
 Loader::parseWasmUnit(Span<const uint8_t> Code) {
   std::lock_guard Lock(Mutex);
+
+  // Check if the buffer contains WAT text.
+  if (Conf.isEnableWAT() && WAT::maybeWAT(Code)) {
+    std::string_view Source(reinterpret_cast<const char *>(Code.data()),
+                            Code.size());
+    EXPECTED_TRY(auto Mod, WAT::parseWat(Source, Conf));
+    // Drop any file handle/mmap held by FMgr from a prior file-path load and
+    // record that the resulting module is plain WASM, matching the file-path
+    // WAT fast-path in parseWasmUnit(filesystem::path).
+    FMgr.reset();
+    WASMType = InputType::WASM;
+    return std::make_unique<AST::Module>(std::move(Mod));
+  }
+
   EXPECTED_TRY(FMgr.setCode(Code));
   switch (FMgr.getHeaderType()) {
   // Filter out the Windows .dll, macOS .dylib, or Linux .so AOT compiled

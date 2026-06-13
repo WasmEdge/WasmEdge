@@ -54,6 +54,8 @@ struct DriverToolOptions : public DriverProposalOptions {
             "future."sv)),
         PropComponent(PO::Description(
             "Enable Component Model proposal, this is experimental"sv)),
+        EnableWAT(PO::Description(
+            "Enable WAT text-format input, this is experimental"sv)),
         ConfEnableInstructionCounting(PO::Description(
             "Enable generating code for counting Wasm instructions executed."sv)),
         ConfEnableGasMeasuring(PO::Description(
@@ -114,6 +116,7 @@ struct DriverToolOptions : public DriverProposalOptions {
   PO::Option<PO::Toggle> PropExceptionHandling;
   PO::Option<PO::Toggle> PropExceptionHandlingDeprecated;
   PO::Option<PO::Toggle> PropComponent;
+  PO::Option<PO::Toggle> EnableWAT;
   PO::Option<PO::Toggle> ConfEnableInstructionCounting;
   PO::Option<PO::Toggle> ConfEnableGasMeasuring;
   PO::Option<PO::Toggle> ConfEnableTimeMeasuring;
@@ -145,6 +148,7 @@ public:
         .add_option("enable-exception-handling"sv,
                     PropExceptionHandlingDeprecated)
         .add_option("enable-component"sv, PropComponent)
+        .add_option("enable-wat"sv, EnableWAT)
         .add_option(SoName);
   }
 

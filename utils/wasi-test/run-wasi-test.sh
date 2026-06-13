@@ -91,11 +91,11 @@ git apply "$script_dir"/0001-PATCH-Disable-other-tests-except-wasmedge.patch
 
 if command -v cargo &> /dev/null; then
   msg "Building wasm files..."
-  cargo build --release --target wasm32-wasi
+  cargo build --release --target wasm32-wasip1
 else
   curl -L -O https://github.com/khronosproject/wasi-test-suite/archive/refs/heads/master.tar.gz
-  mkdir -p target/wasm32-wasi
-  tar -xf master.tar.gz -C target/wasm32-wasi
+  mkdir -p target/wasm32-wasip1
+  tar -xf master.tar.gz -C target/wasm32-wasip1
 fi
 
 msg "Running tests..."

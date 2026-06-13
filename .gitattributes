@@ -1,0 +1,6 @@
+# tree-sitter-wat: everything under src/ is emitted by tree-sitter-cli from
+# grammar.js, so treat it as generated — GitHub collapses it in diffs and drops
+# it from language stats. grammar.js, tree-sitter.json and package.json stay
+# reviewable as the hand-authored grammar sources.
+thirdparty/tree-sitter-wat/src/** linguist-vendored=true
+thirdparty/tree-sitter-wat/src/** linguist-generated=true

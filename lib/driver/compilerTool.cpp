@@ -33,6 +33,11 @@ int Compiler([[maybe_unused]] struct DriverCompilerOptions &Opt) noexcept {
   // TODO: EXCEPTION - enable the option.
   Conf.removeProposal(Proposal::ExceptionHandling);
 
+  if (Opt.EnableWAT.value()) {
+    Conf.setEnableWAT(true);
+    spdlog::warn("WAT text-format input is enabled, this is experimental."sv);
+  }
+
   if (Opt.PropOptimizationLevel.value() == "0") {
     Conf.getCompilerConfigure().setOptimizationLevel(
         WasmEdge::CompilerConfigure::OptimizationLevel::O0);

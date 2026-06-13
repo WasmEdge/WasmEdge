@@ -9,6 +9,8 @@ add_subdirectory(common)
 add_subdirectory(system)
 add_subdirectory(plugin)
 add_subdirectory(po)
+# wat before loader: loader links wasmedgeWat, so the target must exist first.
+add_subdirectory(wat)
 add_subdirectory(loader)
 add_subdirectory(validator)
 add_subdirectory(executor)

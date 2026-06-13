@@ -93,8 +93,19 @@ Eddsa::SecretKey::publicKey() const noexcept {
 }
 
 WasiCryptoExpect<Eddsa::KeyPair>
-Eddsa::SecretKey::toKeyPair(const PublicKey &) const noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Eddsa::SecretKey::toKeyPair(const PublicKey &Pk) const noexcept {
+  auto ExportedPk = Pk.exportData(__WASI_PUBLICKEY_ENCODING_RAW);
+  if (!ExportedPk) {
+    return WasiCryptoUnexpect(ExportedPk.error());
+  }
+
+  size_t Size = PkSize;
+  std::vector<uint8_t> Res(PkSize);
+  opensslCheck(EVP_PKEY_get_raw_public_key(Ctx.get(), Res.data(), &Size));
+  ensureOrReturn(Size == PkSize, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  ensureOrReturn(ExportedPk.value() == Res, __WASI_CRYPTO_ERRNO_INVALID_KEY);
+
+  return Ctx;
 }
 
 WasiCryptoExpect<SecretVec> Eddsa::SecretKey::exportData(

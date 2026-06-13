@@ -104,7 +104,12 @@ target "base" {
   name       = "base-${no-dot(ubuntu)}"
   tags       = ["local/tmp:base-${ubuntu}"]
   args       = {
-    UBUNTU_VER = major(ubuntu)
+    UBUNTU_VER    = major(ubuntu)
+    UBUNTU_DIGEST = lookup({
+      "20.04" = "sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214",
+      "22.04" = "sha256:4f838adc7181d9039ac795a7d0aba05a9bd9ecd480d294483169c5def983b64d",
+      "24.04" = "sha256:786a8b558f7be160c6c8c4a54f9a57274f3b4fb1491cf65146521ae77ff1dc54"
+    }, ubuntu, "")
   }
 }
 

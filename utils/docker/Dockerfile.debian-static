@@ -4,8 +4,8 @@ ARG XX_VERSION=1.2.1
 ARG DEBIAN_VERSION=bullseye
 ARG LLVM_VERSION=16
 
-FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION} AS xx
-FROM --platform=$BUILDPLATFORM debian:${DEBIAN_VERSION} AS base
+FROM --platform=$BUILDPLATFORM tonistiigi/xx:${XX_VERSION}@sha256:8879a398dedf0aadaacfbd332b29ff2f84bc39ae6d4e9c0a1109db27ac5ba012 AS xx
+FROM --platform=$BUILDPLATFORM debian:${DEBIAN_VERSION}@sha256:68cf0d859b046494f3c4288171bc477580e424f981d08f2a77742b982c32a38f AS base
 COPY --from=xx / /
 
 # Install host dependencies

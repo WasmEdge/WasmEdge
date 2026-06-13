@@ -1,4 +1,4 @@
-ARG BASE=wasmedge/wasmedge:manylinux2014_x86_64
+ARG BASE=wasmedge/wasmedge:manylinux2014_x86_64@sha256:0beecaf67dc38c355256f5516c400595792bfe8977a59f239d75a33c73e061df
 FROM ${BASE}
 
 ENV PATH /opt/rh/devtoolset-11/root/usr/bin${PATH:+:${PATH}}

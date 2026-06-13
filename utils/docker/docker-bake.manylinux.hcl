@@ -25,6 +25,9 @@ target "x86_64-plugins" {
   contexts  = {
     "wasmedge/wasmedge:manylinux_2_28_x86_64"= "target:x86_64"
   }
+  args      = {
+    BASE_IMAGE = "wasmedge/wasmedge:manylinux_2_28_x86_64"
+  }
 }
 
 target "aarch64" {
@@ -32,7 +35,7 @@ target "aarch64" {
   platforms = ["linux/arm64"]
   tags      = ["wasmedge/wasmedge:manylinux_2_28_aarch64"]
   args      = {
-    BASE_IMAGE   = "quay.io/pypa/manylinux_2_28_aarch64",
+    BASE_IMAGE   = "quay.io/pypa/manylinux_2_28_aarch64:2026.06.12-2@sha256:f926f192db8589bdfbc6d4af4820d8cb76661f1349ab136259b33b94f4606f05",
     LLVM_TARGETS = "AArch64;BPF",
     LLVM_TRIPLE  = "aarch64-redhat-linux-gnu"
   }

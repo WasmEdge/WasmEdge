@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=wasmedge/wasmedge:latest
+ARG BASE_IMAGE=wasmedge/wasmedge:latest@sha256:50edb2edffd5bbf770b03c55dd21620b7050e2b9013d73b6e3ca0d1133ee99cf
 ARG UBUNTU_VER=20
 FROM ${BASE_IMAGE} AS base
 

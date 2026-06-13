@@ -6,7 +6,7 @@ ARG ALPINE_VERSION=3.23
 # STAGE 1: Builder
 # Compiles LLD from source, linking against system LLVM
 # ----------------------------------------------------
-FROM alpine:${ALPINE_VERSION} AS builder
+FROM alpine:${ALPINE_VERSION}@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11 AS builder
 
 # Use a specific tag for reproducibility
 # Pinned version to match Alpine 3.23's system LLVM (v19)
@@ -55,7 +55,7 @@ RUN cmake -B build -G Ninja \
 # ----------------------------------------------------
 # STAGE 2: Final Image (Contains only the compiled static libraries)
 # ----------------------------------------------------
-FROM alpine:${ALPINE_VERSION}
+FROM alpine:${ALPINE_VERSION}@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
 
 # Copy artifacts to a standard library path
 COPY --from=builder /src/llvm-project/lld/build/lib/liblld*.a /usr/local/lib/

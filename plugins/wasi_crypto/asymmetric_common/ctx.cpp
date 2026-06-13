@@ -165,11 +165,18 @@ Context::secretkeyImport(AsymmetricCommon::Algorithm Alg,
 WasiCryptoExpect<__wasi_keypair_t> Context::keypairGenerateManaged(
     __wasi_secrets_manager_t, AsymmetricCommon::Algorithm Alg,
     __wasi_opt_options_t OptOptionsHandle) noexcept {
-  return OptionsManager.get(OptOptionsHandle).and_then([&](auto &&Options) {
-    return AsymmetricCommon::generateKp(Alg, Options).and_then([&](auto &&Kp) {
-      return KeyPairManager.registerManager(std::move(Kp));
-    });
-  });
+  return mapAndTransposeOptional(
+             OptOptionsHandle,
+             [this](__wasi_options_t OptionsHandle) noexcept {
+               return OptionsManager.get(OptionsHandle);
+             })
+      .and_then([Alg](auto &&OptOptions) noexcept {
+        return AsymmetricCommon::generateKp(
+            Alg, asOptionalRef(std::forward<decltype(OptOptions)>(OptOptions)));
+      })
+      .and_then([this](auto &&Kp) noexcept {
+        return KeyPairManager.registerManager(std::forward<decltype(Kp)>(Kp));
+      });
 }
 
 WasiCryptoExpect<void> Context::keypairStoreManaged(
@@ -187,17 +194,10 @@ WasiCryptoExpect<__wasi_version_t>
 Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
                                __wasi_keypair_t OldKpHandle,
                                __wasi_keypair_t NewKpHandle) noexcept {
-  // Simple implementation: store the new key with version 0.
-  // In a real implementation, this would handle versioning.
-  return KeyPairManager.get(NewKpHandle).and_then([&](auto &&Kp) noexcept {
-    return SecretsManagerManager.get(SecretsManagerHandle)
-        .and_then([&](auto &&Sm) noexcept {
-          // We don't have the ID of OldKpHandle easily here without extra
-          // tracking. For now, return NOT_IMPLEMENTED for replace if we can't
-          // find the ID.
-          return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-        });
-  });
+  (void)SecretsManagerHandle;
+  (void)OldKpHandle;
+  (void)NewKpHandle;
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
 }
 
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>

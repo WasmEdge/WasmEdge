@@ -91,6 +91,52 @@ TEST_F(WasiCryptoTest, Signatures) {
   PublicKeyImportInvalidSecTest(__WASI_ALGORITHM_TYPE_SIGNATURES,
                                 "ECDSA_P256_SHA256"sv);
 
+  auto KeypairFromPkAndSkTest = [this](__wasi_algorithm_type_e_t AlgType,
+                                       std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle,
+                               keypairGenerate(AlgType, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle, keypairPublickey(KpHandle));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkHandle, keypairSecretkey(KpHandle));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(NewKpHandle,
+                               keypairFromPkAndSk(PkHandle, SkHandle));
+
+    // Verify it works by signing and verifying.
+    WASI_CRYPTO_EXPECT_SUCCESS(StateHandle, signatureStateOpen(NewKpHandle));
+    WASI_CRYPTO_EXPECT_TRUE(signatureStateUpdate(StateHandle, "test"_u8));
+    WASI_CRYPTO_EXPECT_SUCCESS(SigHandle, signatureStateSign(StateHandle));
+    WASI_CRYPTO_EXPECT_TRUE(signatureStateClose(StateHandle));
+
+    WASI_CRYPTO_EXPECT_SUCCESS(VerifictionStateHandle,
+                               signatureVerificationStateOpen(PkHandle));
+    WASI_CRYPTO_EXPECT_TRUE(
+        signatureVerificationStateUpdate(VerifictionStateHandle, "test"_u8));
+    WASI_CRYPTO_EXPECT_TRUE(
+        signatureVerificationStateVerify(VerifictionStateHandle, SigHandle));
+    WASI_CRYPTO_EXPECT_TRUE(
+        signatureVerificationStateClose(VerifictionStateHandle));
+
+    WASI_CRYPTO_EXPECT_TRUE(keypairClose(NewKpHandle));
+  };
+  KeypairFromPkAndSkTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv);
+
+  auto KeypairFromPkAndSkMismatchTest = [this](__wasi_algorithm_type_e_t AlgType,
+                                               std::string_view Alg) {
+    SCOPED_TRACE(Alg);
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle1,
+                               keypairGenerate(AlgType, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(PkHandle1, keypairPublickey(KpHandle1));
+    
+    WASI_CRYPTO_EXPECT_SUCCESS(KpHandle2,
+                               keypairGenerate(AlgType, Alg, std::nullopt));
+    WASI_CRYPTO_EXPECT_SUCCESS(SkHandle2, keypairSecretkey(KpHandle2));
+
+    WASI_CRYPTO_EXPECT_FAILURE(keypairFromPkAndSk(PkHandle1, SkHandle2),
+                               __WASI_CRYPTO_ERRNO_INVALID_KEY);
+  };
+  KeypairFromPkAndSkMismatchTest(__WASI_ALGORITHM_TYPE_SIGNATURES, "Ed25519"sv);
+
   auto SigEncodingTest =
       [this](
           std::string_view Alg,

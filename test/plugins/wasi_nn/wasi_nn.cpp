@@ -23,15 +23,6 @@ using WasmEdge::Host::WASINN::Device;
 using WasmEdge::Host::WASINN::ErrNo;
 using WasmEdge::Host::WASINN::TensorType;
 
-#if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO) ||                       \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH) ||                          \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE) ||                         \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML) ||                           \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER) ||                          \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER) ||                        \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS) ||                        \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX) ||                            \
-    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET)
 namespace {
 
 template <typename T, typename U>
@@ -61,6 +52,19 @@ createModule(std::string_view NNRPCURI = "") {
   }
   return {};
 }
+
+} // namespace
+
+#if defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_OPENVINO) ||                       \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TORCH) ||                          \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_TFLITE) ||                         \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_GGML) ||                           \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_PIPER) ||                          \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_WHISPER) ||                        \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_CHATTTS) ||                        \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_MLX) ||                            \
+    defined(WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET)
+namespace {
 
 inline std::vector<uint8_t> readEntireFile
     [[maybe_unused]] (const std::string &Path) {
@@ -3463,3 +3467,94 @@ TEST(WasiNNTest, BitNetBackend) {
   }
 }
 #endif // WASMEDGE_PLUGIN_WASI_NN_BACKEND_BITNET
+
+// Regression tests: OOB read in load_by_name / load_by_name_with_config.
+// NameLen (or ConfigLen) extending past the end of linear memory must return
+// InvalidArgument, not read into guard pages.
+TEST(WasiNNTest, LoadByNameOOBRead) {
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory",
+      std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+          WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto *FuncInst = NNMod->findFuncExports("load_by_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoadByName =
+      dynamic_cast<WasmEdge::Host::WasiNNLoadByName &>(FuncInst->getHostFunc());
+
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // NamePtr=65532, NameLen=100: name extends 96 bytes past the 1-page boundary.
+  EXPECT_TRUE(HostFuncLoadByName.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          UINT32_C(65532), // NamePtr
+          UINT32_C(100),   // NameLen
+          UINT32_C(0)      // GraphIdPtr
+      },
+      Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+}
+
+// Regression test: OOB read in load_by_name_with_config covers both NameLen
+// and ConfigLen extending past the end of linear memory.
+TEST(WasiNNTest, LoadByNameWithConfigOOBRead) {
+  auto NNMod = createModule();
+  if (!NNMod) {
+    GTEST_SKIP() << "wasi_nn plugin not found";
+  }
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory",
+      std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+          WasmEdge::AST::MemoryType(1)));
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto *FuncInst = NNMod->findFuncExports("load_by_name_with_config");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
+  auto &HostFuncLoadByNameWithConfig =
+      dynamic_cast<WasmEdge::Host::WasiNNLoadByNameWithConfig &>(
+          FuncInst->getHostFunc());
+
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+
+  // NamePtr OOB: name extends 96 bytes past the 1-page boundary.
+  EXPECT_TRUE(HostFuncLoadByNameWithConfig.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          UINT32_C(65532), // NamePtr
+          UINT32_C(100),   // NameLen (extends past end)
+          UINT32_C(0),     // ConfigPtr
+          UINT32_C(8),     // ConfigLen (valid)
+          UINT32_C(0)      // GraphIdPtr
+      },
+      Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+
+  // ConfigPtr OOB: name is valid, config extends 96 bytes past the boundary.
+  Errno[0] = UINT32_C(0);
+  EXPECT_TRUE(HostFuncLoadByNameWithConfig.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          UINT32_C(0),     // NamePtr
+          UINT32_C(8),     // NameLen (valid)
+          UINT32_C(65532), // ConfigPtr
+          UINT32_C(100),   // ConfigLen (extends past end)
+          UINT32_C(0)      // GraphIdPtr
+      },
+      Errno));
+  EXPECT_EQ(Errno[0].get<uint32_t>(),
+            static_cast<uint32_t>(ErrNo::InvalidArgument));
+}

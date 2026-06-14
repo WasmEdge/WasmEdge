@@ -2211,8 +2211,6 @@ static const std::vector<uint8_t> validator_no_realloc_wasm = {
 // canon lift whose result spills into the return area but omits 'memory'.
 // The validator must reject this end-to-end.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
-  Configure Conf;
-  Conf.addProposal(Proposal::Component);
   VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(validator_no_memory_wasm));
   EXPECT_FALSE(VM.validate());
@@ -2220,8 +2218,6 @@ TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoMemoryRejected) {
 
 // canon lift whose string param forces a realloc but omits 'realloc'.
 TEST(ComponentValidatorTest, EndToEnd_CanonLift_NoReallocRejected) {
-  Configure Conf;
-  Conf.addProposal(Proposal::Component);
   VM::VM VM(Conf);
   ASSERT_TRUE(VM.loadWasm(validator_no_realloc_wasm));
   EXPECT_FALSE(VM.validate());

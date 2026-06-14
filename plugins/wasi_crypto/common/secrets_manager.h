@@ -45,7 +45,7 @@ public:
     return {};
   }
 
-  WasiCryptoExpect<void>
+  WasiCryptoExpect<__wasi_version_t>
   storeKp(Span<const uint8_t> KeyId, __wasi_version_t Version,
           const AsymmetricCommon::KpVariant &Kp) noexcept {
     std::unique_lock Lock(Ctx->Mutex);
@@ -55,18 +55,52 @@ public:
     // we use erase and emplace to update the map.
     Ctx->KeyPairs.erase(Ident);
     Ctx->KeyPairs.emplace(Ident, Kp);
-    return {};
+    return Version;
   }
 
-  WasiCryptoExpect<void> storeSk(Span<const uint8_t> KeyId,
-                                 __wasi_version_t Version,
-                                 const Symmetric::KeyVariant &Sk) noexcept {
+  WasiCryptoExpect<__wasi_version_t>
+  storeSk(Span<const uint8_t> KeyId, __wasi_version_t Version,
+          const Symmetric::KeyVariant &Sk) noexcept {
     std::unique_lock Lock(Ctx->Mutex);
     KeyIdentifier Ident{std::vector<uint8_t>(KeyId.begin(), KeyId.end()),
                         Version};
     Ctx->SymmetricKeys.erase(Ident);
     Ctx->SymmetricKeys.emplace(Ident, Sk);
-    return {};
+    return Version;
+  }
+
+  WasiCryptoExpect<__wasi_version_t>
+  getLatestKpVersion(Span<const uint8_t> KeyId) noexcept {
+    std::shared_lock Lock(Ctx->Mutex);
+    std::vector<uint8_t> Id(KeyId.begin(), KeyId.end());
+    __wasi_version_t LatestVersion = 0;
+    bool Found = false;
+    for (auto It = Ctx->KeyPairs.lower_bound({Id, 0});
+         It != Ctx->KeyPairs.end() && It->first.Id == Id; ++It) {
+      LatestVersion = std::max(LatestVersion, It->first.Version);
+      Found = true;
+    }
+    if (!Found) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_FOUND);
+    }
+    return LatestVersion;
+  }
+
+  WasiCryptoExpect<__wasi_version_t>
+  getLatestSkVersion(Span<const uint8_t> KeyId) noexcept {
+    std::shared_lock Lock(Ctx->Mutex);
+    std::vector<uint8_t> Id(KeyId.begin(), KeyId.end());
+    __wasi_version_t LatestVersion = 0;
+    bool Found = false;
+    for (auto It = Ctx->SymmetricKeys.lower_bound({Id, 0});
+         It != Ctx->SymmetricKeys.end() && It->first.Id == Id; ++It) {
+      LatestVersion = std::max(LatestVersion, It->first.Version);
+      Found = true;
+    }
+    if (!Found) {
+      return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_FOUND);
+    }
+    return LatestVersion;
   }
 
   WasiCryptoExpect<AsymmetricCommon::KpVariant>

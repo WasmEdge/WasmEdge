@@ -3,10 +3,12 @@
 
 #include "common/errinfo.h"
 #include "common/spdlog.h"
+#include "executor/component/canonical_abi.h"
 #include "validator/component_name.h"
 #include "validator/validator.h"
 
 #include <algorithm>
+#include <memory>
 #include <unordered_set>
 #include <variant>
 
@@ -1432,7 +1434,7 @@ Expect<void> Validator::validateCanonOptions(
   }
 
   // Index bounds checks. Core func signature body checks (realloc/callback)
-  // deferred as GAP-C-5b once getCoreFunc signatures are populated.
+  // are deferred until getCoreFunc signatures are populated.
   if (HasMemory &&
       MemoryIdx >= CompCtx.getCoreSortIndexSize(
                        AST::Component::Sort::CoreSortType::Memory)) {
@@ -1471,6 +1473,201 @@ Expect<void> Validator::validateCanonOptions(
   }
   return {};
 }
+
+namespace {
+
+// Subset of canon options that the flatten-derived checks below need to
+// consult (spec L3290-3296 for lift, L3519-3524 for lower). Re-parsed from
+// the option list rather than threaded out of validateCanonOptions to keep
+// that function's contract narrow.
+struct ParsedCanonOpts {
+  bool HasMemory = false;
+  bool HasRealloc = false;
+  bool HasPostReturn = false;
+  bool HasAsync = false;
+  uint32_t PostReturnIdx = 0;
+};
+
+ParsedCanonOpts
+parseCanonOpts(Span<const AST::Component::CanonOpt> Opts) noexcept {
+  using OptCode = ComponentCanonOptCode;
+  ParsedCanonOpts S;
+  for (const auto &Opt : Opts) {
+    switch (Opt.getCode()) {
+    case OptCode::Memory:
+      S.HasMemory = true;
+      break;
+    case OptCode::Realloc:
+      S.HasRealloc = true;
+      break;
+    case OptCode::PostReturn:
+      S.HasPostReturn = true;
+      S.PostReturnIdx = Opt.getIndex();
+      break;
+    case OptCode::Async:
+      S.HasAsync = true;
+      break;
+    default:
+      break;
+    }
+  }
+  return S;
+}
+
+// Build a CanonCtx whose TypeResolver routes through `Ctx.getDefType`, so
+// the executor-side flatten / contains-list-string helpers can run without a
+// ComponentInstance.
+Executor::CanonicalABI::CanonCtx
+makeValidatorCanonCtx(const ComponentContext &Ctx) noexcept {
+  Executor::CanonicalABI::CanonCtx Cx{};
+  Cx.TypeResolver = [&Ctx](uint32_t Idx) { return Ctx.getDefType(Idx); };
+  return Cx;
+}
+
+// Spec L3290 / L3519: the core function reached by canon lift / produced by
+// canon lower must have the signature `flatten_functype($opts, $ft, dir)`.
+// Compare two FunctionTypes by TypeCode of their flat lists.
+bool sameFlatSignature(const AST::FunctionType &A,
+                       const Executor::CanonicalABI::FlatFuncType &B) noexcept {
+  const auto &AP = A.getParamTypes();
+  const auto &AR = A.getReturnTypes();
+  if (AP.size() != B.Params.size() || AR.size() != B.Results.size()) {
+    return false;
+  }
+  for (size_t I = 0; I < AP.size(); ++I) {
+    if (AP[I].getCode() != B.Params[I].getCode()) {
+      return false;
+    }
+  }
+  for (size_t I = 0; I < AR.size(); ++I) {
+    if (AR[I].getCode() != B.Results[I].getCode()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// Wrap a FlatFuncType into a SubType wrapping a CompositeType wrapping a
+// FunctionType, suitable for tracking in ComponentContext::CoreFuncs.
+// Mirrors HostFunction<T>::initializeFuncType (include/runtime/hostfunc.h)
+// and the dynamic build in CanonLowerHostFunc (component_lower_thunk.cpp).
+std::unique_ptr<AST::SubType>
+flatSigToSubType(const Executor::CanonicalABI::FlatFuncType &F) {
+  AST::FunctionType FT;
+  FT.getParamTypes().assign(F.Params.begin(), F.Params.end());
+  FT.getReturnTypes().assign(F.Results.begin(), F.Results.end());
+  auto ST = std::make_unique<AST::SubType>(FT);
+  return ST;
+}
+
+// Lift / lower share a few common option-requirement rules driven by the
+// flat ABI of the component func type. CanonicalABI.md L3270-3277, L3290-3296,
+// L3519-3524. `IsLift` decides which side of the spec table to consult.
+Expect<void> checkCanonFlatRules(const ComponentContext &CompCtx,
+                                 const AST::Component::FuncType &FT,
+                                 bool IsLift,
+                                 const ParsedCanonOpts &O) noexcept {
+  Executor::CanonicalABI::CanonCtx Cx = makeValidatorCanonCtx(CompCtx);
+
+  const char *Site = IsLift ? "canon lift" : "canon lower";
+  const bool RequireReallocForList = [&]() {
+    // lift(T) requires realloc if T contains list/string (params);
+    // lower(T) requires realloc if T contains list/string (result).
+    if (IsLift) {
+      for (const auto &P : FT.getParamList()) {
+        if (Executor::CanonicalABI::containsListOrString(Cx, P.getValType())) {
+          return true;
+        }
+      }
+    } else {
+      for (const auto &R : FT.getResultList()) {
+        if (Executor::CanonicalABI::containsListOrString(Cx, R.getValType())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }();
+  const bool RequireMemoryForList = [&]() {
+    if (IsLift) {
+      for (const auto &R : FT.getResultList()) {
+        if (Executor::CanonicalABI::containsListOrString(Cx, R.getValType())) {
+          return true;
+        }
+      }
+    } else {
+      for (const auto &P : FT.getParamList()) {
+        if (Executor::CanonicalABI::containsListOrString(Cx, P.getValType())) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }();
+
+  // Pre-flatten counts (before the over-cap collapse) drive the spec's
+  // threshold rules. Total over the spans of each list-component flatten.
+  size_t PreFlatParams = 0;
+  for (const auto &P : FT.getParamList()) {
+    EXPECTED_TRY(auto Sub,
+                 Executor::CanonicalABI::flattenType(Cx, P.getValType()));
+    PreFlatParams += Sub.size();
+  }
+  size_t PreFlatResults = 0;
+  for (const auto &R : FT.getResultList()) {
+    EXPECTED_TRY(auto Sub,
+                 Executor::CanonicalABI::flattenType(Cx, R.getValType()));
+    PreFlatResults += Sub.size();
+  }
+
+  // Spec L3293-3294 (lift) / L3520-3521 (lower).
+  if (RequireReallocForList && !O.HasRealloc) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    {}: 'realloc' is required because {} contains a list / string"sv,
+        Site, IsLift ? "param" : "result");
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+  if (RequireMemoryForList && !O.HasMemory) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error(
+        "    {}: 'memory' is required because {} contains a list / string"sv,
+        Site, IsLift ? "result" : "param");
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+
+  // Threshold rules (L3295-3296 for lift, L3522-3523 for lower). Sync only —
+  // async would set different caps but is already rejected by flattenFuncType.
+  // For lift: params need realloc to spill, results need memory. For lower
+  // the two swap.
+  const char *ParamsSpillOpt = IsLift ? "realloc" : "memory";
+  const bool ParamsSpillOptPresent = IsLift ? O.HasRealloc : O.HasMemory;
+  const char *ResultsSpillOpt = IsLift ? "memory" : "realloc";
+  const bool ResultsSpillOptPresent = IsLift ? O.HasMemory : O.HasRealloc;
+  if (PreFlatParams > Executor::CanonicalABI::MaxFlatParams &&
+      !ParamsSpillOptPresent) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error("    {}: param flat count {} exceeds MAX_FLAT_PARAMS, "
+                  "'{}' is required"sv,
+                  Site, PreFlatParams, ParamsSpillOpt);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+  if (PreFlatResults > Executor::CanonicalABI::MaxFlatResults &&
+      !ResultsSpillOptPresent) {
+    spdlog::error(ErrCode::Value::InvalidCanonOption);
+    spdlog::error("    {}: result flat count {} exceeds MAX_FLAT_RESULTS, "
+                  "'{}' is required"sv,
+                  Site, PreFlatResults, ResultsSpillOpt);
+    spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+    return Unexpect(ErrCode::Value::InvalidCanonOption);
+  }
+  return {};
+}
+
+} // namespace
 
 Expect<void>
 Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
@@ -1520,8 +1717,70 @@ Validator::validateCanonLift(const AST::Component::Canonical &Canon) noexcept {
   }
   // 4. Validate canonical options (Lift site allows all).
   EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
-  // 5. Allocate component func, binding the resolved FuncType. Full ABI
-  // signature match (flat_lifted) deferred as GAP-C-1b.
+
+  // 5. Flatten-derived checks (spec L3290-3296). Catches async / gated value
+  // types and enforces realloc/memory presence rules at validator time so
+  // instantiation no longer has to.
+  const auto Opts = parseCanonOpts(Canon.getOptions());
+  auto Cx = makeValidatorCanonCtx(CompCtx);
+  EXPECTED_TRY(auto FlatSig,
+               Executor::CanonicalABI::flattenFuncType(Cx, DT->getFuncType(),
+                                                       /*IsLift=*/true));
+  EXPECTED_TRY(checkCanonFlatRules(CompCtx, DT->getFuncType(),
+                                   /*IsLift=*/true, Opts));
+
+  // 6. Spec L3292: post-return signature must be
+  // `(func (param flatten_functype({}, $ft, 'lift').results))`. Only checked
+  // when the core func type was threaded through (e.g., CoreImportDesc).
+  if (Opts.HasPostReturn) {
+    if (Opts.PostReturnIdx >= CompCtx.getCoreSortIndexSize(
+                                  AST::Component::Sort::CoreSortType::Func)) {
+      // Already caught by validateCanonOptions, but re-guarded for safety.
+      return {};
+    }
+    if (const auto *PRType = CompCtx.getCoreFunc(Opts.PostReturnIdx);
+        PRType != nullptr && PRType->getCompositeType().isFunc()) {
+      const auto &PRFunc = PRType->getCompositeType().getFuncType();
+      if (!PRFunc.getReturnTypes().empty() ||
+          PRFunc.getParamTypes().size() != FlatSig.Results.size()) {
+        spdlog::error(ErrCode::Value::InvalidCanonOption);
+        spdlog::error("    canon lift: post-return must have signature "
+                      "(func (param ...flatten_lift_results))"sv);
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+        return Unexpect(ErrCode::Value::InvalidCanonOption);
+      }
+      for (size_t I = 0; I < FlatSig.Results.size(); ++I) {
+        if (PRFunc.getParamTypes()[I].getCode() !=
+            FlatSig.Results[I].getCode()) {
+          spdlog::error(ErrCode::Value::InvalidCanonOption);
+          spdlog::error("    canon lift: post-return param[{}] type mismatch"sv,
+                        I);
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+          return Unexpect(ErrCode::Value::InvalidCanonOption);
+        }
+      }
+    }
+    // If PRType is nullptr the core func came from a path that doesn't yet
+    // track core SubTypes (aliases, canon-synthesized cores). The
+    // instantiate-time pre-flight will still catch a signature mismatch.
+  }
+
+  // 7. Spec L3290: `$callee` must have type
+  // `flatten_functype($opts, $ft, 'lift')`. Same caveat as above on SubType
+  // availability.
+  if (const auto *CalleeSub = CompCtx.getCoreFunc(CoreFuncIdx);
+      CalleeSub != nullptr && CalleeSub->getCompositeType().isFunc()) {
+    if (!sameFlatSignature(CalleeSub->getCompositeType().getFuncType(),
+                           FlatSig)) {
+      spdlog::error(ErrCode::Value::InvalidCanonOption);
+      spdlog::error("    canon lift: $callee signature does not match "
+                    "flatten_functype($opts, $ft, 'lift')"sv);
+      spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Canonical));
+      return Unexpect(ErrCode::Value::InvalidCanonOption);
+    }
+  }
+
+  // 8. Allocate component func, binding the resolved FuncType.
   CompCtx.addFunc(&DT->getFuncType());
   return {};
 }
@@ -1542,9 +1801,26 @@ Validator::validateCanonLower(const AST::Component::Canonical &Canon) noexcept {
   }
   // 2. Validate canonical options (per-site rules for Lower).
   EXPECTED_TRY(validateCanonOptions(Canon.getOpCode(), Canon.getOptions()));
-  // 3. Allocate the resulting core func. Full ABI signature synthesis
-  // (flatten_functype for lower) deferred as GAP-C-2b.
-  CompCtx.addCoreFunc();
+
+  // 3. Flatten-derived checks (spec L3519-3524). Catches async / gated value
+  // types and enforces realloc/memory presence rules early.
+  const auto *Callee = CompCtx.getFunc(FuncIdx);
+  if (Callee == nullptr) {
+    // No FuncType bound to this slot (typically an unresolved import). The
+    // signature synthesis below cannot proceed; defer to instantiate-time.
+    CompCtx.addCoreFunc();
+    return {};
+  }
+  const auto Opts = parseCanonOpts(Canon.getOptions());
+  auto Cx = makeValidatorCanonCtx(CompCtx);
+  EXPECTED_TRY(auto FlatSig,
+               Executor::CanonicalABI::flattenFuncType(Cx, *Callee,
+                                                       /*IsLift=*/false));
+  EXPECTED_TRY(checkCanonFlatRules(CompCtx, *Callee, /*IsLift=*/false, Opts));
+
+  // 4. Allocate the resulting core func, binding the synthesized flat ABI
+  // (spec L3519) so downstream callers see the correct signature.
+  CompCtx.addCoreFuncOwned(flatSigToSubType(FlatSig));
   return {};
 }
 
@@ -1934,9 +2210,16 @@ Validator::validate(const AST::Component::ExternDesc &Desc) noexcept {
     CompCtx.addCoreModule(CT);
     break;
   }
-  case AST::Component::ExternDesc::DescType::FuncType:
-    CompCtx.addFunc();
+  case AST::Component::ExternDesc::DescType::FuncType: {
+    // Bind the imported func's declared component FuncType so that
+    // downstream checks (e.g. canon lower's flatten-derived rules) can
+    // introspect it.
+    const auto *DT = CompCtx.getDefType(Desc.getTypeIndex());
+    const AST::Component::FuncType *FT =
+        (DT != nullptr && DT->isFuncType()) ? &DT->getFuncType() : nullptr;
+    CompCtx.addFunc(FT);
     break;
+  }
   case AST::Component::ExternDesc::DescType::ValueBound:
     CompCtx.addValue();
     break;
@@ -2003,7 +2286,9 @@ Validator::validate(const AST::Component::CoreImportDesc &Desc) noexcept {
                     TypeIdx);
       return Unexpect(ErrCode::Value::InvalidIndex);
     }
-    CompCtx.addCoreFunc();
+    // Bind the imported func's declared core type so later canon-lift's
+    // post-return signature check (spec L3292) can compare against it.
+    CompCtx.addCoreFunc(CompCtx.getCoreType(TypeIdx));
   } else if (Desc.isTable()) {
     CompCtx.addCoreTable();
   } else if (Desc.isMemory()) {

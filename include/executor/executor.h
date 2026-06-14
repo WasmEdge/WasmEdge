@@ -378,16 +378,18 @@ private:
 
   /// \name Helper Functions for canonical ABI
   /// @{
-  std::vector<ValVariant>
+  Expect<std::vector<ValVariant>>
   convValsToCoreWASM(Span<const ComponentValVariant> Vals,
                      Span<const ComponentValType> ValTypes,
                      Runtime::Instance::FunctionInstance *RFuncInst,
-                     Runtime::Instance::MemoryInstance *MemInst) noexcept;
+                     Runtime::Instance::MemoryInstance *MemInst,
+                     const Runtime::Instance::ComponentInstance *CompInst);
 
   Expect<std::vector<std::pair<ComponentValVariant, ComponentValType>>>
   convValsToComponent(Span<const std::pair<ValVariant, ValType>> CoreVals,
                       Span<const ComponentValType> ValTypes,
-                      Runtime::Instance::MemoryInstance *MemInst);
+                      Runtime::Instance::MemoryInstance *MemInst,
+                      const Runtime::Instance::ComponentInstance *CompInst);
   /// @}
 
   /// \name Helper Functions for block controls.

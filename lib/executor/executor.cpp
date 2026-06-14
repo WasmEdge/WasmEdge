@@ -226,8 +226,6 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
 
   // Matching arguments and function type.
   // TODO: COMPONENT - type matching.
-  // const auto &FuncType = FuncInst->getFuncType();
-  // const auto PTypes = FuncType.getParamList();
   const auto &ExpectedFuncType = FuncInst->getFuncType();
   const size_t ExpectedArity = ExpectedFuncType.getParamList().size();
   if (Params.size() != ParamTypes.size() || ParamTypes.size() < ExpectedArity) {
@@ -240,8 +238,9 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
   // Convert the component params into core WASM params.
   auto *ReallocFuncInst = FuncInst->getAllocFunction();
   auto *MemInst = FuncInst->getMemoryInstance();
-  std::vector<ValVariant> CoreWASMArgs =
-      convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst);
+  EXPECTED_TRY(auto CoreWASMArgs,
+               convValsToCoreWASM(Params, ParamTypes, ReallocFuncInst, MemInst,
+                                  FuncInst->getComponentInstance()));
 
   // Call runFunction.
   auto *CoreFuncInst = FuncInst->getLowerFunction();
@@ -257,8 +256,28 @@ Executor::invoke(const Runtime::Instance::Component::FunctionInstance *FuncInst,
     ReturnTypes.push_back(Type.getValType());
   }
   EXPECTED_TRY(auto Returns,
-               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst));
+               convValsToComponent(CoreWASMReturns, ReturnTypes, MemInst,
+                                   FuncInst->getComponentInstance()));
   assuming(Returns.size() == ReturnTypes.size());
+
+  // CanonicalABI.md L3367-3372: after a sync lift completes (post
+  // task.return_), invoke the optional post-return with the ORIGINAL flat
+  // core return values as parameters. This is how Preview 2 components free
+  // buffers allocated for indirect-result / list / string returns.
+  //
+  // TODO: spec L3370 also gates this region with `may_leave = False`;
+  // WasmEdge doesn't model may_leave yet (deferred along with async).
+  // In practice sync Preview 2 post-return implementations don't re-enter.
+  if (auto *PostReturnInst = FuncInst->getPostReturnFunction()) {
+    std::vector<ValVariant> PRArgs;
+    PRArgs.reserve(CoreWASMReturns.size());
+    for (const auto &P : CoreWASMReturns) {
+      PRArgs.push_back(P.first);
+    }
+    EXPECTED_TRY(invoke(PostReturnInst, PRArgs,
+                        PostReturnInst->getFuncType().getParamTypes()));
+  }
+
   return Returns;
 }
 

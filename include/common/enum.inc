@@ -1216,6 +1216,8 @@ E(AccessNullException, 0x0417, "null exception reference")
 E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
 E(UncaughtException, 0x0419, "uncaught exception")
+// Component model canonical ABI trap (guest-observable)
+E(ComponentTrap, 0x041A, "component canonical ABI trap")
 // @}
 
 #undef E

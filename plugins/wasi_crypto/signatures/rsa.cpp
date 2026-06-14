@@ -313,6 +313,8 @@ Rsa<PadMode, KeyBits, ShaNid>::Signature::import(
     ASN1_OCTET_STRING *OctetString =
         d2i_ASN1_OCTET_STRING(nullptr, &DataPtr, Encoded.size());
     ensureOrReturn(OctetString, __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
+    ensureOrReturn(DataPtr == Encoded.data() + Encoded.size(),
+                   __WASI_CRYPTO_ERRNO_INVALID_SIGNATURE);
     std::vector<uint8_t> Res(OctetString->data,
                              OctetString->data + OctetString->length);
     ASN1_OCTET_STRING_free(OctetString);

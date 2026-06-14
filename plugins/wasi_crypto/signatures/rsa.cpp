@@ -138,7 +138,7 @@ template <int PadMode, int KeyBits, int ShaNid>
 WasiCryptoExpect<typename Rsa<PadMode, KeyBits, ShaNid>::KeyPair>
 Rsa<PadMode, KeyBits, ShaNid>::SecretKey::toKeyPair(
     const PublicKey &Pk) const noexcept {
-  if (EVP_PKEY_cmp(Ctx.get(), Pk.raw().get()) != 1) {
+  if (EVP_PKEY_eq(Ctx.get(), Pk.raw().get()) != 1) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
   }
   return Ctx;

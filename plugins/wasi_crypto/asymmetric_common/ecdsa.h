@@ -210,7 +210,7 @@ public:
     const auto &raw() const { return Ctx; }
 
     WasiCryptoExpect<KeyPair> toKeyPair(const PublicKey &Pk) const noexcept {
-      if (EVP_PKEY_cmp(Ctx.get(), Pk.raw().get()) != 1) {
+      if (EVP_PKEY_eq(Ctx.get(), Pk.raw().get()) != 1) {
         return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INCOMPATIBLE_KEYS);
       }
       return Ctx;

@@ -419,8 +419,8 @@ Validator::validate(const AST::Component::AliasSection &AliasSec) noexcept {
                          AST::Component::Sort::CoreSortType::Instance)) {
           const auto &Exports = CompCtx.getCoreInstance(SrcIdx);
           const auto It = Exports.find(std::string(Alias.getExport().second));
-          if (It != Exports.end()) {
-            SrcMem = It->second.Mem;
+          if (It != Exports.end() && It->second.Mem.has_value()) {
+            SrcMem = &*It->second.Mem;
           }
         }
         NewCoreIdx = CompCtx.addCoreMemory(SrcMem);
@@ -695,7 +695,7 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
             ProvExports.find(std::string(Import.getExternalName()));
         if (ExpIt == ProvExports.end() ||
             ExpIt->second.Kind != ExternalType::Memory ||
-            ExpIt->second.Mem == nullptr) {
+            !ExpIt->second.Mem.has_value()) {
           continue;
         }
         if (Import.getExternalMemoryType().getLimit().is64() !=
@@ -707,6 +707,82 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
               Import.getModuleName(), Import.getExternalName());
           spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
           return Unexpect(ErrCode::Value::ComponentMemoryIndexTypeMismatch);
+        }
+      }
+    }
+
+    // GAP-CI-1 (cont.): for an imported core module type, subtype-check each
+    // provided core extern (memory / table / global) against the import.
+    if (ModTy != nullptr && ModTy->isModuleType()) {
+      const uint32_t InstCount = CompCtx.getCoreSortIndexSize(
+          AST::Component::Sort::CoreSortType::Instance);
+      for (const auto &Decl : ModTy->getModuleType()) {
+        if (!Decl.isImport()) {
+          continue;
+        }
+        const auto &Imp = Decl.getImport();
+        const auto Desc = Imp.getImportDesc();
+        if (!Desc.isMemory() && !Desc.isTable() && !Desc.isGlobal()) {
+          continue;
+        }
+        const auto ArgIt =
+            std::find_if(Args.begin(), Args.end(), [&](const auto &Arg) {
+              return Arg.getName() == Imp.getModuleName();
+            });
+        if (ArgIt == Args.end() || ArgIt->getIndex() >= InstCount) {
+          continue;
+        }
+        const auto &ProvExports = CompCtx.getCoreInstance(ArgIt->getIndex());
+        const auto ExpIt = ProvExports.find(std::string(Imp.getName()));
+        if (ExpIt == ProvExports.end()) {
+          continue;
+        }
+        const auto &Got = ExpIt->second;
+        auto reportMismatch =
+            [&](ErrCode::Value Code,
+                std::string_view What) -> Unexpected<ErrCode> {
+          spdlog::error(Code);
+          spdlog::error("    CoreInstance: import '{}'.'{}' {}"sv,
+                        Imp.getModuleName(), Imp.getName(), What);
+          spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
+          return Unexpect(Code);
+        };
+        if (Desc.isMemory() && Got.Kind == ExternalType::Memory &&
+            Got.Mem.has_value()) {
+          const auto &W = Desc.getMemoryType().getLimit();
+          const auto &G = Got.Mem->getLimit();
+          if (W.is64() != G.is64()) {
+            return reportMismatch(
+                ErrCode::Value::ComponentMemoryIndexTypeMismatch,
+                "memory index type mismatch");
+          }
+        } else if (Desc.isTable() && Got.Kind == ExternalType::Table &&
+                   Got.Tab.has_value()) {
+          const auto &W = Desc.getTableType();
+          const auto &G = *Got.Tab;
+          if (!(W.getRefType() == G.getRefType())) {
+            return reportMismatch(
+                ErrCode::Value::ComponentTableElemTypeMismatch,
+                "table element type mismatch");
+          }
+          const auto &WL = W.getLimit();
+          const auto &GL = G.getLimit();
+          const bool LimitsOk =
+              GL.is64() == WL.is64() && GL.getMin() >= WL.getMin() &&
+              (!WL.hasMax() || (GL.hasMax() && GL.getMax() <= WL.getMax()));
+          if (!LimitsOk) {
+            return reportMismatch(ErrCode::Value::ComponentTableLimitsMismatch,
+                                  "table limits mismatch");
+          }
+        } else if (Desc.isGlobal() && Got.Kind == ExternalType::Global &&
+                   Got.Glob.has_value()) {
+          const auto &W = Desc.getGlobalType();
+          const auto &G = *Got.Glob;
+          if (!(W.getValType() == G.getValType()) ||
+              W.getValMut() != G.getValMut()) {
+            return reportMismatch(ErrCode::Value::ComponentGlobalTypeMismatch,
+                                  "global type mismatch");
+          }
         }
       }
     }
@@ -763,7 +839,17 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
         } else {
           continue;
         }
-        CompCtx.addCoreInstanceExport(InstanceIdx, Exp.getName(), ET);
+        // Carry the core extern type so a later instantiation can subtype-check
+        // it (GAP-CI-1). Pointers are copied into the export entry immediately,
+        // so pointing into the temporary descriptor is safe here.
+        const AST::MemoryType *MemTy =
+            ImpDesc.isMemory() ? &ImpDesc.getMemoryType() : nullptr;
+        const AST::TableType *TabTy =
+            ImpDesc.isTable() ? &ImpDesc.getTableType() : nullptr;
+        const AST::GlobalType *GlobTy =
+            ImpDesc.isGlobal() ? &ImpDesc.getGlobalType() : nullptr;
+        CompCtx.addCoreInstanceExport(InstanceIdx, Exp.getName(), ET, MemTy,
+                                      TabTy, GlobTy);
       }
     }
   } else if (Inst.isInlineExport()) {

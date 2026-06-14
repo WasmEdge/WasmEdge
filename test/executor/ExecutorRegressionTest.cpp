@@ -18,8 +18,35 @@
 
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <gtest/gtest.h>
+#include <new>
 #include <vector>
+
+// To exercise the out-of-memory trap path of array.new (issue: trap instead of
+// abort on oversized array.new) deterministically and without risking the OOM
+// killer, replace the global allocation operators so that pathologically large
+// requests -- such as the backing store of an oversized array.new -- throw
+// std::bad_alloc, while every ordinary allocation is forwarded to malloc. The
+// threshold is far larger than anything this test binary legitimately
+// allocates, yet smaller than an array of UINT32_MAX elements.
+namespace {
+constexpr std::size_t OOMTriggerThreshold = std::size_t{16} * 1024 * 1024 *
+                                            1024; // 16 GiB
+} // namespace
+
+void *operator new(std::size_t Size) {
+  if (Size >= OOMTriggerThreshold) {
+    throw std::bad_alloc();
+  }
+  if (void *Ptr = std::malloc(Size != 0 ? Size : 1)) {
+    return Ptr;
+  }
+  throw std::bad_alloc();
+}
+
+void operator delete(void *Ptr) noexcept { std::free(Ptr); }
+void operator delete(void *Ptr, std::size_t) noexcept { std::free(Ptr); }
 
 namespace {
 
@@ -990,6 +1017,76 @@ TEST(ExecutorRegression, CallIndirectNonFuncTable) {
   auto Result = VM.validate();
   ASSERT_FALSE(Result);
   EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
+}
+
+/// Binary Wasm module: array.new_default with a UINT32_MAX length operand.
+///
+/// (module
+///   (type $a (array i32))
+///   (func (export "test")
+///     i32.const -1            ;; length = 0xFFFFFFFF
+///     array.new_default $a
+///     drop))
+///
+/// The backing store would require ~64 GiB, so the allocation fails. The
+/// executor must surface this as a MemoryOutOfBounds trap rather than letting
+/// std::bad_alloc escape and abort the host process.
+std::array<WasmEdge::Byte, 43> ArrayNewOversizedWasm{
+    0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x02,
+    0x5E, 0x7F, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x07,
+    0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0A, 0x0A,
+    0x01, 0x08, 0x00, 0x41, 0x7F, 0xFB, 0x07, 0x00, 0x1A, 0x0B};
+
+/// Binary Wasm module: array.new with an explicit init value and a UINT32_MAX
+/// length operand.
+///
+/// (module
+///   (type $a (array i32))
+///   (func (export "test")
+///     i32.const 0             ;; init value broadcast to every element
+///     i32.const -1            ;; length = 0xFFFFFFFF
+///     array.new $a
+///     drop))
+///
+/// Exercises the single-init-value allocation path of arrayNew, which must also
+/// trap on allocation failure rather than abort.
+std::array<WasmEdge::Byte, 45> ArrayNewInitOversizedWasm{
+    0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x02, 0x5E,
+    0x7F, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x07, 0x08, 0x01,
+    0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0A, 0x0C, 0x01, 0x0A, 0x00,
+    0x41, 0x00, 0x41, 0x7F, 0xFB, 0x06, 0x00, 0x1A, 0x0B};
+
+/// Regression test: an oversized array.new must trap instead of aborting.
+///
+/// Previously the array backing store was allocated in a noexcept context, so a
+/// failed allocation called std::terminate and killed the whole host process.
+/// The fix makes the allocation potentially-throwing and catches std::bad_alloc
+/// in the executor, turning it into a MemoryOutOfBounds Wasm trap.
+TEST(ExecutorRegression, ArrayNewOutOfMemoryTraps) {
+  // array.new_default: allocate-and-default-fill path.
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(ArrayNewOversizedWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    // The execution must fail gracefully with a trap, not abort the process.
+    auto Result = VM.execute("test");
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::MemoryOutOfBounds);
+  }
+
+  // array.new: allocate-and-fill-with-init-value path.
+  {
+    Configure Conf;
+    VM::VM VM(Conf);
+    ASSERT_TRUE(VM.loadWasm(ArrayNewInitOversizedWasm));
+    ASSERT_TRUE(VM.validate());
+    ASSERT_TRUE(VM.instantiate());
+    auto Result = VM.execute("test");
+    ASSERT_FALSE(Result);
+    EXPECT_EQ(Result.error(), ErrCode::Value::MemoryOutOfBounds);
+  }
 }
 
 } // namespace

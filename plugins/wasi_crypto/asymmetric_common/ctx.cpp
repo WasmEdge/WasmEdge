@@ -185,8 +185,9 @@ Context::keypairStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
                              Span<uint8_t> KpId) noexcept {
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
-        return KeyPairManager.get(KpHandle).and_then(
-            [&](auto &&Kp) noexcept { return Sm.storeKp(KpId, 0, Kp); });
+        return KeyPairManager.get(KpHandle).and_then([&](auto &&Kp) noexcept {
+          return Sm.storeKp(KpId, 0, Kp).map([](auto &&) {});
+        });
       });
 }
 
@@ -194,15 +195,32 @@ WasiCryptoExpect<__wasi_version_t>
 Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
                                __wasi_keypair_t OldKpHandle,
                                __wasi_keypair_t NewKpHandle) noexcept {
-  (void)SecretsManagerHandle;
-  (void)OldKpHandle;
-  (void)NewKpHandle;
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([&](auto &&Sm) noexcept {
+        return KeyPairManager.get(OldKpHandle)
+            .and_then([&](auto &&) noexcept {
+              return KeyPairManager.getId(OldKpHandle);
+            })
+            .and_then([&](auto &&KpId) noexcept {
+              return Sm.getLatestKpVersion(KpId).and_then(
+                  [&](auto LatestVersion) noexcept {
+                    return KeyPairManager.get(NewKpHandle).and_then(
+                        [&](auto &&NewKp) noexcept {
+                          return Sm.storeKp(KpId, LatestVersion + 1, NewKp);
+                        });
+                  });
+            });
+      });
 }
 
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
-Context::keypairId(__wasi_keypair_t, Span<uint8_t>) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::keypairId(__wasi_keypair_t KpHandle, Span<uint8_t> KpId) noexcept {
+  return KeyPairManager.getId(KpHandle).and_then([&](auto &&Id) noexcept {
+    size_t Len = std::min(KpId.size(), Id.size());
+    std::copy_n(Id.begin(), Len, KpId.begin());
+    return KeyPairManager.getManagedVersion(KpHandle).map(
+        [Len](auto Version) { return std::make_tuple(Len, Version); });
+  });
 }
 
 WasiCryptoExpect<__wasi_keypair_t>

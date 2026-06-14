@@ -74,6 +74,19 @@ public:
       // True for validate(DefType) in this scope. Gates resource.new/.rep.
       bool LocallyDefined = false;
     };
+    // Export of a core:instance. Kind is always set; Mem is populated for
+    // memory exports so instantiation can subtype-check the index type
+    // (GAP-CI-1).
+    struct CoreInstanceExport {
+      ExternalType Kind;
+      // Stored by value (not pointer): the module-type descriptor getter
+      // returns a temporary, so a pointer into it would dangle. Each optional
+      // is populated only for its matching Kind, for instantiation subtype
+      // checks (GAP-CI-1).
+      std::optional<AST::MemoryType> Mem;
+      std::optional<AST::TableType> Tab;
+      std::optional<AST::GlobalType> Glob;
+    };
 
     // ---- Scope identity ----
     const AST::Component::Component *Component;
@@ -81,7 +94,7 @@ public:
 
     // ---- Core sort index spaces ----
     std::vector<CoreModuleSlot> CoreModules; // core:module
-    std::vector<std::unordered_map<std::string, ExternalType>>
+    std::vector<std::unordered_map<std::string, CoreInstanceExport>>
         CoreInstances;                                 // core:instance
     std::vector<const AST::SubType *> CoreTypes;       // core:type
     std::vector<const AST::SubType *> CoreFuncs;       // core:func
@@ -243,14 +256,29 @@ public:
     return Idx;
   }
 
-  const std::unordered_map<std::string, ExternalType> &
+  const std::unordered_map<std::string, Context::CoreInstanceExport> &
   getCoreInstance(uint32_t Idx) const noexcept {
     return getCurrentContext().CoreInstances.at(Idx);
   }
 
   void addCoreInstanceExport(uint32_t InstIdx, std::string_view Name,
-                             ExternalType ET) {
-    getCurrentContext().CoreInstances.at(InstIdx)[std::string(Name)] = ET;
+                             ExternalType ET,
+                             const AST::MemoryType *Mem = nullptr,
+                             const AST::TableType *Tab = nullptr,
+                             const AST::GlobalType *Glob = nullptr) {
+    Context::CoreInstanceExport E;
+    E.Kind = ET;
+    if (Mem != nullptr) {
+      E.Mem = *Mem;
+    }
+    if (Tab != nullptr) {
+      E.Tab = *Tab;
+    }
+    if (Glob != nullptr) {
+      E.Glob = *Glob;
+    }
+    getCurrentContext().CoreInstances.at(InstIdx)[std::string(Name)] =
+        std::move(E);
   }
 
   // ==========================================================================
@@ -285,6 +313,10 @@ public:
     uint32_t Idx = static_cast<uint32_t>(V.size());
     V.push_back(MT);
     return Idx;
+  }
+  const AST::MemoryType *getCoreMemory(uint32_t Idx) const noexcept {
+    const auto &V = getCurrentContext().CoreMemories;
+    return Idx < V.size() ? V[Idx] : nullptr;
   }
   uint32_t addCoreGlobal(const AST::GlobalType *GT = nullptr) noexcept {
     auto &V = getCurrentContext().CoreGlobals;

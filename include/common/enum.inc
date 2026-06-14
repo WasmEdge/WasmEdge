@@ -1130,6 +1130,18 @@ E(ComponentImportNameConflict, 0x02B8,
   "import name conflicts with previous name")
 // Component alias references an export the instance does not provide
 E(ComponentUnknownExport, 0x02B9, "unknown export")
+// Core instance arg memory index type does not match the import (i32 vs i64)
+E(ComponentMemoryIndexTypeMismatch, 0x02BA,
+  "mismatch in index type used for memories")
+// Canonical option `memory` must reference a 32-bit linear memory
+E(ComponentCanonMemoryNot32Bit, 0x02BB,
+  "canonical ABI memory is not a 32-bit linear memory")
+// Core instance arg global type does not match the import
+E(ComponentGlobalTypeMismatch, 0x02BC, "type mismatch in global type")
+// Core instance arg table limits do not match the import
+E(ComponentTableLimitsMismatch, 0x02BD, "mismatch in table limits")
+// Core instance arg table element type does not match the import
+E(ComponentTableElemTypeMismatch, 0x02BE, "type mismatch in table element type")
 // @}
 
 // Instantiation phase

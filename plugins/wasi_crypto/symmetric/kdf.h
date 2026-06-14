@@ -179,6 +179,7 @@ public:
         EvpPkeyCtxPtr RawCtx;
         SecretVec Key;
         std::vector<uint8_t> Info;
+        size_t SqueezedOffset = 0;
         std::mutex Mutex;
       };
       std::shared_ptr<Inner> Ctx;

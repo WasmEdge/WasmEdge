@@ -315,7 +315,9 @@ Context::symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
         return SymmetricKeyManager.get(KeyHandle).and_then(
-            [&](auto &&Key) noexcept { return Sm.storeSk(KeyId, 0, Key); });
+            [&](auto &&Key) noexcept {
+              return Sm.storeSk(KeyId, 0, Key).map([](auto &&) {});
+            });
       });
 }
 
@@ -323,15 +325,33 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
     __wasi_secrets_manager_t SecretsManagerHandle,
     __wasi_symmetric_key_t OldKeyHandle,
     __wasi_symmetric_key_t NewKeyHandle) noexcept {
-  (void)SecretsManagerHandle;
-  (void)OldKeyHandle;
-  (void)NewKeyHandle;
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  return SecretsManagerManager.get(SecretsManagerHandle)
+      .and_then([&](auto &&Sm) noexcept {
+        return SymmetricKeyManager.get(OldKeyHandle)
+            .and_then([&](auto &&) noexcept {
+              return SymmetricKeyManager.getId(OldKeyHandle);
+            })
+            .and_then([&](auto &&KeyId) noexcept {
+              return Sm.getLatestSkVersion(KeyId).and_then(
+                  [&](auto LatestVersion) noexcept {
+                    return SymmetricKeyManager.get(NewKeyHandle).and_then(
+                        [&](auto &&NewKey) noexcept {
+                          return Sm.storeSk(KeyId, LatestVersion + 1, NewKey);
+                        });
+                  });
+            });
+      });
 }
 
 WasiCryptoExpect<std::tuple<size_t, __wasi_version_t>>
-Context::symmetricKeyId(__wasi_symmetric_key_t, Span<uint8_t>) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+Context::symmetricKeyId(__wasi_symmetric_key_t KeyHandle,
+                       Span<uint8_t> KeyId) noexcept {
+  return SymmetricKeyManager.getId(KeyHandle).and_then([&](auto &&Id) noexcept {
+    size_t Len = std::min(KeyId.size(), Id.size());
+    std::copy_n(Id.begin(), Len, KeyId.begin());
+    return SymmetricKeyManager.getManagedVersion(KeyHandle).map(
+        [Len](auto Version) { return std::make_tuple(Len, Version); });
+  });
 }
 
 WasiCryptoExpect<__wasi_symmetric_key_t>

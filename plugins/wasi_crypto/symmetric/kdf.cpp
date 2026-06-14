@@ -46,7 +46,10 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::State>
 Hkdf<ShaNid>::Expand::State::open(const Key &Key,
                                   OptionalRef<const Options>) noexcept {
-  return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);
+  return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXPAND_ONLY)
+      .map([&Key](auto &&Ctx) noexcept {
+        return State{std::move(Ctx), Key.ref()};
+      });
 }
 
 template <int ShaNid>
@@ -55,19 +58,44 @@ Hkdf<ShaNid>::Expand::State::absorb(Span<const uint8_t> Data) noexcept {
   std::scoped_lock Lock{Ctx->Mutex};
   opensslCheck(
       EVP_PKEY_CTX_add1_hkdf_info(Ctx->RawCtx.get(), Data.data(), Data.size()));
+  Ctx->Info.insert(Ctx->Info.end(), Data.begin(), Data.end());
   return {};
 }
 
 template <int ShaNid>
 WasiCryptoExpect<void>
 Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
-  size_t KeyLen = Out.size();
+  std::scoped_lock Lock{Ctx->Mutex};
+  size_t OutLen = Out.size();
 
-  {
-    std::scoped_lock Lock{Ctx->Mutex};
-    ensureOrReturn(EVP_PKEY_derive(Ctx->RawCtx.get(), Out.data(), &KeyLen),
+  if (Ctx->SqueezedOffset == 0) {
+    size_t DerivedLen = OutLen;
+    ensureOrReturn(EVP_PKEY_derive(Ctx->RawCtx.get(), Out.data(), &DerivedLen),
                    __WASI_CRYPTO_ERRNO_INVALID_KEY);
+    ensureOrReturn(DerivedLen == OutLen, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+    Ctx->SqueezedOffset += OutLen;
+    return {};
   }
+
+  // Support multiple squeeze calls by reconstructing and deriving with offset.
+  auto NewCtxResult = openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY);
+  if (!NewCtxResult) {
+    return WasiCryptoUnexpect(NewCtxResult);
+  }
+  auto NewCtx = std::move(*NewCtxResult);
+  if (!Ctx->Info.empty()) {
+    opensslCheck(EVP_PKEY_CTX_add1_hkdf_info(NewCtx.get(), Ctx->Info.data(),
+                                             Ctx->Info.size()));
+  }
+
+  size_t TotalLen = Ctx->SqueezedOffset + OutLen;
+  std::vector<uint8_t> FullOut(TotalLen);
+  opensslCheck(EVP_PKEY_derive(NewCtx.get(), FullOut.data(), &TotalLen));
+  ensureOrReturn(TotalLen == Ctx->SqueezedOffset + OutLen,
+                 __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+
+  std::copy_n(FullOut.begin() + Ctx->SqueezedOffset, OutLen, Out.begin());
+  Ctx->SqueezedOffset += OutLen;
 
   return {};
 }
@@ -75,8 +103,18 @@ Hkdf<ShaNid>::Expand::State::squeeze(Span<uint8_t> Out) noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Expand::State>
 Hkdf<ShaNid>::Expand::State::clone() const noexcept {
-  // not supported for a keygen operation.
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  std::scoped_lock Lock{Ctx->Mutex};
+  return openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXPAND_ONLY)
+      .and_then([this](auto &&NewCtx) noexcept -> WasiCryptoExpect<State> {
+        if (!Ctx->Info.empty()) {
+          opensslCheck(EVP_PKEY_CTX_add1_hkdf_info(
+              NewCtx.get(), Ctx->Info.data(), Ctx->Info.size()));
+        }
+        auto Res = State{std::move(NewCtx), Ctx->Key};
+        Res.Ctx->Info = Ctx->Info;
+        Res.Ctx->SqueezedOffset = Ctx->SqueezedOffset;
+        return Res;
+      });
 }
 
 template <int ShaNid>
@@ -95,7 +133,10 @@ template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::State>
 Hkdf<ShaNid>::Extract::State::open(const Key &Key,
                                    OptionalRef<const Options>) noexcept {
-  return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY);
+  return openStateImpl(Key.ref(), EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY)
+      .map([&Key](auto &&Ctx) noexcept {
+        return State{std::move(Ctx), Key.ref()};
+      });
 }
 
 template <int ShaNid>
@@ -131,8 +172,13 @@ Hkdf<ShaNid>::Extract::State::squeezeKey() noexcept {
 template <int ShaNid>
 WasiCryptoExpect<typename Hkdf<ShaNid>::Extract::State>
 Hkdf<ShaNid>::Extract::State::clone() const noexcept {
-  // not supported for a keygen operation.
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  std::scoped_lock Lock{Ctx->Mutex};
+  return openStateImpl(Ctx->Key, EVP_PKEY_HKDEF_MODE_EXTRACT_ONLY)
+      .map([this](auto &&NewCtx) noexcept {
+        auto Res = State{std::move(NewCtx), Ctx->Key};
+        Res.Ctx->Salt = Ctx->Salt;
+        return Res;
+      });
 }
 
 template <int ShaNid>

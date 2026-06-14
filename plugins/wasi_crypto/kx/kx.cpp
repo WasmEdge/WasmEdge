@@ -35,18 +35,13 @@ WasiCryptoExpect<SecretVec> dh(const PkVariant &PkVariant,
       PkVariant, SkVariant);
 }
 
-WasiCryptoExpect<EncapsulatedSecret>
-encapsulate(PkVariant &PkVariant) noexcept {
-  return std::visit(
-      [](auto &&) {
-        return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
-      },
-      PkVariant);
+WasiCryptoExpect<EncapsulatedSecret> encapsulate(PkVariant &) noexcept {
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 WasiCryptoExpect<std::vector<uint8_t>>
 decapsulate(SkVariant &, Span<const uint8_t>) noexcept {
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_NOT_IMPLEMENTED);
+  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_UNSUPPORTED_FEATURE);
 }
 
 } // namespace Kx

@@ -66,6 +66,21 @@ TEST_F(WasiCryptoTest, Kdf) {
       WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateCloneHandle, Out2));
       EXPECT_EQ(Out1, Out2);
 
+      // Streaming squeeze check (Expand only).
+      if (ExpandAlg.find("EXPAND") != std::string::npos) {
+        std::vector<uint8_t> Out3(32);
+        std::vector<uint8_t> Out4(32);
+        // Next squeeze from original state.
+        WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateHandle, Out3));
+        // It should be different from the first 32 bytes.
+        EXPECT_NE(Out1, Out3);
+
+        // Next squeeze from clone state.
+        WASI_CRYPTO_EXPECT_TRUE(symmetricStateSqueeze(StateCloneHandle, Out4));
+        // It should be same as Out3.
+        EXPECT_EQ(Out3, Out4);
+      }
+
       WASI_CRYPTO_EXPECT_TRUE(symmetricStateClose(StateCloneHandle));
     };
     BothInvalid(ExpandAlg, ExtractStateHandle);

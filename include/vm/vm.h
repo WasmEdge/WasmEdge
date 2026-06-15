@@ -300,6 +300,33 @@ public:
   /// Getter for the executor in the VM.
   Executor::Executor &getExecutor() noexcept { return ExecutorEngine; }
 
+  /// Release a host-retained GC reference returned to the host.
+  ///
+  /// The release methods below intentionally do not take the VM Mutex that the
+  /// neighboring mutators hold: thread safety for the GC host-root set is
+  /// delegated to the allocator, which locks the host-root registry internally.
+  void releaseRef(const RefVariant &Ref) noexcept {
+    ExecutorEngine.releaseRef(Ref);
+  }
+
+  /// Release several host-retained GC references.
+  void releaseRefs(Span<const RefVariant> Refs) noexcept {
+    ExecutorEngine.releaseRefs(Refs);
+  }
+
+  /// Release a host-retained GC reference delivered as a component value.
+  void releaseRef(const ComponentValVariant &Val) noexcept {
+    ExecutorEngine.releaseRef(Val);
+  }
+
+  /// Release several host-retained GC references delivered as component values.
+  void releaseRefs(Span<const ComponentValVariant> Vals) noexcept {
+    ExecutorEngine.releaseRefs(Vals);
+  }
+
+  /// Release all host-retained GC references.
+  void releaseAllRefs() noexcept { ExecutorEngine.releaseAllRefs(); }
+
   /// Getter for statistics.
   Statistics::Statistics &getStatistics() noexcept { return Stat; }
 

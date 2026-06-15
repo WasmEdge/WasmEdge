@@ -15,6 +15,7 @@
 
 #include "common/errcode.h"
 #include "common/types.h"
+#include "gc/allocator.h"
 #include "runtime/instance/tag.h"
 
 #include <vector>
@@ -32,6 +33,30 @@ public:
     assuming(TgInst);
   }
 
+  ~ExceptionInstance() noexcept {
+    if (Allocator) {
+      Allocator->removeException(*this);
+    }
+  }
+
+  // Registered as a GC root by address; a copy/move would leave the new object
+  // unregistered (its payload refs invisible to the collector) and make the
+  // destructor's removeException target an address the allocator never stored.
+  ExceptionInstance(const ExceptionInstance &) = delete;
+  ExceptionInstance(ExceptionInstance &&) = delete;
+  ExceptionInstance &operator=(const ExceptionInstance &) = delete;
+  ExceptionInstance &operator=(ExceptionInstance &&) = delete;
+
+  /// Register this exception instance with the GC allocator so its payload
+  /// values are scanned as roots: a struct/array reference in the payload
+  /// survives only here once the on-stack copies are consumed, and throw_ref
+  /// re-pushes the payload.
+  void setAllocator(GC::Allocator &A) noexcept {
+    assuming(Allocator == nullptr);
+    Allocator = &A;
+    Allocator->addException(*this);
+  }
+
   /// Getter for the referenced tag instance.
   TagInstance *getTag() const noexcept { return TgInst; }
 
@@ -39,8 +64,16 @@ public:
   const std::vector<ValVariant> &getPayload() const noexcept { return Data; }
 
 private:
+  friend class GC::Allocator;
+  void clearAllocator(GC::Allocator &A) noexcept {
+    if (Allocator == &A) {
+      Allocator = nullptr;
+    }
+  }
+
   /// \name Data of exception instance.
   /// @{
+  GC::Allocator *Allocator = nullptr;
   TagInstance *TgInst;
   std::vector<ValVariant> Data;
   /// @}

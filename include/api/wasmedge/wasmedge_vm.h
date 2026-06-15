@@ -418,7 +418,11 @@ WasmEdge_VMInstantiate(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 /// or loaded. For calling the functions in registered WASM modules with module
 /// names, please use `WasmEdge_VMExecuteRegistered` instead. If the `Returns`
 /// buffer length is smaller than the arity of the function, the overflowed
-/// return values will be discarded.
+/// return values will be discarded. Note that a discarded GC reference result
+/// is still retained as a collector root (see `WasmEdge_VMReleaseRef`) yet
+/// never handed back to the caller, so it can then only be freed via
+/// `WasmEdge_VMReleaseAllRefs`; pass a buffer large enough for the full arity
+/// to keep returned GC references individually releasable.
 ///
 /// This function is thread-safe.
 ///
@@ -443,7 +447,9 @@ WasmEdge_VMExecute(WasmEdge_VMContext *Cxt, const WasmEdge_String FuncName,
 /// this function to invoke exported WASM functions by their module names and
 /// function names until the VM context is reset. If the `Returns` buffer length
 /// is smaller than the arity of the function, the overflowed return values will
-/// be discarded.
+/// be discarded. As with `WasmEdge_VMExecute`, a discarded GC reference result
+/// stays retained as a collector root and can then only be freed via
+/// `WasmEdge_VMReleaseAllRefs` (see `WasmEdge_VMReleaseRef`).
 ///
 /// This function is thread-safe.
 ///
@@ -559,11 +565,75 @@ WasmEdge_VMGetFunctionTypeRegistered(
 /// instances, and the registered instances except the WASI and plug-ins will
 /// all be cleared.
 ///
+/// This does NOT release the host-retained GC reference set: any GC (struct or
+/// array) reference previously returned to the host survives cleanup, but the
+/// module-instance pointer it embeds dangles once the instances above are torn
+/// down. Release such references first (`WasmEdge_VMReleaseRef` /
+/// `WasmEdge_VMReleaseAllRefs`) if the host keeps using them across cleanup.
+///
 /// This function is thread-safe.
 ///
 /// \param Cxt the WasmEdge_VMContext to reset.
 WASMEDGE_CAPI_EXPORT extern void
 WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Release a host-retained GC reference returned by the VM.
+///
+/// When a function returns a GC-managed (struct/array) reference to the host,
+/// the runtime retains it as a GC root so the collector keeps it alive. Call
+/// this to release one such reference when the host no longer needs it.
+///
+/// The `Ref` should be a value previously returned as a function result. Values
+/// whose heap type is not struct/array (funcref/externref/i31ref/null) are not
+/// retained roots and are silently skipped, so passing any non-result or
+/// non-struct/array value is a no-op.
+///
+/// KNOWN LIMITATION: a struct/array reference that has been externalized
+/// (`extern.convert_any`) is retained as a root but handed to the host typed as
+/// `externref`. Because this function matches on the visible heap type, such a
+/// value is treated as non-struct/array and skipped here; it can therefore only
+/// be freed via `WasmEdge_VMReleaseAllRefs`, not released individually.
+///
+/// Unreleased references survive WasmEdge_VMCleanup, which does NOT release the
+/// host-root set; however, the leading module-instance pointer those references
+/// embed dangles once the instances are torn down. To avoid this, call
+/// WasmEdge_VMReleaseAllRefs (or release each reference) around cleanup.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param Ref the reference value to release.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_VMReleaseRef(WasmEdge_VMContext *Cxt,
+                      const WasmEdge_Value Ref) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Release several host-retained GC references returned by the VM.
+///
+/// Passing a null `Refs` or zero `Len` is a no-op. Each entry is released
+/// independently: entries that are not retained struct/array roots are silently
+/// skipped, and if the same reference appears multiple times in `Refs` each
+/// occurrence releases one retained instance.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+/// \param Refs array of reference values to release.
+/// \param Len length of the `Refs` array.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_VMReleaseRefs(WasmEdge_VMContext *Cxt, const WasmEdge_Value *Refs,
+                       const uint32_t Len) WASMEDGE_CAPI_NOEXCEPT;
+
+/// Release all host-retained GC references held by the VM.
+///
+/// After this call, all GC reference values previously returned to the host
+/// become invalid. Because the host-root set is shared across threads, this
+/// invalidates such references for every thread, not only the caller's.
+///
+/// This function is thread-safe.
+///
+/// \param Cxt the WasmEdge_VMContext.
+WASMEDGE_CAPI_EXPORT extern void
+WasmEdge_VMReleaseAllRefs(WasmEdge_VMContext *Cxt) WASMEDGE_CAPI_NOEXCEPT;
 
 /// Get the length of exported function list.
 ///

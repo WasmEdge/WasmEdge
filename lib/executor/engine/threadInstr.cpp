@@ -9,9 +9,8 @@ namespace Executor {
 Expect<void>
 Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
                             Runtime::Instance::MemoryInstance &MemInst,
-                            const AST::Instruction &Instr) {
-  ValVariant RawCount = StackMgr.pop();
-  ValVariant &RawAddress = StackMgr.getTop();
+                            const AST::Instruction &Instr) noexcept {
+  auto [RawCount, RawAddress] = StackMgr.popsPeekTop<ValVariant, ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t Address = extractAddr(RawAddress, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, Address, sizeof(uint32_t)));
@@ -35,7 +34,7 @@ Executor::runAtomicNotifyOp(Runtime::StackManager &StackMgr,
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       }));
-  RawAddress = emplaceAddr(Total, AddrType);
+  StackMgr.emplaceTop(emplaceAddr(Total, AddrType));
   return {};
 }
 

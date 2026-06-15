@@ -4420,7 +4420,7 @@ private:
       LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
       Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize), Args, Context.Int8Ty,
           kValSize);
 
       Builder.createCall(
@@ -4585,7 +4585,7 @@ private:
       LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
       Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize), Args, Context.Int8Ty,
           kValSize);
 
       Builder.createCall(
@@ -4674,7 +4674,7 @@ private:
       LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
       Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize), Args, Context.Int8Ty,
           kValSize);
 
       Builder.createCall(
@@ -4762,7 +4762,7 @@ private:
       LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
       Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize), Args, Context.Int8Ty,
           kValSize);
 
       Builder.createCall(

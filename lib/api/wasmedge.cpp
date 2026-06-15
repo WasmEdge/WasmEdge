@@ -188,6 +188,27 @@ inline ValType genValType(const WasmEdge_ValType &T) noexcept {
   return ValType(R);
 }
 
+// The runtime retains only struct/array references (see Executor::invoke), so
+// the release APIs must restrict to those. Any other reference-typed value
+// (funcref/externref/i31ref/null) is not a retained GC root; reinterpreting its
+// payload as a managed pointer could, by pointer-identity collision, drop an
+// unrelated retained root.
+inline bool isRetainedRefValue(const WasmEdge_Value &Val) noexcept {
+  const ValType VT = genValType(Val.Type);
+  if (!VT.isRefType()) {
+    return false;
+  }
+  // Null references are never retained roots; skip them early to avoid wasted
+  // HostRootsMutex work, mirroring the guard in Executor::releaseRef.
+  const RefVariant Ref = ValVariant::wrap<RefVariant>(
+                             to_WasmEdge_128_t<WasmEdge::uint128_t>(Val.Value))
+                             .get<RefVariant>();
+  if (Ref.isNull()) {
+    return false;
+  }
+  return VT.isGCRefType();
+}
+
 inline std::filesystem::path genPath(const char *Path) {
   return (Path && *Path) ? std::filesystem::absolute(Path)
                          : std::filesystem::path();
@@ -3532,6 +3553,49 @@ WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *Cxt,
 WASMEDGE_CAPI_EXPORT void WasmEdge_VMCleanup(WasmEdge_VMContext *Cxt) noexcept {
   if (Cxt) {
     Cxt->VM.cleanup();
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_VMReleaseRef(WasmEdge_VMContext *Cxt,
+                      const WasmEdge_Value Ref) noexcept {
+  // Only struct/array references are retained by the runtime; releasing any
+  // other reference value could drop an unrelated retained root (see
+  // isRetainedRefValue).
+  if (Cxt && isRetainedRefValue(Ref)) {
+    Cxt->VM.releaseRef(WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+                           to_WasmEdge_128_t<WasmEdge::uint128_t>(Ref.Value))
+                           .get<WasmEdge::RefVariant>());
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void WasmEdge_VMReleaseRefs(WasmEdge_VMContext *Cxt,
+                                                 const WasmEdge_Value *Refs,
+                                                 const uint32_t Len) noexcept {
+  if (Cxt && Refs) {
+    // Release each retained reference directly instead of collecting them into
+    // a vector: this function is noexcept, and reserving/growing a vector sized
+    // by the host-controlled Len could throw (bad_alloc/length_error) and call
+    // std::terminate. releaseRefs() just forwards to releaseRef() per element,
+    // so the per-element loop is equivalent.
+    for (uint32_t I = 0; I < Len; ++I) {
+      // Skip values the runtime never retains (see isRetainedRefValue); their
+      // payload is not a managed GC root.
+      if (!isRetainedRefValue(Refs[I])) {
+        continue;
+      }
+      Cxt->VM.releaseRef(
+          WasmEdge::ValVariant::wrap<WasmEdge::RefVariant>(
+              to_WasmEdge_128_t<WasmEdge::uint128_t>(Refs[I].Value))
+              .get<WasmEdge::RefVariant>());
+    }
+  }
+}
+
+WASMEDGE_CAPI_EXPORT void
+WasmEdge_VMReleaseAllRefs(WasmEdge_VMContext *Cxt) noexcept {
+  if (Cxt) {
+    Cxt->VM.releaseAllRefs();
   }
 }
 

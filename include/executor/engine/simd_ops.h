@@ -8,8 +8,8 @@
 //===----------------------------------------------------------------------===//
 ///
 /// \file
-/// Free-function template implementations of SIMD operations.  Each op
-/// mutates its first argument (Val or V1) in-place.
+/// Free-function template implementations of SIMD operations.  Each op takes
+/// its operand(s) by value (const-qualified) and returns the computed result.
 ///
 //===----------------------------------------------------------------------===//
 #pragma once
@@ -34,27 +34,27 @@ namespace simdOps {
 // ---------------------------------------------------------------------------
 
 template <typename T>
-inline void vectorAdd(ValVariant &V1, const ValVariant &V2) noexcept {
-  using VT [[gnu::vector_size(16)]] = T;
-  V1.get<VT>() += V2.get<VT>();
+inline SIMDArray<T, 16> vectorAdd(const SIMDArray<T, 16> V1,
+                                  const SIMDArray<T, 16> V2) noexcept {
+  return V1 + V2;
 }
 
 template <typename T>
-inline void vectorSub(ValVariant &V1, const ValVariant &V2) noexcept {
-  using VT [[gnu::vector_size(16)]] = T;
-  V1.get<VT>() -= V2.get<VT>();
+inline SIMDArray<T, 16> vectorSub(const SIMDArray<T, 16> V1,
+                                  const SIMDArray<T, 16> V2) noexcept {
+  return V1 - V2;
 }
 
 template <typename T>
-inline void vectorMul(ValVariant &V1, const ValVariant &V2) noexcept {
-  using VT [[gnu::vector_size(16)]] = T;
-  V1.get<VT>() *= V2.get<VT>();
+inline SIMDArray<T, 16> vectorMul(const SIMDArray<T, 16> V1,
+                                  const SIMDArray<T, 16> V2) noexcept {
+  return V1 * V2;
 }
 
 template <typename T>
-inline void vectorDiv(ValVariant &V1, const ValVariant &V2) noexcept {
-  using VT [[gnu::vector_size(16)]] = T;
-  V1.get<VT>() /= V2.get<VT>();
+inline SIMDArray<T, 16> vectorDiv(const SIMDArray<T, 16> V1,
+                                  const SIMDArray<T, 16> V2) noexcept {
+  return V1 / V2;
 }
 
 // ---------------------------------------------------------------------------
@@ -62,29 +62,25 @@ inline void vectorDiv(ValVariant &V1, const ValVariant &V2) noexcept {
 // ---------------------------------------------------------------------------
 
 template <typename T>
-inline void vectorMin(ValVariant &V1, const ValVariant &V2) noexcept {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &A = V1.get<VT>();
-  const VT &B = V2.get<VT>();
-  A = detail::vectorSelect(A > B, B, A);
+inline SIMDArray<T, 16> vectorMin(const SIMDArray<T, 16> V1,
+                                  const SIMDArray<T, 16> V2) noexcept {
+  return detail::vectorSelect(V1 > V2, V2, V1);
 }
 
 template <typename T>
-inline void vectorMax(ValVariant &V1, const ValVariant &V2) noexcept {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &A = V1.get<VT>();
-  const VT &B = V2.get<VT>();
-  A = detail::vectorSelect(B > A, B, A);
+inline SIMDArray<T, 16> vectorMax(const SIMDArray<T, 16> V1,
+                                  const SIMDArray<T, 16> V2) noexcept {
+  return detail::vectorSelect(V2 > V1, V2, V1);
 }
 
 // ---------------------------------------------------------------------------
 // Float min/max with NaN propagation.
 //
-//   fmin:  R = bits(A) | bits(B)    // merge NaN payloads
-//          if A < B: R = A
-//          if A > B: R = B
-//          if A is NaN: R = A
-//          if B is NaN: R = B
+//   fmin:  R = bits(V1) | bits(V2)  // merge NaN payloads
+//          if V1 < V2: R = V1
+//          if V1 > V2: R = V2
+//          if V1 is NaN: R = V1
+//          if V2 is NaN: R = V2
 //   fmax:  same but & instead of |, and reversed comparisons.
 //
 // NaN check uses (V == V) which is false for NaN lanes, so
@@ -92,142 +88,139 @@ inline void vectorMax(ValVariant &V1, const ValVariant &V2) noexcept {
 // ---------------------------------------------------------------------------
 
 template <typename T>
-inline void vectorFMin(ValVariant &V1, const ValVariant &V2) noexcept {
+inline SIMDArray<T, 16> vectorFMin(const SIMDArray<T, 16> V1,
+                                   const SIMDArray<T, 16> V2) noexcept {
   static_assert(std::is_floating_point_v<T>);
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &A = V1.get<VT>();
-  const VT &B = V2.get<VT>();
-  VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(A) |
-                              reinterpret_cast<uint64x2_t>(B));
-  R = detail::vectorSelect(A < B, A, R);
-  R = detail::vectorSelect(A > B, B, R);
-  // NOLINTBEGIN(misc-redundant-expression): A==A and B==B are IEEE NaN checks;
-  // for GCC vector types these are lane-wise comparisons, not redundant.
-  R = detail::vectorSelect(A == A, R, A);
-  R = detail::vectorSelect(B == B, R, B);
+  using VT = SIMDArray<T, 16>;
+  VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(V1) |
+                              reinterpret_cast<uint64x2_t>(V2));
+  R = detail::vectorSelect(V1 < V2, V1, R);
+  R = detail::vectorSelect(V1 > V2, V2, R);
+  // NOLINTBEGIN(misc-redundant-expression): V1==V1 and V2==V2 are IEEE NaN
+  // checks; for GCC vector types these are lane-wise comparisons.
+  R = detail::vectorSelect(V1 == V1, R, V1);
+  R = detail::vectorSelect(V2 == V2, R, V2);
   // NOLINTEND(misc-redundant-expression)
-  A = R;
+  return R;
 }
 
 template <typename T>
-inline void vectorFMax(ValVariant &V1, const ValVariant &V2) noexcept {
+inline SIMDArray<T, 16> vectorFMax(const SIMDArray<T, 16> V1,
+                                   const SIMDArray<T, 16> V2) noexcept {
   static_assert(std::is_floating_point_v<T>);
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &A = V1.get<VT>();
-  const VT &B = V2.get<VT>();
-  VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(A) &
-                              reinterpret_cast<uint64x2_t>(B));
-  R = detail::vectorSelect(A < B, B, R);
-  R = detail::vectorSelect(A > B, A, R);
+  using VT = SIMDArray<T, 16>;
+  VT R = reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(V1) &
+                              reinterpret_cast<uint64x2_t>(V2));
+  R = detail::vectorSelect(V1 < V2, V2, R);
+  R = detail::vectorSelect(V1 > V2, V1, R);
   // NOLINTBEGIN(misc-redundant-expression): IEEE NaN checks on vector lanes
-  R = detail::vectorSelect(A == A, R, A);
-  R = detail::vectorSelect(B == B, R, B);
+  R = detail::vectorSelect(V1 == V1, R, V1);
+  R = detail::vectorSelect(V2 == V2, R, V2);
   // NOLINTEND(misc-redundant-expression)
-  A = R;
+  return R;
 }
 
 // ---------------------------------------------------------------------------
 // Lane-wise unary operations.
 // ---------------------------------------------------------------------------
 
-template <typename T> inline void vectorNeg(ValVariant &Val) noexcept {
-  using VT [[gnu::vector_size(16)]] = T;
-  Val.get<VT>() = -Val.get<VT>();
+template <typename T>
+inline SIMDArray<T, 16> vectorNeg(const SIMDArray<T, 16> V) noexcept {
+  return -V;
 }
 
 /// Integer and float abs.
 /// Float: clears sign bit via integer mask.
 /// Integer: vectorSelect(x > 0, x, -x) — wraps at INT_MIN per Wasm spec.
-template <typename T> inline void vectorAbs(ValVariant &Val) noexcept {
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
+template <typename T>
+inline SIMDArray<T, 16> vectorAbs(const SIMDArray<T, 16> V) noexcept {
+  using VT = SIMDArray<T, 16>;
   if constexpr (std::is_floating_point_v<T>) {
     if constexpr (sizeof(T) == 4) {
-      using IVT [[gnu::vector_size(16)]] = uint32_t;
-      IVT Mask = IVT{} + UINT32_C(0x7FFFFFFF);
-      Result = reinterpret_cast<VT>(reinterpret_cast<IVT>(Result) & Mask);
+      uint32x4_t Mask = uint32x4_t{} + UINT32_C(0x7FFFFFFF);
+      return reinterpret_cast<VT>(reinterpret_cast<uint32x4_t>(V) & Mask);
     } else {
-      using IVT [[gnu::vector_size(16)]] = uint64_t;
-      IVT Mask = IVT{} + UINT64_C(0x7FFFFFFFFFFFFFFF);
-      Result = reinterpret_cast<VT>(reinterpret_cast<IVT>(Result) & Mask);
+      uint64x2_t Mask = uint64x2_t{} + UINT64_C(0x7FFFFFFFFFFFFFFF);
+      return reinterpret_cast<VT>(reinterpret_cast<uint64x2_t>(V) & Mask);
     }
   } else {
-    Result = detail::vectorSelect(Result > VT{}, Result, -Result);
+    return detail::vectorSelect(V > VT{}, V, -V);
   }
 }
 
 /// Per-lane sqrt.
-template <typename T> inline void vectorSqrt(ValVariant &Val) noexcept {
+template <typename T>
+inline SIMDArray<T, 16> vectorSqrt(const SIMDArray<T, 16> V) noexcept {
   static_assert(std::is_floating_point_v<T>);
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
+  using VT = SIMDArray<T, 16>;
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::sqrt(Result[0]), std::sqrt(Result[1]),
-                std::sqrt(Result[2]), std::sqrt(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::sqrt(Result[0]), std::sqrt(Result[1])};
+    return VT{std::sqrt(V[0]), std::sqrt(V[1]), std::sqrt(V[2]),
+              std::sqrt(V[3])};
+  } else {
+    return VT{std::sqrt(V[0]), std::sqrt(V[1])};
   }
 }
 
 /// Per-lane ceil.
-template <typename T> inline void vectorCeil(ValVariant &Val) noexcept {
+template <typename T>
+inline SIMDArray<T, 16> vectorCeil(const SIMDArray<T, 16> V) noexcept {
   static_assert(std::is_floating_point_v<T>);
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
+  using VT = SIMDArray<T, 16>;
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::ceil(Result[0]), std::ceil(Result[1]),
-                std::ceil(Result[2]), std::ceil(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::ceil(Result[0]), std::ceil(Result[1])};
+    return VT{std::ceil(V[0]), std::ceil(V[1]), std::ceil(V[2]),
+              std::ceil(V[3])};
+  } else {
+    return VT{std::ceil(V[0]), std::ceil(V[1])};
   }
 }
 
 /// Per-lane floor.
-template <typename T> inline void vectorFloor(ValVariant &Val) noexcept {
+template <typename T>
+inline SIMDArray<T, 16> vectorFloor(const SIMDArray<T, 16> V) noexcept {
   static_assert(std::is_floating_point_v<T>);
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
+  using VT = SIMDArray<T, 16>;
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::floor(Result[0]), std::floor(Result[1]),
-                std::floor(Result[2]), std::floor(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::floor(Result[0]), std::floor(Result[1])};
+    return VT{std::floor(V[0]), std::floor(V[1]), std::floor(V[2]),
+              std::floor(V[3])};
+  } else {
+    return VT{std::floor(V[0]), std::floor(V[1])};
   }
 }
 
 /// Per-lane trunc.
-template <typename T> inline void vectorTrunc(ValVariant &Val) noexcept {
+template <typename T>
+inline SIMDArray<T, 16> vectorTrunc(const SIMDArray<T, 16> V) noexcept {
   static_assert(std::is_floating_point_v<T>);
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
+  using VT = SIMDArray<T, 16>;
   if constexpr (sizeof(T) == 4) {
-    Result = VT{std::trunc(Result[0]), std::trunc(Result[1]),
-                std::trunc(Result[2]), std::trunc(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{std::trunc(Result[0]), std::trunc(Result[1])};
+    return VT{std::trunc(V[0]), std::trunc(V[1]), std::trunc(V[2]),
+              std::trunc(V[3])};
+  } else {
+    return VT{std::trunc(V[0]), std::trunc(V[1])};
   }
 }
 
 /// Per-lane roundeven (ties-to-even rounding).
-template <typename T> inline void vectorNearest(ValVariant &Val) noexcept {
+template <typename T>
+inline SIMDArray<T, 16> vectorNearest(const SIMDArray<T, 16> V) noexcept {
   static_assert(std::is_floating_point_v<T>);
-  using VT [[gnu::vector_size(16)]] = T;
-  VT &Result = Val.get<VT>();
+  using VT = SIMDArray<T, 16>;
   if constexpr (sizeof(T) == 4) {
-    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1]),
-                WasmEdge::roundeven(Result[2]), WasmEdge::roundeven(Result[3])};
-  } else if constexpr (sizeof(T) == 8) {
-    Result = VT{WasmEdge::roundeven(Result[0]), WasmEdge::roundeven(Result[1])};
+    return VT{WasmEdge::roundeven(V[0]), WasmEdge::roundeven(V[1]),
+              WasmEdge::roundeven(V[2]), WasmEdge::roundeven(V[3])};
+  } else {
+    return VT{WasmEdge::roundeven(V[0]), WasmEdge::roundeven(V[1])};
   }
 }
 
 /// i8x16.popcnt — per-byte Hamming weight via SWAR.
-inline void vectorPopcnt(ValVariant &Val) noexcept {
-  auto &Result = Val.get<uint8x16_t>();
-  Result -= ((Result >> UINT8_C(1)) & UINT8_C(0x55));
-  Result = (Result & UINT8_C(0x33)) + ((Result >> UINT8_C(2)) & UINT8_C(0x33));
-  Result += Result >> UINT8_C(4);
-  Result &= UINT8_C(0x0f);
+inline uint8x16_t vectorPopcnt(const uint8x16_t V) noexcept {
+  uint8x16_t R = V;
+  R -= ((R >> UINT8_C(1)) & UINT8_C(0x55));
+  R = (R & UINT8_C(0x33)) + ((R >> UINT8_C(2)) & UINT8_C(0x33));
+  R += R >> UINT8_C(4);
+  R &= UINT8_C(0x0f);
+  return R;
 }
 
 } // namespace simdOps

@@ -221,6 +221,14 @@ public:
            Inner.Data.Externalize;
   }
 
+  // Struct/array references are the GC heap types the runtime retains as host
+  // roots; keep this predicate in one place so the retention/release check
+  // stays in sync across the executor and the C API.
+  bool isGCRefType() const noexcept {
+    return (Inner.Data.HTCode == TypeCode::StructRef) ||
+           (Inner.Data.HTCode == TypeCode::ArrayRef);
+  }
+
   bool isNullableRefType() const noexcept {
     return (Inner.Data.Code == TypeCode::RefNull);
   }
@@ -356,7 +364,7 @@ private:
 
 // >>>>>>>> Value definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// FuncRef definition.
+/// Forward declarations for the reference instance types.
 namespace Runtime::Instance {
 class FunctionInstance;
 class StructInstance;
@@ -381,12 +389,11 @@ struct RefVariant {
   RefVariant(const Runtime::Instance::FunctionInstance *P) noexcept {
     setData(TypeCode::FuncRef, reinterpret_cast<const void *>(P));
   }
-  RefVariant(const Runtime::Instance::StructInstance *P) noexcept {
-    setData(TypeCode::StructRef, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::ArrayInstance *P) noexcept {
-    setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
-  }
+  // Struct and array instances must be constructed with their concrete
+  // (ValType, ptr) heap type; the catch-all above would silently mis-tag
+  // them as ExternRef, so reject those pointer types at compile time.
+  RefVariant(const Runtime::Instance::StructInstance *) = delete;
+  RefVariant(const Runtime::Instance::ArrayInstance *) = delete;
 
   // Getter for type.
   const ValType &getType() const noexcept {

@@ -1998,10 +1998,10 @@ Validator::validate(const AST::Component::CoreImportDesc &Desc) noexcept {
     uint32_t TypeIdx = Desc.getTypeIndex();
     if (TypeIdx >= CompCtx.getCoreSortIndexSize(
                        AST::Component::Sort::CoreSortType::Type)) {
-      spdlog::error(ErrCode::Value::InvalidIndex);
+      spdlog::error(ErrCode::Value::CoreTypeIndexOutOfBounds);
       spdlog::error("    CoreImportDesc: func type index {} out of bounds"sv,
                     TypeIdx);
-      return Unexpect(ErrCode::Value::InvalidIndex);
+      return Unexpect(ErrCode::Value::CoreTypeIndexOutOfBounds);
     }
     CompCtx.addCoreFunc();
   } else if (Desc.isTable()) {

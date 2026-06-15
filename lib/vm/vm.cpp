@@ -3,6 +3,8 @@
 
 #include "vm/vm.h"
 
+#include "plugin_modules.h"
+
 #include "ast/module.h"
 #include "common/errcode.h"
 #include "common/types.h"
@@ -11,54 +13,12 @@
 #include "llvm/compiler.h"
 #include "llvm/jit.h"
 
-#include "host/mock/wasi_crypto_module.h"
-#include "host/mock/wasi_logging_module.h"
-#include "host/mock/wasi_nn_module.h"
-#include "host/mock/wasmedge_image_module.h"
-#include "host/mock/wasmedge_process_module.h"
-#include "host/mock/wasmedge_stablediffusion_module.h"
-#include "host/mock/wasmedge_tensorflow_module.h"
-#include "host/mock/wasmedge_tensorflowlite_module.h"
 #include "validator/validator.h"
 #include <memory>
 #include <variant>
 
 namespace WasmEdge {
 namespace VM {
-
-namespace {
-
-template <typename T> struct VisitUnit {
-  using MT = std::function<T(std::unique_ptr<AST::Module> &)>;
-  using CT = std::function<T(std::unique_ptr<AST::Component::Component> &)>;
-
-  VisitUnit(MT F, CT G) : VisitMod{F}, VisitComp{G} {}
-  T operator()(std::unique_ptr<AST::Module> &Mod) const {
-    return VisitMod(Mod);
-  }
-  T operator()(std::unique_ptr<AST::Component::Component> &Comp) const {
-    return VisitComp(Comp);
-  }
-
-private:
-  MT VisitMod;
-  CT VisitComp;
-};
-
-template <typename T>
-std::unique_ptr<Runtime::Instance::ModuleInstance>
-createPluginModule(std::string_view PName, std::string_view MName) {
-  using namespace std::literals::string_view_literals;
-  if (const auto *Plugin = Plugin::Plugin::find(PName)) {
-    if (const auto *Module = Plugin->findModule(MName)) {
-      return Module->create();
-    }
-  }
-  spdlog::debug("Plugin: {} , module name: {} not found. Mock instead."sv,
-                PName, MName);
-  return std::make_unique<T>();
-}
-} // namespace
 
 VM::VM(const Configure &Conf)
     : Conf(Conf), Stage(VMStage::Inited),
@@ -109,55 +69,16 @@ void VM::unsafeLoadBuiltInHosts() {
 }
 
 void VM::unsafeLoadPlugInHosts() {
-  // Load the plugins and mock them if not found.
-  using namespace std::literals::string_view_literals;
+  // Load the official plugin modules and mock them if not found.
   cleanupModInstContainer(PlugInModInsts);
-
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiNNModuleMock>("wasi_nn"sv, "wasi_nn"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiCryptoCommonModuleMock>(
-      "wasi_crypto"sv, "wasi_crypto_common"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoAsymmetricCommonModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_asymmetric_common"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiCryptoKxModuleMock>(
-      "wasi_crypto"sv, "wasi_crypto_kx"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoSignaturesModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_signatures"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasiCryptoSymmetricModuleMock>(
-          "wasi_crypto"sv, "wasi_crypto_symmetric"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeProcessModuleMock>(
-      "wasmedge_process"sv, "wasmedge_process"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasiLoggingModuleMock>(
-      "wasi_logging"sv, "wasi:logging/logging"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeTensorflowModuleMock>(
-          "wasmedge_tensorflow"sv, "wasmedge_tensorflow"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeTensorflowLiteModuleMock>(
-          "wasmedge_tensorflowlite"sv, "wasmedge_tensorflowlite"sv));
-  PlugInModInsts.push_back(createPluginModule<Host::WasmEdgeImageModuleMock>(
-      "wasmedge_image"sv, "wasmedge_image"sv));
-  PlugInModInsts.push_back(
-      createPluginModule<Host::WasmEdgeStableDiffusionModuleMock>(
-          "wasmedge_stablediffusion"sv, "wasmedge_stablediffusion"sv));
+  PlugInModInsts = loadOfficialPluginModules();
 
   // Load the other non-official plugins.
   for (const auto &Plugin : Plugin::Plugin::plugins()) {
     if (Conf.isForbiddenPlugins(Plugin.name())) {
       continue;
     }
-    // Skip wasi_crypto, wasi_nn, wasi_logging, WasmEdge_Process,
-    // WasmEdge_Tensorflow, WasmEdge_TensorflowLite, and WasmEdge_Image.
-    if (Plugin.name() == "wasi_crypto"sv || Plugin.name() == "wasi_nn"sv ||
-        Plugin.name() == "wasi_logging"sv ||
-        Plugin.name() == "wasmedge_process"sv ||
-        Plugin.name() == "wasmedge_tensorflow"sv ||
-        Plugin.name() == "wasmedge_tensorflowlite"sv ||
-        Plugin.name() == "wasmedge_image"sv ||
-        Plugin.name() == "wasmedge_stablediffusion"sv) {
+    if (isOfficialPlugin(Plugin.name())) {
       continue;
     }
     for (const auto &Module : Plugin.modules()) {
@@ -212,11 +133,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
     return unsafeRegisterModule(Name, std::make_shared<AST::Module>(Module));
   }
 #endif
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(Module));
   // Instantiate and register module.
@@ -228,11 +145,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 
 Expect<void> VM::unsafeRegisterModule(std::string_view Name,
                                       std::shared_ptr<AST::Module> Module) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Validate module.
   EXPECTED_TRY(ValidatorEngine.validate(*Module));
 
@@ -260,11 +173,7 @@ Expect<void> VM::unsafeRegisterModule(std::string_view Name,
 Expect<void>
 VM::unsafeRegisterModule(std::string_view Name,
                          const Runtime::Instance::ModuleInstance &ModInst) {
-  if (Stage == VMStage::Instantiated) {
-    // When registering a module, the instantiated module in the store will be
-    // reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   return ExecutorEngine.registerModule(StoreRef, ModInst, Name);
 }
 
@@ -313,63 +222,50 @@ Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
   return {};
 }
 
+VM::WasmUnitKind
+VM::unsafeStoreWasmUnit(std::variant<std::unique_ptr<AST::Component::Component>,
+                                     std::unique_ptr<AST::Module>> &&Unit) {
+  if (auto *M = std::get_if<std::unique_ptr<AST::Module>>(&Unit)) {
+    Mod = std::move(*M);
+    return WasmUnitKind::Module;
+  }
+  Comp = std::move(std::get<std::unique_ptr<AST::Component::Component>>(Unit));
+  return WasmUnitKind::Component;
+}
+
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const std::filesystem::path &Path, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
-  return std::visit(
-      VisitUnit<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
-          [&](auto &M) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Mod = std::move(M);
-            return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
-          },
-          [&](auto &C) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Comp = std::move(C);
-            return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
-          }),
-      ComponentOrModule);
+  if (unsafeStoreWasmUnit(std::move(ComponentOrModule)) ==
+      WasmUnitKind::Component) {
+    return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
+  }
+  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(Span<const Byte> Code, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   // Load wasm unit.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
-  return std::visit(
-      VisitUnit<Expect<std::vector<std::pair<ValVariant, ValType>>>>(
-          [&](auto &M) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Mod = std::move(M);
-            return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
-          },
-          [&](auto &C) -> Expect<std::vector<std::pair<ValVariant, ValType>>> {
-            Comp = std::move(C);
-            return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
-          }),
-      ComponentOrModule);
+  if (unsafeStoreWasmUnit(std::move(ComponentOrModule)) ==
+      WasmUnitKind::Component) {
+    return unsafeRunWasmFile(*Comp, Func, Params, ParamTypes);
+  }
+  return unsafeRunWasmFile(*Mod, Func, Params, ParamTypes);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Component::Component &Component,
                       std::string_view, Span<const ValVariant>,
                       Span<const ValType>) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Component));
   spdlog::error("component execution is not done yet."sv);
   return Unexpect(ErrCode::Value::RuntimeError);
@@ -379,11 +275,7 @@ Expect<std::vector<std::pair<ValVariant, ValType>>>
 VM::unsafeRunWasmFile(const AST::Module &Module, std::string_view Func,
                       Span<const ValVariant> Params,
                       Span<const ValType> ParamTypes) {
-  if (Stage == VMStage::Instantiated) {
-    // When running another module, the instantiated module in the store will
-    // be reset. Therefore the instantiation should restart.
-    Stage = VMStage::Validated;
-  }
+  unsafeRevertStageToValidated();
   EXPECTED_TRY(ValidatorEngine.validate(Module));
 #ifdef WASMEDGE_USE_LLVM
   if (LazyEngine) {
@@ -461,10 +353,7 @@ VM::asyncRunWasmFile(const AST::Module &Module, std::string_view Func,
 Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
   // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Path));
-
-  std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
-                             [&](auto &C) -> void { Comp = std::move(C); }),
-             ComponentOrModule);
+  unsafeStoreWasmUnit(std::move(ComponentOrModule));
   Stage = VMStage::Loaded;
   return {};
 }
@@ -472,10 +361,7 @@ Expect<void> VM::unsafeLoadWasm(const std::filesystem::path &Path) {
 Expect<void> VM::unsafeLoadWasm(Span<const Byte> Code) {
   // If loading does not succeed, the previous status will be preserved.
   EXPECTED_TRY(auto ComponentOrModule, LoaderEngine.parseWasmUnit(Code));
-
-  std::visit(VisitUnit<void>([&](auto &M) -> void { Mod = std::move(M); },
-                             [&](auto &C) -> void { Comp = std::move(C); }),
-             ComponentOrModule);
+  unsafeStoreWasmUnit(std::move(ComponentOrModule));
   Stage = VMStage::Loaded;
   return {};
 }
@@ -485,21 +371,6 @@ Expect<void> VM::unsafeLoadWasm(const AST::Module &Module) {
   Stage = VMStage::Loaded;
   return {};
 }
-
-struct Validate {
-  // borrow validator to pass control to it
-  Validate(Validator::Validator &Engine) : ValidatorEngine(Engine) {}
-  Expect<void> operator()(const std::unique_ptr<AST::Module> &Mod) const {
-    return ValidatorEngine.validate(*Mod.get());
-  }
-  Expect<void>
-  operator()(const std::unique_ptr<AST::Component::Component> &Comp) const {
-    return ValidatorEngine.validate(*Comp.get());
-  }
-
-private:
-  Validator::Validator &ValidatorEngine;
-};
 
 Expect<void> VM::unsafeValidate() {
   if (Stage < VMStage::Loaded) {
@@ -520,6 +391,68 @@ Expect<void> VM::unsafeValidate() {
   return {};
 }
 
+Expect<void> VM::unsafeLoadJITExecutable() {
+  if ((Conf.getRuntimeConfigure().getRunMode() != RunMode::JIT &&
+       Conf.getRuntimeConfigure().getRunMode() != RunMode::LazyJIT) ||
+      Mod->getSymbol()) {
+    return {};
+  }
+#ifdef WASMEDGE_USE_LLVM
+  if (LazyEngine) {
+    EXPECTED_TRY(auto Exec, LazyEngine->prepare(Mod));
+    EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
+    return {};
+  }
+  LLVM::Compiler Compiler(Conf);
+  Compiler.checkConfigure()
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::error("Compiler Configure failed. Error code: {}, use "
+                        "interpreter mode instead."sv,
+                        Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&]() { return Compiler.compile(*Mod); })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::error("Compilation failed. Error code: {}, use "
+                        "interpreter mode instead."sv,
+                        Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&](auto LLModule) {
+        LLVM::JIT JIT(Conf);
+        return JIT.load(std::move(LLModule));
+      })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::warn(
+              "JIT failed. Error code: {}, use interpreter mode instead."sv,
+              Err);
+        }
+        return ErrCode::Value::Success;
+      })
+      .and_then([&](auto Module) {
+        return LoaderEngine.loadExecutable(*Mod, std::move(Module));
+      })
+      .map_error([](uint32_t Err) {
+        if (Err != ErrCode::Value::Success) {
+          spdlog::warn("Loader failed. Error code: {}, use interpreter "
+                       "mode instead."sv,
+                       Err);
+        }
+        return ErrCode::Value::Success;
+      });
+  return {};
+#else
+  spdlog::warn("JIT was requested but WasmEdge was built without LLVM, "
+               "falling back to interpreter."sv);
+  return {};
+#endif
+}
+
 Expect<void> VM::unsafeInstantiate() {
   if (Stage < VMStage::Validated) {
     // Do not instantiate when the module is not validated.
@@ -527,63 +460,7 @@ Expect<void> VM::unsafeInstantiate() {
     return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
   if (Mod) {
-    if ((Conf.getRuntimeConfigure().getRunMode() == RunMode::JIT ||
-         Conf.getRuntimeConfigure().getRunMode() == RunMode::LazyJIT) &&
-        !Mod->getSymbol()) {
-#ifdef WASMEDGE_USE_LLVM
-      if (LazyEngine) {
-        EXPECTED_TRY(auto Exec, LazyEngine->prepare(Mod));
-        EXPECTED_TRY(LoaderEngine.loadExecutable(*Mod, std::move(Exec)));
-      } else {
-        LLVM::Compiler Compiler(Conf);
-        Compiler.checkConfigure()
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::error("Compiler Configure failed. Error code: {}, use "
-                              "interpreter mode instead."sv,
-                              Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&]() { return Compiler.compile(*Mod); })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::error("Compilation failed. Error code: {}, use "
-                              "interpreter mode instead."sv,
-                              Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&](auto LLModule) {
-              LLVM::JIT JIT(Conf);
-              return JIT.load(std::move(LLModule));
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::warn(
-                    "JIT failed. Error code: {}, use interpreter mode instead."sv,
-                    Err);
-              }
-              return ErrCode::Value::Success;
-            })
-            .and_then([&](auto Module) {
-              return LoaderEngine.loadExecutable(*Mod, std::move(Module));
-            })
-            .map_error([](uint32_t Err) {
-              if (Err != ErrCode::Value::Success) {
-                spdlog::warn("Loader failed. Error code: {}, use interpreter "
-                             "mode instead."sv,
-                             Err);
-              }
-              return ErrCode::Value::Success;
-            });
-      }
-#else
-      spdlog::warn("JIT was requested but WasmEdge was built without LLVM, "
-                   "falling back to interpreter."sv);
-#endif
-    }
-
+    EXPECTED_TRY(unsafeLoadJITExecutable());
     EXPECTED_TRY(auto NewModInst,
                  ExecutorEngine.instantiateModule(StoreRef, *Mod));
 
@@ -601,15 +478,15 @@ Expect<void> VM::unsafeInstantiate() {
 
     Stage = VMStage::Instantiated;
     return {};
-  } else if (Comp) {
+  }
+  if (Comp) {
     EXPECTED_TRY(ActiveCompInst,
                  ExecutorEngine.instantiateComponent(StoreRef, *Comp));
     Stage = VMStage::Instantiated;
     return {};
-  } else {
-    spdlog::error(ErrCode::Value::WrongVMWorkflow);
-    return Unexpect(ErrCode::Value::WrongVMWorkflow);
   }
+  spdlog::error(ErrCode::Value::WrongVMWorkflow);
+  return Unexpect(ErrCode::Value::WrongVMWorkflow);
 }
 
 Expect<std::vector<std::pair<ValVariant, ValType>>>

@@ -331,7 +331,7 @@ std::map<std::string, ComponentModelSupport> ComponentModelFolders = {
     {"inline-exports",          {true, true,  true,  false}},
     {"instance-types",          {true, true,  true,  false}},
     {"instantiate",             {true, false, false, false}},
-    {"invalid",                 {true, false, false, false}},
+    {"invalid",                 {true, true,  false, false}},
     {"link",                    {true, true,  true,  false}},
     {"lots-of-aliases",         {true, true,  true,  false}},
     {"lower",                   {true, false, false, false}},

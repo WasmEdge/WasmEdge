@@ -1132,6 +1132,8 @@ E(ComponentImportNameConflict, 0x02B8,
   "import name conflicts with previous name")
 // Component alias references an export the instance does not provide
 E(ComponentUnknownExport, 0x02B9, "unknown export")
+// Core type index referenced in a component core:moduledecl is out of bounds
+E(CoreTypeIndexOutOfBounds, 0x02BA, "type index out of bounds")
 // @}
 
 // Instantiation phase

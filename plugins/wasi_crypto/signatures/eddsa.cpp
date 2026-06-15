@@ -38,13 +38,10 @@ WasiCryptoExpect<void> Eddsa::PublicKey::verify() const noexcept {
   EvpPkeyCtxPtr CheckCtx{EVP_PKEY_CTX_new(Ctx.get(), nullptr)};
   ensureOrReturn(CheckCtx, __WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
   int Rc = EVP_PKEY_public_check(CheckCtx.get());
-  if (Rc == 1) {
-    return {};
-  }
   if (Rc == 0) {
     return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_INVALID_KEY);
   }
-  return WasiCryptoUnexpect(__WASI_CRYPTO_ERRNO_ALGORITHM_FAILURE);
+  return {};
 }
 
 WasiCryptoExpect<std::vector<uint8_t>> Eddsa::PublicKey::exportData(

@@ -4041,6 +4041,8 @@ public:
       Offset = Builder.createAdd(Offset, LLContext.getInt64(MemoryOffset));
     }
     compileAtomicCheckOffsetAlignment(Offset, Context.Int32Ty);
+    // The woken-count result is always i32, even on memory64; truncating to the
+    // memory address type would mis-type the operand stack with an i64.
     stackPush(Builder.createTrunc(
         Builder.createCall(
             Context.getIntrinsic(
@@ -4050,7 +4052,7 @@ public:
                     {Context.Int32Ty, Context.Int64Ty, Context.Int64Ty},
                     false)),
             {LLContext.getInt32(MemoryIndex), Offset, Count}),
-        Context.MemoryAddrTypes[MemoryIndex]));
+        Context.Int32Ty));
   }
   void compileAtomicWait(unsigned MemoryIndex, uint64_t MemoryOffset,
                          LLVM::Type TargetType, uint32_t BitWidth) noexcept {
@@ -4450,7 +4452,7 @@ private:
       LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
       Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize), Args, Context.Int8Ty,
           kValSize);
 
       Builder.createCall(
@@ -4615,7 +4617,7 @@ private:
       LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
       Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize), Args, Context.Int8Ty,
           kValSize);
 
       Builder.createCall(
@@ -4704,7 +4706,7 @@ private:
       LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
       Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize), Args, Context.Int8Ty,
           kValSize);
 
       Builder.createCall(
@@ -4792,7 +4794,7 @@ private:
       LLVM::Value Args = Builder.createArray(ArgSize, kValSize);
       LLVM::Value Rets = Builder.createArray(RetSize, kValSize);
       Builder.createArrayPtrStore(
-          Span<LLVM::Value>(ArgsVec.begin() + 1, ArgSize), Args, Context.Int8Ty,
+          Span<LLVM::Value>(ArgsVec).subspan(1, ArgSize), Args, Context.Int8Ty,
           kValSize);
 
       Builder.createCall(

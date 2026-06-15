@@ -651,7 +651,7 @@ TEST(serializeTypeTest, SerializeSubType) {
 
   WasmEdge::AST::SubType SubType3;
   SubType3.getCompositeType() = CompType;
-  SubType3.getSuperTypeIndices() = {};
+  SubType3.getSuperTypeIndices().clear();
   SubType3.setFinal(false);
   Output = {};
   EXPECT_TRUE(Ser.serializeSection(createTypeSec(SubType3), Output));

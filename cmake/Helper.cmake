@@ -111,6 +111,26 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     )
   endif()
 
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 20.0.0)
+    # Clang 20 added -Wassume, which fires on assuming()/__builtin_assume with
+    # side-effecting arguments in third-party/plugin headers. Demote it to a
+    # warning rather than a hard error under -Werror.
+    list(APPEND WASMEDGE_CFLAGS
+      -Wno-error=assume
+    )
+  endif()
+
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 22.0.0)
+    # Clang 22 added -Wshadow-header, which fires when a header on the include
+    # path shadows a like-named header in another directory (e.g. fmt's
+    # "base.h" vs the wasi_logging plugin's base.h). It is unrelated to this
+    # project's code and triggers deep inside third-party/plugin includes under
+    # -Werror; demote it to a warning rather than a hard error.
+    list(APPEND WASMEDGE_CFLAGS
+      -Wno-error=shadow-header
+    )
+  endif()
+
   if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0.0)
     list(APPEND WASMEDGE_CFLAGS
       -Wno-error=return-std-move-in-c++11

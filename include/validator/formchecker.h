@@ -123,7 +123,6 @@ private:
   Span<const ValType> getLabelTypes(const CtrlFrame &F);
   Expect<void> unreachable();
   Expect<void> StackTrans(Span<const ValType> Take, Span<const ValType> Put);
-  Expect<void> StackPopAny();
 
   /// Contexts.
   std::vector<const AST::SubType *> Types;

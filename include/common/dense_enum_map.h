@@ -151,11 +151,7 @@ public:
 
   friend constexpr difference_type
   operator-(const ConstIterator &LHS, const ConstIterator &RHS) noexcept {
-    const T *const L =
-        std::addressof((*LHS.Data)[static_cast<size_type>(LHS.Value.first)]);
-    const T *const R =
-        std::addressof((*RHS.Data)[static_cast<size_type>(RHS.Value.first)]);
-    return L - R;
+    return difference_type(LHS.Value.first) - difference_type(RHS.Value.first);
   }
 
   constexpr reference operator[](difference_type N) noexcept {

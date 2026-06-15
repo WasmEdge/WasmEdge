@@ -26,7 +26,7 @@ Expect<std::unique_ptr<Runtime::Instance::ModuleInstance>>
 Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
                       const AST::Module &Mod) {
   // Create the stack manager.
-  Runtime::StackManager StackMgr;
+  Runtime::StackManager StackMgr(Allocator);
 
   // Create the module instance.
   std::unique_ptr<Runtime::Instance::ModuleInstance> ModInst =
@@ -73,7 +73,7 @@ Executor::instantiate(Runtime::Instance::ComponentImportManager &ImportMgr,
   instantiate(*ModInst, TagSec);
 
   // Push a new frame {ModInst, locals:none}
-  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator(), 0, 0);
+  StackMgr.pushFrame(ModInst.get(), AST::InstrView::iterator());
 
   // Instantiate GlobalSection (GlobalSec)
   const AST::GlobalSection &GlobSec = Mod.getGlobalSection();

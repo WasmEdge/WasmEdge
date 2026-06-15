@@ -1208,6 +1208,8 @@ E(AccessNullException, 0x0417, "null exception reference")
 E(CastFailed, 0x0418, "cast failure")
 // Uncaught Exception
 E(UncaughtException, 0x0419, "uncaught exception")
+// GC allocation failed (heap threshold reached, or metadata OOM)
+E(GCAllocationFailed, 0x041A, "gc allocation failed")
 // @}
 
 #undef E

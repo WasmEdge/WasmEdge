@@ -479,6 +479,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto &ValType = GlobType.getValType();
       auto Type = toLLVMType(Context->LLContext, ValType);
       Context->Globals.push_back(Type);
+      Context->GlobalIsRef.push_back(ValType.isRefType());
       break;
     }
     case ExternalType::Tag: // Tag type
@@ -499,6 +500,7 @@ void Compiler::compile(const AST::GlobalSection &GlobalSec) noexcept {
     const auto &ValType = GlobalSeg.getGlobalType().getValType();
     auto Type = toLLVMType(Context->LLContext, ValType);
     Context->Globals.push_back(Type);
+    Context->GlobalIsRef.push_back(ValType.isRefType());
   }
 }
 

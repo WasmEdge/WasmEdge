@@ -240,6 +240,48 @@ TEST(serializeTypeTest, SerializeMemoryType) {
       0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Max = 4294967295
   };
   EXPECT_EQ(Output, Expected);
+
+  // 3.  Serialize limit with is64 (Memory64).
+  WasmEdge::Configure ConfMem64;
+  ConfMem64.addProposal(WasmEdge::Proposal::Memory64);
+  WasmEdge::Loader::Serializer SerMem64(ConfMem64);
+
+  MemoryType.getLimit().setMin(4294967295);
+  MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMin);
+
+  Output = {};
+  EXPECT_TRUE(SerMem64.serializeSection(createMemorySec(MemoryType), Output));
+  Expected = {
+      0x05U,                            // Memory section
+      0x07U,                            // Content size = 7
+      0x01U,                            // Vector length = 1
+      0x04U,                            // Has min and is64
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU // Min = 4294967295
+  };
+  EXPECT_EQ(Output, Expected);
+
+  MemoryType.getLimit().setMin(4294967281);
+  MemoryType.getLimit().setMax(4294967295);
+  MemoryType.getLimit().setType(WasmEdge::AST::Limit::LimitType::I64HasMinMax);
+
+  Output = {};
+  EXPECT_TRUE(SerMem64.serializeSection(createMemorySec(MemoryType), Output));
+  Expected = {
+      0x05U,                             // Memory section
+      0x0CU,                             // Content size = 12
+      0x01U,                             // Vector length = 1
+      0x05U,                             // Has min and max and is64
+      0xF1U, 0xFFU, 0xFFU, 0xFFU, 0x0FU, // Min = 4294967281
+      0xFFU, 0xFFU, 0xFFU, 0xFFU, 0x0FU  // Max = 4294967295
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // Negative test: memory64 is missing
+  WasmEdge::Configure ConfNoMem64;
+  ConfNoMem64.removeProposal(WasmEdge::Proposal::Memory64);
+  WasmEdge::Loader::Serializer SerNoMem64(ConfNoMem64);
+  Output = {};
+  EXPECT_FALSE(SerNoMem64.serializeSection(createMemorySec(MemoryType), Output));
 }
 
 TEST(serializeTypeTest, SerializeGlobalType) {

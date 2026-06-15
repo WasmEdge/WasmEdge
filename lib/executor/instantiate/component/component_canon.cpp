@@ -70,24 +70,29 @@ std::vector<ValVariant> Executor::convValsToCoreWASM(
       // validation (GAP-C-5b). It must return exactly one i32 pointer; a
       // component declaring a 'realloc' with no result would otherwise make
       // (*AllocRes)[0] an out-of-bounds access on an empty vector. Guard the
-      // result count, and propagate the setBytes failure instead of silently
-      // handing the guest a (ptr, size) pair for bytes that were never copied.
-      if (AllocRes && !AllocRes->empty()) {
-        ValVariant PtrInMem = (*AllocRes)[0].first;
-        if (auto Res = MemInst->setBytes(
-                std::vector<Byte>{Str.begin(), Str.end()},
-                PtrInMem.get<uint32_t>(), 0, static_cast<uint32_t>(Str.size()));
-            Res) {
-          CoreVals.push_back(PtrInMem);
-          CoreVals.push_back(StrSize);
-        } else {
-          CoreVals.push_back(0);
-          CoreVals.push_back(0);
-        }
-      } else {
+      // failure cases first, and propagate the setBytes failure instead of
+      // silently handing the guest a (ptr, size) pair for bytes that were
+      // never copied.
+      if (!AllocRes) {
         CoreVals.push_back(0);
         CoreVals.push_back(0);
+        break;
       }
+      if (AllocRes->empty()) {
+        CoreVals.push_back(0);
+        CoreVals.push_back(0);
+        break;
+      }
+      ValVariant PtrInMem = (*AllocRes)[0].first;
+      if (!MemInst->setBytes(std::vector<Byte>{Str.begin(), Str.end()},
+                             PtrInMem.get<uint32_t>(), 0,
+                             static_cast<uint32_t>(Str.size()))) {
+        CoreVals.push_back(0);
+        CoreVals.push_back(0);
+        break;
+      }
+      CoreVals.push_back(PtrInMem);
+      CoreVals.push_back(StrSize);
       break;
     }
     case ComponentTypeCode::TypeIndex: {

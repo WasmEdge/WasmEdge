@@ -34,6 +34,31 @@ auto logUnknownError(std::string_view ModName, std::string_view ExtName,
   return Unexpect(ErrCode::Value::UnknownImport);
 }
 
+// True if a reference type can hold a GC-managed (struct/array) heap object,
+// directly or via any/eq/extern/exn. Gates the cross-executor import guard:
+// funcref tables/globals carry only function refs and stay freely shareable.
+bool refTypeCanHoldGCObject(const ValType &RT,
+                            Span<const AST::SubType *const> TypeList) noexcept {
+  if (!RT.isRefType()) {
+    return false;
+  }
+  if (RT.isFuncRefType()) {
+    // Abstract funcref/nullfuncref never reference GC objects.
+    if (RT.isAbsHeapType()) {
+      return false;
+    }
+    // Concrete type index (also classified func-ref here): GC-capable only if
+    // it expands to a struct/array composite.
+    if (const uint32_t Idx = RT.getTypeIndex(); likely(Idx < TypeList.size())) {
+      return !TypeList[Idx]->getCompositeType().isFunc();
+    }
+    return false;
+  }
+  // any/eq/i31/struct/array/extern/exn may carry GC objects. i31 is not
+  // heap-allocated, but conservatively rejecting its sharing is harmless.
+  return true;
+}
+
 bool matchLimit(const AST::Limit &Exp, const AST::Limit &Got) {
   if (Exp.getAddrType() != Got.getAddrType()) {
     return false;
@@ -243,8 +268,24 @@ Expect<void> Executor::instantiate(
                              ImpType.getRefType(), ImpLim.hasMax(),
                              ImpLim.getMin(), ImpLim.getMax());
       }
+      // Reject sharing a GC-object-capable table across executors: a table is
+      // rooted/barriered by a single (first) allocator, so refs this executor
+      // stores here would be invisible to it and could be swept while live.
+      // Interim guard until cross-allocator roots exist (see setAllocator).
+      if (ImpInst->hasForeignAllocator(Allocator) &&
+          refTypeCanHoldGCObject(TabType.getRefType(), ModInst.getTypeList())) {
+        spdlog::error(ErrCode::Value::IncompatibleImportType);
+        spdlog::error("    cannot import a GC reference table already owned by "
+                      "another module instance's GC allocator"sv);
+        spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+        return Unexpect(ErrCode::Value::IncompatibleImportType);
+      }
       // Set the matched table address in the module instance.
       ModInst.importTable(ImpInst);
+      // Attach this executor's GC allocator so an imported (e.g. host)
+      // anyref/externref table is scanned as a root with live write barriers.
+      // Idempotent: a table already owning an allocator keeps it.
+      ImpInst->setAllocator(Allocator);
       break;
     }
     case ExternalType::Memory: {
@@ -311,8 +352,26 @@ Expect<void> Executor::instantiate(
                              GlobType.getValMut(), ImpType.getValType(),
                              ImpType.getValMut());
       }
+      // Reject sharing a GC-object-capable global across executors: like
+      // tables, a global is rooted/barriered by a single (first) allocator, so
+      // a ref this executor stores here would be invisible to it and swept
+      // while live. Interim guard until cross-allocator roots exist.
+      if (ImpInst->hasForeignAllocator(Allocator) &&
+          refTypeCanHoldGCObject(GlobType.getValType(),
+                                 ModInst.getTypeList())) {
+        spdlog::error(ErrCode::Value::IncompatibleImportType);
+        spdlog::error(
+            "    cannot import a GC reference global already owned by "
+            "another module instance's GC allocator"sv);
+        spdlog::error(ErrInfo::InfoLinking(ModName, ExtName, ExtType));
+        return Unexpect(ErrCode::Value::IncompatibleImportType);
+      }
       // Set the matched global address in the module instance.
       ModInst.importGlobal(ImpInst);
+      // Attach this executor's GC allocator so an imported (e.g. host)
+      // anyref/externref global is scanned as a root with a live write barrier.
+      // Idempotent: a global already owning an allocator keeps it.
+      ImpInst->setAllocator(Allocator);
       break;
     }
     default:

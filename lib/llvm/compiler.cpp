@@ -219,6 +219,10 @@ struct LLVM::Compiler::CompileContext {
   std::vector<LLVM::Type> MemoryAddrTypes;
   std::vector<LLVM::Type> TableAddrTypes;
   std::vector<LLVM::Type> Globals;
+  // Parallel to Globals: whether each global is reference-typed. A ref-typed
+  // global.set must also run the GC write barrier (kWriteBarrier) on the old
+  // and new reference; a numeric global stores directly with no barrier.
+  std::vector<bool> GlobalIsRef;
   LLVM::Value IntrinsicsTable;
   LLVM::FunctionCallee Trap;
   CompileContext(LLVM::Context C, LLVM::Module &M,
@@ -1531,9 +1535,35 @@ public:
         break;
       }
       case OpCode::Global__set:
-        Builder.createStore(
-            stackPop(),
-            Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex()).second);
+        if (Context.GlobalIsRef[Instr.getTargetIndex()]) {
+          // Reference-typed global: store directly, but run kWriteBarrier on
+          // both the overwritten reference (SATB, shaded before the store) and
+          // the new one, mirroring GlobalInstance::setValue. A bare store would
+          // let a concurrent collection miss an object reachable only here.
+          auto Val = stackPop();
+          const auto G =
+              Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex());
+          auto WriteBarrier = Context.getIntrinsic(
+              Builder, Executable::Intrinsics::kWriteBarrier,
+              LLVM::Type::getFunctionType(Context.VoidTy, {Context.Int8PtrTy},
+                                          false));
+          // Shade the overwritten reference before it is replaced.
+          LLVM::Value OldArg = Builder.createAlloca(Context.Int64x2Ty);
+          Builder.createValuePtrStore(Builder.createLoad(G.first, G.second),
+                                      OldArg, Context.Int64x2Ty);
+          Builder.createCall(WriteBarrier, {OldArg});
+          // Shade the newly stored reference.
+          LLVM::Value NewArg = Builder.createAlloca(Context.Int64x2Ty);
+          Builder.createValuePtrStore(Val, NewArg, Context.Int64x2Ty);
+          Builder.createCall(WriteBarrier, {NewArg});
+          Builder.createStore(Val, G.second);
+        } else {
+          // Numeric global: never holds a managed reference, so store directly.
+          Builder.createStore(
+              stackPop(),
+              Context.getGlobal(Builder, ExecCtx, Instr.getTargetIndex())
+                  .second);
+        }
         break;
 
       // Table Instructions
@@ -6396,6 +6426,7 @@ void Compiler::compile(const AST::ImportSection &ImportSec) noexcept {
       const auto &ValType = GlobType.getValType();
       auto Type = toLLVMType(Context->LLContext, ValType);
       Context->Globals.push_back(Type);
+      Context->GlobalIsRef.push_back(ValType.isRefType());
       break;
     }
     case ExternalType::Tag: // Tag type
@@ -6416,6 +6447,7 @@ void Compiler::compile(const AST::GlobalSection &GlobalSec) noexcept {
     const auto &ValType = GlobalSeg.getGlobalType().getValType();
     auto Type = toLLVMType(Context->LLContext, ValType);
     Context->Globals.push_back(Type);
+    Context->GlobalIsRef.push_back(ValType.isRefType());
   }
 }
 

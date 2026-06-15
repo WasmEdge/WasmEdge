@@ -222,6 +222,13 @@ public:
            Inner.Data.Externalize;
   }
 
+  // The GC heap reference types the runtime retains as host roots; centralized
+  // so the executor and C API agree on what to retain.
+  bool isGCRefType() const noexcept {
+    return (Inner.Data.HTCode == TypeCode::StructRef) ||
+           (Inner.Data.HTCode == TypeCode::ArrayRef);
+  }
+
   bool isNullableRefType() const noexcept {
     return (Inner.Data.Code == TypeCode::RefNull);
   }
@@ -290,7 +297,7 @@ public:
 
   void setExternalized() noexcept { Inner.Data.Externalize = 1U; }
   void setInternalized() noexcept { Inner.Data.Externalize = 0U; }
-  bool isExternalized() noexcept { return Inner.Data.Externalize != 0U; }
+  bool isExternalized() const noexcept { return Inner.Data.Externalize != 0U; }
 
 private:
   union {
@@ -357,7 +364,7 @@ private:
 
 // >>>>>>>> Value definitions >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-/// FuncRef definition.
+/// Forward declarations for the reference instance types.
 namespace Runtime::Instance {
 class FunctionInstance;
 class StructInstance;
@@ -382,12 +389,10 @@ struct RefVariant {
   RefVariant(const Runtime::Instance::FunctionInstance *P) noexcept {
     setData(TypeCode::FuncRef, reinterpret_cast<const void *>(P));
   }
-  RefVariant(const Runtime::Instance::StructInstance *P) noexcept {
-    setData(TypeCode::StructRef, reinterpret_cast<const void *>(P));
-  }
-  RefVariant(const Runtime::Instance::ArrayInstance *P) noexcept {
-    setData(TypeCode::ArrayRef, reinterpret_cast<const void *>(P));
-  }
+  // Struct/array instances need their concrete (ValType, ptr) heap type; the
+  // catch-all above would mis-tag them as ExternRef, so reject them here.
+  RefVariant(const Runtime::Instance::StructInstance *) = delete;
+  RefVariant(const Runtime::Instance::ArrayInstance *) = delete;
 
   // Getter for type.
   const ValType &getType() const noexcept {
@@ -400,6 +405,18 @@ struct RefVariant {
   // Getter for pointer.
   template <typename T> T *getPtr() const noexcept {
     return reinterpret_cast<T *>(toArray()[1]);
+  }
+
+  // Getter for the pointer stored at the front of the referenced object. A
+  // concrete-typed ref points at a GC struct/array (GCInstance::RawData) or a
+  // typed function reference, all beginning with their defining
+  // `const ModuleInstance *`. memcpy avoids the type-punning UB of casting the
+  // payload to the wrong concrete type. Ref must be non-null.
+  template <typename T> T *getInnerPtr() const noexcept {
+    assuming(getPtr<void>() != nullptr);
+    T *Ptr = nullptr;
+    std::memcpy(&Ptr, getPtr<void>(), sizeof(Ptr));
+    return Ptr;
   }
 
   // Check whether it is null.
@@ -665,15 +682,20 @@ template <> inline ValType ValTypeFromType<double>() noexcept {
 // >>>>>>>> Const expression to generate value from value type >>>>>>>>>>>>>>>>>
 
 inline ValVariant ValueFromType(ValType Type) noexcept {
+  // Build numeric defaults through a full 128-bit buffer (wrap), not a narrow
+  // construction: these locals are pushed via StackManager::push (which, unlike
+  // emplace, does not zero), and the GC conservatively scans every slot's high
+  // word as a candidate pointer -- an indeterminate high word would be a false
+  // root. Zero-extending keeps it a determinate zero. See emplaceAddr / push.
   switch (Type.getCode()) {
   case TypeCode::I32:
-    return uint32_t(0U);
+    return ValVariant::wrap<uint32_t>(uint128_t(0U));
   case TypeCode::I64:
-    return uint64_t(0U);
+    return ValVariant::wrap<uint64_t>(uint128_t(0U));
   case TypeCode::F32:
-    return float(0.0F);
+    return ValVariant::wrap<float>(uint128_t(0U));
   case TypeCode::F64:
-    return double(0.0);
+    return ValVariant::wrap<double>(uint128_t(0U));
   case TypeCode::V128:
     return uint128_t(0U);
   case TypeCode::Ref:
@@ -718,11 +740,15 @@ inline uint64_t extractAddr(const ValVariant &Val,
 
 inline ValVariant emplaceAddr(const uint64_t Addr,
                               const AddressType AT) noexcept {
+  // Wrap through a full 128-bit buffer so the unused high word is a determinate
+  // zero, not indeterminate bytes: this is pushed onto the GC-rooted,
+  // conservatively-scanned value stack, where a stray high word would be a
+  // false root. See ValueFromType / push.
   switch (AT) {
   case AddressType::I32:
-    return static_cast<uint32_t>(Addr);
+    return ValVariant::wrap<uint32_t>(uint128_t(static_cast<uint32_t>(Addr)));
   case AddressType::I64:
-    return static_cast<uint64_t>(Addr);
+    return ValVariant::wrap<uint64_t>(uint128_t(Addr));
   default:
     assumingUnreachable();
   }

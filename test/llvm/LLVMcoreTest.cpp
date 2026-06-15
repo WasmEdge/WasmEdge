@@ -942,6 +942,169 @@ TEST(SIMDNaN, F32x4MaxNaNHandling) {
   EXPECT_NO_THROW(std::filesystem::remove(Path));
 }
 
+class Collect : public WasmEdge::Runtime::HostFunction<Collect> {
+public:
+  Expect<void> body(const WasmEdge::Runtime::CallingFrame &CF) {
+    auto &Allocator = CF.getExecutor()->getAllocator();
+    Allocator.manualCollect(true);
+    return {};
+  }
+};
+
+class Record : public WasmEdge::Runtime::HostFunction<Record> {
+public:
+  Expect<void> body(const WasmEdge::Runtime::CallingFrame &CF) {
+    MemoryUsageLog.push_back(CF.getExecutor()->getAllocator().getMemoryUsage());
+    return {};
+  }
+  Span<const uint64_t> getLog() const noexcept { return MemoryUsageLog; }
+
+private:
+  std::vector<uint64_t> MemoryUsageLog;
+};
+
+class GCModule : public WasmEdge::Runtime::Instance::ModuleInstance {
+public:
+  GCModule() : ModuleInstance("gc") {
+    addHostFunc("coll", std::make_unique<Collect>());
+    auto RP = std::make_unique<Record>();
+    R = RP.get();
+    addHostFunc("rec", std::move(RP));
+  }
+  Span<const uint64_t> getLog() const noexcept { return R->getLog(); }
+
+private:
+  Record *R = nullptr;
+};
+
+TEST(GC, gc) {
+  std::array<WasmEdge::Byte, 117> Wasm{
+      0x00, 0x61, 0x73, 0x6d,       // wasm magic
+      0x01, 0x00, 0x00, 0x00,       // module version
+      0x01,                         // type section
+      0x07,                         // section size
+      0x02,                         // type count
+      0x5e,                         // array type
+      0x7f, 0x01,                   // i32 mutable
+      0x60,                         // function type
+      0x00, 0x00,                   // 0 arguments 0 results
+      0x02,                         // import section
+      0x14,                         // section size
+      0x02,                         // import count
+      0x02, 0x67, 0x63,             // "gc"
+      0x04, 0x63, 0x6f, 0x6c, 0x6c, // "coll"
+      0x00,                         // import kind: function
+      0x01,                         // import type index: 1
+      0x02, 0x67, 0x63,             // "gc"
+      0x03, 0x72, 0x65, 0x63,       // "rec"
+      0x00,                         // import kind: function
+      0x01,                         // import type index: 1
+      0x03,                         // function section
+      0x02,                         // section size
+      0x01,                         // function count
+      0x01,                         // function type index: 1
+      0x07,                         // export section
+      0x06,                         // section size
+      0x01,                         // export count
+      0x02, 0x67, 0x63,             // export name "gc"
+      0x00,                         // export kind: function
+      0x02,                         // export index
+      0x0a,                         // code section
+      0x40,                         // section size
+      0x01,                         // function count
+      0x3e,                         // function size
+      0x00,                         // local size
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 0
+      0x41, 0x04,                   // i32.const 4
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x10, 0x01,                   // call 1 (gc.rec) 96
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) 96
+      0x1a,                         // drop
+      0x10, 0x01,                   // call 1 (gc.rec) 96
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) <=96 (ranged: AOT)
+      0x41, 0x08,                   // i32.const 8
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x1a,                         // drop
+      0x10, 0x01,                   // call 1 (gc.rec) >=160 (ranged: AOT)
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) >=160 (ranged: AOT)
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) <=256 (ranged: AOT)
+      0x41, 0x0c,                   // i32.const 12
+      0xfb, 0x07, 0x00,             // array.new_default 0
+      0x10, 0x01,                   // call 1 (gc.rec) >=224 (ranged: AOT)
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) >=224 (ranged: AOT)
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) >=224 (ranged: AOT)
+      0x1a,                         // drop
+      0x10, 0x00,                   // call 0 (gc.coll)
+      0x10, 0x01,                   // call 1 (gc.rec) <=480 (ranged: AOT)
+      0x0b,                         // end
+  };
+
+  const auto Path =
+      std::filesystem::temp_directory_path() /
+      std::filesystem::u8path("AOTcoreTest" WASMEDGE_LIB_EXTENSION);
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::GC);
+  Conf.getCompilerConfigure().setOutputFormat(
+      CompilerConfigure::OutputFormat::Native);
+  {
+    WasmEdge::Loader::Loader Loader(Conf);
+    WasmEdge::Validator::Validator ValidatorEngine(Conf);
+    WasmEdge::LLVM::Compiler Compiler(Conf);
+    WasmEdge::LLVM::CodeGen CodeGen(Conf);
+    auto Module = *Loader.parseModule(Wasm);
+    ASSERT_TRUE(ValidatorEngine.validate(*Module));
+    auto Data = Compiler.compile(*Module);
+    ASSERT_TRUE(Data);
+    ASSERT_TRUE(CodeGen.codegen(Wasm, std::move(*Data), Path));
+  }
+
+  WasmEdge::VM::VM VM(Conf);
+  GCModule GCMod;
+  VM.registerModule(GCMod);
+  ASSERT_TRUE(VM.loadWasm(Path));
+  ASSERT_TRUE(VM.validate());
+  ASSERT_TRUE(VM.instantiate());
+  // autoCollect off: only the wasm's explicit coll calls run, else a background
+  // native-stack cycle between rec snapshots widens the range asserts.
+  VM.getExecutor().getAllocator().setManualGC(true);
+  ASSERT_TRUE(VM.execute("gc"));
+  auto Result = GCMod.getLog();
+
+  ASSERT_EQ(Result.size(), 13);
+  EXPECT_EQ(Result[0], 0);
+  EXPECT_EQ(Result[1], 0);
+  EXPECT_EQ(Result[2], 96);
+  EXPECT_EQ(Result[3], 96);
+  EXPECT_EQ(Result[4], 96);
+  // Only the 96-byte array allocated so far, so usage cannot exceed it (upper
+  // bound, not exact 0, since conservative stack scanning may keep it alive).
+  EXPECT_LE(Result[5], 96u);
+  EXPECT_GE(Result[6], 160u);
+  EXPECT_GE(Result[7], 160u);
+  // At most the 96- and 160-byte arrays have been allocated by this point.
+  EXPECT_LE(Result[8], 256u);
+  EXPECT_GE(Result[9], 224u);
+  EXPECT_GE(Result[10], 224u);
+  // The 224-byte array is still on the operand stack (drop happens after), so
+  // it must remain retained.
+  EXPECT_GE(Result[11], 224u);
+  // Final reading: at most the cumulative 96 + 160 + 224 bytes ever allocated.
+  EXPECT_LE(Result[12], 480u);
+
+  // Unload the AOT module before removing its shared library: on Windows the
+  // DLL (file lock) is held until cleanup. Matches the other AOT tests.
+  VM.cleanup();
+  EXPECT_NO_THROW(std::filesystem::remove(Path));
+}
+
 } // namespace
 
 GTEST_API_ int main(int argc, char **argv) {

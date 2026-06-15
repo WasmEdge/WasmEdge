@@ -32,6 +32,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
       // where a concurrent collection could reclaim it.
       ModInst.addTable(Allocator, TabSeg.getTableType(),
                        StackMgr.peekTop<RefVariant>());
+      // Pop result from the stack.
       StackMgr.pop<ValVariant>();
     } else {
       // No init expression case. Use the null reference to initialize.

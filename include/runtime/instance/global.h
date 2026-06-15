@@ -45,16 +45,23 @@ public:
   GlobalInstance &operator=(const GlobalInstance &) = delete;
   GlobalInstance &operator=(GlobalInstance &&) = delete;
 
+  /// Register this global with the GC allocator as a scanned root.
+  ///
+  /// One-shot: must be called at most once, before any other allocator has
+  /// been attached (precondition enforced only by the debug assuming() below;
+  /// it is a no-op in NDEBUG builds). Registers this instance via addGlobal()
+  /// so the collector can scan and update its Value; the instance must stay
+  /// valid until the matching removeGlobal() (see clearAllocator()).
   void setAllocator(GC::Allocator &A) noexcept {
     assuming(Allocator == nullptr);
     Allocator = &A;
     Allocator->addGlobal(*this);
   }
 
-  /// Getter of global type.
+  /// Getter for global type.
   const AST::GlobalType &getGlobalType() const noexcept { return GlobType; }
 
-  /// Getter of value.
+  /// Getter for value.
   ValVariant getValue() const noexcept { return Value; }
 
   /// Setter for value.
@@ -70,10 +77,28 @@ public:
     Value = Val;
   }
 
+  /// Get a raw, unbarriered pointer to the stored value.
+  ///
+  /// This is the AOT fast path only: compiled global.get/global.set load and
+  /// store through this address directly (see compiler.cpp). Runtime mutation
+  /// must instead go through setValue(), which runs the GC write barrier;
+  /// storing a reference through this pointer bypasses that barrier and is
+  /// sound only under the SATB + conservative-stack-scan reasoning the AOT
+  /// path relies on.
   ValVariant *getAddress() noexcept { return &Value; }
 
 private:
   friend class GC::Allocator;
+  /// Detach this global from the allocator during allocator teardown.
+  ///
+  /// Lifetime/teardown contract: once setAllocator() registers this instance
+  /// via addGlobal(), the allocator may dereference this GlobalInstance until a
+  /// matching removeGlobal() (run from the destructor) or clearAllocator(). The
+  /// Allocator pointer is read without synchronization on the destructor and
+  /// barrier paths, so teardown of the global and of its allocator must be
+  /// single-threaded with respect to each other (no concurrent teardown):
+  /// either ~GlobalInstance removes the registration before ~Allocator, or
+  /// ~Allocator calls clearAllocator() under its heap lock first.
   void clearAllocator(GC::Allocator &A) noexcept {
     if (Allocator == &A) {
       Allocator = nullptr;

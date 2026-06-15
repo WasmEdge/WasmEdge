@@ -40,6 +40,7 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
     // concurrent collection could reclaim it.
     ModInst.addGlobal(Allocator, GlobSeg.getGlobalType(),
                       StackMgr.peekTop<ValVariant>());
+    // Pop result from the stack.
     StackMgr.pop<ValVariant>();
     const auto Index = ModInst.getGlobalNum() - 1;
     Runtime::Instance::GlobalInstance *GlobInst = *ModInst.getGlobal(Index);

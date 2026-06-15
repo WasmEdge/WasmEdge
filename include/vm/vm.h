@@ -301,6 +301,10 @@ public:
   Executor::Executor &getExecutor() noexcept { return ExecutorEngine; }
 
   /// Release a host-retained GC reference returned to the host.
+  ///
+  /// The release methods below intentionally do not take the VM Mutex that the
+  /// neighboring mutators hold: thread safety for the GC host-root set is
+  /// delegated to the allocator, which locks the host-root registry internally.
   void releaseRef(const RefVariant &Ref) noexcept {
     ExecutorEngine.releaseRef(Ref);
   }

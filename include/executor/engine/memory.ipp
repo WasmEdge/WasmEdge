@@ -14,13 +14,15 @@ TypeT<T> Executor::runLoadOp(Runtime::StackManager &StackMgr,
                              Runtime::Instance::MemoryInstance &MemInst,
                              const AST::Instruction &Instr) {
   // Calculate EA
-  ValVariant &Val = StackMgr.getTop();
+  ValVariant Val = StackMgr.peekTop<ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t EA = extractAddr(Val, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, EA, BitWidth / 8));
   EA += Instr.getMemoryOffset();
   // Value = Mem.Data[EA : N / 8]
-  return MemInst.loadValue<T, BitWidth / 8>(Val.emplace<T>(), EA)
+  T Buffer;
+  return MemInst.loadValue<T, BitWidth / 8>(Buffer, EA)
+      .map([&]() { StackMgr.emplaceTop<T>(std::move(Buffer)); })
       .map_error([&Instr](auto E) {
         spdlog::error(
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
@@ -32,12 +34,12 @@ template <typename T, uint32_t BitWidth>
 TypeN<T> Executor::runStoreOp(Runtime::StackManager &StackMgr,
                               Runtime::Instance::MemoryInstance &MemInst,
                               const AST::Instruction &Instr) {
-  // Pop the value t.const c from the Stack
-  T C = StackMgr.pop().get<T>();
+  // Pop the value t.const c and address from the Stack
+  auto [C, Val] = StackMgr.pops<T, ValVariant>();
 
   // Calculate EA = i + offset
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
-  uint64_t I = extractAddr(StackMgr.pop(), AddrType);
+  uint64_t I = extractAddr(Val, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, I, BitWidth / 8));
   uint64_t EA = I + Instr.getMemoryOffset();
 
@@ -56,7 +58,7 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
                           const AST::Instruction &Instr) {
   static_assert(sizeof(TOut) == sizeof(TIn) * 2);
   // Calculate EA
-  ValVariant &Val = StackMgr.getTop();
+  ValVariant Val = StackMgr.peekTop<ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t EA = extractAddr(Val, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, EA, 8));
@@ -78,12 +80,12 @@ Executor::runLoadExpandOp(Runtime::StackManager &StackMgr,
         std::memcpy(&Value, &Buffer, 8);
 
         if constexpr (sizeof(TOut) == 2) {
-          Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3],
-                                   Value[4], Value[5], Value[6], Value[7]});
+          StackMgr.emplaceTop(VTOut{Value[0], Value[1], Value[2], Value[3],
+                                    Value[4], Value[5], Value[6], Value[7]});
         } else if constexpr (sizeof(TOut) == 4) {
-          Val.emplace<VTOut>(VTOut{Value[0], Value[1], Value[2], Value[3]});
+          StackMgr.emplaceTop(VTOut{Value[0], Value[1], Value[2], Value[3]});
         } else if constexpr (sizeof(TOut) == 8) {
-          Val.emplace<VTOut>(VTOut{Value[0], Value[1]});
+          StackMgr.emplaceTop(VTOut{Value[0], Value[1]});
         }
       });
 }
@@ -94,7 +96,7 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
                          Runtime::Instance::MemoryInstance &MemInst,
                          const AST::Instruction &Instr) {
   // Calculate EA
-  ValVariant &Val = StackMgr.getTop();
+  ValVariant Val = StackMgr.peekTop<ValVariant>();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t EA = extractAddr(Val, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, EA, sizeof(T)));
@@ -113,14 +115,16 @@ Executor::runLoadSplatOp(Runtime::StackManager &StackMgr,
         const T Part = static_cast<T>(Buffer);
 
         if constexpr (sizeof(T) == 1) {
-          Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part,
-                             Part, Part, Part, Part, Part, Part, Part, Part});
+          StackMgr.emplaceTop(VT{Part, Part, Part, Part, Part, Part, Part, Part,
+                                 Part, Part, Part, Part, Part, Part, Part,
+                                 Part});
         } else if constexpr (sizeof(T) == 2) {
-          Val.emplace<VT>(VT{Part, Part, Part, Part, Part, Part, Part, Part});
+          StackMgr.emplaceTop(
+              VT{Part, Part, Part, Part, Part, Part, Part, Part});
         } else if constexpr (sizeof(T) == 4) {
-          Val.emplace<VT>(VT{Part, Part, Part, Part});
+          StackMgr.emplaceTop(VT{Part, Part, Part, Part});
         } else if constexpr (sizeof(T) == 8) {
-          Val.emplace<VT>(VT{Part, Part});
+          StackMgr.emplaceTop(VT{Part, Part});
         }
       });
 }
@@ -130,12 +134,12 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
                                      Runtime::Instance::MemoryInstance &MemInst,
                                      const AST::Instruction &Instr) {
   using VT = SIMDArray<T, 16>;
-  VT Result = StackMgr.pop().get<VT>();
+  auto [Result, Val] = StackMgr.popsPeekTop<VT, ValVariant>();
   const uint32_t Lane = Endian::native == Endian::little
                             ? Instr.getMemoryLane()
                             : (16 / sizeof(T)) - 1 - Instr.getMemoryLane();
+
   // Calculate EA
-  ValVariant &Val = StackMgr.getTop();
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
   uint64_t EA = extractAddr(Val, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, EA, sizeof(T)));
@@ -149,9 +153,9 @@ Expect<void> Executor::runLoadLaneOp(Runtime::StackManager &StackMgr,
             ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
         return E;
       })
-      .map([&]() {
-        Result[Lane] = static_cast<T>(Buffer);
-        Val.emplace<VT>(Result);
+      .map([&, R = Result]() mutable {
+        R[Lane] = static_cast<T>(Buffer);
+        StackMgr.emplaceTop<VT>(std::move(R));
       });
 }
 
@@ -162,24 +166,24 @@ Executor::runStoreLaneOp(Runtime::StackManager &StackMgr,
                          const AST::Instruction &Instr) {
   using VT = SIMDArray<T, 16>;
   using TBuf = std::conditional_t<sizeof(T) < 4, uint32_t, T>;
+  auto [V, Val] = StackMgr.pops<VT, ValVariant>();
   const uint32_t Lane = Endian::native == Endian::little
                             ? Instr.getMemoryLane()
                             : (16 / sizeof(T)) - 1 - Instr.getMemoryLane();
-  const TBuf C = StackMgr.pop().get<VT>()[Lane];
+  const TBuf C = V[Lane];
 
   // Calculate EA = i + offset
   const auto AddrType = MemInst.getMemoryType().getLimit().getAddrType();
-  uint64_t I = extractAddr(StackMgr.pop(), AddrType);
+  uint64_t I = extractAddr(Val, AddrType);
   EXPECTED_TRY(checkOffsetOverflow(MemInst, Instr, I, sizeof(T)));
   uint64_t EA = I + Instr.getMemoryOffset();
 
   // Store value to bytes.
-  return MemInst.storeValue<decltype(C), sizeof(T)>(C, EA).map_error(
-      [&Instr](auto E) {
-        spdlog::error(
-            ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
-        return E;
-      });
+  return MemInst.storeValue<TBuf, sizeof(T)>(C, EA).map_error([&Instr](auto E) {
+    spdlog::error(
+        ErrInfo::InfoInstruction(Instr.getOpCode(), Instr.getOffset()));
+    return E;
+  });
 }
 
 } // namespace Executor

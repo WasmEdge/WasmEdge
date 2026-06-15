@@ -2,9 +2,13 @@
 // SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 #include "executor/executor.h"
+#include "runtime/instance/array.h"
+#include "runtime/instance/gc.h"
 #include "system/fault.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 
 namespace WasmEdge {
 namespace Executor {
@@ -140,9 +144,7 @@ Expect<void> Executor::proxyCall(Runtime::StackManager &StackMgr,
   EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
+  StackMgr.popSpan(Span<ValVariant>(Rets, ReturnsSize));
   return {};
 }
 
@@ -203,9 +205,7 @@ Expect<void> Executor::proxyCallIndirect(Runtime::StackManager &StackMgr,
   EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
+  StackMgr.popSpan(Span<ValVariant>(Rets, ReturnsSize));
   return {};
 }
 
@@ -234,10 +234,7 @@ Expect<void> Executor::proxyCallRef(Runtime::StackManager &StackMgr,
   EXPECTED_TRY(auto StartIt, enterFunction(StackMgr, *FuncInst, Instrs.end()));
   EXPECTED_TRY(execute(StackMgr, StartIt, Instrs.end()));
 
-  for (uint32_t I = 0; I < ReturnsSize; ++I) {
-    Rets[ReturnsSize - 1 - I] = StackMgr.pop();
-  }
-
+  StackMgr.popSpan(Span<ValVariant>(Rets, ReturnsSize));
   return {};
 }
 
@@ -252,6 +249,7 @@ Expect<RefVariant> Executor::proxyStructNew(Runtime::StackManager &StackMgr,
                                             const uint32_t TypeIdx,
                                             const ValVariant *Args,
                                             const uint32_t ArgSize) noexcept {
+  Allocator.autoCollect(true);
   if (Args == nullptr) {
     return structNew(StackMgr, TypeIdx);
   } else {
@@ -282,6 +280,7 @@ Expect<RefVariant> Executor::proxyArrayNew(Runtime::StackManager &StackMgr,
                                            const uint32_t Length,
                                            const ValVariant *Args,
                                            const uint32_t ArgSize) noexcept {
+  Allocator.autoCollect(true);
   assuming(ArgSize == 0 || ArgSize == 1 || ArgSize == Length);
   if (ArgSize == 0) {
     return arrayNew(StackMgr, TypeIdx, Length);
@@ -298,6 +297,7 @@ Expect<RefVariant> Executor::proxyArrayNewData(Runtime::StackManager &StackMgr,
                                                const uint32_t DataIdx,
                                                const uint32_t Start,
                                                const uint32_t Length) noexcept {
+  Allocator.autoCollect(true);
   return arrayNewData(StackMgr, TypeIdx, DataIdx, Start, Length);
 }
 
@@ -306,6 +306,7 @@ Expect<RefVariant> Executor::proxyArrayNewElem(Runtime::StackManager &StackMgr,
                                                const uint32_t ElemIdx,
                                                const uint32_t Start,
                                                const uint32_t Length) noexcept {
+  Allocator.autoCollect(true);
   return arrayNewElem(StackMgr, TypeIdx, ElemIdx, Start, Length);
 }
 
@@ -328,11 +329,12 @@ Expect<void> Executor::proxyArraySet(Runtime::StackManager &StackMgr,
 
 Expect<uint32_t> Executor::proxyArrayLen(Runtime::StackManager &,
                                          const RefVariant Ref) noexcept {
-  auto *Inst = Ref.getPtr<Runtime::Instance::ArrayInstance>();
-  if (Inst == nullptr) {
+  auto *Raw = Ref.getPtr<Runtime::Instance::GCInstance::RawData>();
+  if (Raw == nullptr) {
     return Unexpect(ErrCode::Value::AccessNullArray);
   }
-  return Inst->getLength();
+  const Runtime::Instance::ArrayInstance Inst{Raw};
+  return Inst.getLength();
 }
 
 Expect<void> Executor::proxyArrayFill(Runtime::StackManager &StackMgr,
@@ -379,11 +381,26 @@ Expect<uint32_t> Executor::proxyRefTest(Runtime::StackManager &StackMgr,
   assuming(ModInst);
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    // A concrete heap type is either a GC struct/array (payload is
+    // GCInstance::RawData) or a typed function reference (payload is a
+    // CompositeBase / FunctionInstance). Both layouts begin with the defining
+    // `const ModuleInstance *` at offset 0, so copy that leading word out
+    // directly instead of reinterpreting the payload as one concrete type
+    // (which would be UB for the other). The reference must not be nullptr
+    // because null references carry the least abstract heap type.
+    const Runtime::Instance::ModuleInstance *RefMod = nullptr;
+    // The leading word read here is valid only because ModInst is the first
+    // member of RawData; pin that layout so a reorder becomes a build failure
+    // instead of reading a wrong field.
+    static_assert(offsetof(Runtime::Instance::GCInstance::RawData, ModInst) ==
+                      0,
+                  "RawData must begin with the ModInst pointer");
+    // Assert the payload is non-null before the memcpy reads it, mirroring the
+    // interpreter counterpart in refInstr.cpp.
+    assuming(Ref.getPtr<void>() != nullptr);
+    std::memcpy(&RefMod, Ref.getPtr<void>(), sizeof(RefMod));
+    if (RefMod) {
+      GotTypeList = RefMod->getTypeList();
     }
   }
 
@@ -407,11 +424,26 @@ Expect<RefVariant> Executor::proxyRefCast(Runtime::StackManager &StackMgr,
   assuming(ModInst);
   Span<const AST::SubType *const> GotTypeList = ModInst->getTypeList();
   if (!VT.isAbsHeapType()) {
-    auto *Inst = Ref.getPtr<Runtime::Instance::CompositeBase>();
-    // Reference must not be nullptr here because the null references are typed
-    // with the least abstract heap type.
-    if (Inst->getModule()) {
-      GotTypeList = Inst->getModule()->getTypeList();
+    // A concrete heap type is either a GC struct/array (payload is
+    // GCInstance::RawData) or a typed function reference (payload is a
+    // CompositeBase / FunctionInstance). Both layouts begin with the defining
+    // `const ModuleInstance *` at offset 0, so copy that leading word out
+    // directly instead of reinterpreting the payload as one concrete type
+    // (which would be UB for the other). The reference must not be nullptr
+    // because null references carry the least abstract heap type.
+    const Runtime::Instance::ModuleInstance *RefMod = nullptr;
+    // The leading word read here is valid only because ModInst is the first
+    // member of RawData; pin that layout so a reorder becomes a build failure
+    // instead of reading a wrong field.
+    static_assert(offsetof(Runtime::Instance::GCInstance::RawData, ModInst) ==
+                      0,
+                  "RawData must begin with the ModInst pointer");
+    // Assert the payload is non-null before the memcpy reads it, mirroring the
+    // interpreter counterpart in refInstr.cpp.
+    assuming(Ref.getPtr<void>() != nullptr);
+    std::memcpy(&RefMod, Ref.getPtr<void>(), sizeof(RefMod));
+    if (RefMod) {
+      GotTypeList = RefMod->getTypeList();
     }
   }
 
@@ -455,7 +487,9 @@ Expect<void> Executor::proxyTableInit(Runtime::StackManager &StackMgr,
   assuming(TabInst);
   auto *ElemInst = getElemInstByIdx(StackMgr, ElemIdx);
   assuming(ElemInst);
-  return TabInst->setRefs(ElemInst->getRefs(), DstOff, SrcOff, Len);
+
+  EXPECTED_TRY(auto Refs, ElemInst->getRefs(SrcOff, Len));
+  return TabInst->setRefs(Refs, DstOff);
 }
 
 Expect<void> Executor::proxyElemDrop(Runtime::StackManager &StackMgr,
@@ -477,8 +511,8 @@ Expect<void> Executor::proxyTableCopy(Runtime::StackManager &StackMgr,
   auto *TabInstSrc = getTabInstByIdx(StackMgr, TableIdxSrc);
   assuming(TabInstSrc);
 
-  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(0, SrcOff + Len));
-  return TabInstDst->setRefs(Refs, DstOff, SrcOff, Len);
+  EXPECTED_TRY(auto Refs, TabInstSrc->getRefs(SrcOff, Len));
+  return TabInstDst->setRefs(Refs, DstOff);
 }
 
 Expect<uint64_t> Executor::proxyTableGrow(Runtime::StackManager &StackMgr,

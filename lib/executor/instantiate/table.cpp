@@ -25,17 +25,21 @@ Expect<void> Executor::instantiate(Runtime::StackManager &StackMgr,
                              ErrInfo::InfoAST(ASTNodeAttr::Expression));
                          return E;
                        }));
-      // Pop result from the stack.
-      RefVariant InitTabValue = StackMgr.pop().get<RefVariant>();
-      // Create and add the table instance to the module instance.
-      ModInst.addTable(TabSeg.getTableType(), InitTabValue);
+      // Keep the init result on the (GC-rooted) value stack until the table is
+      // registered: addTable broadcasts it into the table's slots and registers
+      // that instance as a root. Popping into a native local first would leave
+      // a GC-managed reference unrooted in the window before registration,
+      // where a concurrent collection could reclaim it.
+      ModInst.addTable(Allocator, TabSeg.getTableType(),
+                       StackMgr.peekTop<RefVariant>());
+      StackMgr.pop<ValVariant>();
     } else {
       // No init expression case. Use the null reference to initialize.
       // Normalize the type to the bottom abstract heap type so that null
       // references always carry abstract types, as ref.cast/ref.test assume.
       auto BotType = toBottomType(StackMgr, TabSeg.getTableType().getRefType());
       RefVariant InitTabValue(ValType(TypeCode::RefNull, BotType));
-      ModInst.addTable(TabSeg.getTableType(), InitTabValue);
+      ModInst.addTable(Allocator, TabSeg.getTableType(), InitTabValue);
     }
   }
   return {};

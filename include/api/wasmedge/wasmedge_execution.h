@@ -270,7 +270,9 @@ WasmEdge_ExecutorRegisterImportWithAlias(
 /// (extern.convert_any) comes back typed as externref, which
 /// `WasmEdge_ExecutorReleaseRef` rejects, so release it via
 /// `WasmEdge_ExecutorReleaseAllRefs`. References overflowing a too-small
-/// `Returns` buffer are discarded and released automatically.
+/// `Returns` buffer are discarded and released automatically, except an
+/// externalized externref: it is not auto-released on overflow and remains
+/// retained until `WasmEdge_ExecutorReleaseAllRefs`.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext.
 /// \param FuncCxt the function instance context to invoke.
@@ -323,8 +325,9 @@ WasmEdge_ExecutorReleaseRef(WasmEdge_ExecutorContext *Cxt,
 
 /// Release one retention of each of the given GC references.
 ///
-/// Equivalent to `WasmEdge_ExecutorReleaseRef` per element; non-retained
-/// values are ignored.
+/// Null `Refs` or zero `Len` is a no-op. Equivalent to
+/// `WasmEdge_ExecutorReleaseRef` per element; non-retained values are
+/// ignored.
 ///
 /// \param Cxt the WasmEdge_ExecutorContext.
 /// \param Refs the WasmEdge_Value buffer of GC references to release.
@@ -526,9 +529,10 @@ WASMEDGE_CAPI_EXPORT uint32_t WasmEdge_AsyncGetReturnsLength(
 /// the overflowed return values will be discarded. Unlike the synchronous
 /// APIs, a discarded GC reference is NOT released: the shared future may be
 /// queried again with a larger buffer and must still see every reference, so a
-/// discarded one stays retained and can only be freed via
-/// `WasmEdge_VMReleaseAllRefs` / `WasmEdge_ExecutorReleaseAllRefs`. A reference
-/// handed back in `Returns` also stays retained; release it with
+/// discarded one stays retained. Free it either by re-querying with a larger
+/// `Returns` buffer so it is handed back and can then be released by value, or
+/// via `WasmEdge_VMReleaseAllRefs` / `WasmEdge_ExecutorReleaseAllRefs`. A
+/// reference handed back in `Returns` also stays retained; release it with
 /// `WasmEdge_VMReleaseRef` / `WasmEdge_ExecutorReleaseRef`.
 ///
 /// \param Cxt the WasmEdge_Async.

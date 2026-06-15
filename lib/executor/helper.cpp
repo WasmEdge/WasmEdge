@@ -145,7 +145,7 @@ Executor::enterFunction(Runtime::StackManager &StackMgr,
       return Unexpect(Ret);
     }
 
-    // Push the returns back to the stack.
+    // Push returns back to the stack.
     StackMgr.pushSpan(Rets);
 
     // For host function case, the continuation will be the continuation from

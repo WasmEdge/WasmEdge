@@ -76,11 +76,11 @@ inline SIMDArray<T, 16> vectorMax(const SIMDArray<T, 16> V1,
 // ---------------------------------------------------------------------------
 // Float min/max with NaN propagation.
 //
-//   fmin:  R = bits(A) | bits(B)    // merge NaN payloads
-//          if A < B: R = A
-//          if A > B: R = B
-//          if A is NaN: R = A
-//          if B is NaN: R = B
+//   fmin:  R = bits(V1) | bits(V2)  // merge NaN payloads
+//          if V1 < V2: R = V1
+//          if V1 > V2: R = V2
+//          if V1 is NaN: R = V1
+//          if V2 is NaN: R = V2
 //   fmax:  same but & instead of |, and reversed comparisons.
 //
 // NaN check uses (V == V) which is false for NaN lanes, so

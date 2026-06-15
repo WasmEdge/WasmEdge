@@ -18,7 +18,6 @@ struct WasmEdge::LLVM::Data::DataContext {
 #endif
   LLVM::Module LLModule;
   LLVM::TargetMachine TM;
-  std::string Prefix;
   DataContext() noexcept : LLModule(getLLContext(), "wasm") {}
   void resetModule() noexcept {
     LLModule = LLVM::Module(getLLContext(), "wasm");

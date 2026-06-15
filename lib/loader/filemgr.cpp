@@ -25,12 +25,19 @@ Expect<void> FileMgr::setPath(const std::filesystem::path &FilePath) {
     if (auto *Pointer = FileMap->address(); likely(Pointer)) {
       Data = reinterpret_cast<const Byte *>(Pointer);
       Status = ErrCode::Value::Success;
+      return {};
+    } else if (Size == 0) {
+      // Genuinely empty file: a zero-length mapping fails, and the first read
+      // will report 'UnexpectedEnd'.
+      FileMap.reset();
+      Data = nullptr;
+      Status = ErrCode::Value::Success;
+      return {};
     } else {
-      // File size is 0, mmap failed.
-      // Will get 'UnexpectedEnd' error while the first reading.
+      // A non-empty path that could not be mapped: fail cleanly instead of
+      // leaving Data null and crashing on the first read.
       FileMap.reset();
     }
-    return {};
   }
   Size = 0;
   Status = ErrCode::Value::IllegalPath;

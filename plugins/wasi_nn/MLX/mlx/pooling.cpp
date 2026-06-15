@@ -151,30 +151,31 @@ mx::array Pool::forward(const mx::array &X) {
 
 Pool2d::Pool2d(
     const std::function<mx::array(const mx::array &, const std::vector<int> &)>
-        &PoolingFunction,
-    int PaddingValue, const std::vector<int> &KernelSize,
+        &PoolingFn,
+    int PadValue, const std::vector<int> &KernelSizes,
     const std::optional<std::vector<int>> &StrideOpt,
     const std::optional<std::vector<int>> &PaddingOpt)
-    : Pool(PoolingFunction,
-           KernelSize.size() == 1 ? valueOrList(KernelSize[0], 2) : KernelSize,
+    : Pool(PoolingFn,
+           KernelSizes.size() == 1 ? valueOrList(KernelSizes[0], 2)
+                                   : KernelSizes,
            (StrideOpt.has_value()
                 ? (StrideOpt.value().size() == 1
                        ? valueOrList(StrideOpt.value()[0], 2)
                        : StrideOpt.value())
-                : (KernelSize.size() == 1 ? valueOrList(KernelSize[0], 2)
-                                          : KernelSize)),
+                : (KernelSizes.size() == 1 ? valueOrList(KernelSizes[0], 2)
+                                           : KernelSizes)),
            makePaddingPairs(PaddingOpt.has_value() ? PaddingOpt.value()
                                                    : valueOrList(0, 2)),
-           PaddingValue) {}
+           PadValue) {}
 
-AvgPool2d::AvgPool2d(const std::vector<int> &KernelSize,
-                     const std::optional<std::vector<int>> &Stride,
-                     const std::optional<std::vector<int>> &Padding)
+AvgPool2d::AvgPool2d(const std::vector<int> &KernelSizes,
+                     const std::optional<std::vector<int>> &StrideOpt,
+                     const std::optional<std::vector<int>> &PaddingOpt)
     : Pool2d(
           [](const mx::array &A, const std::vector<int> &Axis) -> mx::array {
             return mx::mean(A, Axis, false);
           },
-          0, KernelSize, Stride, Padding) {}
+          0, KernelSizes, StrideOpt, PaddingOpt) {}
 
 } // namespace mlx::core::nn
 } // namespace WasmEdge::Host::WASINN::MLX

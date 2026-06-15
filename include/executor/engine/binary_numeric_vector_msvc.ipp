@@ -9,7 +9,7 @@ namespace WasmEdge {
 namespace Executor {
 
 namespace detail {
-template <typename T> inline T allOnes() {
+template <typename T> inline T allOnes() noexcept {
   // All-ones bit pattern via memset, not reinterpret_cast (strict-aliasing UB
   // for floating-point T).
   T Result;
@@ -425,6 +425,7 @@ Executor::runVectorFMinOp(Runtime::StackManager &StackMgr) const noexcept {
 template <typename T>
 Expect<void>
 Executor::runVectorFMaxOp(Runtime::StackManager &StackMgr) const noexcept {
+  static_assert(std::is_floating_point_v<T>);
   using VT = SIMDArray<T, 16>;
   auto [V2, V1] = StackMgr.popsPeekTop<VT, VT>();
   for (size_t I = 0; I < V1.size(); ++I) {

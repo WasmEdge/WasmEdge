@@ -23,8 +23,10 @@
 #include "runtime/instance/module.h"
 
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <vector>
 
 #define EXPORT_GET_DESCRIPTOR(Descriptor)                                      \
@@ -161,7 +163,7 @@ public:
   WASMEDGE_EXPORT static const Plugin *find(std::string_view Name) noexcept;
 
   // Static function to list loaded plugins.
-  static Span<const Plugin> plugins() noexcept;
+  static const std::deque<Plugin> &plugins() noexcept;
 
   Plugin(const Plugin &) = delete;
   Plugin &operator=(const Plugin &) = delete;
@@ -211,12 +213,16 @@ public:
   std::filesystem::path path() const noexcept { return Path; }
 
 private:
-  static std::mutex Mutex;
-  static std::vector<Plugin> PluginRegistry;
+  // Guards PluginRegistry / PluginNameLookup.
+  static std::shared_mutex Mutex;
+  // std::deque (not std::vector) so that pointers/references returned by find()
+  // and plugins() remain valid even when more plugins are appended later.
+  static std::deque<Plugin> PluginRegistry;
   static std::unordered_map<std::string_view, std::size_t, Hash::Hash>
       PluginNameLookup;
 
-  // Static function to load plugin from file. Thread-safe.
+  // Static function to load plugin from file. Thread-safe. Idempotent: a file
+  // that has already been loaded in this process is skipped (not re-dlopen'd).
   static bool loadFile(const std::filesystem::path &Path) noexcept;
 
   // Static function to register built-in plugins. Thread-safe.

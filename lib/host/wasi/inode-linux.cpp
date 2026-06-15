@@ -182,7 +182,7 @@ INode INode::stdOut() noexcept { return INode(STDOUT_FILENO); }
 
 INode INode::stdErr() noexcept { return INode(STDERR_FILENO); }
 
-WasiExpect<INode> INode::fromFd(int32_t Fd) { return createStdNode(Fd); }
+WasiExpect<INode> INode::fromFd(int32_t FdNum) { return createStdNode(FdNum); }
 
 WasiExpect<INode> INode::open(std::string Path, __wasi_oflags_t OpenFlags,
                               __wasi_fdflags_t FdFlags,

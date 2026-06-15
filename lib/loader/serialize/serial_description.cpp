@@ -68,7 +68,6 @@ Serializer::serializeDesc(const AST::ExportDesc &Desc,
       return logNeedProposal(ErrCode::Value::MalformedExportKind,
                              Proposal::ExceptionHandling, ASTNodeAttr::Module);
     }
-    return serializeType(Desc.getExternalIndex(), OutVec);
   }
   serializeU32(Desc.getExternalIndex(), OutVec);
   return {};

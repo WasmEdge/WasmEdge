@@ -846,10 +846,13 @@ public:
     if (!VINode::isPathValid(NewPath)) {
       return WasiUnexpect(__WASI_ERRNO_INVAL);
     }
-    // forbid absolute path
+    // Forbid an absolute target. A target escaping the base directory is "not
+    // permitted", matching resolvePath and the `..` check in pathSymlink.
     if (!OldPath.empty() && OldPath[0] == '/') {
-      return WasiUnexpect(__WASI_ERRNO_INVAL);
+      return WasiUnexpect(__WASI_ERRNO_PERM);
     }
+    // Relative targets escaping via `..` are rejected in VINode::pathSymlink,
+    // where the link's depth is known.
     auto NewNode = getNodeOrNull(New);
     if (unlikely(!NewNode)) {
       return WasiUnexpect(__WASI_ERRNO_BADF);
@@ -1249,15 +1252,15 @@ public:
 
   /// Concurrently poll for a ready-to-read event.
   ///
-  /// @param[in] Fd The file descriptor on which to wait for it to become ready
-  /// for reading.
+  /// @param[in] WasiFd The file descriptor on which to wait for it to become
+  /// ready for reading.
   /// @param[in] Trigger Specifying whether the notification is level-trigger or
   /// edge-trigger.
   /// @param[in] UserData User-provided value that may be attached to objects
   /// that is retained when extracted from the implementation.
-  void read(__wasi_fd_t Fd, TriggerType Trigger,
+  void read(__wasi_fd_t WasiFd, TriggerType Trigger,
             __wasi_userdata_t UserData) noexcept {
-    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+    if (auto Node = env().getNodeOrNull(WasiFd); unlikely(!Node)) {
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_READ);
     } else {
       VPoller::read(Node, Trigger, UserData);
@@ -1266,15 +1269,15 @@ public:
 
   /// Concurrently poll for a ready-to-write event.
   ///
-  /// @param[in] Fd The file descriptor on which to wait for it to become ready
-  /// for writing.
+  /// @param[in] WasiFd The file descriptor on which to wait for it to become
+  /// ready for writing.
   /// @param[in] Trigger Specifying whether the notification is level-trigger or
   /// edge-trigger.
   /// @param[in] UserData User-provided value that may be attached to objects
   /// that is retained when extracted from the implementation.
-  void write(__wasi_fd_t Fd, TriggerType Trigger,
+  void write(__wasi_fd_t WasiFd, TriggerType Trigger,
              __wasi_userdata_t UserData) noexcept {
-    if (auto Node = env().getNodeOrNull(Fd); unlikely(!Node)) {
+    if (auto Node = env().getNodeOrNull(WasiFd); unlikely(!Node)) {
       VPoller::error(UserData, __WASI_ERRNO_BADF, __WASI_EVENTTYPE_FD_WRITE);
     } else {
       VPoller::write(Node, Trigger, UserData);

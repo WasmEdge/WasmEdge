@@ -37,7 +37,6 @@
 #include <shared_mutex>
 #include <string>
 #include <type_traits>
-#include <unordered_map>
 #include <vector>
 
 namespace WasmEdge {
@@ -97,16 +96,6 @@ public:
   std::string_view getModuleName() const noexcept {
     std::shared_lock Lock(Mutex);
     return ModName;
-  }
-
-  std::string getID() const noexcept {
-    std::shared_lock Lock(Mutex);
-    return ID;
-  }
-
-  void setID(std::string_view NewID) noexcept {
-    std::unique_lock Lock(Mutex);
-    ID = NewID;
   }
 
   void *getHostData() const noexcept { return HostData; }
@@ -243,22 +232,6 @@ public:
   auto getGlobalExports(CallbackT &&CallBack) const noexcept {
     std::shared_lock Lock(Mutex);
     return std::forward<CallbackT>(CallBack)(ExpGlobals);
-  }
-
-  Expect<uint32_t> getFuncIdx(const FunctionInstance *FuncInst) const noexcept {
-    std::shared_lock Lock(Mutex);
-    if (auto It = FuncInstMap.find(FuncInst); It != FuncInstMap.end()) {
-      return It->second;
-    }
-    return Unexpect(ErrCode::Value::WrongInstanceAddress);
-  }
-
-  Expect<FunctionInstance *> getFuncInst(uint32_t Idx) const noexcept {
-    std::shared_lock Lock(Mutex);
-    if (Idx >= FuncInsts.size()) {
-      return Unexpect(ErrCode::Value::WrongInstanceIndex);
-    }
-    return FuncInsts[Idx];
   }
 
 protected:
@@ -499,9 +472,6 @@ protected:
   std::enable_if_t<IsEntityV<T>, void>
   unsafeImportInstance(std::vector<T *> &Vec, T *Ptr) {
     Vec.push_back(Ptr);
-    if constexpr (std::is_same_v<T, FunctionInstance>) {
-      FuncInstMap[Ptr] = static_cast<uint32_t>(Vec.size()) - 1;
-    }
   }
 
   /// Unsafely import a defined type from a host function into this module.
@@ -518,9 +488,6 @@ protected:
                     std::vector<T *> &InstsVec, Args &&...Values) {
     OwnedInstsVec.push_back(std::make_unique<T>(std::forward<Args>(Values)...));
     InstsVec.push_back(OwnedInstsVec.back().get());
-    if constexpr (std::is_same_v<T, FunctionInstance>) {
-      FuncInstMap[InstsVec.back()] = static_cast<uint32_t>(InstsVec.size()) - 1;
-    }
   }
 
   /// Unsafely add and export the existing instance to this module.
@@ -534,9 +501,6 @@ protected:
     OwnedInstsVec.push_back(std::move(Inst));
     InstsVec.push_back(OwnedInstsVec.back().get());
     InstsMap.insert_or_assign(std::string(Name), InstsVec.back());
-    if constexpr (std::is_same_v<T, FunctionInstance>) {
-      FuncInstMap[InstsVec.back()] = static_cast<uint32_t>(InstsVec.size()) - 1;
-    }
   }
 
   /// Unsafely find and get the exported instance by name.
@@ -629,9 +593,6 @@ protected:
   /// Module name.
   const std::string ModName;
 
-  /// Module ID.
-  std::string ID;
-
   /// Defined types.
   std::vector<const AST::SubType *> Types;
   std::vector<std::unique_ptr<const AST::SubType>> OwnedTypes;
@@ -656,7 +617,6 @@ protected:
   std::vector<GlobalInstance *> GlobInsts;
   std::vector<ElementInstance *> ElemInsts;
   std::vector<DataInstance *> DataInsts;
-  std::unordered_map<const FunctionInstance *, uint32_t> FuncInstMap;
 
   /// Imported instance counts.
   uint32_t ImpGlobalNum = 0;

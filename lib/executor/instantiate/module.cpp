@@ -44,8 +44,6 @@ Executor::instantiate(Runtime::StoreManager &StoreMgr, const AST::Module &Mod,
     ModInst = std::make_unique<Runtime::Instance::ModuleInstance>("");
   }
 
-  ModInst->setID(Mod.getID());
-
   // Instantiate Function Types in Module Instance. (TypeSec)
   for (auto &SubType : Mod.getTypeSection().getContent()) {
     // Copy defined types to module instance.

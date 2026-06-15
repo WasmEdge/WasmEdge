@@ -1571,6 +1571,88 @@ TEST(WasiNNTest, GGMLBackend) {
     EXPECT_GE(BytesWritten, 50);
   }
 }
+
+// Regression test for the get_output OOB write through the real
+// WasiNNGetOutput::bodyImpl -> MemoryInstance::getSpan ->
+// GGML::getOutput -> std::copy_n path, without requiring model loading
+// or inference. A Ready Graph/Context pair is created directly via the
+// environment, LlamaOutputs is populated with a 256-byte payload, and
+// get_output is invoked with OutBufferMaxSize=8. The output must be
+// truncated to fit OutBuffer, leaving the guard region untouched.
+TEST(WasiNNTest, GGMLGetOutputTruncatesToBuffer) {
+  auto NNMod = createModule();
+  ASSERT_TRUE(NNMod);
+
+  WasmEdge::Runtime::Instance::ModuleInstance Mod("");
+  Mod.addHostMemory(
+      "memory", std::make_unique<WasmEdge::Runtime::Instance::MemoryInstance>(
+                    WasmEdge::AST::MemoryType(1)));
+  auto *MemInstPtr = Mod.findMemoryExports("memory");
+  ASSERT_TRUE(MemInstPtr != nullptr);
+  auto &MemInst = *MemInstPtr;
+  WasmEdge::Runtime::CallingFrame CallFrame(nullptr, &Mod);
+
+  auto &Env = NNMod->getEnv();
+
+  // Create a minimal Ready graph + context without loading any model.
+  uint32_t GraphId = Env.newGraph(WasmEdge::Host::WASINN::Backend::GGML);
+  auto &G = Env.NNGraph[GraphId];
+  G.setReady();
+  uint32_t ContextId = Env.newContext(GraphId, G);
+  Env.NNContext[ContextId].setReady();
+
+  // Populate LlamaOutputs with a 256-byte sentinel payload, simulating a
+  // long model generation.
+  auto &CxtRef =
+      Env.NNContext[ContextId].get<WasmEdge::Host::WASINN::GGML::Context>();
+  CxtRef.LlamaOutputs.assign(256, 0xABU);
+
+  // Layout in linear memory:
+  //   [0, 8)   -> OutBuffer (OutBufferMaxSize = 8)
+  //   [8, 72)  -> guard region, pre-filled with sentinel 0xCD
+  //   [4096,)  -> BytesWritten output
+  const uint32_t OutBufferPtr = 0;
+  const uint32_t OutBufferMaxSize = 8;
+  const uint32_t GuardPtr = OutBufferPtr + OutBufferMaxSize;
+  const uint32_t GuardLen = 64;
+  const uint32_t BytesWrittenPtr = 4096;
+
+  for (uint32_t I = 0; I < GuardLen; ++I) {
+    *MemInst.getPointer<uint8_t *>(GuardPtr + I) = 0xCDU;
+  }
+
+  // Get the "get_output" host function.
+  auto *FuncInst = NNMod->findFuncExports("get_output");
+  ASSERT_NE(FuncInst, nullptr);
+  auto &HostFuncGetOutput =
+      dynamic_cast<WasmEdge::Host::WasiNNGetOutput &>(FuncInst->getHostFunc());
+
+  std::array<WasmEdge::ValVariant, 1> Errno = {UINT32_C(0)};
+  EXPECT_TRUE(HostFuncGetOutput.run(
+      CallFrame,
+      std::initializer_list<WasmEdge::ValVariant>{
+          ContextId, UINT32_C(0), OutBufferPtr, OutBufferMaxSize,
+          BytesWrittenPtr},
+      Errno));
+
+  // BytesWritten must be truncated to the buffer size, not the full
+  // 256-byte LlamaOutputs payload.
+  uint32_t BytesWritten = *MemInst.getPointer<uint32_t *>(BytesWrittenPtr);
+  EXPECT_EQ(BytesWritten, OutBufferMaxSize);
+
+  // The copy must not spill past OutBuffer into the guard region.
+  for (uint32_t I = 0; I < GuardLen; ++I) {
+    EXPECT_EQ(*MemInst.getPointer<uint8_t *>(GuardPtr + I), 0xCDU)
+        << "Guard byte at offset " << I << " was overwritten";
+  }
+
+  // OutBuffer should contain the first OutBufferMaxSize bytes of
+  // LlamaOutputs.
+  for (uint32_t I = 0; I < OutBufferMaxSize; ++I) {
+    EXPECT_EQ(*MemInst.getPointer<uint8_t *>(OutBufferPtr + I), 0xABU);
+  }
+}
+
 #ifdef WASMEDGE_BUILD_WASI_NN_RPC
 TEST(WasiNNTest, GGMLBackendWithRPC) {
   // wasi_nn_rpcserver has to be started outside this test,

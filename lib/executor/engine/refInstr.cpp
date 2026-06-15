@@ -3,6 +3,8 @@
 
 #include "executor/executor.h"
 
+#include <exception>
+
 namespace WasmEdge {
 namespace Executor {
 
@@ -477,9 +479,14 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
   // The `Length` is a runtime-controlled operand of array.new /
-  // array.new_default with no static upper bound, so the backing allocation may
-  // fail. Catch the allocation failure and turn it into a Wasm trap instead of
-  // letting std::bad_alloc escape and abort the whole host process.
+  // array.new_default with no static upper bound, so sizing the backing
+  // `std::vector` may fail. Such a failure surfaces as `std::bad_alloc` (the
+  // allocator could not obtain memory) or `std::length_error` (the requested
+  // element count exceeds `vector::max_size()`, e.g. UINT32_MAX elements on a
+  // 32-bit `size_t`). Both derive from `std::exception`; this function is
+  // `noexcept`, so any escaping exception would call `std::terminate()` and
+  // abort the whole host process. Catch them here and turn the failure into a
+  // Wasm trap instead.
   try {
     if (Args.size() == 0) {
       // New and fill with default values.
@@ -496,7 +503,9 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
           TypeIdx,
           packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
     }
-  } catch (const std::bad_alloc &) {
+  } catch (const std::exception &) {
+    // Covers std::bad_alloc, std::length_error, and any other allocation-
+    // related STL exception so none can escape this noexcept boundary.
     using namespace std::literals;
     spdlog::error(ErrCode::Value::MemoryOutOfBounds);
     spdlog::error("    Unable to allocate array of {} element(s)."sv, Length);

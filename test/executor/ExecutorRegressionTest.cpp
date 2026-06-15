@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <gtest/gtest.h>
+#include <limits>
 #include <new>
 #include <vector>
 
@@ -31,8 +32,19 @@
 // threshold is far larger than anything this test binary legitimately
 // allocates, yet smaller than an array of UINT32_MAX elements.
 namespace {
-constexpr std::size_t OOMTriggerThreshold = std::size_t{16} * 1024 * 1024 *
-                                            1024; // 16 GiB
+// Compute the threshold in the widest unsigned integer type and clamp it to
+// std::size_t so the constant neither overflows nor wraps on 32-bit platforms
+// (where 16 GiB is not representable in a 32-bit size_t). On such platforms the
+// value simply saturates at SIZE_MAX, effectively disabling this injection --
+// which is fine, because an oversized array.new there is already rejected by
+// std::vector's max_size() check (throwing std::length_error) before any
+// allocation is attempted.
+constexpr std::uintmax_t OOMTriggerThresholdWide = std::uintmax_t{16} * 1024 *
+                                                   1024 * 1024; // 16 GiB
+constexpr std::size_t OOMTriggerThreshold =
+    OOMTriggerThresholdWide > std::numeric_limits<std::size_t>::max()
+        ? std::numeric_limits<std::size_t>::max()
+        : static_cast<std::size_t>(OOMTriggerThresholdWide);
 } // namespace
 
 void *operator new(std::size_t Size) {

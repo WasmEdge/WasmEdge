@@ -132,10 +132,10 @@ private:
     std::vector<uint8_t> Id;
     __wasi_version_t Version;
     bool operator<(const KeyIdentifier &Rhs) const {
-      if (Version != Rhs.Version) {
-        return Version < Rhs.Version;
+      if (Id != Rhs.Id) {
+        return Id < Rhs.Id;
       }
-      return Id < Rhs.Id;
+      return Version < Rhs.Version;
     }
   };
 

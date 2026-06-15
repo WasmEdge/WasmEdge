@@ -186,7 +186,9 @@ Context::keypairStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
         return KeyPairManager.get(KpHandle).and_then([&](auto &&Kp) noexcept {
-          return Sm.storeKp(KpId, 0, Kp).map([](auto &&) {});
+          return Sm.storeKp(KpId, 0, Kp).and_then([&](auto &&Version) {
+            return KeyPairManager.setManagedInfo(KpHandle, KpId, Version);
+          });
         });
       });
 }
@@ -206,7 +208,12 @@ Context::keypairReplaceManaged(__wasi_secrets_manager_t SecretsManagerHandle,
                   [&](auto LatestVersion) noexcept {
                     return KeyPairManager.get(NewKpHandle).and_then(
                         [&](auto &&NewKp) noexcept {
-                          return Sm.storeKp(KpId, LatestVersion + 1, NewKp);
+                          return Sm.storeKp(KpId, LatestVersion + 1, NewKp)
+                              .and_then([&](auto &&Version) {
+                                return KeyPairManager
+                                    .setManagedInfo(NewKpHandle, KpId, Version)
+                                    .map([Version]() { return Version; });
+                              });
                         });
                   });
             });
@@ -230,7 +237,12 @@ Context::keypairFromId(__wasi_secrets_manager_t SecretsManagerHandle,
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
         return Sm.getKp(KpId, KpIdVersion).and_then([&](auto &&Kp) noexcept {
-          return KeyPairManager.registerManager(Kp);
+          return KeyPairManager.registerManager(Kp).and_then(
+              [&](auto &&KpHandle) noexcept {
+                return KeyPairManager
+                    .setManagedInfo(KpHandle, KpId, KpIdVersion)
+                    .map([KpHandle]() { return KpHandle; });
+              });
         });
       });
 }

@@ -316,7 +316,10 @@ Context::symmetricKeyStoreManaged(__wasi_secrets_manager_t SecretsManagerHandle,
       .and_then([&](auto &&Sm) noexcept {
         return SymmetricKeyManager.get(KeyHandle).and_then(
             [&](auto &&Key) noexcept {
-              return Sm.storeSk(KeyId, 0, Key).map([](auto &&) {});
+              return Sm.storeSk(KeyId, 0, Key).and_then([&](auto &&Version) {
+                return SymmetricKeyManager.setManagedInfo(KeyHandle, KeyId,
+                                                          Version);
+              });
             });
       });
 }
@@ -336,7 +339,13 @@ WasiCryptoExpect<__wasi_version_t> Context::symmetricKeyReplaceManaged(
                   [&](auto LatestVersion) noexcept {
                     return SymmetricKeyManager.get(NewKeyHandle).and_then(
                         [&](auto &&NewKey) noexcept {
-                          return Sm.storeSk(KeyId, LatestVersion + 1, NewKey);
+                          return Sm.storeSk(KeyId, LatestVersion + 1, NewKey)
+                              .and_then([&](auto &&Version) {
+                                return SymmetricKeyManager
+                                    .setManagedInfo(NewKeyHandle, KeyId,
+                                                    Version)
+                                    .map([Version]() { return Version; });
+                              });
                         });
                   });
             });
@@ -361,7 +370,12 @@ Context::symmetricKeyFromId(__wasi_secrets_manager_t SecretsManagerHandle,
   return SecretsManagerManager.get(SecretsManagerHandle)
       .and_then([&](auto &&Sm) noexcept {
         return Sm.getSk(KeyId, KeyVersion).and_then([&](auto &&Key) noexcept {
-          return SymmetricKeyManager.registerManager(std::move(Key));
+          return SymmetricKeyManager.registerManager(std::move(Key))
+              .and_then([&](auto &&KeyHandle) noexcept {
+                return SymmetricKeyManager
+                    .setManagedInfo(KeyHandle, KeyId, KeyVersion)
+                    .map([KeyHandle]() { return KeyHandle; });
+              });
         });
       });
 }

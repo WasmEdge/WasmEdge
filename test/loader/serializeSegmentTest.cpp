@@ -305,6 +305,16 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   };
   EXPECT_EQ(Output, Expected);
 
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Passive);
+  ElementSeg.setIdx(0x00U);
+  ElementSeg.getExpr().getInstrs().clear();
+  ElementSec.getContent() = {ElementSeg};
+  EXPECT_FALSE(SerWASM1.serializeSection(ElementSec, Output));
+
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Declarative);
+  ElementSeg.setIdx(0x00U);
+  ElementSeg.getExpr().getInstrs().clear();
+  ElementSec.getContent() = {ElementSeg};
   EXPECT_FALSE(SerWASM1.serializeSection(ElementSec, Output));
 }
 

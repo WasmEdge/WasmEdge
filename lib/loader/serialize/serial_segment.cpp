@@ -51,7 +51,7 @@ Serializer::serializeSegment(const AST::ElementSegment &Seg,
   // vec(u32) + vec(expr)
   if (!Conf.hasProposal(Proposal::BulkMemoryOperations) &&
       !Conf.hasProposal(Proposal::ReferenceTypes) &&
-      (Seg.getMode() != AST::ElementSegment::ElemMode::Passive ||
+      (Seg.getMode() != AST::ElementSegment::ElemMode::Active ||
        Seg.getIdx() != 0)) {
     return logNeedProposal(ErrCode::Value::ExpectedZeroByte,
                            Proposal::BulkMemoryOperations,

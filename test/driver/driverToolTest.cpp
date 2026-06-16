@@ -119,6 +119,21 @@ containsAll(const std::string &Output,
   }
   return ::testing::AssertionSuccess();
 }
+
+::testing::AssertionResult
+containsNone(const std::string &Output,
+             std::initializer_list<const char *> Needles) {
+  for (const char *Needle : Needles) {
+    if (Output.find(Needle) != std::string::npos) {
+      return ::testing::AssertionFailure()
+             << "output unexpectedly contains substring: \"" << Needle
+             << "\"\n"
+             << "full output:\n"
+             << Output;
+    }
+  }
+  return ::testing::AssertionSuccess();
+}
 #endif
 
 // simple.wasm: self-contained module exporting add, sub, memory, counter.
@@ -209,6 +224,31 @@ static const std::array<uint8_t, 25> MemNoMaxWasm{
     0x0f, 0x01, 0x03, 0x65, 0x6e, 0x76, 0x06, 0x6d, 0x65,
     0x6d, 0x6f, 0x72, 0x79, 0x02, 0x00, 0x01};
 
+// sections_test.wasm: compiled from sections_test.wat.
+// Defines its own table (funcref, min=2 max=3), memory (min=1 max=2), a
+// nullary start function, an active and a passive element segment (both
+// referencing the start function), an active and a passive data segment.
+static const std::array<uint8_t, 70> SectionsTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x04, 0x01, 0x60,
+    0x00, 0x00, 0x03, 0x02, 0x01, 0x00, 0x04, 0x05, 0x01, 0x70, 0x01, 0x02,
+    0x03, 0x05, 0x04, 0x01, 0x01, 0x01, 0x02, 0x08, 0x01, 0x00, 0x09, 0x0b,
+    0x02, 0x00, 0x41, 0x00, 0x0b, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x0c,
+    0x01, 0x02, 0x0a, 0x04, 0x01, 0x02, 0x00, 0x0b, 0x0b, 0x0c, 0x02, 0x00,
+    0x41, 0x00, 0x0b, 0x02, 0x61, 0x62, 0x01, 0x02, 0x63, 0x64};
+
+// tag_import_test.wasm: compiled from tag_import_test.wat.
+// Imports a tag "env"."tag" whose signature is type[0] (func (param i32)).
+static const std::array<uint8_t, 29> TagImportTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01,
+    0x60, 0x01, 0x7f, 0x00, 0x02, 0x0c, 0x01, 0x03, 0x65, 0x6e, 0x76,
+    0x03, 0x74, 0x61, 0x67, 0x04, 0x00, 0x00};
+
+// tag_section_test.wasm: compiled from tag_section_test.wat.
+// Defines a tag whose signature is type[0] (func (param i32)).
+static const std::array<uint8_t, 20> TagSectionTestWasm{
+    0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05,
+    0x01, 0x60, 0x01, 0x7f, 0x00, 0x0d, 0x03, 0x01, 0x00, 0x00};
+
 // provider.wasm: exports function "add" (i32, i32) -> i32.
 static const std::array<uint8_t, 41> ProviderWasm{
     0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x01,
@@ -263,6 +303,33 @@ std::string consumerPath() {
   if (Path.empty()) {
     Path = writeWasmToFile(ConsumerWasm.data(), ConsumerWasm.size(),
                            "consumer.wasm");
+  }
+  return Path;
+}
+
+std::string sectionsTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(SectionsTestWasm.data(), SectionsTestWasm.size(),
+                           "sections_test.wasm");
+  }
+  return Path;
+}
+
+std::string tagImportTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(TagImportTestWasm.data(), TagImportTestWasm.size(),
+                           "tag_import_test.wasm");
+  }
+  return Path;
+}
+
+std::string tagSectionTestPath() {
+  static std::string Path;
+  if (Path.empty()) {
+    Path = writeWasmToFile(TagSectionTestWasm.data(),
+                           TagSectionTestWasm.size(), "tag_section_test.wasm");
   }
   return Path;
 }
@@ -387,6 +454,16 @@ TEST(ParseSubcommand, ForbiddenPluginFlag) {
             EXIT_SUCCESS);
 }
 
+TEST(ParseSubcommand, ExtraSectionModules) {
+  EXPECT_EQ(callParse({sectionsTestPath().c_str()}), EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-exception-handling",
+                       tagImportTestPath().c_str()}),
+            EXIT_SUCCESS);
+  EXPECT_EQ(callParse({"--enable-exception-handling",
+                       tagSectionTestPath().c_str()}),
+            EXIT_SUCCESS);
+}
+
 #if !WASMEDGE_OS_WINDOWS
 TEST(ParseSubcommand, OutputSectionHeaders) {
   auto R = callParseCaptureStdout({parseTestPath().c_str()});
@@ -429,8 +506,50 @@ TEST(ParseSubcommand, MinimalModuleEmptyCounts) {
   auto R = callParseCaptureStdout({Path.c_str()});
   std::filesystem::remove(Path.c_str());
   ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
-  EXPECT_TRUE(containsAll(R.Stdout, {"Type[0]:", "Import[0]:", "Function[0]:",
-                                     "Global[0]:", "Export[0]:", "Code[0]:"}));
+  EXPECT_TRUE(
+      containsAll(R.Stdout, {"file format wasm 0x1", "Section Details:"}));
+  EXPECT_TRUE(containsNone(
+      R.Stdout, {"Type[", "Import[", "Function[", "Global[", "Export[",
+                 "Code[", "Table[", "Memory[", "Start:", "Element[",
+                 "DataCount section", "Data[", "Tag["}));
+}
+
+TEST(ParseSubcommand, OutputTableMemoryStartElementData) {
+  auto R = callParseCaptureStdout({sectionsTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(
+      R.Stdout,
+      {"Table[1]:", " - table[0] type=ref_null func initial=2 max=3",
+       "Memory[1]:", " - memory[0] pages: initial=1 max=2", "Start:",
+       " - func[0]"}));
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Element[2]:",
+                 " - segment[0] flags=0 table=0 type=ref func count=1"
+                 " - init i32=0",
+                 "  - elem[0] = func[0]",
+                 " - segment[1] flags=1 passive type=ref func count=1",
+                 "DataCount section: 2"}));
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Data[2]:", " - segment[0] memory=0 size=2 - init i32=0",
+                 " - segment[1] passive size=2"}));
+}
+
+TEST(ParseSubcommand, OutputImportedTagType) {
+  auto R = callParseCaptureStdout(
+      {"--enable-exception-handling", tagImportTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(
+      R.Stdout, {"Import[1]:", " - tag[0] sig=0 <- env.tag"}));
+}
+
+TEST(ParseSubcommand, OutputTagSection) {
+  auto R = callParseCaptureStdout(
+      {"--enable-exception-handling", tagSectionTestPath().c_str()});
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"Tag[1]:", " - tag[0] sig=0"}));
+  EXPECT_TRUE(containsNone(
+      R.Stdout, {"Table[", "Memory[", "Start:", "Element[",
+                 "DataCount section", "Data["}));
 }
 #endif
 

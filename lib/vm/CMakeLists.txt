@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: 2019-2024 Second State INC
 
 wasmedge_add_library(wasmedgeVM
+  plugin_modules.cpp
   vm.cpp
 )
 

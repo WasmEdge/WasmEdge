@@ -688,8 +688,9 @@ Expect<WASINN::ErrNo> WasiNNUnload::bodyImpl(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (Env.NNGraph.size() <= GraphId) {
-    spdlog::error("[WASI-NN] unload: GraphId {} does not exist."sv, GraphId);
+  if (Env.NNGraph.size() <= GraphId || Env.NNGraph[GraphId].isFinalized()) {
+    spdlog::error("[WASI-NN] unload: GraphId {} does not exist or is unloaded."sv,
+                  GraphId);
     return WASINN::ErrNo::InvalidArgument;
   }
 
@@ -726,7 +727,8 @@ WasiNNFinalizeExecCtx::bodyImpl(const Runtime::CallingFrame &Frame,
     return Unexpect(ErrCode::Value::HostFuncError);
   }
 
-  if (Env.NNContext.size() <= ContextId) {
+  if (Env.NNContext.size() <= ContextId ||
+      !Env.NNContext[ContextId].isReady()) {
     spdlog::error(
         "[WASI-NN] finalize_execution_context: Context ID {} does not exist."sv,
         ContextId);

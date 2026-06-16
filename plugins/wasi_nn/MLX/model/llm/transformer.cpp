@@ -254,13 +254,26 @@ Transformer::generate(const std::string &Prompt, const BasePrompt &ModelPrompt,
       break;
     }
     eval(Y);
+    const std::vector<int> EosIds = Tok->Encode(ModelPrompt.TextEnd);
+    int EosTokenId = EosIds.empty() ? -1 : EosIds[0];
+
     std::vector<int32_t> Tokens;
     auto *Data = Y.data<int32_t>();
+    bool HitEos = false;
     for (int Idx = 0; Idx < static_cast<int>(Y.size()); Idx++) {
+      if (Data[Idx] == EosTokenId) {
+        HitEos = true;
+        break;
+      }
       Tokens.emplace_back(Data[Idx]);
     }
-    // TODO: break when the token is the eos_token_id
+    
     TokenList.insert(TokenList.end(), Tokens.begin(), Tokens.end());
+    
+    if (HitEos) {
+      Answer = Tok->Decode(TokenList);
+      break;
+    }
     Answer = Tok->Decode(TokenList);
     const AnserSataus Status = answerSataus(Answer, ModelPrompt.TextEnd);
     if (Status == STOP) {

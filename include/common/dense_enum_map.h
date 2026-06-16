@@ -151,11 +151,14 @@ public:
 
   friend constexpr difference_type
   operator-(const ConstIterator &LHS, const ConstIterator &RHS) noexcept {
-    const T *const L =
-        std::addressof((*LHS.Data)[static_cast<size_type>(LHS.Value.first)]);
-    const T *const R =
-        std::addressof((*RHS.Data)[static_cast<size_type>(RHS.Value.first)]);
-    return L - R;
+    // Subtract the stored indices directly. Dereferencing the underlying array
+    // (e.g. the one-past-the-end iterator returned by end(), whose index equals
+    // Size) would form a glvalue to an out-of-bounds element -- undefined
+    // behavior, and an abort under a hardened libstdc++ (_GLIBCXX_ASSERTIONS).
+    // For the dense 0..Size index space the index difference is identical to
+    // the pointer difference.
+    return static_cast<difference_type>(LHS.Value.first) -
+           static_cast<difference_type>(RHS.Value.first);
   }
 
   constexpr reference operator[](difference_type N) noexcept {

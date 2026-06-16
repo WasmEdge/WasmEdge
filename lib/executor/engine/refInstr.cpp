@@ -3,7 +3,8 @@
 
 #include "executor/executor.h"
 
-#include <exception>
+#include <new>
+#include <stdexcept>
 
 namespace WasmEdge {
 namespace Executor {
@@ -71,6 +72,21 @@ void logTableOOB(const ErrCode &Code,
     spdlog::error(ErrInfo::InfoBoundary(static_cast<uint64_t>(Idx), Length,
                                         static_cast<uint32_t>(ElemSrc.size())));
   }
+}
+
+// Shared trap path for the array.new* family (array.new, array.new_default,
+// array.new_data, array.new_elem). The element count is a runtime-controlled
+// operand, so sizing the backing `std::vector` may throw std::bad_alloc (the
+// allocator could not obtain memory) or std::length_error (the count exceeds
+// vector::max_size(), e.g. UINT32_MAX elements on a 32-bit size_t). Every
+// caller runs in a noexcept context, so an escaping exception would call
+// std::terminate() and abort the whole host process. Convert either failure
+// into a Wasm trap here instead.
+Expect<RefVariant> reportArrayAllocFailure(const uint32_t Length) noexcept {
+  using namespace std::literals;
+  spdlog::error(ErrCode::Value::MemoryOutOfBounds);
+  spdlog::error("    Unable to allocate array of {} element(s)."sv, Length);
+  return Unexpect(ErrCode::Value::MemoryOutOfBounds);
 }
 
 } // namespace
@@ -478,15 +494,9 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  // The `Length` is a runtime-controlled operand of array.new /
-  // array.new_default with no static upper bound, so sizing the backing
-  // `std::vector` may fail. Such a failure surfaces as `std::bad_alloc` (the
-  // allocator could not obtain memory) or `std::length_error` (the requested
-  // element count exceeds `vector::max_size()`, e.g. UINT32_MAX elements on a
-  // 32-bit `size_t`). Both derive from `std::exception`; this function is
-  // `noexcept`, so any escaping exception would call `std::terminate()` and
-  // abort the whole host process. Catch them here and turn the failure into a
-  // Wasm trap instead.
+  // The `Length` is a runtime-controlled operand with no static upper bound, so
+  // sizing the backing store may throw. Keep the failure from escaping this
+  // noexcept boundary; see reportArrayAllocFailure().
   try {
     if (Args.size() == 0) {
       // New and fill with default values.
@@ -503,13 +513,10 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
           TypeIdx,
           packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
     }
-  } catch (const std::exception &) {
-    // Covers std::bad_alloc, std::length_error, and any other allocation-
-    // related STL exception so none can escape this noexcept boundary.
-    using namespace std::literals;
-    spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-    spdlog::error("    Unable to allocate array of {} element(s)."sv, Length);
-    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
+  } catch (const std::bad_alloc &) {
+    return reportArrayAllocFailure(Length);
+  } catch (const std::length_error &) {
+    return reportArrayAllocFailure(Length);
   }
   return RefVariant(Inst->getDefType(), Inst);
 }
@@ -528,15 +535,24 @@ Executor::arrayNewData(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   }
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  std::vector<ValVariant> Args;
-  Args.reserve(Length);
-  for (uint32_t Idx = 0; Idx < Length; Idx++) {
-    // The value has been packed.
-    Args.push_back(DataInst->loadValue(Start + Idx * BSize, BSize));
+  // `Length` is a runtime-controlled operand; both reserving the temporary
+  // buffer and sizing the array backing store may throw. Keep the failure from
+  // escaping this noexcept boundary; see reportArrayAllocFailure().
+  try {
+    std::vector<ValVariant> Args;
+    Args.reserve(Length);
+    for (uint32_t Idx = 0; Idx < Length; Idx++) {
+      // The value has been packed.
+      Args.push_back(DataInst->loadValue(Start + Idx * BSize, BSize));
+    }
+    WasmEdge::Runtime::Instance::ArrayInstance *Inst =
+        ModInst->newArray(TypeIdx, std::move(Args));
+    return RefVariant(Inst->getDefType(), Inst);
+  } catch (const std::bad_alloc &) {
+    return reportArrayAllocFailure(Length);
+  } catch (const std::length_error &) {
+    return reportArrayAllocFailure(Length);
   }
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, std::move(Args));
-  return RefVariant(Inst->getDefType(), Inst);
 }
 
 Expect<RefVariant>
@@ -551,13 +567,22 @@ Executor::arrayNewElem(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
       ElemSrc.size()) {
     return Unexpect(ErrCode::Value::TableOutOfBounds);
   }
-  std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
-                               ElemSrc.begin() + Start + Length);
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  WasmEdge::Runtime::Instance::ArrayInstance *Inst =
-      ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
-  return RefVariant(Inst->getDefType(), Inst);
+  // `Length` is a runtime-controlled operand; both materializing the temporary
+  // buffer and sizing the array backing store may throw. Keep the failure from
+  // escaping this noexcept boundary; see reportArrayAllocFailure().
+  try {
+    std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
+                                 ElemSrc.begin() + Start + Length);
+    WasmEdge::Runtime::Instance::ArrayInstance *Inst =
+        ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
+    return RefVariant(Inst->getDefType(), Inst);
+  } catch (const std::bad_alloc &) {
+    return reportArrayAllocFailure(Length);
+  } catch (const std::length_error &) {
+    return reportArrayAllocFailure(Length);
+  }
 }
 
 Expect<ValVariant> Executor::arrayGet(Runtime::StackManager &StackMgr,

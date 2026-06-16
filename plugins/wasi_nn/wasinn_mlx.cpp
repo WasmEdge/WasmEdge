@@ -58,6 +58,13 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
   for (size_t I = 0; I < DimBufLen; I += 4) {
     uint32_t Dim;
     std::memcpy(&Dim, &Bytes[Offset + I], 4);
+    // Shape is a vector of int; a dimension past INT32_MAX would narrow to a
+    // negative value.
+    if (Dim > static_cast<uint32_t>(INT32_MAX)) {
+      spdlog::error(
+          "[WASI-NN] MLX backend: Tensor dimension {} is out of range."sv, Dim);
+      return mx::array({0.0f});
+    }
     Shape.push_back(static_cast<int>(Dim));
     ElemCnt =
         (Dim != 0 && ElemCnt > UINT64_MAX / Dim) ? UINT64_MAX : ElemCnt * Dim;
@@ -67,6 +74,14 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
   uint32_t DataBufLen;
   std::memcpy(&DataBufLen, &Bytes[Offset], 4);
   Offset += 4;
+
+  // The declared data section must lie within the input.
+  if (DataBufLen > Bytes.size() - Offset) {
+    spdlog::error(
+        "[WASI-NN] MLX backend: Tensor data length {} is out of range."sv,
+        DataBufLen);
+    return mx::array({0.0f});
+  }
 
   // Bytes consumed per element of the declared type.
   size_t ElemSize;
@@ -94,11 +109,12 @@ mx::array fromBytes(const Span<uint8_t> &Bytes) {
     return mx::array({0.0f});
   }
 
-  // The element data described by the shape must fit in the remaining input.
-  if (ElemCnt > (Bytes.size() - Offset) / ElemSize) {
+  // The element data described by the shape must fit in the declared data
+  // section, which in turn lies within the input.
+  if (ElemCnt > DataBufLen / ElemSize) {
     spdlog::error(
-        "[WASI-NN] MLX backend: Tensor data of {} elements does not fit the {}-byte input."sv,
-        ElemCnt, Bytes.size());
+        "[WASI-NN] MLX backend: Tensor data of {} elements does not fit the {}-byte data section."sv,
+        ElemCnt, DataBufLen);
     return mx::array({0.0f});
   }
 

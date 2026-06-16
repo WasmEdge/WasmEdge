@@ -5,6 +5,7 @@
 #include "system/fault.h"
 
 #include <cstdint>
+#include <cstring>
 
 namespace WasmEdge {
 namespace Executor {
@@ -577,8 +578,19 @@ Expect<void> Executor::proxyMemCopy(Runtime::StackManager &StackMgr,
   auto *MemInstSrc = getMemInstByIdx(StackMgr, SrcMemIdx);
   assuming(MemInstSrc);
 
-  EXPECTED_TRY(auto Data, MemInstSrc->getBytes(SrcOff, Len));
-  return MemInstDst->setBytes(Data, DstOff, 0, Len);
+  if (MemInstSrc == MemInstDst) {
+    // Same memory instance may overlap, so use memmove semantics.
+    EXPECTED_TRY(MemInstSrc->getBytes(SrcOff, Len));
+    EXPECTED_TRY(MemInstDst->getBytes(DstOff, Len));
+    if (likely(Len > 0)) {
+      std::memmove(MemInstDst->getDataPtr() + DstOff,
+                   MemInstSrc->getDataPtr() + SrcOff, Len);
+    }
+    return {};
+  } else {
+    EXPECTED_TRY(auto Data, MemInstSrc->getBytes(SrcOff, Len));
+    return MemInstDst->setBytes(Data, DstOff, 0, Len);
+  }
 }
 
 Expect<void> Executor::proxyMemFill(Runtime::StackManager &StackMgr,

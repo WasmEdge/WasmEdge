@@ -234,6 +234,7 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
   ElementSeg.getInitExprs().clear();
   ElementSeg.getInitExprs().emplace_back();
   ElementSeg.getInitExprs().back().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
+  ElementSeg.setRefType(WasmEdge::TypeCode::FuncRef); // Explicitly FuncRef for mode 4
   ElementSec.getContent() = {ElementSeg};
 
   Output = {};
@@ -244,6 +245,31 @@ TEST(SerializeSegmentTest, SerializeElementSegment) {
       0x01U,                      // Vector length = 1
       0x04U,                      // Prefix checking byte
       0x45U, 0x46U, 0x47U, 0x0BU, // Offset expression
+      0x01U,                      // Vector length = 1
+      0x45U, 0x46U, 0x47U, 0x0BU, // Vec[0]
+  };
+  EXPECT_EQ(Output, Expected);
+
+  // Bug 3 test: Active segment, idx = 0, but RefType is ExternRef. Should be mode 6.
+  ElementSeg.setMode(WasmEdge::AST::ElementSegment::ElemMode::Active);
+  ElementSeg.setIdx(0x00U);
+  ElementSeg.setRefType(WasmEdge::TypeCode::ExternRef);
+  ElementSeg.getExpr().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
+  ElementSeg.getInitExprs().clear();
+  ElementSeg.getInitExprs().emplace_back();
+  ElementSeg.getInitExprs().back().getInstrs() = {I32Eqz, I32Eq, I32Ne, End};
+  ElementSec.getContent() = {ElementSeg};
+
+  Output = {};
+  EXPECT_TRUE(Ser.serializeSection(ElementSec, Output));
+  Expected = {
+      0x09U,                      // Element section
+      0x0DU,                      // Content size = 13
+      0x01U,                      // Vector length = 1
+      0x06U,                      // Prefix checking byte
+      0x00U,                      // TableIdx
+      0x45U, 0x46U, 0x47U, 0x0BU, // Offset Expression
+      0x6FU,                      // RefType
       0x01U,                      // Vector length = 1
       0x45U, 0x46U, 0x47U, 0x0BU, // Vec[0]
   };

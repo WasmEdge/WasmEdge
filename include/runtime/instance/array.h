@@ -27,13 +27,8 @@ namespace Instance {
 class ArrayInstance : public CompositeBase {
 public:
   ArrayInstance() = delete;
-  // Note: These constructors are intentionally NOT marked noexcept. The
-  // underlying `Data` vector is sized from a runtime-controlled element count
-  // (e.g. the `array.new` / `array.new_default` length operand), so sizing it
-  // may throw std::bad_alloc (out of memory) or std::length_error (the count
-  // exceeds vector::max_size()). Keeping them potentially-throwing lets the
-  // executor catch the failure and turn it into a Wasm trap instead of aborting
-  // the whole host process via std::terminate.
+  // Not noexcept: Data is sized from a runtime element count and may throw
+  // (bad_alloc/length_error), which the executor catches and turns into a trap.
   ArrayInstance(const ModuleInstance *Mod, const uint32_t Idx,
                 const uint32_t Size, const ValVariant &Init)
       : CompositeBase(Mod, Idx), Data(Size, Init) {

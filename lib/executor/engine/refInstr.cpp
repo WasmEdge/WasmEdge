@@ -74,21 +74,6 @@ void logTableOOB(const ErrCode &Code,
   }
 }
 
-// Shared trap path for the array.new* family (array.new, array.new_default,
-// array.new_data, array.new_elem). The element count is a runtime-controlled
-// operand, so sizing the backing `std::vector` may throw std::bad_alloc (the
-// allocator could not obtain memory) or std::length_error (the count exceeds
-// vector::max_size(), e.g. UINT32_MAX elements on a 32-bit size_t). Every
-// caller runs in a noexcept context, so an escaping exception would call
-// std::terminate() and abort the whole host process. Convert either failure
-// into a Wasm trap here instead.
-Expect<RefVariant> reportArrayAllocFailure(const uint32_t Length) noexcept {
-  using namespace std::literals;
-  spdlog::error(ErrCode::Value::MemoryOutOfBounds);
-  spdlog::error("    Unable to allocate array of {} element(s)."sv, Length);
-  return Unexpect(ErrCode::Value::MemoryOutOfBounds);
-}
-
 } // namespace
 
 Expect<void> Executor::runRefNullOp(Runtime::StackManager &StackMgr,
@@ -494,9 +479,7 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   WasmEdge::Runtime::Instance::ArrayInstance *Inst = nullptr;
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  // The `Length` is a runtime-controlled operand with no static upper bound, so
-  // sizing the backing store may throw. Keep the failure from escaping this
-  // noexcept boundary; see reportArrayAllocFailure().
+  // Length is a runtime operand, so sizing the array backing store may throw.
   try {
     if (Args.size() == 0) {
       // New and fill with default values.
@@ -514,9 +497,9 @@ Executor::arrayNew(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
           packVals(VType, std::vector<ValVariant>(Args.begin(), Args.end())));
     }
   } catch (const std::bad_alloc &) {
-    return reportArrayAllocFailure(Length);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   } catch (const std::length_error &) {
-    return reportArrayAllocFailure(Length);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
   return RefVariant(Inst->getDefType(), Inst);
 }
@@ -535,9 +518,7 @@ Executor::arrayNewData(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   }
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  // `Length` is a runtime-controlled operand; both reserving the temporary
-  // buffer and sizing the array backing store may throw. Keep the failure from
-  // escaping this noexcept boundary; see reportArrayAllocFailure().
+  // Length is a runtime operand, so sizing the array backing store may throw.
   try {
     std::vector<ValVariant> Args;
     Args.reserve(Length);
@@ -549,9 +530,9 @@ Executor::arrayNewData(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
         ModInst->newArray(TypeIdx, std::move(Args));
     return RefVariant(Inst->getDefType(), Inst);
   } catch (const std::bad_alloc &) {
-    return reportArrayAllocFailure(Length);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   } catch (const std::length_error &) {
-    return reportArrayAllocFailure(Length);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 }
 
@@ -569,9 +550,7 @@ Executor::arrayNewElem(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
   }
   Runtime::Instance::ModuleInstance *ModInst =
       const_cast<Runtime::Instance::ModuleInstance *>(StackMgr.getModule());
-  // `Length` is a runtime-controlled operand; both materializing the temporary
-  // buffer and sizing the array backing store may throw. Keep the failure from
-  // escaping this noexcept boundary; see reportArrayAllocFailure().
+  // Length is a runtime operand, so sizing the array backing store may throw.
   try {
     std::vector<ValVariant> Refs(ElemSrc.begin() + Start,
                                  ElemSrc.begin() + Start + Length);
@@ -579,9 +558,9 @@ Executor::arrayNewElem(Runtime::StackManager &StackMgr, const uint32_t TypeIdx,
         ModInst->newArray(TypeIdx, packVals(VType, std::move(Refs)));
     return RefVariant(Inst->getDefType(), Inst);
   } catch (const std::bad_alloc &) {
-    return reportArrayAllocFailure(Length);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   } catch (const std::length_error &) {
-    return reportArrayAllocFailure(Length);
+    return Unexpect(ErrCode::Value::MemoryOutOfBounds);
   }
 }
 

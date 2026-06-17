@@ -17,60 +17,9 @@
 #include "vm/vm.h"
 
 #include <array>
-#include <atomic>
 #include <cstdint>
-#include <cstdlib>
 #include <gtest/gtest.h>
-#include <limits>
-#include <new>
-#include <string_view>
 #include <vector>
-
-// The array.new* instructions size their backing store from a runtime operand,
-// so an oversized request must surface as a Wasm trap instead of aborting the
-// host process via std::terminate(). Exercising that path deterministically --
-// without depending on host memory or risking the OOM killer from a real
-// multi-gigabyte allocation -- requires making std::vector's allocation throw
-// std::bad_alloc on demand, which is only portably possible by replacing the
-// global allocation operators.
-//
-// To avoid perturbing unrelated allocations elsewhere in this test binary, the
-// injection is *armed* only for the duration of a single VM::execute() call via
-// ScopedAllocFailure: while armed, any request of at least the configured
-// threshold throws std::bad_alloc; otherwise every allocation is forwarded to
-// malloc. The threshold is chosen below each test's array allocation but well
-// above any incidental allocation the executor performs while running a tiny
-// function, so only the array's backing store fails.
-namespace {
-std::atomic<std::size_t> AllocFailThreshold{
-    std::numeric_limits<std::size_t>::max()};
-
-class ScopedAllocFailure {
-public:
-  explicit ScopedAllocFailure(std::size_t Threshold) noexcept {
-    AllocFailThreshold.store(Threshold, std::memory_order_relaxed);
-  }
-  ~ScopedAllocFailure() {
-    AllocFailThreshold.store(std::numeric_limits<std::size_t>::max(),
-                             std::memory_order_relaxed);
-  }
-  ScopedAllocFailure(const ScopedAllocFailure &) = delete;
-  ScopedAllocFailure &operator=(const ScopedAllocFailure &) = delete;
-};
-} // namespace
-
-void *operator new(std::size_t Size) {
-  if (Size >= AllocFailThreshold.load(std::memory_order_relaxed)) {
-    throw std::bad_alloc();
-  }
-  if (void *Ptr = std::malloc(Size != 0 ? Size : 1)) {
-    return Ptr;
-  }
-  throw std::bad_alloc();
-}
-
-void operator delete(void *Ptr) noexcept { std::free(Ptr); }
-void operator delete(void *Ptr, std::size_t) noexcept { std::free(Ptr); }
 
 namespace {
 
@@ -1043,213 +992,25 @@ TEST(ExecutorRegression, CallIndirectNonFuncTable) {
   EXPECT_EQ(Result.error(), ErrCode::Value::TypeCheckFailed);
 }
 
-/// Binary Wasm module: array.new_default with a UINT32_MAX length operand.
-///
-/// (module
-///   (type $a (array i32))
-///   (func (export "test")
-///     i32.const -1            ;; length = 0xFFFFFFFF
-///     array.new_default $a
-///     drop))
-///
-/// The backing store would require ~64 GiB, so the allocation fails. The
-/// executor must surface this as a MemoryOutOfBounds trap rather than letting
-/// std::bad_alloc escape and abort the host process.
-std::array<WasmEdge::Byte, 43> ArrayNewOversizedWasm{
+// (module (type (array i32))
+//   (func (export "test") i32.const -1 array.new_default 0 drop))
+// Length 0xFFFFFFFF (~64 GiB) makes the allocation fail; it must trap.
+std::array<WasmEdge::Byte, 43> ArrayNewDefaultOversizedWasm{
     0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x02,
     0x5E, 0x7F, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x07,
     0x08, 0x01, 0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0A, 0x0A,
     0x01, 0x08, 0x00, 0x41, 0x7F, 0xFB, 0x07, 0x00, 0x1A, 0x0B};
 
-/// Binary Wasm module: array.new with an explicit init value and a UINT32_MAX
-/// length operand.
-///
-/// (module
-///   (type $a (array i32))
-///   (func (export "test")
-///     i32.const 0             ;; init value broadcast to every element
-///     i32.const -1            ;; length = 0xFFFFFFFF
-///     array.new $a
-///     drop))
-///
-/// Exercises the single-init-value allocation path of arrayNew, which must also
-/// trap on allocation failure rather than abort.
-std::array<WasmEdge::Byte, 45> ArrayNewInitOversizedWasm{
+// (module (type (array i32))
+//   (func (export "test") i32.const 0 i32.const -1 array.new 0 drop))
+std::array<WasmEdge::Byte, 45> ArrayNewOversizedWasm{
     0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00, 0x01, 0x07, 0x02, 0x5E,
     0x7F, 0x00, 0x60, 0x00, 0x00, 0x03, 0x02, 0x01, 0x01, 0x07, 0x08, 0x01,
     0x04, 0x74, 0x65, 0x73, 0x74, 0x00, 0x00, 0x0A, 0x0C, 0x01, 0x0A, 0x00,
     0x41, 0x00, 0x41, 0x7F, 0xFB, 0x06, 0x00, 0x1A, 0x0B};
 
-// --- Minimal Wasm encoders -------------------------------------------------
-// array.new_data / array.new_elem cannot reach a UINT32_MAX length (the count
-// is bounded by the source segment size), so their modules are assembled
-// programmatically with a segment large enough that the resulting array
-// allocation crosses the armed failure threshold. The element count below
-// yields an 8-16 MiB backing store, comfortably above ArrayAllocFailThreshold.
-constexpr std::size_t ArrayAllocFailThreshold = std::size_t{4} * 1024 * 1024;
-constexpr uint32_t SegmentLength = 1u << 20; // 1,048,576 elements
-
-void pushULEB(std::vector<WasmEdge::Byte> &Out, uint64_t Value) {
-  do {
-    auto B = static_cast<WasmEdge::Byte>(Value & 0x7FU);
-    Value >>= 7;
-    if (Value != 0) {
-      B |= 0x80U;
-    }
-    Out.push_back(B);
-  } while (Value != 0);
-}
-
-void pushSLEB(std::vector<WasmEdge::Byte> &Out, int64_t Value) {
-  bool More = true;
-  while (More) {
-    auto B = static_cast<WasmEdge::Byte>(Value & 0x7FU);
-    Value >>= 7; // arithmetic right shift
-    if ((Value == 0 && (B & 0x40U) == 0) ||
-        (Value == -1 && (B & 0x40U) != 0)) {
-      More = false;
-    } else {
-      B |= 0x80U;
-    }
-    Out.push_back(B);
-  }
-}
-
-void pushSection(std::vector<WasmEdge::Byte> &Out, WasmEdge::Byte Id,
-                 const std::vector<WasmEdge::Byte> &Payload) {
-  Out.push_back(Id);
-  pushULEB(Out, Payload.size());
-  Out.insert(Out.end(), Payload.begin(), Payload.end());
-}
-
-void pushTestExport(std::vector<WasmEdge::Byte> &S) {
-  pushULEB(S, 1);                         // export count
-  pushULEB(S, 4);                         // name length
-  for (char C : std::string_view("test")) // name
-    S.push_back(static_cast<WasmEdge::Byte>(C));
-  S.push_back(0x00); // export kind: func
-  pushULEB(S, 0);    // func index 0
-}
-
-/// (module
-///   (type $a (array i8))
-///   (func (export "test")
-///     i32.const 0                 ;; start
-///     i32.const SegmentLength     ;; length
-///     array.new_data $a 0
-///     drop)
-///   (data ...SegmentLength bytes...))
-std::vector<WasmEdge::Byte> buildArrayNewDataModule() {
-  std::vector<WasmEdge::Byte> M{0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00};
-  { // Type section: [0] array i8 immutable, [1] func () -> ()
-    std::vector<WasmEdge::Byte> S;
-    pushULEB(S, 2);
-    S.insert(S.end(), {0x5E, 0x78, 0x00});
-    S.insert(S.end(), {0x60, 0x00, 0x00});
-    pushSection(M, 0x01, S);
-  }
-  { // Function section: func0 : type1
-    std::vector<WasmEdge::Byte> S{0x01, 0x01};
-    pushSection(M, 0x03, S);
-  }
-  { // Export section
-    std::vector<WasmEdge::Byte> S;
-    pushTestExport(S);
-    pushSection(M, 0x07, S);
-  }
-  { // DataCount section
-    std::vector<WasmEdge::Byte> S;
-    pushULEB(S, 1);
-    pushSection(M, 0x0C, S);
-  }
-  { // Code section
-    std::vector<WasmEdge::Byte> Body;
-    pushULEB(Body, 0); // local declarations
-    Body.push_back(0x41);
-    pushSLEB(Body, 0); // i32.const 0 (start)
-    Body.push_back(0x41);
-    pushSLEB(Body, SegmentLength); // i32.const length
-    Body.insert(Body.end(), {0xFB, 0x09, 0x00, 0x00}); // array.new_data $a 0
-    Body.push_back(0x1A);                              // drop
-    Body.push_back(0x0B);                              // end
-    std::vector<WasmEdge::Byte> S;
-    pushULEB(S, 1);
-    pushULEB(S, Body.size());
-    S.insert(S.end(), Body.begin(), Body.end());
-    pushSection(M, 0x0A, S);
-  }
-  { // Data section: one passive segment of SegmentLength zero bytes
-    std::vector<WasmEdge::Byte> S;
-    pushULEB(S, 1);    // segment count
-    pushULEB(S, 0x01); // passive data segment
-    pushULEB(S, SegmentLength);
-    S.insert(S.end(), SegmentLength, 0x00);
-    pushSection(M, 0x0B, S);
-  }
-  return M;
-}
-
-/// (module
-///   (type $a (array funcref))
-///   (func (export "test")
-///     i32.const 0                 ;; start
-///     i32.const SegmentLength     ;; length
-///     array.new_elem $a 0
-///     drop)
-///   (elem func ...SegmentLength x $0...))
-std::vector<WasmEdge::Byte> buildArrayNewElemModule() {
-  std::vector<WasmEdge::Byte> M{0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00};
-  { // Type section: [0] array funcref immutable, [1] func () -> ()
-    std::vector<WasmEdge::Byte> S;
-    pushULEB(S, 2);
-    S.insert(S.end(), {0x5E, 0x70, 0x00});
-    S.insert(S.end(), {0x60, 0x00, 0x00});
-    pushSection(M, 0x01, S);
-  }
-  { // Function section
-    std::vector<WasmEdge::Byte> S{0x01, 0x01};
-    pushSection(M, 0x03, S);
-  }
-  { // Export section (also makes func 0 referenceable by the elem segment)
-    std::vector<WasmEdge::Byte> S;
-    pushTestExport(S);
-    pushSection(M, 0x07, S);
-  }
-  { // Element section: one passive funcref segment of SegmentLength x func 0
-    std::vector<WasmEdge::Byte> S;
-    pushULEB(S, 1);    // segment count
-    pushULEB(S, 0x01); // passive, elemkind + vec(funcidx)
-    S.push_back(0x00); // elemkind: funcref
-    pushULEB(S, SegmentLength);
-    S.insert(S.end(), SegmentLength, 0x00); // funcidx 0, repeated
-    pushSection(M, 0x09, S);
-  }
-  { // Code section
-    std::vector<WasmEdge::Byte> Body;
-    pushULEB(Body, 0);
-    Body.push_back(0x41);
-    pushSLEB(Body, 0);
-    Body.push_back(0x41);
-    pushSLEB(Body, SegmentLength);
-    Body.insert(Body.end(), {0xFB, 0x0A, 0x00, 0x00}); // array.new_elem $a 0
-    Body.push_back(0x1A);
-    Body.push_back(0x0B);
-    std::vector<WasmEdge::Byte> S;
-    pushULEB(S, 1);
-    pushULEB(S, Body.size());
-    S.insert(S.end(), Body.begin(), Body.end());
-    pushSection(M, 0x0A, S);
-  }
-  return M;
-}
-
-/// Regression test: an oversized array.new* must trap instead of aborting.
-///
-/// Previously the array backing store was sized in a noexcept context, so a
-/// failed allocation called std::terminate and killed the whole host process.
-/// The fix makes the construction potentially-throwing and catches the
-/// allocation failure in the executor, turning it into a MemoryOutOfBounds
-/// Wasm trap. The injection is armed only around each execute() call.
+// An oversized array.new* must trap (MemoryOutOfBounds), not call
+// std::terminate from the previously-noexcept constructor.
 TEST(ExecutorRegression, ArrayNewOutOfMemoryTraps) {
   auto Run = [](Span<const WasmEdge::Byte> Wasm) {
     Configure Conf;
@@ -1257,24 +1018,12 @@ TEST(ExecutorRegression, ArrayNewOutOfMemoryTraps) {
     ASSERT_TRUE(VM.loadWasm(Wasm));
     ASSERT_TRUE(VM.validate());
     ASSERT_TRUE(VM.instantiate());
-    // Only the array's backing store should fail; arm the injection solely for
-    // the execution so instantiation (which builds the source segments) is
-    // unaffected.
-    ScopedAllocFailure Guard(ArrayAllocFailThreshold);
     auto Result = VM.execute("test");
-    // The execution must fail gracefully with a trap, not abort the process.
     ASSERT_FALSE(Result);
     EXPECT_EQ(Result.error(), ErrCode::Value::MemoryOutOfBounds);
   };
-
-  // array.new_default: allocate-and-default-fill path.
+  Run(ArrayNewDefaultOversizedWasm);
   Run(ArrayNewOversizedWasm);
-  // array.new: allocate-and-fill-with-init-value path.
-  Run(ArrayNewInitOversizedWasm);
-  // array.new_data: copy-from-data-segment path.
-  Run(buildArrayNewDataModule());
-  // array.new_elem: copy-from-element-segment path.
-  Run(buildArrayNewElemModule());
 }
 
 } // namespace

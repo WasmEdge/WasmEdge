@@ -1027,6 +1027,71 @@ TEST(NoSubcommand, FallbackToRun) {
             EXIT_SUCCESS);
 }
 
+// ---------------------------------------------------------------------------
+// PluginsSubcommand tests
+// ---------------------------------------------------------------------------
+
+int callPlugins(std::initializer_list<const char *> Args) {
+  std::vector<const char *> Argv = {"wasmedge"};
+  Argv.insert(Argv.end(), Args.begin(), Args.end());
+  return WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()), Argv.data(),
+                                   WasmEdge::Driver::ToolType::Plugins);
+}
+
+TEST(PluginsSubcommand, Succeeds) { EXPECT_EQ(callPlugins({}), EXIT_SUCCESS); }
+
+TEST(PluginsSubcommand, RejectsUnknownFlag) {
+  EXPECT_NE(callPlugins({"--no-such-flag"}), EXIT_SUCCESS);
+}
+
+TEST(PluginsSubcommand, UniToolRouting) {
+  std::vector<const char *> Argv = {"wasmedge", "plugins"};
+  EXPECT_EQ(WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()),
+                                      Argv.data(),
+                                      WasmEdge::Driver::ToolType::All),
+            EXIT_SUCCESS);
+}
+
+#if !WASMEDGE_OS_WINDOWS
+ToolResult callPluginsCaptureStdout() {
+  std::vector<const char *> Argv = {"wasmedge"};
+  int Pipe[2];
+  if (pipe(Pipe) != 0) {
+    return {-1, {}};
+  }
+  int SavedStdout = dup(STDOUT_FILENO);
+  dup2(Pipe[1], STDOUT_FILENO);
+  close(Pipe[1]);
+  int Ret = WasmEdge::Driver::UniTool(static_cast<int>(Argv.size()),
+                                      Argv.data(),
+                                      WasmEdge::Driver::ToolType::Plugins);
+  fflush(stdout);
+  dup2(SavedStdout, STDOUT_FILENO);
+  close(SavedStdout);
+  std::string Output;
+  char Buf[4096];
+  ssize_t N;
+  while ((N = read(Pipe[0], Buf, sizeof(Buf))) > 0) {
+    Output.append(Buf, static_cast<size_t>(N));
+  }
+  close(Pipe[0]);
+  return {Ret, std::move(Output)};
+}
+
+TEST(PluginsSubcommand, OutputContainsBuiltInPlugin) {
+  auto R = callPluginsCaptureStdout();
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  // wasi_logging is always registered as a built-in plugin.
+  EXPECT_TRUE(containsAll(R.Stdout, {"wasi_logging", "wasi:logging/logging"}));
+}
+
+TEST(PluginsSubcommand, OutputContainsHeader) {
+  auto R = callPluginsCaptureStdout();
+  ASSERT_EQ(R.ExitCode, EXIT_SUCCESS);
+  EXPECT_TRUE(containsAll(R.Stdout, {"Loaded Plugins"}));
+}
+#endif
+
 } // namespace
 
 GTEST_API_ int main(int Argc, char *Argv[]) {

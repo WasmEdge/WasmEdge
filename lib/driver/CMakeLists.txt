@@ -10,6 +10,7 @@ set(SOURCES
   validateTool.cpp
   parseTool.cpp
   instantiateTool.cpp
+  pluginsTool.cpp
   toolConfig.cpp
 )
 

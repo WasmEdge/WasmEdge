@@ -22,10 +22,13 @@ enum class ToolType : char {
   Tool,
   Parse,
   Validate,
-  Instantiate
+  Instantiate,
+  Plugins
 };
 
 int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept;
+
+int PluginsTool() noexcept;
 
 } // namespace Driver
 } // namespace WasmEdge

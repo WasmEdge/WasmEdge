@@ -29,6 +29,8 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
       PO::Description("Wasmedge instantiate tool subcommand"sv));
   PO::SubCommand ValidateSubCommand(
       PO::Description("Wasmedge validate tool subcommand"sv));
+  PO::SubCommand PluginsSubCommand(
+      PO::Description("List loaded WasmEdge plugins"sv));
   struct DriverToolOptions ToolOptions;
   struct DriverCompilerOptions CompilerOptions;
   struct DriverToolOptions ParseOptions;
@@ -54,6 +56,8 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     Parser.begin_subcommand(ValidateSubCommand, "validate"sv);
     ValidateOptions.addParserOptions(Parser);
     Parser.end_subcommand();
+    Parser.begin_subcommand(PluginsSubCommand, "plugins"sv);
+    Parser.end_subcommand();
   } else if (ToolSelect == ToolType::Tool) {
     ToolOptions.addOptions(Parser);
   } else if (ToolSelect == ToolType::Compiler) {
@@ -64,6 +68,8 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
     ValidateOptions.addParserOptions(Parser);
   } else if (ToolSelect == ToolType::Instantiate) {
     InstantiateOptions.addLinkerOptions(Parser);
+  } else if (ToolSelect == ToolType::Plugins) {
+    // No options for the plugins subcommand.
   } else {
     return EXIT_FAILURE;
   }
@@ -121,6 +127,9 @@ int UniTool(int Argc, const char *Argv[], const ToolType ToolSelect) noexcept {
   } else if (InstantiateSubCommand.is_selected() ||
              ToolSelect == ToolType::Instantiate) {
     return InstantiateTool(InstantiateOptions);
+  } else if (PluginsSubCommand.is_selected() ||
+             ToolSelect == ToolType::Plugins) {
+    return PluginsTool();
   } else {
     return Tool(ToolOptions);
   }

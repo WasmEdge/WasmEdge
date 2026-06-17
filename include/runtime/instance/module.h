@@ -73,16 +73,25 @@ inline constexpr const bool IsInstanceV =
 
 class ComponentInstance;
 
+/// Module instances use a dependency-pinned lifetime: each importer pins the
+/// instances it imports from (see RefLifetime) and releases them when
+/// destroyed, so a heap instance torn down via terminate() is deleted only
+/// after its owner and all importers release.
+///
+/// A stack- or member-allocated provider cannot be deferred by a pin, so it
+/// must outlive its importers: declare a host module before the VM or
+/// StoreManager that imports it. The destructor enforces this with
+/// assuming(!hasDependents()).
 class ModuleInstance {
 public:
   ModuleInstance(std::string_view Name, void *Data = nullptr,
                  std::function<void(void *)> Finalizer = nullptr)
       : ModName(Name), HostData(Data), HostDataFinalizer(Finalizer) {}
   virtual ~ModuleInstance() noexcept {
-    // Some module instances (e.g., stack-allocated ones) may not trigger
-    // the explicit termination process. We call unlinkAllStores() as
-    // a fallback to ensure all store manager callbacks are cleared.
+    // Fallback for instances torn down outside terminate() (e.g.
+    // stack-allocated).
     unlinkAllStores();
+    assuming(!Life.hasDependents());
     if (HostDataFinalizer.operator bool()) {
       HostDataFinalizer(HostData);
     }

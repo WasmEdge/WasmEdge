@@ -31,9 +31,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecID =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecID &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecID = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecId"sv);
   {
@@ -48,9 +46,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecType =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecType &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecType = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecType"sv);
   {
@@ -66,9 +62,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecMaxLowres =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecMaxLowres &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecMaxLowres = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecMaxLowres"sv);
   {
@@ -83,9 +77,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecCapabilities = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecCapabilities &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecCapabilities = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecCapabilities"sv);
   {
@@ -101,9 +93,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecGetNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetNameLen &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecGetNameLen = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecGetNameLen"sv);
   {
@@ -119,9 +109,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecGetName =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetName &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecGetName = FuncInst->getHostFunc();
 
   // Fill the Memory with 0.
   fillMemContent(MemInst, StringPtr, Length);
@@ -140,9 +128,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecGetLongNameLen = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetLongNameLen &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecGetLongNameLen = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecGetLongNameLen"sv);
   {
@@ -158,9 +144,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecGetLongName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecGetLongName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecGetLongName = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecGetLongName"sv);
   {
@@ -177,9 +161,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecProfiles =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecProfiles &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCodecProfiles = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecProfiles"sv);
   {
@@ -194,9 +176,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecPixFmtIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecPixFmtsIsNull &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecPixFmtIsNull = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecPixFmtsIsNull"sv);
   {
@@ -211,9 +191,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecPixFmtIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecPixFmtsIter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecPixFmtIter = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecPixFmtsIter"sv);
   {
@@ -229,9 +207,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecSupportedFrameratesIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedFrameratesIsNull
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecSupportedFrameratesIsNull = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecSupportedFramratesIsNull"sv);
   {
@@ -246,9 +222,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecSupportedFrameratesIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedFrameratesIter
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecSupportedFrameratesIter = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecSupportedFrameratesIter"sv);
   {
@@ -265,9 +239,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecSupportedSampleRatesIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedSampleRatesIsNull
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecSupportedSampleRatesIsNull = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecSupportedSampleRatesIsNull"sv);
   {
@@ -282,9 +254,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecSupportedSampleRatesIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSupportedSampleRatesIter
-          &>(FuncInst->getHostFunc());
+  auto &HostFuncAVCodecSupportedSampleRatesIter = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecSupportedSampleRatesIter"sv);
   {
@@ -299,9 +269,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecChannelLayoutIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecChannelLayoutIsNull &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecChannelLayoutIsNull = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecChannelLayoutIsNull"sv);
   {
@@ -316,9 +284,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecChannelLayoutIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecChannelLayoutIter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecChannelLayoutIter = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecChannelLayoutIter"sv);
   {
@@ -333,9 +299,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecSampleFmtsIsNull = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSampleFmtsIsNull &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecSampleFmtsIsNull = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecSampleFmtsIsNull"sv);
   {
@@ -350,9 +314,7 @@ TEST_F(FFmpegTest, AVCodec) {
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
 
-  auto &HostFuncAVCodecSampleFmtsIter = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVcodec::AVCodecSampleFmtsIter &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVCodecSampleFmtsIter = FuncInst->getHostFunc();
 
   spdlog::info("Testing AVCodecSampleFmtsIter"sv);
   {

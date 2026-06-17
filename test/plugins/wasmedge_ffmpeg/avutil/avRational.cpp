@@ -23,9 +23,7 @@ TEST_F(FFmpegTest, AVRational) {
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_add_q");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVAddQ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVAddQ &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVAddQ = FuncInst->getHostFunc();
 
   {
     int32_t ANum = 3;
@@ -46,9 +44,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_sub_q");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVSubQ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSubQ &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVSubQ = FuncInst->getHostFunc();
 
   {
     int32_t ANum = -843;
@@ -71,9 +67,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_mul_q");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVMulQ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVMulQ &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVMulQ = FuncInst->getHostFunc();
 
   {
     int32_t ANum = -6;
@@ -96,9 +90,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_div_q");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVDivQ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVDivQ &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVDivQ = FuncInst->getHostFunc();
 
   {
     int32_t ANum = -6;
@@ -123,9 +115,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_d2q");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVD2Q =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVD2Q &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVD2Q = FuncInst->getHostFunc();
 
   {
     double D = 5;
@@ -147,9 +137,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_q2d");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVQ2d =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVQ2d &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVQ2d = FuncInst->getHostFunc();
 
   {
     // Convert Rational Number to Double.
@@ -167,9 +155,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_inv_q");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInvQ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVInvQ &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncInvQ = FuncInst->getHostFunc();
 
   {
     // Inverse a Rational Number.
@@ -191,9 +177,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_q2intfloat");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVQ2IntFloat =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVQ2IntFloat &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVQ2IntFloat = FuncInst->getHostFunc();
 
   {
     int32_t ANum = 1;
@@ -208,9 +192,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_nearer_q");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVNearerQ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVNearerQ &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVNearerQ = FuncInst->getHostFunc();
 
   {
     int32_t ANum = 1;
@@ -253,9 +235,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_cmp_q");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVCmpQ =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVCmpQ &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVCmpQ = FuncInst->getHostFunc();
 
   {
     int32_t ANum = 1;
@@ -295,9 +275,7 @@ TEST_F(FFmpegTest, AVRational) {
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_reduce");
   EXPECT_NE(FuncInst, nullptr);
   EXPECT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncAVReduce =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVReduce &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVReduce = FuncInst->getHostFunc();
 
   {
     int64_t ANum = 1;

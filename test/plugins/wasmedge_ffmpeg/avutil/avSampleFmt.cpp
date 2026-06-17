@@ -23,9 +23,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_S32
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt");
-  auto &HostFuncAVGetPackedSampleFmt = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetPackedSampleFmt &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetPackedSampleFmt = FuncInst->getHostFunc();
 
   {
     HostFuncAVGetPackedSampleFmt.run(
@@ -37,9 +35,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_planar_sample_fmt");
-  auto &HostFuncAVGetPlanarSampleFmt = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetPlanarSampleFmt &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetPlanarSampleFmt = FuncInst->getHostFunc();
 
   {
     HostFuncAVGetPlanarSampleFmt.run(
@@ -51,9 +47,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_sample_fmt_is_planar");
-  auto &HostFuncAVSampleFmtIsPlanar = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSampleFmtIsPlanar &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVSampleFmtIsPlanar = FuncInst->getHostFunc();
 
   {
     HostFuncAVSampleFmtIsPlanar.run(
@@ -65,9 +59,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_bytes_per_sample");
-  auto &HostFuncAVGetBytesPerSample = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetBytesPerSample &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetBytesPerSample = FuncInst->getHostFunc();
 
   {
     HostFuncAVGetBytesPerSample.run(
@@ -79,9 +71,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_get_sample_fmt");
-  auto &HostFuncAVGetSampleFmt =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmt &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVGetSampleFmt = FuncInst->getHostFunc();
 
   uint32_t SampleFmtStart = 100;
   uint32_t SampleFmtSize = 2;
@@ -99,9 +89,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_samples_get_buffer_size");
-  auto &HostFuncAVSamplesGetBufferSize = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesGetBufferSize &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVSamplesGetBufferSize = FuncInst->getHostFunc();
 
   int32_t NbChannels = 1;
   int32_t NbSamples = 5;
@@ -120,9 +108,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_samples_alloc_array_and_samples");
-  auto &HostFuncAVSamplesAllocArrayAndSamples = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVSamplesAllocArrayAndSamples &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVSamplesAllocArrayAndSamples = FuncInst->getHostFunc();
 
   {
     HostFuncAVSamplesAllocArrayAndSamples.run(
@@ -140,9 +126,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   int32_t Length = 0;
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
-  auto &HostFuncAVGetSampleFmtNameLength = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtNameLength &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetSampleFmtNameLength = FuncInst->getHostFunc();
 
   {
     HostFuncAVGetSampleFmtNameLength.run(
@@ -155,9 +139,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
-  auto &HostFuncAVGetSampleFmtName = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtName &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetSampleFmtName = FuncInst->getHostFunc();
 
   // Fill Memory with 0.
   fillMemContent(MemInst, NamePtr, Length);
@@ -172,9 +154,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_mask");
-  auto &HostFuncAVGetSampleFmtMask = dynamic_cast<
-      WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVGetSampleFmtMask &>(
-      FuncInst->getHostFunc());
+  auto &HostFuncAVGetSampleFmtMask = FuncInst->getHostFunc();
 
   {
     uint32_t SampleId = 2; // AV_SAMPLE_FMT_S16;
@@ -186,9 +166,7 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_freep");
-  auto &HostFuncAVFreep =
-      dynamic_cast<WasmEdge::Host::WasmEdgeFFmpeg::AVUtil::AVFreep &>(
-          FuncInst->getHostFunc());
+  auto &HostFuncAVFreep = FuncInst->getHostFunc();
 
   {
     uint32_t BufferId = readUInt32(MemInst, BufferPtr);

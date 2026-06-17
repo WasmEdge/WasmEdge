@@ -87,10 +87,8 @@ TEST(WasiLoggingTests, func_log) {
   EXPECT_NE(FuncInst2, nullptr);
   EXPECT_TRUE(FuncInst1->isHostFunction());
   EXPECT_TRUE(FuncInst2->isHostFunction());
-  auto &HostFuncInst1 = dynamic_cast<WasmEdge::Host::WASILogging::Log &>(
-      FuncInst1->getHostFunc());
-  auto &HostFuncInst2 = dynamic_cast<WasmEdge::Host::WASILogging::Log &>(
-      FuncInst2->getHostFunc());
+  auto &HostFuncInst1 = FuncInst1->getHostFunc();
+  auto &HostFuncInst2 = FuncInst2->getHostFunc();
 
   // Show All Level
   EXPECT_TRUE(HostFuncInst1.run(
@@ -205,8 +203,7 @@ TEST(WasiLoggingTests, func_log_oob) {
   auto *FuncInst = WasiLoggingMod->findFuncExports("log");
   ASSERT_NE(FuncInst, nullptr);
   ASSERT_TRUE(FuncInst->isHostFunction());
-  auto &HostFuncInst =
-      dynamic_cast<WasmEdge::Host::WASILogging::Log &>(FuncInst->getHostFunc());
+  auto &HostFuncInst = FuncInst->getHostFunc();
 
   // OOB context: CxtPtr=65535, CxtLen=100 extends 99 bytes past the page end.
   // Expected: HostFuncError (not a crash).

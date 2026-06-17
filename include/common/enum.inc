@@ -1132,6 +1132,12 @@ E(ComponentImportNameConflict, 0x02B8,
 E(ComponentUnknownExport, 0x02B9, "unknown export")
 // Core type index referenced in a component core:moduledecl is out of bounds
 E(CoreTypeIndexOutOfBounds, 0x02BA, "type index out of bounds")
+// Core instance arg memory index type does not match the import (i32 vs i64)
+E(ComponentMemoryIndexTypeMismatch, 0x02BB,
+  "mismatch in index type used for memories")
+// Canonical option `memory` must reference a 32-bit linear memory
+E(ComponentCanonMemoryNot32Bit, 0x02BC,
+  "canonical ABI memory is not a 32-bit linear memory")
 // @}
 
 // Instantiation phase

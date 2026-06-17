@@ -4,6 +4,7 @@
 wasmedge_add_executable(wasiTests
   wasi.cpp
   linuxTest.cpp
+  winTest.cpp
   vfs_io.cpp
 )
 

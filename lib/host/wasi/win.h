@@ -302,11 +302,7 @@ inline constexpr __wasi_errno_t fromWSAError(int WSAError) noexcept {
   case WSAESOCKTNOSUPPORT_:
     return __WASI_ERRNO_AISOCKTYPE;
   default:
-    // getaddrinfo() may return WSA error codes that are not part of the
-    // documented set (e.g. version-specific). Fall back to a generic name
-    // resolution failure instead of crashing the runtime, mirroring the
-    // defensive default used by fromLastError() above. See issue #4375.
-    return __WASI_ERRNO_AIFAIL;
+    assumingUnreachable();
   }
 }
 

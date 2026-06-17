@@ -161,7 +161,7 @@ TEST(WasmBpfTest, SimpleMapTest) {
   auto mapFd = mapFdResult[0].get<int32_t>();
   ASSERT_GE(mapFd, 0);
 
-  // Get function `wasm_bpf_map_fd_by_name`
+  // Get function `wasm_bpf_map_operate`
   auto *mapOptFunc = module->findFuncExports("wasm_bpf_map_operate");
   ASSERT_NE(mapOptFunc, nullptr);
   ASSERT_TRUE(mapOptFunc->isHostFunction());

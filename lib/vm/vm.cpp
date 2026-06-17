@@ -219,7 +219,8 @@ Expect<void> VM::unsafeUnregisterModule(std::string_view Name) {
     }
   }
 
-  return {};
+  spdlog::error(ErrCode::Value::WrongInstanceAddress);
+  return Unexpect(ErrCode::Value::WrongInstanceAddress);
 }
 
 VM::WasmUnitKind

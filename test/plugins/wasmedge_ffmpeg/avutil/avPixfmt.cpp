@@ -17,6 +17,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
 
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avpixfmtdescriptor_nb_components");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVPixFmtDescriptorNbComponents = FuncInst->getHostFunc();
 
   uint32_t PixFmtId = 3; // RGB24
@@ -31,6 +33,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromaw");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAvPixFmtDescriptorLog2ChromaW = FuncInst->getHostFunc();
 
   {
@@ -42,6 +46,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_avpixfmtdescriptor_log2_chromah");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAvPixFmtDescriptorLog2ChromaH = FuncInst->getHostFunc();
 
   {
@@ -56,6 +62,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   int32_t TransferCharacteristicId = 6; // (SMPTE170M)
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_transfer_name_length");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVColorTransferNameLength = FuncInst->getHostFunc();
 
   {
@@ -71,6 +79,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_transfer_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVColorTransferName = FuncInst->getHostFunc();
 
   {
@@ -86,6 +96,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   int32_t ColorRangeId = 2; //; JPEG
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_range_name_length");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVColorRangeNameLength = FuncInst->getHostFunc();
 
   {
@@ -101,6 +113,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_color_range_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVColorRangeName = FuncInst->getHostFunc();
 
   {
@@ -115,6 +129,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   int32_t ColorSpaceId = 1; // BT709
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_space_name_length");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVColorSpaceNameLength = FuncInst->getHostFunc();
 
   {
@@ -130,6 +146,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_color_space_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVColorSpaceName = FuncInst->getHostFunc();
 
   {
@@ -144,6 +162,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   int32_t ColorPrimariesId = 1; // BT709
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_primaries_name_length");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVColorPrimariesNameLength = FuncInst->getHostFunc();
 
   {
@@ -159,6 +179,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_color_primaries_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVColorPrimariesName = FuncInst->getHostFunc();
 
   {
@@ -174,6 +196,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   PixFmtId = 1; // YUV420P
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_pix_format_name_length");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVPixFormatNameLength = FuncInst->getHostFunc();
 
   {
@@ -189,6 +213,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
   fillMemContent(MemInst, NamePtr, Length);
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_pix_format_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVPixFormatName = FuncInst->getHostFunc();
 
   {
@@ -202,6 +228,8 @@ TEST_F(FFmpegTest, AVPixFmt) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_pix_format_mask");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVPixFormatMask = FuncInst->getHostFunc();
 
   {

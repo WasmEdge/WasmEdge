@@ -33,8 +33,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   auto *FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_alloc_context3");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecAllocContext3 = FuncInst->getHostFunc();
 
@@ -51,8 +51,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_parameters_alloc");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecParametersAlloc = FuncInst->getHostFunc();
 
@@ -77,8 +77,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_parameters_from_context"sv);
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecParametersFromContext = FuncInst->getHostFunc();
 
@@ -94,8 +94,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_get_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecGetType = FuncInst->getHostFunc();
 
@@ -108,8 +108,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_decoder");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecFindDecoder = FuncInst->getHostFunc();
 
@@ -127,8 +127,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecFindEncoder = FuncInst->getHostFunc();
 
@@ -146,8 +146,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_open2");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecOpen2 = FuncInst->getHostFunc();
 
@@ -165,8 +165,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_codec_is_encoder");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecIsEncoder = FuncInst->getHostFunc();
 
@@ -180,8 +180,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_codec_is_decoder");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecIsDecoder = FuncInst->getHostFunc();
 
@@ -195,8 +195,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_decoder_by_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecFindDecoderByName = FuncInst->getHostFunc();
 
@@ -213,8 +213,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_find_encoder_by_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecFindEncoderByName = FuncInst->getHostFunc();
 
@@ -231,8 +231,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_parameters_to_context");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecParametersToContext = FuncInst->getHostFunc();
 
@@ -264,8 +264,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
   //   }
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_version");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecVersion = FuncInst->getHostFunc();
 
@@ -278,8 +278,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_configuration_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecConfigurationLength = FuncInst->getHostFunc();
 
@@ -294,8 +294,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_configuration");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecConfiguration = FuncInst->getHostFunc();
 
@@ -309,8 +309,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_license_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecLicenseLength = FuncInst->getHostFunc();
 
@@ -325,8 +325,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_license");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecLicense = FuncInst->getHostFunc();
 
@@ -340,8 +340,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_free_context");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecFreeContext = FuncInst->getHostFunc();
 
@@ -355,8 +355,8 @@ TEST_F(FFmpegTest, AVCodecFunc) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_parameters_free");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecParametersFree = FuncInst->getHostFunc();
 
@@ -383,8 +383,8 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
 
   auto *FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_send_frame");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecSendFrame = FuncInst->getHostFunc();
 
@@ -403,8 +403,8 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
   // Aim is to test the functionality.
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_receive_packet");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecReceivePacket = FuncInst->getHostFunc();
 
@@ -419,8 +419,8 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_send_packet");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecSendPacket = FuncInst->getHostFunc();
 
@@ -436,8 +436,8 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_receive_frame");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   // Decoder Receives the Packet as Frame.
   auto &HostFuncAVCodecReceiveFrame = FuncInst->getHostFunc();
@@ -453,8 +453,8 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_packet_rescale_ts");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVPacketRescaleTs = FuncInst->getHostFunc();
 
@@ -474,8 +474,8 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_av_packet_make_writable");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVPacketMakeWritable = FuncInst->getHostFunc();
 
@@ -489,8 +489,8 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_flush_buffers");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecFlushBuffers = FuncInst->getHostFunc();
 
@@ -504,8 +504,8 @@ TEST_F(FFmpegTest, SendPacketReceiveFrame) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_close");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecClose = FuncInst->getHostFunc();
 

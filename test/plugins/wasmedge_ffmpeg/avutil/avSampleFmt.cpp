@@ -23,6 +23,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   uint32_t SampleFmtId = 1; // AV_SAMPLE_FMT_S32
   auto *FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_packed_sample_fmt");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetPackedSampleFmt = FuncInst->getHostFunc();
 
   {
@@ -35,6 +37,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_planar_sample_fmt");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetPlanarSampleFmt = FuncInst->getHostFunc();
 
   {
@@ -47,6 +51,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_sample_fmt_is_planar");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVSampleFmtIsPlanar = FuncInst->getHostFunc();
 
   {
@@ -59,6 +65,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_bytes_per_sample");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetBytesPerSample = FuncInst->getHostFunc();
 
   {
@@ -71,6 +79,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_get_sample_fmt");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetSampleFmt = FuncInst->getHostFunc();
 
   uint32_t SampleFmtStart = 100;
@@ -89,6 +99,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_samples_get_buffer_size");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVSamplesGetBufferSize = FuncInst->getHostFunc();
 
   int32_t NbChannels = 1;
@@ -108,6 +120,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_samples_alloc_array_and_samples");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVSamplesAllocArrayAndSamples = FuncInst->getHostFunc();
 
   {
@@ -126,6 +140,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   int32_t Length = 0;
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name_length");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetSampleFmtNameLength = FuncInst->getHostFunc();
 
   {
@@ -139,6 +155,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_name");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetSampleFmtName = FuncInst->getHostFunc();
 
   // Fill Memory with 0.
@@ -154,6 +172,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
 
   FuncInst = AVUtilMod->findFuncExports(
       "wasmedge_ffmpeg_avutil_av_get_sample_fmt_mask");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVGetSampleFmtMask = FuncInst->getHostFunc();
 
   {
@@ -166,6 +186,8 @@ TEST_F(FFmpegTest, AVSampleFmt) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_freep");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVFreep = FuncInst->getHostFunc();
 
   {

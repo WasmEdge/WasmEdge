@@ -163,8 +163,8 @@ TEST(WasmBpfTest, SimpleMapTest) {
 
   // Get function `wasm_bpf_map_fd_by_name`
   auto *mapOptFunc = module->findFuncExports("wasm_bpf_map_operate");
-  EXPECT_NE(mapOptFunc, nullptr);
-  EXPECT_TRUE(mapOptFunc->isHostFunction());
+  ASSERT_NE(mapOptFunc, nullptr);
+  ASSERT_TRUE(mapOptFunc->isHostFunction());
   auto &mapOptFuncHost = mapOptFunc->getHostFunc();
 
   // A wrapper to call wasm_bpf_map_operate

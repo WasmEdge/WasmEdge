@@ -28,8 +28,8 @@ TEST_F(FFmpegTest, AVCodec) {
   uint32_t AVCodecId = readUInt32(MemInst, AVCodecPtr);
   auto *FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecID = FuncInst->getHostFunc();
 
@@ -43,8 +43,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_type");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecType = FuncInst->getHostFunc();
 
@@ -59,8 +59,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_max_lowres");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecMaxLowres = FuncInst->getHostFunc();
 
@@ -74,8 +74,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_capabilities");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecCapabilities = FuncInst->getHostFunc();
 
@@ -90,8 +90,8 @@ TEST_F(FFmpegTest, AVCodec) {
   int32_t Length = 0;
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_get_name_len");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecGetNameLen = FuncInst->getHostFunc();
 
@@ -106,8 +106,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_get_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecGetName = FuncInst->getHostFunc();
 
@@ -125,8 +125,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_get_long_name_len");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecGetLongNameLen = FuncInst->getHostFunc();
 
@@ -141,8 +141,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_get_long_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecGetLongName = FuncInst->getHostFunc();
 
@@ -158,8 +158,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst =
       AVCodecMod->findFuncExports("wasmedge_ffmpeg_avcodec_avcodec_profiles");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecProfiles = FuncInst->getHostFunc();
 
@@ -173,8 +173,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_pix_fmts_is_null");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecPixFmtIsNull = FuncInst->getHostFunc();
 
@@ -188,8 +188,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_pix_fmts_iter");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecPixFmtIter = FuncInst->getHostFunc();
 
@@ -204,8 +204,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_is_null");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecSupportedFrameratesIsNull = FuncInst->getHostFunc();
 
@@ -219,8 +219,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_framerate_iter");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecSupportedFrameratesIter = FuncInst->getHostFunc();
 
@@ -236,8 +236,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_is_null");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecSupportedSampleRatesIsNull = FuncInst->getHostFunc();
 
@@ -251,8 +251,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_supported_samplerates_iter");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecSupportedSampleRatesIter = FuncInst->getHostFunc();
 
@@ -266,8 +266,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_is_null");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecChannelLayoutIsNull = FuncInst->getHostFunc();
 
@@ -281,8 +281,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_channel_layouts_iter");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecChannelLayoutIter = FuncInst->getHostFunc();
 
@@ -296,8 +296,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_is_null");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecSampleFmtsIsNull = FuncInst->getHostFunc();
 
@@ -311,8 +311,8 @@ TEST_F(FFmpegTest, AVCodec) {
 
   FuncInst = AVCodecMod->findFuncExports(
       "wasmedge_ffmpeg_avcodec_avcodec_sample_fmts_iter");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVCodecSampleFmtsIter = FuncInst->getHostFunc();
 

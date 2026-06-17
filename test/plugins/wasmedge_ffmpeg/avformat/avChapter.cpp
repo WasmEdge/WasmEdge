@@ -30,8 +30,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   auto *FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterId = FuncInst->getHostFunc();
 
   {
@@ -44,8 +44,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_timebase");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterTimebase = FuncInst->getHostFunc();
 
   {
@@ -61,8 +61,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_start");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterStart = FuncInst->getHostFunc();
 
   {
@@ -75,8 +75,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_end");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterEnd = FuncInst->getHostFunc();
 
   {
@@ -89,8 +89,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_metadata");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterMetadata = FuncInst->getHostFunc();
 
   {
@@ -105,8 +105,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst =
       AVFormatMod->findFuncExports("wasmedge_ffmpeg_avformat_avChapter_set_id");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterSetId = FuncInst->getHostFunc();
 
   {
@@ -128,8 +128,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_set_timebase");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterSetTimebase = FuncInst->getHostFunc();
 
   {
@@ -155,8 +155,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_set_start");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterSetStart = FuncInst->getHostFunc();
 
   {
@@ -178,8 +178,8 @@ TEST_F(FFmpegTest, AVChapter) {
 
   FuncInst = AVFormatMod->findFuncExports(
       "wasmedge_ffmpeg_avformat_avChapter_set_end");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVChapterSetEnd = FuncInst->getHostFunc();
 
   {

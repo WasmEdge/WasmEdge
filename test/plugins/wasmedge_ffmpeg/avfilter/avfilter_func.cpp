@@ -60,8 +60,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   auto *FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_alloc");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGraphAlloc = FuncInst->getHostFunc();
 
@@ -77,8 +77,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_get_by_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGetByName = FuncInst->getHostFunc();
 
@@ -107,8 +107,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_create_filter");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGraphCreateFilter = FuncInst->getHostFunc();
 
@@ -137,8 +137,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_alloc");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterInOutAlloc = FuncInst->getHostFunc();
 
@@ -162,8 +162,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_get_filter");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGraphGetFilter = FuncInst->getHostFunc();
 
@@ -197,8 +197,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_set_name");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterInOutSetName = FuncInst->getHostFunc();
 
@@ -222,8 +222,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_set_filter_ctx");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterInOutSetFilterCtx = FuncInst->getHostFunc();
 
@@ -245,8 +245,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_set_pad_idx");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterInOutSetPadIdx = FuncInst->getHostFunc();
 
@@ -264,8 +264,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_inout_set_next");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterInOutSetNext = FuncInst->getHostFunc();
 
@@ -287,8 +287,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_parse_ptr");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGraphParsePtr = FuncInst->getHostFunc();
 
@@ -304,8 +304,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_config");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGraphConfig = FuncInst->getHostFunc();
 
@@ -318,8 +318,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_dump_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGraphDumpLength = FuncInst->getHostFunc();
 
@@ -334,8 +334,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_dump");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGraphDump = FuncInst->getHostFunc();
 
@@ -376,8 +376,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst =
       AVFilterMod->findFuncExports("wasmedge_ffmpeg_avfilter_avfilter_version");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterVersion = FuncInst->getHostFunc();
 
@@ -389,8 +389,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_configuration_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterConfigurationLength = FuncInst->getHostFunc();
 
@@ -404,8 +404,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_configuration");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterConfiguration = FuncInst->getHostFunc();
 
@@ -418,8 +418,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_license_length");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterLicenseLength = FuncInst->getHostFunc();
 
@@ -432,8 +432,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst =
       AVFilterMod->findFuncExports("wasmedge_ffmpeg_avfilter_avfilter_license");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterLicense = FuncInst->getHostFunc();
 
@@ -450,8 +450,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_av_buffersrc_get_nb_failed_requests");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVBufferSrcGetNbFailedRequests = FuncInst->getHostFunc();
 
@@ -464,8 +464,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_av_buffersrc_add_frame");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVBufferSrcAddFrame = FuncInst->getHostFunc();
 
@@ -505,8 +505,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
   // due to no frames present.
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_av_buffersink_get_frame");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVBufferSinkGetFrame = FuncInst->getHostFunc();
 
@@ -520,8 +520,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_av_buffersink_get_samples");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVBufferSinkGetSamples = FuncInst->getHostFunc();
 
@@ -538,8 +538,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_av_buffersink_set_frame_size");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAvBufferSinkSetFrameSize = FuncInst->getHostFunc();
 
@@ -561,8 +561,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_free_graph_str");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterFreeGraphStr = FuncInst->getHostFunc();
 
@@ -575,8 +575,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst =
       AVFilterMod->findFuncExports("wasmedge_ffmpeg_avfilter_avfilter_drop");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterDrop = FuncInst->getHostFunc();
 
@@ -589,8 +589,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_context_drop");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterContextDrop = FuncInst->getHostFunc();
 
@@ -609,8 +609,8 @@ TEST_F(FFmpegTest, AVFilterFunc) {
 
   FuncInst = AVFilterMod->findFuncExports(
       "wasmedge_ffmpeg_avfilter_avfilter_graph_free");
-  EXPECT_NE(FuncInst, nullptr);
-  EXPECT_TRUE(FuncInst->isHostFunction());
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
 
   auto &HostFuncAVFilterGraphFree = FuncInst->getHostFunc();
 

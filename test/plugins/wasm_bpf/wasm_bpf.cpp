@@ -212,8 +212,8 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get function "wasm_load_bpf_object"
   auto *loadFunc = module->findFuncExports("wasm_load_bpf_object");
-  EXPECT_NE(loadFunc, nullptr);
-  EXPECT_TRUE(loadFunc->isHostFunction());
+  ASSERT_NE(loadFunc, nullptr);
+  ASSERT_TRUE(loadFunc->isHostFunction());
   auto &loadFuncHost = loadFunc->getHostFunc();
 
   // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the
@@ -230,8 +230,8 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get function `wasm_attach_bpf_program`
   auto *attachFunc = module->findFuncExports("wasm_attach_bpf_program");
-  EXPECT_NE(attachFunc, nullptr);
-  EXPECT_TRUE(attachFunc->isHostFunction());
+  ASSERT_NE(attachFunc, nullptr);
+  ASSERT_TRUE(attachFunc->isHostFunction());
   auto &attachFuncHost = attachFunc->getHostFunc();
 
   // Call "wasm_attach_bpf_program" to attach, and check the result
@@ -263,8 +263,8 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get function `wasm_bpf_map_fd_by_name`
   auto *mapFdFunc = module->findFuncExports("wasm_bpf_map_fd_by_name");
-  EXPECT_NE(mapFdFunc, nullptr);
-  EXPECT_TRUE(mapFdFunc->isHostFunction());
+  ASSERT_NE(mapFdFunc, nullptr);
+  ASSERT_TRUE(mapFdFunc->isHostFunction());
   auto &mapFdFuncHost = mapFdFunc->getHostFunc();
 
   // Call "wasm_bpf_map_fd_by_name" to get the map fd, and check the result
@@ -296,8 +296,8 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get the "wasm_bpf_buffer_poll" function
   auto *bufferPollFunc = module->findFuncExports("wasm_bpf_buffer_poll");
-  EXPECT_NE(bufferPollFunc, nullptr);
-  EXPECT_TRUE(bufferPollFunc->isHostFunction());
+  ASSERT_NE(bufferPollFunc, nullptr);
+  ASSERT_TRUE(bufferPollFunc->isHostFunction());
   auto &bufferPollFuncHost = bufferPollFunc->getHostFunc();
 
   // Call the polling function
@@ -321,8 +321,8 @@ TEST(WasmBpfTest, RunBpfProgramWithPolling) {
 
   // Get function `wasm_close_bpf_object`
   auto *closeFunc = module->findFuncExports("wasm_close_bpf_object");
-  EXPECT_NE(closeFunc, nullptr);
-  EXPECT_TRUE(closeFunc->isHostFunction());
+  ASSERT_NE(closeFunc, nullptr);
+  ASSERT_TRUE(closeFunc->isHostFunction());
   auto &closeFuncHost = closeFunc->getHostFunc();
 
   // Call "wasm_close_bpf_object" to attach, and check the result
@@ -400,8 +400,8 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function "wasm_load_bpf_object"
   auto *loadFunc = module->findFuncExports("wasm_load_bpf_object");
-  EXPECT_NE(loadFunc, nullptr);
-  EXPECT_TRUE(loadFunc->isHostFunction());
+  ASSERT_NE(loadFunc, nullptr);
+  ASSERT_TRUE(loadFunc->isHostFunction());
   auto &loadFuncHost = loadFunc->getHostFunc();
 
   // call "wasm_load_bpf_object" to Load `bootstrap.bpf.o`, and check the
@@ -418,8 +418,8 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function `wasm_attach_bpf_program`
   auto *attachFunc = module->findFuncExports("wasm_attach_bpf_program");
-  EXPECT_NE(attachFunc, nullptr);
-  EXPECT_TRUE(attachFunc->isHostFunction());
+  ASSERT_NE(attachFunc, nullptr);
+  ASSERT_TRUE(attachFunc->isHostFunction());
   auto &attachFuncHost = attachFunc->getHostFunc();
   std::array<size_t, 3> programNameIndexes = {1, 2, 3};
 
@@ -440,8 +440,8 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function `wasm_bpf_map_fd_by_name`
   auto *mapFdFunc = module->findFuncExports("wasm_bpf_map_fd_by_name");
-  EXPECT_NE(mapFdFunc, nullptr);
-  EXPECT_TRUE(mapFdFunc->isHostFunction());
+  ASSERT_NE(mapFdFunc, nullptr);
+  ASSERT_TRUE(mapFdFunc->isHostFunction());
   auto &mapFdFuncHost = mapFdFunc->getHostFunc();
 
   // Call "wasm_bpf_map_fd_by_name" to get the map fd, and check the result
@@ -456,8 +456,8 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function `wasm_bpf_map_fd_by_name`
   auto *mapOptFunc = module->findFuncExports("wasm_bpf_map_operate");
-  EXPECT_NE(mapOptFunc, nullptr);
-  EXPECT_TRUE(mapOptFunc->isHostFunction());
+  ASSERT_NE(mapOptFunc, nullptr);
+  ASSERT_TRUE(mapOptFunc->isHostFunction());
   auto &mapOptFuncHost = mapOptFunc->getHostFunc();
   // A wrapper to call wasm_bpf_map_operate
   auto callMapOperate = [&](int32_t fd, int32_t cmd, uint32_t key,
@@ -551,8 +551,8 @@ TEST(WasmBpfTest, RunBpfProgramWithMapOperation) {
 
   // Get function `wasm_close_bpf_object`
   auto *closeFunc = module->findFuncExports("wasm_close_bpf_object");
-  EXPECT_NE(closeFunc, nullptr);
-  EXPECT_TRUE(closeFunc->isHostFunction());
+  ASSERT_NE(closeFunc, nullptr);
+  ASSERT_TRUE(closeFunc->isHostFunction());
   auto &closeFuncHost = closeFunc->getHostFunc();
 
   // Call "wasm_close_bpf_object" to attach, and check the result

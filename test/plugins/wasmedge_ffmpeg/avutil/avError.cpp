@@ -24,6 +24,8 @@ TEST_F(FFmpegTest, AVError) {
 
   auto *FuncInst =
       AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_av_strerror");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUtilAVStrError = FuncInst->getHostFunc();
 
   {
@@ -34,6 +36,8 @@ TEST_F(FFmpegTest, AVError) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_AVERROR");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUtilAVError = FuncInst->getHostFunc();
 
   {
@@ -45,6 +49,8 @@ TEST_F(FFmpegTest, AVError) {
   }
 
   FuncInst = AVUtilMod->findFuncExports("wasmedge_ffmpeg_avutil_AVUNERROR");
+  ASSERT_NE(FuncInst, nullptr);
+  ASSERT_TRUE(FuncInst->isHostFunction());
   auto &HostFuncAVUtilAVUNError = FuncInst->getHostFunc();
 
   {

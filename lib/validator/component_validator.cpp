@@ -7,6 +7,7 @@
 #include "validator/validator.h"
 
 #include <algorithm>
+#include <string>
 #include <unordered_set>
 #include <variant>
 
@@ -158,6 +159,40 @@ Expect<ComponentName> validateExportName(std::string_view Name) noexcept {
     spdlog::error("    Export name '{}' kind is not valid for exports"sv, Name);
     return Unexpect(ErrCode::Value::InvalidExportName);
   }
+}
+
+Expect<void> validateVersionSuffix(const ComponentName &CName,
+                                   std::string_view VersionSuffix,
+                                   bool HasVersionSuffix,
+                                   std::string_view Context) noexcept {
+  if (!HasVersionSuffix) {
+    return {};
+  }
+  if (CName.getKind() != ComponentNameKind::InterfaceType) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(
+        "    {}: version suffix '{}' is only valid on interface names"sv,
+        Context, VersionSuffix);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  const auto &Detail = CName.getDetail().get<InterfaceDetail>();
+  if (Detail.Version.empty() || !isCanonVersion(Detail.Version)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(
+        "    {}: version suffix '{}' requires a canonical interface version"sv,
+        Context, VersionSuffix);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  std::string FullVersion(Detail.Version);
+  FullVersion.append(VersionSuffix);
+  if (!isValidSemver(FullVersion)) {
+    spdlog::error(ErrCode::Value::ComponentInvalidName);
+    spdlog::error(
+        "    {}: interface version '{}' plus suffix '{}' is not valid semver"sv,
+        Context, Detail.Version, VersionSuffix);
+    return Unexpect(ErrCode::Value::ComponentInvalidName);
+  }
+  return {};
 }
 
 } // namespace
@@ -694,6 +729,14 @@ Validator::validate(const AST::Component::CoreInstance &Inst) noexcept {
     // Inline-export names on a core instance must be strongly-unique.
     std::unordered_set<std::string_view> SeenExports;
     for (const auto &Export : Inst.getInlineExports()) {
+      if (Export.hasVersionSuffix()) {
+        spdlog::error(ErrCode::Value::ComponentInvalidName);
+        spdlog::error(
+            "    CoreInstance: version suffix '{}' is not valid on core inline-export '{}'"sv,
+            Export.getVersionSuffix(), Export.getName());
+        spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_CoreInstance));
+        return Unexpect(ErrCode::Value::ComponentInvalidName);
+      }
       if (!SeenExports.insert(Export.getName()).second) {
         spdlog::error(ErrCode::Value::ComponentDuplicateName);
         spdlog::error("    CoreInstance: Duplicate inline-export name '{}'"sv,
@@ -937,6 +980,19 @@ Validator::validate(const AST::Component::Instance &Inst) noexcept {
     // Inline-export names on a component instance must be strongly-unique.
     std::unordered_set<std::string_view> SeenExports;
     for (const auto &Export : Inst.getInlineExports()) {
+      EXPECTED_TRY(ComponentName CName,
+                   validateExportName(Export.getName()).map_error([](auto E) {
+                     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+                     return E;
+                   }));
+      EXPECTED_TRY(validateVersionSuffix(CName, Export.getVersionSuffix(),
+                                         Export.hasVersionSuffix(),
+                                         "Instance inline export"sv)
+                       .map_error([](auto E) {
+                         spdlog::error(
+                             ErrInfo::InfoAST(ASTNodeAttr::Comp_Instance));
+                         return E;
+                       }));
       if (!SeenExports.insert(Export.getName()).second) {
         spdlog::error(ErrCode::Value::ComponentDuplicateName);
         spdlog::error("    Instance: Duplicate inline-export name '{}'"sv,
@@ -1684,6 +1740,12 @@ Expect<void> Validator::validate(const AST::Component::Import &Im) noexcept {
                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
                  return E;
                }));
+  EXPECTED_TRY(validateVersionSuffix(CName, Im.getVersionSuffix(),
+                                     Im.hasVersionSuffix(), "Import"sv)
+                   .map_error([](auto E) {
+                     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Import));
+                     return E;
+                   }));
 
   // Annotated plainnames ([constructor], [method], [static]) can only appear
   // on func imports.
@@ -1814,6 +1876,12 @@ Expect<void> Validator::validate(const AST::Component::Export &Ex) noexcept {
                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
                  return E;
                }));
+  EXPECTED_TRY(validateVersionSuffix(CName, Ex.getVersionSuffix(),
+                                     Ex.hasVersionSuffix(), "Export"sv)
+                   .map_error([](auto E) {
+                     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
+                     return E;
+                   }));
   if (!CompCtx.addExportedName(CName)) {
     spdlog::error(ErrCode::Value::ComponentDuplicateName);
     spdlog::error("    Export: Duplicate export name '{}'"sv, Ex.getName());
@@ -2057,6 +2125,10 @@ Validator::validate(const AST::Component::ImportDecl &Decl) noexcept {
   // Parse and validate the import name.
   EXPECTED_TRY(ComponentName CName,
                ComponentName::parse(Decl.getName()).map_error(ReportError));
+  EXPECTED_TRY(validateVersionSuffix(CName, Decl.getVersionSuffix(),
+                                     Decl.hasVersionSuffix(),
+                                     "ImportDecl"sv)
+                   .map_error(ReportError));
 
   // Annotated plainnames can only appear on func imports.
   switch (CName.getKind()) {
@@ -2096,6 +2168,14 @@ Validator::validate(const AST::Component::ExportDecl &Decl) noexcept {
                  spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
                  return E;
                }));
+  EXPECTED_TRY(validateVersionSuffix(CName, Decl.getVersionSuffix(),
+                                     Decl.hasVersionSuffix(),
+                                     "ExportDecl"sv)
+                   .map_error([](auto E) {
+                     spdlog::error(
+                         ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
+                     return E;
+                   }));
   if (!CompCtx.addExportedName(CName)) {
     spdlog::error(ErrCode::Value::ComponentDuplicateName);
     spdlog::error("    ExportDecl: Duplicate export name '{}'"sv,

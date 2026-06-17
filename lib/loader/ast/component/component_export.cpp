@@ -9,12 +9,14 @@ namespace Loader {
 Expect<void> Loader::loadExport(AST::Component::Export &Ex) {
   // export      ::= en:<exportname'> si:<sortidx> ed?:<externdesc>?
   //               => (export en si ed?)
-  // exportname' ::= 0x00 len:<u32> en:<exportname>
-  //               => en  (if len = |en|)
 
-  EXPECTED_TRY(loadExternName(Ex.getName()).map_error([this](auto E) {
-    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Export);
-  }));
+  EXPECTED_TRY(bool HasVersionSuffix,
+               loadExternName(Ex.getName(), Ex.getVersionSuffix())
+                   .map_error([this](auto E) {
+                     return logLoadError(E, FMgr.getLastOffset(),
+                                         ASTNodeAttr::Comp_Export);
+                   }));
+  Ex.setHasVersionSuffix(HasVersionSuffix);
   EXPECTED_TRY(loadSortIndex(Ex.getSortIndex()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Export));
     return E;

@@ -44,19 +44,33 @@ private:
 
 // core:inlineexport   ::= n:<core:name> si:<core:sortidx>
 //                       => (export n si)
-// inlineexport        ::= n:<exportname> si:<sortidx>
+// inlineexport        ::= n:<exportname'> si:<sortidx>
 //                       => (export n si)
+// exportname'         ::= 0x00 len:<u32> en:<exportname> => en
+//                       | 0x01 len:<u32> en:<exportname> => en
+//                       | 0x02 len:<u32> in:<importname>
+//                         opts:vec(<nameopt>)            => in opts
+// nameopt             ::= 0x00 len:<u32> n:<interfacename>
+//                         => (implements n)
+//                       | 0x01 len:<u32> vs:<semversuffix>
+//                         => (versionsuffix vs)
 
 /// AST Component::InlineExport class.
 class InlineExport {
 public:
   std::string_view getName() const noexcept { return Name; }
   std::string &getName() noexcept { return Name; }
+  std::string_view getVersionSuffix() const noexcept { return VersionSuffix; }
+  std::string &getVersionSuffix() noexcept { return VersionSuffix; }
+  bool hasVersionSuffix() const noexcept { return HasVersionSuffix; }
+  void setHasVersionSuffix(bool Has) noexcept { HasVersionSuffix = Has; }
   const SortIndex &getSortIdx() const noexcept { return SortIdx; }
   SortIndex &getSortIdx() noexcept { return SortIdx; }
 
 private:
   std::string Name;
+  std::string VersionSuffix;
+  bool HasVersionSuffix = false;
   SortIndex SortIdx;
 };
 

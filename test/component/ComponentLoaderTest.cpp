@@ -451,6 +451,268 @@ TEST(ComponentNameParserTest, StronglyUniqueWithNewKinds) {
   EXPECT_TRUE(add("wasi:http/handler"sv));
 }
 
+TEST(ComponentLoaderTest, ImportNameWithVersionSuffix) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // component preamble
+  // section 10 import, payload size 0x1d
+  //   vec length 1
+  //   importname' 0x02
+  //     name length 0x13, "wasi:http/types@0.2"
+  //     nameopt vec length 1
+  //       versionsuffix length 0x02, ".0"
+  //   externdesc 0x03, typebound 0x01 (sub resource)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x0a, 0x1d, 0x01, 0x02, 0x13, 0x77, 0x61, 0x73,
+      0x69, 0x3a, 0x68, 0x74, 0x74, 0x70, 0x2f, 0x74,
+      0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x01, 0x01, 0x02, 0x2e, 0x30, 0x03, 0x01,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &Sec = std::get<WasmEdge::AST::Component::ImportSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  EXPECT_EQ(Sec.getContent()[0].getName(), "wasi:http/types@0.2"sv);
+  EXPECT_TRUE(Sec.getContent()[0].hasVersionSuffix());
+  EXPECT_EQ(Sec.getContent()[0].getVersionSuffix(), ".0"sv);
+}
+
+TEST(ComponentLoaderTest, ExportNameWithVersionSuffix) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // component preamble
+  // section 11 export, payload size 0x1e
+  //   vec length 1
+  //   exportname' 0x02
+  //     name length 0x13, "wasi:http/types@0.2"
+  //     nameopt vec length 1
+  //       versionsuffix length 0x02, ".0"
+  //   sortidx 0x03 0x00 (type 0)
+  //   optional externdesc 0x00 (absent)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x0b, 0x1e, 0x01, 0x02, 0x13, 0x77, 0x61, 0x73,
+      0x69, 0x3a, 0x68, 0x74, 0x74, 0x70, 0x2f, 0x74,
+      0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x01, 0x01, 0x02, 0x2e, 0x30, 0x03, 0x00, 0x00,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &Sec = std::get<WasmEdge::AST::Component::ExportSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  EXPECT_EQ(Sec.getContent()[0].getName(), "wasi:http/types@0.2"sv);
+  EXPECT_TRUE(Sec.getContent()[0].hasVersionSuffix());
+  EXPECT_EQ(Sec.getContent()[0].getVersionSuffix(), ".0"sv);
+}
+
+TEST(ComponentLoaderTest, ExportNameDecodesAllSpecCases) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // component preamble
+  // section 11 export, payload size 0x2e
+  //   vec length 3
+  //   exportname' 0x00
+  //     name length 0x03, "foo"
+  //     sortidx 0x03 0x00 (type 0)
+  //     optional externdesc 0x00 (absent)
+  //   exportname' 0x01
+  //     name length 0x03, "bar"
+  //     sortidx 0x03 0x00 (type 0)
+  //     optional externdesc 0x00 (absent)
+  //   exportname' 0x02
+  //     name length 0x13, "wasi:http/types@0.2"
+  //     nameopt vec length 1
+  //       versionsuffix length 0x02, ".0"
+  //     sortidx 0x03 0x00 (type 0)
+  //     optional externdesc 0x00 (absent)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x0b, 0x2e, 0x03, 0x00, 0x03, 0x66, 0x6f, 0x6f,
+      0x03, 0x00, 0x00, 0x01, 0x03, 0x62, 0x61, 0x72,
+      0x03, 0x00, 0x00, 0x02, 0x13, 0x77, 0x61, 0x73,
+      0x69, 0x3a, 0x68, 0x74, 0x74, 0x70, 0x2f, 0x74,
+      0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x01, 0x01, 0x02, 0x2e, 0x30, 0x03, 0x00, 0x00,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &Sec = std::get<WasmEdge::AST::Component::ExportSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 3U);
+  EXPECT_EQ(Sec.getContent()[0].getName(), "foo"sv);
+  EXPECT_FALSE(Sec.getContent()[0].hasVersionSuffix());
+  EXPECT_EQ(Sec.getContent()[0].getVersionSuffix(), ""sv);
+  EXPECT_EQ(Sec.getContent()[1].getName(), "bar"sv);
+  EXPECT_FALSE(Sec.getContent()[1].hasVersionSuffix());
+  EXPECT_EQ(Sec.getContent()[1].getVersionSuffix(), ""sv);
+  EXPECT_EQ(Sec.getContent()[2].getName(), "wasi:http/types@0.2"sv);
+  EXPECT_TRUE(Sec.getContent()[2].hasVersionSuffix());
+  EXPECT_EQ(Sec.getContent()[2].getVersionSuffix(), ".0"sv);
+}
+
+TEST(ComponentLoaderTest, ImportNameWithEmptyVersionSuffix) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // component preamble
+  // section 10 import, payload size 0x1d
+  //   vec length 1
+  //   importname' 0x02
+  //     name length 0x15, "wasi:http/types@0.0.0"
+  //     nameopt vec length 1
+  //       versionsuffix length 0x00, ""
+  //   externdesc 0x03, typebound 0x01 (sub resource)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x0a, 0x1d, 0x01, 0x02, 0x15, 0x77, 0x61, 0x73,
+      0x69, 0x3a, 0x68, 0x74, 0x74, 0x70, 0x2f, 0x74,
+      0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x30,
+      0x2e, 0x30, 0x01, 0x01, 0x00, 0x03, 0x01,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &Sec = std::get<WasmEdge::AST::Component::ImportSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  EXPECT_EQ(Sec.getContent()[0].getName(), "wasi:http/types@0.0.0"sv);
+  EXPECT_TRUE(Sec.getContent()[0].hasVersionSuffix());
+  EXPECT_EQ(Sec.getContent()[0].getVersionSuffix(), ""sv);
+}
+
+TEST(ComponentLoaderTest, ImportNameWithImplementsAndVersionSuffix) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // component preamble
+  // section 10 import, payload size 0x34
+  //   vec length 1
+  //   importname' 0x02
+  //     name length 0x13, "wasi:http/types@0.2"
+  //     nameopt vec length 2
+  //       implements length 0x15, "wasi:http/types@0.2.0"
+  //       versionsuffix length 0x02, ".0"
+  //   externdesc 0x03, typebound 0x01 (sub resource)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x0a, 0x34, 0x01, 0x02, 0x13, 0x77, 0x61, 0x73,
+      0x69, 0x3a, 0x68, 0x74, 0x74, 0x70, 0x2f, 0x74,
+      0x79, 0x70, 0x65, 0x73, 0x40, 0x30, 0x2e, 0x32,
+      0x02, 0x00, 0x15, 0x77, 0x61, 0x73, 0x69, 0x3a,
+      0x68, 0x74, 0x74, 0x70, 0x2f, 0x74, 0x79, 0x70,
+      0x65, 0x73, 0x40, 0x30, 0x2e, 0x32, 0x2e, 0x30,
+      0x01, 0x02, 0x2e, 0x30, 0x03, 0x01,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &Sec = std::get<WasmEdge::AST::Component::ImportSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  EXPECT_EQ(Sec.getContent()[0].getName(), "wasi:http/types@0.2"sv);
+  EXPECT_TRUE(Sec.getContent()[0].hasVersionSuffix());
+  EXPECT_EQ(Sec.getContent()[0].getVersionSuffix(), ".0"sv);
+}
+
+TEST(ComponentLoaderTest, InlineExportNameWithVersionSuffix) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // component preamble
+  // section 5 instance, payload size 0x1f
+  //   vec length 1
+  //   instanceexpr 0x01 (inline exports)
+  //   inline export vec length 1
+  //   exportname' 0x02
+  //     name length 0x13, "wasi:http/types@0.2"
+  //     nameopt vec length 1
+  //       versionsuffix length 0x02, ".0"
+  //   sortidx 0x03 0x00 (type 0)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x05, 0x1f, 0x01, 0x01, 0x01, 0x02, 0x13, 0x77,
+      0x61, 0x73, 0x69, 0x3a, 0x68, 0x74, 0x74, 0x70,
+      0x2f, 0x74, 0x79, 0x70, 0x65, 0x73, 0x40, 0x30,
+      0x2e, 0x32, 0x01, 0x01, 0x02, 0x2e, 0x30, 0x03,
+      0x00,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &Sec = std::get<WasmEdge::AST::Component::InstanceSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  ASSERT_TRUE(Sec.getContent()[0].isInlineExport());
+  const auto Exports = Sec.getContent()[0].getInlineExports();
+  ASSERT_EQ(Exports.size(), 1U);
+  EXPECT_EQ(Exports[0].getName(), "wasi:http/types@0.2"sv);
+  EXPECT_TRUE(Exports[0].hasVersionSuffix());
+  EXPECT_EQ(Exports[0].getVersionSuffix(), ".0"sv);
+}
+
+TEST(ComponentLoaderTest, ImportNameWithoutVersionSuffix) {
+  WasmEdge::Configure Conf;
+  Conf.addProposal(WasmEdge::Proposal::Component);
+  WasmEdge::Loader::Loader Loader(Conf);
+
+  // component preamble
+  // section 10 import, payload size 0x08
+  //   vec length 1
+  //   importname' 0x00
+  //     name length 0x03, "foo"
+  //   externdesc 0x03, typebound 0x01 (sub resource)
+  std::vector<uint8_t> Vec = {
+      0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x01, 0x00,
+      0x0a, 0x08, 0x01, 0x00, 0x03, 0x66, 0x6f, 0x6f,
+      0x03, 0x01,
+  };
+
+  auto Res = Loader.parseWasmUnit(Vec);
+  ASSERT_TRUE(Res);
+  auto *Comp =
+      std::get_if<std::unique_ptr<WasmEdge::AST::Component::Component>>(&*Res);
+  ASSERT_NE(Comp, nullptr);
+  const auto &Sec = std::get<WasmEdge::AST::Component::ImportSection>(
+      (*Comp)->getSections()[0]);
+  ASSERT_EQ(Sec.getContent().size(), 1U);
+  EXPECT_EQ(Sec.getContent()[0].getName(), "foo"sv);
+  EXPECT_FALSE(Sec.getContent()[0].hasVersionSuffix());
+  EXPECT_EQ(Sec.getContent()[0].getVersionSuffix(), ""sv);
+}
+
 TEST(ComponentLoaderTest, AsyncFuncType) {
   WasmEdge::Configure Conf;
   Conf.addProposal(WasmEdge::Proposal::Component);

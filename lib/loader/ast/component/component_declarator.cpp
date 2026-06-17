@@ -84,11 +84,14 @@ Expect<void> Loader::loadDecl(AST::Component::CoreModuleDecl &Decl) {
 
 Expect<void> Loader::loadDecl(AST::Component::ImportDecl &Decl) {
   // importdecl  ::= in:<importname'> ed:<externdesc> => (import in ed)
-  // importname' ::= 0x00 len:<u32> in:<importname>   => in (if len = |in|)
 
-  EXPECTED_TRY(loadExternName(Decl.getName()).map_error([this](auto E) {
-    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Decl_Import);
-  }));
+  EXPECTED_TRY(bool HasVersionSuffix,
+               loadExternName(Decl.getName(), Decl.getVersionSuffix())
+                   .map_error([this](auto E) {
+                     return logLoadError(E, FMgr.getLastOffset(),
+                                         ASTNodeAttr::Comp_Decl_Import);
+                   }));
+  Decl.setHasVersionSuffix(HasVersionSuffix);
   return loadDesc(Decl.getExternDesc()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Import));
     return E;
@@ -97,11 +100,14 @@ Expect<void> Loader::loadDecl(AST::Component::ImportDecl &Decl) {
 
 Expect<void> Loader::loadDecl(AST::Component::ExportDecl &Decl) {
   // exportdecl  ::= en:<exportname'> ed:<externdesc> => (export en ed)
-  // exportname' ::= 0x00 len:<u32> en:<exportname>   => en (if len = |en|)
 
-  EXPECTED_TRY(loadExternName(Decl.getName()).map_error([this](auto E) {
-    return logLoadError(E, FMgr.getLastOffset(), ASTNodeAttr::Comp_Decl_Export);
-  }));
+  EXPECTED_TRY(bool HasVersionSuffix,
+               loadExternName(Decl.getName(), Decl.getVersionSuffix())
+                   .map_error([this](auto E) {
+                     return logLoadError(E, FMgr.getLastOffset(),
+                                         ASTNodeAttr::Comp_Decl_Export);
+                   }));
+  Decl.setHasVersionSuffix(HasVersionSuffix);
   return loadDesc(Decl.getExternDesc()).map_error([](auto E) {
     spdlog::error(ErrInfo::InfoAST(ASTNodeAttr::Comp_Decl_Export));
     return E;

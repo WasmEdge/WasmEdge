@@ -18,6 +18,92 @@ Configure Conf = []() {
   return C;
 }();
 
+AST::Component::Component makeImportWithVersionSuffix(std::string_view Name,
+                                                      std::string_view Suffix) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::ImportSection>();
+  auto &ImpSec =
+      std::get<AST::Component::ImportSection>(Comp.getSections().back());
+  ImpSec.getContent().emplace_back();
+  auto &Imp = ImpSec.getContent().back();
+  Imp.getName() = Name;
+  Imp.getVersionSuffix() = Suffix;
+  Imp.setHasVersionSuffix(true);
+  Imp.getDesc().setTypeBound();
+  return Comp;
+}
+
+TEST(ComponentValidatorTest, VersionSuffixOnInterfaceName) {
+  auto Comp =
+      makeImportWithVersionSuffix("wasi:http/types@0.2"sv, ".0"sv);
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, VersionSuffixOnNonInterfaceName) {
+  auto Comp = makeImportWithVersionSuffix("plain-name"sv, ".0"sv);
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), ErrCode::Value::ComponentInvalidName);
+}
+
+TEST(ComponentValidatorTest, VersionSuffixProducingInvalidSemver) {
+  auto Comp =
+      makeImportWithVersionSuffix("wasi:http/types@0.2"sv, ".01"sv);
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), ErrCode::Value::ComponentInvalidName);
+}
+
+TEST(ComponentValidatorTest, EmptyVersionSuffixOnFullCanonVersion) {
+  auto Comp =
+      makeImportWithVersionSuffix("wasi:http/types@0.0.0"sv, ""sv);
+
+  Validator::Validator V(Conf);
+  ASSERT_TRUE(V.validate(Comp));
+}
+
+TEST(ComponentValidatorTest, EmptyVersionSuffixWithIncompleteSemver) {
+  auto Comp = makeImportWithVersionSuffix("wasi:http/types@1"sv, ""sv);
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), ErrCode::Value::ComponentInvalidName);
+}
+
+TEST(ComponentValidatorTest, VersionSuffixOnCoreInlineExport) {
+  AST::Component::Component Comp;
+  Comp.getSections().emplace_back();
+  Comp.getSections().back().emplace<AST::Component::CoreInstanceSection>();
+  auto &InstSec =
+      std::get<AST::Component::CoreInstanceSection>(Comp.getSections().back());
+
+  AST::Component::InlineExport Export;
+  Export.getName() = "plain-name";
+  Export.getVersionSuffix() = ".0";
+  Export.setHasVersionSuffix(true);
+  Export.getSortIdx().getSort().setIsCore(true);
+  Export.getSortIdx().getSort().setCoreSortType(
+      AST::Component::Sort::CoreSortType::Func);
+  Export.getSortIdx().setIdx(0);
+
+  AST::Component::CoreInstance Inst;
+  Inst.setInlineExports({Export});
+  InstSec.getContent().push_back(std::move(Inst));
+
+  Validator::Validator V(Conf);
+  auto Res = V.validate(Comp);
+  ASSERT_FALSE(Res);
+  EXPECT_EQ(Res.error().getEnum(), ErrCode::Value::ComponentInvalidName);
+}
+
 TEST(ComponentValidatorTest, MissingArgument) {
   AST::Component::Component Comp;
   // Add both sections first, then access by index to avoid invalidation.

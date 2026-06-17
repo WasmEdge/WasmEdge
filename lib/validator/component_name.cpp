@@ -182,11 +182,14 @@ size_t parseNumeric(std::string_view V) {
 // canonversion ::= [1-9] [0-9]*
 //                | '0.' [1-9] [0-9]*
 //                | '0.0.' [1-9] [0-9]*
-bool isCanonVersion(std::string_view V) {
+//                | '0.0.0'
+bool isCanonVersionImpl(std::string_view V) {
   if (V.empty())
     return false;
 
-  // canonversion ::= [1-9] [0-9]* | '0.' [1-9] [0-9]* | '0.0.' [1-9] [0-9]*
+  if (V == "0.0.0"sv)
+    return true;
+
   for (int I = 0; I < 3; I++) {
     if (V[0] >= '1' && V[0] <= '9') {
       size_t End = parseNumeric(V);
@@ -230,7 +233,7 @@ bool isPreReleaseOrBuild(std::string_view V, bool CheckLeadingZeros) {
 }
 
 // MAJOR.MINOR.PATCH[-prerelease][+build] per semver.org 2.0
-bool isValidSemver(std::string_view V) {
+bool isValidSemverImpl(std::string_view V) {
   if (V.empty())
     return false;
 
@@ -272,7 +275,7 @@ bool isValidSemver(std::string_view V) {
 }
 
 bool isVersion(std::string_view V) {
-  return isCanonVersion(V) || isValidSemver(V);
+  return isCanonVersionImpl(V) || isValidSemverImpl(V);
 }
 
 Unexpected<ErrCode> reportError(std::string_view Reason) {
@@ -331,6 +334,14 @@ Expect<PkgPath> parsePkgPath(std::string_view &Next,
 }
 
 } // anonymous namespace
+
+bool isCanonVersion(std::string_view Input) {
+  return isCanonVersionImpl(Input);
+}
+
+bool isValidSemver(std::string_view Input) {
+  return isValidSemverImpl(Input);
+}
 
 // exportname        ::= <plainname> | <interfacename>
 // importname        ::= <exportname> | <depname> | <urlname> | <hashname>
@@ -451,18 +462,18 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
             std::string_view Lower = (SpacePos == Remaining.npos)
                                          ? Remaining
                                          : Remaining.substr(0, SpacePos);
-            if (!isValidSemver(Lower))
+            if (!isValidSemverImpl(Lower))
               return false;
             if (SpacePos == Remaining.npos)
               return true;
             Remaining.remove_prefix(SpacePos + 1);
             if (!tryRead("<"sv, Remaining))
               return false;
-            return isValidSemver(Remaining);
+            return isValidSemverImpl(Remaining);
           }
 
           if (tryRead("<"sv, Remaining)) {
-            return isValidSemver(Remaining);
+            return isValidSemverImpl(Remaining);
           }
 
           return false;
@@ -504,7 +515,7 @@ Expect<ComponentName> ComponentName::parse(std::string_view Name) {
         return reportError("expected '>' after version in locked-dep"sv);
       Version = Next.substr(0, VerEnd);
       Next.remove_prefix(VerEnd);
-      if (!isValidSemver(Version))
+      if (!isValidSemverImpl(Version))
         return reportError("invalid semver in locked-dep"sv);
     }
 

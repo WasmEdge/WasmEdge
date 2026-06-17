@@ -6,17 +6,48 @@
 namespace WasmEdge {
 namespace Loader {
 
-Expect<void> Loader::loadExternName(std::string &Name) {
-  // importname' ::= 0x00 len:<u32> in:<importname> => in (if len = |in|)
-  // exportname' ::= 0x00 len:<u32> en:<exportname> => en (if len = |en|)
+Expect<bool> Loader::loadExternName(std::string &Name,
+                                    std::string &VersionSuffix) {
+  // importname' ::= 0x00 len:<u32> in:<importname> => in
+  //               | 0x01 len:<u32> in:<importname> => in
+  //               | 0x02 len:<u32> in:<importname> opts:vec(<nameopt>)
+  //                 => in opts
+  // exportname' ::= 0x00 len:<u32> en:<exportname> => en
+  //               | 0x01 len:<u32> en:<exportname> => en
+  //               | 0x02 len:<u32> in:<importname> opts:vec(<nameopt>)
+  //                 => in opts
+  // nameopt     ::= 0x00 len:<u32> n:<interfacename> => (implements n)
+  //               | 0x01 len:<u32> vs:<semversuffix> => (versionsuffix vs)
 
   // Error messages will be handled in the parent scope.
   EXPECTED_TRY(auto B, FMgr.readByte());
-  if (B != 0x00) {
+  if (B != 0x00 && B != 0x01 && B != 0x02) {
     return Unexpect(ErrCode::Value::MalformedName);
   }
   EXPECTED_TRY(Name, FMgr.readName());
-  return {};
+  VersionSuffix.clear();
+  if (B == 0x02) {
+    EXPECTED_TRY(uint32_t OptCnt, FMgr.readU32());
+    bool HasVersionSuffix = false;
+    for (uint32_t I = 0; I < OptCnt; I++) {
+      EXPECTED_TRY(uint8_t Opt, FMgr.readByte());
+      switch (Opt) {
+      case 0x00: {
+        EXPECTED_TRY(std::string ImplementedInterface, FMgr.readName());
+        break;
+      }
+      case 0x01: {
+        EXPECTED_TRY(VersionSuffix, FMgr.readName());
+        HasVersionSuffix = true;
+        break;
+      }
+      default:
+        return Unexpect(ErrCode::Value::MalformedName);
+      }
+    }
+    return HasVersionSuffix;
+  }
+  return false;
 }
 
 Expect<void> Loader::loadType(ComponentValType &Ty) {
